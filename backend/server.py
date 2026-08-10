@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+from email_service import send_lead_emails
 
 
 ROOT_DIR = Path(__file__).parent
@@ -50,13 +51,14 @@ async def root():
 
 
 @api_router.post("/contact", response_model=ContactMessage)
-async def create_contact(payload: ContactCreate):
+async def create_contact(payload: ContactCreate, background_tasks: BackgroundTasks):
     if not payload.name.strip() or not payload.message.strip():
         raise HTTPException(status_code=400, detail="Name and message are required")
     msg = ContactMessage(**payload.model_dump())
     doc = msg.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     await db.contact_messages.insert_one(doc)
+    background_tasks.add_task(send_lead_emails, msg.model_dump(mode="json"), True)
     return msg
 
 
