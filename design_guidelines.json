@@ -1,0 +1,120 @@
+{
+  "theme": "dark",
+  "typography": {
+    "headings": {
+      "family": "Cormorant Garamond, serif",
+      "weights": ["400", "500", "600", "700"],
+      "usage_rules": "Use for all large headings (H1, H2), manifesto numbers, and the editorial marquee. Apply 'tracking-tight' for sizes above 32px. Use italic variants for emphasis in the manifesto.",
+      "google_font_url": "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap"
+    },
+    "body": {
+      "family": "IBM Plex Sans, sans-serif",
+      "weights": ["300", "400", "500", "600"],
+      "usage_rules": "Use for all data tables, metric cards, paragraphs, and functional UI elements. Provides a crisp, objective 'Swiss' contrast to the elegant serif headings.",
+      "google_font_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+    }
+  },
+  "colors": {
+    "background": {
+      "default": "#050E1D",
+      "surface": "#0A1E3F",
+      "surface_elevated": "#0F2A5C"
+    },
+    "text": {
+      "primary": "#F8FAFC",
+      "secondary": "#94A3B8",
+      "muted": "#64748B"
+    },
+    "brand": {
+      "primary": "#F5A623",
+      "primary_hover": "#E19212",
+      "accent": "#D4AF37"
+    },
+    "metrics": {
+      "positive": "#10B981",
+      "negative": "#EF4444",
+      "warning": "#F59E0B"
+    },
+    "borders": {
+      "subtle": "rgba(255,255,255,0.1)",
+      "focus": "#F5A623"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing + High-Density Grid for Data.",
+    "section_padding": "py-24 md:py-32",
+    "dashboard_grid": "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6.",
+    "rules": [
+      "No centered layouts for text-heavy sections. Left-align for editorial feel.",
+      "Containers with borders must have p-6 or p-8 internal padding.",
+      "Hero section MUST use a kinetic staggered line-by-line reveal using Framer Motion.",
+      "Use optical alignment for icons/buttons."
+    ]
+  },
+  "motion_and_interactions": {
+    "scrolling": "Use @studio-freight/react-lenis for smooth momentum scrolling. This is MANDATORY for the premium feel.",
+    "hero_reveal": "Masked line-by-line text reveal. Apply 'overflow-hidden' on wrappers, and animate 'translate-y-full' to 'translate-y-0' on children.",
+    "marquee": "Use react-fast-marquee. Slow speed (20-30). Font: Cormorant Garamond italic. Huge text (text-6xl or text-7xl) with low opacity or stroke-only for background texture.",
+    "hover_states": "Cards should subtly lift (-translate-y-1) and increase border opacity. Buttons must have explicit hover text colors."
+  },
+  "components": {
+    "hero": {
+      "description": "Full height (min-h-screen). Deep navy background with subtle gold 3D abstract texture. Huge typographic focus.",
+      "elements": "Name (Nishant Jain), tagline (Independent Equity Investor & Researcher), 'Scroll to explore' indicator."
+    },
+    "dashboard_cards": {
+      "style": "Solid #0A1E3F background (no glassmorphism for data clarity). 1px border border-white/10. Sharp or max rounded-lg.",
+      "data_colors": "Use specific metric colors. Recharts for charts, with dark-mode specific axis colors (stroke='#94A3B8') and custom tooltips with #0A1E3F backgrounds."
+    },
+    "manifesto_section": {
+      "style": "Numbered chapters (Idea Generation -> Exit Discipline). Massive serif numerals in #F5A623 or white/10. Staggered fade-in on scroll."
+    },
+    "contact_form": {
+      "style": "Use Shadcn Form/Input logic, but styled for marketing. Customize inputs to have transparent backgrounds with border-b border-white/20 (flushed look) or solid dark #0F2A5C blocks."
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1667832273606-c4a9e46c7d1a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGdvbGQlMjBuYXZ5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODYzNjgyMDR8MA&ixlib=rb-4.1.0&q=85",
+        "category": "hero_background",
+        "description": "Abstract wavy gold/navy pattern. Use with low opacity (10-20%) or blend-mode behind the hero text."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzc21hbiUyMGRhcmslMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NjM2ODIwNHww&ixlib=rb-4.1.0&q=85",
+        "category": "portrait",
+        "description": "Professional portrait for the 'About/Services' section. Use a spotlight or clipped frame effect."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1767132256118-23c6ee6e9fdc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwzfHxmaW5hbmNlJTIwc3RvY2slMjBtYXJrZXQlMjBhYnN0cmFjdCUyMGRhcmt8ZW58MHx8fHwxNzg2MzY4MjA0fDA&ixlib=rb-4.1.0&q=85",
+        "category": "texture_accent",
+        "description": "Abstract golden light streaks. Use for manifesto backgrounds or form section."
+      }
+    ]
+  },
+  "libraries": {
+    "required": [
+      "framer-motion",
+      "@studio-freight/react-lenis",
+      "recharts",
+      "react-fast-marquee",
+      "lucide-react",
+      "clsx",
+      "tailwind-merge",
+      "sonner"
+    ]
+  },
+  "testing": {
+    "rules": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., `data-testid='contact-submit-button'`, `data-testid='metric-xirr'`)."
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: The codebase uses .js/.jsx files. DO NOT use TypeScript (.tsx/.ts). Write all components in standard React JavaScript.",
+    "Do not use transparent backgrounds for the sticky header. Use glassmorphism: `bg-[#050E1D]/80 backdrop-blur-md`.",
+    "Dashboard charts must use Recharts. Make sure to define a CustomTooltip to match the dark theme.",
+    "Do not center align paragraphs. Always left-align for a professional editorial feel.",
+    "Ensure color contrast is WCAG AA compliant. Gold on Navy is great, but watch out for dark text on dark backgrounds.",
+    "Do not use generic robot/emoji icons. Use lucide-react with thin stroke widths (strokeWidth={1.5}).",
+    "Use sonner for toast notifications."
+  ],
+  "universal_guidelines": "Follow the 'Old Money Tech' aesthetic. Precision and elegance. Eliminate all unnecessary gradients. Let the typography and data speak. Add micro-interactions (e.g., hover states on data rows). Create depth through layered design elements with z-index hierarchy."
+}
