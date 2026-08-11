@@ -35,6 +35,7 @@ def _alert_html(lead):
             {_row("Name", lead.get("name"))}
             {_row("Email", lead.get("email"))}
             {_row("Phone", lead.get("phone"))}
+            {_row("Subject", lead.get("subject"))}
             {_row("Investment Size", lead.get("investment_size"))}
           </table>
           <div style="margin:18px 12px 0;color:#64748B;font-size:13px;">Message</div>
@@ -97,7 +98,7 @@ async def send_lead_emails(lead: dict, auto_reply: bool = True):
             await asyncio.to_thread(
                 _send_sync,
                 LEAD_ALERT_EMAIL,
-                f"New PMS enquiry — {lead.get('name','')}",
+                f"New enquiry — {lead.get('subject') or lead.get('name','')}",
                 _alert_html(lead),
                 lead.get("email"),
             )

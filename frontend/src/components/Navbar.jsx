@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const links = [
   { id: "services", label: "About" },
@@ -13,6 +14,8 @@ const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
 
 export default function Navbar() {
   const lenis = useLenis();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -22,15 +25,31 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const go = (id) => {
-    setOpen(false);
-    if (id === "top") {
-      if (lenis) lenis.scrollTo(0);
-      else window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
+  const scrollToId = (id) => {
     if (lenis) lenis.scrollTo(`#${id}`, { offset: -70 });
     else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const go = (id) => {
+    setOpen(false);
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => scrollToId(id), 500);
+    } else {
+      scrollToId(id);
+    }
+  };
+
+  const goHome = () => {
+    setOpen(false);
+    if (location.pathname !== "/") navigate("/");
+    else if (lenis) lenis.scrollTo(0);
+    else window.scrollTo(0, 0);
+  };
+
+  const goContact = () => {
+    setOpen(false);
+    navigate("/contact");
   };
 
   return (
@@ -41,11 +60,7 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 md:h-20 flex items-center justify-between">
-        <button
-          data-testid="nav-logo"
-          onClick={() => (lenis ? lenis.scrollTo(0) : window.scrollTo(0, 0))}
-          className="text-left"
-        >
+        <button data-testid="nav-logo" onClick={goHome} className="text-left">
           <span className="font-serif-display text-xl md:text-2xl text-white tracking-tight">
             Nishant Jain
           </span>
@@ -67,10 +82,10 @@ export default function Navbar() {
           ))}
           <button
             data-testid="nav-cta"
-            onClick={() => go("contact")}
+            onClick={goContact}
             className="px-5 py-2 rounded-full bg-[#F5A623] text-[#050E1D] text-sm font-medium hover:bg-[#E19212] transition-colors"
           >
-            Work with me
+            Contact
           </button>
         </nav>
 
@@ -95,6 +110,13 @@ export default function Navbar() {
               {l.label}
             </button>
           ))}
+          <button
+            data-testid="nav-mobile-contact"
+            onClick={goContact}
+            className="text-left text-[#F5A623] font-medium"
+          >
+            Contact
+          </button>
         </div>
       )}
     </header>

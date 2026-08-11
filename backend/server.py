@@ -33,6 +33,7 @@ class ContactMessage(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     investment_size: Optional[str] = None
+    subject: Optional[str] = None
     message: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -42,6 +43,7 @@ class ContactCreate(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     investment_size: Optional[str] = None
+    subject: Optional[str] = None
     message: str
 
 

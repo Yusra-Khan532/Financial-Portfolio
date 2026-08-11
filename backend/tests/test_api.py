@@ -30,6 +30,7 @@ def test_contact_post_success_and_persistence(client):
         "email": "test_investor@example.com",
         "phone": "+911234567890",
         "investment_size": "₹1 Cr – ₹5 Cr",
+        "subject": "TEST_SUBJECT Research discussion",
         "message": "TEST_MSG please contact me about PMS.",
     }
     r = client.post(f"{API}/contact", json=payload, timeout=30)
@@ -39,6 +40,7 @@ def test_contact_post_success_and_persistence(client):
     assert data["email"] == payload["email"]
     assert data["message"] == payload["message"]
     assert data["investment_size"] == payload["investment_size"]
+    assert data["subject"] == payload["subject"]
     assert "id" in data and isinstance(data["id"], str)
     assert "created_at" in data
 
@@ -49,6 +51,10 @@ def test_contact_post_success_and_persistence(client):
     assert isinstance(items, list)
     ids = [i["id"] for i in items]
     assert data["id"] in ids
+    # verify subject persisted in list
+    found = next((i for i in items if i["id"] == data["id"]), None)
+    assert found is not None
+    assert found.get("subject") == payload["subject"]
 
 
 def test_contact_post_invalid_email(client):
