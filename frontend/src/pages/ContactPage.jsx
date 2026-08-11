@@ -71,7 +71,8 @@ export default function ContactPage() {
       setForm(empty);
       setTouched(false);
     } catch (err) {
-      setFailed(true);
+      const detail = err?.response?.data?.detail;
+      setFailed(typeof detail === "string" ? detail : true);
     } finally {
       setLoading(false);
     }
@@ -229,7 +230,9 @@ export default function ContactPage() {
 
               {failed && (
                 <p data-testid="contactpage-send-error" className="text-sm text-[#F87171]">
-                  Something went wrong while sending your message. Please try again.
+                  {typeof failed === "string"
+                    ? failed
+                    : "Something went wrong while sending your message. Please try again."}
                 </p>
               )}
 
