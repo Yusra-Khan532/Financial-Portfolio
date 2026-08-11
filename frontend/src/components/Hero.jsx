@@ -23,49 +23,76 @@ const MaskLine = ({ children, className }) => (
 );
 
 const CompoundingVisual = () => (
-  <svg viewBox="0 0 480 460" fill="none" className="w-full h-auto" aria-hidden="true">
-    <defs>
-      <linearGradient id="heroArea" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#F5A623" stopOpacity="0.20" />
-        <stop offset="100%" stopColor="#F5A623" stopOpacity="0" />
-      </linearGradient>
-      <linearGradient id="heroLine" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0%" stopColor="#D4AF37" />
-        <stop offset="100%" stopColor="#F5A623" />
-      </linearGradient>
-    </defs>
+  <div className="relative">
+    <svg viewBox="0 0 480 480" fill="none" className="w-full h-auto" aria-hidden="true">
+      <defs>
+        <linearGradient id="heroContour" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.35" />
+          <stop offset="55%" stopColor="#F5A623" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#F5A623" stopOpacity="0.25" />
+        </linearGradient>
+        <radialGradient id="heroGlow" cx="62%" cy="42%" r="55%">
+          <stop offset="0%" stopColor="#0F2A5C" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#050E1D" stopOpacity="0" />
+        </radialGradient>
+      </defs>
 
-    {/* faint analytical grid */}
-    <g stroke="rgba(255,255,255,0.06)" strokeWidth="1">
-      {[80, 160, 240, 320, 400].map((y) => (
-        <line key={`h${y}`} x1="20" y1={y} x2="460" y2={y} />
-      ))}
-      {[100, 200, 300, 400].map((x) => (
-        <line key={`v${x}`} x1={x} y1="40" x2={x} y2="420" />
-      ))}
-    </g>
+      {/* soft navy-on-navy depth */}
+      <circle cx="300" cy="200" r="230" fill="url(#heroGlow)" />
 
-    {/* compounding area + curve */}
-    <path
-      d="M20 400 C 120 390, 190 350, 250 280 C 300 220, 340 150, 460 60 L 460 420 L 20 420 Z"
-      fill="url(#heroArea)"
-    />
-    <motion.path
-      d="M20 400 C 120 390, 190 350, 250 280 C 300 220, 340 150, 460 60"
-      stroke="url(#heroLine)"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      initial={{ pathLength: 0, opacity: 0 }}
-      animate={{ pathLength: 1, opacity: 1 }}
-      transition={{ delay: 0.6, duration: 1.8, ease: "easeInOut" }}
-    />
-    <motion.circle
-      cx="460" cy="60" r="5" fill="#F5A623"
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 2.2, duration: 0.5 }}
-    />
-  </svg>
+      {/* faint analytical grid */}
+      <g stroke="rgba(255,255,255,0.045)" strokeWidth="1">
+        {[70, 140, 210, 280, 350, 420].map((y) => (
+          <line key={`h${y}`} x1="20" y1={y} x2="470" y2={y} />
+        ))}
+        {[80, 160, 240, 320, 400].map((x) => (
+          <line key={`v${x}`} x1={x} y1="30" x2={x} y2="440" />
+        ))}
+      </g>
+
+      {/* topographic contour rings */}
+      <g stroke="rgba(148,163,184,0.10)" strokeWidth="1" fill="none">
+        <ellipse cx="300" cy="230" rx="70" ry="52" />
+        <ellipse cx="296" cy="228" rx="118" ry="92" transform="rotate(-8 296 228)" />
+        <ellipse cx="290" cy="226" rx="168" ry="134" transform="rotate(-8 290 226)" />
+        <ellipse cx="284" cy="224" rx="220" ry="178" transform="rotate(-8 284 224)" />
+      </g>
+
+      {/* one restrained gold trajectory */}
+      <motion.path
+        d="M40 430 C 150 400, 220 360, 280 280 C 330 214, 360 150, 460 70"
+        stroke="url(#heroContour)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ delay: 0.6, duration: 2, ease: "easeInOut" }}
+      />
+
+      {/* tiny editorial annotation */}
+      <text
+        x="352" y="132"
+        fill="#94A3B8"
+        fontSize="10"
+        letterSpacing="3"
+        fontFamily="'IBM Plex Sans', sans-serif"
+        opacity="0.7"
+      >
+        LONG-TERM
+      </text>
+      <text
+        x="352" y="148"
+        fill="#F5A623"
+        fontSize="10"
+        letterSpacing="3"
+        fontFamily="'IBM Plex Sans', sans-serif"
+        opacity="0.8"
+      >
+        COMPOUNDING
+      </text>
+    </svg>
+  </div>
 );
 
 export default function Hero() {
@@ -91,7 +118,7 @@ export default function Hero() {
 
       <motion.div
         style={{ opacity }}
-        className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 w-full pt-28 pb-16 md:pt-24"
+        className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 w-full pt-24 pb-14"
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-10">
           {/* LEFT — content */}
@@ -101,11 +128,11 @@ export default function Hero() {
                 Equity Research · Portfolio Management
               </MaskLine>
 
-              <h1 className="font-serif-display text-white leading-[0.95] tracking-tight text-6xl sm:text-7xl lg:text-7xl xl:text-8xl">
+              <h1 className="font-serif-display text-white leading-[0.95] tracking-tight text-6xl sm:text-7xl lg:text-7xl xl:text-[5.5rem]">
                 <MaskLine className="whitespace-nowrap">Nishant Jain</MaskLine>
               </h1>
 
-              <MaskLine className="mt-5 text-2xl md:text-3xl text-[#E2E8F0] font-serif-display italic">
+              <MaskLine className="mt-4 text-2xl lg:text-[1.7rem] text-[#E2E8F0] font-serif-display italic">
                 Independent Equity Investor &amp; Researcher
               </MaskLine>
             </motion.div>
@@ -114,7 +141,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.9, duration: 0.8 }}
-              className="mt-5 max-w-xl text-lg md:text-xl text-[#94A3B8] leading-relaxed"
+              className="mt-5 max-w-xl text-[18px] md:text-[19px] text-[#94A3B8] leading-relaxed"
             >
               I build concentrated, research-driven equity portfolios grounded in
               fundamental analysis — investing with a margin of safety and a
@@ -126,7 +153,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.05, duration: 0.8 }}
-              className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] md:text-[13px] uppercase tracking-[0.2em] text-[#94A3B8]"
+              className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] md:text-[13px] uppercase tracking-[0.18em] text-[#94A3B8]"
             >
               <span>IIT Kanpur</span>
               <span className="text-[#F5A623]/50">·</span>
@@ -139,19 +166,19 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.2, duration: 0.8 }}
-              className="mt-9 flex flex-col sm:flex-row sm:items-center gap-4"
+              className="mt-7 flex flex-col sm:flex-row sm:items-center gap-4"
             >
               <button
                 data-testid="hero-cta-portfolio"
                 onClick={() => scrollTo("performance")}
-                className="px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] text-base md:text-lg font-medium hover:bg-[#E19212] transition-colors"
+                className="px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] text-base md:text-[17px] font-medium hover:bg-[#E19212] transition-colors"
               >
                 View Portfolio
               </button>
               <button
                 data-testid="hero-cta-approach"
                 onClick={() => scrollTo("process")}
-                className="px-8 py-3.5 rounded-full border border-white/25 text-white text-base md:text-lg hover:border-[#F5A623] hover:text-[#F5A623] transition-colors"
+                className="px-8 py-3.5 rounded-full border border-white/25 text-white text-base md:text-[17px] hover:border-[#F5A623] hover:text-[#F5A623] transition-colors"
               >
                 Investment Approach
               </button>

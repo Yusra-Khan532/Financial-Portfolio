@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
 
 const links = [
-  { id: "top", label: "Home" },
   { id: "services", label: "About" },
   { id: "performance", label: "Portfolio" },
-  { id: "process", label: "Investment Approach" },
+  { id: "process", label: "Approach" },
   { id: "allocation", label: "Research" },
   { id: "services", label: "Services" },
-  { id: "contact", label: "Contact" },
 ];
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
@@ -56,7 +54,7 @@ export default function Navbar() {
           </span>
         </button>
 
-        <nav className="hidden lg:flex items-center gap-7">
+        <nav className="hidden lg:flex items-center gap-9">
           {links.map((l) => (
             <button
               key={l.label}
