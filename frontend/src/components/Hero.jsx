@@ -96,6 +96,20 @@ export default function Hero() {
               Investment Approach
             </button>
           </motion.div>
+
+          <motion.div
+            data-testid="hero-credentials"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.35, duration: 0.8 }}
+            className="mt-14 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-xs uppercase tracking-[0.2em] text-[#94A3B8]"
+          >
+            <span>IIT Kanpur</span>
+            <span className="hidden sm:inline text-[#F5A623]/50">·</span>
+            <span>CFA Level I Cleared</span>
+            <span className="hidden sm:inline text-[#F5A623]/50">·</span>
+            <span>NISM Certified Research Analyst</span>
+          </motion.div>
         </div>
       </motion.div>
 
