@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useReducedMotion, useMotionValue, useSpring } from "framer-motion";
 import { useRef } from "react";
 import { useLenis } from "lenis/react";
 
@@ -22,78 +22,111 @@ const MaskLine = ({ children, className }) => (
   </span>
 );
 
-const CompoundingVisual = () => (
-  <div className="relative">
-    <svg viewBox="0 0 480 480" fill="none" className="w-full h-auto" aria-hidden="true">
-      <defs>
-        <linearGradient id="heroContour" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.35" />
-          <stop offset="55%" stopColor="#F5A623" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#F5A623" stopOpacity="0.25" />
-        </linearGradient>
-        <radialGradient id="heroGlow" cx="62%" cy="42%" r="55%">
-          <stop offset="0%" stopColor="#0F2A5C" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#050E1D" stopOpacity="0" />
-        </radialGradient>
-      </defs>
+const IsoBlock = ({ cx, topY, halfH, h, delay, reduced }) => {
+  const halfV = halfH / 2;
+  const top = `M${cx},${topY + halfV} L${cx + halfH},${topY} L${cx},${topY - halfV} L${cx - halfH},${topY} Z`;
+  const left = `M${cx - halfH},${topY} L${cx},${topY + halfV} L${cx},${topY + halfV + h} L${cx - halfH},${topY + h} Z`;
+  const right = `M${cx},${topY + halfV} L${cx + halfH},${topY} L${cx + halfH},${topY + h} L${cx},${topY + halfV + h} Z`;
+  return (
+    <motion.g
+      initial={reduced ? false : { opacity: 0 }}
+      animate={reduced ? {} : { opacity: 1 }}
+      transition={{ delay, duration: 1.1, ease: "easeOut" }}
+    >
+      <path d={left} fill="#050B16" />
+      <path d={right} fill="#0A1E3F" />
+      <path d={top} fill="#12315f" />
+      <path d={top} fill="none" stroke="rgba(226,232,240,0.16)" strokeWidth="1" />
+      <path d={left} fill="none" stroke="rgba(226,232,240,0.05)" strokeWidth="1" />
+      <path d={right} fill="none" stroke="rgba(226,232,240,0.06)" strokeWidth="1" />
+    </motion.g>
+  );
+};
 
-      {/* soft navy-on-navy depth */}
-      <circle cx="300" cy="200" r="230" fill="url(#heroGlow)" />
+const CompoundingVisual = () => {
+  const reduced = useReducedMotion();
+  const ref = useRef(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 55, damping: 22 });
+  const sy = useSpring(my, { stiffness: 55, damping: 22 });
+  const fgX = useTransform(sx, [-0.5, 0.5], [4, -4]);
+  const fgY = useTransform(sy, [-0.5, 0.5], [3, -3]);
+  const bgX = useTransform(sx, [-0.5, 0.5], [1.5, -1.5]);
+  const bgY = useTransform(sy, [-0.5, 0.5], [1, -1]);
 
-      {/* faint analytical grid */}
-      <g stroke="rgba(255,255,255,0.045)" strokeWidth="1">
-        {[70, 140, 210, 280, 350, 420].map((y) => (
-          <line key={`h${y}`} x1="20" y1={y} x2="470" y2={y} />
-        ))}
-        {[80, 160, 240, 320, 400].map((x) => (
-          <line key={`v${x}`} x1={x} y1="30" x2={x} y2="440" />
-        ))}
-      </g>
+  const onMove = (e) => {
+    if (reduced) return;
+    const r = ref.current.getBoundingClientRect();
+    mx.set((e.clientX - r.left) / r.width - 0.5);
+    my.set((e.clientY - r.top) / r.height - 0.5);
+  };
+  const onLeave = () => {
+    mx.set(0);
+    my.set(0);
+  };
 
-      {/* topographic contour rings */}
-      <g stroke="rgba(148,163,184,0.10)" strokeWidth="1" fill="none">
-        <ellipse cx="300" cy="230" rx="70" ry="52" />
-        <ellipse cx="296" cy="228" rx="118" ry="92" transform="rotate(-8 296 228)" />
-        <ellipse cx="290" cy="226" rx="168" ry="134" transform="rotate(-8 290 226)" />
-        <ellipse cx="284" cy="224" rx="220" ry="178" transform="rotate(-8 284 224)" />
-      </g>
+  return (
+    <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} className="relative">
+      <svg viewBox="0 0 480 480" fill="none" className="w-full h-auto" aria-hidden="true">
+        <defs>
+          <radialGradient id="csGlow" cx="60%" cy="40%" r="55%">
+            <stop offset="0%" stopColor="#12315f" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#050E1D" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="csGold" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.2" />
+            <stop offset="55%" stopColor="#F5A623" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#F5A623" stopOpacity="0.15" />
+          </linearGradient>
+          <filter id="csBlur" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="10" />
+          </filter>
+        </defs>
 
-      {/* one restrained gold trajectory */}
-      <motion.path
-        d="M40 430 C 150 400, 220 360, 280 280 C 330 214, 360 150, 460 70"
-        stroke="url(#heroContour)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ delay: 0.6, duration: 2, ease: "easeInOut" }}
-      />
+        {/* background depth */}
+        <motion.g style={reduced ? undefined : { x: bgX, y: bgY }}>
+          <circle cx="290" cy="210" r="220" fill="url(#csGlow)" />
+          {/* soft directional ground shadows */}
+          <motion.g
+            initial={reduced ? false : { opacity: 0 }}
+            animate={reduced ? {} : { opacity: 0.5 }}
+            transition={{ delay: 0.2, duration: 1.2 }}
+          >
+            <ellipse cx="205" cy="440" rx="150" ry="24" fill="#03080f" filter="url(#csBlur)" />
+            <ellipse cx="330" cy="360" rx="90" ry="16" fill="#03080f" filter="url(#csBlur)" />
+          </motion.g>
+          <IsoBlock cx={175} topY={362} halfH={118} h={64} delay={0.35} reduced={reduced} />
+        </motion.g>
 
-      {/* tiny editorial annotation */}
-      <text
-        x="352" y="132"
-        fill="#94A3B8"
-        fontSize="10"
-        letterSpacing="3"
-        fontFamily="'IBM Plex Sans', sans-serif"
-        opacity="0.7"
-      >
-        LONG-TERM
-      </text>
-      <text
-        x="352" y="148"
-        fill="#F5A623"
-        fontSize="10"
-        letterSpacing="3"
-        fontFamily="'IBM Plex Sans', sans-serif"
-        opacity="0.8"
-      >
-        COMPOUNDING
-      </text>
-    </svg>
-  </div>
-);
+        {/* foreground stepped progression */}
+        <motion.g style={reduced ? undefined : { x: fgX, y: fgY }}>
+          <IsoBlock cx={244} topY={300} halfH={86} h={78} delay={0.7} reduced={reduced} />
+          <IsoBlock cx={306} topY={232} halfH={62} h={92} delay={1.05} reduced={reduced} />
+          <IsoBlock cx={358} topY={158} halfH={44} h={64} delay={1.4} reduced={reduced} />
+
+          {/* one restrained gold light along a structural edge */}
+          <motion.path
+            d="M293,362 L330,300 L368,232 L358,136"
+            stroke="url(#csGold)"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            fill="none"
+            initial={reduced ? { opacity: 0.5 } : { pathLength: 0, opacity: 0 }}
+            animate={reduced ? { opacity: 0.5 } : { pathLength: 1, opacity: 0.65 }}
+            transition={{ delay: 1.5, duration: 1.4, ease: "easeInOut" }}
+          />
+          <motion.circle
+            cx="358" cy="136" r="3" fill="#F5A623"
+            initial={reduced ? { opacity: 0.6 } : { opacity: 0, scale: 0 }}
+            animate={reduced ? { opacity: 0.6 } : { opacity: 0.8, scale: 1 }}
+            transition={{ delay: 2.7, duration: 0.5 }}
+          />
+        </motion.g>
+      </svg>
+    </div>
+  );
+};
 
 export default function Hero() {
   const ref = useRef(null);
