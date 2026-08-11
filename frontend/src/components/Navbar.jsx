@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
 
 const links = [
-  { id: "performance", label: "Performance" },
-  { id: "allocation", label: "Allocation" },
-  { id: "holdings", label: "Holdings" },
-  { id: "process", label: "Process" },
+  { id: "top", label: "Home" },
+  { id: "services", label: "About" },
+  { id: "performance", label: "Portfolio" },
+  { id: "process", label: "Investment Approach" },
+  { id: "allocation", label: "Research" },
   { id: "services", label: "Services" },
   { id: "contact", label: "Contact" },
 ];
+
+const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
 
 export default function Navbar() {
   const lenis = useLenis();
@@ -23,6 +26,11 @@ export default function Navbar() {
 
   const go = (id) => {
     setOpen(false);
+    if (id === "top") {
+      if (lenis) lenis.scrollTo(0);
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     if (lenis) lenis.scrollTo(`#${id}`, { offset: -70 });
     else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -48,11 +56,11 @@ export default function Navbar() {
           </span>
         </button>
 
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-7">
           {links.map((l) => (
             <button
-              key={l.id}
-              data-testid={`nav-${l.id}`}
+              key={l.label}
+              data-testid={`nav-${slug(l.label)}`}
               onClick={() => go(l.id)}
               className="text-sm text-[#94A3B8] hover:text-white transition-colors"
             >
@@ -70,7 +78,7 @@ export default function Navbar() {
 
         <button
           data-testid="nav-mobile-toggle"
-          className="md:hidden text-white text-sm"
+          className="lg:hidden text-white text-sm"
           onClick={() => setOpen((o) => !o)}
         >
           {open ? "Close" : "Menu"}
@@ -78,11 +86,11 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="md:hidden bg-[#0A1E3F] border-t border-white/10 px-6 py-4 flex flex-col gap-4">
+        <div className="lg:hidden bg-[#0A1E3F] border-t border-white/10 px-6 py-4 flex flex-col gap-4">
           {links.map((l) => (
             <button
-              key={l.id}
-              data-testid={`nav-mobile-${l.id}`}
+              key={l.label}
+              data-testid={`nav-mobile-${slug(l.label)}`}
               onClick={() => go(l.id)}
               className="text-left text-[#94A3B8] hover:text-white"
             >
