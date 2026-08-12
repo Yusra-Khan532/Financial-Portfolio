@@ -9,11 +9,15 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-from email_service import send_lead_emails, EmailNotConfigured
+from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
 
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -44,6 +48,25 @@ class ContactCreate(BaseModel):
     phone: Optional[str] = None
     investment_size: Optional[str] = None
     subject: Optional[str] = None
+    message: str
+
+
+class ServiceEnquiry(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: EmailStr
+    phone: str
+    services: List[str]
+    message: str
+    source: str = "Services Page"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ServiceEnquiryCreate(BaseModel):
+    name: str
+    email: EmailStr
+    phone: str
+    services: List[str]
     message: str
 
 
@@ -89,6 +112,36 @@ async def list_contacts():
     return docs
 
 
+@api_router.post("/service-enquiry", response_model=ServiceEnquiry)
+async def create_service_enquiry(payload: ServiceEnquiryCreate):
+    if not payload.name.strip() or not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Name and message are required")
+    if not payload.services:
+        raise HTTPException(status_code=400, detail="Select at least one service")
+    if len(payload.message.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Message is too short")
+    enquiry = ServiceEnquiry(**payload.model_dump())
+    doc = enquiry.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.service_enquiries.insert_one(doc)
+
+    try:
+        await send_service_enquiry_email(enquiry.model_dump(mode="json"))
+    except EmailNotConfigured as e:
+        logger.error("Service enquiry email not sent: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="Email service is not configured yet. Your enquiry was saved but not emailed.",
+        )
+    except Exception as e:
+        logger.exception("Service enquiry email delivery failed: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="We couldn't send your enquiry right now. Please try again shortly.",
+        )
+    return enquiry
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -98,10 +151,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 
 @app.on_event("shutdown")

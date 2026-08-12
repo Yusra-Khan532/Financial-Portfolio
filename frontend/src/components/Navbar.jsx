@@ -3,11 +3,11 @@ import { useLenis } from "lenis/react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const links = [
-  { id: "services", label: "About" },
+  { id: "top", label: "About" },
   { id: "performance", label: "Portfolio" },
   { id: "process", label: "Approach" },
-  { id: "allocation", label: "Research" },
-  { id: "services", label: "Services" },
+  { id: "holdings", label: "Research" },
+  { route: "/services", label: "Services" },
 ];
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
@@ -32,12 +32,23 @@ export default function Navbar() {
 
   const go = (id) => {
     setOpen(false);
+    if (id === "top") {
+      if (location.pathname !== "/") navigate("/");
+      else if (lenis) lenis.scrollTo(0);
+      else window.scrollTo(0, 0);
+      return;
+    }
     if (location.pathname !== "/") {
       navigate("/");
       setTimeout(() => scrollToId(id), 500);
     } else {
       scrollToId(id);
     }
+  };
+
+  const goRoute = (r) => {
+    setOpen(false);
+    navigate(r);
   };
 
   const goHome = () => {
@@ -74,7 +85,7 @@ export default function Navbar() {
             <button
               key={l.label}
               data-testid={`nav-${slug(l.label)}`}
-              onClick={() => go(l.id)}
+              onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
               className="text-sm text-[#94A3B8] hover:text-white transition-colors"
             >
               {l.label}
@@ -104,7 +115,7 @@ export default function Navbar() {
             <button
               key={l.label}
               data-testid={`nav-mobile-${slug(l.label)}`}
-              onClick={() => go(l.id)}
+              onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
               className="text-left text-[#94A3B8] hover:text-white"
             >
               {l.label}

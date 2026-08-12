@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Home from "@/pages/Home";
 import ContactPage from "@/pages/ContactPage";
+import ServicesPage from "@/pages/ServicesPage";
 import { Toaster } from "@/components/ui/sonner";
 
 function ScrollManager() {
@@ -27,6 +28,7 @@ function App() {
           <Navbar />
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/services" element={<ServicesPage />} />
             <Route path="/contact" element={<ContactPage />} />
           </Routes>
           <Footer />

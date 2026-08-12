@@ -2,7 +2,6 @@ import Hero from "@/components/Hero";
 import Performance from "@/components/Performance";
 import Holdings from "@/components/Holdings";
 import Process from "@/components/Process";
-import Services from "@/components/Services";
 import Philosophy from "@/components/Philosophy";
 import Contact from "@/components/Contact";
 
@@ -13,7 +12,6 @@ export default function Home() {
       <Performance />
       <Holdings />
       <Process />
-      <Services />
       <Philosophy />
       <Contact />
     </main>

@@ -108,6 +108,55 @@ def _send_sync(to, subject, html, reply_to=None):
     return resend.Emails.send(params)
 
 
+def _enquiry_html(e):
+    services = ", ".join(e.get("services", [])) or "—"
+    return f"""
+    <div style="background:#050E1D;padding:32px;font-family:Arial,sans-serif;">
+      <table style="max-width:560px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+        <tr><td style="background:#0A1E3F;padding:24px 28px;">
+          <div style="color:#F5A623;font-size:12px;letter-spacing:2px;text-transform:uppercase;">New Service Enquiry</div>
+          <div style="color:#ffffff;font-size:22px;font-weight:700;margin-top:6px;">Nishant Jain — Equity Research</div>
+        </td></tr>
+        <tr><td style="padding:24px 16px;">
+          <table style="width:100%;border-collapse:collapse;">
+            {_row("Full Name", e.get("name"))}
+            {_row("Email Address", e.get("email"))}
+            {_row("Mobile Number", e.get("phone"))}
+            {_row("Service(s)", services)}
+            {_row("Received", _fmt_ts(e.get("created_at")))}
+            {_row("Source", "Services Page")}
+          </table>
+          <div style="margin:18px 12px 0;color:#64748B;font-size:13px;">Message</div>
+          <div style="margin:6px 12px;padding:14px;background:#F1F5F9;border-radius:8px;color:#0A1E3F;font-size:14px;line-height:1.6;">
+            {e.get("message","")}
+          </div>
+        </td></tr>
+        <tr><td style="padding:16px 28px;background:#F8FAFC;color:#94A3B8;font-size:12px;">
+          Reply directly to {e.get("email")} to respond to this enquiry.
+        </td></tr>
+      </table>
+    </div>
+    """
+
+
+async def send_service_enquiry_email(enquiry: dict) -> str:
+    """Send a service-enquiry notification to the owner. Raises on failure."""
+    if not is_configured():
+        raise EmailNotConfigured(
+            "Email provider not configured (missing RESEND_API_KEY or CONTACT_RECIPIENT_EMAIL)."
+        )
+    result = await asyncio.to_thread(
+        _send_sync,
+        CONTACT_RECIPIENT_EMAIL,
+        f"New Service Enquiry — {enquiry.get('name', '')}",
+        _enquiry_html(enquiry),
+        enquiry.get("email"),
+    )
+    email_id = result.get("id") if isinstance(result, dict) else None
+    logger.info("Service enquiry email sent to %s (id=%s)", CONTACT_RECIPIENT_EMAIL, email_id)
+    return email_id or ""
+
+
 async def send_lead_emails(lead: dict, auto_reply: bool = True) -> str:
     """Send the owner alert (critical) synchronously and the visitor auto-reply
     (best-effort). Returns the provider message id. Raises on failure so the API
