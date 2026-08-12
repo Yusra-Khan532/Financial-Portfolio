@@ -70,7 +70,7 @@ const topContribution = (() => {
 
 export default function Performance() {
   const lenis = useLenis();
-  const viewFull = () => lenis?.scrollTo("#allocation", { offset: -70 });
+  const viewFull = () => lenis?.scrollTo("#holdings", { offset: -70 });
 
   return (
     <section id="performance" className="relative py-20 md:py-28 px-6 md:px-10">
