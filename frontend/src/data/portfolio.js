@@ -143,7 +143,7 @@ export const riskSummary = [
 export const process = [
   { n: "01", title: "Idea Generation", detail: "Macro & sector analysis to identify structural tailwinds and emerging themes before the crowd." },
   { n: "02", title: "Industry Analysis", detail: "Top-down evaluation of industry cycles, competitive intensity and growth runways." },
-  { n: "03", title: "Company Analysis", detail: "Bottom-up study of business quality, management integrity and durable moats." },
+  { n: "03", title: "Business Quality", detail: "Bottom-up study of business quality, management integrity and durable moats." },
   { n: "04", title: "Valuation & Modelling", detail: "DCF, relative, PEG, EV/EBITDA and ROE frameworks to buy with a margin of safety." },
   { n: "05", title: "Position Sizing & Risk", detail: "Disciplined sizing, stop-loss and diversification to protect capital first." },
   { n: "06", title: "Monitoring & Review", detail: "Continuous tracking of thesis, earnings and price action against the plan." },

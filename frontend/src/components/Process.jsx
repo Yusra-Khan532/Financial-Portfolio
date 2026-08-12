@@ -1,51 +1,66 @@
-import { Reveal, SectionLabel } from "@/components/Reveal";
+import { Reveal } from "@/components/Reveal";
 import { process, researchApproach } from "@/data/portfolio";
 import { Check } from "lucide-react";
 
 export default function Process() {
   return (
-    <section id="process" className="relative py-24 md:py-32 px-6 md:px-10 bg-[#04101f] grain">
-      <div className="max-w-7xl mx-auto relative">
+    <section id="process" className="relative py-20 md:py-24 px-6 md:px-10 bg-[#04101f]">
+      <div className="max-w-6xl mx-auto">
+        {/* Intro */}
         <Reveal>
-          <SectionLabel index="04">My Investment Process</SectionLabel>
-          <h2 className="font-serif-display text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight max-w-3xl">
-            A repeatable process. From idea to <span className="italic text-[#F5A623]">exit discipline.</span>
+          <div className="flex items-center gap-3 mb-5">
+            <span className="uppercase tracking-[0.28em] text-[11px] text-[#F5A623]">04</span>
+            <span className="h-px w-8 bg-[#F5A623]/50" />
+            <span className="uppercase tracking-[0.28em] text-[11px] text-[#94A3B8]">My Investment Process</span>
+          </div>
+          <h2 className="font-serif-display text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-tight max-w-3xl">
+            A repeatable process — from idea to <span className="text-[#F5A623]">exit discipline</span>.
           </h2>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-x-10">
-          <div className="lg:col-span-2 divide-y divide-white/10 border-t border-white/10">
-            {process.map((step, i) => (
-              <Reveal key={step.n} delay={(i % 3) * 0.05}>
-                <div className="group flex gap-6 md:gap-10 py-8 hover:pl-2 transition-all duration-300">
-                  <span className="font-serif-display text-5xl md:text-6xl text-white/15 group-hover:text-[#F5A623] transition-colors duration-300 shrink-0">
-                    {step.n}
-                  </span>
-                  <div>
-                    <h3 className="text-xl md:text-2xl text-white font-serif-display">{step.title}</h3>
-                    <p className="text-[#94A3B8] mt-2 max-w-xl leading-relaxed">{step.detail}</p>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-
-          <Reveal delay={0.2}>
-            <div className="lg:sticky lg:top-28 mt-10 lg:mt-0 bg-[#0A1E3F] border border-white/10 rounded-lg p-7">
-              <h3 className="text-white font-medium mb-1">Research Approach</h3>
-              <p className="text-xs text-[#64748B] mb-6 uppercase tracking-wider">How every idea is vetted</p>
-              <ul className="space-y-4">
-                {researchApproach.map((r) => (
-                  <li key={r} className="flex items-start gap-3">
-                    <span className="mt-0.5 h-5 w-5 rounded-full bg-[#F5A623]/15 flex items-center justify-center shrink-0">
-                      <Check size={12} strokeWidth={2.5} className="text-[#F5A623]" />
-                    </span>
-                    <span className="text-sm text-[#CBD5E1] leading-relaxed">{r}</span>
-                  </li>
-                ))}
-              </ul>
+        {/* Research approach — compact supporting list */}
+        <Reveal delay={0.08}>
+          <div className="mt-10 pt-8 border-t border-white/10">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[#5A6B85] mb-5">
+              Research approach
             </div>
-          </Reveal>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3">
+              {researchApproach.map((r) => (
+                <li key={r} className="flex items-start gap-2.5 text-sm text-[#CBD5E1]">
+                  <Check size={14} strokeWidth={2.5} className="text-[#F5A623] mt-0.5 shrink-0" />
+                  <span className="leading-snug">{r}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
+
+        {/* Vertical process timeline */}
+        <div className="mt-14">
+          {process.map((s, i) => (
+            <Reveal key={s.n} delay={(i % 4) * 0.05}>
+              <div className="group grid grid-cols-[auto_1fr] gap-5 md:gap-7">
+                {/* marker + connector */}
+                <div className="flex flex-col items-center">
+                  <span className="h-9 w-9 rounded-full border border-[#F5A623]/40 flex items-center justify-center text-[#F5A623] text-[13px] font-medium tabular-nums group-hover:border-[#F5A623] group-hover:bg-[#F5A623]/10 transition-colors">
+                    {s.n}
+                  </span>
+                  {i < process.length - 1 && (
+                    <span className="w-px flex-1 bg-gradient-to-b from-white/15 to-white/5 mt-2" />
+                  )}
+                </div>
+                {/* content */}
+                <div className={`pt-1 ${i < process.length - 1 ? "pb-8" : "pb-0"}`}>
+                  <h3 className="text-lg md:text-xl text-white group-hover:text-[#F5A623] transition-colors">
+                    {s.title}
+                  </h3>
+                  <p className="text-sm md:text-[15px] text-[#94A3B8] mt-1.5 max-w-2xl leading-relaxed">
+                    {s.detail}
+                  </p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
         </div>
       </div>
     </section>
