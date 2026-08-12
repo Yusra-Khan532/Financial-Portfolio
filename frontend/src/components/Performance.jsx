@@ -54,12 +54,26 @@ const proofStats = [
   { label: "Max Drawdown", value: metric("drawdown"), tone: "negative" },
 ];
 
+// Homepage-only summary datasets (underlying detailed data is left untouched).
+const topSectors = (() => {
+  const sorted = [...sectorAllocation].sort((a, b) => b.value - a.value);
+  const top = sorted.slice(0, 5);
+  const others = +sorted.slice(5).reduce((s, d) => s + d.value, 0).toFixed(1);
+  return others > 0 ? [...top, { name: "Others", value: others }] : top;
+})();
+
+const topContribution = (() => {
+  const positives = attribution.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
+  const negSum = +attribution.filter((d) => d.value < 0).reduce((s, d) => s + d.value, 0).toFixed(1);
+  return negSum ? [...positives, { sector: "Others", value: negSum }] : positives;
+})();
+
 export default function Performance() {
   const lenis = useLenis();
   const viewFull = () => lenis?.scrollTo("#allocation", { offset: -70 });
 
   return (
-    <section id="performance" className="relative py-24 md:py-32 px-6 md:px-10">
+    <section id="performance" className="relative py-20 md:py-28 px-6 md:px-10">
       <div className="max-w-7xl mx-auto">
         {/* Intro */}
         <Reveal>
@@ -79,12 +93,12 @@ export default function Performance() {
         </Reveal>
 
         {/* Headline stat strip */}
-        <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 border-t border-white/12">
+        <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 border-t border-white/12">
           {headlineStats.map((s, i) => (
             <Reveal key={s.label} delay={i * 0.07}>
               <div
                 data-testid={`snapshot-headline-${i}`}
-                className={`py-8 lg:py-10 pr-6 ${i >= 2 ? "border-t border-white/12" : ""} lg:border-t-0 ${
+                className={`py-6 lg:py-8 pr-6 ${i >= 2 ? "border-t border-white/12" : ""} lg:border-t-0 ${
                   i > 0 ? "lg:border-l lg:border-white/12 lg:pl-8" : ""
                 }`}
               >
@@ -99,9 +113,15 @@ export default function Performance() {
 
         {/* Secondary proof metrics */}
         <Reveal delay={0.1}>
-          <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-4 border-t border-white/12 pt-6">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 border-t border-white/12">
             {proofStats.map((s, i) => (
-              <div key={s.label} data-testid={`snapshot-proof-${i}`} className="flex items-baseline gap-3">
+              <div
+                key={s.label}
+                data-testid={`snapshot-proof-${i}`}
+                className={`flex items-baseline gap-3 py-5 ${
+                  i > 0 ? "border-t sm:border-t-0 sm:border-l border-white/12 sm:pl-8" : ""
+                } border-t sm:border-t-0`}
+              >
                 <span
                   className={`text-xl md:text-2xl font-medium ${
                     s.tone === "positive" ? "text-[#34D399]" : s.tone === "negative" ? "text-[#F87171]" : "text-white"
@@ -117,14 +137,14 @@ export default function Performance() {
 
         {/* Main performance chart */}
         <Reveal delay={0.05}>
-          <div className="mt-16 border-t border-white/12 pt-10">
-            <div className="flex items-baseline justify-between mb-8">
+          <div className="mt-12 border-t border-white/12 pt-8">
+            <div className="flex items-baseline justify-between mb-3">
               <h3 className="font-serif-display text-2xl md:text-3xl text-white">
                 Portfolio growth vs benchmarks
               </h3>
               <span className="text-xs text-[#64748B] uppercase tracking-wider">Cumulative Returns %</span>
             </div>
-            <ResponsiveContainer width="100%" height={380}>
+            <ResponsiveContainer width="100%" height={450}>
               <LineChart data={growthData} margin={{ left: -16, right: 12, top: 8, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
@@ -140,7 +160,7 @@ export default function Performance() {
         </Reveal>
 
         {/* Two portfolio insight charts */}
-        <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12 border-t border-white/12 pt-10">
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12 border-t border-white/12 pt-8">
           <Reveal>
             <div data-testid="snapshot-sector-allocation">
               <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where capital is allocated</div>
@@ -148,19 +168,19 @@ export default function Performance() {
               <div className="flex items-center gap-6">
                 <ResponsiveContainer width="48%" height={220}>
                   <PieChart>
-                    <Pie data={sectorAllocation} dataKey="value" innerRadius={52} outerRadius={92} paddingAngle={2} stroke="none">
-                      {sectorAllocation.map((_, i) => (
+                    <Pie data={topSectors} dataKey="value" innerRadius={52} outerRadius={92} paddingAngle={2} stroke="none">
+                      {topSectors.map((_, i) => (
                         <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip content={<AllocTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <ul className="flex-1 space-y-1.5">
-                  {sectorAllocation.map((d, i) => (
-                    <li key={d.name} className="flex items-center justify-between text-xs">
+                <ul className="flex-1 space-y-2">
+                  {topSectors.map((d, i) => (
+                    <li key={d.name} className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2 text-[#94A3B8]">
-                        <span className="h-2 w-2 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
+                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                         {d.name}
                       </span>
                       <span className="text-white font-medium">{d.value}%</span>
@@ -175,14 +195,14 @@ export default function Performance() {
             <div data-testid="snapshot-sector-contribution">
               <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where profit was generated</div>
               <h3 className="font-serif-display text-xl md:text-2xl text-white mb-6">Contribution to Net P&L</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={attribution} layout="vertical" margin={{ left: 26, right: 24 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={topContribution} layout="vertical" margin={{ left: 26, right: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                   <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={92} tickLine={false} axisLine={false} />
                   <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {attribution.map((d, i) => (
+                    {topContribution.map((d, i) => (
                       <Cell key={i} fill={d.value >= 0 ? "#F5A623" : "#F87171"} />
                     ))}
                   </Bar>
@@ -194,14 +214,20 @@ export default function Performance() {
 
         {/* CTA */}
         <Reveal delay={0.05}>
-          <div className="mt-16 border-t border-white/12 pt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <p className="text-[#94A3B8] max-w-md leading-relaxed">
-              Explore detailed allocation, benchmark performance, risk metrics and portfolio analytics.
-            </p>
+          <div className="mt-14 border border-white/12 rounded-xl bg-[#0A1E3F]/40 px-8 md:px-12 py-10 md:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+            <div className="max-w-lg">
+              <div className="mb-3 h-px w-12 bg-[#F5A623]" />
+              <h3 className="font-serif-display text-3xl md:text-4xl text-white tracking-tight">
+                Explore the complete portfolio
+              </h3>
+              <p className="text-[#94A3B8] mt-3 leading-relaxed">
+                Detailed performance, allocation, risk metrics, benchmark comparisons and portfolio analytics.
+              </p>
+            </div>
             <button
               data-testid="snapshot-view-full"
               onClick={viewFull}
-              className="group inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] font-medium hover:bg-[#E19212] transition-colors self-start sm:self-auto"
+              className="group inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#F5A623] text-[#050E1D] font-medium hover:bg-[#E19212] transition-colors self-start md:self-auto shrink-0"
             >
               View Full Portfolio Report
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
