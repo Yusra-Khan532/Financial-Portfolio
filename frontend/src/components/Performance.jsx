@@ -1,15 +1,13 @@
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, Legend,
+  BarChart, Bar, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import { Reveal, SectionLabel } from "@/components/Reveal";
-import {
-  metrics, headline, profile, growthData, returnsComparison,
-  marketCapPerf, etfPerf, riskSummary,
-} from "@/data/portfolio";
+import { useLenis } from "lenis/react";
+import { ArrowRight } from "lucide-react";
+import { Reveal } from "@/components/Reveal";
+import { metrics, headline, growthData, sectorAllocation, attribution } from "@/data/portfolio";
 
-const toneColor = (t) =>
-  t === "positive" ? "text-[#10B981]" : t === "negative" ? "text-[#EF4444]" : "text-white";
+const metric = (key) => metrics.find((m) => m.key === key)?.value;
 
 const ChartTooltip = ({ active, payload, label, suffix = "%" }) => {
   if (!active || !payload?.length) return null;
@@ -20,111 +18,172 @@ const ChartTooltip = ({ active, payload, label, suffix = "%" }) => {
         <div key={p.name} className="flex items-center gap-2 text-sm">
           <span className="h-2 w-2 rounded-full" style={{ background: p.color || p.fill }} />
           <span className="text-[#94A3B8]">{p.name}:</span>
-          <span className="text-white font-medium">
-            {p.value}{suffix}
-          </span>
+          <span className="text-white font-medium">{p.value}{suffix}</span>
         </div>
       ))}
     </div>
   );
 };
 
-const barColors = ["#F5A623", "#475569", "#94A3B8"];
+const AllocTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
+  return (
+    <div className="bg-[#0A1E3F] border border-white/15 rounded-lg px-3 py-2 text-sm">
+      <span className="text-[#94A3B8]">{p.name || p.payload.sector}: </span>
+      <span className="text-white font-medium">{p.value}%</span>
+    </div>
+  );
+};
+
+const SECTOR_COLORS = [
+  "#F5A623", "#3B82F6", "#64748B", "#94A3B8", "#475569", "#1E40AF",
+  "#0EA5E9", "#6366F1", "#8B5CF6", "#14B8A6", "#D4AF37", "#334155",
+];
+
+const headlineStats = [
+  { label: "Gross P&L Generated", value: headline.grossPnl },
+  { label: "Net P&L (After Charges)", value: headline.netPnl },
+  { label: "Gross ROI", value: headline.grossRoi },
+  { label: "Net ROI", value: headline.netRoi },
+];
+
+const proofStats = [
+  { label: "XIRR (Annualized)", value: metric("xirr"), tone: "positive" },
+  { label: "Win Rate", value: metric("winrate"), tone: "positive" },
+  { label: "Max Drawdown", value: metric("drawdown"), tone: "negative" },
+];
 
 export default function Performance() {
+  const lenis = useLenis();
+  const viewFull = () => lenis?.scrollTo("#allocation", { offset: -70 });
+
   return (
     <section id="performance" className="relative py-24 md:py-32 px-6 md:px-10">
       <div className="max-w-7xl mx-auto">
+        {/* Intro */}
         <Reveal>
-          <SectionLabel index="01">Performance Report</SectionLabel>
+          <div className="flex items-center gap-3 mb-6">
+            <span className="uppercase tracking-[0.28em] text-[11px] text-[#F5A623]">Performance</span>
+            <span className="h-px w-8 bg-[#F5A623]/50" />
+            <span className="uppercase tracking-[0.28em] text-[11px] text-[#94A3B8]">Apr–Aug 2026</span>
+          </div>
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-            <h2 className="font-serif-display text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight max-w-2xl">
-              Four months of disciplined, measurable returns.
+            <h2 className="font-serif-display text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight max-w-2xl leading-[1.02]">
+              Performance, measured with context.
             </h2>
-            <p className="text-[#94A3B8] max-w-sm">
-              Report period {profile.reportPeriod} · returns on average deployed
-              capital of {profile.deployedCapital}.
+            <p className="text-[#94A3B8] max-w-sm text-sm md:text-base leading-relaxed">
+              Report period 01 Apr 2026 – 07 Aug 2026 · Average deployed capital ₹30,00,000.
             </p>
           </div>
         </Reveal>
 
-        {/* headline P&L */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-14">
-          {[
-            ["Gross P&L Generated", headline.grossPnl, "positive"],
-            ["Net P&L (After Charges)", headline.netPnl, "positive"],
-            ["Gross ROI", headline.grossRoi, "positive"],
-            ["Net ROI", headline.netRoi, "positive"],
-          ].map(([label, value, tone], i) => (
-            <Reveal key={label} delay={i * 0.06}>
+        {/* Headline stat strip */}
+        <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 border-t border-white/12">
+          {headlineStats.map((s, i) => (
+            <Reveal key={s.label} delay={i * 0.07}>
               <div
-                data-testid={`headline-${i}`}
-                className="bg-[#0A1E3F] border border-white/10 rounded-lg p-6 h-full hover:-translate-y-1 hover:border-[#F5A623]/40 transition-all duration-300"
+                data-testid={`snapshot-headline-${i}`}
+                className={`py-8 lg:py-10 pr-6 ${i >= 2 ? "border-t border-white/12" : ""} lg:border-t-0 ${
+                  i > 0 ? "lg:border-l lg:border-white/12 lg:pl-8" : ""
+                }`}
               >
-                <div className="text-xs uppercase tracking-widest text-[#64748B]">{label}</div>
-                <div className={`font-serif-display text-3xl md:text-4xl mt-3 ${toneColor(tone)}`}>
-                  {value}
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] leading-tight">{s.label}</div>
+                <div className="font-serif-display text-3xl md:text-4xl xl:text-5xl text-white mt-3 tracking-tight">
+                  {s.value}
                 </div>
               </div>
             </Reveal>
           ))}
         </div>
 
-        {/* metrics grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mt-6">
-          {metrics.map((m, i) => (
-            <Reveal key={m.key} delay={(i % 4) * 0.05}>
-              <div
-                data-testid={`metric-${m.key}`}
-                className="bg-[#0A1E3F]/60 border border-white/10 rounded-lg p-5 hover:border-[#F5A623]/40 transition-colors duration-300"
-              >
-                <div className="text-[11px] uppercase tracking-wider text-[#64748B] leading-tight">
-                  {m.label}
-                </div>
-                <div className={`text-2xl mt-2 font-medium ${toneColor(m.tone)}`}>{m.value}</div>
+        {/* Secondary proof metrics */}
+        <Reveal delay={0.1}>
+          <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-4 border-t border-white/12 pt-6">
+            {proofStats.map((s, i) => (
+              <div key={s.label} data-testid={`snapshot-proof-${i}`} className="flex items-baseline gap-3">
+                <span
+                  className={`text-xl md:text-2xl font-medium ${
+                    s.tone === "positive" ? "text-[#34D399]" : s.tone === "negative" ? "text-[#F87171]" : "text-white"
+                  }`}
+                >
+                  {s.value}
+                </span>
+                <span className="text-[11px] uppercase tracking-[0.18em] text-[#64748B]">{s.label}</span>
               </div>
-            </Reveal>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Reveal>
 
-        {/* charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
-          <Reveal className="lg:col-span-3">
-            <div className="bg-[#0A1E3F] border border-white/10 rounded-lg p-6 h-full">
-              <div className="flex items-baseline justify-between mb-6">
-                <h3 className="text-white font-medium">Portfolio Growth Over Time</h3>
-                <span className="text-xs text-[#64748B]">Cumulative Returns %</span>
+        {/* Main performance chart */}
+        <Reveal delay={0.05}>
+          <div className="mt-16 border-t border-white/12 pt-10">
+            <div className="flex items-baseline justify-between mb-8">
+              <h3 className="font-serif-display text-2xl md:text-3xl text-white">
+                Portfolio growth vs benchmarks
+              </h3>
+              <span className="text-xs text-[#64748B] uppercase tracking-wider">Cumulative Returns %</span>
+            </div>
+            <ResponsiveContainer width="100%" height={380}>
+              <LineChart data={growthData} margin={{ left: -16, right: 12, top: 8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+                <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                <Tooltip content={<ChartTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 12, color: "#94A3B8", paddingTop: 12 }} iconType="plainline" />
+                <Line type="monotone" dataKey="Portfolio" stroke="#F5A623" strokeWidth={3.5} dot={false} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="NIFTY 50" stroke="#64748B" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                <Line type="monotone" dataKey="NIFTY Midcap 150" stroke="#3B4A63" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Reveal>
+
+        {/* Two portfolio insight charts */}
+        <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12 border-t border-white/12 pt-10">
+          <Reveal>
+            <div data-testid="snapshot-sector-allocation">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where capital is allocated</div>
+              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-6">Allocation by sector</h3>
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width="48%" height={220}>
+                  <PieChart>
+                    <Pie data={sectorAllocation} dataKey="value" innerRadius={52} outerRadius={92} paddingAngle={2} stroke="none">
+                      {sectorAllocation.map((_, i) => (
+                        <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<AllocTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <ul className="flex-1 space-y-1.5">
+                  {sectorAllocation.map((d, i) => (
+                    <li key={d.name} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-2 text-[#94A3B8]">
+                        <span className="h-2 w-2 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
+                        {d.name}
+                      </span>
+                      <span className="text-white font-medium">{d.value}%</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={growthData} margin={{ left: -18, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#64748B" fontSize={12} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: "#94A3B8" }} />
-                  <Line type="monotone" dataKey="Portfolio" stroke="#F5A623" strokeWidth={3} dot={false} />
-                  <Line type="monotone" dataKey="NIFTY 50" stroke="#94A3B8" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="NIFTY Midcap 150" stroke="#475569" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
             </div>
           </Reveal>
 
-          <Reveal className="lg:col-span-2" delay={0.1}>
-            <div className="bg-[#0A1E3F] border border-white/10 rounded-lg p-6 h-full">
-              <div className="flex items-baseline justify-between mb-6">
-                <h3 className="text-white font-medium">Returns Comparison</h3>
-                <span className="text-xs text-[#64748B]">Annualized</span>
-              </div>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={returnsComparison} margin={{ left: -18, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                  <XAxis dataKey="name" stroke="#64748B" fontSize={11} tickLine={false} interval={0} />
-                  <YAxis stroke="#64748B" fontSize={12} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {returnsComparison.map((_, i) => (
-                      <Cell key={i} fill={barColors[i]} />
+          <Reveal delay={0.1}>
+            <div data-testid="snapshot-sector-contribution">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where profit was generated</div>
+              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-6">Contribution to Net P&L</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={attribution} layout="vertical" margin={{ left: 26, right: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={92} tickLine={false} axisLine={false} />
+                  <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {attribution.map((d, i) => (
+                      <Cell key={i} fill={d.value >= 0 ? "#F5A623" : "#F87171"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -133,68 +192,23 @@ export default function Performance() {
           </Reveal>
         </div>
 
-        {/* tables + risk */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-          <Reveal>
-            <PerfTable
-              testid="marketcap-perf"
-              title="Market Cap Performance"
-              head={["Market Cap", "ROI", "XIRR"]}
-              rows={marketCapPerf.map((r) => [r.cap, r.roi, r.xirr])}
-            />
-          </Reveal>
-          <Reveal delay={0.08}>
-            <PerfTable
-              testid="etf-perf"
-              title="ETF Performance"
-              head={["Category", "ROI", "XIRR"]}
-              rows={etfPerf.map((r) => [r.cat, r.roi, r.xirr])}
-            />
-          </Reveal>
-          <Reveal delay={0.16}>
-            <div className="bg-[#0A1E3F] border border-white/10 rounded-lg p-6 h-full">
-              <h3 className="text-white font-medium mb-5">Risk & Return Summary</h3>
-              <div className="space-y-4">
-                {riskSummary.map((r) => (
-                  <div key={r.label} className="flex items-center justify-between border-b border-white/5 pb-3">
-                    <span className="text-sm text-[#94A3B8]">{r.label}</span>
-                    <span className={`text-lg font-medium ${toneColor(r.tone)}`}>{r.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-        </div>
+        {/* CTA */}
+        <Reveal delay={0.05}>
+          <div className="mt-16 border-t border-white/12 pt-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <p className="text-[#94A3B8] max-w-md leading-relaxed">
+              Explore detailed allocation, benchmark performance, risk metrics and portfolio analytics.
+            </p>
+            <button
+              data-testid="snapshot-view-full"
+              onClick={viewFull}
+              className="group inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] font-medium hover:bg-[#E19212] transition-colors self-start sm:self-auto"
+            >
+              View Full Portfolio Report
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
 }
-
-const PerfTable = ({ title, head, rows, testid }) => (
-  <div data-testid={testid} className="bg-[#0A1E3F] border border-white/10 rounded-lg p-6 h-full">
-    <h3 className="text-white font-medium mb-5">{title}</h3>
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left text-[#64748B] uppercase text-[11px] tracking-wider">
-          {head.map((h) => (
-            <th key={h} className="pb-3 font-normal">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr
-            key={i}
-            className={`border-t border-white/5 hover:bg-white/5 transition-colors ${
-              i === rows.length - 1 ? "text-[#F5A623] font-medium" : "text-[#CBD5E1]"
-            }`}
-          >
-            {r.map((c, j) => (
-              <td key={j} className="py-3 pr-2">{c}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
