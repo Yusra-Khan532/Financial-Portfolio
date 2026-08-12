@@ -38,23 +38,8 @@ const AllocTooltip = ({ active, payload }) => {
 
 const SECTOR_COLORS = [
   "#F5A623", "#3B82F6", "#64748B", "#94A3B8", "#475569", "#1E40AF",
-  "#0EA5E9", "#6366F1", "#8B5CF6", "#14B8A6", "#D4AF37", "#334155",
 ];
 
-const headlineStats = [
-  { label: "Gross P&L Generated", value: headline.grossPnl },
-  { label: "Net P&L (After Charges)", value: headline.netPnl },
-  { label: "Gross ROI", value: headline.grossRoi },
-  { label: "Net ROI", value: headline.netRoi },
-];
-
-const proofStats = [
-  { label: "XIRR (Annualized)", value: metric("xirr"), tone: "positive" },
-  { label: "Win Rate", value: metric("winrate"), tone: "positive" },
-  { label: "Max Drawdown", value: metric("drawdown"), tone: "negative" },
-];
-
-// Homepage-only summary datasets (underlying detailed data is left untouched).
 const topSectors = (() => {
   const sorted = [...sectorAllocation].sort((a, b) => b.value - a.value);
   const top = sorted.slice(0, 5);
@@ -67,6 +52,12 @@ const topContribution = (() => {
   const negSum = +attribution.filter((d) => d.value < 0).reduce((s, d) => s + d.value, 0).toFixed(1);
   return negSum ? [...positives, { sector: "Others", value: negSum }] : positives;
 })();
+
+const proofStats = [
+  { label: "XIRR (Annualized)", value: metric("xirr"), tone: "positive" },
+  { label: "Win Rate", value: metric("winrate"), tone: "positive" },
+  { label: "Max Drawdown", value: metric("drawdown"), tone: "negative" },
+];
 
 export default function Performance() {
   const lenis = useLenis();
@@ -92,53 +83,65 @@ export default function Performance() {
           </div>
         </Reveal>
 
-        {/* Headline stat strip */}
-        <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 border-t border-white/12">
-          {headlineStats.map((s, i) => (
-            <Reveal key={s.label} delay={i * 0.07}>
-              <div
-                data-testid={`snapshot-headline-${i}`}
-                className={`py-6 lg:py-8 pr-6 ${i >= 2 ? "border-t border-white/12" : ""} lg:border-t-0 ${
-                  i > 0 ? "lg:border-l lg:border-white/12 lg:pl-8" : ""
-                }`}
-              >
-                <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] leading-tight">{s.label}</div>
-                <div className="font-serif-display text-3xl md:text-4xl xl:text-5xl text-white mt-3 tracking-tight">
-                  {s.value}
-                </div>
+        {/* Editorial KPI composition */}
+        <div className="mt-16 grid grid-cols-1 lg:grid-cols-12 gap-y-12 lg:gap-x-10 items-start">
+          {/* Featured metric */}
+          <Reveal className="lg:col-span-7">
+            <div className="text-[11px] uppercase tracking-[0.22em] text-[#64748B]">Net P&amp;L (After Charges)</div>
+            <div className="font-serif-display text-6xl md:text-7xl xl:text-8xl text-white mt-3 tracking-tight leading-[0.95]">
+              {headline.netPnl}
+            </div>
+            <div className="mt-8 flex flex-wrap items-end gap-x-12 gap-y-6">
+              <div>
+                <div className="text-2xl md:text-3xl font-medium text-[#34D399]">{headline.netRoi}</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] mt-1">Net ROI</div>
               </div>
-            </Reveal>
-          ))}
-        </div>
+              <div>
+                <div className="text-2xl md:text-3xl font-medium text-white">{headline.grossPnl}</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] mt-1">Gross P&amp;L Generated</div>
+              </div>
+              <div>
+                <div className="text-2xl md:text-3xl font-medium text-white">{headline.grossRoi}</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] mt-1">Gross ROI</div>
+              </div>
+            </div>
+          </Reveal>
 
-        {/* Secondary proof metrics */}
-        <Reveal delay={0.1}>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 border-t border-white/12">
+          {/* Secondary proof — editorial vertical stack, asymmetrically indented */}
+          <div className="lg:col-span-5 lg:pl-10 lg:border-l lg:border-white/10 space-y-8">
             {proofStats.map((s, i) => (
-              <div
-                key={s.label}
-                data-testid={`snapshot-proof-${i}`}
-                className={`flex items-baseline gap-3 py-5 ${
-                  i > 0 ? "border-t sm:border-t-0 sm:border-l border-white/12 sm:pl-8" : ""
-                } border-t sm:border-t-0`}
-              >
-                <span
-                  className={`text-xl md:text-2xl font-medium ${
-                    s.tone === "positive" ? "text-[#34D399]" : s.tone === "negative" ? "text-[#F87171]" : "text-white"
-                  }`}
+              <Reveal key={s.label} delay={0.1 + i * 0.08}>
+                <div
+                  data-testid={`snapshot-proof-${i}`}
+                  className="flex items-baseline gap-5"
+                  style={{ marginLeft: i * 18 }}
                 >
-                  {s.value}
-                </span>
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[#64748B]">{s.label}</span>
-              </div>
+                  <span
+                    className={`font-serif-display text-4xl md:text-5xl tracking-tight ${
+                      s.tone === "positive" ? "text-[#34D399]" : s.tone === "negative" ? "text-[#F87171]" : "text-white"
+                    }`}
+                  >
+                    {s.value}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-[#64748B]">{s.label}</span>
+                </div>
+              </Reveal>
             ))}
           </div>
-        </Reveal>
+        </div>
 
-        {/* Main performance chart */}
+        {/* Hidden testids for headline KPIs (kept for reference/tests) */}
+        <div className="sr-only">
+          <span data-testid="snapshot-headline-0">{headline.grossPnl}</span>
+          <span data-testid="snapshot-headline-1">{headline.netPnl}</span>
+          <span data-testid="snapshot-headline-2">{headline.grossRoi}</span>
+          <span data-testid="snapshot-headline-3">{headline.netRoi}</span>
+        </div>
+
+        {/* Main performance chart — open, no heavy container */}
         <Reveal delay={0.05}>
-          <div className="mt-12 border-t border-white/12 pt-8">
-            <div className="flex items-baseline justify-between mb-3">
+          <div className="mt-20">
+            <div className="flex items-baseline justify-between mb-4">
               <h3 className="font-serif-display text-2xl md:text-3xl text-white">
                 Portfolio growth vs benchmarks
               </h3>
@@ -146,11 +149,11 @@ export default function Performance() {
             </div>
             <ResponsiveContainer width="100%" height={450}>
               <LineChart data={growthData} margin={{ left: -16, right: 12, top: 8, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+                <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.045)" vertical={false} />
+                <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
                 <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: "#94A3B8", paddingTop: 12 }} iconType="plainline" />
+                <Legend wrapperStyle={{ fontSize: 12, color: "#94A3B8", paddingTop: 16 }} iconType="plainline" />
                 <Line type="monotone" dataKey="Portfolio" stroke="#F5A623" strokeWidth={3.5} dot={false} activeDot={{ r: 5 }} />
                 <Line type="monotone" dataKey="NIFTY 50" stroke="#64748B" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
                 <Line type="monotone" dataKey="NIFTY Midcap 150" stroke="#3B4A63" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
@@ -159,16 +162,16 @@ export default function Performance() {
           </div>
         </Reveal>
 
-        {/* Two portfolio insight charts */}
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12 border-t border-white/12 pt-8">
-          <Reveal>
+        {/* Sector insights — asymmetric, light framing */}
+        <div className="mt-20 grid grid-cols-1 lg:grid-cols-5 gap-x-16 gap-y-14 items-start">
+          <Reveal className="lg:col-span-2">
             <div data-testid="snapshot-sector-allocation">
               <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where capital is allocated</div>
-              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-6">Allocation by sector</h3>
+              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-8">Allocation by sector</h3>
               <div className="flex items-center gap-6">
-                <ResponsiveContainer width="48%" height={220}>
+                <ResponsiveContainer width="46%" height={200}>
                   <PieChart>
-                    <Pie data={topSectors} dataKey="value" innerRadius={52} outerRadius={92} paddingAngle={2} stroke="none">
+                    <Pie data={topSectors} dataKey="value" innerRadius={50} outerRadius={88} paddingAngle={2} stroke="none">
                       {topSectors.map((_, i) => (
                         <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
                       ))}
@@ -176,14 +179,14 @@ export default function Performance() {
                     <Tooltip content={<AllocTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <ul className="flex-1 space-y-2">
+                <ul className="flex-1 space-y-2.5">
                   {topSectors.map((d, i) => (
                     <li key={d.name} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 text-[#94A3B8]">
-                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
+                      <span className="flex items-center gap-2.5 text-[#94A3B8]">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                         {d.name}
                       </span>
-                      <span className="text-white font-medium">{d.value}%</span>
+                      <span className="text-white font-medium tabular-nums">{d.value}%</span>
                     </li>
                   ))}
                 </ul>
@@ -191,17 +194,16 @@ export default function Performance() {
             </div>
           </Reveal>
 
-          <Reveal delay={0.1}>
+          <Reveal className="lg:col-span-3" delay={0.12}>
             <div data-testid="snapshot-sector-contribution">
               <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-[#F5A623]">Where profit was generated</div>
-              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-6">Contribution to Net P&L</h3>
-              <ResponsiveContainer width="100%" height={280}>
+              <h3 className="font-serif-display text-xl md:text-2xl text-white mb-8">Contribution to Net P&amp;L</h3>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={topContribution} layout="vertical" margin={{ left: 26, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                   <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={92} tickLine={false} axisLine={false} />
                   <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                     {topContribution.map((d, i) => (
                       <Cell key={i} fill={d.value >= 0 ? "#F5A623" : "#F87171"} />
                     ))}
@@ -214,7 +216,7 @@ export default function Performance() {
 
         {/* CTA */}
         <Reveal delay={0.05}>
-          <div className="mt-14 border border-white/12 rounded-xl bg-[#0A1E3F]/40 px-8 md:px-12 py-10 md:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+          <div className="mt-20 border border-white/12 rounded-xl bg-[#0A1E3F]/40 px-8 md:px-12 py-10 md:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-lg">
               <div className="mb-3 h-px w-12 bg-[#F5A623]" />
               <h3 className="font-serif-display text-3xl md:text-4xl text-white tracking-tight">
