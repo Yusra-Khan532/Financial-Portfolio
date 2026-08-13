@@ -2,7 +2,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import { useLenis } from "lenis/react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { metrics, headline, growthData, sectorAllocation, attribution } from "@/data/portfolio";
@@ -68,8 +68,7 @@ const toneCls = (t) =>
   t === "positive" ? "text-[#34D399]" : t === "negative" ? "text-[#F87171]" : "text-white";
 
 export default function Performance() {
-  const lenis = useLenis();
-  const viewFull = () => lenis?.scrollTo("#holdings", { offset: -70 });
+  const navigate = useNavigate();
 
   return (
     <section id="performance" className="relative py-20 md:py-24 px-6 md:px-10">
@@ -219,7 +218,7 @@ export default function Performance() {
             </div>
             <button
               data-testid="snapshot-view-full"
-              onClick={viewFull}
+              onClick={() => navigate("/portfolio")}
               className="group inline-flex items-center gap-3 px-7 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] font-medium hover:bg-[#E19212] transition-colors self-start md:self-auto shrink-0"
             >
               View Full Portfolio Report

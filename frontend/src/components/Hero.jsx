@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform, useReducedMotion, useMotionValue, useSpring } from "framer-motion";
 import { useRef } from "react";
 import { useLenis } from "lenis/react";
+import { useNavigate } from "react-router-dom";
 
 const HERO_BG =
   "https://images.unsplash.com/photo-1667832273606-c4a9e46c7d1a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGdvbGQlMjBuYXZ5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODYzNjgyMDR8MA&ixlib=rb-4.1.0&q=85";
@@ -131,6 +132,7 @@ const CompoundingVisual = () => {
 export default function Hero() {
   const ref = useRef(null);
   const lenis = useLenis();
+  const navigate = useNavigate();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
@@ -203,7 +205,7 @@ export default function Hero() {
             >
               <button
                 data-testid="hero-cta-portfolio"
-                onClick={() => scrollTo("performance")}
+                onClick={() => navigate("/portfolio")}
                 className="px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] text-base md:text-[17px] font-medium hover:bg-[#E19212] transition-colors"
               >
                 View Portfolio

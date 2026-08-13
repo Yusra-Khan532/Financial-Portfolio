@@ -4,9 +4,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const links = [
   { id: "top", label: "About" },
-  { id: "performance", label: "Portfolio" },
+  { route: "/portfolio", label: "Portfolio" },
   { id: "process", label: "Approach" },
-  { id: "holdings", label: "Research" },
+  { route: "/blog", label: "Blog" },
   { route: "/services", label: "Services" },
 ];
 
@@ -66,7 +66,7 @@ export default function Navbar() {
   return (
     <header
       data-testid="site-navbar"
-      className={`fixed top-0 inset-x-0 z-50 transition-colors duration-300 ${
+      className={`fixed top-8 inset-x-0 z-50 transition-colors duration-300 ${
         scrolled ? "bg-[#050E1D]/85 backdrop-blur-md border-b border-white/10" : "bg-transparent"
       }`}
     >
