@@ -3,9 +3,8 @@ import { useLenis } from "lenis/react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const links = [
-  { id: "top", label: "About" },
+  { route: "/about", label: "About" },
   { route: "/portfolio", label: "Portfolio" },
-  { id: "process", label: "Approach" },
   { route: "/blog", label: "Blog" },
   { route: "/services", label: "Services" },
 ];

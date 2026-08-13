@@ -9,10 +9,15 @@ import Home from "@/pages/Home";
 import ContactPage from "@/pages/ContactPage";
 import ServicesPage from "@/pages/ServicesPage";
 import PortfolioPage from "@/pages/PortfolioPage";
+import AboutPage from "@/pages/AboutPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogDetailPage from "@/pages/BlogDetailPage";
 import BlogAdminLoginPage from "@/pages/BlogAdminLoginPage";
 import BlogAdminPage from "@/pages/BlogAdminPage";
+import BlogAdminNewPage from "@/pages/BlogAdminNewPage";
+import BlogAdminEditPage from "@/pages/BlogAdminEditPage";
+import BlogAdminPreviewPage from "@/pages/BlogAdminPreviewPage";
+import AdminRoute from "@/components/cms/AdminRoute";
 import { Toaster } from "@/components/ui/sonner";
 
 function ScrollManager() {
@@ -38,9 +43,15 @@ function App() {
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/admin/login" element={<BlogAdminLoginPage />} />
-            <Route path="/blog/admin" element={<BlogAdminPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/blog/admin" element={<BlogAdminPage />} />
+              <Route path="/blog/admin/new" element={<BlogAdminNewPage />} />
+              <Route path="/blog/admin/edit/:id" element={<BlogAdminEditPage />} />
+              <Route path="/blog/admin/preview/:id" element={<BlogAdminPreviewPage />} />
+            </Route>
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
           </Routes>
           <Footer />

@@ -11,16 +11,18 @@ from typing import Literal
 import uuid
 from datetime import datetime, timezone
 from time import monotonic, time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import urlopen
 import asyncio
 import bcrypt
 import jwt
+import nh3
 import re
 import shutil
 from html import escape
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from pymongo.errors import ServerSelectionTimeoutError
 # from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
 from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
 
@@ -36,7 +38,11 @@ logger = logging.getLogger(__name__)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(
+    mongo_url,
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=5000,
+)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
@@ -63,13 +69,19 @@ UPLOAD_TYPES = {
     ".pdf": {"application/pdf"},
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
     ".xls": {"application/vnd.ms-excel"},
-    ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel"},
+    ".csv": {"text/csv", "text/plain", "application/csv", "application/vnd.ms-excel"},
     ".png": {"image/png"},
     ".jpg": {"image/jpeg"},
     ".jpeg": {"image/jpeg"},
     ".webp": {"image/webp"},
 }
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+RESOURCE_MIME_TYPES = {
+    "PDF": UPLOAD_TYPES[".pdf"],
+    "SPREADSHEET": UPLOAD_TYPES[".xlsx"] | UPLOAD_TYPES[".xls"] | UPLOAD_TYPES[".csv"],
+    "IMAGE": UPLOAD_TYPES[".png"] | UPLOAD_TYPES[".jpg"] | UPLOAD_TYPES[".jpeg"] | UPLOAD_TYPES[".webp"],
+    "FILE": set().union(*UPLOAD_TYPES.values()),
+}
 ADMIN_TOKEN_TTL_SECONDS = 60 * 60 * 8
 _login_attempts = {}
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -128,7 +140,10 @@ class ContentInput(BaseModel):
     excerpt: str = Field(default="", max_length=500)
     contentType: Literal["ARTICLE", "PDF", "SPREADSHEET", "IMAGE", "FILE"]
     articleBody: str = Field(default="", max_length=100_000)
+    articleFormat: Literal["MARKDOWN", "HTML"] = "MARKDOWN"
     coverImageUrl: Optional[str] = Field(default=None, max_length=1000)
+    coverImageKey: Optional[str] = Field(default=None, max_length=255)
+    inlineImageKeys: List[str] = Field(default_factory=list, max_length=100)
     fileKey: Optional[str] = Field(default=None, max_length=255)
     author: str = Field(default="Nishant Jain", max_length=120)
     status: Literal["DRAFT", "PUBLISHED"] = "DRAFT"
@@ -140,17 +155,70 @@ def slugify(value: str) -> str:
 
 
 def content_public_view(doc):
-    return {key: doc.get(key) for key in (
+    result = {key: doc.get(key) for key in (
         "id", "title", "slug", "excerpt", "contentType", "articleBody", "coverImageUrl",
         "fileUrl", "originalFileName", "mimeType", "fileSize", "author", "status",
         "publishedAt", "createdAt", "updatedAt",
     )}
+    if doc.get("coverImageKey"):
+        result["coverImageUrl"] = f"/api/content/assets/{doc['coverImageKey']}"
+    return result
 
 
 def content_admin_view(doc):
     result = content_public_view(doc)
     result["fileKey"] = doc.get("fileKey")
+    result["coverImageKey"] = doc.get("coverImageKey")
+    result["coverImageUrl"] = doc.get("coverImageUrl")
+    result["inlineImageKeys"] = doc.get("inlineImageKeys") or []
+    result["articleFormat"] = doc.get("articleFormat") or "MARKDOWN"
+    if result["contentType"] == "ARTICLE":
+        result["articleHtml"] = article_rendered_html(doc)
     return result
+
+
+ARTICLE_TAGS = {
+    "p", "h1", "h2", "h3", "strong", "em", "u", "ul", "ol", "li",
+    "blockquote", "a", "img", "hr", "br",
+}
+ARTICLE_ATTRIBUTES = {
+    "a": {"href", "title"},
+    "img": {"src", "alt", "title"},
+}
+
+
+def sanitize_article_html(html: str) -> str:
+    """Allow only the editorial HTML emitted by the CMS rich-text editor."""
+    return nh3.clean(
+        html,
+        tags=ARTICLE_TAGS,
+        clean_content_tags={"script", "style", "iframe", "object", "embed"},
+        attributes=ARTICLE_ATTRIBUTES,
+        set_tag_attribute_values={"a": {"target": "_blank"}},
+        link_rel="noopener noreferrer",
+        url_schemes={"https"},
+        strip_comments=True,
+    )
+
+
+def article_rendered_html(doc) -> str:
+    body = doc.get("articleBody") or ""
+    if doc.get("articleFormat") == "HTML":
+        return sanitize_article_html(body)
+    return markdown_to_safe_html(body)
+
+
+def validate_external_cover_url(url: Optional[str]):
+    if not url:
+        return
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="External cover images require a valid HTTPS URL.")
+
+
+def rich_article_is_empty(html: str) -> bool:
+    readable = re.sub(r"<[^>]+>", "", html).replace("&nbsp;", " ").strip()
+    return not readable and "<img" not in html
 
 
 def markdown_to_safe_html(markdown: str) -> str:
@@ -179,7 +247,7 @@ def markdown_to_safe_html(markdown: str) -> str:
         else:
             raw = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", raw)
             raw = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", raw)
-            raw = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r'<a href="\2" target="_blank" rel="noreferrer">\1</a>', raw)
+            raw = re.sub(r"\[([^\]]+)\]\((https://[^\s)]+)\)", r'<a href="\2" target="_blank" rel="noopener noreferrer">\1</a>', raw)
             rendered.append(f"<p>{raw}</p>")
     if in_list:
         rendered.append("</ul>")
@@ -220,7 +288,19 @@ async def public_content(content_type: Optional[str] = None):
         if normalized not in CONTENT_TYPES:
             raise HTTPException(status_code=400, detail="Unknown content type.")
         query["contentType"] = normalized
-    docs = await db.content.find(query, {"_id": 0, "fileKey": 0}).sort("publishedAt", -1).to_list(200)
+    try:
+        docs = await db.content.find(query, {"_id": 0, "fileKey": 0}).sort("publishedAt", -1).to_list(200)
+    except ServerSelectionTimeoutError:
+        # Local development may start before MongoDB is installed/running. The
+        # public index has no seeded content, so degrade to its valid empty state
+        # while exposing the condition through a response header and server log.
+        # Other database exceptions still surface as genuine API failures.
+        logger.warning("CMS content store is unavailable; returning an empty public collection")
+        return JSONResponse(
+            content=[],
+            status_code=200,
+            headers={"X-CMS-Content-Store": "unavailable"},
+        )
     return [content_public_view(doc) for doc in docs]
 
 
@@ -231,7 +311,7 @@ async def public_content_detail(slug: str):
         raise HTTPException(status_code=404, detail="Published content was not found.")
     result = content_public_view(doc)
     if result["contentType"] == "ARTICLE":
-        result["articleHtml"] = markdown_to_safe_html(result.get("articleBody") or "")
+        result["articleHtml"] = article_rendered_html(doc)
     return result
 
 
@@ -266,16 +346,33 @@ async def admin_content_list(_admin=Depends(require_admin)):
     return [content_admin_view(doc) for doc in docs]
 
 
-async def resolve_file_metadata(file_key: Optional[str]):
+@api_router.get("/content/admin/items/{content_id}")
+async def admin_content_detail(content_id: str, _admin=Depends(require_admin)):
+    doc = await db.content.find_one({"id": content_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Content was not found.")
+    return content_admin_view(doc)
+
+
+async def resolve_file_metadata(file_key: Optional[str], content_type: Optional[str] = None):
     if not file_key:
         return {}
     doc = await db.content_assets.find_one({"key": file_key}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=400, detail="Uploaded file was not found.")
+    if content_type and content_type != "ARTICLE" and doc.get("mimeType") not in RESOURCE_MIME_TYPES[content_type]:
+        raise HTTPException(status_code=400, detail=f"The uploaded file is not valid for {content_type.lower()} content.")
     return {
         "fileKey": file_key, "fileUrl": f"/api/content/assets/{file_key}",
         "originalFileName": doc["originalFileName"], "mimeType": doc["mimeType"], "fileSize": doc["fileSize"],
     }
+
+
+async def validate_image_assets(keys: List[Optional[str]]):
+    for key in filter(None, keys):
+        asset = await db.content_assets.find_one({"key": key}, {"_id": 0, "mimeType": 1})
+        if not asset or not asset.get("mimeType", "").startswith("image/"):
+            raise HTTPException(status_code=400, detail="Uploaded image was not found.")
 
 
 @api_router.post("/content/admin/items", status_code=201)
@@ -287,9 +384,15 @@ async def admin_create_content(payload: ContentInput, admin=Depends(require_admi
         raise HTTPException(status_code=400, detail="Articles require a body.")
     if payload.contentType != "ARTICLE" and not payload.fileKey:
         raise HTTPException(status_code=400, detail="Resources require an uploaded file.")
+    if payload.contentType == "ARTICLE" and payload.articleFormat == "HTML":
+        payload.articleBody = sanitize_article_html(payload.articleBody)
+        if rich_article_is_empty(payload.articleBody):
+            raise HTTPException(status_code=400, detail="Articles require a body.")
+    validate_external_cover_url(payload.coverImageUrl)
+    await validate_image_assets([payload.coverImageKey, *payload.inlineImageKeys])
     now = datetime.now(timezone.utc).isoformat()
     doc = payload.model_dump()
-    doc.update(await resolve_file_metadata(payload.fileKey))
+    doc.update(await resolve_file_metadata(payload.fileKey, payload.contentType))
     doc.update({"id": str(uuid.uuid4()), "slug": slug, "createdAt": now, "updatedAt": now, "publishedAt": now if payload.status == "PUBLISHED" else None, "createdBy": admin["sub"]})
     await db.content.insert_one(doc)
     return content_public_view(doc)
@@ -308,13 +411,21 @@ async def admin_update_content(content_id: str, payload: ContentInput, _admin=De
         raise HTTPException(status_code=400, detail="Articles require a body.")
     if payload.contentType != "ARTICLE" and not payload.fileKey:
         raise HTTPException(status_code=400, detail="Resources require an uploaded file.")
+    if payload.contentType == "ARTICLE" and payload.articleFormat == "HTML":
+        payload.articleBody = sanitize_article_html(payload.articleBody)
+        if rich_article_is_empty(payload.articleBody):
+            raise HTTPException(status_code=400, detail="Articles require a body.")
+    validate_external_cover_url(payload.coverImageUrl)
+    await validate_image_assets([payload.coverImageKey, *payload.inlineImageKeys])
     update = payload.model_dump()
-    update.update(await resolve_file_metadata(payload.fileKey))
+    update.update(await resolve_file_metadata(payload.fileKey, payload.contentType))
     update.update({"slug": slug, "updatedAt": datetime.now(timezone.utc).isoformat()})
     if payload.status == "PUBLISHED" and existing.get("status") != "PUBLISHED":
         update["publishedAt"] = datetime.now(timezone.utc).isoformat()
+    elif payload.status == "DRAFT" and existing.get("status") == "PUBLISHED":
+        update["publishedAt"] = None
     await db.content.update_one({"id": content_id}, {"$set": update})
-    return content_public_view({**existing, **update})
+    return content_admin_view({**existing, **update})
 
 
 @api_router.delete("/content/admin/items/{content_id}", status_code=204)
@@ -322,7 +433,11 @@ async def admin_delete_content(content_id: str, _admin=Depends(require_admin)):
     existing = await db.content.find_one_and_delete({"id": content_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Content was not found.")
-    for key in filter(None, [existing.get("fileKey")]):
+    asset_keys = {
+        existing.get("fileKey"), existing.get("coverImageKey"),
+        *(existing.get("inlineImageKeys") or []),
+    }
+    for key in filter(None, asset_keys):
         asset = await db.content_assets.find_one_and_delete({"key": key})
         if asset:
             (CONTENT_STORAGE_DIR / asset["storedName"]).unlink(missing_ok=True)
@@ -346,20 +461,59 @@ async def admin_upload_content_file(file: UploadFile = File(...), _admin=Depends
                 if total > MAX_UPLOAD_BYTES:
                     raise HTTPException(status_code=413, detail="File exceeds the 15 MB limit.")
                 output.write(chunk)
+        validate_uploaded_signature(extension, destination)
     except Exception:
         destination.unlink(missing_ok=True)
         raise
     asset = {"key": key, "storedName": stored_name, "originalFileName": original_name, "mimeType": file.content_type, "fileSize": total}
-    await db.content_assets.insert_one(asset)
+    # Motor mutates the inserted dictionary by adding MongoDB's ObjectId. Insert
+    # a copy so the API response remains JSON serializable and never exposes it.
+    await db.content_assets.insert_one(asset.copy())
     return {**asset, "fileUrl": f"/api/content/assets/{key}"}
+
+
+def validate_uploaded_signature(extension: str, path: Path):
+    """Confirm the file contents match the already validated extension/MIME pair."""
+    header = path.read_bytes()[:65536]
+    valid = {
+        ".pdf": header.startswith(b"%PDF-"),
+        ".xlsx": header.startswith(b"PK\x03\x04"),
+        ".xls": header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"),
+        ".png": header.startswith(b"\x89PNG\r\n\x1a\n"),
+        ".jpg": header.startswith(b"\xff\xd8\xff"),
+        ".jpeg": header.startswith(b"\xff\xd8\xff"),
+        ".webp": header.startswith(b"RIFF") and header[8:12] == b"WEBP",
+    }
+    if extension == ".csv":
+        try:
+            header.decode("utf-8-sig")
+            valid[extension] = b"\x00" not in header
+        except UnicodeDecodeError:
+            valid[extension] = False
+    if not valid.get(extension, False):
+        raise HTTPException(status_code=400, detail="File contents do not match the selected file type.")
 
 
 @api_router.get("/content/assets/{key}")
 async def content_asset(key: str):
     # An asset becomes public only when associated content is published.
-    published = await db.content.find_one({"fileKey": key, "status": "PUBLISHED"})
+    published = await db.content.find_one({
+        "status": "PUBLISHED",
+        "$or": [{"fileKey": key}, {"coverImageKey": key}, {"inlineImageKeys": key}],
+    })
     if not published:
         raise HTTPException(status_code=404, detail="Published asset was not found.")
+    asset = await db.content_assets.find_one({"key": key}, {"_id": 0})
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset was not found.")
+    path = CONTENT_STORAGE_DIR / asset["storedName"]
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Asset storage was not found.")
+    return FileResponse(path, media_type=asset["mimeType"], filename=asset["originalFileName"], content_disposition_type="inline")
+
+
+@api_router.get("/content/admin/assets/{key}")
+async def admin_content_asset(key: str, _admin=Depends(require_admin)):
     asset = await db.content_assets.find_one({"key": key}, {"_id": 0})
     if not asset:
         raise HTTPException(status_code=404, detail="Asset was not found.")
