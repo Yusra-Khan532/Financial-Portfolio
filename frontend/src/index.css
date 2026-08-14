@@ -13,6 +13,7 @@
 }
 
 .market-ticker {
+  --market-ticker-duration: 180s;
   position: fixed;
   inset: 0 0 auto;
   z-index: 60;
@@ -29,7 +30,7 @@
   display: inline-flex;
   align-items: center;
   min-width: max-content;
-  animation: market-ticker-scroll 42s linear infinite;
+  animation: market-ticker-scroll var(--market-ticker-duration) linear infinite;
 }
 .market-ticker-content:hover { animation-play-state: paused; }
 .market-ticker-content > span + span { border-left: 1px solid rgba(255, 255, 255, 0.1); }

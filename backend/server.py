@@ -11,14 +11,17 @@ from typing import Literal
 import uuid
 from datetime import datetime, timezone
 from time import monotonic, time
-from urllib.parse import urlencode, urlparse
-from urllib.request import urlopen
+from urllib.parse import urlparse
 import asyncio
 import bcrypt
 import jwt
 import nh3
 import re
 import shutil
+import json
+import requests
+import csv
+from io import StringIO
 from html import escape
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import FileResponse, JSONResponse
@@ -49,17 +52,14 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # Kept on the server so provider symbols and credentials never reach the browser.
-# These global-market instruments were verified against the configured Finnhub plan.
-MARKET_TICKER_INSTRUMENTS = [
-    {"name": "Apple", "symbol": "AAPL", "category": "US equity", "currency": "USD"},
-    {"name": "Microsoft", "symbol": "MSFT", "category": "US equity", "currency": "USD"},
-    {"name": "NVIDIA", "symbol": "NVDA", "category": "US equity", "currency": "USD"},
-    {"name": "SPDR S&P 500 ETF", "symbol": "SPY", "category": "US ETF", "currency": "USD"},
-    {"name": "Invesco QQQ ETF", "symbol": "QQQ", "category": "US ETF", "currency": "USD"},
-    {"name": "SPDR Dow Jones ETF", "symbol": "DIA", "category": "US ETF", "currency": "USD"},
+NIFTY_50_CONSTITUENTS_URL = "https://www.niftyindices.com/IndexConstituent/ind_nifty50list.csv"
+MARKET_TICKER_INDEX_INSTRUMENTS = [
+    {"name": "NIFTY 50", "symbol": "NIFTY 50", "instrument_key": "NSE_INDEX|Nifty 50", "category": "Index", "currency": "INR"},
 ]
 MARKET_TICKER_CACHE_SECONDS = 60
+NIFTY_50_CONSTITUENTS_CACHE_SECONDS = 60 * 60 * 6
 _market_ticker_cache = {"items": None, "fetched_at": 0.0}
+_nifty_50_constituents_cache = {"items": None, "fetched_at": 0.0}
 
 # Content CMS configuration. Admin identities are provisioned via environment
 # variables only; there is deliberately no registration endpoint.
@@ -523,52 +523,132 @@ async def admin_content_asset(key: str, _admin=Depends(require_admin)):
     return FileResponse(path, media_type=asset["mimeType"], filename=asset["originalFileName"], content_disposition_type="inline")
 
 
-def _fetch_finnhub_quote(instrument, api_key):
-    query = urlencode({"symbol": instrument["symbol"], "token": api_key})
-    with urlopen(f"https://finnhub.io/api/v1/quote?{query}", timeout=10) as response:
-        import json
-        quote = json.loads(response.read().decode("utf-8"))
+def configured_market_ticker_instruments():
+    configured = os.environ.get("UPSTOX_MARKET_TICKER_INSTRUMENTS", "").strip()
+    if not configured:
+        return [*MARKET_TICKER_INDEX_INSTRUMENTS, *fetch_nifty_50_constituents()]
+    try:
+        instruments = json.loads(configured)
+    except json.JSONDecodeError as e:
+        raise ValueError("UPSTOX_MARKET_TICKER_INSTRUMENTS must be valid JSON") from e
+    if not isinstance(instruments, list) or not instruments:
+        raise ValueError("UPSTOX_MARKET_TICKER_INSTRUMENTS must be a non-empty JSON array")
+    for instrument in instruments:
+        if not isinstance(instrument, dict) or not instrument.get("instrument_key"):
+            raise ValueError("Each ticker instrument must include an instrument_key")
+    return instruments
 
-    price = quote.get("c")
-    timestamp = quote.get("t")
-    if not isinstance(price, (int, float)) or price <= 0 or not timestamp:
-        raise ValueError(f"No usable quote returned for {instrument['symbol']}")
 
-    change = quote.get("d") or 0
-    change_percent = quote.get("dp") or 0
-    return {
-        "name": instrument["name"],
-        "symbol": instrument["symbol"],
-        "category": instrument["category"],
-        "currency": instrument["currency"],
-        "price": price,
-        "change": change,
-        "changePercent": change_percent,
-        "direction": "up" if change > 0 else "down" if change < 0 else "flat",
-        "timestamp": timestamp,
+def fetch_nifty_50_constituents():
+    cached_items = _nifty_50_constituents_cache["items"]
+    if cached_items and monotonic() - _nifty_50_constituents_cache["fetched_at"] < NIFTY_50_CONSTITUENTS_CACHE_SECONDS:
+        return cached_items
+
+    response = requests.get(
+        NIFTY_50_CONSTITUENTS_URL,
+        headers={
+            "Accept": "text/csv,*/*",
+            "User-Agent": "financial-portfolio-local/1.0",
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+
+    rows = csv.DictReader(StringIO(response.text))
+    instruments = []
+    for row in rows:
+        symbol = (row.get("Symbol") or "").strip()
+        company = (row.get("Company Name") or symbol).strip()
+        isin = (row.get("ISIN Code") or "").strip()
+        if not symbol or not isin:
+            continue
+        instruments.append({
+            "name": company,
+            "symbol": symbol,
+            "instrument_key": f"NSE_EQ|{isin}",
+            "category": "NIFTY 50",
+            "currency": "INR",
+        })
+
+    if len(instruments) < 45:
+        raise ValueError("NIFTY 50 constituent feed returned too few instruments")
+    _nifty_50_constituents_cache.update({"items": instruments, "fetched_at": monotonic()})
+    return instruments
+
+
+def _fetch_upstox_quotes(instruments, access_token):
+    instrument_keys = [instrument["instrument_key"] for instrument in instruments]
+    response = requests.get(
+        "https://api.upstox.com/v3/market-quote/ltp",
+        params={"instrument_key": ",".join(instrument_keys)},
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "financial-portfolio-local/1.0",
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    data = payload.get("data")
+    if payload.get("status") != "success" or not isinstance(data, dict):
+        raise ValueError("No usable Upstox quote payload returned")
+
+    quotes_by_token = {
+        quote.get("instrument_token"): quote
+        for quote in data.values()
+        if isinstance(quote, dict) and quote.get("instrument_token")
     }
+
+    items = []
+    for instrument in instruments:
+        quote = quotes_by_token.get(instrument["instrument_key"])
+        if not quote:
+            raise ValueError(f"No usable quote returned for {instrument['instrument_key']}")
+
+        price = quote.get("last_price")
+        close = quote.get("cp")
+        if not isinstance(price, (int, float)) or price <= 0:
+            raise ValueError(f"No usable price returned for {instrument['instrument_key']}")
+
+        change = price - close if isinstance(close, (int, float)) else 0
+        change_percent = (change / close) * 100 if isinstance(close, (int, float)) and close else 0
+        items.append({
+            "name": instrument.get("name") or quote.get("symbol") or instrument["instrument_key"],
+            "symbol": instrument.get("symbol") or quote.get("symbol") or instrument["instrument_key"],
+            "instrumentKey": instrument["instrument_key"],
+            "category": instrument.get("category", "Market"),
+            "currency": instrument.get("currency", "INR"),
+            "price": price,
+            "change": change,
+            "changePercent": change_percent,
+            "direction": "up" if change > 0 else "down" if change < 0 else "flat",
+            "volume": quote.get("volume"),
+            "timestamp": int(time()),
+        })
+    return items
 
 
 @api_router.get("/market-ticker")
 async def market_ticker():
-    """Return cached, normalized Finnhub quotes without exposing the API key."""
+    """Return cached, normalized Upstox quotes without exposing the API token."""
     cached_items = _market_ticker_cache["items"]
     if cached_items and monotonic() - _market_ticker_cache["fetched_at"] < MARKET_TICKER_CACHE_SECONDS:
         return {"items": cached_items, "cached": True}
 
-    api_key = os.environ.get("FINNHUB_API_KEY", "").strip()
-    if not api_key:
+    access_token = os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip()
+    if not access_token:
         if cached_items:
             return {"items": cached_items, "cached": True, "stale": True}
         raise HTTPException(status_code=503, detail="Market data is not configured.")
 
     try:
-        items = await asyncio.gather(
-            *[asyncio.to_thread(_fetch_finnhub_quote, instrument, api_key) for instrument in MARKET_TICKER_INSTRUMENTS]
-        )
+        instruments = configured_market_ticker_instruments()
+        items = await asyncio.to_thread(_fetch_upstox_quotes, instruments, access_token)
     except Exception:
-        # Deliberately do not log the provider exception: its request URL can
-        # contain the token query parameter.
+        # Deliberately keep provider details out of logs: request headers include
+        # a bearer token, and some errors echo request metadata.
         logger.warning("Market ticker provider request failed")
         if cached_items:
             return {"items": cached_items, "cached": True, "stale": True}
