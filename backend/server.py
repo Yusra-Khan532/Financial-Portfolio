@@ -27,8 +27,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import FileResponse, JSONResponse
 from pymongo.errors import ServerSelectionTimeoutError
 # from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
-from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
-
+# from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
+from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
