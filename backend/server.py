@@ -728,10 +728,22 @@ async def create_service_enquiry(payload: ServiceEnquiryCreate):
 
 app.include_router(api_router)
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://financial-portfolio-m4eb.vercel.app",
+]
+
+
+def configured_cors_origins():
+    origins = DEFAULT_CORS_ORIGINS + os.environ.get("CORS_ORIGINS", "").split(",")
+    return list(dict.fromkeys(origin.strip().rstrip("/") for origin in origins if origin.strip()))
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=configured_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
