@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { Reveal } from "@/components/Reveal";
 import { aboutPillars, aboutPrinciples, aboutTeam } from "@/data/about";
+import { Linkedin } from "lucide-react";
 
 function Portrait({ person, prominent = false }) {
   const ratioClass = prominent ? "aspect-[4/5]" : "aspect-[5/4] sm:aspect-[4/3]";
@@ -22,7 +22,7 @@ function Eyebrow({ children }) {
 }
 
 export default function AboutPage() {
-  const { investmentLead, technologyTeam } = aboutTeam;
+  const { investmentLead } = aboutTeam;
 
   return (
     <main className="pt-24 md:pt-28">
@@ -86,6 +86,15 @@ export default function AboutPage() {
               <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-y border-white/10 py-4 text-xs text-[#CBD5E1]">
                 {investmentLead.credentials.map((credential) => <span key={credential}>{credential}</span>)}
               </div>
+              <a
+                href="https://www.linkedin.com/in/nishant-jain-1464071ab/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-[#CBD5E1] transition-colors hover:border-[#F5A623]/60 hover:text-[#F5A623] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050E1D]"
+              >
+                <Linkedin size={15} strokeWidth={1.5} />
+                LinkedIn <span aria-hidden="true">↗</span>
+              </a>
               <p className="mt-7 max-w-2xl text-base leading-relaxed text-[#A6B4C4]">{investmentLead.bio}</p>
               <p className="mt-5 max-w-2xl text-sm leading-relaxed text-[#94A3B8]">
                 His process moves from idea generation and industry analysis through business quality, valuation and position sizing—then continues with deliberate monitoring and exit discipline.
@@ -99,47 +108,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="border-y border-white/10 bg-[#07182F]/55 px-6 py-16 md:px-10 md:py-20" aria-labelledby="technology-title">
-        <div className="mx-auto max-w-7xl">
-          <Reveal className="grid gap-5 lg:grid-cols-[.72fr_1.28fr] lg:items-end lg:gap-16">
-            <div>
-              <Eyebrow>Technology Team</Eyebrow>
-              <h2 id="technology-title" className="mt-4 max-w-xl font-serif-display text-4xl leading-tight text-white sm:text-5xl">The team behind the digital experience.</h2>
-            </div>
-            <p className="max-w-2xl text-sm leading-relaxed text-[#94A3B8]">
-              The technology team builds and maintains the digital platform that brings research, portfolio information and investor resources into a clear and accessible experience.
-            </p>
-          </Reveal>
-          <div className="mt-10 grid gap-8 md:grid-cols-2">
-            {technologyTeam.map((person, index) => (
-              <Reveal key={person.name} delay={index * 0.08}>
-                <article className="grid gap-6 sm:grid-cols-[.9fr_1.1fr] sm:items-end">
-                  <Portrait person={person} />
-                  <div className="border-t border-white/10 pt-5 sm:pb-3">
-                    <h3 className="font-serif-display text-3xl text-white">{person.name}</h3>
-                    <p className="mt-1 text-xs uppercase tracking-[.15em] text-[#E7C56B]">{person.role}</p>
-                    <p className="mt-4 text-sm leading-relaxed text-[#94A3B8]">{person.bio}</p>
-                  </div>
-                </article>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-white/10 px-6 py-16 md:px-10 md:py-20">
-        <Reveal className="mx-auto flex max-w-7xl flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Eyebrow>Continue Exploring</Eyebrow>
-            <h2 className="mt-4 max-w-2xl font-serif-display text-4xl leading-tight text-white sm:text-5xl">Explore the research behind the process.</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-            <Link to="/portfolio" className="rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">View Portfolio</Link>
-            <Link to="/blog" className="text-sm text-[#CBD5E1] transition-colors hover:text-[#F5A623]">Read Research</Link>
-            <Link to="/contact" className="text-sm text-[#CBD5E1] transition-colors hover:text-[#F5A623]">Contact</Link>
-          </div>
-        </Reveal>
-      </section>
     </main>
   );
 }

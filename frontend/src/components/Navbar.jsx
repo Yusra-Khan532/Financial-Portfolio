@@ -72,10 +72,10 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 md:h-20 flex items-center justify-between">
         <button data-testid="nav-logo" onClick={goHome} className="text-left">
           <span className="font-serif-display text-xl md:text-2xl text-white tracking-tight">
-            Nishant Jain
+            FinLit
           </span>
           <span className="block text-[10px] uppercase tracking-[0.3em] text-[#F5A623]">
-            Equity Research
+            Investment Research
           </span>
         </button>
 

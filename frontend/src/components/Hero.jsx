@@ -1,241 +1,140 @@
-import { motion, useScroll, useTransform, useReducedMotion, useMotionValue, useSpring } from "framer-motion";
+import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { useLenis } from "lenis/react";
 import { useNavigate } from "react-router-dom";
 
-const HERO_BG =
-  "https://images.unsplash.com/photo-1667832273606-c4a9e46c7d1a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGdvbGQlMjBuYXZ5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODYzNjgyMDR8MA&ixlib=rb-4.1.0&q=85";
-
-const lineParent = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.11, delayChildren: 0.15 } },
-};
-const lineChild = {
-  hidden: { y: "110%" },
-  show: { y: "0%", transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } },
-};
+const lineParent = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.12 } } };
+const lineChild = { hidden: { y: "110%" }, show: { y: "0%", transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } } };
 
 const MaskLine = ({ children, className }) => (
   <span className="block overflow-hidden">
-    <motion.span variants={lineChild} className={`block ${className}`}>
-      {children}
-    </motion.span>
+    <motion.span variants={lineChild} className={`block ${className}`}>{children}</motion.span>
   </span>
 );
 
-const IsoBlock = ({ cx, topY, halfH, h, delay, reduced }) => {
-  const halfV = halfH / 2;
-  const top = `M${cx},${topY + halfV} L${cx + halfH},${topY} L${cx},${topY - halfV} L${cx - halfH},${topY} Z`;
-  const left = `M${cx - halfH},${topY} L${cx},${topY + halfV} L${cx},${topY + halfV + h} L${cx - halfH},${topY + h} Z`;
-  const right = `M${cx},${topY + halfV} L${cx + halfH},${topY} L${cx + halfH},${topY + h} L${cx},${topY + halfV + h} Z`;
-  return (
-    <motion.g
-      initial={reduced ? false : { opacity: 0 }}
-      animate={reduced ? {} : { opacity: 1 }}
-      transition={{ delay, duration: 1.1, ease: "easeOut" }}
-    >
-      <path d={left} fill="#050B16" />
-      <path d={right} fill="#0A1E3F" />
-      <path d={top} fill="#12315f" />
-      <path d={top} fill="none" stroke="rgba(226,232,240,0.16)" strokeWidth="1" />
-      <path d={left} fill="none" stroke="rgba(226,232,240,0.05)" strokeWidth="1" />
-      <path d={right} fill="none" stroke="rgba(226,232,240,0.06)" strokeWidth="1" />
-    </motion.g>
-  );
-};
-
-const CompoundingVisual = () => {
+function CapitalFlowVisual() {
   const reduced = useReducedMotion();
   const ref = useRef(null);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 55, damping: 22 });
-  const sy = useSpring(my, { stiffness: 55, damping: 22 });
-  const fgX = useTransform(sx, [-0.5, 0.5], [4, -4]);
-  const fgY = useTransform(sy, [-0.5, 0.5], [3, -3]);
-  const bgX = useTransform(sx, [-0.5, 0.5], [1.5, -1.5]);
-  const bgY = useTransform(sy, [-0.5, 0.5], [1, -1]);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 35, damping: 24 });
+  const springY = useSpring(y, { stiffness: 35, damping: 24 });
+  const nearX = useTransform(springX, [-0.5, 0.5], [4, -4]);
+  const nearY = useTransform(springY, [-0.5, 0.5], [3, -3]);
+  const farX = useTransform(springX, [-0.5, 0.5], [1.5, -1.5]);
+  const farY = useTransform(springY, [-0.5, 0.5], [1, -1]);
 
-  const onMove = (e) => {
-    if (reduced) return;
-    const r = ref.current.getBoundingClientRect();
-    mx.set((e.clientX - r.left) / r.width - 0.5);
-    my.set((e.clientY - r.top) / r.height - 0.5);
-  };
-  const onLeave = () => {
-    mx.set(0);
-    my.set(0);
+  const updatePosition = (event) => {
+    if (reduced || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    x.set((event.clientX - rect.left) / rect.width - 0.5);
+    y.set((event.clientY - rect.top) / rect.height - 0.5);
   };
 
   return (
-    <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave} className="relative">
-      <svg viewBox="0 0 480 480" fill="none" className="w-full h-auto" aria-hidden="true">
+    <div ref={ref} onMouseMove={updatePosition} onMouseLeave={() => { x.set(0); y.set(0); }} className="mx-auto w-full max-w-[440px]">
+      <svg viewBox="0 0 480 410" fill="none" className="h-auto w-full" aria-label="Abstract market research network and capital-flow composition">
         <defs>
-          <radialGradient id="csGlow" cx="60%" cy="40%" r="55%">
-            <stop offset="0%" stopColor="#12315f" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#050E1D" stopOpacity="0" />
+          <radialGradient id="flow-glow" cx="50%" cy="50%" r="50%">
+            <stop stopColor="#173B6B" stopOpacity=".46" />
+            <stop offset=".52" stopColor="#0A1E3F" stopOpacity=".2" />
+            <stop offset="1" stopColor="#050E1D" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="csGold" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.2" />
-            <stop offset="55%" stopColor="#F5A623" stopOpacity="0.85" />
-            <stop offset="100%" stopColor="#F5A623" stopOpacity="0.15" />
+          <linearGradient id="flow-gold" x1="45" y1="300" x2="438" y2="105" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#D4AF37" stopOpacity=".08" />
+            <stop offset=".48" stopColor="#F5A623" stopOpacity=".86" />
+            <stop offset="1" stopColor="#D4AF37" stopOpacity=".14" />
           </linearGradient>
-          <filter id="csBlur" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="10" />
-          </filter>
+          <filter id="flow-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="13" /></filter>
+          <filter id="node-blur" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="3.5" /></filter>
         </defs>
 
-        {/* background depth */}
-        <motion.g style={reduced ? undefined : { x: bgX, y: bgY }}>
-          <circle cx="290" cy="210" r="220" fill="url(#csGlow)" />
-          {/* soft directional ground shadows */}
-          <motion.g
-            initial={reduced ? false : { opacity: 0 }}
-            animate={reduced ? {} : { opacity: 0.5 }}
-            transition={{ delay: 0.2, duration: 1.2 }}
-          >
-            <ellipse cx="205" cy="440" rx="150" ry="24" fill="#03080f" filter="url(#csBlur)" />
-            <ellipse cx="330" cy="360" rx="90" ry="16" fill="#03080f" filter="url(#csBlur)" />
-          </motion.g>
-          <IsoBlock cx={175} topY={362} halfH={118} h={64} delay={0.35} reduced={reduced} />
+        {/* Background: a quiet, irregular analytical mesh. */}
+        <motion.g style={reduced ? undefined : { x: farX, y: farY }} stroke="#7E96B5" strokeWidth=".7" strokeOpacity=".105">
+          <path d="M38 123C94 70 148 76 194 131C239 185 289 181 337 133C381 89 420 87 451 116" />
+          <path d="M27 190C90 150 144 152 198 190C252 228 310 231 365 195C402 171 435 170 462 184" />
+          <path d="M42 273C101 226 153 231 202 270C250 308 306 313 360 276C396 252 429 247 455 258" />
+          <path d="M97 64C121 118 139 172 153 233C166 291 192 328 230 353" />
+          <path d="M207 49C193 111 195 157 218 201C244 251 277 300 315 352" />
+          <path d="M332 61C311 112 287 155 245 195C215 224 210 271 225 343" />
+          <path d="M414 92C372 127 345 166 335 217C326 265 339 304 370 333" />
+          <path d="M64 318C132 308 175 278 218 201C267 113 329 82 421 88" strokeDasharray="2 8" />
         </motion.g>
 
-        {/* foreground stepped progression */}
-        <motion.g style={reduced ? undefined : { x: fgX, y: fgY }}>
-          <IsoBlock cx={244} topY={300} halfH={86} h={78} delay={0.7} reduced={reduced} />
-          <IsoBlock cx={306} topY={232} halfH={62} h={92} delay={1.05} reduced={reduced} />
-          <IsoBlock cx={358} topY={158} halfH={44} h={64} delay={1.4} reduced={reduced} />
+        {/* Mid layer: research paths moving through the mesh. */}
+        <motion.g style={reduced ? undefined : { x: nearX, y: nearY }}>
+          <ellipse cx="238" cy="205" rx="174" ry="148" fill="url(#flow-glow)" />
+          <ellipse cx="238" cy="205" rx="34" ry="23" fill="#153562" fillOpacity=".32" filter="url(#flow-blur)" />
+          <path d="M54 91C119 99 159 128 226 200" stroke="#9DB1C9" strokeOpacity=".25" strokeWidth=".9" />
+          <path d="M45 178C112 159 168 171 226 200" stroke="#9DB1C9" strokeOpacity=".2" strokeWidth=".9" />
+          <path d="M67 288C132 248 176 218 226 200" stroke="#9DB1C9" strokeOpacity=".23" strokeWidth=".9" />
+          <path d="M145 351C168 283 191 230 226 200" stroke="#9DB1C9" strokeOpacity=".16" strokeWidth=".8" />
+          <path d="M226 200C287 171 350 122 427 88" stroke="#A6B8CF" strokeOpacity=".27" strokeWidth=".9" />
+          <path d="M226 200C298 208 355 226 452 200" stroke="#A6B8CF" strokeOpacity=".17" strokeWidth=".8" />
+          <path d="M226 200C284 240 333 277 422 319" stroke="#A6B8CF" strokeOpacity=".22" strokeWidth=".9" />
+          <path d="M226 200C255 271 285 322 346 358" stroke="#A6B8CF" strokeOpacity=".15" strokeWidth=".8" />
 
-          {/* one restrained gold light along a structural edge */}
+          <g fill="#9FB2CC">
+            <circle cx="54" cy="91" r="2.4" fillOpacity=".42" /><circle cx="45" cy="178" r="1.8" fillOpacity=".34" />
+            <circle cx="67" cy="288" r="2.2" fillOpacity=".38" /><circle cx="145" cy="351" r="1.7" fillOpacity=".28" />
+            <circle cx="427" cy="88" r="2.1" fillOpacity=".38" /><circle cx="452" cy="200" r="1.7" fillOpacity=".28" />
+            <circle cx="422" cy="319" r="2.2" fillOpacity=".36" /><circle cx="346" cy="358" r="1.6" fillOpacity=".26" />
+          </g>
+
           <motion.path
-            d="M293,362 L330,300 L368,232 L358,136"
-            stroke="url(#csGold)"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            fill="none"
-            initial={reduced ? { opacity: 0.5 } : { pathLength: 0, opacity: 0 }}
-            animate={reduced ? { opacity: 0.5 } : { pathLength: 1, opacity: 0.65 }}
-            transition={{ delay: 1.5, duration: 1.4, ease: "easeInOut" }}
+            d="M46 304C112 282 157 119 226 200C284 268 341 166 435 111"
+            stroke="url(#flow-gold)" strokeWidth="1.25" strokeLinecap="round"
+            initial={reduced ? false : { pathLength: 0, opacity: 0 }}
+            animate={reduced ? undefined : { pathLength: 1, opacity: 1 }}
+            transition={{ duration: 2.4, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
           />
-          <motion.circle
-            cx="358" cy="136" r="3" fill="#F5A623"
-            initial={reduced ? { opacity: 0.6 } : { opacity: 0, scale: 0 }}
-            animate={reduced ? { opacity: 0.6 } : { opacity: 0.8, scale: 1 }}
-            transition={{ delay: 2.7, duration: 0.5 }}
-          />
+
+          {/* Foreground: a soft convergence core, not a diagrammatic target. */}
+          <ellipse cx="226" cy="200" rx="27" ry="18" fill="#07182F" fillOpacity=".82" stroke="#B5C4D5" strokeOpacity=".18" />
+          {!reduced && <motion.ellipse cx="226" cy="200" rx="18" ry="12" fill="#F5A623" animate={{ opacity: [0.07, 0.15, 0.07], scale: [0.94, 1.08, 0.94] }} transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }} />}
+          <ellipse cx="226" cy="200" rx="8" ry="5.5" fill="#E7C56B" fillOpacity=".72" />
+          <ellipse cx="226" cy="200" rx="13" ry="9" fill="#F5A623" fillOpacity=".16" filter="url(#node-blur)" />
         </motion.g>
       </svg>
     </div>
   );
-};
+}
 
 export default function Hero() {
   const ref = useRef(null);
   const lenis = useLenis();
   const navigate = useNavigate();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
-
+  const yBackground = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
   const scrollTo = (id) => lenis?.scrollTo(`#${id}`, { offset: -70 });
 
   return (
-    <section
-      id="top"
-      ref={ref}
-      className="relative min-h-screen flex items-center overflow-hidden grain"
-    >
-      <motion.div style={{ y: yBg }} className="absolute inset-0 z-0">
-        <img src={HERO_BG} alt="" className="w-full h-[130%] object-cover opacity-20" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050E1D]/80 via-[#050E1D]/70 to-[#050E1D]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050E1D] via-[#050E1D]/60 to-transparent" />
+    <section id="top" ref={ref} className="relative flex min-h-[min(780px,100svh)] items-center overflow-hidden">
+      <motion.div style={{ y: yBackground }} className="absolute inset-0 bg-[#050E1D]">
+        <div className="absolute -right-40 top-1/2 h-[38rem] w-[38rem] -translate-y-1/2 rounded-full bg-[#0A1E3F]/35 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050E1D] via-[#050E1D]/96 to-[#050E1D]/70" />
       </motion.div>
-
-      <motion.div
-        style={{ opacity }}
-        className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 w-full pt-24 pb-14"
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-10">
-          {/* LEFT — content */}
+      <motion.div style={{ opacity: contentOpacity }} className="relative z-10 mx-auto w-full max-w-7xl px-6 py-28 md:px-10">
+        <div className="grid grid-cols-1 items-center gap-4 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <motion.div variants={lineParent} initial="hidden" animate="show">
-              <MaskLine className="uppercase tracking-[0.35em] text-[11px] md:text-xs text-[#F5A623] mb-6">
-                Equity Research · Portfolio Management
-              </MaskLine>
-
-              <h1 className="font-serif-display text-white leading-[0.95] tracking-tight text-6xl sm:text-7xl lg:text-7xl xl:text-[5.5rem]">
-                <MaskLine className="whitespace-nowrap">Nishant Jain</MaskLine>
-              </h1>
-
-              <MaskLine className="mt-4 text-2xl lg:text-[1.7rem] text-[#E2E8F0] font-serif-display italic">
-                Independent Equity Investor &amp; Researcher
-              </MaskLine>
+              <h1 className="font-serif-display text-6xl leading-[.9] tracking-tight text-white sm:text-7xl lg:text-[6.75rem]"><MaskLine>FinLit</MaskLine></h1>
+              <MaskLine className="mt-7 max-w-2xl font-serif-display text-[2rem] leading-[1.04] text-[#E2E8F0] sm:text-4xl lg:text-[2.7rem]">Research-led investing for Indian and global markets.</MaskLine>
             </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9, duration: 0.8 }}
-              className="mt-5 max-w-xl text-[18px] md:text-[19px] text-[#94A3B8] leading-relaxed"
-            >
-              I build concentrated, research-driven equity portfolios grounded in
-              fundamental analysis — investing with a margin of safety and a
-              long-term, compounding mindset.
-            </motion.p>
-
-            <motion.div
-              data-testid="hero-credentials"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.05, duration: 0.8 }}
-              className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] md:text-[13px] uppercase tracking-[0.18em] text-[#94A3B8]"
-            >
-              <span>IIT Kanpur</span>
-              <span className="text-[#F5A623]/50">·</span>
-              <span>CFA Level I Cleared</span>
-              <span className="text-[#F5A623]/50">·</span>
-              <span>NISM Certified Research Analyst</span>
+            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65, duration: 0.8 }} className="mt-7 max-w-xl text-[17px] leading-relaxed text-[#94A3B8] md:text-[18px]">Portfolio reviews, investment research and thoughtful discussions across equities, mutual funds, ETFs and global opportunities.</motion.p>
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82, duration: 0.8 }} className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore FinLit</button>
+              <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
             </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2, duration: 0.8 }}
-              className="mt-7 flex flex-col sm:flex-row sm:items-center gap-4"
-            >
-              <button
-                data-testid="hero-cta-portfolio"
-                onClick={() => navigate("/portfolio")}
-                className="px-8 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] text-base md:text-[17px] font-medium hover:bg-[#E19212] transition-colors"
-              >
-                View Portfolio
-              </button>
-              <button
-                data-testid="hero-cta-approach"
-                onClick={() => scrollTo("process")}
-                className="px-8 py-3.5 rounded-full border border-white/25 text-white text-base md:text-[17px] hover:border-[#F5A623] hover:text-[#F5A623] transition-colors"
-              >
-                Investment Approach
-              </button>
+            <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.98, duration: 0.8 }} className="mt-8 border-l border-[#F5A623]/45 pl-4">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[#94A3B8]">Founded by Nishant Jain</p>
+              <p className="mt-1 text-[9px] uppercase tracking-[0.13em] text-[#64748B] sm:text-[10px]">IIT Kanpur · CFA Level I Cleared · NISM Certified Research Analyst</p>
             </motion.div>
           </div>
-
-          {/* RIGHT — subtle compounding visual */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5, duration: 1 }}
-            className="hidden lg:block lg:col-span-5"
-          >
-            <CompoundingVisual />
-          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35, duration: 1.1 }} className="mx-auto mt-4 w-full max-w-[390px] lg:col-span-5 lg:mt-0 lg:max-w-none"><CapitalFlowVisual /></motion.div>
         </div>
       </motion.div>
-
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-[#64748B]">
-        <span className="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
-        <span className="h-8 w-px bg-gradient-to-b from-[#F5A623] to-transparent" />
-      </div>
     </section>
   );
 }

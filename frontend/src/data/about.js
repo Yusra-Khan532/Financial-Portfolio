@@ -1,6 +1,4 @@
 import nishantImage from "../assets/team/nishant.png";
-import yusraImage from "../assets/team/yusra.png";
-import umamImage from "../assets/team/umam.png";
 
 export const aboutTeam = {
   investmentLead: {
@@ -14,28 +12,6 @@ export const aboutTeam = {
     },
     bio: "Nishant’s investment approach is rooted in fundamental research, business quality, valuation discipline, margin of safety, thoughtful position sizing and long-term compounding.",
   },
-  technologyTeam: [
-    {
-      name: "Yusra Khan",
-      role: "Software Engineer",
-      image: {
-        src: yusraImage,
-        alt: "Portrait of Yusra Khan",
-        objectPosition: "50% 27%",
-      },
-      bio: "Contributes to the design, development and ongoing improvement of the platform, with a focus on a clear and intuitive digital experience.",
-    },
-    {
-      name: "Mohd Umam Siddiqui",
-      role: "Software Engineer",
-      image: {
-        src: umamImage,
-        alt: "Portrait of Mohd Umam Siddiqui",
-        objectPosition: "50% 25%",
-      },
-      bio: "Contributes to the development and maintenance of the platform, helping keep the digital experience reliable, accessible and easy to use.",
-    },
-  ],
 };
 
 export const aboutPillars = [

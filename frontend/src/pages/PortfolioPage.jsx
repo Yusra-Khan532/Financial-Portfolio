@@ -1,20 +1,16 @@
-import { useMemo, useState } from "react";
 import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import Holdings from "@/components/Holdings";
 import {
   attribution, etfGeography, etfPerf, growthData, headline, marketCapAllocation,
   marketCapPerf, metrics, profile, returnsComparison, riskSummary, sectorAllocation,
   segmentAllocation,
 } from "@/data/portfolio";
-import { tradeLedger } from "@/data/tradeLedger";
 
 const GOLD = "#F5A623";
 const MUTED = ["#64748B", "#476582", "#2A4668", "#A6B4C4"];
 const metric = (key) => metrics.find((item) => item.key === key)?.value;
-const money = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(value);
 
 function SectionHeading({ eyebrow, title, children }) {
   return <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-9">
@@ -45,15 +41,6 @@ const primaryMetrics = [
 const supportKeys = ["cagr", "winrate", "profit-factor", "drawdown", "sharpe", "sortino", "alpha-nifty", "alpha-midcap", "holding", "best-month", "active-trades"];
 
 export default function PortfolioPage() {
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("sellDate");
-  const rows = useMemo(() => [...tradeLedger].filter((trade) => trade.security?.toLowerCase().includes(query.toLowerCase())).sort((a, b) => {
-    if (sort === "pnl") return (b.realizedPnl || 0) - (a.realizedPnl || 0);
-    if (sort === "holdingDays") return (b.holdingDays || 0) - (a.holdingDays || 0);
-    const date = sort === "buyDate" ? "buyDate" : "sellDate";
-    return parseReportDate(b[date]).getTime() - parseReportDate(a[date]).getTime();
-  }), [query, sort]);
-
   return <main className="pt-24 md:pt-28">
     <header id="overview" className="px-6 md:px-10 pt-16 md:pt-20 pb-12 border-b border-white/10 bg-[radial-gradient(circle_at_85%_0%,rgba(245,166,35,.12),transparent_28%)]">
       <div className="max-w-7xl mx-auto">
@@ -65,7 +52,7 @@ export default function PortfolioPage() {
     </header>
 
     <nav aria-label="Portfolio report sections" className="sticky top-24 md:top-28 z-40 border-b border-white/10 bg-[#050E1D]/95 backdrop-blur px-6 md:px-10 overflow-x-auto">
-      <div className="max-w-7xl mx-auto min-w-max flex gap-6 py-3 text-xs uppercase tracking-[.16em] text-[#94A3B8]">{["Overview", "Performance", "Allocation", "Attribution", "Risk", "Holdings", "Trades"].map((label) => <a key={label} href={`#${label.toLowerCase()}`} className="hover:text-[#F5A623] transition-colors">{label}</a>)}</div>
+      <div className="max-w-7xl mx-auto min-w-max flex gap-6 py-3 text-xs uppercase tracking-[.16em] text-[#94A3B8]">{["Overview", "Performance", "Allocation", "Attribution", "Risk"].map((label) => <a key={label} href={`#${label.toLowerCase()}`} className="hover:text-[#F5A623] transition-colors">{label}</a>)}</div>
     </nav>
 
     <section className="px-6 md:px-10 py-16" aria-labelledby="summary-title"><div className="max-w-7xl mx-auto">
@@ -90,16 +77,7 @@ export default function PortfolioPage() {
 
     <section id="risk" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Risk & Return" title="The path matters too." /><div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">{riskSummary.map((item) => <div key={item.label} className="rounded-xl border border-white/10 bg-[#081B35] p-5"><div className="text-[10px] uppercase tracking-[.15em] text-[#94A3B8]">{item.label}</div><div className={`mt-3 text-3xl tabular-nums ${item.tone === "negative" ? "text-[#D98A89]" : "text-white"}`}>{item.value}</div><p className="mt-3 text-xs leading-relaxed text-[#71839A]">{item.label.includes("Sharpe") ? "Risk-adjusted return" : item.label.includes("Sortino") ? "Return relative to downside risk" : item.label.includes("Beta") ? "Sensitivity relative to the benchmark" : "Observed across the stated period"}</p></div>)}</div></div></section>
 
-    <div id="holdings"><Holdings /></div>
-
-    <section id="trades" className="px-6 md:px-10 py-16 border-t border-white/10"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Historical Transactions" title="Realized trade ledger.">Historical realized transactions for the stated reporting period. This ledger is separate from current holdings.</SectionHeading><div className="rounded-xl border border-white/10 overflow-hidden bg-[#0A1E3F]/35"><div className="p-5 border-b border-white/10 flex flex-col sm:flex-row gap-3 justify-between"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search security" className="bg-[#07182F] border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-[#71839A] outline-none focus:border-[#F5A623]" /><select value={sort} onChange={(e) => setSort(e.target.value)} className="bg-[#07182F] border border-white/10 rounded-md px-3 py-2 text-sm text-[#CBD5E1] outline-none"><option value="sellDate">Sort by sell date</option><option value="buyDate">Sort by buy date</option><option value="pnl">Sort by realized P&amp;L</option><option value="holdingDays">Sort by holding days</option></select></div><div className="overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead className="sticky top-0 bg-[#081B35] text-left text-[10px] uppercase tracking-[.14em] text-[#94A3B8]"><tr>{["Security", "ISIN", "Qty", "Buy date", "Buy rate", "Buy amount", "Sell date", "Sell rate", "Sell amount", "Days", "Realized P&L"].map((head) => <th className="p-4 font-medium" key={head}>{head}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.security}-${row.isin}-${row.buyDate}-${row.sellDate}-${index}`} className="border-t border-white/10 text-[#CBD5E1]"><td className="p-4 text-white">{row.security}</td><td className="p-4">{row.isin}</td><td className="p-4">{row.quantity}</td><td className="p-4">{row.buyDate}</td><td className="p-4">{money(row.buyRate)}</td><td className="p-4">{money(row.buyAmount)}</td><td className="p-4">{row.sellDate}</td><td className="p-4">{money(row.sellRate)}</td><td className="p-4">{money(row.sellAmount)}</td><td className="p-4">{row.holdingDays}</td><td className={`p-4 ${row.realizedPnl >= 0 ? "text-[#E7C56B]" : "text-[#D98A89]"}`}>{money(row.realizedPnl)}</td></tr>)}</tbody></table></div></div></div></section>
-    <footer className="px-6 md:px-10 py-8 border-t border-white/10 text-center text-xs text-[#71839A]">Portfolio data shown for the stated reporting period. Past performance does not guarantee future results.</footer>
   </main>;
-}
-
-function parseReportDate(value) {
-  const [day, month, year] = value.split("-");
-  return new Date(Number(year), Number(month) - 1, Number(day));
 }
 
 function PerformanceTable({ title, rows, label }) {
