@@ -5,9 +5,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
-import { metrics, headline, growthData, sectorAllocation, attribution } from "@/data/portfolio";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
-const metric = (key) => metrics.find((m) => m.key === key)?.value;
+const metric = (items, key) => items.find((m) => m.key === key)?.value;
 
 const ChartTooltip = ({ active, payload, label, suffix = "%" }) => {
   if (!active || !payload?.length) return null;
@@ -38,37 +38,39 @@ const AllocTooltip = ({ active, payload }) => {
 
 const SECTOR_COLORS = ["#F5A623", "#3B82F6", "#64748B", "#94A3B8", "#475569", "#1E40AF"];
 
-const topSectors = (() => {
+const topSectorsFor = (sectorAllocation) => {
   const sorted = [...sectorAllocation].sort((a, b) => b.value - a.value);
   const top = sorted.slice(0, 5);
   const others = +sorted.slice(5).reduce((s, d) => s + d.value, 0).toFixed(1);
   return others > 0 ? [...top, { name: "Others", value: others }] : top;
-})();
+};
 
-const topContribution = (() => {
+const topContributionFor = (attribution) => {
   const positives = attribution.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
   const negSum = +attribution.filter((d) => d.value < 0).reduce((s, d) => s + d.value, 0).toFixed(1);
   return negSum ? [...positives, { sector: "Others", value: negSum }] : positives;
-})();
-
-const kpis = [
-  { label: "Gross P&L Generated", value: headline.grossPnl },
-  { label: "Net P&L (After Charges)", value: headline.netPnl },
-  { label: "Gross ROI", value: headline.grossRoi },
-  { label: "Net ROI", value: headline.netRoi },
-];
-
-const proofStats = [
-  { label: "XIRR (Annualized)", value: metric("xirr"), tone: "positive" },
-  { label: "Win Rate", value: metric("winrate"), tone: "positive" },
-  { label: "Max Drawdown", value: metric("drawdown"), tone: "negative" },
-];
+};
 
 const toneCls = (t) =>
   t === "positive" ? "text-[#34D399]" : t === "negative" ? "text-[#F87171]" : "text-white";
 
 export default function Performance() {
   const navigate = useNavigate();
+  const { data } = usePortfolioData();
+  const { metrics, headline, growthData, sectorAllocation, attribution, profile } = data;
+  const topSectors = topSectorsFor(sectorAllocation);
+  const topContribution = topContributionFor(attribution);
+  const kpis = [
+    { label: "Gross P&L Generated", value: headline.grossPnl },
+    { label: "Net P&L (After Charges)", value: headline.netPnl },
+    { label: "Gross ROI", value: headline.grossRoi },
+    { label: "Net ROI", value: headline.netRoi },
+  ];
+  const proofStats = [
+    { label: "XIRR (Annualized)", value: metric(metrics, "xirr"), tone: "positive" },
+    { label: "Win Rate", value: metric(metrics, "winrate"), tone: "positive" },
+    { label: "Max Drawdown", value: metric(metrics, "drawdown"), tone: "negative" },
+  ];
 
   return (
     <section id="performance" className="relative py-20 md:py-24 px-6 md:px-10">
@@ -85,7 +87,7 @@ export default function Performance() {
               Performance, measured with context.
             </h2>
             <p className="text-[#94A3B8] max-w-sm text-base md:text-lg leading-relaxed">
-              Report period 01 Apr 2026 – 07 Aug 2026 · Average deployed capital ₹30,00,000.
+              Report period {profile.reportPeriod} · Average deployed capital {profile.deployedCapital}.
             </p>
           </div>
         </Reveal>

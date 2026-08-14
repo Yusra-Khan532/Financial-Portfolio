@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { FileSpreadsheet, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import AdminShell from "@/components/cms/AdminShell";
 import {
@@ -59,6 +59,9 @@ export default function BlogAdminPage() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [deleteItem, setDeleteItem] = useState(null);
+  const [portfolioReport, setPortfolioReport] = useState(null);
+  const [portfolioFile, setPortfolioFile] = useState(null);
+  const [portfolioUploading, setPortfolioUploading] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -73,6 +76,17 @@ export default function BlogAdminPage() {
   }, [navigate]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadPortfolioReport = useCallback(async () => {
+    try {
+      setPortfolioReport(await cmsRequest("/portfolio/admin/report"));
+    } catch (requestError) {
+      if (requestError.status === 401) navigate("/blog/admin/login", { replace: true });
+      else setPortfolioReport(null);
+    }
+  }, [navigate]);
+
+  useEffect(() => { loadPortfolioReport(); }, [loadPortfolioReport]);
 
   const visibleItems = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -117,6 +131,29 @@ export default function BlogAdminPage() {
     }
   };
 
+  const uploadPortfolio = async (event) => {
+    event.preventDefault();
+    if (!portfolioFile) {
+      toast.error("Choose an Upstox P&L PDF first.");
+      return;
+    }
+    const body = new FormData();
+    body.append("file", portfolioFile);
+    setPortfolioUploading(true);
+    try {
+      const report = await cmsRequest("/portfolio/admin/upload", { method: "POST", body });
+      setPortfolioReport(report);
+      setPortfolioFile(null);
+      event.target.reset();
+      toast.success("Portfolio report published.");
+    } catch (requestError) {
+      if (requestError.status === 401) navigate("/blog/admin/login", { replace: true });
+      else toast.error(requestError.message);
+    } finally {
+      setPortfolioUploading(false);
+    }
+  };
+
   return (
     <AdminShell>
       <header className="mt-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
@@ -127,6 +164,29 @@ export default function BlogAdminPage() {
         </div>
         <Link to="/blog/admin/new" className="inline-flex self-start md:self-auto items-center justify-center rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B]">+ New Content</Link>
       </header>
+
+      <section className="mt-10 rounded-2xl border border-white/10 bg-[#08172C]/55 p-5 md:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.22em] text-[#F5A623]"><FileSpreadsheet size={15} />Portfolio Data</div>
+            <h2 className="mt-3 text-2xl font-medium text-white">Upload Upstox P&L PDF</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#94A3B8]">Publishes the latest PDF report totals and trade-derived metrics to the portfolio page.</p>
+          </div>
+          <form onSubmit={uploadPortfolio} className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            <label className="relative flex min-h-12 flex-1 cursor-pointer items-center rounded-lg border border-white/10 bg-[#050E1D]/70 px-4 text-sm text-[#CBD5E1] sm:w-80">
+              <input type="file" accept=".pdf" onChange={(event) => setPortfolioFile(event.target.files?.[0] || null)} className="absolute inset-0 opacity-0" />
+              <span className="truncate">{portfolioFile?.name || "Choose .pdf file"}</span>
+            </label>
+            <button disabled={portfolioUploading} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#F5A623] px-5 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B] disabled:opacity-60"><Upload size={16} />{portfolioUploading ? "Publishing..." : "Publish"}</button>
+          </form>
+        </div>
+        <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 text-xs text-[#94A3B8] sm:grid-cols-2 lg:grid-cols-4">
+          <div><span className="block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Current Source</span><span className="mt-1 block truncate text-[#CBD5E1]">{portfolioReport?.sourceFileName || "Fallback portfolio.js"}</span></div>
+          <div><span className="block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Report Period</span><span className="mt-1 block text-[#CBD5E1]">{portfolioReport?.profile?.reportPeriod || "Static fallback"}</span></div>
+          <div><span className="block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Net P&L</span><span className="mt-1 block text-[#CBD5E1]">{portfolioReport?.headline?.netPnl || "Static fallback"}</span></div>
+          <div><span className="block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Trades Parsed</span><span className="mt-1 block text-[#CBD5E1]">{portfolioReport?.summary?.tradeCount ?? "Static fallback"}</span></div>
+        </div>
+      </section>
 
       <section className="mt-10 rounded-2xl border border-white/10 bg-[#08172C]/55 overflow-hidden">
         <div className="p-4 md:p-5 border-b border-white/10">
