@@ -94,19 +94,19 @@ export default function Performance() {
 
         {/* Primary KPI strip */}
         <Reveal delay={0.05}>
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-4 rounded-xl border border-white/10 bg-[#0A1E3F]/40 overflow-hidden">
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 rounded-xl border border-white/10 bg-[#0A1E3F]/40 overflow-hidden">
             {kpis.map((k, i) => (
               <div
                 key={k.label}
                 data-testid={`snapshot-headline-${i}`}
-                className={`px-5 py-6 md:px-6 md:py-7 ${i < 2 ? "border-b border-white/10 md:border-b-0" : ""} ${
-                  i % 2 === 1 ? "border-l border-white/10" : ""
-                } md:border-l md:border-white/10 md:first:border-l-0`}
+                className={`px-5 py-6 md:px-6 md:py-7 border-t border-white/10 first:border-t-0 sm:border-t-0 ${
+                  i < 2 ? "sm:border-b" : ""
+                } ${i % 2 === 1 ? "sm:border-l sm:border-white/10" : ""}`}
               >
                 <div className="text-[11px] md:text-xs uppercase tracking-[0.16em] text-[#64748B] leading-tight">
                   {k.label}
                 </div>
-                <div className="mt-2.5 text-[2.1rem] md:text-[2.6rem] leading-none font-medium text-white tracking-tight tabular-nums">
+                <div className="mt-2.5 text-[clamp(2rem,8vw,2.6rem)] leading-none font-medium text-white tracking-tight tabular-nums">
                   {k.value}
                 </div>
               </div>
@@ -121,10 +121,10 @@ export default function Performance() {
               <div
                 key={s.label}
                 data-testid={`snapshot-proof-${i}`}
-                className={`px-1 sm:px-5 py-1 ${i > 0 ? "border-l border-white/10 sm:pl-6" : ""}`}
+                className={`min-w-0 px-1 sm:px-5 py-1 ${i > 0 ? "border-l border-white/10 sm:pl-6" : ""}`}
               >
                 <div className={`text-lg sm:text-2xl font-medium tabular-nums ${toneCls(s.tone)}`}>{s.value}</div>
-                <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.16em] text-[#64748B] mt-1 leading-tight">
+                <div className="mt-1 break-words text-[10px] uppercase tracking-[0.16em] leading-tight text-[#64748B] sm:text-[11px]">
                   {s.label}
                 </div>
               </div>
@@ -160,25 +160,27 @@ export default function Performance() {
             <div data-testid="snapshot-sector-allocation" className="h-full rounded-xl border border-white/10 bg-[#0A1E3F]/40 p-6">
               <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where capital is allocated</div>
               <h3 className="text-white font-medium text-base md:text-lg mb-5">Allocation by sector</h3>
-              <div className="flex items-center gap-5">
-                <ResponsiveContainer width="44%" height={190}>
-                  <PieChart>
-                    <Pie data={topSectors} dataKey="value" innerRadius={46} outerRadius={80} paddingAngle={2} stroke="none">
-                      {topSectors.map((_, i) => (
-                        <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<AllocTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <ul className="flex-1 space-y-2">
+              <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:gap-5">
+                <div className="mx-auto h-[min(260px,72vw)] w-[min(260px,72vw)] shrink-0 sm:mx-0 sm:h-[190px] sm:w-[44%]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={topSectors} dataKey="value" innerRadius={46} outerRadius={80} paddingAngle={2} stroke="none">
+                        {topSectors.map((_, i) => (
+                          <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<AllocTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="w-full flex-1 space-y-2">
                   {topSectors.map((d, i) => (
-                    <li key={d.name} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2.5 text-[#94A3B8]">
+                    <li key={d.name} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 text-sm">
+                      <span className="flex min-w-0 items-start gap-2.5 leading-snug text-[#94A3B8]">
                         <span className="h-2 w-2 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                         {d.name}
                       </span>
-                      <span className="text-white font-medium tabular-nums">{d.value}%</span>
+                      <span className="shrink-0 text-white font-medium tabular-nums">{d.value}%</span>
                     </li>
                   ))}
                 </ul>
@@ -191,9 +193,9 @@ export default function Performance() {
               <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where profit was generated</div>
               <h3 className="text-white font-medium text-base md:text-lg mb-5">Contribution to Net P&amp;L</h3>
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topContribution} layout="vertical" margin={{ left: 24, right: 20 }}>
+                <BarChart data={topContribution} layout="vertical" margin={{ left: 0, right: 8 }}>
                   <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={92} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={112} tickLine={false} axisLine={false} />
                   <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
                     {topContribution.map((d, i) => (
