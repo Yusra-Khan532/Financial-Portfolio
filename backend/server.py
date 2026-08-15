@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, Form, UploadFile, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -17,7 +17,6 @@ import bcrypt
 import jwt
 import nh3
 import re
-import shutil
 import json
 import requests
 import csv
@@ -28,8 +27,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from pymongo.errors import ServerSelectionTimeoutError
 try:
     from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
+    from backend.portfolio_report import read_current_portfolio_report, save_portfolio_upload
 except ModuleNotFoundError:
     from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
+    from portfolio_report import read_current_portfolio_report, save_portfolio_upload
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -316,6 +317,11 @@ async def public_content_detail(slug: str):
     return result
 
 
+@api_router.get("/portfolio/report")
+async def public_portfolio_report():
+    return read_current_portfolio_report()
+
+
 @api_router.post("/content/admin/login")
 async def admin_login(payload: AdminLogin):
     now = monotonic()
@@ -339,6 +345,16 @@ async def admin_login(payload: AdminLogin):
     _login_attempts.pop(payload.email.lower(), None)
     token = jwt.encode({"sub": admin_email, "role": "admin", "exp": int(time()) + ADMIN_TOKEN_TTL_SECONDS}, token_secret(), algorithm="HS256")
     return {"token": token, "expiresIn": ADMIN_TOKEN_TTL_SECONDS}
+
+
+@api_router.get("/portfolio/admin/report")
+async def admin_portfolio_report(_admin=Depends(require_admin)):
+    return read_current_portfolio_report()
+
+
+@api_router.post("/portfolio/admin/upload")
+async def admin_upload_portfolio_report(file: UploadFile = File(...), _admin=Depends(require_admin)):
+    return await save_portfolio_upload(file)
 
 
 @api_router.get("/content/admin/items")

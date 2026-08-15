@@ -2,15 +2,11 @@ import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import {
-  attribution, etfGeography, etfPerf, growthData, headline, marketCapAllocation,
-  marketCapPerf, metrics, profile, returnsComparison, riskSummary, sectorAllocation,
-  segmentAllocation,
-} from "@/data/portfolio";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 const GOLD = "#F5A623";
 const MUTED = ["#64748B", "#476582", "#2A4668", "#A6B4C4"];
-const metric = (key) => metrics.find((item) => item.key === key)?.value;
+const metric = (items, key) => items.find((item) => item.key === key)?.value;
 
 function SectionHeading({ eyebrow, title, children }) {
   return <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-9">
@@ -34,13 +30,20 @@ function AllocationList({ data, color = GOLD }) {
   </div>)}</div>;
 }
 
-const primaryMetrics = [
-  ["Gross P&L Generated", headline.grossPnl], ["Net P&L After Charges", headline.netPnl],
-  ["Gross ROI", headline.grossRoi], ["Net ROI", headline.netRoi], ["XIRR Annualized", metric("xirr")],
-];
 const supportKeys = ["cagr", "winrate", "profit-factor", "drawdown", "sharpe", "sortino", "alpha-nifty", "alpha-midcap", "holding", "best-month", "active-trades"];
 
 export default function PortfolioPage() {
+  const { data } = usePortfolioData();
+  const {
+    attribution, etfGeography, etfPerf, growthData, headline, marketCapAllocation,
+    marketCapPerf, metrics, profile, returnsComparison, riskSummary, sectorAllocation,
+    segmentAllocation,
+  } = data;
+  const primaryMetrics = [
+    ["Gross P&L Generated", headline.grossPnl], ["Net P&L After Charges", headline.netPnl],
+    ["Gross ROI", headline.grossRoi], ["Net ROI", headline.netRoi], ["XIRR Annualized", metric(metrics, "xirr")],
+  ];
+
   return <main className="pt-24 md:pt-28">
     <header id="overview" className="px-6 md:px-10 pt-16 md:pt-20 pb-12 border-b border-white/10 bg-[radial-gradient(circle_at_85%_0%,rgba(245,166,35,.12),transparent_28%)]">
       <div className="max-w-7xl mx-auto">
