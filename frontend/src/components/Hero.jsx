@@ -119,12 +119,16 @@ export default function Hero() {
         <div className="grid grid-cols-1 items-center gap-4 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <motion.div variants={lineParent} initial="hidden" animate="show">
-              <h1 className="font-serif-display text-6xl leading-[.9] tracking-tight text-white sm:text-7xl lg:text-[6.75rem]"><MaskLine>FinLit</MaskLine></h1>
-              <MaskLine className="mt-7 max-w-2xl font-serif-display text-[2rem] leading-[1.04] text-[#E2E8F0] sm:text-4xl lg:text-[2.7rem]">Research-led investing for Indian and global markets.</MaskLine>
+              <MaskLine className="text-[10px] uppercase tracking-[0.26em] text-[#F5A623]">Investment Research</MaskLine>
+              <h1 className="mt-5 max-w-4xl font-serif-display text-[3.35rem] leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-[6.35rem]">
+                <MaskLine>Research-led</MaskLine>
+                <MaskLine className="text-[#E2E8F0]">investing for</MaskLine>
+                <MaskLine className="text-[#E7C56B]">clearer decisions.</MaskLine>
+              </h1>
             </motion.div>
-            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65, duration: 0.8 }} className="mt-7 max-w-xl text-[17px] leading-relaxed text-[#94A3B8] md:text-[18px]">Portfolio reviews, investment research and thoughtful discussions across equities, mutual funds, ETFs and global opportunities.</motion.p>
+            <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65, duration: 0.8 }} className="mt-7 max-w-xl text-[17px] leading-relaxed text-[#94A3B8] md:text-[18px]">Portfolio reviews, market research and thoughtful discussions across Indian equities, mutual funds, ETFs and global opportunities.</motion.p>
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82, duration: 0.8 }} className="mt-9 flex flex-col gap-4 sm:flex-row">
-              <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore FinLit</button>
+              <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
               <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
             </motion.div>
             <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.98, duration: 0.8 }} className="mt-8 border-l border-[#F5A623]/45 pl-4">

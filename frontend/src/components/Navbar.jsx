@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
 import { useNavigate, useLocation } from "react-router-dom";
+import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
 
 const links = [
   { route: "/about", label: "About" },
@@ -70,13 +71,12 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 md:h-20 flex items-center justify-between">
-        <button data-testid="nav-logo" onClick={goHome} className="text-left">
-          <span className="font-serif-display text-xl md:text-2xl text-white tracking-tight">
-            FinLit
-          </span>
-          <span className="block text-[10px] uppercase tracking-[0.3em] text-[#F5A623]">
-            Investment Research
-          </span>
+        <button data-testid="nav-logo" onClick={goHome} className="flex items-center">
+          <img
+            src={finlitLogo}
+            alt="FinLit"
+            className="h-11 w-auto object-contain md:h-14"
+          />
         </button>
 
         <nav className="hidden lg:flex items-center gap-9">
