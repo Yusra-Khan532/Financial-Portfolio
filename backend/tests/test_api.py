@@ -73,14 +73,32 @@ def test_contact_post_missing_required(client):
     assert r.status_code == 422
 
 
-def test_contact_post_empty_name_or_message(client):
+def test_contact_post_empty_name(client):
     r = client.post(f"{API}/contact", json={
         "name": "   ",
         "email": "x@y.com",
         "message": "  ",
     }, timeout=30)
-    # server explicitly returns 400 for whitespace-only name/message
     assert r.status_code == 400
+
+
+def test_contact_post_blank_message(client):
+    r = client.post(f"{API}/contact", json={
+        "name": "TEST_Blank Contact Message",
+        "email": "blank-contact@example.com",
+        "message": "  ",
+    }, timeout=30)
+    assert r.status_code == 200, r.text
+    assert r.json()["message"] == "  "
+
+
+def test_contact_post_missing_message(client):
+    r = client.post(f"{API}/contact", json={
+        "name": "TEST_Missing Contact Message",
+        "email": "missing-contact@example.com",
+    }, timeout=30)
+    assert r.status_code == 200, r.text
+    assert r.json()["message"] == ""
 
 
 # ---------- Contact GET ----------

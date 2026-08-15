@@ -50,10 +50,17 @@ class TestServiceEnquiry:
         r = client.post(f"{API}/service-enquiry", json=payload, timeout=15)
         assert r.status_code == 400
 
-    def test_empty_message_400(self, client):
+    def test_blank_message_200(self, client):
         payload = {**VALID, "message": "   "}
         r = client.post(f"{API}/service-enquiry", json=payload, timeout=15)
-        assert r.status_code == 400
+        assert r.status_code == 200, r.text
+        assert r.json()["message"] == "   "
+
+    def test_missing_message_200(self, client):
+        payload = {key: value for key, value in VALID.items() if key != "message"}
+        r = client.post(f"{API}/service-enquiry", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        assert r.json()["message"] == ""
 
 
 class TestContactRegression:

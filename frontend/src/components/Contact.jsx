@@ -15,8 +15,8 @@ export default function Contact() {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      toast.error("Please fill in your name, email and message.");
+    if (!form.name.trim() || !form.email.trim()) {
+      toast.error("Please fill in your name and email.");
       return;
     }
     setLoading(true);

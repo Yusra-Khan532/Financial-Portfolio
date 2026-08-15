@@ -97,7 +97,7 @@ class ContactMessage(BaseModel):
     phone: Optional[str] = None
     investment_size: Optional[str] = None
     subject: Optional[str] = None
-    message: str
+    message: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -107,7 +107,7 @@ class ContactCreate(BaseModel):
     phone: Optional[str] = None
     investment_size: Optional[str] = None
     subject: Optional[str] = None
-    message: str
+    message: str = ""
 
 
 class ServiceEnquiry(BaseModel):
@@ -116,7 +116,7 @@ class ServiceEnquiry(BaseModel):
     email: EmailStr
     phone: str
     services: List[str]
-    message: str
+    message: str = ""
     source: str = "Services Page"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -126,7 +126,7 @@ class ServiceEnquiryCreate(BaseModel):
     email: EmailStr
     phone: str
     services: List[str]
-    message: str
+    message: str = ""
 
 
 class AdminLogin(BaseModel):
@@ -660,8 +660,8 @@ async def market_ticker():
 
 @api_router.post("/contact", response_model=ContactMessage)
 async def create_contact(payload: ContactCreate):
-    if not payload.name.strip() or not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Name and message are required")
+    if not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
     msg = ContactMessage(**payload.model_dump())
     doc = msg.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
@@ -697,11 +697,11 @@ async def list_contacts():
 
 @api_router.post("/service-enquiry", response_model=ServiceEnquiry)
 async def create_service_enquiry(payload: ServiceEnquiryCreate):
-    if not payload.name.strip() or not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Name and message are required")
+    if not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
     if not payload.services:
         raise HTTPException(status_code=400, detail="Select at least one service")
-    if len(payload.message.strip()) < 10:
+    if payload.message.strip() and len(payload.message.strip()) < 10:
         raise HTTPException(status_code=400, detail="Message is too short")
     enquiry = ServiceEnquiry(**payload.model_dump())
     doc = enquiry.model_dump()

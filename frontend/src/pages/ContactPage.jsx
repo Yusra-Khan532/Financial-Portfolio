@@ -26,10 +26,6 @@ function validate(form) {
       e.mobile = "Please enter a valid mobile number.";
   }
 
-  const message = form.message.trim();
-  if (!message) e.message = "Please enter a message.";
-  else if (message.length < 10) e.message = "Message should be at least 10 characters.";
-
   return e;
 }
 
@@ -216,16 +212,15 @@ export default function ContactPage() {
               </div>
 
               <div>
-                <Label>Message *</Label>
+                <Label>Message</Label>
                 <textarea
                   data-testid="contactpage-message"
                   rows={5}
-                  className={fieldCls(errors.message)}
+                  className={fieldCls(false)}
                   placeholder="Write your message..."
                   value={form.message}
                   onChange={set("message")}
                 />
-                <Err id="message" msg={errors.message} />
               </div>
 
               {failed && (
