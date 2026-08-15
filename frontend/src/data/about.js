@@ -4,7 +4,7 @@ export const aboutTeam = {
   investmentLead: {
     name: "Nishant Jain",
     role: "Independent Equity Investor & Researcher",
-    credentials: ["IIT Kanpur", "CFA Level I Cleared", "NISM Certified Research Analyst"],
+    credentials: ["IIT Kanpur", "Minor in Finance, IIT Kanpur", "CFA Level I Cleared", "NISM Certified Research Analyst"],
     image: {
       src: nishantImage,
       alt: "Portrait of Nishant Jain",
