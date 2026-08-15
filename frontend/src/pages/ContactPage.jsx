@@ -1,8 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowRight } from "lucide-react";
-import { CONTACT_EMAIL, LINKEDIN_URL } from "@/config";
+import { CheckCircle2, ArrowRight, Linkedin, Mail } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -116,26 +115,10 @@ export default function ContactPage() {
             <span className="block text-[11px] uppercase tracking-[0.22em] text-[#64748B] mb-3">
               Prefer email?
             </span>
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              data-testid="contactpage-email-link"
-              className="text-white text-lg hover:text-[#F5A623] transition-colors"
-            >
-              {CONTACT_EMAIL}
-            </a>
-            {LINKEDIN_URL ? (
-              <div className="mt-5">
-                <a
-                  href={LINKEDIN_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  data-testid="contactpage-linkedin-link"
-                  className="text-sm text-[#94A3B8] hover:text-[#F5A623] transition-colors"
-                >
-                  LinkedIn →
-                </a>
-              </div>
-            ) : null}
+            <div className="flex items-center gap-4">
+              <a href="mailto:finlit.start@gmail.com" aria-label="Email FinLit" data-testid="contactpage-email-link" className="inline-flex h-9 w-9 items-center justify-center text-[#CBD5E1] transition-colors hover:text-[#F5A623] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050E1D]"><Mail size={21} strokeWidth={1.5} /></a>
+              <a href="https://www.linkedin.com/company/finlitventures/about/" target="_blank" rel="noopener noreferrer" aria-label="FinLit LinkedIn" data-testid="contactpage-linkedin-link" className="inline-flex h-9 w-9 items-center justify-center text-[#CBD5E1] transition-colors hover:text-[#F5A623] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050E1D]"><Linkedin size={21} strokeWidth={1.5} /></a>
+            </div>
           </div>
         </motion.div>
 

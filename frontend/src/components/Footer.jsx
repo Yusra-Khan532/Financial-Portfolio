@@ -5,7 +5,7 @@ import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
 
 const links = [
   { to: "/about", label: "About" }, { to: "/portfolio", label: "Portfolio" },
-  { to: "/blog", label: "Blog" }, { to: "/services", label: "Services" }, { to: "/contact", label: "Contact" },
+  { to: "/blog", label: "Blog" }, { to: "/services", label: "Services" }, { to: "/contact", label: "Contact" }, { to: "/blog/admin/login", label: "Admin Login" },
 ];
 
 export default function Footer() {
