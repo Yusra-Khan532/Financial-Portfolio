@@ -70,6 +70,7 @@ export default function ServicesPage() {
           <div className="mb-5 flex items-center gap-3"><span className="text-[11px] uppercase tracking-[0.28em] text-[#F5A623]">Services</span><span className="h-px w-8 bg-[#F5A623]/50" /></div>
           <h1 className="font-serif-display text-4xl leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-6xl">Research and discussion for better investment decisions.</h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#94A3B8] md:text-lg">Explore portfolio reviews, Indian and global investing, mutual funds, ETFs and investing fundamentals — with a research-led approach.</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#94A3B8]">To avail any service, fill out the form for your required service and our team will reach out to you.</p>
         </header>
 
         <section className="mt-12 md:mt-14" aria-label="FinLit services">
