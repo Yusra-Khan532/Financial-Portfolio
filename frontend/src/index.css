@@ -142,3 +142,9 @@ html.lenis, html.lenis body { height: auto; }
   pointer-events: none;
   mix-blend-mode: overlay;
 }
+
+.what-we-do-grid {
+  background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+

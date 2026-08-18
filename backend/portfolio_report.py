@@ -214,7 +214,7 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
     metrics = [
         {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / len(closed_trades)) * 100 if closed_trades else 0), "tone": "positive"},
         {"key": "holding", "label": "Avg Holding Period", "value": f"{avg_holding} Days", "tone": "neutral"},
-        {"key": "active-trades", "label": "Active Trades", "value": str(len(trades)), "tone": "neutral"},
+        {"key": "active-trades", "label": "Realised Trades", "value": str(len(trades)), "tone": "neutral"},
     ]
 
     return {

@@ -4,10 +4,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
 
 const links = [
+  { route: "/what-we-do", label: "What We Do" },
+  { route: "/services", label: "Services" },
   { route: "/about", label: "About" },
   { route: "/portfolio", label: "Portfolio" },
   { route: "/blog", label: "Blog" },
-  { route: "/services", label: "Services" },
 ];
 
 const slug = (s) => s.toLowerCase().replace(/\s+/g, "-");
@@ -85,7 +86,7 @@ export default function Navbar() {
               key={l.label}
               data-testid={`nav-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
-              className="text-sm text-[#94A3B8] hover:text-white transition-colors"
+              className={`text-sm transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
             >
               {l.label}
             </button>
@@ -115,7 +116,7 @@ export default function Navbar() {
               key={l.label}
               data-testid={`nav-mobile-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
-              className="text-left text-[#94A3B8] hover:text-white"
+              className={`text-left transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
             >
               {l.label}
             </button>

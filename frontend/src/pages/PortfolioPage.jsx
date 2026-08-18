@@ -2,8 +2,14 @@ import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { ExternalLink } from "lucide-react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
+const PNL_REPORT_URL = "/reports/realizedPnL_EQ_2026-04-01_To_2026-08-17_BR2287.pdf";
+// Allocation, benchmark and risk-ratio data need current holdings / benchmark levels that
+// the realised P&L report doesn't contain, so these sections still show the last report's
+// figures. Surfaced via <StaleNote /> rather than silently displayed as current.
+const STALE_AS_OF = "01 Apr 2026 – 07 Aug 2026";
 const GOLD = "#F5A623";
 const MUTED = ["#64748B", "#476582", "#2A4668", "#A6B4C4"];
 const metric = (items, key) => items.find((item) => item.key === key)?.value;
@@ -12,6 +18,13 @@ function SectionHeading({ eyebrow, title, children }) {
   return <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-9">
     <div><div className="uppercase tracking-[0.28em] text-[11px] text-[#F5A623] mb-3">{eyebrow}</div><h2 className="font-serif-display text-4xl sm:text-5xl text-white leading-none">{title}</h2></div>
     {children && <div className="text-[#94A3B8] text-sm leading-relaxed max-w-md">{children}</div>}
+  </div>;
+}
+
+function StaleNote() {
+  return <div className="-mt-5 mb-8 inline-flex items-center gap-2 rounded-full border border-[#F5A623]/25 bg-[#F5A623]/5 px-3.5 py-1.5 text-[11px] text-[#E7C56B]">
+    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5A623]" />
+    Reflects the {STALE_AS_OF} report — pending update for the latest period
   </div>;
 }
 
@@ -31,6 +44,7 @@ function AllocationList({ data, color = GOLD }) {
 }
 
 const supportKeys = ["cagr", "winrate", "profit-factor", "drawdown", "sharpe", "sortino", "alpha-nifty", "alpha-midcap", "holding", "best-month", "active-trades"];
+const staleMetricKeys = new Set(["xirr", "cagr", "sharpe", "sortino", "alpha-nifty", "alpha-midcap", "drawdown"]);
 
 export default function PortfolioPage() {
   const { data } = usePortfolioData();
@@ -40,8 +54,8 @@ export default function PortfolioPage() {
     segmentAllocation,
   } = data;
   const primaryMetrics = [
-    ["Gross P&L Generated", headline.grossPnl], ["Net P&L After Charges", headline.netPnl],
-    ["Gross ROI", headline.grossRoi], ["Net ROI", headline.netRoi], ["XIRR Annualized", metric(metrics, "xirr")],
+    ["Gross P&L Generated", headline.grossPnl, null], ["Net P&L After Charges", headline.netPnl, null],
+    ["Gross ROI", headline.grossRoi, null], ["Net ROI", headline.netRoi, null], ["XIRR Annualized", metric(metrics, "xirr"), "xirr"],
   ];
 
   return <main className="pt-24 md:pt-28">
@@ -60,25 +74,40 @@ export default function PortfolioPage() {
 
     <section className="px-6 md:px-10 py-16" aria-labelledby="summary-title"><div className="max-w-7xl mx-auto">
       <SectionHeading eyebrow="Executive Summary" title="The essentials, clearly weighted." />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 border border-white/10 rounded-xl overflow-hidden bg-[#0A1E3F]/35">{primaryMetrics.map(([label, value], i) => <div key={label} className={`p-5 md:p-6 ${i ? "lg:border-l border-white/10" : ""} border-b lg:border-b-0 border-white/10`}><div className="text-[10px] uppercase tracking-[.16em] text-[#94A3B8] min-h-8">{label}</div><div className="mt-3 text-2xl font-semibold tabular-nums text-white">{value}</div></div>)}</div>
-      <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-white/10 border border-white/10 rounded-xl overflow-hidden">{supportKeys.map((key) => { const item = metrics.find((m) => m.key === key); return <div key={key} className="p-4 bg-[#07182F]"><div className="text-[10px] uppercase tracking-[.13em] text-[#71839A]">{item.label}</div><div className={`mt-2 text-lg tabular-nums ${item.tone === "positive" ? "text-[#E7C56B]" : item.tone === "negative" ? "text-[#D98A89]" : "text-white"}`}>{item.value}</div></div>; })}</div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 border border-white/10 rounded-xl overflow-hidden bg-[#0A1E3F]/35">{primaryMetrics.map(([label, value, key], i) => <div key={label} className={`p-5 md:p-6 ${i ? "lg:border-l border-white/10" : ""} border-b lg:border-b-0 border-white/10`}><div className="text-[10px] uppercase tracking-[.16em] text-[#94A3B8] min-h-8">{label}{staleMetricKeys.has(key) && <sup className="ml-1 text-[#F5A623]">*</sup>}</div><div className="mt-3 text-2xl font-semibold tabular-nums text-white">{value}</div></div>)}</div>
+      <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-white/10 border border-white/10 rounded-xl overflow-hidden">{supportKeys.map((key) => { const item = metrics.find((m) => m.key === key); return <div key={key} className="p-4 bg-[#07182F]"><div className="text-[10px] uppercase tracking-[.13em] text-[#71839A]">{item.label}{staleMetricKeys.has(key) && <sup className="ml-1 text-[#F5A623]">*</sup>}</div><div className={`mt-2 text-lg tabular-nums ${item.tone === "positive" ? "text-[#E7C56B]" : item.tone === "negative" ? "text-[#D98A89]" : "text-white"}`}>{item.value}</div></div>; })}</div>
+      <p className="mt-4 text-[11px] text-[#71839A]">* Reflects the {STALE_AS_OF} report — pending update for the latest period.</p>
+      <div className="mt-6 flex justify-end">
+        <a
+          href={PNL_REPORT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="view-full-pnl-report"
+          className="group inline-flex items-center gap-2.5 rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] transition-colors hover:bg-[#E19212] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050E1D]"
+        >
+          View Full P&amp;L Report
+          <ExternalLink size={16} className="transition-transform group-hover:translate-x-0.5" />
+        </a>
+      </div>
     </div></section>
 
     <section id="performance" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto">
       <SectionHeading eyebrow="Performance" title="Portfolio growth versus benchmarks.">Cumulative return since the start of the reporting period.</SectionHeading>
+      <StaleNote />
       <div className="rounded-xl border border-white/10 bg-[#081B35] p-4 md:p-7 h-[360px] md:h-[430px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={growthData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}><CartesianGrid vertical={false} stroke="rgba(255,255,255,.08)" /><XAxis dataKey="date" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis tickFormatter={(value) => `${value}%`} tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip content={<ReportTooltip />} /><Line type="monotone" dataKey="Portfolio" stroke={GOLD} strokeWidth={3} dot={false} /><Line type="monotone" dataKey="NIFTY 50" stroke="#94A3B8" strokeWidth={1.7} dot={false} /><Line type="monotone" dataKey="NIFTY Midcap 150" stroke="#59708A" strokeWidth={1.7} dot={false} /></LineChart></ResponsiveContainer></div>
       <div className="mt-8 grid lg:grid-cols-[.8fr_1.2fr] gap-7 items-center"><div><div className="text-xs uppercase tracking-[.18em] text-[#F5A623]">Returns Comparison</div><p className="font-serif-display text-3xl text-white mt-3">Annualized return context.</p></div><div className="h-52"><ResponsiveContainer width="100%" height="100%"><BarChart data={returnsComparison} layout="vertical" margin={{ left: 18, right: 35 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={125} tick={{ fill: "#CBD5E1", fontSize: 12 }} axisLine={false} tickLine={false} /><Tooltip content={<ReportTooltip />} /><Bar dataKey="value" radius={[0, 4, 4, 0]}>{returnsComparison.map((entry, i) => <Cell key={entry.name} fill={i === 0 ? GOLD : MUTED[i]} />)}<LabelList dataKey="value" position="right" formatter={(v) => `${v}%`} fill="#E2E8F0" fontSize={12} /></Bar></BarChart></ResponsiveContainer></div></div>
     </div></section>
 
     <section id="allocation" className="px-6 md:px-10 py-16"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Portfolio Construction" title="Allocation with intent." />
+      <StaleNote />
       <div className="grid lg:grid-cols-2 gap-6"><div className="rounded-xl border border-white/10 bg-[#0A1E3F]/35 p-6"><h3 className="text-white font-medium mb-6">Full sector allocation</h3><AllocationList data={sectorAllocation} /></div><div className="grid sm:grid-cols-2 gap-6"><div className="rounded-xl border border-white/10 bg-[#0A1E3F]/35 p-6"><h3 className="text-white font-medium mb-4">Market cap</h3><div className="h-36"><ResponsiveContainer><PieChart><Pie data={marketCapAllocation} dataKey="value" innerRadius="60%" outerRadius="90%" stroke="none">{marketCapAllocation.map((item, i) => <Cell key={item.name} fill={i ? MUTED[i - 1] : GOLD} />)}</Pie><Tooltip content={<ReportTooltip />} /></PieChart></ResponsiveContainer></div><AllocationList data={marketCapAllocation} /></div><div className="rounded-xl border border-white/10 bg-[#0A1E3F]/35 p-6"><h3 className="text-white font-medium mb-5">Segment</h3><AllocationList data={segmentAllocation} /><h3 className="text-white font-medium mt-8 mb-5">ETF geography</h3><AllocationList data={etfGeography} /></div></div></div>
     </div></section>
 
-    <section id="attribution" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="P&L Attribution" title="Where returns came from.">Contribution to net P&amp;L by sector. Negative contributions remain visible for context.</SectionHeading><div className="h-[390px] rounded-xl border border-white/10 bg-[#081B35] p-4 md:p-6"><ResponsiveContainer width="100%" height="100%"><BarChart data={attribution} layout="vertical" margin={{ left: 25, right: 15 }}><XAxis type="number" tickFormatter={(v) => `${v}%`} tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="sector" width={120} tick={{ fill: "#CBD5E1", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip content={<ReportTooltip />} /><Bar dataKey="value" radius={3}>{attribution.map((item) => <Cell key={item.sector} fill={item.value >= 0 ? GOLD : "#A66267"} />)}</Bar></BarChart></ResponsiveContainer></div></div></section>
+    <section id="attribution" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="P&L Attribution" title="Where returns came from.">Realised contribution to net P&amp;L by stock, from the 01 Apr – 17 Aug 2026 report. Negative contributors remain visible for context.</SectionHeading><div className="h-[390px] rounded-xl border border-white/10 bg-[#081B35] p-4 md:p-6"><ResponsiveContainer width="100%" height="100%"><BarChart data={attribution} layout="vertical" margin={{ left: 25, right: 15 }}><XAxis type="number" tickFormatter={(v) => `${v}%`} tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="stock" width={120} tick={{ fill: "#CBD5E1", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip content={<ReportTooltip />} /><Bar dataKey="value" radius={3}>{attribution.map((item) => <Cell key={item.stock} fill={item.value >= 0 ? GOLD : "#A66267"} />)}</Bar></BarChart></ResponsiveContainer></div></div></section>
 
-    <section className="px-6 md:px-10 py-16"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Comparative Performance" title="Return across portfolio sleeves." /><div className="grid lg:grid-cols-2 gap-6"><PerformanceTable title="Market-cap performance" rows={marketCapPerf} label="cap" /><PerformanceTable title="ETF performance" rows={etfPerf} label="cat" /></div></div></section>
+    <section className="px-6 md:px-10 py-16"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Comparative Performance" title="Return across portfolio sleeves." /><StaleNote /><div className="grid lg:grid-cols-2 gap-6"><PerformanceTable title="Market-cap performance" rows={marketCapPerf} label="cap" /><PerformanceTable title="ETF performance" rows={etfPerf} label="cat" /></div></div></section>
 
-    <section id="risk" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Risk & Return" title="The path matters too." /><div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">{riskSummary.map((item) => <div key={item.label} className="rounded-xl border border-white/10 bg-[#081B35] p-5"><div className="text-[10px] uppercase tracking-[.15em] text-[#94A3B8]">{item.label}</div><div className={`mt-3 text-3xl tabular-nums ${item.tone === "negative" ? "text-[#D98A89]" : "text-white"}`}>{item.value}</div><p className="mt-3 text-xs leading-relaxed text-[#71839A]">{item.label.includes("Sharpe") ? "Risk-adjusted return" : item.label.includes("Sortino") ? "Return relative to downside risk" : item.label.includes("Beta") ? "Sensitivity relative to the benchmark" : "Observed across the stated period"}</p></div>)}</div></div></section>
+    <section id="risk" className="px-6 md:px-10 py-16 border-y border-white/10 bg-[#07182F]/60"><div className="max-w-7xl mx-auto"><SectionHeading eyebrow="Risk & Return" title="The path matters too." /><StaleNote /><div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">{riskSummary.map((item) => <div key={item.label} className="rounded-xl border border-white/10 bg-[#081B35] p-5"><div className="text-[10px] uppercase tracking-[.15em] text-[#94A3B8]">{item.label}</div><div className={`mt-3 text-3xl tabular-nums ${item.tone === "negative" ? "text-[#D98A89]" : "text-white"}`}>{item.value}</div><p className="mt-3 text-xs leading-relaxed text-[#71839A]">{item.label.includes("Sharpe") ? "Risk-adjusted return" : item.label.includes("Sortino") ? "Return relative to downside risk" : item.label.includes("Beta") ? "Sensitivity relative to the benchmark" : "Observed across the stated period"}</p></div>)}</div></div></section>
 
   </main>;
 }

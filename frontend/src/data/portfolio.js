@@ -1,4 +1,6 @@
-// FY2026-27 performance data — Nishant Jain (01 Apr 2026 – 07 Aug 2026)
+// FY2026-27 performance data — Nishant Jain
+// profile/headline/winrate/holding/active-trades reflect the 01 Apr–17 Aug 2026 realised P&L report.
+// Everything below still reflects the prior (01 Apr–07 Aug 2026) report — see per-export notes.
 
 export const profile = {
   name: "Nishant Jain",
@@ -11,33 +13,48 @@ export const profile = {
   ],
   quote:
     "Invest with a margin of safety, think long term and let compounding do the heavy lifting.",
-  reportPeriod: "01 Apr 2026 – 07 Aug 2026",
+  reportPeriod: "01 Apr 2026 – 17 Aug 2026",
   financialYear: "FY 2026-27",
-  deployedCapital: "₹30,00,000",
+  deployedCapital: "₹30,00,000.00",
 };
 
 export const headline = {
-  grossPnl: "₹4,09,161.80",
-  netPnl: "₹3,78,101.08",
-  grossRoi: "13.64%",
-  netRoi: "12.60%",
+  grossPnl: "₹4,43,450.11",
+  netPnl: "₹4,08,616.00",
+  grossRoi: "14.78%",
+  netRoi: "13.62%",
 };
 
+// NOTE: xirr, cagr, sharpe, sortino, alpha-* and drawdown cannot be derived from the
+// realised P&L report (it has no current holdings, NAV curve or benchmark data) — left
+// at their last-known values pending a source that supports them. winrate, holding and
+// active-trades are recomputed from the PDF upload pipeline (backend/portfolio_report.py).
+// profit-factor and best-month ARE derivable straight from the realised trade ledger
+// (01 Apr–17 Aug 2026, 350 trades):
+//   profit-factor = gross winning-trade P&L ÷ |gross losing-trade P&L|
+//                  = 537180.21 / 93730.10 = 5.73
+//   best-month     = calendar month with the highest summed realised P&L
+//                  Apr 99,050.85 · May 1,21,853.90 · Jun 1,26,245.03 (highest)
+//                  · Jul 45,654.43 · Aug(1-17) 50,645.90
+//   best-month is shown as a rupee figure, not a % return — the report has no NAV/capital
+//   history to support a defensible monthly % (deployed capital isn't static intra-month).
 export const metrics = [
   { key: "xirr", label: "XIRR (Annualized)", value: "52.81%", tone: "positive" },
   { key: "cagr", label: "CAGR (Annualized)", value: "45.52%", tone: "positive" },
-  { key: "winrate", label: "Win Rate", value: "72.22%", tone: "positive" },
-  { key: "profit-factor", label: "Profit Factor", value: "2.38", tone: "neutral" },
-  { key: "holding", label: "Avg Holding Period", value: "32 Days", tone: "neutral" },
+  { key: "winrate", label: "Win Rate", value: "83.67%", tone: "positive" },
+  { key: "profit-factor", label: "Profit Factor", value: "5.73", tone: "neutral" },
+  { key: "holding", label: "Avg Holding Period", value: "74 Days", tone: "neutral" },
   { key: "sharpe", label: "Sharpe Ratio", value: "2.14", tone: "neutral" },
   { key: "sortino", label: "Sortino Ratio", value: "3.21", tone: "neutral" },
   { key: "alpha-nifty", label: "Alpha vs NIFTY 50", value: "+28.31%", tone: "positive" },
   { key: "alpha-midcap", label: "Alpha vs NIFTY Midcap 150", value: "+23.05%", tone: "positive" },
   { key: "drawdown", label: "Max Drawdown", value: "-8.67%", tone: "negative" },
-  { key: "best-month", label: "Best Month (Jul '26)", value: "+18.74%", tone: "positive" },
-  { key: "active-trades", label: "Active Trades", value: "63", tone: "neutral" },
+  { key: "best-month", label: "Best Realised P&L Month (Jun '26)", value: "₹1,26,245", tone: "positive" },
+  { key: "active-trades", label: "Realised Trades", value: "350", tone: "neutral" },
 ];
 
+// STALE vs the latest (17 Aug 2026) report: a cumulative-return curve needs a daily NAV
+// and benchmark index series, which a realised-trades P&L export does not contain.
 export const growthData = [
   { date: "Apr 01", Portfolio: 0, "NIFTY 50": 0, "NIFTY Midcap 150": 0 },
   { date: "Apr 15", Portfolio: 4, "NIFTY 50": 2, "NIFTY Midcap 150": -1 },
@@ -51,12 +68,15 @@ export const growthData = [
   { date: "Aug 07", Portfolio: 55, "NIFTY 50": 24, "NIFTY Midcap 150": 10 },
 ];
 
+// STALE: XIRR and benchmark-index levels are not derivable from the realised P&L report.
 export const returnsComparison = [
   { name: "Portfolio", value: 52.81 },
   { name: "NIFTY 50", value: 24.5 },
   { name: "NIFTY Midcap 150", value: 29.76 },
 ];
 
+// STALE: sector/cap/segment/geography allocation reflects CURRENT open holdings, which
+// this realised (closed-trade) P&L report does not include.
 export const sectorAllocation = [
   { name: "Capital Goods", value: 20.6 },
   { name: "Automobiles", value: 16.5 },
@@ -92,18 +112,25 @@ export const etfGeography = [
   { name: "Gold & Others", value: 10 },
 ];
 
+// UPDATED — derived from the 01 Apr–17 Aug 2026 realised trade ledger (350 trades):
+// realised P&L summed per stock symbol, expressed as % of total gross P&L (₹4,43,450.11).
+// Sector-level attribution is NOT CALCULABLE — the report has no sector classification
+// per symbol, only per-trade P&L — so this is grouped by stock instead of sector.
 export const attribution = [
-  { sector: "Capital Goods", value: 32.4 },
-  { sector: "Automobiles", value: 18.8 },
-  { sector: "Financial Services", value: 14.8 },
-  { sector: "Defence", value: 10.7 },
-  { sector: "Real Estate", value: 7.5 },
-  { sector: "IT", value: 5.6 },
-  { sector: "Chemicals", value: -3.4 },
-  { sector: "Infrastructure", value: -2.3 },
-  { sector: "Others", value: -1.6 },
+  { stock: "SKYGOLD", value: 10.9 },
+  { stock: "AVALON", value: 9.8 },
+  { stock: "TDPOWERSYS", value: 9.5 },
+  { stock: "MON100", value: 9.1 },
+  { stock: "RPEL", value: 8.0 },
+  { stock: "KRN", value: 5.6 },
+  { stock: "NETWEB", value: 4.3 },
+  { stock: "DATAPATTNS", value: 4.3 },
+  { stock: "Other Stocks (30)", value: 38.9 },
+  { stock: "HIRECT", value: -0.1 },
+  { stock: "POLICYBZR", value: -0.2 },
 ];
 
+// STALE: per-sleeve ROI/XIRR needs current holdings + a valuation date, not in this report.
 export const marketCapPerf = [
   { cap: "Large Cap", roi: "52.83%", xirr: "41.26%" },
   { cap: "Mid Cap", roi: "52.34%", xirr: "55.14%" },
@@ -119,6 +146,8 @@ export const etfPerf = [
   { cat: "Overall ETF Portfolio", roi: "15.70%", xirr: "19.27%" },
 ];
 
+// STALE and currently unused by any page — top-holdings % needs a live positions/valuation
+// statement, not a realised P&L export. Left as-is (not rendered anywhere in the UI).
 export const holdings = [
   { company: "Endurance Technologies", sector: "Auto Ancillaries", cap: "Mid Cap", pct: "3.40%" },
   { company: "Shriram Finance", sector: "Financials", cap: "Large Cap", pct: "3.20%" },
@@ -132,6 +161,8 @@ export const holdings = [
   { company: "Sky Gold Ltd", sector: "Jewellery", cap: "Small Cap", pct: "1.90%" },
 ];
 
+// STALE: Sharpe/Sortino/Calmar/Beta need a daily return series and benchmark data, not in
+// this report — same underlying values as the xirr/cagr/sharpe/... metrics above.
 export const riskSummary = [
   { label: "Max Drawdown", value: "-8.67%", tone: "negative" },
   { label: "Sharpe Ratio", value: "2.14", tone: "neutral" },

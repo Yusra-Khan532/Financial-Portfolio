@@ -30,7 +30,7 @@ const AllocTooltip = ({ active, payload }) => {
   const p = payload[0];
   return (
     <div className="bg-[#0A1E3F] border border-white/15 rounded-lg px-3 py-2 text-sm">
-      <span className="text-[#94A3B8]">{p.name || p.payload.sector}: </span>
+      <span className="text-[#94A3B8]">{p.name || p.payload.stock}: </span>
       <span className="text-white font-medium">{p.value}%</span>
     </div>
   );
@@ -48,11 +48,17 @@ const topSectorsFor = (sectorAllocation) => {
 const topContributionFor = (attribution) => {
   const positives = attribution.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
   const negSum = +attribution.filter((d) => d.value < 0).reduce((s, d) => s + d.value, 0).toFixed(1);
-  return negSum ? [...positives, { sector: "Others", value: negSum }] : positives;
+  return negSum ? [...positives, { stock: "Other Detractors", value: negSum }] : positives;
 };
 
 const toneCls = (t) =>
   t === "positive" ? "text-[#34D399]" : t === "negative" ? "text-[#F87171]" : "text-white";
+
+// XIRR, Max Drawdown, sector allocation and P&L attribution need current holdings /
+// benchmark data the realised P&L report doesn't contain, so they still show the last
+// report's figures — flagged inline rather than presented as current.
+const STALE_AS_OF = "01 Apr 2026 – 07 Aug 2026";
+const staleProofLabels = new Set(["XIRR (Annualized)", "Max Drawdown"]);
 
 export default function Performance() {
   const navigate = useNavigate();
@@ -125,11 +131,12 @@ export default function Performance() {
               >
                 <div className={`text-lg sm:text-2xl font-medium tabular-nums ${toneCls(s.tone)}`}>{s.value}</div>
                 <div className="mt-1 break-words text-[10px] uppercase tracking-[0.16em] leading-tight text-[#64748B] sm:text-[11px]">
-                  {s.label}
+                  {s.label}{staleProofLabels.has(s.label) && <sup className="ml-0.5 text-[#F5A623]">*</sup>}
                 </div>
               </div>
             ))}
           </div>
+          <p className="mt-3 text-[11px] text-[#71839A]">* Reflects the {STALE_AS_OF} report — pending update.</p>
         </Reveal>
 
         {/* Main benchmark chart */}
@@ -139,6 +146,7 @@ export default function Performance() {
               <h3 className="text-white font-medium text-base md:text-lg">Portfolio growth vs benchmarks</h3>
               <span className="text-[11px] text-[#64748B] uppercase tracking-wider">Cumulative Returns %</span>
             </div>
+            <p className="-mt-1 mb-3 text-[11px] text-[#71839A]">Reflects the {STALE_AS_OF} report — pending update.</p>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={growthData} margin={{ left: -18, right: 10, top: 6, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -159,7 +167,8 @@ export default function Performance() {
           <Reveal>
             <div data-testid="snapshot-sector-allocation" className="h-full rounded-xl border border-white/10 bg-[#0A1E3F]/40 p-6">
               <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where capital is allocated</div>
-              <h3 className="text-white font-medium text-base md:text-lg mb-5">Allocation by sector</h3>
+              <h3 className="text-white font-medium text-base md:text-lg">Allocation by sector</h3>
+              <p className="mb-5 text-[11px] text-[#71839A]">As of the {STALE_AS_OF} report</p>
               <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:gap-5">
                 <div className="mx-auto h-[min(260px,72vw)] w-[min(260px,72vw)] shrink-0 sm:mx-0 sm:h-[190px] sm:w-[44%]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -191,11 +200,12 @@ export default function Performance() {
           <Reveal delay={0.1}>
             <div data-testid="snapshot-sector-contribution" className="h-full rounded-xl border border-white/10 bg-[#0A1E3F]/40 p-6">
               <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where profit was generated</div>
-              <h3 className="text-white font-medium text-base md:text-lg mb-5">Contribution to Net P&amp;L</h3>
+              <h3 className="text-white font-medium text-base md:text-lg">Contribution to Net P&amp;L</h3>
+              <p className="mb-5 text-[11px] text-[#71839A]">Realised P&amp;L by stock, 01 Apr – 17 Aug 2026</p>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={topContribution} layout="vertical" margin={{ left: 0, right: 8 }}>
                   <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="sector" stroke="#94A3B8" fontSize={11} width={112} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="stock" stroke="#94A3B8" fontSize={11} width={112} tickLine={false} axisLine={false} />
                   <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
                     {topContribution.map((d, i) => (

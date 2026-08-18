@@ -10,6 +10,7 @@ import ContactPage from "@/pages/ContactPage";
 import ServicesPage from "@/pages/ServicesPage";
 import PortfolioPage from "@/pages/PortfolioPage";
 import AboutPage from "@/pages/AboutPage";
+import WhatWeDoPage from "@/pages/WhatWeDoPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogDetailPage from "@/pages/BlogDetailPage";
 import BlogAdminLoginPage from "@/pages/BlogAdminLoginPage";
@@ -41,6 +42,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/services" element={<ServicesPage />} />
+            <Route path="/what-we-do" element={<WhatWeDoPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/about" element={<AboutPage />} />
