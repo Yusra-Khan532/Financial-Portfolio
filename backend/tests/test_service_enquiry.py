@@ -18,7 +18,7 @@ VALID = {
     "name": "TEST_Priya Sharma",
     "email": "priya@example.com",
     "phone": "+91 90000 12345",
-    "services": ["Global Investing Discussion", "Portfolio Review"],
+    "services": ["Global Investing", "Portfolio Review & Stock Selection"],
     "message": "I would like to review my portfolio and discuss global exposure.",
 }
 

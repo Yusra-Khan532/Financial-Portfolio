@@ -6,13 +6,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SERVICES = [
-  { n: "01", name: "Portfolio Review", proposition: "Make your portfolio work harder.", desc: "Get a clear review of your holdings, diversification, risk and overall portfolio structure." },
-  { n: "02", name: "Stock Selection", proposition: "Find stocks with a reason, not a hunch.", desc: "Discuss businesses, valuations, growth potential and key risks before investing." },
-  { n: "03", name: "Mutual Fund Investment", proposition: "Choose funds that fit your goals.", desc: "Understand fund categories, performance, risk and how to build a suitable mutual fund portfolio." },
-  { n: "04", name: "Global Investing", proposition: "Look beyond your home market.", desc: "Explore opportunities across global markets while understanding currency, country and investment risks." },
-  { n: "05", name: "ETF Discussion", proposition: "Diversify simply with ETFs.", desc: "Learn how ETFs work, what they track and when they can make sense for your portfolio." },
-  { n: "06", name: "General Investing", proposition: "Have an investing question? Start here.", desc: "Discuss strategies, market concepts, asset allocation and other questions related to the investing journey." },
-  { n: "07", name: "0 → 1 Investing", proposition: "Start investing from zero, with confidence.", desc: "Go from understanding the basics to making your first informed investment — step by step.", beginner: true },
+  { n: "01", name: "0 → 1 Investing", proposition: "Start investing from zero, with confidence.", desc: "We help you understand stocks, ETFs, mutual funds and other investment options to build a strategy aligned with your goals and risk profile." },
+  { n: "02", name: "Wealth Planning", proposition: "Turn your income and savings into long-term wealth.", desc: "We create personalized strategies to grow, diversify and protect your wealth across different life stages." },
+  { n: "03", name: "Family Financial Planning", proposition: "Plan for what matters most.", desc: "From your children's education to major life goals and financial security, we bring your family's goals, investments, insurance and future needs into one clear financial roadmap." },
+  { n: "04", name: "Global Investing", proposition: "Look beyond borders to diversify your wealth.", desc: "We help you understand and access global investment opportunities while aligning them with your overall portfolio and risk appetite." },
+  { n: "05", name: "Portfolio Review & Stock Selection", proposition: "Already investing? Get an objective view of your portfolio.", desc: "We evaluate diversification, risk, performance and individual holdings to help you make smarter, more informed investment decisions." },
 ];
 const PRICING = [
   { plan: "First Session", price: "₹99" },
@@ -69,7 +67,7 @@ export default function ServicesPage() {
         <header className="max-w-3xl">
           <div className="mb-5 flex items-center gap-3"><span className="text-[11px] uppercase tracking-[0.28em] text-[#F5A623]">Services</span><span className="h-px w-8 bg-[#F5A623]/50" /></div>
           <h1 className="font-serif-display text-4xl leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-6xl">Research and discussion for better investment decisions.</h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#94A3B8] md:text-lg">Explore portfolio reviews, Indian and global investing, mutual funds, ETFs and investing fundamentals — with a research-led approach.</p>
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#94A3B8] md:text-lg">From your first investment to wealth, family and global planning — explore our services, built around your goals and risk profile.</p>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#94A3B8]">To avail any service, fill out the form for your required service and our team will reach out to you.</p>
         </header>
 
