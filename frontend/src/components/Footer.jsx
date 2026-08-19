@@ -4,7 +4,7 @@ import { profile } from "@/data/portfolio";
 import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
 
 const links = [
-  { to: "/what-we-do", label: "What We Do" }, { to: "/services", label: "Services" }, { to: "/about", label: "About" }, { to: "/portfolio", label: "Portfolio" },
+  { to: "/why-we-exist", label: "Why We Exist" }, { to: "/services", label: "Services" }, { to: "/about", label: "About" }, { to: "/portfolio", label: "Portfolio" },
   { to: "/blog", label: "Blog" }, { to: "/contact", label: "Contact" }, { to: "/blog/admin/login", label: "Admin Login" },
 ];
 

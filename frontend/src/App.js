@@ -1,7 +1,7 @@
 import "@/App.css";
 import { useEffect } from "react";
 import { ReactLenis, useLenis } from "lenis/react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import MarketTicker from "@/components/MarketTicker";
 import Footer from "@/components/Footer";
@@ -42,7 +42,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/services" element={<ServicesPage />} />
-            <Route path="/what-we-do" element={<WhatWeDoPage />} />
+            <Route path="/why-we-exist" element={<WhatWeDoPage />} />
+            <Route path="/what-we-do" element={<Navigate to="/why-we-exist" replace />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/about" element={<AboutPage />} />

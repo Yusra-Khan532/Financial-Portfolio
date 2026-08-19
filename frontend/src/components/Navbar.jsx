@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
 
 const links = [
-  { route: "/what-we-do", label: "What We Do" },
+  { route: "/why-we-exist", label: "Why We Exist" },
   { route: "/services", label: "Services" },
   { route: "/about", label: "About" },
   { route: "/portfolio", label: "Portfolio" },
