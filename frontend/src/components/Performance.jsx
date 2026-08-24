@@ -1,246 +1,26 @@
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie, Legend,
-} from "recharts";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
-const metric = (items, key) => items.find((m) => m.key === key)?.value;
+const metric = (items, key) => items.find((item) => item.key === key)?.value;
+const GOLD = "#F5A623";
 
-const ChartTooltip = ({ active, payload, label, suffix = "%" }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[#0A1E3F] border border-white/15 rounded-lg px-4 py-3 shadow-xl">
-      {label && <div className="text-xs text-[#94A3B8] mb-2">{label}</div>}
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2 text-sm">
-          <span className="h-2 w-2 rounded-full" style={{ background: p.color || p.fill }} />
-          <span className="text-[#94A3B8]">{p.name}:</span>
-          <span className="text-white font-medium">{p.value}{suffix}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const AllocTooltip = ({ active, payload }) => {
-  if (!active || !payload?.length) return null;
-  const p = payload[0];
-  return (
-    <div className="bg-[#0A1E3F] border border-white/15 rounded-lg px-3 py-2 text-sm">
-      <span className="text-[#94A3B8]">{p.name || p.payload.stock}: </span>
-      <span className="text-white font-medium">{p.value}%</span>
-    </div>
-  );
-};
-
-const SECTOR_COLORS = ["#F5A623", "#3B82F6", "#64748B", "#94A3B8", "#475569", "#1E40AF"];
-
-const topSectorsFor = (sectorAllocation) => {
-  const sorted = [...sectorAllocation].sort((a, b) => b.value - a.value);
-  const top = sorted.slice(0, 5);
-  const others = +sorted.slice(5).reduce((s, d) => s + d.value, 0).toFixed(1);
-  return others > 0 ? [...top, { name: "Others", value: others }] : top;
-};
-
-const topContributionFor = (attribution) => {
-  const positives = attribution.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
-  const negSum = +attribution.filter((d) => d.value < 0).reduce((s, d) => s + d.value, 0).toFixed(1);
-  return negSum ? [...positives, { stock: "Other Detractors", value: negSum }] : positives;
-};
-
-const toneCls = (t) =>
-  t === "positive" ? "text-[#34D399]" : t === "negative" ? "text-[#F87171]" : "text-white";
-
-// XIRR, Max Drawdown, sector allocation and P&L attribution need current holdings /
-// benchmark data the realised P&L report doesn't contain, so they still show the last
-// report's figures — flagged inline rather than presented as current.
-const STALE_AS_OF = "01 Apr 2026 – 07 Aug 2026";
-const staleProofLabels = new Set(["XIRR (Annualized)", "Max Drawdown"]);
+const TooltipCard = ({ active, payload, label }) => active && payload?.length ? <div className="rounded-lg border border-white/15 bg-[#0A1E3F] px-3 py-2 text-sm shadow-xl"><div className="mb-1 text-[#94A3B8]">{label}</div><div className="text-white">{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(payload[0].value)}</div></div> : null;
 
 export default function Performance() {
   const navigate = useNavigate();
   const { data } = usePortfolioData();
-  const { metrics, headline, growthData, sectorAllocation, attribution, profile } = data;
-  const topSectors = topSectorsFor(sectorAllocation);
-  const topContribution = topContributionFor(attribution);
-  const kpis = [
-    { label: "Gross P&L Generated", value: headline.grossPnl },
-    { label: "Net P&L (After Charges)", value: headline.netPnl },
-    { label: "Gross ROI", value: headline.grossRoi },
-    { label: "Net ROI", value: headline.netRoi },
-  ];
-  const proofStats = [
-    { label: "XIRR (Annualized)", value: metric(metrics, "xirr"), tone: "positive" },
-    { label: "Win Rate", value: metric(metrics, "winrate"), tone: "positive" },
-    { label: "Max Drawdown", value: metric(metrics, "drawdown"), tone: "negative" },
-  ];
+  const { charts, headline, metrics, profile } = data;
+  const kpis = [["Gross P&L Generated", headline.grossPnl], ["Net P&L (After Charges)", headline.netPnl], ["Gross ROI", headline.grossRoi], ["Net ROI", headline.netRoi]];
+  const proofStats = [["Win Rate", metric(metrics, "winrate")], ["Realised Trades", metric(metrics, "active-trades")], ["Avg Holding", metric(metrics, "holding")]];
 
-  return (
-    <section id="performance" className="relative py-20 md:py-24 px-6 md:px-10">
-      <div className="max-w-7xl mx-auto">
-        {/* Intro */}
-        <Reveal>
-          <div className="flex items-center gap-3 mb-5">
-            <span className="uppercase tracking-[0.28em] text-[11px] text-[#F5A623]">Performance</span>
-            <span className="h-px w-8 bg-[#F5A623]/50" />
-            <span className="uppercase tracking-[0.28em] text-[11px] text-[#94A3B8]">Apr–Aug 2026</span>
-          </div>
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-            <h2 className="font-serif-display text-4xl sm:text-5xl lg:text-6xl text-white tracking-tight max-w-2xl leading-[1.05]">
-              Performance, measured with context.
-            </h2>
-            <p className="text-[#94A3B8] max-w-sm text-base md:text-lg leading-relaxed">
-              Report period {profile.reportPeriod} · Average deployed capital {profile.deployedCapital}.
-            </p>
-          </div>
-        </Reveal>
-
-        {/* Primary KPI strip */}
-        <Reveal delay={0.05}>
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 rounded-xl border border-white/10 bg-[#0A1E3F]/40 overflow-hidden">
-            {kpis.map((k, i) => (
-              <div
-                key={k.label}
-                data-testid={`snapshot-headline-${i}`}
-                className={`px-5 py-6 md:px-6 md:py-7 border-t border-white/10 first:border-t-0 sm:border-t-0 ${
-                  i < 2 ? "sm:border-b" : ""
-                } ${i % 2 === 1 ? "sm:border-l sm:border-white/10" : ""}`}
-              >
-                <div className="text-[11px] md:text-xs uppercase tracking-[0.16em] text-[#64748B] leading-tight">
-                  {k.label}
-                </div>
-                <div className="mt-2.5 text-[clamp(2rem,8vw,2.6rem)] leading-none font-medium text-white tracking-tight tabular-nums">
-                  {k.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-
-        {/* Secondary metrics */}
-        <Reveal delay={0.1}>
-          <div className="mt-6 grid grid-cols-3">
-            {proofStats.map((s, i) => (
-              <div
-                key={s.label}
-                data-testid={`snapshot-proof-${i}`}
-                className={`min-w-0 px-1 sm:px-5 py-1 ${i > 0 ? "border-l border-white/10 sm:pl-6" : ""}`}
-              >
-                <div className={`text-lg sm:text-2xl font-medium tabular-nums ${toneCls(s.tone)}`}>{s.value}</div>
-                <div className="mt-1 break-words text-[10px] uppercase tracking-[0.16em] leading-tight text-[#64748B] sm:text-[11px]">
-                  {s.label}{staleProofLabels.has(s.label) && <sup className="ml-0.5 text-[#F5A623]">*</sup>}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-[11px] text-[#71839A]">* Reflects the {STALE_AS_OF} report — pending update.</p>
-        </Reveal>
-
-        {/* Main benchmark chart */}
-        <Reveal delay={0.05}>
-          <div className="mt-10 rounded-xl border border-white/10 bg-[#0A1E3F]/50 p-5 md:p-7">
-            <div className="flex items-baseline justify-between mb-4">
-              <h3 className="text-white font-medium text-base md:text-lg">Portfolio growth vs benchmarks</h3>
-              <span className="text-[11px] text-[#64748B] uppercase tracking-wider">Cumulative Returns %</span>
-            </div>
-            <p className="-mt-1 mb-3 text-[11px] text-[#71839A]">Reflects the {STALE_AS_OF} report — pending update.</p>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={growthData} margin={{ left: -18, right: 10, top: 6, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="date" stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: "#94A3B8", paddingTop: 14 }} iconType="plainline" />
-                <Line type="monotone" dataKey="Portfolio" stroke="#F5A623" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="NIFTY 50" stroke="#64748B" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-                <Line type="monotone" dataKey="NIFTY Midcap 150" stroke="#3B4A63" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Reveal>
-
-        {/* Supporting insights */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Reveal>
-            <div data-testid="snapshot-sector-allocation" className="h-full rounded-xl border border-white/10 bg-[#0A1E3F]/40 p-6">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where capital is allocated</div>
-              <h3 className="text-white font-medium text-base md:text-lg">Allocation by sector</h3>
-              <p className="mb-5 text-[11px] text-[#71839A]">As of the {STALE_AS_OF} report</p>
-              <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:gap-5">
-                <div className="mx-auto h-[min(260px,72vw)] w-[min(260px,72vw)] shrink-0 sm:mx-0 sm:h-[190px] sm:w-[44%]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={topSectors} dataKey="value" innerRadius={46} outerRadius={80} paddingAngle={2} stroke="none">
-                        {topSectors.map((_, i) => (
-                          <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<AllocTooltip />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <ul className="w-full flex-1 space-y-2">
-                  {topSectors.map((d, i) => (
-                    <li key={d.name} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 text-sm">
-                      <span className="flex min-w-0 items-start gap-2.5 leading-snug text-[#94A3B8]">
-                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
-                        {d.name}
-                      </span>
-                      <span className="shrink-0 text-white font-medium tabular-nums">{d.value}%</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.1}>
-            <div data-testid="snapshot-sector-contribution" className="h-full rounded-xl border border-white/10 bg-[#0A1E3F]/40 p-6">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-[#F5A623]">Where profit was generated</div>
-              <h3 className="text-white font-medium text-base md:text-lg">Contribution to Net P&amp;L</h3>
-              <p className="mb-5 text-[11px] text-[#71839A]">Realised P&amp;L by stock, 01 Apr – 17 Aug 2026</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={topContribution} layout="vertical" margin={{ left: 0, right: 8 }}>
-                  <XAxis type="number" stroke="#64748B" fontSize={11} tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="stock" stroke="#94A3B8" fontSize={11} width={112} tickLine={false} axisLine={false} />
-                  <Tooltip content={<AllocTooltip />} cursor={{ fill: "rgba(245,166,35,0.06)" }} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                    {topContribution.map((d, i) => (
-                      <Cell key={i} fill={d.value >= 0 ? "#F5A623" : "#F87171"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Reveal>
-        </div>
-
-        {/* CTA */}
-        <Reveal delay={0.05}>
-          <div className="mt-8 rounded-xl border border-white/10 bg-[#0A1E3F]/40 px-7 md:px-10 py-8 md:py-9 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="max-w-lg">
-              <div className="mb-3 h-px w-10 bg-[#F5A623]" />
-              <h3 className="font-serif-display text-2xl md:text-3xl text-white tracking-tight">
-                Explore the complete portfolio
-              </h3>
-              <p className="text-[#94A3B8] mt-2 text-sm md:text-base leading-relaxed">
-                Detailed performance, allocation, risk metrics, benchmark comparisons and portfolio analytics.
-              </p>
-            </div>
-            <button
-              data-testid="snapshot-view-full"
-              onClick={() => navigate("/portfolio")}
-              className="group inline-flex items-center gap-3 px-7 py-3.5 rounded-full bg-[#F5A623] text-[#050E1D] font-medium hover:bg-[#E19212] transition-colors self-start md:self-auto shrink-0"
-            >
-              View Full Portfolio Report
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
+  return <section id="performance" className="relative px-6 py-20 md:px-10 md:py-24"><div className="mx-auto max-w-7xl">
+    <Reveal><div className="mb-5 flex items-center gap-3"><span className="text-[11px] uppercase tracking-[.28em] text-[#F5A623]">Performance</span><span className="h-px w-8 bg-[#F5A623]/50" /><span className="text-[11px] uppercase tracking-[.22em] text-[#94A3B8]">01 Apr – 23 Aug 2026</span></div><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><h2 className="max-w-2xl font-serif-display text-4xl leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">Performance, measured with context.</h2><p className="max-w-sm text-base leading-relaxed text-[#94A3B8]">Report period {profile.reportPeriod} · Average deployed capital {profile.deployedCapital}.</p></div></Reveal>
+    <Reveal delay={.05}><div className="mt-10 grid grid-cols-1 overflow-hidden rounded-xl border border-white/10 bg-[#0A1E3F]/40 sm:grid-cols-2">{kpis.map(([label, value], i) => <div key={label} data-testid={`snapshot-headline-${i}`} className={`px-5 py-6 md:px-6 md:py-7 ${i < 2 ? "sm:border-b" : ""} ${i % 2 ? "sm:border-l" : ""} border-white/10`}><div className="text-[11px] uppercase tracking-[.16em] text-[#64748B]">{label}</div><div className="mt-2.5 text-[clamp(2rem,8vw,2.6rem)] font-medium leading-none tracking-tight text-white tabular-nums">{value}</div></div>)}</div></Reveal>
+    <Reveal delay={.1}><div className="mt-6 grid grid-cols-3">{proofStats.map(([label, value], i) => <div key={label} className={`min-w-0 px-2 py-1 sm:px-5 ${i ? "border-l border-white/10" : ""}`}><div className="text-lg font-medium text-[#34D399] tabular-nums sm:text-2xl">{value}</div><div className="mt-1 text-[10px] uppercase tracking-[.14em] text-[#64748B] sm:text-[11px]">{label}</div></div>)}</div></Reveal>
+    <Reveal delay={.05}><div className="mt-10 rounded-xl border border-white/10 bg-[#0A1E3F]/50 p-5 md:p-7"><div className="mb-4"><h3 className="text-base font-medium text-white md:text-lg">Monthly realised P&amp;L</h3><p className="mt-1 text-[11px] text-[#71839A]">Derived from the latest realised trade ledger.</p></div><ResponsiveContainer width="100%" height={330}><BarChart data={charts.monthlyRealizedPnl}><XAxis dataKey="month" stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} /><YAxis hide /><Tooltip content={<TooltipCard />} /><Bar dataKey="realizedPnl" radius={[4, 4, 0, 0]}>{charts.monthlyRealizedPnl.map((item) => <Cell key={item.month} fill={item.realizedPnl >= 0 ? GOLD : "#F87171"} />)}</Bar></BarChart></ResponsiveContainer></div></Reveal>
+    <Reveal delay={.05}><div className="mt-8 flex flex-col gap-6 rounded-xl border border-white/10 bg-[#0A1E3F]/40 px-7 py-8 md:flex-row md:items-center md:justify-between md:px-10 md:py-9"><div className="max-w-lg"><div className="mb-3 h-px w-10 bg-[#F5A623]" /><h3 className="font-serif-display text-2xl tracking-tight text-white md:text-3xl">Explore the complete portfolio</h3><p className="mt-2 text-sm leading-relaxed text-[#94A3B8]">Realised P&amp;L, trade outcomes, holding periods and stock-level contribution.</p></div><button data-testid="snapshot-view-full" onClick={() => navigate("/portfolio")} className="group inline-flex shrink-0 self-start rounded-full bg-[#F5A623] px-7 py-3.5 font-medium text-[#050E1D] transition-colors hover:bg-[#E19212] md:self-auto">View Full Portfolio Report <ArrowRight size={18} className="ml-3 transition-transform group-hover:translate-x-1" /></button></div></Reveal>
+  </div></section>;
 }

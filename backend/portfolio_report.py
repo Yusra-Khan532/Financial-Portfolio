@@ -135,6 +135,72 @@ def _find_text_amount(text, label):
     return _to_float(match.group(1)) if match else 0.0
 
 
+def _extract_charge_breakdown(text):
+    labels = {
+        "sebiFees": "[SEBI FEES]",
+        "turnoverCharges": "[TURNOVER CHG]",
+        "brokerage": "BROKERAGE",
+        "dematTransactionCharges": "DEMAT TRAN CHG",
+        "integratedGst": "INTEGRATED GST",
+        "securitiesTransactionTax": "SECURITIES TRANSACTION TAX",
+        "stampDuty": "STAMP DUTY",
+    }
+    return {key: _find_text_amount(text, label) for key, label in labels.items()}
+
+
+def _build_derived_charts(trades, gross_pnl):
+    """Build only charts that can be reproduced from the realised-P&L ledger."""
+    by_symbol = {}
+    by_month = {}
+    daily_pnl = {}
+    holding_buckets = {"Same day": 0, "1-7 days": 0, "8-30 days": 0, "31-90 days": 0, "91+ days": 0}
+
+    for trade in trades:
+        realized_pnl = trade["realizedPnl"]
+        symbol = trade["symbol"]
+        by_symbol[symbol] = by_symbol.get(symbol, 0) + realized_pnl
+
+        sell_date = _parse_date(trade["sellDate"])
+        if sell_date:
+            month = sell_date.strftime("%b %Y")
+            by_month[month] = by_month.get(month, 0) + realized_pnl
+            day = sell_date.date().isoformat()
+            daily_pnl[day] = daily_pnl.get(day, 0) + realized_pnl
+
+        days = trade["holdingDays"]
+        bucket = "Same day" if days <= 0 else "1-7 days" if days <= 7 else "8-30 days" if days <= 30 else "31-90 days" if days <= 90 else "91+ days"
+        holding_buckets[bucket] += 1
+
+    ordered_symbols = sorted(by_symbol.items(), key=lambda item: item[1], reverse=True)
+    top_symbols = ordered_symbols[:9]
+    other_symbols = ordered_symbols[9:]
+    attribution = [{"stock": symbol, "realizedPnl": round(value, 2)} for symbol, value in top_symbols]
+    if other_symbols:
+        attribution.append({"stock": f"Other symbols ({len(other_symbols)})", "realizedPnl": round(sum(value for _, value in other_symbols), 2)})
+
+    month_order = sorted(by_month, key=lambda item: datetime.strptime(item, "%b %Y"))
+    monthly = [{"month": month, "realizedPnl": round(by_month[month], 2)} for month in month_order]
+
+    running_total = 0.0
+    cumulative = []
+    for day in sorted(daily_pnl):
+        running_total += daily_pnl[day]
+        cumulative.append({"date": day, "realizedPnl": round(running_total, 2)})
+
+    return {
+        "pnlAttribution": attribution,
+        "monthlyRealizedPnl": monthly,
+        "cumulativeRealizedPnl": cumulative,
+        "holdingPeriodDistribution": [{"bucket": bucket, "trades": count} for bucket, count in holding_buckets.items()],
+        "outcomes": [
+            {"outcome": "Profitable", "trades": len([trade for trade in trades if trade["realizedPnl"] > 0])},
+            {"outcome": "Loss-making", "trades": len([trade for trade in trades if trade["realizedPnl"] < 0])},
+            {"outcome": "Zero P&L", "trades": len([trade for trade in trades if trade["realizedPnl"] == 0])},
+        ],
+        "grossPnl": round(gross_pnl, 2),
+    }
+
+
 def _trade_from_pdf_line(line):
     match = PDF_TRADE_PATTERN.match(line)
     if not match:
@@ -198,7 +264,7 @@ def _extract_pdf_trades(text):
     return trades
 
 
-def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_pnl, charges_total, trades, source):
+def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_pnl, charges_total, trades, source, charge_breakdown=None):
     if not trades:
         raise HTTPException(status_code=400, detail="No realised P&L trades were found in the report.")
     if not gross_pnl:
@@ -207,12 +273,11 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
         net_pnl = round(gross_pnl - charges_total, 2)
 
     deployed_capital = _to_float(os.environ.get("PORTFOLIO_DEPLOYED_CAPITAL", "3000000"), 3_000_000)
-    closed_trades = [trade for trade in trades if trade["realizedPnl"] != 0]
-    wins = [trade for trade in closed_trades if trade["realizedPnl"] > 0]
+    wins = [trade for trade in trades if trade["realizedPnl"] > 0]
     avg_holding = round(sum(trade["holdingDays"] for trade in trades) / len(trades))
 
     metrics = [
-        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / len(closed_trades)) * 100 if closed_trades else 0), "tone": "positive"},
+        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / len(trades)) * 100 if trades else 0), "tone": "positive"},
         {"key": "holding", "label": "Avg Holding Period", "value": f"{avg_holding} Days", "tone": "neutral"},
         {"key": "active-trades", "label": "Realised Trades", "value": str(len(trades)), "tone": "neutral"},
     ]
@@ -236,14 +301,16 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
         "charges": {
             "total": charges_total,
             "totalFormatted": _format_inr(charges_total),
+            "breakdown": charge_breakdown or {},
         },
         "tradeLedger": trades,
         "summary": {
             "tradeCount": len(trades),
             "winningTrades": len(wins),
-            "losingTrades": len([trade for trade in closed_trades if trade["realizedPnl"] < 0]),
+            "losingTrades": len([trade for trade in trades if trade["realizedPnl"] < 0]),
             "zeroPnlTrades": len([trade for trade in trades if trade["realizedPnl"] == 0]),
         },
+        "charts": _build_derived_charts(trades, gross_pnl),
     }
 
 
@@ -253,8 +320,9 @@ def parse_portfolio_pdf(path: Path, original_filename: str):
     gross_pnl = _find_text_amount(text, "Gross P&L")
     net_pnl = _find_text_amount(text, "Net P&L")
     charges_total = _find_text_amount(text, "TOTAL")
+    charge_breakdown = _extract_charge_breakdown(text)
     trades = _extract_pdf_trades(text)
-    return _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_pnl, charges_total, trades, "pdf")
+    return _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_pnl, charges_total, trades, "pdf", charge_breakdown)
 
 
 async def save_portfolio_upload(file: UploadFile):
