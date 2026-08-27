@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 const lineParent = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.12 } } };
 const lineChild = { hidden: { y: "110%" }, show: { y: "0%", transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } } };
+const founderCredentials = [
+  "B.Tech, IIT Kanpur · Minor in Finance, IIT Kanpur",
+  "CFA Level I Cleared · NISM Certified Research Analyst",
+];
 
 const MaskLine = ({ children, className }) => (
   <span className="block overflow-hidden">
@@ -104,6 +108,7 @@ export default function Hero() {
   const ref = useRef(null);
   const lenis = useLenis();
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const yBackground = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
@@ -131,11 +136,31 @@ export default function Hero() {
               <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
               <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
             </motion.div>
-            <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.98, duration: 0.8 }} className="mt-8 max-w-xl border-l border-[#E7C56B]/70 pl-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#B8C3D1]">
-                <span>Founded by </span><span className="text-[#E7C56B]">Nishant Jain</span>
-              </p>
-              <p className="mt-1.5 text-[10px] leading-relaxed uppercase tracking-[0.09em] text-[#AAB8C9] sm:text-[11px]">IIT Kanpur · CFA Level I Cleared · NISM Certified Research Analyst</p>
+            <motion.div
+              data-testid="hero-credentials"
+              initial={{ opacity: 0, y: reduced ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.98, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }}
+              className="relative mt-10 max-w-2xl overflow-hidden rounded-[1.35rem] border border-[#E7C56B]/20 bg-[#0A1E3F]/55 px-6 py-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-sm sm:px-8 sm:py-7"
+            >
+              <div aria-hidden="true" className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#F5A623]/10 blur-3xl" />
+              <motion.div
+                aria-hidden="true"
+                className="absolute bottom-0 left-0 top-0 w-px bg-gradient-to-b from-transparent via-[#FFE3A3] to-transparent"
+                animate={reduced ? undefined : { opacity: [0.55, 1, 0.55] }}
+                transition={reduced ? undefined : { duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <div className="relative border-l-2 border-[#E7C56B] pl-5 sm:pl-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#E7C56B] sm:text-[11px]">Founded by</p>
+                <h2 className="mt-2 font-serif-display text-[2.35rem] font-semibold leading-none tracking-[-0.035em] text-white sm:text-5xl">Nishant Jain</h2>
+                <div className="mt-5 flex flex-wrap gap-2.5" aria-label="Founder credentials">
+                  {founderCredentials.map((credential) => (
+                    <span key={credential} className="rounded-full border border-white/10 bg-white/[0.055] px-3.5 py-2 text-[10px] font-medium leading-snug tracking-[0.035em] text-[#C5D0DE] sm:px-4 sm:text-[11px]">
+                      {credential}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           </div>
           <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35, duration: 1.1 }} className="mx-auto mt-4 w-full max-w-[390px] lg:col-span-5 lg:mt-0 lg:max-w-none"><CapitalFlowVisual /></motion.div>
