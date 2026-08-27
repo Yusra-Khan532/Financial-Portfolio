@@ -131,9 +131,11 @@ export default function Hero() {
               <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
               <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
             </motion.div>
-            <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.98, duration: 0.8 }} className="mt-8 border-l border-[#F5A623]/45 pl-4">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#94A3B8]">Founded by Nishant Jain</p>
-              <p className="mt-1 text-[9px] uppercase tracking-[0.13em] text-[#64748B] sm:text-[10px]">IIT Kanpur · CFA Level I Cleared · NISM Certified Research Analyst</p>
+            <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.98, duration: 0.8 }} className="mt-8 max-w-xl border-l border-[#E7C56B]/70 pl-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#B8C3D1]">
+                <span>Founded by </span><span className="text-[#E7C56B]">Nishant Jain</span>
+              </p>
+              <p className="mt-1.5 text-[10px] leading-relaxed uppercase tracking-[0.09em] text-[#AAB8C9] sm:text-[11px]">IIT Kanpur · CFA Level I Cleared · NISM Certified Research Analyst</p>
             </motion.div>
           </div>
           <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.35, duration: 1.1 }} className="mx-auto mt-4 w-full max-w-[390px] lg:col-span-5 lg:mt-0 lg:max-w-none"><CapitalFlowVisual /></motion.div>
