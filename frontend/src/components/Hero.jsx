@@ -41,50 +41,48 @@ export default function Hero() {
   const scrollTo = (id) => lenis?.scrollTo(`#${id}`, { offset: -70 });
 
   return (
-    <section id="top" className="relative isolate flex min-h-[min(940px,100svh)] items-center overflow-hidden bg-[#050E1D]">
+    <section id="top" className="relative isolate flex items-center overflow-hidden bg-[#050E1D] lg:min-h-[100svh]">
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(10,30,63,.32),_transparent_62%)]" />
       <EdgeTexture reduced={reduced} />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-28 text-center md:px-10 md:py-32">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-24 text-center md:px-10 md:py-[clamp(4.75rem,8vh,6.5rem)]">
         <motion.div variants={lineParent} initial="hidden" animate="show">
           <MaskLine className="flex items-center justify-center gap-3 text-[10px] font-medium uppercase tracking-[0.25em] text-[#E7C56B] sm:text-[11px]">
             <span className="h-px w-7 bg-[#D4AF37]/60" />
             Investing for clearer decisions
             <span className="h-px w-7 bg-[#D4AF37]/60" />
           </MaskLine>
-          <h1 className="mt-7 font-serif-display text-[3.75rem] leading-[0.92] tracking-[-0.045em] text-white sm:text-7xl lg:text-[5.75rem]">
+          <h1 className="mt-[clamp(1.25rem,2.5vh,1.75rem)] font-serif-display text-[3.75rem] leading-[0.92] tracking-[-0.045em] text-white sm:text-7xl lg:text-[clamp(4.8rem,6.3vw,5.75rem)]">
             <MaskLine>FinLit Ventures</MaskLine>
           </h1>
         </motion.div>
 
-        <motion.p initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-8 max-w-3xl text-[17px] leading-relaxed text-[#AAB8C9] md:text-[18px]">
+        <motion.p initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.25rem,3vh,2rem)] max-w-3xl text-[17px] leading-relaxed text-[#AAB8C9] md:text-[18px]">
           Portfolio reviews, market research and thoughtful discussions across Indian equities, mutual funds, ETFs and global opportunities.
         </motion.p>
 
-        <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mt-[clamp(1.5rem,3.5vh,2.25rem)] flex flex-col items-center justify-center gap-4 sm:flex-row">
           <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
           <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
         </motion.div>
 
-        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-20 max-w-4xl">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
-          <h2 className="mt-3 font-serif-display text-[2.3rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.55rem]">Nishant Jain</h2>
-          <span aria-hidden="true" className="mx-auto mt-5 block h-1 w-1 rounded-full bg-[#D4AF37]" />
-
-          <div className="mt-9 grid gap-7 text-left sm:grid-cols-3 sm:gap-0">
+        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(2.75rem,6vh,4rem)] max-w-6xl">
+          <div className="grid gap-7 text-left md:grid-cols-2 md:gap-x-10 md:gap-y-8 lg:grid-cols-[minmax(220px,1.25fr)_minmax(180px,1fr)_minmax(150px,.85fr)_minmax(190px,1.1fr)] lg:items-center lg:gap-0">
+            <div className="px-1 lg:pr-8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
+              <h2 className="mt-2 font-serif-display text-[2rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.3rem]">Nishant Jain</h2>
+            </div>
             {founderCredentials.map((credential, index) => (
-              <motion.div key={credential.label} initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.08 + index * 0.12, duration: reduced ? 0 : 0.55 }} className={`px-1 sm:px-7 ${index > 0 ? "sm:border-l sm:border-white/10" : ""}`}>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37] sm:text-[10px]">{credential.label}</p>
-                <p className="mt-2 text-[13px] leading-relaxed text-[#B8C5D4] sm:text-sm">{credential.lines.map((line) => <span key={line} className="block">{line}</span>)}</p>
+              <motion.div key={credential.label} initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.08 + index * 0.12, duration: reduced ? 0 : 0.55 }} className={`px-1 lg:px-7 ${index > 0 ? "lg:border-l lg:border-white/10" : ""}`}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37] sm:text-[11px]">{credential.label}</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-[#B8C5D4] sm:text-[15px]">{credential.lines.map((line) => <span key={line} className="block">{line}</span>)}</p>
               </motion.div>
             ))}
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: reduced ? 0 : 1.45, duration: reduced ? 0 : 0.7 }} className="mt-14">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-[#71839A] sm:text-[10px]">Focus Areas</p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[10px] font-medium uppercase tracking-[0.16em] text-[#94A3B8] sm:gap-x-7 sm:text-[11px]">
-            {focusAreas.map((area, index) => <span key={area} className="flex items-center gap-5 sm:gap-7"><span>{area}</span>{index < focusAreas.length - 1 && <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#D4AF37]/60" />}</span>)}
-          </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: reduced ? 0 : 1.45, duration: reduced ? 0 : 0.7 }} className="mt-[clamp(1.75rem,3.5vh,2.75rem)] flex flex-wrap items-center justify-center gap-x-4 gap-y-3 text-[9px] font-medium uppercase tracking-[0.16em] sm:gap-x-5 sm:text-[10px]">
+          <span className="font-semibold text-[#D4AF37]">Focus Areas</span>
+          {focusAreas.map((area) => <span key={area} className="flex items-center gap-x-4 text-[#94A3B8] sm:gap-x-5"><span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#D4AF37]/60" /><span>{area}</span></span>)}
         </motion.div>
       </div>
     </section>
