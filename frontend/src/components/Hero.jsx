@@ -65,16 +65,17 @@ export default function Hero() {
           <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
         </motion.div>
 
-        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(2.75rem,6vh,4rem)] max-w-6xl">
-          <div className="grid gap-7 text-left md:grid-cols-2 md:gap-x-10 md:gap-y-8 lg:grid-cols-[minmax(220px,1.25fr)_minmax(180px,1fr)_minmax(150px,.85fr)_minmax(190px,1.1fr)] lg:items-center lg:gap-0">
-            <div className="px-1 lg:pr-8">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
-              <h2 className="mt-2 font-serif-display text-[2rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.3rem]">Nishant Jain</h2>
+        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(3.25rem,7vh,4.5rem)] max-w-5xl">
+          <div className="grid gap-8 text-left md:grid-cols-2 md:gap-x-12 md:gap-y-9 lg:grid-cols-[1.35fr_1fr_.9fr_1.15fr] lg:items-center lg:gap-x-8">
+            <div className="px-1 lg:pr-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
+              <h2 className="mt-2 font-serif-display text-[2rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.25rem]">Nishant Jain</h2>
+              <span aria-hidden="true" className="mt-4 block h-px w-7 bg-[#D4AF37]/55" />
             </div>
             {founderCredentials.map((credential, index) => (
-              <motion.div key={credential.label} initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.08 + index * 0.12, duration: reduced ? 0 : 0.55 }} className={`px-1 lg:px-7 ${index > 0 ? "lg:border-l lg:border-white/10" : ""}`}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37] sm:text-[11px]">{credential.label}</p>
-                <p className="mt-2 text-[14px] leading-relaxed text-[#B8C5D4] sm:text-[15px]">{credential.lines.map((line) => <span key={line} className="block">{line}</span>)}</p>
+              <motion.div key={credential.label} initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.08 + index * 0.12, duration: reduced ? 0 : 0.55 }} className="px-1 lg:px-2">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[#D4AF37] sm:text-[10px]">{credential.label}</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-[#B8C5D4] sm:text-[14px]">{credential.lines.map((line) => <span key={line} className="block">{line}</span>)}</p>
               </motion.div>
             ))}
           </div>
