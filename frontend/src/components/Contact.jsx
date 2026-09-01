@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Reveal, SectionLabel } from "@/components/Reveal";
+import { Reveal } from "@/components/Reveal";
 import { Linkedin, Mail, Send } from "lucide-react";
 import { CONTACT_EMAIL, LINKEDIN_URL } from "@/config";
 
@@ -37,8 +37,8 @@ export default function Contact() {
     <section id="contact" className="relative px-6 py-20 md:px-10 md:py-24">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-14 lg:grid-cols-2 lg:gap-20">
         <Reveal>
-          <SectionLabel index="06">Get In Touch</SectionLabel>
-          <h2 className="max-w-[34rem] font-serif-display text-3xl leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-[2.8rem]">Let&apos;s talk about your portfolio</h2>
+          <div className="text-[11px] uppercase tracking-[0.28em] text-[#F5A623]">Get In Touch</div>
+          <h2 className="mt-4 max-w-[34rem] font-serif-display text-3xl leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-[2.8rem]">Let&apos;s talk about your portfolio</h2>
           <p className="mt-6 max-w-md leading-relaxed text-[#94A3B8]">Whether you&apos;re reviewing an existing portfolio, exploring Indian or global markets, or looking for a more research-led perspective, tell us what you&apos;re trying to achieve.</p>
           <div className="mt-9 space-y-3">
             <a href={`mailto:${CONTACT_EMAIL}`} data-testid="contact-email-link" className="inline-flex items-center gap-3 text-white transition-colors hover:text-[#F5A623]">
