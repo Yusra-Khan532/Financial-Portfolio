@@ -2,7 +2,7 @@ import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis
 import { ExternalLink } from "lucide-react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
-const PNL_REPORT_URL = "/reports/realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf";
+const PNL_REPORT_URL = `${process.env.PUBLIC_URL || ""}/reports/realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf`;
 const GOLD = "#F5A623";
 const INDIAN_CURRENCY = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 });
 const metric = (items, key) => items.find((item) => item.key === key)?.value;
