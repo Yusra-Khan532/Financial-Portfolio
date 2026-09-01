@@ -1,52 +1,307 @@
 {
   "source": "pdf",
-  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-23_BR2287.pdf",
-  "generatedAt": "2026-08-24T05:27:32.627809+00:00",
+  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf",
+  "generatedAt": "2026-09-01T13:45:16.402512+00:00",
   "profile": {
-    "reportPeriod": "01 Apr 2026 – 23 Aug 2026",
+    "reportPeriod": "01 Apr 2026 – 31 Aug 2026",
     "financialYear": "FY 2026-27",
     "deployedCapital": "₹30,00,000.00"
   },
   "headline": {
-    "grossPnl": "₹4,95,447.61",
-    "netPnl": "₹4,57,612.61",
-    "grossRoi": "16.51%",
-    "netRoi": "15.25%"
+    "grossPnl": "₹5,18,651.56",
+    "netPnl": "₹4,78,887.85",
+    "grossRoi": "17.29%",
+    "netRoi": "15.96%"
   },
   "metrics": [
     {
       "key": "winrate",
       "label": "Win Rate",
-      "value": "83.73%",
+      "value": "83.63%",
       "tone": "positive"
     },
     {
       "key": "holding",
       "label": "Avg Holding Period",
-      "value": "72 Days",
+      "value": "71 Days",
       "tone": "neutral"
     },
     {
       "key": "active-trades",
       "label": "Realised Trades",
-      "value": "375",
+      "value": "391",
       "tone": "neutral"
     }
   ],
   "charges": {
-    "total": 37835.0,
-    "totalFormatted": "₹37,835.00",
+    "total": 39763.71,
+    "totalFormatted": "₹39,763.71",
     "breakdown": {
-      "sebiFees": 19.91,
-      "turnoverCharges": 721.75,
-      "brokerage": 13515.79,
-      "dematTransactionCharges": 4340.0,
-      "integratedGst": 3347.55,
-      "securitiesTransactionTax": 14319.0,
-      "stampDuty": 1571.0
+      "sebiFees": 20.88,
+      "turnoverCharges": 756.48,
+      "brokerage": 14055.79,
+      "dematTransactionCharges": 4520.0,
+      "integratedGst": 3483.56,
+      "securitiesTransactionTax": 15287.0,
+      "stampDuty": 1640.0
     }
   },
   "tradeLedger": [
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 5.0,
+      "buyDate": "2026-08-26",
+      "buyRate": 2172.0,
+      "buyAmount": 10860.0,
+      "sellDate": "2026-08-27",
+      "sellRate": 2245.95,
+      "sellAmount": 11229.75,
+      "holdingDays": 1,
+      "realizedPnl": 369.75,
+      "turnover": 11229.75
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 15.0,
+      "buyDate": "2026-08-21",
+      "buyRate": 1675.0,
+      "buyAmount": 25125.0,
+      "sellDate": "2026-08-27",
+      "sellRate": 1758.37,
+      "sellAmount": 26375.55,
+      "holdingDays": 6,
+      "realizedPnl": 1250.55,
+      "turnover": 26375.55
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 5.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 1541.55,
+      "buyAmount": 7707.75,
+      "sellDate": "2026-08-27",
+      "sellRate": 1758.5,
+      "sellAmount": 8792.5,
+      "holdingDays": 8,
+      "realizedPnl": 1084.75,
+      "turnover": 8792.5
+    },
+    {
+      "security": "Nuvama Wealth Management Limit",
+      "scripCode": "543988",
+      "symbol": "NUVAMA",
+      "isin": "INE531F01023",
+      "tradeType": "EQ",
+      "quantity": 55.0,
+      "buyDate": "2026-08-18",
+      "buyRate": 1738.28,
+      "buyAmount": 95605.5,
+      "sellDate": "2026-08-27",
+      "sellRate": 1782.71,
+      "sellAmount": 98048.8,
+      "holdingDays": 9,
+      "realizedPnl": 2443.3,
+      "turnover": 98048.8
+    },
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 20.0,
+      "buyDate": "2026-08-12",
+      "buyRate": 1982.85,
+      "buyAmount": 39657.0,
+      "sellDate": "2026-08-27",
+      "sellRate": 2245.95,
+      "sellAmount": 44919.0,
+      "holdingDays": 15,
+      "realizedPnl": 5262.0,
+      "turnover": 44919.0
+    },
+    {
+      "security": "Macrotech Developers Limited",
+      "scripCode": "543287",
+      "symbol": "LODHA",
+      "isin": "INE670K01029",
+      "tradeType": "EQ",
+      "quantity": 45.0,
+      "buyDate": "2026-08-06",
+      "buyRate": 1240.1,
+      "buyAmount": 55804.5,
+      "sellDate": "2026-08-27",
+      "sellRate": 1269.16,
+      "sellAmount": 57112.25,
+      "holdingDays": 21,
+      "realizedPnl": 1307.75,
+      "turnover": 57112.25
+    },
+    {
+      "security": "IIFL Wealth Management Limited",
+      "scripCode": "542772",
+      "symbol": "360ONE",
+      "isin": "INE466L01038",
+      "tradeType": "EQ",
+      "quantity": 40.0,
+      "buyDate": "2026-08-05",
+      "buyRate": 1192.35,
+      "buyAmount": 47694.0,
+      "sellDate": "2026-08-26",
+      "sellRate": 1206.59,
+      "sellAmount": 48263.7,
+      "holdingDays": 21,
+      "realizedPnl": 569.7,
+      "turnover": 48263.7
+    },
+    {
+      "security": "PB Fintech Limited",
+      "scripCode": "543390",
+      "symbol": "POLICYBZR",
+      "isin": "INE417T01026",
+      "tradeType": "EQ",
+      "quantity": 3.0,
+      "buyDate": "2026-05-20",
+      "buyRate": 1839.0,
+      "buyAmount": 5517.0,
+      "sellDate": "2026-08-26",
+      "sellRate": 1841.65,
+      "sellAmount": 5524.95,
+      "holdingDays": 98,
+      "realizedPnl": 7.95,
+      "turnover": 5524.95
+    },
+    {
+      "security": "PB Fintech Limited",
+      "scripCode": "543390",
+      "symbol": "POLICYBZR",
+      "isin": "INE417T01026",
+      "tradeType": "EQ",
+      "quantity": 12.0,
+      "buyDate": "2026-02-05",
+      "buyRate": 1565.95,
+      "buyAmount": 18791.4,
+      "sellDate": "2026-08-26",
+      "sellRate": 1841.65,
+      "sellAmount": 22099.8,
+      "holdingDays": 202,
+      "realizedPnl": 3308.4,
+      "turnover": 22099.8
+    },
+    {
+      "security": "IIFL Wealth Management Limited",
+      "scripCode": "542772",
+      "symbol": "360ONE",
+      "isin": "INE466L01038",
+      "tradeType": "EQ",
+      "quantity": 5.0,
+      "buyDate": "2026-01-16",
+      "buyRate": 1231.0,
+      "buyAmount": 6155.0,
+      "sellDate": "2026-08-26",
+      "sellRate": 1206.7,
+      "sellAmount": 6033.5,
+      "holdingDays": 222,
+      "realizedPnl": -121.5,
+      "turnover": 6033.5
+    },
+    {
+      "security": "PB Fintech Limited",
+      "scripCode": "543390",
+      "symbol": "POLICYBZR",
+      "isin": "INE417T01026",
+      "tradeType": "EQ",
+      "quantity": 15.0,
+      "buyDate": "2025-12-09",
+      "buyRate": 1956.97,
+      "buyAmount": 29354.5,
+      "sellDate": "2026-08-26",
+      "sellRate": 1841.65,
+      "sellAmount": 27624.75,
+      "holdingDays": 260,
+      "realizedPnl": -1729.75,
+      "turnover": 27624.75
+    },
+    {
+      "security": "BHAGERI IND",
+      "scripCode": "530803",
+      "symbol": "BHAGERIA",
+      "isin": "INE354C01027",
+      "tradeType": "EQ",
+      "quantity": 250.0,
+      "buyDate": "2026-08-05",
+      "buyRate": 213.9,
+      "buyAmount": 53475.0,
+      "sellDate": "2026-08-25",
+      "sellRate": 226.84,
+      "sellAmount": 56710.35,
+      "holdingDays": 20,
+      "realizedPnl": 3235.35,
+      "turnover": 56710.35
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 30.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 1541.55,
+      "buyAmount": 46246.5,
+      "sellDate": "2026-08-24",
+      "sellRate": 1662.39,
+      "sellAmount": 49871.75,
+      "holdingDays": 5,
+      "realizedPnl": 3625.25,
+      "turnover": 49871.75
+    },
+    {
+      "security": "NETWEB TECHNOLOGIES INDIA LIMI",
+      "scripCode": "543945",
+      "symbol": "NETWEB",
+      "isin": "INE0NT901020",
+      "tradeType": "EQ",
+      "quantity": 6.0,
+      "buyDate": "2026-08-17",
+      "buyRate": 5207.0,
+      "buyAmount": 31242.0,
+      "sellDate": "2026-08-24",
+      "sellRate": 5462.08,
+      "sellAmount": 32772.5,
+      "holdingDays": 7,
+      "realizedPnl": 1530.5,
+      "turnover": 32772.5
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 5.0,
+      "buyDate": "2026-08-14",
+      "buyRate": 1452.6,
+      "buyAmount": 7263.0,
+      "sellDate": "2026-08-24",
+      "sellRate": 1664.59,
+      "sellAmount": 8322.95,
+      "holdingDays": 10,
+      "realizedPnl": 1059.95,
+      "turnover": 8322.95
+    },
     {
       "security": "Manorama Industries Limited",
       "scripCode": "541974",
@@ -471,6 +726,23 @@
       "holdingDays": 80,
       "realizedPnl": 597.9,
       "turnover": 4638.3
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 18.0,
+      "buyDate": "2026-08-14",
+      "buyRate": 1483.3,
+      "buyAmount": 26699.4,
+      "sellDate": "2026-08-14",
+      "sellRate": 1483.3,
+      "sellAmount": 26699.4,
+      "holdingDays": 0,
+      "realizedPnl": 0.0,
+      "turnover": 26699.4
     },
     {
       "security": "NETWEB TECHNOLOGIES INDIA LIMI",
@@ -6424,24 +6696,24 @@
     }
   ],
   "summary": {
-    "tradeCount": 375,
-    "winningTrades": 314,
-    "losingTrades": 60,
-    "zeroPnlTrades": 1
+    "tradeCount": 391,
+    "winningTrades": 327,
+    "losingTrades": 62,
+    "zeroPnlTrades": 2
   },
   "charts": {
     "pnlAttribution": [
       {
-        "stock": "TDPOWERSYS",
-        "realizedPnl": 52424.8
-      },
-      {
         "stock": "RPEL",
-        "realizedPnl": 52231.7
+        "realizedPnl": 59252.2
       },
       {
         "stock": "AVALON",
-        "realizedPnl": 50253.5
+        "realizedPnl": 55885.25
+      },
+      {
+        "stock": "TDPOWERSYS",
+        "realizedPnl": 52424.8
       },
       {
         "stock": "SKYGOLD",
@@ -6457,7 +6729,7 @@
       },
       {
         "stock": "NETWEB",
-        "realizedPnl": 22453.5
+        "realizedPnl": 23984.0
       },
       {
         "stock": "DATAPATTNS",
@@ -6468,8 +6740,8 @@
         "realizedPnl": 16094.19
       },
       {
-        "stock": "Other symbols (32)",
-        "realizedPnl": 162788.1
+        "stock": "Other symbols (34)",
+        "realizedPnl": 171809.3
       }
     ],
     "monthlyRealizedPnl": [
@@ -6491,7 +6763,7 @@
       },
       {
         "month": "Aug 2026",
-        "realizedPnl": 102643.4
+        "realizedPnl": 125847.35
       }
     ],
     "cumulativeRealizedPnl": [
@@ -6826,20 +7098,36 @@
       {
         "date": "2026-08-21",
         "realizedPnl": 495447.61
+      },
+      {
+        "date": "2026-08-24",
+        "realizedPnl": 501663.31
+      },
+      {
+        "date": "2026-08-25",
+        "realizedPnl": 504898.66
+      },
+      {
+        "date": "2026-08-26",
+        "realizedPnl": 506933.46
+      },
+      {
+        "date": "2026-08-27",
+        "realizedPnl": 518651.56
       }
     ],
     "holdingPeriodDistribution": [
       {
         "bucket": "Same day",
-        "trades": 5
+        "trades": 6
       },
       {
         "bucket": "1-7 days",
-        "trades": 72
+        "trades": 76
       },
       {
         "bucket": "8-30 days",
-        "trades": 131
+        "trades": 138
       },
       {
         "bucket": "31-90 days",
@@ -6847,25 +7135,25 @@
       },
       {
         "bucket": "91+ days",
-        "trades": 81
+        "trades": 85
       }
     ],
     "outcomes": [
       {
         "outcome": "Profitable",
-        "trades": 314
+        "trades": 327
       },
       {
         "outcome": "Loss-making",
-        "trades": 60
+        "trades": 62
       },
       {
         "outcome": "Zero P&L",
-        "trades": 1
+        "trades": 2
       }
     ],
-    "grossPnl": 495447.61
+    "grossPnl": 518651.56
   },
-  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-23_BR2287.pdf",
-  "fileSize": 126691
+  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf",
+  "fileSize": 130409
 }
