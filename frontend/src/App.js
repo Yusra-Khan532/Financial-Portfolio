@@ -18,6 +18,7 @@ import BlogAdminPage from "@/pages/BlogAdminPage";
 import BlogAdminNewPage from "@/pages/BlogAdminNewPage";
 import BlogAdminEditPage from "@/pages/BlogAdminEditPage";
 import BlogAdminPreviewPage from "@/pages/BlogAdminPreviewPage";
+import StockFundamentalsAdminPage from "@/pages/StockFundamentalsAdminPage";
 import AdminRoute from "@/components/cms/AdminRoute";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -54,6 +55,7 @@ function App() {
               <Route path="/blog/admin/new" element={<BlogAdminNewPage />} />
               <Route path="/blog/admin/edit/:id" element={<BlogAdminEditPage />} />
               <Route path="/blog/admin/preview/:id" element={<BlogAdminPreviewPage />} />
+              <Route path="/blog/admin/stock-fundamentals" element={<StockFundamentalsAdminPage />} />
             </Route>
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
           </Routes>

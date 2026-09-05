@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FileSpreadsheet, Search, Upload } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import AdminShell from "@/components/cms/AdminShell";
 import {
@@ -162,7 +162,10 @@ export default function BlogAdminPage() {
           <h1 className="mt-2 font-serif-display text-5xl md:text-6xl text-white">Research publishing</h1>
           <p className="mt-3 text-sm md:text-base text-[#94A3B8]">Manage articles, reports and research resources.</p>
         </div>
-        <Link to="/blog/admin/new" className="inline-flex self-start md:self-auto items-center justify-center rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B]">+ New Content</Link>
+        <div className="flex flex-col gap-3 sm:flex-row md:self-auto">
+          <Link to="/blog/admin/stock-fundamentals" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-[#CBD5E1] hover:border-white/25 hover:text-white"><BarChart3 size={16} />Stock Fundamental Data Dashboard</Link>
+          <Link to="/blog/admin/new" className="inline-flex items-center justify-center rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B]">+ New Content</Link>
+        </div>
       </header>
 
       <section className="mt-10 rounded-2xl border border-white/10 bg-[#08172C]/55 p-5 md:p-6">
