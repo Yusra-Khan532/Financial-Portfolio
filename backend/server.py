@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,12 +6,12 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
 from datetime import datetime, timezone
 from time import monotonic, time
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 import asyncio
 import bcrypt
 import jwt
@@ -60,8 +60,11 @@ MARKET_TICKER_INDEX_INSTRUMENTS = [
 ]
 MARKET_TICKER_CACHE_SECONDS = 60
 NIFTY_50_CONSTITUENTS_CACHE_SECONDS = 60 * 60 * 6
+STOCK_FUNDAMENTALS_CACHE_SECONDS = 60 * 15
 _market_ticker_cache = {"items": None, "fetched_at": 0.0}
 _nifty_50_constituents_cache = {"items": None, "fetched_at": 0.0}
+_stock_fundamentals_cache = {}
+_stock_search_cache = {}
 
 # Content CMS configuration. Admin identities are provisioned via environment
 # variables only; there is deliberately no registration endpoint.
@@ -357,6 +360,30 @@ async def admin_upload_portfolio_report(file: UploadFile = File(...), _admin=Dep
     return await save_portfolio_upload(file)
 
 
+@api_router.get("/stocks/admin/fundamentals/search")
+async def admin_stock_fundamentals_search(
+    query: str = Query(..., min_length=2, max_length=80),
+    _admin=Depends(require_admin),
+):
+    instruments = await asyncio.to_thread(_search_upstox_instruments, query)
+    return {
+        "items": [
+            item for item in instruments
+            if item.get("isin") and item.get("instrumentKey") and item.get("segment") in {"NSE_EQ", "BSE_EQ"}
+        ][:10]
+    }
+
+
+@api_router.get("/stocks/admin/fundamentals")
+async def admin_stock_fundamentals(
+    query: str = Query(..., min_length=2, max_length=80),
+    statement_type: Literal["consolidated", "standalone"] = "consolidated",
+    period: Literal["yearly", "quarterly"] = "yearly",
+    _admin=Depends(require_admin),
+):
+    return await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period)
+
+
 @api_router.get("/content/admin/items")
 async def admin_content_list(_admin=Depends(require_admin)):
     docs = await db.content.find({}, {"_id": 0}).sort("updatedAt", -1).to_list(500)
@@ -645,6 +672,257 @@ def _fetch_upstox_quotes(instruments, access_token):
             "timestamp": int(time()),
         })
     return items
+
+
+def _upstox_headers():
+    access_token = os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip()
+    if not access_token:
+        raise HTTPException(status_code=503, detail="Upstox API is not configured.")
+    return {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}",
+        "User-Agent": "financial-portfolio-local/1.0",
+    }
+
+
+def _upstox_get(path: str, params: Optional[Dict[str, Any]] = None):
+    response = requests.get(
+        f"https://api.upstox.com/v2{path}",
+        headers=_upstox_headers(),
+        params=params or {},
+        timeout=12,
+    )
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        response.raise_for_status()
+        raise ValueError("Upstox returned a non-JSON response") from exc
+
+    if response.status_code >= 400 or payload.get("status") == "error":
+        message = "Upstox could not return stock fundamental data."
+        errors = payload.get("errors")
+        if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+            message = errors[0].get("message") or message
+        raise HTTPException(status_code=502 if response.status_code >= 500 else 400, detail=message)
+
+    data = payload.get("data")
+    if payload.get("status") != "success" or data is None:
+        raise ValueError("Upstox returned an unexpected payload")
+    return data
+
+
+def _is_isin(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", value.strip().upper()))
+
+
+def _normalize_instrument(instrument: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "name": instrument.get("name") or instrument.get("short_name") or instrument.get("trading_symbol"),
+        "shortName": instrument.get("short_name") or instrument.get("trading_symbol"),
+        "symbol": instrument.get("trading_symbol"),
+        "isin": instrument.get("isin"),
+        "instrumentKey": instrument.get("instrument_key"),
+        "exchange": instrument.get("exchange"),
+        "segment": instrument.get("segment"),
+        "instrumentType": instrument.get("instrument_type"),
+        "tickSize": instrument.get("tick_size"),
+        "lotSize": instrument.get("lot_size"),
+    }
+
+
+def _choose_equity_instrument(query: str, instruments: List[Dict[str, Any]]):
+    normalized_query = query.strip().upper()
+    equity_matches = [
+        item for item in instruments
+        if item.get("isin") and item.get("instrument_key") and item.get("segment") in {"NSE_EQ", "BSE_EQ"}
+    ]
+    if not equity_matches:
+        raise HTTPException(status_code=404, detail="No listed equity instrument was found for this query.")
+
+    def score(item):
+        symbol = (item.get("trading_symbol") or "").upper()
+        name = (item.get("name") or "").upper()
+        exact_symbol = 0 if symbol == normalized_query else 1
+        starts = 0 if symbol.startswith(normalized_query) or name.startswith(normalized_query) else 1
+        exchange = 0 if item.get("segment") == "NSE_EQ" else 1
+        return (exact_symbol, starts, exchange, len(symbol or name))
+
+    return sorted(equity_matches, key=score)[0]
+
+
+def _search_upstox_instruments(query: str):
+    cache_key = query.strip().upper()
+    cached = _stock_search_cache.get(cache_key)
+    if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
+        return cached["items"]
+
+    data = _upstox_get("/instruments/search", {"query": query.strip()})
+    if not isinstance(data, list):
+        raise ValueError("Upstox instrument search returned an unexpected payload")
+    items = [_normalize_instrument(item) for item in data if isinstance(item, dict)]
+    _stock_search_cache[cache_key] = {"items": items, "fetched_at": monotonic()}
+    return items
+
+
+def _resolve_upstox_instrument(query: str) -> Dict[str, Any]:
+    value = query.strip()
+    if not value:
+        raise HTTPException(status_code=400, detail="Enter a stock symbol, company name, ISIN, or instrument key.")
+
+    if value.upper().startswith(("NSE_EQ|", "BSE_EQ|")):
+        isin = value.split("|", 1)[1].upper()
+        instruments = _search_upstox_instruments(isin)
+    else:
+        instruments = _search_upstox_instruments(value.upper() if _is_isin(value) else value)
+
+    resolved = _choose_equity_instrument(value.split("|", 1)[-1], [
+        {
+            "name": item.get("name"),
+            "short_name": item.get("shortName"),
+            "trading_symbol": item.get("symbol"),
+            "isin": item.get("isin"),
+            "instrument_key": item.get("instrumentKey"),
+            "exchange": item.get("exchange"),
+            "segment": item.get("segment"),
+            "instrument_type": item.get("instrumentType"),
+            "tick_size": item.get("tickSize"),
+            "lot_size": item.get("lotSize"),
+        }
+        for item in instruments
+    ])
+    return _normalize_instrument(resolved)
+
+
+def _label_key(value: str) -> str:
+    return value.replace("_", " ").replace("-", " ").title()
+
+
+def _latest_history_value(rows, category):
+    if not isinstance(rows, list):
+        return None
+    for row in rows:
+        if isinstance(row, dict) and row.get("category") == category and row.get("history"):
+            history = row["history"]
+            if isinstance(history, list) and history:
+                return history[0]
+    return None
+
+
+def _ratio_lookup(ratios):
+    result = {}
+    if isinstance(ratios, list):
+        for ratio in ratios:
+            if isinstance(ratio, dict) and ratio.get("name"):
+                result[ratio["name"].upper()] = ratio
+    return result
+
+
+def _compact_competitor(competitor):
+    profile = competitor.get("company_profile") or ""
+    instrument_key = competitor.get("instrument_key")
+    instrument = {}
+    if instrument_key:
+        try:
+            instrument = _resolve_upstox_instrument(instrument_key)
+        except Exception:
+            logger.warning("Stock fundamentals competitor instrument lookup failed")
+    return {
+        "instrumentKey": instrument_key,
+        "name": instrument.get("name"),
+        "symbol": instrument.get("symbol"),
+        "isin": instrument.get("isin") or (instrument_key.split("|", 1)[1] if "|" in instrument_key else None),
+        "exchange": instrument.get("exchange"),
+        "sector": competitor.get("sector"),
+        "summary": profile[:220] + ("..." if len(profile) > 220 else ""),
+        "sectorMarketCapInr": competitor.get("sector_market_cap_inr", {}).get("formatted"),
+    }
+
+
+def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", period: str = "yearly"):
+    instrument = _resolve_upstox_instrument(query)
+    isin = instrument.get("isin")
+    instrument_key = instrument.get("instrumentKey")
+    if not isin or not instrument_key:
+        raise HTTPException(status_code=404, detail="This instrument is missing an ISIN or instrument key.")
+
+    cache_key = f"{instrument_key}:{statement_type}:{period}"
+    cached = _stock_fundamentals_cache.get(cache_key)
+    if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
+        return {**cached["data"], "cached": True}
+
+    profile = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/profile")
+    ratios = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/key-ratios")
+    income = _upstox_get(
+        f"/fundamentals/{quote(isin, safe='')}/income-statement",
+        {"type": statement_type, "period": period},
+    )
+    balance_sheet = _upstox_get(
+        f"/fundamentals/{quote(isin, safe='')}/balance-sheet",
+        {"type": statement_type},
+    )
+    cash_flow = _upstox_get(
+        f"/fundamentals/{quote(isin, safe='')}/cash-flow",
+        {"type": statement_type},
+    )
+    shareholding = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/share-holdings")
+    corporate_actions = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/corporate-actions")
+    competitors = _upstox_get(f"/fundamentals/{quote(instrument_key, safe='')}/competitors")
+
+    quote_data = {}
+    try:
+        quote_items = _fetch_upstox_quotes([{
+            "instrument_key": instrument_key,
+            "name": instrument.get("name"),
+            "symbol": instrument.get("symbol"),
+            "category": "Equity",
+            "currency": "INR",
+        }], os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip())
+        quote_data = quote_items[0] if quote_items else {}
+    except Exception:
+        logger.warning("Stock fundamentals quote lookup failed")
+
+    lookup = _ratio_lookup(ratios)
+    latest_revenue = _latest_history_value(income.get("income_statement"), "revenue") if isinstance(income, dict) else None
+    latest_net_profit = _latest_history_value(income.get("income_statement"), "net_profit") if isinstance(income, dict) else None
+    highlights = [
+        {"label": "P/E", "value": lookup.get("P/E", {}).get("company_value"), "benchmark": lookup.get("P/E", {}).get("sector_value")},
+        {"label": "P/B", "value": lookup.get("P/B", {}).get("company_value"), "benchmark": lookup.get("P/B", {}).get("sector_value")},
+        {"label": "ROE", "value": lookup.get("ROE", {}).get("company_value"), "benchmark": lookup.get("ROE", {}).get("sector_value")},
+        {"label": "ROCE", "value": lookup.get("ROCE", {}).get("company_value"), "benchmark": lookup.get("ROCE", {}).get("sector_value")},
+        {"label": "Revenue", "value": latest_revenue.get("value") if latest_revenue else None, "period": latest_revenue.get("period") if latest_revenue else None, "unit": income.get("units_in") if isinstance(income, dict) else None, "change": latest_revenue.get("change") if latest_revenue else None},
+        {"label": "Net Profit", "value": latest_net_profit.get("value") if latest_net_profit else None, "period": latest_net_profit.get("period") if latest_net_profit else None, "unit": income.get("units_in") if isinstance(income, dict) else None, "change": latest_net_profit.get("change") if latest_net_profit else None},
+    ]
+
+    result = {
+        "provider": "upstox",
+        "query": query,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "cached": False,
+        "instrument": instrument,
+        "quote": quote_data,
+        "profile": {
+            "description": profile.get("company_profile") if isinstance(profile, dict) else None,
+            "sector": profile.get("sector") if isinstance(profile, dict) else None,
+            "sectorMarketCapInr": profile.get("sector_market_cap_inr") if isinstance(profile, dict) else None,
+            "sectorMarketCapUsd": profile.get("sector_market_cap_usd") if isinstance(profile, dict) else None,
+        },
+        "highlights": [item for item in highlights if item.get("value") not in (None, "")],
+        "ratios": ratios if isinstance(ratios, list) else [],
+        "incomeStatement": income if isinstance(income, dict) else {},
+        "balanceSheet": balance_sheet if isinstance(balance_sheet, dict) else {},
+        "cashFlow": cash_flow if isinstance(cash_flow, dict) else {},
+        "shareholding": [
+            {**item, "label": _label_key(item.get("category", ""))}
+            for item in shareholding
+            if isinstance(item, dict)
+        ] if isinstance(shareholding, list) else [],
+        "corporateActions": corporate_actions if isinstance(corporate_actions, list) else [],
+        "competitors": [
+            _compact_competitor(item) for item in competitors if isinstance(item, dict)
+        ] if isinstance(competitors, list) else [],
+    }
+    _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}
+    return result
 
 
 @api_router.get("/market-ticker")
