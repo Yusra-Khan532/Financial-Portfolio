@@ -23,9 +23,15 @@ const PRICE_RANGES = [
   { id: "5y", label: "5Yr", months: 60 },
   { id: "max", label: "Max", months: null },
 ];
+const PRICE_INTERVALS = [
+  { id: "daily", label: "Daily" },
+  { id: "weekly", label: "Weekly" },
+  { id: "monthly", label: "Monthly" },
+];
 const DASHBOARD_TABS = [
   { id: "summary", label: "Summary" },
   { id: "price-chart", label: "Chart" },
+  { id: "insights", label: "Insights" },
   { id: "profit-loss", label: "P&L" },
   { id: "balance-sheet", label: "Balance Sheet" },
   { id: "cash-flow", label: "Cash Flow" },
@@ -56,26 +62,113 @@ function numericValue(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function movingAverage(items, index, windowSize) {
-  if (index + 1 < windowSize) return null;
-  const slice = items.slice(index + 1 - windowSize, index + 1);
-  const values = slice.map((item) => Number(item.close)).filter(Number.isFinite);
-  if (values.length !== windowSize) return null;
-  return values.reduce((sum, value) => sum + value, 0) / windowSize;
+function parsePriceDate(date) {
+  const parsed = new Date(`${date}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function priceChartData(history) {
+function periodStart(date, interval) {
+  if (interval === "monthly") return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  if (interval === "weekly") {
+    const weekStart = new Date(date);
+    const day = weekStart.getDay() || 7;
+    weekStart.setDate(weekStart.getDate() - day + 1);
+    return weekStart.toISOString().slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+function aggregatePriceCandles(history, interval) {
   const rows = [...(history || [])]
     .filter((row) => row.date && Number.isFinite(Number(row.close)))
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (interval === "daily") return rows;
+
+  const groups = new Map();
+  rows.forEach((row) => {
+    const parsedDate = parsePriceDate(row.date);
+    if (!parsedDate) return;
+    const key = periodStart(parsedDate, interval);
+    const current = groups.get(key);
+    if (!current) {
+      groups.set(key, {
+        date: row.date,
+        open: Number(row.open) || Number(row.close),
+        high: Number(row.high) || Number(row.close),
+        low: Number(row.low) || Number(row.close),
+        close: Number(row.close),
+        volume: Number(row.volume) || 0,
+      });
+      return;
+    }
+    current.date = row.date;
+    current.high = Math.max(current.high, Number(row.high) || Number(row.close));
+    current.low = Math.min(current.low, Number(row.low) || Number(row.close));
+    current.close = Number(row.close);
+    current.volume += Number(row.volume) || 0;
+  });
+
+  return Array.from(groups.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+function emaValue(previous, close, windowSize) {
+  const multiplier = 2 / (windowSize + 1);
+  return close * multiplier + previous * (1 - multiplier);
+}
+
+function standardDeviation(values) {
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + ((value - average) ** 2), 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function rsiValue(items, index, windowSize = 14) {
+  if (index < windowSize) return null;
+  let gains = 0;
+  let losses = 0;
+  for (let offset = index - windowSize + 1; offset <= index; offset += 1) {
+    const change = Number(items[offset].close) - Number(items[offset - 1].close);
+    if (change >= 0) gains += change;
+    else losses += Math.abs(change);
+  }
+  if (losses === 0) return 100;
+  const relativeStrength = gains / windowSize / (losses / windowSize);
+  return 100 - (100 / (1 + relativeStrength));
+}
+
+function priceChartData(history, interval = "daily") {
+  const rows = aggregatePriceCandles(history, interval);
+  const emaState = { ema20: null, ema50: null, ema200: null };
   return rows.map((row, index) => ({
+    ...row,
     date: row.date,
     label: new Date(`${row.date}T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
     price: Number(row.close),
     volume: Number(row.volume) || 0,
-    dma50: movingAverage(rows, index, 50),
-    dma200: movingAverage(rows, index, 200),
-  }));
+  })).map((row, index, items) => {
+    const close = Number(row.close);
+    emaState.ema20 = emaState.ema20 === null ? close : emaValue(emaState.ema20, close, 20);
+    emaState.ema50 = emaState.ema50 === null ? close : emaValue(emaState.ema50, close, 50);
+    emaState.ema200 = emaState.ema200 === null ? close : emaValue(emaState.ema200, close, 200);
+    const bollingerWindow = items.slice(Math.max(0, index - 19), index + 1).map((item) => Number(item.close));
+    const bollingerMiddle = bollingerWindow.length === 20 ? bollingerWindow.reduce((sum, value) => sum + value, 0) / 20 : null;
+    const bollingerDeviation = bollingerMiddle === null ? null : standardDeviation(bollingerWindow);
+    const previous = items[index - 1];
+    const pivot = previous ? (Number(previous.high) + Number(previous.low) + Number(previous.close)) / 3 : null;
+    return {
+      ...row,
+      ema20: index >= 19 ? emaState.ema20 : null,
+      ema50: index >= 49 ? emaState.ema50 : null,
+      ema200: index >= 199 ? emaState.ema200 : null,
+      rsi: rsiValue(items, index),
+      bollingerMiddle,
+      bollingerUpper: bollingerMiddle === null ? null : bollingerMiddle + (2 * bollingerDeviation),
+      bollingerLower: bollingerMiddle === null ? null : bollingerMiddle - (2 * bollingerDeviation),
+      pivot,
+      resistance1: pivot === null ? null : (2 * pivot) - Number(previous.low),
+      support1: pivot === null ? null : (2 * pivot) - Number(previous.high),
+    };
+  });
 }
 
 function filterPriceRange(rows, rangeId) {
@@ -187,12 +280,205 @@ function latestHistory(rows) {
   }));
 }
 
+function percentValue(value) {
+  const number = numericValue(value);
+  return number === null ? null : `${compactNumber(number)}%`;
+}
+
+function percentText(value) {
+  const number = numericValue(value);
+  return number === null ? "N/A" : `${compactNumber(number)}%`;
+}
+
+function latestPoint(rows, category) {
+  return categoryHistory(rows, category)[0];
+}
+
+function oldestPoint(rows, category) {
+  const history = categoryHistory(rows, category);
+  return history[history.length - 1];
+}
+
+function cagrPercent(latest, oldest, periods) {
+  const latestValue = numericValue(latest);
+  const oldestValue = numericValue(oldest);
+  if (!latestValue || !oldestValue || latestValue <= 0 || oldestValue <= 0 || periods <= 0) return null;
+  return ((latestValue / oldestValue) ** (1 / periods) - 1) * 100;
+}
+
+function spreadText(companyValue, sectorValue, unit = "") {
+  const company = numericValue(companyValue);
+  const sector = numericValue(sectorValue);
+  if (company === null || sector === null) return null;
+  const spread = company - sector;
+  const formatted = `${spread >= 0 ? "+" : ""}${compactNumber(spread)}${unit}`;
+  return `${formatted} vs sector`;
+}
+
+function insightTone(value, direction = "higher") {
+  if (value === null || value === undefined) return "neutral";
+  if (direction === "lower") return value <= 0 ? "positive" : "caution";
+  return value >= 0 ? "positive" : "caution";
+}
+
+function comparisonTone(companyValue, sectorValue, direction = "higher") {
+  const company = numericValue(companyValue);
+  const sector = numericValue(sectorValue);
+  if (company === null || sector === null) return "neutral";
+  return insightTone(company - sector, direction);
+}
+
+function buildInvestorInsights(data) {
+  if (!data) return [];
+  const incomeRows = data.incomeStatement?.income_statement || [];
+  const cashRows = data.cashFlow?.cash_flow || [];
+  const revenueLatest = latestPoint(incomeRows, "revenue");
+  const revenueOldest = oldestPoint(incomeRows, "revenue");
+  const profitLatest = latestPoint(incomeRows, "net_profit");
+  const profitOldest = oldestPoint(incomeRows, "net_profit");
+  const operatingLatest = latestPoint(incomeRows, "operating_profit");
+  const cfoLatest = latestPoint(cashRows, "operating");
+  const latestBalance = data.balanceSheet?.history?.[0];
+  const promoterHistory = categoryHistory(data.shareholding, "promoters");
+  const fiiHistory = categoryHistory(data.shareholding, "fii");
+  const diiHistory = categoryHistory(data.shareholding, "other_dii");
+  const mfHistory = categoryHistory(data.shareholding, "mutual_funds");
+  const revenuePeriods = Math.max(1, (categoryHistory(incomeRows, "revenue").length || 1) - 1);
+  const profitPeriods = Math.max(1, (categoryHistory(incomeRows, "net_profit").length || 1) - 1);
+  const salesCagr = cagrPercent(revenueLatest?.value, revenueOldest?.value, revenuePeriods);
+  const profitCagr = cagrPercent(profitLatest?.value, profitOldest?.value, profitPeriods);
+  const opm = numericValue(revenueLatest?.value) ? (numericValue(operatingLatest?.value) / numericValue(revenueLatest?.value)) * 100 : null;
+  const npm = numericValue(revenueLatest?.value) ? (numericValue(profitLatest?.value) / numericValue(revenueLatest?.value)) * 100 : null;
+  const cashConversion = numericValue(profitLatest?.value) ? (numericValue(cfoLatest?.value) / numericValue(profitLatest?.value)) * 100 : null;
+  const liabilityRatio = numericValue(latestBalance?.total_asset) ? (numericValue(latestBalance?.total_liability) / numericValue(latestBalance?.total_asset)) * 100 : null;
+  const promoterChange = promoterHistory.length > 1 ? numericValue(promoterHistory[0]?.value) - numericValue(promoterHistory[promoterHistory.length - 1]?.value) : null;
+  const fiiChange = fiiHistory.length > 1 ? numericValue(fiiHistory[0]?.value) - numericValue(fiiHistory[fiiHistory.length - 1]?.value) : null;
+  const diiLatest = (numericValue(diiHistory[0]?.value) || 0) + (numericValue(mfHistory[0]?.value) || 0);
+  const diiOldest = (numericValue(diiHistory[diiHistory.length - 1]?.value) || 0) + (numericValue(mfHistory[mfHistory.length - 1]?.value) || 0);
+  const diiChange = diiHistory.length || mfHistory.length ? diiLatest - diiOldest : null;
+  const pe = ratioByName(data.ratios, "P/E");
+  const roe = ratioByName(data.ratios, "ROE");
+  const roce = ratioByName(data.ratios, "ROCE");
+
+  return [
+    {
+      group: "Growth",
+      items: [
+        { label: "Sales CAGR", value: percentValue(salesCagr), meta: `${revenueOldest?.period || "Oldest"} to ${revenueLatest?.period || "latest"}`, tone: insightTone(salesCagr) },
+        { label: "Profit CAGR", value: percentValue(profitCagr), meta: `${profitOldest?.period || "Oldest"} to ${profitLatest?.period || "latest"}`, tone: insightTone(profitCagr) },
+        { label: "Latest Sales Growth", value: percentValue(revenueLatest?.change), meta: revenueLatest?.period, tone: insightTone(numericValue(revenueLatest?.change)) },
+      ],
+    },
+    {
+      group: "Profitability",
+      items: [
+        { label: "OPM", value: percentValue(opm), meta: operatingLatest?.period, tone: insightTone(opm) },
+        { label: "Net Margin", value: percentValue(npm), meta: profitLatest?.period, tone: insightTone(npm) },
+        { label: "ROE", value: percentValue(roe?.company_value), meta: spreadText(roe?.company_value, roe?.sector_value, "%"), tone: comparisonTone(roe?.company_value, roe?.sector_value) },
+        { label: "ROCE", value: percentValue(roce?.company_value), meta: spreadText(roce?.company_value, roce?.sector_value, "%"), tone: comparisonTone(roce?.company_value, roce?.sector_value) },
+      ],
+    },
+    {
+      group: "Cash & Balance Sheet",
+      items: [
+        { label: "CFO / Net Profit", value: percentValue(cashConversion), meta: cfoLatest?.period, tone: cashConversion === null ? "neutral" : insightTone(cashConversion - 100) },
+        { label: "Liabilities / Assets", value: percentValue(liabilityRatio), meta: latestBalance?.period, tone: liabilityRatio === null ? "neutral" : insightTone(liabilityRatio - 50, "lower") },
+        { label: "Total Assets", value: valueWithUnit(latestBalance?.total_asset, data.balanceSheet?.units_in), meta: latestBalance?.period, tone: "neutral" },
+      ],
+    },
+    {
+      group: "Ownership & Valuation",
+      items: [
+        { label: "Promoter Change", value: promoterChange === null ? "N/A" : `${promoterChange >= 0 ? "+" : ""}${compactNumber(promoterChange)}%`, meta: "Available holding history", tone: insightTone(promoterChange) },
+        { label: "FII Change", value: fiiChange === null ? "N/A" : `${fiiChange >= 0 ? "+" : ""}${compactNumber(fiiChange)}%`, meta: "Available holding history", tone: insightTone(fiiChange) },
+        { label: "DII + MF Change", value: diiChange === null ? "N/A" : `${diiChange >= 0 ? "+" : ""}${compactNumber(diiChange)}%`, meta: "Available holding history", tone: insightTone(diiChange) },
+        { label: "P/E vs Sector", value: compactNumber(pe?.company_value), meta: spreadText(pe?.company_value, pe?.sector_value), tone: comparisonTone(pe?.company_value, pe?.sector_value, "lower") },
+      ],
+    },
+  ];
+}
+
+function flattenInsights(insights) {
+  return insights.flatMap((group) => group.items.map((item) => ({ ...item, group: group.group })));
+}
+
+function buildScreeningNotes(insights) {
+  const items = flattenInsights(insights).filter((item) => item.value && item.value !== "N/A");
+  const strengths = items
+    .filter((item) => item.tone === "positive")
+    .slice(0, 4)
+    .map((item) => `${item.label}: ${item.value}${item.meta ? ` (${item.meta})` : ""}`);
+  const watchouts = items
+    .filter((item) => item.tone === "caution")
+    .slice(0, 4)
+    .map((item) => `${item.label}: ${item.value}${item.meta ? ` (${item.meta})` : ""}`);
+  return { strengths, watchouts };
+}
+
+function toneClasses(tone) {
+  if (tone === "positive") return "text-[#8CC8AA]";
+  if (tone === "caution") return "text-[#E7A5A6]";
+  return "text-[#CBD5E1]";
+}
+
+function InvestorInsights({ insights }) {
+  const notes = buildScreeningNotes(insights);
+  return (
+    <DataSection id="insights" title="Insights" subtitle="Computed from returned Upstox fundamentals, ratios, price and holding history. Treat these as screening signals, not recommendations.">
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <section className="border border-[#75B89B]/20 bg-[#75B89B]/5 p-4">
+          <h3 className="text-sm font-medium text-white">Strengths</h3>
+          {notes.strengths.length ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+              {notes.strengths.map((point) => <li key={point}>+ {point}</li>)}
+            </ul>
+          ) : <p className="mt-3 text-sm text-[#94A3B8]">No positive screening signals from the returned data.</p>}
+        </section>
+        <section className="border border-[#C98182]/20 bg-[#C98182]/5 p-4">
+          <h3 className="text-sm font-medium text-white">Watchouts</h3>
+          {notes.watchouts.length ? (
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+              {notes.watchouts.map((point) => <li key={point}>- {point}</li>)}
+            </ul>
+          ) : <p className="mt-3 text-sm text-[#94A3B8]">No caution flags from the returned data.</p>}
+        </section>
+      </div>
+      <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 lg:grid-cols-2">
+        {insights.map((group) => (
+          <section key={group.group} className="bg-[#071326] p-4">
+            <h3 className="text-sm font-medium text-white">{group.group}</h3>
+            <div className="mt-4 divide-y divide-white/10">
+              {group.items.map((item) => (
+                <div key={`${group.group}-${item.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <div className="text-sm text-[#CBD5E1]">{item.label}</div>
+                    <div className="mt-1 text-xs text-[#71839A]">{item.meta || "Data unavailable"}</div>
+                  </div>
+                  <div className={`text-right text-sm font-medium ${toneClasses(item.tone)}`}>{item.value || "N/A"}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </DataSection>
+  );
+}
+
 function PriceVolumeChart({ data, symbol, ratios }) {
   const [chartMode, setChartMode] = useState("price");
   const [priceRange, setPriceRange] = useState("1y");
-  const [show50, setShow50] = useState(true);
-  const [show200, setShow200] = useState(false);
-  const chartData = useMemo(() => priceChartData(data), [data]);
+  const [priceInterval, setPriceInterval] = useState("daily");
+  const [indicators, setIndicators] = useState({
+    volume: true,
+    ema20: false,
+    ema50: true,
+    ema200: false,
+    rsi: false,
+    bollinger: false,
+    pivots: false,
+  });
+  const chartData = useMemo(() => priceChartData(data, priceInterval), [data, priceInterval]);
   const visibleChartData = useMemo(() => filterPriceRange(chartData, priceRange), [chartData, priceRange]);
   const peData = useMemo(() => ratioComparisonData(ratios, ["P/E"]), [ratios]);
   const moreRatioData = useMemo(() => ratioComparisonData(ratios, ["P/E", "P/B", "ROE", "ROCE"]), [ratios]);
@@ -202,6 +488,9 @@ function PriceVolumeChart({ data, symbol, ratios }) {
     const step = Math.max(1, Math.floor(visibleChartData.length / 5));
     return visibleChartData.filter((_, index) => index % step === 0).map((row) => row.date);
   }, [visibleChartData]);
+  const toggleIndicator = (key) => {
+    setIndicators((current) => ({ ...current, [key]: !current[key] }));
+  };
 
   return (
     <DataSection
@@ -211,17 +500,31 @@ function PriceVolumeChart({ data, symbol, ratios }) {
     >
       <div className="mb-5 space-y-3">
         {chartMode === "price" ? (
-          <div className="flex flex-wrap gap-2">
-            {PRICE_RANGES.map((range) => (
-              <button
-                key={range.id}
-                type="button"
-                onClick={() => setPriceRange(range.id)}
-                className={`h-9 rounded-md border px-3 text-xs font-medium transition-colors ${priceRange === range.id ? "border-[#F5A623]/45 bg-[#F5A623]/15 text-[#F5A623]" : "border-white/10 text-[#94A3B8] hover:border-white/20 hover:bg-white/[.04] hover:text-white"}`}
-              >
-                {range.label}
-              </button>
-            ))}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {PRICE_RANGES.map((range) => (
+                <button
+                  key={range.id}
+                  type="button"
+                  onClick={() => setPriceRange(range.id)}
+                  className={`h-9 rounded-md border px-3 text-xs font-medium transition-colors ${priceRange === range.id ? "border-[#F5A623]/45 bg-[#F5A623]/15 text-[#F5A623]" : "border-white/10 text-[#94A3B8] hover:border-white/20 hover:bg-white/[.04] hover:text-white"}`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex overflow-hidden rounded-md border border-white/10 bg-[#050E1D]/55 text-xs">
+              {PRICE_INTERVALS.map((interval) => (
+                <button
+                  key={interval.id}
+                  type="button"
+                  onClick={() => setPriceInterval(interval.id)}
+                  className={`border-l border-white/10 px-3 py-2 font-medium first:border-l-0 ${priceInterval === interval.id ? "bg-[#75B89B]/15 text-[#8CC8AA]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
+                >
+                  {interval.label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -241,21 +544,25 @@ function PriceVolumeChart({ data, symbol, ratios }) {
               </button>
             ))}
           </div>
-          {chartMode === "price" ? <div className="flex flex-wrap gap-3 text-sm text-[#CBD5E1]">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked readOnly className="h-4 w-4 accent-[#F5A623]" />
-              Price on NSE
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={show50} onChange={(event) => setShow50(event.target.checked)} className="h-4 w-4 accent-[#75B89B]" />
-              50 DMA
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={show200} onChange={(event) => setShow200(event.target.checked)} className="h-4 w-4 accent-[#7AA7E8]" />
-              200 DMA
-            </label>
-          </div> : null}
         </div>
+        {chartMode === "price" ? (
+          <div className="flex flex-wrap gap-3 text-sm text-[#CBD5E1]">
+            {[
+              ["volume", "Volume"],
+              ["ema20", "EMA 20"],
+              ["ema50", "EMA 50"],
+              ["ema200", "EMA 200"],
+              ["rsi", "RSI"],
+              ["bollinger", "Bollinger Bands"],
+              ["pivots", "Pivot Points"],
+            ].map(([key, label]) => (
+              <label key={key} className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={indicators[key]} onChange={() => toggleIndicator(key)} className="h-4 w-4 accent-[#F5A623]" />
+                {label}
+              </label>
+            ))}
+          </div>
+        ) : null}
       </div>
       {chartMode === "price" && visibleChartData.length ? (
         <div className="h-[320px] min-w-0 sm:h-[420px]">
@@ -273,11 +580,20 @@ function PriceVolumeChart({ data, symbol, ratios }) {
               />
               <YAxis yAxisId="price" stroke="#94A3B8" fontSize={10} width={42} axisLine={false} tickLine={false} tickFormatter={(value) => compactNumber(value, { compact: true })} />
               <YAxis yAxisId="volume" orientation="right" hide domain={[0, "dataMax"]} />
+              <YAxis yAxisId="rsi" orientation="right" hide domain={[0, 100]} />
               <Tooltip content={<PriceTooltip />} />
-              <Bar yAxisId="volume" dataKey="volume" name="Volume" fill="rgba(122,167,232,0.28)" radius={[2, 2, 0, 0]} />
+              {indicators.volume ? <Bar yAxisId="volume" dataKey="volume" name="Volume" fill="rgba(122,167,232,0.24)" radius={[2, 2, 0, 0]} /> : null}
               <Line yAxisId="price" type="monotone" dataKey="price" name="Price" stroke="#F5A623" strokeWidth={2.4} dot={false} />
-              {show50 ? <Line yAxisId="price" type="monotone" dataKey="dma50" name="50 DMA" stroke="#75B89B" strokeWidth={1.6} dot={false} connectNulls /> : null}
-              {show200 ? <Line yAxisId="price" type="monotone" dataKey="dma200" name="200 DMA" stroke="#7AA7E8" strokeWidth={1.6} dot={false} connectNulls /> : null}
+              {indicators.ema20 ? <Line yAxisId="price" type="monotone" dataKey="ema20" name="EMA 20" stroke="#E7C56B" strokeWidth={1.4} dot={false} connectNulls /> : null}
+              {indicators.ema50 ? <Line yAxisId="price" type="monotone" dataKey="ema50" name="EMA 50" stroke="#75B89B" strokeWidth={1.6} dot={false} connectNulls /> : null}
+              {indicators.ema200 ? <Line yAxisId="price" type="monotone" dataKey="ema200" name="EMA 200" stroke="#7AA7E8" strokeWidth={1.6} dot={false} connectNulls /> : null}
+              {indicators.bollinger ? <Line yAxisId="price" type="monotone" dataKey="bollingerUpper" name="BB Upper" stroke="#A78BFA" strokeWidth={1.1} strokeDasharray="4 4" dot={false} connectNulls /> : null}
+              {indicators.bollinger ? <Line yAxisId="price" type="monotone" dataKey="bollingerMiddle" name="BB Middle" stroke="#A78BFA" strokeWidth={1} dot={false} connectNulls /> : null}
+              {indicators.bollinger ? <Line yAxisId="price" type="monotone" dataKey="bollingerLower" name="BB Lower" stroke="#A78BFA" strokeWidth={1.1} strokeDasharray="4 4" dot={false} connectNulls /> : null}
+              {indicators.pivots ? <Line yAxisId="price" type="stepAfter" dataKey="pivot" name="Pivot" stroke="#CBD5E1" strokeWidth={1.1} dot={false} connectNulls /> : null}
+              {indicators.pivots ? <Line yAxisId="price" type="stepAfter" dataKey="resistance1" name="R1" stroke="#C98182" strokeWidth={1} dot={false} connectNulls /> : null}
+              {indicators.pivots ? <Line yAxisId="price" type="stepAfter" dataKey="support1" name="S1" stroke="#75B89B" strokeWidth={1} dot={false} connectNulls /> : null}
+              {indicators.rsi ? <Line yAxisId="rsi" type="monotone" dataKey="rsi" name="RSI 14" stroke="#F472B6" strokeWidth={1.4} dot={false} connectNulls /> : null}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -314,6 +630,11 @@ function PriceVolumeChart({ data, symbol, ratios }) {
 function PriceTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const visible = payload.filter((item) => item.value !== null && item.value !== undefined);
+  const formatValue = (item) => {
+    if (item.dataKey === "volume") return compactNumber(item.value, { compact: true });
+    if (item.dataKey === "rsi") return compactNumber(item.value);
+    return `Rs. ${compactNumber(item.value)}`;
+  };
   return (
     <div className="rounded-lg border border-white/10 bg-[#07182F] px-3 py-2 text-xs shadow-xl">
       <div className="font-medium text-white">{new Date(`${label}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
@@ -321,7 +642,7 @@ function PriceTooltip({ active, payload, label }) {
         {visible.map((item) => (
           <div key={item.dataKey} className="flex items-center justify-between gap-6">
             <span style={{ color: item.color }}>{item.name}</span>
-            <span className="text-[#CBD5E1]">{item.dataKey === "volume" ? compactNumber(item.value, { compact: true }) : `Rs. ${compactNumber(item.value)}`}</span>
+            <span className="text-[#CBD5E1]">{formatValue(item)}</span>
           </div>
         ))}
       </div>
@@ -515,7 +836,7 @@ function HistoryTable({ id, title, subtitle, rows, unit }) {
                 <td className="px-4 py-3 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
                 <td className="px-4 py-3 text-[#CBD5E1]">{valueWithUnit(row.latest?.value, unit)}</td>
                 <td className="px-4 py-3 text-[#94A3B8]">{row.latest?.period || "Latest period"}</td>
-                <td className="px-4 py-3 text-[#94A3B8]">{row.latest?.change !== undefined ? `${compactNumber(row.latest.change)}%` : "N/A"}</td>
+                <td className="px-4 py-3 text-[#94A3B8]">{row.latest?.change !== undefined ? percentText(row.latest.change) : "N/A"}</td>
               </tr>
             ))}
           </tbody>
@@ -537,7 +858,7 @@ function SnapshotRatios({ metrics }) {
             <div className="mt-2 text-lg font-medium text-white">{value}</div>
             <div className="mt-1 min-h-4 text-xs text-[#94A3B8]">
               {metric.benchmark !== undefined && metric.benchmark !== null ? `Sector ${compactNumber(metric.benchmark)}` : metric.period || ""}
-              {metric.change !== undefined && metric.change !== null ? ` | ${compactNumber(metric.change)}%` : ""}
+              {metric.change !== undefined && metric.change !== null ? ` | ${percentText(metric.change)}` : ""}
             </div>
           </div>
         );
@@ -566,7 +887,7 @@ function CompanySummary({ data, quote, metrics }) {
             </div>
             <div className="min-w-32 text-left sm:text-right">
               <div className="text-3xl font-semibold text-white">{price ? `Rs. ${compactNumber(price)}` : "N/A"}</div>
-              <div className={`mt-1 text-sm ${change >= 0 ? "text-[#8CC8AA]" : "text-[#E7A5A6]"}`}>{quote.changePercent !== undefined ? `${compactNumber(quote.changePercent)}%` : "Quote unavailable"}</div>
+              <div className={`mt-1 text-sm ${change >= 0 ? "text-[#8CC8AA]" : "text-[#E7A5A6]"}`}>{quote.changePercent !== undefined ? percentText(quote.changePercent) : "Quote unavailable"}</div>
             </div>
           </div>
 
@@ -610,7 +931,7 @@ function MetricGrid({ metrics }) {
     value: metric.format === "currency" ? `Rs. ${compactNumber(metric.value)}` : valueWithUnit(metric.value, metric.unit),
     meta: [
       metric.benchmark !== undefined && metric.benchmark !== null ? `Sector ${compactNumber(metric.benchmark)}` : metric.period,
-      metric.change !== undefined && metric.change !== null ? `${compactNumber(metric.change)}%` : null,
+      metric.change !== undefined && metric.change !== null ? percentText(metric.change) : null,
     ].filter(Boolean).join(" | "),
   }));
   return (
@@ -837,7 +1158,7 @@ export default function StockFundamentalsAdminPage() {
     const netProfit = categoryHistory(incomeRows, "net_profit")[0];
     const price = quote.price || quote.lastPrice;
     return [
-      ...(price ? [{ label: "Last Price", value: price, format: "currency", period: `${compactNumber(quote.changePercent)}% today` }] : []),
+      ...(price ? [{ label: "Last Price", value: price, format: "currency", period: `${percentText(quote.changePercent)} today` }] : []),
       ...((data.highlights || []).filter((metric) => ["P/E", "P/B", "ROE", "ROCE"].includes(metric.label))),
       { label: "Revenue", value: revenue?.value, unit: data.incomeStatement?.units_in, period: revenue?.period, change: revenue?.change },
       { label: "Net Profit", value: netProfit?.value, unit: data.incomeStatement?.units_in, period: netProfit?.period, change: netProfit?.change },
@@ -849,6 +1170,7 @@ export default function StockFundamentalsAdminPage() {
       { label: "Retail/Others", value: retail?.value, unit: "%", period: retail?.period },
     ].filter((metric) => metric.value !== null && metric.value !== undefined && metric.value !== "");
   }, [data, quote]);
+  const investorInsights = useMemo(() => buildInvestorInsights(data), [data]);
 
   const submit = (event) => {
     event.preventDefault();
@@ -879,7 +1201,7 @@ export default function StockFundamentalsAdminPage() {
 
   const updatePeriod = (nextPeriod) => {
     if (nextPeriod === period) return;
-    setPendingScrollId("profit-loss");
+    setPendingScrollId("profit-loss-chart");
     setPeriod(nextPeriod);
   };
 
@@ -943,6 +1265,8 @@ export default function StockFundamentalsAdminPage() {
           <CompanySummary data={data} quote={quote} metrics={dashboardMetrics} />
 
           <DashboardTabs onSelect={selectDashboardTab} />
+
+          <InvestorInsights insights={investorInsights} />
 
           <PriceVolumeChart data={data.priceHistory} ratios={data.ratios} symbol={data.instrument?.symbol || data.instrument?.name} />
 
