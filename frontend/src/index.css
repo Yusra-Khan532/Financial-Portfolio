@@ -10,6 +10,35 @@
   --navy-800: #0F2A5C;
   --gold: #F5A623;
   --gold-soft: #D4AF37;
+  --app-bg: #050E1D;
+  --surface-bg: #071326;
+  --panel-bg: #07182F;
+  --panel-bg-strong: rgba(10, 30, 63, 0.98);
+  --footer-bg: #04101f;
+  --nav-bg: rgba(5, 14, 29, 0.85);
+  --ticker-bg: #030914;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-subtle: #71839A;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-muted: rgba(255, 255, 255, 0.15);
+}
+
+:root[data-theme="light"] {
+  --app-bg: #F2F6F8;
+  --surface-bg: #FFFFFF;
+  --panel-bg: #EAF1F4;
+  --panel-bg-strong: rgba(244, 248, 250, 0.98);
+  --footer-bg: #E8F0F3;
+  --nav-bg: rgba(242, 246, 248, 0.92);
+  --ticker-bg: #E8F0F3;
+  --text-primary: #0B1726;
+  --text-secondary: #26384E;
+  --text-muted: #52657B;
+  --text-subtle: #6A7D92;
+  --border-subtle: rgba(22, 48, 72, 0.14);
+  --border-muted: rgba(22, 48, 72, 0.2);
 }
 
 .market-ticker {
@@ -21,8 +50,8 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  background: #030914;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--ticker-bg);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .market-ticker-track { width: 100%; overflow: hidden; }
@@ -33,8 +62,8 @@
   animation: market-ticker-scroll var(--market-ticker-duration) linear infinite;
 }
 .market-ticker-content:hover { animation-play-state: paused; }
-.market-ticker-content > span + span { border-left: 1px solid rgba(255, 255, 255, 0.1); }
-.market-ticker-status { width: 100%; text-align: center; font-size: 11px; color: #71839A; letter-spacing: .08em; }
+.market-ticker-content > span + span { border-left: 1px solid var(--border-subtle); }
+.market-ticker-status { width: 100%; text-align: center; font-size: 11px; color: var(--text-subtle); letter-spacing: .08em; }
 @keyframes market-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) {
   .market-ticker-track { overflow-x: auto; }
@@ -54,8 +83,8 @@
   display: none;
 }
 
-.cms-input { width: 100%; border: 1px solid rgba(255,255,255,.12); border-radius: .4rem; background: #07182F; color: #F8FAFC; padding: .7rem .8rem; font: inherit; font-size: .875rem; }
-.cms-input::placeholder { color: #71839A; }
+.cms-input { width: 100%; border: 1px solid var(--border-muted); border-radius: .4rem; background: var(--panel-bg); color: var(--text-primary); padding: .7rem .8rem; font: inherit; font-size: .875rem; }
+.cms-input::placeholder { color: var(--text-subtle); }
 .cms-input:focus { outline: none; border-color: #F5A623; }
 .cms-editor .ProseMirror { min-height: 340px; padding: 1rem; color: #D6DEE8; line-height: 1.75; outline: none; }
 .cms-editor .ProseMirror h1,.cms-editor .ProseMirror h2,.cms-editor .ProseMirror h3 { font-family: 'Cormorant Garamond', serif; color: #fff; line-height: 1.15; margin: 1.4rem 0 .6rem; }
@@ -76,8 +105,8 @@ html {
 
 body {
   margin: 0;
-  background-color: #050E1D;
-  color: #F8FAFC;
+  background-color: var(--app-bg);
+  color: var(--text-primary);
   font-family: 'IBM Plex Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -99,9 +128,145 @@ html.lenis, html.lenis body { height: auto; }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: #050E1D; }
+::-webkit-scrollbar-track { background: var(--app-bg); }
 ::-webkit-scrollbar-thumb { background: #0F2A5C; border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #F5A623; }
+
+:root[data-theme="light"] .theme-toggle {
+  border-color: rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.92);
+  color: #26384E;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] body {
+  background:
+    linear-gradient(180deg, rgba(232, 240, 243, 0.95) 0%, rgba(242, 246, 248, 1) 260px, rgba(248, 250, 252, 1) 100%);
+}
+
+:root[data-theme="light"] .App {
+  background:
+    linear-gradient(180deg, rgba(232, 240, 243, 0.95) 0%, rgba(242, 246, 248, 1) 320px, rgba(248, 250, 252, 1) 100%) !important;
+}
+
+:root[data-theme="light"] .App main > section {
+  background-color: #F7FAFB;
+}
+
+:root[data-theme="light"] .App main > section:nth-of-type(even) {
+  background-color: #EAF1F4;
+}
+
+:root[data-theme="light"] .App main > section:first-child {
+  background:
+    linear-gradient(135deg, #E7F1F3 0%, #F8FAFC 50%, #EDF6F1 100%) !important;
+}
+
+:root[data-theme="light"] .App main > section:last-child {
+  background-color: #F2F6F8;
+}
+
+:root[data-theme="light"] .App main > section + section {
+  border-top-color: rgba(22, 48, 72, 0.12) !important;
+}
+
+:root[data-theme="light"] .App [class*="bg-[#050E1D"],
+:root[data-theme="light"] .App [class*="bg-[#04101f"],
+:root[data-theme="light"] .App [class*="bg-[#061225"] {
+  background-color: #E8F0F3 !important;
+}
+
+:root[data-theme="light"] .App [class*="bg-[#071326"],
+:root[data-theme="light"] .App [class*="bg-[#07182F"] {
+  background-color: #FFFFFF !important;
+}
+
+:root[data-theme="light"] .App [class*="bg-[#08172C"],
+:root[data-theme="light"] .App [class*="bg-[#0A1E3F"] {
+  background-color: #EDF4F6 !important;
+}
+
+:root[data-theme="light"] .App [class*="bg-[radial-gradient"],
+:root[data-theme="light"] .App [class*="bg-[linear-gradient"] {
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(231, 241, 243, 0.9) 100%) !important;
+}
+
+:root[data-theme="light"] .App [class*="text-white"],
+:root[data-theme="light"] .App [class*="text-[#F8FAFC"],
+:root[data-theme="light"] .App [class*="text-[#FFF8E7"],
+:root[data-theme="light"] .App [class*="text-[#E2E8F0"],
+:root[data-theme="light"] .App [class*="text-[#D6DEE8"],
+:root[data-theme="light"] .App [class*="text-[#CBD5E1"],
+:root[data-theme="light"] .App [class*="text-[#C5CED9"] {
+  color: #0B1726 !important;
+}
+
+:root[data-theme="light"] .App [class*="text-[#A9B6C8"],
+:root[data-theme="light"] .App [class*="text-[#A0AEC0"],
+:root[data-theme="light"] .App [class*="text-[#94A3B8"],
+:root[data-theme="light"] .App [class*="text-[#71839A"],
+:root[data-theme="light"] .App [class*="text-[#64748B"],
+:root[data-theme="light"] .App [class*="text-[#475569"],
+:root[data-theme="light"] .App [class*="text-[#5A6B85"] {
+  color: #52657B !important;
+}
+
+:root[data-theme="light"] .App [class*="border-white"] {
+  border-color: rgba(22, 48, 72, 0.14) !important;
+}
+
+:root[data-theme="light"] .App [class*="bg-white/"],
+:root[data-theme="light"] .App [class*="bg-white["] {
+  background-color: rgba(22, 48, 72, 0.06) !important;
+}
+
+:root[data-theme="light"] .App .cms-input,
+:root[data-theme="light"] .App select.cms-input {
+  background: #F8FBFC;
+  color: #0B1726;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme="light"] .App .cms-editor .ProseMirror,
+:root[data-theme="light"] .App .article-body {
+  color: #26384E;
+}
+
+:root[data-theme="light"] .App .cms-editor .ProseMirror h1,
+:root[data-theme="light"] .App .cms-editor .ProseMirror h2,
+:root[data-theme="light"] .App .cms-editor .ProseMirror h3,
+:root[data-theme="light"] .App .article-body h1,
+:root[data-theme="light"] .App .article-body h2,
+:root[data-theme="light"] .App .article-body h3 {
+  color: #0B1726;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page table .sticky {
+  background-color: #F8FBFC !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page section,
+:root[data-theme="light"] .stock-fundamentals-page nav,
+:root[data-theme="light"] .stock-fundamentals-page table,
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-lg"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-xl"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-2xl"] {
+  box-shadow: 0 16px 42px rgba(22, 48, 72, 0.06);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page button:not([class*="bg-[#F5A623]"]) {
+  background-color: rgba(255, 255, 255, 0.72);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page input[type="checkbox"] {
+  filter: saturate(0.95);
+}
+
+:root[data-theme="light"] .App article,
+:root[data-theme="light"] .App aside,
+:root[data-theme="light"] .App [role="tabpanel"] {
+  box-shadow: 0 12px 32px rgba(22, 48, 72, 0.045);
+}
 
 @layer base {
   :root {
@@ -149,4 +314,3 @@ html.lenis, html.lenis body { height: auto; }
   -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 47%, black 25%, transparent 95%);
   mask-image: radial-gradient(ellipse 85% 85% at 50% 47%, black 25%, transparent 95%);
 }
-
