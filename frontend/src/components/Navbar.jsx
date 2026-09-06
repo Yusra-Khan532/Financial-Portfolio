@@ -71,12 +71,12 @@ export default function Navbar() {
         scrolled ? "bg-[#050E1D]/85 backdrop-blur-md border-b border-white/10" : "bg-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 md:h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 md:h-20 flex items-center justify-between">
         <button data-testid="nav-logo" onClick={goHome} className="flex items-center">
           <img
             src={finlitLogo}
             alt="FinLit"
-            className="h-11 w-auto object-contain md:h-14"
+            className="h-9 w-auto object-contain sm:h-10 md:h-14"
           />
         </button>
 
@@ -102,7 +102,7 @@ export default function Navbar() {
 
         <button
           data-testid="nav-mobile-toggle"
-          className="lg:hidden text-white text-sm"
+          className="lg:hidden rounded-full border border-white/15 px-4 py-2 text-sm text-white"
           onClick={() => setOpen((o) => !o)}
         >
           {open ? "Close" : "Menu"}
@@ -110,13 +110,13 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="lg:hidden bg-[#0A1E3F] border-t border-white/10 px-6 py-4 flex flex-col gap-4">
+        <div className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-white/10 bg-[#0A1E3F]/98 px-4 py-4 shadow-2xl sm:px-6">
           {links.map((l) => (
             <button
               key={l.label}
               data-testid={`nav-mobile-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
-              className={`text-left transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
+              className={`block w-full rounded-lg px-3 py-3 text-left transition-colors ${location.pathname === l.route ? "bg-[#F5A623]/10 text-[#F5A623]" : "text-[#CBD5E1] hover:bg-white/5 hover:text-white"}`}
             >
               {l.label}
             </button>
@@ -124,7 +124,7 @@ export default function Navbar() {
           <button
             data-testid="nav-mobile-contact"
             onClick={goContact}
-            className="text-left text-[#F5A623] font-medium"
+            className="mt-1 block w-full rounded-lg bg-[#F5A623] px-3 py-3 text-left font-medium text-[#050E1D]"
           >
             Contact
           </button>

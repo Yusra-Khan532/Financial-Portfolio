@@ -62,19 +62,19 @@ export default function ServicesPage() {
   const ErrorText = ({ id, message }) => message ? <p data-testid={`enquiry-error-${id}`} className="mt-2 text-xs text-[#F87171]">{message}</p> : null;
 
   return (
-    <main className="min-h-screen px-6 pb-16 pt-28 md:px-10 md:pb-20 md:pt-32">
+    <main className="min-h-screen px-4 pb-14 pt-24 sm:px-6 md:px-10 md:pb-20 md:pt-32">
       <div className="mx-auto max-w-7xl">
         <header className="max-w-3xl">
           <div className="mb-5 flex items-center gap-3"><span className="text-[11px] uppercase tracking-[0.28em] text-[#F5A623]">Services</span><span className="h-px w-8 bg-[#F5A623]/50" /></div>
-          <h1 className="font-serif-display text-4xl leading-[1.04] tracking-tight text-white sm:text-5xl lg:text-6xl">Research and discussion for better investment decisions.</h1>
+          <h1 className="font-serif-display text-[2.55rem] leading-[1.02] text-white sm:text-5xl lg:text-6xl">Research and discussion for better investment decisions.</h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#94A3B8] md:text-lg">From your first investment to wealth, family and global planning — explore our services, built around your goals and risk profile.</p>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#94A3B8]">To avail any service, fill out the form for your required service and our team will reach out to you.</p>
         </header>
 
         <section className="mt-12 md:mt-14" aria-label="FinLit services">
           <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
-            {SERVICES.map((service, index) => <motion.article key={service.name} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.5, delay: (index % 2) * 0.06 }} className="group flex min-h-[304px] rounded-xl border border-white/10 bg-[#07182F]/50 p-7 transition-colors duration-300 hover:border-[#D4AF37]/45 hover:bg-[#0A1E3F]/58 md:p-8">
-              <div className="flex w-full gap-5"><span className="pt-1 font-serif-display text-lg text-[#F5A623]">{service.n}</span><div className="flex min-w-0 flex-1 flex-col"><h2 className="font-serif-display text-3xl leading-tight text-white">{service.name}</h2><p className="mt-4 text-[15px] font-semibold text-[#E2E8F0]">{service.proposition}</p><p className="mt-3 max-w-md text-sm leading-relaxed text-[#94A3B8]">{service.desc}</p><button onClick={() => openForm(service.name)} className="mt-auto inline-flex w-fit items-center gap-2 rounded-full bg-[#F5A623] px-5 py-2 text-sm font-medium text-[#050E1D] transition-colors hover:bg-[#E19212] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07182F]">Discuss this <span aria-hidden="true">→</span></button></div></div>
+            {SERVICES.map((service, index) => <motion.article key={service.name} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.5, delay: (index % 2) * 0.06 }} className="group flex rounded-xl border border-white/10 bg-[#07182F]/50 p-5 transition-colors duration-300 hover:border-[#D4AF37]/45 hover:bg-[#0A1E3F]/58 sm:p-7 md:min-h-[304px] md:p-8">
+              <div className="flex w-full gap-4 sm:gap-5"><span className="pt-1 font-serif-display text-lg text-[#F5A623]">{service.n}</span><div className="flex min-w-0 flex-1 flex-col"><h2 className="font-serif-display text-2xl leading-tight text-white sm:text-3xl">{service.name}</h2><p className="mt-3 text-[15px] font-semibold text-[#E2E8F0] sm:mt-4">{service.proposition}</p><p className="mt-3 max-w-md text-sm leading-relaxed text-[#94A3B8]">{service.desc}</p><button onClick={() => openForm(service.name)} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#F5A623] px-5 py-2.5 text-sm font-medium text-[#050E1D] transition-colors hover:bg-[#E19212] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A623] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07182F] sm:w-fit md:mt-auto">Discuss this <span aria-hidden="true">→</span></button></div></div>
             </motion.article>)}
           </div>
         </section>
@@ -82,7 +82,7 @@ export default function ServicesPage() {
         <section className="mt-20 border-t border-white/10 pt-14 md:mt-24 md:pt-16" aria-labelledby="engagement-heading">
           <div className="grid gap-9 lg:grid-cols-[.82fr_1.18fr] lg:gap-20">
             <div className="max-w-xl"><div className="text-[11px] uppercase tracking-[0.28em] text-[#F5A623]">Engagement Options</div><h2 id="engagement-heading" className="mt-5 font-serif-display text-4xl leading-tight text-white sm:text-5xl">Choose how you want to engage.</h2><p className="mt-5 leading-relaxed text-[#94A3B8]">Start with a single discussion or continue over a longer period depending on the level of support you need.</p></div>
-            <div className="border-t border-white/10"><p className="px-1 pt-4 text-xs text-[#94A3B8]">Prices are per service.</p>{PRICING.map((item) => <div key={item.plan} className="group flex items-center justify-between gap-6 border-b border-white/10 px-1 py-5 transition-colors hover:border-white/20"><span className="font-serif-display text-2xl text-[#E2E8F0] transition-colors group-hover:text-white">{item.plan}</span><span className="font-serif-display text-3xl font-medium tabular-nums text-[#E2E8F0] transition-colors group-hover:text-[#E7C56B]">{item.price}</span></div>)}</div>
+            <div className="border-t border-white/10"><p className="px-1 pt-4 text-xs text-[#94A3B8]">Prices are per service.</p>{PRICING.map((item) => <div key={item.plan} className="group flex items-center justify-between gap-4 border-b border-white/10 px-1 py-4 transition-colors hover:border-white/20 sm:py-5"><span className="font-serif-display text-xl text-[#E2E8F0] transition-colors group-hover:text-white sm:text-2xl">{item.plan}</span><span className="font-serif-display text-2xl font-medium tabular-nums text-[#E2E8F0] transition-colors group-hover:text-[#E7C56B] sm:text-3xl">{item.price}</span></div>)}</div>
           </div>
         </section>
 
