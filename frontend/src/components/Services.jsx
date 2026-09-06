@@ -8,7 +8,7 @@ const PORTRAIT =
 
 export default function Services() {
   return (
-    <section id="services" className="relative py-24 md:py-32 px-6 md:px-10">
+    <section id="services" className="relative px-4 py-20 sm:px-6 sm:py-24 md:px-10 md:py-32">
       <div className="max-w-7xl mx-auto">
         <Reveal>
           <SectionLabel index="05">Portfolio Management Services</SectionLabel>
@@ -17,13 +17,13 @@ export default function Services() {
           </h2>
         </Reveal>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-14 items-stretch">
+        <div className="mt-10 grid grid-cols-1 gap-5 items-stretch lg:mt-14 lg:grid-cols-2 lg:gap-6">
           {/* portrait / bio */}
           <Reveal>
-            <div className="relative h-full min-h-[420px] rounded-lg overflow-hidden border border-white/10">
+            <div className="relative h-full min-h-[340px] overflow-hidden rounded-lg border border-white/10 sm:min-h-[420px]">
               <img src={PORTRAIT} alt="Nishant Jain" className="absolute inset-0 w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#050E1D] via-[#050E1D]/50 to-transparent" />
-              <div className="absolute bottom-0 p-7">
+              <div className="absolute bottom-0 p-5 sm:p-7">
                 <div className="font-serif-display text-3xl text-white">{profile.name}</div>
                 <div className="text-[#F5A623] text-sm mb-4">{profile.title}</div>
                 <ul className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default function Services() {
         </div>
 
         {/* pillars */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-10">
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5">
           {pillars.map((p, i) => (
             <motion.div
               key={p.title}

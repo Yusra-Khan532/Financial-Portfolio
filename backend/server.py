@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from time import monotonic, time
 from urllib.parse import quote, urlparse
 import asyncio
@@ -685,9 +685,9 @@ def _upstox_headers():
     }
 
 
-def _upstox_get(path: str, params: Optional[Dict[str, Any]] = None):
+def _upstox_get_url(url: str, params: Optional[Dict[str, Any]] = None):
     response = requests.get(
-        f"https://api.upstox.com/v2{path}",
+        url,
         headers=_upstox_headers(),
         params=params or {},
         timeout=12,
@@ -709,6 +709,36 @@ def _upstox_get(path: str, params: Optional[Dict[str, Any]] = None):
     if payload.get("status") != "success" or data is None:
         raise ValueError("Upstox returned an unexpected payload")
     return data
+
+
+def _upstox_get(path: str, params: Optional[Dict[str, Any]] = None):
+    return _upstox_get_url(f"https://api.upstox.com/v2{path}", params)
+
+
+def _upstox_get_v3(path: str, params: Optional[Dict[str, Any]] = None):
+    return _upstox_get_url(f"https://api.upstox.com/v3{path}", params)
+
+
+def _fetch_upstox_price_history(instrument_key: str):
+    to_date = datetime.now(timezone.utc).date()
+    from_date = to_date - timedelta(days=365 * 6)
+    data = _upstox_get_v3(
+        f"/historical-candle/{quote(instrument_key, safe='')}/days/1/{to_date.isoformat()}/{from_date.isoformat()}"
+    )
+    candles = data.get("candles") if isinstance(data, dict) else []
+    history = []
+    for candle in candles or []:
+        if not isinstance(candle, list) or len(candle) < 6:
+            continue
+        history.append({
+            "date": str(candle[0])[:10],
+            "open": candle[1],
+            "high": candle[2],
+            "low": candle[3],
+            "close": candle[4],
+            "volume": candle[5],
+        })
+    return sorted(history, key=lambda item: item["date"])
 
 
 def _is_isin(value: str) -> bool:
@@ -854,7 +884,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     ratios = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/key-ratios")
     income = _upstox_get(
         f"/fundamentals/{quote(isin, safe='')}/income-statement",
-        {"type": statement_type, "period": period},
+        {"type": statement_type, "time_period": period},
     )
     balance_sheet = _upstox_get(
         f"/fundamentals/{quote(isin, safe='')}/balance-sheet",
@@ -881,6 +911,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     except Exception:
         logger.warning("Stock fundamentals quote lookup failed")
 
+    price_history = []
+    try:
+        price_history = _fetch_upstox_price_history(instrument_key)
+    except Exception:
+        logger.warning("Stock fundamentals price history lookup failed")
+
     lookup = _ratio_lookup(ratios)
     latest_revenue = _latest_history_value(income.get("income_statement"), "revenue") if isinstance(income, dict) else None
     latest_net_profit = _latest_history_value(income.get("income_statement"), "net_profit") if isinstance(income, dict) else None
@@ -900,6 +936,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "cached": False,
         "instrument": instrument,
         "quote": quote_data,
+        "priceHistory": price_history,
         "profile": {
             "description": profile.get("company_profile") if isinstance(profile, dict) else None,
             "sector": profile.get("sector") if isinstance(profile, dict) else None,

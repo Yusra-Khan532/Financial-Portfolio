@@ -44,14 +44,14 @@ export default function Hero() {
     <section id="top" className="relative isolate flex items-center overflow-hidden bg-[#050E1D] lg:min-h-[100svh]">
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(10,30,63,.32),_transparent_62%)]" />
       <EdgeTexture reduced={reduced} />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 py-24 text-center md:px-10 md:py-[clamp(4.75rem,8vh,6.5rem)]">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-20 text-center sm:px-6 md:px-10 md:py-[clamp(4.75rem,8vh,6.5rem)]">
         <motion.div variants={lineParent} initial="hidden" animate="show">
-          <MaskLine className="flex items-center justify-center gap-3 text-[10px] font-medium uppercase tracking-[0.25em] text-[#E7C56B] sm:text-[11px]">
-            <span className="h-px w-7 bg-[#D4AF37]/60" />
+          <MaskLine className="flex items-center justify-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[#E7C56B] sm:gap-3 sm:text-[11px] sm:tracking-[0.25em]">
+            <span className="h-px w-5 bg-[#D4AF37]/60 sm:w-7" />
             Investing for clearer decisions
-            <span className="h-px w-7 bg-[#D4AF37]/60" />
+            <span className="h-px w-5 bg-[#D4AF37]/60 sm:w-7" />
           </MaskLine>
-          <h1 className="mt-[clamp(1.25rem,2.5vh,1.75rem)] font-serif-display text-[3.75rem] leading-[0.92] tracking-[-0.045em] text-white sm:text-7xl lg:text-[clamp(4.8rem,6.3vw,5.75rem)]">
+          <h1 className="mt-[clamp(1.25rem,2.5vh,1.75rem)] font-serif-display text-5xl leading-[0.95] text-white sm:text-7xl lg:text-[5.5rem]">
             <MaskLine>FinLit Ventures</MaskLine>
           </h1>
         </motion.div>
@@ -60,13 +60,13 @@ export default function Hero() {
           Portfolio reviews, market research and thoughtful discussions across Indian equities, mutual funds, ETFs and global opportunities.
         </motion.p>
 
-        <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mt-[clamp(1.5rem,3.5vh,2.25rem)] flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-8 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
-          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-8 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
+        <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.5rem,3.5vh,2.25rem)] flex w-full max-w-sm flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
+          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-7 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
+          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-7 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
         </motion.div>
 
         <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(3.25rem,7vh,4.5rem)] max-w-5xl">
-          <div className="grid gap-8 text-left md:grid-cols-2 md:gap-x-12 md:gap-y-9 lg:grid-cols-[1.35fr_1fr_.9fr_1.15fr] lg:items-center lg:gap-x-8">
+          <div className="grid gap-6 text-left sm:grid-cols-2 md:gap-x-12 md:gap-y-9 lg:grid-cols-[1.35fr_1fr_.9fr_1.15fr] lg:items-center lg:gap-x-8">
             <div className="px-1 lg:pr-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
               <h2 className="mt-2 font-serif-display text-[2rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.25rem]">Nishant Jain</h2>
