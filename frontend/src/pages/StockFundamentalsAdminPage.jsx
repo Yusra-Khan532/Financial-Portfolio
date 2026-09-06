@@ -1206,7 +1206,8 @@ export default function StockFundamentalsAdminPage() {
   };
 
   return (
-    <AdminShell>
+    <div className="stock-fundamentals-page">
+      <AdminShell>
       <header className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <Link to="/blog/admin" className="inline-flex items-center gap-2 text-xs text-[#94A3B8] hover:text-white"><ArrowLeft size={14} />Back to CMS</Link>
@@ -1346,7 +1347,8 @@ export default function StockFundamentalsAdminPage() {
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />
         </div>
       ) : null}
-    </AdminShell>
+      </AdminShell>
+    </div>
   );
 }
 

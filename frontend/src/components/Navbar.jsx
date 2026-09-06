@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const links = [
   { route: "/why-we-exist", label: "Why We Exist" },
@@ -68,7 +69,7 @@ export default function Navbar() {
     <header
       data-testid="site-navbar"
       className={`fixed top-8 inset-x-0 z-50 transition-colors duration-300 ${
-        scrolled ? "bg-[#050E1D]/85 backdrop-blur-md border-b border-white/10" : "bg-transparent"
+        scrolled ? "border-b border-[var(--border-subtle)] bg-[var(--nav-bg)] backdrop-blur-md" : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 md:h-20 flex items-center justify-between">
@@ -98,19 +99,23 @@ export default function Navbar() {
           >
             Contact
           </button>
+          <ThemeToggle />
         </nav>
 
-        <button
-          data-testid="nav-mobile-toggle"
-          className="lg:hidden rounded-full border border-white/15 px-4 py-2 text-sm text-white"
-          onClick={() => setOpen((o) => !o)}
-        >
-          {open ? "Close" : "Menu"}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle compact />
+          <button
+            data-testid="nav-mobile-toggle"
+            className="rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)]"
+            onClick={() => setOpen((o) => !o)}
+          >
+            {open ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
 
       {open && (
-        <div className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-white/10 bg-[#0A1E3F]/98 px-4 py-4 shadow-2xl sm:px-6">
+        <div className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-[var(--border-subtle)] bg-[var(--panel-bg-strong)] px-4 py-4 shadow-2xl sm:px-6">
           {links.map((l) => (
             <button
               key={l.label}

@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import Navbar from "@/components/Navbar";
 import MarketTicker from "@/components/MarketTicker";
 import Footer from "@/components/Footer";
+import { ThemeProvider, useTheme } from "@/components/ThemeProvider";
 import Home from "@/pages/Home";
 import ContactPage from "@/pages/ContactPage";
 import ServicesPage from "@/pages/ServicesPage";
@@ -32,11 +33,13 @@ function ScrollManager() {
   return null;
 }
 
-function App() {
+function AppContent() {
+  const { theme } = useTheme();
+
   return (
     <ReactLenis root options={{ lerp: 0.09, smoothWheel: true }}>
       <BrowserRouter>
-        <div className="App relative bg-[#050E1D] min-h-screen overflow-x-hidden">
+        <div className="App relative min-h-screen overflow-x-hidden bg-[var(--app-bg)] text-[var(--text-primary)] transition-colors duration-300">
           <ScrollManager />
           <MarketTicker />
           <Navbar />
@@ -60,10 +63,18 @@ function App() {
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
           </Routes>
           <Footer />
-          <Toaster position="top-center" theme="dark" />
+          <Toaster position="top-center" theme={theme} />
         </div>
       </BrowserRouter>
     </ReactLenis>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
