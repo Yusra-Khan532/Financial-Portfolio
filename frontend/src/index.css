@@ -34,6 +34,7 @@
   --viz-node-deep: #081B35;
   --viz-line: #64748B;
   --viz-text: #E7F7F4;
+  --hero-grid-line: rgba(80, 111, 150, 0.09);
 }
 
 :root[data-theme="light"] {
@@ -45,15 +46,15 @@
   --nav-bg: rgba(251, 250, 246, 0.90);
   --ticker-bg: #050E1D;
   --text-primary: #07182F;
-  --text-secondary: #526174;
-  --text-muted: #526174;
-  --text-subtle: #7D8998;
-  --border-subtle: #ECE9E1;
-  --border-muted: #DDE3EA;
+  --text-secondary: #3F4F63;
+  --text-muted: #66758A;
+  --text-subtle: #8A96A6;
+  --border-subtle: #D9DEE5;
+  --border-muted: #D9DEE5;
   --positive: #16835A;
   --negative: #B45353;
   --chart-primary: #07182F;
-  --chart-secondary: #A8B4C3;
+  --chart-secondary: #66758A;
   --chart-grid: #E8EBEF;
   --viz-gold: #D4AF37;
   --viz-teal: #07182F;
@@ -61,6 +62,7 @@
   --viz-node-deep: #F6F3EB;
   --viz-line: #A8B4C3;
   --viz-text: #07182F;
+  --hero-grid-line: rgba(7, 24, 47, 0.075);
 }
 
 .market-ticker {
@@ -227,11 +229,11 @@ html.lenis, html.lenis body { height: auto; }
 :root[data-theme="light"] .App [class*="text-[#64748B"],
 :root[data-theme="light"] .App [class*="text-[#475569"],
 :root[data-theme="light"] .App [class*="text-[#5A6B85"] {
-  color: #526174 !important;
+  color: #3F4F63 !important;
 }
 
 :root[data-theme="light"] .App [class*="border-white"] {
-  border-color: #DDE3EA !important;
+  border-color: #D9DEE5 !important;
 }
 
 :root[data-theme="light"] .App [class*="bg-white/"],
@@ -248,7 +250,7 @@ html.lenis, html.lenis body { height: auto; }
 
 :root[data-theme="light"] .App .cms-editor .ProseMirror,
 :root[data-theme="light"] .App .article-body {
-  color: #526174;
+  color: #3F4F63;
 }
 
 :root[data-theme="light"] .App .cms-editor .ProseMirror h1,
@@ -374,7 +376,8 @@ html.lenis, html.lenis body { height: auto; }
 :root[data-theme="light"] .App [class*="border-[#C98182]"] { border-color: #B45353 !important; }
 :root[data-theme="light"] .App [class*="text-[#F5A623]"],
 :root[data-theme="light"] .App [class*="text-[#E7C56B]"],
-:root[data-theme="light"] .App [class*="text-[#D9B64D]"] { color: #D4AF37 !important; }
+:root[data-theme="light"] .App [class*="text-[#D9B64D]"],
+:root[data-theme="light"] .App [class*="text-[#D4AF37]"] { color: #C89B22 !important; }
 :root[data-theme="light"] .App [class*="text-[#2DD4BF]"],
 :root[data-theme="light"] .App [class*="text-[#5EEAD4]"],
 :root[data-theme="light"] .App [class*="text-[#A7F3D0]"] { color: #07182F !important; }
@@ -397,10 +400,10 @@ html.lenis, html.lenis body { height: auto; }
 :root[data-theme="light"] .App [role="listbox"] {
   background-color: #FFFFFF !important;
   color: #07182F !important;
-  border-color: #DDE3EA !important;
+  border-color: #D9DEE5 !important;
 }
 :root[data-theme="light"] .App input::placeholder,
-:root[data-theme="light"] .App textarea::placeholder { color: #7D8998 !important; }
+:root[data-theme="light"] .App textarea::placeholder { color: #8A96A6 !important; }
 
 :root[data-theme="light"] .site-footer {
   --text-primary: #FFF8E7;
@@ -444,4 +447,38 @@ html.lenis, html.lenis body { height: auto; }
     --input: 214 18% 89%;
     --ring: 46 65% 52%;
   }
+}
+
+/* Contrast hierarchy: readable editorial copy first, metadata second. */
+:root[data-theme="light"] .App [class*="text-[#94A3B8]"],
+:root[data-theme="light"] .App [class*="text-[#A9B6C8]"],
+:root[data-theme="light"] .App [class*="text-[#A6B4C4]"],
+:root[data-theme="light"] .App [class*="text-[#AAB8C9]"],
+:root[data-theme="light"] .App [class*="text-[#B8C5D4]"],
+:root[data-theme="light"] .App [class*="text-[#D8E0E9]"],
+:root[data-theme="light"] .App [class*="text-[#CBD5E1]"] {
+  color: #3F4F63 !important;
+}
+
+:root[data-theme="light"] .App [class*="text-[#71839A]"],
+:root[data-theme="light"] .App [class*="text-[#64748B]"],
+:root[data-theme="light"] .App [class*="text-[#52647D]"],
+:root[data-theme="light"] .App [class*="text-[#A0AEC0]"] {
+  color: #66758A !important;
+}
+
+:root[data-theme="light"] .App [class*="text-[#475569]"],
+:root[data-theme="light"] .App [class*="text-[#5A6B85]"] {
+  color: #8A96A6 !important;
+}
+
+:root[data-theme="light"] .App [class*="border-white"],
+:root[data-theme="light"] .App [class*="border-[#607086]"],
+:root[data-theme="light"] .App [class*="border-[#64748B]"] {
+  border-color: #D9DEE5 !important;
+}
+
+:root[data-theme="light"] .App .article-body,
+:root[data-theme="light"] .App .cms-editor .ProseMirror {
+  color: #3F4F63 !important;
 }

@@ -19,7 +19,7 @@ const MaskLine = ({ children, className = "" }) => (
 
 function EdgeTexture({ reduced }) {
   const gridStyle = {
-    backgroundImage: "linear-gradient(rgba(80,111,150,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(80,111,150,.09) 1px, transparent 1px)",
+    backgroundImage: "linear-gradient(var(--hero-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--hero-grid-line) 1px, transparent 1px)",
     backgroundSize: "28px 28px",
   };
 
