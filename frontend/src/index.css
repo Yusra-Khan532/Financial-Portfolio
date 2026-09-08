@@ -28,6 +28,7 @@
   --chart-primary: #F5A623;
   --chart-secondary: #94A3B8;
   --chart-grid: rgba(255, 255, 255, 0.1);
+  --chart-highlight: #D4AF37;
   --viz-gold: #F5A623;
   --viz-teal: #2DD4BF;
   --viz-node: #0A1E3F;
@@ -55,7 +56,8 @@
   --negative: #B45353;
   --chart-primary: #07182F;
   --chart-secondary: #66758A;
-  --chart-grid: #E8EBEF;
+  --chart-grid: rgba(7, 24, 47, 0.08);
+  --chart-highlight: #D4AF37;
   --viz-gold: #D4AF37;
   --viz-teal: #07182F;
   --viz-node: #FFFFFF;
@@ -481,4 +483,29 @@ html.lenis, html.lenis body { height: auto; }
 :root[data-theme="light"] .App .article-body,
 :root[data-theme="light"] .App .cms-editor .ProseMirror {
   color: #3F4F63 !important;
+}
+
+/* Light-mode financial panels retain architectural separation without the dark UI. */
+:root[data-theme="light"] .App [data-financial-surface] {
+  background: #FFFFFF !important;
+  border-color: rgba(7, 24, 47, 0.10) !important;
+  box-shadow: 0 8px 30px rgba(7, 24, 47, 0.045);
+}
+
+:root[data-theme="light"] .App [data-financial-surface] [class*="border-white"] {
+  border-color: #D9DEE5 !important;
+}
+
+:root[data-theme="light"] .App [data-financial-tooltip] {
+  background: #FFFFFF !important;
+  border-color: #D9DEE5 !important;
+  box-shadow: 0 12px 28px rgba(7, 24, 47, 0.12);
+}
+
+:root[data-theme="light"] .App [data-financial-tooltip] [class*="text-white"] {
+  color: #07182F !important;
+}
+
+:root[data-theme="light"] .App [data-financial-tooltip] [class*="text-[#94A3B8]"] {
+  color: #66758A !important;
 }
