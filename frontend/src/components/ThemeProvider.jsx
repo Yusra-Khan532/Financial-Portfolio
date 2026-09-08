@@ -4,10 +4,11 @@ const STORAGE_KEY = "finlit-theme";
 const ThemeContext = createContext(null);
 
 function getInitialTheme() {
-  if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  if (typeof document !== "undefined") {
+    const applied = document.documentElement.dataset.theme;
+    if (applied === "light" || applied === "dark") return applied;
+  }
+  return "dark";
 }
 
 export function ThemeProvider({ children }) {
@@ -15,8 +16,9 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
     document.body.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#F8FAFC" : "#050E1D");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#FBFAF6" : "#050E1D");
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 

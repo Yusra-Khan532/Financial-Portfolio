@@ -39,7 +39,7 @@ function AppContent() {
   return (
     <ReactLenis root options={{ lerp: 0.09, smoothWheel: true }}>
       <BrowserRouter>
-        <div className="App relative min-h-screen overflow-x-hidden bg-[var(--app-bg)] text-[var(--text-primary)] transition-colors duration-300">
+        <div className="App theme-shell relative min-h-screen overflow-x-hidden bg-[var(--app-bg)] text-[var(--text-primary)] transition-colors duration-300">
           <ScrollManager />
           <MarketTicker />
           <Navbar />

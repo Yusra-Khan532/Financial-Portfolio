@@ -10,7 +10,7 @@ const links = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--border-subtle)] bg-[var(--footer-bg)] px-6 py-12 transition-colors duration-300 md:px-10 md:py-14">
+    <footer className="site-footer border-t border-[var(--border-subtle)] bg-[var(--footer-bg)] px-6 py-12 transition-colors duration-300 md:px-10 md:py-14">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-6 border-b border-[var(--border-subtle)] pb-9 md:flex-row md:items-center md:justify-between">
           <h2 className="max-w-xl font-serif-display text-2xl leading-tight text-[var(--text-primary)] md:text-3xl">Have a question or want to discuss your portfolio?</h2>

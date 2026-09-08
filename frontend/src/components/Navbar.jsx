@@ -77,7 +77,7 @@ export default function Navbar() {
           <img
             src={finlitLogo}
             alt="FinLit"
-            className="h-9 w-auto object-contain sm:h-10 md:h-14"
+            className="brand-logo h-9 w-auto object-contain sm:h-10 md:h-14"
           />
         </button>
 
@@ -87,7 +87,8 @@ export default function Navbar() {
               key={l.label}
               data-testid={`nav-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
-              className={`text-sm transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
+              aria-current={location.pathname === l.route ? "page" : undefined}
+              className={`nav-link relative text-sm transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
             >
               {l.label}
             </button>
@@ -108,6 +109,9 @@ export default function Navbar() {
             data-testid="nav-mobile-toggle"
             className="rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)]"
             onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            aria-label={`${open ? "Close" : "Open"} navigation menu`}
           >
             {open ? "Close" : "Menu"}
           </button>
@@ -115,12 +119,13 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-[var(--border-subtle)] bg-[var(--panel-bg-strong)] px-4 py-4 shadow-2xl sm:px-6">
+        <div id="mobile-navigation" className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-[var(--border-subtle)] bg-[var(--panel-bg-strong)] px-4 py-4 shadow-2xl sm:px-6">
           {links.map((l) => (
             <button
               key={l.label}
               data-testid={`nav-mobile-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
+              aria-current={location.pathname === l.route ? "page" : undefined}
               className={`block w-full rounded-lg px-3 py-3 text-left transition-colors ${location.pathname === l.route ? "bg-[#F5A623]/10 text-[#F5A623]" : "text-[#CBD5E1] hover:bg-white/5 hover:text-white"}`}
             >
               {l.label}

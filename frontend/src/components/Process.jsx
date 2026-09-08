@@ -42,7 +42,7 @@ export default function Process() {
           <div className="overflow-hidden rounded-[1.25rem] border border-white/[0.08] bg-[radial-gradient(circle_at_72%_20%,rgba(212,175,55,.07),transparent_32%),linear-gradient(145deg,rgba(11,32,63,.7),rgba(5,17,34,.72))]" data-testid="process-experience">
             <div className="relative hidden h-[270px] md:block" aria-label="Seven-step investment process journey" data-testid="process-desktop-path">
               <svg className="absolute inset-x-0 top-0 h-[230px] w-full" viewBox="0 0 1200 230" preserveAspectRatio="none" aria-hidden="true">
-                <path d={journeyPath} fill="none" stroke="#3A4A60" strokeOpacity=".72" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                <path d={journeyPath} fill="none" stroke="var(--viz-line)" strokeOpacity=".72" strokeWidth="3" vectorEffect="non-scaling-stroke" />
                 <path
                   d={journeyPath}
                   fill="none"

@@ -23,6 +23,21 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>FinLit | Investment Research</title>
+        <script>
+            (function () {
+                try {
+                    var saved = localStorage.getItem("finlit-theme");
+                    var theme = saved === "light" || saved === "dark"
+                        ? saved
+                        : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+                    document.documentElement.dataset.theme = theme;
+                    document.documentElement.style.colorScheme = theme;
+                    document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#FBFAF6" : "#050E1D");
+                } catch (_) {
+                    document.documentElement.dataset.theme = "dark";
+                }
+            })();
+        </script>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>

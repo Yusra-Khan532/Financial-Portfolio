@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { ArrowRight, Blocks, Compass, Layers, RefreshCcw, RotateCcw, Shuffle, Target } from "lucide-react";
 
-const GOLD = "#F5A623", TEAL = "#2DD4BF", ease = [0.22, 1, 0.36, 1];
+const GOLD = "var(--viz-gold)", TEAL = "var(--viz-teal)", ease = [0.22, 1, 0.36, 1];
 const kpis = [[144,"","cr","India, 2026","Govt. est. 2026"],[39,"","cr","Financially literate","NCFE 2026"],[12.5,"~","cr","Investing · portfolios under ₹30L","NSE · AMFI 2026"],[38.5,"~","cr","Addressable TAM","FLV estimate",true]];
 const funnel = [["144cr","Total Population","Top of funnel","Govt. est. 2026",100],["39cr","Financially Literate","Qualified audience","NCFE 2026",27],["~38.5cr","Our Audience","Core TAM","FLV estimate",26.5,true]];
 const tiers = [["Tier 1 · Metros","~14cr",36,"Mumbai · Delhi NCR · Bengaluru",GOLD],["Tier 2 · Rising","~14cr",36,"Pune · Jaipur · Lucknow · Surat",TEAL],["Tier 3 & Beyond","~11cr",28,"Smaller towns · rural India","#71839A"]];
@@ -27,9 +27,9 @@ function CTA({to,children,ghost=false}) { return <Link to={to} className={`group
 function Count({value,prefix,suffix}) { const ref=useRef(null), visible=useInView(ref,{once:true}), reduce=useReducedMotion(), [n,setN]=useState(reduce?value:0); useEffect(()=>{if(!visible||reduce)return;let id;const start=performance.now(), tick=t=>{const p=Math.min((t-start)/820,1);setN(value*(1-Math.pow(1-p,3)));if(p<1)id=requestAnimationFrame(tick)};id=requestAnimationFrame(tick);return()=>cancelAnimationFrame(id)},[visible,reduce,value]); return <span ref={ref}>{prefix}{Number.isInteger(value)?Math.round(n):n.toFixed(1)}{suffix}</span>; }
 
 const heroStages = [
-  { name: "Confusion", x: 13, y: 80, r: 1.5, fill: "#0A1E3F", stroke: "#64748B", strokeOp: .55, sw: .8, labelOp: .6, anchor: "left" },
-  { name: "Clarity", x: 40, y: 57, r: 1.9, fill: "#0A1E3F", stroke: GOLD, strokeOp: .6, sw: .9, labelOp: .72, anchor: "center" },
-  { name: "Action", x: 66, y: 35, r: 2.3, fill: "#102C5E", stroke: GOLD, strokeOp: .85, sw: 1, labelOp: .85, anchor: "center" },
+  { name: "Confusion", x: 13, y: 80, r: 1.5, fill: "var(--viz-node)", stroke: "var(--viz-line)", strokeOp: .55, sw: .8, labelOp: .6, anchor: "left" },
+  { name: "Clarity", x: 40, y: 57, r: 1.9, fill: "var(--viz-node)", stroke: GOLD, strokeOp: .6, sw: .9, labelOp: .72, anchor: "center" },
+  { name: "Action", x: 66, y: 35, r: 2.3, fill: "var(--viz-node-deep)", stroke: GOLD, strokeOp: .85, sw: 1, labelOp: .85, anchor: "center" },
   { name: "Habit", x: 88, y: 15, r: 2.8, fill: GOLD, stroke: GOLD, strokeOp: 1, sw: 1, labelOp: .98, anchor: "right" },
 ];
 const heroLabelTransform = (anchor) => anchor === "left" ? "translate(0, 20px)" : anchor === "right" ? "translate(-100%, 20px)" : "translate(-50%, 20px)";
@@ -48,7 +48,7 @@ function HeroGraphic() {
       <motion.div animate={{ x: parallax.x, y: parallax.y }} transition={{ type: "spring", stiffness: 120, damping: 22 }} className="absolute inset-0">
         <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full overflow-visible" fill="none" role="img" aria-labelledby="heroGraphicTitle">
           <title id="heroGraphicTitle">A trajectory from confusion to a confident investing habit</title>
-          <defs><linearGradient id="heroLine" x1="0" y1="100" x2="100" y2="0"><stop stopColor="#64748B" stopOpacity=".6" /><stop offset="1" stopColor="#F5A623" /></linearGradient></defs>
+          <defs><linearGradient id="heroLine" x1="0" y1="100" x2="100" y2="0"><stop stopColor="var(--viz-line)" stopOpacity=".6" /><stop offset="1" stopColor={GOLD} /></linearGradient></defs>
           {[0, 1, 2].map((i) => {
             const a = heroStages[i], b = heroStages[i + 1], related = active !== null && (active === i || active === i + 1);
             return <motion.path key={`seg-${i}`} d={`M${a.x},${a.y} L${b.x},${b.y}`} stroke="url(#heroLine)" strokeWidth=".35" strokeLinecap="round" style={{ transition: "opacity .25s ease" }} opacity={active === null ? 1 : related ? 1 : .55} initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : .55, delay: reduce ? 0 : .5 + i * .4, ease }} />;
@@ -94,7 +94,7 @@ function Loop() {
           <title id="loopTitle">FinLitVentures Growth Loop</title>
           <desc id="loopDesc">A six-stage loop — Discover, Diagnose, Learn, Act, Review and Upgrade — where Review and Upgrade feed back into Discover as an investor's portfolio evolves.</desc>
           <defs>
-            <linearGradient id="loopNodeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#102C5E" /><stop offset="100%" stopColor="#081B35" /></linearGradient>
+            <linearGradient id="loopNodeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--viz-node)" /><stop offset="100%" stopColor="var(--viz-node-deep)" /></linearGradient>
             <radialGradient id="loopCenterGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor={TEAL} stopOpacity=".07" /><stop offset="100%" stopColor={TEAL} stopOpacity="0" /></radialGradient>
           </defs>
 
@@ -153,7 +153,7 @@ function Loop() {
                 />
                 <text
                   x={vx} y={vy} textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="600"
-                  fill={gold ? GOLD : "#E7F7F4"} opacity={dimmed ? 0.6 : 1}
+                  fill={gold ? GOLD : "var(--viz-text)"} opacity={dimmed ? 0.6 : 1}
                   style={{ transition: "opacity .2s ease" }}
                 >{node[0]}</text>
               </motion.g>
