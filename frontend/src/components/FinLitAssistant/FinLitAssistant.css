@@ -1,0 +1,27 @@
+.finlit-assistant { position: fixed; right: max(1.25rem, env(safe-area-inset-right)); bottom: max(1.25rem, env(safe-area-inset-bottom)); z-index: 70; font-family: "IBM Plex Sans", sans-serif; }
+.finlit-assistant__launcher { display: inline-flex; align-items: center; gap: .55rem; border: 1px solid var(--border-muted); border-radius: .55rem; background: var(--panel-bg-strong); color: var(--text-primary); box-shadow: 0 10px 28px rgba(7,24,47,.14); padding: .8rem 1rem; font-size: .83rem; font-weight: 600; transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
+.finlit-assistant__launcher:hover { border-color: var(--viz-gold); transform: translateY(-1px); }
+.finlit-assistant__launcher:focus-visible, .finlit-assistant button:focus-visible { outline: 2px solid var(--viz-gold); outline-offset: 3px; }
+.finlit-assistant__panel { position: absolute; right: 0; bottom: calc(100% + .8rem); display: flex; width: min(25rem, calc(100vw - 2.5rem)); max-height: min(39rem, calc(100vh - 6.75rem)); flex-direction: column; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: .85rem; background: var(--surface-bg); color: var(--text-primary); box-shadow: 0 18px 55px rgba(7,24,47,.18); animation: finlit-assistant-in .2s ease-out both; }
+.finlit-assistant__header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding: 1rem 1.1rem .9rem; }
+.finlit-assistant__header h2 { margin: 0; color: var(--text-primary); font-family: "Cormorant Garamond", serif; font-size: 1.45rem; line-height: 1; }
+.finlit-assistant__header p { margin: .35rem 0 0; color: var(--text-muted); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+.finlit-assistant__icon-button { display: inline-grid; width: 2rem; height: 2rem; place-items: center; border: 0; border-radius: .4rem; background: transparent; color: var(--text-muted); }
+.finlit-assistant__icon-button:hover { background: var(--app-bg); color: var(--text-primary); }
+.finlit-assistant__conversation { overflow-y: auto; padding: 1rem 1.1rem; }
+.finlit-assistant__turn { display: grid; gap: .7rem; margin-top: .75rem; }
+.finlit-assistant__message { max-width: 92%; white-space: pre-line; border: 1px solid var(--border-subtle); border-radius: .5rem; padding: .7rem .8rem; font-size: .85rem; line-height: 1.5; }
+.finlit-assistant__message--bot { background: var(--app-bg); color: var(--text-secondary); }
+.finlit-assistant__message--user { justify-self: end; border-color: var(--text-primary); background: var(--text-primary); color: var(--surface-bg); }
+.finlit-assistant__prompt { margin: .9rem 0 .7rem; color: var(--text-primary); font-size: .86rem; font-weight: 600; }
+.finlit-assistant__options { display: grid; gap: .45rem; }
+.finlit-assistant__options button { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 1px solid var(--border-subtle); border-radius: .45rem; background: var(--surface-bg); color: var(--text-primary); padding: .65rem .7rem; text-align: left; font-size: .8rem; transition: border-color .18s ease, background-color .18s ease; }
+.finlit-assistant__options button:hover { border-color: var(--viz-gold); background: var(--app-bg); }
+.finlit-assistant__options svg { color: var(--viz-gold); }
+.finlit-assistant__navigation { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: .9rem; }
+.finlit-assistant__navigation button { display: inline-flex; align-items: center; gap: .35rem; border: 0; background: transparent; color: var(--text-muted); padding: .2rem 0; font-size: .74rem; }
+.finlit-assistant__navigation button:hover { color: var(--text-primary); }
+.finlit-assistant__footer { border-top: 1px solid var(--border-subtle); color: var(--text-subtle); padding: .7rem 1.1rem; font-size: .64rem; line-height: 1.45; }
+@keyframes finlit-assistant-in { from { opacity: 0; transform: translateY(.45rem) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 640px) { .finlit-assistant { right: max(.85rem, env(safe-area-inset-right)); bottom: max(.85rem, env(safe-area-inset-bottom)); } .finlit-assistant__launcher { padding: .72rem; } .finlit-assistant__launcher span { display: none; } .finlit-assistant__panel { width: min(25rem, calc(100vw - 1.7rem)); max-height: calc(100vh - 5.4rem); } }
+@media (prefers-reduced-motion: reduce) { .finlit-assistant *, .finlit-assistant { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

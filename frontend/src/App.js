@@ -22,6 +22,7 @@ import BlogAdminPreviewPage from "@/pages/BlogAdminPreviewPage";
 import StockFundamentalsAdminPage from "@/pages/StockFundamentalsAdminPage";
 import AdminRoute from "@/components/cms/AdminRoute";
 import { Toaster } from "@/components/ui/sonner";
+import FinLitAssistant from "@/components/FinLitAssistant/FinLitAssistant";
 
 function ScrollManager() {
   const location = useLocation();
@@ -63,6 +64,7 @@ function AppContent() {
             <Route path="/blog/:slug" element={<BlogDetailPage />} />
           </Routes>
           <Footer />
+          <FinLitAssistant />
           <Toaster position="top-center" theme={theme} />
         </div>
       </BrowserRouter>

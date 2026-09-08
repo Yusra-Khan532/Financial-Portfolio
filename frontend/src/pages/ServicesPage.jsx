@@ -1,24 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PRICING, SERVICES } from "@/data/services";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const SERVICES = [
-  { n: "01", name: "0 → 1 Investing", proposition: "Start investing from zero, with confidence.", desc: "We help you understand stocks, ETFs, mutual funds and other investment options to build a strategy aligned with your goals and risk profile." },
-  { n: "02", name: "Wealth Planning", proposition: "Turn your income and savings into long-term wealth.", desc: "We create personalized strategies to grow, diversify and protect your wealth across different life stages." },
-  { n: "03", name: "Family Financial Planning", proposition: "Plan for what matters most.", desc: "From your children's education to major life goals and financial security, we bring your family's goals, investments, insurance and future needs into one clear financial roadmap." },
-  { n: "04", name: "Global Investing", proposition: "Look beyond borders to diversify your wealth.", desc: "We help you understand and access global investment opportunities while aligning them with your overall portfolio and risk appetite." },
-  { n: "05", name: "Portfolio Review & Stock Selection", proposition: "Already investing? Get an objective view of your portfolio.", desc: "We evaluate diversification, risk, performance and individual holdings to help you make smarter, more informed investment decisions." },
-];
-const PRICING = [
-  { plan: "First Session", price: "₹99" },
-  { plan: "1 Month", price: "₹299" },
-  { plan: "3 Months", price: "₹699" },
-  { plan: "6 Months", price: "₹1,299" },
-  { plan: "1 Year", price: "₹2,499" },
-];
 const SERVICE_NAMES = SERVICES.map((service) => service.name);
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const empty = { name: "", email: "", phone: "", services: [], message: "" };
@@ -39,6 +27,7 @@ function validate(form) {
 }
 
 export default function ServicesPage() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState({});
@@ -47,6 +36,11 @@ export default function ServicesPage() {
   const [sent, setSent] = useState(false);
   const [failed, setFailed] = useState(false);
   const openForm = (service) => { setForm({ ...empty, services: service ? [service] : [] }); setErrors({}); setTouched(false); setSent(false); setFailed(false); setOpen(true); };
+  useEffect(() => {
+    const requestedService = location.state?.enquiryService;
+    if (!requestedService || !SERVICE_NAMES.includes(requestedService)) return;
+    setForm({ ...empty, services: [requestedService] }); setErrors({}); setTouched(false); setSent(false); setFailed(false); setOpen(true);
+  }, [location.key, location.state?.enquiryService]);
   const set = (key) => (event) => { const next = { ...form, [key]: event.target.value }; setForm(next); if (touched) setErrors(validate(next)); };
   const toggleService = (service) => { const next = { ...form, services: form.services.includes(service) ? form.services.filter((item) => item !== service) : [...form.services, service] }; setForm(next); if (touched) setErrors(validate(next)); };
   const submit = async (event) => {
