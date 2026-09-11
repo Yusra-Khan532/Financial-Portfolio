@@ -1,52 +1,647 @@
 {
   "source": "pdf",
-  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf",
-  "generatedAt": "2026-09-01T13:45:16.402512+00:00",
+  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-10_BR2287.pdf",
+  "generatedAt": "2026-09-11T16:32:46.451013+00:00",
   "profile": {
-    "reportPeriod": "01 Apr 2026 – 31 Aug 2026",
+    "reportPeriod": "01 Apr 2026 – 10 Sep 2026",
     "financialYear": "FY 2026-27",
     "deployedCapital": "₹30,00,000.00"
   },
   "headline": {
-    "grossPnl": "₹5,18,651.56",
-    "netPnl": "₹4,78,887.85",
-    "grossRoi": "17.29%",
-    "netRoi": "15.96%"
+    "grossPnl": "₹5,65,182.44",
+    "netPnl": "₹5,21,176.62",
+    "grossRoi": "18.84%",
+    "netRoi": "17.37%"
   },
   "metrics": [
     {
       "key": "winrate",
       "label": "Win Rate",
-      "value": "83.63%",
+      "value": "85.14%",
       "tone": "positive"
     },
     {
       "key": "holding",
       "label": "Avg Holding Period",
-      "value": "71 Days",
+      "value": "68 Days",
       "tone": "neutral"
     },
     {
       "key": "active-trades",
       "label": "Realised Trades",
-      "value": "391",
+      "value": "426",
       "tone": "neutral"
     }
   ],
   "charges": {
-    "total": 39763.71,
-    "totalFormatted": "₹39,763.71",
+    "total": 44005.82,
+    "totalFormatted": "₹44,005.82",
     "breakdown": {
-      "sebiFees": 20.88,
-      "turnoverCharges": 756.48,
-      "brokerage": 14055.79,
-      "dematTransactionCharges": 4520.0,
-      "integratedGst": 3483.56,
-      "securitiesTransactionTax": 15287.0,
-      "stampDuty": 1640.0
+      "sebiFees": 23.47,
+      "turnoverCharges": 849.06,
+      "brokerage": 15375.79,
+      "dematTransactionCharges": 4960.0,
+      "integratedGst": 3817.5,
+      "securitiesTransactionTax": 17168.0,
+      "stampDuty": 1812.0
     }
   },
   "tradeLedger": [
+    {
+      "security": "SKY GOLD LIMITED",
+      "scripCode": "541967",
+      "symbol": "SKYGOLD",
+      "isin": "INE01IU01018",
+      "tradeType": "EQ",
+      "quantity": 31.0,
+      "buyDate": "2026-09-04",
+      "buyRate": 782.05,
+      "buyAmount": 24243.55,
+      "sellDate": "2026-09-09",
+      "sellRate": 836.3,
+      "sellAmount": 25925.3,
+      "holdingDays": 5,
+      "realizedPnl": 1681.75,
+      "turnover": 25925.3
+    },
+    {
+      "security": "Manorama Industries Limited",
+      "scripCode": "541974",
+      "symbol": "MANORAMA",
+      "isin": "INE00VM01036",
+      "tradeType": "EQ",
+      "quantity": 14.0,
+      "buyDate": "2026-09-03",
+      "buyRate": 1974.0,
+      "buyAmount": 27636.0,
+      "sellDate": "2026-09-09",
+      "sellRate": 2102.6,
+      "sellAmount": 29436.45,
+      "holdingDays": 6,
+      "realizedPnl": 1800.45,
+      "turnover": 29436.45
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-09-01",
+      "buyRate": 542.05,
+      "buyAmount": 27102.5,
+      "sellDate": "2026-09-09",
+      "sellRate": 558.54,
+      "sellAmount": 27926.75,
+      "holdingDays": 8,
+      "realizedPnl": 824.25,
+      "turnover": 27926.75
+    },
+    {
+      "security": "Manorama Industries Limited",
+      "scripCode": "541974",
+      "symbol": "MANORAMA",
+      "isin": "INE00VM01036",
+      "tradeType": "EQ",
+      "quantity": 6.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 1953.0,
+      "buyAmount": 11718.0,
+      "sellDate": "2026-09-09",
+      "sellRate": 2102.66,
+      "sellAmount": 12615.95,
+      "holdingDays": 21,
+      "realizedPnl": 897.95,
+      "turnover": 12615.95
+    },
+    {
+      "security": "KRN HEAT EXCHANGE N REF L",
+      "scripCode": "544263",
+      "symbol": "KRN",
+      "isin": "INE0Q3J01015",
+      "tradeType": "EQ",
+      "quantity": 28.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 1573.35,
+      "buyAmount": 44053.7,
+      "sellDate": "2026-09-09",
+      "sellRate": 1605.54,
+      "sellAmount": 44955.1,
+      "holdingDays": 21,
+      "realizedPnl": 901.4,
+      "turnover": 44955.1
+    },
+    {
+      "security": "KRN HEAT EXCHANGE N REF L",
+      "scripCode": "544263",
+      "symbol": "KRN",
+      "isin": "INE0Q3J01015",
+      "tradeType": "EQ",
+      "quantity": 4.0,
+      "buyDate": "2026-08-17",
+      "buyRate": 1523.6,
+      "buyAmount": 6094.4,
+      "sellDate": "2026-09-09",
+      "sellRate": 1605.55,
+      "sellAmount": 6422.2,
+      "holdingDays": 23,
+      "realizedPnl": 327.8,
+      "turnover": 6422.2
+    },
+    {
+      "security": "SKY GOLD LIMITED",
+      "scripCode": "541967",
+      "symbol": "SKYGOLD",
+      "isin": "INE01IU01018",
+      "tradeType": "EQ",
+      "quantity": 53.0,
+      "buyDate": "2026-08-12",
+      "buyRate": 808.8,
+      "buyAmount": 42866.4,
+      "sellDate": "2026-09-09",
+      "sellRate": 820.08,
+      "sellAmount": 43464.45,
+      "holdingDays": 28,
+      "realizedPnl": 598.05,
+      "turnover": 43464.45
+    },
+    {
+      "security": "Mirae Asset Mutual Fund",
+      "scripCode": "543291",
+      "symbol": "MAFANG",
+      "isin": "INF769K01HF4",
+      "tradeType": "EQ",
+      "quantity": 600.0,
+      "buyDate": "2026-09-07",
+      "buyRate": 218.86,
+      "buyAmount": 131316.0,
+      "sellDate": "2026-09-08",
+      "sellRate": 234.02,
+      "sellAmount": 140410.92,
+      "holdingDays": 1,
+      "realizedPnl": 9094.92,
+      "turnover": 140410.92
+    },
+    {
+      "security": "Skipper Limited",
+      "scripCode": "538562",
+      "symbol": "SKIPPER",
+      "isin": "INE439E01022",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 555.48,
+      "buyAmount": 27773.85,
+      "sellDate": "2026-09-08",
+      "sellRate": 601.97,
+      "sellAmount": 30098.5,
+      "holdingDays": 20,
+      "realizedPnl": 2324.65,
+      "turnover": 30098.5
+    },
+    {
+      "security": "N100",
+      "scripCode": "533385",
+      "symbol": "MON100",
+      "isin": "INF247L01AP3",
+      "tradeType": "EQ",
+      "quantity": 60.0,
+      "buyDate": "2026-06-17",
+      "buyRate": 336.21,
+      "buyAmount": 20172.6,
+      "sellDate": "2026-09-08",
+      "sellRate": 342.3,
+      "sellAmount": 20538.0,
+      "holdingDays": 83,
+      "realizedPnl": 365.4,
+      "turnover": 20538.0
+    },
+    {
+      "security": "N100",
+      "scripCode": "533385",
+      "symbol": "MON100",
+      "isin": "INF247L01AP3",
+      "tradeType": "EQ",
+      "quantity": 30.0,
+      "buyDate": "2026-06-10",
+      "buyRate": 327.5,
+      "buyAmount": 9825.0,
+      "sellDate": "2026-09-08",
+      "sellRate": 342.3,
+      "sellAmount": 10269.0,
+      "holdingDays": 90,
+      "realizedPnl": 444.0,
+      "turnover": 10269.0
+    },
+    {
+      "security": "EDELWEISS CA",
+      "scripCode": "532922",
+      "symbol": "EDELWEISS",
+      "isin": "INE532F01054",
+      "tradeType": "EQ",
+      "quantity": 300.0,
+      "buyDate": "2026-09-03",
+      "buyRate": 131.9,
+      "buyAmount": 39570.0,
+      "sellDate": "2026-09-07",
+      "sellRate": 133.97,
+      "sellAmount": 40191.0,
+      "holdingDays": 4,
+      "realizedPnl": 621.0,
+      "turnover": 40191.0
+    },
+    {
+      "security": "EDELWEISS CA",
+      "scripCode": "532922",
+      "symbol": "EDELWEISS",
+      "isin": "INE532F01054",
+      "tradeType": "EQ",
+      "quantity": 400.0,
+      "buyDate": "2026-08-25",
+      "buyRate": 130.25,
+      "buyAmount": 52100.0,
+      "sellDate": "2026-09-07",
+      "sellRate": 134.0,
+      "sellAmount": 53600.0,
+      "holdingDays": 13,
+      "realizedPnl": 1500.0,
+      "turnover": 53600.0
+    },
+    {
+      "security": "Skipper Limited",
+      "scripCode": "538562",
+      "symbol": "SKIPPER",
+      "isin": "INE439E01022",
+      "tradeType": "EQ",
+      "quantity": 10.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 555.42,
+      "buyAmount": 5554.15,
+      "sellDate": "2026-09-07",
+      "sellRate": 599.5,
+      "sellAmount": 5995.0,
+      "holdingDays": 19,
+      "realizedPnl": 440.85,
+      "turnover": 5995.0
+    },
+    {
+      "security": "Manorama Industries Limited",
+      "scripCode": "541974",
+      "symbol": "MANORAMA",
+      "isin": "INE00VM01036",
+      "tradeType": "EQ",
+      "quantity": 24.0,
+      "buyDate": "2026-08-19",
+      "buyRate": 1953.0,
+      "buyAmount": 46872.0,
+      "sellDate": "2026-09-07",
+      "sellRate": 1978.51,
+      "sellAmount": 47484.3,
+      "holdingDays": 19,
+      "realizedPnl": 612.3,
+      "turnover": 47484.3
+    },
+    {
+      "security": "Manorama Industries Limited",
+      "scripCode": "541974",
+      "symbol": "MANORAMA",
+      "isin": "INE00VM01036",
+      "tradeType": "EQ",
+      "quantity": 2.0,
+      "buyDate": "2026-08-17",
+      "buyRate": 1842.4,
+      "buyAmount": 3684.8,
+      "sellDate": "2026-09-07",
+      "sellRate": 1978.85,
+      "sellAmount": 3957.7,
+      "holdingDays": 21,
+      "realizedPnl": 272.9,
+      "turnover": 3957.7
+    },
+    {
+      "security": "N100",
+      "scripCode": "533385",
+      "symbol": "MON100",
+      "isin": "INF247L01AP3",
+      "tradeType": "EQ",
+      "quantity": 120.0,
+      "buyDate": "2026-06-10",
+      "buyRate": 327.5,
+      "buyAmount": 39300.0,
+      "sellDate": "2026-09-07",
+      "sellRate": 335.81,
+      "sellAmount": 40297.11,
+      "holdingDays": 89,
+      "realizedPnl": 997.11,
+      "turnover": 40297.11
+    },
+    {
+      "security": "Skipper Limited",
+      "scripCode": "538562",
+      "symbol": "SKIPPER",
+      "isin": "INE439E01022",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-06-09",
+      "buyRate": 546.95,
+      "buyAmount": 27347.5,
+      "sellDate": "2026-09-07",
+      "sellRate": 599.5,
+      "sellAmount": 29975.0,
+      "holdingDays": 90,
+      "realizedPnl": 2627.5,
+      "turnover": 29975.0
+    },
+    {
+      "security": "Skipper Limited",
+      "scripCode": "538562",
+      "symbol": "SKIPPER",
+      "isin": "INE439E01022",
+      "tradeType": "EQ",
+      "quantity": 10.0,
+      "buyDate": "2026-06-02",
+      "buyRate": 556.15,
+      "buyAmount": 5561.5,
+      "sellDate": "2026-09-07",
+      "sellRate": 599.5,
+      "sellAmount": 5995.0,
+      "holdingDays": 97,
+      "realizedPnl": 433.5,
+      "turnover": 5995.0
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 30.0,
+      "buyDate": "2026-09-03",
+      "buyRate": 1871.95,
+      "buyAmount": 56158.5,
+      "sellDate": "2026-09-04",
+      "sellRate": 1877.13,
+      "sellAmount": 56313.75,
+      "holdingDays": 1,
+      "realizedPnl": 155.25,
+      "turnover": 56313.75
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 25.0,
+      "buyDate": "2026-08-26",
+      "buyRate": 1732.35,
+      "buyAmount": 43308.8,
+      "sellDate": "2026-09-04",
+      "sellRate": 1877.33,
+      "sellAmount": 46933.3,
+      "holdingDays": 9,
+      "realizedPnl": 3624.5,
+      "turnover": 46933.3
+    },
+    {
+      "security": "ANANT RAJ IN(BSE INDONEXT)",
+      "scripCode": "515055",
+      "symbol": "ANANTRAJ",
+      "isin": "INE242C01024",
+      "tradeType": "EQ",
+      "quantity": 100.0,
+      "buyDate": "2026-08-12",
+      "buyRate": 614.65,
+      "buyAmount": 61465.0,
+      "sellDate": "2026-09-04",
+      "sellRate": 627.79,
+      "sellAmount": 62779.5,
+      "holdingDays": 23,
+      "realizedPnl": 1314.5,
+      "turnover": 62779.5
+    },
+    {
+      "security": "ANANT RAJ IN(BSE INDONEXT)",
+      "scripCode": "515055",
+      "symbol": "ANANTRAJ",
+      "isin": "INE242C01024",
+      "tradeType": "EQ",
+      "quantity": 62.0,
+      "buyDate": "2026-07-27",
+      "buyRate": 614.0,
+      "buyAmount": 38068.0,
+      "sellDate": "2026-09-04",
+      "sellRate": 627.88,
+      "sellAmount": 38928.5,
+      "holdingDays": 39,
+      "realizedPnl": 860.5,
+      "turnover": 38928.5
+    },
+    {
+      "security": "HDFC Mutual Fund",
+      "scripCode": "543775",
+      "symbol": "HDFCSML250",
+      "isin": "INF179KC1FB2",
+      "tradeType": "EQ",
+      "quantity": 300.0,
+      "buyDate": "2026-08-05",
+      "buyRate": 185.0,
+      "buyAmount": 55500.0,
+      "sellDate": "2026-09-03",
+      "sellRate": 185.42,
+      "sellAmount": 55626.0,
+      "holdingDays": 29,
+      "realizedPnl": 126.0,
+      "turnover": 55626.0
+    },
+    {
+      "security": "SOLAR IND",
+      "scripCode": "532725",
+      "symbol": "SOLARINDS",
+      "isin": "INE343H01029",
+      "tradeType": "EQ",
+      "quantity": 3.0,
+      "buyDate": "2026-08-21",
+      "buyRate": 19931.0,
+      "buyAmount": 59793.0,
+      "sellDate": "2026-09-02",
+      "sellRate": 20077.35,
+      "sellAmount": 60232.05,
+      "holdingDays": 12,
+      "realizedPnl": 439.05,
+      "turnover": 60232.05
+    },
+    {
+      "security": "Mirae Asset Mutual Fund",
+      "scripCode": "543291",
+      "symbol": "MAFANG",
+      "isin": "INF769K01HF4",
+      "tradeType": "EQ",
+      "quantity": 600.0,
+      "buyDate": "2026-08-13",
+      "buyRate": 208.58,
+      "buyAmount": 125148.0,
+      "sellDate": "2026-09-02",
+      "sellRate": 210.38,
+      "sellAmount": 126228.0,
+      "holdingDays": 20,
+      "realizedPnl": 1080.0,
+      "turnover": 126228.0
+    },
+    {
+      "security": "PB Fintech Limited",
+      "scripCode": "543390",
+      "symbol": "POLICYBZR",
+      "isin": "INE417T01026",
+      "tradeType": "EQ",
+      "quantity": 17.0,
+      "buyDate": "2026-05-20",
+      "buyRate": 1839.0,
+      "buyAmount": 31263.0,
+      "sellDate": "2026-09-02",
+      "sellRate": 1838.4,
+      "sellAmount": 31252.8,
+      "holdingDays": 105,
+      "realizedPnl": -10.2,
+      "turnover": 31252.8
+    },
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 20.0,
+      "buyDate": "2026-08-31",
+      "buyRate": 2280.99,
+      "buyAmount": 45619.8,
+      "sellDate": "2026-09-01",
+      "sellRate": 2341.21,
+      "sellAmount": 46824.2,
+      "holdingDays": 1,
+      "realizedPnl": 1204.4,
+      "turnover": 46824.2
+    },
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 25.0,
+      "buyDate": "2026-08-26",
+      "buyRate": 2172.0,
+      "buyAmount": 54300.0,
+      "sellDate": "2026-09-01",
+      "sellRate": 2341.27,
+      "sellAmount": 58531.65,
+      "holdingDays": 6,
+      "realizedPnl": 4231.65,
+      "turnover": 58531.65
+    },
+    {
+      "security": "ICICI BANK L",
+      "scripCode": "532174",
+      "symbol": "ICICIBANK",
+      "isin": "INE090A01021",
+      "tradeType": "EQ",
+      "quantity": 35.0,
+      "buyDate": "2026-07-06",
+      "buyRate": 1427.6,
+      "buyAmount": 49966.0,
+      "sellDate": "2026-09-01",
+      "sellRate": 1445.38,
+      "sellAmount": 50588.25,
+      "holdingDays": 57,
+      "realizedPnl": 622.25,
+      "turnover": 50588.25
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 10.0,
+      "buyDate": "2026-08-26",
+      "buyRate": 1731.31,
+      "buyAmount": 17313.1,
+      "sellDate": "2026-08-31",
+      "sellRate": 1773.83,
+      "sellAmount": 17738.25,
+      "holdingDays": 5,
+      "realizedPnl": 425.15,
+      "turnover": 17738.25
+    },
+    {
+      "security": "Paradeep Phosphates Limited",
+      "scripCode": "543530",
+      "symbol": "PARADEEP",
+      "isin": "INE088F01024",
+      "tradeType": "EQ",
+      "quantity": 150.0,
+      "buyDate": "2026-08-25",
+      "buyRate": 160.5,
+      "buyAmount": 24075.0,
+      "sellDate": "2026-08-31",
+      "sellRate": 162.15,
+      "sellAmount": 24322.5,
+      "holdingDays": 6,
+      "realizedPnl": 247.5,
+      "turnover": 24322.5
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 20.0,
+      "buyDate": "2026-08-21",
+      "buyRate": 1676.4,
+      "buyAmount": 33527.95,
+      "sellDate": "2026-08-31",
+      "sellRate": 1773.85,
+      "sellAmount": 35477.05,
+      "holdingDays": 10,
+      "realizedPnl": 1949.1,
+      "turnover": 35477.05
+    },
+    {
+      "security": "KRN HEAT EXCHANGE N REF L",
+      "scripCode": "544263",
+      "symbol": "KRN",
+      "isin": "INE0Q3J01015",
+      "tradeType": "EQ",
+      "quantity": 30.0,
+      "buyDate": "2026-08-17",
+      "buyRate": 1523.6,
+      "buyAmount": 45708.0,
+      "sellDate": "2026-08-31",
+      "sellRate": 1594.97,
+      "sellAmount": 47849.05,
+      "holdingDays": 14,
+      "realizedPnl": 2141.05,
+      "turnover": 47849.05
+    },
+    {
+      "security": "Paradeep Phosphates Limited",
+      "scripCode": "543530",
+      "symbol": "PARADEEP",
+      "isin": "INE088F01024",
+      "tradeType": "EQ",
+      "quantity": 350.0,
+      "buyDate": "2026-07-29",
+      "buyRate": 158.29,
+      "buyAmount": 55402.0,
+      "sellDate": "2026-08-31",
+      "sellRate": 162.16,
+      "sellAmount": 56756.4,
+      "holdingDays": 33,
+      "realizedPnl": 1354.4,
+      "turnover": 56756.4
+    },
     {
       "security": "Avalon Technologies Limited",
       "scripCode": "543896",
@@ -6696,20 +7291,20 @@
     }
   ],
   "summary": {
-    "tradeCount": 391,
-    "winningTrades": 327,
-    "losingTrades": 62,
+    "tradeCount": 426,
+    "winningTrades": 361,
+    "losingTrades": 63,
     "zeroPnlTrades": 2
   },
   "charts": {
     "pnlAttribution": [
       {
         "stock": "RPEL",
-        "realizedPnl": 59252.2
+        "realizedPnl": 65406.2
       },
       {
         "stock": "AVALON",
-        "realizedPnl": 55885.25
+        "realizedPnl": 61321.3
       },
       {
         "stock": "TDPOWERSYS",
@@ -6717,31 +7312,31 @@
       },
       {
         "stock": "SKYGOLD",
-        "realizedPnl": 48235.35
+        "realizedPnl": 50515.15
       },
       {
         "stock": "MON100",
-        "realizedPnl": 40396.82
+        "realizedPnl": 42203.33
       },
       {
         "stock": "KRN",
-        "realizedPnl": 31624.75
+        "realizedPnl": 34995.0
+      },
+      {
+        "stock": "MAFANG",
+        "realizedPnl": 26269.11
       },
       {
         "stock": "NETWEB",
         "realizedPnl": 23984.0
       },
       {
-        "stock": "DATAPATTNS",
-        "realizedPnl": 18944.9
+        "stock": "SKIPPER",
+        "realizedPnl": 20465.75
       },
       {
-        "stock": "MAFANG",
-        "realizedPnl": 16094.19
-      },
-      {
-        "stock": "Other symbols (34)",
-        "realizedPnl": 171809.3
+        "stock": "Other symbols (37)",
+        "realizedPnl": 187597.8
       }
     ],
     "monthlyRealizedPnl": [
@@ -6763,7 +7358,11 @@
       },
       {
         "month": "Aug 2026",
-        "realizedPnl": 125847.35
+        "realizedPnl": 131964.55
+      },
+      {
+        "month": "Sep 2026",
+        "realizedPnl": 40413.68
       }
     ],
     "cumulativeRealizedPnl": [
@@ -7114,6 +7713,38 @@
       {
         "date": "2026-08-27",
         "realizedPnl": 518651.56
+      },
+      {
+        "date": "2026-08-31",
+        "realizedPnl": 524768.76
+      },
+      {
+        "date": "2026-09-01",
+        "realizedPnl": 530827.06
+      },
+      {
+        "date": "2026-09-02",
+        "realizedPnl": 532335.91
+      },
+      {
+        "date": "2026-09-03",
+        "realizedPnl": 532461.91
+      },
+      {
+        "date": "2026-09-04",
+        "realizedPnl": 538416.66
+      },
+      {
+        "date": "2026-09-07",
+        "realizedPnl": 545921.82
+      },
+      {
+        "date": "2026-09-08",
+        "realizedPnl": 558150.79
+      },
+      {
+        "date": "2026-09-09",
+        "realizedPnl": 565182.44
       }
     ],
     "holdingPeriodDistribution": [
@@ -7123,37 +7754,37 @@
       },
       {
         "bucket": "1-7 days",
-        "trades": 76
+        "trades": 85
       },
       {
         "bucket": "8-30 days",
-        "trades": 138
+        "trades": 155
       },
       {
         "bucket": "31-90 days",
-        "trades": 86
+        "trades": 93
       },
       {
         "bucket": "91+ days",
-        "trades": 85
+        "trades": 87
       }
     ],
     "outcomes": [
       {
         "outcome": "Profitable",
-        "trades": 327
+        "trades": 361
       },
       {
         "outcome": "Loss-making",
-        "trades": 62
+        "trades": 63
       },
       {
         "outcome": "Zero P&L",
         "trades": 2
       }
     ],
-    "grossPnl": 518651.56
+    "grossPnl": 565182.44
   },
-  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-08-31_BR2287.pdf",
-  "fileSize": 130409
+  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-10_BR2287.pdf",
+  "fileSize": 138328
 }

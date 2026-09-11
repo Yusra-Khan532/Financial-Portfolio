@@ -274,10 +274,13 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
 
     deployed_capital = _to_float(os.environ.get("PORTFOLIO_DEPLOYED_CAPITAL", "3000000"), 3_000_000)
     wins = [trade for trade in trades if trade["realizedPnl"] > 0]
+    losses = [trade for trade in trades if trade["realizedPnl"] < 0]
+    # Average holding is the arithmetic mean of the report's Days field across every realised ledger row.
     avg_holding = round(sum(trade["holdingDays"] for trade in trades) / len(trades))
+    decisive_trades = len(wins) + len(losses)
 
     metrics = [
-        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / len(trades)) * 100 if trades else 0), "tone": "positive"},
+        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / decisive_trades) * 100 if decisive_trades else 0), "tone": "positive"},
         {"key": "holding", "label": "Avg Holding Period", "value": f"{avg_holding} Days", "tone": "neutral"},
         {"key": "active-trades", "label": "Realised Trades", "value": str(len(trades)), "tone": "neutral"},
     ]
@@ -307,7 +310,7 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
         "summary": {
             "tradeCount": len(trades),
             "winningTrades": len(wins),
-            "losingTrades": len([trade for trade in trades if trade["realizedPnl"] < 0]),
+            "losingTrades": len(losses),
             "zeroPnlTrades": len([trade for trade in trades if trade["realizedPnl"] == 0]),
         },
         "charts": _build_derived_charts(trades, gross_pnl),
