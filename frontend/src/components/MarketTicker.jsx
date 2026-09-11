@@ -13,10 +13,10 @@ function TickerItem({ item }) {
   const marker = isUp ? "▲" : isDown ? "▼" : "•";
   const signedPercent = `${item.changePercent > 0 ? "+" : ""}${item.changePercent.toFixed(2)}%`;
 
-  return <span className="inline-flex items-center gap-2 px-5 whitespace-nowrap text-xs">
-    <span className="text-[#CBD5E1] font-medium">{item.name}</span>
-    <span className="text-[#94A3B8] tabular-nums">{formatPrice(item.price, item.currency)}</span>
-    <span className={isUp ? "text-[#75B89B]" : isDown ? "text-[#C98182]" : "text-[#94A3B8]"}>
+  return <span className="market-ticker__item inline-flex items-center gap-2 px-5 whitespace-nowrap text-xs">
+    <span className="market-ticker__name font-medium">{item.name}</span>
+    <span className="market-ticker__price tabular-nums">{formatPrice(item.price, item.currency)}</span>
+    <span className={`market-ticker__movement ${isUp ? "market-ticker__movement--up" : isDown ? "market-ticker__movement--down" : ""}`}>
       {marker} {signedPercent}
     </span>
   </span>;
