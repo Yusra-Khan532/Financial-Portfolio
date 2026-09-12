@@ -44,29 +44,29 @@ export default function Hero() {
     <section id="top" className="relative isolate flex items-center overflow-hidden bg-[#050E1D] lg:min-h-[46rem]">
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(10,30,63,.32),_transparent_62%)]" />
       <EdgeTexture reduced={reduced} />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-14 pt-20 text-center sm:px-6 md:px-10 md:pb-[clamp(3rem,5vh,4.25rem)] md:pt-[clamp(4.75rem,8vh,6.5rem)]">
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-14 pt-24 text-center sm:px-6 md:px-10 md:pb-[clamp(3rem,5vh,4.25rem)] md:pt-[clamp(4.75rem,8vh,6.5rem)]">
         <motion.div variants={lineParent} initial="hidden" animate="show">
           <MaskLine className="flex items-center justify-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[#E7C56B] sm:gap-3 sm:text-[11px] sm:tracking-[0.25em]">
             <span className="h-px w-5 bg-[#D4AF37]/60 sm:w-7" />
-            Investing for clearer decisions
+            Research · Portfolios · Investing
             <span className="h-px w-5 bg-[#D4AF37]/60 sm:w-7" />
           </MaskLine>
-          <h1 className="mt-[clamp(1.25rem,2.5vh,1.75rem)] font-serif-display text-5xl leading-[0.95] text-white sm:text-7xl lg:text-[5.5rem]">
-            <MaskLine>FinLit Ventures</MaskLine>
+          <h1 className="mt-[clamp(1.25rem,2.5vh,1.75rem)] font-serif-display text-5xl leading-[0.95] text-white sm:text-6xl lg:text-[clamp(3.75rem,5.2vw,4.75rem)]">
+            <MaskLine>Invest with clarity, not noise.</MaskLine>
           </h1>
         </motion.div>
 
-        <motion.p initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.25rem,3vh,2rem)] max-w-3xl text-[17px] leading-relaxed text-[#AAB8C9] md:text-[18px]">
-          Portfolio reviews, market research and thoughtful discussions across Indian equities, mutual funds, ETFs and global opportunities.
+        <motion.p initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.25rem,3vh,2rem)] max-w-2xl text-[17px] leading-relaxed text-[#AAB8C9] md:text-[18px]">
+          Independent portfolio reviews, market research and thoughtful investing guidance across Indian and global markets.
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.5rem,3.5vh,2.25rem)] flex w-full max-w-sm flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
-          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-full bg-[#F5A623] px-7 py-3.5 text-base font-medium text-[#050E1D] transition-colors hover:bg-[#E19212]">Explore Approach</button>
-          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-full border border-white/25 px-7 py-3.5 text-base text-white transition-colors hover:border-[#F5A623] hover:text-[#F5A623]">Our Services</button>
+          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-xl bg-[var(--navy-950)] px-7 py-3.5 text-base font-medium text-[var(--hero-button-foreground)] transition-colors hover:bg-[var(--navy-900)]">Explore Approach</button>
+          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-xl border border-[var(--text-primary)] bg-transparent px-7 py-3.5 text-base text-[var(--text-primary)] transition-colors hover:bg-white/5">Our Services</button>
         </motion.div>
 
-        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(3.75rem,7.5vh,5rem)] max-w-5xl">
-          <div className="grid gap-6 text-left sm:grid-cols-2 md:gap-x-12 md:gap-y-9 lg:grid-cols-[1.35fr_1fr_.9fr_1.15fr] lg:items-center lg:gap-x-8">
+        <motion.div data-testid="hero-credentials" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: reduced ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-[clamp(3.5rem,6vh,4.5rem)] max-w-4xl">
+          <div className="grid gap-6 text-left sm:grid-cols-2 md:gap-x-8 md:gap-y-8 lg:grid-cols-[1.2fr_1fr_.8fr_1fr] lg:items-center lg:gap-x-6">
             <div className="px-1 lg:pr-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
               <h2 className="mt-2 font-serif-display text-[2rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-[2.25rem]">Nishant Jain</h2>
@@ -81,9 +81,9 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: reduced ? 0 : 1.45, duration: reduced ? 0 : 0.7 }} className="mt-[clamp(1.5rem,2.5vh,2.25rem)] flex flex-wrap items-center justify-center gap-x-4 gap-y-3 text-[9px] font-medium uppercase tracking-[0.16em] sm:gap-x-5 sm:text-[10px]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: reduced ? 0 : 1.45, duration: reduced ? 0 : 0.7 }} className="mt-[clamp(1.375rem,2.5vh,1.75rem)] flex flex-wrap items-center justify-center gap-x-3 gap-y-3 text-[9px] font-medium uppercase tracking-[0.16em] sm:gap-x-4 sm:text-[10px]">
           <span className="font-semibold text-[#D4AF37]">Focus Areas</span>
-          {focusAreas.map((area) => <span key={area} className="flex items-center gap-x-4 text-[#94A3B8] sm:gap-x-5"><span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#D4AF37]/60" /><span>{area}</span></span>)}
+          {focusAreas.map((area) => <span key={area} className="flex items-center gap-x-3 text-[#94A3B8] sm:gap-x-4"><span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#D4AF37]/60" /><span>{area}</span></span>)}
         </motion.div>
       </div>
     </section>
