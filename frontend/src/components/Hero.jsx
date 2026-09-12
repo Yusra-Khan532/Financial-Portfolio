@@ -35,7 +35,7 @@ export default function Hero() {
 
   return (
     <>
-    <section id="top" className="relative isolate flex items-center overflow-hidden bg-[#050E1D]">
+    <section id="top" className="relative isolate flex min-h-screen items-center overflow-hidden bg-[#050E1D]">
       <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(10,30,63,.32),_transparent_62%)]" />
       <EdgeTexture reduced={reduced} />
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-24 pt-24 text-center sm:px-6 md:px-10 md:pb-[clamp(4.5rem,8vh,6rem)] md:pt-[clamp(4.5rem,8vh,6rem)]">
@@ -55,8 +55,8 @@ export default function Hero() {
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: reduced ? 0 : 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.66, duration: reduced ? 0 : 0.8 }} className="mx-auto mt-[clamp(1.5rem,3.5vh,2.25rem)] flex w-full max-w-sm flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
-          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-xl bg-[var(--navy-950)] px-7 py-3.5 text-base font-medium text-[var(--hero-button-foreground)] transition-colors hover:bg-[var(--navy-900)]">Explore Approach</button>
-          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-xl border border-[var(--text-primary)] bg-transparent px-7 py-3.5 text-base text-[var(--text-primary)] transition-colors hover:bg-white/5">Our Services</button>
+          <button data-testid="hero-cta-approach" onClick={() => scrollTo("process")} className="rounded-xl bg-[var(--navy-950)] px-10 py-3 text-base font-medium text-[var(--hero-button-foreground)] transition-colors hover:bg-[var(--navy-900)]">Explore Approach</button>
+          <button data-testid="hero-cta-services" onClick={() => navigate("/services")} className="rounded-xl border border-[var(--text-primary)] bg-transparent px-10 py-3 text-base text-[var(--text-primary)] transition-colors hover:bg-white/5">Our Services</button>
         </motion.div>
 
       </div>
