@@ -61,13 +61,17 @@ export default function Hero() {
 
       </div>
     </section>
-    <motion.section data-testid="founder-section" initial={{ opacity: 0, y: reduced ? 0 : 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: reduced ? 0 : 0.7 }} className="bg-[var(--app-bg)] px-4 py-20 text-center sm:px-6 md:px-10 md:py-24">
-      <div className="mx-auto max-w-3xl">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
-        <h2 className="mt-4 font-serif-display text-[2.75rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-5xl">Nishant Jain</h2>
-        <span aria-hidden="true" className="mx-auto mt-5 block h-px w-8 bg-[#D4AF37]/60" />
-        <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] sm:text-base">IIT Kanpur · Minor in Finance · CFA Level I Cleared · NISM Certified Research Analyst</p>
-        <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--text-muted)] sm:text-base">Focused on Indian equities, mutual funds, ETFs and global investing.</p>
+    <motion.section data-testid="founder-section" initial={{ opacity: 0, y: reduced ? 0 : 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: reduced ? 0 : 0.7 }} className="bg-[var(--app-bg)] px-4 py-16 sm:px-6 md:px-10 md:py-[clamp(3.5rem,6vh,4.5rem)]">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[.35fr_.65fr] lg:gap-20">
+        <div className="text-left">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#D4AF37] sm:text-[11px]">Founder &amp; Lead Analyst</p>
+          <h2 className="mt-3 font-serif-display text-[2.5rem] font-semibold leading-none tracking-[-0.035em] text-[#FFF8E7] sm:text-5xl">Nishant Jain</h2>
+          <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-[var(--text-secondary)] sm:text-base">Research-led investing shaped by finance training, market study and disciplined decision-making.</p>
+        </div>
+        <div className="text-left lg:border-l lg:border-[var(--border-subtle)] lg:pl-16">
+          <p className="max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] sm:text-base">IIT Kanpur · Minor in Finance · CFA Level I Cleared · NISM Certified Research Analyst</p>
+          <p className="mt-3 text-[15px] leading-relaxed text-[var(--text-muted)] sm:text-base">Indian equities · Mutual funds · ETFs · Global investing</p>
+        </div>
       </div>
     </motion.section>
     </>
