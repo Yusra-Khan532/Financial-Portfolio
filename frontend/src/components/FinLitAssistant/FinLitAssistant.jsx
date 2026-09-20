@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { assistantNodes, MAIN_MENU_ID } from "./finlitAssistantData";
+import AssistantMarkdown from "./AssistantMarkdown";
 import "./FinLitAssistant.css";
 
 export default function FinLitAssistant() {
@@ -122,7 +123,7 @@ export default function FinLitAssistant() {
       <div ref={conversationRef} className="finlit-assistant__conversation" aria-live="polite">
         <div className="finlit-assistant__message finlit-assistant__message--bot">{assistantNodes.main.greeting}</div>
         {history.map((entry, index) => <div key={`${entry.user}-${index}`} className="finlit-assistant__turn"><div className="finlit-assistant__message finlit-assistant__message--user">{entry.user}</div>{entry.answer && <div className="finlit-assistant__message finlit-assistant__message--bot">{entry.answer}</div>}</div>)}
-        {chatTurns.map((turn, index) => <div key={`ai-${index}`} className="finlit-assistant__turn"><div className={`finlit-assistant__message ${turn.role === "user" ? "finlit-assistant__message--user" : "finlit-assistant__message--bot"}`}>{turn.content}</div></div>)}
+        {chatTurns.map((turn, index) => <div key={`ai-${index}`} className="finlit-assistant__turn"><div className={`finlit-assistant__message ${turn.role === "user" ? "finlit-assistant__message--user" : "finlit-assistant__message--bot"}`}>{turn.role === "assistant" ? <AssistantMarkdown content={turn.content} /> : turn.content}</div></div>)}
         {chatLoading && <div className="finlit-assistant__message finlit-assistant__message--bot finlit-assistant__typing" role="status" aria-label="FinLit AI is responding"><span /><span /><span /></div>}
         {chatError && <p className="finlit-assistant__error" role="alert">{chatError}</p>}
         {nodeId === MAIN_MENU_ID && <p className="finlit-assistant__prompt">{node.prompt}</p>}

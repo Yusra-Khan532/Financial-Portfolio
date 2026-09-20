@@ -13,6 +13,18 @@
 .finlit-assistant__message { max-width: 92%; white-space: pre-line; border: 1px solid var(--border-subtle); border-radius: .5rem; padding: .7rem .8rem; font-size: .85rem; line-height: 1.5; }
 .finlit-assistant__message--bot { background: var(--app-bg); color: var(--text-secondary); }
 .finlit-assistant__message--user { justify-self: end; border-color: var(--text-primary); background: var(--text-primary); color: var(--surface-bg); }
+.finlit-assistant__markdown { overflow-wrap: anywhere; font-size: .86rem; line-height: 1.65; }
+.finlit-assistant__markdown > :first-child { margin-top: 0; }
+.finlit-assistant__markdown > :last-child { margin-bottom: 0; }
+.finlit-assistant__markdown p { margin: 0 0 .72rem; }
+.finlit-assistant__markdown .finlit-assistant__markdown-heading { margin-bottom: .4rem; color: var(--text-primary); }
+.finlit-assistant__markdown strong { color: var(--text-primary); font-weight: 650; }
+.finlit-assistant__markdown ul, .finlit-assistant__markdown ol { margin: .25rem 0 .8rem; padding-left: 1.35rem; }
+.finlit-assistant__markdown li { padding-left: .1rem; }
+.finlit-assistant__markdown li + li { margin-top: .3rem; }
+.finlit-assistant__markdown li p { margin-bottom: .35rem; }
+.finlit-assistant__markdown a { color: var(--viz-gold); text-decoration: underline; text-underline-offset: 2px; }
+.finlit-assistant__markdown code { border-radius: .2rem; background: var(--surface-bg); padding: .08rem .22rem; font-size: .92em; }
 .finlit-assistant__prompt { margin: .9rem 0 .7rem; color: var(--text-primary); font-size: .86rem; font-weight: 600; }
 .finlit-assistant__options { display: grid; gap: .45rem; }
 .finlit-assistant__options--suggestions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }

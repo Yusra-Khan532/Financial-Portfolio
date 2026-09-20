@@ -1006,12 +1006,29 @@ async def market_ticker():
     return {"items": items, "cached": False, "timestamp": int(time())}
 
 
-FINLIT_CHAT_SYSTEM_INSTRUCTION = """You are FinLit AI, the educational website assistant for FinLit Ventures.
-Answer general financial education questions clearly. You may describe only these verified company services: 0 → 1 Investing (help understanding stocks, ETFs, mutual funds and other options, with a strategy aligned to goals and risk); Wealth Planning (strategies to grow, diversify and protect wealth across life stages); Family Financial Planning (a roadmap covering family goals, investments, insurance and future needs); Global Investing (understanding global opportunities alongside the overall portfolio and risk appetite); Portfolio Review & Stock Selection (review of diversification, risk, performance and holdings). Published service pricing starts with a First Session at ₹99; current options are on the Services page.
-Do not invent company offerings, credentials, performance figures, pricing beyond the facts above, or live market data. For current performance or market data, direct visitors to the Portfolio page and explain that you cannot verify live data. For company-specific enquiries, guide visitors to the website Contact form or Services enquiry form.
-Do not give personalized buy/sell recommendations or represent general education as personal investment advice. Explicitly say when an answer is general education and that it is not personalized investment advice, especially for investing decisions. If asked what to buy or sell, explain relevant general evaluation factors and invite them to contact the team for a service enquiry."""
+FINLIT_CHAT_SYSTEM_INSTRUCTION = """You are FinLit AI, FinLit Ventures' knowledgeable, professional financial education assistant.
+
+Communication: answer the user's actual question immediately in clear, conversational language. Be intelligent but approachable, concise without being superficial, and financially accurate. Avoid greetings, congratulations, filler, repeated introductions, and opening with a generic disclaimer. The chat already displays a permanent financial disclaimer; add only a brief qualification when an example could otherwise be mistaken for a personal recommendation. Use short paragraphs and, when useful, simple Markdown with bold emphasis and concise numbered or bulleted lists. Do not output HTML.
+
+Explain concepts with simple, realistic Indian examples when useful. When a user provides salary or other personal figures, use them only to build a clearly illustrative example. Do not imply that sample expenses, savings, or investment allocations are a recommendation for that person.
+
+Safety and accuracy: provide general financial education, not personalized buy/sell recommendations. Never promise or imply guaranteed returns. Do not invent live market data, company services, credentials, published pricing, or FinLit performance figures. If asked for current market or performance data, say you cannot verify live figures and direct the visitor to the Portfolio page. If asked what they personally should buy or sell, explain general evaluation factors and invite them to contact the team.
+
+Verified FinLit services: 0 → 1 Investing (help understanding stocks, ETFs, mutual funds and other options, with a strategy aligned to goals and risk); Wealth Planning (strategies to grow, diversify and protect wealth across life stages); Family Financial Planning (a roadmap covering family goals, investments, insurance and future needs); Global Investing (understanding global opportunities alongside the overall portfolio and risk appetite); Portfolio Review & Stock Selection (review of diversification, risk, performance and holdings). Published service pricing starts with a First Session at ₹99; current options are on the Services page. For company-specific enquiries, guide visitors to the website Contact form or Services enquiry form."""
 CHAT_MAX_REQUESTS_PER_MINUTE = 10
 CHAT_RATE_WINDOW_SECONDS = 60
+CHAT_INITIAL_OUTPUT_TOKENS = 700
+CHAT_RETRY_OUTPUT_TOKENS = 1600
+
+
+def gemini_finish_reason(response) -> str:
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        return "UNKNOWN"
+    reason = getattr(candidates[0], "finish_reason", None)
+    if reason is None:
+        return "UNKNOWN"
+    return str(getattr(reason, "name", reason)).rsplit(".", 1)[-1].upper()
 
 
 def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
@@ -1030,13 +1047,19 @@ def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
 
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    logger.info(
+        "FinLit AI chat handler reached (gemini_api_key_configured=%s, vercel_env=%s, vercel_commit=%s)",
+        bool(api_key),
+        os.environ.get("VERCEL_ENV", "unset"),
+        os.environ.get("VERCEL_GIT_COMMIT_SHA", "unset"),
+    )
     if not payload.message.strip():
         raise HTTPException(status_code=400, detail="Please enter a message.")
     client_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
     if chat_rate_limit_exceeded(client_ip, monotonic()):
         raise HTTPException(status_code=429, detail="You’ve sent several messages. Please wait a minute and try again.")
 
-    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         logger.warning("FinLit AI unavailable: GEMINI_API_KEY is not configured")
         raise HTTPException(status_code=503, detail="FinLit AI is temporarily unavailable. Please try again later.")
@@ -1046,25 +1069,43 @@ async def chat(payload: ChatRequest, request: Request):
         from google.genai import types
 
         contents = [
-            {"role": turn.role, "parts": [{"text": turn.content.strip()}]}
+            {"role": "model" if turn.role == "assistant" else "user", "parts": [{"text": turn.content.strip()}]}
             for turn in payload.history[-12:]
             if turn.content.strip()
         ]
         contents.append({"role": "user", "parts": [{"text": payload.message.strip()}]})
         client = genai.Client(api_key=api_key)
-        result = await run_in_threadpool(
-            client.models.generate_content,
-            model="gemini-3.8-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=FINLIT_CHAT_SYSTEM_INSTRUCTION,
-                max_output_tokens=700,
-            ),
-        )
+
+        async def generate(output_limit):
+            return await run_in_threadpool(
+                client.models.generate_content,
+                model="gemini-3.8-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=FINLIT_CHAT_SYSTEM_INSTRUCTION,
+                    max_output_tokens=output_limit,
+                ),
+            )
+
+        result = await generate(CHAT_INITIAL_OUTPUT_TOKENS)
+        finish_reason = gemini_finish_reason(result)
+        if finish_reason == "MAX_TOKENS":
+            logger.warning("FinLit AI response reached its output token limit; retrying with a larger limit")
+            result = await generate(CHAT_RETRY_OUTPUT_TOKENS)
+            finish_reason = gemini_finish_reason(result)
+        if finish_reason == "MAX_TOKENS":
+            logger.warning("FinLit AI response still reached the output token limit after retry")
+            raise HTTPException(
+                status_code=502,
+                detail="FinLit AI couldn’t complete that response. Please try a more focused question.",
+            )
         answer = (result.text or "").strip()
         if not answer:
             raise RuntimeError("Gemini returned an empty response")
+        logger.info("FinLit AI response ready (finish_reason=%s, response_chars=%s)", finish_reason, len(answer))
         return ChatResponse(response=answer)
+    except HTTPException:
+        raise
     except Exception as exc:
         provider_status = getattr(exc, "code", None)
         if not isinstance(provider_status, int):
