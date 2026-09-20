@@ -31,7 +31,8 @@ def request():
     )
 
 
-def test_chat_returns_gemini_response_and_passes_bounded_context(monkeypatch):
+def test_chat_returns_gemini_response_and_passes_bounded_context(monkeypatch, caplog):
+    caplog.set_level("INFO")
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     server._chat_attempts.clear()
     captured = {}
@@ -58,6 +59,8 @@ def test_chat_returns_gemini_response_and_passes_bounded_context(monkeypatch):
     assert "Do not use Markdown tables" in captured["config"]["system_instruction"]
     assert "Premature FD withdrawal" in captured["config"]["system_instruction"]
     assert "Do not quote current savings-account rates" in captured["config"]["system_instruction"]
+    assert "model_id=gemini-3.8-flash" in caplog.text
+    assert "bounded_history_length=2" in caplog.text
 
 
 def test_chat_returns_useful_error_when_key_is_missing(monkeypatch):
@@ -68,14 +71,24 @@ def test_chat_returns_useful_error_when_key_is_missing(monkeypatch):
     assert error.value.status_code == 503
 
 
-def test_chat_hides_provider_error_details(monkeypatch):
+def test_chat_hides_provider_error_details_and_logs_safe_diagnostics(monkeypatch, caplog):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     server._chat_attempts.clear()
-    install_fake_genai(monkeypatch, lambda **kwargs: (_ for _ in ()).throw(RuntimeError("secret provider detail")))
+
+    class ProviderError(Exception):
+        code = 429
+
+    install_fake_genai(monkeypatch, lambda **kwargs: (_ for _ in ()).throw(ProviderError("secret provider detail")))
     with pytest.raises(HTTPException) as error:
-        asyncio.run(server.chat(server.ChatRequest(message="Hello"), request()))
+        asyncio.run(server.chat(server.ChatRequest(message="private question"), request()))
     assert error.value.status_code == 502
     assert "secret provider detail" not in error.value.detail
+    assert "exception_type=ProviderError" in caplog.text
+    assert "provider_status=429" in caplog.text
+    assert "model_id=gemini-3.8-flash" in caplog.text
+    assert "bounded_history_length=0" in caplog.text
+    assert "secret provider detail" not in caplog.text
+    assert "private question" not in caplog.text
 
 
 def test_chat_rate_limit_is_enforced():
@@ -90,7 +103,7 @@ def test_chat_rejects_overlong_message():
         server.ChatRequest(message="x" * 2001)
 
 
-def test_chat_retries_when_gemini_reports_max_tokens(monkeypatch):
+def test_chat_retries_when_gemini_reports_max_tokens(monkeypatch, caplog):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     server._chat_attempts.clear()
     calls = []
@@ -114,6 +127,35 @@ def test_chat_retries_when_gemini_reports_max_tokens(monkeypatch):
     assert result.response == complete_response
     assert result.response.endswith("END_OF_COMPLETE_LONG_EXPLANATION")
     assert [call["config"]["max_output_tokens"] for call in calls] == [700, 1600]
+    assert "event=gemini_max_tokens" in caplog.text
+    assert "finish_reason=MAX_TOKENS" in caplog.text
+    assert "attempt=1" in caplog.text
+    assert "output_token_limit=700" in caplog.text
+    assert "model_id=gemini-3.8-flash" in caplog.text
+    assert "bounded_history_length=0" in caplog.text
+    assert "Saving keeps money" not in caplog.text
+
+
+def test_chat_logs_second_max_tokens_attempt_before_502(monkeypatch, caplog):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    server._chat_attempts.clear()
+    install_fake_genai(
+        monkeypatch,
+        lambda **kwargs: SimpleNamespace(
+            text="partial private response",
+            candidates=[SimpleNamespace(finish_reason="MAX_TOKENS")],
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(server.chat(server.ChatRequest(message="private question"), request()))
+
+    assert error.value.status_code == 502
+    assert "event=gemini_max_tokens" in caplog.text
+    assert "attempt=2" in caplog.text
+    assert "output_token_limit=1600" in caplog.text
+    assert "private question" not in caplog.text
+    assert "partial private response" not in caplog.text
 
 
 def test_chat_returns_complete_salary_example_and_follow_up_context(monkeypatch):

@@ -1064,6 +1064,13 @@ async def chat(payload: ChatRequest, request: Request):
         logger.warning("FinLit AI unavailable: GEMINI_API_KEY is not configured")
         raise HTTPException(status_code=503, detail="FinLit AI is temporarily unavailable. Please try again later.")
 
+    model_id = "gemini-3.8-flash"
+    bounded_history_length = sum(1 for turn in payload.history[-12:] if turn.content.strip())
+    logger.info(
+        "FinLit AI Gemini request (model_id=%s, bounded_history_length=%s)",
+        model_id,
+        bounded_history_length,
+    )
     try:
         from google import genai
         from google.genai import types
@@ -1079,7 +1086,7 @@ async def chat(payload: ChatRequest, request: Request):
         async def generate(output_limit):
             return await run_in_threadpool(
                 client.models.generate_content,
-                model="gemini-3.8-flash",
+                model=model_id,
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=FINLIT_CHAT_SYSTEM_INSTRUCTION,
@@ -1088,13 +1095,31 @@ async def chat(payload: ChatRequest, request: Request):
             )
 
         result = await generate(CHAT_INITIAL_OUTPUT_TOKENS)
+        attempt = 1
         finish_reason = gemini_finish_reason(result)
         if finish_reason == "MAX_TOKENS":
-            logger.warning("FinLit AI response reached its output token limit; retrying with a larger limit")
+            logger.warning(
+                "FinLit AI generation truncated (event=gemini_max_tokens, finish_reason=%s, attempt=%s, "
+                "output_token_limit=%s, model_id=%s, bounded_history_length=%s)",
+                finish_reason,
+                attempt,
+                CHAT_INITIAL_OUTPUT_TOKENS,
+                model_id,
+                bounded_history_length,
+            )
+            attempt = 2
             result = await generate(CHAT_RETRY_OUTPUT_TOKENS)
             finish_reason = gemini_finish_reason(result)
         if finish_reason == "MAX_TOKENS":
-            logger.warning("FinLit AI response still reached the output token limit after retry")
+            logger.warning(
+                "FinLit AI generation truncated (event=gemini_max_tokens, finish_reason=%s, attempt=%s, "
+                "output_token_limit=%s, model_id=%s, bounded_history_length=%s)",
+                finish_reason,
+                attempt,
+                CHAT_RETRY_OUTPUT_TOKENS,
+                model_id,
+                bounded_history_length,
+            )
             raise HTTPException(
                 status_code=502,
                 detail="FinLit AI couldn’t complete that response. Please try a more focused question.",
@@ -1113,9 +1138,12 @@ async def chat(payload: ChatRequest, request: Request):
         if not isinstance(provider_status, int):
             provider_status = "unknown"
         logger.warning(
-            "FinLit AI request failed (exception_type=%s, provider_status=%s)",
+            "FinLit AI request failed (event=gemini_request_error, exception_type=%s, provider_status=%s, "
+            "model_id=%s, bounded_history_length=%s)",
             type(exc).__name__,
             provider_status,
+            model_id,
+            bounded_history_length,
         )
         raise HTTPException(status_code=502, detail="FinLit AI couldn’t respond just now. Please try again.")
 
