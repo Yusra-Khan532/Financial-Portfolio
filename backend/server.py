@@ -1038,6 +1038,7 @@ async def chat(payload: ChatRequest, request: Request):
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
+        logger.warning("FinLit AI unavailable: GEMINI_API_KEY is not configured")
         raise HTTPException(status_code=503, detail="FinLit AI is temporarily unavailable. Please try again later.")
 
     try:
@@ -1064,8 +1065,17 @@ async def chat(payload: ChatRequest, request: Request):
         if not answer:
             raise RuntimeError("Gemini returned an empty response")
         return ChatResponse(response=answer)
-    except Exception:
-        logger.warning("FinLit AI request failed")
+    except Exception as exc:
+        provider_status = getattr(exc, "code", None)
+        if not isinstance(provider_status, int):
+            provider_status = getattr(getattr(exc, "response", None), "status_code", None)
+        if not isinstance(provider_status, int):
+            provider_status = "unknown"
+        logger.warning(
+            "FinLit AI request failed (exception_type=%s, provider_status=%s)",
+            type(exc).__name__,
+            provider_status,
+        )
         raise HTTPException(status_code=502, detail="FinLit AI couldn’t respond just now. Please try again.")
 
 
