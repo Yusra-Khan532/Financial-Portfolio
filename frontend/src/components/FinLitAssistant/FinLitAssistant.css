@@ -22,6 +22,13 @@
 .finlit-assistant__navigation button { display: inline-flex; align-items: center; gap: .35rem; border: 0; background: transparent; color: var(--text-muted); padding: .2rem 0; font-size: .74rem; }
 .finlit-assistant__navigation button:hover { color: var(--text-primary); }
 .finlit-assistant__footer { border-top: 1px solid var(--border-subtle); color: var(--text-subtle); padding: .7rem 1.1rem; font-size: .64rem; line-height: 1.45; }
+.finlit-assistant__composer { display: flex; align-items: flex-end; gap: .5rem; margin-top: 1rem; }
+.finlit-assistant__composer textarea { flex: 1; resize: vertical; min-height: 2.7rem; max-height: 7rem; border: 1px solid var(--border-subtle); border-radius: .45rem; background: var(--surface-bg); color: var(--text-primary); padding: .65rem .7rem; font: inherit; font-size: .8rem; line-height: 1.4; }
+.finlit-assistant__composer textarea:focus { outline: 2px solid var(--viz-gold); outline-offset: 1px; }
+.finlit-assistant__composer > button { display: grid; width: 2.7rem; height: 2.7rem; flex: 0 0 auto; place-items: center; border: 1px solid var(--text-primary); border-radius: .45rem; background: var(--text-primary); color: var(--surface-bg); }
+.finlit-assistant__composer > button:disabled { cursor: not-allowed; opacity: .5; }
+.finlit-assistant__error { margin: .6rem 0 0; color: #b42318; font-size: .75rem; line-height: 1.4; }
+.finlit-assistant__sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 @keyframes finlit-assistant-in { from { opacity: 0; transform: translateY(.45rem) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 640px) { .finlit-assistant { right: max(.85rem, env(safe-area-inset-right)); bottom: max(.85rem, env(safe-area-inset-bottom)); } .finlit-assistant__launcher { padding: .72rem; } .finlit-assistant__launcher span { display: none; } .finlit-assistant__panel { width: min(25rem, calc(100vw - 1.7rem)); max-height: calc(100vh - 5.4rem); } }
 @media (prefers-reduced-motion: reduce) { .finlit-assistant *, .finlit-assistant { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

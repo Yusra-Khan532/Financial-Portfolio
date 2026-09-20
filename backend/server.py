@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -25,6 +25,7 @@ from html import escape
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import FileResponse, JSONResponse
 from pymongo.errors import ServerSelectionTimeoutError
+from starlette.concurrency import run_in_threadpool
 try:
     from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
     from backend.portfolio_report import read_current_portfolio_report, save_portfolio_upload
@@ -89,6 +90,7 @@ RESOURCE_MIME_TYPES = {
 }
 ADMIN_TOKEN_TTL_SECONDS = 60 * 60 * 8
 _login_attempts = {}
+_chat_attempts = {}
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -137,6 +139,20 @@ class ServiceEnquiryCreate(BaseModel):
 class AdminLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=256)
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    history: List[ChatTurn] = Field(default_factory=list, max_length=12)
+
+
+class ChatResponse(BaseModel):
+    response: str
 
 
 class ContentInput(BaseModel):
@@ -988,6 +1004,69 @@ async def market_ticker():
 
     _market_ticker_cache.update({"items": items, "fetched_at": monotonic()})
     return {"items": items, "cached": False, "timestamp": int(time())}
+
+
+FINLIT_CHAT_SYSTEM_INSTRUCTION = """You are FinLit AI, the educational website assistant for FinLit Ventures.
+Answer general financial education questions clearly. You may describe only these verified company services: 0 → 1 Investing (help understanding stocks, ETFs, mutual funds and other options, with a strategy aligned to goals and risk); Wealth Planning (strategies to grow, diversify and protect wealth across life stages); Family Financial Planning (a roadmap covering family goals, investments, insurance and future needs); Global Investing (understanding global opportunities alongside the overall portfolio and risk appetite); Portfolio Review & Stock Selection (review of diversification, risk, performance and holdings). Published service pricing starts with a First Session at ₹99; current options are on the Services page.
+Do not invent company offerings, credentials, performance figures, pricing beyond the facts above, or live market data. For current performance or market data, direct visitors to the Portfolio page and explain that you cannot verify live data. For company-specific enquiries, guide visitors to the website Contact form or Services enquiry form.
+Do not give personalized buy/sell recommendations or represent general education as personal investment advice. Explicitly say when an answer is general education and that it is not personalized investment advice, especially for investing decisions. If asked what to buy or sell, explain relevant general evaluation factors and invite them to contact the team for a service enquiry."""
+CHAT_MAX_REQUESTS_PER_MINUTE = 10
+CHAT_RATE_WINDOW_SECONDS = 60
+
+
+def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
+    recent = [stamp for stamp in _chat_attempts.get(client_ip, []) if now - stamp < CHAT_RATE_WINDOW_SECONDS]
+    if len(recent) >= CHAT_MAX_REQUESTS_PER_MINUTE:
+        _chat_attempts[client_ip] = recent
+        return True
+    recent.append(now)
+    _chat_attempts[client_ip] = recent
+    if len(_chat_attempts) > 5000:
+        for ip, stamps in list(_chat_attempts.items()):
+            if not stamps or now - stamps[-1] >= CHAT_RATE_WINDOW_SECONDS:
+                _chat_attempts.pop(ip, None)
+    return False
+
+
+@api_router.post("/chat", response_model=ChatResponse)
+async def chat(payload: ChatRequest, request: Request):
+    if not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Please enter a message.")
+    client_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
+    if chat_rate_limit_exceeded(client_ip, monotonic()):
+        raise HTTPException(status_code=429, detail="You’ve sent several messages. Please wait a minute and try again.")
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="FinLit AI is temporarily unavailable. Please try again later.")
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        contents = [
+            {"role": turn.role, "parts": [{"text": turn.content.strip()}]}
+            for turn in payload.history[-12:]
+            if turn.content.strip()
+        ]
+        contents.append({"role": "user", "parts": [{"text": payload.message.strip()}]})
+        client = genai.Client(api_key=api_key)
+        result = await run_in_threadpool(
+            client.models.generate_content,
+            model="gemini-3.8-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=FINLIT_CHAT_SYSTEM_INSTRUCTION,
+                max_output_tokens=700,
+            ),
+        )
+        answer = (result.text or "").strip()
+        if not answer:
+            raise RuntimeError("Gemini returned an empty response")
+        return ChatResponse(response=answer)
+    except Exception:
+        logger.warning("FinLit AI request failed")
+        raise HTTPException(status_code=502, detail="FinLit AI couldn’t respond just now. Please try again.")
 
 
 @api_router.post("/contact", response_model=ContactMessage)
