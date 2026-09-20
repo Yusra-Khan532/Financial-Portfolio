@@ -3,6 +3,23 @@ import { Fragment } from "react";
 const INLINE_MARKDOWN = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![\w])_[^_\n]+_(?![\w])|`[^`\n]+`|\[[^\]]+\]\([^)]+\))/g;
 const UNORDERED_ITEM = /^\s*[-+*]\s+(.+)$/;
 const ORDERED_ITEM = /^\s*(\d+)\.\s+(.+)$/;
+const TABLE_SEPARATOR_CELL = /^:?-{3,}:?$/;
+
+function tableCells(line) {
+  const trimmed = line.trim();
+  if (!trimmed.includes("|")) return null;
+  return trimmed.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+}
+
+function isTableStart(lines, index) {
+  const headings = tableCells(lines[index]);
+  const separators = tableCells(lines[index + 1] || "");
+  return Boolean(
+    headings?.length > 1 &&
+    separators?.length === headings.length &&
+    separators.every((cell) => TABLE_SEPARATOR_CELL.test(cell)),
+  );
+}
 
 function renderInline(text, prefix) {
   const nodes = [];
@@ -58,6 +75,36 @@ export default function AssistantMarkdown({ content }) {
   while (lineIndex < lines.length) {
     if (!lines[lineIndex].trim()) {
       lineIndex += 1;
+      continue;
+    }
+
+    if (isTableStart(lines, lineIndex)) {
+      const headings = tableCells(lines[lineIndex]);
+      lineIndex += 2; // Skip the header and Markdown separator rows.
+      const rows = [];
+      while (lineIndex < lines.length) {
+        const cells = tableCells(lines[lineIndex]);
+        if (!cells || cells.length < 2) break;
+        rows.push(cells);
+        lineIndex += 1;
+      }
+      blocks.push(
+        <ul key={`table-${blocks.length}`} className="finlit-assistant__table-list">
+          {rows.map((row, rowIndex) => {
+            const label = row[0] || `Item ${rowIndex + 1}`;
+            const comparisons = row.slice(1).map((value, columnIndex) => {
+              const heading = headings[columnIndex + 1];
+              return `${heading ? `${heading}: ` : ""}${value}`;
+            });
+            return (
+              <li key={`table-row-${rowIndex}`}>
+                <strong>{renderInline(label, `table-label-${rowIndex}`)}</strong>
+                {comparisons.length > 0 && <> — {comparisons.map((item, index) => <Fragment key={`table-value-${index}`}>{index > 0 && "; "}{renderInline(item, `table-value-${rowIndex}-${index}`)}</Fragment>)}</>}
+              </li>
+            );
+          })}
+        </ul>,
+      );
       continue;
     }
 

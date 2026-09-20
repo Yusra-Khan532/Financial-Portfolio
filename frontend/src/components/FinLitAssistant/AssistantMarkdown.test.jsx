@@ -27,4 +27,16 @@ describe("AssistantMarkdown", () => {
     expect(html).not.toContain("<img");
     expect(html).toContain("&lt;img");
   });
+
+  test("renders Markdown tables as readable comparison bullets", () => {
+    const html = renderToStaticMarkup(
+      <AssistantMarkdown content={"| Feature | Savings account | Fixed deposit |\n| --- | --- | --- |\n| Access | Usually available | At maturity; early withdrawal may have conditions |\n| Risk | Low | Low"} />,
+    );
+
+    expect(html).toContain("<ul");
+    expect(html).toMatch(/<strong\b[^>]*>Access<\/strong>/);
+    expect(html).toContain("Savings account: Usually available; Fixed deposit: At maturity");
+    expect(html).not.toContain("| Feature |");
+    expect(html).not.toContain("| --- |");
+  });
 });

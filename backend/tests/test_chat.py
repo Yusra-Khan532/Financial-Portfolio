@@ -55,6 +55,9 @@ def test_chat_returns_gemini_response_and_passes_bounded_context(monkeypatch):
     assert [turn["role"] for turn in captured["contents"]] == ["user", "model", "user"]
     assert "Avoid greetings, congratulations, filler" in captured["config"]["system_instruction"]
     assert "Do not invent live market data" in captured["config"]["system_instruction"]
+    assert "Do not use Markdown tables" in captured["config"]["system_instruction"]
+    assert "Premature FD withdrawal" in captured["config"]["system_instruction"]
+    assert "Do not quote current savings-account rates" in captured["config"]["system_instruction"]
 
 
 def test_chat_returns_useful_error_when_key_is_missing(monkeypatch):
