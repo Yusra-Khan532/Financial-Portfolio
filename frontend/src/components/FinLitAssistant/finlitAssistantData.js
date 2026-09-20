@@ -13,11 +13,22 @@ export const assistantNodes = {
     options: [
       { label: "Explore Services", action: menu("services") },
       { label: "Portfolio Review", action: menu("portfolio-review") },
+      { label: "Financial Planning", action: menu("financial-planning") },
       { label: "Global Investing", action: menu("global-investing") },
+    ],
+    additionalOptions: [
       { label: "Performance", action: menu("performance") },
       { label: "About FinLit", action: menu("about") },
       { label: "Pricing & Consultation", action: menu("pricing") },
       { label: "Contact the Team", action: menu("contact") },
+    ],
+  },
+  "financial-planning": {
+    answer: "FinLit’s financial planning services include Wealth Planning and Family Financial Planning. Choose a topic to explore what each covers.",
+    backLabel: "Back to Main Menu",
+    options: [
+      { label: "Wealth Planning", action: menu("wealth-planning") },
+      { label: "Family Financial Planning", action: menu("family-planning") },
     ],
   },
   services: {
