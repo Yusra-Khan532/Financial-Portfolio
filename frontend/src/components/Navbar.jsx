@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 const links = [
   { route: "/why-we-exist", label: "Why We Exist" },
   { route: "/services", label: "Services" },
+  { route: "/financial-product", label: "Financial Product" },
   { route: "/about", label: "About" },
   { route: "/portfolio", label: "Portfolio" },
   { route: "/blog", label: "Blog" },

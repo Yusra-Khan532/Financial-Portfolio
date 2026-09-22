@@ -11,6 +11,7 @@ import ContactPage from "@/pages/ContactPage";
 import ServicesPage from "@/pages/ServicesPage";
 import PortfolioPage from "@/pages/PortfolioPage";
 import AboutPage from "@/pages/AboutPage";
+import FinancialProductPage from "@/pages/FinancialProductPage";
 import WhatWeDoPage from "@/pages/WhatWeDoPage";
 import BlogPage from "@/pages/BlogPage";
 import BlogDetailPage from "@/pages/BlogDetailPage";
@@ -52,6 +53,7 @@ function AppContent() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/financial-product" element={<FinancialProductPage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/admin/login" element={<BlogAdminLoginPage />} />
             <Route element={<AdminRoute />}>
