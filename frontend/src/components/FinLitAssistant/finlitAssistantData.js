@@ -8,7 +8,7 @@ export const MAIN_MENU_ID = "main";
 
 export const assistantNodes = {
   main: {
-    greeting: "Hi, I’m FinLit AI. I can answer general financial education questions and help you explore FinLit Ventures’ services and ways to get in touch.",
+    greeting: "Welcome to FinLit AI.\nExplore investing, financial planning, and market concepts with clarity.",
     prompt: "How can I help you today?",
     options: [
       { label: "Explore Services", action: menu("services") },

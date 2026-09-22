@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronRight, MessageCircle, RotateCcw, Send, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Maximize2, MessageCircle, Minimize2, RotateCcw, Send, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { assistantNodes, MAIN_MENU_ID } from "./finlitAssistantData";
 import AssistantMarkdown from "./AssistantMarkdown";
@@ -19,6 +19,7 @@ export default function FinLitAssistant() {
   const [message, setMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   const isAdmin = location.pathname.startsWith("/blog/admin");
   const node = assistantNodes[nodeId];
@@ -115,13 +116,16 @@ export default function FinLitAssistant() {
   };
 
   return <div className="finlit-assistant">
-    {open && <section className="finlit-assistant__panel" role="dialog" aria-modal="false" aria-labelledby="finlit-assistant-title">
+    {open && <section className={`finlit-assistant__panel${expanded ? " finlit-assistant__panel--expanded" : ""}`} role="dialog" aria-modal="false" aria-labelledby="finlit-assistant-title">
       <header className="finlit-assistant__header">
-        <div><h2 id="finlit-assistant-title">FinLit AI</h2><p>YOUR FINANCIAL COMPANION</p></div>
-        <button ref={closeRef} type="button" className="finlit-assistant__icon-button" onClick={close} aria-label="Close FinLit Assistant"><X size={18} /></button>
+        <div className="finlit-assistant__identity"><span className="finlit-assistant__status" aria-hidden="true" /><div><h2 id="finlit-assistant-title">FinLit AI</h2><p>Your financial knowledge companion</p></div></div>
+        <div className="finlit-assistant__header-actions">
+          <button type="button" className="finlit-assistant__icon-button finlit-assistant__expand-button" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? "Reduce FinLit Assistant" : "Expand FinLit Assistant"}>{expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
+          <button ref={closeRef} type="button" className="finlit-assistant__icon-button" onClick={close} aria-label="Close FinLit Assistant"><X size={18} /></button>
+        </div>
       </header>
       <div ref={conversationRef} className="finlit-assistant__conversation" aria-live="polite">
-        <div className="finlit-assistant__message finlit-assistant__message--bot">{assistantNodes.main.greeting}</div>
+        <div className="finlit-assistant__welcome"><div className="finlit-assistant__message finlit-assistant__message--bot">{assistantNodes.main.greeting}</div></div>
         {history.map((entry, index) => <div key={`${entry.user}-${index}`} className="finlit-assistant__turn"><div className="finlit-assistant__message finlit-assistant__message--user">{entry.user}</div>{entry.answer && <div className="finlit-assistant__message finlit-assistant__message--bot">{entry.answer}</div>}</div>)}
         {chatTurns.map((turn, index) => <div key={`ai-${index}`} className="finlit-assistant__turn"><div className={`finlit-assistant__message ${turn.role === "user" ? "finlit-assistant__message--user" : "finlit-assistant__message--bot"}`}>{turn.role === "assistant" ? <AssistantMarkdown content={turn.content} /> : turn.content}</div></div>)}
         {chatLoading && <div className="finlit-assistant__message finlit-assistant__message--bot finlit-assistant__typing" role="status" aria-label="FinLit AI is responding"><span /><span /><span /></div>}
