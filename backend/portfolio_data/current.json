@@ -1,52 +1,545 @@
 {
   "source": "pdf",
-  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-10_BR2287.pdf",
-  "generatedAt": "2026-09-11T16:32:46.451013+00:00",
+  "sourceFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-26_BR2287.pdf",
+  "generatedAt": "2026-09-29T17:01:25.802301+00:00",
   "profile": {
-    "reportPeriod": "01 Apr 2026 – 10 Sep 2026",
+    "reportPeriod": "01 Apr 2026 – 26 Sep 2026",
     "financialYear": "FY 2026-27",
     "deployedCapital": "₹30,00,000.00"
   },
   "headline": {
-    "grossPnl": "₹5,65,182.44",
-    "netPnl": "₹5,21,176.62",
-    "grossRoi": "18.84%",
-    "netRoi": "17.37%"
+    "grossPnl": "₹6,05,374.77",
+    "netPnl": "₹5,56,195.73",
+    "grossRoi": "20.18%",
+    "netRoi": "18.54%"
   },
   "metrics": [
     {
       "key": "winrate",
       "label": "Win Rate",
-      "value": "85.14%",
+      "value": "84.40%",
       "tone": "positive"
     },
     {
       "key": "holding",
       "label": "Avg Holding Period",
-      "value": "68 Days",
+      "value": "64 Days",
       "tone": "neutral"
     },
     {
       "key": "active-trades",
       "label": "Realised Trades",
-      "value": "426",
+      "value": "455",
       "tone": "neutral"
     }
   ],
   "charges": {
-    "total": 44005.82,
-    "totalFormatted": "₹44,005.82",
+    "total": 49179.04,
+    "totalFormatted": "₹49,179.04",
     "breakdown": {
-      "sebiFees": 23.47,
-      "turnoverCharges": 849.06,
-      "brokerage": 15375.79,
-      "dematTransactionCharges": 4960.0,
-      "integratedGst": 3817.5,
-      "securitiesTransactionTax": 17168.0,
-      "stampDuty": 1812.0
+      "sebiFees": 26.28,
+      "turnoverCharges": 950.5,
+      "brokerage": 17025.79,
+      "dematTransactionCharges": 5300.0,
+      "integratedGst": 4194.47,
+      "securitiesTransactionTax": 19641.0,
+      "stampDuty": 2041.0
     }
   },
   "tradeLedger": [
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 60.0,
+      "buyDate": "2026-09-24",
+      "buyRate": 543.8,
+      "buyAmount": 32628.0,
+      "sellDate": "2026-09-24",
+      "sellRate": 528.91,
+      "sellAmount": 31734.6,
+      "holdingDays": 0,
+      "realizedPnl": -893.4,
+      "turnover": 893.4
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 5.0,
+      "buyDate": "2026-09-23",
+      "buyRate": 534.7,
+      "buyAmount": 2673.5,
+      "sellDate": "2026-09-24",
+      "sellRate": 527.85,
+      "sellAmount": 2639.25,
+      "holdingDays": 1,
+      "realizedPnl": -34.25,
+      "turnover": 2639.25
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 60.0,
+      "buyDate": "2026-09-22",
+      "buyRate": 756.35,
+      "buyAmount": 45381.0,
+      "sellDate": "2026-09-24",
+      "sellRate": 751.39,
+      "sellAmount": 45083.5,
+      "holdingDays": 2,
+      "realizedPnl": -297.5,
+      "turnover": 45083.5
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 70.0,
+      "buyDate": "2026-09-18",
+      "buyRate": 510.11,
+      "buyAmount": 35707.6,
+      "sellDate": "2026-09-24",
+      "sellRate": 527.92,
+      "sellAmount": 36954.5,
+      "holdingDays": 6,
+      "realizedPnl": 1246.9,
+      "turnover": 36954.5
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 80.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 718.5,
+      "buyAmount": 57479.6,
+      "sellDate": "2026-09-24",
+      "sellRate": 761.57,
+      "sellAmount": 60925.6,
+      "holdingDays": 7,
+      "realizedPnl": 3446.0,
+      "turnover": 60925.6
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 15.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 496.0,
+      "buyAmount": 7440.0,
+      "sellDate": "2026-09-24",
+      "sellRate": 528.85,
+      "sellAmount": 7932.75,
+      "holdingDays": 7,
+      "realizedPnl": 492.75,
+      "turnover": 7932.75
+    },
+    {
+      "security": "RASHI PERIPHERALS LIMITED",
+      "scripCode": "544119",
+      "symbol": "RPTECH",
+      "isin": "INE0J1F01024",
+      "tradeType": "EQ",
+      "quantity": 45.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 809.45,
+      "buyAmount": 36425.25,
+      "sellDate": "2026-09-24",
+      "sellRate": 881.27,
+      "sellAmount": 39657.25,
+      "holdingDays": 7,
+      "realizedPnl": 3232.0,
+      "turnover": 39657.25
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 28.0,
+      "buyDate": "2026-09-21",
+      "buyRate": 1644.59,
+      "buyAmount": 46048.6,
+      "sellDate": "2026-09-23",
+      "sellRate": 1731.25,
+      "sellAmount": 48475.1,
+      "holdingDays": 2,
+      "realizedPnl": 2426.5,
+      "turnover": 48475.1
+    },
+    {
+      "security": "RASHI PERIPHERALS LIMITED",
+      "scripCode": "544119",
+      "symbol": "RPTECH",
+      "isin": "INE0J1F01024",
+      "tradeType": "EQ",
+      "quantity": 10.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 809.45,
+      "buyAmount": 8094.5,
+      "sellDate": "2026-09-23",
+      "sellRate": 882.7,
+      "sellAmount": 8827.0,
+      "holdingDays": 6,
+      "realizedPnl": 732.5,
+      "turnover": 8827.0
+    },
+    {
+      "security": "RASHI PERIPHERALS LIMITED",
+      "scripCode": "544119",
+      "symbol": "RPTECH",
+      "isin": "INE0J1F01024",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-09-08",
+      "buyRate": 821.92,
+      "buyAmount": 41095.9,
+      "sellDate": "2026-09-23",
+      "sellRate": 882.78,
+      "sellAmount": 44139.2,
+      "holdingDays": 15,
+      "realizedPnl": 3043.3,
+      "turnover": 44139.2
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 85.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 495.94,
+      "buyAmount": 42154.85,
+      "sellDate": "2026-09-22",
+      "sellRate": 515.75,
+      "sellAmount": 43838.75,
+      "holdingDays": 5,
+      "realizedPnl": 1683.9,
+      "turnover": 43838.75
+    },
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 12.0,
+      "buyDate": "2026-09-03",
+      "buyRate": 2231.0,
+      "buyAmount": 26772.05,
+      "sellDate": "2026-09-22",
+      "sellRate": 2460.0,
+      "sellAmount": 29520.0,
+      "holdingDays": 19,
+      "realizedPnl": 2747.95,
+      "turnover": 29520.0
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 80.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 714.01,
+      "buyAmount": 57120.4,
+      "sellDate": "2026-09-21",
+      "sellRate": 747.02,
+      "sellAmount": 59761.75,
+      "holdingDays": 4,
+      "realizedPnl": 2641.35,
+      "turnover": 59761.75
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-09-16",
+      "buyRate": 704.62,
+      "buyAmount": 35230.9,
+      "sellDate": "2026-09-21",
+      "sellRate": 750.1,
+      "sellAmount": 37505.0,
+      "holdingDays": 5,
+      "realizedPnl": 2274.1,
+      "turnover": 37505.0
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 80.0,
+      "buyDate": "2026-09-16",
+      "buyRate": 464.55,
+      "buyAmount": 37164.0,
+      "sellDate": "2026-09-21",
+      "sellRate": 504.62,
+      "sellAmount": 40369.75,
+      "holdingDays": 5,
+      "realizedPnl": 3205.75,
+      "turnover": 40369.75
+    },
+    {
+      "security": "Avalon Technologies Limited",
+      "scripCode": "543896",
+      "symbol": "AVALON",
+      "isin": "INE0LCL01028",
+      "tradeType": "EQ",
+      "quantity": 25.0,
+      "buyDate": "2026-09-02",
+      "buyRate": 2326.0,
+      "buyAmount": 58150.0,
+      "sellDate": "2026-09-21",
+      "sellRate": 2494.76,
+      "sellAmount": 62368.95,
+      "holdingDays": 19,
+      "realizedPnl": 4218.95,
+      "turnover": 62368.95
+    },
+    {
+      "security": "Supriya Lifescience Limited",
+      "scripCode": "543434",
+      "symbol": "SUPRIYA",
+      "isin": "INE07RO01027",
+      "tradeType": "EQ",
+      "quantity": 35.0,
+      "buyDate": "2026-06-09",
+      "buyRate": 943.13,
+      "buyAmount": 33009.55,
+      "sellDate": "2026-09-21",
+      "sellRate": 944.4,
+      "sellAmount": 33054.0,
+      "holdingDays": 104,
+      "realizedPnl": 44.45,
+      "turnover": 33054.0
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 35.0,
+      "buyDate": "2026-09-17",
+      "buyRate": 1631.07,
+      "buyAmount": 57087.3,
+      "sellDate": "2026-09-18",
+      "sellRate": 1626.44,
+      "sellAmount": 56925.5,
+      "holdingDays": 1,
+      "realizedPnl": -161.8,
+      "turnover": 56925.5
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 23.0,
+      "buyDate": "2026-09-16",
+      "buyRate": 1574.6,
+      "buyAmount": 36215.8,
+      "sellDate": "2026-09-18",
+      "sellRate": 1626.81,
+      "sellAmount": 37416.7,
+      "holdingDays": 2,
+      "realizedPnl": 1200.9,
+      "turnover": 37416.7
+    },
+    {
+      "security": "Mirae Asset Mutual Fund",
+      "scripCode": "543291",
+      "symbol": "MAFANG",
+      "isin": "INF769K01HF4",
+      "tradeType": "EQ",
+      "quantity": 150.0,
+      "buyDate": "2026-09-16",
+      "buyRate": 238.31,
+      "buyAmount": 35746.91,
+      "sellDate": "2026-09-18",
+      "sellRate": 251.93,
+      "sellAmount": 37789.5,
+      "holdingDays": 2,
+      "realizedPnl": 2042.59,
+      "turnover": 37789.5
+    },
+    {
+      "security": "Mirae Asset Mutual Fund",
+      "scripCode": "543291",
+      "symbol": "MAFANG",
+      "isin": "INF769K01HF4",
+      "tradeType": "EQ",
+      "quantity": 450.0,
+      "buyDate": "2026-09-09",
+      "buyRate": 250.45,
+      "buyAmount": 112702.5,
+      "sellDate": "2026-09-18",
+      "sellRate": 252.3,
+      "sellAmount": 113534.19,
+      "holdingDays": 9,
+      "realizedPnl": 831.69,
+      "turnover": 113534.19
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 30.0,
+      "buyDate": "2026-09-10",
+      "buyRate": 1761.3,
+      "buyAmount": 52839.0,
+      "sellDate": "2026-09-15",
+      "sellRate": 1756.41,
+      "sellAmount": 52692.4,
+      "holdingDays": 5,
+      "realizedPnl": -146.6,
+      "turnover": 52692.4
+    },
+    {
+      "security": "SKY GOLD LIMITED",
+      "scripCode": "541967",
+      "symbol": "SKYGOLD",
+      "isin": "INE01IU01018",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-09-08",
+      "buyRate": 827.7,
+      "buyAmount": 41385.0,
+      "sellDate": "2026-09-15",
+      "sellRate": 822.06,
+      "sellAmount": 41102.8,
+      "holdingDays": 7,
+      "realizedPnl": -282.2,
+      "turnover": 41102.8
+    },
+    {
+      "security": "Raghav Ramming Mass Limited",
+      "scripCode": "539837",
+      "symbol": "RPEL",
+      "isin": "INE912T01018",
+      "tradeType": "EQ",
+      "quantity": 25.0,
+      "buyDate": "2026-09-07",
+      "buyRate": 1708.95,
+      "buyAmount": 42723.75,
+      "sellDate": "2026-09-15",
+      "sellRate": 1757.25,
+      "sellAmount": 43931.3,
+      "holdingDays": 8,
+      "realizedPnl": 1207.55,
+      "turnover": 43931.3
+    },
+    {
+      "security": "SKY GOLD LIMITED",
+      "scripCode": "541967",
+      "symbol": "SKYGOLD",
+      "isin": "INE01IU01018",
+      "tradeType": "EQ",
+      "quantity": 39.0,
+      "buyDate": "2026-09-04",
+      "buyRate": 782.05,
+      "buyAmount": 30499.95,
+      "sellDate": "2026-09-15",
+      "sellRate": 822.2,
+      "sellAmount": 32065.8,
+      "holdingDays": 11,
+      "realizedPnl": 1565.85,
+      "turnover": 32065.8
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 100.0,
+      "buyDate": "2026-08-27",
+      "buyRate": 763.7,
+      "buyAmount": 76370.4,
+      "sellDate": "2026-09-15",
+      "sellRate": 774.49,
+      "sellAmount": 77448.85,
+      "holdingDays": 19,
+      "realizedPnl": 1078.45,
+      "turnover": 77448.85
+    },
+    {
+      "security": "TD POWER",
+      "scripCode": "533553",
+      "symbol": "TDPOWERSYS",
+      "isin": "INE419M01035",
+      "tradeType": "EQ",
+      "quantity": 36.0,
+      "buyDate": "2026-08-14",
+      "buyRate": 741.65,
+      "buyAmount": 26699.4,
+      "sellDate": "2026-09-15",
+      "sellRate": 774.5,
+      "sellAmount": 27882.05,
+      "holdingDays": 32,
+      "realizedPnl": 1182.65,
+      "turnover": 27882.05
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 80.0,
+      "buyDate": "2026-09-07",
+      "buyRate": 553.95,
+      "buyAmount": 44316.0,
+      "sellDate": "2026-09-10",
+      "sellRate": 560.57,
+      "sellAmount": 44845.5,
+      "holdingDays": 3,
+      "realizedPnl": 529.5,
+      "turnover": 44845.5
+    },
+    {
+      "security": "AEROFLEX INDUSTRIES LTD",
+      "scripCode": "543972",
+      "symbol": "AEROFLEX",
+      "isin": "INE024001021",
+      "tradeType": "EQ",
+      "quantity": 50.0,
+      "buyDate": "2026-09-01",
+      "buyRate": 542.05,
+      "buyAmount": 27102.5,
+      "sellDate": "2026-09-10",
+      "sellRate": 560.7,
+      "sellAmount": 28035.0,
+      "holdingDays": 9,
+      "realizedPnl": 932.5,
+      "turnover": 28035.0
+    },
     {
       "security": "SKY GOLD LIMITED",
       "scripCode": "541967",
@@ -7291,28 +7784,28 @@
     }
   ],
   "summary": {
-    "tradeCount": 426,
-    "winningTrades": 361,
-    "losingTrades": 63,
+    "tradeCount": 455,
+    "winningTrades": 384,
+    "losingTrades": 69,
     "zeroPnlTrades": 2
   },
   "charts": {
     "pnlAttribution": [
       {
         "stock": "RPEL",
-        "realizedPnl": 65406.2
+        "realizedPnl": 69932.75
       },
       {
         "stock": "AVALON",
-        "realizedPnl": 61321.3
+        "realizedPnl": 68288.2
       },
       {
         "stock": "TDPOWERSYS",
-        "realizedPnl": 52424.8
+        "realizedPnl": 62749.85
       },
       {
         "stock": "SKYGOLD",
-        "realizedPnl": 50515.15
+        "realizedPnl": 51798.8
       },
       {
         "stock": "MON100",
@@ -7324,7 +7817,7 @@
       },
       {
         "stock": "MAFANG",
-        "realizedPnl": 26269.11
+        "realizedPnl": 29143.39
       },
       {
         "stock": "NETWEB",
@@ -7335,8 +7828,8 @@
         "realizedPnl": 20465.75
       },
       {
-        "stock": "Other symbols (37)",
-        "realizedPnl": 187597.8
+        "stock": "Other symbols (38)",
+        "realizedPnl": 201813.7
       }
     ],
     "monthlyRealizedPnl": [
@@ -7362,7 +7855,7 @@
       },
       {
         "month": "Sep 2026",
-        "realizedPnl": 40413.68
+        "realizedPnl": 80606.01
       }
     ],
     "cumulativeRealizedPnl": [
@@ -7745,46 +8238,74 @@
       {
         "date": "2026-09-09",
         "realizedPnl": 565182.44
+      },
+      {
+        "date": "2026-09-10",
+        "realizedPnl": 566644.44
+      },
+      {
+        "date": "2026-09-15",
+        "realizedPnl": 571250.14
+      },
+      {
+        "date": "2026-09-18",
+        "realizedPnl": 575163.52
+      },
+      {
+        "date": "2026-09-21",
+        "realizedPnl": 587548.12
+      },
+      {
+        "date": "2026-09-22",
+        "realizedPnl": 591979.97
+      },
+      {
+        "date": "2026-09-23",
+        "realizedPnl": 598182.27
+      },
+      {
+        "date": "2026-09-24",
+        "realizedPnl": 605374.77
       }
     ],
     "holdingPeriodDistribution": [
       {
         "bucket": "Same day",
-        "trades": 6
+        "trades": 7
       },
       {
         "bucket": "1-7 days",
-        "trades": 85
+        "trades": 103
       },
       {
         "bucket": "8-30 days",
-        "trades": 155
+        "trades": 163
       },
       {
         "bucket": "31-90 days",
-        "trades": 93
+        "trades": 94
       },
       {
         "bucket": "91+ days",
-        "trades": 87
+        "trades": 88
       }
     ],
     "outcomes": [
       {
         "outcome": "Profitable",
-        "trades": 361
+        "trades": 384
       },
       {
         "outcome": "Loss-making",
-        "trades": 63
+        "trades": 69
       },
       {
         "outcome": "Zero P&L",
         "trades": 2
       }
     ],
-    "grossPnl": 565182.44
+    "grossPnl": 605374.77
   },
-  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-10_BR2287.pdf",
-  "fileSize": 138328
+  "storedFileName": "realizedPnL_EQ_2026-04-01_To_2026-09-26_BR2287.pdf",
+  "fileSize": 145294
 }

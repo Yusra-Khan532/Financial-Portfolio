@@ -277,10 +277,13 @@ def _build_report_payload(original_filename, from_date, to_date, gross_pnl, net_
     losses = [trade for trade in trades if trade["realizedPnl"] < 0]
     # Average holding is the arithmetic mean of the report's Days field across every realised ledger row.
     avg_holding = round(sum(trade["holdingDays"] for trade in trades) / len(trades))
-    decisive_trades = len(wins) + len(losses)
+    # The published performance metric uses all realised ledger rows as the
+    # denominator, including zero-P&L rows (384 / 455 = 84.40% for the
+    # current report). The outcome chart still keeps zero-P&L rows distinct.
+    total_trades = len(trades)
 
     metrics = [
-        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / decisive_trades) * 100 if decisive_trades else 0), "tone": "positive"},
+        {"key": "winrate", "label": "Win Rate", "value": _format_percent((len(wins) / total_trades) * 100 if total_trades else 0), "tone": "positive"},
         {"key": "holding", "label": "Avg Holding Period", "value": f"{avg_holding} Days", "tone": "neutral"},
         {"key": "active-trades", "label": "Realised Trades", "value": str(len(trades)), "tone": "neutral"},
     ]
