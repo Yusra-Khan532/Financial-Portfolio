@@ -56,6 +56,7 @@ api_router = APIRouter(prefix="/api")
 
 # Kept on the server so provider symbols and credentials never reach the browser.
 NIFTY_50_CONSTITUENTS_URL = "https://www.niftyindices.com/IndexConstituent/ind_nifty50list.csv"
+FINEDGE_BASE_URL = "https://data.finedgeapi.com/api/v1"
 MARKET_TICKER_INDEX_INSTRUMENTS = [
     {"name": "NIFTY 50", "symbol": "NIFTY 50", "instrument_key": "NSE_INDEX|Nifty 50", "category": "Index", "currency": "INR"},
 ]
@@ -66,6 +67,7 @@ _market_ticker_cache = {"items": None, "fetched_at": 0.0}
 _nifty_50_constituents_cache = {"items": None, "fetched_at": 0.0}
 _stock_fundamentals_cache = {}
 _stock_search_cache = {}
+_finedge_symbol_cache = {"items": None, "fetched_at": 0.0}
 
 # Content CMS configuration. Admin identities are provisioned via environment
 # variables only; there is deliberately no registration endpoint.
@@ -381,13 +383,8 @@ async def admin_stock_fundamentals_search(
     query: str = Query(..., min_length=2, max_length=80),
     _admin=Depends(require_admin),
 ):
-    instruments = await asyncio.to_thread(_search_upstox_instruments, query)
-    return {
-        "items": [
-            item for item in instruments
-            if item.get("isin") and item.get("instrumentKey") and item.get("segment") in {"NSE_EQ", "BSE_EQ"}
-        ][:10]
-    }
+    instruments = await asyncio.to_thread(_search_finedge_stocks, query)
+    return {"items": instruments[:10]}
 
 
 @api_router.get("/stocks/admin/fundamentals")
@@ -840,7 +837,512 @@ def _resolve_upstox_instrument(query: str) -> Dict[str, Any]:
 
 
 def _label_key(value: str) -> str:
+    value = re.sub(r"(?<!^)(?=[A-Z])", " ", str(value or ""))
     return value.replace("_", " ").replace("-", " ").title()
+
+
+def _finedge_api_key():
+    api_key = os.environ.get("FINEDGE_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="FinEdge API is not configured. Add FINEDGE_API_KEY to the backend environment.")
+    return api_key
+
+
+def _finedge_get(path: str, params: Optional[Dict[str, Any]] = None):
+    request_params = {**(params or {}), "token": _finedge_api_key()}
+    response = requests.get(
+        f"{FINEDGE_BASE_URL}{path}",
+        params=request_params,
+        headers={"Accept": "application/json", "User-Agent": "financial-portfolio-local/1.0"},
+        timeout=18,
+    )
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        if response.status_code in {401, 403}:
+            raise HTTPException(status_code=response.status_code, detail="FinEdge rejected the API key or this plan is not entitled to the requested data.") from exc
+        if response.status_code >= 400:
+            raise HTTPException(status_code=502 if response.status_code >= 500 else response.status_code, detail="FinEdge returned an error response.") from exc
+        raise ValueError("FinEdge returned a non-JSON response") from exc
+
+    if response.status_code >= 400:
+        message = "FinEdge could not return stock fundamental data."
+        if response.status_code in {401, 403}:
+            message = "FinEdge rejected the API key or this plan is not entitled to the requested data."
+        elif isinstance(payload, dict):
+            message = payload.get("message") or payload.get("detail") or payload.get("error") or message
+        raise HTTPException(status_code=502 if response.status_code >= 500 else response.status_code, detail=message)
+    return payload
+
+
+def _safe_finedge_get(path: str, params: Optional[Dict[str, Any]] = None, default=None):
+    try:
+        return _finedge_get(path, params)
+    except HTTPException:
+        logger.info("Optional FinEdge endpoint failed: %s", path)
+        return default if default is not None else {}
+    except Exception:
+        logger.warning("Optional FinEdge endpoint errored: %s", path)
+        return default if default is not None else {}
+
+
+def _payload_items(payload, preferred_keys=None):
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+    keys = preferred_keys or ["results", "items", "data", "financials", "ratios", "peers", "symbols", "records", "history", "price"]
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+    for value in payload.values():
+        if isinstance(value, list):
+            return value
+    return []
+
+
+def _first_value(row: Dict[str, Any], keys: List[str]):
+    for key in keys:
+        if key in row and row.get(key) not in (None, ""):
+            return row.get(key)
+    lower_lookup = {str(key).lower(): value for key, value in row.items()}
+    for key in keys:
+        value = lower_lookup.get(key.lower())
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _to_number(value):
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = str(value).replace(",", "").replace("%", "").strip()
+    if cleaned in {"", "-", "NA", "N/A", "None", "null"}:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _period_sort_value(period: str):
+    text = str(period or "")
+    year_match = re.search(r"(20\d{2}|19\d{2})", text)
+    year = int(year_match.group(1)) if year_match else 0
+    quarter_match = re.search(r"Q([1-4])", text.upper())
+    quarter = int(quarter_match.group(1)) if quarter_match else 4
+    if re.search(r"MAR|Q4", text.upper()):
+        quarter = 4
+    elif re.search(r"DEC|Q3", text.upper()):
+        quarter = 3
+    elif re.search(r"SEP|Q2", text.upper()):
+        quarter = 2
+    elif re.search(r"JUN|Q1", text.upper()):
+        quarter = 1
+    return (year, quarter, text)
+
+
+def _compact_date_label(value, period: str):
+    text = str(value or "")
+    if re.fullmatch(r"\d{8}", text):
+        year = text[:4]
+        month = int(text[4:6])
+        if period == "quarterly":
+            quarter = 1 if month <= 6 else 2 if month <= 9 else 3 if month <= 12 else 4
+            return f"Q{quarter} {year}"
+        return year
+    return None
+
+
+def _period_label(row: Dict[str, Any], index: int, period: str):
+    header = _first_value(row, ["header"])
+    if header and str(header).upper() in {"TTM", "YTD"}:
+        return str(header).upper()
+    period_keys = [
+        "period", "periodLabel", "displayPeriod", "fiscalPeriod", "fiscal_year", "fiscalYear",
+        "financialYear",
+    ]
+    if period == "quarterly":
+        period_keys += ["period_end", "periodEnd", "date", "endDate", "reportDate", "year"]
+    else:
+        period_keys += ["year", "period_end", "periodEnd", "date", "endDate", "reportDate"]
+    value = _first_value(row, period_keys)
+    quarter = _first_value(row, ["quarter", "fiscalQuarter", "qtr"])
+    year = _first_value(row, ["year", "fiscalYear", "financialYear"])
+    if quarter not in (None, "") and year not in (None, ""):
+        quarter_text = str(quarter).upper().replace("QUARTER", "Q").replace(" ", "")
+        if not quarter_text.startswith("Q") and str(quarter).isdigit():
+            quarter_text = f"Q{quarter_text}"
+        return f"{quarter_text} {year}"
+    if value not in (None, ""):
+        text = str(value)
+        compact = _compact_date_label(text, period)
+        if compact:
+            return compact
+        date_match = re.match(r"(\d{4})-(\d{2})-", text)
+        if period == "quarterly" and date_match:
+            month = int(date_match.group(2))
+            quarter_no = 1 if month <= 6 else 2 if month <= 9 else 3 if month <= 12 else 4
+            return f"Q{quarter_no} {date_match.group(1)}"
+        return text[:10] if date_match else text
+    return f"Period {index + 1}"
+
+
+def _period_change(current, previous):
+    current_value = _to_number(current)
+    previous_value = _to_number(previous)
+    if current_value is None or previous_value in (None, 0):
+        return None
+    return ((current_value - previous_value) / abs(previous_value)) * 100
+
+
+def _normalize_finedge_stock(row: Dict[str, Any]) -> Dict[str, Any]:
+    symbol = _first_value(row, ["symbol", "ticker", "nseSymbol", "code", "tradingSymbol"])
+    name = _first_value(row, ["companyName", "company_name", "name", "longName", "shortName"])
+    isin = _first_value(row, ["isin", "ISIN"])
+    exchange = _first_value(row, ["exchange", "exchangeSegment", "listingExchange"])
+    return {
+        "name": name or symbol,
+        "shortName": _first_value(row, ["shortName", "short_name"]) or name or symbol,
+        "symbol": symbol,
+        "isin": isin,
+        "instrumentKey": symbol,
+        "exchange": exchange or "NSE/BSE",
+        "segment": "EQ",
+        "instrumentType": _first_value(row, ["instrumentType", "type"]) or "Equity",
+    }
+
+
+def _finedge_all_symbols():
+    cached = _finedge_symbol_cache.get("items")
+    if cached and monotonic() - _finedge_symbol_cache["fetched_at"] < NIFTY_50_CONSTITUENTS_CACHE_SECONDS:
+        return cached
+    payload = _finedge_get("/stock-symbols")
+    items = [_normalize_finedge_stock(item) for item in _payload_items(payload) if isinstance(item, dict)]
+    _finedge_symbol_cache["items"] = items
+    _finedge_symbol_cache["fetched_at"] = monotonic()
+    return items
+
+
+def _search_finedge_stocks(query: str):
+    cache_key = f"FINEDGE:{query.strip().upper()}"
+    cached = _stock_search_cache.get(cache_key)
+    if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
+        return cached["items"]
+
+    payload = _safe_finedge_get("/stock-search", {"query": query.strip()}, default=[])
+    items = [_normalize_finedge_stock(item) for item in _payload_items(payload) if isinstance(item, dict)]
+    if not items:
+        needle = query.strip().upper()
+        items = [
+            item for item in _finedge_all_symbols()
+            if needle in str(item.get("symbol") or "").upper() or needle in str(item.get("name") or "").upper() or needle in str(item.get("isin") or "").upper()
+        ][:20]
+    items = [item for item in items if item.get("symbol")]
+    _stock_search_cache[cache_key] = {"items": items, "fetched_at": monotonic()}
+    return items
+
+
+def _resolve_finedge_stock(query: str) -> Dict[str, Any]:
+    value = query.strip()
+    if not value:
+        raise HTTPException(status_code=400, detail="Enter a stock symbol, company name, or ISIN.")
+    matches = _search_finedge_stocks(value)
+    if matches:
+        normalized_query = value.upper()
+
+        def score(item):
+            symbol = str(item.get("symbol") or "").upper()
+            name = str(item.get("name") or "").upper()
+            isin = str(item.get("isin") or "").upper()
+            return (
+                0 if symbol == normalized_query else 1,
+                0 if isin == normalized_query else 1,
+                0 if symbol.startswith(normalized_query) or name.startswith(normalized_query) else 1,
+                len(symbol or name),
+            )
+
+        return sorted(matches, key=score)[0]
+    if re.fullmatch(r"[A-Z0-9.&-]{2,24}", value.upper()):
+        return _normalize_finedge_stock({"symbol": value.upper(), "name": value.upper()})
+    raise HTTPException(status_code=404, detail="No Indian listed equity was found for this query.")
+
+
+def _stock_symbol_path(symbol: str):
+    return quote(str(symbol).strip().upper(), safe="")
+
+
+def _finedge_statement(symbol: str, statement_type: str, statement_code: str, period: str):
+    finedge_period = "annual" if period == "yearly" else "quarterly"
+    finedge_type = "c" if statement_type == "consolidated" else "s"
+    payload = _finedge_get(
+        f"/financials/{_stock_symbol_path(symbol)}",
+        {"statement_type": finedge_type, "statement_code": statement_code, "period": finedge_period},
+    )
+    return _payload_items(payload, ["financials", "data", "results", "items"])
+
+
+def _metric_key_allowed(key: str):
+    lowered = key.lower()
+    metadata = {
+        "period", "periodlabel", "displayperiod", "fiscalperiod", "fiscal_year", "fiscalyear",
+        "financialyear", "year", "quarter", "qtr", "date", "enddate", "periodend", "period_end",
+        "periodstart", "period_start", "reportdate", "resultdate", "result_date", "statementtype",
+        "statementcode", "symbol", "companyname", "company_name", "currency", "unit", "units",
+        "unitsin", "createdat", "updatedat",
+    }
+    if lowered in metadata:
+        return False
+    if "outstandingshares" in lowered or lowered in {"eps", "dilutedeps", "basiceps"}:
+        return False
+    return not lowered.endswith("date")
+
+
+def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: Dict[str, str], scale: float = 1):
+    alias_lookup = {str(key).lower(): value for key, value in aliases.items()}
+    period_rows = []
+    for index, row in enumerate(rows or []):
+        if not isinstance(row, dict):
+            continue
+        period_rows.append({"label": _period_label(row, index, period), "row": row})
+    period_rows = sorted(period_rows, key=lambda item: _period_sort_value(item["label"]), reverse=True)
+
+    categories = {}
+    seen_points = set()
+    for period_index, item in enumerate(period_rows):
+        row = item["row"]
+        label = item["label"]
+        for key, value in row.items():
+            if not _metric_key_allowed(str(key)):
+                continue
+            number = _to_number(value)
+            if number is None:
+                continue
+            number = number / scale if scale and scale != 1 else number
+            category = aliases.get(str(key), alias_lookup.get(str(key).lower(), str(key)))
+            point_key = (category, label)
+            if point_key in seen_points:
+                continue
+            seen_points.add(point_key)
+            categories.setdefault(category, {
+                "category": category,
+                "label": _label_key(category),
+                "history": [],
+            })
+            previous_value = None
+            if period_index + 1 < len(period_rows):
+                previous_value = _to_number(period_rows[period_index + 1]["row"].get(key))
+                previous_value = previous_value / scale if previous_value is not None and scale and scale != 1 else previous_value
+            categories[category]["history"].append({
+                "period": label,
+                "value": number,
+                "change": _period_change(number, previous_value),
+            })
+    return list(categories.values())
+
+
+def _statement_units(rows):
+    for row in rows or []:
+        if isinstance(row, dict):
+            unit = _first_value(row, ["unit", "units", "unitsIn", "currency"])
+            if unit:
+                return unit
+    return "Cr"
+
+
+def _balance_history(rows: List[Dict[str, Any]], period: str):
+    aliases = {
+        "totalAssets": "total_asset", "totalAsset": "total_asset", "total_assets": "total_asset",
+        "assets": "total_asset",
+        "totalLiabilities": "total_liability", "totalLiability": "total_liability", "total_liabilities": "total_liability",
+        "liabilities": "total_liability",
+    }
+    categories = _history_from_period_rows(rows, period, aliases, scale=10_000_000)
+    asset_history = next((row["history"] for row in categories if row["category"] == "total_asset"), [])
+    liability_history = next((row["history"] for row in categories if row["category"] == "total_liability"), [])
+    liability_by_period = {item["period"]: item for item in liability_history}
+    history = []
+    for asset in asset_history:
+        liability = liability_by_period.get(asset["period"], {})
+        history.append({
+            "period": asset["period"],
+            "total_asset": asset.get("value"),
+            "total_liability": liability.get("value"),
+        })
+    return history, categories
+
+
+def _normalize_ratio_items(*payloads):
+    ratios = []
+    seen = set()
+    for payload in payloads:
+        for row in _payload_items(payload):
+            if not isinstance(row, dict):
+                continue
+            name = _first_value(row, ["name", "ratio", "metric", "label", "displayName"])
+            value = _first_value(row, ["company_value", "companyValue", "value", "latestValue", "current", "ratioValue"])
+            sector = _first_value(row, ["sector_value", "sectorValue", "industryValue", "benchmark", "peerMedian"])
+            if not name:
+                numeric_keys = [(key, _to_number(val)) for key, val in row.items() if _metric_key_allowed(str(key))]
+                numeric_keys = [(key, val) for key, val in numeric_keys if val is not None]
+                if len(numeric_keys) > 1:
+                    for metric_name, metric_value in numeric_keys:
+                        key = str(metric_name).upper()
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        display_value = metric_value
+                        if re.search(r"margin|rate|return", str(metric_name), re.IGNORECASE) and abs(display_value) <= 1:
+                            display_value *= 100
+                        ratios.append({
+                            "name": _label_key(str(metric_name)).replace("P E", "P/E").replace("P B", "P/B"),
+                            "company_value": display_value,
+                            "sector_value": None,
+                        })
+                    continue
+                if len(numeric_keys) == 1:
+                    name, value = numeric_keys[0]
+            if not name or _to_number(value) is None:
+                continue
+            key = str(name).upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            ratios.append({
+                "name": _label_key(str(name)).replace("P E", "P/E").replace("P B", "P/B"),
+                "company_value": _to_number(value),
+                "sector_value": _to_number(sector),
+            })
+    return ratios
+
+
+def _normalize_profile(payload, instrument):
+    if not isinstance(payload, dict):
+        payload = {}
+    return {
+        "description": _first_value(payload, ["description", "companyProfile", "company_profile", "about", "businessSummary"]),
+        "sector": _first_value(payload, ["sector", "industry", "sectorName"]),
+        "industry": _first_value(payload, ["industry", "industryName"]),
+        "website": _first_value(payload, ["website", "homepage", "url"]),
+        "marketCap": _first_value(payload, ["marketCap", "market_cap", "marketCapitalization"]),
+        "companyName": _first_value(payload, ["companyName", "name"]) or instrument.get("name"),
+    }
+
+
+def _normalize_price_history(payload):
+    rows = _payload_items(payload, ["price", "quotes", "dailyQuotes", "data", "results", "history"])
+    history = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        date = _first_value(row, ["date", "quote_date", "timestamp", "tradingDate", "time"])
+        close = _first_value(row, ["close", "close_price", "closePrice", "lastPrice", "adjClose"])
+        if not date or _to_number(close) is None:
+            continue
+        history.append({
+            "date": str(date)[:10],
+            "open": _to_number(_first_value(row, ["open", "open_price", "openPrice"])) or _to_number(close),
+            "high": _to_number(_first_value(row, ["high", "high_price", "highPrice"])) or _to_number(close),
+            "low": _to_number(_first_value(row, ["low", "low_price", "lowPrice"])) or _to_number(close),
+            "close": _to_number(close),
+            "volume": _to_number(_first_value(row, ["volume", "tradedVolume"])) or 0,
+        })
+    return sorted(history, key=lambda item: item["date"])
+
+
+def _quote_from_price_history(history):
+    if not history:
+        return {}
+    latest = history[-1]
+    previous = history[-2] if len(history) > 1 else {}
+    change = None
+    change_percent = None
+    if previous.get("close") not in (None, 0):
+        change = latest["close"] - previous["close"]
+        change_percent = (change / previous["close"]) * 100
+    return {
+        "price": latest.get("close"),
+        "lastPrice": latest.get("close"),
+        "change": change,
+        "changePercent": change_percent,
+        "volume": latest.get("volume"),
+        "timestamp": latest.get("date"),
+    }
+
+
+def _normalize_shareholding(payload, period="quarterly"):
+    rows = _payload_items(payload, ["shareholding", "shareholdingPattern", "data", "results", "history"])
+    aliases = {
+        "promoter": "promoters", "promoters": "promoters", "promoterGroup": "promoters",
+        "fii": "fii", "fiis": "fii", "foreignInstitution": "fii",
+        "dii": "other_dii", "otherDii": "other_dii", "insurance": "other_dii",
+        "mutualFunds": "mutual_funds", "mutual_fund": "mutual_funds", "mf": "mutual_funds",
+        "retail": "retail_and_other", "public": "retail_and_other", "others": "retail_and_other",
+        "retailAndOthers": "retail_and_other", "nonInstitution": "retail_and_other",
+    }
+    normalized = _history_from_period_rows(rows, period, aliases)
+    keep = {"promoters", "fii", "other_dii", "mutual_funds", "retail_and_other"}
+    return [{**item, "label": _label_key(item["category"])} for item in normalized if item["category"] in keep]
+
+
+def _normalize_corporate_actions(*payloads):
+    actions = []
+    for payload in payloads:
+        for row in _payload_items(payload, ["corporateActions", "actions", "dividends", "data", "results"]):
+            if not isinstance(row, dict):
+                continue
+            action_type = _first_value(row, ["type", "actionType", "purpose"]) or ("Dividend" if _first_value(row, ["dividend", "amount"]) else "Corporate action")
+            actions.append({
+                "type": action_type,
+                "name": _first_value(row, ["name", "title", "purpose"]) or action_type,
+                "purpose": _first_value(row, ["purpose", "description"]),
+                "ex_date": _first_value(row, ["exDate", "ex_date", "exDividendDate"]),
+                "record_date": _first_value(row, ["recordDate", "record_date"]),
+                "announcement_date": _first_value(row, ["announcementDate", "announcement_date", "date"]),
+                "amount": _first_value(row, ["amount", "dividend", "dividendAmount"]),
+                "ratio": _first_value(row, ["ratio", "bonusRatio", "splitRatio"]),
+                "event_details": [
+                    {"name": _label_key(key), "value": value}
+                    for key, value in row.items()
+                    if value not in (None, "") and key not in {"name", "title", "purpose", "type", "actionType"}
+                ][:8],
+            })
+    return actions
+
+
+def _normalize_competitors(payload):
+    competitors = []
+    for row in _payload_items(payload, ["peers", "competitors", "data", "results"]):
+        if isinstance(row, str):
+            competitors.append({
+                "instrumentKey": row,
+                "name": row,
+                "symbol": row,
+                "isin": None,
+                "exchange": "NSE/BSE",
+                "sector": None,
+                "summary": "",
+                "sectorMarketCapInr": None,
+            })
+            continue
+        if not isinstance(row, dict):
+            continue
+        symbol = _first_value(row, ["symbol", "ticker", "peerSymbol", "nseSymbol"])
+        name = _first_value(row, ["companyName", "name", "peerName"]) or symbol
+        competitors.append({
+            "instrumentKey": symbol,
+            "name": name,
+            "symbol": symbol,
+            "isin": _first_value(row, ["isin"]),
+            "exchange": _first_value(row, ["exchange"]) or "NSE/BSE",
+            "sector": _first_value(row, ["sector", "industry"]),
+            "summary": _first_value(row, ["description", "summary"]) or "",
+            "sectorMarketCapInr": _first_value(row, ["marketCap", "market_cap"]),
+        })
+    return [item for item in competitors if item.get("symbol")]
 
 
 def _latest_history_value(rows, category):
@@ -885,94 +1387,110 @@ def _compact_competitor(competitor):
 
 
 def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", period: str = "yearly"):
-    instrument = _resolve_upstox_instrument(query)
-    isin = instrument.get("isin")
-    instrument_key = instrument.get("instrumentKey")
-    if not isin or not instrument_key:
-        raise HTTPException(status_code=404, detail="This instrument is missing an ISIN or instrument key.")
+    instrument = _resolve_finedge_stock(query)
+    symbol = instrument.get("symbol")
+    if not symbol:
+        raise HTTPException(status_code=404, detail="This stock is missing a FinEdge symbol.")
 
-    cache_key = f"{instrument_key}:{statement_type}:{period}"
+    cache_key = f"finedge:{symbol}:{statement_type}:{period}"
     cached = _stock_fundamentals_cache.get(cache_key)
     if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
         return {**cached["data"], "cached": True}
 
-    profile = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/profile")
-    ratios = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/key-ratios")
-    income = _upstox_get(
-        f"/fundamentals/{quote(isin, safe='')}/income-statement",
-        {"type": statement_type, "time_period": period},
-    )
-    balance_sheet = _upstox_get(
-        f"/fundamentals/{quote(isin, safe='')}/balance-sheet",
-        {"type": statement_type},
-    )
-    cash_flow = _upstox_get(
-        f"/fundamentals/{quote(isin, safe='')}/cash-flow",
-        {"type": statement_type},
-    )
-    shareholding = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/share-holdings")
-    corporate_actions = _upstox_get(f"/fundamentals/{quote(isin, safe='')}/corporate-actions")
-    competitors = _upstox_get(f"/fundamentals/{quote(instrument_key, safe='')}/competitors")
+    profile_payload = _finedge_get(f"/company-profile/{_stock_symbol_path(symbol)}")
+    income_rows = _finedge_statement(symbol, statement_type, "pl", period)
+    balance_rows = _finedge_statement(symbol, statement_type, "bs", period)
+    cash_rows = _finedge_statement(symbol, statement_type, "cf", period)
 
-    quote_data = {}
-    try:
-        quote_items = _fetch_upstox_quotes([{
-            "instrument_key": instrument_key,
-            "name": instrument.get("name"),
-            "symbol": instrument.get("symbol"),
-            "category": "Equity",
-            "currency": "INR",
-        }], os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip())
-        quote_data = quote_items[0] if quote_items else {}
-    except Exception:
-        logger.warning("Stock fundamentals quote lookup failed")
+    income_statement = {
+        "units_in": "Cr",
+        "income_statement": _history_from_period_rows(income_rows, period, {
+            "revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue",
+            "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue",
+            "incomeFromOperations": "revenue", "totalIncome": "revenue",
+            "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
+            "ebit": "operating_profit", "profitBeforeTax": "operating_profit", "pbt": "operating_profit",
+            "netProfit": "net_profit", "net_profit": "net_profit", "profitAfterTax": "net_profit",
+            "pat": "net_profit", "netIncome": "net_profit", "profitLossForPeriod": "net_profit",
+        }, scale=10_000_000),
+    }
+    balance_history, balance_categories = _balance_history(balance_rows, period)
+    balance_sheet = {
+        "units_in": "Cr",
+        "history": balance_history,
+        "balance_sheet": balance_categories,
+    }
+    cash_flow = {
+        "units_in": "Cr",
+        "cash_flow": _history_from_period_rows(cash_rows, period, {
+            "netCashFromOperatingActivities": "operating", "cashFromOperatingActivity": "operating",
+            "operatingCashFlow": "operating", "cashFlowFromOperatingActivities": "operating",
+            "cashFlowsFromOperatingActivities": "operating",
+            "netCashUsedInInvestingActivities": "investing", "cashFromInvestingActivity": "investing",
+            "investingCashFlow": "investing", "cashFlowFromInvestingActivities": "investing",
+            "cashFlowsFromInvestingActivities": "investing",
+            "netCashUsedInFinancingActivities": "financing", "cashFromFinancingActivity": "financing",
+            "financingCashFlow": "financing", "cashFlowFromFinancingActivities": "financing",
+            "cashFlowsFromFinancingActivities": "financing",
+        }, scale=10_000_000),
+    }
 
-    price_history = []
-    try:
-        price_history = _fetch_upstox_price_history(instrument_key)
-    except Exception:
-        logger.warning("Stock fundamentals price history lookup failed")
+    finedge_type = "c" if statement_type == "consolidated" else "s"
+    ratio_payloads = [
+        _safe_finedge_get(f"/ratios/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
+        for ratio_type in ("ef", "le", "li", "pr")
+    ]
+    metric_payloads = [
+        _safe_finedge_get(f"/financial-metrics/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
+        for ratio_type in ("cu", "gr", "av")
+    ]
+    ratios = _normalize_ratio_items(*ratio_payloads, *metric_payloads, _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={}))
+
+    profile = _normalize_profile(profile_payload, instrument)
+    shareholding_payload = _safe_finedge_get(f"/shareholding-pattern/{_stock_symbol_path(symbol)}", default=[])
+    shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
+    actions_payload = _safe_finedge_get(f"/corporate-actions/{_stock_symbol_path(symbol)}", default=[])
+    dividends_payload = _safe_finedge_get(f"/dividends/{_stock_symbol_path(symbol)}", default=[])
+    corporate_actions = _normalize_corporate_actions(actions_payload, dividends_payload)
+    competitors = _normalize_competitors(_safe_finedge_get(f"/peers/{_stock_symbol_path(symbol)}", default=[]))
+
+    current_year = datetime.now(timezone.utc).year
+    price_history = _normalize_price_history(_safe_finedge_get(
+        f"/daily-quotes/{_stock_symbol_path(symbol)}",
+        {"from": str(current_year - 6), "to": str(current_year)},
+        default=[],
+    ))
+    quote_data = _quote_from_price_history(price_history)
 
     lookup = _ratio_lookup(ratios)
-    latest_revenue = _latest_history_value(income.get("income_statement"), "revenue") if isinstance(income, dict) else None
-    latest_net_profit = _latest_history_value(income.get("income_statement"), "net_profit") if isinstance(income, dict) else None
+    latest_revenue = _latest_history_value(income_statement.get("income_statement"), "revenue")
+    latest_net_profit = _latest_history_value(income_statement.get("income_statement"), "net_profit")
     highlights = [
         {"label": "P/E", "value": lookup.get("P/E", {}).get("company_value"), "benchmark": lookup.get("P/E", {}).get("sector_value")},
         {"label": "P/B", "value": lookup.get("P/B", {}).get("company_value"), "benchmark": lookup.get("P/B", {}).get("sector_value")},
         {"label": "ROE", "value": lookup.get("ROE", {}).get("company_value"), "benchmark": lookup.get("ROE", {}).get("sector_value")},
         {"label": "ROCE", "value": lookup.get("ROCE", {}).get("company_value"), "benchmark": lookup.get("ROCE", {}).get("sector_value")},
-        {"label": "Revenue", "value": latest_revenue.get("value") if latest_revenue else None, "period": latest_revenue.get("period") if latest_revenue else None, "unit": income.get("units_in") if isinstance(income, dict) else None, "change": latest_revenue.get("change") if latest_revenue else None},
-        {"label": "Net Profit", "value": latest_net_profit.get("value") if latest_net_profit else None, "period": latest_net_profit.get("period") if latest_net_profit else None, "unit": income.get("units_in") if isinstance(income, dict) else None, "change": latest_net_profit.get("change") if latest_net_profit else None},
+        {"label": "Revenue", "value": latest_revenue.get("value") if latest_revenue else None, "period": latest_revenue.get("period") if latest_revenue else None, "unit": income_statement.get("units_in"), "change": latest_revenue.get("change") if latest_revenue else None},
+        {"label": "Net Profit", "value": latest_net_profit.get("value") if latest_net_profit else None, "period": latest_net_profit.get("period") if latest_net_profit else None, "unit": income_statement.get("units_in"), "change": latest_net_profit.get("change") if latest_net_profit else None},
     ]
 
     result = {
-        "provider": "upstox",
+        "provider": "finedge",
         "query": query,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "cached": False,
         "instrument": instrument,
         "quote": quote_data,
         "priceHistory": price_history,
-        "profile": {
-            "description": profile.get("company_profile") if isinstance(profile, dict) else None,
-            "sector": profile.get("sector") if isinstance(profile, dict) else None,
-            "sectorMarketCapInr": profile.get("sector_market_cap_inr") if isinstance(profile, dict) else None,
-            "sectorMarketCapUsd": profile.get("sector_market_cap_usd") if isinstance(profile, dict) else None,
-        },
+        "profile": profile,
         "highlights": [item for item in highlights if item.get("value") not in (None, "")],
-        "ratios": ratios if isinstance(ratios, list) else [],
-        "incomeStatement": income if isinstance(income, dict) else {},
-        "balanceSheet": balance_sheet if isinstance(balance_sheet, dict) else {},
-        "cashFlow": cash_flow if isinstance(cash_flow, dict) else {},
-        "shareholding": [
-            {**item, "label": _label_key(item.get("category", ""))}
-            for item in shareholding
-            if isinstance(item, dict)
-        ] if isinstance(shareholding, list) else [],
-        "corporateActions": corporate_actions if isinstance(corporate_actions, list) else [],
-        "competitors": [
-            _compact_competitor(item) for item in competitors if isinstance(item, dict)
-        ] if isinstance(competitors, list) else [],
+        "ratios": ratios,
+        "incomeStatement": income_statement,
+        "balanceSheet": balance_sheet,
+        "cashFlow": cash_flow,
+        "shareholding": shareholding,
+        "corporateActions": corporate_actions,
+        "competitors": competitors,
     }
     _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}
     return result

@@ -30,8 +30,10 @@ const PRICE_INTERVALS = [
 ];
 const DASHBOARD_TABS = [
   { id: "summary", label: "Summary" },
+  { id: "research-report", label: "Report" },
+  { id: "derived-metrics", label: "Metrics" },
   { id: "price-chart", label: "Chart" },
-  { id: "insights", label: "Insights" },
+  { id: "insights", label: "Signals" },
   { id: "profit-loss", label: "P&L" },
   { id: "balance-sheet", label: "Balance Sheet" },
   { id: "cash-flow", label: "Cash Flow" },
@@ -39,6 +41,40 @@ const DASHBOARD_TABS = [
   { id: "shareholding", label: "Shareholding" },
   { id: "competitors", label: "Peers" },
   { id: "corporate-actions", label: "Actions" },
+];
+const NOISY_FINANCIAL_KEYS = new Set([
+  "periodstart",
+  "resultdate",
+  "eps",
+  "basiceps",
+  "dilutedeps",
+  "basicoutstandingshares",
+  "dilutedoutstandingshares",
+  "outstandingshares",
+]);
+const CORE_INCOME_ROWS = [
+  "revenue",
+  "expenses",
+  "costofgoodssold",
+  "employeebenefitexpense",
+  "financecosts",
+  "depreciationandamortisation",
+  "otherincome",
+  "operatingprofit",
+  "profitbeforetax",
+  "taxexpense",
+  "netprofit",
+];
+const CORE_CASH_ROWS = [
+  "operating",
+  "investing",
+  "financing",
+  "netcashflow",
+  "purchaseoffixedintangibleassets",
+  "purchaseofppeclassifiedasinvesting",
+  "saleoffixedintangibleassets",
+  "dividendspaidclassifiedasfinancing",
+  "interestpaidclassifiedasfinancing",
 ];
 
 function compactNumber(value, options = {}) {
@@ -191,15 +227,74 @@ function ratioByName(ratios, name) {
   return (ratios || []).find((ratio) => String(ratio.name || "").toUpperCase() === name.toUpperCase());
 }
 
-function ratioComparisonData(ratios, names) {
-  return names.map((name) => {
-    const ratio = ratioByName(ratios, name);
-    return {
-      name,
-      company: numericValue(ratio?.company_value),
-      sector: numericValue(ratio?.sector_value),
-    };
-  }).filter((row) => row.company !== null || row.sector !== null);
+function normalizeMetricName(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function financialRowKey(row) {
+  return normalizeMetricName(row?.category || row?.label);
+}
+
+function hasMeaningfulHistory(row) {
+  const values = (row?.history || []).map((point) => numericValue(point.value)).filter((value) => value !== null);
+  if (!values.length) return false;
+  return values.some((value) => Math.abs(value) > 0.000001);
+}
+
+function cleanFinancialRows(rows, period, priorityKeys = []) {
+  const priority = priorityKeys.map(normalizeMetricName);
+  const limited = limitHistoryRows(rows, period)
+    .filter((row) => {
+      const key = financialRowKey(row);
+      if (!key || NOISY_FINANCIAL_KEYS.has(key) || key.endsWith("date")) return false;
+      return hasMeaningfulHistory(row);
+    });
+
+  const priorityRows = priority
+    .map((key) => limited.find((row) => financialRowKey(row) === key))
+    .filter(Boolean);
+  const prioritySet = new Set(priorityRows.map((row) => financialRowKey(row)));
+  const rest = limited
+    .filter((row) => !prioritySet.has(financialRowKey(row)))
+    .sort((a, b) => String(a.label || a.category).localeCompare(String(b.label || b.category)));
+
+  return priorityRows.length ? [...priorityRows, ...rest.slice(0, 8)] : rest.slice(0, 14);
+}
+
+function ratioByAnyName(ratios, names) {
+  const normalizedNames = names.map(normalizeMetricName);
+  return (ratios || []).find((ratio) => normalizedNames.includes(normalizeMetricName(ratio.name)));
+}
+
+function scoreFromThresholds(value, thresholds, lowerIsBetter = false) {
+  const number = numericValue(value);
+  if (number === null) return null;
+  const [weak, fair, good, great] = thresholds;
+  const raw = lowerIsBetter
+    ? number <= great ? 92 : number <= good ? 76 : number <= fair ? 58 : number <= weak ? 38 : 18
+    : number >= great ? 92 : number >= good ? 76 : number >= fair ? 58 : number >= weak ? 38 : 18;
+  return raw;
+}
+
+function averageScore(values) {
+  const usable = values.filter((value) => value !== null && value !== undefined);
+  if (!usable.length) return null;
+  return Math.round(usable.reduce((sum, value) => sum + value, 0) / usable.length);
+}
+
+function scoreLabel(score) {
+  if (score === null || score === undefined) return "Insufficient data";
+  if (score >= 78) return "Strong";
+  if (score >= 62) return "Healthy";
+  if (score >= 45) return "Mixed";
+  return "Watch";
+}
+
+function scoreTone(score) {
+  if (score === null || score === undefined) return "neutral";
+  if (score >= 62) return "positive";
+  if (score >= 45) return "neutral";
+  return "caution";
 }
 
 function categoryHistory(rows, category) {
@@ -299,6 +394,55 @@ function oldestPoint(rows, category) {
   return history[history.length - 1];
 }
 
+function pointValue(point) {
+  return numericValue(point?.value);
+}
+
+function safeRatio(numerator, denominator, multiplier = 100) {
+  const top = numericValue(numerator);
+  const bottom = numericValue(denominator);
+  if (top === null || bottom === null || bottom === 0) return null;
+  return (top / bottom) * multiplier;
+}
+
+function latestPricePoint(history) {
+  const rows = priceChartData(history || [], "daily");
+  return rows[rows.length - 1] || null;
+}
+
+function priceReturn(history, sessions) {
+  const rows = priceChartData(history || [], "daily");
+  if (rows.length <= sessions) return null;
+  const latest = rows[rows.length - 1];
+  const previous = rows[Math.max(0, rows.length - 1 - sessions)];
+  return safeRatio(Number(latest?.price) - Number(previous?.price), previous?.price);
+}
+
+function averageHistoryValue(history, count = 4) {
+  const values = (history || []).slice(0, count).map((point) => pointValue(point)).filter((value) => value !== null);
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function marginSeries(numeratorHistory, denominatorHistory) {
+  const denominatorByPeriod = new Map((denominatorHistory || []).map((point) => [point.period, pointValue(point)]));
+  return (numeratorHistory || []).map((point) => {
+    const numerator = pointValue(point);
+    const denominator = denominatorByPeriod.get(point.period);
+    return {
+      period: point.period,
+      value: numerator !== null && denominator ? (numerator / denominator) * 100 : null,
+    };
+  }).filter((point) => point.value !== null);
+}
+
+function latestVsAverage(history, averageCount = 4) {
+  const latest = pointValue(history?.[0]);
+  const average = averageHistoryValue(history, averageCount);
+  if (latest === null || average === null) return null;
+  return latest - average;
+}
+
 function cagrPercent(latest, oldest, periods) {
   const latestValue = numericValue(latest);
   const oldestValue = numericValue(oldest);
@@ -326,6 +470,263 @@ function comparisonTone(companyValue, sectorValue, direction = "higher") {
   const sector = numericValue(sectorValue);
   if (company === null || sector === null) return "neutral";
   return insightTone(company - sector, direction);
+}
+
+function buildResearchReport(data) {
+  if (!data) return null;
+  const incomeRows = data.incomeStatement?.income_statement || [];
+  const cashRows = data.cashFlow?.cash_flow || [];
+  const revenueHistory = categoryHistory(incomeRows, "revenue");
+  const profitHistory = categoryHistory(incomeRows, "net_profit");
+  const operatingHistory = categoryHistory(incomeRows, "operating_profit");
+  const cfoHistory = categoryHistory(cashRows, "operating");
+  const latestBalance = data.balanceSheet?.history?.[0];
+  const latestRevenue = revenueHistory[0];
+  const latestProfit = profitHistory[0];
+  const latestOperating = operatingHistory[0];
+  const latestCfo = cfoHistory[0];
+  const salesCagr = cagrPercent(latestRevenue?.value, revenueHistory[revenueHistory.length - 1]?.value, Math.max(1, revenueHistory.length - 1));
+  const profitCagr = cagrPercent(latestProfit?.value, profitHistory[profitHistory.length - 1]?.value, Math.max(1, profitHistory.length - 1));
+  const opm = numericValue(latestRevenue?.value) ? (numericValue(latestOperating?.value) / numericValue(latestRevenue?.value)) * 100 : null;
+  const npm = numericValue(latestRevenue?.value) ? (numericValue(latestProfit?.value) / numericValue(latestRevenue?.value)) * 100 : null;
+  const cashConversion = numericValue(latestProfit?.value) ? (numericValue(latestCfo?.value) / numericValue(latestProfit?.value)) * 100 : null;
+  const liabilityRatio = numericValue(latestBalance?.total_asset) ? (numericValue(latestBalance?.total_liability) / numericValue(latestBalance?.total_asset)) * 100 : null;
+  const roe = ratioByAnyName(data.ratios, ["ROE", "Return On Equity", "ReturnOnEquity"]);
+  const roce = ratioByAnyName(data.ratios, ["ROCE", "Return On Capital", "ReturnOnCapital"]);
+  const netMargin = ratioByAnyName(data.ratios, ["Net Margin", "NetMargin"]);
+  const assetTurnover = ratioByAnyName(data.ratios, ["Asset Turnover", "AssetTurnover"]);
+  const priceData = priceChartData(data.priceHistory || [], "daily");
+  const latestPrice = priceData[priceData.length - 1];
+  const priceReturn1y = priceData.length > 240 && latestPrice?.price
+    ? ((latestPrice.price - priceData[Math.max(0, priceData.length - 252)].price) / priceData[Math.max(0, priceData.length - 252)].price) * 100
+    : null;
+
+  const dimensions = [
+    {
+      name: "Quality",
+      score: averageScore([
+        scoreFromThresholds(roe?.company_value, [6, 10, 14, 18]),
+        scoreFromThresholds(roce?.company_value, [7, 12, 16, 22]),
+        scoreFromThresholds(cashConversion, [40, 70, 95, 120]),
+      ]),
+      metrics: [
+        ["ROE", percentText(roe?.company_value)],
+        ["ROCE", percentText(roce?.company_value)],
+        ["CFO / PAT", percentText(cashConversion)],
+      ],
+    },
+    {
+      name: "Growth",
+      score: averageScore([
+        scoreFromThresholds(salesCagr, [2, 6, 10, 16]),
+        scoreFromThresholds(profitCagr, [2, 8, 14, 22]),
+        scoreFromThresholds(latestRevenue?.change, [0, 5, 10, 18]),
+      ]),
+      metrics: [
+        ["Sales CAGR", percentText(salesCagr)],
+        ["Profit CAGR", percentText(profitCagr)],
+        ["Latest sales growth", percentText(latestRevenue?.change)],
+      ],
+    },
+    {
+      name: "Profitability",
+      score: averageScore([
+        scoreFromThresholds(opm, [6, 10, 15, 22]),
+        scoreFromThresholds(npm || netMargin?.company_value, [4, 7, 10, 16]),
+        scoreFromThresholds(assetTurnover?.company_value, [0.3, 0.6, 0.9, 1.3]),
+      ]),
+      metrics: [
+        ["OPM", percentText(opm)],
+        ["Net margin", percentText(npm || netMargin?.company_value)],
+        ["Asset turnover", compactNumber(assetTurnover?.company_value)],
+      ],
+    },
+    {
+      name: "Balance Sheet",
+      score: averageScore([
+        scoreFromThresholds(liabilityRatio, [80, 65, 50, 35], true),
+        scoreFromThresholds(cashConversion, [40, 70, 95, 120]),
+      ]),
+      metrics: [
+        ["Liabilities / assets", percentText(liabilityRatio)],
+        ["Total assets", valueWithUnit(latestBalance?.total_asset, data.balanceSheet?.units_in)],
+        ["Operating cash flow", valueWithUnit(latestCfo?.value, data.cashFlow?.units_in)],
+      ],
+    },
+    {
+      name: "Technical",
+      score: averageScore([
+        latestPrice?.ema50 ? scoreFromThresholds(((latestPrice.price - latestPrice.ema50) / latestPrice.ema50) * 100, [-8, -2, 2, 8]) : null,
+        latestPrice?.ema200 ? scoreFromThresholds(((latestPrice.price - latestPrice.ema200) / latestPrice.ema200) * 100, [-12, -3, 3, 12]) : null,
+        latestPrice?.rsi ? scoreFromThresholds(latestPrice.rsi, [35, 45, 55, 65]) : null,
+      ]),
+      metrics: [
+        ["1Y price return", percentText(priceReturn1y)],
+        ["RSI 14", compactNumber(latestPrice?.rsi)],
+        ["Vs 200 DMA", latestPrice?.ema200 ? percentText(((latestPrice.price - latestPrice.ema200) / latestPrice.ema200) * 100) : "N/A"],
+      ],
+    },
+  ];
+
+  const overall = averageScore(dimensions.map((item) => item.score));
+  const facts = [
+    { label: "Latest Revenue", value: valueWithUnit(latestRevenue?.value, data.incomeStatement?.units_in), meta: latestRevenue?.period },
+    { label: "Latest PAT", value: valueWithUnit(latestProfit?.value, data.incomeStatement?.units_in), meta: latestProfit?.period },
+    { label: "OPM", value: percentText(opm), meta: latestOperating?.period },
+    { label: "CFO / PAT", value: percentText(cashConversion), meta: latestCfo?.period },
+    { label: "Total Assets", value: valueWithUnit(latestBalance?.total_asset, data.balanceSheet?.units_in), meta: latestBalance?.period },
+    { label: "Peers", value: compactNumber(data.competitors?.length || 0), meta: "Comparable set" },
+  ];
+
+  const narrative = [
+    salesCagr !== null ? `Sales compounded at ${percentText(salesCagr)} across the returned history.` : null,
+    profitCagr !== null ? `Profit compounded at ${percentText(profitCagr)}, with latest PAT growth at ${percentText(latestProfit?.change)}.` : null,
+    cashConversion !== null ? `Cash conversion is ${percentText(cashConversion)}, which is ${cashConversion >= 90 ? "supportive of earnings quality" : "a point to monitor against reported profits"}.` : null,
+    liabilityRatio !== null ? `Liabilities stand at ${percentText(liabilityRatio)} of assets, giving a quick balance-sheet risk marker.` : null,
+  ].filter(Boolean);
+
+  return { overall, dimensions, facts, narrative };
+}
+
+function metricTone(value, goodDirection = "higher", neutralBand = 0) {
+  const number = numericValue(value);
+  if (number === null) return "neutral";
+  if (Math.abs(number) <= neutralBand) return "neutral";
+  return goodDirection === "lower"
+    ? number < 0 ? "positive" : "caution"
+    : number > 0 ? "positive" : "caution";
+}
+
+function metricDisplay(value, type = "percent", unit) {
+  if (type === "money") return valueWithUnit(value, unit);
+  if (type === "number") return compactNumber(value);
+  if (type === "currency") return value === null || value === undefined ? "N/A" : `Rs. ${compactNumber(value)}`;
+  return percentText(value);
+}
+
+function buildDerivedMetricGroups(data) {
+  if (!data) return [];
+  const incomeRows = data.incomeStatement?.income_statement || [];
+  const cashRows = data.cashFlow?.cash_flow || [];
+  const revenueHistory = categoryHistory(incomeRows, "revenue");
+  const profitHistory = categoryHistory(incomeRows, "net_profit");
+  const operatingHistory = categoryHistory(incomeRows, "operating_profit");
+  const expensesHistory = categoryHistory(incomeRows, "expenses");
+  const taxHistory = categoryHistory(incomeRows, "tax_expense");
+  const cfoHistory = categoryHistory(cashRows, "operating");
+  const investingHistory = categoryHistory(cashRows, "investing");
+  const financingHistory = categoryHistory(cashRows, "financing");
+  const latestRevenue = revenueHistory[0];
+  const previousRevenue = revenueHistory[1];
+  const latestProfit = profitHistory[0];
+  const previousProfit = profitHistory[1];
+  const latestOperating = operatingHistory[0];
+  const latestExpenses = expensesHistory[0];
+  const latestTax = taxHistory[0];
+  const latestCfo = cfoHistory[0];
+  const latestInvesting = investingHistory[0];
+  const latestFinancing = financingHistory[0];
+  const latestBalance = data.balanceSheet?.history?.[0];
+  const previousBalance = data.balanceSheet?.history?.[1];
+  const pricePoint = latestPricePoint(data.priceHistory);
+  const opmHistory = marginSeries(operatingHistory, revenueHistory);
+  const npmHistory = marginSeries(profitHistory, revenueHistory);
+  const roe = ratioByAnyName(data.ratios, ["ROE", "Return On Equity", "ReturnOnEquity"]);
+  const roce = ratioByAnyName(data.ratios, ["ROCE", "Return On Capital", "ReturnOnCapital"]);
+  const pe = ratioByAnyName(data.ratios, ["P/E", "PE", "Price Earnings", "PriceEarnings"]);
+  const pb = ratioByAnyName(data.ratios, ["P/B", "PB", "Price Book", "PriceBook"]);
+  const currentRatio = ratioByAnyName(data.ratios, ["Current Ratio", "CurrentRatio"]);
+  const quickRatio = ratioByAnyName(data.ratios, ["Quick Ratio", "QuickRatio"]);
+  const debtEquity = ratioByAnyName(data.ratios, ["Total Debt To Equity", "Debt Equity", "DebtToEquity"]);
+  const interestCoverage = ratioByAnyName(data.ratios, ["Interest Coverage", "InterestCoverage"]);
+  const latestRevenueValue = pointValue(latestRevenue);
+  const previousRevenueValue = pointValue(previousRevenue);
+  const latestProfitValue = pointValue(latestProfit);
+  const previousProfitValue = pointValue(previousProfit);
+  const latestCfoValue = pointValue(latestCfo);
+  const salesCagr = cagrPercent(latestRevenue?.value, revenueHistory[revenueHistory.length - 1]?.value, Math.max(1, revenueHistory.length - 1));
+  const profitCagr = cagrPercent(latestProfit?.value, profitHistory[profitHistory.length - 1]?.value, Math.max(1, profitHistory.length - 1));
+  const revenueAcceleration = previousRevenue?.change === null || previousRevenue?.change === undefined ? null : numericValue(latestRevenue?.change) - numericValue(previousRevenue?.change);
+  const profitAcceleration = previousProfit?.change === null || previousProfit?.change === undefined ? null : numericValue(latestProfit?.change) - numericValue(previousProfit?.change);
+  const operatingMargin = safeRatio(latestOperating?.value, latestRevenue?.value);
+  const netMargin = safeRatio(latestProfit?.value, latestRevenue?.value);
+  const expenseRatio = safeRatio(latestExpenses?.value, latestRevenue?.value);
+  const taxRate = safeRatio(latestTax?.value, latestProfit?.value);
+  const cfoToPat = safeRatio(latestCfo?.value, latestProfit?.value);
+  const freeCashFlow = latestCfoValue !== null && pointValue(latestInvesting) !== null ? latestCfoValue + pointValue(latestInvesting) : null;
+  const fcfToPat = safeRatio(freeCashFlow, latestProfit?.value);
+  const financingToCfo = safeRatio(latestFinancing?.value, latestCfo?.value);
+  const assetGrowth = safeRatio(numericValue(latestBalance?.total_asset) - numericValue(previousBalance?.total_asset), previousBalance?.total_asset);
+  const liabilityGrowth = safeRatio(numericValue(latestBalance?.total_liability) - numericValue(previousBalance?.total_liability), previousBalance?.total_liability);
+  const liabilityAssetRatio = safeRatio(latestBalance?.total_liability, latestBalance?.total_asset);
+  const priceVsEma50 = pricePoint?.ema50 ? safeRatio(pricePoint.price - pricePoint.ema50, pricePoint.ema50) : null;
+  const priceVsEma200 = pricePoint?.ema200 ? safeRatio(pricePoint.price - pricePoint.ema200, pricePoint.ema200) : null;
+
+  return [
+    {
+      title: "Growth Momentum",
+      subtitle: "How sales and earnings are moving versus prior periods.",
+      metrics: [
+        { label: "Sales CAGR", value: salesCagr, detail: `${revenueHistory[revenueHistory.length - 1]?.period || "Oldest"} to ${latestRevenue?.period || "latest"}`, tone: metricTone(salesCagr), type: "percent" },
+        { label: "Profit CAGR", value: profitCagr, detail: `${profitHistory[profitHistory.length - 1]?.period || "Oldest"} to ${latestProfit?.period || "latest"}`, tone: metricTone(profitCagr), type: "percent" },
+        { label: "Latest Sales Growth", value: latestRevenue?.change, detail: latestRevenue?.period, tone: metricTone(latestRevenue?.change), type: "percent" },
+        { label: "Sales Acceleration", value: revenueAcceleration, detail: "Latest growth minus previous growth", tone: metricTone(revenueAcceleration), type: "percent" },
+        { label: "Profit Acceleration", value: profitAcceleration, detail: "Latest PAT growth minus previous growth", tone: metricTone(profitAcceleration), type: "percent" },
+        { label: "Revenue Delta", value: latestRevenueValue !== null && previousRevenueValue !== null ? latestRevenueValue - previousRevenueValue : null, detail: `${previousRevenue?.period || "Previous"} to ${latestRevenue?.period || "latest"}`, tone: metricTone(latestRevenueValue - previousRevenueValue), type: "money", unit: data.incomeStatement?.units_in },
+      ],
+    },
+    {
+      title: "Profitability",
+      subtitle: "Margins, return ratios and operating leverage.",
+      metrics: [
+        { label: "Operating Margin", value: operatingMargin, detail: latestOperating?.period, tone: metricTone(operatingMargin), type: "percent" },
+        { label: "Net Margin", value: netMargin, detail: latestProfit?.period, tone: metricTone(netMargin), type: "percent" },
+        { label: "OPM vs 4P Avg", value: latestVsAverage(opmHistory), detail: "Latest margin less trailing average", tone: metricTone(latestVsAverage(opmHistory)), type: "percent" },
+        { label: "NPM vs 4P Avg", value: latestVsAverage(npmHistory), detail: "Latest margin less trailing average", tone: metricTone(latestVsAverage(npmHistory)), type: "percent" },
+        { label: "Expense Ratio", value: expenseRatio, detail: "Expenses / revenue", tone: metricTone(expenseRatio - 80, "lower"), type: "percent" },
+        { label: "Tax / PAT", value: taxRate, detail: "Tax expense / net profit", tone: "neutral", type: "percent" },
+        { label: "ROE", value: roe?.company_value, detail: spreadText(roe?.company_value, roe?.sector_value, "%"), tone: comparisonTone(roe?.company_value, roe?.sector_value), type: "percent" },
+        { label: "ROCE", value: roce?.company_value, detail: spreadText(roce?.company_value, roce?.sector_value, "%"), tone: comparisonTone(roce?.company_value, roce?.sector_value), type: "percent" },
+      ],
+    },
+    {
+      title: "Cash Quality",
+      subtitle: "Checks whether reported profit is supported by cash flow.",
+      metrics: [
+        { label: "CFO / PAT", value: cfoToPat, detail: latestCfo?.period, tone: metricTone(cfoToPat - 100), type: "percent" },
+        { label: "Free Cash Flow", value: freeCashFlow, detail: "Operating cash flow + investing cash flow", tone: metricTone(freeCashFlow), type: "money", unit: data.cashFlow?.units_in },
+        { label: "FCF / PAT", value: fcfToPat, detail: "Free cash flow / net profit", tone: metricTone(fcfToPat - 70), type: "percent" },
+        { label: "Financing / CFO", value: financingToCfo, detail: "Financing cash flow / operating cash flow", tone: metricTone(Math.abs(numericValue(financingToCfo) || 0) - 75, "lower"), type: "percent" },
+      ],
+    },
+    {
+      title: "Balance Sheet",
+      subtitle: "Scale, leverage and short-term solvency markers.",
+      metrics: [
+        { label: "Assets Growth", value: assetGrowth, detail: `${previousBalance?.period || "Previous"} to ${latestBalance?.period || "latest"}`, tone: metricTone(assetGrowth), type: "percent" },
+        { label: "Liability Growth", value: liabilityGrowth, detail: `${previousBalance?.period || "Previous"} to ${latestBalance?.period || "latest"}`, tone: metricTone(liabilityGrowth, "lower"), type: "percent" },
+        { label: "Liabilities / Assets", value: liabilityAssetRatio, detail: latestBalance?.period, tone: metricTone(liabilityAssetRatio - 60, "lower"), type: "percent" },
+        { label: "Current Ratio", value: currentRatio?.company_value, detail: "Latest ratio", tone: metricTone(numericValue(currentRatio?.company_value) - 1), type: "number" },
+        { label: "Quick Ratio", value: quickRatio?.company_value, detail: "Latest ratio", tone: metricTone(numericValue(quickRatio?.company_value) - 1), type: "number" },
+        { label: "Debt / Equity", value: debtEquity?.company_value, detail: "Lower is usually cleaner", tone: metricTone(numericValue(debtEquity?.company_value) - 1, "lower"), type: "number" },
+        { label: "Interest Coverage", value: interestCoverage?.company_value, detail: "Higher means more cushion", tone: metricTone(numericValue(interestCoverage?.company_value) - 3), type: "number" },
+      ],
+    },
+    {
+      title: "Valuation & Technical",
+      subtitle: "Market multiple and price-position context from returned data.",
+      metrics: [
+        { label: "P/E", value: pe?.company_value, detail: spreadText(pe?.company_value, pe?.sector_value), tone: comparisonTone(pe?.company_value, pe?.sector_value, "lower"), type: "number" },
+        { label: "P/B", value: pb?.company_value, detail: spreadText(pb?.company_value, pb?.sector_value), tone: comparisonTone(pb?.company_value, pb?.sector_value, "lower"), type: "number" },
+        { label: "1M Return", value: priceReturn(data.priceHistory, 21), detail: "Approx trading sessions", tone: metricTone(priceReturn(data.priceHistory, 21)), type: "percent" },
+        { label: "6M Return", value: priceReturn(data.priceHistory, 126), detail: "Approx trading sessions", tone: metricTone(priceReturn(data.priceHistory, 126)), type: "percent" },
+        { label: "1Y Return", value: priceReturn(data.priceHistory, 252), detail: "Approx trading sessions", tone: metricTone(priceReturn(data.priceHistory, 252)), type: "percent" },
+        { label: "Price vs 50 DMA", value: priceVsEma50, detail: "Latest close vs EMA 50", tone: metricTone(priceVsEma50), type: "percent" },
+        { label: "Price vs 200 DMA", value: priceVsEma200, detail: "Latest close vs EMA 200", tone: metricTone(priceVsEma200), type: "percent" },
+        { label: "RSI 14", value: pricePoint?.rsi, detail: "Momentum oscillator", tone: pricePoint?.rsi > 70 ? "caution" : pricePoint?.rsi < 35 ? "neutral" : "positive", type: "number" },
+      ],
+    },
+  ];
 }
 
 function buildInvestorInsights(data) {
@@ -424,7 +825,7 @@ function toneClasses(tone) {
 function InvestorInsights({ insights }) {
   const notes = buildScreeningNotes(insights);
   return (
-    <DataSection id="insights" title="Insights" subtitle="Computed from returned Upstox fundamentals, ratios, price and holding history. Treat these as screening signals, not recommendations.">
+    <DataSection id="insights" title="Insights" subtitle="Screening signals computed from fundamentals, ratios, price and holding history.">
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <section className="border border-[#75B89B]/20 bg-[#75B89B]/5 p-4">
           <h3 className="text-sm font-medium text-white">Strengths</h3>
@@ -452,7 +853,7 @@ function InvestorInsights({ insights }) {
                 <div key={`${group.group}-${item.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 first:pt-0 last:pb-0">
                   <div>
                     <div className="text-sm text-[#CBD5E1]">{item.label}</div>
-                    <div className="mt-1 text-xs text-[#71839A]">{item.meta || "Data unavailable"}</div>
+                    <div className="mt-1 text-xs text-[#71839A]">{item.meta || "Unavailable"}</div>
                   </div>
                   <div className={`text-right text-sm font-medium ${toneClasses(item.tone)}`}>{item.value || "N/A"}</div>
                 </div>
@@ -465,8 +866,114 @@ function InvestorInsights({ insights }) {
   );
 }
 
-function PriceVolumeChart({ data, symbol, ratios }) {
-  const [chartMode, setChartMode] = useState("price");
+function ResearchReport({ report }) {
+  if (!report) return null;
+  const tone = scoreTone(report.overall);
+  return (
+    <DataSection
+      id="research-report"
+      title="Research Report"
+      subtitle="A structured view of financial trends, balance sheet strength, ownership and market context."
+    >
+      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <section className="border border-white/10 bg-[#050E1D]/55 p-5">
+          <div className="text-[10px] uppercase tracking-[.16em] text-[#71839A]">Research Score</div>
+          <div className={`mt-4 text-6xl font-semibold ${toneClasses(tone)}`}>{report.overall ?? "--"}</div>
+          <div className="mt-2 text-sm font-medium text-white">{scoreLabel(report.overall)}</div>
+          <div className="mt-5 h-2 overflow-hidden bg-white/10">
+            <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#F5A623]"}`} style={{ width: `${report.overall || 0}%` }} />
+          </div>
+          <p className="mt-4 text-xs leading-6 text-[#94A3B8]">
+            Composite view of quality, growth, profitability, balance sheet and technical conditions.
+          </p>
+        </section>
+
+        <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 md:grid-cols-2 xl:grid-cols-5">
+          {report.dimensions.map((dimension) => (
+            <section key={dimension.name} className="bg-[#071326] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-white">{dimension.name}</h3>
+                  <div className="mt-1 text-xs text-[#71839A]">{scoreLabel(dimension.score)}</div>
+                </div>
+                <div className={`text-2xl font-semibold ${toneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
+              </div>
+              <div className="mt-4 space-y-2">
+                {dimension.metrics.map(([label, value]) => (
+                  <div key={`${dimension.name}-${label}`} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-[#94A3B8]">{label}</span>
+                    <span className="text-right text-[#CBD5E1]">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {report.facts.map((fact) => (
+          <div key={fact.label} className="bg-[#071326] p-4">
+            <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{fact.label}</div>
+            <div className="mt-2 text-lg font-medium text-white">{fact.value}</div>
+            <div className="mt-1 text-xs text-[#94A3B8]">{fact.meta || ""}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 border border-white/10 bg-[#050E1D]/45 p-5">
+        <h3 className="text-sm font-medium text-white">Report Notes</h3>
+        {report.narrative.length ? (
+          <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#CBD5E1] lg:grid-cols-2">
+            {report.narrative.map((note) => (
+              <li key={note} className="flex gap-2">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#E7C56B]" />
+                <span>{note}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-[#94A3B8]">Not enough clean historical data returned to generate report notes.</p>
+        )}
+      </div>
+    </DataSection>
+  );
+}
+
+function DerivedMetricsSection({ groups }) {
+  if (!groups?.length) return null;
+  return (
+    <DataSection
+      id="derived-metrics"
+      title="Derived Metrics"
+      subtitle="Calculated analytics from statements, ratios and price history."
+    >
+      <div className="grid gap-4">
+        {groups.map((group) => (
+          <section key={group.title} className="border border-white/10 bg-[#050E1D]/45">
+            <div className="border-b border-white/10 p-4">
+              <h3 className="text-sm font-medium text-white">{group.title}</h3>
+              <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{group.subtitle}</p>
+            </div>
+            <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+              {group.metrics.map((metric) => (
+                <div key={`${group.title}-${metric.label}`} className="bg-[#071326] p-4">
+                  <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{metric.label}</div>
+                  <div className={`mt-2 text-xl font-semibold ${toneClasses(metric.tone)}`}>
+                    {metricDisplay(metric.value, metric.type, metric.unit)}
+                  </div>
+                  <div className="mt-1 min-h-5 text-xs leading-5 text-[#94A3B8]">{metric.detail || "Unavailable"}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </DataSection>
+  );
+}
+
+function PriceVolumeChart({ data, symbol }) {
   const [priceRange, setPriceRange] = useState("1y");
   const [priceInterval, setPriceInterval] = useState("daily");
   const [indicators, setIndicators] = useState({
@@ -480,9 +987,6 @@ function PriceVolumeChart({ data, symbol, ratios }) {
   });
   const chartData = useMemo(() => priceChartData(data, priceInterval), [data, priceInterval]);
   const visibleChartData = useMemo(() => filterPriceRange(chartData, priceRange), [chartData, priceRange]);
-  const peData = useMemo(() => ratioComparisonData(ratios, ["P/E"]), [ratios]);
-  const moreRatioData = useMemo(() => ratioComparisonData(ratios, ["P/E", "P/B", "ROE", "ROCE"]), [ratios]);
-  const ratioData = chartMode === "pe" ? peData : moreRatioData;
   const sampledTicks = useMemo(() => {
     if (visibleChartData.length <= 6) return visibleChartData.map((row) => row.date);
     const step = Math.max(1, Math.floor(visibleChartData.length / 5));
@@ -496,75 +1000,53 @@ function PriceVolumeChart({ data, symbol, ratios }) {
     <DataSection
       id="price-chart"
       title="Price Chart"
-      subtitle={chartData.length ? `${symbol || "Stock"} price and traded volume from Upstox historical candles.` : "Historical candles were not returned for this stock."}
+      subtitle={chartData.length ? `${symbol || "Stock"} price and traded volume from historical market data.` : "Historical candles are not available for this stock."}
     >
       <div className="mb-5 space-y-3">
-        {chartMode === "price" ? (
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {PRICE_RANGES.map((range) => (
-                <button
-                  key={range.id}
-                  type="button"
-                  onClick={() => setPriceRange(range.id)}
-                  className={`h-9 rounded-md border px-3 text-xs font-medium transition-colors ${priceRange === range.id ? "border-[#F5A623]/45 bg-[#F5A623]/15 text-[#F5A623]" : "border-white/10 text-[#94A3B8] hover:border-white/20 hover:bg-white/[.04] hover:text-white"}`}
-                >
-                  {range.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex overflow-hidden rounded-md border border-white/10 bg-[#050E1D]/55 text-xs">
-              {PRICE_INTERVALS.map((interval) => (
-                <button
-                  key={interval.id}
-                  type="button"
-                  onClick={() => setPriceInterval(interval.id)}
-                  className={`border-l border-white/10 px-3 py-2 font-medium first:border-l-0 ${priceInterval === interval.id ? "bg-[#75B89B]/15 text-[#8CC8AA]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
-                >
-                  {interval.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex overflow-hidden rounded-lg border border-white/10 bg-[#050E1D]/55 text-sm">
-            {[
-              ["price", "Price"],
-              ["pe", "PE Ratio"],
-              ["ratios", "More"],
-            ].map(([mode, label]) => (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {PRICE_RANGES.map((range) => (
               <button
-                key={mode}
+                key={range.id}
                 type="button"
-                onClick={() => setChartMode(mode)}
-                className={`border-l border-white/10 px-4 py-2 font-medium first:border-l-0 ${chartMode === mode ? "bg-[#F5A623]/15 text-[#F5A623]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
+                onClick={() => setPriceRange(range.id)}
+                className={`h-9 rounded-md border px-3 text-xs font-medium transition-colors ${priceRange === range.id ? "border-[#F5A623]/45 bg-[#F5A623]/15 text-[#F5A623]" : "border-white/10 text-[#94A3B8] hover:border-white/20 hover:bg-white/[.04] hover:text-white"}`}
               >
-                {label}
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-white/10 bg-[#050E1D]/55 text-xs">
+            {PRICE_INTERVALS.map((interval) => (
+              <button
+                key={interval.id}
+                type="button"
+                onClick={() => setPriceInterval(interval.id)}
+                className={`border-l border-white/10 px-3 py-2 font-medium first:border-l-0 ${priceInterval === interval.id ? "bg-[#75B89B]/15 text-[#8CC8AA]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
+              >
+                {interval.label}
               </button>
             ))}
           </div>
         </div>
-        {chartMode === "price" ? (
-          <div className="flex flex-wrap gap-3 text-sm text-[#CBD5E1]">
-            {[
-              ["volume", "Volume"],
-              ["ema20", "EMA 20"],
-              ["ema50", "EMA 50"],
-              ["ema200", "EMA 200"],
-              ["rsi", "RSI"],
-              ["bollinger", "Bollinger Bands"],
-              ["pivots", "Pivot Points"],
-            ].map(([key, label]) => (
-              <label key={key} className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={indicators[key]} onChange={() => toggleIndicator(key)} className="h-4 w-4 accent-[#F5A623]" />
-                {label}
-              </label>
-            ))}
-          </div>
-        ) : null}
+        <div className="flex flex-wrap gap-3 text-sm text-[#CBD5E1]">
+          {[
+            ["volume", "Volume"],
+            ["ema20", "EMA 20"],
+            ["ema50", "EMA 50"],
+            ["ema200", "EMA 200"],
+            ["rsi", "RSI"],
+            ["bollinger", "Bollinger Bands"],
+            ["pivots", "Pivot Points"],
+          ].map(([key, label]) => (
+            <label key={key} className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={indicators[key]} onChange={() => toggleIndicator(key)} className="h-4 w-4 accent-[#F5A623]" />
+              {label}
+            </label>
+          ))}
+        </div>
       </div>
-      {chartMode === "price" && visibleChartData.length ? (
+      {visibleChartData.length ? (
         <div className="h-[320px] min-w-0 sm:h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={visibleChartData} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
@@ -598,29 +1080,9 @@ function PriceVolumeChart({ data, symbol, ratios }) {
           </ResponsiveContainer>
         </div>
       ) : null}
-      {chartMode === "price" && !chartData.length ? (
+      {!chartData.length ? (
         <div className="rounded-lg border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
-          Price history will appear here when Upstox returns historical candles for the selected instrument.
-        </div>
-      ) : null}
-      {chartMode !== "price" && ratioData.length ? (
-        <div className="h-[280px] min-w-0 sm:h-[340px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={ratioData}>
-              <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
-              <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} axisLine={false} tickLine={false} />
-              <YAxis stroke="#94A3B8" fontSize={10} width={42} axisLine={false} tickLine={false} />
-              <Tooltip content={<MultiTooltip />} />
-              <Legend wrapperStyle={{ color: MUTED, fontSize: 12 }} />
-              <Bar dataKey="company" name="Company" fill={GOLD} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="sector" name="Sector" fill={TEAL} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      ) : null}
-      {chartMode !== "price" && !ratioData.length ? (
-        <div className="rounded-lg border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
-          Ratio chart will appear here when Upstox returns comparable ratio data for this instrument.
+          Price history will appear here when historical market data is available for the selected instrument.
         </div>
       ) : null}
     </DataSection>
@@ -704,17 +1166,17 @@ function PeriodCoverageNotice({ period, data }) {
     <div className="rounded-lg border border-white/10 bg-[#050E1D]/50 p-4 text-sm text-[#CBD5E1]">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Returned financial periods</div>
+          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Available financial periods</div>
           <p className="mt-1 text-[#94A3B8]">
             {period === "yearly"
-              ? `Yearly view can show up to ${requestedCount} years; Upstox returned ${incomePeriods.length || 0}.`
-              : `Quarterly view can show up to ${requestedCount} quarters; Upstox returned ${incomePeriods.length || 0} income-statement quarters.`}
+              ? `Yearly view can show up to ${requestedCount} years; ${incomePeriods.length || 0} are available.`
+              : `Quarterly view can show up to ${requestedCount} quarters; ${incomePeriods.length || 0} income-statement quarters are available.`}
           </p>
         </div>
         <div className="grid gap-1 text-xs text-[#94A3B8] md:min-w-[340px]">
           <span>Income statement: {periodListLabel(incomePeriods)}</span>
-          <span>Cash flow: {periodListLabel(cashPeriods)} {period === "quarterly" ? "(annual from Upstox)" : ""}</span>
-          <span>Balance sheet: {periodListLabel(balancePeriods)} {period === "quarterly" ? "(annual from Upstox)" : ""}</span>
+          <span>Cash flow: {periodListLabel(cashPeriods)}</span>
+          <span>Balance sheet: {periodListLabel(balancePeriods)}</span>
         </div>
       </div>
     </div>
@@ -758,47 +1220,58 @@ function MultiTooltip({ active, payload, label, unit }) {
   );
 }
 
-function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly" }) {
-  const categories = limitHistoryRows(rows, period);
+function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [] }) {
+  const categories = cleanFinancialRows(rows, period, priorityRows);
   const periods = uniquePeriodsFromHistory(categories);
   const minWidth = Math.max(760, 220 + periods.length * 130);
   return (
     <DataSection id={id} title={title} subtitle={subtitle}>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
-            <tr>
-              <th className="sticky left-0 bg-[#08172C] px-4 py-3 font-normal">Metric</th>
-              {periods.map((periodLabel) => <th key={periodLabel} className="px-4 py-3 font-normal">{periodLabel}</th>)}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10">
-            {categories.map((row) => (
-              <tr key={row.category}>
-                <td className="sticky left-0 bg-[#08172C] px-4 py-3 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
-                {periods.map((periodLabel) => {
-                  const point = row.history?.find((item) => item.period === periodLabel);
-                  return <td key={periodLabel} className="px-4 py-3 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
-                })}
+      {categories.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm" style={{ minWidth }}>
+            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+              <tr>
+                <th className="sticky left-0 bg-[#08172C] px-4 py-3 font-normal">Metric</th>
+                {periods.map((periodLabel) => <th key={periodLabel} className="px-4 py-3 font-normal">{periodLabel}</th>)}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {categories.map((row) => (
+                <tr key={row.category}>
+                  <td className="sticky left-0 bg-[#08172C] px-4 py-3 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
+                  {periods.map((periodLabel) => {
+                    const point = row.history?.find((item) => item.period === periodLabel);
+                    return <td key={periodLabel} className="px-4 py-3 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+          No clean statement rows were returned for this section.
+        </div>
+      )}
     </DataSection>
   );
 }
 
 function RatioTable({ ratios }) {
+  const hasBenchmarks = (ratios || []).some((ratio) => numericValue(ratio.sector_value) !== null);
   return (
-    <DataSection id="ratios" title="Ratios" subtitle="Company values compared with sector benchmarks.">
+    <DataSection
+      id="ratios"
+      title="Ratios"
+      subtitle={hasBenchmarks ? "Company values compared with sector benchmarks." : "Company ratio values. Sector benchmarks are not available for the current ratio set."}
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
             <tr>
               <th className="px-4 py-3 font-normal">Ratio</th>
               <th className="px-4 py-3 font-normal">Company</th>
-              <th className="px-4 py-3 font-normal">Sector</th>
+              {hasBenchmarks ? <th className="px-4 py-3 font-normal">Sector</th> : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
@@ -806,7 +1279,7 @@ function RatioTable({ ratios }) {
               <tr key={ratio.name}>
                 <td className="px-4 py-3 text-white">{ratio.name}</td>
                 <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
-                <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td>
+                {hasBenchmarks ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
               </tr>
             ))}
           </tbody>
@@ -913,9 +1386,8 @@ function CompanySummary({ data, quote, metrics }) {
         </div>
 
         <aside className="border-t border-white/10 p-5 lg:border-l lg:border-t-0 md:p-6">
-          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Generated</div>
+          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Last updated</div>
           <div className="mt-2 text-sm text-white">{formatCmsDateTime(data.generatedAt)}</div>
-          <div className="mt-1 text-xs text-[#94A3B8]">Provider: {data.provider}</div>
           <div className="mt-5">
             <SnapshotRatios metrics={metrics} />
           </div>
@@ -956,7 +1428,7 @@ function BalanceSheetSection({ balanceSheet, period }) {
     <DataSection
       id="balance-sheet"
       title="Balance Sheet"
-      subtitle={period === "quarterly" ? "Assets and liabilities across annual reported periods; Upstox does not return quarterly balance-sheet history here." : "Assets and liabilities across available reported periods."}
+      subtitle={period === "quarterly" ? "Assets and liabilities across returned quarterly periods when available." : "Assets and liabilities across available reported periods."}
     >
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm" style={{ minWidth }}>
@@ -1171,6 +1643,8 @@ export default function StockFundamentalsAdminPage() {
     ].filter((metric) => metric.value !== null && metric.value !== undefined && metric.value !== "");
   }, [data, quote]);
   const investorInsights = useMemo(() => buildInvestorInsights(data), [data]);
+  const researchReport = useMemo(() => buildResearchReport(data), [data]);
+  const derivedMetricGroups = useMemo(() => buildDerivedMetricGroups(data), [data]);
 
   const submit = (event) => {
     event.preventDefault();
@@ -1267,9 +1741,13 @@ export default function StockFundamentalsAdminPage() {
 
           <DashboardTabs onSelect={selectDashboardTab} />
 
+          <ResearchReport report={researchReport} />
+
+          <DerivedMetricsSection groups={derivedMetricGroups} />
+
           <InvestorInsights insights={investorInsights} />
 
-          <PriceVolumeChart data={data.priceHistory} ratios={data.ratios} symbol={data.instrument?.symbol || data.instrument?.name} />
+          <PriceVolumeChart data={data.priceHistory} symbol={data.instrument?.symbol || data.instrument?.name} />
 
           <PeriodToggle period={period} onChange={updatePeriod} />
 
@@ -1278,7 +1756,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="profit-loss-chart"
                 title="Profit & Loss Overview"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} sales, operating profit and net profit from the Upstox income statement.`}
+                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} sales, operating profit and net profit from the income statement.`}
                 data={chartData.income}
                 unit={incomeUnit}
                 bars={[
@@ -1292,7 +1770,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="cash-flow-chart"
                 title="Cash Flow Overview"
-                subtitle="Annual operating, investing and financing cash flows. Upstox does not return quarterly cash-flow history here."
+                subtitle="Operating, investing and financing cash flows where available."
                 data={chartData.cash}
                 unit={data.cashFlow?.units_in}
                 bars={[
@@ -1306,7 +1784,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="balance-sheet-chart"
                 title="Balance Sheet Scale"
-                subtitle="Annual total assets and liabilities. Upstox does not return quarterly balance-sheet history here."
+                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} total assets and liabilities where available.`}
                 data={chartData.balance}
                 unit={data.balanceSheet?.units_in}
                 bars={[
@@ -1319,7 +1797,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="shareholding-chart"
                 title="Shareholding Pattern"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Latest available"} ownership mix, stacked by holder category where Upstox provides holdings.`}
+                subtitle={`${period === "quarterly" ? "Quarterly" : "Latest available"} ownership mix, stacked by holder category where available.`}
                 data={chartData.shareholding}
                 unit="%"
                 stacked
@@ -1336,9 +1814,15 @@ export default function StockFundamentalsAdminPage() {
 
           <PeriodCoverageNotice period={period} data={data} />
 
-          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`Consolidated figures in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"} when returned by Upstox.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} />
+          <section className="border border-white/10 bg-[#050E1D]/45 p-5">
+            <div className="text-[10px] uppercase tracking-[.16em] text-[#71839A]">Financial Statements</div>
+            <h2 className="mt-2 text-xl font-medium text-white">Detailed Statements</h2>
+            <p className="mt-1 text-sm text-[#94A3B8]">Core statement rows are prioritized for review, with low-signal rows removed.</p>
+          </section>
+
+          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`Core statement lines in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"} where available.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} />
           <BalanceSheetSection balanceSheet={data.balanceSheet} period={period} />
-          <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle={period === "quarterly" ? "Upstox currently returns annual cash-flow periods for this endpoint." : "Operating, investing and financing cash flow history."} rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} />
+          <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
           <RatioTable ratios={data.ratios} />
           <HistoryTable id="shareholding" title="Shareholding Pattern" subtitle="Latest ownership mix from available filing history." rows={data.shareholding} unit="%" />
 
