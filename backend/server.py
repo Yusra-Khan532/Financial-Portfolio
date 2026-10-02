@@ -18,6 +18,7 @@ import jwt
 import nh3
 import re
 import json
+import math
 import requests
 import csv
 from io import StringIO
@@ -732,6 +733,17 @@ def _upstox_get_v3(path: str, params: Optional[Dict[str, Any]] = None):
     return _upstox_get_url(f"https://api.upstox.com/v3{path}", params)
 
 
+def _safe_upstox_get(path: str, params: Optional[Dict[str, Any]] = None, default=None):
+    try:
+        return _upstox_get(path, params)
+    except HTTPException:
+        logger.info("Optional Upstox endpoint failed: %s", path)
+        return default if default is not None else {}
+    except Exception:
+        logger.warning("Optional Upstox endpoint errored: %s", path)
+        return default if default is not None else {}
+
+
 def _fetch_upstox_price_history(instrument_key: str):
     to_date = datetime.now(timezone.utc).date()
     from_date = to_date - timedelta(days=365 * 6)
@@ -836,9 +848,41 @@ def _resolve_upstox_instrument(query: str) -> Dict[str, Any]:
     return _normalize_instrument(resolved)
 
 
+def _try_resolve_upstox_instrument(*queries: str):
+    for query in queries:
+        if not query:
+            continue
+        try:
+            return _resolve_upstox_instrument(str(query))
+        except Exception:
+            continue
+    return {}
+
+
 def _label_key(value: str) -> str:
     value = re.sub(r"(?<!^)(?=[A-Z])", " ", str(value or ""))
     return value.replace("_", " ").replace("-", " ").title()
+
+
+def _ratio_display_name(value: str):
+    compact = re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+    aliases = {
+        "pe": "P/E",
+        "priceearnings": "P/E",
+        "pb": "P/B",
+        "pricebook": "P/B",
+        "roa": "ROA",
+        "returnonasset": "ROA",
+        "roe": "ROE",
+        "returnonequity": "ROE",
+        "roce": "ROCE",
+        "returnoncapital": "ROCE",
+        "returnoncapitalemployed": "ROCE",
+        "evebitda": "EV/EBITDA",
+        "debtequity": "Debt / Equity",
+        "totaldebttoequity": "Debt / Equity",
+    }
+    return aliases.get(compact) or _label_key(str(value)).replace("P E", "P/E").replace("P B", "P/B")
 
 
 def _finedge_api_key():
@@ -918,12 +962,14 @@ def _to_number(value):
     if value in (None, ""):
         return None
     if isinstance(value, (int, float)):
-        return float(value)
+        number = float(value)
+        return number if math.isfinite(number) else None
     cleaned = str(value).replace(",", "").replace("%", "").strip()
     if cleaned in {"", "-", "NA", "N/A", "None", "null"}:
         return None
     try:
-        return float(cleaned)
+        number = float(cleaned)
+        return number if math.isfinite(number) else None
     except ValueError:
         return None
 
@@ -934,14 +980,15 @@ def _period_sort_value(period: str):
     year = int(year_match.group(1)) if year_match else 0
     quarter_match = re.search(r"Q([1-4])", text.upper())
     quarter = int(quarter_match.group(1)) if quarter_match else 4
-    if re.search(r"MAR|Q4", text.upper()):
-        quarter = 4
-    elif re.search(r"DEC|Q3", text.upper()):
-        quarter = 3
-    elif re.search(r"SEP|Q2", text.upper()):
-        quarter = 2
-    elif re.search(r"JUN|Q1", text.upper()):
-        quarter = 1
+    if not quarter_match:
+        if re.search(r"JAN|FEB|MAR", text.upper()):
+            quarter = 1
+        elif re.search(r"APR|MAY|JUN", text.upper()):
+            quarter = 2
+        elif re.search(r"JUL|AUG|SEP", text.upper()):
+            quarter = 3
+        elif re.search(r"OCT|NOV|DEC", text.upper()):
+            quarter = 4
     return (year, quarter, text)
 
 
@@ -951,7 +998,7 @@ def _compact_date_label(value, period: str):
         year = text[:4]
         month = int(text[4:6])
         if period == "quarterly":
-            quarter = 1 if month <= 6 else 2 if month <= 9 else 3 if month <= 12 else 4
+            quarter = ((month - 1) // 3) + 1
             return f"Q{quarter} {year}"
         return year
     return None
@@ -985,7 +1032,7 @@ def _period_label(row: Dict[str, Any], index: int, period: str):
         date_match = re.match(r"(\d{4})-(\d{2})-", text)
         if period == "quarterly" and date_match:
             month = int(date_match.group(2))
-            quarter_no = 1 if month <= 6 else 2 if month <= 9 else 3 if month <= 12 else 4
+            quarter_no = ((month - 1) // 3) + 1
             return f"Q{quarter_no} {date_match.group(1)}"
         return text[:10] if date_match else text
     return f"Period {index + 1}"
@@ -997,6 +1044,14 @@ def _period_change(current, previous):
     if current_value is None or previous_value in (None, 0):
         return None
     return ((current_value - previous_value) / abs(previous_value)) * 100
+
+
+def _point_change(current, previous):
+    current_value = _to_number(current)
+    previous_value = _to_number(previous)
+    if current_value is None or previous_value is None:
+        return None
+    return current_value - previous_value
 
 
 def _normalize_finedge_stock(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -1198,7 +1253,7 @@ def _normalize_ratio_items(*payloads):
                         if re.search(r"margin|rate|return", str(metric_name), re.IGNORECASE) and abs(display_value) <= 1:
                             display_value *= 100
                         ratios.append({
-                            "name": _label_key(str(metric_name)).replace("P E", "P/E").replace("P B", "P/B"),
+                            "name": _ratio_display_name(str(metric_name)),
                             "company_value": display_value,
                             "sector_value": None,
                         })
@@ -1212,7 +1267,7 @@ def _normalize_ratio_items(*payloads):
                 continue
             seen.add(key)
             ratios.append({
-                "name": _label_key(str(name)).replace("P E", "P/E").replace("P B", "P/B"),
+                "name": _ratio_display_name(str(name)),
                 "company_value": _to_number(value),
                 "sector_value": _to_number(sector),
             })
@@ -1295,6 +1350,7 @@ def _normalize_corporate_actions(*payloads):
             if not isinstance(row, dict):
                 continue
             action_type = _first_value(row, ["type", "actionType", "purpose"]) or ("Dividend" if _first_value(row, ["dividend", "amount"]) else "Corporate action")
+            existing_details = _first_value(row, ["event_details", "eventDetails"])
             actions.append({
                 "type": action_type,
                 "name": _first_value(row, ["name", "title", "purpose"]) or action_type,
@@ -1304,13 +1360,122 @@ def _normalize_corporate_actions(*payloads):
                 "announcement_date": _first_value(row, ["announcementDate", "announcement_date", "date"]),
                 "amount": _first_value(row, ["amount", "dividend", "dividendAmount"]),
                 "ratio": _first_value(row, ["ratio", "bonusRatio", "splitRatio"]),
-                "event_details": [
+                "event_details": existing_details if isinstance(existing_details, list) else [
                     {"name": _label_key(key), "value": value}
                     for key, value in row.items()
-                    if value not in (None, "") and key not in {"name", "title", "purpose", "type", "actionType"}
+                    if value not in (None, "")
+                    and key not in {"name", "title", "purpose", "type", "actionType", "event_details", "eventDetails"}
+                    and not isinstance(value, (dict, list))
                 ][:8],
             })
     return actions
+
+
+def _normalize_upstox_period(period: str):
+    text = str(period or "")
+    match = re.search(r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(20\d{2}|19\d{2})", text.upper())
+    if not match:
+        return text
+    month = match.group(1)
+    quarter = {
+        "JAN": 1, "FEB": 1, "MAR": 1,
+        "APR": 2, "MAY": 2, "JUN": 2,
+        "JUL": 3, "AUG": 3, "SEP": 3,
+        "OCT": 4, "NOV": 4, "DEC": 4,
+    }[month]
+    return f"Q{quarter} {match.group(2)}"
+
+
+def _normalize_upstox_history(history, period="yearly"):
+    rows = []
+    for point in history or []:
+        if not isinstance(point, dict):
+            continue
+        value = _to_number(point.get("value"))
+        if value is None:
+            continue
+        label = point.get("period")
+        rows.append({
+            "period": _normalize_upstox_period(label) if period == "quarterly" else str(label or ""),
+            "value": value,
+            "change": _to_number(point.get("change")),
+        })
+    return rows
+
+
+def _fill_point_changes(history):
+    rows = list(history or [])
+    for index, row in enumerate(rows):
+        if row.get("change") is not None:
+            continue
+        previous = rows[index + 1] if index + 1 < len(rows) else None
+        if previous:
+            row["change"] = _point_change(row.get("value"), previous.get("value"))
+    return rows
+
+
+def _normalize_upstox_statement(payload, key, period="yearly"):
+    if not isinstance(payload, dict):
+        return []
+    rows = []
+    for row in payload.get(key) or []:
+        if not isinstance(row, dict):
+            continue
+        category = row.get("category")
+        history = _normalize_upstox_history(row.get("history"), period)
+        if category and history:
+            rows.append({"category": category, "label": _label_key(category), "history": history})
+    return rows
+
+
+def _normalize_upstox_balance_sheet(payload, period="yearly"):
+    if not isinstance(payload, dict):
+        return []
+    rows = []
+    for row in payload.get("history") or []:
+        if not isinstance(row, dict):
+            continue
+        rows.append({
+            "period": _normalize_upstox_period(row.get("period")) if period == "quarterly" else str(row.get("period") or ""),
+            "total_asset": _to_number(row.get("total_asset")),
+            "total_liability": _to_number(row.get("total_liability")),
+        })
+    return [row for row in rows if row.get("total_asset") is not None or row.get("total_liability") is not None]
+
+
+def _normalize_upstox_shareholding(payload):
+    rows = []
+    aliases = {"dii": "other_dii", "public": "retail_and_other"}
+    for row in payload or []:
+        if not isinstance(row, dict):
+            continue
+        category = aliases.get(str(row.get("category") or "").lower(), row.get("category"))
+        history = _fill_point_changes(_normalize_upstox_history(row.get("history"), "quarterly"))
+        if category and history:
+            rows.append({"category": category, "label": _label_key(category), "history": history})
+    return rows
+
+
+def _normalize_upstox_competitors(payload, base_competitors=None):
+    competitors = []
+    base_competitors = base_competitors or []
+    for index, row in enumerate(payload or []):
+        if not isinstance(row, dict):
+            continue
+        base = base_competitors[index] if index < len(base_competitors) else {}
+        instrument_key = _first_value(row, ["instrument_key", "instrumentKey"])
+        isin = instrument_key.split("|", 1)[1] if isinstance(instrument_key, str) and "|" in instrument_key else _first_value(row, ["isin"])
+        competitors.append({
+            "instrumentKey": instrument_key or base.get("instrumentKey") or isin or _first_value(row, ["symbol", "trading_symbol"]),
+            "name": _first_value(row, ["name", "company_name", "companyName"]) or base.get("name") or _first_value(row, ["symbol", "trading_symbol"]),
+            "symbol": _first_value(row, ["trading_symbol", "symbol"]) or base.get("symbol"),
+            "isin": isin,
+            "exchange": _first_value(row, ["exchange"]) or base.get("exchange") or "NSE/BSE",
+            "sector": _first_value(row, ["sector", "industry"]) or base.get("sector"),
+            "summary": _first_value(row, ["company_profile", "description", "summary"]) or "",
+            "sectorMarketCapInr": (_first_value(row, ["sector_market_cap_inr"]) or {}).get("formatted") if isinstance(_first_value(row, ["sector_market_cap_inr"]), dict) else _first_value(row, ["sector_market_cap_inr", "marketCap"]),
+        })
+    return [item for item in competitors if item.get("instrumentKey") or item.get("symbol")]
 
 
 def _normalize_competitors(payload):
@@ -1356,6 +1521,16 @@ def _latest_history_value(rows, category):
     return None
 
 
+def _history_length(rows, category):
+    value = _latest_history_value(rows, category)
+    if not value:
+        return 0
+    for row in rows or []:
+        if isinstance(row, dict) and row.get("category") == category:
+            return len(row.get("history") or [])
+    return 0
+
+
 def _ratio_lookup(ratios):
     result = {}
     if isinstance(ratios, list):
@@ -1363,6 +1538,64 @@ def _ratio_lookup(ratios):
             if isinstance(ratio, dict) and ratio.get("name"):
                 result[ratio["name"].upper()] = ratio
     return result
+
+
+def _history_point_count(rows):
+    return sum(len(row.get("history") or []) for row in rows or [] if isinstance(row, dict))
+
+
+def _stock_section_counts(result):
+    return {
+        "profile": 1 if result.get("profile") else 0,
+        "incomeStatement": _history_point_count(result.get("incomeStatement", {}).get("income_statement")),
+        "balanceSheet": len(result.get("balanceSheet", {}).get("history") or []) + _history_point_count(result.get("balanceSheet", {}).get("balance_sheet")),
+        "cashFlow": _history_point_count(result.get("cashFlow", {}).get("cash_flow")),
+        "ratios": len(result.get("ratios") or []),
+        "shareholding": _history_point_count(result.get("shareholding")),
+        "corporateActions": len(result.get("corporateActions") or []),
+        "competitors": len(result.get("competitors") or []),
+        "priceHistory": len(result.get("priceHistory") or []),
+    }
+
+
+def _provider_bucket(source):
+    text = str(source or "").lower()
+    if "finedge" in text and "upstox" in text:
+        return "mixed"
+    if "upstox" in text:
+        return "upstox"
+    if "finedge" in text:
+        return "finedge"
+    return "other"
+
+
+def _stock_dev_metrics(result, started_at):
+    sources = result.get("sources") or {}
+    section_counts = _stock_section_counts(result)
+    provider_records = {"finedge": 0, "upstox": 0, "mixed": 0, "other": 0}
+    provider_sections = {"finedge": 0, "upstox": 0, "mixed": 0, "other": 0}
+    section_breakdown = {}
+    for section, count in section_counts.items():
+        provider = _provider_bucket(sources.get(section))
+        provider_records[provider] += count
+        provider_sections[provider] += 1
+        section_breakdown[section] = {
+            "source": sources.get(section) or "unknown",
+            "provider": provider,
+            "records": count,
+        }
+    total_records = sum(provider_records.values())
+    return {
+        "backendMs": round((monotonic() - started_at) * 1000),
+        "totalRecords": total_records,
+        "providerRecords": provider_records,
+        "providerRecordShare": {
+            provider: round((count / total_records) * 100, 1) if total_records else 0
+            for provider, count in provider_records.items()
+        },
+        "providerSections": provider_sections,
+        "sections": section_breakdown,
+    }
 
 
 def _compact_competitor(competitor):
@@ -1387,20 +1620,72 @@ def _compact_competitor(competitor):
 
 
 def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", period: str = "yearly"):
+    started_at = monotonic()
     instrument = _resolve_finedge_stock(query)
     symbol = instrument.get("symbol")
     if not symbol:
         raise HTTPException(status_code=404, detail="This stock is missing a FinEdge symbol.")
+    upstox_instrument = _try_resolve_upstox_instrument(
+        instrument.get("isin"),
+        instrument.get("symbol"),
+        instrument.get("name"),
+        query,
+    )
+    if upstox_instrument:
+        instrument = {
+            **instrument,
+            "isin": instrument.get("isin") or upstox_instrument.get("isin"),
+            "upstoxInstrumentKey": upstox_instrument.get("instrumentKey"),
+            "upstoxSymbol": upstox_instrument.get("symbol"),
+        }
 
     cache_key = f"finedge:{symbol}:{statement_type}:{period}"
     cached = _stock_fundamentals_cache.get(cache_key)
     if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
-        return {**cached["data"], "cached": True}
+        cached_data = {**cached["data"], "cached": True}
+        cached_data["devMetrics"] = {
+            **cached_data.get("devMetrics", {}),
+            "backendMs": round((monotonic() - started_at) * 1000),
+            "cacheAgeSeconds": round(monotonic() - cached["fetched_at"], 1),
+        }
+        return cached_data
 
     profile_payload = _finedge_get(f"/company-profile/{_stock_symbol_path(symbol)}")
-    income_rows = _finedge_statement(symbol, statement_type, "pl", period)
-    balance_rows = _finedge_statement(symbol, statement_type, "bs", period)
-    cash_rows = _finedge_statement(symbol, statement_type, "cf", period)
+    requested_income_rows = _finedge_statement(symbol, statement_type, "pl", period)
+    requested_balance_rows = _finedge_statement(symbol, statement_type, "bs", period)
+    requested_cash_rows = _finedge_statement(symbol, statement_type, "cf", period)
+    income_rows = requested_income_rows
+    balance_rows = requested_balance_rows
+    cash_rows = requested_cash_rows
+    effective_statement_type = statement_type
+    data_sources = {
+        "profile": "finedge",
+        "incomeStatement": "finedge",
+        "balanceSheet": "finedge",
+        "cashFlow": "finedge",
+        "ratios": "finedge+upstox",
+        "shareholding": "finedge",
+        "corporateActions": "finedge",
+        "competitors": "finedge",
+        "priceHistory": "finedge",
+    }
+    if statement_type == "consolidated":
+        standalone_income_rows = _safe_finedge_get(
+            f"/financials/{_stock_symbol_path(symbol)}",
+            {"statement_type": "s", "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"},
+            default={},
+        )
+        standalone_income_rows = _payload_items(standalone_income_rows, ["financials", "data", "results", "items"])
+        requested_income_history = _history_from_period_rows(requested_income_rows, period, {"revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue", "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue", "incomeFromOperations": "revenue", "totalIncome": "revenue"}, scale=10_000_000)
+        standalone_income_history = _history_from_period_rows(standalone_income_rows, period, {"revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue", "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue", "incomeFromOperations": "revenue", "totalIncome": "revenue"}, scale=10_000_000)
+        if _history_length(standalone_income_history, "revenue") > _history_length(requested_income_history, "revenue"):
+            income_rows = standalone_income_rows
+            balance_rows = _finedge_statement(symbol, "standalone", "bs", period)
+            cash_rows = _finedge_statement(symbol, "standalone", "cf", period)
+            effective_statement_type = "standalone"
+            data_sources["incomeStatement"] = "finedge:standalone"
+            data_sources["balanceSheet"] = "finedge:standalone"
+            data_sources["cashFlow"] = "finedge:standalone"
 
     income_statement = {
         "units_in": "Cr",
@@ -1435,7 +1720,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         }, scale=10_000_000),
     }
 
-    finedge_type = "c" if statement_type == "consolidated" else "s"
+    finedge_type = "c" if effective_statement_type == "consolidated" else "s"
     ratio_payloads = [
         _safe_finedge_get(f"/ratios/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("ef", "le", "li", "pr")
@@ -1444,15 +1729,79 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         _safe_finedge_get(f"/financial-metrics/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("cu", "gr", "av")
     ]
-    ratios = _normalize_ratio_items(*ratio_payloads, *metric_payloads, _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={}))
+    upstox_key = instrument.get("upstoxInstrumentKey")
+    upstox_isin = instrument.get("isin")
+    upstox_statement_type = effective_statement_type
+    upstox_income_payload = _safe_upstox_get(
+        f"/fundamentals/{quote(upstox_isin or '', safe='')}/income-statement",
+        {"type": upstox_statement_type, "time_period": period, "fs": "true"},
+        default={},
+    ) if upstox_isin else {}
+    upstox_balance_payload = _safe_upstox_get(
+        f"/fundamentals/{quote(upstox_isin or '', safe='')}/balance-sheet",
+        {"type": upstox_statement_type, "fs": "true"},
+        default={},
+    ) if upstox_isin else {}
+    upstox_cash_payload = _safe_upstox_get(
+        f"/fundamentals/{quote(upstox_isin or '', safe='')}/cash-flow",
+        {"type": upstox_statement_type, "fs": "true"},
+        default={},
+    ) if upstox_isin else {}
+    upstox_ratios_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin or '', safe='')}/key-ratios", default=[]) if upstox_isin else []
+    ratios = _normalize_ratio_items(
+        upstox_ratios_payload,
+        *ratio_payloads,
+        *metric_payloads,
+        _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={}),
+    )
+    if _history_length(income_statement.get("income_statement"), "revenue") == 0:
+        upstox_income_rows = _normalize_upstox_statement(upstox_income_payload, "income_statement", period)
+        if upstox_income_rows:
+            income_statement = {"units_in": "Cr", "income_statement": upstox_income_rows}
+            data_sources["incomeStatement"] = "upstox"
+    if not balance_sheet.get("history"):
+        upstox_balance_history = _normalize_upstox_balance_sheet(upstox_balance_payload, "yearly")
+        if upstox_balance_history:
+            balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": []}
+            data_sources["balanceSheet"] = "upstox"
+    if not any((row.get("history") for row in cash_flow.get("cash_flow", []))):
+        upstox_cash_rows = _normalize_upstox_statement(upstox_cash_payload, "cash_flow", "yearly")
+        if upstox_cash_rows:
+            cash_flow = {"units_in": "Cr", "cash_flow": upstox_cash_rows}
+            data_sources["cashFlow"] = "upstox"
 
     profile = _normalize_profile(profile_payload, instrument)
+    upstox_profile_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin or '', safe='')}/profile", default={}) if upstox_isin else {}
+    if isinstance(upstox_profile_payload, dict):
+        upstox_market_cap = upstox_profile_payload.get("sector_market_cap_inr")
+        profile = {
+            **profile,
+            "description": profile.get("description") or upstox_profile_payload.get("company_profile"),
+            "sector": profile.get("sector") or upstox_profile_payload.get("sector"),
+            "marketCap": profile.get("marketCap") or (upstox_market_cap.get("value") if isinstance(upstox_market_cap, dict) else None),
+        }
     shareholding_payload = _safe_finedge_get(f"/shareholding-pattern/{_stock_symbol_path(symbol)}", default=[])
     shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
+    if not shareholding and upstox_isin:
+        shareholding = _normalize_upstox_shareholding(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/share-holdings", default=[]))
+        if shareholding:
+            data_sources["shareholding"] = "upstox"
     actions_payload = _safe_finedge_get(f"/corporate-actions/{_stock_symbol_path(symbol)}", default=[])
     dividends_payload = _safe_finedge_get(f"/dividends/{_stock_symbol_path(symbol)}", default=[])
     corporate_actions = _normalize_corporate_actions(actions_payload, dividends_payload)
+    if not corporate_actions and upstox_isin:
+        corporate_actions = _normalize_corporate_actions(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/corporate-actions", default=[]))
+        if corporate_actions:
+            data_sources["corporateActions"] = "upstox"
     competitors = _normalize_competitors(_safe_finedge_get(f"/peers/{_stock_symbol_path(symbol)}", default=[]))
+    if upstox_key and not competitors:
+        upstox_competitors = _normalize_upstox_competitors(
+            _safe_upstox_get(f"/fundamentals/{quote(upstox_key, safe='')}/competitors", default=[]),
+            competitors,
+        )
+        if upstox_competitors:
+            competitors = upstox_competitors
+            data_sources["competitors"] = "finedge+upstox"
 
     current_year = datetime.now(timezone.utc).year
     price_history = _normalize_price_history(_safe_finedge_get(
@@ -1476,7 +1825,10 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
 
     result = {
         "provider": "finedge",
+        "sources": data_sources,
         "query": query,
+        "requestedStatementType": statement_type,
+        "statementType": effective_statement_type,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "cached": False,
         "instrument": instrument,
@@ -1492,6 +1844,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "corporateActions": corporate_actions,
         "competitors": competitors,
     }
+    result["devMetrics"] = _stock_dev_metrics(result, started_at)
     _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}
     return result
 

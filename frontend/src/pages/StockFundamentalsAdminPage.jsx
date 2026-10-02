@@ -80,7 +80,9 @@ const CORE_CASH_ROWS = [
 function compactNumber(value, options = {}) {
   if (value === null || value === undefined || value === "") return "N/A";
   const number = Number(value);
-  if (!Number.isFinite(number)) return String(value);
+  if (!Number.isFinite(number)) {
+    return String(value).trim().toLowerCase() === "nan" ? "N/A" : String(value);
+  }
   return new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: options.decimals ?? 2,
     notation: options.compact ? "compact" : "standard",
@@ -88,7 +90,8 @@ function compactNumber(value, options = {}) {
 }
 
 function valueWithUnit(value, unit) {
-  const formatted = compactNumber(value, { compact: Math.abs(Number(value)) >= 100000 });
+  const number = Number(value);
+  const formatted = compactNumber(value, { compact: Number.isFinite(number) && Math.abs(number) >= 100000 });
   return unit && formatted !== "N/A" ? `${formatted} ${unit}` : formatted;
 }
 
@@ -1460,13 +1463,16 @@ function CorporateActionsSection({ actions }) {
       {actions?.length ? (
         <div className="overflow-x-auto">
           <div className="flex min-w-max gap-3 pb-1">
-            {actions.slice(0, 10).map((action, index) => (
-              <div key={`${action.name || action.purpose || action.type}-${index}`} className="w-80 rounded-lg border border-white/10 bg-[#050E1D]/55 p-4">
-                <div className="text-sm font-medium text-white">{action.name || action.purpose || action.type || "Corporate action"}</div>
-                <div className="mt-1 text-xs text-[#E7C56B]">{actionDate(action)}</div>
-                {actionDetails(action) ? <div className="mt-3 text-xs leading-relaxed text-[#CBD5E1]">{actionDetails(action)}</div> : null}
-              </div>
-            ))}
+            {actions.slice(0, 10).map((action, index) => {
+              const details = actionDetails(action);
+              return (
+                <div key={`${action.name || action.purpose || action.type}-${index}`} className="w-80 rounded-lg border border-white/10 bg-[#050E1D]/55 p-4">
+                  <div className="text-sm font-medium text-white">{action.name || action.purpose || action.type || "Corporate action"}</div>
+                  <div className="mt-1 text-xs text-[#E7C56B]">{actionDate(action)}</div>
+                  {details ? <div className="mt-3 text-xs leading-relaxed text-[#CBD5E1]">{details}</div> : null}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : <div className="text-sm text-[#94A3B8]">No corporate actions returned.</div>}
@@ -1506,18 +1512,25 @@ function actionDate(action) {
     return action.ex_date || action.record_date || action.announcement_date;
   }
   const details = action.event_details || [];
-  return details.find((item) => /date/i.test(item.name || ""))?.value || "Date unavailable";
+  const dateDetail = details.find((item) => /date/i.test(item.name || "") && primitiveDetailValue(item.value));
+  return dateDetail ? String(dateDetail.value) : "Date unavailable";
 }
 
 function actionDetails(action) {
   const details = action.event_details || [];
-  const interesting = details.filter((item) => !/date/i.test(item.name || "")).slice(0, 4);
+  const interesting = details
+    .filter((item) => !/date/i.test(item.name || "") && primitiveDetailValue(item.value))
+    .slice(0, 4);
   if (interesting.length) {
     return interesting.map((item) => `${item.name}: ${item.value}`).join(" | ");
   }
   if (action.amount !== undefined && action.amount !== null) return `Amount: ${action.amount}`;
   if (action.ratio) return `Ratio: ${action.ratio}`;
   return "";
+}
+
+function primitiveDetailValue(value) {
+  return value !== null && value !== undefined && value !== "" && typeof value !== "object";
 }
 
 function DataSection({ id, title, subtitle, children }) {
@@ -1529,6 +1542,88 @@ function DataSection({ id, title, subtitle, children }) {
       </div>
       {children}
     </section>
+  );
+}
+
+function DevMetricsPanel({ metrics, cached }) {
+  if (!metrics) return null;
+  const providerRows = Object.entries(metrics.providerRecords || {})
+    .filter(([, records]) => records > 0)
+    .map(([provider, records]) => ({
+      provider,
+      records,
+      share: metrics.providerRecordShare?.[provider] ?? 0,
+      sections: metrics.providerSections?.[provider] ?? 0,
+    }));
+  const sectionRows = Object.entries(metrics.sections || {}).filter(([, details]) => details.records > 0);
+  return (
+    <DataSection id="dev-metrics" title="Dev Metrics" subtitle="Fetch timing and normalized data-source split for this fundamentals page.">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <DevMetricCard label="Total fetch" value={formatDurationMs(metrics.clientMs || metrics.backendMs || 0)} detail="Browser request to rendered data" />
+        <DevMetricCard label="Backend API" value={formatDurationMs(metrics.backendMs || 0)} detail={cached ? `Cached${metrics.cacheAgeSeconds !== undefined ? `, ${compactNumber(metrics.cacheAgeSeconds)}s old` : ""}` : "Fresh provider fetch"} />
+        <DevMetricCard label="Data points" value={compactNumber(metrics.totalRecords || 0)} detail="Normalized rows/history points" />
+        <DevMetricCard label="Sources" value={`${providerRows.length || 0}`} detail="Providers contributing data" />
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div className="border border-white/10 bg-[#050E1D]/45 p-4">
+          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Provider Share</div>
+          <div className="mt-4 space-y-3">
+            {providerRows.map((row) => (
+              <div key={row.provider}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                  <span className="capitalize text-white">{row.provider}</span>
+                  <span className="text-[#94A3B8]">{compactNumber(row.records)} pts | {compactNumber(row.share)}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full bg-[#F5A623]" style={{ width: `${Math.min(100, Math.max(0, row.share))}%` }} />
+                </div>
+                <div className="mt-1 text-[11px] text-[#71839A]">{row.sections} sections</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto border border-white/10 bg-[#050E1D]/45">
+          <table className="w-full min-w-[620px] text-left text-sm">
+            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+              <tr>
+                <th className="px-4 py-3 font-normal">Section</th>
+                <th className="px-4 py-3 font-normal">Source</th>
+                <th className="px-4 py-3 font-normal">Provider</th>
+                <th className="px-4 py-3 font-normal">Data Points</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {sectionRows.map(([section, details]) => (
+                <tr key={section}>
+                  <td className="px-4 py-3 text-white">{section}</td>
+                  <td className="px-4 py-3 text-[#CBD5E1]">{details.source}</td>
+                  <td className="px-4 py-3 capitalize text-[#94A3B8]">{details.provider}</td>
+                  <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(details.records)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </DataSection>
+  );
+}
+
+function formatDurationMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "N/A";
+  if (number > 0 && number < 1) return "<1 ms";
+  if (number === 0) return "<1 ms";
+  return `${compactNumber(number)} ms`;
+}
+
+function DevMetricCard({ label, value, detail }) {
+  return (
+    <div className="border border-white/10 bg-[#050E1D]/45 p-4">
+      <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+      <div className="mt-1 text-xs text-[#94A3B8]">{detail}</div>
+    </div>
   );
 }
 
@@ -1553,10 +1648,18 @@ export default function StockFundamentalsAdminPage() {
     setLoading(true);
     setError("");
     try {
+      const requestStartedAt = performance.now();
       const params = new URLSearchParams({ query: search, statement_type: statementType, period });
       const response = await cmsRequest(`/stocks/admin/fundamentals?${params.toString()}`);
+      const clientMs = Math.round(performance.now() - requestStartedAt);
       if (requestSequence.current === requestId) {
-        setData(response);
+        setData({
+          ...response,
+          devMetrics: {
+            ...(response.devMetrics || {}),
+            clientMs,
+          },
+        });
         setError("");
       }
     } catch (requestError) {
@@ -1829,6 +1932,7 @@ export default function StockFundamentalsAdminPage() {
           <MetricGrid metrics={dashboardMetrics} />
           <CorporateActionsSection actions={data.corporateActions} />
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />
+          <DevMetricsPanel metrics={data.devMetrics} cached={data.cached} />
         </div>
       ) : null}
       </AdminShell>
