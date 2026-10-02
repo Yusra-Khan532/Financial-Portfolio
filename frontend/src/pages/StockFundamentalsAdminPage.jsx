@@ -80,7 +80,9 @@ const CORE_CASH_ROWS = [
 function compactNumber(value, options = {}) {
   if (value === null || value === undefined || value === "") return "N/A";
   const number = Number(value);
-  if (!Number.isFinite(number)) return String(value);
+  if (!Number.isFinite(number)) {
+    return String(value).trim().toLowerCase() === "nan" ? "N/A" : String(value);
+  }
   return new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: options.decimals ?? 2,
     notation: options.compact ? "compact" : "standard",
@@ -88,7 +90,8 @@ function compactNumber(value, options = {}) {
 }
 
 function valueWithUnit(value, unit) {
-  const formatted = compactNumber(value, { compact: Math.abs(Number(value)) >= 100000 });
+  const number = Number(value);
+  const formatted = compactNumber(value, { compact: Number.isFinite(number) && Math.abs(number) >= 100000 });
   return unit && formatted !== "N/A" ? `${formatted} ${unit}` : formatted;
 }
 
@@ -875,28 +878,32 @@ function ResearchReport({ report }) {
       title="Research Report"
       subtitle="A structured view of financial trends, balance sheet strength, ownership and market context."
     >
-      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <section className="border border-white/10 bg-[#050E1D]/55 p-5">
-          <div className="text-[10px] uppercase tracking-[.16em] text-[#71839A]">Research Score</div>
-          <div className={`mt-4 text-6xl font-semibold ${toneClasses(tone)}`}>{report.overall ?? "--"}</div>
-          <div className="mt-2 text-sm font-medium text-white">{scoreLabel(report.overall)}</div>
-          <div className="mt-5 h-2 overflow-hidden bg-white/10">
-            <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#F5A623]"}`} style={{ width: `${report.overall || 0}%` }} />
+      <div className="grid gap-px overflow-hidden border border-[#233650] bg-[#233650] xl:grid-cols-[240px_minmax(0,1fr)]">
+        <section className="bg-[#050E1D]/85 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+          <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[#71839A]">Composite Score</div>
+              <div className="mt-2 text-sm font-medium text-white">{scoreLabel(report.overall)}</div>
+            </div>
+            <div className={`text-4xl font-semibold tabular-nums ${toneClasses(tone)}`}>{report.overall ?? "--"}</div>
+          </div>
+          <div className="mt-5 h-1.5 overflow-hidden bg-white/10">
+            <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#D4AF37]"}`} style={{ width: `${report.overall || 0}%` }} />
           </div>
           <p className="mt-4 text-xs leading-6 text-[#94A3B8]">
             Composite view of quality, growth, profitability, balance sheet and technical conditions.
           </p>
         </section>
 
-        <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-px bg-[#233650] md:grid-cols-2 xl:grid-cols-5">
           {report.dimensions.map((dimension) => (
-            <section key={dimension.name} className="bg-[#071326] p-4">
+            <section key={dimension.name} className="bg-[#071326]/90 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-medium text-white">{dimension.name}</h3>
+                  <h3 className="text-xs font-medium uppercase tracking-[.12em] text-[#CBD5E1]">{dimension.name}</h3>
                   <div className="mt-1 text-xs text-[#71839A]">{scoreLabel(dimension.score)}</div>
                 </div>
-                <div className={`text-2xl font-semibold ${toneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
+                <div className={`text-xl font-semibold tabular-nums ${toneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
               </div>
               <div className="mt-4 space-y-2">
                 {dimension.metrics.map(([label, value]) => (
@@ -911,23 +918,23 @@ function ResearchReport({ report }) {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-3 grid gap-px overflow-hidden border border-[#233650] bg-[#233650] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {report.facts.map((fact) => (
-          <div key={fact.label} className="bg-[#071326] p-4">
-            <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{fact.label}</div>
-            <div className="mt-2 text-lg font-medium text-white">{fact.value}</div>
+          <div key={fact.label} className="bg-[#071326]/90 p-4">
+            <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">{fact.label}</div>
+            <div className="mt-1 font-mono text-[15px] font-medium tabular-nums text-white">{fact.value}</div>
             <div className="mt-1 text-xs text-[#94A3B8]">{fact.meta || ""}</div>
           </div>
         ))}
       </div>
 
-      <div className="mt-5 border border-white/10 bg-[#050E1D]/45 p-5">
-        <h3 className="text-sm font-medium text-white">Report Notes</h3>
+      <div className="mt-3 border border-[#233650] bg-[#02060D] p-4">
+        <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">Report Notes</h3>
         {report.narrative.length ? (
           <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#CBD5E1] lg:grid-cols-2">
             {report.narrative.map((note) => (
               <li key={note} className="flex gap-2">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#E7C56B]" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#F5A623]" />
                 <span>{note}</span>
               </li>
             ))}
@@ -948,18 +955,18 @@ function DerivedMetricsSection({ groups }) {
       title="Derived Metrics"
       subtitle="Calculated analytics from statements, ratios and price history."
     >
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {groups.map((group) => (
-          <section key={group.title} className="border border-white/10 bg-[#050E1D]/45">
-            <div className="border-b border-white/10 p-4">
-              <h3 className="text-sm font-medium text-white">{group.title}</h3>
+          <section key={group.title} className="border border-[#233650] bg-[#02060D]">
+            <div className="border-b border-[#233650] p-3">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">{group.title}</h3>
               <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{group.subtitle}</p>
             </div>
-            <div className="grid gap-px bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-px bg-[#233650] sm:grid-cols-2 lg:grid-cols-4">
               {group.metrics.map((metric) => (
-                <div key={`${group.title}-${metric.label}`} className="bg-[#071326] p-4">
-                  <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{metric.label}</div>
-                  <div className={`mt-2 text-xl font-semibold ${toneClasses(metric.tone)}`}>
+                <div key={`${group.title}-${metric.label}`} className="bg-[#030914] p-3">
+                  <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">{metric.label}</div>
+                  <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${toneClasses(metric.tone)}`}>
                     {metricDisplay(metric.value, metric.type, metric.unit)}
                   </div>
                   <div className="mt-1 min-h-5 text-xs leading-5 text-[#94A3B8]">{metric.detail || "Unavailable"}</div>
@@ -1002,7 +1009,7 @@ function PriceVolumeChart({ data, symbol }) {
       title="Price Chart"
       subtitle={chartData.length ? `${symbol || "Stock"} price and traded volume from historical market data.` : "Historical candles are not available for this stock."}
     >
-      <div className="mb-5 space-y-3">
+      <div className="mb-4 space-y-2">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             {PRICE_RANGES.map((range) => (
@@ -1010,26 +1017,26 @@ function PriceVolumeChart({ data, symbol }) {
                 key={range.id}
                 type="button"
                 onClick={() => setPriceRange(range.id)}
-                className={`h-9 rounded-md border px-3 text-xs font-medium transition-colors ${priceRange === range.id ? "border-[#F5A623]/45 bg-[#F5A623]/15 text-[#F5A623]" : "border-white/10 text-[#94A3B8] hover:border-white/20 hover:bg-white/[.04] hover:text-white"}`}
+                className={`h-7 border px-2.5 font-mono text-[11px] font-medium uppercase tracking-[.08em] transition-colors ${priceRange === range.id ? "border-[#F5A623]/70 bg-[#F5A623]/15 text-[#F5A623]" : "border-[#233650] text-[#7F90A8] hover:border-[#40546E] hover:bg-white/[.04] hover:text-white"}`}
               >
                 {range.label}
               </button>
             ))}
           </div>
-          <div className="flex overflow-hidden rounded-md border border-white/10 bg-[#050E1D]/55 text-xs">
+          <div className="flex border border-[#233650] bg-[#02060D] text-xs">
             {PRICE_INTERVALS.map((interval) => (
               <button
                 key={interval.id}
                 type="button"
                 onClick={() => setPriceInterval(interval.id)}
-                className={`border-l border-white/10 px-3 py-2 font-medium first:border-l-0 ${priceInterval === interval.id ? "bg-[#75B89B]/15 text-[#8CC8AA]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
+                className={`border-l border-[#233650] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[.08em] first:border-l-0 ${priceInterval === interval.id ? "bg-[#75B89B]/15 text-[#8CC8AA]" : "text-[#7F90A8] hover:bg-white/[.04] hover:text-white"}`}
               >
                 {interval.label}
               </button>
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 text-sm text-[#CBD5E1]">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-[#233650] pt-2 font-mono text-[11px] uppercase tracking-[.06em] text-[#CBD5E1]">
           {[
             ["volume", "Volume"],
             ["ema20", "EMA 20"],
@@ -1047,9 +1054,9 @@ function PriceVolumeChart({ data, symbol }) {
         </div>
       </div>
       {visibleChartData.length ? (
-        <div className="h-[320px] min-w-0 sm:h-[420px]">
+        <div className="h-[300px] min-w-0 sm:h-[390px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={visibleChartData} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
+            <ComposedChart data={visibleChartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
               <XAxis
                 dataKey="date"
@@ -1065,7 +1072,7 @@ function PriceVolumeChart({ data, symbol }) {
               <YAxis yAxisId="rsi" orientation="right" hide domain={[0, 100]} />
               <Tooltip content={<PriceTooltip />} />
               {indicators.volume ? <Bar yAxisId="volume" dataKey="volume" name="Volume" fill="rgba(122,167,232,0.24)" radius={[2, 2, 0, 0]} /> : null}
-              <Line yAxisId="price" type="monotone" dataKey="price" name="Price" stroke="#F5A623" strokeWidth={2.4} dot={false} />
+              <Line yAxisId="price" type="monotone" dataKey="price" name="Price" stroke="#F5A623" strokeWidth={2} dot={false} />
               {indicators.ema20 ? <Line yAxisId="price" type="monotone" dataKey="ema20" name="EMA 20" stroke="#E7C56B" strokeWidth={1.4} dot={false} connectNulls /> : null}
               {indicators.ema50 ? <Line yAxisId="price" type="monotone" dataKey="ema50" name="EMA 50" stroke="#75B89B" strokeWidth={1.6} dot={false} connectNulls /> : null}
               {indicators.ema200 ? <Line yAxisId="price" type="monotone" dataKey="ema200" name="EMA 200" stroke="#7AA7E8" strokeWidth={1.6} dot={false} connectNulls /> : null}
@@ -1081,7 +1088,7 @@ function PriceVolumeChart({ data, symbol }) {
         </div>
       ) : null}
       {!chartData.length ? (
-        <div className="rounded-lg border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
           Price history will appear here when historical market data is available for the selected instrument.
         </div>
       ) : null}
@@ -1114,14 +1121,14 @@ function PriceTooltip({ active, payload, label }) {
 
 function DashboardTabs({ onSelect }) {
   return (
-    <nav className="sticky top-0 z-10 -mx-4 overflow-x-auto border-y border-white/10 bg-[#061225]/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3">
-      <div className="flex min-w-max gap-1">
+    <nav className="sticky top-0 z-10 -mx-4 overflow-x-auto border-y border-white/10 bg-[#061225]/95 px-4 py-2 backdrop-blur sm:mx-0 sm:border sm:px-3">
+      <div className="flex min-w-max gap-px bg-white/10">
         {DASHBOARD_TABS.map((tab) => (
           <button
             key={`${tab.id}-${tab.label}`}
             type="button"
             onClick={() => onSelect(tab)}
-            className="rounded-lg px-3 py-2 text-sm text-[#94A3B8] transition-colors hover:bg-white/[.04] hover:text-white"
+            className="bg-[#061225] px-3 py-2 text-xs uppercase tracking-[.08em] text-[#94A3B8] transition-colors hover:bg-[#0A1E3F] hover:text-white"
           >
             {tab.label}
           </button>
@@ -1133,12 +1140,12 @@ function DashboardTabs({ onSelect }) {
 
 function PeriodToggle({ period, onChange }) {
   return (
-    <div className="flex flex-col gap-3 border border-white/10 bg-[#08172C]/55 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border border-white/10 bg-[#08172C]/35 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Financial data period</div>
         <p className="mt-1 text-sm text-[#94A3B8]">Switches supported charts and statement tables between yearly and quarterly data.</p>
       </div>
-      <div className="flex overflow-hidden rounded-lg border border-white/10 bg-[#050E1D]/55 text-sm">
+      <div className="flex border border-white/10 bg-[#050E1D]/55 text-sm">
         {[
           ["yearly", "Yearly"],
           ["quarterly", "Quarterly"],
@@ -1147,7 +1154,7 @@ function PeriodToggle({ period, onChange }) {
             key={value}
             type="button"
             onClick={() => onChange(value)}
-            className={`border-l border-white/10 px-4 py-2 font-medium first:border-l-0 ${period === value ? "bg-[#F5A623]/15 text-[#F5A623]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
+            className={`border-l border-white/10 px-4 py-2 font-medium first:border-l-0 ${period === value ? "bg-[#D4AF37]/15 text-[#E7C56B]" : "text-[#94A3B8] hover:bg-white/[.04] hover:text-white"}`}
           >
             {label}
           </button>
@@ -1163,7 +1170,7 @@ function PeriodCoverageNotice({ period, data }) {
   const cashPeriods = uniquePeriodsFromHistory(limitHistoryRows(data?.cashFlow?.cash_flow, period));
   const balancePeriods = limitPeriods([...(data?.balanceSheet?.history || [])].reverse(), period).map((row) => row.period).filter(Boolean).reverse();
   return (
-    <div className="rounded-lg border border-white/10 bg-[#050E1D]/50 p-4 text-sm text-[#CBD5E1]">
+    <div className="border border-white/10 bg-[#050E1D]/40 p-4 text-sm text-[#CBD5E1]">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Available financial periods</div>
@@ -1229,19 +1236,19 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
       {categories.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm" style={{ minWidth }}>
-            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+            <thead className="border-b border-[#233650] font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">
               <tr>
-                <th className="sticky left-0 bg-[#08172C] px-4 py-3 font-normal">Metric</th>
-                {periods.map((periodLabel) => <th key={periodLabel} className="px-4 py-3 font-normal">{periodLabel}</th>)}
+                <th className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal">Metric</th>
+                {periods.map((periodLabel) => <th key={periodLabel} className="px-3 py-2 font-normal">{periodLabel}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-y divide-[#233650]/70">
               {categories.map((row) => (
                 <tr key={row.category}>
-                  <td className="sticky left-0 bg-[#08172C] px-4 py-3 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
+                  <td className="sticky left-0 bg-[#06101D] px-3 py-2 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
                   {periods.map((periodLabel) => {
                     const point = row.history?.find((item) => item.period === periodLabel);
-                    return <td key={periodLabel} className="px-4 py-3 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
+                    return <td key={periodLabel} className="px-3 py-2 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
                   })}
                 </tr>
               ))}
@@ -1249,7 +1256,7 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
           </table>
         </div>
       ) : (
-        <div className="rounded-lg border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
           No clean statement rows were returned for this section.
         </div>
       )}
@@ -1322,14 +1329,14 @@ function HistoryTable({ id, title, subtitle, rows, unit }) {
 function SnapshotRatios({ metrics }) {
   const visibleMetrics = metrics.slice(0, 8);
   return (
-    <div className="grid grid-cols-2 border border-white/10">
+    <div className="grid grid-cols-2 border border-[#233650] bg-[#233650]">
       {visibleMetrics.map((metric) => {
         const value = metric.format === "currency" ? `Rs. ${compactNumber(metric.value)}` : valueWithUnit(metric.value, metric.unit);
         return (
-          <div key={metric.label} className="border-b border-r border-white/10 p-3 [&:nth-child(2n)]:border-r-0 [&:nth-last-child(-n+2)]:border-b-0">
-            <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{metric.label}</div>
-            <div className="mt-2 text-lg font-medium text-white">{value}</div>
-            <div className="mt-1 min-h-4 text-xs text-[#94A3B8]">
+          <div key={metric.label} className="bg-[#02060D] p-2.5">
+            <div className="font-mono text-[10px] uppercase tracking-[.12em] text-[#6F8098]">{metric.label}</div>
+            <div className="mt-1 font-mono text-[15px] font-semibold tabular-nums text-white">{value}</div>
+            <div className="mt-1 min-h-4 text-[11px] text-[#7F90A8]">
               {metric.benchmark !== undefined && metric.benchmark !== null ? `Sector ${compactNumber(metric.benchmark)}` : metric.period || ""}
               {metric.change !== undefined && metric.change !== null ? ` | ${percentText(metric.change)}` : ""}
             </div>
@@ -1343,39 +1350,51 @@ function SnapshotRatios({ metrics }) {
 function CompanySummary({ data, quote, metrics }) {
   const price = quote.price || quote.lastPrice;
   const change = numericValue(quote.changePercent);
+  const keyFacts = [
+    ["Symbol", data.instrument?.symbol],
+    ["ISIN", data.instrument?.isin],
+    ["Sector", data.profile?.sector || "Sector unavailable"],
+    ["Statement", data.statementType ? `${data.statementType}${data.statementType !== data.requestedStatementType ? ` (fallback from ${data.requestedStatementType})` : ""}` : null],
+    ["Data", data.cached ? "Cached" : "Fresh fetch"],
+    ["Generated", formatCmsDateTime(data.generatedAt)],
+  ].filter(([, value]) => value);
   return (
-    <section id="summary" className="scroll-mt-28 border border-white/10 bg-[#071326]/70">
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="p-5 md:p-6">
+    <section id="summary" className="terminal-panel scroll-mt-28 border">
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="p-3 md:p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-[.18em] text-[#E7C56B]">Stock fundamentals</div>
-              <h2 className="mt-2 text-3xl font-semibold leading-tight text-white">{data.instrument?.name || data.instrument?.symbol}</h2>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#94A3B8]">
-                <span>{data.instrument?.symbol}</span>
-                <span>{data.instrument?.isin}</span>
-                <span>{data.profile?.sector || "Sector unavailable"}</span>
-                <span>{data.cached ? "Cached" : "Live fetch"}</span>
-              </div>
+              <div className="font-mono text-[10px] uppercase tracking-[.18em] text-[#F5A623]">Equity Research Snapshot</div>
+              <h2 className="mt-1 text-2xl font-semibold leading-tight text-white md:text-3xl">{data.instrument?.name || data.instrument?.symbol}</h2>
             </div>
-            <div className="min-w-32 text-left sm:text-right">
-              <div className="text-3xl font-semibold text-white">{price ? `Rs. ${compactNumber(price)}` : "N/A"}</div>
+            <div className="min-w-36 border-l-0 border-[#233650] text-left sm:border-l sm:pl-5 sm:text-right">
+              <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Last Price</div>
+              <div className="mt-1 font-mono text-2xl font-semibold tabular-nums text-white">{price ? `Rs. ${compactNumber(price)}` : "N/A"}</div>
               <div className={`mt-1 text-sm ${change >= 0 ? "text-[#8CC8AA]" : "text-[#E7A5A6]"}`}>{quote.changePercent !== undefined ? percentText(quote.changePercent) : "Quote unavailable"}</div>
             </div>
           </div>
 
+          <div className="mt-4 grid gap-px overflow-hidden border border-[#233650] bg-[#233650] sm:grid-cols-2 lg:grid-cols-3">
+            {keyFacts.map(([label, value]) => (
+              <div key={label} className="bg-[#030914] px-3 py-2">
+                <span className="font-mono text-[10px] uppercase tracking-[.12em] text-[#71839A]">{label}</span>
+                <span className="ml-2 text-xs text-[#CBD5E1]">{value}</span>
+              </div>
+            ))}
+          </div>
+
           {data.profile?.description ? (
-            <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_.85fr]">
+            <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_.85fr]">
               <div>
-                <h3 className="text-sm font-medium text-white">About</h3>
-                <p className="mt-3 text-sm leading-7 text-[#CBD5E1]">{descriptionBullets(data.profile.description)[0]}</p>
+                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">About</h3>
+                <p className="mt-2 text-sm leading-6 text-[#CBD5E1]">{descriptionBullets(data.profile.description)[0]}</p>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-white">Key Points</h3>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">Key Points</h3>
+                <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#CBD5E1]">
                   {descriptionBullets(data.profile.description).slice(1, 5).map((point) => (
                     <li key={point} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E7C56B]" />
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#F5A623]" />
                       <span>{point}</span>
                     </li>
                   ))}
@@ -1385,12 +1404,14 @@ function CompanySummary({ data, quote, metrics }) {
           ) : null}
         </div>
 
-        <aside className="border-t border-white/10 p-5 lg:border-l lg:border-t-0 md:p-6">
-          <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">Last updated</div>
-          <div className="mt-2 text-sm text-white">{formatCmsDateTime(data.generatedAt)}</div>
-          <div className="mt-5">
-            <SnapshotRatios metrics={metrics} />
+        <aside className="border-t border-[#233650] p-3 xl:border-l xl:border-t-0 md:p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">Key Metrics</div>
+              <div className="mt-1 text-xs text-[#7F90A8]">Valuation, returns and latest statement lines</div>
+            </div>
           </div>
+          <SnapshotRatios metrics={metrics} />
         </aside>
       </div>
     </section>
@@ -1408,11 +1429,11 @@ function MetricGrid({ metrics }) {
   }));
   return (
     <DataSection id="analysis" title="Analysis" subtitle="At-a-glance metrics from quote, ratios, statements and holdings.">
-      <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-px overflow-hidden border border-[#233650] bg-[#233650] sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((row) => (
-          <div key={row.label} className="bg-[#071326] p-4">
-            <div className="text-[10px] uppercase tracking-[.14em] text-[#71839A]">{row.label}</div>
-            <div className="mt-2 text-lg font-medium text-white">{row.value}</div>
+          <div key={row.label} className="bg-[#030914] p-3">
+            <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">{row.label}</div>
+            <div className="mt-1 font-mono text-[15px] font-medium tabular-nums text-white">{row.value}</div>
             <div className="mt-1 text-xs text-[#94A3B8]">{row.meta}</div>
           </div>
         ))}
@@ -1459,14 +1480,17 @@ function CorporateActionsSection({ actions }) {
     <DataSection id="corporate-actions" title="Corporate Actions" subtitle="Dividends, splits, bonuses and other returned action events.">
       {actions?.length ? (
         <div className="overflow-x-auto">
-          <div className="flex min-w-max gap-3 pb-1">
-            {actions.slice(0, 10).map((action, index) => (
-              <div key={`${action.name || action.purpose || action.type}-${index}`} className="w-80 rounded-lg border border-white/10 bg-[#050E1D]/55 p-4">
-                <div className="text-sm font-medium text-white">{action.name || action.purpose || action.type || "Corporate action"}</div>
-                <div className="mt-1 text-xs text-[#E7C56B]">{actionDate(action)}</div>
-                {actionDetails(action) ? <div className="mt-3 text-xs leading-relaxed text-[#CBD5E1]">{actionDetails(action)}</div> : null}
-              </div>
-            ))}
+          <div className="flex min-w-max gap-2 pb-1">
+            {actions.slice(0, 10).map((action, index) => {
+              const details = actionDetails(action);
+              return (
+                <div key={`${action.name || action.purpose || action.type}-${index}`} className="w-80 border border-[#233650] bg-[#02060D] p-3">
+                  <div className="font-mono text-[11px] font-semibold uppercase tracking-[.1em] text-white">{action.name || action.purpose || action.type || "Corporate action"}</div>
+                  <div className="mt-1 font-mono text-[11px] text-[#F5A623]">{actionDate(action)}</div>
+                  {details ? <div className="mt-2 text-xs leading-relaxed text-[#CBD5E1]">{details}</div> : null}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : <div className="text-sm text-[#94A3B8]">No corporate actions returned.</div>}
@@ -1479,12 +1503,12 @@ function CompetitorsSection({ competitors, onOpen }) {
     <DataSection id="competitors" title="Competitors" subtitle="Click a peer to drill into its fundamentals without changing the search style.">
       {competitors?.length ? (
         <div className="overflow-x-auto">
-          <div className="flex min-w-max gap-3 pb-1">
+          <div className="flex min-w-max gap-2 pb-1">
             {competitors.slice(0, 10).map((competitor) => (
-              <button key={competitor.instrumentKey} type="button" onClick={() => onOpen(competitor)} className="w-80 rounded-lg border border-white/10 bg-[#050E1D]/55 p-4 text-left transition-colors hover:border-[#F5A623]/45 hover:bg-white/[.035]">
+              <button key={competitor.instrumentKey} type="button" onClick={() => onOpen(competitor)} className="w-80 border border-[#233650] bg-[#02060D] p-3 text-left transition-colors hover:border-[#F5A623]/70 hover:bg-[#08111F]">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-sm font-medium text-white">{competitor.name || competitor.symbol || competitor.instrumentKey}</span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-[.14em] text-[#E7C56B]">Open</span>
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[.1em] text-white">{competitor.name || competitor.symbol || competitor.instrumentKey}</span>
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">Open</span>
                 </div>
                 <div className="mt-2 text-xs text-[#94A3B8]">
                   {[competitor.symbol, competitor.isin, competitor.sector || "Sector unavailable"].filter(Boolean).join(" | ")}
@@ -1506,12 +1530,15 @@ function actionDate(action) {
     return action.ex_date || action.record_date || action.announcement_date;
   }
   const details = action.event_details || [];
-  return details.find((item) => /date/i.test(item.name || ""))?.value || "Date unavailable";
+  const dateDetail = details.find((item) => /date/i.test(item.name || "") && primitiveDetailValue(item.value));
+  return dateDetail ? String(dateDetail.value) : "Date unavailable";
 }
 
 function actionDetails(action) {
   const details = action.event_details || [];
-  const interesting = details.filter((item) => !/date/i.test(item.name || "")).slice(0, 4);
+  const interesting = details
+    .filter((item) => !/date/i.test(item.name || "") && primitiveDetailValue(item.value))
+    .slice(0, 4);
   if (interesting.length) {
     return interesting.map((item) => `${item.name}: ${item.value}`).join(" | ");
   }
@@ -1520,16 +1547,107 @@ function actionDetails(action) {
   return "";
 }
 
+function primitiveDetailValue(value) {
+  return value !== null && value !== undefined && value !== "" && typeof value !== "object";
+}
+
 function DataSection({ id, title, subtitle, children }) {
   return (
-    <section id={id} className="min-w-0 scroll-mt-28 border border-white/10 bg-[#071326]/70 p-4 sm:p-5 md:p-6">
-      <div className="mb-5">
-        <h2 className="text-xl font-medium text-white">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-[#94A3B8]">{subtitle}</p> : null}
+    <section id={id} className="terminal-panel min-w-0 scroll-mt-28 border p-3 sm:p-4">
+      <div className="mb-4 flex flex-col gap-1 border-b pb-3 md:flex-row md:items-end md:justify-between">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[.16em] text-[#F5A623]">{title}</h2>
+        {subtitle ? <p className="max-w-3xl text-xs text-[#7F90A8]">{subtitle}</p> : null}
       </div>
       {children}
     </section>
   );
+}
+
+function TerminalStatusBar({ data, loading }) {
+  if (!data) return null;
+  const metrics = data.devMetrics || {};
+  const rows = [
+    ["TICKER", data.instrument?.symbol],
+    ["ISIN", data.instrument?.isin],
+    ["SRC", sourceMixLabel(metrics)],
+    ["REQ", formatDurationMs(metrics.clientMs || metrics.backendMs || 0)],
+    ["PTS", compactNumber(metrics.totalRecords || 0)],
+    ["MODE", loading ? "FETCHING" : data.cached ? "CACHE" : "LIVE"],
+  ].filter(([, value]) => value);
+  return (
+    <div className="terminal-command-strip border border-[#233650] bg-[#02060D]">
+      <div className="flex min-w-max items-center divide-x divide-[#233650] overflow-x-auto text-[11px] uppercase tracking-[.12em]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center gap-2 px-3 py-2">
+            <span className="text-[#5D6E86]">{label}</span>
+            <span className="font-semibold text-[#DDE6F2]">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function sourceMixLabel(metrics) {
+  const share = metrics?.providerRecordShare || {};
+  const rows = [
+    ["FE", share.finedge],
+    ["UPX", share.upstox],
+    ["MIX", share.mixed],
+  ].filter(([, value]) => Number(value) > 0);
+  return rows.length ? rows.map(([label, value]) => `${label} ${compactNumber(value)}%`).join(" / ") : null;
+}
+
+function DevMetricsPanel({ data }) {
+  const metrics = data?.devMetrics;
+  if (!metrics) return null;
+  const sectionRows = Object.entries(metrics.sections || {}).filter(([, details]) => details.records > 0);
+  const commandLines = [
+    `finlit@fundamentals ~ % fetch ${data.instrument?.symbol || data.query || "SECURITY"} --statement ${data.statementType || data.requestedStatementType || "reported"} --period ${data.requestedPeriod || "current"}`,
+    `total_fetch=${formatDurationMs(metrics.clientMs || metrics.backendMs || 0)} backend=${formatDurationMs(metrics.backendMs || 0)} mode=${data.cached ? "cache" : "fresh"}${metrics.cacheAgeSeconds !== undefined ? ` cache_age=${compactNumber(metrics.cacheAgeSeconds)}s` : ""}`,
+    `records_total=${compactNumber(metrics.totalRecords || 0)} source_mix="${sourceMixLabel(metrics) || "unavailable"}"`,
+    `provider_records=${Object.entries(metrics.providerRecords || {}).filter(([, value]) => value > 0).map(([provider, value]) => `${provider}:${compactNumber(value)}`).join(" ")}`,
+  ];
+  const logLines = sectionRows.map(([section, details]) => (
+    `[${providerLogTag(details.provider)}] ${section.padEnd(18, " ")} ${String(details.source || "unknown").padEnd(14, " ")} ${compactNumber(details.records)} pts`
+  ));
+  return (
+    <DataSection id="dev-metrics" title="Dev Metrics" subtitle="Fetch timing and normalized data-source split for this fundamentals page.">
+      <div className="border border-[#1F2D1F] bg-[#020502] p-0 font-mono shadow-[inset_0_1px_0_rgba(77,255,136,0.12)]">
+        <div className="flex items-center gap-2 border-b border-[#1F2D1F] bg-[#050A05] px-3 py-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FFBD2E]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
+          <span className="ml-2 text-[11px] uppercase tracking-[.14em] text-[#6EA67A]">finlit diagnostics</span>
+        </div>
+        <div className="overflow-x-auto px-3 py-3 text-[12px] leading-6">
+          <pre className="m-0 min-w-max whitespace-pre text-[#B9F6C8]">
+            {[
+              ...commandLines,
+              "",
+              "# normalized section payloads",
+              ...logLines,
+            ].join("\n")}
+          </pre>
+        </div>
+      </div>
+    </DataSection>
+  );
+}
+
+function providerLogTag(provider) {
+  if (provider === "finedge") return "FE ";
+  if (provider === "upstox") return "UPX";
+  if (provider === "mixed") return "MIX";
+  return "UNK";
+}
+
+function formatDurationMs(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "N/A";
+  if (number > 0 && number < 1) return "<1 ms";
+  if (number === 0) return "<1 ms";
+  return `${compactNumber(number)} ms`;
 }
 
 export default function StockFundamentalsAdminPage() {
@@ -1553,10 +1671,18 @@ export default function StockFundamentalsAdminPage() {
     setLoading(true);
     setError("");
     try {
+      const requestStartedAt = performance.now();
       const params = new URLSearchParams({ query: search, statement_type: statementType, period });
       const response = await cmsRequest(`/stocks/admin/fundamentals?${params.toString()}`);
+      const clientMs = Math.round(performance.now() - requestStartedAt);
       if (requestSequence.current === requestId) {
-        setData(response);
+        setData({
+          ...response,
+          devMetrics: {
+            ...(response.devMetrics || {}),
+            clientMs,
+          },
+        });
         setError("");
       }
     } catch (requestError) {
@@ -1682,22 +1808,22 @@ export default function StockFundamentalsAdminPage() {
   return (
     <div className="stock-fundamentals-page">
       <AdminShell>
-      <header className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="mt-5 border border-[#233650] bg-[#02060D] p-3 lg:flex lg:items-end lg:justify-between">
         <div>
-          <Link to="/blog/admin" className="inline-flex items-center gap-2 text-xs text-[#94A3B8] hover:text-white"><ArrowLeft size={14} />Back to CMS</Link>
-          <div className="mt-5 text-[11px] uppercase tracking-[.22em] text-[#F5A623]">Admin Dashboard</div>
-          <h1 className="mt-2 text-3xl font-semibold leading-tight text-white sm:text-4xl">Stock fundamentals</h1>
-          <p className="mt-3 max-w-2xl text-sm text-[#94A3B8]">Research view for Indian listed equities: price, profile, ratios, statements, holdings, actions and peers.</p>
+          <Link to="/blog/admin" className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[.12em] text-[#7F90A8] hover:text-white"><ArrowLeft size={14} />Back to CMS</Link>
+          <div className="mt-4 text-[10px] uppercase tracking-[.22em] text-[#F5A623]">Admin Terminal / Equity Research</div>
+          <h1 className="mt-1 font-mono text-2xl font-semibold uppercase leading-tight text-white sm:text-3xl">Stock fundamentals</h1>
+          <p className="mt-2 max-w-2xl text-xs text-[#7F90A8]">Price, profile, ratios, statements, holdings, actions, peers and diagnostics.</p>
         </div>
-        <button onClick={loadFundamentals} disabled={loading} className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-lg border border-white/10 px-4 text-sm text-[#CBD5E1] hover:border-white/25 hover:text-white disabled:opacity-60 lg:self-auto">
+        <button onClick={loadFundamentals} disabled={loading} className="mt-4 inline-flex h-9 items-center justify-center gap-2 self-start border border-[#40546E] px-3 font-mono text-xs uppercase tracking-[.1em] text-[#CBD5E1] hover:border-[#F5A623] hover:text-white disabled:opacity-60 lg:mt-0 lg:self-auto">
           <RefreshCcw size={16} />Refresh
         </button>
       </header>
 
-      <section className="mt-6 border border-white/10 bg-[#071326]/70 p-4">
+      <section className="mt-3 border border-[#233650] bg-[#030914] p-3">
         <form onSubmit={submit} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_140px] md:items-end">
           <label>
-            <span className="mb-2 block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Stock</span>
+            <span className="mb-2 block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Security</span>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71839A]" />
               <input
@@ -1720,7 +1846,7 @@ export default function StockFundamentalsAdminPage() {
             </datalist>
           </label>
           <SelectControl label="Statement" value={statementType} onChange={setStatementType} options={[["consolidated", "Consolidated"], ["standalone", "Standalone"]]} />
-          <button disabled={loading} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#F5A623] px-4 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B] disabled:opacity-60">
+          <button disabled={loading} className="inline-flex h-12 items-center justify-center gap-2 bg-[#F5A623] px-4 font-mono text-xs font-semibold uppercase tracking-[.1em] text-[#050E1D] hover:bg-[#E7C56B] disabled:opacity-60">
             <BarChart3 size={16} />{loading ? "Loading..." : "Load data"}
           </button>
         </form>
@@ -1736,7 +1862,8 @@ export default function StockFundamentalsAdminPage() {
       {loading && !data ? <div className="py-20 text-center text-sm text-[#71839A]">Fetching stock fundamentals...</div> : null}
 
       {data ? (
-        <div className="mt-8 space-y-6">
+        <div className="mt-3 space-y-3">
+          <TerminalStatusBar data={data} loading={loading} />
           <CompanySummary data={data} quote={quote} metrics={dashboardMetrics} />
 
           <DashboardTabs onSelect={selectDashboardTab} />
@@ -1829,6 +1956,7 @@ export default function StockFundamentalsAdminPage() {
           <MetricGrid metrics={dashboardMetrics} />
           <CorporateActionsSection actions={data.corporateActions} />
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />
+          <DevMetricsPanel data={data} />
         </div>
       ) : null}
       </AdminShell>
