@@ -301,6 +301,97 @@ html.lenis, html.lenis body { height: auto; }
   filter: saturate(0.95);
 }
 
+.stock-fundamentals-page section,
+.stock-fundamentals-page nav,
+.stock-fundamentals-page table,
+.stock-fundamentals-page button,
+.stock-fundamentals-page .cms-input {
+  border-radius: 0 !important;
+}
+
+.stock-fundamentals-page {
+  --terminal-bg: #02060d;
+  --terminal-panel: #030914;
+  --terminal-panel-alt: #06101d;
+  --terminal-line: #233650;
+  --terminal-line-strong: #40546e;
+  --terminal-amber: #f5a623;
+  --terminal-text: #dde6f2;
+  --terminal-muted: #7f90a8;
+  background: #02060d;
+  color: var(--terminal-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-fundamentals-page .terminal-panel,
+.stock-fundamentals-page section {
+  background: var(--terminal-panel) !important;
+  border-color: var(--terminal-line) !important;
+  box-shadow: inset 0 1px 0 rgba(245, 166, 35, 0.08);
+}
+
+.stock-fundamentals-page nav {
+  background: rgba(2, 6, 13, 0.96) !important;
+  border-color: var(--terminal-line) !important;
+}
+
+.stock-fundamentals-page table {
+  background: var(--terminal-bg);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-fundamentals-page th {
+  background: #06101d;
+  color: var(--terminal-amber) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.stock-fundamentals-page td,
+.stock-fundamentals-page th {
+  border-color: rgba(64, 84, 110, 0.55) !important;
+}
+
+.stock-fundamentals-page tbody tr:hover td {
+  background: rgba(245, 166, 35, 0.035);
+}
+
+.stock-fundamentals-page .cms-input,
+.stock-fundamentals-page select.cms-input {
+  background: #02060d;
+  border-color: var(--terminal-line-strong);
+  color: var(--terminal-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  text-transform: uppercase;
+}
+
+.stock-fundamentals-page .cms-input:focus,
+.stock-fundamentals-page select.cms-input:focus {
+  border-color: var(--terminal-amber);
+  box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.3);
+}
+
+.stock-fundamentals-page .terminal-command-strip {
+  box-shadow: inset 0 1px 0 rgba(245, 166, 35, 0.12);
+}
+
+.stock-fundamentals-page .recharts-cartesian-grid line {
+  stroke: rgba(64, 84, 110, 0.58);
+}
+
+.stock-fundamentals-page table {
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page section,
+:root[data-theme="light"] .stock-fundamentals-page nav,
+:root[data-theme="light"] .stock-fundamentals-page table,
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-lg"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-xl"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="rounded-2xl"] {
+  box-shadow: none;
+}
+
 :root[data-theme="light"] .App article,
 :root[data-theme="light"] .App aside,
 :root[data-theme="light"] .App [role="tabpanel"] {
