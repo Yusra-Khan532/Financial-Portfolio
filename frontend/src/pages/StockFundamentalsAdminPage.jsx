@@ -1265,32 +1265,45 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
 }
 
 function RatioTable({ ratios }) {
+  const ratioRows = ratios || [];
   const hasBenchmarks = (ratios || []).some((ratio) => numericValue(ratio.sector_value) !== null);
+  const splitIndex = Math.ceil(ratioRows.length / 2);
+  const ratioGroups = [ratioRows.slice(0, splitIndex), ratioRows.slice(splitIndex)].filter((group) => group.length);
+
   return (
     <DataSection
       id="ratios"
       title="Ratios"
       subtitle={hasBenchmarks ? "Company values compared with sector benchmarks." : "Company ratio values. Sector benchmarks are not available for the current ratio set."}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
-            <tr>
-              <th className="px-4 py-3 font-normal">Ratio</th>
-              <th className="px-4 py-3 font-normal">Company</th>
-              {hasBenchmarks ? <th className="px-4 py-3 font-normal">Sector</th> : null}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10">
-            {(ratios || []).map((ratio) => (
-              <tr key={ratio.name}>
-                <td className="px-4 py-3 text-white">{ratio.name}</td>
-                <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
-                {hasBenchmarks ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {ratioGroups.map((group, groupIndex) => (
+          <div key={`ratio-group-${groupIndex}`} className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+                <tr>
+                  <th className="px-4 py-3 font-normal">Ratio</th>
+                  <th className="px-4 py-3 font-normal">Company</th>
+                  {hasBenchmarks ? <th className="px-4 py-3 font-normal">Sector</th> : null}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {group.map((ratio) => (
+                  <tr key={ratio.name}>
+                    <td className="px-4 py-3 text-white">{ratio.name}</td>
+                    <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
+                    {hasBenchmarks ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+        {!ratioGroups.length ? (
+          <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+            No ratio rows were returned for this company.
+          </div>
+        ) : null}
       </div>
     </DataSection>
   );
