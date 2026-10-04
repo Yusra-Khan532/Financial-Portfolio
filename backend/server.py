@@ -1241,8 +1241,98 @@ def _derive_income_metrics(statement: List[Dict[str, Any]]) -> List[Dict[str, An
     interest = value_by_period("interest")
     depreciation = value_by_period("depreciation")
     other_income = value_by_period("other_income")
+    associate_profit = value_by_period("associate_profit")
     exceptional = value_by_period("exceptional_items")
+    provisions = value_by_period("provisions_for_loan_loss")
+    net_profit = value_by_period("net_profit")
+    tax_expense = value_by_period("tax_expense")
     existing_operating = value_by_period("operating_profit")
+    revenue = value_by_period("revenue")
+    if associate_profit:
+        income_history = []
+        periods_for_income = sorted(set(other_income) | set(associate_profit), key=_period_sort_value, reverse=True)
+        for period in periods_for_income:
+            income_history.append({
+                "period": period,
+                "value": other_income.get(period, 0) + associate_profit.get(period, 0),
+                "change": None,
+            })
+        for index, point in enumerate(income_history):
+            previous = income_history[index + 1]["value"] if index + 1 < len(income_history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if income_history:
+            categories["other_income"] = {
+                "category": "other_income",
+                "label": _label_key("other_income"),
+                "history": income_history,
+            }
+            other_income = value_by_period("other_income")
+    if net_profit and tax_expense and "profit_before_tax" in categories:
+        pbt_history = []
+        periods_for_pbt = sorted(set(net_profit) & set(tax_expense), key=_period_sort_value, reverse=True)
+        for period in periods_for_pbt:
+            value = net_profit.get(period)
+            tax = tax_expense.get(period)
+            if value is None or tax is None:
+                continue
+            pbt_history.append({
+                "period": period,
+                "value": value + tax,
+                "change": None,
+            })
+        for index, point in enumerate(pbt_history):
+            previous = pbt_history[index + 1]["value"] if index + 1 < len(pbt_history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if pbt_history:
+            categories["profit_before_tax"]["history"] = pbt_history
+            pbt = value_by_period("profit_before_tax")
+    if provisions and "expenses" in categories:
+        expense_history = []
+        expense_periods = sorted(
+            set(revenue) & set(interest) & set(pbt) & set(other_income),
+            key=_period_sort_value,
+            reverse=True,
+        )
+        for period in expense_periods:
+            value = revenue.get(period, 0) - interest.get(period, 0) - pbt.get(period, 0) + other_income.get(period, 0) - depreciation.get(period, 0)
+            expense_history.append({"period": period, "value": value, "change": None})
+        for index, point in enumerate(expense_history):
+            previous = expense_history[index + 1]["value"] if index + 1 < len(expense_history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if expense_history:
+            categories["expenses"]["history"] = expense_history
+        expense_by_period = value_by_period("expenses")
+        financing_history = []
+        financing_periods = sorted(set(revenue) & set(interest) & set(expense_by_period), key=_period_sort_value, reverse=True)
+        for period in financing_periods:
+            financing_history.append({
+                "period": period,
+                "value": revenue.get(period, 0) - interest.get(period, 0) - expense_by_period.get(period, 0),
+                "change": None,
+            })
+        for index, point in enumerate(financing_history):
+            previous = financing_history[index + 1]["value"] if index + 1 < len(financing_history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if financing_history:
+            categories["financing_profit"] = {
+                "category": "financing_profit",
+                "label": _label_key("financing_profit"),
+                "history": financing_history,
+            }
+    elif revenue and existing_operating and "expenses" in categories:
+        expense_history = []
+        expense_periods = sorted(set(revenue) & set(existing_operating), key=_period_sort_value, reverse=True)
+        for period in expense_periods:
+            expense_history.append({
+                "period": period,
+                "value": revenue.get(period, 0) - existing_operating.get(period, 0),
+                "change": None,
+            })
+        for index, point in enumerate(expense_history):
+            previous = expense_history[index + 1]["value"] if index + 1 < len(expense_history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if expense_history:
+            categories["expenses"]["history"] = expense_history
     periods = sorted(
         set(pbt) | set(interest) | set(depreciation) | set(other_income),
         key=_period_sort_value,
@@ -1254,13 +1344,16 @@ def _derive_income_metrics(statement: List[Dict[str, Any]]) -> List[Dict[str, An
             value = existing_operating[period]
         elif period not in pbt:
             continue
-        value = (
-            pbt.get(period, 0)
-            + interest.get(period, 0)
-            + depreciation.get(period, 0)
-            - other_income.get(period, 0)
-            - exceptional.get(period, 0)
-        )
+        elif provisions:
+            value = pbt.get(period, 0) + provisions.get(period, 0)
+        else:
+            value = (
+                pbt.get(period, 0)
+                + interest.get(period, 0)
+                + depreciation.get(period, 0)
+                - other_income.get(period, 0)
+                - exceptional.get(period, 0)
+            )
         operating_history.append({"period": period, "value": value, "change": None})
 
     for index, point in enumerate(operating_history):
@@ -1273,15 +1366,37 @@ def _derive_income_metrics(statement: List[Dict[str, Any]]) -> List[Dict[str, An
             "label": _label_key("operating_profit"),
             "history": operating_history,
         }
+        if not provisions and revenue and "expenses" in categories:
+            operating_by_period = {
+                point.get("period"): _to_number(point.get("value"))
+                for point in operating_history
+                if _to_number(point.get("value")) is not None
+            }
+            expense_history = []
+            expense_periods = sorted(set(revenue) & set(operating_by_period), key=_period_sort_value, reverse=True)
+            for period in expense_periods:
+                expense_history.append({
+                    "period": period,
+                    "value": revenue.get(period, 0) - operating_by_period.get(period, 0),
+                    "change": None,
+                })
+            for index, point in enumerate(expense_history):
+                previous = expense_history[index + 1]["value"] if index + 1 < len(expense_history) else None
+                point["change"] = _period_change(point.get("value"), previous)
+            if expense_history:
+                categories["expenses"]["history"] = expense_history
 
     ordered = []
     for category in [
         "revenue",
         "total_income",
         "expenses",
+        "financing_profit",
         "operating_profit",
         "other_income",
         "interest",
+        "operating_expenses",
+        "provisions_for_loan_loss",
         "depreciation",
         "profit_before_tax",
         "exceptional_items",
@@ -1417,7 +1532,7 @@ def _normalize_price_history(payload):
 
 def _quote_from_price_history(history):
     if not history:
-        return {}
+        return {"source": "finedge"}
     latest = history[-1]
     previous = history[-2] if len(history) > 1 else {}
     change = None
@@ -1432,7 +1547,27 @@ def _quote_from_price_history(history):
         "changePercent": change_percent,
         "volume": latest.get("volume"),
         "timestamp": latest.get("date"),
+        "source": "finedge",
     }
+
+
+def _quote_from_upstox(instrument: Dict[str, Any]):
+    instrument_key = instrument.get("upstoxInstrumentKey")
+    if not instrument_key:
+        return {}
+    access_token = os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip()
+    if not access_token:
+        return {}
+    quote_items = _fetch_upstox_quotes([{
+        "name": instrument.get("name"),
+        "symbol": instrument.get("symbol") or instrument.get("upstoxSymbol"),
+        "instrument_key": instrument_key,
+        "category": "Equity",
+        "currency": "INR",
+    }], access_token)
+    if not quote_items:
+        return {}
+    return {**quote_items[0], "source": "upstox"}
 
 
 def _normalize_shareholding(payload, period="quarterly"):
@@ -1661,6 +1796,7 @@ def _stock_section_counts(result):
         "corporateActions": len(result.get("corporateActions") or []),
         "competitors": len(result.get("competitors") or []),
         "priceHistory": len(result.get("priceHistory") or []),
+        "quote": 1 if result.get("quote", {}).get("price") else 0,
     }
 
 
@@ -1774,6 +1910,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "corporateActions": "finedge",
         "competitors": "finedge",
         "priceHistory": "finedge",
+        "quote": "finedge",
     }
     if statement_type == "consolidated":
         standalone_income_rows = _safe_finedge_get(
@@ -1790,7 +1927,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         }
         requested_income_history = _history_from_period_rows(requested_income_rows, period, revenue_aliases, scale=10_000_000)
         standalone_income_history = _history_from_period_rows(standalone_income_rows, period, revenue_aliases, scale=10_000_000)
-        if _history_length(standalone_income_history, "revenue") > _history_length(requested_income_history, "revenue"):
+        if _history_length(requested_income_history, "revenue") == 0 and _history_length(standalone_income_history, "revenue") > 0:
             income_rows = standalone_income_rows
             balance_rows = _finedge_statement(symbol, "standalone", "bs", period)
             cash_rows = _finedge_statement(symbol, "standalone", "cf", period)
@@ -1808,25 +1945,32 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "costOfGoodsSold": "cost_of_goods_sold", "cogs": "cost_of_goods_sold",
         "totalExpenses": "expenses", "expenses": "expenses", "operatingExpenses": "expenses",
         "employeeBenefitExpense": "employee_benefit_expense", "employeeBenefitsExpense": "employee_benefit_expense",
+        "employeesCost": "employee_benefit_expense",
         "financeCosts": "interest", "financeCost": "interest", "interest": "interest", "interestExpended": "interest",
         "depreciation": "depreciation", "depreciationAndAmortisation": "depreciation",
         "depreciationAndAmortization": "depreciation",
         "otherIncome": "other_income",
+        "otherOperatingExpenses": "operating_expenses",
+        "expenditureExcludingProvisions": "expenses",
+        "provisionsForLoanLoss": "provisions_for_loan_loss",
         "exceptionalItems": "exceptional_items", "exceptionalItem": "exceptional_items",
         "exceptionalItemsBeforeTax": "exceptional_items", "extraordinaryItems": "exceptional_items",
         "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
         "ebit": "operating_profit",
-        "profitBeforeTax": "profit_before_tax", "pbt": "profit_before_tax",
-        "tax": "tax_expense", "taxExpense": "tax_expense", "currentTax": "tax_expense",
-        "profitAttributableToOwnersOfParent": ("net_profit", 10),
-        "profitOrLossAttributableToOwners": ("net_profit", 10),
-        "profitLossAttributableToOwnersOfParent": ("net_profit", 10),
-        "profitOrLossAttributableToOwnersOfParent": ("net_profit", 10),
-        "netProfitAfterTax": ("net_profit", 20),
+        "profitBeforeTax": "profit_before_tax", "profitLossBeforeTax": "profit_before_tax", "pbt": "profit_before_tax",
+        "profitOrLossOfAssociates": "associate_profit",
+        "tax": ("tax_expense", 20), "taxExpense": ("tax_expense", 10), "currentTax": ("tax_expense", 30),
+        "profitLossForPeriod": ("net_profit", 5),
+        "profitLossForThePeriod": ("net_profit", 5),
+        "profitForThePeriod": ("net_profit", 5),
+        "netProfitAfterTax": ("net_profit", 10),
+        "profitAttributableToOwnersOfParent": ("net_profit", 20),
+        "profitOrLossAttributableToOwners": ("net_profit", 20),
+        "profitLossAttributableToOwnersOfParent": ("net_profit", 20),
+        "profitOrLossAttributableToOwnersOfParent": ("net_profit", 20),
         "profitAfterTax": ("net_profit", 30), "pat": ("net_profit", 30),
         "netProfit": ("net_profit", 40), "net_profit": ("net_profit", 40),
-        "netIncome": ("net_profit", 40), "profitLossForPeriod": ("net_profit", 40),
-        "profitForThePeriod": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
+        "netIncome": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
         "eps": "eps",
     }, scale=10_000_000)
     income_statement = {
@@ -1944,6 +2088,14 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         default=[],
     ))
     quote_data = _quote_from_price_history(price_history)
+    try:
+        upstox_quote = _quote_from_upstox(instrument)
+    except Exception:
+        logger.warning("Optional Upstox quote lookup failed for %s", symbol)
+        upstox_quote = {}
+    if upstox_quote.get("price"):
+        quote_data = upstox_quote
+        data_sources["quote"] = "upstox"
 
     lookup = _ratio_lookup(ratios)
     latest_revenue = _latest_history_value(income_statement.get("income_statement"), "revenue")

@@ -126,6 +126,21 @@ const CASH_FLOW_GROUPS = [
   },
   { key: "netcashflow", label: "Net Cash Flow", strong: true },
 ];
+const BANK_BALANCE_SHEET_GROUPS = [
+  { key: "capital", label: "Capital", aliases: ["capital", "equitycapital", "sharecapital"] },
+  { key: "reserves", label: "Reserves", aliases: ["reserves", "reservesandsurplus"] },
+  { key: "deposits", label: "Deposits" },
+  { key: "borrowings", label: "Borrowings" },
+  { key: "otherliabilitiesandprovisions", label: "Other Liabilities & Provisions", aliases: ["otherliabilitiesandprovisions", "otherliabilities"] },
+  { key: "capitalandliabilities", label: "Total Liabilities", aliases: ["capitalandliabilities", "totalasset"], strong: true },
+  { key: "cashandbalanceswithrbi", label: "Cash & RBI Balances", aliases: ["cashandbalanceswithrbi"] },
+  { key: "bankbalancesandmoneyatcallandshortnotice", label: "Bank Balances & Money at Call" },
+  { key: "investments", label: "Investments" },
+  { key: "advances", label: "Advances" },
+  { key: "fixedassets", label: "Fixed Assets", aliases: ["fixedassets"] },
+  { key: "otherassets", label: "Other Assets", aliases: ["otherassets"] },
+  { key: "totalasset", label: "Total Assets", strong: true },
+];
 const PROFIT_LOSS_GROUPS = [
   {
     key: "revenue",
@@ -145,7 +160,7 @@ const PROFIT_LOSS_GROUPS = [
   },
   { key: "interest", label: "Interest" },
   { key: "depreciation", label: "Depreciation" },
-  { key: "profitbeforetax", label: "Profit before tax", strong: true },
+  { key: "profitbeforetax", label: "Profit before tax", strong: true, derive: ["netprofit", "taxexpense"] },
   { key: "exceptionalitems", label: "Exceptional Items" },
   { key: "taxexpense", label: "Tax" },
   {
@@ -154,6 +169,26 @@ const PROFIT_LOSS_GROUPS = [
     strong: true,
     children: ["eps", "basicreinr", "dilutedreinr", "dividendpayout"],
   },
+];
+const BANK_PROFIT_LOSS_GROUPS = [
+  {
+    key: "revenue",
+    label: "Interest Earned",
+    children: ["interestordiscountonadvancesorbills", "revenueoninvestments", "interestonbalanceswithrbiandothers", "otherinterest"],
+  },
+  { key: "otherincome", label: "Other Income" },
+  { key: "totalincome", label: "Total Income", strong: true },
+  { key: "interest", label: "Interest Expended" },
+  {
+    key: "expenses",
+    label: "Expenses excl. provisions",
+    children: ["employeebenefitexpense", "employeescost", "operatingexpenses", "otheroperatingexpenses"],
+  },
+  { key: "financingprofit", label: "Financing Profit", strong: true },
+  { key: "provisionsforloanloss", label: "Provisions" },
+  { key: "profitbeforetax", label: "Profit before tax", strong: true, derive: ["netprofit", "taxexpense"] },
+  { key: "taxexpense", label: "Tax" },
+  { key: "netprofit", label: "Net Profit", strong: true },
 ];
 const RATIO_PRIORITY = [
   "debtordays",
@@ -211,6 +246,20 @@ function numericValue(value) {
 function parsePriceDate(date) {
   const parsed = new Date(`${date}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatQuoteTimestamp(timestamp) {
+  if (!timestamp) return null;
+  const date = typeof timestamp === "number" ? new Date(timestamp * 1000) : parsePriceDate(String(timestamp).slice(0, 10));
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function quoteSourceLabel(source) {
+  if (!source) return null;
+  if (String(source).toLowerCase() === "upstox") return "Upstox LTP";
+  if (String(source).toLowerCase() === "finedge") return "Finedge close";
+  return source;
 }
 
 function periodStart(date, interval) {
@@ -425,8 +474,13 @@ function buildGroupedStatementRows(rows, period, expanded, groups, fallbackLimit
       .map((key) => byKey.get(normalizeMetricName(key)))
       .filter(Boolean)
       .filter((row) => financialRowKey(row) !== parentKey);
+    const derivedRows = (group.derive || [])
+      .map((key) => byKey.get(normalizeMetricName(key)))
+      .filter(Boolean);
     const syntheticParent = !parent && group.children?.length && childRows.length
       ? mergeRows(childRows, group.key, group.label)
+      : !parent && group.derive?.length && derivedRows.length === group.derive.length
+        ? mergeRows(derivedRows, group.key, group.label)
       : null;
     const parentRow = parent || syntheticParent;
     if (!parentRow && !childRows.length) return;
@@ -456,8 +510,16 @@ function buildGroupedStatementRows(rows, period, expanded, groups, fallbackLimit
   return output;
 }
 
-function buildProfitLossRows(rows, period, expanded) {
-  return buildGroupedStatementRows(rows, period, expanded, PROFIT_LOSS_GROUPS, 0);
+function isBankingCompany(data) {
+  const descriptor = [data?.profile?.sector, data?.profile?.industry, data?.instrument?.name]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /\bbank\b|banking|nbfc|financial services/.test(descriptor);
+}
+
+function buildProfitLossRows(rows, period, expanded, isBank = false) {
+  return buildGroupedStatementRows(rows, period, expanded, isBank ? BANK_PROFIT_LOSS_GROUPS : PROFIT_LOSS_GROUPS, 0);
 }
 
 function ratioByAnyName(ratios, names) {
@@ -681,6 +743,32 @@ function cagrPercent(latest, oldest, periods) {
   return ((latestValue / oldestValue) ** (1 / periods) - 1) * 100;
 }
 
+function cagrFromHistory(history, preferredYears = 5) {
+  const usable = (history || []).filter((point) => numericValue(point?.value) > 0);
+  if (usable.length < 2) {
+    return {
+      value: null,
+      label: `${preferredYears}Y CAGR`,
+      detail: "Insufficient history",
+      periods: 0,
+    };
+  }
+  const periods = Math.min(preferredYears, usable.length - 1);
+  const latest = usable[0];
+  const oldest = usable[periods];
+  return {
+    value: cagrPercent(latest?.value, oldest?.value, periods),
+    label: periods === preferredYears ? `${preferredYears}Y CAGR` : `${periods}Y CAGR`,
+    detail: `${oldest?.period || "Oldest"} to ${latest?.period || "latest"}`,
+    periods,
+  };
+}
+
+function cagrMetricLabel(prefix, cagr) {
+  const horizon = String(cagr?.label || "").replace("CAGR", "").trim();
+  return horizon ? `${horizon} ${prefix} CAGR` : `${prefix} CAGR`;
+}
+
 function spreadText(companyValue, sectorValue, unit = "") {
   const company = numericValue(companyValue);
   const sector = numericValue(sectorValue);
@@ -716,8 +804,8 @@ function buildResearchReport(data) {
   const latestProfit = profitHistory[0];
   const latestOperating = operatingHistory[0];
   const latestCfo = cfoHistory[0];
-  const salesCagr = cagrPercent(latestRevenue?.value, revenueHistory[revenueHistory.length - 1]?.value, Math.max(1, revenueHistory.length - 1));
-  const profitCagr = cagrPercent(latestProfit?.value, profitHistory[profitHistory.length - 1]?.value, Math.max(1, profitHistory.length - 1));
+  const salesCagr = cagrFromHistory(revenueHistory);
+  const profitCagr = cagrFromHistory(profitHistory);
   const opm = numericValue(latestRevenue?.value) ? (numericValue(latestOperating?.value) / numericValue(latestRevenue?.value)) * 100 : null;
   const npm = numericValue(latestRevenue?.value) ? (numericValue(latestProfit?.value) / numericValue(latestRevenue?.value)) * 100 : null;
   const cashConversion = numericValue(latestProfit?.value) ? (numericValue(latestCfo?.value) / numericValue(latestProfit?.value)) * 100 : null;
@@ -749,13 +837,13 @@ function buildResearchReport(data) {
     {
       name: "Growth",
       score: averageScore([
-        scoreFromThresholds(salesCagr, [2, 6, 10, 16]),
-        scoreFromThresholds(profitCagr, [2, 8, 14, 22]),
+        scoreFromThresholds(salesCagr.value, [2, 6, 10, 16]),
+        scoreFromThresholds(profitCagr.value, [2, 8, 14, 22]),
         scoreFromThresholds(latestRevenue?.change, [0, 5, 10, 18]),
       ]),
       metrics: [
-        ["Sales CAGR", percentText(salesCagr)],
-        ["Profit CAGR", percentText(profitCagr)],
+        [cagrMetricLabel("Sales", salesCagr), percentText(salesCagr.value)],
+        [cagrMetricLabel("Profit", profitCagr), percentText(profitCagr.value)],
         ["Latest sales growth", percentText(latestRevenue?.change)],
       ],
     },
@@ -810,8 +898,8 @@ function buildResearchReport(data) {
   ];
 
   const narrative = [
-    salesCagr !== null ? `Sales compounded at ${percentText(salesCagr)} across the available history.` : null,
-    profitCagr !== null ? `Profit compounded at ${percentText(profitCagr)}, with latest PAT growth at ${percentText(latestProfit?.change)}.` : null,
+    salesCagr.value !== null ? `Sales compounded at ${percentText(salesCagr.value)} over ${salesCagr.detail}.` : null,
+    profitCagr.value !== null ? `Profit compounded at ${percentText(profitCagr.value)} over ${profitCagr.detail}, with latest PAT growth at ${percentText(latestProfit?.change)}.` : null,
     cashConversion !== null ? `Cash conversion is ${percentText(cashConversion)}, which is ${cashConversion >= 90 ? "supportive of earnings quality" : "a point to monitor against reported profits"}.` : null,
     liabilityRatio !== null ? `Liabilities stand at ${percentText(liabilityRatio)} of assets, giving a quick balance-sheet risk marker.` : null,
   ].filter(Boolean);
@@ -875,8 +963,8 @@ function buildDerivedMetricGroups(data) {
   const latestProfitValue = pointValue(latestProfit);
   const previousProfitValue = pointValue(previousProfit);
   const latestCfoValue = pointValue(latestCfo);
-  const salesCagr = cagrPercent(latestRevenue?.value, revenueHistory[revenueHistory.length - 1]?.value, Math.max(1, revenueHistory.length - 1));
-  const profitCagr = cagrPercent(latestProfit?.value, profitHistory[profitHistory.length - 1]?.value, Math.max(1, profitHistory.length - 1));
+  const salesCagr = cagrFromHistory(revenueHistory);
+  const profitCagr = cagrFromHistory(profitHistory);
   const revenueAcceleration = previousRevenue?.change === null || previousRevenue?.change === undefined ? null : numericValue(latestRevenue?.change) - numericValue(previousRevenue?.change);
   const profitAcceleration = previousProfit?.change === null || previousProfit?.change === undefined ? null : numericValue(latestProfit?.change) - numericValue(previousProfit?.change);
   const operatingMargin = safeRatio(latestOperating?.value, latestRevenue?.value);
@@ -898,8 +986,8 @@ function buildDerivedMetricGroups(data) {
       title: "Growth Momentum",
       subtitle: "How sales and earnings are moving versus prior periods.",
       metrics: [
-        { label: "Sales CAGR", value: salesCagr, detail: `${revenueHistory[revenueHistory.length - 1]?.period || "Oldest"} to ${latestRevenue?.period || "latest"}`, tone: metricTone(salesCagr), type: "percent" },
-        { label: "Profit CAGR", value: profitCagr, detail: `${profitHistory[profitHistory.length - 1]?.period || "Oldest"} to ${latestProfit?.period || "latest"}`, tone: metricTone(profitCagr), type: "percent" },
+        { label: cagrMetricLabel("Sales", salesCagr), value: salesCagr.value, detail: salesCagr.detail, tone: metricTone(salesCagr.value), type: "percent" },
+        { label: cagrMetricLabel("Profit", profitCagr), value: profitCagr.value, detail: profitCagr.detail, tone: metricTone(profitCagr.value), type: "percent" },
         { label: "Latest Sales Growth", value: latestRevenue?.change, detail: latestRevenue?.period, tone: metricTone(latestRevenue?.change), type: "percent" },
         { label: "Sales Acceleration", value: revenueAcceleration, detail: "Latest growth minus previous growth", tone: metricTone(revenueAcceleration), type: "percent" },
         { label: "Profit Acceleration", value: profitAcceleration, detail: "Latest PAT growth minus previous growth", tone: metricTone(profitAcceleration), type: "percent" },
@@ -962,6 +1050,7 @@ function buildDerivedMetricGroups(data) {
 
 function buildMarketMetricsSnapshot(data) {
   if (!data) return null;
+  const isBank = isBankingCompany(data);
   const annualData = data.annualData || data;
   const incomeRows = data.incomeStatement?.income_statement || [];
   const annualIncomeRows = annualData.incomeStatement?.income_statement || incomeRows;
@@ -971,6 +1060,7 @@ function buildMarketMetricsSnapshot(data) {
   const revenue = latestPoint(incomeRows, "revenue");
   const netProfit = latestPoint(incomeRows, "net_profit");
   const operatingProfit = latestPoint(incomeRows, "operating_profit");
+  const financingProfit = latestPoint(incomeRows, "financing_profit");
   const interest = latestPoint(incomeRows, "interest");
   const exceptionalItems = latestPoint(incomeRows, "exceptional_items");
   const latestBalance = data.balanceSheet?.history?.[0];
@@ -1000,12 +1090,10 @@ function buildMarketMetricsSnapshot(data) {
   const mutualFunds = latestPoint(data.shareholding, "mutual_funds");
   const retail = latestPoint(data.shareholding, "retail_and_other");
   const institutionHolding = [fii, otherDii, mutualFunds].reduce((sum, point) => sum + (numericValue(point?.value) || 0), 0);
-  const annualRevenue = latestPoint(annualIncomeRows, "revenue");
-  const annualOperatingProfit = latestPoint(annualIncomeRows, "operating_profit");
   const annualNetProfit = latestPoint(annualIncomeRows, "net_profit");
   const annualCfo = latestPoint(annualCashRows, "operating");
-  const salesCagr = cagrPercent(annualRevenue?.value, oldestPoint(annualIncomeRows, "revenue")?.value, Math.max(1, annualRevenueHistory.length - 1));
-  const ebitCagr = cagrPercent(annualOperatingProfit?.value, oldestPoint(annualIncomeRows, "operating_profit")?.value, Math.max(1, annualOperatingHistory.length - 1));
+  const salesCagr = cagrFromHistory(annualRevenueHistory);
+  const ebitCagr = cagrFromHistory(annualOperatingHistory);
   const opm = safeRatio(operatingProfit?.value, revenue?.value);
   const netMargin = safeRatio(netProfit?.value, revenue?.value);
   const ebitToInterest = averageRatioFromHistories(annualOperatingHistory, annualInterestHistory, 5, 1);
@@ -1049,13 +1137,13 @@ function buildMarketMetricsSnapshot(data) {
       ["Debt Equity", compactNumber(debtEquity?.company_value)],
       ["Return on Equity", percentText(roe?.company_value)],
       ["Price to Book", compactNumber(pb?.company_value)],
-      ["Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in)],
+      [isBank ? "Interest Earned" : "Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in)],
       ["Net Profit", valueWithUnit(netProfit?.value, data.incomeStatement?.units_in)],
     ].filter(([, value]) => value && value !== "N/A"),
     returns: totalReturnRows,
     quality: [
-      ["Sales Growth (5Y)", percentText(salesCagr)],
-      ["EBIT Growth (5Y)", percentText(ebitCagr)],
+      [cagrMetricLabel("Sales", salesCagr), percentText(salesCagr.value)],
+      [cagrMetricLabel("EBIT", ebitCagr), percentText(ebitCagr.value)],
       ["EBIT to Interest", compactNumber(ebitToInterest)],
       ["Net Debt to Equity", compactNumber(netDebtToEquity ?? debtEquity?.company_value)],
       ["Tax Ratio", percentText(taxRate?.company_value)],
@@ -1092,9 +1180,9 @@ function buildMarketMetricsSnapshot(data) {
       ["Period", displayPeriodLabel(promoter?.period || fii?.period || "")],
     ],
     financialSnapshot: [
-      ["Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in), percentText(revenue?.change)],
-      ["Operating Profit", valueWithUnit(operatingProfit?.value, data.incomeStatement?.units_in), percentText(operatingProfit?.change)],
-      ["Interest", valueWithUnit(interest?.value, data.incomeStatement?.units_in), percentText(interest?.change)],
+      [isBank ? "Interest Earned" : "Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in), percentText(revenue?.change)],
+      [isBank ? "Financing Profit" : "Operating Profit", valueWithUnit((isBank ? financingProfit : operatingProfit)?.value, data.incomeStatement?.units_in), percentText((isBank ? financingProfit : operatingProfit)?.change)],
+      [isBank ? "Interest Expended" : "Interest", valueWithUnit(interest?.value, data.incomeStatement?.units_in), percentText(interest?.change)],
       ["Exceptional Items", valueWithUnit(exceptionalItems?.value, data.incomeStatement?.units_in), percentText(exceptionalItems?.change)],
       ["OPM", percentText(opm), "-"],
       ["Net Margin", percentText(netMargin), "-"],
@@ -1110,9 +1198,7 @@ function buildInvestorInsights(data) {
   const incomeRows = data.incomeStatement?.income_statement || [];
   const cashRows = data.cashFlow?.cash_flow || [];
   const revenueLatest = latestPoint(incomeRows, "revenue");
-  const revenueOldest = oldestPoint(incomeRows, "revenue");
   const profitLatest = latestPoint(incomeRows, "net_profit");
-  const profitOldest = oldestPoint(incomeRows, "net_profit");
   const operatingLatest = latestPoint(incomeRows, "operating_profit");
   const cfoLatest = latestPoint(cashRows, "operating");
   const latestBalance = data.balanceSheet?.history?.[0];
@@ -1120,10 +1206,10 @@ function buildInvestorInsights(data) {
   const fiiHistory = categoryHistory(data.shareholding, "fii");
   const diiHistory = categoryHistory(data.shareholding, "other_dii");
   const mfHistory = categoryHistory(data.shareholding, "mutual_funds");
-  const revenuePeriods = Math.max(1, (categoryHistory(incomeRows, "revenue").length || 1) - 1);
-  const profitPeriods = Math.max(1, (categoryHistory(incomeRows, "net_profit").length || 1) - 1);
-  const salesCagr = cagrPercent(revenueLatest?.value, revenueOldest?.value, revenuePeriods);
-  const profitCagr = cagrPercent(profitLatest?.value, profitOldest?.value, profitPeriods);
+  const revenueHistory = categoryHistory(incomeRows, "revenue");
+  const profitHistory = categoryHistory(incomeRows, "net_profit");
+  const salesCagr = cagrFromHistory(revenueHistory);
+  const profitCagr = cagrFromHistory(profitHistory);
   const opm = numericValue(revenueLatest?.value) ? (numericValue(operatingLatest?.value) / numericValue(revenueLatest?.value)) * 100 : null;
   const npm = numericValue(revenueLatest?.value) ? (numericValue(profitLatest?.value) / numericValue(revenueLatest?.value)) * 100 : null;
   const cashConversion = numericValue(profitLatest?.value) ? (numericValue(cfoLatest?.value) / numericValue(profitLatest?.value)) * 100 : null;
@@ -1141,8 +1227,8 @@ function buildInvestorInsights(data) {
     {
       group: "Growth",
       items: [
-        { label: "Sales CAGR", value: percentValue(salesCagr), meta: `${revenueOldest?.period || "Oldest"} to ${revenueLatest?.period || "latest"}`, tone: insightTone(salesCagr) },
-        { label: "Profit CAGR", value: percentValue(profitCagr), meta: `${profitOldest?.period || "Oldest"} to ${profitLatest?.period || "latest"}`, tone: insightTone(profitCagr) },
+        { label: cagrMetricLabel("Sales", salesCagr), value: percentValue(salesCagr.value), meta: salesCagr.detail, tone: insightTone(salesCagr.value) },
+        { label: cagrMetricLabel("Profit", profitCagr), value: percentValue(profitCagr.value), meta: profitCagr.detail, tone: insightTone(profitCagr.value) },
         { label: "Latest Sales Growth", value: percentValue(revenueLatest?.change), meta: revenueLatest?.period, tone: insightTone(numericValue(revenueLatest?.change)) },
       ],
     },
@@ -1651,12 +1737,12 @@ function MultiTooltip({ active, payload, label, unit }) {
   );
 }
 
-function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [] }) {
+function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [], isBank = false }) {
   const [expanded, setExpanded] = useState({});
   const categories = id === "profit-loss"
-    ? buildProfitLossRows(rows, period, expanded)
+    ? buildProfitLossRows(rows, period, expanded, isBank)
     : id === "balance-sheet"
-      ? buildGroupedStatementRows(rows, period, expanded, BALANCE_SHEET_GROUPS, 0)
+      ? buildGroupedStatementRows(rows, period, expanded, isBank ? BANK_BALANCE_SHEET_GROUPS : BALANCE_SHEET_GROUPS, 0)
       : id === "cash-flow"
         ? buildGroupedStatementRows(rows, period, expanded, CASH_FLOW_GROUPS, 0)
         : cleanFinancialRows(rows, period, priorityRows);
@@ -1845,10 +1931,12 @@ function SnapshotRatios({ metrics }) {
 function CompanySummary({ data, quote, metrics }) {
   const price = quote.price || quote.lastPrice;
   const change = numericValue(quote.changePercent);
+  const quoteMeta = [quoteSourceLabel(quote.source), formatQuoteTimestamp(quote.timestamp)].filter(Boolean).join(" / ");
   const keyFacts = [
     ["Symbol", data.instrument?.symbol],
     ["ISIN", data.instrument?.isin],
     ["Sector", data.profile?.sector || "Sector unavailable"],
+    ["Quote", quoteMeta],
     ["Statement", data.statementType ? `${data.statementType}${data.statementType !== data.requestedStatementType ? ` (fallback from ${data.requestedStatementType})` : ""}` : null],
   ].filter(([, value]) => value);
   return (
@@ -2163,13 +2251,14 @@ export default function StockFundamentalsAdminPage() {
 
   const quote = useMemo(() => data?.quote || {}, [data]);
   const incomeUnit = data?.incomeStatement?.units_in;
+  const bankingCompany = isBankingCompany(data);
   const chartData = useMemo(() => {
     const incomeRows = data?.incomeStatement?.income_statement || [];
     const cashRows = data?.cashFlow?.cash_flow || [];
     return {
       income: combineHistories(incomeRows, [
         { key: "revenue", category: "revenue" },
-        { key: "preTaxProfit", category: "operating_profit" },
+        { key: "preTaxProfit", category: bankingCompany ? "profit_before_tax" : "operating_profit" },
         { key: "netProfit", category: "net_profit" },
       ], period),
       cash: combineHistories(cashRows, [
@@ -2180,7 +2269,7 @@ export default function StockFundamentalsAdminPage() {
       balance: balanceChartData(data?.balanceSheet, period),
       shareholding: shareholdingChartData(data?.shareholding, period),
     };
-  }, [data, period]);
+  }, [bankingCompany, data, period]);
 
   const dashboardMetrics = useMemo(() => {
     if (!data) return [];
@@ -2306,12 +2395,12 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="profit-loss-chart"
                 title="Profit & Loss Overview"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} sales, operating profit and net profit from the income statement.`}
+                subtitle={bankingCompany ? `${period === "quarterly" ? "Quarterly" : "Yearly"} interest earned, profit before tax and net profit.` : `${period === "quarterly" ? "Quarterly" : "Yearly"} sales, operating profit and net profit from the income statement.`}
                 data={chartData.income}
                 unit={incomeUnit}
                 bars={[
-                  { key: "revenue", label: "Revenue", color: GOLD },
-                  { key: "preTaxProfit", label: "Pre-tax Profit", color: TEAL },
+                  { key: "revenue", label: bankingCompany ? "Interest Earned" : "Revenue", color: GOLD },
+                  { key: "preTaxProfit", label: bankingCompany ? "Profit before tax" : "Pre-tax Profit", color: TEAL },
                   { key: "netProfit", label: "Net Profit", color: BLUE },
                 ]}
               />
@@ -2370,8 +2459,8 @@ export default function StockFundamentalsAdminPage() {
             <p className="mt-1 text-sm text-[#94A3B8]">Core statement rows grouped for fast review.</p>
           </section>
 
-          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`Core statement lines in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} />
-          <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`Liabilities and assets in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} />
+          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`${bankingCompany ? "Banking statement lines" : "Core statement lines"} in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} isBank={bankingCompany} />
+          <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`${bankingCompany ? "Banking assets and liabilities" : "Liabilities and assets"} in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} isBank={bankingCompany} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
           <RatioTable ratios={data.ratios} />
           <HistoryTable id="shareholding" title="Shareholding Pattern" subtitle="Latest ownership mix from available filing history." rows={data.shareholding} unit="%" />
