@@ -992,14 +992,20 @@ def _period_sort_value(period: str):
     return (year, quarter, text)
 
 
+def _month_label(month: int, year: str):
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    if month < 1 or month > 12:
+        return str(year)
+    return f"{month_names[month - 1]} {year}"
+
+
 def _compact_date_label(value, period: str):
     text = str(value or "")
     if re.fullmatch(r"\d{8}", text):
         year = text[:4]
         month = int(text[4:6])
         if period == "quarterly":
-            quarter = ((month - 1) // 3) + 1
-            return f"Q{quarter} {year}"
+            return _month_label(month, year)
         return year
     return None
 
@@ -1008,14 +1014,17 @@ def _period_label(row: Dict[str, Any], index: int, period: str):
     header = _first_value(row, ["header"])
     if header and str(header).upper() in {"TTM", "YTD"}:
         return str(header).upper()
-    period_keys = [
-        "period", "periodLabel", "displayPeriod", "fiscalPeriod", "fiscal_year", "fiscalYear",
-        "financialYear",
-    ]
     if period == "quarterly":
-        period_keys += ["period_end", "periodEnd", "date", "endDate", "reportDate", "year"]
+        period_keys = [
+            "period", "periodLabel", "displayPeriod", "fiscalPeriod",
+            "period_end", "periodEnd", "date", "endDate", "reportDate",
+            "fiscal_year", "fiscalYear", "financialYear", "year",
+        ]
     else:
-        period_keys += ["year", "period_end", "periodEnd", "date", "endDate", "reportDate"]
+        period_keys = [
+            "period", "periodLabel", "displayPeriod", "fiscalPeriod", "fiscal_year", "fiscalYear",
+            "financialYear", "year", "period_end", "periodEnd", "date", "endDate", "reportDate",
+        ]
     value = _first_value(row, period_keys)
     quarter = _first_value(row, ["quarter", "fiscalQuarter", "qtr"])
     year = _first_value(row, ["year", "fiscalYear", "financialYear"])
@@ -1032,8 +1041,7 @@ def _period_label(row: Dict[str, Any], index: int, period: str):
         date_match = re.match(r"(\d{4})-(\d{2})-", text)
         if period == "quarterly" and date_match:
             month = int(date_match.group(2))
-            quarter_no = ((month - 1) // 3) + 1
-            return f"Q{quarter_no} {date_match.group(1)}"
+            return _month_label(month, date_match.group(1))
         return text[:10] if date_match else text
     return f"Period {index + 1}"
 
@@ -1041,8 +1049,10 @@ def _period_label(row: Dict[str, Any], index: int, period: str):
 def _period_change(current, previous):
     current_value = _to_number(current)
     previous_value = _to_number(previous)
-    if current_value is None or previous_value in (None, 0):
+    if current_value is None or previous_value is None:
         return None
+    if previous_value == 0:
+        return 0 if current_value == 0 else None
     return ((current_value - previous_value) / abs(previous_value)) * 100
 
 
@@ -1166,7 +1176,6 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
     period_rows = sorted(period_rows, key=lambda item: _period_sort_value(item["label"]), reverse=True)
 
     categories = {}
-    seen_points = set()
     for period_index, item in enumerate(period_rows):
         row = item["row"]
         label = item["label"]
@@ -1177,11 +1186,14 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
             if number is None:
                 continue
             number = number / scale if scale and scale != 1 else number
-            category = aliases.get(str(key), alias_lookup.get(str(key).lower(), str(key)))
+            alias_value = aliases.get(str(key), alias_lookup.get(str(key).lower(), str(key)))
+            if isinstance(alias_value, (tuple, list)):
+                category = alias_value[0]
+                priority = alias_value[1] if len(alias_value) > 1 else 100
+            else:
+                category = alias_value
+                priority = 100
             point_key = (category, label)
-            if point_key in seen_points:
-                continue
-            seen_points.add(point_key)
             categories.setdefault(category, {
                 "category": category,
                 "label": _label_key(category),
@@ -1191,12 +1203,96 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
             if period_index + 1 < len(period_rows):
                 previous_value = _to_number(period_rows[period_index + 1]["row"].get(key))
                 previous_value = previous_value / scale if previous_value is not None and scale and scale != 1 else previous_value
-            categories[category]["history"].append({
+            point = {
                 "period": label,
                 "value": number,
                 "change": _period_change(number, previous_value),
-            })
+                "_priority": priority,
+            }
+            existing_index = next((idx for idx, item in enumerate(categories[category]["history"]) if item.get("period") == label), None)
+            if existing_index is None:
+                categories[category]["history"].append(point)
+                continue
+            existing_value = _to_number(categories[category]["history"][existing_index].get("value"))
+            existing_priority = categories[category]["history"][existing_index].get("_priority", 100)
+            if priority < existing_priority or (priority == existing_priority and (existing_value in (None, 0) or abs(number) > abs(existing_value))):
+                categories[category]["history"][existing_index] = point
+    for category in categories.values():
+        for point in category["history"]:
+            point.pop("_priority", None)
     return list(categories.values())
+
+
+def _derive_income_metrics(statement: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    categories = {row.get("category"): row for row in statement or [] if isinstance(row, dict)}
+
+    def history(category: str) -> List[Dict[str, Any]]:
+        return categories.get(category, {}).get("history") or []
+
+    def value_by_period(category: str) -> Dict[str, float]:
+        values = {}
+        for point in history(category):
+            value = _to_number(point.get("value"))
+            if value is not None:
+                values[point.get("period")] = value
+        return values
+
+    pbt = value_by_period("profit_before_tax")
+    interest = value_by_period("interest")
+    depreciation = value_by_period("depreciation")
+    other_income = value_by_period("other_income")
+    exceptional = value_by_period("exceptional_items")
+    existing_operating = value_by_period("operating_profit")
+    periods = sorted(
+        set(pbt) | set(interest) | set(depreciation) | set(other_income),
+        key=_period_sort_value,
+        reverse=True,
+    )
+    operating_history = []
+    for period in periods:
+        if period in existing_operating and existing_operating[period] != 0:
+            value = existing_operating[period]
+        elif period not in pbt:
+            continue
+        value = (
+            pbt.get(period, 0)
+            + interest.get(period, 0)
+            + depreciation.get(period, 0)
+            - other_income.get(period, 0)
+            - exceptional.get(period, 0)
+        )
+        operating_history.append({"period": period, "value": value, "change": None})
+
+    for index, point in enumerate(operating_history):
+        previous = operating_history[index + 1]["value"] if index + 1 < len(operating_history) else None
+        point["change"] = _period_change(point.get("value"), previous)
+
+    if operating_history:
+        categories["operating_profit"] = {
+            "category": "operating_profit",
+            "label": _label_key("operating_profit"),
+            "history": operating_history,
+        }
+
+    ordered = []
+    for category in [
+        "revenue",
+        "total_income",
+        "expenses",
+        "operating_profit",
+        "other_income",
+        "interest",
+        "depreciation",
+        "profit_before_tax",
+        "exceptional_items",
+        "tax_expense",
+        "eps",
+        "net_profit",
+    ]:
+        if category in categories:
+            ordered.append(categories.pop(category))
+    ordered.extend(categories.values())
+    return ordered
 
 
 def _statement_units(rows):
@@ -1214,6 +1310,14 @@ def _balance_history(rows: List[Dict[str, Any]], period: str):
         "assets": "total_asset",
         "totalLiabilities": "total_liability", "totalLiability": "total_liability", "total_liabilities": "total_liability",
         "liabilities": "total_liability",
+        "totalEquity": "equity", "shareholdersEquity": "equity", "shareholderEquity": "equity",
+        "equity": "equity", "netWorth": "equity",
+        "borrowings": "borrowings", "totalBorrowings": "borrowings", "totalDebt": "borrowings",
+        "shortTermBorrowings": "short_term_borrowings", "longTermBorrowings": "long_term_borrowings",
+        "cashAndCashEquivalents": "cash_and_cash_equivalents",
+        "cashAndBankBalances": "cash_and_cash_equivalents",
+        "cashEquivalents": "cash_and_cash_equivalents",
+        "cash": "cash_and_cash_equivalents",
     }
     categories = _history_from_period_rows(rows, period, aliases, scale=10_000_000)
     asset_history = next((row["history"] for row in categories if row["category"] == "total_asset"), [])
@@ -1282,7 +1386,10 @@ def _normalize_profile(payload, instrument):
         "sector": _first_value(payload, ["sector", "industry", "sectorName"]),
         "industry": _first_value(payload, ["industry", "industryName"]),
         "website": _first_value(payload, ["website", "homepage", "url"]),
-        "marketCap": _first_value(payload, ["marketCap", "market_cap", "marketCapitalization"]),
+        "marketCap": _first_value(payload, [
+            "marketCap", "market_cap", "marketCapitalization", "market_capitalization",
+            "mcap", "marketValue", "fullMarketCap", "ffmc",
+        ]),
         "companyName": _first_value(payload, ["companyName", "name"]) or instrument.get("name"),
     }
 
@@ -1376,14 +1483,13 @@ def _normalize_upstox_period(period: str):
     match = re.search(r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(20\d{2}|19\d{2})", text.upper())
     if not match:
         return text
-    month = match.group(1)
-    quarter = {
-        "JAN": 1, "FEB": 1, "MAR": 1,
-        "APR": 2, "MAY": 2, "JUN": 2,
-        "JUL": 3, "AUG": 3, "SEP": 3,
-        "OCT": 4, "NOV": 4, "DEC": 4,
-    }[month]
-    return f"Q{quarter} {match.group(2)}"
+    month = {
+        "JAN": 1, "FEB": 2, "MAR": 3,
+        "APR": 4, "MAY": 5, "JUN": 6,
+        "JUL": 7, "AUG": 8, "SEP": 9,
+        "OCT": 10, "NOV": 11, "DEC": 12,
+    }[match.group(1)]
+    return _month_label(month, match.group(2))
 
 
 def _normalize_upstox_history(history, period="yearly"):
@@ -1676,8 +1782,14 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             default={},
         )
         standalone_income_rows = _payload_items(standalone_income_rows, ["financials", "data", "results", "items"])
-        requested_income_history = _history_from_period_rows(requested_income_rows, period, {"revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue", "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue", "incomeFromOperations": "revenue", "totalIncome": "revenue"}, scale=10_000_000)
-        standalone_income_history = _history_from_period_rows(standalone_income_rows, period, {"revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue", "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue", "incomeFromOperations": "revenue", "totalIncome": "revenue"}, scale=10_000_000)
+        revenue_aliases = {
+            "netSales": ("revenue", 10), "sales": ("revenue", 10),
+            "revenueFromOperations": ("revenue", 10), "incomeFromOperations": ("revenue", 10),
+            "interestEarned": ("revenue", 10), "interestIncome": ("revenue", 10),
+            "revenue": ("revenue", 20), "totalRevenue": ("revenue", 20),
+        }
+        requested_income_history = _history_from_period_rows(requested_income_rows, period, revenue_aliases, scale=10_000_000)
+        standalone_income_history = _history_from_period_rows(standalone_income_rows, period, revenue_aliases, scale=10_000_000)
         if _history_length(standalone_income_history, "revenue") > _history_length(requested_income_history, "revenue"):
             income_rows = standalone_income_rows
             balance_rows = _finedge_statement(symbol, "standalone", "bs", period)
@@ -1687,17 +1799,39 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             data_sources["balanceSheet"] = "finedge:standalone"
             data_sources["cashFlow"] = "finedge:standalone"
 
+    normalized_income_statement = _history_from_period_rows(income_rows, period, {
+        "netSales": ("revenue", 10), "sales": ("revenue", 10),
+        "revenueFromOperations": ("revenue", 10), "incomeFromOperations": ("revenue", 10),
+        "interestEarned": ("revenue", 10), "interestIncome": ("revenue", 10),
+        "revenue": ("revenue", 20), "totalRevenue": ("revenue", 20),
+        "totalIncome": "total_income", "income": "total_income",
+        "costOfGoodsSold": "cost_of_goods_sold", "cogs": "cost_of_goods_sold",
+        "totalExpenses": "expenses", "expenses": "expenses", "operatingExpenses": "expenses",
+        "employeeBenefitExpense": "employee_benefit_expense", "employeeBenefitsExpense": "employee_benefit_expense",
+        "financeCosts": "interest", "financeCost": "interest", "interest": "interest", "interestExpended": "interest",
+        "depreciation": "depreciation", "depreciationAndAmortisation": "depreciation",
+        "depreciationAndAmortization": "depreciation",
+        "otherIncome": "other_income",
+        "exceptionalItems": "exceptional_items", "exceptionalItem": "exceptional_items",
+        "exceptionalItemsBeforeTax": "exceptional_items", "extraordinaryItems": "exceptional_items",
+        "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
+        "ebit": "operating_profit",
+        "profitBeforeTax": "profit_before_tax", "pbt": "profit_before_tax",
+        "tax": "tax_expense", "taxExpense": "tax_expense", "currentTax": "tax_expense",
+        "profitAttributableToOwnersOfParent": ("net_profit", 10),
+        "profitOrLossAttributableToOwners": ("net_profit", 10),
+        "profitLossAttributableToOwnersOfParent": ("net_profit", 10),
+        "profitOrLossAttributableToOwnersOfParent": ("net_profit", 10),
+        "netProfitAfterTax": ("net_profit", 20),
+        "profitAfterTax": ("net_profit", 30), "pat": ("net_profit", 30),
+        "netProfit": ("net_profit", 40), "net_profit": ("net_profit", 40),
+        "netIncome": ("net_profit", 40), "profitLossForPeriod": ("net_profit", 40),
+        "profitForThePeriod": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
+        "eps": "eps",
+    }, scale=10_000_000)
     income_statement = {
         "units_in": "Cr",
-        "income_statement": _history_from_period_rows(income_rows, period, {
-            "revenue": "revenue", "totalRevenue": "revenue", "netSales": "revenue",
-            "sales": "revenue", "income": "revenue", "revenueFromOperations": "revenue",
-            "incomeFromOperations": "revenue", "totalIncome": "revenue",
-            "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
-            "ebit": "operating_profit", "profitBeforeTax": "operating_profit", "pbt": "operating_profit",
-            "netProfit": "net_profit", "net_profit": "net_profit", "profitAfterTax": "net_profit",
-            "pat": "net_profit", "netIncome": "net_profit", "profitLossForPeriod": "net_profit",
-        }, scale=10_000_000),
+        "income_statement": _derive_income_metrics(normalized_income_statement),
     }
     balance_history, balance_categories = _balance_history(balance_rows, period)
     balance_sheet = {
@@ -1760,12 +1894,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             income_statement = {"units_in": "Cr", "income_statement": upstox_income_rows}
             data_sources["incomeStatement"] = "upstox"
     if not balance_sheet.get("history"):
-        upstox_balance_history = _normalize_upstox_balance_sheet(upstox_balance_payload, "yearly")
+        upstox_balance_history = _normalize_upstox_balance_sheet(upstox_balance_payload, period)
         if upstox_balance_history:
             balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": []}
             data_sources["balanceSheet"] = "upstox"
     if not any((row.get("history") for row in cash_flow.get("cash_flow", []))):
-        upstox_cash_rows = _normalize_upstox_statement(upstox_cash_payload, "cash_flow", "yearly")
+        upstox_cash_rows = _normalize_upstox_statement(upstox_cash_payload, "cash_flow", period)
         if upstox_cash_rows:
             cash_flow = {"units_in": "Cr", "cash_flow": upstox_cash_rows}
             data_sources["cashFlow"] = "upstox"

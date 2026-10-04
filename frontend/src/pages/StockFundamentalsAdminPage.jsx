@@ -30,6 +30,7 @@ const PRICE_INTERVALS = [
 ];
 const DASHBOARD_TABS = [
   { id: "summary", label: "Summary" },
+  { id: "market-metrics", label: "Market Metrics" },
   { id: "research-report", label: "Report" },
   { id: "derived-metrics", label: "Metrics" },
   { id: "price-chart", label: "Chart" },
@@ -62,6 +63,7 @@ const CORE_INCOME_ROWS = [
   "otherincome",
   "operatingprofit",
   "profitbeforetax",
+  "exceptionalitems",
   "taxexpense",
   "netprofit",
 ];
@@ -76,6 +78,111 @@ const CORE_CASH_ROWS = [
   "dividendspaidclassifiedasfinancing",
   "interestpaidclassifiedasfinancing",
 ];
+const BALANCE_SHEET_GROUPS = [
+  { key: "equitycapital", label: "Equity Capital", aliases: ["equitycapital", "sharecapital"] },
+  { key: "reserves", label: "Reserves", aliases: ["reserves", "reservesandsurplus"] },
+  {
+    key: "borrowings",
+    label: "Borrowings",
+    children: ["borrowingscurrent", "borrowingsnoncurrent", "shorttermborrowings", "longtermborrowings", "currentborrowings", "noncurrentborrowings"],
+  },
+  {
+    key: "otherliabilities",
+    label: "Other Liabilities",
+    aliases: ["totalliability"],
+    children: ["tradpayables", "tradepayables", "currentfinancialliabilities", "othercurrentliabilities", "othernoncurrentliabilities", "provisions"],
+  },
+  { key: "totalliabilities", label: "Total Liabilities", aliases: ["totalasset"], strong: true },
+  {
+    key: "fixedassets",
+    label: "Fixed Assets",
+    children: ["propertyplantandequipment", "propertyplantandequipmentgross", "tangibleassets", "intangibleassets", "rightofuseassets"],
+  },
+  { key: "capitalworkinprogress", label: "CWIP", aliases: ["capitalworkinprogress", "cwip"] },
+  { key: "investments", label: "Investments", aliases: ["investments", "currentinvestments", "noncurrentinvestments"] },
+  {
+    key: "otherassets",
+    label: "Other Assets",
+    aliases: ["currentassets"],
+    children: ["currentassets", "currentfinancialassets", "cashandcashequivalents", "inventories", "tradereceivablescurrent", "assetsclassifiedasheldforsale"],
+  },
+  { key: "totalasset", label: "Total Assets", strong: true },
+];
+const CASH_FLOW_GROUPS = [
+  {
+    key: "operating",
+    label: "Cash from Operating Activity",
+    children: ["adjfordepreciationandamortisationexpense", "adjforinventories", "adjfortradepayablescurrent", "adjfortradereceivablescurrent", "adjforfinancecosts", "adjforinterestincome"],
+  },
+  {
+    key: "investing",
+    label: "Cash from Investing Activity",
+    children: ["purchaseoffixedintangibleassets", "purchaseofppeclassifiedasinvesting", "saleoffixedintangibleassets", "purchaseofinvestments", "saleofinvestments", "adjfordividendincome"],
+  },
+  {
+    key: "financing",
+    label: "Cash from Financing Activity",
+    children: ["dividendspaidclassifiedasfinancing", "interestpaidclassifiedasfinancing", "proceedsfromborrowings", "repaymentofborrowings"],
+  },
+  { key: "netcashflow", label: "Net Cash Flow", strong: true },
+];
+const PROFIT_LOSS_GROUPS = [
+  {
+    key: "revenue",
+    label: "Revenue",
+    children: ["totalincome", "interestearned", "interestincome", "revenuefromoperations", "incomefromoperations", "netsales", "sales"],
+  },
+  {
+    key: "expenses",
+    label: "Expenses",
+    children: ["costofgoodssold", "cogs", "employeebenefitexpense", "employeebenefitsexpense", "financecosts", "operatingexpenses", "otherexpenses"],
+  },
+  { key: "operatingprofit", label: "Operating Profit", strong: true },
+  {
+    key: "otherincome",
+    label: "Other Income",
+    children: ["totalotherincome", "nonoperatingincome"],
+  },
+  { key: "interest", label: "Interest" },
+  { key: "depreciation", label: "Depreciation" },
+  { key: "profitbeforetax", label: "Profit before tax", strong: true },
+  { key: "exceptionalitems", label: "Exceptional Items" },
+  { key: "taxexpense", label: "Tax" },
+  {
+    key: "netprofit",
+    label: "Net Profit",
+    strong: true,
+    children: ["eps", "basicreinr", "dilutedreinr", "dividendpayout"],
+  },
+];
+const RATIO_PRIORITY = [
+  "debtordays",
+  "inventorydays",
+  "dayspayable",
+  "cashconversioncycle",
+  "workingcapitaldays",
+  "roce",
+  "roe",
+  "pe",
+  "pb",
+  "debt/equity",
+  "interestcoverage",
+  "currentratio",
+  "quickratio",
+  "assetturnover",
+];
+const RATIO_DESCRIPTIONS = {
+  "P/E": "Shows how much investors are willing to pay for Rs. 1 of a company's earnings.",
+  "P/B": "Compares market price with book value per share.",
+  ROE: "Measures profit generated on shareholders' equity.",
+  ROCE: "Measures return generated on capital employed in the business.",
+  ROA: "Measures profit generated from the company's asset base.",
+  "Debt / Equity": "Compares total debt with shareholders' equity.",
+  "EV/EBITDA": "Compares enterprise value with operating earnings before depreciation and amortisation.",
+  "Current Ratio": "Shows whether short-term assets can cover short-term liabilities.",
+  "Quick Ratio": "Measures near-term liquidity excluding inventory.",
+  "Interest Coverage": "Shows how comfortably operating profit can cover interest cost.",
+};
 
 function compactNumber(value, options = {}) {
   if (value === null || value === undefined || value === "") return "N/A";
@@ -238,6 +345,19 @@ function financialRowKey(row) {
   return normalizeMetricName(row?.category || row?.label);
 }
 
+function displayPeriodLabel(period) {
+  const text = String(period || "");
+  const quarterMatch = text.match(/^Q([1-4])\s+(20\d{2}|19\d{2})$/i);
+  if (!quarterMatch) return text;
+  const quarterEndMonth = {
+    1: "Mar",
+    2: "Jun",
+    3: "Sep",
+    4: "Dec",
+  }[Number(quarterMatch[1])];
+  return `${quarterEndMonth} ${quarterMatch[2]}`;
+}
+
 function hasMeaningfulHistory(row) {
   const values = (row?.history || []).map((point) => numericValue(point.value)).filter((value) => value !== null);
   if (!values.length) return false;
@@ -262,6 +382,82 @@ function cleanFinancialRows(rows, period, priorityKeys = []) {
     .sort((a, b) => String(a.label || a.category).localeCompare(String(b.label || b.category)));
 
   return priorityRows.length ? [...priorityRows, ...rest.slice(0, 8)] : rest.slice(0, 14);
+}
+
+function statementRows(rows, period) {
+  return limitHistoryRows(rows, period)
+    .filter((row) => {
+      const key = financialRowKey(row);
+      if (!key || NOISY_FINANCIAL_KEYS.has(key) || key.endsWith("date")) return false;
+      return hasMeaningfulHistory(row);
+    });
+}
+
+function firstRowByKeys(rowMap, keys) {
+  return (keys || []).map((key) => rowMap.get(normalizeMetricName(key))).find(Boolean);
+}
+
+function mergeRows(rows, category, label) {
+  const historyByPeriod = new Map();
+  rows.forEach((row) => {
+    (row.history || []).forEach((point) => {
+      const value = pointValue(point);
+      if (value === null) return;
+      const current = historyByPeriod.get(point.period) || { period: point.period, value: 0, change: null };
+      current.value += value;
+      historyByPeriod.set(point.period, current);
+    });
+  });
+  const history = Array.from(historyByPeriod.values()).sort((a, b) => String(b.period).localeCompare(String(a.period)));
+  return { category, label, history };
+}
+
+function buildGroupedStatementRows(rows, period, expanded, groups, fallbackLimit = 0) {
+  const sourceRows = statementRows(rows, period);
+  const byKey = new Map(sourceRows.map((row) => [financialRowKey(row), row]));
+  const consumed = new Set();
+  const output = [];
+
+  groups.forEach((group) => {
+    const parent = firstRowByKeys(byKey, [group.key, ...(group.aliases || [])]);
+    const parentKey = parent ? financialRowKey(parent) : normalizeMetricName(group.key);
+    const childRows = (group.children || [])
+      .map((key) => byKey.get(normalizeMetricName(key)))
+      .filter(Boolean)
+      .filter((row) => financialRowKey(row) !== parentKey);
+    const syntheticParent = !parent && group.children?.length && childRows.length
+      ? mergeRows(childRows, group.key, group.label)
+      : null;
+    const parentRow = parent || syntheticParent;
+    if (!parentRow && !childRows.length) return;
+
+    if (parent) consumed.add(financialRowKey(parent));
+    childRows.forEach((row) => consumed.add(financialRowKey(row)));
+    output.push({
+      ...parentRow,
+      category: group.key,
+      label: group.label,
+      strong: group.strong,
+      expandable: childRows.length > 0,
+      childCount: childRows.length,
+      depth: 0,
+    });
+
+    if (expanded[group.key]) {
+      childRows.forEach((row) => output.push({ ...row, depth: 1 }));
+    }
+  });
+
+  sourceRows
+    .filter((row) => !consumed.has(financialRowKey(row)))
+    .slice(0, fallbackLimit)
+    .forEach((row) => output.splice(Math.max(0, output.length - 1), 0, { ...row, depth: 0 }));
+
+  return output;
+}
+
+function buildProfitLossRows(rows, period, expanded) {
+  return buildGroupedStatementRows(rows, period, expanded, PROFIT_LOSS_GROUPS, 0);
 }
 
 function ratioByAnyName(ratios, names) {
@@ -326,7 +522,7 @@ function limitPeriods(items, period) {
 }
 
 function periodListLabel(periods) {
-  if (!periods.length) return "No periods returned";
+  if (!periods.length) return "No periods available";
   if (periods.length <= 6) return periods.join(", ");
   return `${periods.slice(0, 3).join(", ")} ... ${periods.slice(-2).join(", ")}`;
 }
@@ -421,6 +617,28 @@ function priceReturn(history, sessions) {
   return safeRatio(Number(latest?.price) - Number(previous?.price), previous?.price);
 }
 
+function parseActionDate(action) {
+  const value = action?.ex_date || action?.record_date || action?.announcement_date || action?.date;
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dividendReturn(actions, price, months = 12, endDate) {
+  const latestPrice = numericValue(price);
+  if (!latestPrice) return null;
+  const latestDate = endDate ? parsePriceDate(endDate) : null;
+  const cutoff = latestDate || new Date();
+  cutoff.setMonth(cutoff.getMonth() - months);
+  const dividendTotal = (actions || []).reduce((sum, action) => {
+    if (!normalizeMetricName(action.action_type || action.type).includes("dividend")) return sum;
+    const date = parseActionDate(action);
+    if (date && date < cutoff) return sum;
+    return sum + (numericValue(action.amount) || 0);
+  }, 0);
+  return dividendTotal ? (dividendTotal / latestPrice) * 100 : 0;
+}
+
 function averageHistoryValue(history, count = 4) {
   const values = (history || []).slice(0, count).map((point) => pointValue(point)).filter((value) => value !== null);
   if (!values.length) return null;
@@ -437,6 +655,16 @@ function marginSeries(numeratorHistory, denominatorHistory) {
       value: numerator !== null && denominator ? (numerator / denominator) * 100 : null,
     };
   }).filter((point) => point.value !== null);
+}
+
+function averageRatioFromHistories(numeratorHistory, denominatorHistory, count = 5, multiplier = 1) {
+  const denominatorByPeriod = new Map((denominatorHistory || []).map((point) => [point.period, pointValue(point)]));
+  const values = (numeratorHistory || []).slice(0, count).map((point) => {
+    const denominator = denominatorByPeriod.get(point.period);
+    return denominator ? (pointValue(point) / denominator) * multiplier : null;
+  }).filter((value) => value !== null && Number.isFinite(value));
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function latestVsAverage(history, averageCount = 4) {
@@ -582,7 +810,7 @@ function buildResearchReport(data) {
   ];
 
   const narrative = [
-    salesCagr !== null ? `Sales compounded at ${percentText(salesCagr)} across the returned history.` : null,
+    salesCagr !== null ? `Sales compounded at ${percentText(salesCagr)} across the available history.` : null,
     profitCagr !== null ? `Profit compounded at ${percentText(profitCagr)}, with latest PAT growth at ${percentText(latestProfit?.change)}.` : null,
     cashConversion !== null ? `Cash conversion is ${percentText(cashConversion)}, which is ${cashConversion >= 90 ? "supportive of earnings quality" : "a point to monitor against reported profits"}.` : null,
     liabilityRatio !== null ? `Liabilities stand at ${percentText(liabilityRatio)} of assets, giving a quick balance-sheet risk marker.` : null,
@@ -717,7 +945,7 @@ function buildDerivedMetricGroups(data) {
     },
     {
       title: "Valuation & Technical",
-      subtitle: "Market multiple and price-position context from returned data.",
+      subtitle: "Market multiples and price-position context.",
       metrics: [
         { label: "P/E", value: pe?.company_value, detail: spreadText(pe?.company_value, pe?.sector_value), tone: comparisonTone(pe?.company_value, pe?.sector_value, "lower"), type: "number" },
         { label: "P/B", value: pb?.company_value, detail: spreadText(pb?.company_value, pb?.sector_value), tone: comparisonTone(pb?.company_value, pb?.sector_value, "lower"), type: "number" },
@@ -730,6 +958,151 @@ function buildDerivedMetricGroups(data) {
       ],
     },
   ];
+}
+
+function buildMarketMetricsSnapshot(data) {
+  if (!data) return null;
+  const annualData = data.annualData || data;
+  const incomeRows = data.incomeStatement?.income_statement || [];
+  const annualIncomeRows = annualData.incomeStatement?.income_statement || incomeRows;
+  const cashRows = data.cashFlow?.cash_flow || [];
+  const annualCashRows = annualData.cashFlow?.cash_flow || cashRows;
+  const price = data.quote?.price || data.quote?.lastPrice;
+  const revenue = latestPoint(incomeRows, "revenue");
+  const netProfit = latestPoint(incomeRows, "net_profit");
+  const operatingProfit = latestPoint(incomeRows, "operating_profit");
+  const interest = latestPoint(incomeRows, "interest");
+  const exceptionalItems = latestPoint(incomeRows, "exceptional_items");
+  const latestBalance = data.balanceSheet?.history?.[0];
+  const cfo = latestPoint(cashRows, "operating");
+  const annualRevenueHistory = categoryHistory(annualIncomeRows, "revenue");
+  const annualOperatingHistory = categoryHistory(annualIncomeRows, "operating_profit");
+  const annualInterestHistory = categoryHistory(annualIncomeRows, "interest");
+  const annualDebtHistory = categoryHistory(annualData.balanceSheet?.balance_sheet, "borrowings");
+  const annualEquityHistory = categoryHistory(annualData.balanceSheet?.balance_sheet, "equity");
+  const annualCashHistory = categoryHistory(annualData.balanceSheet?.balance_sheet, "cash_and_cash_equivalents");
+  const annualCfoHistory = categoryHistory(annualCashRows, "operating");
+  const pe = ratioByAnyName(data.ratios, ["P/E", "PE", "Price Earnings"]);
+  const pb = ratioByAnyName(data.ratios, ["P/B", "PB", "Price Book"]);
+  const roe = ratioByAnyName(data.ratios, ["ROE", "Return On Equity"]);
+  const roce = ratioByAnyName(data.ratios, ["ROCE", "Return On Capital"]);
+  const debtEquity = ratioByAnyName(data.ratios, ["Debt / Equity", "Debt Equity", "Total Debt To Equity"]);
+  const dividendYield = ratioByAnyName(data.ratios, ["Dividend Yield", "DividendYield"]);
+  const evEbit = ratioByAnyName(data.ratios, ["EV/EBIT", "Enterprise Value To EBIT"]);
+  const evEbitda = ratioByAnyName(data.ratios, ["EV/EBITDA"]);
+  const evSales = ratioByAnyName(data.ratios, ["EV/Sales", "Enterprise Value To Sales"]);
+  const taxRate = ratioByAnyName(data.ratios, ["Effective Tax Rate", "Tax Rate"]);
+  const latestPrice = latestPricePoint(data.priceHistory);
+  const latestDividendReturn = dividendReturn(data.corporateActions, price, 12, latestPrice?.date);
+  const promoter = latestPoint(data.shareholding, "promoters");
+  const fii = latestPoint(data.shareholding, "fii");
+  const otherDii = latestPoint(data.shareholding, "other_dii");
+  const mutualFunds = latestPoint(data.shareholding, "mutual_funds");
+  const retail = latestPoint(data.shareholding, "retail_and_other");
+  const institutionHolding = [fii, otherDii, mutualFunds].reduce((sum, point) => sum + (numericValue(point?.value) || 0), 0);
+  const annualRevenue = latestPoint(annualIncomeRows, "revenue");
+  const annualOperatingProfit = latestPoint(annualIncomeRows, "operating_profit");
+  const annualNetProfit = latestPoint(annualIncomeRows, "net_profit");
+  const annualCfo = latestPoint(annualCashRows, "operating");
+  const salesCagr = cagrPercent(annualRevenue?.value, oldestPoint(annualIncomeRows, "revenue")?.value, Math.max(1, annualRevenueHistory.length - 1));
+  const ebitCagr = cagrPercent(annualOperatingProfit?.value, oldestPoint(annualIncomeRows, "operating_profit")?.value, Math.max(1, annualOperatingHistory.length - 1));
+  const opm = safeRatio(operatingProfit?.value, revenue?.value);
+  const netMargin = safeRatio(netProfit?.value, revenue?.value);
+  const ebitToInterest = averageRatioFromHistories(annualOperatingHistory, annualInterestHistory, 5, 1);
+  const cfoToProfit = safeRatio(annualCfo?.value, annualNetProfit?.value);
+  const netDebtToEquity = averageRatioFromHistories(
+    annualDebtHistory.map((point) => {
+      const cashPoint = annualCashHistory.find((item) => item.period === point.period);
+      return { ...point, value: (pointValue(point) || 0) - (pointValue(cashPoint) || 0) };
+    }),
+    annualEquityHistory,
+    5,
+    1,
+  );
+  const dividendPayout = safeRatio(dividendYield?.company_value, pe?.company_value, 100);
+  const totalReturnRows = [
+    ["3 Months", 63],
+    ["6 Months", 126],
+    ["1 Year", 252],
+    ["2 Years", 504],
+    ["3 Years", 756],
+    ["4 Years", 1008],
+    ["5 Years", 1260],
+  ].map(([label, sessions]) => {
+    const priceRet = priceReturn(data.priceHistory, sessions);
+    const divRet = dividendReturn(data.corporateActions, price, Math.round(sessions / 21), latestPrice?.date);
+    return {
+      label,
+      priceReturn: priceRet,
+      dividendReturn: divRet,
+      totalReturn: priceRet !== null || divRet !== null ? (priceRet || 0) + (divRet || 0) : null,
+    };
+  });
+
+  return {
+    stockDna: [
+      ["Industry", data.profile?.industry || data.profile?.sector],
+      ["Market cap", data.profile?.marketCap ? `Rs. ${compactNumber(data.profile.marketCap)} Cr` : null],
+      ["P/E", compactNumber(pe?.company_value)],
+      ["Industry P/E", compactNumber(pe?.sector_value)],
+      ["Dividend Yield", percentText(dividendYield?.company_value ?? latestDividendReturn)],
+      ["Debt Equity", compactNumber(debtEquity?.company_value)],
+      ["Return on Equity", percentText(roe?.company_value)],
+      ["Price to Book", compactNumber(pb?.company_value)],
+      ["Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in)],
+      ["Net Profit", valueWithUnit(netProfit?.value, data.incomeStatement?.units_in)],
+    ].filter(([, value]) => value && value !== "N/A"),
+    returns: totalReturnRows,
+    quality: [
+      ["Sales Growth (5Y)", percentText(salesCagr)],
+      ["EBIT Growth (5Y)", percentText(ebitCagr)],
+      ["EBIT to Interest", compactNumber(ebitToInterest)],
+      ["Net Debt to Equity", compactNumber(netDebtToEquity ?? debtEquity?.company_value)],
+      ["Tax Ratio", percentText(taxRate?.company_value)],
+      ["Dividend Payout", percentText(dividendPayout)],
+      ["Institutional Holding", percentText(institutionHolding)],
+      ["ROCE", percentText(roce?.company_value)],
+      ["ROE", percentText(roe?.company_value)],
+      ["CFO / PAT", percentText(cfoToProfit)],
+    ],
+    valuation: [
+      ["P/E Ratio", compactNumber(pe?.company_value)],
+      ["Industry P/E", compactNumber(pe?.sector_value)],
+      ["Price to Book Value", compactNumber(pb?.company_value)],
+      ["EV to EBIT", compactNumber(evEbit?.company_value)],
+      ["EV to EBITDA", compactNumber(evEbitda?.company_value)],
+      ["EV to Sales", compactNumber(evSales?.company_value)],
+      ["Dividend Yield", percentText(dividendYield?.company_value ?? latestDividendReturn)],
+      ["ROCE (Latest)", percentText(roce?.company_value)],
+      ["ROE (Latest)", percentText(roe?.company_value)],
+    ],
+    technicals: [
+      ["RSI", compactNumber(latestPrice?.rsi)],
+      ["Price vs 50 DMA", latestPrice?.ema50 ? percentText(safeRatio(latestPrice.price - latestPrice.ema50, latestPrice.ema50)) : "N/A"],
+      ["Price vs 200 DMA", latestPrice?.ema200 ? percentText(safeRatio(latestPrice.price - latestPrice.ema200, latestPrice.ema200)) : "N/A"],
+      ["1M Price Return", percentText(priceReturn(data.priceHistory, 21))],
+      ["6M Price Return", percentText(priceReturn(data.priceHistory, 126))],
+      ["1Y Price Return", percentText(priceReturn(data.priceHistory, 252))],
+    ],
+    shareholding: [
+      ["Promoters", percentText(promoter?.value)],
+      ["FII", percentText(fii?.value)],
+      ["DII + MF", percentText((numericValue(otherDii?.value) || 0) + (numericValue(mutualFunds?.value) || 0))],
+      ["Retail/Others", percentText(retail?.value)],
+      ["Period", displayPeriodLabel(promoter?.period || fii?.period || "")],
+    ],
+    financialSnapshot: [
+      ["Net Sales", valueWithUnit(revenue?.value, data.incomeStatement?.units_in), percentText(revenue?.change)],
+      ["Operating Profit", valueWithUnit(operatingProfit?.value, data.incomeStatement?.units_in), percentText(operatingProfit?.change)],
+      ["Interest", valueWithUnit(interest?.value, data.incomeStatement?.units_in), percentText(interest?.change)],
+      ["Exceptional Items", valueWithUnit(exceptionalItems?.value, data.incomeStatement?.units_in), percentText(exceptionalItems?.change)],
+      ["OPM", percentText(opm), "-"],
+      ["Net Margin", percentText(netMargin), "-"],
+      ["Operating Cash Flow", valueWithUnit(cfo?.value, data.cashFlow?.units_in), percentText(cfo?.change)],
+      ["Total Assets", valueWithUnit(latestBalance?.total_asset, data.balanceSheet?.units_in), "-"],
+      ["Net Profit", valueWithUnit(netProfit?.value, data.incomeStatement?.units_in), percentText(netProfit?.change)],
+    ],
+  };
 }
 
 function buildInvestorInsights(data) {
@@ -836,7 +1209,7 @@ function InvestorInsights({ insights }) {
             <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
               {notes.strengths.map((point) => <li key={point}>+ {point}</li>)}
             </ul>
-          ) : <p className="mt-3 text-sm text-[#94A3B8]">No positive screening signals from the returned data.</p>}
+          ) : <p className="mt-3 text-sm text-[#94A3B8]">No positive screening signals in the current dataset.</p>}
         </section>
         <section className="border border-[#C98182]/20 bg-[#C98182]/5 p-4">
           <h3 className="text-sm font-medium text-white">Watchouts</h3>
@@ -844,7 +1217,7 @@ function InvestorInsights({ insights }) {
             <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
               {notes.watchouts.map((point) => <li key={point}>- {point}</li>)}
             </ul>
-          ) : <p className="mt-3 text-sm text-[#94A3B8]">No caution flags from the returned data.</p>}
+          ) : <p className="mt-3 text-sm text-[#94A3B8]">No caution flags in the current dataset.</p>}
         </section>
       </div>
       <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 lg:grid-cols-2">
@@ -940,8 +1313,59 @@ function ResearchReport({ report }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-[#94A3B8]">Not enough clean historical data returned to generate report notes.</p>
+          <p className="mt-3 text-sm text-[#94A3B8]">Not enough clean historical data to generate report notes.</p>
         )}
+      </div>
+    </DataSection>
+  );
+}
+
+function KeyValuePanel({ title, rows, columns = ["Metric", "Value"] }) {
+  const visibleRows = (rows || []).filter((row) => row.slice(1).some((value) => value && value !== "N/A"));
+  if (!visibleRows.length) return null;
+  return (
+    <div className="border border-[#233650] bg-[#02060D]">
+      <div className="border-b border-[#233650] px-3 py-2 font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">{title}</div>
+      <table className="w-full text-left text-xs">
+        <thead className="text-[10px] uppercase tracking-[.12em] text-[#71839A]">
+          <tr>
+            {columns.map((column) => <th key={column} className="px-3 py-2 font-normal">{column}</th>)}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#233650]/70">
+          {visibleRows.map((row) => (
+            <tr key={row.join("-")}>
+              {row.map((value, index) => (
+                <td key={`${row[0]}-${index}`} className={`px-3 py-2 ${index === 0 ? "text-white" : "font-mono tabular-nums text-[#CBD5E1]"}`}>{value || "N/A"}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MarketMetricsSection({ snapshot }) {
+  if (!snapshot) return null;
+  return (
+    <DataSection
+      id="market-metrics"
+      title="Market Metrics"
+      subtitle="A compact view of valuation, ownership, quality, technicals and recent returns."
+    >
+      <div className="grid gap-4 xl:grid-cols-3">
+        <KeyValuePanel title="Stock DNA" rows={snapshot.stockDna} />
+        <KeyValuePanel title="Shareholding Snapshot" rows={snapshot.shareholding} />
+        <KeyValuePanel title="Technicals Key Factors" rows={snapshot.technicals} />
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <KeyValuePanel title="Quality Key Factors" rows={snapshot.quality} />
+        <KeyValuePanel title="Valuation Key Factors" rows={snapshot.valuation} />
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <KeyValuePanel title="Total Returns" rows={snapshot.returns.map((row) => [row.label, percentText(row.priceReturn), percentText(row.dividendReturn), percentText(row.totalReturn)])} columns={["Period", "Price Return", "Dividend", "Total"]} />
+        <KeyValuePanel title="Financial Snapshot" rows={snapshot.financialSnapshot} columns={["Metric", "Latest", "Change"]} />
       </div>
     </DataSection>
   );
@@ -1228,9 +1652,18 @@ function MultiTooltip({ active, payload, label, unit }) {
 }
 
 function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [] }) {
-  const categories = cleanFinancialRows(rows, period, priorityRows);
+  const [expanded, setExpanded] = useState({});
+  const categories = id === "profit-loss"
+    ? buildProfitLossRows(rows, period, expanded)
+    : id === "balance-sheet"
+      ? buildGroupedStatementRows(rows, period, expanded, BALANCE_SHEET_GROUPS, 0)
+      : id === "cash-flow"
+        ? buildGroupedStatementRows(rows, period, expanded, CASH_FLOW_GROUPS, 0)
+        : cleanFinancialRows(rows, period, priorityRows);
   const periods = uniquePeriodsFromHistory(categories);
   const minWidth = Math.max(760, 220 + periods.length * 130);
+  const toggleRow = (key) => setExpanded((current) => ({ ...current, [key]: !current[key] }));
+
   return (
     <DataSection id={id} title={title} subtitle={subtitle}>
       {categories.length ? (
@@ -1239,13 +1672,27 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
             <thead className="border-b border-[#233650] font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">
               <tr>
                 <th className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal">Metric</th>
-                {periods.map((periodLabel) => <th key={periodLabel} className="px-3 py-2 font-normal">{periodLabel}</th>)}
+                {periods.map((periodLabel) => <th key={periodLabel} className="px-3 py-2 font-normal">{displayPeriodLabel(periodLabel)}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#233650]/70">
               {categories.map((row) => (
-                <tr key={row.category}>
-                  <td className="sticky left-0 bg-[#06101D] px-3 py-2 text-white">{row.label || row.category?.replaceAll("_", " ")}</td>
+                <tr key={`${row.category}-${row.depth || 0}`} className={row.strong ? "bg-white/[.035] font-semibold" : ""}>
+                  <td className={`sticky left-0 bg-[#06101D] px-3 py-2 ${row.depth ? "pl-8 text-[#9FB0C4]" : "text-white"}`}>
+                    {row.expandable ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleRow(row.category)}
+                        className="mr-1 inline-flex h-5 w-5 items-center justify-center border border-[#34506D] font-mono text-[11px] text-[#AEBBD0] hover:border-[#F5A623] hover:text-[#F5A623]"
+                        aria-label={`${expanded[row.category] ? "Collapse" : "Expand"} ${row.label || row.category}`}
+                      >
+                        {expanded[row.category] ? "-" : "+"}
+                      </button>
+                    ) : row.depth ? (
+                      <span className="mr-2 text-[#526782]">└</span>
+                    ) : null}
+                    {row.label || row.category?.replaceAll("_", " ")}
+                  </td>
                   {periods.map((periodLabel) => {
                     const point = row.history?.find((item) => item.period === periodLabel);
                     return <td key={periodLabel} className="px-3 py-2 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
@@ -1257,7 +1704,7 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
         </div>
       ) : (
         <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
-          No clean statement rows were returned for this section.
+          No clean statement rows are available for this section.
         </div>
       )}
     </DataSection>
@@ -1265,43 +1712,78 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
 }
 
 function RatioTable({ ratios }) {
-  const ratioRows = ratios || [];
-  const hasBenchmarks = (ratios || []).some((ratio) => numericValue(ratio.sector_value) !== null);
-  const splitIndex = Math.ceil(ratioRows.length / 2);
-  const ratioGroups = [ratioRows.slice(0, splitIndex), ratioRows.slice(splitIndex)].filter((group) => group.length);
+  const priorityIndex = new Map(RATIO_PRIORITY.map((key, index) => [normalizeMetricName(key), index]));
+  const ratioRows = [...(ratios || [])].sort((a, b) => {
+    const aRank = priorityIndex.get(normalizeMetricName(a.name)) ?? 999;
+    const bRank = priorityIndex.get(normalizeMetricName(b.name)) ?? 999;
+    if (aRank !== bRank) return aRank - bRank;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  const benchmarkRows = ratioRows.filter((ratio) => numericValue(ratio.sector_value) !== null);
+  const standaloneRows = ratioRows.filter((ratio) => numericValue(ratio.sector_value) === null);
+  const splitRows = (items) => {
+    const splitIndex = Math.ceil(items.length / 2);
+    return [items.slice(0, splitIndex), items.slice(splitIndex)].filter((group) => group.length);
+  };
+  const renderTables = (items, includeSector) => (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {splitRows(items).map((group, groupIndex) => (
+        <div key={`ratio-group-${includeSector ? "bench" : "single"}-${groupIndex}`} className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
+          <table className="w-full min-w-[420px] text-left text-sm">
+            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+              <tr>
+                <th className="px-4 py-3 font-normal">Ratio</th>
+                <th className="px-4 py-3 font-normal">Company</th>
+                {includeSector ? <th className="px-4 py-3 font-normal">Sector</th> : null}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {group.map((ratio) => {
+                const help = RATIO_DESCRIPTIONS[ratio.name];
+                return (
+                  <tr key={ratio.name}>
+                    <td className="px-4 py-3 text-white">
+                      <span className="inline-flex items-center gap-1.5">
+                        {ratio.name}
+                        <span title={help || "Ratio definition is not available yet."} className="inline-flex h-4 w-4 items-center justify-center border border-[#34506D] text-[10px] text-[#8EA2BA]">
+                          ?
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
+                    {includeSector ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <DataSection
       id="ratios"
       title="Ratios"
-      subtitle={hasBenchmarks ? "Company values compared with sector benchmarks." : "Company ratio values. Sector benchmarks are not available for the current ratio set."}
+      subtitle={benchmarkRows.length ? "Operating and return ratios first, with sector benchmarks separated when present." : "Company ratio values. Sector benchmarks are not available for the current ratio set."}
     >
-      <div className="grid gap-4 xl:grid-cols-2">
-        {ratioGroups.map((group, groupIndex) => (
-          <div key={`ratio-group-${groupIndex}`} className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
-            <table className="w-full min-w-[420px] text-left text-sm">
-              <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
-                <tr>
-                  <th className="px-4 py-3 font-normal">Ratio</th>
-                  <th className="px-4 py-3 font-normal">Company</th>
-                  {hasBenchmarks ? <th className="px-4 py-3 font-normal">Sector</th> : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {group.map((ratio) => (
-                  <tr key={ratio.name}>
-                    <td className="px-4 py-3 text-white">{ratio.name}</td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
-                    {hasBenchmarks ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="space-y-5">
+        {benchmarkRows.length ? (
+          <div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">With sector benchmark</div>
+            {renderTables(benchmarkRows, true)}
           </div>
-        ))}
-        {!ratioGroups.length ? (
+        ) : null}
+        {standaloneRows.length ? (
+          <div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Company ratios</div>
+            {renderTables(standaloneRows, false)}
+          </div>
+        ) : null}
+        {!ratioRows.length ? (
           <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
-            No ratio rows were returned for this company.
+            No ratio rows are available for this company.
           </div>
         ) : null}
       </div>
@@ -1368,8 +1850,6 @@ function CompanySummary({ data, quote, metrics }) {
     ["ISIN", data.instrument?.isin],
     ["Sector", data.profile?.sector || "Sector unavailable"],
     ["Statement", data.statementType ? `${data.statementType}${data.statementType !== data.requestedStatementType ? ` (fallback from ${data.requestedStatementType})` : ""}` : null],
-    ["Data", data.cached ? "Cached" : "Fresh fetch"],
-    ["Generated", formatCmsDateTime(data.generatedAt)],
   ].filter(([, value]) => value);
   return (
     <section id="summary" className="terminal-panel scroll-mt-28 border">
@@ -1421,7 +1901,7 @@ function CompanySummary({ data, quote, metrics }) {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">Key Metrics</div>
-              <div className="mt-1 text-xs text-[#7F90A8]">Valuation, returns and latest statement lines</div>
+              <div className="mt-1 text-xs text-[#7F90A8]">Compact valuation and return ratios</div>
             </div>
           </div>
           <SnapshotRatios metrics={metrics} />
@@ -1431,66 +1911,9 @@ function CompanySummary({ data, quote, metrics }) {
   );
 }
 
-function MetricGrid({ metrics }) {
-  const rows = metrics.map((metric) => ({
-    label: metric.label,
-    value: metric.format === "currency" ? `Rs. ${compactNumber(metric.value)}` : valueWithUnit(metric.value, metric.unit),
-    meta: [
-      metric.benchmark !== undefined && metric.benchmark !== null ? `Sector ${compactNumber(metric.benchmark)}` : metric.period,
-      metric.change !== undefined && metric.change !== null ? percentText(metric.change) : null,
-    ].filter(Boolean).join(" | "),
-  }));
-  return (
-    <DataSection id="analysis" title="Analysis" subtitle="At-a-glance metrics from quote, ratios, statements and holdings.">
-      <div className="grid gap-px overflow-hidden border border-[#233650] bg-[#233650] sm:grid-cols-2 lg:grid-cols-4">
-        {rows.map((row) => (
-          <div key={row.label} className="bg-[#030914] p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">{row.label}</div>
-            <div className="mt-1 font-mono text-[15px] font-medium tabular-nums text-white">{row.value}</div>
-            <div className="mt-1 text-xs text-[#94A3B8]">{row.meta}</div>
-          </div>
-        ))}
-      </div>
-    </DataSection>
-  );
-}
-
-function BalanceSheetSection({ balanceSheet, period }) {
-  const rows = limitPeriods([...(balanceSheet?.history || [])].reverse(), period).reverse();
-  const minWidth = Math.max(760, 220 + rows.length * 130);
-  return (
-    <DataSection
-      id="balance-sheet"
-      title="Balance Sheet"
-      subtitle={period === "quarterly" ? "Assets and liabilities across returned quarterly periods when available." : "Assets and liabilities across available reported periods."}
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
-            <tr>
-              <th className="px-4 py-3 font-normal">Period</th>
-              <th className="px-4 py-3 font-normal">Total Assets</th>
-              <th className="px-4 py-3 font-normal">Total Liabilities</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10">
-            {rows.map((row) => (
-              <tr key={row.period}>
-                <td className="px-4 py-3 text-white">{row.period}</td>
-                <td className="px-4 py-3 text-[#CBD5E1]">{valueWithUnit(row.total_asset, balanceSheet?.units_in)}</td>
-                <td className="px-4 py-3 text-[#94A3B8]">{valueWithUnit(row.total_liability, balanceSheet?.units_in)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </DataSection>
-  );
-}
-
 function CorporateActionsSection({ actions }) {
   return (
-    <DataSection id="corporate-actions" title="Corporate Actions" subtitle="Dividends, splits, bonuses and other returned action events.">
+    <DataSection id="corporate-actions" title="Corporate Actions" subtitle="Dividends, splits, bonuses and other announced events.">
       {actions?.length ? (
         <div className="overflow-x-auto">
           <div className="flex min-w-max gap-2 pb-1">
@@ -1506,7 +1929,7 @@ function CorporateActionsSection({ actions }) {
             })}
           </div>
         </div>
-      ) : <div className="text-sm text-[#94A3B8]">No corporate actions returned.</div>}
+      ) : <div className="text-sm text-[#94A3B8]">No corporate actions are available.</div>}
     </DataSection>
   );
 }
@@ -1532,7 +1955,7 @@ function CompetitorsSection({ competitors, onOpen }) {
             ))}
           </div>
         </div>
-      ) : <div className="text-sm text-[#94A3B8]">No competitors returned.</div>}
+      ) : <div className="text-sm text-[#94A3B8]">No peer set is available.</div>}
     </DataSection>
   );
 }
@@ -1582,7 +2005,6 @@ function TerminalStatusBar({ data, loading }) {
   const rows = [
     ["TICKER", data.instrument?.symbol],
     ["ISIN", data.instrument?.isin],
-    ["SRC", sourceMixLabel(metrics)],
     ["REQ", formatDurationMs(metrics.clientMs || metrics.backendMs || 0)],
     ["PTS", compactNumber(metrics.totalRecords || 0)],
     ["MODE", loading ? "FETCHING" : data.cached ? "CACHE" : "LIVE"],
@@ -1625,7 +2047,7 @@ function DevMetricsPanel({ data }) {
     `[${providerLogTag(details.provider)}] ${section.padEnd(18, " ")} ${String(details.source || "unknown").padEnd(14, " ")} ${compactNumber(details.records)} pts`
   ));
   return (
-    <DataSection id="dev-metrics" title="Dev Metrics" subtitle="Fetch timing and normalized data-source split for this fundamentals page.">
+    <DataSection id="dev-metrics" title="Dev Metrics" subtitle="Fetch timing and payload mix for this fundamentals page.">
       <div className="border border-[#1F2D1F] bg-[#020502] p-0 font-mono shadow-[inset_0_1px_0_rgba(77,255,136,0.12)]">
         <div className="flex items-center gap-2 border-b border-[#1F2D1F] bg-[#050A05] px-3 py-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
@@ -1638,7 +2060,7 @@ function DevMetricsPanel({ data }) {
             {[
               ...commandLines,
               "",
-              "# normalized section payloads",
+              "# section payloads",
               ...logLines,
             ].join("\n")}
           </pre>
@@ -1686,13 +2108,19 @@ export default function StockFundamentalsAdminPage() {
     try {
       const requestStartedAt = performance.now();
       const params = new URLSearchParams({ query: search, statement_type: statementType, period });
-      const response = await cmsRequest(`/stocks/admin/fundamentals?${params.toString()}`);
+      const annualParams = new URLSearchParams({ query: search, statement_type: statementType, period: "yearly" });
+      const [response, annualResponse] = await Promise.all([
+        cmsRequest(`/stocks/admin/fundamentals?${params.toString()}`),
+        period === "quarterly" ? cmsRequest(`/stocks/admin/fundamentals?${annualParams.toString()}`) : Promise.resolve(null),
+      ]);
       const clientMs = Math.round(performance.now() - requestStartedAt);
       if (requestSequence.current === requestId) {
         setData({
           ...response,
+          annualData: annualResponse || response,
           devMetrics: {
             ...(response.devMetrics || {}),
+            annualCompanionMs: annualResponse?.devMetrics?.totalMs,
             clientMs,
           },
         });
@@ -1756,34 +2184,14 @@ export default function StockFundamentalsAdminPage() {
 
   const dashboardMetrics = useMemo(() => {
     if (!data) return [];
-    const incomeRows = data.incomeStatement?.income_statement || [];
-    const cashRows = data.cashFlow?.cash_flow || [];
-    const latestBalance = data.balanceSheet?.history?.[0];
-    const promoter = categoryHistory(data.shareholding, "promoters")[0];
-    const fii = categoryHistory(data.shareholding, "fii")[0];
-    const otherDii = categoryHistory(data.shareholding, "other_dii")[0];
-    const mutualFunds = categoryHistory(data.shareholding, "mutual_funds")[0];
-    const retail = categoryHistory(data.shareholding, "retail_and_other")[0];
-    const cfo = categoryHistory(cashRows, "operating")[0];
-    const revenue = categoryHistory(incomeRows, "revenue")[0];
-    const netProfit = categoryHistory(incomeRows, "net_profit")[0];
-    const price = quote.price || quote.lastPrice;
     return [
-      ...(price ? [{ label: "Last Price", value: price, format: "currency", period: `${percentText(quote.changePercent)} today` }] : []),
       ...((data.highlights || []).filter((metric) => ["P/E", "P/B", "ROE", "ROCE"].includes(metric.label))),
-      { label: "Revenue", value: revenue?.value, unit: data.incomeStatement?.units_in, period: revenue?.period, change: revenue?.change },
-      { label: "Net Profit", value: netProfit?.value, unit: data.incomeStatement?.units_in, period: netProfit?.period, change: netProfit?.change },
-      { label: "Operating Cash Flow", value: cfo?.value, unit: data.cashFlow?.units_in, period: cfo?.period, change: cfo?.change },
-      { label: "Total Assets", value: latestBalance?.total_asset, unit: data.balanceSheet?.units_in, period: latestBalance?.period },
-      { label: "Promoter Holding", value: promoter?.value, unit: "%", period: promoter?.period },
-      { label: "FII Holding", value: fii?.value, unit: "%", period: fii?.period },
-      { label: "DII + MF Holding", value: (numericValue(otherDii?.value) || 0) + (numericValue(mutualFunds?.value) || 0), unit: "%", period: otherDii?.period || mutualFunds?.period },
-      { label: "Retail/Others", value: retail?.value, unit: "%", period: retail?.period },
     ].filter((metric) => metric.value !== null && metric.value !== undefined && metric.value !== "");
-  }, [data, quote]);
+  }, [data]);
   const investorInsights = useMemo(() => buildInvestorInsights(data), [data]);
   const researchReport = useMemo(() => buildResearchReport(data), [data]);
   const derivedMetricGroups = useMemo(() => buildDerivedMetricGroups(data), [data]);
+  const marketMetricsSnapshot = useMemo(() => buildMarketMetricsSnapshot(data), [data]);
 
   const submit = (event) => {
     event.preventDefault();
@@ -1881,6 +2289,8 @@ export default function StockFundamentalsAdminPage() {
 
           <DashboardTabs onSelect={selectDashboardTab} />
 
+          <MarketMetricsSection snapshot={marketMetricsSnapshot} />
+
           <ResearchReport report={researchReport} />
 
           <DerivedMetricsSection groups={derivedMetricGroups} />
@@ -1910,7 +2320,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="cash-flow-chart"
                 title="Cash Flow Overview"
-                subtitle="Operating, investing and financing cash flows where available."
+                subtitle="Operating, investing and financing cash flows."
                 data={chartData.cash}
                 unit={data.cashFlow?.units_in}
                 bars={[
@@ -1924,7 +2334,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="balance-sheet-chart"
                 title="Balance Sheet Scale"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} total assets and liabilities where available.`}
+                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} total assets and liabilities.`}
                 data={chartData.balance}
                 unit={data.balanceSheet?.units_in}
                 bars={[
@@ -1937,7 +2347,7 @@ export default function StockFundamentalsAdminPage() {
               <MultiMetricChart
                 id="shareholding-chart"
                 title="Shareholding Pattern"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Latest available"} ownership mix, stacked by holder category where available.`}
+                subtitle={`${period === "quarterly" ? "Quarterly" : "Latest"} ownership mix, stacked by holder category.`}
                 data={chartData.shareholding}
                 unit="%"
                 stacked
@@ -1957,16 +2367,15 @@ export default function StockFundamentalsAdminPage() {
           <section className="border border-white/10 bg-[#050E1D]/45 p-5">
             <div className="text-[10px] uppercase tracking-[.16em] text-[#71839A]">Financial Statements</div>
             <h2 className="mt-2 text-xl font-medium text-white">Detailed Statements</h2>
-            <p className="mt-1 text-sm text-[#94A3B8]">Core statement rows are prioritized for review, with low-signal rows removed.</p>
+            <p className="mt-1 text-sm text-[#94A3B8]">Core statement rows grouped for fast review.</p>
           </section>
 
-          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`Core statement lines in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"} where available.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} />
-          <BalanceSheetSection balanceSheet={data.balanceSheet} period={period} />
+          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`Core statement lines in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} />
+          <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`Liabilities and assets in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
           <RatioTable ratios={data.ratios} />
           <HistoryTable id="shareholding" title="Shareholding Pattern" subtitle="Latest ownership mix from available filing history." rows={data.shareholding} unit="%" />
 
-          <MetricGrid metrics={dashboardMetrics} />
           <CorporateActionsSection actions={data.corporateActions} />
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />
           <DevMetricsPanel data={data} />
