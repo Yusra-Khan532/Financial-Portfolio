@@ -4,6 +4,139 @@
 @tailwind components;
 @tailwind utilities;
 
+.performance-metric-card {
+  background: #0A1E3F !important;
+  border-color: rgba(212, 175, 55, 0.18) !important;
+  color: #FFF8E7;
+  box-shadow: 0 8px 24px rgba(7, 24, 47, 0.05) !important;
+}
+
+.performance-metric-card:hover {
+  border-color: #D4AF37 !important;
+  box-shadow: 0 10px 26px rgba(7, 24, 47, 0.08) !important;
+}
+
+.performance-card-label { color: rgba(255, 248, 231, 0.72); }
+.performance-card-value { color: #FFF8E7; }
+.performance-card-detail { color: #94A3B8; }
+.performance-icon-badge {
+  background: rgba(212, 175, 55, 0.08);
+  border-color: rgba(212, 175, 55, 0.25);
+}
+.performance-secondary-item + .performance-secondary-item { border-color: rgba(255, 248, 231, 0.10); }
+
+.performance-analytics-card {
+  background: #0A1E3F;
+  border-color: rgba(212, 175, 55, 0.18);
+  color: #FFF8E7;
+  box-shadow: 0 8px 24px rgba(7, 24, 47, 0.05);
+}
+
+.performance-analytics-card h3 { color: #FFF8E7; }
+.performance-analytics-card p,
+.performance-analytics-card > div > span,
+.performance-analytics-card > div > div > p { color: #94A3B8; }
+.performance-contributor-track { background: rgba(255, 248, 231, 0.12); }
+.performance-tooltip {
+  background: #0A1E3F;
+  border-color: rgba(212, 175, 55, 0.35);
+  color: #FFF8E7;
+  box-shadow: 0 8px 24px rgba(7, 24, 47, 0.12);
+}
+
+:root[data-theme="light"] .performance-analytics-card {
+  background: #FFF9ED;
+  border-color: #E9E2D3;
+  color: #07182F;
+  box-shadow: 0 8px 24px rgba(7, 24, 47, 0.05);
+}
+
+:root[data-theme="light"] .performance-analytics-card h3 { color: #07182F; }
+:root[data-theme="light"] .performance-analytics-card p,
+:root[data-theme="light"] .performance-analytics-card > div > span,
+:root[data-theme="light"] .performance-analytics-card > div > div > p { color: #667085; }
+:root[data-theme="light"] .performance-contributor-track { background: rgba(7, 24, 47, 0.08); }
+:root[data-theme="light"] .performance-tooltip {
+  background: #FFF9ED;
+  border-color: #E9E2D3;
+  color: #07182F;
+}
+
+.contact-form-panel {
+  background: #0A1E3F;
+  border-color: rgba(212, 175, 55, 0.18);
+  box-shadow: 0 8px 28px rgba(7, 24, 47, 0.05);
+}
+
+.contact-heading { color: #FFF8E7; }
+.contact-eyebrow { color: #D4AF37; }
+.contact-copy { color: #94A3B8; }
+.contact-link { color: #FFF8E7; }
+.contact-link:hover { color: #D4AF37; }
+.contact-link-icon {
+  border-color: rgba(212, 175, 55, 0.18);
+  background: rgba(212, 175, 55, 0.08);
+  color: #D4AF37;
+}
+.contact-label { color: #94A3B8; }
+.contact-input {
+  height: 56px;
+  background: #07182F !important;
+  border-color: rgba(212, 175, 55, 0.18) !important;
+  color: #FFF8E7 !important;
+}
+.contact-input::placeholder { color: #94A3B8; }
+.contact-input:focus {
+  border-color: #D4AF37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.10);
+}
+textarea.contact-input { min-height: 140px; height: auto; padding-top: 16px; padding-bottom: 16px; resize: vertical; }
+.contact-size {
+  min-height: 44px;
+  border-color: rgba(255, 248, 231, 0.22);
+  color: #FFF8E7;
+  background: transparent;
+}
+.contact-size:hover { border-color: #D4AF37; background: rgba(212, 175, 55, 0.08); }
+.contact-size.is-selected { border-color: #07182F; background: #07182F; color: #FFF8E7; }
+.contact-submit { background: #07182F; color: #FFF8E7; }
+.contact-submit:hover { background: #D4AF37; color: #07182F; }
+
+:root[data-theme="light"] .contact-form-panel {
+  background: #FFF9ED;
+  border-color: #E9E2D3;
+}
+:root[data-theme="light"] .contact-heading { color: #07182F; }
+:root[data-theme="light"] .contact-copy { color: #667085; }
+:root[data-theme="light"] .contact-link { color: #07182F; }
+:root[data-theme="light"] .contact-link-icon { border-color: #E9E2D3; }
+:root[data-theme="light"] .contact-label { color: #667085; }
+:root[data-theme="light"] .contact-input {
+  background: #FFFFFF !important;
+  border-color: #D9D6CF !important;
+  color: #07182F !important;
+}
+:root[data-theme="light"] .contact-input::placeholder { color: #94A3B8; }
+:root[data-theme="light"] .contact-size {
+  border-color: #07182F;
+  color: #07182F;
+  background: transparent;
+}
+:root[data-theme="light"] .contact-size:hover { border-color: #D4AF37; background: rgba(212, 175, 55, 0.08); }
+:root[data-theme="light"] .contact-size.is-selected { border-color: #07182F; background: #07182F; color: #FFF8E7; }
+
+:root[data-theme="light"] .performance-metric-card {
+  background: #FFF9ED !important;
+  border-color: #E9E2D3 !important;
+  color: #07182F;
+}
+
+:root[data-theme="light"] .performance-metric-card:hover { border-color: #D4AF37 !important; }
+:root[data-theme="light"] .performance-card-label { color: rgba(7, 24, 47, 0.65); }
+:root[data-theme="light"] .performance-card-value { color: #07182F; }
+:root[data-theme="light"] .performance-card-detail { color: #667085; }
+:root[data-theme="light"] .performance-secondary-item + .performance-secondary-item { border-color: #E9E2D3; }
+
 :root {
   --navy-950: #050E1D;
   --navy-900: #0A1E3F;
