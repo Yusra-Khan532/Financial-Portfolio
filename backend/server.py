@@ -1464,15 +1464,16 @@ def _normalize_ratio_items(*payloads):
                 numeric_keys = [(key, val) for key, val in numeric_keys if val is not None]
                 if len(numeric_keys) > 1:
                     for metric_name, metric_value in numeric_keys:
-                        key = str(metric_name).upper()
-                        if key in seen:
-                            continue
-                        seen.add(key)
+                        display_name = _ratio_display_name(str(metric_name))
                         display_value = metric_value
                         if re.search(r"margin|rate|return", str(metric_name), re.IGNORECASE) and abs(display_value) <= 1:
                             display_value *= 100
+                        key = display_name.upper()
+                        if key in seen:
+                            continue
+                        seen.add(key)
                         ratios.append({
-                            "name": _ratio_display_name(str(metric_name)),
+                            "name": display_name,
                             "company_value": display_value,
                             "sector_value": None,
                         })
@@ -1481,15 +1482,91 @@ def _normalize_ratio_items(*payloads):
                     name, value = numeric_keys[0]
             if not name or _to_number(value) is None:
                 continue
-            key = str(name).upper()
+            display_name = _ratio_display_name(str(name))
+            key = display_name.upper()
             if key in seen:
                 continue
             seen.add(key)
             ratios.append({
-                "name": _ratio_display_name(str(name)),
+                "name": display_name,
                 "company_value": _to_number(value),
                 "sector_value": _to_number(sector),
             })
+    return ratios
+
+
+def _clean_ratio_benchmarks(ratios):
+    cleaned = []
+    for ratio in ratios or []:
+        if not isinstance(ratio, dict):
+            continue
+        item = {**ratio}
+        name = str(item.get("name") or "").upper()
+        sector_value = _to_number(item.get("sector_value"))
+        if name in {"P/E", "PE", "P/B", "PB", "EV/EBITDA", "EV/EBIT", "EV/SALES"} and (sector_value is not None and sector_value <= 0):
+            item["sector_value"] = None
+        cleaned.append(item)
+    return cleaned
+
+
+def _upsert_ratio(ratios, name, company_value=None, sector_value=None, source=None):
+    normalized = str(name).upper()
+    for ratio in ratios:
+        if str(ratio.get("name") or "").upper() == normalized:
+            if company_value is not None:
+                ratio["company_value"] = company_value
+            if sector_value is not None or ratio.get("sector_value") is not None:
+                ratio["sector_value"] = sector_value
+            if source:
+                ratio["source"] = source
+            return ratios
+    ratios.append({
+        "name": name,
+        "company_value": company_value,
+        "sector_value": sector_value,
+        **({"source": source} if source else {}),
+    })
+    return ratios
+
+
+def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None):
+    ratios = _clean_ratio_benchmarks(ratios)
+    market_cap = _to_number((profile or {}).get("marketCap"))
+    latest_profit = _latest_history_value((income_statement or {}).get("income_statement"), "net_profit")
+    net_profit = _to_number((latest_profit or {}).get("value"))
+    lookup = _ratio_lookup(ratios)
+    if market_cap and net_profit and net_profit > 0:
+        derived_pe = market_cap / net_profit
+        current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
+        if current_pe is None or current_pe <= 0 or abs(derived_pe - current_pe) / max(abs(derived_pe), 1) > 0.15:
+            ratios = _upsert_ratio(ratios, "P/E", round(derived_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "derived_market_cap")
+    latest_equity = _latest_history_value((balance_sheet or {}).get("balance_sheet"), "equity")
+    equity = _to_number((latest_equity or {}).get("value"))
+    if market_cap and equity and equity > 0:
+        derived_pb = market_cap / equity
+        lookup = _ratio_lookup(ratios)
+        current_pb = _to_number((lookup.get("P/B") or {}).get("company_value"))
+        if current_pb is None or current_pb <= 0 or abs(derived_pb - current_pb) / max(abs(derived_pb), 1) > 0.25:
+            ratios = _upsert_ratio(ratios, "P/B", round(derived_pb, 2), (lookup.get("P/B") or {}).get("sector_value"), "derived_market_cap")
+    equity_points = []
+    latest_equity_row = next((row for row in (balance_sheet or {}).get("balance_sheet", []) if isinstance(row, dict) and row.get("category") == "equity"), None)
+    if latest_equity_row:
+        equity_points = [_to_number(point.get("value")) for point in latest_equity_row.get("history") or []]
+    if len([value for value in equity_points if value and value > 0]) < 2:
+        equity_points = [
+            _to_number(point.get("total_asset")) - _to_number(point.get("total_liability"))
+            for point in (balance_sheet or {}).get("history") or []
+            if _to_number(point.get("total_asset")) is not None and _to_number(point.get("total_liability")) is not None
+        ]
+    equity_points = [value for value in equity_points if value and value > 0]
+    if net_profit and net_profit > 0 and equity_points:
+        equity_base = sum(equity_points[:2]) / 2 if len(equity_points) > 1 else equity_points[0]
+        if equity_base > 0:
+            derived_roe = (net_profit / equity_base) * 100
+            lookup = _ratio_lookup(ratios)
+            current_roe = _to_number((lookup.get("ROE") or {}).get("company_value"))
+            if current_roe is None or current_roe <= 0 or abs(derived_roe - current_roe) / max(abs(derived_roe), 1) > 0.05:
+                ratios = _upsert_ratio(ratios, "ROE", round(derived_roe, 2), (lookup.get("ROE") or {}).get("sector_value"), "derived_equity")
     return ratios
 
 
@@ -2052,12 +2129,14 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     upstox_profile_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin or '', safe='')}/profile", default={}) if upstox_isin else {}
     if isinstance(upstox_profile_payload, dict):
         upstox_market_cap = upstox_profile_payload.get("sector_market_cap_inr")
+        upstox_market_cap_value = upstox_market_cap.get("value") if isinstance(upstox_market_cap, dict) else None
         profile = {
             **profile,
             "description": profile.get("description") or upstox_profile_payload.get("company_profile"),
             "sector": profile.get("sector") or upstox_profile_payload.get("sector"),
-            "marketCap": profile.get("marketCap") or (upstox_market_cap.get("value") if isinstance(upstox_market_cap, dict) else None),
+            "marketCap": upstox_market_cap_value or profile.get("marketCap"),
         }
+    ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet)
     shareholding_payload = _safe_finedge_get(f"/shareholding-pattern/{_stock_symbol_path(symbol)}", default=[])
     shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
     if not shareholding and upstox_isin:

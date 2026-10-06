@@ -136,7 +136,56 @@ class ScreenerTableParser(HTMLParser):
                 self.current_section = next((item for item in reversed(self.section_stack) if item), None)
 
 
-def fetch_screener(symbol: str) -> Tuple[float, Dict[str, ParsedTable]]:
+SNAPSHOT_METRICS = (
+    "Market Cap",
+    "Current Price",
+    "Stock P/E",
+    "Book Value",
+    "Dividend Yield",
+    "ROCE",
+    "ROE",
+    "Face Value",
+)
+
+
+class TextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: List[str] = []
+
+    def handle_data(self, data: str) -> None:
+        text = clean_text(data)
+        if text:
+            self.parts.append(text)
+
+    def text(self) -> str:
+        return clean_text(" ".join(self.parts))
+
+
+def parse_screener_snapshot(html: str) -> Dict[str, float]:
+    parser = TextParser()
+    parser.feed(html)
+    text = parser.text()
+    metrics: Dict[str, float] = {}
+    for index, label in enumerate(SNAPSHOT_METRICS):
+        next_positions = [
+            text.find(next_label, text.find(label) + len(label))
+            for next_label in SNAPSHOT_METRICS[index + 1 :]
+            if text.find(next_label, text.find(label) + len(label)) != -1
+        ]
+        start = text.find(label)
+        if start == -1:
+            continue
+        end = min(next_positions) if next_positions else text.find("Add ratio to table", start)
+        segment = text[start:end if end != -1 else len(text)]
+        match = re.search(r"(-?[0-9][0-9,.]*)", segment)
+        value = parse_number(match.group(1)) if match else None
+        if value is not None:
+            metrics[label] = value
+    return metrics
+
+
+def fetch_screener(symbol: str) -> Tuple[Optional[float], Dict[str, ParsedTable], Dict[str, float]]:
     url = f"{SCREENER_BASE_URL}/{symbol.upper()}/consolidated/"
     request = Request(url, headers={"Accept": "text/html", "User-Agent": "FinLit-dashboard-audit/1.0"})
     with urlopen(request, timeout=30) as response:
@@ -144,7 +193,7 @@ def fetch_screener(symbol: str) -> Tuple[float, Dict[str, ParsedTable]]:
     price_match = re.search(r"₹\s*([0-9,.]+)", html)
     parser = ScreenerTableParser()
     parser.feed(html)
-    return parse_number(price_match.group(1)) if price_match else None, parser.tables
+    return parse_number(price_match.group(1)) if price_match else None, parser.tables, parse_screener_snapshot(html)
 
 
 def history_value(data: Dict[str, Any], section: str, category: str, period_label: str) -> Optional[float]:
@@ -213,10 +262,66 @@ def compare_section(symbol: str, data: Dict[str, Any], table: ParsedTable, secti
     return failures
 
 
+def ratio_value(data: Dict[str, Any], label: str) -> Optional[float]:
+    lookup = {}
+    for ratio in data.get("ratios") or []:
+        if isinstance(ratio, dict) and ratio.get("name"):
+            lookup[str(ratio["name"]).upper()] = ratio
+    value = (lookup.get(label.upper()) or {}).get("company_value")
+    return float(value) if isinstance(value, (int, float)) else parse_number(str(value))
+
+
+def ratio_source(data: Dict[str, Any], label: str) -> str:
+    for ratio in data.get("ratios") or []:
+        if isinstance(ratio, dict) and str(ratio.get("name") or "").upper() == label.upper():
+            return str(ratio.get("source") or "provider")
+    return "missing"
+
+
+def compare_snapshot_metrics(data: Dict[str, Any], screener_metrics: Dict[str, float], pct_tolerance: float, abs_tolerance: float) -> int:
+    failures = 0
+    app_metrics = {
+        "Market Cap": data.get("profile", {}).get("marketCap"),
+        "Current Price": data.get("quote", {}).get("price"),
+        "Stock P/E": ratio_value(data, "P/E"),
+        "Dividend Yield": ratio_value(data, "Dividend Yield"),
+        "ROCE": ratio_value(data, "ROCE"),
+        "ROE": ratio_value(data, "ROE"),
+    }
+    price = parse_number(str(app_metrics.get("Current Price")))
+    book_value = screener_metrics.get("Book Value")
+    if price is not None and book_value:
+        app_metrics["Derived P/B from Screener book"] = ratio_value(data, "P/B")
+        screener_metrics = {
+            **screener_metrics,
+            "Derived P/B from Screener book": round(price / book_value, 2),
+        }
+
+    print("\nSnapshot Ratios")
+    print("-" * 88)
+    for label, actual_raw in app_metrics.items():
+        expected = screener_metrics.get(label)
+        if expected is None:
+            continue
+        actual = parse_number(str(actual_raw))
+        diff = pct_diff(actual, expected)
+        status = status_for(diff, actual, expected, pct_tolerance, abs_tolerance)
+        if status != "PASS":
+            failures += 1
+        source = data.get("quote", {}).get("source") if label == "Current Price" else ratio_source(data, label.replace("Stock ", ""))
+        if label == "Market Cap":
+            source = "profile"
+        if label == "Derived P/B from Screener book":
+            source = ratio_source(data, "P/B")
+        diff_text = "N/A" if diff is None else f"{diff:+.2f}%"
+        print(f"{status:7} {label:34} app={actual!s:>10} ref={expected!s:>10} diff={diff_text:>9} source={source}")
+    return failures
+
+
 def audit_symbol(symbol: str, pct_tolerance: float, abs_tolerance: float, sections: Iterable[str], include_ttm: bool) -> int:
     failures = 0
     print(f"\n{'=' * 88}\nAuditing {symbol.upper()}\n{'=' * 88}")
-    screener_price, tables = fetch_screener(symbol)
+    screener_price, tables, screener_metrics = fetch_screener(symbol)
     yearly = _fetch_stock_fundamentals(symbol, "consolidated", "yearly")
     quarterly = _fetch_stock_fundamentals(symbol, "consolidated", "quarterly")
 
@@ -226,6 +331,7 @@ def audit_symbol(symbol: str, pct_tolerance: float, abs_tolerance: float, sectio
     if price_status != "PASS":
         failures += 1
     print(f"{price_status:7} Price app={app_price!s:>10} ref={screener_price!s:>10} diff={'N/A' if price_diff is None else f'{price_diff:+.2f}%'} source={yearly.get('quote', {}).get('source')}")
+    failures += compare_snapshot_metrics(yearly, screener_metrics, pct_tolerance, abs_tolerance)
 
     data_by_section = {"quarters": quarterly, "profit-loss": yearly}
     for section in sections:
