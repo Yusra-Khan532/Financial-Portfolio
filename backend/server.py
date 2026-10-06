@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -14,6 +15,7 @@ from time import monotonic, time
 from urllib.parse import quote, urlparse
 import asyncio
 import bcrypt
+import hashlib
 import jwt
 import nh3
 import re
@@ -92,8 +94,16 @@ RESOURCE_MIME_TYPES = {
     "FILE": set().union(*UPLOAD_TYPES.values()),
 }
 ADMIN_TOKEN_TTL_SECONDS = 60 * 60 * 8
+MIN_JWT_SECRET_BYTES = 32
+ADMIN_MAX_LOGIN_ATTEMPTS = 5
+ADMIN_LOGIN_WINDOW_SECONDS = 15 * 60
+ADMIN_LOGIN_LOCK_SECONDS = 5 * 60
+FORM_MAX_REQUESTS_PER_HOUR = 8
+FORM_RATE_WINDOW_SECONDS = 60 * 60
+DUMMY_ADMIN_PASSWORD_HASH = b"$2b$12$6rJnDqVrVjleCmwVwqpAtuZd0nrne.uqw48RnqI7PX7LS60kFIY1C"
 _login_attempts = {}
 _chat_attempts = {}
+_form_attempts = {}
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -282,14 +292,54 @@ def token_secret():
     secret = os.environ.get("CMS_JWT_SECRET", "").strip()
     if not secret:
         raise HTTPException(status_code=503, detail="CMS authentication is not configured.")
+    if len(secret.encode("utf-8")) < MIN_JWT_SECRET_BYTES:
+        logger.error("CMS_JWT_SECRET is shorter than %s bytes", MIN_JWT_SECRET_BYTES)
+        raise HTTPException(status_code=503, detail="CMS authentication is not securely configured.")
     return secret
+
+
+def client_identifier(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip() or "unknown"
+    return request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
+
+
+def hashed_identifier(*parts: str) -> str:
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+
+
+def rate_limit_exceeded(bucket: Dict[str, List[float]], key: str, now: float, limit: int, window_seconds: int) -> bool:
+    recent = [stamp for stamp in bucket.get(key, []) if now - stamp < window_seconds]
+    if len(recent) >= limit:
+        bucket[key] = recent
+        return True
+    recent.append(now)
+    bucket[key] = recent
+    if len(bucket) > 5000:
+        for item_key, stamps in list(bucket.items()):
+            if not stamps or now - stamps[-1] >= window_seconds:
+                bucket.pop(item_key, None)
+    return False
+
+
+def login_rate_limit_key(email: str, request: Request) -> str:
+    return hashed_identifier(email.strip().lower(), client_identifier(request))
+
+
+def form_rate_limit_key(form_name: str, request: Request) -> str:
+    return hashed_identifier(form_name, client_identifier(request))
+
+
+def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
+    return rate_limit_exceeded(_chat_attempts, client_ip, now, CHAT_MAX_REQUESTS_PER_MINUTE, CHAT_RATE_WINDOW_SECONDS)
 
 
 async def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     if not credentials:
         raise HTTPException(status_code=401, detail="Administrator authentication is required.")
     try:
-        payload = jwt.decode(credentials.credentials, token_secret(), algorithms=["HS256"])
+        payload = jwt.decode(credentials.credentials, token_secret(), algorithms=["HS256"], options={"require": ["exp", "iat", "sub"]})
         if payload.get("role") != "admin" or not payload.get("sub"):
             raise ValueError("Invalid role")
         return payload
@@ -345,27 +395,39 @@ async def public_portfolio_report():
 
 
 @api_router.post("/content/admin/login")
-async def admin_login(payload: AdminLogin):
+async def admin_login(payload: AdminLogin, request: Request):
     now = monotonic()
-    attempt = _login_attempts.get(payload.email.lower(), {"count": 0, "until": 0})
+    attempt_key = login_rate_limit_key(payload.email, request)
+    attempt = _login_attempts.get(attempt_key, {"stamps": [], "until": 0})
     if attempt["until"] > now:
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
     admin_email = os.environ.get("CMS_ADMIN_EMAIL", "").strip().lower()
     password_hash = os.environ.get("CMS_ADMIN_PASSWORD_HASH", "").strip()
     if not admin_email or not password_hash:
         raise HTTPException(status_code=503, detail="CMS administrator is not configured.")
-    valid = payload.email.lower() == admin_email
+    email_matches = payload.email.lower() == admin_email
+    hash_to_check = password_hash.encode() if email_matches else DUMMY_ADMIN_PASSWORD_HASH
     try:
-        valid = valid and bcrypt.checkpw(payload.password.encode(), password_hash.encode())
+        password_matches = bcrypt.checkpw(payload.password.encode(), hash_to_check)
     except ValueError:
         logger.error("CMS admin password hash is invalid")
         raise HTTPException(status_code=503, detail="CMS administrator is not configured.")
+    valid = email_matches and password_matches
     if not valid:
-        count = attempt["count"] + 1
-        _login_attempts[payload.email.lower()] = {"count": count, "until": now + 300 if count >= 5 else 0}
+        stamps = [stamp for stamp in attempt.get("stamps", []) if now - stamp < ADMIN_LOGIN_WINDOW_SECONDS]
+        stamps.append(now)
+        _login_attempts[attempt_key] = {
+            "stamps": stamps,
+            "until": now + ADMIN_LOGIN_LOCK_SECONDS if len(stamps) >= ADMIN_MAX_LOGIN_ATTEMPTS else 0,
+        }
         raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
-    _login_attempts.pop(payload.email.lower(), None)
-    token = jwt.encode({"sub": admin_email, "role": "admin", "exp": int(time()) + ADMIN_TOKEN_TTL_SECONDS}, token_secret(), algorithm="HS256")
+    _login_attempts.pop(attempt_key, None)
+    issued_at = int(time())
+    token = jwt.encode(
+        {"sub": admin_email, "role": "admin", "iat": issued_at, "exp": issued_at + ADMIN_TOKEN_TTL_SECONDS},
+        token_secret(),
+        algorithm="HS256",
+    )
     return {"token": token, "expiresIn": ADMIN_TOKEN_TTL_SECONDS}
 
 
@@ -552,8 +614,20 @@ def validate_uploaded_signature(extension: str, path: Path):
         raise HTTPException(status_code=400, detail="File contents do not match the selected file type.")
 
 
+def stored_asset_path(stored_name: str) -> Path:
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}\.(pdf|xlsx|xls|csv|png|jpg|jpeg|webp)", stored_name or ""):
+        raise HTTPException(status_code=404, detail="Asset storage was not found.")
+    path = (CONTENT_STORAGE_DIR / stored_name).resolve()
+    storage_root = CONTENT_STORAGE_DIR.resolve()
+    if storage_root not in path.parents:
+        raise HTTPException(status_code=404, detail="Asset storage was not found.")
+    return path
+
+
 @api_router.get("/content/assets/{key}")
 async def content_asset(key: str):
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", key):
+        raise HTTPException(status_code=404, detail="Published asset was not found.")
     # An asset becomes public only when associated content is published.
     published = await db.content.find_one({
         "status": "PUBLISHED",
@@ -564,7 +638,7 @@ async def content_asset(key: str):
     asset = await db.content_assets.find_one({"key": key}, {"_id": 0})
     if not asset:
         raise HTTPException(status_code=404, detail="Asset was not found.")
-    path = CONTENT_STORAGE_DIR / asset["storedName"]
+    path = stored_asset_path(asset["storedName"])
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Asset storage was not found.")
     return FileResponse(path, media_type=asset["mimeType"], filename=asset["originalFileName"], content_disposition_type="inline")
@@ -572,10 +646,12 @@ async def content_asset(key: str):
 
 @api_router.get("/content/admin/assets/{key}")
 async def admin_content_asset(key: str, _admin=Depends(require_admin)):
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", key):
+        raise HTTPException(status_code=404, detail="Asset was not found.")
     asset = await db.content_assets.find_one({"key": key}, {"_id": 0})
     if not asset:
         raise HTTPException(status_code=404, detail="Asset was not found.")
-    path = CONTENT_STORAGE_DIR / asset["storedName"]
+    path = stored_asset_path(asset["storedName"])
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Asset storage was not found.")
     return FileResponse(path, media_type=asset["mimeType"], filename=asset["originalFileName"], content_disposition_type="inline")
@@ -2267,20 +2343,6 @@ def gemini_finish_reason(response) -> str:
     return str(getattr(reason, "name", reason)).rsplit(".", 1)[-1].upper()
 
 
-def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
-    recent = [stamp for stamp in _chat_attempts.get(client_ip, []) if now - stamp < CHAT_RATE_WINDOW_SECONDS]
-    if len(recent) >= CHAT_MAX_REQUESTS_PER_MINUTE:
-        _chat_attempts[client_ip] = recent
-        return True
-    recent.append(now)
-    _chat_attempts[client_ip] = recent
-    if len(_chat_attempts) > 5000:
-        for ip, stamps in list(_chat_attempts.items()):
-            if not stamps or now - stamps[-1] >= CHAT_RATE_WINDOW_SECONDS:
-                _chat_attempts.pop(ip, None)
-    return False
-
-
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request):
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -2292,8 +2354,8 @@ async def chat(payload: ChatRequest, request: Request):
     )
     if not payload.message.strip():
         raise HTTPException(status_code=400, detail="Please enter a message.")
-    client_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
-    if chat_rate_limit_exceeded(client_ip, monotonic()):
+    client_ip = client_identifier(request)
+    if rate_limit_exceeded(_chat_attempts, client_ip, monotonic(), CHAT_MAX_REQUESTS_PER_MINUTE, CHAT_RATE_WINDOW_SECONDS):
         raise HTTPException(status_code=429, detail="You’ve sent several messages. Please wait a minute and try again.")
 
     if not api_key:
@@ -2385,7 +2447,9 @@ async def chat(payload: ChatRequest, request: Request):
 
 
 @api_router.post("/contact", response_model=ContactMessage)
-async def create_contact(payload: ContactCreate):
+async def create_contact(payload: ContactCreate, request: Request):
+    if rate_limit_exceeded(_form_attempts, form_rate_limit_key("contact", request), monotonic(), FORM_MAX_REQUESTS_PER_HOUR, FORM_RATE_WINDOW_SECONDS):
+        raise HTTPException(status_code=429, detail="Too many submissions. Please wait and try again.")
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
     msg = ContactMessage(**payload.model_dump())
@@ -2413,7 +2477,7 @@ async def create_contact(payload: ContactCreate):
 
 
 @api_router.get("/contact", response_model=List[ContactMessage])
-async def list_contacts():
+async def list_contacts(_admin=Depends(require_admin)):
     docs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     for d in docs:
         if isinstance(d.get('created_at'), str):
@@ -2422,7 +2486,9 @@ async def list_contacts():
 
 
 @api_router.post("/service-enquiry", response_model=ServiceEnquiry)
-async def create_service_enquiry(payload: ServiceEnquiryCreate):
+async def create_service_enquiry(payload: ServiceEnquiryCreate, request: Request):
+    if rate_limit_exceeded(_form_attempts, form_rate_limit_key("service-enquiry", request), monotonic(), FORM_MAX_REQUESTS_PER_HOUR, FORM_RATE_WINDOW_SECONDS):
+        raise HTTPException(status_code=429, detail="Too many submissions. Please wait and try again.")
     if not payload.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
     if not payload.services:
@@ -2453,6 +2519,14 @@ async def create_service_enquiry(payload: ServiceEnquiryCreate):
 
 app.include_router(api_router)
 
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "*.vercel.app",
+    "financial-portfolio-m4eb.vercel.app",
+    "finlitventures.com",
+    "www.finlitventures.com",
+]
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -2462,17 +2536,41 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 
+def configured_allowed_hosts():
+    hosts = DEFAULT_ALLOWED_HOSTS + os.environ.get("ALLOWED_HOSTS", "").split(",")
+    return list(dict.fromkeys(host.strip().lower() for host in hosts if host.strip()))
+
+
 def configured_cors_origins():
     origins = DEFAULT_CORS_ORIGINS + os.environ.get("CORS_ORIGINS", "").split(",")
     return list(dict.fromkeys(origin.strip().rstrip("/") for origin in origins if origin.strip()))
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=configured_allowed_hosts(),
+)
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=configured_cors_origins(),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=600,
 )
 
 
