@@ -447,7 +447,7 @@ async def admin_stock_fundamentals_search(
     _admin=Depends(require_admin),
 ):
     instruments = await asyncio.to_thread(_search_finedge_stocks, query)
-    return {"items": instruments[:10]}
+    return JSONResponse({"items": instruments[:10]}, headers={"Cache-Control": "no-store"})
 
 
 @api_router.get("/stocks/admin/fundamentals")
@@ -457,7 +457,8 @@ async def admin_stock_fundamentals(
     period: Literal["yearly", "quarterly"] = "yearly",
     _admin=Depends(require_admin),
 ):
-    return await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period)
+    data = await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period)
+    return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
 
 @api_router.get("/content/admin/items")
@@ -1605,17 +1606,33 @@ def _upsert_ratio(ratios, name, company_value=None, sector_value=None, source=No
     return ratios
 
 
-def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None):
+def _latest_price_ratio_snapshot(payload):
+    rows = _payload_items(payload, ["price_ratios", "data", "ratios", "items", "results"])
+    valid_rows = [row for row in rows if isinstance(row, dict)]
+    if not valid_rows:
+        return {}
+    return sorted(valid_rows, key=lambda row: str(row.get("quote_date") or row.get("date") or ""), reverse=True)[0]
+
+
+def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None, price_ratio_snapshot=None):
     ratios = _clean_ratio_benchmarks(ratios)
     market_cap = _to_number((profile or {}).get("marketCap"))
     latest_profit = _latest_history_value((income_statement or {}).get("income_statement"), "net_profit")
     net_profit = _to_number((latest_profit or {}).get("value"))
     lookup = _ratio_lookup(ratios)
+    derived_pe = None
     if market_cap and net_profit and net_profit > 0:
         derived_pe = market_cap / net_profit
         current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
         if current_pe is None or current_pe <= 0 or abs(derived_pe - current_pe) / max(abs(derived_pe), 1) > 0.15:
             ratios = _upsert_ratio(ratios, "P/E", round(derived_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "derived_market_cap")
+    daily_pe = _to_number((price_ratio_snapshot or {}).get("pe"))
+    if daily_pe and daily_pe > 0:
+        lookup = _ratio_lookup(ratios)
+        current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
+        passes_earnings_floor = derived_pe is None or daily_pe >= derived_pe * 0.9
+        if passes_earnings_floor and (current_pe is None or current_pe <= 0 or abs(daily_pe - current_pe) / max(abs(daily_pe), 1) > 0.03):
+            ratios = _upsert_ratio(ratios, "P/E", round(daily_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "finedge_daily_price_ratios")
     latest_equity = _latest_history_value((balance_sheet or {}).get("balance_sheet"), "equity")
     equity = _to_number((latest_equity or {}).get("value"))
     if market_cap and equity and equity > 0:
@@ -1624,6 +1641,12 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
         current_pb = _to_number((lookup.get("P/B") or {}).get("company_value"))
         if current_pb is None or current_pb <= 0 or abs(derived_pb - current_pb) / max(abs(derived_pb), 1) > 0.25:
             ratios = _upsert_ratio(ratios, "P/B", round(derived_pb, 2), (lookup.get("P/B") or {}).get("sector_value"), "derived_market_cap")
+    daily_pb = _to_number((price_ratio_snapshot or {}).get("pb"))
+    if daily_pb and daily_pb > 0:
+        lookup = _ratio_lookup(ratios)
+        current_pb = _to_number((lookup.get("P/B") or {}).get("company_value"))
+        if current_pb is None or current_pb <= 0 or abs(daily_pb - current_pb) / max(abs(daily_pb), 1) > 0.05:
+            ratios = _upsert_ratio(ratios, "P/B", round(daily_pb, 2), (lookup.get("P/B") or {}).get("sector_value"), "finedge_daily_price_ratios")
     equity_points = []
     latest_equity_row = next((row for row in (balance_sheet or {}).get("balance_sheet", []) if isinstance(row, dict) and row.get("category") == "equity"), None)
     if latest_equity_row:
@@ -2058,7 +2081,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "incomeStatement": "finedge",
         "balanceSheet": "finedge",
         "cashFlow": "finedge",
-        "ratios": "finedge+upstox",
+        "ratios": "finedge",
         "shareholding": "finedge",
         "corporateActions": "finedge",
         "competitors": "finedge",
@@ -2152,67 +2175,93 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     }
 
     finedge_type = "c" if effective_statement_type == "consolidated" else "s"
+    current_year = datetime.now(timezone.utc).year
     ratio_payloads = [
         _safe_finedge_get(f"/ratios/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("ef", "le", "li", "pr")
     ]
+    daily_price_ratio_payload = _safe_finedge_get(
+        f"/daily-price-ratios/{_stock_symbol_path(symbol)}",
+        {"statement_type": finedge_type, "from": str(current_year), "to": str(current_year)},
+        default={},
+    )
+    price_ratio_snapshot = _latest_price_ratio_snapshot(daily_price_ratio_payload)
     metric_payloads = [
         _safe_finedge_get(f"/financial-metrics/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("cu", "gr", "av")
     ]
+    basic_financials_payload = _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={})
     upstox_key = instrument.get("upstoxInstrumentKey")
     upstox_isin = instrument.get("isin")
     upstox_statement_type = effective_statement_type
-    upstox_income_payload = _safe_upstox_get(
-        f"/fundamentals/{quote(upstox_isin or '', safe='')}/income-statement",
-        {"type": upstox_statement_type, "time_period": period, "fs": "true"},
-        default={},
-    ) if upstox_isin else {}
-    upstox_balance_payload = _safe_upstox_get(
-        f"/fundamentals/{quote(upstox_isin or '', safe='')}/balance-sheet",
-        {"type": upstox_statement_type, "fs": "true"},
-        default={},
-    ) if upstox_isin else {}
-    upstox_cash_payload = _safe_upstox_get(
-        f"/fundamentals/{quote(upstox_isin or '', safe='')}/cash-flow",
-        {"type": upstox_statement_type, "fs": "true"},
-        default={},
-    ) if upstox_isin else {}
-    upstox_ratios_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin or '', safe='')}/key-ratios", default=[]) if upstox_isin else []
     ratios = _normalize_ratio_items(
-        upstox_ratios_payload,
         *ratio_payloads,
         *metric_payloads,
-        _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={}),
+        basic_financials_payload,
     )
+    if upstox_isin:
+        finedge_ratio_keys = {str(ratio.get("name") or "").upper() for ratio in ratios if isinstance(ratio, dict)}
+        if not {"P/E", "P/B", "ROE", "ROCE"}.issubset(finedge_ratio_keys):
+            ratios = _normalize_ratio_items(
+                *ratio_payloads,
+                *metric_payloads,
+                basic_financials_payload,
+                _safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/key-ratios", default=[]),
+            )
+            data_sources["ratios"] = "finedge+upstox:fallback"
     if _history_length(income_statement.get("income_statement"), "revenue") == 0:
+        upstox_income_payload = _safe_upstox_get(
+            f"/fundamentals/{quote(upstox_isin or '', safe='')}/income-statement",
+            {"type": upstox_statement_type, "time_period": period, "fs": "true"},
+            default={},
+        ) if upstox_isin else {}
         upstox_income_rows = _normalize_upstox_statement(upstox_income_payload, "income_statement", period)
         if upstox_income_rows:
             income_statement = {"units_in": "Cr", "income_statement": upstox_income_rows}
             data_sources["incomeStatement"] = "upstox"
     if not balance_sheet.get("history"):
+        upstox_balance_payload = _safe_upstox_get(
+            f"/fundamentals/{quote(upstox_isin or '', safe='')}/balance-sheet",
+            {"type": upstox_statement_type, "fs": "true"},
+            default={},
+        ) if upstox_isin else {}
         upstox_balance_history = _normalize_upstox_balance_sheet(upstox_balance_payload, period)
         if upstox_balance_history:
             balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": []}
             data_sources["balanceSheet"] = "upstox"
     if not any((row.get("history") for row in cash_flow.get("cash_flow", []))):
+        upstox_cash_payload = _safe_upstox_get(
+            f"/fundamentals/{quote(upstox_isin or '', safe='')}/cash-flow",
+            {"type": upstox_statement_type, "fs": "true"},
+            default={},
+        ) if upstox_isin else {}
         upstox_cash_rows = _normalize_upstox_statement(upstox_cash_payload, "cash_flow", period)
         if upstox_cash_rows:
             cash_flow = {"units_in": "Cr", "cash_flow": upstox_cash_rows}
             data_sources["cashFlow"] = "upstox"
 
     profile = _normalize_profile(profile_payload, instrument)
-    upstox_profile_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin or '', safe='')}/profile", default={}) if upstox_isin else {}
-    if isinstance(upstox_profile_payload, dict):
+    profile_needs_upstox = not profile.get("description") or not profile.get("sector") or not profile.get("marketCap")
+    if upstox_isin and profile_needs_upstox:
+        upstox_profile_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/profile", default={})
+        if not isinstance(upstox_profile_payload, dict):
+            upstox_profile_payload = {}
         upstox_market_cap = upstox_profile_payload.get("sector_market_cap_inr")
         upstox_market_cap_value = upstox_market_cap.get("value") if isinstance(upstox_market_cap, dict) else None
+        filled_from_upstox = (
+            (not profile.get("description") and upstox_profile_payload.get("company_profile"))
+            or (not profile.get("sector") and upstox_profile_payload.get("sector"))
+            or (not profile.get("marketCap") and upstox_market_cap_value)
+        )
         profile = {
             **profile,
             "description": profile.get("description") or upstox_profile_payload.get("company_profile"),
             "sector": profile.get("sector") or upstox_profile_payload.get("sector"),
-            "marketCap": upstox_market_cap_value or profile.get("marketCap"),
+            "marketCap": profile.get("marketCap") or upstox_market_cap_value,
         }
-    ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet)
+        if filled_from_upstox:
+            data_sources["profile"] = "finedge+upstox:fallback"
+    ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet, price_ratio_snapshot)
     shareholding_payload = _safe_finedge_get(f"/shareholding-pattern/{_stock_symbol_path(symbol)}", default=[])
     shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
     if not shareholding and upstox_isin:
@@ -2234,23 +2283,23 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         )
         if upstox_competitors:
             competitors = upstox_competitors
-            data_sources["competitors"] = "finedge+upstox"
+            data_sources["competitors"] = "upstox"
 
-    current_year = datetime.now(timezone.utc).year
     price_history = _normalize_price_history(_safe_finedge_get(
         f"/daily-quotes/{_stock_symbol_path(symbol)}",
         {"from": str(current_year - 6), "to": str(current_year)},
         default=[],
     ))
     quote_data = _quote_from_price_history(price_history)
-    try:
-        upstox_quote = _quote_from_upstox(instrument)
-    except Exception:
-        logger.warning("Optional Upstox quote lookup failed for %s", symbol)
-        upstox_quote = {}
-    if upstox_quote.get("price"):
-        quote_data = upstox_quote
-        data_sources["quote"] = "upstox"
+    if not quote_data.get("price"):
+        try:
+            upstox_quote = _quote_from_upstox(instrument)
+        except Exception:
+            logger.warning("Optional Upstox quote lookup failed for %s", symbol)
+            upstox_quote = {}
+        if upstox_quote.get("price"):
+            quote_data = upstox_quote
+            data_sources["quote"] = "upstox"
 
     lookup = _ratio_lookup(ratios)
     latest_revenue = _latest_history_value(income_statement.get("income_statement"), "revenue")
