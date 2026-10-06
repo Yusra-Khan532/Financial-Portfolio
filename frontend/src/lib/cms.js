@@ -26,8 +26,10 @@ export async function cmsRequest(path, options = {}) {
   const token = getCmsToken();
   const response = await fetch(`${API}${path}`, {
     ...options,
+    cache: "no-store",
     headers: {
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      "Cache-Control": "no-store",
       ...options.headers,
       Authorization: `Bearer ${token}`,
     },
