@@ -6,27 +6,39 @@ import { CheckCircle2, ArrowRight, Linkedin, Mail } from "lucide-react";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_NAME_LENGTH = 120;
+const MAX_EMAIL_LENGTH = 320;
+const MAX_PHONE_LENGTH = 30;
+const MAX_SUBJECT_LENGTH = 200;
+const MAX_MESSAGE_LENGTH = 5000;
+
+const hasLetter = (value) => Array.from(value).some((character) => /\p{L}/u.test(character));
 
 function validate(form) {
   const e = {};
   const name = form.name.trim();
-  const letters = (name.match(/[A-Za-z]/g) || []).length;
   if (!name) e.name = "Please enter your name.";
-  else if (name.length < 2 || letters < 2) e.name = "Please enter a valid name.";
+  else if (name.length < 2 || !hasLetter(name)) e.name = "Please enter a valid name.";
+  else if (name.length > MAX_NAME_LENGTH) e.name = `Name must be ${MAX_NAME_LENGTH} characters or fewer.`;
 
   const email = form.email.trim();
   if (!email) e.email = "Please enter your email address.";
+  else if (email.length > MAX_EMAIL_LENGTH) e.email = `Email must be ${MAX_EMAIL_LENGTH} characters or fewer.`;
   else if (!emailRe.test(email)) e.email = "Please enter a valid email address.";
 
   const mobile = form.mobile.trim();
   if (mobile) {
     const digits = (mobile.match(/\d/g) || []).length;
-    if (!/^\+?[\d\s\-()]+$/.test(mobile) || digits < 7 || digits > 15)
+    if (mobile.length > MAX_PHONE_LENGTH) e.mobile = `Mobile number must be ${MAX_PHONE_LENGTH} characters or fewer.`;
+    else if (!/^\+?[\d\s\-()]+$/.test(mobile) || digits < 7 || digits > 15)
       e.mobile = "Please enter a valid mobile number.";
   }
 
+  if (form.subject.trim().length > MAX_SUBJECT_LENGTH)
+    e.subject = `Subject must be ${MAX_SUBJECT_LENGTH} characters or fewer.`;
   const message = form.message.trim();
-  if (message && message.length < 10)
+  if (message.length > MAX_MESSAGE_LENGTH) e.message = `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.`;
+  else if (message && message.length < 10)
     e.message = "Message should be at least 10 characters.";
 
   return e;
@@ -71,7 +83,13 @@ export default function ContactPage() {
       setTouched(false);
     } catch (err) {
       const detail = err?.response?.data?.detail;
-      setFailed(typeof detail === "string" ? detail : true);
+      setFailed(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? "Please check your name, contact details, and message, then try again."
+            : true
+      );
     } finally {
       setLoading(false);
     }
@@ -156,6 +174,7 @@ export default function ContactPage() {
                   data-testid="contactpage-name"
                   className={fieldCls(errors.name)}
                   placeholder="Your full name"
+                  maxLength={MAX_NAME_LENGTH}
                   value={form.name}
                   onChange={set("name")}
                 />
@@ -169,6 +188,7 @@ export default function ContactPage() {
                     data-testid="contactpage-email"
                     className={fieldCls(errors.email)}
                     placeholder="you@example.com"
+                    maxLength={MAX_EMAIL_LENGTH}
                     value={form.email}
                     onChange={set("email")}
                   />
@@ -180,6 +200,7 @@ export default function ContactPage() {
                     data-testid="contactpage-mobile"
                     className={fieldCls(errors.mobile)}
                     placeholder="+91 98765 43210"
+                    maxLength={MAX_PHONE_LENGTH}
                     value={form.mobile}
                     onChange={set("mobile")}
                   />
@@ -191,11 +212,13 @@ export default function ContactPage() {
                 <Label>Subject</Label>
                 <input
                   data-testid="contactpage-subject"
-                  className={fieldCls(false)}
+                  className={fieldCls(errors.subject)}
                   placeholder="What is this regarding?"
+                  maxLength={MAX_SUBJECT_LENGTH}
                   value={form.subject}
                   onChange={set("subject")}
                 />
+                <Err id="subject" msg={errors.subject} />
               </div>
 
               <div>
@@ -203,6 +226,7 @@ export default function ContactPage() {
                 <textarea
                   data-testid="contactpage-message"
                   rows={5}
+                  maxLength={MAX_MESSAGE_LENGTH}
                   className={fieldCls(errors.message)}
                   placeholder="Write your message..."
                   value={form.message}

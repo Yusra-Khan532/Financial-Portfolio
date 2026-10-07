@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
@@ -122,12 +122,31 @@ class ContactMessage(BaseModel):
 
 
 class ContactCreate(BaseModel):
-    name: str
-    email: EmailStr
-    phone: Optional[str] = None
-    investment_size: Optional[str] = None
-    subject: Optional[str] = None
-    message: str = ""
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr = Field(max_length=320)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    investment_size: Optional[str] = Field(default=None, max_length=100)
+    subject: Optional[str] = Field(default=None, max_length=200)
+    message: str = Field(default="", max_length=5000)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value):
+        if value is None or not value.strip():
+            return value
+        digits = re.findall(r"\d", value)
+        if not re.fullmatch(r"\+?[\d\s\-()]+", value) or not 7 <= len(digits) <= 15:
+            raise ValueError("Enter a valid mobile number.")
+        return value
+
+
+ServiceName = Literal[
+    "0 → 1 Investing",
+    "Wealth Planning",
+    "Family Financial Planning",
+    "Global Investing",
+    "Portfolio Review & Stock Selection",
+]
 
 
 class ServiceEnquiry(BaseModel):
@@ -142,11 +161,19 @@ class ServiceEnquiry(BaseModel):
 
 
 class ServiceEnquiryCreate(BaseModel):
-    name: str
-    email: EmailStr
-    phone: str
-    services: List[str]
-    message: str = ""
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr = Field(max_length=320)
+    phone: str = Field(min_length=7, max_length=30)
+    services: List[ServiceName] = Field(max_length=5)
+    message: str = Field(default="", max_length=5000)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value):
+        digits = re.findall(r"\d", value)
+        if not re.fullmatch(r"\+?[\d\s\-()]+", value) or not 7 <= len(digits) <= 15:
+            raise ValueError("Enter a valid mobile number.")
+        return value
 
 
 class AdminLogin(BaseModel):
