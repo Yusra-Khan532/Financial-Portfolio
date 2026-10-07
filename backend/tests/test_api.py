@@ -57,6 +57,38 @@ def test_contact_validation_regressions_remain(isolated_app):
     assert status == 400
 
 
+def test_contact_preserves_unicode_punctuation_and_multiline_text(isolated_app):
+    app, database = isolated_app
+    payload = {
+        "name": "आशा O'Neil",
+        "email": "asha+research@example.com",
+        "subject": "Markets & goals — discussion",
+        "message": "पहली पंक्ति & details\nSecond line — ₹50,000",
+    }
+
+    status, body = asgi_request(app, "POST", "/api/contact", payload)
+
+    assert status == 200
+    assert body["name"] == payload["name"]
+    assert body["subject"] == payload["subject"]
+    assert body["message"] == payload["message"]
+    assert database.contact_messages.documents[0]["message"] == payload["message"]
+
+
+def test_contact_rejects_oversized_request_fields_before_storage(isolated_app):
+    app, database = isolated_app
+    base = contact_payload()
+    for field, value in (
+        ("name", "A" * 121),
+        ("subject", "S" * 201),
+        ("message", "M" * 5001),
+        ("phone", "1" * 31),
+    ):
+        status, _body = asgi_request(app, "POST", "/api/contact", {**base, field: value})
+        assert status == 422
+    assert database.contact_messages.insert_calls == 0
+
+
 def test_asgi_request_preserves_plaintext_response_diagnostics():
     async def plaintext_app(_scope, _receive, send):
         await send({"type": "http.response.start", "status": 418, "headers": []})
