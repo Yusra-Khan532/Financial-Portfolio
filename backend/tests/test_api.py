@@ -1,113 +1,68 @@
-"""Backend API tests for Nishant Jain PMS site."""
-import os
-import pytest
-import requests
+import time
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://portfolio-hub-4521.preview.emergentagent.com").rstrip("/")
-API = f"{BASE_URL}/api"
+import jwt
+
+from backend.tests.conftest import asgi_request
 
 
-@pytest.fixture(scope="module")
-def client():
-    s = requests.Session()
-    s.headers.update({"Content-Type": "application/json"})
-    return s
+def admin_token(expiration=None):
+    payload = {"sub": "admin@example.test", "role": "admin", "iat": int(time.time())}
+    if expiration is not None:
+        payload["exp"] = expiration
+    return jwt.encode(payload, "test-only-jwt-secret-with-more-than-32-bytes", algorithm="HS256")
 
 
-# ---------- Root ----------
-def test_root(client):
-    r = client.get(f"{API}/", timeout=30)
-    assert r.status_code == 200
-    data = r.json()
-    assert "message" in data
-    assert "PMS" in data["message"] or "Nishant" in data["message"]
-
-
-# ---------- Contact POST ----------
-def test_contact_post_success_and_persistence(client):
-    payload = {
-        "name": "TEST_Investor",
-        "email": "test_investor@example.com",
-        "phone": "+911234567890",
-        "investment_size": "₹1 Cr – ₹5 Cr",
-        "subject": "TEST_SUBJECT Research discussion",
-        "message": "TEST_MSG please contact me about PMS.",
+def contact_payload():
+    return {
+        "name": "Asha Investor", "email": "asha@example.com", "phone": "+91 98765 43210",
+        "investment_size": "₹1 Cr – ₹5 Cr", "subject": "Research discussion",
+        "message": "Please contact me about the portfolio.",
     }
-    r = client.post(f"{API}/contact", json=payload, timeout=30)
-    assert r.status_code == 200, r.text
-    data = r.json()
-    assert data["name"] == payload["name"]
-    assert data["email"] == payload["email"]
-    assert data["message"] == payload["message"]
-    assert data["investment_size"] == payload["investment_size"]
-    assert data["subject"] == payload["subject"]
-    assert "id" in data and isinstance(data["id"], str)
-    assert "created_at" in data
-
-    # Verify persistence via GET
-    r2 = client.get(f"{API}/contact", timeout=30)
-    assert r2.status_code == 200
-    items = r2.json()
-    assert isinstance(items, list)
-    ids = [i["id"] for i in items]
-    assert data["id"] in ids
-    # verify subject persisted in list
-    found = next((i for i in items if i["id"] == data["id"]), None)
-    assert found is not None
-    assert found.get("subject") == payload["subject"]
 
 
-def test_contact_post_invalid_email(client):
-    r = client.post(f"{API}/contact", json={
-        "name": "TEST_x",
-        "email": "not-an-email",
-        "message": "hi",
-    }, timeout=30)
-    assert r.status_code == 422
+def test_missing_invalid_and_expired_admin_tokens_cannot_read_contacts(isolated_app):
+    app, database = isolated_app
+    for headers in ({}, {"Authorization": "Bearer definitely-invalid"},
+                    {"Authorization": f"Bearer {admin_token(int(time.time()) - 1)}"}):
+        status, _body = asgi_request(app, "GET", "/api/contact", headers=headers)
+        assert status == 401
+    assert database.contact_messages.find_calls == 0
 
 
-def test_contact_post_missing_required(client):
-    r = client.post(f"{API}/contact", json={
-        "email": "a@b.com",
-    }, timeout=30)
-    assert r.status_code == 422
+def test_valid_admin_token_can_read_contacts_and_only_then_queries(isolated_app):
+    app, database = isolated_app
+    database.contact_messages.documents.append({"id": "contact-1", "name": "Asha", "email": "asha@example.com"})
+    status, body = asgi_request(
+        app, "GET", "/api/contact",
+        headers={"Authorization": f"Bearer {admin_token(int(time.time()) + 3600)}"},
+    )
+    assert status == 200
+    assert body[0]["id"] == "contact-1"
+    assert database.contact_messages.find_calls == 1
 
 
-def test_contact_post_empty_name(client):
-    r = client.post(f"{API}/contact", json={
-        "name": "   ",
-        "email": "x@y.com",
-        "message": "  ",
-    }, timeout=30)
-    assert r.status_code == 400
+def test_public_contact_submission_still_works_without_admin_token(isolated_app):
+    app, database = isolated_app
+    status, body = asgi_request(app, "POST", "/api/contact", contact_payload())
+    assert status == 200
+    assert body["name"] == contact_payload()["name"]
+    assert database.contact_messages.insert_calls == 1
 
 
-def test_contact_post_blank_message(client):
-    r = client.post(f"{API}/contact", json={
-        "name": "TEST_Blank Contact Message",
-        "email": "blank-contact@example.com",
-        "message": "  ",
-    }, timeout=30)
-    assert r.status_code == 200, r.text
-    assert r.json()["message"] == "  "
+def test_contact_validation_regressions_remain(isolated_app):
+    app, _database = isolated_app
+    status, _body = asgi_request(app, "POST", "/api/contact", {"email": "not-an-email"})
+    assert status == 422
+    status, _body = asgi_request(app, "POST", "/api/contact", {"name": "   ", "email": "x@example.com"})
+    assert status == 400
 
 
-def test_contact_post_missing_message(client):
-    r = client.post(f"{API}/contact", json={
-        "name": "TEST_Missing Contact Message",
-        "email": "missing-contact@example.com",
-    }, timeout=30)
-    assert r.status_code == 200, r.text
-    assert r.json()["message"] == ""
+def test_asgi_request_preserves_plaintext_response_diagnostics():
+    async def plaintext_app(_scope, _receive, send):
+        await send({"type": "http.response.start", "status": 418, "headers": []})
+        await send({"type": "http.response.body", "body": b"Invalid host header"})
 
+    status, body = asgi_request(plaintext_app, "GET", "/api/contact")
 
-# ---------- Contact GET ----------
-def test_contact_list_no_object_id(client):
-    r = client.get(f"{API}/contact", timeout=30)
-    assert r.status_code == 200
-    data = r.json()
-    assert isinstance(data, list)
-    for item in data:
-        assert "_id" not in item
-        assert "id" in item
-        assert "email" in item
+    assert status == 418
+    assert body == {"_non_json": True, "text": "Invalid host header"}
