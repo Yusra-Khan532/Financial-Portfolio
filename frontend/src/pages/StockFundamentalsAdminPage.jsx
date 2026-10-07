@@ -552,9 +552,9 @@ function scoreLabel(score) {
 }
 
 function scoreTone(score) {
-  if (score === null || score === undefined) return "neutral";
-  if (score >= 62) return "positive";
-  if (score >= 45) return "neutral";
+  if (typeof score !== "number" || !Number.isFinite(score)) return "neutral";
+  if (score > 70) return "positive";
+  if (score >= 50) return "warning";
   return "caution";
 }
 
@@ -1284,6 +1284,13 @@ function toneClasses(tone) {
   return "text-[#CBD5E1]";
 }
 
+function scoreToneClasses(tone) {
+  if (tone === "positive") return "text-[#2F7D55] dark:text-[#8CC8AA]";
+  if (tone === "warning") return "text-[#B35C00] dark:text-[#F2B366]";
+  if (tone === "caution") return "text-[#B42318] dark:text-[#E7A5A6]";
+  return "text-[#475569] dark:text-[#CBD5E1]";
+}
+
 function InvestorInsights({ insights }) {
   const notes = buildScreeningNotes(insights);
   return (
@@ -1344,10 +1351,10 @@ function ResearchReport({ report }) {
           <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[#71839A]">Composite Score</div>
               <div className="mt-2 text-sm font-medium text-white">{scoreLabel(report.overall)}</div>
             </div>
-            <div className={`text-4xl font-semibold tabular-nums ${toneClasses(tone)}`}>{report.overall ?? "--"}</div>
+            <div className={`text-4xl font-semibold tabular-nums ${scoreToneClasses(tone)}`}>{report.overall ?? "--"}</div>
           </div>
           <div className="mt-5 h-1.5 overflow-hidden bg-white/10">
-            <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#D4AF37]"}`} style={{ width: `${report.overall || 0}%` }} />
+            <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "warning" ? "bg-[#D99145]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#94A3B8]"}`} style={{ width: `${report.overall || 0}%` }} />
           </div>
           <p className="mt-4 text-xs leading-6 text-[#94A3B8]">
             Composite view of quality, growth, profitability, balance sheet and technical conditions.
@@ -1362,7 +1369,7 @@ function ResearchReport({ report }) {
                   <h3 className="text-xs font-medium uppercase tracking-[.12em] text-[#CBD5E1]">{dimension.name}</h3>
                   <div className="mt-1 text-xs text-[#71839A]">{scoreLabel(dimension.score)}</div>
                 </div>
-                <div className={`text-xl font-semibold tabular-nums ${toneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
+                <div className={`text-xl font-semibold tabular-nums ${scoreToneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
               </div>
               <div className="mt-4 space-y-2">
                 {dimension.metrics.map(([label, value]) => (
