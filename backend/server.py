@@ -955,6 +955,10 @@ def _ratio_display_name(value: str):
         "roce": "ROCE",
         "returnoncapital": "ROCE",
         "returnoncapitalemployed": "ROCE",
+        "operatingmargin": "Operating Margin",
+        "opm": "Operating Margin",
+        "netmargin": "Net Margin",
+        "npm": "Net Margin",
         "evebitda": "EV/EBITDA",
         "debtequity": "Debt / Equity",
         "totaldebttoequity": "Debt / Equity",
@@ -1227,7 +1231,7 @@ def _finedge_statement(symbol: str, statement_type: str, statement_code: str, pe
     return _payload_items(payload, ["financials", "data", "results", "items"])
 
 
-def _metric_key_allowed(key: str):
+def _metric_key_allowed(key: str, allow_eps: bool = False):
     lowered = key.lower()
     metadata = {
         "period", "periodlabel", "displayperiod", "fiscalperiod", "fiscal_year", "fiscalyear",
@@ -1238,7 +1242,9 @@ def _metric_key_allowed(key: str):
     }
     if lowered in metadata:
         return False
-    if "outstandingshares" in lowered or lowered in {"eps", "dilutedeps", "basiceps"}:
+    if "outstandingshares" in lowered:
+        return False
+    if not allow_eps and lowered in {"eps", "dilutedeps", "basiceps"}:
         return False
     return not lowered.endswith("date")
 
@@ -1257,12 +1263,11 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
         row = item["row"]
         label = item["label"]
         for key, value in row.items():
-            if not _metric_key_allowed(str(key)):
+            if not _metric_key_allowed(str(key), allow_eps=True):
                 continue
             number = _to_number(value)
             if number is None:
                 continue
-            number = number / scale if scale and scale != 1 else number
             alias_value = aliases.get(str(key), alias_lookup.get(str(key).lower(), str(key)))
             if isinstance(alias_value, (tuple, list)):
                 category = alias_value[0]
@@ -1270,6 +1275,8 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
             else:
                 category = alias_value
                 priority = 100
+            value_scale = 1 if category == "eps" else scale
+            number = number / value_scale if value_scale and value_scale != 1 else number
             point_key = (category, label)
             categories.setdefault(category, {
                 "category": category,
@@ -1279,7 +1286,7 @@ def _history_from_period_rows(rows: List[Dict[str, Any]], period: str, aliases: 
             previous_value = None
             if period_index + 1 < len(period_rows):
                 previous_value = _to_number(period_rows[period_index + 1]["row"].get(key))
-                previous_value = previous_value / scale if previous_value is not None and scale and scale != 1 else previous_value
+                previous_value = previous_value / value_scale if previous_value is not None and value_scale and value_scale != 1 else previous_value
             point = {
                 "period": label,
                 "value": number,
@@ -1614,12 +1621,95 @@ def _latest_price_ratio_snapshot(payload):
     return sorted(valid_rows, key=lambda row: str(row.get("quote_date") or row.get("date") or ""), reverse=True)[0]
 
 
+def _history_row(rows, category):
+    if not isinstance(rows, list):
+        return None
+    return next((row for row in rows if isinstance(row, dict) and row.get("category") == category), None)
+
+
+def _category_history_map(rows, category):
+    row = _history_row(rows, category)
+    if not row:
+        return {}
+    return {
+        str(point.get("period")): _to_number(point.get("value"))
+        for point in row.get("history") or []
+        if point.get("period") is not None and _to_number(point.get("value")) is not None
+    }
+
+
+def _income_statement_quality_warnings(income_statement, upstox_income_payload, period):
+    upstox_rows = _normalize_upstox_statement(upstox_income_payload, "income_statement", period)
+    if not upstox_rows:
+        return []
+    finedge_revenue = _category_history_map(income_statement.get("income_statement"), "revenue")
+    finedge_profit = _category_history_map(income_statement.get("income_statement"), "net_profit")
+    upstox_revenue_row = next((row for row in upstox_rows if row.get("category") == "revenue"), None)
+    upstox_profit = _category_history_map(upstox_rows, "net_profit")
+    if not finedge_revenue or not upstox_revenue_row:
+        return []
+    upstox_revenue = {
+        str(point.get("period")): _to_number(point.get("value"))
+        for point in upstox_revenue_row.get("history") or []
+        if point.get("period") is not None and _to_number(point.get("value")) is not None
+    }
+    flagged_periods = []
+    checked_periods = 0
+    for period_label, finedge_value in finedge_revenue.items():
+        upstox_value = upstox_revenue.get(period_label)
+        if upstox_value is None:
+            year_match = re.search(r"(20\d{2}|19\d{2})", str(period_label))
+            if year_match:
+                upstox_value = next((value for label, value in upstox_revenue.items() if year_match.group(1) in str(label)), None)
+        if not upstox_value or not finedge_value:
+            continue
+        checked_periods += 1
+        profit_label = next((label for label in upstox_profit if str(period_label) in str(label) or str(label) in str(period_label)), period_label)
+        finedge_np = finedge_profit.get(period_label)
+        upstox_np = upstox_profit.get(profit_label)
+        profit_aligned = not finedge_np or not upstox_np or abs(finedge_np - upstox_np) / max(abs(upstox_np), 1) < 0.05
+        if profit_aligned and abs(finedge_value - upstox_value) / max(abs(upstox_value), 1) > 0.35:
+            flagged_periods.append({
+                "period": period_label,
+                "finedge": round(finedge_value, 2),
+                "fallbackProvider": round(upstox_value, 2),
+                "differencePercent": round(((finedge_value - upstox_value) / max(abs(upstox_value), 1)) * 100, 2),
+            })
+    if checked_periods and len(flagged_periods) >= max(1, math.ceil(checked_periods * 0.6)):
+        return [{
+            "severity": "warning",
+            "section": "incomeStatement",
+            "metric": "Revenue",
+            "code": "finedge_revenue_fallback_provider_mismatch",
+            "message": "FinEdge revenue materially differs from the fallback provider while net profit is broadly aligned. FinEdge remains the displayed source; review provider classification before changing source.",
+            "periods": flagged_periods[:6],
+        }]
+    return []
+
+
 def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None, price_ratio_snapshot=None):
     ratios = _clean_ratio_benchmarks(ratios)
     market_cap = _to_number((profile or {}).get("marketCap"))
     latest_profit = _latest_history_value((income_statement or {}).get("income_statement"), "net_profit")
     net_profit = _to_number((latest_profit or {}).get("value"))
+    latest_revenue = _latest_history_value((income_statement or {}).get("income_statement"), "revenue")
+    latest_operating = _latest_history_value((income_statement or {}).get("income_statement"), "operating_profit")
+    revenue = _to_number((latest_revenue or {}).get("value"))
+    operating_profit = _to_number((latest_operating or {}).get("value"))
     lookup = _ratio_lookup(ratios)
+    if revenue and revenue > 0:
+        if operating_profit is not None:
+            derived_opm = (operating_profit / revenue) * 100
+            current_opm = _to_number((lookup.get("OPERATING MARGIN") or {}).get("company_value"))
+            if current_opm is None or abs(derived_opm - current_opm) / max(abs(derived_opm), 1) > 0.05:
+                ratios = _upsert_ratio(ratios, "Operating Margin", round(derived_opm, 2), (lookup.get("OPERATING MARGIN") or {}).get("sector_value"), "derived_income_statement")
+                lookup = _ratio_lookup(ratios)
+        if net_profit is not None:
+            derived_npm = (net_profit / revenue) * 100
+            current_npm = _to_number((lookup.get("NET MARGIN") or {}).get("company_value"))
+            if current_npm is None or abs(derived_npm - current_npm) / max(abs(derived_npm), 1) > 0.05:
+                ratios = _upsert_ratio(ratios, "Net Margin", round(derived_npm, 2), (lookup.get("NET MARGIN") or {}).get("sector_value"), "derived_income_statement")
+                lookup = _ratio_lookup(ratios)
     derived_pe = None
     if market_cap and net_profit and net_profit > 0:
         derived_pe = market_cap / net_profit
@@ -1895,17 +1985,36 @@ def _normalize_upstox_competitors(payload, base_competitors=None):
     return [item for item in competitors if item.get("instrumentKey") or item.get("symbol")]
 
 
-def _normalize_competitors(payload):
+def _peer_profile(symbol):
+    if not symbol:
+        return {}
+    normalized = str(symbol).strip().upper()
+    cached = _finedge_symbol_cache.get("items") or []
+    match = next((item for item in cached if str(item.get("symbol") or "").upper() == normalized), None)
+    if match:
+        return match
+    try:
+        universe = _finedge_all_symbols()
+    except Exception:
+        return {}
+    return next((item for item in universe if str(item.get("symbol") or "").upper() == normalized), {})
+
+
+def _normalize_competitors(payload, current_symbol=None):
     competitors = []
+    current = str(current_symbol or "").upper()
     for row in _payload_items(payload, ["peers", "competitors", "data", "results"]):
         if isinstance(row, str):
+            if row.upper() == current:
+                continue
+            peer = _peer_profile(row)
             competitors.append({
-                "instrumentKey": row,
-                "name": row,
-                "symbol": row,
-                "isin": None,
+                "instrumentKey": peer.get("instrumentKey") or row,
+                "name": peer.get("name") or row,
+                "symbol": peer.get("symbol") or row,
+                "isin": peer.get("isin"),
                 "exchange": "NSE/BSE",
-                "sector": None,
+                "sector": peer.get("segment"),
                 "summary": "",
                 "sectorMarketCapInr": None,
             })
@@ -1913,14 +2022,17 @@ def _normalize_competitors(payload):
         if not isinstance(row, dict):
             continue
         symbol = _first_value(row, ["symbol", "ticker", "peerSymbol", "nseSymbol"])
+        if str(symbol or "").upper() == current:
+            continue
+        peer = _peer_profile(symbol)
         name = _first_value(row, ["companyName", "name", "peerName"]) or symbol
         competitors.append({
-            "instrumentKey": symbol,
-            "name": name,
-            "symbol": symbol,
-            "isin": _first_value(row, ["isin"]),
-            "exchange": _first_value(row, ["exchange"]) or "NSE/BSE",
-            "sector": _first_value(row, ["sector", "industry"]),
+            "instrumentKey": peer.get("instrumentKey") or symbol,
+            "name": peer.get("name") or name,
+            "symbol": peer.get("symbol") or symbol,
+            "isin": _first_value(row, ["isin"]) or peer.get("isin"),
+            "exchange": _first_value(row, ["exchange"]) or peer.get("exchange") or "NSE/BSE",
+            "sector": _first_value(row, ["sector", "industry"]) or peer.get("segment"),
             "summary": _first_value(row, ["description", "summary"]) or "",
             "sectorMarketCapInr": _first_value(row, ["marketCap", "market_cap"]),
         })
@@ -2088,6 +2200,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "priceHistory": "finedge",
         "quote": "finedge",
     }
+    data_quality = []
     if statement_type == "consolidated":
         standalone_income_rows = _safe_finedge_get(
             f"/financials/{_stock_symbol_path(symbol)}",
@@ -2147,7 +2260,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "profitAfterTax": ("net_profit", 30), "pat": ("net_profit", 30),
         "netProfit": ("net_profit", 40), "net_profit": ("net_profit", 40),
         "netIncome": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
-        "eps": "eps",
+        "eps": "eps", "basicEPS": "eps", "basicEps": "eps", "dilutedEPS": "eps", "dilutedEps": "eps",
     }, scale=10_000_000)
     income_statement = {
         "units_in": "Cr",
@@ -2209,16 +2322,32 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
                 _safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/key-ratios", default=[]),
             )
             data_sources["ratios"] = "finedge+upstox:fallback"
-    if _history_length(income_statement.get("income_statement"), "revenue") == 0:
+    upstox_income_payload = None
+    if upstox_isin:
         upstox_income_payload = _safe_upstox_get(
-            f"/fundamentals/{quote(upstox_isin or '', safe='')}/income-statement",
+            f"/fundamentals/{quote(upstox_isin, safe='')}/income-statement",
             {"type": upstox_statement_type, "time_period": period, "fs": "true"},
             default={},
-        ) if upstox_isin else {}
+        )
+        data_quality.extend(_income_statement_quality_warnings(income_statement, upstox_income_payload, period))
+    if _history_length(income_statement.get("income_statement"), "revenue") == 0:
+        if upstox_income_payload is None:
+            upstox_income_payload = _safe_upstox_get(
+                f"/fundamentals/{quote(upstox_isin or '', safe='')}/income-statement",
+                {"type": upstox_statement_type, "time_period": period, "fs": "true"},
+                default={},
+            ) if upstox_isin else {}
         upstox_income_rows = _normalize_upstox_statement(upstox_income_payload, "income_statement", period)
         if upstox_income_rows:
             income_statement = {"units_in": "Cr", "income_statement": upstox_income_rows}
             data_sources["incomeStatement"] = "upstox"
+            data_quality.append({
+                "severity": "info",
+                "section": "incomeStatement",
+                "metric": "Revenue",
+                "code": "finedge_income_statement_missing_upstox_fallback",
+                "message": "FinEdge did not provide usable income statement revenue, so Upstox was used as a fallback source.",
+            })
     if not balance_sheet.get("history"):
         upstox_balance_payload = _safe_upstox_get(
             f"/fundamentals/{quote(upstox_isin or '', safe='')}/balance-sheet",
@@ -2229,6 +2358,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         if upstox_balance_history:
             balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": []}
             data_sources["balanceSheet"] = "upstox"
+            data_quality.append({
+                "severity": "info",
+                "section": "balanceSheet",
+                "code": "finedge_balance_sheet_missing_upstox_fallback",
+                "message": "FinEdge did not provide usable balance sheet history, so Upstox was used as a fallback source.",
+            })
     if not any((row.get("history") for row in cash_flow.get("cash_flow", []))):
         upstox_cash_payload = _safe_upstox_get(
             f"/fundamentals/{quote(upstox_isin or '', safe='')}/cash-flow",
@@ -2239,6 +2374,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         if upstox_cash_rows:
             cash_flow = {"units_in": "Cr", "cash_flow": upstox_cash_rows}
             data_sources["cashFlow"] = "upstox"
+            data_quality.append({
+                "severity": "info",
+                "section": "cashFlow",
+                "code": "finedge_cash_flow_missing_upstox_fallback",
+                "message": "FinEdge did not provide usable cash-flow history, so Upstox was used as a fallback source.",
+            })
 
     profile = _normalize_profile(profile_payload, instrument)
     profile_needs_upstox = not profile.get("description") or not profile.get("sector") or not profile.get("marketCap")
@@ -2275,7 +2416,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         corporate_actions = _normalize_corporate_actions(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/corporate-actions", default=[]))
         if corporate_actions:
             data_sources["corporateActions"] = "upstox"
-    competitors = _normalize_competitors(_safe_finedge_get(f"/peers/{_stock_symbol_path(symbol)}", default=[]))
+    competitors = _normalize_competitors(_safe_finedge_get(f"/peers/{_stock_symbol_path(symbol)}", default=[]), symbol)
     if upstox_key and not competitors:
         upstox_competitors = _normalize_upstox_competitors(
             _safe_upstox_get(f"/fundamentals/{quote(upstox_key, safe='')}/competitors", default=[]),
@@ -2333,6 +2474,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "shareholding": shareholding,
         "corporateActions": corporate_actions,
         "competitors": competitors,
+        "dataQuality": data_quality,
     }
     result["devMetrics"] = _stock_dev_metrics(result, started_at)
     _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}

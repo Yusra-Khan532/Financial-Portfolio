@@ -46,9 +46,6 @@ const DASHBOARD_TABS = [
 const NOISY_FINANCIAL_KEYS = new Set([
   "periodstart",
   "resultdate",
-  "eps",
-  "basiceps",
-  "dilutedeps",
   "basicoutstandingshares",
   "dilutedoutstandingshares",
   "outstandingshares",
@@ -196,8 +193,11 @@ const RATIO_PRIORITY = [
   "dayspayable",
   "cashconversioncycle",
   "workingcapitaldays",
+  "operatingmargin",
+  "netmargin",
   "roce",
   "roe",
+  "roa",
   "pe",
   "pb",
   "debt/equity",
@@ -212,6 +212,8 @@ const RATIO_DESCRIPTIONS = {
   ROE: "Measures profit generated on shareholders' equity.",
   ROCE: "Measures return generated on capital employed in the business.",
   ROA: "Measures profit generated from the company's asset base.",
+  "Operating Margin": "Shows operating profit as a percentage of revenue.",
+  "Net Margin": "Shows net profit as a percentage of revenue.",
   "Debt / Equity": "Compares total debt with shareholders' equity.",
   "EV/EBITDA": "Compares enterprise value with operating earnings before depreciation and amortisation.",
   "Current Ratio": "Shows whether short-term assets can cover short-term liabilities.",
@@ -793,10 +795,14 @@ function comparisonTone(companyValue, sectorValue, direction = "higher") {
 
 function buildResearchReport(data) {
   if (!data) return null;
+  const annualData = data.annualData || data;
   const incomeRows = data.incomeStatement?.income_statement || [];
+  const annualIncomeRows = annualData.incomeStatement?.income_statement || incomeRows;
   const cashRows = data.cashFlow?.cash_flow || [];
   const revenueHistory = categoryHistory(incomeRows, "revenue");
   const profitHistory = categoryHistory(incomeRows, "net_profit");
+  const annualRevenueHistory = categoryHistory(annualIncomeRows, "revenue");
+  const annualProfitHistory = categoryHistory(annualIncomeRows, "net_profit");
   const operatingHistory = categoryHistory(incomeRows, "operating_profit");
   const cfoHistory = categoryHistory(cashRows, "operating");
   const latestBalance = data.balanceSheet?.history?.[0];
@@ -804,8 +810,8 @@ function buildResearchReport(data) {
   const latestProfit = profitHistory[0];
   const latestOperating = operatingHistory[0];
   const latestCfo = cfoHistory[0];
-  const salesCagr = cagrFromHistory(revenueHistory);
-  const profitCagr = cagrFromHistory(profitHistory);
+  const salesCagr = cagrFromHistory(annualRevenueHistory);
+  const profitCagr = cagrFromHistory(annualProfitHistory);
   const opm = numericValue(latestRevenue?.value) ? (numericValue(latestOperating?.value) / numericValue(latestRevenue?.value)) * 100 : null;
   const npm = numericValue(latestRevenue?.value) ? (numericValue(latestProfit?.value) / numericValue(latestRevenue?.value)) * 100 : null;
   const cashConversion = numericValue(latestProfit?.value) ? (numericValue(latestCfo?.value) / numericValue(latestProfit?.value)) * 100 : null;
@@ -925,7 +931,9 @@ function metricDisplay(value, type = "percent", unit) {
 
 function buildDerivedMetricGroups(data) {
   if (!data) return [];
+  const annualData = data.annualData || data;
   const incomeRows = data.incomeStatement?.income_statement || [];
+  const annualIncomeRows = annualData.incomeStatement?.income_statement || incomeRows;
   const cashRows = data.cashFlow?.cash_flow || [];
   const revenueHistory = categoryHistory(incomeRows, "revenue");
   const profitHistory = categoryHistory(incomeRows, "net_profit");
@@ -963,8 +971,8 @@ function buildDerivedMetricGroups(data) {
   const latestProfitValue = pointValue(latestProfit);
   const previousProfitValue = pointValue(previousProfit);
   const latestCfoValue = pointValue(latestCfo);
-  const salesCagr = cagrFromHistory(revenueHistory);
-  const profitCagr = cagrFromHistory(profitHistory);
+  const salesCagr = cagrFromHistory(categoryHistory(annualIncomeRows, "revenue"));
+  const profitCagr = cagrFromHistory(categoryHistory(annualIncomeRows, "net_profit"));
   const revenueAcceleration = previousRevenue?.change === null || previousRevenue?.change === undefined ? null : numericValue(latestRevenue?.change) - numericValue(previousRevenue?.change);
   const profitAcceleration = previousProfit?.change === null || previousProfit?.change === undefined ? null : numericValue(latestProfit?.change) - numericValue(previousProfit?.change);
   const operatingMargin = safeRatio(latestOperating?.value, latestRevenue?.value);
@@ -1829,12 +1837,10 @@ function RatioTable({ ratios }) {
                 return (
                   <tr key={ratio.name}>
                     <td className="px-4 py-3 text-white">
-                      <span className="inline-flex items-center gap-1.5">
-                        {ratio.name}
-                        <span title={help || "Ratio definition is not available yet."} className="inline-flex h-4 w-4 items-center justify-center border border-[#34506D] text-[10px] text-[#8EA2BA]">
-                          ?
-                        </span>
-                      </span>
+                      <div>{ratio.name}</div>
+                      <div className="mt-1 max-w-xs text-[11px] leading-5 text-[#7F90A8]">
+                        {help || "Definition is not available for this ratio yet."}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
                     {includeSector ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
@@ -2023,25 +2029,42 @@ function CorporateActionsSection({ actions }) {
 }
 
 function CompetitorsSection({ competitors, onOpen }) {
+  const rows = (competitors || []).slice(0, 12);
   return (
-    <DataSection id="competitors" title="Competitors" subtitle="Click a peer to drill into its fundamentals without changing the search style.">
-      {competitors?.length ? (
-        <div className="overflow-x-auto">
-          <div className="flex min-w-max gap-2 pb-1">
-            {competitors.slice(0, 10).map((competitor) => (
-              <button key={competitor.instrumentKey} type="button" onClick={() => onOpen(competitor)} className="w-80 border border-[#233650] bg-[#02060D] p-3 text-left transition-colors hover:border-[#F5A623]/70 hover:bg-[#08111F]">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[.1em] text-white">{competitor.name || competitor.symbol || competitor.instrumentKey}</span>
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">Open</span>
-                </div>
-                <div className="mt-2 text-xs text-[#94A3B8]">
-                  {[competitor.symbol, competitor.isin, competitor.sector || "Sector unavailable"].filter(Boolean).join(" | ")}
-                </div>
-                {competitor.sectorMarketCapInr ? <div className="mt-2 text-xs text-[#8CC8AA]">Sector market cap {competitor.sectorMarketCapInr}</div> : null}
-                {competitor.summary ? <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#CBD5E1]">{competitor.summary}</p> : null}
-              </button>
-            ))}
-          </div>
+    <DataSection id="competitors" title="Peer Comparison" subtitle="Comparable companies from the provider peer set. Click a row to load that company's fundamentals.">
+      {rows.length ? (
+        <div className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
+              <tr>
+                <th className="px-4 py-3 font-normal">Company</th>
+                <th className="px-4 py-3 font-normal">Symbol</th>
+                <th className="px-4 py-3 font-normal">ISIN</th>
+                <th className="px-4 py-3 font-normal">Sector</th>
+                <th className="px-4 py-3 font-normal">Market Cap</th>
+                <th className="px-4 py-3 font-normal">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {rows.map((competitor) => (
+                <tr key={competitor.instrumentKey || competitor.symbol || competitor.name}>
+                  <td className="px-4 py-3 text-white">
+                    <div className="font-medium">{competitor.name || competitor.symbol || competitor.instrumentKey}</div>
+                    {competitor.summary ? <div className="mt-1 line-clamp-2 max-w-md text-xs leading-5 text-[#7F90A8]">{competitor.summary}</div> : null}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-[#CBD5E1]">{competitor.symbol || "N/A"}</td>
+                  <td className="px-4 py-3 font-mono text-[#94A3B8]">{competitor.isin || "N/A"}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{competitor.sector || "N/A"}</td>
+                  <td className="px-4 py-3 text-[#CBD5E1]">{competitor.sectorMarketCapInr || "N/A"}</td>
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => onOpen(competitor)} className="border border-[#F5A623]/50 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.12em] text-[#F5A623] hover:bg-[#F5A623]/10">
+                      Open
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : <div className="text-sm text-[#94A3B8]">No peer set is available.</div>}
     </DataSection>
@@ -2084,6 +2107,50 @@ function DataSection({ id, title, subtitle, children }) {
       </div>
       {children}
     </section>
+  );
+}
+
+function DataQualitySection({ items }) {
+  const rows = items || [];
+  if (!rows.length) return null;
+  return (
+    <DataSection id="data-quality" title="Data Quality Flags" subtitle="FinEdge stays as the displayed source. Fallback providers are used only when FinEdge data is unavailable; otherwise disagreements are flagged for review.">
+      <div className="space-y-3">
+        {rows.map((item, index) => (
+          <div key={`${item.code || item.metric}-${index}`} className="border border-[#F5A623]/25 bg-[#F5A623]/5 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">{item.severity || "flag"}</span>
+              <span className="text-sm font-medium text-white">{[item.section, item.metric].filter(Boolean).join(" / ") || item.code}</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.message}</p>
+            {item.periods?.length ? (
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-[520px] text-left text-xs">
+                  <thead className="text-[10px] uppercase tracking-[.12em] text-[#71839A]">
+                    <tr>
+                      <th className="py-1 pr-4 font-normal">Period</th>
+                      <th className="py-1 pr-4 font-normal">FinEdge</th>
+                      <th className="py-1 pr-4 font-normal">Fallback Check</th>
+                      <th className="py-1 pr-4 font-normal">Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[#CBD5E1]">
+                    {item.periods.map((period) => (
+                      <tr key={period.period}>
+                        <td className="py-1 pr-4">{period.period}</td>
+                        <td className="py-1 pr-4">{compactNumber(period.finedge)}</td>
+                        <td className="py-1 pr-4">{compactNumber(period.fallbackProvider)}</td>
+                        <td className="py-1 pr-4">{percentText(period.differencePercent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </DataSection>
   );
 }
 
@@ -2374,6 +2441,7 @@ export default function StockFundamentalsAdminPage() {
       {data ? (
         <div className="mt-3 space-y-3">
           <TerminalStatusBar data={data} loading={loading} />
+          <DataQualitySection items={data.dataQuality} />
           <CompanySummary data={data} quote={quote} metrics={dashboardMetrics} />
 
           <DashboardTabs onSelect={selectDashboardTab} />
