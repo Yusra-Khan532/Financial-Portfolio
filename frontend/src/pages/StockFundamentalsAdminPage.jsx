@@ -164,8 +164,9 @@ const PROFIT_LOSS_GROUPS = [
     key: "netprofit",
     label: "Net Profit",
     strong: true,
-    children: ["eps", "basicreinr", "dilutedreinr", "dividendpayout"],
   },
+  { key: "eps", label: "EPS in Rs", aliases: ["basicreinr", "dilutedreinr", "basiceps", "dilutedeps"] },
+  { key: "dividendpayout", label: "Dividend Payout %" },
 ];
 const BANK_PROFIT_LOSS_GROUPS = [
   {
@@ -186,6 +187,7 @@ const BANK_PROFIT_LOSS_GROUPS = [
   { key: "profitbeforetax", label: "Profit before tax", strong: true, derive: ["netprofit", "taxexpense"] },
   { key: "taxexpense", label: "Tax" },
   { key: "netprofit", label: "Net Profit", strong: true },
+  { key: "eps", label: "EPS in Rs", aliases: ["basicreinr", "dilutedreinr", "basiceps", "dilutedeps"] },
 ];
 const RATIO_PRIORITY = [
   "debtordays",
@@ -209,16 +211,64 @@ const RATIO_PRIORITY = [
 const RATIO_DESCRIPTIONS = {
   "P/E": "Shows how much investors are willing to pay for Rs. 1 of a company's earnings.",
   "P/B": "Compares market price with book value per share.",
+  "EV/Sales": "Compares enterprise value with annual revenue.",
+  "EV/EBIT": "Compares enterprise value with operating profit before interest and tax.",
   ROE: "Measures profit generated on shareholders' equity.",
   ROCE: "Measures return generated on capital employed in the business.",
   ROA: "Measures profit generated from the company's asset base.",
   "Operating Margin": "Shows operating profit as a percentage of revenue.",
   "Net Margin": "Shows net profit as a percentage of revenue.",
+  "Gross Margin": "Shows gross profit as a percentage of revenue.",
   "Debt / Equity": "Compares total debt with shareholders' equity.",
+  "Total Debt To Equity": "Compares total borrowings with shareholders' equity.",
   "EV/EBITDA": "Compares enterprise value with operating earnings before depreciation and amortisation.",
   "Current Ratio": "Shows whether short-term assets can cover short-term liabilities.",
   "Quick Ratio": "Measures near-term liquidity excluding inventory.",
   "Interest Coverage": "Shows how comfortably operating profit can cover interest cost.",
+  "Asset Turnover": "Shows how efficiently assets are used to generate revenue.",
+  "Inventory Days": "Shows the average number of days inventory remains before sale.",
+  "Debtor Days": "Shows the average number of days taken to collect receivables.",
+  "Days Payable": "Shows the average number of days taken to pay suppliers.",
+  "Cash Conversion Cycle": "Shows how long cash is tied up in working capital.",
+  "Working Capital Days": "Shows working capital requirement measured in days of sales.",
+  "Dividend Yield": "Shows dividend earned over the last year as a percentage of current price.",
+  "Effective Tax Rate": "Shows tax expense as a percentage of profit before tax.",
+};
+
+const RATIO_DESCRIPTION_ALIASES = {
+  pe: RATIO_DESCRIPTIONS["P/E"],
+  pricetoearnings: RATIO_DESCRIPTIONS["P/E"],
+  priceearnings: RATIO_DESCRIPTIONS["P/E"],
+  pb: RATIO_DESCRIPTIONS["P/B"],
+  pricetobook: RATIO_DESCRIPTIONS["P/B"],
+  pricebook: RATIO_DESCRIPTIONS["P/B"],
+  evsales: RATIO_DESCRIPTIONS["EV/Sales"],
+  evebit: RATIO_DESCRIPTIONS["EV/EBIT"],
+  evebitda: RATIO_DESCRIPTIONS["EV/EBITDA"],
+  returnonequity: RATIO_DESCRIPTIONS.ROE,
+  returnoncapitalemployed: RATIO_DESCRIPTIONS.ROCE,
+  returnonassets: RATIO_DESCRIPTIONS.ROA,
+  operatingprofitmargin: RATIO_DESCRIPTIONS["Operating Margin"],
+  operatingmargin: RATIO_DESCRIPTIONS["Operating Margin"],
+  netprofitmargin: RATIO_DESCRIPTIONS["Net Margin"],
+  netmargin: RATIO_DESCRIPTIONS["Net Margin"],
+  grossprofitmargin: RATIO_DESCRIPTIONS["Gross Margin"],
+  grossmargin: RATIO_DESCRIPTIONS["Gross Margin"],
+  debtequity: RATIO_DESCRIPTIONS["Debt / Equity"],
+  totaldebttoequity: RATIO_DESCRIPTIONS["Total Debt To Equity"],
+  currentratio: RATIO_DESCRIPTIONS["Current Ratio"],
+  quickratio: RATIO_DESCRIPTIONS["Quick Ratio"],
+  interestcoverage: RATIO_DESCRIPTIONS["Interest Coverage"],
+  assetturnover: RATIO_DESCRIPTIONS["Asset Turnover"],
+  inventorydays: RATIO_DESCRIPTIONS["Inventory Days"],
+  debtorordays: RATIO_DESCRIPTIONS["Debtor Days"],
+  debtordays: RATIO_DESCRIPTIONS["Debtor Days"],
+  dayspayable: RATIO_DESCRIPTIONS["Days Payable"],
+  cashconversioncycle: RATIO_DESCRIPTIONS["Cash Conversion Cycle"],
+  workingcapitaldays: RATIO_DESCRIPTIONS["Working Capital Days"],
+  dividendyield: RATIO_DESCRIPTIONS["Dividend Yield"],
+  effectivetaxrate: RATIO_DESCRIPTIONS["Effective Tax Rate"],
+  taxrate: RATIO_DESCRIPTIONS["Effective Tax Rate"],
 };
 
 function compactNumber(value, options = {}) {
@@ -392,8 +442,37 @@ function normalizeMetricName(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function displayUnitForRow(row, unit) {
+  const key = financialRowKey(row);
+  if (key === "eps" || key === "basicreinr" || key === "dilutedreinr") return null;
+  if (key === "dividendpayout") return "%";
+  return unit;
+}
+
+function valueForFinancialRow(row, point, unit) {
+  const rowUnit = displayUnitForRow(row, unit);
+  if (rowUnit === "%") return percentText(point?.value);
+  return valueWithUnit(point?.value, rowUnit);
+}
+
 function financialRowKey(row) {
   return normalizeMetricName(row?.category || row?.label);
+}
+
+function ratioDescription(name) {
+  const exact = RATIO_DESCRIPTIONS[name];
+  if (exact) return exact;
+  const key = normalizeMetricName(name);
+  if (RATIO_DESCRIPTION_ALIASES[key]) return RATIO_DESCRIPTION_ALIASES[key];
+  if (key.includes("margin")) return "Shows how much of revenue is retained at this stage of profitability.";
+  if (key.includes("turnover")) return "Shows how efficiently the company converts assets or capital into sales.";
+  if (key.includes("coverage")) return "Shows how comfortably earnings can cover the related obligation.";
+  if (key.includes("yield")) return "Shows income generated as a percentage of the current market price.";
+  if (key.includes("growth") || key.includes("cagr")) return "Shows the compounded pace of growth over the measured period.";
+  if (key.includes("debt")) return "Shows the level of borrowings relative to the relevant capital base.";
+  if (key.includes("return")) return "Shows profit generated relative to the capital or asset base used.";
+  if (key.includes("ratio")) return "Compares two financial line items to make the company's position easier to assess.";
+  return "Shows a company financial metric used to compare performance, valuation or balance-sheet strength.";
 }
 
 function displayPeriodLabel(period) {
@@ -1796,7 +1875,7 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
                   </td>
                   {periods.map((periodLabel) => {
                     const point = row.history?.find((item) => item.period === periodLabel);
-                    return <td key={periodLabel} className="px-3 py-2 text-[#CBD5E1]">{valueWithUnit(point?.value, unit)}</td>;
+                    return <td key={periodLabel} className="px-3 py-2 text-[#CBD5E1]">{valueForFinancialRow(row, point, unit)}</td>;
                   })}
                 </tr>
               ))}
@@ -1840,13 +1919,13 @@ function RatioTable({ ratios }) {
             </thead>
             <tbody className="divide-y divide-white/10">
               {group.map((ratio) => {
-                const help = RATIO_DESCRIPTIONS[ratio.name];
+                const help = ratioDescription(ratio.name);
                 return (
                   <tr key={ratio.name}>
                     <td className="px-4 py-3 text-white">
                       <div>{ratio.name}</div>
                       <div className="mt-1 max-w-xs text-[11px] leading-5 text-[#7F90A8]">
-                        {help || "Definition is not available for this ratio yet."}
+                        {help}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
