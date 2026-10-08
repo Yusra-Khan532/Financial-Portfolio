@@ -1513,6 +1513,9 @@ def _balance_history(rows: List[Dict[str, Any]], period: str):
         "equity": "equity", "netWorth": "equity",
         "borrowings": "borrowings", "totalBorrowings": "borrowings", "totalDebt": "borrowings",
         "shortTermBorrowings": "short_term_borrowings", "longTermBorrowings": "long_term_borrowings",
+        "deposits": "deposits",
+        "reserves": "reserves",
+        "capital": "capital",
         "cashAndCashEquivalents": "cash_and_cash_equivalents",
         "cashAndBankBalances": "cash_and_cash_equivalents",
         "cashEquivalents": "cash_and_cash_equivalents",
@@ -1638,6 +1641,134 @@ def _category_history_map(rows, category):
     }
 
 
+def _merge_category_history(rows, category, history, label=None, source=None):
+    if not history:
+        return rows
+    rows = list(rows or [])
+    existing = _history_row(rows, category)
+    if existing and existing.get("history"):
+        return rows
+    item = {
+        "category": category,
+        "label": label or _label_key(category),
+        "history": history,
+    }
+    if source:
+        item["source"] = source
+    if existing:
+        existing.update(item)
+        return rows
+    rows.append(item)
+    return rows
+
+
+def _cash_flow_depreciation_history(cash_rows, period):
+    rows = _history_from_period_rows(cash_rows, period, {
+        "adjForDepreciationAndAmortisationExpense": "depreciation",
+        "adjForDepreciationAndAmortizationExpense": "depreciation",
+        "depreciationAndAmortisation": "depreciation",
+        "depreciationAndAmortization": "depreciation",
+        "depreciation": "depreciation",
+    }, scale=10_000_000)
+    history = _category_history_map(rows, "depreciation")
+    return [
+        {"period": period_label, "value": value, "change": None}
+        for period_label, value in sorted(history.items(), key=lambda item: _period_sort_value(item[0]), reverse=True)
+        if value is not None
+    ]
+
+
+def _ttm_net_profit_from_statement(income_statement):
+    history = _category_history_map((income_statement or {}).get("income_statement"), "net_profit")
+    values = [
+        value
+        for _, value in sorted(history.items(), key=lambda item: _period_sort_value(item[0]), reverse=True)
+        if value is not None
+    ]
+    if len(values) < 4:
+        return None
+    ttm_profit = sum(values[:4])
+    return ttm_profit if ttm_profit > 0 else None
+
+
+def _derive_bank_roce(income_statement, balance_sheet):
+    income_rows = (income_statement or {}).get("income_statement")
+    balance_rows = (balance_sheet or {}).get("balance_sheet")
+    pbt = _category_history_map(income_rows, "profit_before_tax")
+    interest = _category_history_map(income_rows, "interest")
+    deposits = _category_history_map(balance_rows, "deposits")
+    borrowings = _category_history_map(balance_rows, "borrowings")
+    capital = _category_history_map(balance_rows, "capital")
+    reserves = _category_history_map(balance_rows, "reserves")
+    periods = sorted(set(pbt) & set(interest), key=_period_sort_value, reverse=True)
+    if not periods:
+        return None
+    latest_period = periods[0]
+    capital_periods = sorted(
+        set(deposits) | set(borrowings) | set(capital) | set(reserves),
+        key=_period_sort_value,
+        reverse=True,
+    )
+    employed_values = []
+    for period in capital_periods:
+        value = (
+            (deposits.get(period) or 0)
+            + (borrowings.get(period) or 0)
+            + (capital.get(period) or 0)
+            + (reserves.get(period) or 0)
+        )
+        if value > 0:
+            employed_values.append(value)
+        if len(employed_values) == 2:
+            break
+    if not employed_values:
+        return None
+    average_capital_employed = sum(employed_values) / len(employed_values)
+    earnings_before_interest_tax = (pbt.get(latest_period) or 0) + (interest.get(latest_period) or 0)
+    if average_capital_employed <= 0 or earnings_before_interest_tax <= 0:
+        return None
+    return (earnings_before_interest_tax / average_capital_employed) * 100
+
+
+INCOME_STATEMENT_ALIASES = {
+    "netSales": ("revenue", 10), "sales": ("revenue", 10),
+    "revenueFromOperations": ("revenue", 10), "incomeFromOperations": ("revenue", 10),
+    "interestEarned": ("revenue", 10), "interestIncome": ("revenue", 10),
+    "revenue": ("revenue", 20), "totalRevenue": ("revenue", 20),
+    "totalIncome": "total_income", "income": "total_income",
+    "costOfGoodsSold": "cost_of_goods_sold", "cogs": "cost_of_goods_sold",
+    "totalExpenses": "expenses", "expenses": "expenses", "operatingExpenses": "expenses",
+    "employeeBenefitExpense": "employee_benefit_expense", "employeeBenefitsExpense": "employee_benefit_expense",
+    "employeesCost": "employee_benefit_expense",
+    "financeCosts": "interest", "financeCost": "interest", "interest": "interest", "interestExpended": "interest",
+    "depreciation": "depreciation", "depreciationAndAmortisation": "depreciation",
+    "depreciationAndAmortization": "depreciation",
+    "otherIncome": "other_income",
+    "otherOperatingExpenses": "operating_expenses",
+    "expenditureExcludingProvisions": "expenses",
+    "provisionsForLoanLoss": "provisions_for_loan_loss",
+    "exceptionalItems": "exceptional_items", "exceptionalItem": "exceptional_items",
+    "exceptionalItemsBeforeTax": "exceptional_items", "extraordinaryItems": "exceptional_items",
+    "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
+    "ebit": "operating_profit",
+    "profitBeforeTax": "profit_before_tax", "profitLossBeforeTax": "profit_before_tax", "pbt": "profit_before_tax",
+    "profitOrLossOfAssociates": "associate_profit",
+    "tax": ("tax_expense", 20), "taxExpense": ("tax_expense", 10), "currentTax": ("tax_expense", 30),
+    "profitLossForPeriod": ("net_profit", 5),
+    "profitLossForThePeriod": ("net_profit", 5),
+    "profitForThePeriod": ("net_profit", 5),
+    "netProfitAfterTax": ("net_profit", 10),
+    "profitAttributableToOwnersOfParent": ("net_profit", 20),
+    "profitOrLossAttributableToOwners": ("net_profit", 20),
+    "profitLossAttributableToOwnersOfParent": ("net_profit", 20),
+    "profitOrLossAttributableToOwnersOfParent": ("net_profit", 20),
+    "profitAfterTax": ("net_profit", 30), "pat": ("net_profit", 30),
+    "netProfit": ("net_profit", 40), "net_profit": ("net_profit", 40),
+    "netIncome": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
+    "eps": "eps", "basicEPS": "eps", "basicEps": "eps", "dilutedEPS": "eps", "dilutedEps": "eps",
+}
+
+
 def _income_statement_quality_warnings(income_statement, upstox_income_payload, period):
     upstox_rows = _normalize_upstox_statement(upstox_income_payload, "income_statement", period)
     if not upstox_rows:
@@ -1687,7 +1818,7 @@ def _income_statement_quality_warnings(income_statement, upstox_income_payload, 
     return []
 
 
-def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None, price_ratio_snapshot=None):
+def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet=None, price_ratio_snapshot=None, ttm_net_profit=None):
     ratios = _clean_ratio_benchmarks(ratios)
     market_cap = _to_number((profile or {}).get("marketCap"))
     latest_profit = _latest_history_value((income_statement or {}).get("income_statement"), "net_profit")
@@ -1711,18 +1842,28 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
                 ratios = _upsert_ratio(ratios, "Net Margin", round(derived_npm, 2), (lookup.get("NET MARGIN") or {}).get("sector_value"), "derived_income_statement")
                 lookup = _ratio_lookup(ratios)
     derived_pe = None
+    current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
+    if market_cap and ttm_net_profit and ttm_net_profit > 0 and (current_pe is None or current_pe <= 0):
+        ratios = _upsert_ratio(ratios, "P/E", round(market_cap / ttm_net_profit, 2), (lookup.get("P/E") or {}).get("sector_value"), "derived_ttm_net_profit")
+        lookup = _ratio_lookup(ratios)
+        current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
     if market_cap and net_profit and net_profit > 0:
         derived_pe = market_cap / net_profit
-        current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
         if current_pe is None or current_pe <= 0 or abs(derived_pe - current_pe) / max(abs(derived_pe), 1) > 0.15:
             ratios = _upsert_ratio(ratios, "P/E", round(derived_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "derived_market_cap")
     daily_pe = _to_number((price_ratio_snapshot or {}).get("pe"))
     if daily_pe and daily_pe > 0:
         lookup = _ratio_lookup(ratios)
         current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
-        passes_earnings_floor = derived_pe is None or daily_pe >= derived_pe * 0.9
-        if passes_earnings_floor and (current_pe is None or current_pe <= 0 or abs(daily_pe - current_pe) / max(abs(daily_pe), 1) > 0.03):
+        if current_pe is None or current_pe <= 0 or abs(daily_pe - current_pe) / max(abs(daily_pe), 1) > 0.03:
             ratios = _upsert_ratio(ratios, "P/E", round(daily_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "finedge_daily_price_ratios")
+    lookup = _ratio_lookup(ratios)
+    current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
+    if current_pe is not None and current_pe <= 0:
+        ratios = _upsert_ratio(ratios, "P/E", None, (lookup.get("P/E") or {}).get("sector_value"), "unavailable_negative_earnings")
+        lookup = _ratio_lookup(ratios)
+        if lookup.get("P/E"):
+            lookup["P/E"]["company_value"] = None
     latest_equity = _latest_history_value((balance_sheet or {}).get("balance_sheet"), "equity")
     equity = _to_number((latest_equity or {}).get("value"))
     if market_cap and equity and equity > 0:
@@ -1756,6 +1897,12 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
             current_roe = _to_number((lookup.get("ROE") or {}).get("company_value"))
             if current_roe is None or current_roe <= 0 or abs(derived_roe - current_roe) / max(abs(derived_roe), 1) > 0.05:
                 ratios = _upsert_ratio(ratios, "ROE", round(derived_roe, 2), (lookup.get("ROE") or {}).get("sector_value"), "derived_equity")
+    lookup = _ratio_lookup(ratios)
+    current_roce = _to_number((lookup.get("ROCE") or {}).get("company_value"))
+    if current_roce is None or current_roce <= 0:
+        bank_roce = _derive_bank_roce(income_statement, balance_sheet)
+        if bank_roce is not None:
+            ratios = _upsert_ratio(ratios, "ROCE", round(bank_roce, 2), (lookup.get("ROCE") or {}).get("sector_value"), "derived_bank_capital_employed")
     return ratios
 
 
@@ -1817,6 +1964,34 @@ def _quote_from_price_history(history):
     }
 
 
+def _quote_from_finedge_quote(payload, symbol: str):
+    if not isinstance(payload, dict):
+        return {}
+    row = payload.get(symbol) or payload.get(str(symbol).upper()) or next((value for value in payload.values() if isinstance(value, dict)), None)
+    if not isinstance(row, dict):
+        return {}
+    price = _to_number(_first_value(row, ["current_price", "currentPrice", "lastPrice", "price", "close"]))
+    if price is None:
+        return {}
+    change_percent = _to_number(_first_value(row, ["change", "changePercent", "percentChange"]))
+    return {
+        "price": price,
+        "lastPrice": price,
+        "change": _to_number(_first_value(row, ["change_value", "changeValue", "net_change", "netChange"])),
+        "changePercent": change_percent,
+        "volume": _to_number(_first_value(row, ["volume", "tradedVolume"])),
+        "timestamp": _first_value(row, ["tradetime", "tradeTime", "timestamp", "date"]),
+        "open": _to_number(_first_value(row, ["open_price", "openPrice", "open"])),
+        "high": _to_number(_first_value(row, ["high_price", "highPrice", "high"])),
+        "low": _to_number(_first_value(row, ["low_price", "lowPrice", "low"])),
+        "high52": _to_number(_first_value(row, ["high52", "week52High", "fiftyTwoWeekHigh"])),
+        "low52": _to_number(_first_value(row, ["low52", "week52Low", "fiftyTwoWeekLow"])),
+        "marketCap": _to_number(_first_value(row, ["market_cap", "marketCap"])),
+        "shares": _to_number(_first_value(row, ["shares", "sharesOutstanding"])),
+        "source": "finedge",
+    }
+
+
 def _quote_from_upstox(instrument: Dict[str, Any]):
     instrument_key = instrument.get("upstoxInstrumentKey")
     if not instrument_key:
@@ -1837,6 +2012,38 @@ def _quote_from_upstox(instrument: Dict[str, Any]):
 
 
 def _normalize_shareholding(payload, period="quarterly"):
+    if isinstance(payload, dict) and isinstance(payload.get("rows"), list):
+        columns = payload.get("columns") or []
+        aliases = {
+            "promoter": "promoters", "promoters": "promoters", "promotergroup": "promoters",
+            "fii": "fii", "fiis": "fii", "foreigninstitution": "fii", "foreigninstitutions": "fii",
+            "dii": "other_dii", "otherdii": "other_dii", "insurance": "other_dii",
+            "mutualfunds": "mutual_funds", "mutualfund": "mutual_funds", "mf": "mutual_funds",
+            "public": "retail_and_other", "noninstitutions": "retail_and_other",
+            "noninstitution": "retail_and_other", "retailandothers": "retail_and_other",
+            "others": "retail_and_other",
+        }
+        items = []
+        for row in payload.get("rows") or []:
+            if not isinstance(row, dict):
+                continue
+            raw_name = str(row.get("catagory") or row.get("category") or row.get("name") or "")
+            compact = re.sub(r"[^a-z0-9]", "", raw_name.lower())
+            category = aliases.get(compact)
+            if not category:
+                continue
+            data = row.get("data") if isinstance(row.get("data"), dict) else {}
+            history = []
+            for label in sorted(columns or data.keys(), key=_period_sort_value, reverse=True):
+                value = _to_number(data.get(label))
+                if value is not None:
+                    history.append({"period": label, "value": value, "change": None})
+            for index, point in enumerate(history):
+                previous = history[index + 1]["value"] if index + 1 < len(history) else None
+                point["change"] = _period_change(point.get("value"), previous)
+            if history:
+                items.append({"category": category, "label": _label_key(category), "history": history})
+        return items
     rows = _payload_items(payload, ["shareholding", "shareholdingPattern", "data", "results", "history"])
     aliases = {
         "promoter": "promoters", "promoters": "promoters", "promoterGroup": "promoters",
@@ -1854,19 +2061,19 @@ def _normalize_shareholding(payload, period="quarterly"):
 def _normalize_corporate_actions(*payloads):
     actions = []
     for payload in payloads:
-        for row in _payload_items(payload, ["corporateActions", "actions", "dividends", "data", "results"]):
+        for row in _payload_items(payload, ["corporateActions", "actions", "dividend", "dividends", "data", "results"]):
             if not isinstance(row, dict):
                 continue
-            action_type = _first_value(row, ["type", "actionType", "purpose"]) or ("Dividend" if _first_value(row, ["dividend", "amount"]) else "Corporate action")
+            action_type = _first_value(row, ["action", "type", "actionType", "purpose", "dividend_type"]) or ("Dividend" if _first_value(row, ["dividend", "amount", "adj_amount"]) else "Corporate action")
             existing_details = _first_value(row, ["event_details", "eventDetails"])
             actions.append({
                 "type": action_type,
-                "name": _first_value(row, ["name", "title", "purpose"]) or action_type,
-                "purpose": _first_value(row, ["purpose", "description"]),
-                "ex_date": _first_value(row, ["exDate", "ex_date", "exDividendDate"]),
+                "name": _first_value(row, ["name", "title", "subject", "purpose"]) or action_type,
+                "purpose": _first_value(row, ["purpose", "subject", "description"]),
+                "ex_date": _first_value(row, ["exDate", "ex_date", "exDividendDate", "date"]),
                 "record_date": _first_value(row, ["recordDate", "record_date"]),
                 "announcement_date": _first_value(row, ["announcementDate", "announcement_date", "date"]),
-                "amount": _first_value(row, ["amount", "dividend", "dividendAmount"]),
+                "amount": _first_value(row, ["adj_amount", "amount", "dividend", "dividendAmount"]),
                 "ratio": _first_value(row, ["ratio", "bonusRatio", "splitRatio"]),
                 "event_details": existing_details if isinstance(existing_details, list) else [
                     {"name": _label_key(key), "value": value}
@@ -1877,6 +2084,47 @@ def _normalize_corporate_actions(*payloads):
                 ][:8],
             })
     return actions
+
+
+def _parse_market_date(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y", "%Y%m%d"):
+        try:
+            return datetime.strptime(text[:10] if fmt == "%Y-%m-%d" else text, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def _derive_dividend_yield(actions, price, as_of=None):
+    latest_price = _to_number(price)
+    if not latest_price or latest_price <= 0:
+        return None
+    end_date = _parse_market_date(as_of) or datetime.now(timezone.utc)
+    start_date = end_date - timedelta(days=370)
+    dividend_total = 0.0
+    seen = set()
+    for action in actions or []:
+        if not isinstance(action, dict):
+            continue
+        action_type = str(action.get("type") or action.get("name") or "").lower()
+        if "dividend" not in action_type:
+            continue
+        action_date = _parse_market_date(action.get("ex_date") or action.get("announcement_date") or action.get("record_date"))
+        if action_date and not (start_date <= action_date <= end_date):
+            continue
+        amount = _to_number(action.get("amount"))
+        if amount:
+            key = (action_date.date().isoformat() if action_date else "", round(amount, 6))
+            if key in seen:
+                continue
+            seen.add(key)
+            dividend_total += amount
+    if dividend_total <= 0:
+        return None
+    return (dividend_total / latest_price) * 100
 
 
 def _normalize_upstox_period(period: str):
@@ -2225,43 +2473,14 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             data_sources["balanceSheet"] = "finedge:standalone"
             data_sources["cashFlow"] = "finedge:standalone"
 
-    normalized_income_statement = _history_from_period_rows(income_rows, period, {
-        "netSales": ("revenue", 10), "sales": ("revenue", 10),
-        "revenueFromOperations": ("revenue", 10), "incomeFromOperations": ("revenue", 10),
-        "interestEarned": ("revenue", 10), "interestIncome": ("revenue", 10),
-        "revenue": ("revenue", 20), "totalRevenue": ("revenue", 20),
-        "totalIncome": "total_income", "income": "total_income",
-        "costOfGoodsSold": "cost_of_goods_sold", "cogs": "cost_of_goods_sold",
-        "totalExpenses": "expenses", "expenses": "expenses", "operatingExpenses": "expenses",
-        "employeeBenefitExpense": "employee_benefit_expense", "employeeBenefitsExpense": "employee_benefit_expense",
-        "employeesCost": "employee_benefit_expense",
-        "financeCosts": "interest", "financeCost": "interest", "interest": "interest", "interestExpended": "interest",
-        "depreciation": "depreciation", "depreciationAndAmortisation": "depreciation",
-        "depreciationAndAmortization": "depreciation",
-        "otherIncome": "other_income",
-        "otherOperatingExpenses": "operating_expenses",
-        "expenditureExcludingProvisions": "expenses",
-        "provisionsForLoanLoss": "provisions_for_loan_loss",
-        "exceptionalItems": "exceptional_items", "exceptionalItem": "exceptional_items",
-        "exceptionalItemsBeforeTax": "exceptional_items", "extraordinaryItems": "exceptional_items",
-        "operatingProfit": "operating_profit", "operating_profit": "operating_profit",
-        "ebit": "operating_profit",
-        "profitBeforeTax": "profit_before_tax", "profitLossBeforeTax": "profit_before_tax", "pbt": "profit_before_tax",
-        "profitOrLossOfAssociates": "associate_profit",
-        "tax": ("tax_expense", 20), "taxExpense": ("tax_expense", 10), "currentTax": ("tax_expense", 30),
-        "profitLossForPeriod": ("net_profit", 5),
-        "profitLossForThePeriod": ("net_profit", 5),
-        "profitForThePeriod": ("net_profit", 5),
-        "netProfitAfterTax": ("net_profit", 10),
-        "profitAttributableToOwnersOfParent": ("net_profit", 20),
-        "profitOrLossAttributableToOwners": ("net_profit", 20),
-        "profitLossAttributableToOwnersOfParent": ("net_profit", 20),
-        "profitOrLossAttributableToOwnersOfParent": ("net_profit", 20),
-        "profitAfterTax": ("net_profit", 30), "pat": ("net_profit", 30),
-        "netProfit": ("net_profit", 40), "net_profit": ("net_profit", 40),
-        "netIncome": ("net_profit", 40), "netProfitLoss": ("net_profit", 40),
-        "eps": "eps", "basicEPS": "eps", "basicEps": "eps", "dilutedEPS": "eps", "dilutedEps": "eps",
-    }, scale=10_000_000)
+    normalized_income_statement = _history_from_period_rows(income_rows, period, INCOME_STATEMENT_ALIASES, scale=10_000_000)
+    if period == "yearly":
+        normalized_income_statement = _merge_category_history(
+            normalized_income_statement,
+            "depreciation",
+            _cash_flow_depreciation_history(cash_rows, period),
+            source="derived_cash_flow",
+        )
     income_statement = {
         "units_in": "Cr",
         "income_statement": _derive_income_metrics(normalized_income_statement),
@@ -2303,7 +2522,11 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         _safe_finedge_get(f"/financial-metrics/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("cu", "gr", "av")
     ]
-    basic_financials_payload = _safe_finedge_get(f"/basic-financials/{_stock_symbol_path(symbol)}", default={})
+    basic_financials_payload = _safe_finedge_get(
+        f"/basic-financials/{_stock_symbol_path(symbol)}",
+        {"statement_type": finedge_type, "statement_code": "pl"},
+        default={},
+    )
     upstox_key = instrument.get("upstoxInstrumentKey")
     upstox_isin = instrument.get("isin")
     upstox_statement_type = effective_statement_type
@@ -2402,15 +2625,37 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         }
         if filled_from_upstox:
             data_sources["profile"] = "finedge+upstox:fallback"
-    ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet, price_ratio_snapshot)
-    shareholding_payload = _safe_finedge_get(f"/shareholding-pattern/{_stock_symbol_path(symbol)}", default=[])
+    live_quote = _quote_from_finedge_quote(_safe_finedge_get("/quote", {"symbol": symbol}, default={}), symbol)
+    if live_quote.get("marketCap"):
+        profile = {**profile, "marketCap": live_quote.get("marketCap")}
+    quarterly_income_statement = None
+    if period == "quarterly":
+        quarterly_income_statement = income_statement
+    else:
+        quarterly_income_rows = _safe_finedge_get(
+            f"/financials/{_stock_symbol_path(symbol)}",
+            {"statement_type": finedge_type, "statement_code": "pl", "period": "quarterly"},
+            default={},
+        )
+        quarterly_income_rows = _payload_items(quarterly_income_rows, ["financials", "data", "results", "items"])
+        if quarterly_income_rows:
+            quarterly_income_statement = {
+                "units_in": "Cr",
+                "income_statement": _derive_income_metrics(_history_from_period_rows(quarterly_income_rows, "quarterly", INCOME_STATEMENT_ALIASES, scale=10_000_000)),
+            }
+    ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet, price_ratio_snapshot, _ttm_net_profit_from_statement(quarterly_income_statement))
+    shareholding_payload = _safe_finedge_get(f"/shareholdings/pattern/{_stock_symbol_path(symbol)}", {"period": "quarterly"}, default=[])
     shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
     if not shareholding and upstox_isin:
         shareholding = _normalize_upstox_shareholding(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/share-holdings", default=[]))
         if shareholding:
             data_sources["shareholding"] = "upstox"
-    actions_payload = _safe_finedge_get(f"/corporate-actions/{_stock_symbol_path(symbol)}", default=[])
-    dividends_payload = _safe_finedge_get(f"/dividends/{_stock_symbol_path(symbol)}", default=[])
+    actions_payload = _safe_finedge_get(
+        "/corporate-actions/all",
+        {"symbol": symbol, "from_date": f"{current_year - 6}-01-01", "to_date": f"{current_year + 1}-12-31"},
+        default=[],
+    )
+    dividends_payload = _safe_finedge_get(f"/dividend/{_stock_symbol_path(symbol)}", default=[])
     corporate_actions = _normalize_corporate_actions(actions_payload, dividends_payload)
     if not corporate_actions and upstox_isin:
         corporate_actions = _normalize_corporate_actions(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/corporate-actions", default=[]))
@@ -2431,7 +2676,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         {"from": str(current_year - 6), "to": str(current_year)},
         default=[],
     ))
-    quote_data = _quote_from_price_history(price_history)
+    quote_data = live_quote or _quote_from_price_history(price_history)
     if not quote_data.get("price"):
         try:
             upstox_quote = _quote_from_upstox(instrument)
@@ -2441,6 +2686,11 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         if upstox_quote.get("price"):
             quote_data = upstox_quote
             data_sources["quote"] = "upstox"
+    lookup = _ratio_lookup(ratios)
+    if _to_number((lookup.get("DIVIDEND YIELD") or {}).get("company_value")) is None:
+        dividend_yield = _derive_dividend_yield(corporate_actions, quote_data.get("price"), quote_data.get("timestamp"))
+        if dividend_yield is not None:
+            ratios = _upsert_ratio(ratios, "Dividend Yield", round(dividend_yield, 2), None, "derived_finedge_dividends")
 
     lookup = _ratio_lookup(ratios)
     latest_revenue = _latest_history_value(income_statement.get("income_statement"), "revenue")
