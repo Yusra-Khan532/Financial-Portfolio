@@ -437,6 +437,40 @@ html.lenis, html.lenis body { height: auto; }
   font-variant-numeric: tabular-nums;
 }
 
+.stock-fundamentals-page .research-score-circle {
+  box-sizing: border-box;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  place-items: center;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-fundamentals-page .research-score-circle--composite {
+  width: 76px;
+  height: 76px;
+  flex-basis: 76px;
+  border-width: 4px;
+  font-size: 34px;
+}
+
+.stock-fundamentals-page .research-score-circle--positive { color: #8CC8AA; }
+.stock-fundamentals-page .research-score-circle--warning { color: #F2B366; }
+.stock-fundamentals-page .research-score-circle--caution { color: #E7A5A6; }
+.stock-fundamentals-page .research-score-circle--neutral { color: #CBD5E1; }
+
+:root[data-theme="light"] .stock-fundamentals-page .research-score-circle--positive { color: #2F7D55; }
+:root[data-theme="light"] .stock-fundamentals-page .research-score-circle--warning { color: #B35C00; }
+:root[data-theme="light"] .stock-fundamentals-page .research-score-circle--caution { color: #B42318; }
+:root[data-theme="light"] .stock-fundamentals-page .research-score-circle--neutral { color: #475569; }
+
 .stock-fundamentals-page .terminal-panel,
 .stock-fundamentals-page section {
   background: var(--terminal-panel) !important;

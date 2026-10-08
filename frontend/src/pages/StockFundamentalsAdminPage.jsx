@@ -1371,11 +1371,25 @@ function toneClasses(tone) {
   return "text-[#CBD5E1]";
 }
 
-function scoreToneClasses(tone) {
-  if (tone === "positive") return "text-[#2F7D55] dark:text-[#8CC8AA]";
-  if (tone === "warning") return "text-[#B35C00] dark:text-[#F2B366]";
-  if (tone === "caution") return "text-[#B42318] dark:text-[#E7A5A6]";
-  return "text-[#475569] dark:text-[#CBD5E1]";
+function scoreCircleToneClass(tone) {
+  if (tone === "positive") return "research-score-circle--positive";
+  if (tone === "warning") return "research-score-circle--warning";
+  if (tone === "caution") return "research-score-circle--caution";
+  return "research-score-circle--neutral";
+}
+
+function ScoreCircle({ score, composite = false }) {
+  const numericScore = numericValue(score);
+  const tone = scoreTone(numericScore);
+  return (
+    <div
+      className={`research-score-circle ${composite ? "research-score-circle--composite" : ""} ${scoreCircleToneClass(tone)}`}
+      aria-label={numericScore === null ? "Score unavailable" : `Score ${score}`}
+      data-testid={composite ? "research-score-composite" : "research-score-category"}
+    >
+      {numericScore === null ? "—" : score}
+    </div>
+  );
 }
 
 function InvestorInsights({ insights }) {
@@ -1438,7 +1452,7 @@ function ResearchReport({ report }) {
           <div className="font-mono text-[10px] uppercase tracking-[.16em] text-[#71839A]">Composite Score</div>
               <div className="mt-2 text-sm font-medium text-white">{scoreLabel(report.overall)}</div>
             </div>
-            <div className={`text-4xl font-semibold tabular-nums ${scoreToneClasses(tone)}`}>{report.overall ?? "--"}</div>
+            <ScoreCircle score={report.overall} composite />
           </div>
           <div className="mt-5 h-1.5 overflow-hidden bg-white/10">
             <div className={`h-full ${tone === "positive" ? "bg-[#75B89B]" : tone === "warning" ? "bg-[#D99145]" : tone === "caution" ? "bg-[#C98182]" : "bg-[#94A3B8]"}`} style={{ width: `${report.overall || 0}%` }} />
@@ -1456,7 +1470,7 @@ function ResearchReport({ report }) {
                   <h3 className="text-xs font-medium uppercase tracking-[.12em] text-[#CBD5E1]">{dimension.name}</h3>
                   <div className="mt-1 text-xs text-[#71839A]">{scoreLabel(dimension.score)}</div>
                 </div>
-                <div className={`text-xl font-semibold tabular-nums ${scoreToneClasses(scoreTone(dimension.score))}`}>{dimension.score ?? "--"}</div>
+                <ScoreCircle score={dimension.score} />
               </div>
               <div className="mt-4 space-y-2">
                 {dimension.metrics.map(([label, value]) => (
