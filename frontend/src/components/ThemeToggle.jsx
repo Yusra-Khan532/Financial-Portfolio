@@ -12,7 +12,7 @@ export default function ThemeToggle({ compact = false }) {
       aria-label={label}
       title={label}
       onClick={toggleTheme}
-      className="theme-toggle inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[.04] px-3 text-sm text-[#CBD5E1] transition-colors hover:border-[#F5A623]/50 hover:text-white"
+      className="theme-toggle inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--home-gold)]"
     >
       <Icon size={16} strokeWidth={1.8} />
       {compact ? null : <span>{isLight ? "Dark" : "Light"}</span>}
