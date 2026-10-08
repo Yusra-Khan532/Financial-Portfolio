@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLenis } from "lenis/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import finlitLogo from "@/assets/brand/finlit-logo-transparent.png";
@@ -19,17 +19,10 @@ export default function Navbar() {
   const lenis = useLenis();
   const navigate = useNavigate();
   const location = useLocation();
-  const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const scrollToId = (id) => {
-    if (lenis) lenis.scrollTo(`#${id}`, { offset: -70 });
+    if (lenis) lenis.scrollTo(`#${id}`, { offset: -112 });
     else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -69,27 +62,25 @@ export default function Navbar() {
   return (
     <header
       data-testid="site-navbar"
-      className={`fixed top-8 inset-x-0 z-50 transition-colors duration-300 ${
-        scrolled ? "border-b border-[var(--border-subtle)] bg-[var(--nav-bg)] backdrop-blur-md" : "bg-transparent"
-      }`}
+      className="fixed inset-x-0 top-8 z-50 border-b border-[var(--home-border)] bg-[var(--home-header-bg)] transition-colors duration-300"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 h-14 md:h-20 flex items-center justify-between">
-        <button data-testid="nav-logo" onClick={goHome} className="flex items-center">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-5 sm:px-6 md:h-[76px] md:px-8">
+        <button data-testid="nav-logo" onClick={goHome} className="flex items-center rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--home-gold)]">
           <img
             src={finlitLogo}
             alt="FinLit"
-            className="brand-logo h-9 w-auto object-contain sm:h-10 md:h-14"
+            className="brand-logo h-auto w-[110px] object-contain md:w-[120px]"
           />
         </button>
 
-        <nav className="hidden lg:flex items-center gap-9">
+        <nav aria-label="Primary navigation" className="hidden items-center gap-5 lg:flex xl:gap-7">
           {links.map((l) => (
             <button
               key={l.label}
               data-testid={`nav-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
               aria-current={location.pathname === l.route ? "page" : undefined}
-              className={`nav-link relative text-sm transition-colors ${location.pathname === l.route ? "text-[#F5A623]" : "text-[#94A3B8] hover:text-white"}`}
+              className="nav-link relative whitespace-nowrap text-[14px] font-medium text-[var(--home-support)] transition-colors hover:text-[var(--home-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--home-gold)]"
             >
               {l.label}
             </button>
@@ -97,7 +88,7 @@ export default function Navbar() {
           <button
             data-testid="nav-cta"
             onClick={goContact}
-            className="px-5 py-2 rounded-full bg-[#F5A623] text-[#050E1D] text-sm font-medium hover:bg-[#E19212] transition-colors"
+            className="rounded-lg bg-[var(--home-gold)] px-5 py-2.5 text-[14px] font-medium text-[var(--home-button-text)] transition-colors hover:bg-[var(--home-button-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--home-gold)]"
           >
             Contact
           </button>
@@ -108,7 +99,7 @@ export default function Navbar() {
           <ThemeToggle compact />
           <button
             data-testid="nav-mobile-toggle"
-            className="rounded-full border border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-primary)]"
+            className="rounded-lg border border-[var(--home-border)] px-3.5 py-2 text-sm text-[var(--home-text)] transition-colors hover:border-[var(--home-gold)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--home-gold)]"
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-controls="mobile-navigation"
@@ -120,14 +111,14 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div id="mobile-navigation" className="lg:hidden max-h-[calc(100svh-5.5rem)] overflow-y-auto border-t border-[var(--border-subtle)] bg-[var(--panel-bg-strong)] px-4 py-4 shadow-2xl sm:px-6">
+        <div id="mobile-navigation" className="max-h-[calc(100svh-8rem)] overflow-y-auto border-t border-[var(--home-border)] bg-[var(--home-header-bg)] px-5 py-4 sm:px-6 lg:hidden">
           {links.map((l) => (
             <button
               key={l.label}
               data-testid={`nav-mobile-${slug(l.label)}`}
               onClick={() => (l.route ? goRoute(l.route) : go(l.id))}
               aria-current={location.pathname === l.route ? "page" : undefined}
-              className={`block w-full rounded-lg px-3 py-3 text-left transition-colors ${location.pathname === l.route ? "bg-[#F5A623]/10 text-[#F5A623]" : "text-[#CBD5E1] hover:bg-white/5 hover:text-white"}`}
+              className={`block w-full rounded-lg px-3 py-3 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--home-gold)] ${location.pathname === l.route ? "bg-[var(--home-secondary-hover)] text-[var(--home-gold-text)]" : "text-[var(--home-support)] hover:bg-[var(--home-secondary-hover)] hover:text-[var(--home-text)]"}`}
             >
               {l.label}
             </button>
@@ -135,7 +126,7 @@ export default function Navbar() {
           <button
             data-testid="nav-mobile-contact"
             onClick={goContact}
-            className="mt-1 block w-full rounded-lg bg-[#F5A623] px-3 py-3 text-left font-medium text-[#050E1D]"
+            className="mt-1 block w-full rounded-lg bg-[var(--home-gold)] px-3 py-3 text-left text-sm font-medium text-[var(--home-button-text)] transition-colors hover:bg-[var(--home-button-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--home-gold)]"
           >
             Contact
           </button>
