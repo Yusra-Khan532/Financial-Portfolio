@@ -11,14 +11,17 @@ const sizes = ["Under INR 25L", "INR 25L – INR 1 Cr", "INR 1 Cr – INR 5 Cr",
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", investment_size: "", message: "" });
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
 
   const submit = async (event) => {
     event.preventDefault();
     if (!form.name.trim() || !form.email.trim()) {
+      setValidationError("Please enter your name and email address.");
       toast.error("Please fill in your name and email.");
       return;
     }
+    setValidationError("");
     setLoading(true);
     try {
       await axios.post(`${API}/contact`, form);
@@ -31,41 +34,62 @@ export default function Contact() {
     }
   };
 
-  const inputClass = "contact-input w-full border rounded-xl px-4 text-sm transition-colors focus:outline-none";
+  const inputClass = "contact-input w-full border px-3.5 text-base transition-colors focus:outline-none";
 
   return (
-    <section id="contact" className="relative px-6 py-20 md:px-10 md:py-24">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-14 lg:grid-cols-2 lg:gap-20">
+    <section id="contact" className="contact-section relative scroll-mt-24 px-5 py-10 md:px-6 md:py-16 lg:px-8">
+      <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 lg:grid-cols-[45fr_55fr] lg:gap-12">
         <Reveal>
-          <div className="contact-eyebrow text-[11px] uppercase tracking-[0.28em]">Get In Touch</div>
-          <h2 className="contact-heading mt-4 max-w-[34rem] font-serif-display text-3xl leading-[1.05] tracking-tight sm:text-4xl lg:text-[2.8rem]">Let&apos;s talk about your portfolio</h2>
-          <p className="contact-copy mt-6 max-w-md leading-relaxed">Whether you&apos;re reviewing an existing portfolio, exploring Indian or global markets, or looking for a more research-led perspective, tell us what you&apos;re trying to achieve.</p>
-          <div className="mt-9 space-y-3">
-            <a href={`mailto:${CONTACT_EMAIL}`} data-testid="contact-email-link" className="contact-link inline-flex items-center gap-3 transition-colors">
-              <span className="contact-link-icon flex h-9 w-9 items-center justify-center rounded-full border"><Mail size={16} strokeWidth={1.5} /></span>{CONTACT_EMAIL}
+          <div className="contact-introduction">
+            <div className="contact-eyebrow text-xs font-medium uppercase tracking-[0.16em]">Get In Touch</div>
+            <h2 className="contact-heading mt-3 max-w-[34rem] font-serif-display text-[clamp(1.75rem,4vw,2.5rem)] font-normal leading-[1.2]">Let&apos;s talk about your portfolio</h2>
+            <p className="contact-copy mt-4 max-w-[460px] text-base leading-[1.65]">Reviewing your portfolio or exploring where to start? Tell us about your goals and the questions you&apos;d like to discuss.</p>
+            <div className="mt-7 space-y-4">
+            <a href={`mailto:${CONTACT_EMAIL}`} data-testid="contact-email-link" className="contact-link flex min-w-0 items-center gap-3 transition-colors">
+              <Mail className="contact-link-icon shrink-0" size={20} strokeWidth={1.6} /><span className="break-words">{CONTACT_EMAIL}</span>
             </a>
-            <a href={LINKEDIN_URL} target="_blank" rel="noreferrer" data-testid="contact-linkedin-link" className="contact-link inline-flex items-center gap-3 transition-colors">
-              <span className="contact-link-icon flex h-9 w-9 items-center justify-center rounded-full border"><Linkedin size={15} strokeWidth={1.5} /></span>LinkedIn
+            <a href={LINKEDIN_URL} target="_blank" rel="noreferrer" data-testid="contact-linkedin-link" className="contact-link flex items-center gap-3 transition-colors">
+              <Linkedin className="contact-link-icon shrink-0" size={20} strokeWidth={1.6} /><span>LinkedIn</span>
             </a>
+            </div>
           </div>
         </Reveal>
 
         <Reveal delay={0.1}>
-          <form data-testid="contact-form" onSubmit={submit} className="contact-form-panel space-y-5 rounded-[22px] border p-5 md:space-y-6 md:p-8">
-            <input data-testid="contact-name" className={inputClass} placeholder="Full name" value={form.name} onChange={set("name")} />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <input data-testid="contact-email" type="email" className={inputClass} placeholder="Email address" value={form.email} onChange={set("email")} />
-              <input data-testid="contact-phone" className={inputClass} placeholder="Phone (optional)" value={form.phone} onChange={set("phone")} />
+          <form data-testid="contact-form" onSubmit={submit} className="contact-form-panel space-y-5 rounded-xl border p-5 md:p-8" noValidate>
+            {validationError && <div id="contact-form-error" className="contact-form-error" role="alert">{validationError}</div>}
+            <div className="contact-field">
+              <label htmlFor="contact-name" className="contact-label">Full name <span aria-hidden="true">*</span></label>
+              <input id="contact-name" data-testid="contact-name" required aria-required="true" aria-describedby={validationError ? "contact-form-error" : undefined} autoComplete="name" className={inputClass} placeholder="Your full name" value={form.name} onChange={set("name")} />
             </div>
-            <div>
-              <label className="contact-label text-[11px] uppercase tracking-[0.18em]">Investment size</label>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {sizes.map((size) => <button type="button" key={size} data-testid={`contact-size-${size}`} onClick={() => setForm({ ...form, investment_size: size })} className={`contact-size rounded-full border px-4 py-2.5 text-sm transition-colors ${form.investment_size === size ? "is-selected" : ""}`}>{size}</button>)}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="contact-field">
+                <label htmlFor="contact-email" className="contact-label">Email address <span aria-hidden="true">*</span></label>
+                <input id="contact-email" data-testid="contact-email" required aria-required="true" aria-describedby={validationError ? "contact-form-error" : undefined} type="email" autoComplete="email" className={inputClass} placeholder="you@example.com" value={form.email} onChange={set("email")} />
+              </div>
+              <div className="contact-field">
+                <label htmlFor="contact-phone" className="contact-label">Phone number <span className="contact-optional">(optional)</span></label>
+                <input id="contact-phone" data-testid="contact-phone" type="tel" autoComplete="tel" className={inputClass} placeholder="Your phone number" value={form.phone} onChange={set("phone")} />
               </div>
             </div>
-            <textarea data-testid="contact-message" rows={4} className={inputClass} placeholder="Tell us about your goals..." value={form.message} onChange={set("message")} />
-            <button type="submit" data-testid="contact-submit-button" disabled={loading} className="contact-submit mt-1 inline-flex h-[52px] items-center gap-2 rounded-xl px-7 font-medium transition-colors disabled:opacity-60">
-              {loading ? "Sending..." : "Send message"}<Send size={16} strokeWidth={2} />
+            <fieldset className="contact-fieldset">
+              <legend className="contact-label">Investment size <span className="contact-optional">(optional)</span></legend>
+              <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                {sizes.map((size) => (
+                  <label key={size} data-testid={`contact-size-${size}`} className={`contact-size ${form.investment_size === size ? "is-selected" : ""}`}>
+                    <input type="radio" name="investment_size" value={size} checked={form.investment_size === size} onChange={set("investment_size")} />
+                    <span className="contact-size-indicator" aria-hidden="true" />
+                    <span>{size}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div className="contact-field">
+              <label htmlFor="contact-message" className="contact-label">Your goals</label>
+              <textarea id="contact-message" data-testid="contact-message" rows={4} className={`${inputClass} contact-message`} placeholder="What would you like to discuss?" value={form.message} onChange={set("message")} />
+            </div>
+            <button type="submit" data-testid="contact-submit-button" disabled={loading} className="contact-submit inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-7 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60">
+              {loading ? "Sending…" : "Send enquiry"}<Send size={16} strokeWidth={2} />
             </button>
           </form>
         </Reveal>

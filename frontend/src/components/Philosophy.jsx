@@ -1,24 +1,83 @@
+import { useEffect, useRef, useState } from "react";
 import Marquee from "react-fast-marquee";
-import { profile } from "@/data/portfolio";
+import { useReducedMotion } from "framer-motion";
+
+const principles = [
+  "Margin of Safety",
+  "Think Long Term",
+  "Let Compounding Work",
+  "Quality Businesses",
+  "Strong Moats",
+  "Patient Capital",
+];
+
+function PrincipleList({ animated = false }) {
+  return (
+    <div aria-hidden={animated ? "true" : undefined} className={animated ? "flex items-center whitespace-nowrap" : "flex flex-wrap justify-center gap-x-6 gap-y-3"}>
+      {principles.map((principle, index) => (
+        <span
+          key={principle}
+          className={`font-serif-display italic ${animated ? "mr-8 text-[clamp(1.5rem,3.3vw,3rem)] leading-[1.2] md:mr-12" : "text-xl leading-[1.2]"} ${index % 2 ? "text-[var(--home-gold-text)]" : "text-[var(--home-text)]"}`}
+        >
+          {principle}
+          {index < principles.length - 1 && <span className="ml-8 text-sm not-italic text-[var(--home-gold-text)] md:ml-12">·</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function Philosophy() {
-  return (
-    <section className="relative py-20 md:py-28 bg-[#04101f] overflow-hidden border-y border-white/5">
-      <Marquee speed={40} gradient={false} className="py-4">
-        <span className="font-serif-display italic text-6xl md:text-8xl text-white/10 whitespace-nowrap mr-16">
-          Margin of Safety · Think Long Term · Let Compounding Work ·
-        </span>
-        <span className="font-serif-display italic text-6xl md:text-8xl text-[#F5A623]/20 whitespace-nowrap mr-16">
-          Quality Businesses · Strong Moats · Patient Capital ·
-        </span>
-      </Marquee>
+  const sectionRef = useRef(null);
+  const reducedMotion = useReducedMotion();
+  const [isVisible, setIsVisible] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
+  const [hasTimedOut, setHasTimedOut] = useState(false);
 
-      <div className="max-w-4xl mx-auto px-6 md:px-10 mt-16 text-center">
-        <span className="font-serif-display text-6xl text-[#F5A623] leading-none">“</span>
-        <p className="font-serif-display text-2xl md:text-4xl text-white leading-snug -mt-6">
-          {profile.quote}
-        </p>
-        <p className="mt-6 text-sm uppercase tracking-[0.3em] text-[#64748B]">— {profile.name}</p>
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.05 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) return undefined;
+    const timeout = window.setTimeout(() => setHasTimedOut(true), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [reducedMotion]);
+
+  const shouldPlay = !reducedMotion && isVisible && !hasTimedOut && !isFocused;
+
+  return (
+    <section ref={sectionRef} className="border-y border-[var(--home-border)] bg-[var(--home-page-bg)] px-5 py-6 md:px-8 md:py-8" aria-label="Investment principles">
+      <div className="mx-auto max-w-[1200px]">
+        <div className="relative" onFocusCapture={() => setIsFocused(true)} onBlurCapture={() => setIsFocused(false)}>
+          {reducedMotion ? (
+            <PrincipleList />
+          ) : (
+            <Marquee
+              speed={34}
+              gradient={false}
+              play={shouldPlay}
+              pauseOnHover
+              className="py-1"
+              aria-hidden="true"
+            >
+              <PrincipleList animated />
+              <span aria-hidden="true" className="w-8 shrink-0 md:w-12" />
+              <PrincipleList animated />
+            </Marquee>
+          )}
+
+          {!reducedMotion && <span className="sr-only">Investment principles: {principles.join(", ")}.</span>}
+        </div>
+
       </div>
     </section>
   );
