@@ -1609,6 +1609,63 @@ def _normalize_ratio_items(*payloads):
     return ratios
 
 
+PROFITABILITY_RATIO_FIELDS = [
+    ("grossMargin", "gross_margin", "Gross margin %"),
+    ("operatingMargin", "operating_margin", "Operating margin %"),
+    ("ebitdaMargin", "ebitda_margin", "EBITDA margin %"),
+    ("ebitMargin", "ebit_margin", "EBIT margin %"),
+    ("preTaxMargin", "pre_tax_margin", "Pre-tax margin %"),
+    ("netMargin", "net_margin", "Net margin %"),
+    ("effectiveTaxRate", "effective_tax_rate", "Effective tax rate %"),
+    ("returnOnEquity", "return_on_equity", "Return on equity %"),
+    ("returnOnCapital", "return_on_capital", "Return on capital %"),
+    ("returnOnAsset", "return_on_assets", "Return on assets %"),
+    ("returnOnTangibleAssets", "return_on_tangible_assets", "Return on tangible assets %"),
+]
+
+
+def _ratio_percent_value(value):
+    number = _to_number(value)
+    if number is None:
+        return None
+    return number * 100 if abs(number) <= 1 else number
+
+
+def _normalize_profitability_ratio_history(payload):
+    rows = _payload_items(payload, ["ratios", "data", "results", "items"])
+    history_by_category = {
+        category: {"category": category, "label": label, "history": []}
+        for _, category, label in PROFITABILITY_RATIO_FIELDS
+    }
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        period = _first_value(row, ["header", "period", "date", "year"])
+        if not period:
+            continue
+        period = str(period)
+        if period.strip().upper() == "TTM":
+            continue
+        for field, category, _ in PROFITABILITY_RATIO_FIELDS:
+            value = _ratio_percent_value(_first_value(row, [field]))
+            if value is None:
+                continue
+            history_by_category[category]["history"].append({
+                "period": period,
+                "value": round(value, 2),
+                "change": None,
+            })
+    normalized = []
+    for item in history_by_category.values():
+        history = sorted(item["history"], key=lambda point: _period_sort_value(point.get("period")), reverse=True)
+        for index, point in enumerate(history):
+            previous = history[index + 1]["value"] if index + 1 < len(history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        if history:
+            normalized.append({**item, "history": history})
+    return normalized
+
+
 def _clean_ratio_benchmarks(ratios):
     cleaned = []
     for ratio in ratios or []:
@@ -2038,17 +2095,52 @@ def _quote_from_upstox(instrument: Dict[str, Any]):
     return {**quote_items[0], "source": "upstox"}
 
 
+def _merge_history_categories(items):
+    merged = {}
+    for item in items or []:
+        if not isinstance(item, dict) or not item.get("category"):
+            continue
+        bucket = merged.setdefault(item["category"], {
+            "category": item["category"],
+            "label": item.get("label") or _label_key(item["category"]),
+            "history": {},
+        })
+        for point in item.get("history") or []:
+            period = point.get("period")
+            value = _to_number(point.get("value"))
+            if not period or value is None:
+                continue
+            current = bucket["history"].get(period)
+            bucket["history"][period] = value if current is None else current + value
+    normalized = []
+    for bucket in merged.values():
+        history = [
+            {"period": period, "value": round(value, 4), "change": None}
+            for period, value in bucket["history"].items()
+        ]
+        history = sorted(history, key=lambda point: _period_sort_value(point.get("period")), reverse=True)
+        for index, point in enumerate(history):
+            previous = history[index + 1]["value"] if index + 1 < len(history) else None
+            point["change"] = _period_change(point.get("value"), previous)
+        normalized.append({**bucket, "history": history})
+    return normalized
+
+
 def _normalize_shareholding(payload, period="quarterly"):
     if isinstance(payload, dict) and isinstance(payload.get("rows"), list):
         columns = payload.get("columns") or []
         aliases = {
             "promoter": "promoters", "promoters": "promoters", "promotergroup": "promoters",
             "fii": "fii", "fiis": "fii", "foreigninstitution": "fii", "foreigninstitutions": "fii",
+            "institutionsforeign": "fii",
             "dii": "other_dii", "otherdii": "other_dii", "insurance": "other_dii",
+            "institutionsdomestic": "other_dii", "domesticinstitutions": "other_dii",
             "mutualfunds": "mutual_funds", "mutualfund": "mutual_funds", "mf": "mutual_funds",
             "public": "retail_and_other", "noninstitutions": "retail_and_other",
             "noninstitution": "retail_and_other", "retailandothers": "retail_and_other",
-            "others": "retail_and_other",
+            "others": "retail_and_other", "goverments": "retail_and_other",
+            "governments": "retail_and_other", "government": "retail_and_other",
+            "sharesheldbynonpromoternonpublicshareholders": "retail_and_other",
         }
         items = []
         for row in payload.get("rows") or []:
@@ -2070,19 +2162,23 @@ def _normalize_shareholding(payload, period="quarterly"):
                 point["change"] = _period_change(point.get("value"), previous)
             if history:
                 items.append({"category": category, "label": _label_key(category), "history": history})
-        return items
+        return _merge_history_categories(items)
     rows = _payload_items(payload, ["shareholding", "shareholdingPattern", "data", "results", "history"])
     aliases = {
         "promoter": "promoters", "promoters": "promoters", "promoterGroup": "promoters",
-        "fii": "fii", "fiis": "fii", "foreignInstitution": "fii",
+        "fii": "fii", "fiis": "fii", "foreignInstitution": "fii", "institutionsForeign": "fii",
         "dii": "other_dii", "otherDii": "other_dii", "insurance": "other_dii",
+        "institutionsDomestic": "other_dii", "domesticInstitutions": "other_dii",
         "mutualFunds": "mutual_funds", "mutual_fund": "mutual_funds", "mf": "mutual_funds",
         "retail": "retail_and_other", "public": "retail_and_other", "others": "retail_and_other",
         "retailAndOthers": "retail_and_other", "nonInstitution": "retail_and_other",
+        "nonInstitutions": "retail_and_other", "goverments": "retail_and_other",
+        "governments": "retail_and_other", "government": "retail_and_other",
+        "sharesHeldByNonPromoterNonPublicShareholders": "retail_and_other",
     }
     normalized = _history_from_period_rows(rows, period, aliases)
     keep = {"promoters", "fii", "other_dii", "mutual_funds", "retail_and_other"}
-    return [{**item, "label": _label_key(item["category"])} for item in normalized if item["category"] in keep]
+    return _merge_history_categories([{**item, "label": _label_key(item["category"])} for item in normalized if item["category"] in keep])
 
 
 def _normalize_corporate_actions(*payloads):
@@ -2355,6 +2451,7 @@ def _stock_section_counts(result):
         "balanceSheet": len(result.get("balanceSheet", {}).get("history") or []) + _history_point_count(result.get("balanceSheet", {}).get("balance_sheet")),
         "cashFlow": _history_point_count(result.get("cashFlow", {}).get("cash_flow")),
         "ratios": len(result.get("ratios") or []),
+        "profitabilityRatios": _history_point_count(result.get("profitabilityRatios")),
         "shareholding": _history_point_count(result.get("shareholding")),
         "corporateActions": len(result.get("corporateActions") or []),
         "competitors": len(result.get("competitors") or []),
@@ -2469,6 +2566,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "balanceSheet": "finedge",
         "cashFlow": "finedge",
         "ratios": "finedge",
+        "profitabilityRatios": "finedge",
         "shareholding": "finedge",
         "corporateActions": "finedge",
         "competitors": "finedge",
@@ -2539,6 +2637,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         _safe_finedge_get(f"/ratios/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
         for ratio_type in ("ef", "le", "li", "pr")
     ]
+    profitability_ratios = _normalize_profitability_ratio_history(ratio_payloads[-1] if ratio_payloads else [])
     daily_price_ratio_payload = _safe_finedge_get(
         f"/daily-price-ratios/{_stock_symbol_path(symbol)}",
         {"statement_type": finedge_type, "from": str(current_year), "to": str(current_year)},
@@ -2745,6 +2844,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "profile": profile,
         "highlights": [item for item in highlights if item.get("value") not in (None, "")],
         "ratios": ratios,
+        "profitabilityRatios": profitability_ratios,
         "incomeStatement": income_statement,
         "balanceSheet": balance_sheet,
         "cashFlow": cash_flow,
