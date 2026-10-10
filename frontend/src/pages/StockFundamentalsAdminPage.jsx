@@ -15,6 +15,7 @@ const MUTED = "#94A3B8";
 const DEFAULT_QUERY = "RELIANCE";
 const YEARLY_PERIOD_LIMIT = 6;
 const QUARTERLY_PERIOD_LIMIT = YEARLY_PERIOD_LIMIT * 4;
+const PROFITABILITY_PERIOD_LIMIT = 9;
 const PRICE_RANGES = [
   { id: "1m", label: "1M", months: 1 },
   { id: "6m", label: "6M", months: 6 },
@@ -36,6 +37,7 @@ const DASHBOARD_TABS = [
   { id: "price-chart", label: "Chart" },
   { id: "insights", label: "Signals" },
   { id: "profit-loss", label: "P&L" },
+  { id: "profitability-ratios", label: "Profitability" },
   { id: "balance-sheet", label: "Balance Sheet" },
   { id: "cash-flow", label: "Cash Flow" },
   { id: "ratios", label: "Ratios" },
@@ -1884,6 +1886,75 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
   );
 }
 
+function ProfitabilityTrend({ history }) {
+  const points = [...(history || [])].slice(0, PROFITABILITY_PERIOD_LIMIT).reverse();
+  const values = points.map((point) => Math.abs(numericValue(point.value) || 0));
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex h-6 items-end gap-[2px]" aria-hidden="true">
+      {points.map((point, index) => {
+        const value = Math.abs(numericValue(point.value) || 0);
+        const height = Math.max(4, Math.round((value / max) * 22));
+        return (
+          <span
+            key={`${point.period}-${index}`}
+            className="block w-[3px] bg-[#8FA8C7]"
+            style={{ height }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ProfitabilityRatiosTable({ rows }) {
+  const ratioRows = (rows || []).filter((row) => row?.history?.length);
+  const periods = uniquePeriodsFromHistory(ratioRows).slice(0, PROFITABILITY_PERIOD_LIMIT).reverse();
+  const minWidth = Math.max(860, 300 + periods.length * 108);
+
+  return (
+    <DataSection
+      id="profitability-ratios"
+      title="Profitability Ratios"
+      subtitle="Annual margin and return ratios from FinEdge profitability data."
+    >
+      {ratioRows.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm" style={{ minWidth }}>
+            <thead className="border-b border-[#233650] font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">
+              <tr>
+                <th className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal">Metric</th>
+                <th className="px-3 py-2 font-normal">Trend</th>
+                {periods.map((periodLabel) => (
+                  <th key={periodLabel} className="px-3 py-2 font-normal">{displayPeriodLabel(periodLabel)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#233650]/70">
+              {ratioRows.map((row) => (
+                <tr key={row.category} className={row.category === "ebit_margin" ? "bg-[#0B2A40]" : ""}>
+                  <td className="sticky left-0 bg-[#06101D] px-3 py-2 text-white">{row.label || row.category}</td>
+                  <td className="px-3 py-2">
+                    <ProfitabilityTrend history={row.history} />
+                  </td>
+                  {periods.map((periodLabel) => {
+                    const point = row.history?.find((item) => item.period === periodLabel);
+                    return <td key={periodLabel} className="px-3 py-2 text-[#CBD5E1]">{percentText(point?.value)}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+          Profitability ratio history is not available for this company.
+        </div>
+      )}
+    </DataSection>
+  );
+}
+
 function RatioTable({ ratios }) {
   const priorityIndex = new Map(RATIO_PRIORITY.map((key, index) => [normalizeMetricName(key), index]));
   const ratioRows = [...(ratios || [])].sort((a, b) => {
@@ -2607,6 +2678,7 @@ export default function StockFundamentalsAdminPage() {
           </section>
 
           <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`${bankingCompany ? "Banking statement lines" : "Core statement lines"} in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} isBank={bankingCompany} />
+          <ProfitabilityRatiosTable rows={data.profitabilityRatios} />
           <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`${bankingCompany ? "Banking assets and liabilities" : "Liabilities and assets"} in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} isBank={bankingCompany} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
           <RatioTable ratios={data.ratios} />
