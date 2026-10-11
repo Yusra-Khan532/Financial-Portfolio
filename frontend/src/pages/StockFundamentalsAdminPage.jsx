@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, BarChart3, RefreshCcw, Search } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import AdminShell from "@/components/cms/AdminShell";
 import { cmsRequest, formatCmsDateTime } from "@/lib/cms";
@@ -11,6 +11,20 @@ const TEAL = "#75B89B";
 const RED = "#C98182";
 const BLUE = "#7AA7E8";
 const MUTED = "#94A3B8";
+const SHAREHOLDING_COLORS = {
+  Promoters: GOLD,
+  FII: BLUE,
+  "Other DII": TEAL,
+  "Mutual Funds": "#A78BFA",
+  "Retail/Others": MUTED,
+};
+const SHAREHOLDING_LABELS = {
+  promoters: "Promoters",
+  fii: "FII",
+  other_dii: "Other DII",
+  mutual_funds: "Mutual Funds",
+  retail_and_other: "Retail/Others",
+};
 
 const DEFAULT_QUERY = "RELIANCE";
 const YEARLY_PERIOD_LIMIT = 6;
@@ -291,6 +305,30 @@ function valueWithUnit(value, unit) {
   return unit && formatted !== "N/A" ? `${formatted} ${unit}` : formatted;
 }
 
+const RATIO_MONEY_KEYS = new Set([
+  "costofgoodssold",
+  "cogs",
+  "ebit",
+  "ebitda",
+  "grossincome",
+  "operatingexpenses",
+  "operatingprofit",
+  "operatingrevenue",
+  "revenue",
+  "sales",
+  "taxexpense",
+]);
+
+function ratioValueDisplay(name, value) {
+  const number = numericValue(value);
+  if (number === null) return compactNumber(value);
+  const key = normalizeMetricName(name);
+  if (RATIO_MONEY_KEYS.has(key) && Math.abs(number) >= 100000) {
+    return `${compactNumber(number / 10_000_000, { compact: Math.abs(number / 10_000_000) >= 100000 })} Cr`;
+  }
+  return compactNumber(number);
+}
+
 function numericValue(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(String(value).replace("%", ""));
@@ -430,9 +468,47 @@ function filterPriceRange(rows, rangeId) {
   return rows.filter((row) => new Date(`${row.date}T00:00:00`) >= cutoff);
 }
 
+function filterPriceDateWindow(rows, dateWindow) {
+  if (!dateWindow?.start && !dateWindow?.end) return rows;
+  const start = dateWindow.start ? new Date(`${dateWindow.start}T00:00:00`) : null;
+  const end = dateWindow.end ? new Date(`${dateWindow.end}T23:59:59`) : null;
+  return rows.filter((row) => {
+    const date = new Date(`${row.date}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return false;
+    if (start && date < start) return false;
+    if (end && date > end) return false;
+    return true;
+  });
+}
+
+function dateAxisLabel(value, detailLevel = "auto") {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  if (detailLevel === "daily") {
+    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  }
+  return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+}
+
+function sampledPriceTicks(rows, interval) {
+  if (!rows.length) return [];
+  if (interval === "daily" && rows.length <= 35) return rows.map((row) => row.date);
+  if (interval === "weekly" && rows.length <= 28) return rows.map((row) => row.date);
+  const targetTicks = rows.length > 180 ? 7 : 6;
+  const step = Math.max(1, Math.ceil(rows.length / targetTicks));
+  const ticks = rows.filter((_, index) => index % step === 0).map((row) => row.date);
+  const last = rows[rows.length - 1]?.date;
+  return last && ticks[ticks.length - 1] !== last ? [...ticks, last] : ticks;
+}
+
 function descriptionBullets(description) {
-  const matches = String(description || "").replace(/\s+/g, " ").trim().match(/[^.!?]+[.!?]?/g) || [];
-  const bullets = matches.map((item) => item.trim()).filter(Boolean).slice(0, 5);
+  const normalized = String(description || "").replace(/\s+/g, " ").trim();
+  const protectedText = normalized.replace(/\b(Ltd|Pvt|Inc|Co|Corp|LLP|PLC)\./gi, "$1<period>");
+  const matches = protectedText.match(/[^.!?]+[.!?]?/g) || [];
+  const bullets = matches
+    .map((item) => item.replace(/<period>/g, ".").trim())
+    .filter(Boolean)
+    .slice(0, 5);
   return bullets.length ? bullets : [description].filter(Boolean);
 }
 
@@ -693,23 +769,111 @@ function balanceChartData(balanceSheet, period = "yearly") {
   }));
 }
 
+function latestCategoryValue(rows, keys) {
+  const normalizedKeys = keys.map(normalizeMetricName);
+  const row = (rows || []).find((item) => normalizedKeys.includes(financialRowKey(item)));
+  const value = pointValue(row?.history?.[0]);
+  return value === null ? null : value;
+}
+
+function balanceCompositionData(rows, isBank = false) {
+  const groups = isBank
+    ? [
+      { name: "Advances", keys: ["advances"], color: GOLD },
+      { name: "Investments", keys: ["investments"], color: BLUE },
+      { name: "Cash & RBI", keys: ["cashandbalanceswithrbi", "cash_and_balances_with_rbi"], color: TEAL },
+      { name: "Other Assets", keys: ["otherassets", "bankbalancesandmoneyatcallandshortnotice"], color: MUTED },
+    ]
+    : [
+      { name: "Fixed Assets", keys: ["fixedassets", "propertyplantandequipment", "tangibleassets"], color: GOLD },
+      { name: "Investments", keys: ["investments", "currentinvestments", "noncurrentinvestments"], color: BLUE },
+      { name: "Current Assets", keys: ["currentassets", "inventories", "tradereceivablescurrent"], color: TEAL },
+      { name: "Other Assets", keys: ["otherassets", "cashandcashequivalents"], color: MUTED },
+    ];
+  return groups
+    .map((group) => ({
+      ...group,
+      value: latestCategoryValue(rows, group.keys) || 0,
+    }))
+    .filter((group) => group.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
 function shareholdingChartData(shareholding, period = "yearly") {
-  const labels = {
-    promoters: "Promoters",
-    fii: "FII",
-    other_dii: "Other DII",
-    mutual_funds: "Mutual Funds",
-    retail_and_other: "Retail/Others",
-  };
   const periods = new Map();
   (shareholding || []).forEach((row) => {
     (row.history || []).forEach((point) => {
       const current = periods.get(point.period) || { period: point.period };
-      current[labels[row.category] || row.label || row.category] = Number(point.value) || 0;
+      current[SHAREHOLDING_LABELS[row.category] || row.label || row.category] = Number(point.value) || 0;
       periods.set(point.period, current);
     });
   });
   return limitPeriods(Array.from(periods.values()).reverse(), period);
+}
+
+function shareholdingPeriodYear(period) {
+  const match = String(period || "").match(/(20\d{2}|19\d{2})/);
+  return match ? match[1] : "";
+}
+
+function shareholdingPeriodSortValue(period) {
+  const text = String(period || "");
+  const year = Number(shareholdingPeriodYear(text)) || 0;
+  const monthText = text.slice(0, 3).toLowerCase();
+  const month = {
+    jan: 1,
+    feb: 2,
+    mar: 3,
+    apr: 4,
+    may: 5,
+    jun: 6,
+    jul: 7,
+    aug: 8,
+    sep: 9,
+    oct: 10,
+    nov: 11,
+    dec: 12,
+  }[monthText] || 12;
+  return (year * 12) + month;
+}
+
+function shareholdingPeriods(shareholding) {
+  return Array.from(new Set((shareholding || []).flatMap((row) => (row.history || []).map((point) => point.period).filter(Boolean))))
+    .sort((a, b) => shareholdingPeriodSortValue(b) - shareholdingPeriodSortValue(a));
+}
+
+function shareholdingYears(shareholding) {
+  return Array.from(new Set(shareholdingPeriods(shareholding).map(shareholdingPeriodYear).filter(Boolean)));
+}
+
+function shareholdingPeriodsForYear(shareholding, year) {
+  return shareholdingPeriods(shareholding).filter((period) => shareholdingPeriodYear(period) === year);
+}
+
+function latestShareholdingPieData(shareholding, selectedYear, selectedPeriod) {
+  const periods = shareholdingPeriods(shareholding);
+  const availableForYear = selectedYear ? periods.filter((item) => shareholdingPeriodYear(item) === selectedYear) : periods;
+  const period = selectedPeriod && availableForYear.includes(selectedPeriod)
+    ? selectedPeriod
+    : availableForYear[0] || periods[0];
+  const rows = (shareholding || []).map((row) => {
+    const selected = (row.history || []).find((point) => point.period === period);
+    const value = numericValue(selected?.value);
+    const name = SHAREHOLDING_LABELS[row.category] || row.label || row.category;
+    return {
+      key: row.category,
+      name,
+      value: value || 0,
+      period,
+      color: SHAREHOLDING_COLORS[name] || MUTED,
+    };
+  }).filter((row) => row.value > 0);
+  const total = rows.reduce((sum, row) => sum + row.value, 0);
+  return {
+    rows: rows.sort((a, b) => b.value - a.value),
+    total,
+    period,
+  };
 }
 
 function latestHistory(rows) {
@@ -1396,6 +1560,7 @@ function ScoreCircle({ score, composite = false }) {
 
 function InvestorInsights({ insights }) {
   const notes = buildScreeningNotes(insights);
+  const visibleGroups = insights.filter((group) => group.group === "Ownership & Valuation");
   return (
     <DataSection id="insights" title="Insights" subtitle="Screening signals computed from fundamentals, ratios, price and holding history.">
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
@@ -1416,18 +1581,18 @@ function InvestorInsights({ insights }) {
           ) : <p className="mt-3 text-sm text-[#94A3B8]">No caution flags in the current dataset.</p>}
         </section>
       </div>
-      <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 lg:grid-cols-2">
-        {insights.map((group) => (
+      <div className="overflow-hidden border border-white/10 bg-[#071326]">
+        {visibleGroups.map((group) => (
           <section key={group.group} className="bg-[#071326] p-4">
             <h3 className="text-sm font-medium text-white">{group.group}</h3>
-            <div className="mt-4 divide-y divide-white/10">
+            <div className="mt-4 grid gap-px overflow-hidden bg-white/10 md:grid-cols-2 xl:grid-cols-4">
               {group.items.map((item) => (
-                <div key={`${group.group}-${item.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 first:pt-0 last:pb-0">
+                <div key={`${group.group}-${item.label}`} className="bg-[#050E1D]/75 p-4">
                   <div>
                     <div className="text-sm text-[#CBD5E1]">{item.label}</div>
                     <div className="mt-1 text-xs text-[#71839A]">{item.meta || "Unavailable"}</div>
                   </div>
-                  <div className={`text-right text-sm font-medium ${toneClasses(item.tone)}`}>{item.value || "N/A"}</div>
+                  <div className={`mt-3 text-lg font-semibold tabular-nums ${toneClasses(item.tone)}`}>{item.value || "N/A"}</div>
                 </div>
               ))}
             </div>
@@ -1603,6 +1768,7 @@ function DerivedMetricsSection({ groups }) {
 function PriceVolumeChart({ data, symbol }) {
   const [priceRange, setPriceRange] = useState("1y");
   const [priceInterval, setPriceInterval] = useState("daily");
+  const [dateWindow, setDateWindow] = useState({ start: "", end: "" });
   const [indicators, setIndicators] = useState({
     volume: true,
     ema20: false,
@@ -1613,14 +1779,24 @@ function PriceVolumeChart({ data, symbol }) {
     pivots: false,
   });
   const chartData = useMemo(() => priceChartData(data, priceInterval), [data, priceInterval]);
-  const visibleChartData = useMemo(() => filterPriceRange(chartData, priceRange), [chartData, priceRange]);
-  const sampledTicks = useMemo(() => {
-    if (visibleChartData.length <= 6) return visibleChartData.map((row) => row.date);
-    const step = Math.max(1, Math.floor(visibleChartData.length / 5));
-    return visibleChartData.filter((_, index) => index % step === 0).map((row) => row.date);
-  }, [visibleChartData]);
+  const rangedChartData = useMemo(() => filterPriceRange(chartData, priceRange), [chartData, priceRange]);
+  const visibleChartData = useMemo(() => filterPriceDateWindow(rangedChartData, dateWindow), [rangedChartData, dateWindow]);
+  const dateBounds = useMemo(() => ({
+    min: chartData[0]?.date || "",
+    max: chartData[chartData.length - 1]?.date || "",
+  }), [chartData]);
+  const sampledTicks = useMemo(() => sampledPriceTicks(visibleChartData, priceInterval), [visibleChartData, priceInterval]);
+  const detailedDateAxis = priceInterval === "daily" && visibleChartData.length <= 45;
   const toggleIndicator = (key) => {
     setIndicators((current) => ({ ...current, [key]: !current[key] }));
+  };
+  const clearDateWindow = () => setDateWindow({ start: "", end: "" });
+  const selectRange = (rangeId) => {
+    setPriceRange(rangeId);
+    clearDateWindow();
+  };
+  const updateDateWindow = (key, value) => {
+    setDateWindow((current) => ({ ...current, [key]: value }));
   };
 
   return (
@@ -1636,7 +1812,7 @@ function PriceVolumeChart({ data, symbol }) {
               <button
                 key={range.id}
                 type="button"
-                onClick={() => setPriceRange(range.id)}
+                onClick={() => selectRange(range.id)}
                 className={`h-7 border px-2.5 font-mono text-[11px] font-medium uppercase tracking-[.08em] transition-colors ${priceRange === range.id ? "border-[#F5A623]/70 bg-[#F5A623]/15 text-[#F5A623]" : "border-[#233650] text-[#7F90A8] hover:border-[#40546E] hover:bg-white/[.04] hover:text-white"}`}
               >
                 {range.label}
@@ -1656,6 +1832,42 @@ function PriceVolumeChart({ data, symbol }) {
             ))}
           </div>
         </div>
+        {chartData.length ? (
+          <div className="grid gap-2 border-t border-[#233650] pt-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
+            <label className="block">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[.12em] text-[#71839A]">From</span>
+              <input
+                type="date"
+                min={dateBounds.min}
+                max={dateBounds.max}
+                value={dateWindow.start}
+                onChange={(event) => updateDateWindow("start", event.target.value)}
+                className="h-8 border border-[#233650] bg-[#02060D] px-2 font-mono text-[11px] text-[#CBD5E1] outline-none focus:border-[#F5A623]/70"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-[.12em] text-[#71839A]">To</span>
+              <input
+                type="date"
+                min={dateBounds.min}
+                max={dateBounds.max}
+                value={dateWindow.end}
+                onChange={(event) => updateDateWindow("end", event.target.value)}
+                className="h-8 border border-[#233650] bg-[#02060D] px-2 font-mono text-[11px] text-[#CBD5E1] outline-none focus:border-[#F5A623]/70"
+              />
+            </label>
+            <div className="font-mono text-[11px] uppercase tracking-[.08em] text-[#71839A]">
+              {visibleChartData.length ? `${dateAxisLabel(visibleChartData[0].date, "daily")} - ${dateAxisLabel(visibleChartData[visibleChartData.length - 1].date, "daily")} / ${visibleChartData.length} points` : "No prices in selected window"}
+            </div>
+            <button
+              type="button"
+              onClick={clearDateWindow}
+              className="h-8 border border-[#233650] px-3 font-mono text-[11px] uppercase tracking-[.08em] text-[#7F90A8] hover:border-[#40546E] hover:bg-white/[.04] hover:text-white"
+            >
+              Reset dates
+            </button>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-[#233650] pt-2 font-mono text-[11px] uppercase tracking-[.06em] text-[#CBD5E1]">
           {[
             ["volume", "Volume"],
@@ -1681,11 +1893,14 @@ function PriceVolumeChart({ data, symbol }) {
               <XAxis
                 dataKey="date"
                 ticks={sampledTicks}
-                tickFormatter={(value) => new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}
+                tickFormatter={(value) => dateAxisLabel(value, detailedDateAxis ? "daily" : "auto")}
                 stroke="#94A3B8"
                 fontSize={10}
                 axisLine={false}
                 tickLine={false}
+                angle={detailedDateAxis ? -32 : 0}
+                textAnchor={detailedDateAxis ? "end" : "middle"}
+                height={detailedDateAxis ? 48 : 30}
               />
               <YAxis yAxisId="price" stroke="#94A3B8" fontSize={10} width={42} axisLine={false} tickLine={false} tickFormatter={(value) => compactNumber(value, { compact: true })} />
               <YAxis yAxisId="volume" orientation="right" hide domain={[0, "dataMax"]} />
@@ -1810,20 +2025,24 @@ function PeriodCoverageNotice({ period, data }) {
   );
 }
 
-function MultiMetricChart({ id, title, subtitle, data, unit, bars, stacked = false }) {
+function MultiMetricChart({ id, title, subtitle, data, unit, bars, lines = [], stacked = false }) {
   return (
     <DataSection id={id} title={title} subtitle={subtitle}>
       <div className="h-64 min-w-0 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+          <ComposedChart data={data}>
             <XAxis dataKey="period" stroke="#94A3B8" fontSize={10} axisLine={false} tickLine={false} />
-            <YAxis hide />
+            <YAxis yAxisId="value" hide />
+            {lines.length ? <YAxis yAxisId="percent" orientation="right" hide domain={["auto", "auto"]} /> : null}
             <Tooltip content={<MultiTooltip unit={unit} />} />
             <Legend wrapperStyle={{ color: MUTED, fontSize: 12 }} />
             {bars.map((bar) => (
-              <Bar key={bar.key} dataKey={bar.key} name={bar.label} fill={bar.color} radius={stacked ? 0 : [4, 4, 0, 0]} stackId={stacked ? "stack" : undefined} />
+              <Bar key={bar.key} yAxisId="value" dataKey={bar.key} name={bar.label} fill={bar.color} radius={stacked ? 0 : [4, 4, 0, 0]} stackId={stacked ? "stack" : undefined} />
             ))}
-          </BarChart>
+            {lines.map((line) => (
+              <Line key={line.key} yAxisId="percent" type="monotone" dataKey={line.key} name={line.label} stroke={line.color} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+            ))}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </DataSection>
@@ -1839,11 +2058,222 @@ function MultiTooltip({ active, payload, label, unit }) {
         {payload.map((item) => (
           <div key={item.dataKey} className="flex items-center justify-between gap-6">
             <span style={{ color: item.color }}>{item.name}</span>
-            <span className="text-[#CBD5E1]">{valueWithUnit(item.value, unit)}</span>
+            <span className="text-[#CBD5E1]">{String(item.dataKey).toLowerCase().includes("margin") ? percentText(item.value) : valueWithUnit(item.value, unit)}</span>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function CompositionPieTooltip({ active, payload, unit }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#07182F] px-3 py-2 text-xs shadow-xl">
+      <div className="font-medium text-white">{row?.name}</div>
+      <div className="mt-1 text-[#CBD5E1]">{valueWithUnit(row?.value, unit)}</div>
+    </div>
+  );
+}
+
+function BalanceSheetMixedChart({ data, composition, unit, period }) {
+  const total = composition.reduce((sum, row) => sum + row.value, 0);
+  return (
+    <DataSection
+      id="balance-sheet-chart"
+      title="Balance Sheet Overview"
+      subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} scale trend with latest asset composition.`}
+    >
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,.75fr)] lg:items-center">
+        <div className="h-64 min-w-0 sm:h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <XAxis dataKey="period" stroke="#94A3B8" fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip content={<MultiTooltip unit={unit} />} />
+              <Legend wrapperStyle={{ color: MUTED, fontSize: 12 }} />
+              <Bar dataKey="assets" name="Total Assets" fill={GOLD} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="liabilities" name="Liabilities" fill={BLUE} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {composition.length ? (
+          <div className="border border-white/10 bg-[#02060D]/55 p-4">
+            <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Latest Composition</div>
+            <div className="relative mt-3 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={composition} dataKey="value" nameKey="name" innerRadius="56%" outerRadius="82%" paddingAngle={2} stroke="#071326" strokeWidth={2}>
+                    {composition.map((row) => (
+                      <Cell key={row.name} fill={row.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CompositionPieTooltip unit={unit} />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Assets</div>
+                  <div className="mt-1 text-lg font-semibold tabular-nums text-white">{valueWithUnit(total, unit)}</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {composition.map((row) => (
+                <div key={row.name} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="flex items-center gap-2 text-[#CBD5E1]"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: row.color }} />{row.name}</span>
+                  <span className="font-mono text-[#94A3B8]">{total ? percentText((row.value / total) * 100) : "N/A"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </DataSection>
+  );
+}
+
+function ShareholdingPieTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#07182F] px-3 py-2 text-xs shadow-xl">
+      <div className="font-medium text-white">{row?.name}</div>
+      <div className="mt-1 text-[#CBD5E1]">{percentText(row?.value)}</div>
+    </div>
+  );
+}
+
+function ShareholdingPieChart({ shareholding, periodMode = "yearly" }) {
+  const years = useMemo(() => shareholdingYears(shareholding), [shareholding]);
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const showFilingSelector = periodMode === "quarterly";
+  const filingPeriods = useMemo(
+    () => shareholdingPeriodsForYear(shareholding, selectedYear || years[0]),
+    [shareholding, selectedYear, years],
+  );
+  useEffect(() => {
+    if (!years.length) {
+      setSelectedYear("");
+      return;
+    }
+    if (!selectedYear || !years.includes(selectedYear)) {
+      setSelectedYear(years[0]);
+    }
+  }, [selectedYear, years]);
+  useEffect(() => {
+    if (!filingPeriods.length) {
+      setSelectedPeriod("");
+      return;
+    }
+    if (!selectedPeriod || !filingPeriods.includes(selectedPeriod)) {
+      setSelectedPeriod(filingPeriods[0]);
+    }
+  }, [filingPeriods, selectedPeriod]);
+  const { rows, total, period } = useMemo(
+    () => latestShareholdingPieData(
+      shareholding,
+      selectedYear || years[0],
+      showFilingSelector ? selectedPeriod || filingPeriods[0] : "",
+    ),
+    [shareholding, selectedYear, selectedPeriod, years, filingPeriods, showFilingSelector],
+  );
+
+  return (
+    <DataSection
+      id="shareholding-chart"
+      title="Shareholding Pattern"
+      subtitle={`Latest ownership mix${period ? ` as of ${period}` : ""}.`}
+    >
+      {rows.length ? (
+        <div className="space-y-4">
+          {years.length ? (
+            <div className={`grid gap-3 border-b border-white/10 pb-3 sm:items-end ${showFilingSelector ? "sm:grid-cols-[minmax(120px,180px)_minmax(150px,220px)_1fr]" : "sm:grid-cols-[minmax(120px,180px)_1fr]"}`}>
+              <label className="block">
+                <span className="mb-1 block font-mono text-[10px] uppercase tracking-[.12em] text-[#71839A]">Year</span>
+                <select
+                  value={selectedYear}
+                  onChange={(event) => {
+                    setSelectedYear(event.target.value);
+                    setSelectedPeriod("");
+                  }}
+                  className="h-9 w-full border border-[#233650] bg-[#02060D] px-2 font-mono text-[11px] uppercase tracking-[.08em] text-[#CBD5E1] outline-none focus:border-[#F5A623]/70"
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </label>
+              {showFilingSelector ? (
+                <label className="block">
+                  <span className="mb-1 block font-mono text-[10px] uppercase tracking-[.12em] text-[#71839A]">Quarter / Filing</span>
+                  <select
+                    value={selectedPeriod}
+                    onChange={(event) => setSelectedPeriod(event.target.value)}
+                    className="h-9 w-full border border-[#233650] bg-[#02060D] px-2 font-mono text-[11px] uppercase tracking-[.08em] text-[#CBD5E1] outline-none focus:border-[#F5A623]/70"
+                  >
+                    {filingPeriods.map((filingPeriod) => (
+                      <option key={filingPeriod} value={filingPeriod}>{displayPeriodLabel(filingPeriod)}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <div className="font-mono text-[11px] uppercase tracking-[.08em] text-[#71839A]">
+                {showFilingSelector ? "Showing filing" : "Showing latest filing in year"}: {displayPeriodLabel(period || selectedPeriod || filingPeriods[0])}
+              </div>
+            </div>
+          ) : null}
+          <div className="grid gap-5 lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1fr)] lg:items-center">
+            <div className="relative h-[280px] min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={rows}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius="58%"
+                    outerRadius="82%"
+                    paddingAngle={2}
+                    stroke="#071326"
+                    strokeWidth={2}
+                  >
+                    {rows.map((row) => (
+                      <Cell key={row.name} fill={row.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<ShareholdingPieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Total</div>
+                  <div className="mt-1 text-2xl font-semibold tabular-nums text-white">{percentText(total)}</div>
+                  {period ? <div className="mt-1 text-xs text-[#94A3B8]">{period}</div> : null}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-2">
+              {rows.map((row) => (
+                <div key={row.name} className="bg-[#050E1D]/75 p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
+                    <span className="text-sm text-[#CBD5E1]">{row.name}</span>
+                  </div>
+                  <div className="mt-2 text-xl font-semibold tabular-nums text-white">{percentText(row.value)}</div>
+                  <div className="mt-1 text-xs text-[#71839A]">{total ? `${compactNumber((row.value / total) * 100)}% of disclosed ownership` : "Latest filing"}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+          Shareholding data is not available for this company.
+        </div>
+      )}
+    </DataSection>
   );
 }
 
@@ -2013,8 +2443,8 @@ function RatioTable({ ratios }) {
                         {help}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{compactNumber(ratio.company_value)}</td>
-                    {includeSector ? <td className="px-4 py-3 text-[#94A3B8]">{compactNumber(ratio.sector_value)}</td> : null}
+                    <td className="px-4 py-3 text-[#CBD5E1]">{ratioValueDisplay(ratio.name, ratio.company_value)}</td>
+                    {includeSector ? <td className="px-4 py-3 text-[#94A3B8]">{ratioValueDisplay(ratio.name, ratio.sector_value)}</td> : null}
                   </tr>
                 );
               })}
@@ -2116,6 +2546,7 @@ function CompanySummary({ data, quote, metrics }) {
     ["Quote", quoteMeta],
     ["Statement", data.statementType ? `${data.statementType}${data.statementType !== data.requestedStatementType ? ` (fallback from ${data.requestedStatementType})` : ""}` : null],
   ].filter(([, value]) => value);
+  const businessActivities = descriptionBullets(data.profile?.description);
   return (
     <section id="summary" className="terminal-panel scroll-mt-28 border">
       <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -2141,24 +2572,18 @@ function CompanySummary({ data, quote, metrics }) {
             ))}
           </div>
 
-          {data.profile?.description ? (
-            <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_.85fr]">
-              <div>
-                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">About</h3>
-                <p className="mt-2 text-sm leading-6 text-[#CBD5E1]">{descriptionBullets(data.profile.description)[0]}</p>
-              </div>
-              <div>
-                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">Key Points</h3>
-                <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#CBD5E1]">
-                  {descriptionBullets(data.profile.description).slice(1, 5).map((point) => (
-                    <li key={point} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#F5A623]" />
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          {businessActivities.length ? (
+            <section className="mt-4 border border-[#233650] bg-[#02060D]/65 p-4">
+              <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-[#F5A623]">Company Business Activities</h3>
+              <ul className="mt-3 grid gap-2.5 text-sm leading-6 text-[#CBD5E1] lg:grid-cols-2">
+                {businessActivities.map((point) => (
+                  <li key={point} className="flex gap-2.5">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 bg-[#F5A623]" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
         </div>
 
@@ -2201,18 +2626,18 @@ function CorporateActionsSection({ actions }) {
 
 function CompetitorsSection({ competitors, onOpen }) {
   const rows = (competitors || []).slice(0, 12);
+  const hasMarketCap = rows.some((competitor) => competitor.marketCapDisplay || competitor.sectorMarketCapInr);
   return (
     <DataSection id="competitors" title="Peer Comparison" subtitle="Comparable companies from the provider peer set. Click a row to load that company's fundamentals.">
       {rows.length ? (
         <div className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className={`w-full text-left text-sm ${hasMarketCap ? "min-w-[680px]" : "min-w-[560px]"}`}>
             <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
               <tr>
                 <th className="px-4 py-3 font-normal">Company</th>
                 <th className="px-4 py-3 font-normal">Symbol</th>
-                <th className="px-4 py-3 font-normal">ISIN</th>
                 <th className="px-4 py-3 font-normal">Sector</th>
-                <th className="px-4 py-3 font-normal">Market Cap</th>
+                {hasMarketCap ? <th className="px-4 py-3 font-normal">Market Cap</th> : null}
                 <th className="px-4 py-3 font-normal">Action</th>
               </tr>
             </thead>
@@ -2224,9 +2649,8 @@ function CompetitorsSection({ competitors, onOpen }) {
                     {competitor.summary ? <div className="mt-1 line-clamp-2 max-w-md text-xs leading-5 text-[#7F90A8]">{competitor.summary}</div> : null}
                   </td>
                   <td className="px-4 py-3 font-mono text-[#CBD5E1]">{competitor.symbol || "N/A"}</td>
-                  <td className="px-4 py-3 font-mono text-[#94A3B8]">{competitor.isin || "N/A"}</td>
                   <td className="px-4 py-3 text-[#94A3B8]">{competitor.sector || "N/A"}</td>
-                  <td className="px-4 py-3 text-[#CBD5E1]">{competitor.sectorMarketCapInr || "N/A"}</td>
+                  {hasMarketCap ? <td className="px-4 py-3 font-mono text-[#CBD5E1]">{competitor.marketCapDisplay || competitor.sectorMarketCapInr || "-"}</td> : null}
                   <td className="px-4 py-3">
                     <button type="button" onClick={() => onOpen(competitor)} className="border border-[#F5A623]/50 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.12em] text-[#F5A623] hover:bg-[#F5A623]/10">
                       Open
@@ -2493,19 +2917,25 @@ export default function StockFundamentalsAdminPage() {
   const chartData = useMemo(() => {
     const incomeRows = data?.incomeStatement?.income_statement || [];
     const cashRows = data?.cashFlow?.cash_flow || [];
+    const income = combineHistories(incomeRows, [
+      { key: "revenue", category: "revenue" },
+      { key: "preTaxProfit", category: bankingCompany ? "profit_before_tax" : "operating_profit" },
+      { key: "netProfit", category: "net_profit" },
+    ], period).map((row) => ({
+      ...row,
+      netMargin: safeRatio(row.netProfit, row.revenue),
+      preTaxMargin: safeRatio(row.preTaxProfit, row.revenue),
+    }));
     return {
-      income: combineHistories(incomeRows, [
-        { key: "revenue", category: "revenue" },
-        { key: "preTaxProfit", category: bankingCompany ? "profit_before_tax" : "operating_profit" },
-        { key: "netProfit", category: "net_profit" },
-      ], period),
+      income,
       cash: combineHistories(cashRows, [
         { key: "operating", category: "operating" },
         { key: "investing", category: "investing" },
         { key: "financing", category: "financing" },
+        { key: "netCashFlow", category: "netcashflow" },
       ], period),
       balance: balanceChartData(data?.balanceSheet, period),
-      shareholding: shareholdingChartData(data?.shareholding, period),
+      balanceComposition: balanceCompositionData(data?.balanceSheet?.balance_sheet || [], bankingCompany),
     };
   }, [bankingCompany, data, period]);
 
@@ -2642,6 +3072,10 @@ export default function StockFundamentalsAdminPage() {
                   { key: "preTaxProfit", label: bankingCompany ? "Profit before tax" : "Pre-tax Profit", color: TEAL },
                   { key: "netProfit", label: "Net Profit", color: BLUE },
                 ]}
+                lines={[
+                  { key: "preTaxMargin", label: bankingCompany ? "PBT Margin" : "Operating Margin", color: "#E7C56B" },
+                  { key: "netMargin", label: "Net Margin", color: "#C4B5FD" },
+                ]}
               />
             ) : null}
             {chartData.cash.length ? (
@@ -2655,39 +3089,19 @@ export default function StockFundamentalsAdminPage() {
                   { key: "operating", label: "Operating", color: TEAL },
                   { key: "investing", label: "Investing", color: RED },
                   { key: "financing", label: "Financing", color: BLUE },
+                  { key: "netCashFlow", label: "Net Cash Flow", color: GOLD },
                 ]}
               />
             ) : null}
             {chartData.balance.length ? (
-              <MultiMetricChart
-                id="balance-sheet-chart"
-                title="Balance Sheet Scale"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} total assets and liabilities.`}
+              <BalanceSheetMixedChart
                 data={chartData.balance}
+                composition={chartData.balanceComposition}
                 unit={data.balanceSheet?.units_in}
-                bars={[
-                  { key: "assets", label: "Total Assets", color: GOLD },
-                  { key: "liabilities", label: "Liabilities", color: BLUE },
-                ]}
+                period={period}
               />
             ) : null}
-            {chartData.shareholding.length ? (
-              <MultiMetricChart
-                id="shareholding-chart"
-                title="Shareholding Pattern"
-                subtitle={`${period === "quarterly" ? "Quarterly" : "Latest"} ownership mix, stacked by holder category.`}
-                data={chartData.shareholding}
-                unit="%"
-                stacked
-                bars={[
-                  { key: "Promoters", label: "Promoters", color: GOLD },
-                  { key: "FII", label: "FII", color: BLUE },
-                  { key: "Other DII", label: "Other DII", color: TEAL },
-                  { key: "Mutual Funds", label: "Mutual Funds", color: "#A78BFA" },
-                  { key: "Retail/Others", label: "Retail/Others", color: MUTED },
-                ]}
-              />
-            ) : null}
+            <ShareholdingPieChart shareholding={data.shareholding} periodMode={period} />
           </section>
 
           <PeriodCoverageNotice period={period} data={data} />
@@ -2703,7 +3117,6 @@ export default function StockFundamentalsAdminPage() {
           <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`${bankingCompany ? "Banking assets and liabilities" : "Liabilities and assets"} in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} isBank={bankingCompany} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
           <RatioTable ratios={data.ratios} />
-          <HistoryTable id="shareholding" title="Shareholding Pattern" subtitle="Latest ownership mix from available filing history." rows={data.shareholding} unit="%" />
 
           <CorporateActionsSection actions={data.corporateActions} />
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />
