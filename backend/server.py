@@ -2076,6 +2076,20 @@ def _quote_from_finedge_quote(payload, symbol: str):
     }
 
 
+def _format_market_cap(value):
+    number = _to_number(value)
+    if number is None:
+        return None
+    crore_value = number / 10_000_000 if abs(number) >= 10_000_000 else number
+    if abs(crore_value) >= 100000:
+        formatted = f"{crore_value:,.0f}"
+    elif abs(crore_value) >= 1000:
+        formatted = f"{crore_value:,.1f}"
+    else:
+        formatted = f"{crore_value:,.2f}".rstrip("0").rstrip(".")
+    return f"Rs. {formatted} Cr"
+
+
 def _quote_from_upstox(instrument: Dict[str, Any]):
     instrument_key = instrument.get("upstoxInstrumentKey")
     if not instrument_key:
@@ -2408,6 +2422,37 @@ def _normalize_competitors(payload, current_symbol=None):
             "sectorMarketCapInr": _first_value(row, ["marketCap", "market_cap"]),
         })
     return [item for item in competitors if item.get("symbol")]
+
+
+def _enrich_competitors_from_finedge(competitors):
+    enriched = []
+    for competitor in (competitors or [])[:12]:
+        symbol = competitor.get("symbol")
+        if not symbol:
+            enriched.append(competitor)
+            continue
+        profile_payload = {}
+        quote_data = {}
+        needs_profile = not competitor.get("name") or not competitor.get("sector")
+        if needs_profile:
+            profile_payload = _safe_finedge_get(f"/company-profile/{_stock_symbol_path(symbol)}", default={}) or {}
+        if not competitor.get("sectorMarketCapInr") and not competitor.get("marketCap"):
+            quote_data = _quote_from_finedge_quote(_safe_finedge_get("/quote", {"symbol": symbol}, default={}), symbol)
+        market_cap = (
+            competitor.get("marketCap")
+            or competitor.get("sectorMarketCapInr")
+            or quote_data.get("marketCap")
+            or _first_value(profile_payload, ["marketCap", "market_cap", "marketCapitalization", "market_capitalization", "mcap", "marketValue", "fullMarketCap", "ffmc"])
+        )
+        enriched.append({
+            **competitor,
+            "name": competitor.get("name") or _first_value(profile_payload, ["companyName", "name"]) or symbol,
+            "sector": competitor.get("sector") or _first_value(profile_payload, ["sector", "industry", "sectorName"]),
+            "summary": competitor.get("summary") or (_first_value(profile_payload, ["description", "companyProfile", "company_profile", "about", "businessSummary"]) or "")[:220],
+            "marketCap": _to_number(market_cap),
+            "marketCapDisplay": competitor.get("marketCapDisplay") or _format_market_cap(market_cap),
+        })
+    return enriched
 
 
 def _latest_history_value(rows, category):
@@ -2788,6 +2833,8 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         if corporate_actions:
             data_sources["corporateActions"] = "upstox"
     competitors = _normalize_competitors(_safe_finedge_get(f"/peers/{_stock_symbol_path(symbol)}", default=[]), symbol)
+    if competitors:
+        competitors = _enrich_competitors_from_finedge(competitors)
     if upstox_key and not competitors:
         upstox_competitors = _normalize_upstox_competitors(
             _safe_upstox_get(f"/fundamentals/{quote(upstox_key, safe='')}/competitors", default=[]),

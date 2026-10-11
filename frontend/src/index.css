@@ -431,10 +431,13 @@ html.lenis, html.lenis body { height: auto; }
   --terminal-line-strong: #40546e;
   --terminal-amber: #f5a623;
   --terminal-text: #dde6f2;
-  --terminal-muted: #7f90a8;
+  --terminal-muted: #9fb0c4;
+  --terminal-subtle: #b7c4d5;
   background: #02060d;
   color: var(--terminal-text);
   font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .stock-fundamentals-page .research-score-circle {
@@ -478,6 +481,44 @@ html.lenis, html.lenis body { height: auto; }
   box-shadow: inset 0 1px 0 rgba(245, 166, 35, 0.08);
 }
 
+.stock-fundamentals-page .terminal-panel {
+  padding: 1.15rem !important;
+}
+
+@media (min-width: 640px) {
+  .stock-fundamentals-page .terminal-panel {
+    padding: 1.35rem !important;
+  }
+}
+
+.stock-fundamentals-page h1 {
+  letter-spacing: 0.01em;
+}
+
+.stock-fundamentals-page h2 {
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.stock-fundamentals-page h3 {
+  line-height: 1.4;
+}
+
+.stock-fundamentals-page p,
+.stock-fundamentals-page li {
+  line-height: 1.7;
+}
+
+.stock-fundamentals-page .text-\[\#71839A\],
+.stock-fundamentals-page .text-\[\#7F90A8\],
+.stock-fundamentals-page .text-\[\#94A3B8\] {
+  color: var(--terminal-muted) !important;
+}
+
+.stock-fundamentals-page .text-\[\#CBD5E1\] {
+  color: var(--terminal-subtle) !important;
+}
+
 .stock-fundamentals-page nav {
   background: rgba(2, 6, 13, 0.96) !important;
   border-color: var(--terminal-line) !important;
@@ -487,6 +528,8 @@ html.lenis, html.lenis body { height: auto; }
   background: var(--terminal-bg);
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
+  font-size: 0.94rem;
+  line-height: 1.5;
 }
 
 .stock-fundamentals-page th {
@@ -498,10 +541,21 @@ html.lenis, html.lenis body { height: auto; }
 .stock-fundamentals-page td,
 .stock-fundamentals-page th {
   border-color: rgba(64, 84, 110, 0.55) !important;
+  padding-top: 0.78rem !important;
+  padding-bottom: 0.78rem !important;
+}
+
+.stock-fundamentals-page thead th {
+  font-size: 0.72rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+.stock-fundamentals-page tbody td {
+  color: var(--terminal-subtle);
 }
 
 .stock-fundamentals-page tbody tr:hover td {
-  background: rgba(245, 166, 35, 0.035);
+  background: rgba(245, 166, 35, 0.055);
 }
 
 .stock-fundamentals-page .cms-input,
@@ -510,6 +564,8 @@ html.lenis, html.lenis body { height: auto; }
   border-color: var(--terminal-line-strong);
   color: var(--terminal-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  min-height: 2.8rem;
   text-transform: uppercase;
 }
 
