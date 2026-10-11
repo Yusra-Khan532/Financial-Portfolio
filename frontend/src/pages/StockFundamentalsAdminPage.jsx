@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, BarChart3, RefreshCcw, Search } from "lucide-react";
+import { ArrowLeft, BarChart3, Database, Droplets, Gauge, Landmark, RefreshCcw, Search, ShieldCheck, TrendingUp, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import AdminShell from "@/components/cms/AdminShell";
@@ -17,6 +17,7 @@ const SHAREHOLDING_COLORS = {
   "Other DII": TEAL,
   "Mutual Funds": "#A78BFA",
   "Retail/Others": MUTED,
+  "Balance / Unclassified": "#64748B",
 };
 const SHAREHOLDING_LABELS = {
   promoters: "Promoters",
@@ -224,6 +225,82 @@ const RATIO_PRIORITY = [
   "quickratio",
   "assetturnover",
 ];
+const RATIO_BUCKETS = [
+  {
+    id: "profitability-margins",
+    title: "Profitability - Margins",
+    subtitle: "How much of revenue survives each layer of cost.",
+    keys: ["grossmargin", "netinterestmargin", "nim", "ebitdamargin", "operatingmargin", "ebitmargin", "pretaxmargin", "netmargin", "effectivetaxrate", "tax"],
+  },
+  {
+    id: "returns-on-capital",
+    title: "Returns on Capital",
+    subtitle: "How efficiently the capital base is converted into profit.",
+    keys: ["roe", "returnonequity", "roa", "returnonassets", "roce", "returnoncapital", "returnoncapitalemployed", "returnontangibleassets"],
+  },
+  {
+    id: "leverage-capital-structure",
+    title: "Leverage & Capital Structure",
+    subtitle: "How the balance sheet is funded by debt and equity.",
+    keys: ["debtequity", "totaldebttoequity", "longtermdebttoequity", "totaldebttoassets", "longtermdebttototalassets", "financialleverage"],
+  },
+  {
+    id: "solvency-debt-serviceability",
+    title: "Solvency & Debt Serviceability",
+    subtitle: "Ability to service and repay debt from earnings or cash flow.",
+    keys: ["interestcoverage", "totaldebttofcf", "longtermdebttofcf"],
+  },
+  {
+    id: "liquidity",
+    title: "Liquidity",
+    subtitle: "Ability to meet short-term obligations.",
+    keys: ["currentratio", "quickratio", "cashratio"],
+  },
+  {
+    id: "efficiency-working-capital",
+    title: "Efficiency & Working Capital",
+    subtitle: "Cash conversion, turnover and asset intensity.",
+    keys: ["debtordays", "inventorydays", "dayspayable", "cashconversioncycle", "workingcapitaldays", "receivableturnover", "inventoryturnover", "payableturnover", "workingcapitalturnover", "assetturnover"],
+  },
+  {
+    id: "asset-quality",
+    title: "Asset Quality",
+    subtitle: "Bank-specific stressed-loan and NPA indicators.",
+    keys: ["grossnpa", "netnpa", "grossnpapercent", "netnpapercent", "gnpa", "nnpa"],
+    bankOnly: true,
+  },
+  {
+    id: "capital-adequacy",
+    title: "Capital Adequacy",
+    subtitle: "Bank-specific loss-absorbing capital ratios.",
+    keys: ["cet1ratio", "commonequitytier1", "additionaltier1ratio", "tier1ratio", "crar", "capitaladequacyratio"],
+    bankOnly: true,
+  },
+  {
+    id: "shareholder-returns-payout",
+    title: "Shareholder Returns & Payout",
+    subtitle: "What reaches shareholders versus what is reinvested.",
+    keys: ["dividendpayout", "retentionratio", "dividendyield"],
+  },
+  {
+    id: "valuation-multiples",
+    title: "Valuation Multiples",
+    subtitle: "Market value compared with earnings, book value, sales or operating profit.",
+    keys: ["pe", "pricetoearnings", "priceearnings", "pb", "pricetobook", "pricebook", "evsales", "evebit", "evebitda"],
+  },
+  {
+    id: "absolute-pl",
+    title: "Absolute P&L Figures",
+    subtitle: "Scale inputs used to compute ratios; these are not ratios.",
+    keys: ["operatingrevenue", "revenue", "costofgoodssold", "cogs", "grossincome", "operatingexpenses", "ebitda", "operatingprofit", "ebit"],
+  },
+  {
+    id: "per-share-share-capital",
+    title: "Per-Share & Share Capital Data",
+    subtitle: "Share count, face value and per-share inputs.",
+    keys: ["sharesoutstanding", "dilutedsharesoutstanding", "adjustedfacevalue", "adjustedequitysharecapital", "salespershare"],
+  },
+];
 const RATIO_DESCRIPTIONS = {
   "P/E": "Shows how much investors are willing to pay for Rs. 1 of a company's earnings.",
   "P/B": "Compares market price with book value per share.",
@@ -249,6 +326,65 @@ const RATIO_DESCRIPTIONS = {
   "Working Capital Days": "Shows working capital requirement measured in days of sales.",
   "Dividend Yield": "Shows dividend earned over the last year as a percentage of current price.",
   "Effective Tax Rate": "Shows tax expense as a percentage of profit before tax.",
+};
+
+const RATIO_FORMULAS = {
+  assetturnover: "Revenue / Total Assets",
+  cashconversioncycle: "Inventory + Debtor - Payable Days",
+  cashratio: "Cash / Current Liabilities",
+  cet1ratio: "Core Equity Tier 1 / RWA",
+  currentratio: "Current Assets / Current Liabilities",
+  dayspayable: "Payable Days",
+  debtordays: "Days Sales Outstanding",
+  debtequity: "Total Debt / Equity",
+  dividendpayout: "Dividend / Profit",
+  dividendyield: "Dividend / Price",
+  ebitdamargin: "EBITDA / Revenue",
+  ebitmargin: "EBIT / Revenue",
+  effectivetaxrate: "Tax / Profit Before Tax",
+  evebitda: "EV / EBITDA",
+  financialleverage: "Assets / Equity",
+  grossmargin: "Gross Profit / Revenue",
+  grossnpa: "Gross NPA / Advances",
+  interestcoverage: "EBIT / Interest",
+  inventorydays: "Days Inventory Outstanding",
+  inventoryturnover: "COGS / Inventory",
+  longtermdebttoequity: "Long-Term Debt / Equity",
+  longtermdebttototalassets: "Long-Term Debt / Assets",
+  longtermdebttofcf: "Long-Term Debt / FCF",
+  netmargin: "Net Profit / Revenue",
+  netnpa: "Net NPA / Advances",
+  operatingmargin: "Operating Profit / Revenue",
+  payableturnover: "COGS / Payables",
+  pb: "Price / Book Value",
+  pe: "Price / Earnings",
+  pretaxmargin: "PBT / Revenue",
+  quickratio: "(Current Assets - Inventory) / CL",
+  receivableturnover: "Revenue / Receivables",
+  retentionratio: "Retained Profit / Profit",
+  roa: "Net Profit / Total Assets",
+  roce: "EBIT / Capital Employed",
+  roe: "Net Profit / Equity",
+  totaldebttoassets: "Total Debt / Assets",
+  totaldebttoequity: "Total Debt / Equity",
+  totaldebttofcf: "Total Debt / FCF",
+  workingcapitaldays: "Working Capital Days",
+  workingcapitalturnover: "Revenue / Working Capital",
+};
+
+const RATIO_BUCKET_THEMES = {
+  "liquidity": { icon: Droplets, accent: "#7AA7E8", panel: "ratio-panel-blue", card: "ratio-card-blue" },
+  "profitability-margins": { icon: TrendingUp, accent: "#75B89B", panel: "ratio-panel-green", card: "ratio-card-green" },
+  "returns-on-capital": { icon: TrendingUp, accent: "#75B89B", panel: "ratio-panel-green", card: "ratio-card-green" },
+  "efficiency-working-capital": { icon: Gauge, accent: "#F5A623", panel: "ratio-panel-amber", card: "ratio-card-amber" },
+  "leverage-capital-structure": { icon: Database, accent: "#B8A0FF", panel: "ratio-panel-purple", card: "ratio-card-purple" },
+  "solvency-debt-serviceability": { icon: ShieldCheck, accent: "#B8A0FF", panel: "ratio-panel-purple", card: "ratio-card-purple" },
+  "asset-quality": { icon: Landmark, accent: "#7AA7E8", panel: "ratio-panel-blue", card: "ratio-card-blue" },
+  "capital-adequacy": { icon: ShieldCheck, accent: "#B8A0FF", panel: "ratio-panel-purple", card: "ratio-card-purple" },
+  "shareholder-returns-payout": { icon: WalletCards, accent: "#75B89B", panel: "ratio-panel-green", card: "ratio-card-green" },
+  "valuation-multiples": { icon: BarChart3, accent: "#F5A623", panel: "ratio-panel-amber", card: "ratio-card-amber" },
+  "absolute-pl": { icon: Database, accent: "#8FA8C7", panel: "ratio-panel-slate", card: "ratio-card-slate" },
+  "per-share-share-capital": { icon: WalletCards, accent: "#8FA8C7", panel: "ratio-panel-slate", card: "ratio-card-slate" },
 };
 
 const RATIO_DESCRIPTION_ALIASES = {
@@ -327,6 +463,72 @@ function ratioValueDisplay(name, value) {
     return `${compactNumber(number / 10_000_000, { compact: Math.abs(number / 10_000_000) >= 100000 })} Cr`;
   }
   return compactNumber(number);
+}
+
+function ratioBucketKey(name) {
+  const key = normalizeMetricName(name);
+  const bucket = RATIO_BUCKETS.find((item) => item.keys.includes(key));
+  return bucket?.id || "other";
+}
+
+function ratioBucketMeta(bucketId) {
+  return RATIO_BUCKETS.find((bucket) => bucket.id === bucketId) || {
+    id: "other",
+    title: "Other Ratios",
+    subtitle: "Provider-supplied metrics that do not map cleanly to the core analytical buckets.",
+  };
+}
+
+function displayRatioName(name) {
+  const key = normalizeMetricName(name);
+  const labelMap = {
+    additionaltier1ratio: "Additional Tier 1 Ratio",
+    cet1ratio: "CET1 Ratio",
+    debtequity: "Debt / Equity",
+    longtermdebttofcf: "Long-Term Debt / FCF",
+    longtermdebttototalassets: "Long-Term Debt / Total Assets",
+    totaldebttoassets: "Total Debt / Total Assets",
+    totaldebttoequity: "Total Debt / Equity",
+    totaldebttofcf: "Total Debt / FCF",
+  };
+  return labelMap[key] || name;
+}
+
+function ratioFormula(name) {
+  return RATIO_FORMULAS[normalizeMetricName(name)] || null;
+}
+
+function ratioBucketTheme(bucketId) {
+  return RATIO_BUCKET_THEMES[bucketId] || RATIO_BUCKET_THEMES["absolute-pl"];
+}
+
+function shouldTreatAsMissingRatio(ratio, isBank, bucketId) {
+  const value = numericValue(ratio?.company_value);
+  if (!isBank || value !== 0) return false;
+  return bucketId === "asset-quality" || bucketId === "capital-adequacy";
+}
+
+function ratioDisplayValue(ratio, field, isBank, bucketId) {
+  if (ratio?.[field] === null || ratio?.[field] === undefined || ratio?.[field] === "") return "—";
+  if (field === "company_value" && shouldTreatAsMissingRatio(ratio, isBank, bucketId)) return "—";
+  return ratioValueDisplay(ratio.name, ratio[field]);
+}
+
+function bucketRatioRows(ratioRows, isBank) {
+  const bucketOrder = new Map(RATIO_BUCKETS.map((bucket, index) => [bucket.id, index]));
+  const grouped = new Map();
+
+  ratioRows.forEach((ratio) => {
+    const bucketId = ratioBucketKey(ratio.name);
+    const meta = ratioBucketMeta(bucketId);
+    if (meta.bankOnly && !isBank) return;
+    if (!grouped.has(bucketId)) grouped.set(bucketId, []);
+    grouped.get(bucketId).push(ratio);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([a], [b]) => (bucketOrder.get(a) ?? 999) - (bucketOrder.get(b) ?? 999))
+    .map(([id, rows]) => ({ ...ratioBucketMeta(id), rows }));
 }
 
 function numericValue(value) {
@@ -883,6 +1085,19 @@ function latestShareholdingPieData(shareholding, selectedYear, selectedPeriod) {
       color: SHAREHOLDING_COLORS[name] || MUTED,
     };
   }).filter((row) => row.value > 0);
+  const disclosedTotal = rows.reduce((sum, row) => sum + row.value, 0);
+  const hasPromoters = rows.some((row) => row.key === "promoters");
+  if (disclosedTotal > 0 && disclosedTotal < 99.5) {
+    const inferredName = hasPromoters ? "Balance / Unclassified" : "Promoters";
+    rows.push({
+      key: hasPromoters ? "balance" : "promoters",
+      name: inferredName,
+      value: 100 - disclosedTotal,
+      period,
+      color: SHAREHOLDING_COLORS[inferredName] || SHAREHOLDING_COLORS["Balance / Unclassified"],
+      inferred: true,
+    });
+  }
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   return {
     rows: rows.sort((a, b) => b.value - a.value),
@@ -1901,7 +2116,7 @@ function PriceVolumeChart({ data, symbol }) {
         </div>
       </div>
       {visibleChartData.length ? (
-        <div className="h-[300px] min-w-0 sm:h-[390px]">
+        <div className="stock-chart-frame h-[300px] min-w-0 sm:h-[390px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={visibleChartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
@@ -2043,7 +2258,7 @@ function PeriodCoverageNotice({ period, data }) {
 function MultiMetricChart({ id, title, subtitle, data, unit, bars, lines = [], stacked = false }) {
   return (
     <DataSection id={id} title={title} subtitle={subtitle}>
-      <div className="h-64 min-w-0 sm:h-80">
+      <div className="stock-chart-frame h-64 min-w-0 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data}>
             <XAxis dataKey="period" stroke="#94A3B8" fontSize={10} axisLine={false} tickLine={false} />
@@ -2101,7 +2316,7 @@ function BalanceSheetMixedChart({ data, composition, unit, period }) {
       subtitle={`${period === "quarterly" ? "Quarterly" : "Yearly"} scale trend with latest asset composition.`}
     >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,.75fr)] lg:items-center">
-        <div className="h-64 min-w-0 sm:h-80">
+        <div className="stock-chart-frame h-64 min-w-0 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <XAxis dataKey="period" stroke="#94A3B8" fontSize={10} axisLine={false} tickLine={false} />
@@ -2114,7 +2329,7 @@ function BalanceSheetMixedChart({ data, composition, unit, period }) {
           </ResponsiveContainer>
         </div>
         {composition.length ? (
-          <div className="border border-white/10 bg-[#02060D]/55 p-4">
+          <div className="stock-chart-frame border border-white/10 bg-[#02060D]/55 p-4">
             <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Latest Composition</div>
             <div className="relative mt-3 h-56">
               <ResponsiveContainer width="100%" height="100%">
@@ -2277,7 +2492,7 @@ function ShareholdingPieChart({ shareholding, periodMode = "yearly" }) {
                     <span className="text-sm text-[#CBD5E1]">{row.name}</span>
                   </div>
                   <div className="mt-2 text-xl font-semibold tabular-nums text-white">{percentText(row.value)}</div>
-                  <div className="mt-1 text-xs text-[#71839A]">{total ? `${compactNumber((row.value / total) * 100)}% of disclosed ownership` : "Latest filing"}</div>
+                  <div className="mt-1 text-xs text-[#71839A]">{total ? `${compactNumber((row.value / total) * 100)}% of ownership` : "Latest filing"}</div>
                 </div>
               ))}
             </div>
@@ -2421,7 +2636,7 @@ function ProfitabilityRatiosTable({ rows }) {
   );
 }
 
-function RatioTable({ ratios }) {
+function RatioTable({ ratios, isBank = false }) {
   const priorityIndex = new Map(RATIO_PRIORITY.map((key, index) => [normalizeMetricName(key), index]));
   const ratioRows = [...(ratios || [])].sort((a, b) => {
     const aRank = priorityIndex.get(normalizeMetricName(a.name)) ?? 999;
@@ -2429,72 +2644,75 @@ function RatioTable({ ratios }) {
     if (aRank !== bRank) return aRank - bRank;
     return String(a.name || "").localeCompare(String(b.name || ""));
   });
-  const benchmarkRows = ratioRows.filter((ratio) => numericValue(ratio.sector_value) !== null);
-  const standaloneRows = ratioRows.filter((ratio) => numericValue(ratio.sector_value) === null);
-  const splitRows = (items) => {
-    const splitIndex = Math.ceil(items.length / 2);
-    return [items.slice(0, splitIndex), items.slice(splitIndex)].filter((group) => group.length);
-  };
-  const renderTables = (items, includeSector) => (
-    <div className="grid gap-4 xl:grid-cols-2">
-      {splitRows(items).map((group, groupIndex) => (
-        <div key={`ratio-group-${includeSector ? "bench" : "single"}-${groupIndex}`} className="overflow-x-auto border border-white/10 bg-[#050E1D]/35">
-          <table className="w-full min-w-[420px] text-left text-sm">
-            <thead className="border-b border-white/10 text-[10px] uppercase tracking-[.14em] text-[#71839A]">
-              <tr>
-                <th className="px-4 py-3 font-normal">Ratio</th>
-                <th className="px-4 py-3 font-normal">Company</th>
-                {includeSector ? <th className="px-4 py-3 font-normal">Sector</th> : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {group.map((ratio) => {
-                const help = ratioDescription(ratio.name);
-                return (
-                  <tr key={ratio.name}>
-                    <td className="px-4 py-3 text-white">
-                      <div>{ratio.name}</div>
-                      <div className="mt-1 max-w-xs text-[11px] leading-5 text-[#7F90A8]">
-                        {help}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[#CBD5E1]">{ratioValueDisplay(ratio.name, ratio.company_value)}</td>
-                    {includeSector ? <td className="px-4 py-3 text-[#94A3B8]">{ratioValueDisplay(ratio.name, ratio.sector_value)}</td> : null}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ))}
-    </div>
-  );
+  const buckets = bucketRatioRows(ratioRows, isBank);
 
   return (
     <DataSection
       id="ratios"
       title="Ratios"
-      subtitle={benchmarkRows.length ? "Operating and return ratios first, with sector benchmarks separated when present." : "Company ratio values. Sector benchmarks are not available for the current ratio set."}
+      subtitle={ratioRows.length ? "Financial ratios grouped by purpose with formulas and sector benchmarks where available." : "Company ratio values are not available for the current ratio set."}
     >
-      <div className="space-y-5">
-        {benchmarkRows.length ? (
-          <div>
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">With sector benchmark</div>
-            {renderTables(benchmarkRows, true)}
+      {ratioRows.length ? (
+        <div className="space-y-4">
+          <div className="ratio-bucket-strip">
+            {buckets.slice(0, 6).map((bucket) => {
+              const theme = ratioBucketTheme(bucket.id);
+              const Icon = theme.icon;
+              return (
+                <div key={`ratio-strip-${bucket.id}`} className="ratio-bucket-strip-item" style={{ "--ratio-accent": theme.accent }}>
+                  <Icon size={18} />
+                  <span>{bucket.title}</span>
+                </div>
+              );
+            })}
           </div>
-        ) : null}
-        {standaloneRows.length ? (
-          <div>
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Company ratios</div>
-            {renderTables(standaloneRows, false)}
+          <div className="grid gap-4 xl:grid-cols-2">
+            {buckets.map((bucket) => {
+              const theme = ratioBucketTheme(bucket.id);
+              const Icon = theme.icon;
+              return (
+                <section key={bucket.id} className={`ratio-panel ${theme.panel}`} style={{ "--ratio-accent": theme.accent }}>
+                  <div className="flex items-start gap-3 border-b border-white/10 p-4">
+                    <div className="ratio-panel-icon">
+                      <Icon size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold leading-tight text-white">{bucket.title}</h3>
+                      <p className="mt-1 text-sm leading-5 text-[#94A3B8]">{bucket.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2 p-3 sm:grid-cols-2">
+                    {bucket.rows.map((ratio) => {
+                      const sectorValue = numericValue(ratio.sector_value) !== null ? ratioDisplayValue(ratio, "sector_value", isBank, bucket.id) : null;
+                      return (
+                        <div key={`${bucket.id}-${ratio.name}`} className={`ratio-metric-card ${theme.card}`}>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-white">{displayRatioName(ratio.name)}</div>
+                            <div className="mt-1 truncate text-[11px] text-[#9BAAC0]">{ratioFormula(ratio.name) || ratioDescription(ratio.name)}</div>
+                          </div>
+                          <div className="mt-3 flex items-end justify-between gap-3">
+                            <div className="font-mono text-xl font-semibold tabular-nums text-white">{ratioDisplayValue(ratio, "company_value", isBank, bucket.id)}</div>
+                            {sectorValue ? (
+                              <div className="shrink-0 text-right">
+                                <div className="font-mono text-[9px] uppercase tracking-[.12em] text-[#71839A]">Sector</div>
+                                <div className="font-mono text-xs tabular-nums text-[#CBD5E1]">{sectorValue}</div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
           </div>
-        ) : null}
-        {!ratioRows.length ? (
-          <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
-            No ratio rows are available for this company.
-          </div>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
+          No ratio rows are available for this company.
+        </div>
+      )}
     </DataSection>
   );
 }
@@ -2569,7 +2787,7 @@ function CompanySummary({ data, quote, metrics }) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[.18em] text-[#F5A623]">Equity Research Snapshot</div>
-              <h2 className="mt-1 text-2xl font-semibold leading-tight text-white md:text-3xl">{data.instrument?.name || data.instrument?.symbol}</h2>
+              <h2 className="company-summary-title mt-1 font-semibold leading-tight text-white">{data.instrument?.name || data.instrument?.symbol}</h2>
             </div>
             <div className="min-w-36 border-l-0 border-[#233650] text-left sm:border-l sm:pl-5 sm:text-right">
               <div className="font-mono text-[10px] uppercase tracking-[.14em] text-[#71839A]">Last Price</div>
@@ -3137,7 +3355,7 @@ export default function StockFundamentalsAdminPage() {
           <ProfitabilityRatiosTable rows={data.profitabilityRatios} />
           <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`${bankingCompany ? "Banking assets and liabilities" : "Liabilities and assets"} in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} isBank={bankingCompany} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
-          <RatioTable ratios={data.ratios} />
+          <RatioTable ratios={data.ratios} isBank={bankingCompany} />
 
           <CorporateActionsSection actions={data.corporateActions} />
           <CompetitorsSection competitors={data.competitors} onOpen={openCompetitor} />

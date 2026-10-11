@@ -500,6 +500,11 @@ html.lenis, html.lenis body { height: auto; }
   line-height: 1.35;
 }
 
+.stock-fundamentals-page .company-summary-title {
+  font-size: clamp(1.85rem, 3vw, 3rem);
+  line-height: 1.05;
+}
+
 .stock-fundamentals-page h3 {
   line-height: 1.4;
 }
@@ -583,6 +588,74 @@ html.lenis, html.lenis body { height: auto; }
   stroke: rgba(64, 84, 110, 0.58);
 }
 
+.stock-fundamentals-page .stock-chart-frame {
+  border: 1px solid var(--terminal-line);
+  background: rgba(2, 6, 13, 0.38);
+  padding: 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(245, 166, 35, 0.08);
+}
+
+.stock-fundamentals-page .ratio-bucket-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--terminal-line);
+  background: linear-gradient(90deg, rgba(2, 6, 13, 0.96), rgba(7, 19, 38, 0.96));
+}
+
+.stock-fundamentals-page .ratio-bucket-strip-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 4rem;
+  border-right: 1px solid rgba(143, 168, 199, 0.18);
+  padding: 0.75rem 1rem;
+  color: #CBD5E1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.stock-fundamentals-page .ratio-bucket-strip-item svg {
+  color: var(--ratio-accent);
+}
+
+.stock-fundamentals-page .ratio-panel {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ratio-accent) 36%, var(--terminal-line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ratio-accent) 7%, transparent), transparent 8rem),
+    rgba(3, 9, 20, 0.96) !important;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--ratio-accent) 75%, #111827);
+}
+
+.stock-fundamentals-page .ratio-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--ratio-accent) 34%, transparent);
+  background: rgba(2, 6, 13, 0.64);
+  color: var(--ratio-accent);
+}
+
+.stock-fundamentals-page .ratio-metric-card {
+  min-height: 5.35rem;
+  border: 1px solid color-mix(in srgb, var(--ratio-accent) 22%, var(--terminal-line));
+  background: rgba(6, 16, 29, 0.86);
+  padding: 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.stock-fundamentals-page .ratio-card-blue,
+.stock-fundamentals-page .ratio-card-green,
+.stock-fundamentals-page .ratio-card-amber,
+.stock-fundamentals-page .ratio-card-purple,
+.stock-fundamentals-page .ratio-card-slate {
+  color: var(--ratio-accent);
+}
+
 .stock-fundamentals-page table {
   font-variant-numeric: tabular-nums;
 }
@@ -647,21 +720,39 @@ html.lenis, html.lenis body { height: auto; }
   color: var(--terminal-text) !important;
 }
 
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#02060D"],
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#030914"],
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#050E1D"],
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#061225"],
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#071326"],
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#07182F"] {
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#02060D]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#030914]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#050E1D]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#06101D]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#061225]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#071326]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#07182F]"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#0B2A40]"] {
   background-color: #ffffff !important;
 }
 
-:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#233650"] {
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#233650]"] {
   background-color: #d8e0ea !important;
 }
 
+:root[data-theme="light"] .stock-fundamentals-page .stock-chart-frame {
+  border-color: #c7d3e1;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 22px rgba(15, 23, 42, 0.055);
+}
+
 :root[data-theme="light"] .stock-fundamentals-page .recharts-cartesian-grid line {
-  stroke: rgba(82, 100, 125, 0.18);
+  stroke: rgba(82, 100, 125, 0.22);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page .recharts-text,
+:root[data-theme="light"] .stock-fundamentals-page .recharts-legend-item-text {
+  fill: #52647d !important;
+  color: #52647d !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page .recharts-tooltip-wrapper {
+  color: #07182f;
 }
 
 :root[data-theme="light"] .App article,
