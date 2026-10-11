@@ -2176,7 +2176,7 @@ def _normalize_shareholding(payload, period="quarterly"):
                 point["change"] = _period_change(point.get("value"), previous)
             if history:
                 items.append({"category": category, "label": _label_key(category), "history": history})
-        return _merge_history_categories(items)
+        return _complete_shareholding_categories(_merge_history_categories(items))
     rows = _payload_items(payload, ["shareholding", "shareholdingPattern", "data", "results", "history"])
     aliases = {
         "promoter": "promoters", "promoters": "promoters", "promoterGroup": "promoters",
@@ -2192,7 +2192,34 @@ def _normalize_shareholding(payload, period="quarterly"):
     }
     normalized = _history_from_period_rows(rows, period, aliases)
     keep = {"promoters", "fii", "other_dii", "mutual_funds", "retail_and_other"}
-    return _merge_history_categories([{**item, "label": _label_key(item["category"])} for item in normalized if item["category"] in keep])
+    return _complete_shareholding_categories(_merge_history_categories([{**item, "label": _label_key(item["category"])} for item in normalized if item["category"] in keep]))
+
+
+def _complete_shareholding_categories(rows):
+    rows = rows or []
+    if any(row.get("category") == "promoters" for row in rows):
+        return rows
+    periods = sorted(
+        {point.get("period") for row in rows for point in row.get("history", []) if point.get("period")},
+        key=_period_sort_value,
+        reverse=True,
+    )
+    promoter_history = []
+    for period_label in periods:
+        disclosed_total = 0
+        for row in rows:
+            point = next((item for item in row.get("history", []) if item.get("period") == period_label), None)
+            value = _to_number(point.get("value") if point else None)
+            if value is not None:
+                disclosed_total += value
+        if disclosed_total > 0 and disclosed_total < 99.5:
+            promoter_history.append({"period": period_label, "value": round(100 - disclosed_total, 4), "change": None})
+    for index, point in enumerate(promoter_history):
+        previous = promoter_history[index + 1]["value"] if index + 1 < len(promoter_history) else None
+        point["change"] = _period_change(point.get("value"), previous)
+    if promoter_history:
+        return [{"category": "promoters", "label": _label_key("promoters"), "history": promoter_history}, *rows]
+    return rows
 
 
 def _normalize_corporate_actions(*payloads):
