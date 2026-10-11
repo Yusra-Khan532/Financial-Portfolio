@@ -490,6 +490,21 @@ function dateAxisLabel(value, detailLevel = "auto") {
   return date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
 }
 
+function dateRangeLabel(start, end) {
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return `${start} - ${end}`;
+  }
+  const format = (date, includeYear) => date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    ...(includeYear ? { year: "numeric" } : {}),
+  });
+  const includeStartYear = startDate.getFullYear() !== endDate.getFullYear();
+  return `${format(startDate, includeStartYear)} - ${format(endDate, true)}`;
+}
+
 function sampledPriceTicks(rows, interval) {
   if (!rows.length) return [];
   if (interval === "daily" && rows.length <= 35) return rows.map((row) => row.date);
@@ -1857,7 +1872,7 @@ function PriceVolumeChart({ data, symbol }) {
               />
             </label>
             <div className="font-mono text-[11px] uppercase tracking-[.08em] text-[#71839A]">
-              {visibleChartData.length ? `${dateAxisLabel(visibleChartData[0].date, "daily")} - ${dateAxisLabel(visibleChartData[visibleChartData.length - 1].date, "daily")} / ${visibleChartData.length} points` : "No prices in selected window"}
+              {visibleChartData.length ? `${dateRangeLabel(visibleChartData[0].date, visibleChartData[visibleChartData.length - 1].date)} / ${visibleChartData.length} points` : "No prices in selected window"}
             </div>
             <button
               type="button"
@@ -2613,7 +2628,13 @@ function CorporateActionsSection({ actions }) {
                 <div key={`${action.name || action.purpose || action.type}-${index}`} className="w-80 border border-[#233650] bg-[#02060D] p-3">
                   <div className="font-mono text-[11px] font-semibold uppercase tracking-[.1em] text-white">{action.name || action.purpose || action.type || "Corporate action"}</div>
                   <div className="mt-1 font-mono text-[11px] text-[#F5A623]">{actionDate(action)}</div>
-                  {details ? <div className="mt-2 text-xs leading-relaxed text-[#CBD5E1]">{details}</div> : null}
+                  {details.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {details.map((detail) => (
+                        <span key={detail} className="border border-white/10 bg-white/[.04] px-2 py-1 text-[11px] leading-4 text-[#CBD5E1]">{detail}</span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -2682,11 +2703,11 @@ function actionDetails(action) {
     .filter((item) => !/date/i.test(item.name || "") && primitiveDetailValue(item.value))
     .slice(0, 4);
   if (interesting.length) {
-    return interesting.map((item) => `${item.name}: ${item.value}`).join(" | ");
+    return interesting.map((item) => `${item.name}: ${item.value}`);
   }
-  if (action.amount !== undefined && action.amount !== null) return `Amount: ${action.amount}`;
-  if (action.ratio) return `Ratio: ${action.ratio}`;
-  return "";
+  if (action.amount !== undefined && action.amount !== null) return [`Amount: ${action.amount}`];
+  if (action.ratio) return [`Ratio: ${action.ratio}`];
+  return [];
 }
 
 function primitiveDetailValue(value) {
