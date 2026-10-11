@@ -596,6 +596,74 @@ html.lenis, html.lenis body { height: auto; }
   box-shadow: none;
 }
 
+:root[data-theme="light"] .stock-fundamentals-page {
+  --terminal-bg: #f4f7fb;
+  --terminal-panel: #ffffff;
+  --terminal-panel-alt: #f8fafc;
+  --terminal-line: #d8e0ea;
+  --terminal-line-strong: #b9c6d5;
+  --terminal-amber: #b7791f;
+  --terminal-text: #07182f;
+  --terminal-muted: #52647d;
+  --terminal-subtle: #334155;
+  background: #f4f7fb;
+  color: var(--terminal-text);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page .terminal-panel,
+:root[data-theme="light"] .stock-fundamentals-page section {
+  background: var(--terminal-panel) !important;
+  border-color: var(--terminal-line) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page nav {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: var(--terminal-line) !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page table {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page th {
+  background: #eef3f8;
+  color: #7a5614 !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page tbody td {
+  color: #334155;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page tbody tr:hover td {
+  background: rgba(183, 121, 31, 0.06);
+}
+
+:root[data-theme="light"] .stock-fundamentals-page .cms-input,
+:root[data-theme="light"] .stock-fundamentals-page select.cms-input,
+:root[data-theme="light"] .stock-fundamentals-page input[type="date"] {
+  background: #ffffff !important;
+  border-color: var(--terminal-line-strong) !important;
+  color: var(--terminal-text) !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#02060D"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#030914"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#050E1D"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#061225"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#071326"],
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#07182F"] {
+  background-color: #ffffff !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page [class*="bg-[#233650"] {
+  background-color: #d8e0ea !important;
+}
+
+:root[data-theme="light"] .stock-fundamentals-page .recharts-cartesian-grid line {
+  stroke: rgba(82, 100, 125, 0.18);
+}
+
 :root[data-theme="light"] .App article,
 :root[data-theme="light"] .App aside,
 :root[data-theme="light"] .App [role="tabpanel"] {
