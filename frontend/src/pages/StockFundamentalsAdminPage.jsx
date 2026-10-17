@@ -1,3 +1,4 @@
+import IncomeGrowthView from "@/components/IncomeGrowthView";
 import DetailedShareholding from "@/components/DetailedShareholding";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -2276,10 +2277,18 @@ function PeriodCoverageNotice({ period, data }) {
   );
 }
 
-function MultiMetricChart({ id, title, subtitle, data, unit, bars, lines = [], stacked = false }) {
+function MultiMetricChart({ id, title, subtitle, data, unit, bars, lines = [], stacked = false, growthRows, period = "yearly", isBank = false }) {
+  const [view, setView] = useState("amounts");
+  const [growthBasis, setGrowthBasis] = useState("yoy");
+  const showGrowth = growthRows !== undefined && view === "growth";
+  const comparison = period === "quarterly" && growthBasis === "qoq" ? "QoQ" : "YoY";
   return (
-    <DataSection id={id} title={title} subtitle={subtitle}>
-      <div className="stock-chart-frame h-64 min-w-0 sm:h-80">
+    <DataSection id={id} title={title} subtitle={showGrowth ? `${comparison} revenue, net profit and EPS growth. ${comparison === "QoQ" ? "Compared with the previous quarter." : period === "quarterly" ? "Compared with the same quarter last year." : "Compared with the previous financial year."}` : subtitle}>
+      {growthRows !== undefined ? <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-[#233650] p-1" aria-label="P&L chart view">{["amounts", "growth"].map((mode) => <button type="button" key={mode} aria-pressed={view === mode} onClick={() => setView(mode)} className={`rounded px-4 py-2 text-xs ${view === mode ? "bg-[#F5A623] text-[#050E1D]" : "text-[#94A3B8]"}`}>{mode === "amounts" ? "Amounts" : "Growth %"}</button>)}</div>
+        {showGrowth && period === "quarterly" ? <div className="flex gap-2" aria-label="Growth comparison">{["yoy", "qoq"].map((basis) => <button type="button" key={basis} aria-pressed={growthBasis === basis} onClick={() => setGrowthBasis(basis)} className={`rounded border px-3 py-2 text-xs ${growthBasis === basis ? "border-[#F5A623] text-[#F5A623]" : "border-[#233650] text-[#94A3B8]"}`}>{basis === "yoy" ? "YoY" : "QoQ"}</button>)}</div> : null}
+      </div> : null}
+      {showGrowth ? <IncomeGrowthView rows={growthRows} period={period} basis={growthBasis} unit={unit} isBank={isBank} /> : <div className="stock-chart-frame h-64 min-w-0 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data}>
             <XAxis dataKey="period" stroke="#94A3B8" fontSize={10} axisLine={false} tickLine={false} />
@@ -2295,7 +2304,7 @@ function MultiMetricChart({ id, title, subtitle, data, unit, bars, lines = [], s
             ))}
           </ComposedChart>
         </ResponsiveContainer>
-      </div>
+      </div>}
     </DataSection>
   );
 }
@@ -3418,6 +3427,9 @@ export default function StockFundamentalsAdminPage() {
             {chartData.income.length ? (
               <MultiMetricChart
                 id="profit-loss-chart"
+                growthRows={data.incomeStatement?.income_statement || []}
+                period={period}
+                isBank={bankingCompany}
                 title="Profit & Loss Overview"
                 subtitle={bankingCompany ? `${period === "quarterly" ? "Quarterly" : "Yearly"} interest earned, profit before tax and net profit.` : `${period === "quarterly" ? "Quarterly" : "Yearly"} sales, operating profit and net profit from the income statement.`}
                 data={chartData.income}
