@@ -1,9 +1,11 @@
+import DetailedShareholding from "@/components/DetailedShareholding";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, BarChart3, Database, Droplets, Gauge, Landmark, RefreshCcw, Search, ShieldCheck, TrendingUp, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import AdminShell from "@/components/cms/AdminShell";
+import CompanyBrowser from "@/components/CompanyBrowser";
 import { cmsRequest, formatCmsDateTime } from "@/lib/cms";
 
 const GOLD = "#F5A623";
@@ -27,7 +29,6 @@ const SHAREHOLDING_LABELS = {
   retail_and_other: "Retail/Others",
 };
 
-const DEFAULT_QUERY = "RELIANCE";
 const YEARLY_PERIOD_LIMIT = 6;
 const QUARTERLY_PERIOD_LIMIT = YEARLY_PERIOD_LIMIT * 4;
 const PROFITABILITY_PERIOD_LIMIT = 9;
@@ -57,6 +58,7 @@ const DASHBOARD_TABS = [
   { id: "cash-flow", label: "Cash Flow" },
   { id: "ratios", label: "Ratios" },
   { id: "shareholding", label: "Shareholding" },
+  { id: "ownership-structure", label: "Structure" },
   { id: "competitors", label: "Peers" },
   { id: "corporate-actions", label: "Actions" },
 ];
@@ -894,8 +896,27 @@ function isBankingCompany(data) {
   return /\bbank\b|banking|nbfc|financial services/.test(descriptor);
 }
 
-function buildProfitLossRows(rows, period, expanded, isBank = false) {
-  return buildGroupedStatementRows(rows, period, expanded, isBank ? BANK_PROFIT_LOSS_GROUPS : PROFIT_LOSS_GROUPS, 0);
+function isBankCompany(data) {
+  // The banking statement layout also serves NBFCs; NPA disclosure is bank-only.
+  const industry = data?.profile?.industry || "";
+  const descriptor = [industry, data?.profile?.sector, data?.instrument?.name].filter(Boolean).join(" ");
+  if (/\bnbfc\b|non[\s-]*bank(?:ing)?|insurance|asset management/i.test(industry)) return false;
+  return /\bbanks?\b|\bbanking\b/i.test(descriptor);
+}
+
+function buildProfitLossRows(rows, period, expanded, isBank = false, segmentRows = []) {
+  const revenuePeriods = new Set((rows || []).find((row) => financialRowKey(row) === "revenue")?.history
+    ?.slice(0, financialPeriodLimit(period)).map((point) => point.period) || []);
+  const segments = (segmentRows || []).map((row) => ({
+    ...row,
+    history: (row.history || []).filter((point) => revenuePeriods.has(point.period)),
+  })).filter(hasMeaningfulHistory);
+  const groups = (isBank ? BANK_PROFIT_LOSS_GROUPS : PROFIT_LOSS_GROUPS).map((group) => (
+    group.key === "revenue" && segments.length
+      ? { ...group, children: segments.map(financialRowKey) }
+      : group
+  ));
+  return buildGroupedStatementRows([...(rows || []), ...segments], period, expanded, groups, 0);
 }
 
 function ratioByAnyName(ratios, names) {
@@ -2507,10 +2528,56 @@ function ShareholdingPieChart({ shareholding, periodMode = "yearly" }) {
   );
 }
 
-function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [], isBank = false }) {
+function OwnershipStructureTable({ rows }) {
+  const periods = shareholdingPeriods(rows).slice(0, 12).reverse();
+  const definitions = [
+    ["total_shares", "Total shares (Cr)", "Cr"],
+    ["locked_in_percent", "Locked-in shares %", "%"],
+    ["pledged_percent", "Pledged shares %", "%"],
+    ["promoter_pledged_percent", "Promoter pledged shares %", "%"],
+    ["total_shareholders", "Total shareholders", "count"],
+  ];
+  return (
+    <DataSection id="ownership-structure" title="Structure Summary" subtitle="Latest 12 quarterly filings. Pledged shares % uses total company shares; promoter pledged shares % uses promoter and promoter-group holdings. Zero is shown when reported or confirmed by a no-shares declaration. N/A means the API supplies neither.">
+      {periods.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm" style={{ minWidth: Math.max(860, 260 + periods.length * 120) }}>
+            <thead className="border-b border-[#233650] font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">
+              <tr>
+                <th scope="col" className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal">Metric</th>
+                {periods.map((label) => <th scope="col" key={label} className="px-3 py-2 font-normal">{displayPeriodLabel(label)}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#233650]/70">
+              {definitions.map(([category, label, unit]) => {
+                const row = (rows || []).find((item) => item.category === category);
+                const highlighted = category.includes("pledged");
+                return (
+                  <tr key={category} className={highlighted ? "bg-[#0B2A40]" : ""}>
+                    <th scope="row" className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal text-white">{label}</th>
+                    {periods.map((periodLabel) => {
+                      const point = row?.history?.find((item) => item.period === periodLabel);
+                      const value = numericValue(point?.value);
+                      const text = value === null ? "N/A" : unit === "%" ? (value > 0 && value < 0.01 ? `${value.toFixed(6)}%` : percentText(value)) : value.toLocaleString("en-IN", { maximumFractionDigits: unit === "count" ? 0 : 2 });
+                      return <td key={periodLabel} title={point?.source === "declaration_no_shares" ? "FinEdge declaration explicitly reports no shares in this category." : value === null ? "FinEdge did not supply a numeric value or a declaration confirming none." : "Calculated from reported share counts where available."} className={`px-3 py-2 tabular-nums ${highlighted && value > 0 ? "text-[#C98182]" : "text-[#CBD5E1]"}`}>{text}</td>;
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">Ownership structure disclosures are not available for this company.</div>
+      )}
+    </DataSection>
+  );
+}
+
+function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearly", priorityRows = [], isBank = false, segmentRows = [] }) {
   const [expanded, setExpanded] = useState({});
   const categories = id === "profit-loss"
-    ? buildProfitLossRows(rows, period, expanded, isBank)
+    ? buildProfitLossRows(rows, period, expanded, isBank, segmentRows)
     : id === "balance-sheet"
       ? buildGroupedStatementRows(rows, period, expanded, isBank ? BANK_BALANCE_SHEET_GROUPS : BALANCE_SHEET_GROUPS, 0)
       : id === "cash-flow"
@@ -2534,7 +2601,7 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
             <tbody className="divide-y divide-[#233650]/70">
               {categories.map((row) => (
                 <tr key={`${row.category}-${row.depth || 0}`} className={row.strong ? "bg-white/[.035] font-semibold" : ""}>
-                  <td className={`sticky left-0 bg-[#06101D] px-3 py-2 ${row.depth ? "pl-8 text-[#9FB0C4]" : "text-white"}`}>
+                  <td title={row.description} className={`sticky left-0 bg-[#06101D] px-3 py-2 ${row.depth ? "pl-8 text-[#9FB0C4]" : "text-white"}`}>
                     {row.expandable ? (
                       <button
                         type="button"
@@ -2562,6 +2629,50 @@ function CategoryHistoryTable({ id, title, subtitle, rows, unit, period = "yearl
         <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">
           No clean statement rows are available for this section.
         </div>
+      )}
+    </DataSection>
+  );
+}
+
+function BankAssetQualityTable({ rows, statementRows, period, statementType }) {
+  const periods = uniquePeriodsFromHistory(buildProfitLossRows(statementRows, period, {}, true));
+  const metrics = [
+    ["gross_npa_percent", "Gross NPA %"],
+    ["net_npa_percent", "Net NPA %"],
+    ["cet1_ratio", "CET1 ratio %"],
+  ].map(([category, label]) => ({
+    category,
+    label,
+    history: (rows || []).find((row) => row.category === category)?.history || [],
+  }));
+
+  return (
+    <DataSection id="bank-asset-quality" title="Bank Asset Quality" subtitle={`Gross and net non-performing assets and common equity tier 1 capital, in percent.${statementType === "standalone" ? " Based on standalone bank disclosures." : ""}`}>
+      {periods.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm" style={{ minWidth: Math.max(860, 300 + periods.length * 130) }}>
+            <thead className="border-b border-[#233650] font-mono text-[10px] uppercase tracking-[.14em] text-[#F5A623]">
+              <tr>
+                <th scope="col" className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal">Metric</th>
+                <th scope="col" className="px-3 py-2 font-normal">Trend</th>
+                {periods.map((label) => <th scope="col" key={label} className="px-3 py-2 font-normal">{displayPeriodLabel(label)}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#233650]/70">
+              {metrics.map((row) => (
+                <tr key={row.category}>
+                  <th scope="row" className="sticky left-0 bg-[#06101D] px-3 py-2 font-normal text-white">{row.label}</th>
+                  <td className="px-3 py-2"><ProfitabilityTrend history={periods.map((label) => row.history.find((point) => point.period === label)).filter(Boolean)} /></td>
+                  {periods.map((label) => (
+                    <td key={label} className="px-3 py-2 tabular-nums text-[#CBD5E1]">{percentText(row.history.find((point) => point.period === label)?.value)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="border border-white/10 bg-[#050E1D]/45 p-5 text-sm text-[#94A3B8]">Bank asset quality history is not available for this company.</div>
       )}
     </DataSection>
   );
@@ -3076,8 +3187,8 @@ function formatDurationMs(value) {
 
 export default function StockFundamentalsAdminPage() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState(DEFAULT_QUERY);
-  const [submittedQuery, setSubmittedQuery] = useState(DEFAULT_QUERY);
+  const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [statementType, setStatementType] = useState("consolidated");
   const [period, setPeriod] = useState("yearly");
   const [data, setData] = useState(null);
@@ -3232,12 +3343,15 @@ export default function StockFundamentalsAdminPage() {
           <h1 className="mt-1 font-mono text-2xl font-semibold uppercase leading-tight text-white sm:text-3xl">Stock fundamentals</h1>
           <p className="mt-2 max-w-2xl text-xs text-[#7F90A8]">Price, profile, ratios, statements, holdings, actions, peers and diagnostics.</p>
         </div>
-        <button onClick={loadFundamentals} disabled={loading} className="mt-4 inline-flex h-9 items-center justify-center gap-2 self-start border border-[#40546E] px-3 font-mono text-xs uppercase tracking-[.1em] text-[#CBD5E1] hover:border-[#F5A623] hover:text-white disabled:opacity-60 lg:mt-0 lg:self-auto">
+        <button onClick={loadFundamentals} disabled={loading || !submittedQuery} className="mt-4 inline-flex h-9 items-center justify-center gap-2 self-start border border-[#40546E] px-3 font-mono text-xs uppercase tracking-[.1em] text-[#CBD5E1] hover:border-[#F5A623] hover:text-white disabled:opacity-60 lg:mt-0 lg:self-auto">
           <RefreshCcw size={16} />Refresh
         </button>
       </header>
 
+      <CompanyBrowser profile={data?.profile} onOpen={openCompetitor} onAuthError={() => navigate("/blog/admin/login", { replace: true })} />
+
       <section className="mt-3 border border-[#233650] bg-[#030914] p-3">
+        <h2 className="mb-4 font-mono text-sm uppercase tracking-[.12em] text-white">Direct search</h2>
         <form onSubmit={submit} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_140px] md:items-end">
           <label>
             <span className="mb-2 block text-[10px] uppercase tracking-[.14em] text-[#71839A]">Security</span>
@@ -3249,7 +3363,7 @@ export default function StockFundamentalsAdminPage() {
                 onChange={(event) => updateQuery(event.target.value)}
                 className="cms-input h-12 pr-4"
                 style={{ paddingLeft: "2.5rem" }}
-                placeholder="RELIANCE, INFY, HDFCBANK, ISIN..."
+                placeholder="Company name, symbol or ISIN"
               />
             </div>
             <datalist id="stock-fundamental-suggestions">
@@ -3263,11 +3377,13 @@ export default function StockFundamentalsAdminPage() {
             </datalist>
           </label>
           <SelectControl label="Statement" value={statementType} onChange={setStatementType} options={[["consolidated", "Consolidated"], ["standalone", "Standalone"]]} />
-          <button disabled={loading} className="inline-flex h-12 items-center justify-center gap-2 bg-[#F5A623] px-4 font-mono text-xs font-semibold uppercase tracking-[.1em] text-[#050E1D] hover:bg-[#E7C56B] disabled:opacity-60">
+          <button disabled={loading || !query.trim()} className="inline-flex h-12 items-center justify-center gap-2 bg-[#F5A623] px-4 font-mono text-xs font-semibold uppercase tracking-[.1em] text-[#050E1D] hover:bg-[#E7C56B] disabled:opacity-60">
             <BarChart3 size={16} />{loading ? "Loading..." : "Load data"}
           </button>
         </form>
       </section>
+
+      {!data && !loading && !error ? <p className="py-8 text-center text-sm text-[#94A3B8]">Choose a company to view its fundamentals.</p> : null}
 
       {error ? (
         <section className="mt-8 border border-[#C98182]/25 bg-[#C98182]/5 p-6">
@@ -3343,6 +3459,8 @@ export default function StockFundamentalsAdminPage() {
             <ShareholdingPieChart shareholding={data.shareholding} periodMode={period} />
           </section>
 
+          <DetailedShareholding key={data.profile?.symbol || submittedQuery} rows={data.shareholdingDetails} />
+          <OwnershipStructureTable rows={data.ownershipStructure} />
           <PeriodCoverageNotice period={period} data={data} />
 
           <section className="border border-white/10 bg-[#050E1D]/45 p-5">
@@ -3351,7 +3469,8 @@ export default function StockFundamentalsAdminPage() {
             <p className="mt-1 text-sm text-[#94A3B8]">Core statement rows grouped for fast review.</p>
           </section>
 
-          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`${bankingCompany ? "Banking statement lines" : "Core statement lines"} in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} isBank={bankingCompany} />
+          <CategoryHistoryTable id="profit-loss" title={period === "quarterly" ? "Quarterly Results" : "Profit & Loss"} subtitle={`${bankingCompany ? "Banking statement lines" : "Core statement lines"} in ${data.incomeStatement?.units_in || "reported units"}. Showing up to ${financialPeriodLimit(period)} ${period === "quarterly" ? "quarters" : "years"}.`} rows={data.incomeStatement?.income_statement} unit={data.incomeStatement?.units_in} period={period} priorityRows={CORE_INCOME_ROWS} isBank={bankingCompany} segmentRows={data.revenueSegments} />
+          {isBankCompany(data) ? <BankAssetQualityTable rows={data.bankAssetQuality} statementRows={data.incomeStatement?.income_statement} period={period} statementType={data.bankAssetQualityStatementType} /> : null}
           <ProfitabilityRatiosTable rows={data.profitabilityRatios} />
           <CategoryHistoryTable id="balance-sheet" title="Balance Sheet" subtitle={`${bankingCompany ? "Banking assets and liabilities" : "Liabilities and assets"} in ${data.balanceSheet?.units_in || "reported units"}. Expand grouped lines for breakdowns.`} rows={data.balanceSheet?.balance_sheet} unit={data.balanceSheet?.units_in} period={period} priorityRows={[]} isBank={bankingCompany} />
           <CategoryHistoryTable id="cash-flow" title="Cash Flow" subtitle="Core operating, investing and financing cash-flow lines." rows={data.cashFlow?.cash_flow} unit={data.cashFlow?.units_in} period={period} priorityRows={CORE_CASH_ROWS} />
