@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from time import monotonic, time
 from urllib.parse import quote, urlparse
 import asyncio
@@ -32,9 +32,11 @@ from starlette.concurrency import run_in_threadpool
 try:
     from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
     from backend.portfolio_report import read_current_portfolio_report, save_portfolio_upload
+    from backend.market_data import ENDPOINTS as MARKET_ENDPOINTS, market_params, normalize_market_payload
 except ModuleNotFoundError:
     from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
     from portfolio_report import read_current_portfolio_report, save_portfolio_upload
+    from market_data import ENDPOINTS as MARKET_ENDPOINTS, market_params, normalize_market_payload
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -70,6 +72,7 @@ _market_ticker_cache = {"items": None, "fetched_at": 0.0}
 _nifty_50_constituents_cache = {"items": None, "fetched_at": 0.0}
 _stock_fundamentals_cache = {}
 _stock_search_cache = {}
+_public_market_cache = {}
 _finedge_symbol_cache = {"items": None, "fetched_at": 0.0}
 
 # Content CMS configuration. Admin identities are provisioned via environment
@@ -475,6 +478,16 @@ async def admin_stock_fundamentals_search(
 ):
     instruments = await asyncio.to_thread(_search_finedge_stocks, query)
     return JSONResponse({"items": instruments[:10]}, headers={"Cache-Control": "no-store"})
+
+
+@api_router.get("/stocks/admin/fundamentals/browse")
+async def admin_stock_classification_search(
+    group: Literal["sector", "industry"],
+    value: str = Query(..., min_length=1, max_length=120),
+    _admin=Depends(require_admin),
+):
+    items = await asyncio.to_thread(_search_finedge_classification, group, value)
+    return JSONResponse({"items": items, "total": len(items), "group": group, "value": value.strip()}, headers={"Cache-Control": "no-store"})
 
 
 @api_router.get("/stocks/admin/fundamentals")
@@ -1186,6 +1199,7 @@ def _normalize_finedge_stock(row: Dict[str, Any]) -> Dict[str, Any]:
         "exchange": exchange or "NSE/BSE",
         "segment": "EQ",
         "instrumentType": _first_value(row, ["instrumentType", "type"]) or "Equity",
+        "bseCode": _first_value(row, ["bse_code", "bseCode"]),
     }
 
 
@@ -1206,15 +1220,45 @@ def _search_finedge_stocks(query: str):
     if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
         return cached["items"]
 
-    payload = _safe_finedge_get("/stock-search", {"query": query.strip()}, default=[])
-    items = [_normalize_finedge_stock(item) for item in _payload_items(payload) if isinstance(item, dict)]
-    if not items:
-        needle = query.strip().upper()
-        items = [
-            item for item in _finedge_all_symbols()
-            if needle in str(item.get("symbol") or "").upper() or needle in str(item.get("name") or "").upper() or needle in str(item.get("isin") or "").upper()
-        ][:20]
+    needle = query.strip().upper()
+    items = [
+        item for item in _finedge_all_symbols()
+        if needle in str(item.get("symbol") or "").upper() or needle in str(item.get("name") or "").upper() or needle in str(item.get("isin") or "").upper()
+    ][:20]
     items = [item for item in items if item.get("symbol")]
+    _stock_search_cache[cache_key] = {"items": items, "fetched_at": monotonic()}
+    return items
+
+
+def _search_finedge_classification(group: str, value: str):
+    value = value.strip()
+    if group not in {"sector", "industry"} or not value:
+        raise HTTPException(status_code=400, detail="Choose a sector or industry and enter its classification name.")
+    cache_key = f"CLASSIFICATION:{group}:{value.casefold()}"
+    cached = _stock_search_cache.get(cache_key)
+    if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
+        return cached["items"]
+    # Unlike name search, this endpoint accepts an exact classification value
+    # and returns symbol strings, including BSE codes.
+    payload = _finedge_get("/stock-search", {"group": group, "value": value})
+    directory = {}
+    for item in _finedge_all_symbols():
+        for key in (item.get("symbol"), item.get("bseCode")):
+            if key:
+                directory[str(key).strip().upper()] = item
+    items, seen = [], set()
+    for entry in _payload_items(payload, ["symbols", "items", "results"]):
+        if isinstance(entry, dict):
+            entry = entry.get("symbol")
+        symbol = str(entry).strip().upper() if isinstance(entry, (str, int)) else ""
+        if not symbol:
+            continue
+        item = directory.get(symbol) or _normalize_finedge_stock({"symbol": symbol})
+        if item["symbol"] in seen:
+            continue
+        seen.add(item["symbol"])
+        items.append(item)
+    items.sort(key=lambda item: str(item.get("name") or item["symbol"]).casefold())
     _stock_search_cache[cache_key] = {"items": items, "fetched_at": monotonic()}
     return items
 
@@ -1629,6 +1673,111 @@ def _ratio_percent_value(value):
     if number is None:
         return None
     return number * 100 if abs(number) <= 1 else number
+
+
+def _normalize_revenue_segments(payload, period, income_statement, warnings=None):
+    records = _payload_items(payload, ["segment_revenues", "data", "results", "items"])
+    revenue = _category_history_map(income_statement.get("income_statement", []), "revenue")
+    categories = {}
+
+    def add_point(key, label, period_label, value, description=None):
+        row = categories.setdefault(key, {"category": key, "label": label, "history": []})
+        if description:
+            row["description"] = description
+        # A filing may be repeated in a provider response; keep one point.
+        row["history"] = [point for point in row["history"] if point["period"] != period_label]
+        row["history"].append({"period": period_label, "value": value, "change": None})
+
+    records = [row for row in records if isinstance(row, dict)]
+    records.sort(key=lambda row: _period_sort_value(row.get("header", "")), reverse=True)
+    for record in records:
+        header = str(record.get("header") or "").strip()
+        if not header or header.upper() in {"TTM", "YTD"}:
+            continue
+        period_label = _period_label({"period": header}, 0, period)
+        if period == "yearly":
+            year = re.search(r"(19\d{2}|20\d{2})", header)
+            if year:
+                period_label = year.group(0)
+        if period_label not in revenue:
+            continue
+        segments = [segment for segment in record.get("segments") or [] if isinstance(segment, dict)]
+        reported_total = _to_number((record.get("data") or {}).get("segmentRevenue"))
+        reported_parts = sum(_to_number((segment.get("data") or {}).get("segmentRevenue")) or 0 for segment in segments)
+        if reported_total is not None and abs(reported_parts - reported_total) > max(100_000, abs(reported_total) * 0.000001):
+            if warnings is not None:
+                warnings.append({
+                    "severity": "warning", "section": "revenueSegments", "metric": "Revenue",
+                    "code": "segment_revenue_total_mismatch",
+                    "message": f"{header}: FinEdge's segment figures do not match its reported segment total. The breakdown is unavailable for this period.",
+                })
+            continue
+        segment_total = 0
+        found = False
+        for segment in segments:
+            if not isinstance(segment, dict):
+                continue
+            name = str(segment.get("name") or "").strip()
+            value = _to_number((segment.get("data") or {}).get("segmentRevenue"))
+            if not name or value is None:
+                continue
+            # Treat punctuation variants such as Oil & Gas / Oil and Gas alike.
+            key = "segment_" + re.sub(r"[^a-z0-9]", "", name.lower().replace("&", "and"))
+            amount = value / 10_000_000
+            add_point(key, name, period_label, amount)
+            segment_total += amount
+            found = True
+        if not found:
+            continue
+        elimination = _to_number((record.get("data") or {}).get("interSegmentRevenue"))
+        if elimination is not None:
+            elimination /= 10_000_000
+            add_point("segment_inter_segment", "Less: inter-segment revenue", period_label, -elimination)
+        remainder = revenue[period_label] - (segment_total - (elimination or 0))
+        add_point(
+            "segment_reconciliation", "Other revenue adjustments", period_label, round(remainder, 6),
+            "Difference between reported segment revenue after inter-segment eliminations and P&L revenue.",
+        )
+    for row in categories.values():
+        row["history"].sort(key=lambda point: _period_sort_value(point["period"]), reverse=True)
+    streams = [row for key, row in categories.items() if key not in {"segment_inter_segment", "segment_reconciliation"}]
+    adjustments = [categories[key] for key in ("segment_inter_segment", "segment_reconciliation") if key in categories]
+    return streams + adjustments
+
+
+def _normalize_bank_asset_quality_history(rows, period):
+    # These FinEdge statement fields are fractions, unlike the monetary NPA
+    # fields. Keep them separate from the statement's rupees-to-crores scaling.
+    fields = [
+        ("percentageOfGrossNpa", "gross_npa_percent", "Gross NPA %"),
+        ("percentageOfNpa", "net_npa_percent", "Net NPA %"),
+        ("cET1Ratio", "cet1_ratio", "CET1 ratio %"),
+    ]
+    result = []
+    for field, category, label in fields:
+        points = {}
+        for index, row in enumerate(rows or []):
+            if not isinstance(row, dict):
+                continue
+            # FinEdge uses an all-zero disclosure tuple when consolidated bank
+            # ratios are unavailable. An individual zero NPA remains valid.
+            if all(_to_number(row.get(key)) == 0 for key, _, _ in fields):
+                continue
+            value = _to_number(row.get(field))
+            if value is None:
+                continue
+            period_label = _period_label(row, index, period)
+            if period_label in {"TTM", "YTD"}:
+                continue
+            points[period_label] = {
+                "period": period_label,
+                "value": round(value * 100, 2),
+                "change": None,
+            }
+        history = sorted(points.values(), key=lambda point: _period_sort_value(point["period"]), reverse=True)
+        if history:
+            result.append({"category": category, "label": label, "history": history})
+    return result
 
 
 def _normalize_profitability_ratio_history(payload):
@@ -2140,6 +2289,82 @@ def _merge_history_categories(items):
     return normalized
 
 
+def _normalize_ownership_structure(summary_payload, distribution_payload, declaration_payload=None):
+    definitions = [
+        ("total_shares", "Total shares (Cr)", "Cr"),
+        ("locked_in_percent", "Locked-in shares %", "%"),
+        ("pledged_percent", "Pledged shares %", "%"),
+        ("promoter_pledged_percent", "Promoter pledged shares %", "%"),
+        ("total_shareholders", "Total shareholders", "count"),
+    ]
+    metrics = {key: {"category": key, "label": label, "unit": unit, "history": []} for key, label, unit in definitions}
+    summaries = {str(row["header"]): row for row in _payload_items(summary_payload, ["summary"])
+                 if isinstance(row, dict) and row.get("header")}
+    distributions = {str(row["date_header"]): row for row in _payload_items(distribution_payload, ["distributions"])
+                     if isinstance(row, dict) and row.get("date_header")}
+
+    declarations = {str(row["header"]): row for row in _payload_items(declaration_payload or {}, ["declaration"])
+                    if isinstance(row, dict) and row.get("header")}
+
+    def percentage(data, count_key, percent_key):
+        count = _to_number(data.get(count_key))
+        total = _to_number(data.get("totalShares"))
+        if count is not None and total is not None and total > 0:
+            return count / total * 100
+        value = _to_number(data.get(percent_key))
+        return value if value is not None and 0 <= value <= 100 else None
+
+    for label in sorted(set(summaries) | set(distributions) | set(declarations), key=_period_sort_value, reverse=True):
+        summary = summaries.get(label, {})
+        promoter = next((row.get("data") or {} for row in distributions.get(label, {}).get("distributions", [])
+                         if row.get("group") == "promoterAndPromoterGroup"), {})
+        total = _to_number(summary.get("totalShares"))
+        values = {
+            "total_shares": total / 10_000_000 if total is not None else None,
+            "locked_in_percent": percentage(summary, "lockedInShares", "lockedInSharesPct"),
+            "pledged_percent": percentage(summary, "pledgedShares", "pledgedSharesPct"),
+            "promoter_pledged_percent": percentage(promoter, "pledgedShares", "pledgedSharesPct"),
+            "total_shareholders": _to_number(summary.get("totalShareholders")),
+        }
+        declaration = declarations.get(label, {})
+        declared_zeros = set()
+        for metric, flag in (("locked_in_percent", "lockedInShares"),
+                             ("promoter_pledged_percent", "pledgedSharesForPromoterAndGroup")):
+            if values[metric] is None and declaration.get(flag) is False:
+                values[metric] = 0
+                declared_zeros.add(metric)
+        # A promoter-only flag cannot establish total-company pledged shares.
+        for key, value in values.items():
+            if value is not None:
+                point = {"period": label, "value": round(value, 6), "change": None}
+                if key in declared_zeros:
+                    point["source"] = "declaration_no_shares"
+                metrics[key]["history"].append(point)
+    return [row for row in metrics.values() if row["history"]]
+
+
+def _normalize_detailed_shareholding(payload):
+    """Preserve reported parent totals and named holders without aggregating them."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("rows"), list):
+        return []
+
+    def normalize(row, identity):
+        if not isinstance(row, dict):
+            return None
+        name = str(row.get("name") or row.get("catagory") or row.get("category") or "").strip()
+        if not name:
+            return None
+        values = row.get("data") if isinstance(row.get("data"), dict) else {}
+        history = [{"period": label, "value": _to_number(value), "change": None}
+                   for label, value in sorted(values.items(), key=lambda item: _period_sort_value(item[0]), reverse=True)]
+        children = [child for i, item in enumerate(row.get("shareholders") or [])
+                    if (child := normalize(item, f"{identity}-{i}")) is not None]
+        return {"category": identity, "label": name, "history": history, "children": children}
+
+    return [row for i, item in enumerate(payload["rows"])
+            if (row := normalize(item, f"reported-{i}")) is not None]
+
+
 def _normalize_shareholding(payload, period="quarterly"):
     if isinstance(payload, dict) and isinstance(payload.get("rows"), list):
         columns = payload.get("columns") or []
@@ -2524,7 +2749,10 @@ def _stock_section_counts(result):
         "cashFlow": _history_point_count(result.get("cashFlow", {}).get("cash_flow")),
         "ratios": len(result.get("ratios") or []),
         "profitabilityRatios": _history_point_count(result.get("profitabilityRatios")),
+        "bankAssetQuality": _history_point_count(result.get("bankAssetQuality")),
+        "revenueSegments": _history_point_count(result.get("revenueSegments")),
         "shareholding": _history_point_count(result.get("shareholding")),
+        "ownershipStructure": _history_point_count(result.get("ownershipStructure")),
         "corporateActions": len(result.get("corporateActions") or []),
         "competitors": len(result.get("competitors") or []),
         "priceHistory": len(result.get("priceHistory") or []),
@@ -2629,6 +2857,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     requested_balance_rows = _finedge_statement(symbol, statement_type, "bs", period)
     requested_cash_rows = _finedge_statement(symbol, statement_type, "cf", period)
     income_rows = requested_income_rows
+    standalone_income_rows = []
     balance_rows = requested_balance_rows
     cash_rows = requested_cash_rows
     effective_statement_type = statement_type
@@ -2639,7 +2868,10 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "cashFlow": "finedge",
         "ratios": "finedge",
         "profitabilityRatios": "finedge",
+        "bankAssetQuality": "finedge",
+        "revenueSegments": "finedge",
         "shareholding": "finedge",
+        "ownershipStructure": "finedge",
         "corporateActions": "finedge",
         "competitors": "finedge",
         "priceHistory": "finedge",
@@ -2671,6 +2903,13 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             data_sources["cashFlow"] = "finedge:standalone"
 
     normalized_income_statement = _history_from_period_rows(income_rows, period, INCOME_STATEMENT_ALIASES, scale=10_000_000)
+    bank_asset_quality = _normalize_bank_asset_quality_history(income_rows, period)
+    bank_asset_quality_statement_type = effective_statement_type
+    if not bank_asset_quality and effective_statement_type == "consolidated":
+        bank_asset_quality = _normalize_bank_asset_quality_history(standalone_income_rows, period)
+        if bank_asset_quality:
+            bank_asset_quality_statement_type = "standalone"
+            data_sources["bankAssetQuality"] = "finedge:standalone"
     if period == "yearly":
         normalized_income_statement = _merge_category_history(
             normalized_income_statement,
@@ -2704,6 +2943,11 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     }
 
     finedge_type = "c" if effective_statement_type == "consolidated" else "s"
+    segment_payload = _safe_finedge_get(
+        f"/segment-revenue/{_stock_symbol_path(symbol)}",
+        {"statement_type": finedge_type, "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"},
+        default={},
+    )
     current_year = datetime.now(timezone.utc).year
     ratio_payloads = [
         _safe_finedge_get(f"/ratios/{_stock_symbol_path(symbol)}", {"statement_type": finedge_type, "ratio_type": ratio_type}, default=[])
@@ -2843,6 +3087,10 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             }
     ratios = _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet, price_ratio_snapshot, _ttm_net_profit_from_statement(quarterly_income_statement))
     shareholding_payload = _safe_finedge_get(f"/shareholdings/pattern/{_stock_symbol_path(symbol)}", {"period": "quarterly"}, default=[])
+    ownership_summary = _safe_finedge_get(f"/shareholdings/summary/{_stock_symbol_path(symbol)}", {"period": "quarterly"}, default={})
+    ownership_distribution = _safe_finedge_get(f"/shareholdings/distribution/{_stock_symbol_path(symbol)}", {"period": "quarterly"}, default={})
+    ownership_declaration = _safe_finedge_get(f"/shareholdings/declaration/{_stock_symbol_path(symbol)}", {"period": "quarterly"}, default={})
+    ownership_structure = _normalize_ownership_structure(ownership_summary, ownership_distribution, ownership_declaration)
     shareholding = _normalize_shareholding(shareholding_payload, "quarterly")
     if not shareholding and upstox_isin:
         shareholding = _normalize_upstox_shareholding(_safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/share-holdings", default=[]))
@@ -2904,6 +3152,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         {"label": "Net Profit", "value": latest_net_profit.get("value") if latest_net_profit else None, "period": latest_net_profit.get("period") if latest_net_profit else None, "unit": income_statement.get("units_in"), "change": latest_net_profit.get("change") if latest_net_profit else None},
     ]
 
+    revenue_segments = _normalize_revenue_segments(segment_payload, period, income_statement, data_quality)
     result = {
         "provider": "finedge",
         "sources": data_sources,
@@ -2919,10 +3168,15 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "highlights": [item for item in highlights if item.get("value") not in (None, "")],
         "ratios": ratios,
         "profitabilityRatios": profitability_ratios,
+        "bankAssetQuality": bank_asset_quality,
+        "bankAssetQualityStatementType": bank_asset_quality_statement_type,
+        "revenueSegments": revenue_segments,
         "incomeStatement": income_statement,
         "balanceSheet": balance_sheet,
         "cashFlow": cash_flow,
         "shareholding": shareholding,
+        "shareholdingDetails": _normalize_detailed_shareholding(shareholding_payload),
+        "ownershipStructure": ownership_structure,
         "corporateActions": corporate_actions,
         "competitors": competitors,
         "dataQuality": data_quality,
@@ -2930,6 +3184,81 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     result["devMetrics"] = _stock_dev_metrics(result, started_at)
     _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}
     return result
+
+
+def _public_market_feed(section, params):
+    key = (section, tuple(sorted(params.items())))
+    cached = _public_market_cache.get(key)
+    if cached and monotonic() - cached["stored_at"] < 300:
+        return {**cached["data"], "cached": True}
+    try:
+        payload = _finedge_get(MARKET_ENDPOINTS[section], params)
+        items = normalize_market_payload(section, payload)
+    except (HTTPException, requests.RequestException, ValueError):
+        logger.warning("Market feed unavailable: %s", section)
+        raise HTTPException(status_code=502, detail="This market feed is temporarily unavailable. Please try again.")
+    data = {"section": section, "items": items, "total": len(items), "provider": "FinEdge", "filters": params,
+            "fetchedAt": datetime.now(timezone.utc).isoformat(), "cached": False}
+    if len(_public_market_cache) >= 256:
+        _public_market_cache.pop(next(iter(_public_market_cache)))
+    _public_market_cache[key] = {"data": data, "stored_at": monotonic()}
+    return data
+
+
+@api_router.get("/market-data/{section}")
+async def admin_market_data(
+    section: Literal["ipo", "results", "announcements", "transcripts", "indices", "valuations"],
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    symbol: Optional[str] = Query(None, max_length=30),
+    index_symbol: Optional[str] = Query(None, max_length=60),
+    _admin=Depends(require_admin),
+):
+    try:
+        params = market_params(section, from_date, to_date, symbol, index_symbol)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return await asyncio.to_thread(_public_market_feed, section, params)
+
+
+def _commodity_feed(category=None, code=None):
+    try:
+        from backend.market_data import normalize_commodity_list, normalize_commodity_history, normalize_commodity_changes
+    except ImportError:
+        from market_data import normalize_commodity_list, normalize_commodity_history, normalize_commodity_changes
+    key = ("commodities", code or category)
+    cached = _public_market_cache.get(key)
+    if cached and monotonic() - cached["stored_at"] < 300:
+        return {**cached["data"], "cached": True}
+    try:
+        if code:
+            data = {"code": code, "history": normalize_commodity_history(_finedge_get(f"/commodity-price/{code}"))}
+            try:
+                data["changes"] = normalize_commodity_changes(_finedge_get(f"/commodity-pct-change/{code}"))
+            except (HTTPException, requests.RequestException, ValueError):
+                data["changes"] = []
+                data["changesUnavailable"] = True
+        else:
+            data = {"items": normalize_commodity_list(_finedge_get("/commodity-list", {"category": category})), "category": category}
+    except (HTTPException, requests.RequestException, ValueError):
+        raise HTTPException(status_code=502, detail="Commodity data is temporarily unavailable. Please try again.")
+    data.update({"provider": "FinEdge", "fetchedAt": datetime.now(timezone.utc).isoformat(), "cached": False})
+    if len(_public_market_cache) >= 256:
+        _public_market_cache.pop(next(iter(_public_market_cache)))
+    _public_market_cache[key] = {"data": data, "stored_at": monotonic()}
+    return data
+
+
+@api_router.get("/commodities")
+async def commodity_list(category: Literal["monthly_index", "core_infra"] = "monthly_index", _admin=Depends(require_admin)):
+    return await asyncio.to_thread(_commodity_feed, category=category)
+
+
+@api_router.get("/commodities/{code}")
+async def commodity_history(code: str, _admin=Depends(require_admin)):
+    if not re.fullmatch(r"[0-9]{1,12}", code):
+        raise HTTPException(status_code=400, detail="Select a valid commodity code.")
+    return await asyncio.to_thread(_commodity_feed, code=code)
 
 
 @api_router.get("/market-ticker")
