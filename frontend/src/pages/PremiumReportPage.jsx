@@ -5,6 +5,7 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, T
 import PremiumCalculationTrace from "@/components/PremiumCalculationTrace";
 import AdminShell from "@/components/cms/AdminShell";
 import { cmsRequest } from "@/lib/cms";
+import { startPremiumReportPolling } from "@/lib/premiumReportPolling";
 
 const field = "mt-2 h-12 w-full rounded-lg border border-[#2B3B51] bg-[#081322] px-3 text-sm text-white outline-none focus:border-[#D6AE62]";
 const panel = "rounded-xl border border-[#26374D] bg-[#0A1626] p-5 sm:p-6";
@@ -60,6 +61,7 @@ export default function PremiumReportPage() {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [connectionIssue, setConnectionIssue] = useState("");
   const authError = (err) => { if (err.status === 401) navigate("/blog/admin/login", { replace: true }); else setError(err.message); };
   useEffect(() => {
     const controller = new AbortController();
@@ -70,23 +72,15 @@ export default function PremiumReportPage() {
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, navigate]);
   useEffect(() => {
-    setReport(null); setError("");
+    setReport(null); setError(""); setConnectionIssue("");
     if (!reportId) { setLoading(false); return undefined; }
-    const controller = new AbortController();
-    let timer;
     setLoading(true);
-    const poll = async () => {
-      try {
-        const data = await cmsRequest(`/premium-reports/${reportId}`, { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        setReport(data); setLoading(false);
-        if (data.state === "generating") timer = setTimeout(poll, 2500);
-      } catch (err) {
-        if (!controller.signal.aborted) { setLoading(false); if (err.status === 401) navigate("/blog/admin/login", { replace: true }); else setError(err.message); }
-      }
-    };
-    poll();
-    return () => { controller.abort(); clearTimeout(timer); };
+    return startPremiumReportPolling({
+      load: (signal) => cmsRequest(`/premium-reports/${reportId}`, { signal }),
+      onData: (data) => { setReport(data); setLoading(false); setConnectionIssue(""); },
+      onRetry: (delay) => { setLoading(false); setConnectionIssue(`The connection was interrupted. Retrying automatically in ${Math.ceil(delay / 1000)} seconds. Your report may still be generating.`); },
+      onError: (err) => { setLoading(false); setConnectionIssue(""); if (err.status === 401) navigate("/blog/admin/login", { replace: true }); else setError(err.message); },
+    });
   }, [reportId, retry, navigate]);
   const generate = async (symbol = query, statement = basis) => {
     setSubmitting(true); setError("");
@@ -109,6 +103,8 @@ export default function PremiumReportPage() {
   return <AdminShell><div className="mx-auto mt-7 max-w-6xl text-white"><Link to="/blog/admin" className="inline-flex items-center gap-2 text-sm text-[#D6AE62]"><ArrowLeft size={15} />Back to CMS</Link><header className="mb-7 mt-6"><p className="text-[10px] uppercase tracking-[.25em] text-[#D6AE62]">Research on demand</p><h1 className="mt-3 font-serif-display text-4xl text-white sm:text-5xl">Premium Report</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-[#93A4B9]">Generate an explainable company health assessment, inspect the data behind it and download the report as a PDF.</p></header>
     <form className={panel} onSubmit={(e) => { e.preventDefault(); generate(); }}><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end"><label className="text-xs text-[#B6C5D8]">Company<input className={field} list="premium-company-suggestions" placeholder="Company name, symbol or ISIN" value={query} onChange={(e) => setQuery(e.target.value)} required minLength={2} maxLength={80} /><datalist id="premium-company-suggestions">{suggestions.map((row) => <option key={row.instrumentKey || row.symbol} value={row.symbol}>{row.name}</option>)}</datalist></label><label className="text-xs text-[#B6C5D8]">Statement basis<select className={field} value={basis} onChange={(e) => setBasis(e.target.value)}><option value="consolidated">Consolidated</option><option value="standalone">Standalone</option></select></label><button disabled={busy || query.trim().length < 2} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#D6AE62] px-5 text-sm font-semibold text-[#081322] disabled:opacity-40"><FileText size={16} />{busy ? "Generating…" : "Generate Report"}</button></div><p className="mt-4 text-xs leading-5 text-[#71839A]">Generation can take a few minutes while financial history and peer benchmarks load. Reports are generated on demand and are not saved to a report history.</p></form>
     {error ? <div role="alert" className="mt-5 rounded-lg border border-[#A16666] bg-[#3A2026] p-4 text-sm text-[#F0C2C2]">{error}{reportId ? <Link to="/blog/admin/premium-reports" className="ml-3 underline">Generate a new report</Link> : null}{reportId ? <button className="ml-3 underline" onClick={() => setRetry(retry + 1)}>Retry loading</button> : null}</div> : null}
+    {submitting ? <p role="status" className="mt-5 text-sm text-[#93A4B9]">Starting your report. Resolving the company and opening the generation page…</p> : null}
+    {connectionIssue ? <p role="status" className="mt-5 rounded-lg border border-[#62748E] p-4 text-sm text-[#D6AE62]">{connectionIssue}</p> : null}
     {loading ? <p role="status" className="py-10 text-center text-[#93A4B9]">Loading report…</p> : null}
     {report?.state === "generating" ? <section role="status" className={`${panel} mt-6`}><div className="flex items-center gap-3"><RefreshCcw size={20} className="animate-spin text-[#D6AE62]" /><h2 className="text-xl">Preparing {report.company.name}</h2></div><p className="mt-3 text-sm leading-6 text-[#93A4B9]">Fetching the selected statement basis, checking date coverage and calculating the model. Keep this page open until generation finishes.</p></section> : null}
     {report?.state === "failed" ? <section role="alert" className={`${panel} mt-6`}><h2 className="text-xl">Report generation interrupted</h2><p className="mt-3 text-sm text-[#93A4B9]">{report.error}</p><button disabled={submitting} onClick={() => generate(report.company.symbol, report.statementType)} className="mt-4 rounded border border-[#D6AE62] px-4 py-2 text-sm text-[#D6AE62]">Generate again</button></section> : null}
