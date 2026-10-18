@@ -21,6 +21,7 @@ import BlogAdminNewPage from "@/pages/BlogAdminNewPage";
 import BlogAdminEditPage from "@/pages/BlogAdminEditPage";
 import BlogAdminPreviewPage from "@/pages/BlogAdminPreviewPage";
 import StockFundamentalsAdminPage from "@/pages/StockFundamentalsAdminPage";
+import PremiumReportPage from "@/pages/PremiumReportPage";
 import MarketsPage from "@/pages/MarketsPage";
 import AdminRoute from "@/components/cms/AdminRoute";
 import { Toaster } from "@/components/ui/sonner";
@@ -63,6 +64,8 @@ function AppContent() {
               <Route path="/blog/admin/edit/:id" element={<BlogAdminEditPage />} />
               <Route path="/blog/admin/preview/:id" element={<BlogAdminPreviewPage />} />
               <Route path="/blog/admin/stock-fundamentals" element={<StockFundamentalsAdminPage />} />
+              <Route path="/blog/admin/premium-reports" element={<PremiumReportPage />} />
+              <Route path="/blog/admin/premium-reports/:reportId" element={<PremiumReportPage />} />
               <Route path="/blog/admin/markets" element={<MarketsPage />} />
               <Route path="/markets" element={<Navigate to="/blog/admin/markets" replace />} />
             </Route>

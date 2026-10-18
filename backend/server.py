@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile, Query, Request, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -16,6 +16,7 @@ from urllib.parse import quote, urlparse
 import asyncio
 import bcrypt
 import hashlib
+import secrets
 import jwt
 import nh3
 import re
@@ -26,7 +27,7 @@ import csv
 from io import StringIO
 from html import escape
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pymongo.errors import ServerSelectionTimeoutError
 from starlette.concurrency import run_in_threadpool
 try:
@@ -499,6 +500,135 @@ async def admin_stock_fundamentals(
 ):
     data = await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period)
     return JSONResponse(data, headers={"Cache-Control": "no-store"})
+
+
+class PremiumReportRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=80)
+    statement_type: Literal["consolidated", "standalone"] = "consolidated"
+
+
+_premium_generation_slots = asyncio.Semaphore(2)
+# Transient generation state only: no report collection, persistence or history API.
+_PREMIUM_JOB_TTL_SECONDS = 30 * 60
+_PREMIUM_JOB_LIMIT = 20
+_premium_jobs = {}
+
+
+def _prune_premium_jobs():
+    now = monotonic()
+    for key, job in list(_premium_jobs.items()):
+        if job["expires"] <= now:
+            _premium_jobs.pop(key, None)
+
+
+async def _generate_premium_report(report_id, symbol, name, statement_type, created_at):
+    try:
+        from backend.premium_service import generate_report
+    except ImportError:
+        from premium_service import generate_report
+    try:
+        async with _premium_generation_slots:
+            report = await asyncio.to_thread(generate_report, _finedge_get, symbol, name, statement_type, report_id, created_at)
+            job = _premium_jobs.get(report_id)
+            if job and job["expires"] > monotonic() and job["report"]["state"] == "generating":
+                job["report"] = report
+    except Exception:
+        logger.warning("Premium report generation failed: %s", report_id)
+        job = _premium_jobs.get(report_id)
+        if job:
+            job["report"] = {**job["report"], "state": "failed", "error": "The report could not be generated. Please retry."}
+
+
+@api_router.post("/premium-reports", status_code=202)
+async def create_premium_report(payload: PremiumReportRequest, background_tasks: BackgroundTasks, _admin=Depends(require_admin)):
+    _prune_premium_jobs()
+    instrument = await asyncio.to_thread(_resolve_finedge_stock, payload.query.strip())
+    symbol = str(instrument.get("symbol") or "").upper()
+    if not re.fullmatch(r"[A-Z0-9.&-]{1,30}", symbol):
+        raise HTTPException(status_code=400, detail="Select a valid company symbol.")
+    if len(_premium_jobs) >= _PREMIUM_JOB_LIMIT:
+        completed = next((key for key, job in _premium_jobs.items() if job["report"]["state"] != "generating"), None)
+        if completed is None:
+            raise HTTPException(status_code=429, detail="Report generation is busy. Please try again shortly.")
+        _premium_jobs.pop(completed, None)
+    report_id = uuid.uuid4().hex
+    created_at = datetime.now(timezone.utc).isoformat()
+    pending = {"id": report_id, "state": "generating", "createdAt": created_at, "statementType": payload.statement_type,
+               "company": {"symbol": symbol, "name": instrument.get("name") or symbol}}
+    _premium_jobs[report_id] = {"report": pending, "expires": monotonic() + _PREMIUM_JOB_TTL_SECONDS}
+    asyncio.get_running_loop().call_later(_PREMIUM_JOB_TTL_SECONDS, _premium_jobs.pop, report_id, None)
+    background_tasks.add_task(_generate_premium_report, report_id, symbol, instrument.get("name"), payload.statement_type, created_at)
+    return JSONResponse(pending, status_code=202, headers={"Cache-Control": "no-store"})
+
+
+async def _current_premium_report(report_id):
+    _prune_premium_jobs()
+    if not re.fullmatch(r"[a-f0-9]{32}", report_id):
+        raise HTTPException(status_code=404, detail="Report not found or expired. Generate a new report.")
+    job = _premium_jobs.get(report_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Report not found or expired. Generate a new report.")
+    report = job["report"]
+    if report["state"] == "generating" and (datetime.now(timezone.utc) - datetime.fromisoformat(report["createdAt"])).total_seconds() > 600:
+        report = {**report, "state": "failed", "error": "Generation was interrupted or timed out. Please generate a new report."}
+        job["report"] = report
+    return report
+
+
+@api_router.get("/premium-reports/{report_id}")
+async def get_premium_report(report_id: str, _admin=Depends(require_admin)):
+    return JSONResponse(await _current_premium_report(report_id), headers={"Cache-Control": "no-store"})
+
+
+# Short-lived, one-use, report-scoped capabilities support browser-native attachment
+# downloads without placing the administrator JWT in URLs or granting report browsing.
+_premium_pdf_tokens = {}
+
+
+@api_router.post("/premium-reports/{report_id}/download-link")
+async def premium_report_download_link(report_id: str, _admin=Depends(require_admin)):
+    report = await _current_premium_report(report_id)
+    if report["state"] != "ready":
+        raise HTTPException(status_code=409, detail="The report is not ready to download.")
+    now = monotonic()
+    for key, value in list(_premium_pdf_tokens.items()):
+        if value["expires"] <= now:
+            _premium_pdf_tokens.pop(key, None)
+    if len(_premium_pdf_tokens) >= 200:
+        _premium_pdf_tokens.pop(next(iter(_premium_pdf_tokens)))
+    token = secrets.token_urlsafe(32)
+    key = hashlib.sha256(token.encode()).hexdigest()
+    _premium_pdf_tokens[key] = {"id": report_id, "expires": now + 120}
+    return JSONResponse({"url": f"/api/premium-report-downloads/{token}", "expiresIn": 120}, headers={"Cache-Control": "no-store"})
+
+
+@api_router.get("/premium-report-downloads/{token}")
+async def premium_report_attachment(token: str):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{40,60}", token):
+        raise HTTPException(status_code=404, detail="Download link is invalid or expired.")
+    key = hashlib.sha256(token.encode()).hexdigest()
+    capability = _premium_pdf_tokens.pop(key, None)
+    if not capability or capability["expires"] <= monotonic():
+        raise HTTPException(status_code=404, detail="Download link is invalid or expired. Please download again from the report.")
+    report = await _current_premium_report(capability["id"])
+    return await _premium_pdf_response(report)
+
+
+async def _premium_pdf_response(report):
+    if report["state"] != "ready":
+        raise HTTPException(status_code=409, detail="The report is not ready to download.")
+    try:
+        from backend.premium_pdf import render_premium_pdf
+    except ImportError:
+        from premium_pdf import render_premium_pdf
+    content = await asyncio.to_thread(render_premium_pdf, report)
+    filename = f"FinLit-Premium-{report['company']['symbol']}-{report['id'][:8]}.pdf"
+    return Response(content=content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
+
+
+@api_router.get("/premium-reports/{report_id}/pdf")
+async def download_premium_report(report_id: str, _admin=Depends(require_admin)):
+    return await _premium_pdf_response(await _current_premium_report(report_id))
 
 
 @api_router.get("/content/admin/items")
