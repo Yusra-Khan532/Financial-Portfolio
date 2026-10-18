@@ -165,6 +165,7 @@ export default function BlogAdminPage() {
         <div className="flex flex-col gap-3 md:self-auto">
           <Link to="/blog/admin/stock-fundamentals" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-[#CBD5E1] hover:border-white/25 hover:text-white"><BarChart3 size={16} />Stock Fundamental Data Dashboard</Link>
           <Link to="/blog/admin/markets" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-[#CBD5E1] hover:border-white/25 hover:text-white"><BarChart3 size={16} />Market Events &amp; Index Dashboard</Link>
+          <Link to="/blog/admin/premium-reports" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#D6AE62]/60 bg-[#D6AE62]/10 px-5 py-3 text-sm font-medium text-[#E7CA92] hover:bg-[#D6AE62]/20"><BarChart3 size={16} />Premium Report</Link>
           <Link to="/blog/admin/new" className="inline-flex items-center justify-center rounded-full bg-[#F5A623] px-6 py-3 text-sm font-medium text-[#050E1D] hover:bg-[#FFB33B]">+ New Content</Link>
         </div>
       </header>
