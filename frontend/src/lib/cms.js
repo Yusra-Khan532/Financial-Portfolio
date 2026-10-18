@@ -24,8 +24,9 @@ export function hasCmsSession() {
 
 export async function cmsRequest(path, options = {}) {
   const token = getCmsToken();
+  const { responseType, ...fetchOptions } = options;
   const response = await fetch(`${API}${path}`, {
-    ...options,
+    ...fetchOptions,
     cache: "no-store",
     headers: {
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
@@ -55,7 +56,8 @@ export async function cmsRequest(path, options = {}) {
     throw error;
   }
 
-  return response.status === 204 ? null : response.json();
+  if (response.status === 204) return null;
+  return responseType === "blob" ? response.blob() : response.json();
 }
 
 export function formatCmsDate(value, fallback = "—") {

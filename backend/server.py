@@ -505,6 +505,12 @@ async def admin_stock_fundamentals(
 class PremiumReportRequest(BaseModel):
     query: str = Field(min_length=2, max_length=80)
     statement_type: Literal["consolidated", "standalone"] = "consolidated"
+    delivery: Literal["background", "inline"] = "background"
+
+
+class PremiumSnapshotPDFRequest(BaseModel):
+    report: Dict[str, Any]
+    receipt: str = Field(min_length=16, max_length=2048)
 
 
 _premium_generation_slots = asyncio.Semaphore(2)
@@ -594,6 +600,25 @@ async def create_premium_report(payload: PremiumReportRequest, background_tasks:
     symbol = str(instrument.get("symbol") or "").upper()
     if not re.fullmatch(r"[A-Z0-9.&-]{1,30}", symbol):
         raise HTTPException(status_code=400, detail="Select a valid company symbol.")
+    if payload.delivery == "inline":
+        # Vercel can route each request to a different process. Complete this
+        # request and return a signed snapshot instead of polling local memory.
+        try:
+            from backend.premium_service import generate_report
+            from backend.premium_snapshot import issue
+        except ImportError:
+            from premium_service import generate_report
+            from premium_snapshot import issue
+        report_id = uuid.uuid4().hex
+        created_at = datetime.now(timezone.utc).isoformat()
+        try:
+            async with _premium_generation_slots:
+                report = await asyncio.to_thread(generate_report, _finedge_get, symbol, instrument.get("name"), payload.statement_type, report_id, created_at, _premium_dashboard_inputs)
+            snapshot = issue(report, _admin["sub"], token_secret())
+        except Exception as exc:
+            logger.warning("Inline premium report generation failed (%s): %s", type(exc).__name__, report_id)
+            raise HTTPException(status_code=502, detail="The financial data providers could not complete this report. Please retry.") from None
+        return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
     if len(_premium_jobs) >= _PREMIUM_JOB_LIMIT:
         completed = next((key for key, job in _premium_jobs.items() if job["report"]["state"] != "generating"), None)
         if completed is None:
@@ -672,6 +697,19 @@ async def _premium_pdf_response(report):
     content = await asyncio.to_thread(render_premium_pdf, report)
     filename = f"FinLit-Premium-{report['company']['symbol']}-{report['id'][:8]}.pdf"
     return Response(content=content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
+
+
+@api_router.post("/premium-reports/pdf")
+async def download_current_premium_snapshot(payload: PremiumSnapshotPDFRequest, _admin=Depends(require_admin)):
+    try:
+        from backend.premium_snapshot import verify
+    except ImportError:
+        from premium_snapshot import verify
+    try:
+        report = verify(payload.report, payload.receipt, _admin["sub"], token_secret())
+    except Exception:
+        raise HTTPException(status_code=400, detail="This report is expired or has changed. Generate a fresh report before downloading.") from None
+    return await _premium_pdf_response(report)
 
 
 @api_router.get("/premium-reports/{report_id}/pdf")
