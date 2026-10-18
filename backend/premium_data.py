@@ -18,6 +18,8 @@ except ImportError:
 CR = 10_000_000
 # Reports share a bounded provider budget, including industry requests.
 _PROVIDER_SLOTS = BoundedSemaphore(2)
+_BENCHMARK_OBSERVATIONS = {}
+_BENCHMARK_CACHE_SECONDS = 15 * 60
 
 
 def provider_get(get, path, params):
@@ -119,31 +121,122 @@ def profile_from(raw):
     return p.get("profile", p) if isinstance(p.get("profile", p), dict) else {}
 
 
-def peer_benchmark(get, peers, statement_type, as_of):
+def peer_benchmark(get, peers, statement_type, as_of, group=None):
     """Median of the full returned industry peer universe; never label a sample as complete."""
     symbols = peers.get("peers", []) if isinstance(peers, dict) else []
     symbols = sorted({str(value).upper() for value in symbols if re.fullmatch(r"[A-Za-z0-9.&-]{1,30}", str(value))})
     meta = {"source": "FinEdge industry peer universe", "asOf": as_of.isoformat(), "universeCount": len(symbols), "fetchedCount": 0, "positiveCounts": {}, "basis": statement_type}
-    if not symbols or len(symbols) > 100:
+    if not symbols or len(symbols) > 500:
         return {}, {**meta, "note": "Industry universe unavailable or exceeds the on-demand limit; no partial-universe median was used."}
     def fetch(symbol):
+        cache_key = (get, symbol, statement_type, as_of)
+        cached = _BENCHMARK_OBSERVATIONS.get(cache_key)
+        if cached and time.monotonic() - cached[0] < _BENCHMARK_CACHE_SECONDS:
+            return cached[1]
         try:
             p = provider_get(get, f"/daily-price-ratios/{symbol}", {"statement_type": "c" if statement_type == "consolidated" else "s", "from": str(as_of.year - 1), "to": str(as_of.year)})
             rows = [r for r in items(p, "price_ratios", "data") if field_date(r) and 0 <= (as_of - field_date(r)).days <= 31]
-            return max(rows, key=field_date) if rows else None
+            row = max(rows, key=field_date) if rows else None
+            if row is None or any(num(row.get(key)) is None for key in ("pe", "pb")):
+                derived = derive_peer_price_ratios(get, symbol, statement_type, as_of)
+                if derived:
+                    row = {**derived, **(row or {})}
+                    for key in ("pe", "pb"):
+                        if num(row.get(key)) is None and key in derived:
+                            row[key] = derived[key]
+            if row is not None:
+                if len(_BENCHMARK_OBSERVATIONS) >= 2000:
+                    _BENCHMARK_OBSERVATIONS.pop(next(iter(_BENCHMARK_OBSERVATIONS)))
+                _BENCHMARK_OBSERVATIONS[cache_key] = (time.monotonic(), row)
+            return row
         except Exception: return None
     with ThreadPoolExecutor(max_workers=4) as pool:
         records = list(pool.map(fetch, symbols))
     meta["fetchedCount"] = sum(row is not None for row in records)
+    meta["missingSymbols"] = [symbol for symbol, row in zip(symbols, records) if row is None]
     result = {}
+    meta["calculatedPeerCount"] = sum(row is not None and row.get("source") == "calculated_finedge_quote_and_financials" for row in records)
     # Missing members can bias the median. Require a current observation for every returned peer.
     for key in ("pe", "pb"):
         positive = [num(row.get(key)) for row in records if row and num(row.get(key)) is not None and num(row[key]) > 0]
         meta["positiveCounts"][key] = len(positive)
-        if meta["fetchedCount"] == len(symbols) and len(positive) >= 5:
+        complete = all(row is not None and num(row.get(key)) is not None for row in records)
+        if complete and len(positive) >= 5:
             result["industry_median_" + key] = statistics.median(positive)
-    meta["note"] = "Only positive ratios are included; at least five and full peer-date coverage are required. EV/EBITDA and group fallback medians are unavailable unless separately verified."
+    if group in ("HEAVY", "UTILITY") and len(symbols) <= 100:
+        def enterprise_multiple(symbol):
+            cache_key = (get, symbol, statement_type, as_of, "ev_ebitda")
+            cached = _BENCHMARK_OBSERVATIONS.get(cache_key)
+            if cached and time.monotonic() - cached[0] < _BENCHMARK_CACHE_SECONDS:
+                return cached[1]
+            try:
+                typ = "c" if statement_type == "consolidated" else "s"
+                quote = provider_get(get, "/quote", {"symbol": symbol})
+                balance = provider_get(get, f"/financials/{symbol}", {"statement_type": typ, "statement_code": "bs", "period": "quarterly"})
+                income = provider_get(get, f"/financials/{symbol}", {"statement_type": typ, "statement_code": "pl", "period": "quarterly"})
+                value = derive_peer_ev_ebitda({"quote": quote, "balance_recent": balance, "quarterly": income}, symbol, statement_type, as_of)
+                if value is not None:
+                    if len(_BENCHMARK_OBSERVATIONS) >= 2000:
+                        _BENCHMARK_OBSERVATIONS.pop(next(iter(_BENCHMARK_OBSERVATIONS)))
+                    _BENCHMARK_OBSERVATIONS[cache_key] = (time.monotonic(), value)
+                return value
+            except Exception:
+                return None
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            multiples = list(pool.map(enterprise_multiple, symbols))
+        positive = [value for value in multiples if value is not None and value > 0]
+        meta["evCalculatedCount"] = sum(v is not None for v in multiples)
+        meta["positiveCounts"]["ev_ebitda"] = len(positive)
+        meta["evMissingSymbols"] = [symbol for symbol, value in zip(symbols, multiples) if value is None]
+        if meta["evCalculatedCount"] == len(symbols) and len(positive) >= 5:
+            result["industry_median_ev_ebitda"] = statistics.median(positive)
+    meta["note"] = "FinEdge direct P/E/P/B observations first; EV/EBITDA is calculated from FinEdge market cap, borrowings, cash and four-quarter EBITDA where its peer universe is at most 100. Only positive multiples are included; at least five and full peer-input coverage are required. Unverified Upstox sector averages are not industry medians."
     return result, meta
+
+
+def derive_peer_price_ratios(get, symbol, statement_type, as_of):
+    """Calculate missing observations from dated FinEdge quote/financial inputs."""
+    try:
+        quote_payload = provider_get(get, '/quote', {'symbol': symbol})
+        quote = quote_payload.get(symbol, {}) if isinstance(quote_payload, dict) else {}
+        observed = field_date({'date': str(quote.get('tradetime') or quote.get('date') or '')[:10]})
+        if not observed or not 0 <= (as_of-observed).days <= 10:
+            return None
+        typ = 'c' if statement_type == 'consolidated' else 's'
+        income = provider_get(get, f'/financials/{symbol}', {'statement_type':typ,'statement_code':'pl','period':'quarterly'})
+        balance = provider_get(get, f'/financials/{symbol}', {'statement_type':typ,'statement_code':'bs','period':'quarterly'})
+        d,_,_,meta,_,_ = adapt_inputs({'profile':{'industry':'Auto Components'},'quote':quote_payload,'quarterly':income,'balance_recent':balance}, symbol, as_of, statement_type)
+        row = {'quote_date': observed.isoformat(), 'source':'calculated_finedge_quote_and_financials'}
+        eps = d['eps_q'][-4:]
+        if d['price'] is not None and len(eps)==4 and all(v is not None for v in eps):
+            row['pe'] = d['price']/sum(eps) if sum(eps)>0 else 0.
+        cap = first(quote,'market_cap','marketCap')
+        end = date.fromisoformat(meta['balanceAsOf']) if meta['balanceAsOf'] else None
+        if cap is not None and cap>0 and d['net_worth'] is not None and end and (as_of-end).days<=200:
+            row['pb'] = cap/d['net_worth'] if d['net_worth']>0 else 0.
+        return row if 'pe' in row or 'pb' in row else None
+    except Exception:
+        return None
+
+
+def derive_peer_ev_ebitda(raw, symbol, statement_type, as_of):
+    """Same enterprise-value definition and raw financial adapter as the report."""
+    quote = raw.get('quote', {}).get(symbol, {})
+    observed = field_date({'date': str(quote.get('tradetime') or quote.get('date') or '')[:10]})
+    market_cap = first(quote, 'market_cap', 'marketCap')
+    if not observed or not 0 <= (as_of-observed).days <= 10 or market_cap is None or market_cap <= 0:
+        return None
+    inputs, _, _, meta, _, _ = adapt_inputs({**raw, 'profile': {'industry': 'Oil refining'}}, symbol, as_of, statement_type)
+    q = inputs['operating_profit_q'][-4:]
+    if len(q) != 4 or any(v is None for v in q) or inputs['total_debt'] is None or inputs['cash'] is None:
+        return None
+    balance_day = date.fromisoformat(meta['balanceAsOf']) if meta['balanceAsOf'] else None
+    quarter_day = date.fromisoformat(meta['quarterlyAsOf']) if meta['quarterlyAsOf'] else None
+    if not balance_day or not quarter_day or (as_of-balance_day).days > 200 or (as_of-quarter_day).days > 200:
+        return None
+    ebitda = sum(q)
+    # A known nonpositive denominator is an excluded observation, not a missing input.
+    return (market_cap + inputs['total_debt'] - inputs['cash']) / ebitda if ebitda > 0 else 0.
 
 
 def adapt_inputs(raw, symbol, as_of, statement_type):

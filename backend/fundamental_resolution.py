@@ -52,6 +52,34 @@ def statement_rows(payload, basis, quarterly=False, cashflow=False):
     return list(rows.values())
 
 
+def balance_rows(payload, basis):
+    """Preserve only identified Upstox balance fields and reconciled equity."""
+    if not isinstance(payload, dict) or payload.get('type') != basis or payload.get('units_in') != 'crore':
+        return []
+    rows = {}
+    for item in payload.get('history', []):
+        end = period_end(item.get('period'))
+        if not end:
+            continue
+        row = rows.setdefault(end, {'period_end': end.isoformat()})
+        for field, source in (('totalAssets','total_asset'),('totalLiabilities','total_liability')):
+            value = num(item.get(source))
+            if value is not None:
+                row[field] = value * CR
+    # "Equity Capital" is an aggregate in this feed; verify its accounting identity
+    # rather than treating it as paid-up share capital or assuming missing debt=0.
+    for item in payload.get('full_statement', []):
+        if item.get('particular') not in ('Equity Capital','Total Equity'):
+            continue
+        for point in item.get('history', []):
+            end, equity = period_end(point.get('period')), num(point.get('value'))
+            row = rows.get(end, {})
+            assets, liabilities = first(row,'totalAssets'), first(row,'totalLiabilities')
+            if equity is not None and assets is not None and liabilities is not None and abs(assets-liabilities-equity*CR) <= max(CR*.02,abs(assets)*.0001):
+                row['totalEquity'] = equity*CR
+    return list(rows.values())
+
+
 def derive_finedge(raw):
     """Complete identities only; preserve direct values and zero observations."""
     result, events = deepcopy(raw), []
@@ -73,13 +101,24 @@ def derive_finedge(raw):
                  [('profitLossForPeriod','profitLossForThePeriod'),('nonControllingInterests','profitAttributableToNonControllingInterests')], lambda a,b:a-b)
             fill('totalEquity', ('totalEquity','shareholdersEquity','netWorth','equity'),
                  [('equityAttributableToOwnersOfParent',),('nonControllingInterest','nonControllingInterests')], lambda a,b:a+b)
+            fill('totalAssets', ('totalAssets','totalAsset','assets'),
+                 [('currentAssets','totalCurrentAssets'),('nonCurrentAssets','noncurrentAssets','totalNonCurrentAssets')], lambda a,b:a+b)
+            fill('totalLiabilities', ('totalLiabilities','totalLiability','liabilities'),
+                 [('currentLiabilities','totalCurrentLiabilities'),('nonCurrentLiabilities','noncurrentLiabilities','totalNonCurrentLiabilities')], lambda a,b:a+b)
+            fill('totalEquity', ('totalEquity','shareholdersEquity','netWorth','equity'),
+                 [('totalAssets','totalAsset','assets'),('totalLiabilities','totalLiability','liabilities')], lambda a,b:a-b)
             fill('borrowings', ('borrowings','totalBorrowings','totalDebt'),
                  [('shortTermBorrowings','borrowingsCurrent'),('longTermBorrowings','borrowingsNoncurrent')], lambda a,b:a+b)
             fill('depreciation', ('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),
                  [('depreciationExpense',),('amortisationExpense','amortizationExpense')], lambda a,b:a+b)
             fill('ebitda', ('ebitda','EBITDA'), [('ebit','profitBeforeInterestAndTax'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization')], lambda a,b:a+b)
             fill('ebitda', ('ebitda','EBITDA'), [('profitBeforeTax','profitLossBeforeTax'),('financeCosts','financeCost','interestExpended'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),('otherIncome',)], lambda a,b,c,d:a+b+c-d)
-    quarters = {field_date(r): r for r in items(result.get('quarterly'),'financials','data') if field_date(r)}
+    quarters = {}
+    for point in items(result.get('quarterly'),'financials','data'):
+        end = field_date(point)
+        start = field_date({'date': point.get('period_start') or point.get('periodStart')})
+        if end and (not start or 70 <= (end-start).days+1 <= 105):
+            quarters[end] = point
     for row in items(result.get('annual'),'financials','data'):
         end = field_date(row)
         if not end:
@@ -98,7 +137,9 @@ def derive_finedge(raw):
                 ('profitLossForPeriod',('profitLossForPeriod','profitLossForThePeriod','profitAfterTax','netProfit')),
                 ('profitOrLossAttributableToOwners',('profitOrLossAttributableToOwners','profitAttributableToOwnersOfParent')),
                 ('depreciation',('depreciation','depreciationAndAmortisation','depreciationAndAmortization')),
-                ('financeCosts',('financeCosts','financeCost','interestExpended'))):
+                ('financeCosts',('financeCosts','financeCost','interestExpended')),
+                ('interestEarned',('interestEarned','interestIncome')),
+                ('netInterestIncome',('netInterestIncome','netInterestRevenue','netInterestEarnings'))):
                 values = [first(quarters[day],*aliases) for day in dates]
                 if first(row,*aliases) is None and all(v is not None for v in values):
                     row[target] = sum(values)
@@ -184,4 +225,23 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
         if len({field_date(r) for r in candles[-251:]}) == 251 and all((first(r,'close') or 0) > 0 for r in candles[-251:]) and all(first(r,'volume') is not None and first(r,'volume') >= 0 for r in candles[-60:]) and (as_of-field_date(candles[-1])).days <= 10:
             result['prices'] = {'price': candles}
             events.append(f'Risk inputs use one complete Upstox {payload.get("exchange", "exchange")} daily series ({payload.get("instrumentKey", "")}), {field_date(candles[-251])} to {field_date(candles[-1])}; 251 closes and 60 volume observations. FinEdge quote and financials remain their original source. Exchange prices and volumes can differ; corporate-action adjustment is not independently verified.')
+    # Apply the same period validity rules to dashboard and report tables.
+    for section, quarterly in (('annual',False),('quarterly',True),('cashflow',period == 'quarterly')):
+        payload = result.get(section)
+        if not isinstance(payload, dict) or 'financials' not in payload:
+            continue
+        selected = {}
+        for row in payload['financials']:
+            end = field_date(row)
+            start = field_date({'date': row.get('period_start') or row.get('periodStart')})
+            reported = field_date({'date': row.get('result_date')})
+            if end is None or end > as_of or (reported and reported > as_of):
+                continue
+            if start and not (70 if quarterly else 330) <= (end-start).days+1 <= (105 if quarterly else 400):
+                events.append(f'FinEdge {section} period ending {end} remains unavailable: inconsistent duration and no verified same-period recovery.')
+                continue
+            previous = selected.get(end)
+            if previous is None or str(row.get('result_date') or '') >= str(previous.get('result_date') or ''):
+                selected[end] = row
+        result[section] = {'financials': list(selected.values())}
     return result, events

@@ -1,54 +1,63 @@
-# Missing model data audit — 18 October 2026
+# Shared Stock Fundamentals / Premium Report sources
 
-Compared the premium adapter with the Stock Fundamentals dashboard and live Upstox responses. Scoring engine, owner thresholds, weights, PEG rules and group fills are unchanged. Reports remain temporary; no report history or database collection was introduced.
+Updated 18 October 2026. This supersedes the earlier report-only recovery audit.
 
-## Verified recovery
+## Single production fetch path
 
-| Stock | Previous input coverage | Recovered input coverage | Recovered inputs |
-| --- | ---: | ---: | --- |
-| RELIANCE | 85.0% | 88.0% | Complete daily risk series / maximum drawdown |
-| WHEELS | 79.0% | 88.0% | FY2025 annual operating cash flow, maximum drawdown, trading value |
-| CYIENTDLM | 67.4% | 83.2% | FY2023 revenue and PAT extending CAGR history; maximum drawdown, trading value |
-| RGL | 83.0% | 88.0% | Maximum drawdown, trading value |
-| TDPOWERSYS | 85.0% | 88.0% | Maximum drawdown |
-| MARINE | 83.0% | 88.0% | Maximum drawdown, trading value |
-| APARINDS | 83.0% | 88.0% | Maximum drawdown, trading value |
+Premium generation calls `_premium_dashboard_inputs`, which invokes the same `_fetch_stock_fundamentals` function as the Stock Fundamentals API for yearly and quarterly observations. Both consume the shared `fundamental_resolution` module. The report reuses the dashboard cache and resolved raw observations; its source selection is no longer a separate Upstox recovery implementation.
 
-These are weighted input coverage percentages, not predictive accuracy. The comparison holds the previous FinEdge inputs and industry benchmarks constant and applies newly fetched Upstox data. The next live generation can differ if providers update observations. CYIENTDLM also retains partial quarterly-history credibility; additional annual observations do not fabricate missing quarters.
+Priority: **FinEdge actual → complete calculation from available FinEdge inputs → verified Upstox fallback → N/A**. Valid zeroes and existing reported values are preserved. Missing inputs remain N/A; the scoring engine's documented group fills remain separately labelled assumptions rather than provider facts.
 
-## Why the dashboard could display data the model rejected
+The dashboard's effective consolidated/standalone basis is applied consistently to the report's financial statements. Its separately disclosed standalone bank asset-quality table can supply NPA inputs, with the basis and date explicitly recorded in report provenance and review notes. CET1 never substitutes for total CRAR.
 
-- WHEELS: FinEdge's annual cash-flow endpoint returned FY2025 with January–March duration metadata. The dashboard displayed it without annual-duration validation. The model correctly rejected that duration; Upstox independently labels the same 400.47 crore observation yearly/consolidated, allowing a disclosed replacement.
-- CYIENTDLM: FinEdge annual history starts March 2024. Upstox supplies March 2023 as well. Full-statement `Revenue` excludes other income; the summary `revenue` includes it. Only the full-statement operating revenue is imported. PAT remains explicitly reported PAT; existing owner-attributable profit always takes precedence.
-- Prices: FinEdge's daily series contains zero closes. The dashboard chart currently accepts these zeros. Upstox supplies a complete NSE series. The premium report switches its entire risk series to that one exchange; it never mixes NSE candles/volumes with FinEdge candles. Current quote, financial statements and valuation ratios keep their original sources. Exchange volumes can differ substantially.
+The model's metric definitions still apply to those same observations: lenders use NII, reported owner-attributable profit takes precedence for model earnings, and the report calculates ratios using the model document. Sharing sources does not replace the model's formulas with unrelated displayed ratios.
 
-## Still missing or needing definition reconciliation
+## Shared recovery and derivations
 
-| Input / issue | Finding | Appropriate resolution |
+- Total tax from explicit current plus deferred tax; PAT from PBT minus total tax; owner earnings from PAT minus explicitly reported non-controlling earnings.
+- Equity from explicit owner equity plus non-controlling equity, or assets minus explicitly identified liabilities; debt from current plus noncurrent borrowings, excluding leases.
+- Assets and liabilities from complete current/noncurrent totals. Missing component values are not treated as zero.
+- Operating revenue from explicitly identified total revenue minus other income when operating revenue is absent.
+- Depreciation from identified components or the same-period cash-flow disclosure; EBITDA from complete component identities.
+- Missing annual observations can use four matching, comparable quarters. FinEdge dates/duration are validated before such aggregation. Explicitly reported annual amounts win over sums.
+- Missing same-basis financial periods can then use Upstox full statements, whose units and period type must be declared. Summary revenue including other income is not silently treated as operating revenue. Generic revenue cannot replace bank NII or insurer net premiums.
+- WHEELS FY2025 annual operating cash flow is recovered at 400.47 crore from Upstox's yearly/consolidated disclosure after inconsistent FinEdge annual duration metadata is rejected. Both pages now use that resolution.
+- CYIENTDLM FY2023 revenue/PAT can extend annual history using the same shared Upstox resolution.
+- Both pages select the same complete Upstox daily exchange series when FinEdge risk-history observations are incomplete. No cross-exchange candle splicing. The quote retains its own separately disclosed source.
+- A dashboard quote derived from price history is identified as calculated FinEdge history or Upstox history fallback, rather than mislabelled as a direct FinEdge quote.
+- Where an Upstox balance fallback is used, the report receives those same identified assets/liabilities and reconciled equity. Missing cash or debt is not invented.
+
+Upstox publication dates and corporate-action adjustment cannot be independently verified from these payloads. These are current assessments, not point-in-time historical backtests. Shared checks exclude future reporting periods and explicitly future filing dates where supplied. The old report-only arbitrary 120-day recovery gate has been removed.
+
+## Industry valuation investigation
+
+The old 100-peer P/E/P/B request cap was raised to 500 and observations are cached for 15 minutes. Requests still use the same FinEdge connector as the dashboard. Missing peer ratios are first calculated from available dated FinEdge quotes, four-quarter EPS and book equity. A current P/E observation does not imply that P/B is present.
+
+For HEAVY/UTILITY groups with up to 100 peers, the model also attempts to calculate peer EV/EBITDA from FinEdge market cap, borrowings, cash and complete four-quarter EBITDA. Its definition matches the report's enterprise-value calculation. Larger EV universes remain unavailable within the on-demand calculation budget.
+
+A complete universe with at least five positive observations is still required; no subset median is passed off as complete. Live checks found these remaining coverage issues:
+
+| Check | Latest audited coverage | Outcome |
 | --- | --- | --- |
-| Industry P/E for six manufacturing examples | FinEdge returns 137–309 peers, exceeding the current report request cap of 100. This is our bounded-fetch limitation, not proof the API lacks data. | Build a complete, cached industry benchmark refresh separately from report generation, with coverage and dates; preserve the full-universe median definition. |
-| Industry EV/EBITDA for Reliance | Existing FinEdge daily-price-ratio feed supplies P/E and P/B, not an industry EV/EBITDA median. | Obtain dated peer enterprise values and EBITDA or a provider benchmark explicitly documented as the correct industry median. |
-| Upstox `sector_value` | Dashboard uses it as a displayed sector comparison; response does not establish that it is a same-date industry median or specify its universe/aggregation. | Verify classification, membership, timestamp and aggregation before using it in model industry comparisons. It is not silently substituted. |
-| HDFCBANK gross/net NPA | Consolidated FinEdge disclosure fields are all-zero placeholders; dashboard switches its asset-quality table to separately labelled standalone disclosures. Upstox key ratios also show Net NPA without statement basis/date. | Fetch or verify actual consolidated disclosures, or intentionally generate a fully standalone model. Do not mix unlabelled standalone ratios into consolidated scores. |
-| Total CRAR | Dashboard's CET1 is a component of regulatory capital, not total CRAR; neither audited Upstox key-ratio payload nor the consolidated FinEdge fields supplies verified total CRAR. | Add a verified total-capital adequacy disclosure, with basis and date. CET1 cannot replace it. |
-| Cash / liquid investments | Dashboard balance-sheet cash and current investments are separate items. A current-investment total does not establish that every holding is liquid. | Add only explicitly identified liquid investments or a verified cash-and-liquid-investment aggregate, avoiding bank-balance double counting. |
-| Own P/B / equity definition | Model uses total equity; provider P/B may use parent equity. Coverage does not resolve this difference. | Reconstruct comparable historical P/B from dated total equity and action-aligned shares, or verify provider book-value definition. |
-| Older quarterly data, insurers' solvency, missing pledges in other symbols | Existing verified fields remain the source. Dashboard or Upstox availability alone does not prove matching definitions or dates. | Recover only explicit same-basis disclosures; retain fills/exclusions where none is verified. No zero is invented. |
+| WHEELS industry | 153/182 current peer observations, including three calculated recoveries | Industry median still N/A because other peer inputs remain absent/unusable. |
+| HDFCBANK industry | 40/42 current observations | Industry median still N/A; ESAFSFB and FINOPB remain missing in this run. |
+| RELIANCE industry P/E/P/B | 24/24 observations | Positive P/E and P/B medians available. |
+| RELIANCE industry EV/EBITDA | 10/24 fully calculable observations | Industry EV/EBITDA remains N/A; missing financial components are listed in benchmark metadata. |
 
-Not every dash in the full input tables is a missing scoring input. For example, manufacturing groups do not score industry P/B or industry EV/EBITDA, and cash conversion needs only the latest three matching annual observations. Older WHEELS cash-flow/equity cells remain unavailable where neither audited source supplies them. These cells stay blank; they are not fabricated to make the table look complete.
+Counts can vary with provider updates or transient availability. `missingSymbols`, `evMissingSymbols`, `positiveCounts` and calculation counts are retained in each report's benchmark audit. Upstox's `sector_value` is displayed by the dashboard, but its payload does not verify the same industry universe, date, statement basis or median aggregation. It therefore cannot substitute for the model's industry median.
 
-## Recovery controls and trace
+## Remaining bank / definition gaps
 
-- Exact resolved symbol and, when supplied, ISIN must match before using the existing Upstox dashboard connectors.
-- Financial payload must explicitly state requested consolidated/standalone basis, yearly duration and crore units. Monetary values are converted to the adapter's INR raw units once.
-- Existing valid periods and nonmissing values, including zero and aliases, are preserved. Malformed-duration rows can be replaced by independently labelled annual observations.
-- Upstox financial publication dates are absent. Recovery is limited to mature periods (at least 120 days after period end), and reports explicitly state that this is not point-in-time backtest data. This buffer is not proof of publication availability.
-- Risk recovery requires 251 unique positive closes, 60 valid volume observations and a recent end date. Corporate-action adjustment is not independently verified and is disclosed.
-- Recovery notes identify input section, dates, statement basis, units and exchange in `inputMeta.dataRecovery`, the source audit and existing report/PDF data-quality notes.
-- Connector failure leaves missing inputs visible and does not prevent generation.
+- HDFCBANK NPA now follows the dashboard: audited gross NPA 1.11%, net NPA 0.37%, standalone disclosure dated September 2026, explicitly labelled alongside consolidated financials.
+- Total CRAR remains N/A: the audited sources expose CET1 without enough additional capital components to calculate total CRAR. CET1 is not total capital adequacy.
+- Current investments do not establish liquid investments; only explicitly identified cash/bank/liquid holdings can enter cash. All current investments are not assumed liquid.
+- Provider historical P/B can use parent equity while the model uses total equity. This definition difference remains disclosed.
+- Older unused history cells, metric fields outside the selected group's weights, and unavailable share-count/pledge details may remain N/A. A blank unscored field is not automatically a missing scoring input.
 
-Verified against Upstox's official daily-candle response definition and retrieval limits: https://upstox.com/developer/api-documentation/v3/get-historical-candle-data/ .
+## Provenance and verification
 
-## Validation
+`inputMeta.dashboardSources` records the exact yearly/quarterly dashboard providers, requested and effective basis, bank asset-quality basis and recovery notes. The report's source audit displays these same provider choices. Quarterly dashboard cash-flow warnings are excluded from model annual cash-conversion warnings because the model does not consume quarterly cash flow.
 
-223 backend tests pass, including eight new recovery tests. Fresh WHEELS generation was verified in the signed-in app: 60.6 score, 88% input coverage, FY2025 CFO 400.47 crore, risk coverage 100%, and recovery notes visible. The initial browser polling request needed one retry; the completed report loaded successfully. PDF download was not repeated; existing PDF rendering tests pass.
+234 backend tests pass, including shared-cache/source parity, valid zero preservation, annual-quarter completeness, malformed periods remaining unavailable, disclosure-basis labelling, larger peer universes, peer-ratio derivation and enterprise-value completeness. Existing owner-model parity and PDF rendering tests pass. No scoring thresholds or weights were changed, and report history storage remains removed.
+
+Live source audits covered WHEELS, CYIENTDLM, HDFCBANK and RELIANCE. In-app verification of the fresh AVANTEL report confirmed the source-priority note and matching dashboard yearly/quarterly providers, including shared Upstox price-history recovery. The browser connection initially timed out and recovered on reconnect. No PDF download was repeated.
