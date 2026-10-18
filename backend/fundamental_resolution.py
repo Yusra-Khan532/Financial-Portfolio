@@ -1,0 +1,187 @@
+"""Shared dashboard/report resolution: FinEdge, derivation, Upstox, unavailable.
+
+Financial observations retain their statement basis and units. Market risk uses
+one complete exchange series; individual candles are never spliced across feeds.
+"""
+import calendar
+from copy import deepcopy
+from datetime import date
+try:
+    from .premium_data import items, field_date, first, CR, resolve_group, profile_from
+    from .premium_engine import num
+except ImportError:
+    from premium_data import items, field_date, first, CR, resolve_group, profile_from
+    from premium_engine import num
+
+
+def period_end(label):
+    from datetime import datetime
+    try:
+        day = datetime.strptime(str(label), '%b %Y').date()
+        return day.replace(day=calendar.monthrange(day.year, day.month)[1])
+    except (ValueError, TypeError):
+        return None
+
+
+def statement_rows(payload, basis, quarterly=False, cashflow=False):
+    if not isinstance(payload, dict) or payload.get('type') != basis or payload.get('units_in') != 'crore':
+        return []
+    if payload.get('time_period') != ('quarterly' if quarterly else 'yearly'):
+        return []
+    aliases = {'Cash flow from Operations': ('cashFlowsFromOperatingActivities', CR)} if cashflow else {
+        'Revenue': ('revenueFromOperations', CR), 'Profit After Tax': ('profitLossForPeriod', CR),
+        'Profit Before Tax': ('profitBeforeTax', CR), 'Other Income': ('otherIncome', CR),
+        'EPS - Basic': ('basicEPS', 1), 'EPS - Diluted': ('dilutedEPS', 1)}
+    rows = {}
+    for item in payload.get('full_statement', []):
+        spec = aliases.get(item.get('particular'))
+        if not spec:
+            continue
+        for point in item.get('history', []):
+            end, value = period_end(point.get('period')), num(point.get('value'))
+            if not end or value is None:
+                continue
+            # The provider explicitly labels these observations quarterly/yearly.
+            start_month = end.month - (2 if quarterly else 11)
+            start_year = end.year
+            if start_month <= 0:
+                start_month += 12
+                start_year -= 1
+            row = rows.setdefault(end, {'period_end': end.isoformat(), 'period_start': date(start_year, start_month, 1).isoformat()})
+            row[spec[0]] = value * spec[1]
+    return list(rows.values())
+
+
+def derive_finedge(raw):
+    """Complete identities only; preserve direct values and zero observations."""
+    result, events = deepcopy(raw), []
+    for section in ('quarterly', 'annual', 'balance', 'balance_recent'):
+        for row in items(result.get(section), 'financials', 'data'):
+            def fill(target, aliases, parts, operation):
+                if first(row, *aliases) is not None:
+                    return
+                values = [first(row, *names) for names in parts]
+                if all(value is not None for value in values):
+                    row[target] = operation(*values)
+                    events.append(f'Calculated FinEdge {section} {target} at {field_date(row)} from ' + ', '.join('/'.join(names) for names in parts) + '; existing reported values take precedence.')
+            fill('revenueFromOperations', ('revenueFromOperations','incomeFromOperations','netSales','sales','revenue'),
+                 [('totalRevenue','totalIncome'), ('otherIncome',)], lambda total, other: total-other)
+            fill('taxExpense', ('taxExpense','taxExpenses'), [('currentTax',),('deferredTax',)], lambda a,b:a+b)
+            fill('profitLossForPeriod', ('profitLossForPeriod','profitLossForThePeriod','netProfit','profitAfterTax'),
+                 [('profitBeforeTax','profitLossBeforeTax'),('taxExpense','taxExpenses')], lambda a,b:a-b)
+            fill('profitOrLossAttributableToOwners', ('profitAttributableToOwnersOfParent','profitOrLossAttributableToOwners','profitLossAttributableToOwnersOfParent','profitOrLossAttributableToOwnersOfParent'),
+                 [('profitLossForPeriod','profitLossForThePeriod'),('nonControllingInterests','profitAttributableToNonControllingInterests')], lambda a,b:a-b)
+            fill('totalEquity', ('totalEquity','shareholdersEquity','netWorth','equity'),
+                 [('equityAttributableToOwnersOfParent',),('nonControllingInterest','nonControllingInterests')], lambda a,b:a+b)
+            fill('borrowings', ('borrowings','totalBorrowings','totalDebt'),
+                 [('shortTermBorrowings','borrowingsCurrent'),('longTermBorrowings','borrowingsNoncurrent')], lambda a,b:a+b)
+            fill('depreciation', ('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),
+                 [('depreciationExpense',),('amortisationExpense','amortizationExpense')], lambda a,b:a+b)
+            fill('ebitda', ('ebitda','EBITDA'), [('ebit','profitBeforeInterestAndTax'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization')], lambda a,b:a+b)
+            fill('ebitda', ('ebitda','EBITDA'), [('profitBeforeTax','profitLossBeforeTax'),('financeCosts','financeCost','interestExpended'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),('otherIncome',)], lambda a,b,c,d:a+b+c-d)
+    quarters = {field_date(r): r for r in items(result.get('quarterly'),'financials','data') if field_date(r)}
+    for row in items(result.get('annual'),'financials','data'):
+        end = field_date(row)
+        if not end:
+            continue
+        dates = []
+        for offset in (0,3,6,9):
+            month = end.month-offset
+            year = end.year
+            if month <= 0:
+                month += 12
+                year -= 1
+            dates.append(date(year,month,calendar.monthrange(year,month)[1]))
+        if all(day in quarters for day in dates):
+            for target, aliases in (
+                ('revenueFromOperations',('netSales','sales','revenueFromOperations','incomeFromOperations')),
+                ('profitLossForPeriod',('profitLossForPeriod','profitLossForThePeriod','profitAfterTax','netProfit')),
+                ('profitOrLossAttributableToOwners',('profitOrLossAttributableToOwners','profitAttributableToOwnersOfParent')),
+                ('depreciation',('depreciation','depreciationAndAmortisation','depreciationAndAmortization')),
+                ('financeCosts',('financeCosts','financeCost','interestExpended'))):
+                values = [first(quarters[day],*aliases) for day in dates]
+                if first(row,*aliases) is None and all(v is not None for v in values):
+                    row[target] = sum(values)
+                    events.append(f'Calculated FinEdge annual {target} at {end} from four matching same-basis quarters.')
+    # Match annual depreciation to its same-date cash-flow disclosure before Upstox.
+    cash = {field_date(r): r for r in items(result.get('cashflow'),'financials','data')}
+    for row in items(result.get('annual'),'financials','data'):
+        if first(row,'depreciation','depreciationAndAmortisation','depreciationAndAmortization') is None:
+            value = first(cash.get(field_date(row), {}),'adjForDepreciationAndAmortisationExpense','depreciationAndAmortisation','depreciation')
+            if value is not None:
+                row['depreciation'] = value
+                events.append(f'Calculated FinEdge annual depreciation at {field_date(row)} from the matching cash-flow statement.')
+    return result, list(dict.fromkeys(events))
+
+
+def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True):
+    """Optional loader(section) returns a verified identity's Upstox payload."""
+    result, events = derive_finedge(raw)
+    equivalents = {
+        'revenueFromOperations': ('revenueFromOperations', 'incomeFromOperations', 'revenue', 'totalRevenue'),
+        'profitLossForPeriod': ('profitAttributableToOwnersOfParent', 'profitOrLossAttributableToOwners', 'profitLossAttributableToOwnersOfParent', 'profitOrLossAttributableToOwnersOfParent', 'profitLossForPeriod', 'profitLossForThePeriod', 'netProfitAfterTax', 'profitAfterTax', 'netProfit', 'profitLossAfterTaxAndExtraordinaryItems', 'profitLossAfterTaxBeforeExtraordinaryItems'),
+        'cashFlowsFromOperatingActivities': ('netCashFromOperatingActivities', 'cashFromOperatingActivity', 'cashFlowsFromOperatingActivities', 'cashFlowFromOperatingActivities', 'operatingCashFlow'),
+        'basicEPS': ('basicEPS', 'basicEps', 'basicReInr', 'basicREInr', 'basicEPSInRs', 'eps', 'dilutedEPS', 'dilutedReInr'),
+        'dilutedEPS': ('basicEPS', 'basicEps', 'basicReInr', 'basicREInr', 'basicEPSInRs', 'eps', 'dilutedEPS', 'dilutedReInr'),
+        'profitBeforeTax': ('profitBeforeTax', 'profitLossBeforeTax'),
+        'otherIncome': ('otherIncome',),
+    }
+    def fetch(section):
+        try:
+            return load(section)
+        except Exception:
+            events.append(f'Upstox {section} fallback unavailable; original missing inputs remain disclosed.')
+            return None
+    def merge(section, payload, quarterly=False, cashflow=False):
+        existing = items(result.get(section), 'financials', 'data')
+        current = {field_date(r): r for r in existing if field_date(r)}
+        recovered = []
+        for row in statement_rows(payload, basis, quarterly, cashflow):
+            if resolve_group(profile_from(raw))[0] in ('BANK','NBFC','INSURANCE'):
+                row.pop('revenueFromOperations', None)
+            if len(row) <= 2:
+                continue
+            end = field_date(row)
+            # Publication dates are unavailable: do not use future periods or
+            # claim point-in-time availability for these provider observations.
+            if not end or end > as_of:
+                continue
+            old = current.get(end)
+            bad_duration = False
+            if old and old.get('period_start'):
+                start = field_date({'date': old['period_start']})
+                bad_duration = bool(start and not (70 if quarterly else 330) <= (end-start).days+1 <= (105 if quarterly else 400))
+            if old and not bad_duration:
+                # Keep all actuals, including zero and alternate field names.
+                fields = [k for k in row if k in equivalents and first(old, *equivalents[k]) is None]
+                if fields:
+                    old.update({k: row[k] for k in fields})
+                    recovered.append(end.isoformat() + ' [' + ', '.join(fields) + ']')
+                continue
+            if old:
+                existing.remove(old)
+            existing.append(row)
+            recovered.append(end.isoformat())
+        if recovered:
+            result[section] = {'financials': existing}
+            events.append(f'Upstox {section} ({basis}, crore): recovered periods {", ".join(sorted(recovered))}. Annual/quarterly labels are provider reported; publication dates are unavailable, so this is not point-in-time backtest data.')
+    section = 'annual' if period == 'yearly' else 'quarterly'
+    annual = items(result.get(section), 'financials', 'data')
+    # Only absent observations are fetched; generic revenue cannot replace NII.
+    if len(annual) < (6 if period == 'yearly' else 14) or any(first(r, 'profitLossForPeriod','profitOrLossAttributableToOwners','netProfit','profitAfterTax') is None for r in annual):
+        merge(section, fetch(section), quarterly=period == 'quarterly')
+    annual = items(result.get('annual'), 'financials', 'data')
+    cf = items(raw.get('cashflow'), 'financials', 'data')
+    cf_dates = {field_date(r) for r in cf if first(r, 'netCashFromOperatingActivities', 'cashFromOperatingActivity', 'cashFlowsFromOperatingActivities', 'cashFlowFromOperatingActivities', 'operatingCashFlow') is not None and (not r.get('period_start') or (field_date(r) and field_date({'date':r['period_start']}) and 330 <= (field_date(r)-field_date({'date':r['period_start']})).days+1 <= 400))}
+    if any(field_date(r) not in cf_dates for r in sorted(annual, key=lambda r: field_date(r) or date.min, reverse=True)[:3]):
+        merge('cashflow', fetch('cashflow'), cashflow=True)
+    prices = sorted((r for r in items(raw.get('prices'), 'price','quotes','data') if field_date(r) and field_date(r) <= as_of), key=field_date)
+    invalid = len(prices) < 251 or any((first(r,'close_price','close','adjClose') or 0) <= 0 for r in prices[-251:]) or any(first(r,'volume','tradedVolume') is None for r in prices[-60:])
+    if invalid and recover_prices:
+        payload = fetch('prices')
+        candles = payload.get('prices', []) if isinstance(payload, dict) else []
+        candles = sorted({field_date(r): r for r in candles if field_date(r) and field_date(r) <= as_of}.values(), key=field_date)
+        if len({field_date(r) for r in candles[-251:]}) == 251 and all((first(r,'close') or 0) > 0 for r in candles[-251:]) and all(first(r,'volume') is not None and first(r,'volume') >= 0 for r in candles[-60:]) and (as_of-field_date(candles[-1])).days <= 10:
+            result['prices'] = {'price': candles}
+            events.append(f'Risk inputs use one complete Upstox {payload.get("exchange", "exchange")} daily series ({payload.get("instrumentKey", "")}), {field_date(candles[-251])} to {field_date(candles[-1])}; 251 closes and 60 volume observations. FinEdge quote and financials remain their original source. Exchange prices and volumes can differ; corporate-action adjustment is not independently verified.')
+    return result, events

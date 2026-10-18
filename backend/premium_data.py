@@ -207,7 +207,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
             return value
         if group == "INSURANCE":
             return record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium"))
-        return record(row, "sales", ("revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
+        return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
         return record(row, "net_profit", ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent", "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems", "profitLossAfterTaxBeforeExtraordinaryItems"))
@@ -268,7 +268,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         long = record(current_b, "total_debt", ("longTermBorrowings", "borrowingsNoncurrent"))
         if short is not None and long is not None: d["total_debt"] = short + long
     cfmap = {day.year: row for day, row in cf.items()}
-    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", ("netCashFromOperatingActivities", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")) for year in ykeys]
+    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", ("netCashFromOperatingActivities", "cashFromOperatingActivity", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")) for year in ykeys]
     def loans(row):
         value = record(row, "loans", ("advances", "loansAndAdvances", "loans", "advancesToCustomers"))
         if value is None:
@@ -296,6 +296,18 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         # FinEdge all-zero NPA/CET1 tuples are unavailable disclosure placeholders.
         placeholder = all(first(latest_q, key) == 0 for key in ("percentageOfGrossNpa", "percentageOfNpa", "cET1Ratio"))
         d[target] = None if value is None or placeholder else value * 100
+    quality_rows = dated(items(raw.get("asset_quality"), "financials", "data"))
+    if quality_rows:
+        quality_day = max(quality_rows)
+        quality_row = quality_rows[quality_day]
+        if (as_of - quality_day).days <= 200:
+            for target, name in (("gross_npa_pct", "percentageOfGrossNpa"), ("net_npa_pct", "percentageOfNpa")):
+                placeholder = all(first(quality_row, key) == 0 for key in ("percentageOfGrossNpa", "percentageOfNpa", "cET1Ratio"))
+                if d[target] is None and not placeholder and first(quality_row, name) is not None:
+                    d[target] = round(first(quality_row, name) * 100, 2)
+                    provenance[target] = {f"Dashboard asset-quality disclosure: {raw.get('asset_quality_basis', statement_type)}, {quality_day}, {name}"}
+                    if raw.get("asset_quality_basis") != statement_type:
+                        warnings.append(f"The dashboard's bank asset-quality disclosures use {raw.get('asset_quality_basis')} statements dated {quality_day}; NPA inputs use that explicitly disclosed basis. Financial statements remain {statement_type}.")
     d["solvency_ratio"] = record(latest_q, "solvency_ratio", ("solvencyRatio",), 1)
     summary = dated(items(raw.get("summary"), "summary"))
     distribution = dated(items(raw.get("distribution"), "distributions"))
@@ -427,6 +439,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
     meta = {"groupDefaulted": defaulted, "statementType": statement_type, "quarterlyAsOf": end_q.isoformat() if end_q else None,
             "annualAsOf": max(a).isoformat() if a else None, "balanceAsOf": max(b).isoformat() if b else None,
             "ownershipAsOf": own_date.isoformat() if own_date else None, "priceAsOf": quote_date,
+            "assetQualityStatementType": raw.get("asset_quality_basis", statement_type),
             "provenance": {key: sorted(value) for key, value in provenance.items()}, "chronology": chronology, "valuationChecks": valuation_checks}
     trends = [{"period": period, "revenue": d["sales_y"][i], "profit": d["net_profit_y"][i], "eps": eps(amap.get(ykeys[i], {}))} for i, period in enumerate(chronology["annual"])]
     return d, group, profile, meta, list(dict.fromkeys(warnings)), trends

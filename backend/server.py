@@ -521,27 +521,44 @@ def _prune_premium_jobs():
             _premium_jobs.pop(key, None)
 
 
-def _premium_fallback_load(symbol, profile, statement_type, section):
-    """Reuse dashboard connectors with an exact, verified security identity."""
-    isin = profile.get("isin") or profile.get("ISIN")
-    instrument = _try_resolve_upstox_instrument(isin or symbol)
-    if not instrument or str(instrument.get("symbol", "")).upper() != symbol.upper():
-        return None
-    if isin and instrument.get("isin") != isin:
-        return None
-    resolved_isin = instrument.get("isin")
-    if not resolved_isin:
-        return None
-    if section == "prices":
-        key = instrument.get("instrumentKey")
-        if not key:
-            return None
-        return {"prices": _fetch_upstox_price_history(key), "exchange": instrument.get("exchange"), "instrumentKey": key}
-    if section == "annual":
-        return _upstox_get(f"/fundamentals/{resolved_isin}/income-statement", {"type": statement_type, "time_period": "yearly", "fs": "true"})
-    if section == "cashflow":
-        return _upstox_get(f"/fundamentals/{resolved_isin}/cash-flow", {"type": statement_type, "fs": "true"})
-    return None
+def _premium_dashboard_inputs(symbol, statement_type, now):
+    """Use exactly the dashboard's resolved provider data, including its cache."""
+    annual, quarterly = {}, {}
+    yearly = _fetch_stock_fundamentals(symbol, statement_type, "yearly", annual)
+    effective = yearly["statementType"]
+    quarterly_view = _fetch_stock_fundamentals(symbol, effective, "quarterly", quarterly)
+    if quarterly_view["statementType"] != effective:
+        effective = quarterly_view["statementType"]
+        annual = {}
+        yearly = _fetch_stock_fundamentals(symbol, effective, "yearly", annual)
+    quote_data = yearly.get("quote", {})
+    raw = {"profile": annual.get("profile", {}), "annual": annual.get("income", {}),
+        "quarterly": quarterly.get("income", {}), "balance": annual.get("balance", {}),
+        "balance_recent": quarterly.get("balance", {}), "cashflow": annual.get("cashflow", {}),
+        "prices": annual.get("prices", {}), "summary": annual.get("summary", {}),
+        "distribution": annual.get("distribution", {}), "declaration": annual.get("declaration", {}),
+        "asset_quality": {"financials": quarterly.get("assetQualityRows", [])},
+        "asset_quality_basis": quarterly.get("assetQualityBasis"),
+        "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
+                            "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
+    # Additional history required by the model uses the same FinEdge connector.
+    sources = []
+    for section, path, params in [
+        ("ratios", f"/daily-price-ratios/{_stock_symbol_path(symbol)}", {"statement_type": "c" if effective == "consolidated" else "s", "from": str(now.year-5), "to": str(now.year)}),
+        ("peers", f"/peers/{_stock_symbol_path(symbol)}", {"group": "industry"})]:
+        try:
+            raw[section] = _finedge_get(path, params)
+            available = True
+        except Exception:
+            raw[section], available = {}, False
+        sources.append({"section": section, "available": available, "retrievedAt": now.isoformat()})
+    for period, view in (("yearly", yearly), ("quarterly", quarterly_view)):
+        sources.extend({"section": f"Dashboard {period}: {key} ({provider})", "available": True,
+                        "retrievedAt": view["generatedAt"], "provider": provider} for key, provider in view["sources"].items())
+    notes = list(dict.fromkeys(annual.get("resolutionNotes", []) + quarterly.get("resolutionNotes", [])))
+    return raw, sources, effective, {"yearly": yearly["sources"], "quarterly": quarterly_view["sources"],
+        "requestedStatementType": statement_type, "effectiveStatementType": effective,
+        "bankAssetQualityStatementType": quarterly.get("assetQualityBasis"), "notes": notes}
 
 
 async def _generate_premium_report(report_id, symbol, name, statement_type, created_at):
@@ -551,7 +568,7 @@ async def _generate_premium_report(report_id, symbol, name, statement_type, crea
         from premium_service import generate_report
     try:
         async with _premium_generation_slots:
-            report = await asyncio.to_thread(generate_report, _finedge_get, symbol, name, statement_type, report_id, created_at, _premium_fallback_load)
+            report = await asyncio.to_thread(generate_report, _finedge_get, symbol, name, statement_type, report_id, created_at, _premium_dashboard_inputs)
             job = _premium_jobs.get(report_id)
             if job and job["expires"] > monotonic() and job["report"]["state"] == "generating":
                 job["report"] = report
@@ -2324,7 +2341,7 @@ def _normalize_price_history(payload):
             "high": _to_number(_first_value(row, ["high", "high_price", "highPrice"])) or _to_number(close),
             "low": _to_number(_first_value(row, ["low", "low_price", "lowPrice"])) or _to_number(close),
             "close": _to_number(close),
-            "volume": _to_number(_first_value(row, ["volume", "tradedVolume"])) or 0,
+            "volume": _to_number(_first_value(row, ["volume", "tradedVolume"])),
         })
     return sorted(history, key=lambda item: item["date"])
 
@@ -2974,7 +2991,7 @@ def _compact_competitor(competitor):
     }
 
 
-def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", period: str = "yearly"):
+def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", period: str = "yearly", _model_capture=None):
     started_at = monotonic()
     instrument = _resolve_finedge_stock(query)
     symbol = instrument.get("symbol")
@@ -2997,6 +3014,8 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     cache_key = f"finedge:{symbol}:{statement_type}:{period}"
     cached = _stock_fundamentals_cache.get(cache_key)
     if cached and monotonic() - cached["fetched_at"] < STOCK_FUNDAMENTALS_CACHE_SECONDS:
+        if _model_capture is not None and cached.get("model_inputs") is not None:
+            _model_capture.update(cached["model_inputs"])
         cached_data = {**cached["data"], "cached": True}
         cached_data["devMetrics"] = {
             **cached_data.get("devMetrics", {}),
@@ -3054,6 +3073,36 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             data_sources["incomeStatement"] = "finedge:standalone"
             data_sources["balanceSheet"] = "finedge:standalone"
             data_sources["cashFlow"] = "finedge:standalone"
+
+    # Both pages consume this resolver: FinEdge actuals -> complete identities
+    # calculated from FinEdge -> matching Upstox observations -> unavailable.
+    try:
+        from backend.fundamental_resolution import recover_inputs
+    except ImportError:
+        from fundamental_resolution import recover_inputs
+    raw_section = "annual" if period == "yearly" else "quarterly"
+    shared_raw = {"profile": profile_payload, raw_section: {"financials": income_rows},
+                  "balance": {"financials": balance_rows}, "cashflow": {"financials": cash_rows}}
+    def shared_load(section):
+        if not instrument.get("isin"):
+            return None
+        isin = quote(instrument["isin"], safe="")
+        if section in ("annual", "quarterly"):
+            return _safe_upstox_get(f"/fundamentals/{isin}/income-statement",
+                {"type": effective_statement_type, "time_period": "yearly" if section == "annual" else "quarterly", "fs": "true"}, default={})
+        if section == "cashflow":
+            return _safe_upstox_get(f"/fundamentals/{isin}/cash-flow", {"type": effective_statement_type, "fs": "true"}, default={})
+        return None
+    shared_raw, resolution_notes = recover_inputs(shared_raw, effective_statement_type, datetime.now(timezone.utc).date(), shared_load, period=period, recover_prices=False)
+    income_rows = shared_raw.get(raw_section, {}).get("financials", [])
+    balance_rows = shared_raw.get("balance", {}).get("financials", [])
+    cash_rows = shared_raw.get("cashflow", {}).get("financials", [])
+    for note in resolution_notes:
+        if note.startswith("Upstox") and "recovered periods" in note:
+            data_sources["cashFlow" if "cashflow" in note else "incomeStatement"] = "finedge+upstox:fallback"
+    if resolution_notes:
+        data_quality.append({"severity": "info", "section": "sourceResolution", "code": "shared_resolution",
+            "message": f"Shared FinEdge calculation/recovery checks applied ({len(resolution_notes)} observations).", "details": resolution_notes})
 
     normalized_income_statement = _history_from_period_rows(income_rows, period, INCOME_STATEMENT_ALIASES, scale=10_000_000)
     bank_asset_quality = _normalize_bank_asset_quality_history(income_rows, period)
@@ -3130,10 +3179,15 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         *metric_payloads,
         basic_financials_payload,
     )
+    # Calculate available FinEdge ratios before considering a secondary provider.
+    pre_profile = _normalize_profile(profile_payload, instrument)
+    ratios = _reconcile_valuation_ratios(ratios, pre_profile, income_statement, balance_sheet, price_ratio_snapshot)
     if upstox_isin:
         finedge_ratio_keys = {str(ratio.get("name") or "").upper() for ratio in ratios if isinstance(ratio, dict)}
         if not {"P/E", "P/B", "ROE", "ROCE"}.issubset(finedge_ratio_keys):
+            calculated_ratios = ratios
             ratios = _normalize_ratio_items(
+                calculated_ratios,
                 *ratio_payloads,
                 *metric_payloads,
                 basic_financials_payload,
@@ -3272,11 +3326,21 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
             competitors = upstox_competitors
             data_sources["competitors"] = "upstox"
 
-    price_history = _normalize_price_history(_safe_finedge_get(
+    price_payload = _safe_finedge_get(
         f"/daily-quotes/{_stock_symbol_path(symbol)}",
-        {"from": str(current_year - 6), "to": str(current_year)},
-        default=[],
-    ))
+        {"from": str(current_year - 6), "to": str(current_year)}, default=[],
+    )
+    def load_prices(section):
+        if section != "prices" or not upstox_key:
+            return None
+        return {"prices": _fetch_upstox_price_history(upstox_key), "exchange": upstox_instrument.get("exchange"), "instrumentKey": upstox_key}
+    resolved_prices, price_notes = recover_inputs({"prices": price_payload}, effective_statement_type,
+        datetime.now(timezone.utc).date(), load_prices)
+    price_history = _normalize_price_history(resolved_prices.get("prices"))
+    resolution_notes.extend(price_notes)
+    if any("complete Upstox" in note for note in price_notes):
+        data_sources["priceHistory"] = "upstox:fallback"
+        data_quality.append({"severity": "info", "section": "priceHistory", "code": "shared_price_recovery", "message": price_notes[-1]})
     quote_data = live_quote or _quote_from_price_history(price_history)
     if not quote_data.get("price"):
         try:
@@ -3335,7 +3399,15 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "dataQuality": data_quality,
     }
     result["devMetrics"] = _stock_dev_metrics(result, started_at)
-    _stock_fundamentals_cache[cache_key] = {"data": result, "fetched_at": monotonic()}
+    model_inputs = {"profile": profile_payload, "income": {"financials": income_rows},
+        "balance": {"financials": balance_rows}, "cashflow": {"financials": cash_rows},
+        "prices": {"price": price_history}, "summary": ownership_summary,
+        "distribution": ownership_distribution, "declaration": ownership_declaration,
+        "assetQualityRows": standalone_income_rows if bank_asset_quality_statement_type == "standalone" else income_rows,
+        "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes}
+    _stock_fundamentals_cache[cache_key] = {"data": result, "model_inputs": model_inputs, "fetched_at": monotonic()}
+    if _model_capture is not None:
+        _model_capture.update(model_inputs)
     return result
 
 
