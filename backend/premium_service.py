@@ -6,26 +6,28 @@ try:
     from .premium_data import fetch_inputs, adapt_inputs, peer_benchmark, profile_from
     from .premium_engine import score_company
     from .premium_trace import build_calculation_trace
-    from .premium_recovery import recover_inputs
 except ImportError:
     from premium_data import fetch_inputs, adapt_inputs, peer_benchmark, profile_from
     from premium_engine import score_company
     from premium_trace import build_calculation_trace
-    from premium_recovery import recover_inputs
 
 
-def generate_report(get, symbol, name, statement_type, report_id, created_at, fallback_load=None):
+def generate_report(get, symbol, name, statement_type, report_id, created_at, dashboard_load=None):
     now = datetime.now(timezone.utc)
-    raw, sources = fetch_inputs(get, symbol, statement_type, now)
-    recovery = []
-    if fallback_load:
-        raw, recovery = recover_inputs(raw, statement_type, now.date(), lambda section: fallback_load(symbol, profile_from(raw), statement_type, section))
+    sourcing = {}
+    requested_basis = statement_type
+    if dashboard_load:
+        raw, sources, statement_type, sourcing = dashboard_load(symbol, statement_type, now)
+    else:
+        raw, sources = fetch_inputs(get, symbol, statement_type, now)
     inputs, group, profile, meta, warnings, trends = adapt_inputs(raw, symbol, now.date(), statement_type)
-    meta['dataRecovery'] = recovery
-    if any('recovered periods' in note or 'complete Upstox' in note for note in recovery):
-        sources.append({"section": "Upstox recovery (see data-quality notes for inputs and periods)", "available": True,
-                        "retrievedAt": now.isoformat(), "notes": recovery})
+    meta['dashboardSources'] = sourcing
+    meta['requestedStatementType'] = requested_basis
+    meta['dataRecovery'] = sourcing.get('notes', [])
+    recovery = [note for note in sourcing.get('notes', []) if not note.startswith('Calculated FinEdge')]
     warnings.extend(recovery)
+    if statement_type != requested_basis:
+        warnings.append(f'The dashboard resolved {requested_basis} financials to {statement_type}; this entire report uses that same effective statement basis.')
     # Match benchmark observations to the report price date, not a later market close.
     try: benchmark_date = date.fromisoformat(meta.get("priceAsOf") or now.date().isoformat())
     except ValueError: benchmark_date = now.date()
