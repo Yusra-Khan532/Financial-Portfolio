@@ -521,6 +521,29 @@ def _prune_premium_jobs():
             _premium_jobs.pop(key, None)
 
 
+def _premium_fallback_load(symbol, profile, statement_type, section):
+    """Reuse dashboard connectors with an exact, verified security identity."""
+    isin = profile.get("isin") or profile.get("ISIN")
+    instrument = _try_resolve_upstox_instrument(isin or symbol)
+    if not instrument or str(instrument.get("symbol", "")).upper() != symbol.upper():
+        return None
+    if isin and instrument.get("isin") != isin:
+        return None
+    resolved_isin = instrument.get("isin")
+    if not resolved_isin:
+        return None
+    if section == "prices":
+        key = instrument.get("instrumentKey")
+        if not key:
+            return None
+        return {"prices": _fetch_upstox_price_history(key), "exchange": instrument.get("exchange"), "instrumentKey": key}
+    if section == "annual":
+        return _upstox_get(f"/fundamentals/{resolved_isin}/income-statement", {"type": statement_type, "time_period": "yearly", "fs": "true"})
+    if section == "cashflow":
+        return _upstox_get(f"/fundamentals/{resolved_isin}/cash-flow", {"type": statement_type, "fs": "true"})
+    return None
+
+
 async def _generate_premium_report(report_id, symbol, name, statement_type, created_at):
     try:
         from backend.premium_service import generate_report
@@ -528,7 +551,7 @@ async def _generate_premium_report(report_id, symbol, name, statement_type, crea
         from premium_service import generate_report
     try:
         async with _premium_generation_slots:
-            report = await asyncio.to_thread(generate_report, _finedge_get, symbol, name, statement_type, report_id, created_at)
+            report = await asyncio.to_thread(generate_report, _finedge_get, symbol, name, statement_type, report_id, created_at, _premium_fallback_load)
             job = _premium_jobs.get(report_id)
             if job and job["expires"] > monotonic() and job["report"]["state"] == "generating":
                 job["report"] = report
