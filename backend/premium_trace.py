@@ -116,7 +116,7 @@ def build_calculation_trace(d, rating, meta):
     return {'version':1,'quarterly':quarterly,'annual':annual,'latest':latest,'metrics':rows,'parts':parts,
             'finalCalculation':f'({terms}) / {fmt(active)} = {fmt(rating["final"])} -> {rating["label"]} ({rating["status"]}).' if rated else 'Overall score withheld: '+rating['headline'],
             'coverageCalculation':' + '.join(f'{fmt(weight)} x {fmt(rating["coverage"][part])}' for part,weight in rating['partWeights'].items())+f' = {rating["confidence"]:.2%} input coverage.',
-            'notes':['All financial amounts and shares use crore units; EPS and prices use INR per share. Missing values are not zero.',
+            'notes':(['Source priority shared with Stock Fundamentals: FinEdge reported data, calculations from available FinEdge inputs, Upstox fallback, then N/A. Model fills remain explicitly labelled scoring assumptions.'] if meta.get('dashboardSources') else []) + ['All financial amounts and shares use crore units; EPS and prices use INR per share. Missing values are not zero.',
                      'Calendar period labels identify reporting periods. Filing availability and retrieval dates are recorded separately.',
                      'Scale = clamp((value - worst) / (best - worst) x 100, 0, 100). Lower-is-better metrics have best below worst.',
                      'Component denominator excludes N and L metrics, retains filled and loss-rule metrics. Missing pledge still reduces input coverage.',

@@ -31,7 +31,7 @@ def generate_report(get, symbol, name, statement_type, report_id, created_at, da
     # Match benchmark observations to the report price date, not a later market close.
     try: benchmark_date = date.fromisoformat(meta.get("priceAsOf") or now.date().isoformat())
     except ValueError: benchmark_date = now.date()
-    benchmarks, benchmark_meta = peer_benchmark(get, raw.get("peers", {}), statement_type, min(benchmark_date, now.date()))
+    benchmarks, benchmark_meta = peer_benchmark(get, raw.get("peers", {}), statement_type, min(benchmark_date, now.date()), group)
     inputs.update(benchmarks)
     rating = score_company(inputs, group)
     if any(not source["available"] for source in sources):

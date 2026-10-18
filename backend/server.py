@@ -541,6 +541,11 @@ def _premium_dashboard_inputs(symbol, statement_type, now):
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
+    resolved_profile = yearly.get("profile", {})
+    if isinstance(raw["profile"], dict):
+        raw["profile"] = {**raw["profile"], **{key: value for key, value in {
+            "name": yearly.get("instrument", {}).get("name"), "industry": resolved_profile.get("industry"),
+            "sector": resolved_profile.get("sector"), "description": resolved_profile.get("description")}.items() if value is not None}}
     # Additional history required by the model uses the same FinEdge connector.
     sources = []
     for section, path, params in [
@@ -555,7 +560,10 @@ def _premium_dashboard_inputs(symbol, statement_type, now):
     for period, view in (("yearly", yearly), ("quarterly", quarterly_view)):
         sources.extend({"section": f"Dashboard {period}: {key} ({provider})", "available": True,
                         "retrievedAt": view["generatedAt"], "provider": provider} for key, provider in view["sources"].items())
-    notes = list(dict.fromkeys(annual.get("resolutionNotes", []) + quarterly.get("resolutionNotes", [])))
+    # The model's cash conversion consumes annual cash flow only. Do not turn
+    # the dashboard's separate quarterly-CF availability into a model warning.
+    quarterly_notes = [note for note in quarterly.get("resolutionNotes", []) if "cashflow" not in note.lower()]
+    notes = list(dict.fromkeys(annual.get("resolutionNotes", []) + quarterly_notes))
     return raw, sources, effective, {"yearly": yearly["sources"], "quarterly": quarterly_view["sources"],
         "requestedStatementType": statement_type, "effectiveStatementType": effective,
         "bankAssetQualityStatementType": quarterly.get("assetQualityBasis"), "notes": notes}
@@ -2235,13 +2243,13 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
         if operating_profit is not None:
             derived_opm = (operating_profit / revenue) * 100
             current_opm = _to_number((lookup.get("OPERATING MARGIN") or {}).get("company_value"))
-            if current_opm is None or abs(derived_opm - current_opm) / max(abs(derived_opm), 1) > 0.05:
+            if current_opm is None:
                 ratios = _upsert_ratio(ratios, "Operating Margin", round(derived_opm, 2), (lookup.get("OPERATING MARGIN") or {}).get("sector_value"), "derived_income_statement")
                 lookup = _ratio_lookup(ratios)
         if net_profit is not None:
             derived_npm = (net_profit / revenue) * 100
             current_npm = _to_number((lookup.get("NET MARGIN") or {}).get("company_value"))
-            if current_npm is None or abs(derived_npm - current_npm) / max(abs(derived_npm), 1) > 0.05:
+            if current_npm is None:
                 ratios = _upsert_ratio(ratios, "Net Margin", round(derived_npm, 2), (lookup.get("NET MARGIN") or {}).get("sector_value"), "derived_income_statement")
                 lookup = _ratio_lookup(ratios)
     derived_pe = None
@@ -2252,7 +2260,7 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
         current_pe = _to_number((lookup.get("P/E") or {}).get("company_value"))
     if market_cap and net_profit and net_profit > 0:
         derived_pe = market_cap / net_profit
-        if current_pe is None or current_pe <= 0 or abs(derived_pe - current_pe) / max(abs(derived_pe), 1) > 0.15:
+        if current_pe is None or current_pe <= 0:
             ratios = _upsert_ratio(ratios, "P/E", round(derived_pe, 2), (lookup.get("P/E") or {}).get("sector_value"), "derived_market_cap")
     daily_pe = _to_number((price_ratio_snapshot or {}).get("pe"))
     if daily_pe and daily_pe > 0:
@@ -2273,7 +2281,7 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
         derived_pb = market_cap / equity
         lookup = _ratio_lookup(ratios)
         current_pb = _to_number((lookup.get("P/B") or {}).get("company_value"))
-        if current_pb is None or current_pb <= 0 or abs(derived_pb - current_pb) / max(abs(derived_pb), 1) > 0.25:
+        if current_pb is None or current_pb <= 0:
             ratios = _upsert_ratio(ratios, "P/B", round(derived_pb, 2), (lookup.get("P/B") or {}).get("sector_value"), "derived_market_cap")
     daily_pb = _to_number((price_ratio_snapshot or {}).get("pb"))
     if daily_pb and daily_pb > 0:
@@ -2298,11 +2306,11 @@ def _reconcile_valuation_ratios(ratios, profile, income_statement, balance_sheet
             derived_roe = (net_profit / equity_base) * 100
             lookup = _ratio_lookup(ratios)
             current_roe = _to_number((lookup.get("ROE") or {}).get("company_value"))
-            if current_roe is None or current_roe <= 0 or abs(derived_roe - current_roe) / max(abs(derived_roe), 1) > 0.05:
+            if current_roe is None:
                 ratios = _upsert_ratio(ratios, "ROE", round(derived_roe, 2), (lookup.get("ROE") or {}).get("sector_value"), "derived_equity")
     lookup = _ratio_lookup(ratios)
     current_roce = _to_number((lookup.get("ROCE") or {}).get("company_value"))
-    if current_roce is None or current_roce <= 0:
+    if current_roce is None:
         bank_roce = _derive_bank_roce(income_statement, balance_sheet)
         if bank_roce is not None:
             ratios = _upsert_ratio(ratios, "ROCE", round(bank_roce, 2), (lookup.get("ROCE") or {}).get("sector_value"), "derived_bank_capital_employed")
@@ -3081,8 +3089,11 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     except ImportError:
         from fundamental_resolution import recover_inputs
     raw_section = "annual" if period == "yearly" else "quarterly"
+    quarterly_income_rows = income_rows if period == "quarterly" else _finedge_statement(symbol, effective_statement_type, "pl", "quarterly")
     shared_raw = {"profile": profile_payload, raw_section: {"financials": income_rows},
                   "balance": {"financials": balance_rows}, "cashflow": {"financials": cash_rows}}
+    if period == "yearly":
+        shared_raw["quarterly"] = {"financials": quarterly_income_rows}
     def shared_load(section):
         if not instrument.get("isin"):
             return None
@@ -3095,6 +3106,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         return None
     shared_raw, resolution_notes = recover_inputs(shared_raw, effective_statement_type, datetime.now(timezone.utc).date(), shared_load, period=period, recover_prices=False)
     income_rows = shared_raw.get(raw_section, {}).get("financials", [])
+    quarterly_income_rows = shared_raw.get("quarterly", {}).get("financials", quarterly_income_rows)
     balance_rows = shared_raw.get("balance", {}).get("financials", [])
     cash_rows = shared_raw.get("cashflow", {}).get("financials", [])
     for note in resolution_notes:
@@ -3180,8 +3192,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         basic_financials_payload,
     )
     # Calculate available FinEdge ratios before considering a secondary provider.
+    live_quote = _quote_from_finedge_quote(_safe_finedge_get("/quote", {"symbol": symbol}, default={}), symbol)
     pre_profile = _normalize_profile(profile_payload, instrument)
-    ratios = _reconcile_valuation_ratios(ratios, pre_profile, income_statement, balance_sheet, price_ratio_snapshot)
+    if live_quote.get("marketCap") is not None:
+        pre_profile["marketCap"] = live_quote["marketCap"]
+    pre_quarterly = {"income_statement": _derive_income_metrics(_history_from_period_rows(quarterly_income_rows, "quarterly", INCOME_STATEMENT_ALIASES, scale=10_000_000))}
+    ratios = _reconcile_valuation_ratios(ratios, pre_profile, income_statement, balance_sheet, price_ratio_snapshot, _ttm_net_profit_from_statement(pre_quarterly))
     if upstox_isin:
         finedge_ratio_keys = {str(ratio.get("name") or "").upper() for ratio in ratios if isinstance(ratio, dict)}
         if not {"P/E", "P/B", "ROE", "ROCE"}.issubset(finedge_ratio_keys):
@@ -3228,7 +3244,16 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         ) if upstox_isin else {}
         upstox_balance_history = _normalize_upstox_balance_sheet(upstox_balance_payload, period)
         if upstox_balance_history:
-            balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": []}
+            try:
+                from backend.fundamental_resolution import balance_rows as resolved_balance_rows
+            except ImportError:
+                from fundamental_resolution import balance_rows as resolved_balance_rows
+            balance_rows = resolved_balance_rows(upstox_balance_payload, effective_statement_type)
+            if balance_rows:
+                upstox_balance_history, upstox_balance_categories = _balance_history(balance_rows, period)
+            else:
+                upstox_balance_categories = []
+            balance_sheet = {"units_in": "Cr", "history": upstox_balance_history, "balance_sheet": upstox_balance_categories}
             data_sources["balanceSheet"] = "upstox"
             data_quality.append({
                 "severity": "info",
@@ -3274,19 +3299,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         }
         if filled_from_upstox:
             data_sources["profile"] = "finedge+upstox:fallback"
-    live_quote = _quote_from_finedge_quote(_safe_finedge_get("/quote", {"symbol": symbol}, default={}), symbol)
     if live_quote.get("marketCap"):
         profile = {**profile, "marketCap": live_quote.get("marketCap")}
     quarterly_income_statement = None
     if period == "quarterly":
         quarterly_income_statement = income_statement
     else:
-        quarterly_income_rows = _safe_finedge_get(
-            f"/financials/{_stock_symbol_path(symbol)}",
-            {"statement_type": finedge_type, "statement_code": "pl", "period": "quarterly"},
-            default={},
-        )
-        quarterly_income_rows = _payload_items(quarterly_income_rows, ["financials", "data", "results", "items"])
         if quarterly_income_rows:
             quarterly_income_statement = {
                 "units_in": "Cr",
@@ -3341,7 +3359,9 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     if any("complete Upstox" in note for note in price_notes):
         data_sources["priceHistory"] = "upstox:fallback"
         data_quality.append({"severity": "info", "section": "priceHistory", "code": "shared_price_recovery", "message": price_notes[-1]})
-    quote_data = live_quote or _quote_from_price_history(price_history)
+    quote_data = live_quote if live_quote.get("price") and live_quote["price"] > 0 else _quote_from_price_history(price_history)
+    if quote_data is not live_quote and quote_data.get("price"):
+        data_sources["quote"] = "calculated_finedge_price_history" if data_sources["priceHistory"] == "finedge" else "upstox:price_history_fallback"
     if not quote_data.get("price"):
         try:
             upstox_quote = _quote_from_upstox(instrument)
