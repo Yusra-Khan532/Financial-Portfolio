@@ -251,6 +251,15 @@ def score_company(d, group):
             for metric, weight in effective_weights["valuation"].items()
         }
         fallbacks["PE_VS_HISTORY"] = "PE_VS_INDUSTRY"
+    if group == "BANK" and points.get("PB_VS_INDUSTRY") is None:
+        roe = ratio(annual_profit, annual_nw)
+        put("ROE", roe * 100 if roe is not None else None)
+        if points.get("ROE") is not None:
+            effective_weights["valuation"] = {
+                ("ROE" if metric == "PB_VS_INDUSTRY" else metric): weight
+                for metric, weight in effective_weights["valuation"].items()
+            }
+            fallbacks["ROE"] = "PB_VS_INDUSTRY"
     if group == "BANK" and points.get("CAPITAL_ADEQUACY") is None and points.get("INTEREST_COVER") is not None:
         effective_weights["quality"] = {
             ("INTEREST_COVER" if metric == "CAPITAL_ADEQUACY" else metric): weight
@@ -323,7 +332,7 @@ def score_company(d, group):
     best_part = max(parts, key=lambda p: PART_WEIGHTS[p] * (parts[p] or 0))
     worst_part = max(parts, key=lambda p: PART_WEIGHTS[p] * (100 - (parts[p] or 0)))
     headline = "Not rated: insufficient verified inputs or unresolved data integrity issues." if status == "NOT RATED" else f"{rating.title()} assessment: {best_part.title()} contributes most to the score; {worst_part.title()} accounts for the largest shortfall."
-    return {"modelVersion": "3.6.4-bank" if group == "BANK" else MODEL_VERSION, "baselineVersion": BASELINE_VERSION, "fillVersion": FILL_VERSION,
+    return {"modelVersion": "3.6.5-bank" if group == "BANK" else MODEL_VERSION, "baselineVersion": BASELINE_VERSION, "fillVersion": FILL_VERSION,
             "group": group, "final": final if status != "NOT RATED" else None, "label": rating, "status": status,
             "confidence": confidence, "coverage": coverage, "dataIntegrityStatus": "REVIEW REQUIRED" if d.get("rating_cautions") or d.get("rating_blockers") else "PASS", "parts": parts, "partWeights": PART_WEIGHTS,
             "judgedQuarters": judged, "metrics": rows, "strengths": strengths, "weaknesses": weaknesses,

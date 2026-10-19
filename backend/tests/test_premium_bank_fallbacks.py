@@ -109,3 +109,57 @@ def test_capital_fallback_is_bank_only_and_never_mutates_shared_model():
     assert 'INTEREST_COVER' not in r and r['CAPITAL_ADEQUACY']['status']=='F'
     assert rows(d)['INTEREST_COVER']['points']==50
     assert GROUPS==before
+
+
+@pytest.mark.parametrize('roe,points',[(8,0),(13,50),(18,100),(0,0),(-5,0)])
+def test_bank_uses_roe_only_for_unavailable_industry_pb_in_same_valuation_slot(roe,points):
+    d=inputs();d.update(industry_median_pb=None,net_worth=1000,net_profit_y=[20,30,40,roe*10])
+    result=score_company(d,'BANK');r={r['metric']:r for r in result['metrics']}
+    assert 'PB_VS_INDUSTRY' not in r
+    assert r['ROE']['part']=='valuation' and r['ROE']['weight']==40
+    assert r['ROE']['value']==pytest.approx(roe) and r['ROE']['points']==points
+    assert r['ROE']['unit']=='%' and r['ROE']['fallbackFor']=='PB_VS_INDUSTRY'
+    assert r['ROE']['status']=='A' and (r['ROE']['worst'],r['ROE']['best'])==(8,18)
+    assert r['PB_VS_HISTORY']['weight']==30
+    assert result['coverage']['valuation']==1
+    review=build_report_review({'rating':result,'inputMeta':{},'statementType':'consolidated'})
+    part=review['parts'][1]
+    item=next(i for b in ['pros','cons','mixed'] for i in part[b] if i['metric']=='ROE')
+    assert item['label']=='Return on equity (industry P/B unavailable)'
+    assert 'industry P/B comparison' in item['summary']
+    trace=build_calculation_trace(d,result,{})
+    item=next(i for i in trace['metrics'] if i['metric']=='ROE')
+    assert 'Replaces unavailable PB_VS_INDUSTRY' in item['valueCalculation']
+    assert 'owner-attributable profit' in item['valueCalculation']
+
+
+def test_bank_keeps_primary_pb_even_when_roe_would_be_better_and_preserves_loss_rule():
+    d=inputs();d.update(net_worth=1000,net_profit_y=[100,150,180,300])
+    assert 'ROE' not in rows(d)
+    d.update(net_worth=-1000,industry_median_pb=None)
+    r=rows(d)
+    assert r['PB_VS_INDUSTRY']['status']=='Z' and r['PB_VS_INDUSTRY']['points']==0
+    assert 'ROE' not in r
+
+
+@pytest.mark.parametrize('profit,equity',[([],1000),([100,None],1000),([100],None)])
+def test_bank_keeps_pb_missing_if_roe_cannot_be_calculated(profit,equity):
+    d=inputs();d.update(industry_median_pb=None,net_profit_y=profit,net_worth=equity)
+    r=rows(d)
+    assert 'ROE' not in r
+    assert r['PB_VS_INDUSTRY']['status']=='F'
+
+
+def test_all_bank_fallbacks_can_run_together_without_duplicate_scoring_or_nbfc_change():
+    before=deepcopy(GROUPS)
+    d=inputs();d.update(industry_median_pe=None,industry_median_pb=None,capital_adequacy_pct=None,interest_cost=100,profit_before_tax=400)
+    result=score_company(d,'BANK');r={r['metric']:r for r in result['metrics']}
+    assert r['PE_VS_HISTORY']['fallbackFor']=='PE_VS_INDUSTRY'
+    assert r['ROE']['fallbackFor']=='PB_VS_INDUSTRY'
+    assert r['INTEREST_COVER']['fallbackFor']=='CAPITAL_ADEQUACY'
+    assert sum(i['pointsEarned'] for i in result['metrics'])-result['capPointsLost']==pytest.approx(result['final'])
+    assert not {'PE_VS_INDUSTRY','PB_VS_INDUSTRY','CAPITAL_ADEQUACY'} & r.keys()
+    other=rows(d,'NBFC')
+    assert not {'ROE','PE_VS_HISTORY','INTEREST_COVER'} & other.keys()
+    assert other['PB_VS_INDUSTRY']['status']=='F'
+    assert GROUPS==before

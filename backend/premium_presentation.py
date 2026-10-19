@@ -104,6 +104,9 @@ def factor(row, group):
         reason = reason.replace("revenue", "net premium income").replace("Revenue", "Net premium income")
     if row.get("fallbackFor") == "PE_VS_INDUSTRY":
         reason += " Company history is used because the industry P/E benchmark is unavailable."
+    if row.get("fallbackFor") == "PB_VS_INDUSTRY":
+        label = "Return on equity (industry P/B unavailable)"
+        reason += " Used in place of the unavailable industry P/B comparison."
     if row.get("fallbackFor") == "CAPITAL_ADEQUACY":
         label = "Interest coverage (capital adequacy unavailable)"
         reason += " Used in place of unavailable capital adequacy."
@@ -122,6 +125,8 @@ def build_report_review(report):
                 part[bucket].append(item)
         parts.append(part)
     notes = []
+    if any(row.get("fallbackFor") == "PB_VS_INDUSTRY" for row in rating["metrics"]):
+        notes.append("The industry P/B comparison is unavailable; the Valuation assessment uses return on equity instead.")
     if any(row.get("fallbackFor") == "CAPITAL_ADEQUACY" for row in rating["metrics"]):
         notes.append("Capital adequacy is unavailable; the Quality assessment uses interest coverage instead.")
     missing = [r["label"] for p in parts for r in p["unavailable"]]
