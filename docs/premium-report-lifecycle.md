@@ -1,9 +1,25 @@
 # Premium report lifecycle
 
-Reports are generated on demand. There is no report-history UI, listing endpoint, database collection, or database write/read path for premium reports.
+Reports are generated on demand. There is no report-history UI, listing endpoint, report database collection, or report database read/write path.
 
-`POST /api/premium-reports` creates temporary in-process calculation state for asynchronous generation. Status and PDF routes access only this current state. It expires after 30 minutes, is bounded to 20 jobs, and disappears on server restart. Expired links ask the user to generate a new report. PDF links remain short-lived, single-use capabilities.
+## Production / serverless delivery
 
-The former `premium_reports` MongoDB collection and its nine records were deleted on 18 October 2026. An in-app generation check confirmed that a new report does not recreate the collection. Calculation formulas, parameters, and scoring remain unchanged by this lifecycle change.
+The client requests `POST /api/premium-reports` with `delivery: "inline"`. The calculation completes within that request and returns the ready report with a signed snapshot receipt. Generation no longer requires a later request to find a job in a particular server process's memory.
 
-Validation: 215 backend tests pass; frontend production build passes; fresh Reliance generation works in the in-app browser with no Saved Reports section. PDF rendering/download routes are covered by the backend tests.
+Only the current report is retained in that browser tab's session storage and module memory, replacing the previous current report. It can be restored after a page reload for 30 minutes. Expired snapshots are rejected and removed when read. This is temporary current-page state, not saved report history. Closing the tab clears its session state; the PDF is the durable user copy.
+
+`POST /api/premium-reports/pdf` accepts the exact returned snapshot and receipt with administrator authentication. The server verifies purpose, administrator subject, expiry and a canonical content digest before rendering. This works even if generation and download reach different Vercel instances. Changing a value, reusing another administrator's receipt, or using an expired/wrong-purpose receipt is rejected. Integral JSON numbers are normalised to survive an unchanged browser JSON round-trip. Neither the administrator token nor the snapshot is placed in a URL. The PDF is rendered from that exact calculation without fetching providers or rescoring.
+
+`backend/vercel.json` configures a 300-second budget for the FastAPI `server.py` function. The Vercel backend project must use `backend` as its project root for that configuration; verify the deployed entrypoint/settings if the project root differs. Deploy both backend and frontend. Earlier frontend versions keep using the compatibility flow until their bundle is updated.
+
+## Compatibility flow
+
+Clients without `delivery: "inline"` retain the former temporary in-process background job flow. Those IDs expire after 30 minutes/server restart and are not guaranteed to survive serverless instance changes. The updated frontend uses this only for earlier API responses/legacy links, not new production report generation. Existing short-lived one-use legacy PDF links remain supported for those current in-process reports.
+
+## Production failure reproduced
+
+On 18 October 2026, the live Avantel request opened `/blog/admin/premium-reports/ed47b5ef98f74d3b8cc083ff98e4f44b`, then returned “Report not found or expired” while the page still displayed “Preparing Avantel Ltd.” The deployed backend is on Vercel and used process-local job state. Frontend polling retries alone cannot recover a missing cross-instance job.
+
+Vercel explicitly documents keeping shared state outside instance memory because any instance can handle a connection: https://vercel.com/kb/guide/vercel-services-fluid-compute . This implementation avoids needing shared report storage by returning a signed current snapshot within the request.
+
+The old `premium_reports` MongoDB collection and its nine records were removed on 18 October 2026. This fix does not recreate it or add saved report history. Model formulas, parameters and data sourcing remain unchanged.

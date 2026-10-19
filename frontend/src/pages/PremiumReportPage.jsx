@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Download, FileText, RefreshCcw, ShieldCheck } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import CompanyBrowser from "@/components/CompanyBrowser";
 import PremiumCalculationTrace from "@/components/PremiumCalculationTrace";
 import AdminShell from "@/components/cms/AdminShell";
 import { cmsRequest } from "@/lib/cms";
 import { startPremiumReportPolling } from "@/lib/premiumReportPolling";
+import { rememberPremiumReport, currentPremiumReport, snapshotPDFRequest } from "@/lib/currentPremiumReport";
 
 const field = "mt-2 h-12 w-full rounded-lg border border-[#2B3B51] bg-[#081322] px-3 text-sm text-white outline-none focus:border-[#D6AE62]";
 const panel = "rounded-xl border border-[#26374D] bg-[#0A1626] p-5 sm:p-6";
@@ -45,12 +47,13 @@ function ReportDetail({ report, onDownload, downloading, onRefresh, refreshing }
     <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-[10px] uppercase tracking-widest text-[#D6AE62]"><tr>{["Metric", "Value", "Points / 100", "Status", "Weight in part"].map((value) => <th key={value} className="p-3 font-medium">{value}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.metric} className="border-t border-[#26374D] align-top"><td className="p-3"><details><summary className="cursor-pointer text-[#D0D9E5]">{row.label}</summary><div className="mt-3 max-w-sm space-y-2 text-xs leading-5 text-[#93A4B9]"><p>{row.details?.note || row.details?.basis || "Calculated from the available reported inputs using the selected group’s model rules."}</p>{row.worst != null ? <p>Scale: {format(row.worst, 2)} → 0 points; {format(row.best, 2)} → 100 points.</p> : null}{row.details?.current != null ? <p>Current {format(row.details.current,2)} · Comparison {format(row.details.previous,2)}</p> : null}{row.details?.judged != null ? <p>{row.details.good} good quarters · {row.details.slips} slips · {row.details.judged} judged</p> : null}{row.status === "F" ? <p>Assumption from group-fill snapshot {rating.fillVersion}; counts as missing in confidence.</p> : null}<p>Final-score contribution: {format(row.pointsEarned,2)} points. Shortfall: {format(row.pointsLost,2)} points.</p></div></details></td><td className="p-3 tabular-nums text-[#B6C5D8]">{format(row.value,2)}{row.value != null && row.unit ? ` ${row.unit}` : ""}</td><td className="p-3 tabular-nums text-white">{format(row.points)}</td><td className={`p-3 text-xs ${stateColor(row.severity)}`}>{row.statusLabel}<div className="mt-1 text-[10px]">{row.severity}</div></td><td className="p-3 text-[#93A4B9]">{row.weight}</td></tr>)}</tbody></table></div>
     {rating.valuationCapped ? <p className="mt-4 text-xs text-[#D6AE62]">Weak-business cap applied: −{format(rating.capPointsLost,2)} final-score points.</p> : null}</section>
     <PremiumCalculationTrace report={report} />
-    <section className={panel}><h3 className="text-lg text-white">Methodology & source audit</h3><p className="mt-3 text-sm leading-6 text-[#B6C5D8]">Supplied FinLit {rating.baselineVersion} model, engine {rating.modelVersion}. The engine checks reporting-period alignment, reconciles share counts and valuation ratios, and handles missing histories, valid zero inputs and loss cases. Data-quality warnings are shown separately; scoring thresholds and weights follow the supplied model. Financials and EPS use one statement basis throughout. The model rating is independent of dashboard chart settings.</p><p className="mt-3 text-sm leading-6 text-[#93A4B9]">Industry benchmark: {report.benchmark.source} · {report.benchmark.fetchedCount}/{report.benchmark.universeCount} current peer observations · as of {report.benchmark.asOf}. {report.benchmark.note}</p><button type="button" className="mt-4 text-sm text-[#D6AE62] underline" aria-expanded={audit} onClick={() => setAudit(!audit)}>{audit ? "Hide source details" : "Show source details"}</button>{audit ? <div className="mt-4 space-y-2">{report.sources.map((source) => <p key={source.section} className="break-words text-xs text-[#93A4B9]">{source.section} · {source.available ? "Retrieved" : "Unavailable"} · {dateText(source.retrievedAt)} IST</p>)}<p className="break-all text-[10px] text-[#71839A]">Input hash: {report.inputHash}</p></div> : null}<p className="mt-5 border-t border-[#26374D] pt-4 text-xs leading-6 text-[#93A4B9]">This report assesses financial health using reported and model-filled data. It is not a target price or investment recommendation. Reports are temporary and expire after 30 minutes or a server restart. Download the PDF to keep a copy.</p></section>
+    <section className={panel}><h3 className="text-lg text-white">Methodology & source audit</h3><p className="mt-3 text-sm leading-6 text-[#B6C5D8]">Supplied FinLit {rating.baselineVersion} model, engine {rating.modelVersion}. The engine checks reporting-period alignment, reconciles share counts and valuation ratios, and handles missing histories, valid zero inputs and loss cases. Data-quality warnings are shown separately; scoring thresholds and weights follow the supplied model. Financials and EPS use one statement basis throughout. The model rating is independent of dashboard chart settings.</p><p className="mt-3 text-sm leading-6 text-[#93A4B9]">Industry benchmark: {report.benchmark.source} · {report.benchmark.fetchedCount}/{report.benchmark.universeCount} current peer observations · as of {report.benchmark.asOf}. {report.benchmark.note}</p><button type="button" className="mt-4 text-sm text-[#D6AE62] underline" aria-expanded={audit} onClick={() => setAudit(!audit)}>{audit ? "Hide source details" : "Show source details"}</button>{audit ? <div className="mt-4 space-y-2">{report.sources.map((source) => <p key={source.section} className="break-words text-xs text-[#93A4B9]">{source.section} · {source.available ? "Retrieved" : "Unavailable"} · {dateText(source.retrievedAt)} IST</p>)}<p className="break-all text-[10px] text-[#71839A]">Input hash: {report.inputHash}</p></div> : null}<p className="mt-5 border-t border-[#26374D] pt-4 text-xs leading-6 text-[#93A4B9]">This report assesses financial health using reported and model-filled data. It is not a target price or investment recommendation. Reports are temporary and expire after 30 minutes. Only the current report stays in this browser tab. Download the PDF to keep a copy.</p></section>
   </div>;
 }
 
 export default function PremiumReportPage() {
   const navigate = useNavigate();
+  const companyInput = useRef(null);
   const { reportId } = useParams();
   const [query, setQuery] = useState("");
   const [basis, setBasis] = useState("consolidated");
@@ -74,36 +77,53 @@ export default function PremiumReportPage() {
   useEffect(() => {
     setReport(null); setError(""); setConnectionIssue("");
     if (!reportId) { setLoading(false); return undefined; }
+    const snapshot = currentPremiumReport(reportId);
+    if (snapshot) { setReport(snapshot); setLoading(false); return undefined; }
     setLoading(true);
     return startPremiumReportPolling({
       load: (signal) => cmsRequest(`/premium-reports/${reportId}`, { signal }),
       onData: (data) => { setReport(data); setLoading(false); setConnectionIssue(""); },
       onRetry: (delay) => { setLoading(false); setConnectionIssue(`The connection was interrupted. Retrying automatically in ${Math.ceil(delay / 1000)} seconds. Your report may still be generating.`); },
-      onError: (err) => { setLoading(false); setConnectionIssue(""); if (err.status === 401) navigate("/blog/admin/login", { replace: true }); else setError(err.message); },
+      onError: (err) => { setLoading(false); setConnectionIssue(""); if (err.status === 404) setReport(null); if (err.status === 401) navigate("/blog/admin/login", { replace: true }); else setError(err.message); },
     });
   }, [reportId, retry, navigate]);
   const generate = async (symbol = query, statement = basis) => {
     setSubmitting(true); setError("");
-    try { const data = await cmsRequest("/premium-reports", { method: "POST", body: JSON.stringify({ query: symbol.trim(), statement_type: statement }) }); navigate(`/blog/admin/premium-reports/${data.id}`); }
+    try {
+      const data = await cmsRequest("/premium-reports", { method: "POST", body: JSON.stringify({ query: symbol.trim(), statement_type: statement, delivery: "inline" }) });
+      if (data.state === "ready" && data.snapshotReceipt) rememberPremiumReport(data);
+      navigate(`/blog/admin/premium-reports/${data.id}`);
+    }
     catch (err) { authError(err); }
     finally { setSubmitting(false); }
   };
   const download = async () => {
     setDownloading(true); setError("");
     try {
-      const link = await cmsRequest(`/premium-reports/${reportId}/download-link`, { method: "POST" });
+      let downloadUrl;
+      let objectUrl;
+      if (report.snapshotReceipt) {
+        const pdf = await cmsRequest("/premium-reports/pdf", { method: "POST", body: JSON.stringify(snapshotPDFRequest(report)), responseType: "blob" });
+        objectUrl = URL.createObjectURL(pdf);
+        downloadUrl = objectUrl;
+      } else {
+        const link = await cmsRequest(`/premium-reports/${reportId}/download-link`, { method: "POST" });
+        downloadUrl = `${process.env.REACT_APP_BACKEND_URL || ""}${link.url}`;
+      }
       const anchor = document.createElement("a");
-      anchor.href = `${process.env.REACT_APP_BACKEND_URL || ""}${link.url}`;
+      anchor.href = downloadUrl;
       anchor.download = `FinLit-Premium-${report.company.symbol}-${reportId.slice(0,8)}.pdf`;
       anchor.rel = "noreferrer";
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
     } catch (err) { authError(err); } finally { setDownloading(false); }
   };
   const busy = submitting || report?.state === "generating";
   return <AdminShell><div className="mx-auto mt-7 max-w-6xl text-white"><Link to="/blog/admin" className="inline-flex items-center gap-2 text-sm text-[#D6AE62]"><ArrowLeft size={15} />Back to CMS</Link><header className="mb-7 mt-6"><p className="text-[10px] uppercase tracking-[.25em] text-[#D6AE62]">Research on demand</p><h1 className="mt-3 font-serif-display text-4xl text-white sm:text-5xl">Premium Report</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-[#93A4B9]">Generate an explainable company health assessment, inspect the data behind it and download the report as a PDF.</p></header>
-    <form className={panel} onSubmit={(e) => { e.preventDefault(); generate(); }}><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end"><label className="text-xs text-[#B6C5D8]">Company<input className={field} list="premium-company-suggestions" placeholder="Company name, symbol or ISIN" value={query} onChange={(e) => setQuery(e.target.value)} required minLength={2} maxLength={80} /><datalist id="premium-company-suggestions">{suggestions.map((row) => <option key={row.instrumentKey || row.symbol} value={row.symbol}>{row.name}</option>)}</datalist></label><label className="text-xs text-[#B6C5D8]">Statement basis<select className={field} value={basis} onChange={(e) => setBasis(e.target.value)}><option value="consolidated">Consolidated</option><option value="standalone">Standalone</option></select></label><button disabled={busy || query.trim().length < 2} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#D6AE62] px-5 text-sm font-semibold text-[#081322] disabled:opacity-40"><FileText size={16} />{busy ? "Generating…" : "Generate Report"}</button></div><p className="mt-4 text-xs leading-5 text-[#71839A]">Generation can take a few minutes while financial history and peer benchmarks load. Reports are generated on demand and are not saved to a report history.</p></form>
+    <div className="mb-5"><CompanyBrowser profile={report?.company} actionLabel="Select" description="Find companies by sector or industry, then select one for your premium report." selectionDisabled={busy} onOpen={(company) => { setQuery(company.symbol); setError(""); companyInput.current?.focus(); }} onAuthError={() => navigate("/blog/admin/login", { replace: true })} /></div>
+    <form className={panel} onSubmit={(e) => { e.preventDefault(); generate(); }}><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_200px_auto] md:items-end"><label className="text-xs text-[#B6C5D8]">Company<input ref={companyInput} className={field} list="premium-company-suggestions" placeholder="Company name, symbol or ISIN" value={query} onChange={(e) => setQuery(e.target.value)} required minLength={2} maxLength={80} /><datalist id="premium-company-suggestions">{suggestions.map((row) => <option key={row.instrumentKey || row.symbol} value={row.symbol}>{row.name}</option>)}</datalist></label><label className="text-xs text-[#B6C5D8]">Statement basis<select className={field} value={basis} onChange={(e) => setBasis(e.target.value)}><option value="consolidated">Consolidated</option><option value="standalone">Standalone</option></select></label><button disabled={busy || query.trim().length < 2} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#D6AE62] px-5 text-sm font-semibold text-[#081322] disabled:opacity-40"><FileText size={16} />{busy ? "Generating…" : "Generate Report"}</button></div><p className="mt-4 text-xs leading-5 text-[#71839A]">Generation can take a few minutes while financial history and peer benchmarks load. Reports are generated on demand and are not saved to a report history.</p></form>
     {error ? <div role="alert" className="mt-5 rounded-lg border border-[#A16666] bg-[#3A2026] p-4 text-sm text-[#F0C2C2]">{error}{reportId ? <Link to="/blog/admin/premium-reports" className="ml-3 underline">Generate a new report</Link> : null}{reportId ? <button className="ml-3 underline" onClick={() => setRetry(retry + 1)}>Retry loading</button> : null}</div> : null}
-    {submitting ? <p role="status" className="mt-5 text-sm text-[#93A4B9]">Starting your report. Resolving the company and opening the generation page…</p> : null}
+    {submitting ? <p role="status" className="mt-5 text-sm text-[#93A4B9]">Generating your report from the dashboard’s financial data. This can take a few minutes; keep this tab open…</p> : null}
     {connectionIssue ? <p role="status" className="mt-5 rounded-lg border border-[#62748E] p-4 text-sm text-[#D6AE62]">{connectionIssue}</p> : null}
     {loading ? <p role="status" className="py-10 text-center text-[#93A4B9]">Loading report…</p> : null}
     {report?.state === "generating" ? <section role="status" className={`${panel} mt-6`}><div className="flex items-center gap-3"><RefreshCcw size={20} className="animate-spin text-[#D6AE62]" /><h2 className="text-xl">Preparing {report.company.name}</h2></div><p className="mt-3 text-sm leading-6 text-[#93A4B9]">Fetching the selected statement basis, checking date coverage and calculating the model. Keep this page open until generation finishes.</p></section> : null}

@@ -9,7 +9,7 @@ export function filterCompanies(items, filter) {
   return items.filter((item) => `${item.name || ""} ${item.symbol || ""}`.toLowerCase().includes(needle));
 }
 
-export default function CompanyBrowser({ profile, onOpen, onAuthError }) {
+export default function CompanyBrowser({ profile, onOpen, onAuthError, description = "Find companies by sector or industry, then open their fundamentals.", actionLabel = "Open", selectionDisabled = false }) {
   const [expanded, setExpanded] = useState(true);
   const [group, setGroup] = useState("industry");
   const [value, setValue] = useState("");
@@ -79,7 +79,7 @@ export default function CompanyBrowser({ profile, onOpen, onAuthError }) {
         <div id="company-browser" className="mt-4 space-y-4">
           <div>
             <h2 className="font-mono text-sm uppercase tracking-[.12em] text-white">Discover companies</h2>
-            <p className="mt-1 text-xs text-[#94A3B8]">Find companies by sector or industry, then open their fundamentals.</p>
+            <p className="mt-1 text-xs text-[#94A3B8]">{description}</p>
           </div>
           <div className="flex gap-2" aria-label="Classification type">
             {["sector", "industry"].map((key) => (
@@ -116,7 +116,7 @@ export default function CompanyBrowser({ profile, onOpen, onAuthError }) {
                           <tr key={item.symbol}>
                             <td className="p-3 text-white">{item.name || item.symbol}</td>
                             <td className="p-3 font-mono text-[#94A3B8]">{item.symbol}</td>
-                            <td className="p-3"><button type="button" aria-label={`Open ${item.name || item.symbol}`} onClick={() => { setExpanded(false); onOpen(item); }} className="border border-[#40546E] px-3 py-1 text-xs text-[#F5A623] hover:border-[#F5A623]">Open</button></td>
+                            <td className="p-3"><button type="button" disabled={selectionDisabled} aria-label={`${actionLabel} ${item.name || item.symbol}`} onClick={() => { setExpanded(false); onOpen(item); }} className="border border-[#40546E] px-3 py-1 text-xs text-[#F5A623] hover:border-[#F5A623] disabled:opacity-40">{actionLabel}</button></td>
                           </tr>
                         ))}</tbody>
                       </table>
