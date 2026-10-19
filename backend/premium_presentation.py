@@ -102,6 +102,11 @@ def factor(row, group):
         reason = reason.replace("revenue", "net interest income").replace("Revenue", "Net interest income")
     elif group == "INSURANCE" and metric.startswith("SALES"):
         reason = reason.replace("revenue", "net premium income").replace("Revenue", "Net premium income")
+    if row.get("fallbackFor") == "PE_VS_INDUSTRY":
+        reason += " Company history is used because the industry P/E benchmark is unavailable."
+    if row.get("fallbackFor") == "CAPITAL_ADEQUACY":
+        label = "Interest coverage (capital adequacy unavailable)"
+        reason += " Used in place of unavailable capital adequacy."
     return bucket, dict(item, label=label, summary=reason)
 
 
@@ -117,6 +122,8 @@ def build_report_review(report):
                 part[bucket].append(item)
         parts.append(part)
     notes = []
+    if any(row.get("fallbackFor") == "CAPITAL_ADEQUACY" for row in rating["metrics"]):
+        notes.append("Capital adequacy is unavailable; the Quality assessment uses interest coverage instead.")
     missing = [r["label"] for p in parts for r in p["unavailable"]]
     if missing: notes.append("Unavailable information: " + ", ".join(missing) + ". Estimates are not presented as company strengths or weaknesses.")
     for warning in report.get("warnings", []):

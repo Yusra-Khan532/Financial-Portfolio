@@ -75,7 +75,9 @@ GROUPS = {
                      "DEBT_TO_EQUITY": (1.5, 0.3), "INTEREST_COVER": (1.5, 5), "ROE": (5, 15)}),
     "BANK": group(F_LENDER, Q_LENDER, V_LENDER,
                   {"SALES_GROWTH": (5, 20), "PROFIT_GROWTH": (0, 25), "LOAN_GROWTH": (5, 20),
-                   "GROSS_NPA": (6, 1.5), "NET_NPA": (2.5, 0.3), "CAPITAL_ADEQUACY": (12, 18), "ROA": (0.5, 1.8)}),
+                   "GROSS_NPA": (6, 1.5), "NET_NPA": (2.5, 0.3), "CAPITAL_ADEQUACY": (12, 18), "ROA": (0.5, 1.8),
+                   # Owner-requested fallback; reuse the existing MFG interest-cover scale.
+                   "INTEREST_COVER": (2, 8)}),
     "NBFC": group(F_LENDER, Q_LENDER, V_LENDER,
                   {"SALES_GROWTH": (5, 25), "PROFIT_GROWTH": (0, 25), "LOAN_GROWTH": (5, 25),
                    "GROSS_NPA": (6, 1.5), "NET_NPA": (3, 0.5), "CAPITAL_ADEQUACY": (15, 25), "ROA": (1.0, 3.5)}),

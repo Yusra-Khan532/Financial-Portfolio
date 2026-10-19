@@ -157,6 +157,13 @@ def score_company(d, group):
         put("LOAN_GROWTH", (value - 1) * 100 if value is not None else None)
         for metric, key in (("GROSS_NPA", "gross_npa_pct"), ("NET_NPA", "net_npa_pct"), ("CAPITAL_ADEQUACY", "capital_adequacy_pct")):
             put(metric, d.get(key))
+        if group == "BANK" and num(d.get("capital_adequacy_pct")) is None:
+            interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
+            # Do not bypass the BANK fallback with the non-bank debt/equity rule.
+            # Both source inputs must be available; negative interest is invalid.
+            if interest is not None and interest >= 0 and pbt is not None:
+                put("INTEREST_COVER", (pbt + interest) / interest if interest > 0 else None,
+                    explicit_points=100. if interest == 0 else None)
         value = ratio(annual_profit, annual_assets)
         put("ROA", value * 100 if value is not None else None)
     elif group == "INSURANCE":
@@ -234,8 +241,25 @@ def score_company(d, group):
         else:
             put(metric, value)
 
+    effective_weights = {part: dict(weights) for part, weights in config["weights"].items()}
+    fallbacks = {}
+    # Owner-requested BANK overrides: replace the original slot rather than add
+    # a second contribution. A genuine zero/loss score is available data.
+    if group == "BANK" and points.get("PE_VS_INDUSTRY") is None and points.get("PE_VS_HISTORY") is not None:
+        effective_weights["valuation"] = {
+            ("PE_VS_HISTORY" if metric == "PE_VS_INDUSTRY" else metric): weight
+            for metric, weight in effective_weights["valuation"].items()
+        }
+        fallbacks["PE_VS_HISTORY"] = "PE_VS_INDUSTRY"
+    if group == "BANK" and points.get("CAPITAL_ADEQUACY") is None and points.get("INTEREST_COVER") is not None:
+        effective_weights["quality"] = {
+            ("INTEREST_COVER" if metric == "CAPITAL_ADEQUACY" else metric): weight
+            for metric, weight in effective_weights["quality"].items()
+        }
+        fallbacks["INTEREST_COVER"] = "CAPITAL_ADEQUACY"
+
     parts, coverage, rows = {}, {}, []
-    for part, weights in config["weights"].items():
+    for part, weights in effective_weights.items():
         base = sum(w for metric, w in weights.items() if statuses.get(metric) != "N")
         denominator = sum(w for metric, w in weights.items() if statuses.get(metric) not in ("N", "L"))
         numerator = real = 0.
@@ -253,7 +277,7 @@ def score_company(d, group):
             rows.append({"part": part, "metric": metric, "label": LABELS[metric], "value": values.get(metric),
                          "points": points.get(metric) if state not in ("N", "L") else None,
                          "status": state, "statusLabel": STATES[state], "weight": weight, "share": share,
-                         "details": details.get(metric, {}), "worst": lower, "best": upper,
+                         "details": details.get(metric, {}), "fallbackFor": fallbacks.get(metric), "worst": lower, "best": upper,
                          "unit": "%" if metric in PERCENT_METRICS else "pp" if metric == "MARGIN_CHANGE" else "quarters" if metric.endswith("STREAK") else "Cr" if metric == "TRADING_VALUE" else "x",
                          "redBoundary": lower + (upper - lower) * .4 if lower is not None else None,
                          "greenBoundary": lower + (upper - lower) * .7 if lower is not None else None})
@@ -299,7 +323,7 @@ def score_company(d, group):
     best_part = max(parts, key=lambda p: PART_WEIGHTS[p] * (parts[p] or 0))
     worst_part = max(parts, key=lambda p: PART_WEIGHTS[p] * (100 - (parts[p] or 0)))
     headline = "Not rated: insufficient verified inputs or unresolved data integrity issues." if status == "NOT RATED" else f"{rating.title()} assessment: {best_part.title()} contributes most to the score; {worst_part.title()} accounts for the largest shortfall."
-    return {"modelVersion": MODEL_VERSION, "baselineVersion": BASELINE_VERSION, "fillVersion": FILL_VERSION,
+    return {"modelVersion": "3.6.4-bank" if group == "BANK" else MODEL_VERSION, "baselineVersion": BASELINE_VERSION, "fillVersion": FILL_VERSION,
             "group": group, "final": final if status != "NOT RATED" else None, "label": rating, "status": status,
             "confidence": confidence, "coverage": coverage, "dataIntegrityStatus": "REVIEW REQUIRED" if d.get("rating_cautions") or d.get("rating_blockers") else "PASS", "parts": parts, "partWeights": PART_WEIGHTS,
             "judgedQuarters": judged, "metrics": rows, "strengths": strengths, "weaknesses": weaknesses,
