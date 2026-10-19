@@ -153,7 +153,7 @@ def test_pdf_uses_saved_snapshot_escapes_company_and_withholds_not_rated_score(e
     content = "\n".join(page.extract_text() for page in reader.pages)
     assert len(reader.pages) >= 4
     assert "54.50 / 100" in content and "A & B <Research>" in content
-    assert report["inputHash"] in content.replace("\n", "")
+    assert report["inputHash"] not in content.replace("\n", "")
     report["rating"] = score_company({}, "BANK")
     content = "\n".join(page.extract_text() for page in PdfReader(BytesIO(render_premium_pdf(report))).pages)
     assert "NOT RATED" in content and "54.50 / 100" not in content

@@ -46,14 +46,17 @@ def test_trace_covers_every_used_metric_and_parameter_without_changing_score(sto
     json.dumps(trace,allow_nan=False)
 
 
-def test_pdf_contains_full_inputs_thresholds_formulas_parts_and_final():
-    report=report_for(DATA['stocks'][0])
-    pdf=render_premium_pdf(report)
-    pages=PdfReader(BytesIO(pdf)).pages
+@pytest.mark.parametrize('stock',DATA['stocks'],ids=lambda s:s['symbol'])
+def test_pdf_keeps_financial_history_and_category_review_without_technical_appendix(stock):
+    report=report_for(stock)
+    pages=PdfReader(BytesIO(render_premium_pdf(report))).pages
     content='\n'.join(page.extract_text() for page in pages)
-    for term in ('Quarterly inputs','Annual inputs','Latest inputs & ratios','Fundamental calculations','Valuation calculations','Quality calculations','Risk calculations','0-point threshold','100-point threshold','Short-history blend','Category weighted calculation','Final score calculation','Input coverage'):
+    for term in ('Quarterly results','Annual results','Key financial ratios','Fundamental','Valuation','Quality','Risk','Pros','Cons','Input coverage'):
         assert term in content
-    assert len(pages)>=10
+    for term in ('Weight','weighted','Source audit','SHA-256','clamp(', '0-point threshold','Short-history blend','Model 3.', 'State A', 'Group-fill', 'Private admin'):
+        assert term not in content
+    assert len(pages) == 7
+    assert report['inputHash'] not in content.replace('\n','')
     assert 'None' not in content
 
 

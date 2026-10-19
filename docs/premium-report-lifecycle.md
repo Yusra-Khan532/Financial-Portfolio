@@ -23,3 +23,11 @@ On 18 October 2026, the live Avantel request opened `/blog/admin/premium-reports
 Vercel explicitly documents keeping shared state outside instance memory because any instance can handle a connection: https://vercel.com/kb/guide/vercel-services-fluid-compute . This implementation avoids needing shared report storage by returning a signed current snapshot within the request.
 
 The old `premium_reports` MongoDB collection and its nine records were removed on 18 October 2026. This fix does not recreate it or add saved report history. Model formulas, parameters and data sourcing remain unchanged.
+
+## Reader-facing report
+
+The page and PDF show category scores, factor-level pros and cons, financial history and key ratios. They omit scoring weights, raw equations, engine/version identifiers, calculation IDs, input hashes and provider-request diagnostics. The PDF ends after the key-ratio section; the former calculation, methodology and source-audit appendix is removed.
+
+`premium_presentation.py` adds deterministic commentary to the existing result. It neither fetches inputs nor changes scoring. Pros use the existing green range (70 or above), cons the red range (below 40); intermediate factors are shown separately. Filled, unavailable and inapplicable factors are never presented as company strengths or weaknesses. An industry substitute for missing company valuation history is explicitly labelled. All categories show an honest empty state when no pro or con qualifies. Higher Risk scores indicate lower assessed risk.
+
+The full calculation trace remains available internally for validation and signed snapshot consistency. PDF rendering derives commentary from the supplied snapshot; new page snapshots include the same reader-facing review. Older current-tab snapshots remain readable, with a prompt to regenerate for full commentary. The final model scores and source-priority rules are unchanged.
