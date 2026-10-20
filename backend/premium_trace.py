@@ -100,6 +100,7 @@ def build_calculation_trace(d, rating, meta):
         elif state=='Z' or (row['value'] is None and row['points'] is not None):
             scoring=f'Special rule: {info.get("note") or "Non-positive denominator or zero interest cost under model rules"}. Assigned {fmt(row["points"])} points; linear scaling does not apply.'
         if info.get('note'): formula += ' '+info['note']
+        if row.get('fallbackFor'): formula += ' Replaces unavailable '+row['fallbackFor']+' in the same scoring slot.'
         rows.append({'metric':metric,'part':row['part'],'label':row['label'],'state':state,'valueCalculation':formula,'pointsCalculation':scoring,'points':row['points'],'weight':row['weight'],'share':row['share'],'worst':row.get('worst'),'best':row.get('best'),'value':row.get('value'),'unit':row.get('unit')})
     parts=[]
     rated=rating['status']!='NOT RATED'
