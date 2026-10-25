@@ -109,6 +109,14 @@ def render_premium_pdf(report):
         story.append(drawing)
     story.append(PageBreak())
     story.append(p("Review notes", "ReportTitle"))
+    completeness = review['completeness']
+    section("Input completeness")
+    if completeness['complete']:
+        story.append(p("All applicable scoring factors have usable inputs and the required comparison history."))
+    else:
+        story.append(p(f"Unavailable factors: {completeness['missingFactorCount']}. Factors with limited comparison history: {completeness['limitedHistoryCount']}. These limitations remain visible even where an input is excluded from the coverage percentage."))
+        for item in completeness['items']:
+            story.append(p(f"{item['category']} / {item['label']}: {item['reason']} {item['treatment']}"))
     section("What to keep in mind")
     for note in review["notes"]:
         story.append(p("- " + note))
@@ -121,15 +129,17 @@ def render_premium_pdf(report):
             story.append(PageBreak())
             story.append(p("Business & valuation" if index == 0 else "Quality & risk", "ReportTitle"))
         section(part["name"] + " | " + (number(part["score"]) + " / 100" if part["score"] is not None else "Not rated"))
+        for note in part.get("notes", []):
+            story.append(p(note, "BodyCopy"))
         def entries(items, empty):
             if not items: return empty
-            return "\n\n".join(f"{item['label']}: {item['valueText']}. {item['summary']}" for item in items)
+            return "\n\n".join(f"{item['label']}: {item['valueText']}. {item['summary']}" + (" " + item['comparisonText'] if item.get('comparisonText') else "") for item in items)
         table([["Pros", "Cons"], [entries(part["pros"], "No clear strengths identified."), entries(part["cons"], "No major concerns identified.")]], [243.5, 243.5], compact=True, style="BodyCopy")
         for key, label in (("mixed", "Mixed factors"), ("unavailable", "Unavailable information")):
             if part[key]:
                 story.append(p(label, "GoldLabel"))
                 for item in part[key]:
-                    story.append(p(f"{item['label']}: {item['valueText']}. {item['summary']}", "BodyCopy"))
+                    story.append(p(f"{item['label']}: {item['valueText']}. {item['summary']}" + (" " + item['comparisonText'] if item.get('comparisonText') else ""), "BodyCopy"))
     trace = report.get("calculationTrace")
     if trace:
         story.append(PageBreak())

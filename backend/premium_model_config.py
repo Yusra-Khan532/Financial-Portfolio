@@ -1,26 +1,12 @@
-"""FinLit v3.6 configuration supplied by the project owner.
+"""FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-import math
-import statistics
-
-VERSION = "3.6-simple"
+MODEL_VERSION = "3.6.9"
+BASELINE_VERSION = "3.6.1-simple"
+FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
 QUARTERS_STORED = 14
 PART_WEIGHTS = {"fundamental": 0.40, "valuation": 0.30, "quality": 0.20, "risk": 0.10}
-
-INDUSTRY_TO_GROUP = {
-    "IT Services & Software": "LIGHT", "FMCG": "LIGHT", "Pharmaceuticals": "LIGHT",
-    "Media & Entertainment": "LIGHT", "AMCs / Brokers / Exchanges": "LIGHT",
-    "Retail / Hotels / Restaurants / Consumer Services": "LIGHT",
-    "Automobiles & Auto Parts": "MFG", "Consumer Durables": "MFG", "Chemicals": "MFG",
-    "Textiles & Apparel": "MFG", "Capital Goods / Engineering": "MFG", "Defence": "MFG",
-    "Hospitals & Diagnostics": "MFG", "Logistics & Transport": "MFG",
-    "Cement": "HEAVY", "Metals & Mining": "HEAVY", "Oil & Gas": "HEAVY",
-    "Power / Utilities": "UTILITY", "Telecom": "UTILITY", "Construction / Infrastructure": "UTILITY",
-    "Real Estate": "REALTY", "Banks": "BANK", "NBFC / Housing Finance": "NBFC", "Insurance": "INSURANCE",
-}
-DEFAULT_GROUP = "MFG"
 
 RISK_W = {"VOLATILITY": 30, "BIGGEST_FALL": 30, "TRADING_VALUE": 20, "PLEDGE": 20}
 COMMON_LIMITS = {
@@ -52,7 +38,7 @@ F_INSURER = {"SALES_STREAK": 20, "PROFIT_STREAK": 20, "SALES_GROWTH": 8, "PROFIT
              "SALES_CAGR": 12, "PROFIT_CAGR": 12, "NETWORTH_GROWTH": 20}
 V_STD = {"PE_VS_INDUSTRY": 40, "PE_VS_HISTORY": 30, "PEG": 30}
 V_LENDER = {"PB_VS_INDUSTRY": 40, "PB_VS_HISTORY": 30, "PE_VS_INDUSTRY": 30, "PEG": 20}   # PEG optional
-Q_LENDER = {"GROSS_NPA": 25, "NET_NPA": 25, "CAPITAL_ADEQUACY": 25, "ROA": 25}
+Q_LENDER = {"GROSS_NPA": 25, "NET_NPA": 25, "INTEREST_COVER": 25, "ROA": 25}
 
 GROUPS = {
     "LIGHT": group(F_STD, {"DEBT_TO_EQUITY": 20, "INTEREST_COVER": 20, "ROE": 35, "CASH_CONVERSION": 25}, V_STD,
@@ -76,29 +62,28 @@ GROUPS = {
     "BANK": group(F_LENDER, Q_LENDER, V_LENDER,
                   {"SALES_GROWTH": (5, 20), "PROFIT_GROWTH": (0, 25), "LOAN_GROWTH": (5, 20),
                    "GROSS_NPA": (6, 1.5), "NET_NPA": (2.5, 0.3), "CAPITAL_ADEQUACY": (12, 18), "ROA": (0.5, 1.8),
-                   # Owner-requested fallback; reuse the existing MFG interest-cover scale.
+                   # Owner-confirmed replacement, 24 October 2026.
                    "INTEREST_COVER": (2, 8),
                    # Proposed financial-sector ROE scale for the industry-P/B fallback.
                    "ROE": (8, 18)}),
     "NBFC": group(F_LENDER, Q_LENDER, V_LENDER,
                   {"SALES_GROWTH": (5, 25), "PROFIT_GROWTH": (0, 25), "LOAN_GROWTH": (5, 25),
-                   "GROSS_NPA": (6, 1.5), "NET_NPA": (3, 0.5), "CAPITAL_ADEQUACY": (15, 25), "ROA": (1.0, 3.5)}),
-    "INSURANCE": group(F_INSURER, {"SOLVENCY": 50, "ROE": 50},
+                   "GROSS_NPA": (6, 1.5), "NET_NPA": (3, 0.5), "CAPITAL_ADEQUACY": (15, 25), "INTEREST_COVER": (2, 8), "ROA": (1.0, 3.5)}),
+    "INSURANCE": group(F_INSURER, {"INTEREST_COVER": 50, "ROE": 50},
                        {"PB_VS_INDUSTRY": 50, "PE_VS_INDUSTRY": 25, "PB_VS_HISTORY": 25, "PEG": 20},
                        {"SALES_GROWTH": (5, 20), "PROFIT_GROWTH": (0, 20), "NETWORTH_GROWTH": (5, 20),
-                        "SOLVENCY": (1.5, 2.2), "ROE": (8, 18)}),
+                        "SOLVENCY": (1.5, 2.2), "INTEREST_COVER": (2, 8), "ROE": (8, 18)}),
 }
 
 POINTS_PER_GOOD_QUARTER = 10
 MISS_PENALTY = 5
 STREAK_MAGNITUDE_SHARE = 0.20   # v3.2: share of streak points that depends on growth size (0 = v3.1)
-SHORT_HISTORY_SCALING = True    # v3.3: judge short histories on the quarters that exist (False = v3.2)
 TRADING_VALUE_STEPS = [(25, 100), (10, 80), (2, 60), (0.5, 30), (0, 0)]
-CAGR_MAX_YEARS = 5              # v3.4: CAGR over N = min(5, years of data - 1) years
-CAGR_MIN_YEARS = 3              # v3.6: a 1- or 2-year "CAGR" repeats the 12-month growth -> filled
+CAGR_MAX_YEARS = 5
+CAGR_PREFERRED_YEARS = (5, 3)   # Owner preference: 5 years, then 3, then available.
+CAGR_MIN_YEARS = 1              # At least two consecutive annual observations.
 PROFIT_TURNAROUND_POINTS = 70   # v3.6: only when the latest figure is a profit
 LOSS_NARROWED_POINTS = 30       # v3.6: still a loss, but smaller than before
-NEGATIVE_POINTS = 0             # v3.5: P/E <= 0 or PEG <= 0 -> 0 points, weight kept
 CASH_LOSS_POINTS = {"cash_positive": 50, "cash_negative": 0}   # v3.6: cash conversion when 3-year profit <= 0
 IC_NOT_APPLICABLE_DE = 0.1      # v3.6: interest cover is dropped when debt/equity is below this
 PEG_CORE_GROUPS = ("LIGHT", "MFG")    # PEG always used (when P/E exists)
@@ -126,3 +111,18 @@ PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
 FLAG_RED, FLAG_GREEN = 40, 70         # metric points: < 40 red flag, 40-69 amber, >= 70 strength
 PLEDGE_ALERT = 25                     # % pledged that triggers a hard alert
 VALUE_TRAP = {"limit": 35, "cap": 60}
+RATING_BANDS = ((80, "STRONG"), (65, "HEALTHY"), (50, "AVERAGE"), (35, "WEAK"), (0, "POOR"))
+
+# Owner's v3.6.1 loss adjustment, applied before the weak-business cap.
+LOSS_ADJUSTED_FUNDAMENTAL = True
+LOSS_FAMILY = {"LIGHT": "STANDARD", "MFG": "STANDARD", "UTILITY": "STANDARD",
+               "HEAVY": "CYCLICAL", "REALTY": "CYCLICAL",
+               "BANK": "FINANCIAL", "NBFC": "FINANCIAL", "INSURANCE": "FINANCIAL"}
+LOSS_CAPS = {
+    "STANDARD": {"recovering": 55, "loss": 40, "persistent": 30, "chronic": 20},
+    "CYCLICAL": {"recovering": 60, "loss": 45, "persistent": 30, "chronic": 20},
+    "FINANCIAL": {"recovering": 50, "loss": 35, "persistent": 25, "chronic": 15},
+}
+DEEP_LOSS_MARGIN = 10
+DEEP_LOSS_EXTRA = 10
+LOSS_CAP_FLOOR = 10

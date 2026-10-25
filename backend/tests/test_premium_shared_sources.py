@@ -81,7 +81,11 @@ def test_large_industry_fetch_is_complete_cached_and_does_not_hide_missing_peers
     peer_benchmark(get,peers,'consolidated',ASOF)
     assert len(calls)==101
     def missing(path,params):return {} if path.endswith('/S0') else get(path,params)
-    assert peer_benchmark(missing,peers,'consolidated',ASOF)[0]=={}
+    result,meta=peer_benchmark(missing,peers,'consolidated',ASOF)
+    assert result=={'industry_median_pe':20,'industry_median_pb':2}
+    assert meta['metrics']['industry_median_pe']['partial']
+    assert meta['metrics']['industry_median_pe']['observedCount']==100
+    assert meta['missingSymbols']==['S0']
 
 
 def test_report_generation_reads_the_dashboard_results_and_cache(monkeypatch):
@@ -91,7 +95,8 @@ def test_report_generation_reads_the_dashboard_results_and_cache(monkeypatch):
     monkeypatch.setattr(server,'_resolve_finedge_stock',lambda q:instrument)
     monkeypatch.setattr(server,'_try_resolve_upstox_instrument',lambda *q:{**instrument,'instrumentKey':'NSE_EQ|INE000A01010','exchange':'NSE'})
     monkeypatch.setattr(server,'_stock_fundamentals_cache',{})
-    monkeypatch.setattr(server,'_safe_upstox_get',lambda *a,**k:{})
+    upstox_ratios=[{'name':'P/E','company_value':999,'sector_value':25}, {'name':'P/B','company_value':888,'sector_value':3}]
+    monkeypatch.setattr(server,'_safe_upstox_get',lambda path,*a,**k:upstox_ratios if path.endswith('/key-ratios') else {})
     candles=[{'date':(ASOF-timedelta(days=300-i)).isoformat(),'close':100+i,'volume':1000} for i in range(300)]
     monkeypatch.setattr(server,'_fetch_upstox_price_history',lambda key:deepcopy(candles))
     def statement(s,b,c,p):
@@ -116,6 +121,11 @@ def test_report_generation_reads_the_dashboard_results_and_cache(monkeypatch):
     capture=server._stock_fundamentals_cache[f'finedge:{symbol}:consolidated:yearly']['model_inputs']
     assert capture['prices']['price']==yearly['priceHistory']
     assert capture['income']['financials']
+    assert report['inputs']['industry_median_pe']==25
+    assert report['inputs']['industry_median_pb']==3
+    assert report['benchmark']['reportedObservations']==yearly['valuationBenchmarks']==capture['benchmarkObservations']
+    assert next(r for r in yearly['ratios'] if r['name']=='P/E')['company_value']!=999
+    assert next(r for r in yearly['ratios'] if r['name']=='P/E')['sector_value']==25
     assert all('model_inputs' not in key for key in yearly)
 
 
