@@ -9,9 +9,13 @@ from datetime import date
 try:
     from .premium_data import items, field_date, first, CR, resolve_group, profile_from
     from .premium_engine import num
+    from .financial_fields import INTEREST_COST_FIELDS
+    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 except ImportError:
     from premium_data import items, field_date, first, CR, resolve_group, profile_from
     from premium_engine import num
+    from financial_fields import INTEREST_COST_FIELDS
+    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 
 
 def period_end(label):
@@ -31,6 +35,8 @@ def statement_rows(payload, basis, quarterly=False, cashflow=False):
     aliases = {'Cash flow from Operations': ('cashFlowsFromOperatingActivities', CR)} if cashflow else {
         'Revenue': ('revenueFromOperations', CR), 'Profit After Tax': ('profitLossForPeriod', CR),
         'Profit Before Tax': ('profitBeforeTax', CR), 'Other Income': ('otherIncome', CR),
+        'Finance Costs': ('financeCosts', CR), 'Interest Expense': ('financeCosts', CR),
+        'Interest Expended': ('financeCosts', CR),
         'EPS - Basic': ('basicEPS', 1), 'EPS - Diluted': ('dilutedEPS', 1)}
     rows = {}
     # Upstox documents full_statement as annual even for quarterly requests.
@@ -53,6 +59,18 @@ def statement_rows(payload, basis, quarterly=False, cashflow=False):
                 start_year -= 1
             row = rows.setdefault(end, {'period_end': end.isoformat(), 'period_start': date(start_year, start_month, 1).isoformat()})
             row[spec[0]] = value * spec[1]
+    # The documented operating category is usable even when fs=true omits the
+    # detailed line. It is net operating cash flow, never cash interest paid.
+    if cashflow and not quarterly:
+        for item in payload.get('cash_flow', []):
+            if item.get('category') != 'operating':
+                continue
+            for point in item.get('history', []):
+                end, value = period_end(point.get('period')), num(point.get('value'))
+                if end and value is not None:
+                    start = date(end.year if end.month == 12 else end.year-1, end.month % 12+1, 1)
+                    row = rows.setdefault(end, {'period_end':end.isoformat(), 'period_start':start.isoformat()})
+                    row.setdefault('cashFlowsFromOperatingActivities', value * CR)
     return list(rows.values())
 
 
@@ -103,7 +121,7 @@ def derive_fourth_quarters(result, events):
         ('profitLossForPeriod', ('profitLossForPeriod','profitLossForThePeriod','profitAfterTax','netProfit')),
         ('profitOrLossAttributableToOwners', ('profitOrLossAttributableToOwners','profitAttributableToOwnersOfParent')),
         ('profitBeforeTax', ('profitBeforeTax','profitLossBeforeTax')),
-        ('financeCosts', ('financeCosts','financeCost','interestExpended','interestExpense')),
+        ('financeCosts', INTEREST_COST_FIELDS),
         ('depreciation', ('depreciation','depreciationAndAmortisation','depreciationAndAmortization')),
         ('otherIncome', ('otherIncome',)), ('ebitda', ('ebitda','EBITDA')),
         ('netInterestIncome', ('netInterestIncome','netInterestRevenue','netInterestEarnings')),
@@ -165,6 +183,17 @@ def derive_finedge(raw):
             fill('taxExpense', ('taxExpense','taxExpenses'), [('currentTax',),('deferredTax',)], lambda a,b:a+b)
             fill('profitLossForPeriod', ('profitLossForPeriod','profitLossForThePeriod','netProfit','profitAfterTax'),
                  [('profitBeforeTax','profitLossBeforeTax'),('taxExpense','taxExpenses')], lambda a,b:a-b)
+            # Only explicit EBIT supports this identity. Generic operating
+            # profit/EBITDA and cash-flow interest payments are not substitutes.
+            ebit, pbt = first(row,'ebit','profitBeforeInterestAndTax'), first(row,'profitBeforeTax','profitLossBeforeTax')
+            if ebit is not None and pbt is not None and ebit >= pbt:
+                fill('financeCosts', INTEREST_COST_FIELDS,
+                     [('ebit','profitBeforeInterestAndTax'),('profitBeforeTax','profitLossBeforeTax')], lambda a,b:a-b)
+            if resolve_group(profile_from(raw))[0] in ('BANK','NBFC'):
+                earned, nii = first(row,'interestEarned','interestIncome'), first(row,'netInterestIncome','netInterestRevenue','netInterestEarnings')
+                if earned is not None and nii is not None and earned >= nii:
+                    fill('interestExpended', INTEREST_COST_FIELDS,
+                         [('interestEarned','interestIncome'),('netInterestIncome','netInterestRevenue','netInterestEarnings')], lambda a,b:a-b)
             fill('profitOrLossAttributableToOwners', ('profitAttributableToOwnersOfParent','profitOrLossAttributableToOwners','profitLossAttributableToOwnersOfParent','profitOrLossAttributableToOwnersOfParent'),
                  [('profitLossForPeriod','profitLossForThePeriod'),('nonControllingInterests','profitAttributableToNonControllingInterests')], lambda a,b:a-b)
             fill('totalEquity', ('totalEquity','shareholdersEquity','netWorth','equity'),
@@ -180,7 +209,7 @@ def derive_finedge(raw):
             fill('depreciation', ('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),
                  [('depreciationExpense',),('amortisationExpense','amortizationExpense')], lambda a,b:a+b)
             fill('ebitda', ('ebitda','EBITDA'), [('ebit','profitBeforeInterestAndTax'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization')], lambda a,b:a+b)
-            fill('ebitda', ('ebitda','EBITDA'), [('profitBeforeTax','profitLossBeforeTax'),('financeCosts','financeCost','interestExpended'),('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),('otherIncome',)], lambda a,b,c,d:a+b+c-d)
+            fill('ebitda', ('ebitda','EBITDA'), [('profitBeforeTax','profitLossBeforeTax'),INTEREST_COST_FIELDS,('depreciation','depreciationAndAmortisation','depreciationAndAmortization'),('otherIncome',)], lambda a,b,c,d:a+b+c-d)
     quarters = {}
     for point in items(result.get('quarterly'),'financials','data'):
         end = field_date(point)
@@ -205,9 +234,10 @@ def derive_finedge(raw):
                 ('profitLossForPeriod',('profitLossForPeriod','profitLossForThePeriod','profitAfterTax','netProfit')),
                 ('profitOrLossAttributableToOwners',('profitOrLossAttributableToOwners','profitAttributableToOwnersOfParent')),
                 ('depreciation',('depreciation','depreciationAndAmortisation','depreciationAndAmortization')),
-                ('financeCosts',('financeCosts','financeCost','interestExpended')),
+                ('financeCosts',INTEREST_COST_FIELDS),
                 ('interestEarned',('interestEarned','interestIncome')),
-                ('netInterestIncome',('netInterestIncome','netInterestRevenue','netInterestEarnings'))):
+                ('netInterestIncome',('netInterestIncome','netInterestRevenue','netInterestEarnings')),
+                ('netPremiumIncome',('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium'))):
                 values = [first(quarters[day],*aliases) for day in dates]
                 if first(row,*aliases) is None and all(v is not None for v in values):
                     row[target] = sum(values)
@@ -224,6 +254,45 @@ def derive_finedge(raw):
     return result, list(dict.fromkeys(events))
 
 
+def recover_balance_inputs(result, basis, as_of, load, events):
+    """Fill only compatible dated balance fields, preserving the accounting identity."""
+    annual = items(result.get('annual'), 'financials', 'data')
+    # Partial balance sheets need the same fallback as entirely absent ones.
+    # Recover dated assets/liabilities and reconciled total equity; never infer
+    # debt from liabilities or use an older annual balance as the latest quarter.
+    balances = items(result.get('balance'),'financials','data')
+    targets = {field_date(r) for r in annual if field_date(r) and field_date(r) <= as_of}
+    dated_balances = {field_date(r):r for r in balances if field_date(r) and field_date(r) <= as_of}
+    if dated_balances:
+        targets.add(max(dated_balances))
+    balance_aliases = {'totalAssets':('totalAssets','totalAsset','assets'),
+                       'totalLiabilities':('totalLiabilities','totalLiability','liabilities'),
+                       'totalEquity':('totalEquity','shareholdersEquity','netWorth','equity')}
+    if targets and any(any(first(dated_balances.get(day,{}),*balance_aliases[k]) is None for k in ('totalAssets','totalEquity')) for day in targets):
+        recovered = []
+        for row in balance_rows(load('balance'),basis):
+            end = field_date(row)
+            if end not in targets or end > as_of:
+                continue
+            old = dated_balances.get(end)
+            if old is None:
+                old = {'period_end':end.isoformat()}
+                balances.append(old)
+                dated_balances[end] = old
+            fields = [key for key in balance_aliases if key in row and first(old,*balance_aliases[key]) is None]
+            if fields:
+                candidate = {key:first(old,*names) if first(old,*names) is not None else row.get(key) for key,names in balance_aliases.items()}
+                assets, liabilities, equity = (candidate[k] for k in ('totalAssets','totalLiabilities','totalEquity'))
+                if all(value is not None for value in (assets,liabilities,equity)) and abs(assets-liabilities-equity) > max(CR*.02,abs(assets)*.0001):
+                    events.append(f'Upstox balance at {end} conflicts with the retained FinEdge accounting identity; missing fields remain unavailable.')
+                    continue
+                old.update({key:row[key] for key in fields})
+                recovered.append(end.isoformat()+' ['+', '.join(fields)+']')
+        if recovered:
+            result['balance'] = {'financials':balances}
+            events.append(f'Upstox balance ({basis}, crore): recovered periods {", ".join(sorted(recovered))}; only matching dated balances used.')
+
+
 def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True):
     """Optional loader(section) returns a verified identity's Upstox payload."""
     result, events = derive_finedge(raw)
@@ -235,6 +304,7 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
         'dilutedEPS': ('basicEPS', 'basicEps', 'basicReInr', 'basicREInr', 'basicEPSInRs', 'eps', 'dilutedEPS', 'dilutedReInr'),
         'profitBeforeTax': ('profitBeforeTax', 'profitLossBeforeTax'),
         'otherIncome': ('otherIncome',),
+        'financeCosts': INTEREST_COST_FIELDS,
     }
     def fetch(section):
         try:
@@ -279,7 +349,7 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
     annual = items(result.get(section), 'financials', 'data')
     def income_gaps(rows):
         quarterly = period == 'quarterly'
-        count = 14 if quarterly else 6
+        count = QUARTERS_STORED if quarterly else CAGR_MAX_YEARS + 1
         valid = {}
         for row in rows:
             end = field_date(row)
@@ -305,6 +375,13 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
                 return True
             if not quarterly and first(row,*equivalents['basicEPS']) is None:
                 return True
+        # PBT is required for interest coverage even with complete profit,
+        # revenue and EPS histories. A missing expense must not suppress this
+        # provider attempt. Upstox still needs an explicit matching line item.
+        latest = valid[recent[0]]
+        if not quarterly and (first(latest,'profitBeforeTax','profitLossBeforeTax') is None or
+                              first(latest,*INTEREST_COST_FIELDS) is None):
+            return True
         return False
     # Only absent observations are fetched; generic revenue cannot replace NII.
     if income_gaps(annual):
@@ -314,6 +391,7 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
     cf_dates = {field_date(r) for r in cf if first(r, 'netCashFromOperatingActivities', 'cashFromOperatingActivity', 'cashFlowsFromOperatingActivities', 'cashFlowFromOperatingActivities', 'operatingCashFlow') is not None and (not r.get('period_start') or (field_date(r) and field_date({'date':r['period_start']}) and 330 <= (field_date(r)-field_date({'date':r['period_start']})).days+1 <= 400))}
     if any(field_date(r) not in cf_dates for r in sorted(annual, key=lambda r: field_date(r) or date.min, reverse=True)[:3]):
         merge('cashflow', fetch('cashflow'), cashflow=True)
+    recover_balance_inputs(result, basis, as_of, fetch, events)
     prices = sorted((r for r in items(raw.get('prices'), 'price','quotes','data') if field_date(r) and field_date(r) <= as_of), key=field_date)
     invalid = len(prices) < 251 or any((first(r,'close_price','close','adjClose') or 0) <= 0 for r in prices[-251:]) or any(first(r,'volume','tradedVolume') is None for r in prices[-60:])
     if invalid and recover_prices:

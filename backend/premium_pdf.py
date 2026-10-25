@@ -109,6 +109,14 @@ def render_premium_pdf(report):
         story.append(drawing)
     story.append(PageBreak())
     story.append(p("Review notes", "ReportTitle"))
+    completeness = review['completeness']
+    section("Input completeness")
+    if completeness['complete']:
+        story.append(p("All applicable scoring factors have usable inputs and the required comparison history."))
+    else:
+        story.append(p(f"Unavailable factors: {completeness['missingFactorCount']}. Factors with limited comparison history: {completeness['limitedHistoryCount']}. These limitations remain visible even where an input is excluded from the coverage percentage."))
+        for item in completeness['items']:
+            story.append(p(f"{item['category']} / {item['label']}: {item['reason']} {item['treatment']}"))
     section("What to keep in mind")
     for note in review["notes"]:
         story.append(p("- " + note))

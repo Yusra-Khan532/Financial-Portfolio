@@ -2231,6 +2231,7 @@ INCOME_STATEMENT_ALIASES = {
     "employeeBenefitExpense": "employee_benefit_expense", "employeeBenefitsExpense": "employee_benefit_expense",
     "employeesCost": "employee_benefit_expense",
     "financeCosts": "interest", "financeCost": "interest", "interest": "interest", "interestExpended": "interest",
+    "interestExpense": "interest", "interestExpenses": "interest",
     "depreciation": "depreciation", "depreciationAndAmortisation": "depreciation",
     "depreciationAndAmortization": "depreciation",
     "otherIncome": "other_income",
@@ -3194,6 +3195,8 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
                 {"type": effective_statement_type, "time_period": "yearly" if section == "annual" else "quarterly", "fs": "true"}, default={})
         if section == "cashflow":
             return _safe_upstox_get(f"/fundamentals/{isin}/cash-flow", {"type": effective_statement_type, "fs": "true"}, default={})
+        if section == "balance":
+            return _safe_upstox_get(f"/fundamentals/{isin}/balance-sheet", {"type": effective_statement_type, "fs": "true"}, default={})
         return None
     shared_raw, resolution_notes = recover_inputs(shared_raw, effective_statement_type, datetime.now(timezone.utc).date(), shared_load, period=period, recover_prices=False)
     income_rows = shared_raw.get(raw_section, {}).get("financials", [])
@@ -3202,7 +3205,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     cash_rows = shared_raw.get("cashflow", {}).get("financials", [])
     for note in resolution_notes:
         if note.startswith("Upstox") and "recovered periods" in note:
-            data_sources["cashFlow" if "cashflow" in note else "incomeStatement"] = "finedge+upstox:fallback"
+            data_sources["cashFlow" if "cashflow" in note else "balanceSheet" if "Upstox balance " in note else "incomeStatement"] = "finedge+upstox:fallback"
     if resolution_notes:
         data_quality.append({"severity": "info", "section": "sourceResolution", "code": "shared_resolution",
             "message": f"Shared FinEdge calculation/recovery checks applied ({len(resolution_notes)} observations).", "details": resolution_notes})

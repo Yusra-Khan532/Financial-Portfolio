@@ -45,3 +45,23 @@ test("report displays the actual CAGR lookback and year endpoints", () => {
   expect(html).toContain("Revenue CAGR (1-year)");
   expect(html).toContain("Period used: 2025 to 2026.");
 });
+
+test("report exposes missing dependencies and short histories together", () => {
+  const sample = {...report, review: {...report.review, completeness: {
+    complete:false, missingFactorCount:1, limitedHistoryCount:1,
+    items:[{metric:"INTEREST_COVER", category:"Quality", label:"Interest cover", reason:"Annual P&L interest expense.", treatment:"Group estimate used: 50/100."},
+      {metric:"SALES_STREAK", category:"Fundamental", label:"Net premium income streak", reason:"Quarterly income history (6 of 14 observations available).", treatment:"2 of 10 year-on-year comparisons available."}]
+  }}};
+  const html=renderToStaticMarkup(<ReportDetail report={sample} />);
+  expect(html).toContain('aria-label="Input completeness"');
+  expect(html).toContain('Annual P&amp;L interest expense.');
+  expect(html).toContain('Group estimate used: 50/100.');
+  expect(html).toContain('6 of 14');
+  expect(html).toContain('2 of 10 year-on-year comparisons');
+});
+
+test("a legacy report cannot claim all inputs were checked", () => {
+  const html=renderToStaticMarkup(<ReportDetail report={report} />);
+  expect(html).toContain('Recalculate this report to see the latest missing-input');
+  expect(html).not.toContain('All applicable scoring factors have usable inputs');
+});

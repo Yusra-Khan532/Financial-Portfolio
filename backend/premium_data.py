@@ -12,8 +12,12 @@ import time
 import requests
 try:
     from .premium_engine import num
+    from .financial_fields import INTEREST_COST_FIELDS
+    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 except ImportError:
     from premium_engine import num
+    from financial_fields import INTEREST_COST_FIELDS
+    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 
 CR = 10_000_000
 # Reports share a bounded provider budget, including industry requests.
@@ -303,9 +307,9 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
     # Calendar-indexed slots retain gaps; arrays always run oldest to newest.
     qindices = sorted({day.year * 4 + (day.month - 1) // 3 for day in q})
     qmap = {day.year * 4 + (day.month - 1) // 3: row for day, row in q.items()}
-    qkeys = list(range(max(min(qindices), max(qindices) - 13), max(qindices) + 1)) if qindices else []
+    qkeys = list(range(max(min(qindices), max(qindices) - QUARTERS_STORED + 1), max(qindices) + 1)) if qindices else []
     years = sorted({day.year for day in a})
-    ykeys = list(range(max(min(years), max(years) - 5), max(years) + 1)) if years else []
+    ykeys = list(range(max(min(years), max(years) - CAGR_MAX_YEARS), max(years) + 1)) if years else []
     amap = {day.year: row for day, row in a.items()}
     def record(source, target, names, scale=CR):
         name = next((key for key in names if num(source.get(key)) is not None), None)
@@ -333,7 +337,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         if ebit is not None and depreciation is not None: return ebit + depreciation
         # PBT + finance cost + depreciation - other income is an explicit operating EBITDA derivation.
         pbt = record(row, "operating_profit", ("profitBeforeTax", "profitLossBeforeTax"))
-        interest = record(row, "operating_profit", ("financeCosts", "financeCost", "interestExpended"))
+        interest = record(row, "operating_profit", INTEREST_COST_FIELDS)
         other = record(row, "operating_profit", ("otherIncome",))
         return pbt + interest + depreciation - other if all(v is not None for v in (pbt, interest, depreciation, other)) else None
     def eps(row): return record(row, "eps", ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr"), 1)
@@ -370,7 +374,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         "total_debt": record(current_b, "total_debt", ("borrowings", "totalBorrowings", "totalDebt")),
         "cash": record(current_b, "cash", ("cashAndBankBalances", "cashAndCashEquivalents", "cashEquivalents", "cash")),
         "profit_before_tax": record(current_a, "profit_before_tax", ("profitBeforeTax", "profitLossBeforeTax")),
-        "interest_cost": record(current_a, "interest_cost", ("financeCosts", "financeCost", "interestExpended", "interestExpense")),
+        "interest_cost": record(current_a, "interest_cost", INTEREST_COST_FIELDS),
         "total_assets": record(current_b, "total_assets", ("totalAssets", "totalAsset", "assets")),
     }
     # Cash and other bank balances are disjoint provider fields. Do not assume all investments are liquid.

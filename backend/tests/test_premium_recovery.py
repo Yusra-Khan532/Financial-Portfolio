@@ -1,7 +1,7 @@
 from copy import deepcopy
 from datetime import date, timedelta
 import pytest
-from backend.premium_recovery import recover_inputs, statement_rows
+from backend.fundamental_resolution import recover_inputs, statement_rows
 from backend.premium_data import adapt_inputs
 
 ASOF = date(2026, 10, 18)

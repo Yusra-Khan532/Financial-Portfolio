@@ -1,41 +1,33 @@
-# Premium report lifecycle
+# Premium report lifecycle and deployment
 
-Reports are generated on demand. There is no report-history UI, listing endpoint, report database collection, or report database read/write path.
+For financial sourcing, formulas and applicability rules, read the [implementation guide](premium-model-implementation.md). For payloads and normalized fields, read the [input/output contract](premium-model-input-output.md).
 
-## Production / serverless delivery
+## Current generation flow
 
-The client requests `POST /api/premium-reports` with `delivery: "inline"`. The calculation completes within that request and returns the ready report with a signed snapshot receipt. Generation no longer requires a later request to find a job in a particular server process's memory.
+1. The administrator selects an exact company and statement basis. The frontend posts to `/api/premium-reports` with `delivery: "inline"`.
+2. The backend resolves identity, loads the same financial observations as Stock Fundamentals, applies shared recovery and benchmarks, then computes one deterministic rating and its trace/review.
+3. Generation finishes in that HTTP request. The response is a ready report plus a signed snapshot receipt. It does not depend on another serverless request finding a process-local job.
+4. The frontend retains only this current report in module memory and tab session storage (`premium_current_report`), replacing the previous one. It restores an unexpired snapshot after reload; it does not maintain a saved-report list or database collection.
+5. PDF download posts the complete snapshot and its separate receipt to `/api/premium-reports/pdf`, with administrator authentication. The renderer uses that calculation without provider calls or rescoring.
 
-Only the current report is retained in that browser tab's session storage and module memory, replacing the previous current report. It can be restored after a page reload for 30 minutes. Expired snapshots are rejected and removed when read. This is temporary current-page state, not saved report history. Closing the tab clears its session state; the PDF is the durable user copy.
+The receipt is an HS256 JWT bound to the administrator subject, the `premium-report-snapshot` audience, a canonical report SHA-256 digest and a 30-minute expiry. Integral floats normalize to integers so an unchanged JavaScript JSON round trip preserves the digest. Snapshot encoding is limited to 2 MB. Invalid or expired snapshots are rejected; do not modify a signed snapshot to upgrade old report contents. Recalculate instead.
 
-`POST /api/premium-reports/pdf` accepts the exact returned snapshot and receipt with administrator authentication. The server verifies purpose, administrator subject, expiry and a canonical content digest before rendering. This works even if generation and download reach different Vercel instances. Changing a value, reusing another administrator's receipt, or using an expired/wrong-purpose receipt is rejected. Integral JSON numbers are normalised to survive an unchanged browser JSON round-trip. Neither the administrator token nor the snapshot is placed in a URL. The PDF is rendered from that exact calculation without fetching providers or rescoring.
+## Compatibility endpoints
 
-`backend/vercel.json` configures a 300-second budget for the FastAPI `server.py` function. The Vercel backend project must use `backend` as its project root for that configuration; verify the deployed entrypoint/settings if the project root differs. Deploy both backend and frontend. Earlier frontend versions keep using the compatibility flow until their bundle is updated.
+Requests omitting `delivery` still default to the older background flow: return HTTP 202 and poll `/api/premium-reports/{id}`. Those jobs are temporary process memory, expire after 30 minutes, and have a limit of 20 entries. Two generation slots bound concurrency. They do not survive a server restart or guarantee affinity across serverless instances. The current frontend uses inline generation; polling remains for legacy responses/links.
 
-## Compatibility flow
+Legacy PDF links are report-scoped, one-use capabilities with a two-minute lifetime. New snapshots use the authenticated PDF POST instead. Neither admin tokens nor snapshots are put into URLs. Legacy in-memory state does not recreate saved report history.
 
-Clients without `delivery: "inline"` retain the former temporary in-process background job flow. Those IDs expire after 30 minutes/server restart and are not guaranteed to survive serverless instance changes. The updated frontend uses this only for earlier API responses/legacy links, not new production report generation. Existing short-lived one-use legacy PDF links remain supported for those current in-process reports.
+## Data freshness and deployment
 
-## Production failure reproduced
+The dashboard caches resolved provider observations for 15 minutes per symbol/requested basis/period. Benchmark observations have their own 15-minute cache. Recalculate produces a new scoring run but may consume still-valid cached inputs; it is not a guarantee of an immediate provider refresh.
 
-On 18 October 2026, the live Avantel request opened `/blog/admin/premium-reports/ed47b5ef98f74d3b8cc083ff98e4f44b`, then returned “Report not found or expired” while the page still displayed “Preparing Avantel Ltd.” The deployed backend is on Vercel and used process-local job state. Frontend polling retries alone cannot recover a missing cross-instance job.
+Deploy both frontend and backend. `backend/vercel.json` gives `server.py` a 300-second function budget; the backend deployment must use the matching project root/entrypoint. Instance memory may be reused as a cache, but inline snapshots do not rely on instance reuse for later PDF delivery.
 
-Vercel explicitly documents keeping shared state outside instance memory because any instance can handle a connection: https://vercel.com/kb/guide/vercel-services-fluid-compute . This implementation avoids needing shared report storage by returning a signed current snapshot within the request.
+Runtime settings are loaded by the existing server configuration: CMS authentication/signing settings, FinEdge/Upstox connector credentials, and normal application/database settings. Keep credentials in environment configuration. No new report collection, external model worker, Python subprocess or machine-learning service is required.
 
-The old `premium_reports` MongoDB collection and its nine records were removed on 18 October 2026. This fix does not recreate it or add saved report history. Model formulas, parameters and data sourcing remain unchanged.
+## Reader-facing output
 
-## Reader-facing report
+The website and PDF show category scores, factor pros/cons, mixed/unavailable factors, input completeness, financial history and key ratios. They omit weights, raw scoring equations, input hashes and provider-request diagnostics. The internal signed snapshot retains those engineering details for reproducibility. An older current snapshot may lack newer review fields; the page asks for recalculation rather than inventing missing commentary.
 
-The page and PDF show category scores, factor-level pros and cons, financial history and key ratios. They omit scoring weights, raw equations, engine/version identifiers, calculation IDs, input hashes and provider-request diagnostics. The PDF ends after the key-ratio section; the former calculation, methodology and source-audit appendix is removed.
-
-`premium_presentation.py` adds deterministic commentary to the existing result. It neither fetches inputs nor changes scoring. Pros use the existing green range (70 or above), cons the red range (below 40); intermediate factors are shown separately. Filled, unavailable and inapplicable factors are never presented as company strengths or weaknesses. An industry substitute for missing company valuation history is explicitly labelled. All categories show an honest empty state when no pro or con qualifies. Higher Risk scores indicate lower assessed risk.
-
-The full calculation trace remains available internally for validation and signed snapshot consistency. PDF rendering derives commentary from the supplied snapshot; new page snapshots include the same reader-facing review. Older current-tab snapshots remain readable, with a prompt to regenerate for full commentary. The final model scores and source-priority rules are unchanged.
-
-## BANK conditional fallbacks (3.6.5-bank)
-
-Owner-requested changes apply to BANK only. If the industry P/E comparison is unavailable, a usable own-history P/E comparison replaces that slot. If capital adequacy is unavailable, interest coverage calculated from `(annual PBT + annual interest cost) / annual interest cost` replaces its Quality slot. Replacements retain the original slot's contribution; they do not add an extra factor. Reported capital adequacy, including a valid zero, always wins. A genuine zero/loss P/E score is not treated as missing.
-
-Interest coverage uses the existing MFG/default-group interest-cover scale, 2x for zero points and 8x for 100 points, clamped between those bounds. This is an explicit project scoring choice, not a regulatory capital-adequacy measure or a separately validated bank calibration. Zero reported annual interest with available PBT follows the existing model's 100-point rule. Missing PBT, missing interest, or negative interest prevents the fallback; the original capital-adequacy missing-data treatment remains. The non-bank low-debt exclusion does not suppress a BANK fallback.
-
-The page and PDF label the effective factor as `Interest coverage (capital adequacy unavailable)` and include a concise review note. An actual fallback input contributes to data coverage; that coverage measures available inputs, not equivalence to capital adequacy. Source priority is unchanged. NBFC and other groups retain their prior rules. When the industry P/B comparison is unavailable, ROE replaces that Valuation slot. ROE is the last financial year's owner-attributable profit divided by latest total book equity, matching the existing model convention. It uses the proposed existing financial-sector scale of 8% for zero points and 18% for 100, clamped to that range. This is an explicit project fallback calibration, not an externally validated bank standard. Missing annual profit or equity prevents the replacement; a real zero/negative ROE remains usable and scores accordingly. A valid industry P/B comparison, including a zero/loss score, always takes priority. Existing own-history P/B remains a separate unchanged factor.
+Scoring and PDF functions are tested independently of live providers. Source-recovery, parity, snapshot integrity, legacy polling and frontend rendering checks are listed in the [implementation guide](premium-model-implementation.md#presentation-completeness-and-validation).

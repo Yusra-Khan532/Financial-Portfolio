@@ -10,6 +10,13 @@ try:
         LOSS_ADJUSTED_FUNDAMENTAL, LOSS_FAMILY, LOSS_CAPS,
         DEEP_LOSS_MARGIN, DEEP_LOSS_EXTRA, LOSS_CAP_FLOOR,
         CAGR_MAX_YEARS, CAGR_PREFERRED_YEARS, CAGR_MIN_YEARS,
+        MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
+        QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
+        MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
+        PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
     )
 except ImportError:
     from premium_model_config import (
@@ -17,11 +24,15 @@ except ImportError:
         LOSS_ADJUSTED_FUNDAMENTAL, LOSS_FAMILY, LOSS_CAPS,
         DEEP_LOSS_MARGIN, DEEP_LOSS_EXTRA, LOSS_CAP_FLOOR,
         CAGR_MAX_YEARS, CAGR_PREFERRED_YEARS, CAGR_MIN_YEARS,
+        MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
+        QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
+        MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
+        PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
     )
 
-MODEL_VERSION = "3.6.9"
-BASELINE_VERSION = "3.6.1-simple"
-FILL_VERSION = "2026-10-14"
 LABELS = {
     "SALES_STREAK": "Sales streak", "PROFIT_STREAK": "Profit streak",
     "SALES_GROWTH": "Sales growth (12 months)", "PROFIT_GROWTH": "Profit growth (12 months)",
@@ -99,7 +110,7 @@ def growth(new, old, years, limits):
     if new is None or old is None:
         return None, None, "Missing comparison"
     if old <= 0:
-        points = 70. if new > 0 else 30. if new > old else 0.
+        points = float(PROFIT_TURNAROUND_POINTS) if new > 0 else float(LOSS_NARROWED_POINTS) if new > old else 0.
         return points, None, "Loss to profit" if new > 0 else "Loss narrowed" if new > old else "Loss not narrowed"
     value = ((new / old) ** (1 / years) - 1) * 100 if new > 0 else -100.
     return scale(value, *limits), value, None
@@ -107,7 +118,7 @@ def growth(new, old, years, limits):
 
 def loss_profile(d):
     """Owner loss tiers, without turning gaps in period-aligned inputs into zero."""
-    profit_q, sales_q = d.get("net_profit_q", [])[-14:], d.get("sales_q", [])[-14:]
+    profit_q, sales_q = d.get("net_profit_q", [])[-QUARTERS_STORED:], d.get("sales_q", [])[-QUARTERS_STORED:]
     profit_y, sales_y = d.get("net_profit_y", []), d.get("sales_y", [])
     if len(profit_q) >= 4:
         profit, sales, basis = complete_sum(profit_q, 4), complete_sum(sales_q, 4), "last 4 quarters"
@@ -141,7 +152,7 @@ def loss_tier(group, profile):
 
 
 def streak(series, best, group, metric, *, profit_rule=False, loss_now=False):
-    series = series[-14:]
+    series = series[-QUARTERS_STORED:]
     pairs = [(i, num(series[i]), num(series[i - 4])) for i in range(4, len(series))]
     judged = sum(new is not None and old is not None for _, new, old in pairs)
     fill_points = 0. if profit_rule and loss_now else fill(group, metric)
@@ -167,9 +178,9 @@ def streak(series, best, group, metric, *, profit_rule=False, loss_now=False):
     good = sum(item[0] for item in run)
     slips = len(run) - good
     magnitude = statistics.median([item[1] for item in run if item[0]]) if good else 0.
-    base = max(0., 10 * good - 5 * slips) * 10 / judged
-    own = base * (.8 + .2 * magnitude / 100)
-    credibility = judged / 10
+    base = max(0., POINTS_PER_GOOD_QUARTER * good - MISS_PENALTY * slips) * QUARTERS_JUDGED / judged
+    own = base * (1 - STREAK_MAGNITUDE_SHARE + STREAK_MAGNITUDE_SHARE * magnitude / 100)
+    credibility = judged / QUARTERS_JUDGED
     yoys = [item[2] for item in run if item[0] and item[2] is not None]
     return own * credibility + fill_points * (1 - credibility), {
         "good": good, "slips": slips, "judged": judged, "base": base,
@@ -179,7 +190,7 @@ def streak(series, best, group, metric, *, profit_rule=False, loss_now=False):
 
 
 def label(score):
-    return "STRONG" if score >= 80 else "HEALTHY" if score >= 65 else "AVERAGE" if score >= 50 else "WEAK" if score >= 35 else "POOR"
+    return next((name for threshold, name in RATING_BANDS if score >= threshold), RATING_BANDS[-1][1])
 
 
 def score_company(d, group):
@@ -202,8 +213,8 @@ def score_company(d, group):
         a, b = num(a), num(b)
         return a / b if a is not None and b is not None and b > 0 else None
 
-    sales_q, profit_q = d.get("sales_q", [])[-14:], d.get("net_profit_q", [])[-14:]
-    op_q = d.get("operating_profit_q", [])[-14:]
+    sales_q, profit_q = d.get("sales_q", [])[-QUARTERS_STORED:], d.get("net_profit_q", [])[-QUARTERS_STORED:]
+    op_q = d.get("operating_profit_q", [])[-QUARTERS_STORED:]
     profile = loss_profile(d)
     loss_now = LOSS_ADJUSTED_FUNDAMENTAL and profile["lossNow"]
     for prefix, q, annual_key in (("SALES", sales_q, "sales_y"), ("PROFIT", profit_q, "net_profit_y")):
@@ -215,7 +226,7 @@ def score_company(d, group):
         if p is None:
             points.pop(metric, None)
         credits[metric] = credit
-        annual = d.get(annual_key, [])[-6:]
+        annual = d.get(annual_key, [])[-(CAGR_MAX_YEARS + 1):]
         new, old, basis = recent(reported_start(q), annual)
         p, value, note = growth(new, old, 1, limits[prefix + "_GROWTH"])
         put(prefix + "_GROWTH", value, detail={"basis": basis, "note": note, "current": new, "previous": old}, explicit_points=p)
@@ -256,9 +267,9 @@ def score_company(d, group):
             put("MARGIN_CHANGE", (now - before) * 100, "Z", {"note": "Current operating margin is non-positive", "operatingLoss": True, "opMarginNow": now * 100}, 0.)
         de = ratio(debt, nw)
         put("DEBT_TO_EQUITY", de, explicit_points=0. if nw is not None and nw <= 0 else None)
-        if de is not None and de < .1:
+        if de is not None and de < IC_NOT_APPLICABLE_DE:
             statuses["INTEREST_COVER"] = "N"
-            details["INTEREST_COVER"] = {"note": "Debt / equity is below 0.1"}
+            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}"}
         else:
             interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
             put("INTEREST_COVER", (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None,
@@ -268,7 +279,7 @@ def score_company(d, group):
         p3 = complete_sum(d.get("net_profit_y", []), 3)
         c3 = complete_sum(d.get("operating_cash_flow_y", []), 3)
         if p3 is not None and p3 <= 0 and c3 is not None:
-            put("CASH_CONVERSION", None, "Z", {"note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, 50. if c3 > 0 else 0.)
+            put("CASH_CONVERSION", None, "Z", {"note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, float(CASH_LOSS_POINTS["cash_positive" if c3 > 0 else "cash_negative"]))
         else:
             put("CASH_CONVERSION", ratio(c3, p3))
 
@@ -302,11 +313,11 @@ def score_company(d, group):
     g = values.get("PROFIT_CAGR")
     if g is None:
         g = values.get("PROFIT_GROWTH")
-    core = group in ("LIGHT", "MFG")
+    core = group in PEG_CORE_GROUPS
     if loss or (pe is not None and g is not None and g <= 0):
         put("PEG", None, "Z", {"note": "Loss-making or non-positive profit growth"}, 0.)
-    elif pe is not None and g is not None and g > 0 and (core or details["PROFIT_STREAK"]["good"] >= 6):
-        put("PEG", pe / min(g, 40), detail={"growthUsed": min(g, 40), "note": "Core group" if core else "At least 6 actual good profit quarters"})
+    elif pe is not None and g is not None and g > 0 and (core or details["PROFIT_STREAK"]["good"] >= PEG_MIN_PROFIT_STREAK):
+        put("PEG", pe / min(g, PEG_GROWTH_CAP), detail={"growthUsed": min(g, PEG_GROWTH_CAP), "note": "Core group" if core else f"At least {PEG_MIN_PROFIT_STREAK} actual good profit quarters"})
     elif not core:
         statuses["PEG"] = "N"
         details["PEG"] = {"note": "Optional PEG eligibility requirements not met"}
@@ -379,10 +390,10 @@ def score_company(d, group):
         parts["fundamental"] = float(fundamental_cap)
         adjustments.append({"metric": "LOSS_CAP", "part": "fundamental", "rawScore": raw_fundamental, "cap": fundamental_cap})
     valuation_capped = False
-    if parts["valuation"] is not None and parts["valuation"] > 60 and any(parts[p] is not None and parts[p] < 35 for p in ("fundamental", "quality")):
+    if parts["valuation"] is not None and parts["valuation"] > VALUE_TRAP["cap"] and any(parts[p] is not None and parts[p] < VALUE_TRAP["limit"] for p in ("fundamental", "quality")):
         valuation_capped = True
-        adjustments.append({"metric": "WEAK_BUSINESS_CAP", "part": "valuation", "rawScore": parts["valuation"], "cap": 60.})
-        parts["valuation"] = 60.
+        adjustments.append({"metric": "WEAK_BUSINESS_CAP", "part": "valuation", "rawScore": parts["valuation"], "cap": float(VALUE_TRAP["cap"])})
+        parts["valuation"] = float(VALUE_TRAP["cap"])
     total_weight = sum(w for p, w in PART_WEIGHTS.items() if parts[p] is not None)
     for adjustment in adjustments:
         adjustment["pointsLost"] = PART_WEIGHTS[adjustment["part"]] / total_weight * (adjustment["rawScore"] - adjustment["cap"])
@@ -391,7 +402,7 @@ def score_company(d, group):
     confidence = min(1., max(0., sum(PART_WEIGHTS[p] * value for p, value in coverage.items())))
     judged = min(details["SALES_STREAK"]["judged"], details["PROFIT_STREAK"]["judged"])
     enough = sum(num(v) is not None for v in sales_q) >= 4 or sum(num(v) is not None for v in d.get("sales_y", [])) >= 2
-    status = "NOT RATED" if confidence < .5 or not enough else "PROVISIONAL" if confidence < .8 or judged < 6 else "RATED"
+    status = "NOT RATED" if confidence < NOT_RATED_BELOW or not enough else "PROVISIONAL" if confidence < PROVISIONAL_BELOW or judged < PROVISIONAL_MIN_QUARTERS else "RATED"
     if d.get("rating_blockers"):
         status = "NOT RATED"
     rating = "NOT RATED" if status == "NOT RATED" else label(final)
@@ -401,22 +412,22 @@ def score_company(d, group):
         share = PART_WEIGHTS[row["part"]] / total_weight * row["share"]
         row["pointsEarned"] = share * (row["points"] or 0)
         row["pointsLost"] = share * (100 - (row["points"] or 0)) if row["share"] else 0.
-        row["severity"] = "NO DATA" if row["status"] in ("F", "L") else "NOT APPLICABLE" if row["status"] == "N" else "RED" if row["points"] < 40 else "AMBER" if row["points"] < 70 else "GREEN"
+        row["severity"] = "NO DATA" if row["status"] in ("F", "L") else "NOT APPLICABLE" if row["status"] == "N" else "RED" if row["points"] < FLAG_RED else "AMBER" if row["points"] < FLAG_GREEN else "GREEN"
     actual = [row for row in rows if row["status"] in ("A", "Z", "S")]
-    strengths = sorted([row for row in actual if row["points"] >= 70], key=lambda row: -row["pointsEarned"])[:3]
-    weaknesses = sorted([row for row in actual if row["points"] < 40], key=lambda row: -row["pointsLost"])[:3]
+    strengths = sorted([row for row in actual if row["points"] >= FLAG_GREEN], key=lambda row: -row["pointsEarned"])[:3]
+    weaknesses = sorted([row for row in actual if row["points"] < FLAG_RED], key=lambda row: -row["pointsLost"])[:3]
     alerts = list(d.get("rating_blockers", [])) + list(d.get("rating_cautions", []))
     if status != "RATED": alerts.append(f"{status}: {confidence * 100:.0f}% data confidence and {judged} comparable quarters.")
     filled = [row["label"] for row in rows if row["status"] == "F"]
     if filled: alerts.append("Filled using the supplied group snapshot: " + ", ".join(filled) + ".")
     if statuses.get("PLEDGE") == "L": alerts.append("Promoter pledge is unknown; excluded from the Risk score and counted as missing in confidence.")
-    if values.get("PLEDGE") is not None and values["PLEDGE"] >= 25: alerts.append("Promoter pledged shares are at least 25%.")
+    if values.get("PLEDGE") is not None and values["PLEDGE"] >= PLEDGE_ALERT: alerts.append(f"Promoter pledged shares are at least {PLEDGE_ALERT:g}%.")
     if loss: alerts.append("Trailing EPS is zero or negative.")
     if negative_nw: alerts.append("Net worth is zero or negative.")
     if values.get("INTEREST_COVER") is not None and values["INTEREST_COVER"] < 1.5: alerts.append("Interest cover is below 1.5 times.")
     if loss_capped: alerts.append(f"Loss rule ({tier}) capped Fundamental at {fundamental_cap} (before cap: {raw_fundamental:.1f}).")
-    if valuation_capped: alerts.append("Weak-business rule capped Valuation at 60.")
-    if judged < 10: alerts.append(f"Short record: streak scores reflect the available comparable quarters ({judged}/10 minimum across sales and profit).")
+    if valuation_capped: alerts.append(f"Weak-business rule capped Valuation at {VALUE_TRAP['cap']:g}.")
+    if judged < QUARTERS_JUDGED: alerts.append(f"Short record: streak scores reflect the available comparable quarters ({judged}/{QUARTERS_JUDGED} minimum across sales and profit).")
     for metric, series in (("Sales", sales_q), ("Net profit", profit_q)):
         if len(series) >= 6 and all(num(series[i]) is not None for i in (-1, -2, -5, -6)) and series[-1] <= series[-5] and series[-2] <= series[-6]:
             alerts.append(f"{metric} did not beat last year in either of the latest two quarters; the growth run is broken.")
@@ -427,7 +438,7 @@ def score_company(d, group):
             "group": group, "final": final if status != "NOT RATED" else None, "label": rating, "status": status,
             "confidence": confidence, "coverage": coverage, "dataIntegrityStatus": "REVIEW REQUIRED" if d.get("rating_cautions") or d.get("rating_blockers") else "PASS", "parts": parts, "partWeights": PART_WEIGHTS,
             "judgedQuarters": judged, "metrics": rows, "strengths": strengths, "weaknesses": weaknesses,
-            "flags": [row for row in actual if row["points"] < 70], "alerts": alerts,
+            "flags": [row for row in actual if row["points"] < FLAG_GREEN], "alerts": alerts,
             "valuationCapped": valuation_capped, "lossCapped": loss_capped,
             "loss": dict(profile, tier=tier, cap=fundamental_cap, rawFundamental=raw_fundamental),
             "adjustments": adjustments, "capPointsLost": cap, "headline": headline}

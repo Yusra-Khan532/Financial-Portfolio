@@ -3,13 +3,13 @@ from datetime import datetime, timezone, date
 import hashlib
 import json
 try:
-    from .premium_data import fetch_inputs, adapt_inputs, peer_benchmark, profile_from
+    from .premium_data import fetch_inputs, adapt_inputs, peer_benchmark
     from .premium_engine import score_company
     from .premium_trace import build_calculation_trace
     from .premium_presentation import build_report_review
     from .benchmark_resolution import select_reported_benchmarks
 except ImportError:
-    from premium_data import fetch_inputs, adapt_inputs, peer_benchmark, profile_from
+    from premium_data import fetch_inputs, adapt_inputs, peer_benchmark
     from premium_engine import score_company
     from premium_trace import build_calculation_trace
     from premium_presentation import build_report_review

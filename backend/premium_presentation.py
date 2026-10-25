@@ -1,4 +1,10 @@
 """Reader-facing commentary from an existing rating; never fetch or rescore inputs."""
+try:
+    from .premium_completeness import build_input_completeness
+    from .premium_model_config import FLAG_RED, FLAG_GREEN
+except ImportError:
+    from premium_completeness import build_input_completeness
+    from premium_model_config import FLAG_RED, FLAG_GREEN
 PARTS = ("fundamental", "valuation", "quality", "risk")
 REASONS = {
     "SALES_STREAK": ("Consistent year-on-year revenue growth.", "Revenue growth has been inconsistent."),
@@ -73,7 +79,7 @@ def factor(row, group):
         summary = "Not reported; an estimate is used in the assessment." if state == "F" else "Not reported; not assessed."
         return "unavailable", dict(item, valueText="Not available", summary=summary)
     points = row["points"]
-    bucket = "pros" if points >= 70 else "cons" if points < 40 else "mixed"
+    bucket = "pros" if points >= FLAG_GREEN else "cons" if points < FLAG_RED else "mixed"
     if "_VS_" in metric:
         multiple = "P/E" if metric.startswith("PE_") else "P/B" if metric.startswith("PB_") else "EV/EBITDA"
         comparison = "industry peers" if metric.endswith("INDUSTRY") or state == "S" else "the company's own history"
@@ -257,4 +263,4 @@ def build_report_review(report):
     if rating["status"] == "PROVISIONAL": notes.append("This assessment is provisional because the available financial history or data coverage is limited.")
     if rating["status"] == "NOT RATED": notes.append("There is insufficient verified information to provide an overall rating.")
     if rating.get("valuationCapped"): notes.append("Weak business fundamentals or financial quality limit the valuation assessment.")
-    return {"parts": parts, "notes": list(dict.fromkeys(notes))}
+    return {"parts": parts, "notes": list(dict.fromkeys(notes)), "completeness": build_input_completeness(report)}
