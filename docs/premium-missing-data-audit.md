@@ -1,3 +1,7 @@
+# Benchmark policy update — 24 October 2026
+
+This historical audit predates the provider-first benchmark policy. Reports now use valid reported FinEdge benchmarks, then valid Upstox sector benchmarks, then medians from at least five available positive FinEdge industry peer multiples. Each comparison discloses the value, provider and coverage used. Upstox sector comparisons are labelled as sector benchmarks; their statement basis, valuation date and aggregation method are unspecified. Zero/negative benchmarks are disclosed and excluded. Partial peer coverage no longer blocks the entire median. Earlier completeness-related N/A findings below are historical.
+
 # Shared Stock Fundamentals / Premium Report sources
 
 Updated 18 October 2026. This supersedes the earlier report-only recovery audit.

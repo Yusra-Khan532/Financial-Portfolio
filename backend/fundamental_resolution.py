@@ -33,8 +33,12 @@ def statement_rows(payload, basis, quarterly=False, cashflow=False):
         'Profit Before Tax': ('profitBeforeTax', CR), 'Other Income': ('otherIncome', CR),
         'EPS - Basic': ('basicEPS', 1), 'EPS - Diluted': ('dilutedEPS', 1)}
     rows = {}
-    for item in payload.get('full_statement', []):
-        spec = aliases.get(item.get('particular'))
+    # Upstox documents full_statement as annual even for quarterly requests.
+    # Its operating_profit category is not assumed to be EBITDA or EPS.
+    source = payload.get('income_statement', []) if quarterly else payload.get('full_statement', [])
+    quarterly_aliases = {'revenue': ('revenueFromOperations', CR), 'net_profit': ('profitLossForPeriod', CR)}
+    for item in source:
+        spec = quarterly_aliases.get(item.get('category')) if quarterly else aliases.get(item.get('particular'))
         if not spec:
             continue
         for point in item.get('history', []):
@@ -78,6 +82,70 @@ def balance_rows(payload, basis):
             if equity is not None and assets is not None and liabilities is not None and abs(assets-liabilities-equity*CR) <= max(CR*.02,abs(assets)*.0001):
                 row['totalEquity'] = equity*CR
     return list(rows.values())
+
+
+def derive_fourth_quarters(result, events):
+    """Recover additive Q4 amounts from a full year and three matching quarters.
+
+    EPS and balance-sheet stocks are deliberately excluded. An invalid source
+    duration is replaced by a calculated observation, never relabelled as Q4.
+    Call only on the same-basis FinEdge statements before provider recovery.
+    """
+    rows = items(result.get('quarterly'), 'financials', 'data')
+    valid = {}
+    for row in rows:
+        end = field_date(row)
+        start = field_date({'date': row.get('period_start') or row.get('periodStart')})
+        if end and (not start or 70 <= (end-start).days+1 <= 105):
+            valid[end] = row
+    fields = (
+        ('revenueFromOperations', ('netSales','sales','revenueFromOperations','incomeFromOperations')),
+        ('profitLossForPeriod', ('profitLossForPeriod','profitLossForThePeriod','profitAfterTax','netProfit')),
+        ('profitOrLossAttributableToOwners', ('profitOrLossAttributableToOwners','profitAttributableToOwnersOfParent')),
+        ('profitBeforeTax', ('profitBeforeTax','profitLossBeforeTax')),
+        ('financeCosts', ('financeCosts','financeCost','interestExpended','interestExpense')),
+        ('depreciation', ('depreciation','depreciationAndAmortisation','depreciationAndAmortization')),
+        ('otherIncome', ('otherIncome',)), ('ebitda', ('ebitda','EBITDA')),
+        ('netInterestIncome', ('netInterestIncome','netInterestRevenue','netInterestEarnings')),
+        ('interestEarned', ('interestEarned','interestIncome')),
+        ('netPremiumIncome', ('netPremiumIncome','netPremiumEarned','netPremium','netEarnedPremium')),
+    )
+    annuals = items(result.get('annual') or result.get('annual_for_quarter_recovery'), 'financials', 'data')
+    for annual in annuals:
+        end = field_date(annual)
+        start = field_date({'date': annual.get('period_start') or annual.get('periodStart')})
+        if not end or end.day != calendar.monthrange(end.year,end.month)[1]:
+            continue
+        expected_start = date(end.year if end.month == 12 else end.year-1, end.month%12+1, 1)
+        if start != expected_start:
+            continue
+        dates = []
+        for offset in (9,6,3):
+            month = end.year*12+end.month-1-offset
+            year, zero_month = divmod(month,12)
+            dates.append(date(year,zero_month+1,calendar.monthrange(year,zero_month+1)[1]))
+        if not all(day in valid for day in dates):
+            continue
+        original = valid.get(end)
+        quarter = dict(original) if original else {'period_end':end.isoformat(), 'period_start':date(dates[-1].year if dates[-1].month < 12 else dates[-1].year+1,dates[-1].month%12+1,1).isoformat()}
+        recovered=[]
+        for target, aliases in fields:
+            total=first(annual,*aliases)
+            prior=[first(valid[day],*aliases) for day in dates]
+            if first(quarter,*aliases) is None and total is not None and all(value is not None for value in prior):
+                quarter[target]=total-sum(prior)
+                recovered.append(target)
+        if not recovered:
+            continue
+        publication_dates=[field_date({'date':row.get('result_date')}) for row in [annual]+[valid[day] for day in dates]]
+        publication_dates=[day for day in publication_dates if day]
+        if publication_dates:
+            quarter['result_date']=max(publication_dates).isoformat()
+        rows=[row for row in rows if field_date(row)!=end]+[quarter]
+        valid[end]=quarter
+        events.append(f'Calculated FinEdge quarterly {", ".join(recovered)} at {end} as same-basis full-year amounts minus the three matching quarters. EPS is not inferred from annual EPS.')
+    if rows:
+        result['quarterly']={'financials':rows}
 
 
 def derive_finedge(raw):
@@ -152,6 +220,7 @@ def derive_finedge(raw):
             if value is not None:
                 row['depreciation'] = value
                 events.append(f'Calculated FinEdge annual depreciation at {field_date(row)} from the matching cash-flow statement.')
+    derive_fourth_quarters(result, events)
     return result, list(dict.fromkeys(events))
 
 
@@ -208,8 +277,37 @@ def recover_inputs(raw, basis, as_of, load, period="yearly", recover_prices=True
             events.append(f'Upstox {section} ({basis}, crore): recovered periods {", ".join(sorted(recovered))}. Annual/quarterly labels are provider reported; publication dates are unavailable, so this is not point-in-time backtest data.')
     section = 'annual' if period == 'yearly' else 'quarterly'
     annual = items(result.get(section), 'financials', 'data')
+    def income_gaps(rows):
+        quarterly = period == 'quarterly'
+        count = 14 if quarterly else 6
+        valid = {}
+        for row in rows:
+            end = field_date(row)
+            start = field_date({'date': row.get('period_start') or row.get('periodStart')})
+            reported = field_date({'date': row.get('result_date')})
+            if not end or end > as_of or (reported and reported > as_of):
+                continue
+            if start and not (70 if quarterly else 330) <= (end-start).days+1 <= (105 if quarterly else 400):
+                continue
+            valid[end] = row
+        recent = sorted(valid, reverse=True)[:count]
+        if len(recent) < count:
+            return True
+        periods = [day.year * 4 + (day.month - 1)//3 if quarterly else day.year for day in recent]
+        if len(set(periods)) < count or max(periods)-min(periods)+1 != count:
+            return True
+        fin = resolve_group(profile_from(raw))[0] in ('BANK','NBFC','INSURANCE')
+        for day in recent:
+            row = valid[day]
+            if first(row,*equivalents['profitLossForPeriod']) is None:
+                return True
+            if not fin and first(row,*equivalents['revenueFromOperations']) is None:
+                return True
+            if not quarterly and first(row,*equivalents['basicEPS']) is None:
+                return True
+        return False
     # Only absent observations are fetched; generic revenue cannot replace NII.
-    if len(annual) < (6 if period == 'yearly' else 14) or any(first(r, 'profitLossForPeriod','profitOrLossAttributableToOwners','netProfit','profitAfterTax') is None for r in annual):
+    if income_gaps(annual):
         merge(section, fetch(section), quarterly=period == 'quarterly')
     annual = items(result.get('annual'), 'financials', 'data')
     cf = items(raw.get('cashflow'), 'financials', 'data')

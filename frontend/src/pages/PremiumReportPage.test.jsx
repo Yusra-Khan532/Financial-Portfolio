@@ -22,3 +22,26 @@ test("report shows pros and cons in every category without weights or technical 
   expect(html).toContain("Capital adequacy is unavailable.");
   for (const term of ["weight", "calculation trail", "Source audit", "Input hash", "internal-model-version", "internal-report-id"]) expect(html).not.toContain(term);
 });
+
+test("report shows the loss limit beside the Fundamental score", () => {
+  const note = "The Fundamental score is limited to 30/100 because net profit over the last 4 quarters is zero or negative.";
+  const lossReport = {...report, review: {...report.review, parts: report.review.parts.map((part) => part.key === "fundamental" ? {...part, score: 30, notes: [note]} : part)}};
+  const html = renderToStaticMarkup(<ReportDetail report={lossReport} />);
+  expect(html).toContain(note);
+  expect(html.indexOf(note)).toBeGreaterThan(html.indexOf('aria-label="fundamental factors"'));
+  expect(html.indexOf(note)).toBeLessThan(html.indexOf('aria-label="valuation factors"'));
+  expect(html).not.toContain("LOSS_CAP");
+});
+
+test("report shows the actual benchmark value, source and coverage used", () => {
+  const comparisonText = "Company P/E: 15.21x. Industry peer median: 30.00x. Source: FinEdge. Uses 74 positive multiples; 122 of 137 peer records available.";
+  const sample = {...report, review: {...report.review, parts: report.review.parts.map((part) => part.key === "valuation" ? {...part, pros: [{metric: "PE_VS_INDUSTRY", label: "P/E vs industry", valueText: "0.51x", summary: "Supports the assessment.", comparisonText}]} : part)}};
+  expect(renderToStaticMarkup(<ReportDetail report={sample} />)).toContain(comparisonText);
+});
+
+test("report displays the actual CAGR lookback and year endpoints", () => {
+  const sample = {...report, review: {...report.review, parts: report.review.parts.map((part) => part.key === "fundamental" ? {...part, pros: [{metric: "SALES_CAGR", label: "Revenue CAGR (1-year)", valueText: "12.00%", summary: "Strong revenue growth over the 1-year period.", comparisonText: "Period used: 2025 to 2026."}]} : part)}};
+  const html = renderToStaticMarkup(<ReportDetail report={sample} />);
+  expect(html).toContain("Revenue CAGR (1-year)");
+  expect(html).toContain("Period used: 2025 to 2026.");
+});

@@ -43,6 +43,11 @@ def build_calculation_trace(d, rating, meta):
         ('volatility_pct','Annualised volatility','%'),('biggest_fall_pct','Maximum one-year drawdown','%'),
         ('trading_value_cr','Average daily trading value','Cr'),('promoter_pledged_pct','Promoter pledged shares','%')]
     latest = [{'key':key,'label':label,'value':values.get(key),'unit':unit} for key,label,unit in latest_specs]
+    for row in latest:
+        info = d.get('benchmark_details', {}).get(row['key'], {})
+        if info.get('scope') == 'sector':
+            ratio = {'industry_median_pe':'P/E', 'industry_median_pb':'P/B', 'industry_median_ev_ebitda':'EV/EBITDA'}.get(row['key'])
+            if ratio: row['label'] = f'Upstox sector {ratio} benchmark'
     rows=[]
     for row in rating['metrics']:
         metric, info, state = row['metric'], row.get('details',{}), row['status']
@@ -50,6 +55,8 @@ def build_calculation_trace(d, rating, meta):
         if metric.endswith('_STREAK'):
             j, good, slips = info.get('judged',0), info.get('good',0), info.get('slips',0)
             formula = f'YoY comparisons: {good} good, {slips} forgiven slips, {j} judged. Strict growth means current quarter > same quarter last year. Two consecutive failures end the run.'
+            if metric == 'PROFIT_STREAK' and rating.get('loss'):
+                formula += ' A good profit quarter must also have positive net profit.'
             scoring = (f'Base = max(0, 10 x {good} - 5 x {slips}) x 10 / {j} = {fmt(info.get("base"))}. '
                        f'Magnitude = median growth points of good quarters = {fmt(info.get("magnitudePoints"))}. '
                        f'Own = base x (0.8 + 0.2 x magnitude / 100) = {fmt(info.get("ownPoints"))}. '
@@ -59,7 +66,9 @@ def build_calculation_trace(d, rating, meta):
             if metric.endswith('_GROWTH') and 'current' in info:
                 formula=f'({fmt(info.get("current"))} / {fmt(info.get("previous"))} - 1) x 100 = {fmt(row["value"])}%. {info.get("basis", "")}'
             elif metric.endswith('_CAGR'):
-                formula=f'({fmt(info.get("current"))} / {fmt(info.get("previous"))})^(1/{info.get("years",0)}) - 1, then x 100 = {fmt(row["value"])}%. Uses consecutive year-ends.'
+                years=info.get('years',0)
+                formula=(f'({fmt(info.get("current"))} / {fmt(info.get("previous"))})^(1/{years}) - 1, then x 100 = {fmt(row["value"])}%. Uses the latest {years+1} consecutive year-ends ({years} years); preference is 5 years, then 3, then available.'
+                         if years else 'CAGR unavailable: at least two consecutive annual observations ending in the latest financial year are required.')
             elif metric == 'MARGIN_CHANGE':
                 sales=d.get('sales_q',[]); op=d.get('operating_profit_q',[])
                 if len(sales)>=8:
@@ -100,6 +109,8 @@ def build_calculation_trace(d, rating, meta):
         elif state=='Z' or (row['value'] is None and row['points'] is not None):
             scoring=f'Special rule: {info.get("note") or "Non-positive denominator or zero interest cost under model rules"}. Assigned {fmt(row["points"])} points; linear scaling does not apply.'
         if info.get('note'): formula += ' '+info['note']
+        if metric == 'PROFIT_STREAK' and info.get('lossFill') and not j:
+            scoring = 'Current profit is non-positive and no quarter is judgeable; the loss rule assigns 0 points.'
         if row.get('fallbackFor'): formula += ' Replaces unavailable '+row['fallbackFor']+' in the same scoring slot.'
         rows.append({'metric':metric,'part':row['part'],'label':row['label'],'state':state,'valueCalculation':formula,'pointsCalculation':scoring,'points':row['points'],'weight':row['weight'],'share':row['share'],'worst':row.get('worst'),'best':row.get('best'),'value':row.get('value'),'unit':row.get('unit')})
     parts=[]
@@ -110,11 +121,13 @@ def build_calculation_trace(d, rating, meta):
         terms=' + '.join(f'{fmt(r["weight"])} x {fmt(r["points"])}' for r in members)
         raw=sum(r['weight']*(r['points'] or 0) for r in members)/denominator if denominator else None
         formula=f'({terms}) / {fmt(denominator)} = {fmt(raw)}.' if rated else 'Weighted mean of eligible metric points; component result withheld for this unrated report.'
+        if rated and part=='fundamental' and rating.get('lossCapped'):
+            formula += f' Loss cap ({rating["loss"]["tier"]}): min({fmt(raw)}, {fmt(rating["loss"]["cap"])}) = {fmt(rating["parts"][part])}.'
         if rated and part=='valuation' and rating.get('valuationCapped'): formula+=f' Weak-business cap: min({fmt(raw)}, 60) = 60.'
         parts.append({'part':part,'weight':weight,'denominator':denominator,'calculation':formula,'score':rating['parts'][part] if rated else None})
     active=sum(weight for part,weight in rating['partWeights'].items() if rating['parts'][part] is not None)
     terms=' + '.join(f'{fmt(weight)} x {fmt(rating["parts"][part])}' for part,weight in rating['partWeights'].items() if rating['parts'][part] is not None)
-    return {'version':1,'quarterly':quarterly,'annual':annual,'latest':latest,'metrics':rows,'parts':parts,
+    return {'version':2,'quarterly':quarterly,'annual':annual,'latest':latest,'metrics':rows,'parts':parts,
             'finalCalculation':f'({terms}) / {fmt(active)} = {fmt(rating["final"])} -> {rating["label"]} ({rating["status"]}).' if rated else 'Overall score withheld: '+rating['headline'],
             'coverageCalculation':' + '.join(f'{fmt(weight)} x {fmt(rating["coverage"][part])}' for part,weight in rating['partWeights'].items())+f' = {rating["confidence"]:.2%} input coverage.',
             'notes':(['Source priority shared with Stock Fundamentals: FinEdge reported data, calculations from available FinEdge inputs, Upstox fallback, then N/A. Model fills remain explicitly labelled scoring assumptions.'] if meta.get('dashboardSources') else []) + ['All financial amounts and shares use crore units; EPS and prices use INR per share. Missing values are not zero.',
@@ -122,6 +135,7 @@ def build_calculation_trace(d, rating, meta):
                      'Scale = clamp((value - worst) / (best - worst) x 100, 0, 100). Lower-is-better metrics have best below worst.',
                      'Component denominator excludes N and L metrics, retains filled and loss-rule metrics. Missing pledge still reduces input coverage.',
                      'PEG is core for LIGHT/MFG; other groups require at least 6 actual good profit quarters, with growth capped at 40%. Loss/non-positive-growth rules retain their weight.',
-                     'Debt/equity below 0.1 excludes interest cover. Missing own valuation history substitutes an available positive industry median. Missing metrics use min(group median points, 50), except unknown pledge which is excluded.',
-                     'If Fundamental or Quality is below 35, Valuation is capped at 60. The cap is applied before the final weighted mean.',
+                     'For non-financial groups, debt/equity below 0.1 excludes interest cover. BANK, NBFC and INSURANCE always score interest cover in Quality, replacing capital adequacy/solvency; missing inputs remain filled. Missing own valuation history substitutes an available positive industry median. Missing metrics use min(group median points, 50), except unknown pledge which is excluded.',
+                     'Current non-positive profit scores zero for profit growth and profit CAGR. A good profit-streak quarter must be profitable; a short loss-making record blends with zero. Non-positive current operating margin scores zero for margin change.',
+                     'Loss severity and group family may cap Fundamental first. If Fundamental or Quality is then below 35, Valuation is capped at 60. Both adjustments are applied before the final weighted mean.',
                      'Coverage below 80% or fewer than 6 comparable quarters: provisional; below 50%: unrated. Data-quality review flags are displayed separately from the model rating; unverified group classification prevents a valid rating.']}

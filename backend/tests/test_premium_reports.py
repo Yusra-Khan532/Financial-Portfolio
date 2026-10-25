@@ -54,7 +54,7 @@ def sample_report(example):
             "warnings": ["Test warning"], "sources": [{"section": "annual", "available": True, "retrievedAt": "2026-10-18T00:00:00+00:00"}], "inputHash": "f" * 64}
 
 
-def test_engine_matches_documented_full_and_short_history_examples(example):
+def test_engine_preserves_full_history_and_uses_available_cagr_in_short_history(example):
     result = score_company(example, "MFG")
     assert result["final"] == pytest.approx(54.496, abs=.001)
     assert result["label"] == "AVERAGE" and result["status"] == "RATED"
@@ -65,9 +65,14 @@ def test_engine_matches_documented_full_and_short_history_examples(example):
     for key in ("sales_y", "net_profit_y"): example[key] = example[key][-3:]
     example["own_5y_median_pe"] = None
     result = score_company(example, "MFG")
-    assert result["final"] == pytest.approx(49.7326, abs=.001)
+    # Two-year annual growth now replaces both former group fills, and PEG
+    # consumes the available profit CAGR under its existing preference rule.
+    rows={row['metric']:row for row in result['metrics']}
+    assert rows['SALES_CAGR']['value']==pytest.approx(((4295/3200)**.5-1)*100)
+    assert rows['PROFIT_CAGR']['value']==pytest.approx(((346/240)**.5-1)*100)
+    assert result["final"] == pytest.approx(53.4388, abs=.001)
     assert result["status"] == "PROVISIONAL"
-    assert result["confidence"] == pytest.approx(.764)
+    assert result["confidence"] == pytest.approx(.872)
 
 
 def test_engine_zero_inputs_missing_histories_and_loss_rules(example):

@@ -23,14 +23,15 @@ _BENCHMARK_CACHE_SECONDS = 15 * 60
 
 
 def provider_get(get, path, params):
-    for attempt in range(3):
+    attempts = 1 if getattr(get, "_handles_transient_retries", False) else 3
+    for attempt in range(attempts):
         try:
             with _PROVIDER_SLOTS:
                 return get(path, params)
         except Exception as exc:
             status = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
             transient = status in (429, 500, 502, 503, 504) or isinstance(exc, (TimeoutError, requests.exceptions.Timeout, requests.exceptions.ConnectionError))
-            if not transient or attempt == 2:
+            if not transient or attempt == attempts - 1:
                 raise
             time.sleep(.5 * (2 ** attempt))
 
@@ -73,6 +74,10 @@ def resolve_group(profile):
         ("LIGHT", r"software|information technology|\bit -|fmcg|fast moving|pharma|media|entertainment|asset management|brok|exchange|retail|hotel|restaurant|consumer services"),
     ]
     for group, pattern in rules:
+        # Vehicle manufacturing is not construction/infrastructure activity.
+        # Preserve the precedence of financial groups and real estate.
+        if group == "UTILITY" and re.search(r"\bautomobiles?\b|\bauto parts\b|\bvehicles?\b", text):
+            return "MFG", False
         if re.search(pattern, text): return group, False
     known_mfg = bool(re.search(r"auto|capital goods|engineering|chemical|textile|defen|hospital|diagnostic|logistic|transport|consumer durable|manufactur|machiner|electrical|industrial", text))
     return "MFG", not known_mfg
@@ -121,13 +126,15 @@ def profile_from(raw):
     return p.get("profile", p) if isinstance(p.get("profile", p), dict) else {}
 
 
-def peer_benchmark(get, peers, statement_type, as_of, group=None):
-    """Median of the full returned industry peer universe; never label a sample as complete."""
+def peer_benchmark(get, peers, statement_type, as_of, group=None, metrics=None):
+    """Median of available positive industry observations, with explicit coverage."""
+    selected = set(metrics) if metrics is not None else {"pe", "pb", "ev_ebitda"}
     symbols = peers.get("peers", []) if isinstance(peers, dict) else []
     symbols = sorted({str(value).upper() for value in symbols if re.fullmatch(r"[A-Za-z0-9.&-]{1,30}", str(value))})
     meta = {"source": "FinEdge industry peer universe", "asOf": as_of.isoformat(), "universeCount": len(symbols), "fetchedCount": 0, "positiveCounts": {}, "basis": statement_type}
-    if not symbols or len(symbols) > 500:
-        return {}, {**meta, "note": "Industry universe unavailable or exceeds the on-demand limit; no partial-universe median was used."}
+    meta["metrics"] = {}
+    if not selected or not symbols or len(symbols) > 500:
+        return {}, {**meta, "note": "No peer calculation required, or industry universe unavailable or exceeds the on-demand limit."}
     def fetch(symbol):
         cache_key = (get, symbol, statement_type, as_of)
         cached = _BENCHMARK_OBSERVATIONS.get(cache_key)
@@ -137,7 +144,7 @@ def peer_benchmark(get, peers, statement_type, as_of, group=None):
             p = provider_get(get, f"/daily-price-ratios/{symbol}", {"statement_type": "c" if statement_type == "consolidated" else "s", "from": str(as_of.year - 1), "to": str(as_of.year)})
             rows = [r for r in items(p, "price_ratios", "data") if field_date(r) and 0 <= (as_of - field_date(r)).days <= 31]
             row = max(rows, key=field_date) if rows else None
-            if row is None or any(num(row.get(key)) is None for key in ("pe", "pb")):
+            if row is None or any(num(row.get(key)) is None for key in selected & {"pe", "pb"}):
                 derived = derive_peer_price_ratios(get, symbol, statement_type, as_of)
                 if derived:
                     row = {**derived, **(row or {})}
@@ -150,20 +157,29 @@ def peer_benchmark(get, peers, statement_type, as_of, group=None):
                 _BENCHMARK_OBSERVATIONS[cache_key] = (time.monotonic(), row)
             return row
         except Exception: return None
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        records = list(pool.map(fetch, symbols))
+    records = []
+    if selected & {"pe", "pb"}:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            records = list(pool.map(fetch, symbols))
     meta["fetchedCount"] = sum(row is not None for row in records)
     meta["missingSymbols"] = [symbol for symbol, row in zip(symbols, records) if row is None]
     result = {}
     meta["calculatedPeerCount"] = sum(row is not None and row.get("source") == "calculated_finedge_quote_and_financials" for row in records)
-    # Missing members can bias the median. Require a current observation for every returned peer.
+    # Partial coverage is allowed, but never presented as a complete-industry median.
     for key in ("pe", "pb"):
+        if key not in selected:
+            continue
         positive = [num(row.get(key)) for row in records if row and num(row.get(key)) is not None and num(row[key]) > 0]
         meta["positiveCounts"][key] = len(positive)
-        complete = all(row is not None and num(row.get(key)) is not None for row in records)
-        if complete and len(positive) >= 5:
+        observed = sum(row is not None and num(row.get(key)) is not None for row in records)
+        meta["metrics"]["industry_median_" + key] = {
+            "value": statistics.median(positive) if len(positive) >= 5 else None,
+            "provider": "FinEdge", "scope": "industry", "method": "available peer median",
+            "positiveCount": len(positive), "observedCount": observed, "universeCount": len(symbols),
+            "partial": observed < len(symbols), "statementBasis": statement_type, "asOf": as_of.isoformat()}
+        if len(positive) >= 5:
             result["industry_median_" + key] = statistics.median(positive)
-    if group in ("HEAVY", "UTILITY") and len(symbols) <= 100:
+    if "ev_ebitda" in selected and group in ("HEAVY", "UTILITY") and len(symbols) <= 100:
         def enterprise_multiple(symbol):
             cache_key = (get, symbol, statement_type, as_of, "ev_ebitda")
             cached = _BENCHMARK_OBSERVATIONS.get(cache_key)
@@ -188,9 +204,14 @@ def peer_benchmark(get, peers, statement_type, as_of, group=None):
         meta["evCalculatedCount"] = sum(v is not None for v in multiples)
         meta["positiveCounts"]["ev_ebitda"] = len(positive)
         meta["evMissingSymbols"] = [symbol for symbol, value in zip(symbols, multiples) if value is None]
-        if meta["evCalculatedCount"] == len(symbols) and len(positive) >= 5:
+        meta["metrics"]["industry_median_ev_ebitda"] = {
+            "value": statistics.median(positive) if len(positive) >= 5 else None,
+            "provider": "FinEdge", "scope": "industry", "method": "available peer median",
+            "positiveCount": len(positive), "observedCount": meta["evCalculatedCount"], "universeCount": len(symbols),
+            "partial": meta["evCalculatedCount"] < len(symbols), "statementBasis": statement_type, "asOf": as_of.isoformat()}
+        if len(positive) >= 5:
             result["industry_median_ev_ebitda"] = statistics.median(positive)
-    meta["note"] = "FinEdge direct P/E/P/B observations first; EV/EBITDA is calculated from FinEdge market cap, borrowings, cash and four-quarter EBITDA where its peer universe is at most 100. Only positive multiples are included; at least five and full peer-input coverage are required. Unverified Upstox sector averages are not industry medians."
+    meta["note"] = "Medians use at least five available positive multiples from the FinEdge industry peer universe. Coverage and exclusions are disclosed for each benchmark; partial coverage is not a complete-industry median."
     return result, meta
 
 
@@ -488,6 +509,11 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
             if value is not None: buckets[(day.year, end_month)] = value
         positive = [value for value in buckets.values() if value > 0]
         d[f"own_5y_median_{key}"] = statistics.median(positive) if len(positive) >= 8 else None
+        d.setdefault("benchmark_details", {})[f"own_5y_median_{key}"] = {
+            "provider": "FinEdge", "scope": "own history", "method": "historical median",
+            "positiveCount": len(positive), "minimumCount": 8,
+            "value": d[f"own_5y_median_{key}"], "statementBasis": statement_type,
+            "asOf": as_of.isoformat()}
     if group in ("BANK", "NBFC") and not any(v is not None for v in d["sales_q"]): warnings.append("Net interest income could not be derived; interest earned was not substituted.")
     warnings.extend(["Group fill values use the supplied October 2026 snapshot, not refreshed market medians.", "Historical filing availability and corporate-action alignment require point-in-time validation; this is a current assessment, not a historical backtest."])
     if quote_date:
@@ -510,6 +536,9 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         valuation_checks[key] = {"computed": computed, "reported": reported, "relativeError": error, "asOf": quote_date if reported_ratio else None}
     d["valuation_unverified"] = [key for key, check in valuation_checks.items() if check["relativeError"] is not None and check["relativeError"] > .05]
     blockers, cautions = [], []
+    solvency = num(d.get("solvency_ratio"))
+    if group == "INSURANCE" and solvency is not None and 0 < solvency < .1:
+        warnings.append("The reported solvency ratio has unverified units. Solvency is not used in this model version; the raw provider observation is retained for reconciliation.")
     if incomplete_prices:
         cautions.append("Invalid closing prices occur in the recent daily series. Returns across those gaps are excluded; complete-window drawdown and trading value remain unavailable where affected.")
     if defaulted:

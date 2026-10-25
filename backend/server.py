@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
 from datetime import date, datetime, timezone, timedelta
-from time import monotonic, time
+from time import monotonic, time, sleep
 from urllib.parse import quote, urlparse
 import asyncio
 import bcrypt
@@ -545,6 +545,7 @@ def _premium_dashboard_inputs(symbol, statement_type, now):
         "distribution": annual.get("distribution", {}), "declaration": annual.get("declaration", {}),
         "asset_quality": {"financials": quarterly.get("assetQualityRows", [])},
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
+        "benchmarkObservations": annual.get("benchmarkObservations", []),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
     resolved_profile = yearly.get("profile", {})
@@ -1230,6 +1231,25 @@ def _finedge_api_key():
 
 
 def _finedge_get(path: str, params: Optional[Dict[str, Any]] = None):
+    """Bounded retries shared by dashboard and reports; transient errors are not N/A."""
+    for attempt in range(3):
+        try:
+            return _finedge_get_once(path, params)
+        except (HTTPException, requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+            status = getattr(exc, "status_code", None)
+            transient = status in (429, 500, 502, 503, 504) or isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError))
+            if not transient:
+                raise
+            if attempt == 2:
+                raise HTTPException(status_code=429 if status == 429 else 502,
+                                    detail="FinEdge is temporarily unavailable after bounded retries. Please retry.") from None
+            sleep(.5 * (2 ** attempt))
+
+
+_finedge_get._handles_transient_retries = True
+
+
+def _finedge_get_once(path: str, params: Optional[Dict[str, Any]] = None):
     request_params = {**(params or {}), "token": _finedge_api_key()}
     response = requests.get(
         f"{FINEDGE_BASE_URL}{path}",
@@ -1430,6 +1450,30 @@ def _finedge_all_symbols():
     return items
 
 
+_STOCK_SEARCH_ALIASES = {
+    "HUL": "HINDUNILVR", "IHCL": "INDHOTEL", "TAJ HOTEL": "INDHOTEL",
+    "TAJ HOTELS": "INDHOTEL", "ZEE5": "ZEEL", "ZEE 5": "ZEEL",
+}
+
+
+def _stock_name_key(value):
+    words = re.sub(r"[^A-Z0-9]+", " ", str(value or "").upper()).split()
+    return " ".join(word for word in words if word not in {"THE", "LTD", "LIMITED"})
+
+
+def _stock_match_rank(item, query):
+    needle = query.strip().upper()
+    codes = [str(item.get(key) or "").upper() for key in ("symbol", "isin", "bseCode")]
+    name, phrase = _stock_name_key(item.get("name")), _stock_name_key(needle)
+    if needle in codes: return 0
+    if codes[0] == _STOCK_SEARCH_ALIASES.get(phrase): return 1
+    if phrase and name == phrase: return 2
+    if phrase and (name.startswith(phrase + " ") or name.startswith(phrase)): return 3
+    if any(code.startswith(needle) for code in codes if code): return 4
+    if phrase and any(word.startswith(phrase) for word in name.split()): return 5
+    return 6
+
+
 def _search_finedge_stocks(query: str):
     cache_key = f"FINEDGE:{query.strip().upper()}"
     cached = _stock_search_cache.get(cache_key)
@@ -1437,11 +1481,17 @@ def _search_finedge_stocks(query: str):
         return cached["items"]
 
     needle = query.strip().upper()
+    alias = _STOCK_SEARCH_ALIASES.get(_stock_name_key(needle))
     items = [
         item for item in _finedge_all_symbols()
-        if needle in str(item.get("symbol") or "").upper() or needle in str(item.get("name") or "").upper() or needle in str(item.get("isin") or "").upper()
-    ][:20]
+        if alias == item.get("symbol") or any(needle in str(item.get(key) or "").upper() for key in ("symbol", "name", "isin", "bseCode"))
+        or (_stock_name_key(needle) and _stock_name_key(needle) in _stock_name_key(item.get("name")))
+    ]
     items = [item for item in items if item.get("symbol")]
+    # Rank the full directory before limiting suggestions; an exact symbol may
+    # occur after many incidental company-name substring matches.
+    items.sort(key=lambda item: (_stock_match_rank(item, needle), str(item.get("name") or ""), str(item["symbol"])))
+    items = items[:20]
     _stock_search_cache[cache_key] = {"items": items, "fetched_at": monotonic()}
     return items
 
@@ -1485,22 +1535,13 @@ def _resolve_finedge_stock(query: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Enter a stock symbol, company name, or ISIN.")
     matches = _search_finedge_stocks(value)
     if matches:
-        normalized_query = value.upper()
-
-        def score(item):
-            symbol = str(item.get("symbol") or "").upper()
-            name = str(item.get("name") or "").upper()
-            isin = str(item.get("isin") or "").upper()
-            return (
-                0 if symbol == normalized_query else 1,
-                0 if isin == normalized_query else 1,
-                0 if symbol.startswith(normalized_query) or name.startswith(normalized_query) else 1,
-                len(symbol or name),
-            )
-
-        return sorted(matches, key=score)[0]
-    if re.fullmatch(r"[A-Z0-9.&-]{2,24}", value.upper()):
-        return _normalize_finedge_stock({"symbol": value.upper(), "name": value.upper()})
+        best = min(_stock_match_rank(item, value) for item in matches)
+        candidates = [item for item in matches if _stock_match_rank(item, value) == best]
+        if best <= 2 and len(candidates) == 1:
+            return candidates[0]
+        if best <= 5 and len(matches) == 1:
+            return matches[0]
+        raise HTTPException(status_code=422, detail="Several or partial company names match this search. Select the intended company symbol from the suggestions.")
     raise HTTPException(status_code=404, detail="No Indian listed equity was found for this query.")
 
 
@@ -2422,6 +2463,11 @@ def _quote_from_finedge_quote(payload, symbol: str):
     price = _to_number(_first_value(row, ["current_price", "currentPrice", "lastPrice", "price", "close"]))
     if price is None:
         return {}
+    observed = _first_value(row, ["tradetime", "tradeTime", "timestamp", "date"])
+    if observed and _to_number(observed) is None and _parse_market_date(observed) is None:
+        # Invalid provider sentinel dates are not current market observations.
+        # Let the shared dashboard path recover a dated close or Upstox quote.
+        return {}
     change_percent = _to_number(_first_value(row, ["change", "changePercent", "percentChange"]))
     return {
         "price": price,
@@ -2697,7 +2743,8 @@ def _parse_market_date(value):
     text = str(value).strip()
     for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y", "%Y%m%d"):
         try:
-            return datetime.strptime(text[:10] if fmt == "%Y-%m-%d" else text, fmt).replace(tzinfo=timezone.utc)
+            parsed = datetime.strptime(text[:10] if fmt == "%Y-%m-%d" else text, fmt).replace(tzinfo=timezone.utc)
+            return parsed if parsed.year >= 1900 else None
         except ValueError:
             continue
     return None
@@ -3132,6 +3179,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
                   "balance": {"financials": balance_rows}, "cashflow": {"financials": cash_rows}}
     if period == "yearly":
         shared_raw["quarterly"] = {"financials": quarterly_income_rows}
+    else:
+        # Same-basis annual figures can recover an absent/malformed Q4 by
+        # subtraction. This optional source never changes the selected basis.
+        annual_for_recovery = _safe_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+            {"statement_type": "c" if effective_statement_type == "consolidated" else "s", "statement_code": "pl", "period": "annual"}, default={})
+        shared_raw["annual_for_quarter_recovery"] = {"financials": _payload_items(annual_for_recovery, ["financials", "data", "results", "items"])}
     def shared_load(section):
         if not instrument.get("isin"):
             return None
@@ -3236,8 +3289,16 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         pre_profile["marketCap"] = live_quote["marketCap"]
     pre_quarterly = {"income_statement": _derive_income_metrics(_history_from_period_rows(quarterly_income_rows, "quarterly", INCOME_STATEMENT_ALIASES, scale=10_000_000))}
     ratios = _reconcile_valuation_ratios(ratios, pre_profile, income_statement, balance_sheet, price_ratio_snapshot, _ttm_net_profit_from_statement(pre_quarterly))
+    try:
+        from backend.benchmark_resolution import merge_sector_values, reported_benchmarks
+    except ImportError:
+        from benchmark_resolution import merge_sector_values, reported_benchmarks
+    benchmark_observations = reported_benchmarks(
+        [row for payload in ratio_payloads + metric_payloads + [basic_financials_payload] for row in _payload_items(payload)],
+        [], datetime.now(timezone.utc).isoformat())
     if upstox_isin:
         finedge_ratio_keys = {str(ratio.get("name") or "").upper() for ratio in ratios if isinstance(ratio, dict)}
+        upstox_ratio_payload = _safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/key-ratios", default=[])
         if not {"P/E", "P/B", "ROE", "ROCE"}.issubset(finedge_ratio_keys):
             calculated_ratios = ratios
             ratios = _normalize_ratio_items(
@@ -3245,9 +3306,13 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
                 *ratio_payloads,
                 *metric_payloads,
                 basic_financials_payload,
-                _safe_upstox_get(f"/fundamentals/{quote(upstox_isin, safe='')}/key-ratios", default=[]),
+                upstox_ratio_payload,
             )
             data_sources["ratios"] = "finedge+upstox:fallback"
+        ratios = merge_sector_values(ratios, upstox_ratio_payload)
+        benchmark_observations += reported_benchmarks([], upstox_ratio_payload, datetime.now(timezone.utc).isoformat())
+    if benchmark_observations:
+        data_sources["valuationBenchmarks"] = "+".join(sorted({r["provider"].lower() for r in benchmark_observations}))
     upstox_income_payload = None
     if upstox_isin:
         upstox_income_payload = _safe_upstox_get(
@@ -3442,6 +3507,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "profile": profile,
         "highlights": [item for item in highlights if item.get("value") not in (None, "")],
         "ratios": ratios,
+        "valuationBenchmarks": benchmark_observations,
         "profitabilityRatios": profitability_ratios,
         "bankAssetQuality": bank_asset_quality,
         "bankAssetQualityStatementType": bank_asset_quality_statement_type,
@@ -3462,7 +3528,8 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "prices": {"price": price_history}, "summary": ownership_summary,
         "distribution": ownership_distribution, "declaration": ownership_declaration,
         "assetQualityRows": standalone_income_rows if bank_asset_quality_statement_type == "standalone" else income_rows,
-        "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes}
+        "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes,
+        "benchmarkObservations": benchmark_observations}
     _stock_fundamentals_cache[cache_key] = {"data": result, "model_inputs": model_inputs, "fetched_at": monotonic()}
     if _model_capture is not None:
         _model_capture.update(model_inputs)

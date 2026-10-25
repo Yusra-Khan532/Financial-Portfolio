@@ -152,9 +152,12 @@ def test_provider_retries_transient_errors_but_not_entitlement_failures(monkeypa
 def test_cagr_does_not_bridge_missing_years():
     d = {'sales_y': [None,100,110,121,133.1,146.41], 'net_profit_y': [1,2,None,4,5,6]}
     rows = {r['metric']: r for r in score_company(d, 'MFG')['metrics']}
-    assert rows['SALES_CAGR']['status'] == 'F'
-    assert rows['SALES_CAGR']['details']['years'] == 5
-    assert rows['PROFIT_CAGR']['status'] == 'F'
+    assert rows['SALES_CAGR']['status'] == 'A'
+    assert rows['SALES_CAGR']['details']['years'] == 3
+    assert rows['SALES_CAGR']['details']['previous'] == 110
+    assert rows['PROFIT_CAGR']['status'] == 'A'
+    assert rows['PROFIT_CAGR']['details']['years'] == 2
+    assert rows['PROFIT_CAGR']['details']['previous'] == 4
 
 
 AUDIT = json.loads((Path(__file__).parent / 'fixtures' / 'premium_stock_audit_2026_10_18.json').read_text())
@@ -212,7 +215,18 @@ ORACLE = json.loads((Path(__file__).parent / 'fixtures' / 'premium_owner_parity.
 
 
 @pytest.mark.parametrize('case', ORACLE['cases'], ids=lambda c: c['group'])
-def test_documented_scoring_matches_supplied_owner_code(case):
+def test_documented_scoring_matches_supplied_owner_code(case,monkeypatch):
+    # This oracle predates the owner's 24 October unconditional Quality changes.
+    # Retain it as a baseline algorithm check with its original financial slots;
+    # current slots/ranges are independently tested in test_premium_bank_fallbacks.
+    if case['group'] in ('BANK','NBFC','INSURANCE'):
+        from copy import deepcopy
+        from backend import premium_engine
+        legacy=deepcopy(premium_engine.GROUPS)
+        weights=legacy[case['group']]['weights']['quality']
+        previous='SOLVENCY' if case['group']=='INSURANCE' else 'CAPITAL_ADEQUACY'
+        legacy[case['group']]['weights']['quality']={previous if k=='INTEREST_COVER' else k:v for k,v in weights.items()}
+        monkeypatch.setattr(premium_engine,'GROUPS',legacy)
     actual=score_company(case['input'],case['group'])
     expected=case['expected']
     assert actual['final']==pytest.approx(expected['final'],abs=1e-6)
@@ -237,7 +251,11 @@ RECONCILIATION=json.loads((Path(__file__).parent/'fixtures'/'premium_reconciliat
 
 
 @pytest.mark.parametrize('case',RECONCILIATION['cases'],ids=lambda c:c['symbol'])
-def test_all_seven_user_reference_symbols_reproduce_the_reconciled_run(case):
+def test_all_seven_historical_reference_symbols_reproduce_the_original_cagr_policy(case,monkeypatch):
+    # This recorded reconciliation predates the owner-requested 1/2-year
+    # fallback. Preserve that historical check; current windows have dedicated
+    # arithmetic and disclosure tests in test_premium_cagr_windows.py.
+    monkeypatch.setattr('backend.premium_engine.CAGR_MIN_YEARS',3)
     result=score_company(case['inputs'],case['group'])
     assert result['final']==pytest.approx(case['expectedScore'],abs=1e-8)
     assert result['parts']==pytest.approx(case['expectedParts'],abs=1e-8)

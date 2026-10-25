@@ -7,11 +7,13 @@ try:
     from .premium_engine import score_company
     from .premium_trace import build_calculation_trace
     from .premium_presentation import build_report_review
+    from .benchmark_resolution import select_reported_benchmarks
 except ImportError:
     from premium_data import fetch_inputs, adapt_inputs, peer_benchmark, profile_from
     from premium_engine import score_company
     from premium_trace import build_calculation_trace
     from premium_presentation import build_report_review
+    from benchmark_resolution import select_reported_benchmarks
 
 
 def generate_report(get, symbol, name, statement_type, report_id, created_at, dashboard_load=None):
@@ -33,7 +35,19 @@ def generate_report(get, symbol, name, statement_type, report_id, created_at, da
     # Match benchmark observations to the report price date, not a later market close.
     try: benchmark_date = date.fromisoformat(meta.get("priceAsOf") or now.date().isoformat())
     except ValueError: benchmark_date = now.date()
-    benchmarks, benchmark_meta = peer_benchmark(get, raw.get("peers", {}), statement_type, min(benchmark_date, now.date()), group)
+    reported, reported_meta = select_reported_benchmarks(raw.get("benchmarkObservations", []))
+    wanted = [key for key in ("pe", "pb") if "industry_median_" + key not in reported]
+    if group in ("HEAVY", "UTILITY") and "industry_median_ev_ebitda" not in reported:
+        wanted.append("ev_ebitda")
+    benchmarks, benchmark_meta = peer_benchmark(get, raw.get("peers", {}), statement_type, min(benchmark_date, now.date()), group, wanted)
+    benchmarks.update(reported)
+    benchmark_meta.setdefault("metrics", {}).update(reported_meta)
+    providers = sorted({item["provider"] for item in benchmark_meta["metrics"].values() if item.get("value") is not None})
+    if providers:
+        benchmark_meta["source"] = " / ".join(providers)
+    benchmark_meta["reportedObservations"] = raw.get("benchmarkObservations", [])
+    benchmark_meta["policyVersion"] = "2026-10-24-provider-first"
+    inputs.setdefault("benchmark_details", {}).update(benchmark_meta["metrics"])
     inputs.update(benchmarks)
     rating = score_company(inputs, group)
     if any(not source["available"] for source in sources):

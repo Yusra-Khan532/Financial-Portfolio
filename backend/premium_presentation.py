@@ -63,6 +63,9 @@ def factor(row, group):
         label = label.replace("Revenue", "Net interest income")
     elif group == "INSURANCE" and metric.startswith("SALES"):
         label = label.replace("Revenue", "Net premium income")
+    cagr_years = row.get("details", {}).get("years", 0) if metric in ("SALES_CAGR", "PROFIT_CAGR") else 0
+    if cagr_years:
+        label += f" ({cagr_years}-year)"
     item = {"metric": metric, "label": label, "valueText": value_text(row)}
     if state == "N":
         return "notApplicable", dict(item, summary="Not applicable to this assessment.")
@@ -80,6 +83,10 @@ def factor(row, group):
         reason = MIXED.get(metric, "In the middle assessment range.")
     else:
         reason = REASONS.get(metric, ("Supports the assessment.", "Holds back the assessment."))[bucket == "cons"]
+    if cagr_years and row.get("value") is not None:
+        subject = "revenue" if metric == "SALES_CAGR" else "profit"
+        quality = {"pros": "Strong", "cons": "Weak", "mixed": "Moderate"}[bucket]
+        reason = f"{quality} {subject} growth over the {cagr_years}-year period."
     if row.get("value") is None:
         note = row.get("details", {}).get("note")
         if note in ("Loss to profit", "Loss narrowed", "Loss not narrowed"):
@@ -96,6 +103,18 @@ def factor(row, group):
     if metric.endswith("STREAK"):
         info = row.get("details", {})
         reason += f" {info.get('good', 0)} growth quarters across {info.get('judged', 0)} comparable quarters."
+        if metric == "PROFIT_STREAK":
+            reason += " Loss-making quarters do not count as growth quarters."
+            if info.get("lossFill"):
+                reason += " Current losses limit the assessment despite the short record."
+    info = row.get("details", {})
+    if info.get("latestLoss"):
+        period = "latest financial year" if metric == "PROFIT_CAGR" else "latest comparison period"
+        reason = f"Net profit is zero or negative in the {period}; this factor provides no support to the assessment."
+        if row.get("value") is None:
+            item["valueText"] = "Zero or negative profit"
+    if info.get("operatingLoss"):
+        reason = f"The current operating margin is {info['opMarginNow']:.2f}%; margin improvement provides no support until the margin turns positive."
     if state == "S":
         reason += " Industry data is used because company history is unavailable."
     if group in ("BANK", "NBFC") and metric.startswith("SALES"):
@@ -113,18 +132,99 @@ def factor(row, group):
     return bucket, dict(item, label=label, summary=reason)
 
 
+def loss_review_note(rating):
+    loss = rating.get("loss", {})
+    if not rating.get("lossCapped"):
+        return None
+    tier = loss["tier"]
+    if tier == "recovering":
+        reason = "profit has returned, but the recent annual loss record means the recovery is not yet established"
+    else:
+        reason = f"net profit over the {loss['basis']} is zero or negative"
+        if tier.startswith("chronic"):
+            reason += f", with losses in {loss['lossYears5']} of the last {loss['years5']} financial years"
+        elif tier.startswith("persistent"):
+            reason += f", with losses in {loss['lossYears3']} of the last {loss['years3']} financial years"
+        if tier.endswith("deep"):
+            reason += f"; the net loss is {abs(loss['netMarginPct']):.1f}% of revenue"
+    return f"The Fundamental score is limited to {loss['cap']:g}/100 because {reason}."
+
+
+def benchmark_disclosure(row, item, report):
+    metric = row["metric"]
+    if "_VS_" not in metric:
+        if row["status"] == "F":
+            item["comparisonText"] = f"Group estimate used: {row['points']:g}/100."
+        elif metric in ("SALES_CAGR", "PROFIT_CAGR"):
+            years = row.get("details", {}).get("years", 0)
+            periods = report.get("inputMeta", {}).get("chronology", {}).get("annual", [])
+            if years and len(periods) > years:
+                item["comparisonText"] = f"Period used: {periods[-years-1]} to {periods[-1]}."
+        return item
+    prefix = metric.split("_VS_")[0].lower()
+    ratio = {"pe": "P/E", "pb": "P/B", "ev_ebitda": "EV/EBITDA"}[prefix]
+    history = metric.endswith("HISTORY") and row["status"] != "S"
+    key = ("own_5y_median_" if history else "industry_median_") + prefix
+    inputs = report.get("inputs", {})
+    info = inputs.get("benchmark_details", {}).get(key, {})
+    value = inputs.get(key)
+    if row["status"] == "F":
+        reason = "Insufficient benchmark data."
+        if value is not None and value > 0:
+            reason = f"The {ratio} benchmark is available, but the company's comparable ratio could not be calculated."
+        elif history and info:
+            reason = f"Only {info['positiveCount']} positive historical observations are available; at least {info['minimumCount']} are required."
+        elif info.get("positiveCount") is not None:
+            reason = f"Only {info['positiveCount']} positive peer observations are available; at least 5 are required."
+        item["summary"] = reason + " A group estimate is used in the assessment."
+        item["comparisonText"] = f"Group estimate used: {row['points']:g}/100."
+        return item
+    if value is None or not info:
+        return item
+    scope, provider = info["scope"], info["provider"]
+    if scope == "sector":
+        item["label"] = f"{ratio} vs sector" + (" (history unavailable)" if row["status"] == "S" else "")
+        item["summary"] = item["summary"].replace("industry peers", "the sector benchmark").replace("Industry data", "Sector data")
+    current = next((r["value"] for r in report.get("calculationTrace", {}).get("latest", []) if r["key"] == prefix), None)
+    current_text = f"Company {ratio}: {current:.2f}x. " if current is not None else ""
+    benchmark_label = "Own-history median" if history else "Sector benchmark" if scope == "sector" else "Industry peer median"
+    description = f"{current_text}{benchmark_label}: {value:.2f}x. Source: {provider}."
+    if info.get("method") == "available peer median":
+        description += f" Uses {info['positiveCount']} positive multiples; {info['observedCount']} of {info['universeCount']} peer records available."
+    if row["status"] == "S":
+        own = inputs.get("benchmark_details", {}).get("own_5y_median_" + prefix, {})
+        if own:
+            description += f" Own history has {own['positiveCount']} eligible observations; {own['minimumCount']} required."
+    item["comparisonText"] = description
+    return item
+
+
 def build_report_review(report):
     rating = report["rating"]
     parts = []
     for key in PARTS:
-        part = {"key": key, "name": key.title(), "score": rating["parts"].get(key) if rating["status"] != "NOT RATED" else None,
+        part = {"key": key, "name": key.title(), "score": rating["parts"].get(key) if rating["status"] != "NOT RATED" else None, "notes": [],
                 **{bucket: [] for bucket in ("pros", "cons", "mixed", "unavailable", "notApplicable")}}
         for row in rating["metrics"]:
             if row["part"] == key:
                 bucket, item = factor(row, rating["group"])
+                item = benchmark_disclosure(row, item, report)
+                if row["metric"] == "SOLVENCY" and any("solvency ratio has unverified units" in caution for caution in report.get("inputs", {}).get("rating_cautions", [])):
+                    item["summary"] = "The reported solvency value requires a unit check against the issuer disclosure; interpret this factor with caution."
                 part[bucket].append(item)
         parts.append(part)
+    loss_note = loss_review_note(rating)
+    if loss_note:
+        parts[0]["notes"].append(loss_note)
     notes = []
+    benchmark = report.get("benchmark", {})
+    if any(i.get("provider") == "Upstox" for i in benchmark.get("metrics", {}).values()):
+        notes.append("Upstox comparisons use its reported sector benchmark. The provider does not specify its statement basis, valuation date or aggregation method.")
+    for observation in benchmark.get("reportedObservations", []):
+        if observation.get("provider") == "Upstox" and observation.get("value", 0) <= 0:
+            ratio = {"pe": "P/E", "pb": "P/B", "ev_ebitda": "EV/EBITDA"}.get(observation.get("key"))
+            if ratio:
+                notes.append(f"Upstox reports sector {ratio} of {observation['value']:.2f}x. It is excluded because this comparison requires a positive benchmark.")
     if any(row.get("fallbackFor") == "PB_VS_INDUSTRY" for row in rating["metrics"]):
         notes.append("The industry P/B comparison is unavailable; the Valuation assessment uses return on equity instead.")
     if any(row.get("fallbackFor") == "CAPITAL_ADEQUACY" for row in rating["metrics"]):
@@ -141,7 +241,8 @@ def build_report_review(report):
     inputs = report.get("inputs", {})
     # Preserve substantive data concerns in plain language; omit provider plumbing.
     for message in inputs.get("rating_blockers", []) + inputs.get("rating_cautions", []):
-        if "classification" in message: notes.append("The company's industry classification needs confirmation; the overall rating is withheld.")
+        if "solvency ratio has unverified units" in message: notes.append("The solvency ratio's units need verification against the issuer disclosure; interpret the Quality assessment with caution.")
+        elif "classification" in message: notes.append("The company's industry classification needs confirmation; the overall rating is withheld.")
         elif "Quarterly" in message: notes.append("Quarterly results are incomplete or more than 200 days old.")
         elif "freshness" in message: notes.append("The market price is more than 10 days old.")
         elif "date is unverified" in message: notes.append("The market-price date could not be confirmed.")
