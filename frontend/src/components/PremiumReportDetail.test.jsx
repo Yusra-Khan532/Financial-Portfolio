@@ -1,10 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server.node";
-import { ReportDetail } from "./PremiumReportPage";
+import ReportDetail from "@/components/PremiumReportDetail";
 
-jest.mock("react-router-dom", () => ({ Link: () => null, useNavigate: jest.fn(), useParams: () => ({}) }));
-jest.mock("@/components/CompanyBrowser", () => () => null);
-jest.mock("@/components/cms/AdminShell", () => ({children}) => children);
 
 const keys = ["fundamental", "valuation", "quality", "risk"];
 const report = {
@@ -40,9 +37,9 @@ test("report shows the actual benchmark value, source and coverage used", () => 
 });
 
 test("report displays the actual CAGR lookback and year endpoints", () => {
-  const sample = {...report, review: {...report.review, parts: report.review.parts.map((part) => part.key === "fundamental" ? {...part, pros: [{metric: "SALES_CAGR", label: "Revenue CAGR (1-year)", valueText: "12.00%", summary: "Strong revenue growth over the 1-year period.", comparisonText: "Period used: 2025 to 2026."}]} : part)}};
+  const sample = {...report, review: {...report.review, parts: report.review.parts.map((part) => part.key === "fundamental" ? {...part, pros: [{metric: "SALES_CAGR", label: "Sales CAGR (1-year)", valueText: "12.00%", summary: "Strong sales growth over the 1-year period.", comparisonText: "Period used: 2025 to 2026."}]} : part)}};
   const html = renderToStaticMarkup(<ReportDetail report={sample} />);
-  expect(html).toContain("Revenue CAGR (1-year)");
+  expect(html).toContain("Sales CAGR (1-year)");
   expect(html).toContain("Period used: 2025 to 2026.");
 });
 
@@ -50,7 +47,7 @@ test("report exposes missing dependencies and short histories together", () => {
   const sample = {...report, review: {...report.review, completeness: {
     complete:false, missingFactorCount:1, limitedHistoryCount:1,
     items:[{metric:"INTEREST_COVER", category:"Quality", label:"Interest cover", reason:"Annual P&L interest expense.", treatment:"Group estimate used: 50/100."},
-      {metric:"SALES_STREAK", category:"Fundamental", label:"Net premium income streak", reason:"Quarterly income history (6 of 14 observations available).", treatment:"2 of 10 year-on-year comparisons available."}]
+      {metric:"SALES_STREAK", category:"Fundamental", label:"Sales streak", reason:"Quarterly income history (6 of 14 observations available).", treatment:"2 of 10 year-on-year comparisons available."}]
   }}};
   const html=renderToStaticMarkup(<ReportDetail report={sample} />);
   expect(html).toContain('aria-label="Input completeness"');
