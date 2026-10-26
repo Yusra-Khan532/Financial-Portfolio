@@ -8,7 +8,7 @@ function HistoryTable({ title, rows, fields }) {
 export default function PremiumFinancialHistory({ report }) {
   const trace = report.calculationTrace;
   if (!trace) return null;
-  const salesLabel = ["BANK","NBFC"].includes(report.rating.group) ? "Net interest income" : report.rating.group === "INSURANCE" ? "Net premium income" : "Sales";
+  const salesLabel = "Sales";
   return <section aria-label="Financial history" className="space-y-5">
     <HistoryTable title="Quarterly results" rows={trace.quarterly} fields={[["sales",salesLabel],["profit","Owner-attributable net profit"],["ebitda","EBITDA"],["eps","EPS (₹)"]]} />
     <HistoryTable title="Annual results" rows={trace.annual} fields={[["sales",salesLabel],["profit","Owner-attributable net profit"],["cashFlow","Operating cash flow"],["netWorth","Book equity"]]} />
