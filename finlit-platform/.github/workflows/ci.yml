@@ -1,0 +1,64 @@
+name: CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: timescale/timescaledb:2.17.2-pg16
+        env:
+          POSTGRES_USER: finlit
+          POSTGRES_PASSWORD: finlit
+          POSTGRES_DB: finlit_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U finlit -d finlit_test" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://finlit:finlit@localhost:5432/finlit_test
+      TEST_REDIS_URL: redis://localhost:6379/15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q -s
+
+  site-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"   # the version of the production image (Dockerfile)
+          cache: pip
+          cache-dependency-path: site-api/backend/requirements.txt
+      - run: pip install -r site-api/backend/requirements.txt mongomock-motor
+      # Includes the FinLit Prism model tests (premium_*), which use recorded fixtures only: no provider key, no network, no MongoDB.
+      # test_start_without_mongo.py starts the server without MONGO_URL, as production does when only Prism is configured.
+      - run: PYTHONPATH=.:backend python -m pytest -q -c backend/pytest.ini backend/tests
+        working-directory: site-api
+        env:
+          FINEDGE_API_KEY: ""
+          UPSTOX_ACCESS_TOKEN: ""

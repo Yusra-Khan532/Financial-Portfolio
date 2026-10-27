@@ -1,0 +1,750 @@
+"""Postgres (source of truth) + Redis (hot path) for precomputed snapshots.
+
+Read path, per request: one Redis HMGET (body + etag) -> bytes on the wire. If Redis is cold,
+one Postgres primary-key lookup, then Redis is re-filled. Nothing is computed per request.
+"""
+
+from __future__ import annotations
+
+import gzip
+import hashlib
+import json
+import math
+import logging
+import time
+import zlib
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+import asyncpg
+import os
+
+import orjson
+import redis.asyncio as aioredis
+
+from .snapshot import SNAPSHOT_VERSION
+from .config import Settings, get_settings
+
+log = logging.getLogger("finlit.store")
+MIGRATIONS = Path(__file__).parent / "migrations"
+SEARCH_KEY = "search-index"
+STOCK_TTL = 6 * 3600
+SEARCH_TTL = 6 * 3600   # the name list (~350 KB read from Postgres to build); a load or a universe refresh drops it sooner
+QUOTE_SYMBOLS_KEY = "quotes:symbols"   # who the minute-by-minute quote job updates: the list changes when a report is first loaded or pruned, not every minute
+QUOTE_SYMBOLS_TTL = 1800
+# What the screener figures are worked out from, besides the live summary: unchanged between full loads, so the quote job keeps them in Redis (compressed,
+# and cut to the parts screener/compute.py and advanced/derive.py read: the glossary alone is 32 KB of a ratios report) and does not read ~100 KB a company
+# from Postgres every minute. If a figure starts to read another part, add it here: tests/test_egress.py compares the figures both ways.
+INPUT_SECTIONS = ("financials", "ratios", "ownership", "events", "stats", "price")
+INPUT_TTL = 8 * 86400   # renewed every time the quote job reads them
+# The same cuts made inside Postgres (j = the section parsed), so a cache miss does not pull the whole report across the wire either.
+INPUT_CUT_SQL = ("CASE section "
+                 "WHEN 'ratios' THEN jsonb_build_object('latest', j -> 'latest', 'history', j -> 'history', 'valuationHistory', j -> 'valuationHistory')::text "
+                 "WHEN 'stats' THEN jsonb_build_object('volatility', jsonb_build_object('current', j #> '{volatility,current}'), 'drawdown', jsonb_build_object('max', j #> '{drawdown,max}'))::text "
+                 "WHEN 'events' THEN jsonb_build_object('actions', j -> 'actions', 'dividendsByFY', j -> 'dividendsByFY')::text "
+                 "WHEN 'price' THEN jsonb_build_object('daily', jsonb_build_object('t', j #> '{daily,t}', 'c', j #> '{daily,c}', 'v', j #> '{daily,v}'), 'technical', j -> 'technical')::text "
+                 "ELSE body END")
+VIEWED_KEY = "viewed"   # sorted set: symbol -> last time a member or visitor opened its report (keeps it stored when pruning)
+# What the website lists for every company. The 170 screener numbers (scores.metrics) are left out on purpose: they are ~2 KB a company and only /api/screener/query needs them.
+LIST_COLUMNS = ("symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical, price, market_cap, "
+                "pe, pb, roe, roce, dividend_yield, debt_to_equity, sales_cagr, profit_cagr, operating_margin, change_pct, return_1m, return_1y, sector, name, updated_at")
+
+SCORE_COLUMNS = ("symbol", "statement", "model", "overall", "band", "pillar_quality", "pillar_growth",
+                 "pillar_profitability", "pillar_balance", "pillar_technical", "price", "market_cap", "pe", "roe",
+                 "dividend_yield", "sector", "name", "pb", "roce", "debt_to_equity", "sales_cagr", "profit_cagr",
+                 "operating_margin", "change_pct", "return_1m", "return_1y", "industry", "macro_sector", "metrics")
+SCORE_UPSERT = """
+INSERT INTO scores (symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability,
+                    pillar_balance, pillar_technical, price, market_cap, pe, roe, dividend_yield, sector, name, pb, roce,
+                    debt_to_equity, sales_cagr, profit_cagr, operating_margin, change_pct, return_1m, return_1y, industry, macro_sector, metrics, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29::jsonb, now())
+ON CONFLICT (symbol, statement, model) DO UPDATE SET
+    overall = EXCLUDED.overall, band = EXCLUDED.band, pillar_quality = EXCLUDED.pillar_quality,
+    pillar_growth = EXCLUDED.pillar_growth, pillar_profitability = EXCLUDED.pillar_profitability,
+    pillar_balance = EXCLUDED.pillar_balance, pillar_technical = EXCLUDED.pillar_technical,
+    price = EXCLUDED.price, market_cap = EXCLUDED.market_cap, pe = EXCLUDED.pe, roe = EXCLUDED.roe,
+    dividend_yield = EXCLUDED.dividend_yield, sector = EXCLUDED.sector, name = EXCLUDED.name, pb = EXCLUDED.pb,
+    roce = EXCLUDED.roce, debt_to_equity = EXCLUDED.debt_to_equity, sales_cagr = EXCLUDED.sales_cagr,
+    profit_cagr = EXCLUDED.profit_cagr, operating_margin = EXCLUDED.operating_margin,
+    change_pct = EXCLUDED.change_pct, return_1m = EXCLUDED.return_1m, return_1y = EXCLUDED.return_1y, industry = EXCLUDED.industry, macro_sector = EXCLUDED.macro_sector,
+    metrics = EXCLUDED.metrics, updated_at = now(), changed_at = now()
+"""
+
+
+def dumps(value: Any) -> bytes:
+    return orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY)
+
+
+def etag_for(body: bytes) -> str:
+    return '"' + hashlib.blake2b(body, digest_size=10).hexdigest() + '"'
+
+
+def stock_key(symbol: str, statement: str) -> str:
+    return f"stock:{symbol.upper()}:{statement}"
+
+
+def inputs_key(symbol: str, statement: str) -> str:
+    return f"mi:{symbol.upper()}:{statement}"
+
+
+def cut_input(name: str, body: Any) -> Any:
+    """A stored section as the screener figures read it (the same cut INPUT_CUT_SQL makes in the database)."""
+    g = (lambda d, k: d.get(k) if isinstance(d, dict) else None)
+    if name == "ratios":
+        return {k: g(body, k) for k in ("latest", "history", "valuationHistory")}
+    if name == "stats":
+        return {"volatility": {"current": g(g(body, "volatility"), "current")}, "drawdown": {"max": g(g(body, "drawdown"), "max")}}
+    if name == "events":
+        return {k: g(body, k) for k in ("actions", "dividendsByFY")}
+    if name == "price":
+        d = g(body, "daily")
+        return {"daily": {k: g(d, k) for k in ("t", "c", "v")}, "technical": g(body, "technical")}
+    return body
+
+
+def prepare_dsn(url: str) -> tuple:
+    """Managed Postgres hosts (Neon, Supabase...) hand out URLs asyncpg cannot use as they are.
+    Drops options asyncpg does not know (channel_binding), and turns off the prepared-statement cache for pooled endpoints
+    (PgBouncer in transaction mode, host contains "-pooler"). Returns (dsn, extra create_pool keyword arguments)."""
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k.lower() != "channel_binding"]
+    extra = {"statement_cache_size": 0} if "-pooler" in (parts.hostname or "") else {}
+    return urlunsplit(parts._replace(query=urlencode(query))), extra
+
+
+async def _upstox_health(redis) -> dict:
+    from .upstox import health_line
+    return await health_line(redis)
+
+
+IDLE_CONNECTION_SECONDS = 30.0   # a pooled connection unused for this long is closed (see Store.connect)
+REDIS_MAX_CONNECTIONS = int(os.getenv("REDIS_MAX_CONNECTIONS", "40"))   # below Render Key Value's connection cap; the worker opens its own
+REDIS_TIMEOUT = 3.0   # seconds: a hung Redis must fail a request quickly (it is a cache: callers fall back to Postgres), not hold it for 15 s
+
+
+class _Pool(asyncpg.pool.Pool):
+    """asyncpg's pool, but a request waiting for a free connection gives up after `acquire_timeout` seconds instead of waiting forever."""
+    __slots__ = ("acquire_timeout",)
+
+    def acquire(self, *, timeout=None):
+        return super().acquire(timeout=self.acquire_timeout if timeout is None else timeout)
+
+
+def _redis(url: str) -> aioredis.Redis:
+    from redis.asyncio.retry import Retry
+    from redis.backoff import NoBackoff
+    pool = aioredis.BlockingConnectionPool.from_url(url, max_connections=REDIS_MAX_CONNECTIONS, timeout=REDIS_TIMEOUT, socket_timeout=REDIS_TIMEOUT,
+                                                    socket_connect_timeout=REDIS_TIMEOUT, health_check_interval=30, retry=Retry(NoBackoff(), 1))
+    return aioredis.Redis(connection_pool=pool)
+
+
+class Store:
+    db_tag = ""
+
+    def __init__(self, pool: asyncpg.Pool, redis: aioredis.Redis, timescale: bool = False):
+        self.pool, self.redis, self.timescale = pool, redis, timescale
+
+    # ------------------------------------------------------------ lifecycle
+
+    @classmethod
+    async def connect(cls, settings: Optional[Settings] = None, migrate: bool = False, acquire_timeout: Optional[float] = None, idle_seconds: float = IDLE_CONNECTION_SECONDS) -> "Store":
+        """`acquire_timeout`: the API passes a few seconds so a stalled database answers 503 instead of hanging; jobs wait as long as needed."""
+        settings = settings or get_settings()
+        dsn, extra = prepare_dsn(settings.database_url)
+        # min_size=0 and a 30 s idle lifetime: asyncpg never closes the last "floor" connection of a pool (min_size>=1), so a web server or a job pool with
+        # min_size=1 kept one connection open for ever and a serverless database (Neon) could not suspend. Now the pool holds no connection while nothing runs,
+        # and nothing connects at start-up (the first query does).
+        pool = _Pool(dsn, connection_class=asyncpg.Connection, record_class=asyncpg.Record, init_size=None, min_size=0, max_size=10, max_queries=50000,
+                     loop=None, connect=None, setup=None, init=None, reset=None, max_inactive_connection_lifetime=idle_seconds, command_timeout=10, timeout=15, **extra)
+        pool.acquire_timeout = acquire_timeout
+        await pool
+        redis = _redis(settings.redis_url)
+        store = cls(pool, redis)
+        from urllib.parse import urlsplit
+        u = urlsplit(settings.database_url)
+        store.db_tag = hashlib.sha1(f"{u.hostname}{u.path}".encode(), usedforsecurity=False).hexdigest()[:8]   # names caches kept in Redis: a new database never reads an old one's
+        if migrate:
+            await store.migrate()
+        return store
+
+    async def close(self):
+        await self.pool.close()
+        await self.redis.aclose()
+
+    async def migrate(self):
+        async with self.pool.acquire() as conn:
+            await conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations "
+                               "(version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())")
+            applied = {r["version"] for r in await conn.fetch("SELECT version FROM schema_migrations")}
+            for path in sorted(MIGRATIONS.glob("*.sql")):
+                if path.stem not in applied:
+                    async with conn.transaction():
+                        await conn.execute(path.read_text())
+                        await conn.execute("INSERT INTO schema_migrations(version) VALUES($1)", path.stem)
+            self.timescale = await self._enable_timescale(conn)
+
+    async def _enable_timescale(self, conn) -> bool:
+        available = await conn.fetchval("SELECT count(*) FROM pg_available_extensions WHERE name = 'timescaledb'")
+        if not available:
+            log.info("timescaledb not installed; price_daily stays a plain table")
+            return False
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
+        await conn.execute("SELECT create_hypertable('price_daily', 'day', if_not_exists => TRUE, migrate_data => TRUE)")
+        return True
+
+    # ------------------------------------------------------------ writes (worker)
+
+    async def save_snapshot(self, symbol: str, statement: str, sections: Dict[str, dict],
+                            score_row: Optional[dict] = None, daily: Optional[dict] = None) -> Dict[str, str]:
+        symbol = symbol.upper()
+        generated = datetime.fromisoformat(sections["summary"]["meta"]["generatedAt"])
+        encoded = {name: dumps(body) for name, body in sections.items()}
+        etags = {name: etag_for(body) for name, body in encoded.items()}
+
+        async with self.pool.acquire() as conn, conn.transaction():
+            await conn.executemany(
+                """INSERT INTO snapshots(symbol, statement, section, body, etag, generated_at)
+                   VALUES($1, $2, $3, $4, $5, $6)
+                   ON CONFLICT (symbol, statement, section)
+                   DO UPDATE SET body = EXCLUDED.body, etag = EXCLUDED.etag, generated_at = EXCLUDED.generated_at""",
+                [(symbol, statement, name, body.decode(), etags[name], generated) for name, body in encoded.items()],
+            )
+            if score_row:
+                await self._upsert_score(conn, {**score_row, "statement": statement})
+            if daily and daily.get("t"):
+                await self._upsert_prices(conn, symbol, daily)
+            if sections.get("events"):
+                from .feed import save_announcements
+                await save_announcements(conn, symbol, sections["summary"]["profile"].get("name") or symbol, sections["events"].get("announcements") or [])
+
+        await self._cache(symbol, statement, encoded, etags)
+        await self._cache_inputs(symbol, statement, sections)
+        return etags
+
+    async def _cache_inputs(self, symbol: str, statement: str, sections: Dict[str, dict]) -> None:
+        """A full load rewrites the figures' inputs: keep the new ones for the quote job (a quote patch carries only the summary and leaves them alone)."""
+        if not any(k in sections for k in INPUT_SECTIONS):
+            return
+        try:
+            if all(k in sections for k in INPUT_SECTIONS):
+                packed = zlib.compress(orjson.dumps({k: cut_input(k, sections[k]) for k in INPUT_SECTIONS}), 6)
+                await self.redis.set(inputs_key(symbol, statement), packed, ex=INPUT_TTL)
+                await self.redis.delete(QUOTE_SYMBOLS_KEY)   # a company that was not being quoted may be now
+            else:
+                await self.redis.delete(inputs_key(symbol, statement))
+        except Exception:
+            pass
+
+    async def quote_symbols(self) -> List[Tuple[str, str]]:
+        """snapshot_symbols() for the quote job, remembered for 30 minutes (a new report waits at most that long for its first live quote)."""
+        try:
+            raw = await self.redis.get(QUOTE_SYMBOLS_KEY)
+            if raw:
+                return [(s, st) for s, st in orjson.loads(raw)]
+        except Exception:
+            pass
+        items = await self.snapshot_symbols()
+        try:
+            await self.redis.set(QUOTE_SYMBOLS_KEY, orjson.dumps(items), ex=QUOTE_SYMBOLS_TTL)
+        except Exception:
+            pass
+        return items
+
+    async def metric_inputs(self, pairs: List[Tuple[str, str]]) -> Dict[Tuple[str, str], Dict[str, dict]]:
+        """{(symbol, statement): the stored sections the screener figures are worked out from (INPUT_SECTIONS, price cut down)}. From Redis;
+        what it does not hold is read from Postgres once and kept."""
+        out: Dict[Tuple[str, str], Dict[str, dict]] = {}
+        try:
+            async with self.redis.pipeline(transaction=False) as pipe:   # GETEX: reading them keeps them (a weekend does not empty the cache)
+                for s, st in pairs:
+                    pipe.getex(inputs_key(s, st), ex=INPUT_TTL)
+                hits = await pipe.execute()
+        except Exception:
+            hits = [None] * len(pairs)
+        miss = []
+        for p, h in zip(pairs, hits):
+            try:
+                out[p] = orjson.loads(zlib.decompress(h)) if h else None  # type: ignore[assignment]
+            except Exception:
+                out[p] = None  # type: ignore[assignment]
+            if out[p] is None:
+                del out[p]
+                miss.append(p)
+        if miss:
+            grouped: Dict[Tuple[str, str], Dict[str, dict]] = {}
+            async with self.pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT symbol, statement, section, " + INPUT_CUT_SQL + " AS body FROM (SELECT symbol, statement, section, body, "  # nosec B608 - fixed text
+                    "CASE WHEN section IN ('ratios', 'stats', 'events', 'price') THEN body::jsonb END AS j FROM snapshots "
+                    "WHERE (symbol, statement) IN (SELECT * FROM unnest($1::text[], $2::text[])) AND section = ANY($3::text[])) x",
+                    [s for s, _ in miss], [st for _, st in miss], list(INPUT_SECTIONS))
+            for r in rows:
+                grouped.setdefault((r["symbol"], r["statement"]), {})[r["section"]] = orjson.loads(r["body"])
+            for p, sec in grouped.items():
+                out[p] = sec
+                try:
+                    await self.redis.set(inputs_key(*p), zlib.compress(orjson.dumps(sec), 6), ex=INPUT_TTL)
+                except Exception:
+                    pass
+        return out
+
+    async def _cache(self, symbol: str, statement: str, encoded: Dict[str, bytes], etags: Dict[str, str]):
+        mapping: Dict[str, bytes] = {}
+        for name, body in encoded.items():
+            if name == "price":   # full history: only the worker reads it, from Postgres; the site serves the price-* ranges
+                continue
+            mapping[name] = body
+            mapping[f"{name}:etag"] = etags[name].encode()
+        key = stock_key(symbol, statement)
+        if not mapping:
+            return
+        async with self.redis.pipeline(transaction=True) as pipe:
+            pipe.hset(key, mapping=mapping)
+            pipe.expire(key, STOCK_TTL)   # the free Redis is small: a stock nobody opens leaves it, and is re-read from Postgres when asked
+            await pipe.execute()
+
+    async def _upsert_score(self, conn, row: dict):
+        vals = [row.get(c) for c in SCORE_COLUMNS]
+        vals[-1] = orjson.dumps(vals[-1]).decode() if vals[-1] else None
+        await conn.execute(SCORE_UPSERT, *vals)
+        if row.get("overall") is not None:
+            await conn.execute(
+                "INSERT INTO score_history (symbol, statement, model, day, overall, pillar_quality, pillar_growth, pillar_profitability, "
+                "pillar_balance, pillar_technical) VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, $8, $9) "
+                "ON CONFLICT (symbol, statement, model, day) DO UPDATE SET overall = EXCLUDED.overall, pillar_quality = EXCLUDED.pillar_quality, "
+                "pillar_growth = EXCLUDED.pillar_growth, pillar_profitability = EXCLUDED.pillar_profitability, "
+                "pillar_balance = EXCLUDED.pillar_balance, pillar_technical = EXCLUDED.pillar_technical",
+                row["symbol"], row["statement"], row.get("model") or "v1", row["overall"], row.get("pillar_quality"), row.get("pillar_growth"),
+                row.get("pillar_profitability"), row.get("pillar_balance"), row.get("pillar_technical"))
+
+    async def save_score_only(self, symbol: str, statement: str, score_row: dict) -> None:
+        """Keep a company's score and screener figures without its report: about 5 KB instead of about 100 KB (report sections and a year and a half of
+        daily prices). The screener and alerts read the score row; the report itself is built when somebody opens the company."""
+        async with self.pool.acquire() as conn, conn.transaction():
+            await self._upsert_score(conn, {**score_row, "statement": statement})
+
+    async def slim_pending(self, days: int = 7, limit: int = 1500, retry_days: int = 7) -> List[str]:
+        """Companies that have no score yet, or one older than `days`, biggest first (never-scored before stale ones). A company whose last
+        attempt failed or was rejected is left alone for `retry_days`, so the nightly budget is not spent on the same ones every night.
+        Companies that already hold a stored report are refreshed by the nightly report job, not here."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT c.symbol FROM companies c
+                   LEFT JOIN listing_quotes l ON l.symbol = c.symbol
+                   LEFT JOIN LATERAL (SELECT max(updated_at) AS at FROM scores s WHERE s.symbol = c.symbol AND s.model = 'v1') sc ON true
+                   WHERE (sc.at IS NULL OR sc.at < now() - make_interval(days => $1))
+                     AND NOT EXISTS (SELECT 1 FROM snapshots n WHERE n.symbol = c.symbol AND n.section = 'summary')
+                     AND NOT EXISTS (SELECT 1 FROM ingest_runs r WHERE r.symbol = c.symbol AND r.status IN ('failed', 'rejected')
+                                     AND r.started_at > now() - make_interval(days => $3))
+                   ORDER BY (sc.at IS NOT NULL), l.market_cap DESC NULLS LAST, (c.symbol ~ '^[0-9]+$'), c.symbol
+                   LIMIT $2""", days, limit, retry_days)
+        return [r["symbol"] for r in rows]
+
+    async def light_rows(self) -> List[dict]:
+        """Every listed company that has no score yet: its name and sector from the symbol list and its price figures from the nightly listing
+        refresh (the same rows the full screener lists), so a screener counts every company we hold, scored or not."""
+        keys = [k.strip() for k in LIST_COLUMNS.split(",") if k.strip() not in ("statement", "model", "updated_at")]
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT c.symbol, c.name, c.sector, l.price, l.change_pct, l.market_cap FROM companies c LEFT JOIN listing_quotes l ON l.symbol = c.symbol "
+                "WHERE NOT EXISTS (SELECT 1 FROM scores s WHERE s.symbol = c.symbol AND s.model = 'v1')")
+        return [{**{k: None for k in keys}, **dict(r)} for r in rows]    # every column present (None where unknown), like a scored row
+
+    async def score_history(self, symbol: str, statement: str = "consolidated", model: str = "v1", limit: int = 400) -> List[dict]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT day, overall, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical FROM score_history "
+                "WHERE symbol = $1 AND statement = $2 AND model = $3 ORDER BY day DESC LIMIT $4", symbol.upper(), statement, model, limit)
+        return [{**dict(r), "day": r["day"].isoformat()} for r in reversed(rows)]
+
+    async def save_coverage(self, symbol: str, statement: str, cov: dict) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO data_coverage (symbol, statement, state, mismatches, detail) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb) "
+                "ON CONFLICT (symbol, statement) DO UPDATE SET checked_at = now(), state = EXCLUDED.state, mismatches = EXCLUDED.mismatches, detail = EXCLUDED.detail",
+                symbol.upper(), statement, cov["state"], json.dumps(cov["mismatches"]), json.dumps({"reasons": cov["reasons"], "provider": cov["provider"], "report": cov["report"]}))
+
+    async def coverage_health(self) -> dict:
+        async with self.pool.acquire() as conn:
+            by = {r["state"]: r["n"] for r in await conn.fetch("SELECT state, count(*) AS n FROM data_coverage GROUP BY state")}
+            bad = await conn.fetch("SELECT symbol, mismatches, checked_at FROM data_coverage WHERE mismatches <> '[]'::jsonb ORDER BY checked_at DESC LIMIT 25")
+            empty = await conn.fetch("SELECT d.symbol, c.name FROM data_coverage d LEFT JOIN companies c ON c.symbol = d.symbol WHERE d.state = 'empty' ORDER BY d.checked_at DESC LIMIT 25")
+        return {"byState": by, "mismatches": [{"symbol": r["symbol"], "lines": json.loads(r["mismatches"]) if isinstance(r["mismatches"], str) else r["mismatches"], "at": r["checked_at"].isoformat()} for r in bad],
+                "providerEmpty": [{"symbol": r["symbol"], "name": r["name"]} for r in empty]}
+
+    async def health(self) -> dict:
+        """Counts for the admin data-health panel: how much of the universe is loaded and what recently failed."""
+        async with self.pool.acquire() as conn:
+            universe = await conn.fetchval("SELECT count(*) FROM companies")
+            loaded = await conn.fetchval("SELECT count(DISTINCT symbol) FROM snapshots WHERE section = 'summary'")
+            scored = await conn.fetchval("SELECT count(*) FROM scores WHERE overall IS NOT NULL")
+            queued = await conn.fetchval("SELECT count(*) FROM ingest_queue")
+            last = await conn.fetchval("SELECT max(generated_at) FROM snapshots WHERE section = 'summary'")
+            runs = await conn.fetch("SELECT status, count(*) AS n FROM ingest_runs WHERE started_at > now() - interval '24 hours' GROUP BY status")
+            cal_res = await conn.fetchval("SELECT max(created_at) FROM feed_items WHERE source = 'FinEdge results calendar'")
+            cal_res_to = await conn.fetchval("SELECT max(item_date) FROM feed_items WHERE source = 'FinEdge results calendar'")
+            cal_ipo = await conn.fetchval("SELECT max(updated_at) FROM ipos WHERE ext_key IS NOT NULL")
+            failed = await conn.fetch("SELECT symbol, status, started_at AS at, errors FROM ingest_runs WHERE status IN ('failed', 'rejected') ORDER BY id DESC LIMIT 15")
+        return {"universe": universe, "loaded": loaded, "scored": scored, "queued": queued, "lastLoad": last.isoformat() if last else None,
+                "calendars": {"resultsAt": cal_res.isoformat() if cal_res else None, "resultsThrough": cal_res_to.isoformat() if cal_res_to else None, "ipoAt": cal_ipo.isoformat() if cal_ipo else None},
+                "runs24h": {r["status"]: r["n"] for r in runs},
+                "recentProblems": [{"symbol": r["symbol"], "status": r["status"], "at": r["at"].isoformat(), "detail": str(r["errors"])[:200]} for r in failed],
+                "coverage": await self.coverage_health(),
+                "secondarySource": await _upstox_health(self.redis)}
+
+    async def _upsert_prices(self, conn, symbol: str, daily: dict):
+        rows = [(symbol, date.fromisoformat(t), daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])
+                for i, t in enumerate(daily["t"])]
+        await conn.execute("CREATE TEMP TABLE IF NOT EXISTS _prices (LIKE price_daily) ON COMMIT DROP")
+        await conn.copy_records_to_table("_prices", records=rows)
+        await conn.execute(
+            """INSERT INTO price_daily SELECT * FROM _prices
+               ON CONFLICT (symbol, day) DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
+               low = EXCLUDED.low, close = EXCLUDED.close, volume = EXCLUDED.volume""")
+        # Dates FinEdge no longer reports (bad ticks we dropped) must not linger.
+        await conn.execute("DELETE FROM price_daily WHERE symbol = $1 AND day >= $2 AND NOT (day = ANY($3::date[]))",
+                           symbol, rows[0][1], [r[1] for r in rows])
+
+    async def upsert_companies(self, rows: Iterable[dict]) -> int:
+        records = [(str(r["symbol"]).upper(), r.get("name") or r["symbol"], r.get("nse_code"), r.get("bse_code"),
+                    bool(r.get("consolidated_ind", True))) for r in rows if r.get("symbol")]
+        async with self.pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO companies(symbol, name, nse_code, bse_code, has_consolidated) VALUES($1, $2, $3, $4, $5)
+                   ON CONFLICT (symbol) DO UPDATE SET name = EXCLUDED.name, nse_code = EXCLUDED.nse_code,
+                   bse_code = EXCLUDED.bse_code, has_consolidated = EXCLUDED.has_consolidated, updated_at = now()""",
+                records)
+        await self.redis.delete(SEARCH_KEY)
+        from .dhan import bump_version
+        await bump_version(self)   # the symbol-to-Dhan-instrument map is cached by this stamp
+        return len(records)
+
+    async def set_company_meta(self, symbol: str, sector: Optional[str], industry: Optional[str], website: Optional[str] = None):
+        async with self.pool.acquire() as conn:
+            await conn.execute("UPDATE companies SET sector = $2, industry = $3, website = coalesce($4, website), updated_at = now() WHERE symbol = $1",
+                               symbol.upper(), sector, industry, (website or "").strip()[:200] or None)
+
+    async def company(self, symbol: str) -> Optional[dict]:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM companies WHERE symbol = $1", symbol.upper())
+        return dict(row) if row else None
+
+    async def log_run(self, symbol: str, statement: str, status: str, calls: int, duration_ms: int, errors: dict):
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO ingest_runs(symbol, statement, status, calls, duration_ms, errors, finished_at)
+                   VALUES($1, $2, $3, $4, $5, $6::jsonb, now())""",
+                symbol.upper(), statement, status, calls, duration_ms, json.dumps(errors))
+
+    # ------------------------------------------------------------ queue
+
+    QUEUE_FLAG = "ingest:queue:pending"
+    READER_FLAG = "ingest:reader:waiting"   # somebody is waiting on a report right now: the bulk loader steps aside (expires by itself)
+
+    async def enqueue(self, symbol: str, statement: str):
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO ingest_queue(symbol, statement) VALUES($1, $2) ON CONFLICT DO NOTHING",
+                symbol.upper(), statement)
+        try:  # lets the worker watch Redis instead of polling Postgres, so a serverless database (Neon) can sleep when idle
+            await self.redis.set(self.QUEUE_FLAG, 1, ex=3600)
+            await self.redis.set(self.READER_FLAG, 1, ex=120)
+        except Exception:
+            pass
+
+    async def queue_length(self) -> int:
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval("SELECT count(*) FROM ingest_queue")
+
+    async def claim(self, limit: int = 10) -> List[Tuple[str, str]]:
+        async with self.pool.acquire() as conn, conn.transaction():
+            rows = await conn.fetch(
+                """DELETE FROM ingest_queue WHERE (symbol, statement) IN (
+                       SELECT symbol, statement FROM ingest_queue ORDER BY requested_at
+                       LIMIT $1 FOR UPDATE SKIP LOCKED)
+                   RETURNING symbol, statement""", limit)
+        return [(r["symbol"], r["statement"]) for r in rows]
+
+    async def snapshot_symbols(self, older_than_hours: Optional[int] = None) -> List[Tuple[str, str]]:
+        query = "SELECT symbol, statement FROM snapshots WHERE section = 'summary'"
+        args: list = []
+        if older_than_hours is not None:
+            query += " AND generated_at < now() - make_interval(hours => $1)"
+            args.append(older_than_hours)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query + " ORDER BY symbol", *args)
+        return [(r["symbol"], r["statement"]) for r in rows]
+
+    RANKED = ("SELECT c.symbol, row_number() OVER (ORDER BY (ix.symbol IS NULL), m.mc DESC NULLS LAST, (c.symbol ~ '^[0-9]+$'), c.symbol) AS rn FROM companies c "
+              "LEFT JOIN (SELECT DISTINCT symbol FROM index_members) ix ON ix.symbol = c.symbol "
+              "LEFT JOIN LATERAL (SELECT market_cap AS mc FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) m ON true")
+
+    async def pending_symbols(self, statement: str = "consolidated", older_than_hours: int = 24, limit: Optional[int] = None) -> List[str]:
+        """The companies to load or refresh, most important first: members of the NIFTY index lists (NIFTY 50 ... NIFTY 500, midcap and
+        smallcap lists), then by market cap. `limit` is the size of that whole set (INGEST_LIMIT): only its companies are ever loaded by
+        the bulk jobs, missing ones before stale ones. Companies outside it are loaded only when someone opens their report."""
+        pinned = await self.pinned_symbols() if limit is not None else []   # what members use outside the top set is refreshed too
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"WITH ranked AS ({self.RANKED}) "  # nosec B608 - fixed SQL
+                "SELECT r.symbol FROM ranked r LEFT JOIN snapshots s ON s.symbol = r.symbol AND s.statement = $1 AND s.section = 'summary' "
+                "WHERE (r.rn <= $3 OR r.symbol = ANY($4::text[])) AND (s.symbol IS NULL OR s.generated_at < now() - make_interval(hours => $2) "
+                "OR (s.body::jsonb -> 'quote' ->> 'price') IS NULL "   # a report saved without a price (half-loaded) is reloaded at once
+                "OR (jsonb_array_length(coalesce(s.body::jsonb -> 'dataQuality' -> 'missing', '[]'::jsonb)) > 0 AND s.generated_at < now() - interval '3 hours') "   # a part the provider failed to send: ask again
+                f"OR coalesce((s.body::jsonb -> 'meta' ->> 'version')::int, 0) < {SNAPSHOT_VERSION}) "   # built by older code: rebuild
+                "ORDER BY (s.symbol IS NOT NULL), r.rn", statement, older_than_hours, limit or 100000, pinned)
+        return [r["symbol"] for r in rows]
+
+    # ------------------------------------------------------------------ members' own companies (kept stored, kept fresh, opened instantly)
+    USER_KEEP = 100          # companies remembered per member (most recent first)
+    PINNED_DAYS = 120        # a company nobody has opened for this long stops being kept for its members
+
+    async def touch_user_company(self, user_id: str, symbol: str) -> None:
+        """Remember that this member opened this company. At most one database write per member and company every half hour."""
+        symbol = symbol.strip().upper()
+        try:
+            if not await self.redis.set(f"uc:{user_id}:{symbol}", 1, ex=1800, nx=True):
+                return
+        except Exception:
+            pass
+        async with self.pool.acquire() as conn:
+            if not await conn.fetchval("SELECT 1 FROM companies WHERE symbol = $1", symbol):
+                return
+            await conn.execute(
+                "INSERT INTO user_companies (user_id, symbol) VALUES ($1, $2) ON CONFLICT (user_id, symbol) DO UPDATE SET last_opened = now(), opens = user_companies.opens + 1",
+                user_id, symbol)
+            await conn.execute(
+                "DELETE FROM user_companies WHERE user_id = $1 AND symbol IN (SELECT symbol FROM user_companies WHERE user_id = $1 ORDER BY last_opened DESC OFFSET $2)",
+                user_id, self.USER_KEEP)
+
+    @staticmethod
+    def _followed(watchlist: Any, portfolio: Any) -> List[str]:
+        """Symbols on a member's watchlists and portfolio, in saved order."""
+        out: List[str] = []
+
+        def load(v):
+            if isinstance(v, str):
+                try:
+                    return orjson.loads(v)
+                except ValueError:
+                    return {}
+            return v or {}
+        wl, pf = load(watchlist), load(portfolio)
+        for lst in (wl.get("lists") or []) if isinstance(wl, dict) else []:
+            for sym in (lst.get("symbols") or []) if isinstance(lst, dict) else []:
+                if isinstance(sym, str) and sym.upper() not in out:
+                    out.append(sym.upper())
+        for h in (pf.get("holdings") or []) if isinstance(pf, dict) else []:
+            sym = h.get("symbol") if isinstance(h, dict) else None
+            if isinstance(sym, str) and sym.upper() not in out:
+                out.append(sym.upper())
+        return out
+
+    async def pinned_symbols(self, limit: Optional[int] = None) -> List[str]:
+        """Companies kept stored and refreshed because members use them: first what members follow (watchlist, portfolio), then what the most
+        members opened lately, then the most recently opened. Capped (PINNED_LIMIT, default 300) so a few members cannot fill the free database."""
+        cap = limit if limit is not None else int(os.getenv("PINNED_LIMIT") or 300)
+        if cap <= 0:
+            return []
+        out: List[str] = []
+        async with self.pool.acquire() as conn:
+            followed: Dict[str, int] = {}
+            for r in await conn.fetch("SELECT s.watchlist, s.portfolio FROM user_state s JOIN users u ON u.id = s.user_id WHERE u.status = 'active'"):
+                for sym in self._followed(r["watchlist"], r["portfolio"]):
+                    followed[sym] = followed.get(sym, 0) + 1
+            out.extend(sorted(followed, key=lambda k: (-followed[k], k)))
+            for r in await conn.fetch(
+                    "SELECT uc.symbol FROM user_companies uc JOIN users u ON u.id = uc.user_id WHERE u.status = 'active' AND uc.last_opened > now() - make_interval(days => $1) "
+                    "GROUP BY uc.symbol ORDER BY count(DISTINCT uc.user_id) DESC, max(uc.last_opened) DESC LIMIT $2", self.PINNED_DAYS, cap):
+                if r["symbol"] not in out:
+                    out.append(r["symbol"])
+            known = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM companies WHERE symbol = ANY($1::text[])", out[:cap * 2])} if out else set()
+        return [s for s in out if s in known][:cap]
+
+    async def my_companies(self, user_id: str, limit: int = 60) -> List[dict]:
+        """What this member follows and has opened, most recent first, each with whether its report is stored (opens instantly)."""
+        async with self.pool.acquire() as conn:
+            state = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", user_id)
+            opened = await conn.fetch("SELECT symbol, last_opened, opens FROM user_companies WHERE user_id = $1 ORDER BY last_opened DESC LIMIT $2", user_id, limit)
+            followed = self._followed(state["watchlist"], state["portfolio"]) if state else []
+            order = [r["symbol"] for r in opened] + [s for s in followed if s not in {r["symbol"] for r in opened}]
+            order = order[:limit]
+            names = {r["symbol"]: r["name"] for r in await conn.fetch("SELECT symbol, name FROM companies WHERE symbol = ANY($1::text[])", order)}
+            ready = {r["symbol"] for r in await conn.fetch("SELECT DISTINCT symbol FROM snapshots WHERE section = 'summary' AND symbol = ANY($1::text[])", order)}
+        when = {r["symbol"]: r["last_opened"].isoformat() for r in opened}
+        return [{"symbol": s, "name": names.get(s), "ready": s in ready, "followed": s in followed, "lastOpened": when.get(s)} for s in order if s in names]
+
+    async def note_view(self, symbol: str) -> None:
+        try:
+            await self.redis.zadd(VIEWED_KEY, {symbol.upper(): time.time()})
+        except Exception:
+            pass
+
+    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 500, feed_days: int = 400) -> Dict[str, int]:
+        """Keep the free database inside its storage limit: drop the stored reports and daily prices of companies outside the top `keep_top` that
+        nobody opened in `keep_viewed_days` (they are rebuilt in seconds if someone asks again), daily prices older than `price_days`, old feed rows
+        and the ingest log. A company's small score row stays (the screeners list and score every company); only scores of companies that left the
+        symbol list go. Returns how many rows went."""
+        cutoff = time.time() - keep_viewed_days * 86400
+        try:
+            recent = [m.decode() if isinstance(m, bytes) else m for m in await self.redis.zrangebyscore(VIEWED_KEY, cutoff, "+inf")]
+            await self.redis.zremrangebyscore(VIEWED_KEY, "-inf", cutoff)
+        except Exception:
+            recent = []
+        recent = list({*recent, *await self.pinned_symbols()})   # what members follow or opened lately stays, whatever its rank
+        out: Dict[str, int] = {}
+        async with self.pool.acquire() as conn:
+            drop = [r["symbol"] for r in await conn.fetch(
+                f"WITH ranked AS ({self.RANKED}) "  # nosec B608 - fixed SQL
+                "SELECT DISTINCT s.symbol FROM snapshots s LEFT JOIN ranked r ON r.symbol = s.symbol "
+                "WHERE (r.rn IS NULL OR r.rn > $1) AND NOT (s.symbol = ANY($2::text[]))", keep_top, recent)]
+            async with conn.transaction():   # the heavy part goes (report sections, prices); the small score row stays, so the screeners keep every company scored
+                out["snapshots"] = int((await conn.execute("DELETE FROM snapshots WHERE symbol = ANY($1::text[])", drop)).split()[-1])
+                await conn.execute("DELETE FROM price_daily WHERE symbol = ANY($1::text[])", drop)
+            out["companies"] = len(drop)
+            # scores of companies that are no longer in the symbol list (delisted or renamed)
+            out["orphan_scores"] = int((await conn.execute(
+                "DELETE FROM scores sc WHERE NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = sc.symbol)")).split()[-1])
+            out["price_days"] = int((await conn.execute("DELETE FROM price_daily WHERE day < current_date - $1::int", price_days)).split()[-1])
+            out["feed"] = int((await conn.execute("DELETE FROM feed_items WHERE item_date < current_date - $1::int", feed_days)).split()[-1])
+            out["runs"] = int((await conn.execute("DELETE FROM ingest_runs WHERE started_at < now() - interval '30 days'")).split()[-1])
+            out["history"] = int((await conn.execute("DELETE FROM score_history WHERE day < current_date - 800")).split()[-1])
+        for sym in drop:
+            for st in ("consolidated", "standalone"):
+                try:
+                    await self.redis.delete(stock_key(sym, st), inputs_key(sym, st))
+                except Exception:
+                    pass
+        if drop:
+            await self.invalidate_search()
+            await self.redis.delete(QUOTE_SYMBOLS_KEY)
+        return out
+
+    # ------------------------------------------------------------ reads (API)
+
+    async def get_section(self, symbol: str, statement: str, section: str) -> Optional[Tuple[bytes, str]]:
+        key = stock_key(symbol, statement)
+        try:
+            body, etag = await self.redis.hmget(key, [section, f"{section}:etag"])
+        except aioredis.RedisError as exc:   # the cache is busy or down: read the stored copy instead
+            log.warning("redis read failed (%s): reading %s from Postgres", type(exc).__name__, key)
+            body = etag = None
+        if body is not None and etag is not None:
+            return body, etag.decode()
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT body, etag FROM snapshots WHERE symbol = $1 AND statement = $2 AND section = $3",
+                symbol.upper(), statement, section)
+        if not row:
+            return None
+        body = row["body"].encode()
+        if section != "price":
+            try:
+                async with self.redis.pipeline(transaction=True) as pipe:
+                    pipe.hset(key, mapping={section: body, f"{section}:etag": row["etag"].encode()})
+                    pipe.expire(key, STOCK_TTL)
+                    await pipe.execute()
+            except Exception:
+                pass
+        return body, row["etag"]
+
+    async def get_etag(self, symbol: str, statement: str, section: str) -> Optional[str]:
+        try:
+            etag = await self.redis.hget(stock_key(symbol, statement), f"{section}:etag")
+        except aioredis.RedisError:
+            return None
+        return etag.decode() if etag else None
+
+    async def search_index(self) -> Tuple[bytes, bytes, str]:
+        """Compact list for client-side search, pre-gzipped once (it is ~600 KB raw for ~5,700 stocks).
+        Rows are [symbol, name, bse, ready], biggest company first; the NSE code is sent only when it differs from the symbol.
+        Beside the rows, three parallel lists keep the payload small: `sectors` (distinct sector names, most companies first), `sec` (per row: index into
+        `sectors`, -1 when unknown) and `mc` (per row: market value in rupees crore rounded up, 0 when unknown)."""
+        try:
+            cached = await self.redis.hmget(SEARCH_KEY, ["body", "gzip", "etag"])
+        except aioredis.RedisError as exc:
+            log.warning("redis read failed (%s): building the search index from Postgres", type(exc).__name__)
+            cached = [None, None, None]
+        if cached[0] is not None and cached[1] is not None:
+            return cached[0], cached[1], cached[2].decode()
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT c.symbol, c.name, c.nse_code, c.bse_code,
+                          EXISTS(SELECT 1 FROM snapshots s WHERE s.symbol = c.symbol AND s.section = 'summary') AS ready,
+                          COALESCE(NULLIF(m.macro_sector, ''), NULLIF(m.sector, ''), NULLIF(c.sector, '')) AS sector,
+                          COALESCE(NULLIF(l.market_cap, 0), x.market_cap)::float8 AS mcap
+                   FROM companies c
+                   LEFT JOIN listing_quotes l ON l.symbol = c.symbol
+                   LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
+                   LEFT JOIN LATERAL (SELECT macro_sector, sector FROM scores WHERE symbol = c.symbol AND model = 'v1'
+                                      ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1) m ON true
+                   ORDER BY COALESCE(NULLIF(l.market_cap, 0), x.market_cap) DESC NULLS LAST, c.symbol""")  # biggest companies first: the order of the list is the ranking the search shows
+        counts: dict = {}
+        for r in rows:
+            if r["sector"]:
+                counts[r["sector"]] = counts.get(r["sector"], 0) + 1
+        sectors = sorted(counts, key=lambda k: (-counts[k], k))      # code 0 = the sector with most companies
+        code = {name: i for i, name in enumerate(sectors)}
+        out, sec, mc = [], [], []
+        for r in rows:
+            row = [r["symbol"], r["name"], r["bse_code"], int(r["ready"])]
+            if r["nse_code"] and r["nse_code"] != r["symbol"]:
+                row.append(r["nse_code"])
+            out.append(row)
+            sec.append(code.get(r["sector"], -1))                       # -1: sector not known
+            mc.append(int(math.ceil(r["mcap"])) if r["mcap"] and r["mcap"] > 0 else 0)   # market value in rupees crore, rounded up (every band edge is a whole number, so the band is unchanged); 0: not known
+        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc})
+        packed = gzip.compress(body, compresslevel=9, mtime=0)
+        etag = etag_for(body)
+        try:
+            await self.redis.hset(SEARCH_KEY, mapping={"body": body, "gzip": packed, "etag": etag.encode()})
+            await self.redis.expire(SEARCH_KEY, SEARCH_TTL)
+        except aioredis.RedisError:
+            pass
+        return body, packed, etag
+
+    async def invalidate_search(self):
+        await self.redis.delete(SEARCH_KEY)
+
+    async def peer_rows(self, symbols: List[str], model: str = "v1") -> List[dict]:
+        """Name, sector and (if already scored) score and price for each peer, in the given order."""
+        if not symbols:
+            return []
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT c.symbol, c.name, c.sector, s.overall, s.band, s.price, s.market_cap, s.pe, s.roe
+                   FROM companies c
+                   LEFT JOIN LATERAL (SELECT * FROM scores WHERE symbol = c.symbol AND model = $2
+                                      ORDER BY updated_at DESC LIMIT 1) s ON true
+                   WHERE c.symbol = ANY($1::text[])""", symbols, model)
+        found = {r["symbol"]: {k: (float(v) if hasattr(v, "as_tuple") else v) for k, v in dict(r).items()} for r in rows}
+        return [found.get(s, {"symbol": s, "name": None}) for s in symbols]
+
+    async def top_scores(self, model: str = "v1", limit: int = 50) -> List[dict]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT {LIST_COLUMNS} FROM scores WHERE model = $1 ORDER BY overall DESC NULLS LAST LIMIT $2", model, limit)  # nosec B608 - fixed column list
+        return [dict(r) for r in rows]
+
+    async def screener_rows(self, model: str = "v1", statement: str = "consolidated", limit: int = 10000) -> List[dict]:
+        """One row per company for the screener and comparison tool (client-side filtering, so no per-click queries)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT DISTINCT ON (symbol) {LIST_COLUMNS} FROM scores WHERE model = $1 "  # nosec B608 - fixed column list
+                "ORDER BY symbol, (statement = $2) DESC, updated_at DESC LIMIT $3", model, statement, limit)
+        return [dict(r) for r in rows]
+
+    async def ping(self) -> Dict[str, bool]:
+        status = {"postgres": False, "redis": False}
+        try:
+            async with self.pool.acquire() as conn:
+                status["postgres"] = await conn.fetchval("SELECT 1") == 1
+        except Exception:  # pragma: no cover - surfaced through /api/health
+            log.exception("postgres ping failed")
+        try:
+            status["redis"] = bool(await self.redis.ping())
+        except Exception:  # pragma: no cover
+            log.exception("redis ping failed")
+        return status

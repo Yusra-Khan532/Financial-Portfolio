@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /dashboard
+Disallow: /console
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /watchlist
+Disallow: /holdings
+Disallow: /alerts
+Sitemap: https://finlitventures.com/sitemap.xml

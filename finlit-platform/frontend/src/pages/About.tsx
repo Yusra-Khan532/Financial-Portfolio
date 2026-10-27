@@ -1,0 +1,28 @@
+import { PageArt } from "../components/PageArt";
+import { Link } from "react-router";
+import { FOUNDER, PILLARS, PRINCIPLES } from "../content/site";
+import { Icon } from "../lib/icons";
+import { Reveal } from "../components/Reveal";
+import { useDocTitle } from "../lib/title";
+
+export function About() {
+  useDocTitle("About", "FinLit Ventures is a small Indian research and planning company. Meet Nishant Jain (IIT Kanpur, CFA Level I, NISM Research Analyst certificate) and read how we think.");
+  return (
+    <>
+      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="about" /><div className="eyebrow">About FinLit</div><h1>A small team that likes explaining things.</h1><p>We do stock research, portfolio reviews and financial planning. Our one rule: if we cannot explain the reasoning plainly, we do not share it.</p></div></section>
+      <section className="sec" style={{ paddingTop: 16 }}><div className="wrap founder">
+        <Reveal><img src={FOUNDER.photo} alt={`Portrait of ${FOUNDER.name}`} width="560" height="700" /></Reveal>
+        <Reveal delay={100}><div className="eyebrow">Who leads the research</div><div className="sec-h" style={{ margin: "8px 0 0" }}><h2>{FOUNDER.name}</h2><p>{FOUNDER.role}</p></div><div className="cred">{FOUNDER.credentials.map((c) => <span className="chip gold" key={c}>{c}</span>)}</div><p className="muted">{FOUNDER.bio}</p><a className="btn" href={FOUNDER.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></Reveal>
+      </div></section>
+      <section className="sec alt"><div className="wrap">
+        <Reveal className="sec-h"><div className="eyebrow">Our work</div><h2>What we work on</h2></Reveal>
+        <div className="cards4">{PILLARS.map((p, i) => <Reveal key={p.title} delay={i * 60}><div className="feat" style={{ "--ac": `var(--c${i + 1})`, height: "100%" } as React.CSSProperties}><div className="fi"><Icon name={p.icon} /></div><h3>{p.title}</h3><p>{p.text}</p></div></Reveal>)}</div>
+      </div></section>
+      <section className="sec"><div className="wrap">
+        <Reveal className="sec-h"><div className="eyebrow">How we work</div><h2>Three habits</h2></Reveal>
+        <div className="cards3">{PRINCIPLES.map((p, i) => <Reveal key={p.title} delay={i * 70}><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><span className="num">0{i + 1}</span><h3>{p.title}</h3><p>{p.text}</p></div></Reveal>)}</div>
+        <div style={{ marginTop: 32, textAlign: "center" }}><Link className="btn primary lg" to="/why-we-exist">Why we started FinLit <Icon name="arrow" /></Link></div>
+      </div></section>
+    </>
+  );
+}
