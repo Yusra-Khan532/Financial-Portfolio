@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
@@ -7,10 +7,11 @@ import { useUI } from "../lib/ui";
 import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
 import { MINUS, nf } from "../lib/format";
-import { DATE_MEANING, GAP_LABEL, PAGE, activeChip, awaitingText, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QResp, type QRow, type QSummary } from "../lib/qresults";
+import { DATE_MEANING, GAP_LABEL, PAGE, activeChip, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingText, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QResp, type QRow, type QSummary } from "../lib/qresults";
 import { saveFile } from "../stock/derive";
 import { ChartHelp } from "../components/ChartHelp";
 import { HScroll } from "../components/HScroll";
+import { GrowthCharts, GrowthPanel } from "../components/QrGrowth";
 import "../styles/qresults.css";
 
 const SORTS: [string, string, boolean][] = [   // value, label, needs Silver
@@ -86,6 +87,32 @@ function Company({ r }: { r: QRow }) {
   );
 }
 
+/** "Detailed view": the same quarter, laid out in groups (revenue, operating profit, net profit, per share, basis), plus the one-line summary to copy.
+ *  A native <details>, so it opens and closes with a click or the keyboard and needs no state. Every figure is the row's own; a missing one shows a dash. */
+function Detail({ r, fiscal, line }: { r: QRow; fiscal?: string; line: string }) {
+  const kv = (label: string, value: ReactNode) => <div className="qr-kv"><dt>{label}</dt><dd>{value}</dd></div>;
+  const groups: { title: string; rows: [string, ReactNode][] }[] = [
+    { title: "Revenue", rows: [["Rs crore", money(r.revenue)], ["Change on a year ago", <Chg v={r.revenueYoY} />], ["Change on the last quarter", <Chg v={r.revenueQoQ} />]] },
+    { title: "Operating profit", rows: [["Rs crore", <Plain text={money(r.operatingProfit)} why={r.opYoYWhy} />], ["Change on a year ago", <Chg v={r.opYoY} why={r.opYoYWhy} />], ["Change on the last quarter", <Chg v={r.opQoQ} why={r.opQoQWhy} />], ["Operating margin (OPM)", <Plain text={pc1(r.opm)} why={r.opYoYWhy} />]] },
+    { title: "Net profit", rows: [["Rs crore", <b>{money(r.netProfit)}</b>], ["Change on a year ago", <Chg v={r.profitYoY} />], ["Change on the last quarter", <Chg v={r.profitQoQ} />], ["Net margin (NPM)", pc1(r.npm)], ...(r.npmChange != null ? [["Net margin, change on a year ago", `${r.npmChange > 0 ? "+" : r.npmChange < 0 ? MINUS : ""}${nf(Math.abs(r.npmChange), 1)} pts`] as [string, ReactNode]] : [])] },
+    { title: "Per share and basis", rows: [["Earnings per share (Rs)", r.eps == null ? "—" : (r.eps < 0 ? MINUS : "") + nf(Math.abs(r.eps), 2)], ["Quarter", `${fiscal ? fiscal + " · " : ""}ended ${r.periodEnd ? new Date(r.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}`], ["Declared", dayLabel(r.date)], ["Accounts", r.basis === "standalone" ? "Standalone" : r.basis === "consolidated" ? "Consolidated" : "—"]] },
+  ];
+  return (
+    <details className="qr-detail">
+      <summary><span>Detailed view</span><Icon name="arrow" className="qr-chev" /></summary>
+      <div className="qr-groups">
+        {groups.map((g) => (
+          <section key={g.title} className="qr-group" aria-label={g.title}>
+            <h4>{g.title}</h4>
+            <dl>{g.rows.map(([label, value]) => <Fragment key={label}>{kv(label, value)}</Fragment>)}</dl>
+          </section>
+        ))}
+      </div>
+      <p className="qr-line"><code>{line}</code><Copy text={line} /></p>
+    </details>
+  );
+}
+
 function Row({ r, fiscal, locked, onUnlock }: { r: QRow; fiscal?: string; locked: boolean; onUnlock: () => void }) {
   const line = !locked && r.hasNumbers ? headline(r, fiscal) : null;
   const note = r.status === "awaiting" && r.awaitingWhy === "provider" ? <>{awaitingText(r.date, r.awaitingWhy)}. We check again every hour.</>
@@ -110,12 +137,12 @@ function Row({ r, fiscal, locked, onUnlock }: { r: QRow; fiscal?: string; locked
         <tr className={"qr-sub" + (r.flagged ? " flag" : "")}>
           <td colSpan={COLS}>
             <div className="qr-sticky qr-lines">
-              {line && <p className="qr-line"><code>{line}</code><Copy text={line} /></p>}
               {r.flagged && (
                 <p className="qr-flag"><span className="chip down"><Icon name="alert" /> {GAP_LABEL}</span>
                   <span>Revenue {signedPct(r.revenueYoY, 0)}, profit {signedPct(r.profitYoY, 0)}: {nf(r.gap || 0, 0)} points apart.</span>
                   <Link to={gapAlertLink(r.symbol)}>Set the alert</Link><Link to={`/stocks/${r.symbol}#quarter`}>Open the report</Link></p>
               )}
+              {line && <Detail r={r} fiscal={fiscal} line={line} />}
             </div>
           </td>
         </tr>
@@ -157,7 +184,8 @@ export function QuarterResultsPage() {
   const quarter = sp.get("quarter") || undefined;
   const sel = useMemo(() => dateFromParams(sp), [sp]);
   const hasDate = !!(sel.date || sel.from || sel.to);
-  const p: QParams = { ...f, quarter, q: f.q, offset, ...sel };
+  const growth = useMemo(() => growthFromParams(sp), [sp]);   // the growth filters live in the address, like the quarter and the dates
+  const p: QParams = { ...f, quarter, q: f.q, offset, ...sel, ...growthQuery(growth) };
   const res = useQuarterResults(p);
   const d = res.data;
   const dateErr = res.error instanceof ApiError && res.error.status === 400 ? res.error.message : null;   // a bad or future date in the address: say so, never show a blank
@@ -174,6 +202,11 @@ export function QuarterResultsPage() {
     for (const [k, v] of Object.entries(next || {})) if (v) n.set(k, v);
     setSp(n); setOffset(0); setMsg("");
   };
+  const setGrowth = (next: GrowthState) => {
+    if (growthOn(next) && !silver) return need("Filtering by growth is part of the Silver plan.");   // Basic sees the panel; the figures behind it are Silver
+    setSp(growthToParams(sp, next), { replace: true }); setOffset(0);
+  };
+  const growthLocked = res.error instanceof ApiError && res.error.status === 403;
   const apply = (next: DateSel) => { const bad = dateProblem(next, today); if (bad) setMsg(bad); else setDates(next); };
   const chips = dateChips(today), chipOn = activeChip(sel, today);
   const need = (why: string) => upgrade("silver", why);
@@ -237,7 +270,8 @@ export function QuarterResultsPage() {
       </header>
 
       {dateErr && <div className="formerr qr-derr" role="alert">{dateErr} <button type="button" className="alx-link" onClick={() => setDates(null)}>Show the latest quarter</button></div>}
-      {res.isError && !dateErr && <div className="formerr">The results could not be loaded. Please try again shortly. <Link to="/results">Open the results calendar</Link></div>}
+      {growthLocked && <div className="formerr" role="alert">Filtering by growth is part of the Silver plan. <button type="button" className="alx-link" onClick={() => need("Filtering by growth is part of the Silver plan.")}>See Silver</button> <button type="button" className="alx-link" onClick={() => setSp(growthToParams(sp, { ...growth, qoq: { ...growth.qoq, value: "" }, yoy: { ...growth.yoy, value: "" } }), { replace: true })}>Remove the growth filter</button></div>}
+      {res.isError && !dateErr && !growthLocked && <div className="formerr">The results could not be loaded. Please try again shortly. <Link to="/results">Open the results calendar</Link></div>}
       {d && !dateErr && <Scoreboard s={d.summary} all={d.totals} locked={locked} q={d} />}
 
       {locked && (
@@ -290,6 +324,9 @@ export function QuarterResultsPage() {
         </div>
       </section>
 
+      <GrowthPanel state={growth} onChange={setGrowth} summary={d?.growth} loading={res.isFetching} />
+      <GrowthCharts summary={d?.growth} dist={d?.distribution} locked={!silver} />
+
       <section className="card qr-card">
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>{q ? `${q.label}` : "Results"}<span className="muted qr-count"> · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span></h3>
           <span className="muted qr-unit">Rs crore, except EPS (Rs) and per cent</span></div>
@@ -303,7 +340,7 @@ export function QuarterResultsPage() {
           <DateEmpty dates={d.dates} sel={sel} today={today} quarterLabel={q?.label || "quarter"} filtersOn={filtersOn} onPick={(day) => setDates({ date: day }, true)}
             onQuarter={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} onClearFilters={clearFilters} />
         ) : !d?.rows.length ? (
-          <div className="dw-empty"><span className="dw-ei"><Icon name="calendar" /></span><b>{d?.quarter ? "No companies match" : "No results dates yet"}</b><p>{d?.quarter ? "Try removing a filter." : "Results dates appear here as companies announce them."}</p>
+          <div className="dw-empty"><span className="dw-ei"><Icon name="calendar" /></span><b>{d?.quarter ? "No companies match" : "No results dates yet"}</b><p>{d?.quarter ? (growthOn(growth) ? "No company with figures meets the growth filter you set. Try a lower threshold or switch AND to OR." : "Try removing a filter.") : "Results dates appear here as companies announce them."}</p>
             {f.scope === "watchlist" && <Link className="btn" to="/watchlist">Build a watchlist</Link>}{f.scope === "portfolio" && <Link className="btn" to="/holdings">Add holdings</Link>}</div>
         ) : (
           <HScroll label="results table" className="qr-scroll">

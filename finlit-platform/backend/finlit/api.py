@@ -47,6 +47,7 @@ from . import flows as flows_api
 from . import fundjobs, sysctl, wake
 from . import options as options_api
 from .auth import routes as auth_routes
+from .mcp import server as mcp_server
 from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan
 from .auth.mailer import ConsoleMailer, ResendMailer
 from .auth.service import current
@@ -180,6 +181,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         """Build the screener list for one access level and keep it in Redis (3 minutes)."""
         rows = await app.state.store.screener_rows()
         scored = {r["symbol"] for r in rows if r.get("overall") is not None}
+        stamps = [r["updated_at"] for r in rows if r.get("overall") is not None and hasattr(r.get("updated_at"), "date")]
+        as_of = max(stamps).date().isoformat() if stamps else None     # when the newest score in this list was computed
         rows = rows + await app.state.store.light_rows()      # every listed company, so the screener counts all of them (unscored ones carry no figures but their price)
         out = []
         for r in rows:
@@ -192,7 +195,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
                     r[k] = round(r[k], 2)   # two decimals is all any list shows; it roughly halves the download
             out.append(r)
         out = redact_universe(out, level, set(settings.showcase_symbols))
-        body = orjson.dumps({"rows": out})
+        body = orjson.dumps({"rows": out, "as_of": as_of})
         etag = '"' + hashlib.sha1(body).hexdigest()[:20] + '"'  # nosec B324 - cache validator, not security
         try:
             await app.state.store.redis.hset(f"universe:{level}", mapping={"body": body, "etag": etag})
@@ -577,6 +580,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(dcf_api.router)
     app.include_router(options_api.router)
     app.include_router(results_api.router)
+    app.include_router(mcp_server.router)   # POST /mcp (MCP for AI assistants) and /.well-known/mcp.json: before the site-backend catch-all and the website
+    app.include_router(mcp_server.admin)   # /api/admin/mcp-stats
     app.include_router(prism.router)   # /api/prism/*: the members' door to the site backend's administrator-only /api/premium-reports
     if settings.site_api_url:
         register_catch_all(app, settings.site_api_url)  # last: everything the research API does not own

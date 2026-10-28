@@ -156,6 +156,7 @@ fund_step() {  # fund_step <label> <worker args...>: takes its turn on the fund 
   $PY -m finlit.worker refresh-macro --max-age-hours 20  # India macro data (MoSPI, RBI): the first run loads the full history (about 300 small requests)
   $PY -m finlit.worker refresh-flows --max-age-hours 20  # FII/DII flows (NSDL, NSE archive files): the first run loads the full FPI history, one request per month
   $PY -m finlit.worker score-all                        # a score for every other listed company (score row only, capped per run, resumable)
+  $PY -m finlit.worker precompute-prism --max-minutes "${BOOT_PRISM_MAX_MIN:-240}"   # a Prism rating for every company with a full report, so a report opens with it already there (resumable; the nightly window repeats it)
   $PY -m finlit.worker refresh-leadership --if-stale --backfill-from 2022-10-01   # Leader / Laggard labels and their rank history (database only; skipped when this week's run is done)
   # fund holdings and exit loads (fund houses' monthly portfolios, AMFI scheme details): last, so stock loads come first; waits its turn with the other fund jobs; skipped if it ran in the last 20 hours
   flock -w 10800 "$FUNDS_LOCK" env MALLOC_ARENA_MAX=2 $PY -m finlit.worker refresh-portfolios --max-age-hours 20 >> /tmp/job-portfolios.log 2>&1
@@ -174,6 +175,37 @@ fund_step() {  # fund_step <label> <worker args...>: takes its turn on the fund 
 if [ "${COMMODITIES_WORKER:-1}" != "0" ] && [ -n "${DHAN_CLIENT_ID:-}${METALS_DEV_API_KEY:-}${METALPRICEAPI_KEY:-}" ]; then
   ( while true; do $PY -m finlit.worker refresh-commodities --loop >> /tmp/job-commodities.log 2>&1; sleep 120; done ) &
 fi
+
+# ---------------------------------------------------------------------------------------------------------------- Prism ratings, ahead of time
+# Every company with a full report gets its FinLit Prism rating calculated in the background, so a report opens with the rating already there.
+# This is its OWN loop (its own lock), not the end of the boot chain above: that chain is hours long and a restart starts it again, so a rating
+# queued behind it was never reached. Each round works through what is missing (never-rated first, then the biggest), one company at a time,
+# gives way to a member who is waiting, stops after three failures in a row and is simply started again by the next round. Resumable: a stored
+# rating counts as done. PRISM_PRECOMPUTE_ENABLED=0 switches it off; the admin switch "Heavy data loads" pauses it like the other loads.
+(
+  [ "${PRISM_PRECOMPUTE_ENABLED:-1}" = 1 ] || { log "prism-precompute loop off: PRISM_PRECOMPUTE_ENABLED is not 1"; exit 0; }
+  flock -n 8 || exit 0
+  sleep "${PRISM_PRECOMPUTE_DELAY_S:-180}"
+  while true; do
+    if loads_paused; then
+      log "prism-precompute: waiting (heavy data loads are paused by the admin switch)"
+    else
+      free="$(free_mb)"
+      if [ "$free" -lt "${PRISM_MIN_FREE_MB:-350}" ]; then
+        log "prism-precompute: waiting (only ${free} MB free)"
+      else
+        n="${PRISM_WORKERS:-2}"   # side by side, each on its own share of the companies; the site backend runs up to PRISM_SLOTS (2) calculations at once
+        log "start prism-precompute ($n workers)"
+        for k in $(seq 0 $((n - 1))); do
+          timeout "${PRISM_ROUND_MAX_MIN:-60}m" nice -n 10 $PY -m finlit.worker precompute-prism --shard "$k/$n" --max-minutes "${PRISM_ROUND_MAX_MIN:-55}" --limit "${PRISM_ROUND_LIMIT:-800}" >> /tmp/job-prism-loop.log 2>&1 &
+        done
+        wait
+        log "done prism-precompute"
+      fi
+    fi
+    sleep "${PRISM_LOOP_SLEEP_S:-300}"
+  done
+) 8>/tmp/finlit-prism-loop.lock >> /tmp/job-prism-loop.log 2>&1 &
 
 # ---------------------------------------------------------------------------------------------------------------- the DB windows
 visitor_active() { $PY -m finlit.wake visit-active 15 >/dev/null 2>&1; }   # a visitor was on the site in the last 15 minutes (Redis only)
