@@ -1,4 +1,4 @@
-.finlit-assistant { position: fixed; right: max(1.25rem, env(safe-area-inset-right)); bottom: max(1.25rem, env(safe-area-inset-bottom)); z-index: 70; font-family: "IBM Plex Sans", sans-serif; }
+.finlit-assistant { position: fixed; right: max(1.25rem, env(safe-area-inset-right)); bottom: max(1.25rem, env(safe-area-inset-bottom)); z-index: 70; font-family: var(--font-interface); }
 .finlit-assistant__launcher { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: .7rem; border: 1px solid #D4AF37; border-radius: .65rem; background: #FFF8E7; color: #050E1D; box-shadow: 0 8px 22px rgba(5,14,29,.11), inset 0 -2px 0 rgba(212,175,55,.42); padding: .95rem 1.15rem; font-size: .9rem; font-weight: 600; letter-spacing: .01em; animation: finlit-assistant-heartbeat 3.8s ease-in-out infinite; transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease, transform .2s ease; }
 .finlit-assistant__launcher::after { position: absolute; z-index: 0; inset: -1px; border: 1px solid rgba(212,175,55,.66); border-radius: inherit; content: ""; pointer-events: none; animation: finlit-assistant-halo 3.8s ease-out infinite; }
 .finlit-assistant__launcher > * { position: relative; z-index: 1; }
@@ -14,7 +14,7 @@
 .finlit-assistant__identity, .finlit-assistant__header-actions { display: flex; align-items: center; }
 .finlit-assistant__identity { gap: .7rem; }
 .finlit-assistant__status { width: .52rem; height: .52rem; flex: 0 0 auto; border: 2px solid var(--surface-bg); border-radius: 50%; background: var(--viz-gold); box-shadow: 0 0 0 1px var(--viz-gold); }
-.finlit-assistant__header h2 { margin: 0; color: var(--text-primary); font-family: "Cormorant Garamond", serif; font-size: 1.62rem; font-weight: 600; line-height: 1; }
+.finlit-assistant__header h2 { margin: 0; color: var(--text-primary); font-family: var(--font-interface); font-size: 1.62rem; font-weight: 600; line-height: 1; }
 .finlit-assistant__header p { margin: .38rem 0 0; color: var(--text-muted); font-size: .76rem; letter-spacing: .01em; }
 .finlit-assistant__header-actions { gap: .2rem; }
 .finlit-assistant__icon-button { display: inline-grid; width: 2rem; height: 2rem; place-items: center; border: 0; border-radius: .35rem; background: transparent; color: var(--text-muted); }

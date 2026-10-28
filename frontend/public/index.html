@@ -8,7 +8,6 @@
         <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         <!--
         manifest.json provides metadata used when your web app is installed on a
         user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -29,7 +28,7 @@
                     var saved = localStorage.getItem("finlit-theme");
                     var theme = saved === "light" || saved === "dark"
                         ? saved
-                        : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+                        : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
                     document.documentElement.dataset.theme = theme;
                     document.documentElement.style.colorScheme = theme;
                     document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#FBFAF6" : "#050E1D");
