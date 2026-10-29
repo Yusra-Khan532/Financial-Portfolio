@@ -73,6 +73,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
             </div>
           </div>
           <div className="idr">
+            <div className="pxg">
             <div>
               <div className="px"><span className="rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</div>
               {q.price == null && cov && cov.reasons.length > 0 && <div className="cov-note" role="note">No price shown: {cov.reasons[0]}.</div>}
@@ -80,11 +81,11 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
                 <span>{asOf && !Number.isNaN(+asOf) ? `NSE · ${dateIN(asOf.toISOString(), { day: "numeric", month: "short" })}, ${asOf.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST` : "NSE"}</span></div>
             </div>
             <svg className="spark-hero" aria-label="One-year price trend" role="img" viewBox="0 0 150 54"><HeroSpark values={s.sparkline.c} /></svg>
+            </div>
             <div className="actions">
               <AlertButton symbol={s.profile.symbol} className="btn" label="Set alert" />
               <button className={"btn " + (watch ? "on" : "primary")} aria-pressed={watch} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
               <Link className="btn" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
-              <Link className="btn" to={`/outlook/${encodeURIComponent(s.profile.symbol)}`} title="Profit and revenue outlook from the company's own history (Gold)"><Icon name="activity" /><span>Profit and revenue outlook</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
               <div className="dl" style={{ position: "relative" }}>
                 <button className="btn" aria-haspopup="menu" aria-expanded={dl} onClick={() => { if (!dl && !need("silver", "Downloads and data export")) return; setDl((d) => !d); }}>
                   <Icon name="table" /><span>Download</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
@@ -92,9 +93,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
                   <div className="dl-menu" role="menu">
                     <button role="menuitem" onClick={() => download("pdf")}><b>Research note · PDF</b><span className="d">Print-ready report with charts</span></button>
                     <button role="menuitem" onClick={() => download("html")}><b>Offline copy · HTML</b><span className="d">One file that opens without internet</span></button>
-                    {prismRep && (Date.parse(prismRep.pdfAvailableUntil || "") > Date.now()
-                      ? <a role="menuitem" href={apiUrl(`/api/prism/reports/${encodeURIComponent(prismRep.id)}/pdf`)} download onClick={() => setDl(false)}><b>FinLit Prism · PDF</b><span className="d">The Prism rating as a report you can keep</span></a>
-                      : <Link role="menuitem" to={`/prism/${encodeURIComponent(p.symbol)}`} onClick={() => setDl(false)}><b>FinLit Prism · PDF</b><span className="d">Open the Prism page to save it as a PDF</span></Link>)}
+                    {prismRep && isAdmin && <a role="menuitem" href={apiUrl(`/api/prism/reports/${encodeURIComponent(prismRep.id)}/pdf`)} download onClick={() => setDl(false)}><b>FinLit Prism · PDF</b><span className="d">The full Prism report of this company</span></a>}
                     <button role="menuitem" onClick={() => download("csv")}><b>Data · CSV</b><span className="d">Statements, ratios and scores for Excel</span></button>
                   </div>
                 )}
