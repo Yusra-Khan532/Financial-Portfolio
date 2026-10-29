@@ -19,13 +19,14 @@ export const SECTIONS: NavSection[] = [
   { id: "research", label: "Research", wide: true, groups: [
     { title: "Find stocks", items: [
       i("/screener", "Stock screener", "Filter every listed company by size, valuation, growth and debt", "table"),
-      i("/score-screener", "Score screener", "Filter by size, sector and FinLit Fundamental, Technical and Overall scores", "quality"),
+      i("/score-screener", "Advanced score screener", "Every listed company with its FinLit score and FinLit Prism rating, filtered by size, sector and both scores", "quality"),
       i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; save baskets", "notes"),
     ] },
     { title: "Analyse a company", items: [
       i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
       i("/compare", "Compare companies", "Two to four companies side by side, in charts", "compare"),
       i("/prism", "FinLit Prism", "A company's financial health rated in four parts, with a PDF", "layers", { gold: true }),
+      i("/outlook", "Profit and revenue outlook", "An outlook score and indicative growth range from a company's own history", "activity", { gold: true }),
       i("/premium/report", "Premium reports", "The full written report on a company", "notes", { gold: true }),
     ] },
     { title: "Investment calculators", items: [
