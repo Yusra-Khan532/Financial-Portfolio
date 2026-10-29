@@ -6,8 +6,8 @@ import App from "./App";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
 import { StateSync } from "./lib/sync";
-import "@fontsource-variable/newsreader/wght.css";
-import "@fontsource-variable/newsreader/wght-italic.css";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/source-serif-4/wght.css";
 import "@fontsource/ibm-plex-sans/latin-400.css";
 import "@fontsource/ibm-plex-sans/latin-500.css";
 import "@fontsource/ibm-plex-sans/latin-600.css";
@@ -29,6 +29,7 @@ import "./styles/leadership.css";
 import "./styles/prism.css";
 import "./styles/luxe.css";
 import "./styles/headerlinks.css";
+import "./styles/design-system.css";
 import { installDemo } from "./lib/demo";
 import { installResilience } from "./lib/resilience";
 
