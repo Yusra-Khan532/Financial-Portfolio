@@ -4,6 +4,8 @@
     GET  /api/prism/reports/latest?symbol=TCS&statement=...       the newest stored report for a company, without calculating;
                                                                   add &view=summary for the small card the stock page shows
     POST /api/prism/reports  {"symbol", "statement", "refresh"}   calculate, or reuse a stored report under 6 hours old
+    GET  /api/prism/scores?symbols=TCS,INFY,...                   Gold only: the stored final, four category scores and short/long technical scores
+                                                                  of up to 40 companies at once (the search palette); nothing is calculated
     GET  /api/prism/reports/{id}/pdf                              the PDF of exactly that calculation, while its snapshot lives (30 minutes)
 
 The model runs in the site backend (site-api/backend, POST /api/premium-reports). Those routes are for administrators only, so this module
@@ -50,7 +52,7 @@ from .auth.entitlements import has
 from .auth.routes import IST, NO_STORE, ip_of, pre_session_guard, secure_ctx
 from .auth.service import Ctx, current
 from .premium import gateway_token
-from .technical_wording import relabel_technical
+from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 
 log = logging.getLogger("finlit.prism")
@@ -241,21 +243,58 @@ def _summary(row) -> Dict[str, Any]:
             "topPros": _lines(view, "pros"), "topCons": _lines(view, "cons")}
 
 
+# Mirrors CLASSIFICATION_VERSION in site-api/backend/premium_classification.py (a test keeps them equal). Bump both when the group rules change
+# what a stored NOT RATED report would show: reports of an older version that were withheld by the classification check are then stale.
+CLASSIFICATION_VERSION = 2
+CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
+
+
+def stale_classification(report: Any) -> bool:
+    """True for a stored report that was NOT RATED because of the classification check and was calculated before the current rules."""
+    if isinstance(report, (str, bytes)):
+        try:
+            report = json.loads(report)
+        except ValueError:
+            return False
+    if not isinstance(report, dict) or (report.get("rating") or {}).get("status") != "NOT RATED":
+        return False
+    version = (report.get("inputMeta") or {}).get("classificationVersion")
+    if isinstance(version, int) and not isinstance(version, bool) and version >= CLASSIFICATION_VERSION:
+        return False
+    return any(CLASSIFICATION_MARK in str(a) for a in (report.get("rating") or {}).get("alerts") or [])
+
+
 def _fresh(row) -> bool:
-    return row is not None and (datetime.now(timezone.utc) - row["generated_at"]).total_seconds() < REUSE_SECONDS
+    return (row is not None and (datetime.now(timezone.utc) - row["generated_at"]).total_seconds() < REUSE_SECONDS
+            and not stale_classification(row["report"]))
+
+
+def card_of(view: Dict[str, Any]) -> Dict[str, Any]:
+    """The few figures the Advanced score screener lists (migration 070): the four category scores (none for a company the model did not rate),
+    the short and long term technical scores with the model's rating word, and the confidence. Copied exactly; the words are relabelled on reading."""
+    rating = view.get("rating") or {}
+    technical = view.get("technicalAssessment") if isinstance(view.get("technicalAssessment"), dict) else {}
+
+    def horizon(key: str) -> Dict[str, Any]:
+        part = technical.get(key) if isinstance(technical.get(key), dict) else {}
+        return {"score": part.get("score"), "rating": part.get("rating")}
+    return {"parts": None if rating.get("status") == "NOT RATED" else rating.get("parts"), "st": horizon("shortTerm"), "lt": horizon("longTerm"),
+            "confidence": rating.get("confidence")}
 
 
 async def _save(store, symbol: str, statement: str, view: Dict[str, Any], pdf_until: Optional[datetime]):
     rating = view.get("rating") or {}
     final = rating.get("final")
     return await store.pool.fetchrow(
-        """INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status, generated_at, pdf_until)
-           VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, now(), $9)
+        """INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status, generated_at, pdf_until, card)
+           VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, now(), $9, $10::jsonb)
            ON CONFLICT (symbol, statement) DO UPDATE SET id = EXCLUDED.id, report = EXCLUDED.report, model_version = EXCLUDED.model_version,
-               final = EXCLUDED.final, label = EXCLUDED.label, status = EXCLUDED.status, generated_at = EXCLUDED.generated_at, pdf_until = EXCLUDED.pdf_until
+               final = EXCLUDED.final, label = EXCLUDED.label, status = EXCLUDED.status, generated_at = EXCLUDED.generated_at, pdf_until = EXCLUDED.pdf_until,
+               card = EXCLUDED.card
            RETURNING id, report, generated_at, pdf_until""",
         symbol, statement, view["id"], json.dumps(view, allow_nan=False), rating.get("modelVersion"),
-        float(final) if isinstance(final, (int, float)) else None, rating.get("label"), rating.get("status"), pdf_until)
+        float(final) if isinstance(final, (int, float)) else None, rating.get("label"), rating.get("status"), pdf_until,
+        json.dumps(card_of(view), allow_nan=False))
 
 
 async def _keep_snapshot(redis, snapshot: Dict[str, Any], sub: str, symbol: str) -> Optional[datetime]:
@@ -392,6 +431,53 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     return _reply({"summary": _summary(row)} if view == "summary" else _shape(row, cached=True))
 
 
+SCORES_MAX = 40
+SCORES_MAX_AGE = 60                # seconds a browser may reuse a scores answer
+_PARTS = ("fundamental", "valuation", "quality", "risk")
+
+
+def _num(path: str) -> str:
+    """SQL: the number at a jsonb path of the stored report, or null when it is missing or not a number (no big JSON leaves the database)."""
+    return f"CASE WHEN jsonb_typeof(report #> '{{{path}}}') = 'number' THEN (report #>> '{{{path}}}')::float8 END"
+
+
+_SCORES_SQL = ("SELECT DISTINCT ON (symbol) symbol, statement, final, label, status, generated_at, "  # nosec B608: built only from constant names, never from a request value
+               + ", ".join(f"{_num('rating,parts,' + k)} AS p_{k}" for k in _PARTS) + ", "
+               + ", ".join(f"{_num('technicalAssessment,' + h + ',score')} AS {h.lower()}_score, report #>> '{{technicalAssessment,{h},rating}}' AS {h.lower()}_rating"
+                           for h in ("shortTerm", "longTerm"))
+               + " FROM prism_reports WHERE symbol = ANY($1::text[]) ORDER BY symbol, (statement = 'consolidated') DESC")
+
+
+def _tech_score(row, horizon: str) -> Dict[str, Any]:
+    score = row[f"{horizon.lower()}_score"]
+    return {"score": score, "word": rating_word(row[f"{horizon.lower()}_rating"], score)}
+
+
+@router.get("/scores")
+async def scores(request: Request, symbols: str = Query("", max_length=1200)) -> JSONResponse:
+    """The stored Prism scores of up to 40 companies, for the search results. Gold members and administrators only (the same rule as the
+    reports); the consolidated report is used, else the standalone one. A company with no stored report is simply absent from `scores`.
+    Technical rating words are the site's descriptive words (never the model's), as in the reports."""
+    ctx = await current(request)
+    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+        detail = f"{PRISM_NAME} is part of the Gold plan." if ctx.authed else f"Sign in with the Gold plan to see {PRISM_NAME}."
+        return _reply({"status": "plan_required", "detail": detail, "plan": "gold"}, 403)
+    wanted = list(dict.fromkeys(s.strip().upper() for s in symbols.split(",") if s.strip()))
+    if not wanted or len(wanted) > SCORES_MAX or not all(SYMBOL.match(s) for s in wanted):
+        return _bad(f"Send between 1 and {SCORES_MAX} company symbols, separated by commas.")
+    rows = await request.app.state.store.pool.fetch(_SCORES_SQL, wanted)
+    out: Dict[str, Any] = {}
+    for r in rows:
+        rated = r["status"] != "NOT RATED" and r["final"] is not None
+        out[r["symbol"]] = {
+            "rated": rated, "final": r["final"] if rated else None, "label": r["label"], "status": r["status"], "statement": r["statement"],
+            "parts": {k: r[f"p_{k}"] for k in _PARTS} if rated else None,       # a company the model did not rate shows no category scores
+            "shortTerm": _tech_score(r, "shortTerm"), "longTerm": _tech_score(r, "longTerm"),
+            "generatedAt": r["generated_at"].isoformat(),
+        }
+    return JSONResponse({"scores": out}, headers={"Cache-Control": f"private, max-age={SCORES_MAX_AGE}", "Vary": "Cookie"})
+
+
 @router.post("/reports")
 async def create(request: Request) -> JSONResponse:
     try:
@@ -507,6 +593,8 @@ async def _execute(app, sub: str, symbol: str, statement: str, counter: Optional
     redis = app.state.store.redis
     r: Optional[httpx.Response] = None
     started = time.monotonic()
+    if not background:
+        await _members_active(redis)
     try:
         base = await _report_body(app, symbol, statement)      # Dhan's candles are fetched BEFORE a calculation slot is taken: waiting for Dhan never holds a slot
         try:   # a request waits its turn (up to SLOT_WAIT seconds) instead of being turned away while another company is calculating
@@ -760,22 +848,102 @@ def _expired() -> JSONResponse:
 
 
 # ------------------------------------------------------------------ nightly pre-calculation
+MEMBER_ACTIVE_KEY = "prism:member:active"
+MEMBER_ACTIVE_SECONDS = 600         # a member's calculation (or one that is waiting) keeps the widening paused for this long after it started
+WIDEN_DEFAULT = 30                  # extra companies per night when PRISM_WIDEN_PER_NIGHT is not set
+WIDEN_REFUSED_SECONDS = 7 * 86400   # a company the provider refused (or the model could not rate) is not tried again for a week
+WIDEN_REFRESH_DAYS = 30             # a widened rating older than this is calculated again, after the companies that have none
+WIDEN_ZONE = "Asia/Kolkata"
+
+
+async def _members_active(redis) -> None:
+    """Note that a member is using Prism right now (a calculation started for them). Best effort."""
+    try:
+        await redis.set(MEMBER_ACTIVE_KEY, "1", ex=MEMBER_ACTIVE_SECONDS)
+    except Exception:
+        pass
+
+
+def widen_per_night() -> int:
+    """PRISM_WIDEN_PER_NIGHT: how many companies WITHOUT a full stored report may be rated each night (0 switches widening off). Bad values mean 0."""
+    raw = os.getenv("PRISM_WIDEN_PER_NIGHT")
+    if raw is None or raw.strip() == "":
+        return WIDEN_DEFAULT
+    try:
+        return max(0, min(2000, int(raw)))
+    except ValueError:
+        return 0
+
+
+def _widen_day(now: Optional[datetime] = None) -> str:
+    return (now or datetime.now(timezone.utc)).astimezone(IST).date().isoformat()
+
+
+async def widen_candidates(store, statement: str, limit: int, skip: list) -> list:
+    """The next companies to rate beyond the ones with a full report: listed companies with a market value, biggest first, that have no rating
+    (or one older than WIDEN_REFRESH_DAYS, after those), leaving out `skip` (refused this week). Only a symbol the Prism page itself accepts is listed."""
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT c.symbol FROM companies c JOIN listing_quotes q ON q.symbol = c.symbol AND q.market_cap > 0 "
+            "LEFT JOIN prism_reports p ON p.symbol = c.symbol AND p.statement = $1 "
+            "WHERE (p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2)) AND NOT (c.symbol = ANY($4::text[])) "
+            "ORDER BY (p.symbol IS NULL) DESC, q.market_cap DESC, c.symbol LIMIT $3", statement, WIDEN_REFRESH_DAYS, limit, skip)
+    return [r["symbol"] for r in rows if SYMBOL.match(r["symbol"])]
+
+
+async def _widen_budget_left(redis, per_night: int) -> int:
+    try:
+        used = int(await redis.get(f"prism:widen:day:{_widen_day()}") or 0)
+    except Exception:
+        return 0                       # no way to count: do not widen (the budget is what keeps the free tier safe)
+    return max(0, per_night - used)
+
+
+async def _widen_take(redis, per_night: int) -> bool:
+    """Spend one unit of tonight's budget; False when it is used up. Counted per attempt, so a refusing provider cannot be hit more than the budget."""
+    try:
+        key = f"prism:widen:day:{_widen_day()}"
+        n = await redis.incr(key)
+        if n == 1:
+            await redis.expire(key, 2 * 86400)
+        return n <= per_night
+    except Exception:
+        return False
+
+
+async def _members_busy(redis) -> bool:
+    try:
+        return bool(await redis.exists(MEMBER_ACTIVE_KEY))
+    except Exception:
+        return True                    # cannot tell: stay out of the members' way
 PRE_RETRY_SECONDS = 45 * 60         # a company whose calculation failed upstream (502) is tried again after this
 PRE_FAIL_SECONDS = 20 * 3600       # a company the data cannot rate is not tried again until the next night
 PRE_PAUSE_TRIES = 40               # times the nightly job waits for a member's calculation to finish before it gives that company up
 PRE_PROGRESS_KEY = "prism:pre:last"
 
 
-async def _pending(store, statement: str, days: int, limit: int, skip: list) -> list:
+STALE_SQL = ("(p.status = 'NOT RATED' AND COALESCE(NULLIF(regexp_replace(COALESCE(p.report->'inputMeta'->>'classificationVersion', ''), '[^0-9]', '', 'g'), '')::int, 0) < $5 "
+             "AND (p.report->'rating'->'alerts')::text LIKE '%model group%')")
+STALE_MAX = 300                    # --stale-not-rated recalculates at most this many companies per run (run it again for more)
+STALE_PAUSE = 1.0                  # seconds between two companies of that run, so the data provider is never hammered
+
+
+async def _pending(store, statement: str, days: int, limit: int, skip: list, stale_only: bool = False) -> list:
     """Companies we hold a full report for (the stored summary) that have no rating or an old one, never-rated first and then the biggest.
     Fresh ones are not listed, so a run that was stopped simply continues where it stopped, and `skip` leaves out what failed tonight."""
     async with store.pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT s.symbol FROM (SELECT DISTINCT symbol FROM snapshots WHERE section = 'summary') s "
+            "SELECT s.symbol FROM (SELECT DISTINCT symbol FROM snapshots WHERE section = 'summary') s "  # nosec B608 (only module constants are interpolated; values are bound)
             "LEFT JOIN listing_quotes q ON q.symbol = s.symbol LEFT JOIN prism_reports p ON p.symbol = s.symbol AND p.statement = $1 "
-            "WHERE (p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2)) AND NOT (s.symbol = ANY($4::text[])) "
-            "ORDER BY (p.symbol IS NULL) DESC, q.market_cap DESC NULLS LAST, s.symbol LIMIT $3", statement, days, limit, skip)
+            f"WHERE {STALE_SQL + ' AND $2::int IS NOT NULL' if stale_only else '(p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2) OR ' + STALE_SQL + ')'} AND NOT (s.symbol = ANY($4::text[])) "
+            f"ORDER BY ({STALE_SQL}) DESC, (p.symbol IS NULL) DESC, q.market_cap DESC NULLS LAST, s.symbol LIMIT $3",
+            statement, days, limit, skip, CLASSIFICATION_VERSION)
     return [r["symbol"] for r in rows]
+
+
+def symbols_left_for_us(symbols: List[str], attempted: int) -> bool:
+    """True when this worker's own full-report queue was not finished (stopped early): widening waits until it is."""
+    return attempted < len(symbols)
 
 
 def in_shard(symbols: List[str], shard: Optional[Tuple[int, int]]) -> List[str]:
@@ -786,7 +954,8 @@ def in_shard(symbols: List[str], shard: Optional[Tuple[int, int]]) -> List[str]:
     return [x for x in symbols if zlib.crc32(x.encode()) % of == part]
 
 
-async def precompute(store, settings, *, limit: int = 800, max_minutes: float = 100.0, days: int = 7, statement: str = "consolidated", client=None, shard: Optional[Tuple[int, int]] = None) -> Dict[str, Any]:
+async def precompute(store, settings, *, limit: int = 800, max_minutes: float = 100.0, days: int = 7, statement: str = "consolidated", client=None, shard: Optional[Tuple[int, int]] = None,
+                      stale_not_rated: bool = False) -> Dict[str, Any]:
     """Calculate the rating of every company we hold a full report for that has none yet (or one older than `days`), one at a time (memory),
     never-rated first and then the biggest. The calculation is exactly the one a member's button runs, from the same inputs. It is resumable
     (what is stored counts as done), it gives way to a member who is waiting (the site backend turns it away while one is, and it waits a
@@ -803,33 +972,53 @@ async def precompute(store, settings, *, limit: int = 800, max_minutes: float = 
             skip.append((key.decode() if isinstance(key, bytes) else key).rsplit(":", 1)[1])
     except Exception:
         skip = []
-    symbols = await _pending(store, statement, days, limit, skip)
+    if stale_not_rated:
+        limit = min(limit, STALE_MAX)
+    symbols = await _pending(store, statement, days, limit, skip, stale_only=stale_not_rated)
     symbols = in_shard(symbols, shard)
     started, done, failed, streak, paused = time.monotonic(), 0, [], 0, 0
     attempted = 0
+    widened, widen_paused, widen_skipped = 0, False, 0
+
+    async def one(symbol: str) -> Tuple[bool, int]:
+        """Calculate and store one company's rating the way a member's button does. (stored, status code); pauses while a member is waiting."""
+        nonlocal paused
+        code, r = 0, None
+        for _ in range(PRE_PAUSE_TRIES):
+            try:
+                payload = await _site_payload(app, symbol, statement, background=True, keep=False, kept_seconds=0)
+                r = await _call(app, "/api/premium-reports", "prism:nightly", payload)
+            except httpx.HTTPError as exc:
+                r = None
+                log.warning("prism nightly %s did not reach the site backend: %s", symbol, type(exc).__name__)
+            code = r.status_code if r is not None else 0
+            if code == 429 and r is not None and "member is waiting" in (_upstream_detail(r) or ""):
+                paused += 1                    # a member is waiting: let them go first
+                await asyncio.sleep(RETRY_AFTER_BACKGROUND)
+                continue
+            break
+        snapshot = _ready(r)
+        if snapshot is None:
+            failed.append(f"{symbol}:{code}")
+            log.warning("prism precompute %s failed with %s: %s", symbol, code, (r.text or "")[:300] if r is not None else "no answer")
+            return False, code
+        cache = snapshot.pop("cache", None)
+        view = reader_view(snapshot)
+        await _save(store, symbol, statement, view, None)
+        if stale_classification(view):
+            # The site backend still runs the old classification rules (not deployed yet): do not calculate this company again tonight.
+            await redis.set(f"prism:pre:fail:{statement}:{symbol}", "stale-model", ex=PRE_FAIL_SECONDS)
+        await _remember(app, symbol, statement, {k: v for k, v in (cache or {}).items() if k != "inputs"}, 0.0)   # 0: not timed, the nightly run has the peers kept
+        await asyncio.sleep(STALE_PAUSE if stale_not_rated else 0.2)
+        return True, code
+
     try:
         for symbol in symbols:
             if time.monotonic() - started > max_minutes * 60 or streak >= 3:
                 break
             attempted += 1
-            code, r, snapshot = 0, None, None
-            for _ in range(PRE_PAUSE_TRIES):
-                try:
-                    payload = await _site_payload(app, symbol, statement, background=True, keep=False, kept_seconds=0)
-                    r = await _call(app, "/api/premium-reports", "prism:nightly", payload)
-                except httpx.HTTPError as exc:
-                    r = None
-                    log.warning("prism nightly %s did not reach the site backend: %s", symbol, type(exc).__name__)
-                code = r.status_code if r is not None else 0
-                if code == 429 and r is not None and "member is waiting" in (_upstream_detail(r) or ""):
-                    paused += 1                    # a member is waiting: let them go first
-                    await asyncio.sleep(RETRY_AFTER_BACKGROUND)
-                    continue
-                break
-            snapshot = _ready(r)
-            if snapshot is None:
-                failed.append(f"{symbol}:{code}")
-                log.warning("prism precompute %s failed with %s: %s", symbol, code, (r.text or "")[:300] if r is not None else "no answer")
+            ok, code = await one(symbol)
+            if not ok:
                 streak = streak + 1 if code in (0, 429, 502, 503) else 0   # a company the data cannot rate (404/422) is not a provider outage
                 if streak == 0:
                     await redis.set(f"prism:pre:fail:{statement}:{symbol}", str(code), ex=PRE_FAIL_SECONDS)
@@ -839,19 +1028,42 @@ async def precompute(store, settings, *, limit: int = 800, max_minutes: float = 
                     await redis.set(f"prism:pre:fail:{statement}:{symbol}", str(code), ex=PRE_RETRY_SECONDS)
                 continue
             streak = 0
-            cache = snapshot.pop("cache", None)
-            await _save(store, symbol, statement, reader_view(snapshot), None)
-            await _remember(app, symbol, statement, {k: v for k, v in (cache or {}).items() if k != "inputs"}, 0.0)   # 0: not timed, the nightly run has the peers kept
             done += 1
-            await asyncio.sleep(0.2)
+        # Widening (docs/prism/COVERAGE_PLAN.md): after everything with a full report is done, a bounded number of further companies a night.
+        per_night = widen_per_night()
+        if per_night and streak < 3 and time.monotonic() - started <= max_minutes * 60 and len(symbols) < limit and not symbols_left_for_us(symbols, attempted):
+            wskip: list = []
+            try:
+                async for key in redis.scan_iter(match=f"prism:widen:refused:{statement}:*", count=200):
+                    wskip.append((key.decode() if isinstance(key, bytes) else key).rsplit(":", 1)[1])
+            except Exception:
+                wskip = []
+            budget = await _widen_budget_left(redis, per_night)
+            queue = in_shard(await widen_candidates(store, statement, max(budget, 0) * 2 + 10, wskip), shard) if budget else []
+            for symbol in queue:
+                if time.monotonic() - started > max_minutes * 60 or streak >= 3:
+                    break
+                if await _members_busy(redis):
+                    widen_paused = True            # members are using Prism: leave the provider to them, the next round continues
+                    break
+                if not await _widen_take(redis, per_night):
+                    break
+                ok, code = await one(symbol)
+                if ok:
+                    streak, widened = 0, widened + 1
+                    continue
+                streak = streak + 1 if code in (0, 429, 502, 503) else 0
+                widen_skipped += 1
+                await redis.set(f"prism:widen:refused:{statement}:{symbol}", str(code), ex=WIDEN_REFUSED_SECONDS)   # not again for a week, whatever the reason
     finally:
         if client is None and getattr(app.state, "prism_client", None) is not None:
             await app.state.prism_client.aclose()
         if getattr(app.state, "prism_dhan", None) is not None:
             await app.state.prism_dhan.aclose()
-    left = len(await _pending(store, statement, days, 5000, [])) if symbols else 0
+    left = len(await _pending(store, statement, days, 5000, [], stale_only=stale_not_rated)) if symbols else 0
     out = {"status": "ok" if done or not symbols else "partial", "calculated": done, "failed": failed[:10], "paused_for_members": paused,
-           "remaining_candidates": left, "seconds": round(time.monotonic() - started)}
+           "remaining_candidates": left, "seconds": round(time.monotonic() - started),
+           "widened": widened, "widen_refused": widen_skipped, "widen_paused_for_members": widen_paused}
     try:
         await redis.set(PRE_PROGRESS_KEY, json.dumps({**out, "at": time.time()}), ex=7 * 86400)
     except Exception:
