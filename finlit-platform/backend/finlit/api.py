@@ -36,6 +36,7 @@ from . import compare as compare_api
 from . import etf as etf_api
 from . import mf as mf_api
 from . import mf_insights
+from .mfscore import api as mf_score_api
 from . import graphviews as graphviews_api
 from . import forum as forum_api
 from . import dcf as dcf_api
@@ -574,6 +575,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
     app.include_router(etf_api.router)
+    app.include_router(mf_score_api.router)   # /api/mf/scores and /api/mf/{code}/score: before mf_api, whose /api/mf/{code} would otherwise claim /api/mf/scores
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
     app.include_router(search_api.router)
@@ -587,6 +589,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(sysctl.router)   # /api/admin/system: loads switch, restart, status
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
     app.include_router(__import__("finlit.mf_compare", fromlist=["router"]).router)   # head-to-head Fund Compare, /api/mf-compare
+    app.include_router(__import__("finlit.etf_vs_index", fromlist=["router"]).router)   # ETF vs index fund on one index, /api/etf-vs-index
     app.include_router(graphviews_api.router)
     app.include_router(forum_api.router)
     app.include_router(dcf_api.router)

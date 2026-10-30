@@ -18,6 +18,7 @@ import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows
 // Heavier pages load on demand so the first visit stays small and fast.
 const StockPage = lazy(() => import("./stock/StockPage").then((m) => ({ default: m.StockPage })));
 const Portfolio = lazy(() => import("./pages/Portfolio").then((m) => ({ default: m.Portfolio })));
+const MfScoreMethod = lazy(() => import("./pages/MfScoreMethod").then((m) => ({ default: m.MfScoreMethodPage })));
 const Blog = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blog })));
 const BlogPost = lazy(() => import("./pages/Blog").then((m) => ({ default: m.BlogPost })));
 const Screener = lazy(() => import("./pages/Screener").then((m) => ({ default: m.Screener })));
@@ -60,6 +61,7 @@ const ForumPage = lazy(() => import("./pages/Forum").then((m) => ({ default: m.F
 const EtfListPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfListPage })));
 const EtfDetailPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfDetailPage })));
 const EtfComparePage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfComparePage })));
+const EtfVsIndexPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfVsIndexPage })));
 const FundListPage = lazy(() => import("./pages/Funds").then((m) => ({ default: m.FundListPage })));
 const FundDetailPage = lazy(() => import("./pages/Funds").then((m) => ({ default: m.FundDetailPage })));
 const FundComparePage = lazy(() => import("./pages/Funds").then((m) => ({ default: m.FundComparePage })));
@@ -98,8 +100,10 @@ export default function App() {
             <Route path="graphs/advanced/:section" element={<AdvancedCharts />} />
             <Route path="etfs" element={<EtfListPage />} />
             <Route path="etfs/compare" element={<EtfComparePage />} />
+            <Route path="etfs/compare-index-funds" element={<EtfVsIndexPage />} />
             <Route path="etfs/:symbol" element={<EtfDetailPage />} />
             <Route path="commodities" element={<CommoditiesPage />} />
+            <Route path="methodology/mf-score" element={<MfScoreMethod />} />
             <Route path="funds" element={<FundListPage />} />
             <Route path="funds/compare" element={<FundComparePage />} />
             <Route path="funds/insights" element={<FundInsightsPage />} />
