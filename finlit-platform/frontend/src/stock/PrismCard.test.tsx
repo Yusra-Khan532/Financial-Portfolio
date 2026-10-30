@@ -64,7 +64,7 @@ describe("FinLit Prism card", () => {
     expect(t).toContain("Recalculate");
     expect(t).toContain("Technical view: recalculate to add");   // an older stored report: a quiet line, no invented number
     expect(t).not.toContain("coming soon");
-    expect(html.match(/class="dk-tile band-/g)).toHaveLength(4);
+    expect(html.match(/class="pcx-card band-/g)).toHaveLength(4);
     expect(html).toContain('href="/prism/TCS"');
     expect(t).toContain("Open the full Prism report");
     expect(t).toContain(PRISM_NOTE);   // the compliance line
@@ -78,8 +78,8 @@ describe("FinLit Prism card", () => {
     const t = text(html);
     expect(t).toContain("Technical");
     expect(t).toContain("15%");
-    expect(html).toContain('aria-label="Technical: 44 out of 100, weak. 15% of the score"');
-    expect(html.match(/class="dk-tile band-/g)).toHaveLength(5);   // a normal fifth tile, not a separate box
+    expect(html).toContain('aria-label="Technical 44 of 100: Weak. Counts for 15% of the overall score.');
+    expect(html.match(/class="pcx-card band-/g)).toHaveLength(5);   // a normal fifth tile, not a separate box
     expect(t).not.toContain("coming soon");
   });
 
@@ -91,11 +91,23 @@ describe("FinLit Prism card", () => {
     expect(t).toContain("40% of inputs available");
   });
 
+  it("a classification block shows its specific reason, does not tick the full inputs figure and links to why", async () => {
+    const reason = 'Prism has no model group for this industry yet ("Coal / Energy"). The inputs were available; the rating needs the industry rules extended.';
+    answer(200, { ...REPORT, rating: { ...REPORT.rating, final: null, label: "NOT RATED", status: "NOT RATED", confidence: 1, notRatedReasons: [{ code: "classification", text: reason }] } });
+    const html = await render();
+    const t = text(html);
+    expect(t).toContain("no model group for this industry yet");
+    expect(t).not.toContain("Too little verified data");
+    expect(t).toContain("100% of inputs available");
+    expect(t).toContain("Inputs are not the cause");
+    expect(t).toContain("Why is this not rated?");
+  });
+
   it("shows no category score for a company that is not rated (the parts exist in the data but are withheld)", async () => {
     answer(200, { ...REPORT, rating: { ...REPORT.rating, final: null, label: "NOT RATED", status: "NOT RATED", confidence: 0.4 } });
     const html = await render();
-    expect(html).not.toMatch(/aria-label="[^"]*\d+ out of 100/);
-    expect(html).toContain("Fundamentals: no data");
+    expect(html).not.toMatch(/aria-label="[^"]*\d+ (out )?of 100/);
+    expect(html).toContain("Fundamentals: no data.");
   });
 
   it("offers a Gold member the Prism page when no report is stored yet", async () => {

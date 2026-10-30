@@ -23,7 +23,7 @@ import time
 import zlib
 from calendar import monthrange
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from statistics import median
 from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -72,6 +72,13 @@ METRIC_KEYS = ("q_revenue", "q_net_profit", "q_operating_profit", "q_eps", "q_sa
 
 
 # ------------------------------------------------------------------ quarters
+def retry_minutes(base: int, decl_date: date, today: date) -> int:
+    """How long to wait before asking the provider again about a company that declared on `decl_date`: every run (`base` minutes) on the first
+    two days, when the figures normally arrive; then every 3 hours, then every 5 hours, so a provider that is simply late is not asked hundreds of times."""
+    age = (today - decl_date).days
+    return base if age <= 1 else base * 3 if age == 2 else base * 6
+
+
 def quarter_end(year: int, month: int) -> date:
     return date(year, month, monthrange(year, month)[1])
 
@@ -233,6 +240,9 @@ def build_row(sym: str, decl: Decl, base: dict, m: Dict[str, Optional[float]], e
         "eps": _r(m.get("q_eps")), "gap": _r(gap, 1), "flagged": bool(gap is not None and gap >= GAP_FLAG), "loss": bool(np_ is not None and np_ < 0),
         "source": "light" if has_numbers and (light or {}).get("used") else ("full" if has_numbers else None), "basis": (light or {}).get("basis") if has_numbers and (light or {}).get("used") else None,
         "awaitingWhy": ("provider" if (light or {}).get("asked") else "ours") if status == "awaiting" else None,
+        "awaitingStage": ("recent" if decl.date >= today else "late") if status == "awaiting" else None,
+        "lastCheckedAt": (light or {}).get("checkedAt") if status == "awaiting" else None,
+        "providerLatest": (light or {}).get("providerLatest") if status == "awaiting" else None,
     }
     if has_numbers:
         g = opg if opg is not None else {}
@@ -345,7 +355,7 @@ async def _declarations(store) -> Dict[str, Dict[str, Decl]]:
         pass
     async with store.pool.acquire() as conn:
         rows = await conn.fetch("SELECT symbol, company, item_date, source, category, title FROM feed_items "
-                                "WHERE kind = 'result' AND symbol IS NOT NULL AND item_date >= current_date - 430 LIMIT 60000")
+                                "WHERE kind = 'result' AND symbol IS NOT NULL AND item_date >= current_date - 430 ORDER BY item_date DESC, id DESC LIMIT 60000")   # newest first: if the cap is ever hit, the oldest rows are the ones left out
     out = assign([dict(r) for r in rows])
     try:
         packed = {qk: {sym: [d.date.isoformat(), d.confirmed, d.company] for sym, d in by.items()} for qk, by in out.items()}
@@ -399,12 +409,12 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
                         base[r["symbol"]]["q_period_end"] = blk.get("q_period_end") or quarter_block(qpl).get("q_period_end")
                 except (ValueError, TypeError, AttributeError):
                     continue
-        light_rows = await conn.fetch("SELECT symbol, statement, filled, period_end, provider_latest, " + ", ".join(LIGHT_COLS) + ", op_yoy, op_qoq, op_yoy_why, op_qoq_why"  # nosec B608 - fixed names
+        light_rows = await conn.fetch("SELECT symbol, statement, filled, period_end, provider_latest, checked_at, " + ", ".join(LIGHT_COLS) + ", op_yoy, op_qoq, op_yoy_why, op_qoq_why"  # nosec B608 - fixed names
                                       " FROM quarter_light WHERE quarter = $1 AND symbol = ANY($2::text[])", quarter_key(e), symbols)
     # Companies the site does not hold in full: their figures come from the light table (one provider call, see results_light.py). A row takes its
     # figures from ONE source: the full report when it already holds this quarter, else the light row. The two are never mixed.
     used_light: Dict[str, dict] = {}
-    asked: set = set()
+    asked: Dict[str, dict] = {}
     for r in light_rows:
         sym, held = r["symbol"], metrics.get(r["symbol"]) or {}
         if held.get("q_revenue") is not None or held.get("q_net_profit") is not None:
@@ -415,7 +425,8 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
             used_light[sym] = {"basis": r["statement"], "opg": {"opYoY": r["op_yoy"], "opQoQ": r["op_qoq"], "opYoYWhy": r["op_yoy_why"], "opQoQWhy": r["op_qoq_why"]}}
             base.setdefault(sym, {"symbol": sym})["q_period_end"] = pe
         elif not r["filled"] and (r["provider_latest"] is None or r["provider_latest"] <= hi):
-            asked.add(sym)   # we asked the provider and it has no figures for this quarter yet
+            asked[sym] = {"checkedAt": r["checked_at"].astimezone(timezone.utc).isoformat(timespec="seconds") if r["checked_at"] else None,
+                          "providerLatest": r["provider_latest"].isoformat() if r["provider_latest"] else None}   # we asked the provider and it has no figures for this quarter yet
     try:
         table = await get_table(store)
         cap_of = lambda s: table.cap[table.pos[s]] if s in table.pos else None   # noqa: E731
@@ -432,7 +443,7 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
             return None
         return op_growth(h["ends"], h["op"], e, m.get("q_operating_profit"))
     rows = [build_row(s, d, base.get(s, {"symbol": s}), metrics.get(s, {}), e, today, cap_of(s), sorted(members.get(s, [])), growth(s),
-                      {"used": s in used_light, "basis": (used_light.get(s) or {}).get("basis"), "asked": s in asked}) for s, d in decls.items()]
+                      {"used": s in used_light, "basis": (used_light.get(s) or {}).get("basis"), "asked": s in asked, **asked.get(s, {})}) for s, d in decls.items()]
     counts: Dict[str, int] = {}
     for r in rows:
         if r["sector"]:
@@ -609,26 +620,33 @@ _NUM_RE = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)$")
 MAX_GROWTH = 1_000_000.0
 
 
+PERIODS = ("qoq", "yoy")
+# The six cells of the filter grid (rows Revenue, Operating profit, Net profit; columns QoQ, YoY): cell key -> (metric, period). Query names are <cell>Op and <cell>Value.
+GROWTH_CELLS = {"revQoQ": ("revenue", "qoq"), "revYoY": ("revenue", "yoy"), "opQoQ": ("operatingProfit", "qoq"), "opYoY": ("operatingProfit", "yoy"),
+                "npQoQ": ("netProfit", "qoq"), "npYoY": ("netProfit", "yoy")}
+METRIC_WORDS = {"revenue": "revenue", "operatingProfit": "operating profit", "netProfit": "net profit"}
+
+
 @dataclass(frozen=True)
 class GrowthCond:
     metric: str
+    period: str   # "qoq" or "yoy"
     op: str
     value: float
 
 
 @dataclass(frozen=True)
 class GrowthSpec:
-    qoq: Optional[GrowthCond] = None
-    yoy: Optional[GrowthCond] = None
-    join: str = "and"
+    conds: Tuple[GrowthCond, ...] = ()
+    join: str = "and"   # "and" = every filled condition must hold, "or" = at least one
 
     @property
     def active(self) -> bool:
-        return self.qoq is not None or self.yoy is not None
+        return bool(self.conds)
 
 
-def _cond(label: str, metric: str, op: str, value: str) -> Optional[GrowthCond]:
-    """One filter from its three query values. Empty value = filter off (metric and operator are still checked). Anything else wrong is a 400."""
+def _cond(label: str, metric: str, period: str, op: str, value: str) -> Optional[GrowthCond]:
+    """One condition from its query values. Empty value = off (metric and operator are still checked). Anything else wrong is a 400."""
     metric, op, value = (metric or "").strip(), (op or "").strip(), (value or "").strip()
     if metric and metric not in GROWTH_FIELDS:
         raise fail(400, "bad_request", f"The {label} metric must be one of revenue, operatingProfit or netProfit.")
@@ -643,43 +661,55 @@ def _cond(label: str, metric: str, op: str, value: str) -> Optional[GrowthCond]:
     x = float(value)
     if x != x or abs(x) > MAX_GROWTH:
         raise fail(400, "bad_request", f"The {label} growth value is out of range.")
-    return GrowthCond(metric, GROWTH_OPS[op], x)
+    return GrowthCond(metric, period, GROWTH_OPS[op], x)
 
 
-def growth_params(qoqMetric: str = Query("", max_length=20), qoqOp: str = Query("", max_length=3), qoqValue: str = Query("", max_length=20),
-                  yoyMetric: str = Query("", max_length=20), yoyOp: str = Query("", max_length=3), yoyValue: str = Query("", max_length=20),
-                  join: str = Query("", max_length=3)) -> GrowthSpec:
-    j = (join or "and").strip().lower()
+def growth_params(request: Request) -> GrowthSpec:
+    """Reads the grid cells (revQoQOp / revQoQValue ... npYoYValue) and, for links shared before the grid existed, the old qoqMetric/qoqOp/qoqValue and yoy... trio.
+    The old trio is read first, so a grid cell for the same metric and period replaces it."""
+    qp = request.query_params
+    get = lambda k: qp.get(k, "")[:20]   # noqa: E731
+    j = (get("join") or "and").strip().lower()
     if j not in ("and", "or"):
         raise fail(400, "bad_request", "The join must be and or or.")
-    return GrowthSpec(_cond("QoQ", qoqMetric, qoqOp, qoqValue), _cond("YoY", yoyMetric, yoyOp, yoyValue), j)
+    found: Dict[Tuple[str, str], GrowthCond] = {}
+    for per in PERIODS:
+        c = _cond(per.upper(), get(per + "Metric"), per, get(per + "Op"), get(per + "Value"))
+        if c is not None:
+            found[(c.metric, per)] = c
+    for cell, (metric, per) in GROWTH_CELLS.items():
+        c = _cond(f"{METRIC_WORDS[metric]} {per.upper()}", metric, per, get(cell + "Op") or ">=", get(cell + "Value"))
+        if c is not None:
+            found[(metric, per)] = c
+    return GrowthSpec(tuple(found[v] for v in GROWTH_CELLS.values() if v in found), j)
 
 
-def _meets(r: dict, c: Optional[GrowthCond], idx: int) -> bool:
+def _meets(r: dict, c: GrowthCond) -> bool:
     """True only when the row HAS the growth figure and it passes. A missing figure never passes (not even for '<' or a negative limit)."""
-    if c is None or not r.get("hasNumbers"):
+    if not r.get("hasNumbers"):
         return False
-    v = r.get(GROWTH_FIELDS[c.metric][idx])
+    v = r.get(GROWTH_FIELDS[c.metric][PERIODS.index(c.period)])
     if v is None:
         return False
     return {">=": v >= c.value, ">": v > c.value, "<=": v <= c.value, "<": v < c.value}[c.op]
 
 
 def growth_filter(rows: List[dict], spec: GrowthSpec) -> Tuple[List[dict], Optional[Dict[str, Any]]]:
-    """Rows that pass the growth filters (order kept), and the four-way summary over EVERY company with figures in `rows` (before paging).
-    both + onlyQoQ + onlyYoY + neither == withFigures. With one filter on, the other side never passes: both and its 'only' are 0."""
+    """Rows that pass the growth conditions (order kept: all of them with join 'and', at least one with 'or'), and the summary over EVERY company with figures
+    in `rows` (before paging). metAll + metSome + metNone == withFigures, where 'met' counts the conditions a company passes; a missing figure never passes."""
     if not spec.active:
         return rows, None
-    both_on = spec.qoq is not None and spec.yoy is not None
-    flags = [(_meets(r, spec.qoq, 0), _meets(r, spec.yoy, 1)) for r in rows]
-    out = [r for r, (a, b) in zip(rows, flags) if (a and b if both_on and spec.join == "and" else a or b)]
-    base = [(r, f) for r, f in zip(rows, flags) if r.get("hasNumbers")]
-    both = sum(1 for _, (a, b) in base if a and b)
-    only_q = sum(1 for _, (a, b) in base if a and not b)
-    only_y = sum(1 for _, (a, b) in base if b and not a)
-    miss = lambda c, idx: sum(1 for r, _ in base if c is not None and r.get(GROWTH_FIELDS[c.metric][idx]) is None)   # noqa: E731
-    summary = {"qoq": spec.qoq is not None, "yoy": spec.yoy is not None, "join": spec.join, "withFigures": len(base), "both": both, "onlyQoQ": only_q, "onlyYoY": only_y,
-               "neither": len(base) - both - only_q - only_y, "matching": len(out), "qoqMissing": miss(spec.qoq, 0), "yoyMissing": miss(spec.yoy, 1)}
+    k = len(spec.conds)
+    hits = [[_meets(r, c) for c in spec.conds] for r in rows]
+    ok = (lambda h: all(h)) if spec.join == "and" else (lambda h: any(h))
+    out = [r for r, h in zip(rows, hits) if ok(h)]
+    base = [(r, h) for r, h in zip(rows, hits) if r.get("hasNumbers")]
+    met_all = sum(1 for _, h in base if all(h))
+    met_none = sum(1 for _, h in base if not any(h))
+    conds = [{"metric": c.metric, "period": c.period, "op": c.op, "value": c.value, "met": sum(1 for _, h in base if h[i]),
+              "missing": sum(1 for r, _ in base if r.get(GROWTH_FIELDS[c.metric][PERIODS.index(c.period)]) is None)} for i, c in enumerate(spec.conds)]
+    summary = {"join": spec.join, "k": k, "withFigures": len(base), "matching": len(out), "metAll": met_all, "metNone": met_none,
+               "metSome": len(base) - met_all - met_none, "conditions": conds}
     return out, summary
 
 
@@ -860,3 +890,45 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
         raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
     _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
+
+
+# ------------------------------------------------------------------ pipeline status (read-only, no secrets)
+RUN_KEYS = {"calendars": "refresh-calendars", "results": "refresh-results", "resultsLight": "refresh-results-light"}
+NOTE_JOBS = ("calendars", "calendars-day", "calendars-hourly", "calendars-late", "results", "results-light")   # the names scheduler.sh gives these jobs
+
+
+async def newest_result_date(conn, today: date) -> Optional[date]:
+    """The newest results date held that is not in the future: a filing, or a board-meeting date that has passed."""
+    return await conn.fetchval("SELECT max(item_date) FROM feed_items WHERE kind = 'result' AND item_date <= $1", today)
+
+
+async def pipeline_status(store, today: Optional[date] = None) -> Dict[str, Any]:
+    """When each results job last ran and how it ended, and the newest result held: the answer to 'are the latest results updating?' from a browser."""
+    from .mf import _meta
+    today = today or today_ist()
+    last: Dict[str, Any] = {}
+    async with store.pool.acquire() as conn:
+        for name, cmd in RUN_KEYS.items():
+            last[name] = await _meta(conn, "run:" + cmd)
+        newest = await newest_result_date(conn, today)
+        filing = await conn.fetchval("SELECT max(item_date) FROM feed_items WHERE kind = 'result' AND source = $1 AND item_date <= $2", FILING_SOURCE, today)
+        upcoming = await conn.fetchval("SELECT count(*) FROM feed_items WHERE kind = 'result' AND item_date >= $1", today)
+        declared_recent = await conn.fetchval("SELECT count(DISTINCT symbol) FROM feed_items WHERE kind = 'result' AND item_date BETWEEN $1 AND $2", today - timedelta(days=1), today)
+    skipped: Dict[str, Any] = {}
+    try:
+        for job in NOTE_JOBS:
+            raw = await store.redis.get("wake:note:" + job)
+            if raw:
+                skipped[job] = orjson.loads(raw)
+    except Exception:   # nosec B110 - Redis down: the notes are simply not shown
+        pass
+    return {"todayIST": today.isoformat(), "newestResultInDb": newest.isoformat() if newest else None, "newestFilingInDb": filing.isoformat() if filing else None,
+            "upcomingCount": int(upcoming or 0), "companiesWithResultsDateTodayOrYesterday": int(declared_recent or 0),
+            "lastRun": last, "lastSkipped": skipped}
+
+
+@router.get("/status")
+async def results_status(request: Request) -> Response:
+    """Public, read-only. Counts, dates and our own error text only; no keys or addresses."""
+    body = await pipeline_status(request.app.state.store)
+    return Response(content=json.dumps(body, default=str), media_type="application/json", headers={"Cache-Control": "no-store"})

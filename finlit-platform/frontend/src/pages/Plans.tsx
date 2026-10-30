@@ -1,9 +1,11 @@
 import { Icon } from "../lib/icons";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router";
 import { RANK, TIER, useUI, type Plan } from "../lib/ui";
 import { useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
+import { planTarget } from "../lib/planTarget";
 
 const PLANS: { k: Plan; tag: string; desc: string; price: string; per: string; cta: string; inc: string; feat?: boolean; f: [string, string][] }[] = [
   { k: "basic", tag: "Free", desc: "Look up any listed company and run a simple screen. No card needed.", price: "Free", per: "no card needed", cta: "Create a free account", inc: "What you get",
@@ -11,7 +13,7 @@ const PLANS: { k: Plan; tag: string; desc: string; price: string; per: string; c
   { k: "silver", tag: "Score + full screener", desc: "Adds the FinLit score for every company and the full screener.", price: "Soon", per: "payments not live yet", cta: "Get Silver", inc: "Everything in Basic, plus",
     f: [["Full screener: 160+ filters", "Valuation, profitability, growth, quarterly results, financial health, ownership, red flags, trend and more. Every match, ready-made screens, 20 saved screens and CSV download"], ["FinLit score and five pillars", "An overall score from 0 to 100 on each stock page, built from Quality, Growth, Profitability, Balance sheet and Technical"], ["How the score is built", "Which numbers went into each pillar, and how they were read"], ["Watchlists", "3 lists and 30 stocks in total, with notes and target prices. Group by industry and size"], ["Score-based comparison", "Quality and risk, growth and technical tabs, plus build your own"], ["Downloads", "PDF research note, an offline HTML copy, and CSV of data and screener results"], ["Portfolio scorecard", "Add up to 30 shares by name (typed, pasted or from a broker Excel/CSV). See each share's score, your average score and sector mix. It does not use quantities or prices, so there is no profit and loss"], ["More alerts", "30 alerts, including P/E, ROE and FinLit score triggers"]] },
   { k: "gold", tag: "Most depth", desc: "More depth for people who check companies often: FinLit Prism, model filters, full ratio history and technical signals.", price: "Soon", per: "payments not live yet", cta: "Get Gold", inc: "Everything in Silver, plus", feat: true,
-    f: [["FinLit Prism", "An advanced financial-health rating of any listed company in four parts, with a downloadable PDF"], ["FinLit model filters in the screener", "On top of the 160+ filters: score, band, each of the five pillars and score movement, plus Gold screens"], ["Full ratio history", "Every ratio with its multi-year history, and valuation history"], ["Technical analysis", "Indicators such as RSI and the 200-day average, with trend and momentum"], ["Compare up to 4 companies", "Pillar spider chart and a full side-by-side view"], ["Bigger watchlists", "Up to 50 lists and 1,000 stocks, grouped by FinLit band and style, with a list of what needs a second look"], ["Revenue by segment", "Reported business segments, with growth"], ["Gold dashboards", "Markets, fundamentals and a printable Premium Report for any company"], ["DCF calculator", "Intrinsic value per share with margin of safety, any listed company's cash flow and debt loaded for you, sensitivity grids, reverse DCF and saved scenarios"], ["Bigger limits", "Up to 300 alerts, 100 saved screens and 500 shares in the portfolio scorecard"], ["Equity research report (planned, later)", "A written report on a company. Only after the licence and approvals it needs are in place"]] },
+    f: [["FinLit Prism", "An advanced financial-health rating of any listed company: four fundamental parts and two technical views"], ["Advanced score screener", "Filter every listed company by its Prism score, the four parts and the two technical views"], ["Revenue and profit outlook", "Estimates of revenue and profit from the company's own history and its sector, with weights you can set or our model"], ["FinLit model filters in the screener", "On top of the 160+ filters: score, band, each of the five pillars and score movement, plus Gold screens"], ["Full ratio history", "Every ratio with its multi-year history, and valuation history"], ["Technical analysis", "Indicators such as RSI and the 200-day average, with trend and momentum"], ["Compare up to 4 companies", "Pillar spider chart and a full side-by-side view"], ["Bigger watchlists", "Up to 50 lists and 1,000 stocks, grouped by FinLit band and style, with a list of what needs a second look"], ["Revenue by segment", "Reported business segments, with growth"], ["Gold dashboards", "Markets, fundamentals and a printable Premium Report for any company"], ["DCF calculator", "Intrinsic value per share with margin of safety, any listed company's cash flow and debt loaded for you, sensitivity grids, reverse DCF and saved scenarios"], ["Bigger limits", "Up to 300 alerts, 100 saved screens and 500 shares in the portfolio scorecard"], ["Equity research report (planned, later)", "A written report on a company. Only after the licence and approvals it needs are in place"]] },
 ];
 const fIcon = (t: string) => /prism/i.test(t) ? "layers" : /screener|filter/i.test(t) ? "table" : /overview|company/i.test(t) ? "building" : /statement/i.test(t) ? "notes" : /ratio/i.test(t) ? "gauge" : /peer/i.test(t) ? "layers" : /chart|technical|momentum/i.test(t) ? "line" : /scor|scorecard/i.test(t) ? "quality" : /parameter|trend/i.test(t) ? "growth" : /watchlist|portfolio/i.test(t) ? "wallet" : /export|download/i.test(t) ? "table" : /bucket/i.test(t) ? "layers" : /revenue|segment/i.test(t) ? "pie" : /priority|access/i.test(t) ? "crown" : "check";
 function PlanArt({ k }: { k: Plan }) {
@@ -30,7 +32,7 @@ const CMP: [string, string | null, number?][] = [
   ["Silver: scores and tools", null], ["Full screener: 160+ filters", "Valuation, quarterly results, ownership, red flags, trend and more. Every match, 20 saved screens, download", 1],
   ["FinLit score across five pillars", "Quality, Growth, Profitability, Balance sheet, Technical", 1], ["Fundamental and technical scores side by side", "Read the business and the price trend on their own", 1], ["How the score is built", "Which numbers move each pillar", 1],
   ["Watchlists with notes and targets", "Silver: 3 lists, 30 stocks", 1], ["Portfolio scorecard", "Add shares by name. Score, band mix and sector spread. No profit and loss", 1], ["Downloads: PDF note, offline copy, CSV", "", 1],
-  ["Gold: more depth", null], ["FinLit Prism", "Financial-health rating of any listed company in four parts, with a PDF", 2], ["FinLit model filters in the screener", "Filter by score, band, the five pillars and score movement", 2], ["Full ratio history", "Every ratio over several years, and valuation history", 2], ["Technical analysis and momentum", "RSI, 200-day average, trend", 2], ["Compare up to four companies", "", 2],
+  ["Gold: more depth", null], ["FinLit Prism", "Financial-health rating of any listed company: four fundamental parts and two technical views", 2], ["Advanced score screener", "Filter by Prism score, parts and technical views", 2], ["Revenue and profit outlook", "Estimates from the company's own history and its sector", 2], ["FinLit model filters in the screener", "Filter by score, band, the five pillars and score movement", 2], ["Full ratio history", "Every ratio over several years, and valuation history", 2], ["Technical analysis and momentum", "RSI, 200-day average, trend", 2], ["Compare up to four companies", "", 2],
   ["Gold dashboards", "Markets, fundamentals, Premium Report", 2], ["DCF calculator", "Intrinsic value, sensitivity, reverse DCF", 2], ["Bigger watchlists", "Up to 50 lists and 1,000 stocks, grouped by band and style", 2], ["Bigger limits", "100 saved screens, 500 shares in the scorecard", 2],
   ["Planned, not built yet", null], ["Equity research report (coming soon)", "Subject to the required licence and approvals", 9],
 ];
@@ -39,6 +41,19 @@ export function PlansBand({ id, h1 = false, compact = false }: { id?: string; h1
   const H = h1 ? "h1" : "h2";
   const { plan, upgrade } = useUI();
   const { user } = useAuth();
+  const loc = useLocation();
+  const [target, setTarget] = useState<Plan | null>(null);
+  // /plans#gold or /plans?plan=gold: scroll to that plan, focus it and highlight it.
+  useEffect(() => {
+    const k = compact ? null : planTarget(loc.hash, loc.search);
+    setTarget(k);
+    if (!k) return;
+    const el = document.getElementById(`plan-${k}`);
+    if (!el) return;
+    const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = window.setTimeout(() => { el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }); el.focus({ preventScroll: true }); }, 80);
+    return () => window.clearTimeout(t);
+  }, [compact, loc.hash, loc.search]);
   const cta = (k: Plan, label: string) => DEMO ? (plan === k ? "Previewing " + TIER[k].n : label) : plan === k && (user || k === "basic") ? (user ? "Your plan" : "Included for everyone") : k === "basic" ? "Create a free account" : user ? `Request ${TIER[k].n}` : label;
   const go = (k: Plan) => { if (!DEMO && k === "basic") return; upgrade(k); if (DEMO) window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
@@ -59,7 +74,7 @@ export function PlansBand({ id, h1 = false, compact = false }: { id?: string; h1
         {!compact && (
         <div className="pgrid">
           {PLANS.map((p) => (
-            <div key={p.k} id={`plan-${p.k}`} data-cur={DEMO ? "Previewing" : "Your plan"} className={`plan ${p.feat ? "feat" : ""} ${plan === p.k && (DEMO || user || p.k === "basic") ? "current" : ""}`} style={{ "--tc": `var(${TIER[p.k].tc})` } as React.CSSProperties}>
+            <div key={p.k} id={`plan-${p.k}`} data-cur={DEMO ? "Previewing" : "Your plan"} tabIndex={-1} className={`plan ${p.feat ? "feat" : ""} ${target === p.k ? "target" : ""} ${plan === p.k && (DEMO || user || p.k === "basic") ? "current" : ""}`} style={{ "--tc": `var(${TIER[p.k].tc})` } as React.CSSProperties}>
               <PlanArt k={p.k} />
               <div className="plan-top"><div className="plan-name"><span className="pi"><Icon name={TIER[p.k].ic} /></span>{TIER[p.k].n}</div><span className="ribbon">{p.tag}</span></div>
               <p className="plan-desc">{p.desc}</p>
