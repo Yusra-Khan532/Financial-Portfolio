@@ -1,14 +1,17 @@
 // The FinLit Mutual Fund Health Score card of a fund's page: ring, four pillars, status, rank, reasons, gaps and a link to the method. Locked below Silver.
-import { useState } from "react";
 import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, STATE_TEXT, bandOf, confidenceText, filledText, percentileText, rankText, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, confidenceText, filledText, etfMeasures, percentileText, rankText, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
+import { ScoreBreakdown } from "./ScoreBreakdown";
+import { ScoreAlertButton } from "./ScoreAlertButton";
+import { ScoreHistoryCard } from "./ScoreHistory";
+import "../styles/mf.css";
 
 const C = 2 * Math.PI * 52;
 export function ScoreRing({ score, label, size = 132 }: { score: number | null; label: string | null; size?: number }) {
@@ -40,18 +43,35 @@ function Pillars({ s }: { s: FundScore }) {
   );
 }
 
+const ETF_ONLY = new Set(["ETF_LIQUIDITY", "ETF_PREMIUM"]);
 function Lines({ title, items, kind }: { title: string; items: ScoreLine[]; kind: "good" | "watch" }) {
   if (!items.length) return null;
   return (
     <div className={"mfs-why " + kind}>
       <h4>{title}</h4>
-      <ul>{items.map((i) => <li key={i.id}><Icon name={kind === "good" ? "check" : "alert"} /><span><b>{i.label}.</b> {i.text}</span></li>)}</ul>
+      <ul>{items.map((i) => <li key={i.id}><Icon name={kind === "good" ? "check" : "alert"} /><span><b>{i.label}.</b> {i.text}{ETF_ONLY.has(i.id) && <em className="mfs-etftag">ETF measure</em>}</span></li>)}</ul>
+    </div>
+  );
+}
+
+/** What only an ETF has: how easily it trades on the exchange and how far its price sat from its NAV. When one of them is among the reasons above it is tagged there;
+ *  this block carries the other one (or both) so that both are always visible, with their points, and a measure that could not be worked out says why. */
+function EtfMeasures({ s }: { s: FundScore }) {
+  const list = etfMeasures(s).filter((m) => m.tone === "neutral" || m.tone === "gap");
+  if (!list.length) return null;
+  return (
+    <div className="mfs-etf" aria-label="Measures only exchange-traded funds have">
+      <h4>How this ETF trades</h4>
+      <ul>{list.map((m) => (
+        <li key={m.id} className={"mfs-etfm " + m.tone}>
+          <span className="mfs-etfn"><b>{m.label}</b>{m.points != null && <small>{Math.round(m.points)} of 100 points</small>}</span>
+          <span>{m.text}</span>
+        </li>))}</ul>
     </div>
   );
 }
 
 export function ScoreBody({ s }: { s: FundScore }) {
-  const [all, setAll] = useState(false);
   const rated = s.final != null;
   const r = s.reasons;
   const band = bandOf(s.final);
@@ -85,13 +105,8 @@ export function ScoreBody({ s }: { s: FundScore }) {
                 {r.substitutions.map((g) => <li key={g.id}><b>{g.label}:</b> {g.text}.</li>)}
                 {r.notApplicable.map((g) => <li key={g.id} className="faint"><b>{g.label}:</b> {g.text}.</li>)}</ul>
             </details>)}
-          {(s.metrics?.length ?? 0) > 0 && <>
-            <button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Hide all measures" : "Show all measures"}</button>
-            {all && <div className="tw"><table className="mf-cmp mfs-metrics"><caption className="sr-only">Every measure behind the score</caption>
-              <thead><tr><th scope="col">Measure</th><th scope="col">State</th><th scope="col" className="num">Points</th><th scope="col" className="num">Weight</th></tr></thead>
-              <tbody>{s.metrics!.map((m) => <tr key={m.id}><th scope="row">{m.label}</th><td>{STATE_TEXT[m.state]}</td><td className="num">{m.points == null ? "—" : m.points.toFixed(0)}</td><td className="num">{m.weight == null || m.state === "N" ? "—" : m.weight.toFixed(1) + "%"}</td></tr>)}</tbody></table></div>}
-          </>}
         </div>)}
+      {rated && s.kind === "etf" && <EtfMeasures s={s} />}
       <div className="mfs-scale" aria-hidden="true">{SCORE_BANDS.map(([w, a, b]) => <span key={w} style={{ flex: b - a }}>{w}</span>)}</div>
       <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={s.method || MF_METHOD_URL}>How it works</Link>{s.runDate ? ` · worked out ${dateIN(s.runDate)}` : ""}{s.peers?.text ? ` · compared with ${s.peers.text}` : ""}.</p>
     </>
@@ -100,21 +115,27 @@ export function ScoreBody({ s }: { s: FundScore }) {
 
 const LOCK_POINTS = ["A 0 to 100 health score with four parts: Performance, Risk, Cost and Quality", "Rank among funds of the same category and plan", "The strongest points and the watch-outs, in plain words"];
 
-export function FundScoreCard({ code, kind = "mf", symbol = "" }: { code: number; kind?: "mf" | "etf"; symbol?: string }) {
+/** One card for both: a mutual fund (`code`) or an exchange-traded fund (`kind="etf"` and its NSE `symbol`). */
+export function FundScoreCard({ code = 0, kind = "mf", symbol = "" }: { code?: number; kind?: "mf" | "etf"; symbol?: string }) {
   const q = useFundScore(code, kind, symbol);
   const s = q.data;
   return (
+    <>
     <section className="card mf-card mfs-card" aria-label={MF_SCORE_NAME}>
       <div className="card-h"><h3><span className="ci"><Icon name="quality" /></span>{MF_SCORE_NAME}</h3><span className="s">Describes the past; not a forecast</span></div>
       {q.isLoading ? <div className="skeleton" style={{ height: 180 }} aria-busy="true" /> : q.isError || !s ? <p className="faint" role="status">The score is not available right now.</p>
         : s.locked ? (
-          <Gate tier="silver" title={MF_SCORE_NAME} points={LOCK_POINTS}>
+          <Gate tier="gold" title={MF_SCORE_NAME} points={LOCK_POINTS}>
             <div className="mfs-top"><div className="mfs-ringbox"><ScoreRing score={null} label={null} /></div>
               <div className="mfs-side"><Pillars s={{ ...s, pillars: s.pillars }} /></div></div>
             <p className="faint mf-fine">{MF_SCORE_COMPLIANCE}</p>
           </Gate>)
-          : <ScoreBody s={s} />}
+          : <><ScoreBody s={s} />
+            {s.final != null && <ScoreBreakdown s={s} />}
+            {s.final != null && <ScoreAlertButton code={kind === "mf" ? s.inherited?.code ?? code : 0} symbol={kind === "etf" ? symbol : s.inherited?.symbol ?? ""} name={s.inherited?.name ?? "this fund"} />}</>}
     </section>
+    {s && !s.locked && s.final != null && <ScoreHistoryCard code={kind === "mf" ? code : 0} kind={kind} symbol={symbol} />}
+    </>
   );
 }
 export { BAND_NAME };

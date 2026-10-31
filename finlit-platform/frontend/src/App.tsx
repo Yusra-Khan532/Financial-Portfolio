@@ -11,6 +11,7 @@ import { Services } from "./pages/Services";
 import { About } from "./pages/About";
 import { Why } from "./pages/Why";
 import { Contact } from "./pages/Contact";
+import { FaqsPage } from "./pages/Faqs";
 import { Legal, NotFound } from "./pages/Legal";
 import { Login } from "./pages/Login";
 import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows";
@@ -18,6 +19,7 @@ import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows
 // Heavier pages load on demand so the first visit stays small and fast.
 const StockPage = lazy(() => import("./stock/StockPage").then((m) => ({ default: m.StockPage })));
 const Portfolio = lazy(() => import("./pages/Portfolio").then((m) => ({ default: m.Portfolio })));
+const FundScoreScreener = lazy(() => import("./pages/FundScoreScreener").then((m) => ({ default: m.FundScoreScreenerPage })));
 const MfScoreMethod = lazy(() => import("./pages/MfScoreMethod").then((m) => ({ default: m.MfScoreMethodPage })));
 const Blog = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blog })));
 const BlogPost = lazy(() => import("./pages/Blog").then((m) => ({ default: m.BlogPost })));
@@ -103,6 +105,7 @@ export default function App() {
             <Route path="etfs/compare-index-funds" element={<EtfVsIndexPage />} />
             <Route path="etfs/:symbol" element={<EtfDetailPage />} />
             <Route path="commodities" element={<CommoditiesPage />} />
+            <Route path="fund-score-screener" element={<FundScoreScreener />} />
             <Route path="methodology/mf-score" element={<MfScoreMethod />} />
             <Route path="funds" element={<FundListPage />} />
             <Route path="funds/compare" element={<FundComparePage />} />
@@ -132,7 +135,7 @@ export default function App() {
           <Route path="sip-calculator" element={<SipCalculator />} />
           <Route path="plans" element={<PlansPage />} />
           <Route path="pricing" element={<Navigate to="/plans" replace />} />
-          <Route path="faq" element={<Navigate to="/#faq" replace />} />
+          <Route path="faq" element={<FaqsPage />} />
           <Route path="services" element={<Services />} />
           <Route path="about" element={<About />} />
           <Route path="mcp" element={<ConnectAIPage />} />

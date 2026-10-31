@@ -37,6 +37,8 @@ from . import etf as etf_api
 from . import mf as mf_api
 from . import mf_insights
 from .mfscore import api as mf_score_api
+from .mfscore import upgrade_api as mf_score_upgrade
+from .mfscore import admin as mf_score_admin
 from . import graphviews as graphviews_api
 from . import forum as forum_api
 from . import dcf as dcf_api
@@ -191,6 +193,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             stored = prism_screen.cards(await app.state.store.prism_cards(None if level == "gold" else sorted(showcase)))
             cover = prism_screen.coverage(await app.state.store.prism_coverage(), len(rows))
             cover["as_of"] = max((v["prism_at"] for v in stored.values() if v.get("prism_at")), default=None) if level == "gold" else None
+            cover["tech_as_of"] = max((v["prism_tech_at"] for v in stored.values() if v.get("prism_tech_at")), default=None) if level == "gold" else None   # newest bar date the technical columns hold
             cover["per_night"] = prism.widen_per_night()
         except Exception:
             logging.getLogger("finlit.api").exception("screener universe: Prism ratings not read")
@@ -575,6 +578,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
     app.include_router(etf_api.router)
+    app.include_router(mf_score_upgrade.router)   # score history, the fund score screener, the leaderboard and score alerts (Gold)
+    app.include_router(mf_score_admin.router)   # /api/admin/mf-score/*
     app.include_router(mf_score_api.router)   # /api/mf/scores and /api/mf/{code}/score: before mf_api, whose /api/mf/{code} would otherwise claim /api/mf/scores
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
@@ -597,6 +602,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(results_api.router)
     app.include_router(mcp_server.router)   # POST /mcp (MCP for AI assistants) and /.well-known/mcp.json: before the site-backend catch-all and the website
     app.include_router(mcp_server.admin)   # /api/admin/mcp-stats
+    app.include_router(__import__("finlit.prism_technical", fromlist=["router"]).router)   # GET /api/technicals/status: public, read-only (when the technical views were last refreshed, and the bar dates held)
     app.include_router(prism.router)   # /api/prism/*: the members' door to the site backend's administrator-only /api/premium-reports
     app.include_router(__import__("finlit.outlook.router", fromlist=["router"]).router)   # /api/outlook/{symbol}: Gold profit and revenue outlook
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: My portfolio page, before the site-backend catch-all

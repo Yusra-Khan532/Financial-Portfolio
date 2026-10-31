@@ -17,12 +17,12 @@ It also runs once a day in the night chain right after `refresh-portfolios` (`de
 fund jobs) and once at the end of the boot load (`--max-age-hours 20`). Options: `--symbols 120465 NIFTYBEES` scores the whole universe (peer medians need it) and writes only those
 funds; `--limit N` is for testing only (partial peer sets, removes nothing). One transaction, idempotent. Verify: `/api/mf/status` shows `run:score-mf` with counts, status counts,
 metric-state counts and the Appendix Z.3 zero-rule counters (`zeroRules`: rule name -> hits, `fund:<rule>` -> funds hit). API: `GET /api/mf/{code}/score`, `GET /api/mf/etf/{symbol}/score`,
-`GET /api/mf/scores?codes=&group=&category=&plan=&status=&sort=&limit=`, `GET /api/mf?sort=score` (Silver).
+`GET /api/mf/scores?codes=&symbols=&group=&category=&plan=&status=&sort=&limit=` (`symbols` = NSE ETF symbols, up to 100, redacted like `codes`), `GET /api/mf/scores/categories` (the /funds cards: median, count and green/orange/red counts per sub-category over scored Direct-plan funds; Gold only, `locked` and no numbers below, `runDate` null until the job has run), `GET /api/mf?sort=score` and `GET /api/etf?sort=score` (Gold; 403 below, `private, no-store`). The ETF page shows the same card as the fund page (ETF_LIQUIDITY and ETF_PREMIUM tagged "ETF measure"), the ETF list has a Health score column that asks `/api/mf/scores?symbols=`.
 Measured on synthetic data: 5,120 funds (16 groups, both plans) score in 2.3 s of CPU, peak 219 MB including the synthetic inputs; one process, no threads fighting the web server.
 
 ## Plan gating
 
-Silver and Gold (and admin) see the score. Basic and visitors get a locked answer: no value, no pillar, no breakdown, no rank, no list order (`/api/mf/scores` lists return nothing,
+Gold (and admin) see the score (founder decision: a Gold feature). Basic, Silver and visitors get a locked answer: no value, no pillar, no breakdown, no rank, no list order (`/api/mf/scores` lists return nothing,
 `?codes=` returns null fields, `/api/mf?sort=score` answers 403). Responses are `private, no-store`. Optional open schemes: env `MF_SCORE_SHOWCASE=120465,...` (the site has no fund showcase list, default none).
 
 ## Decisions where the draft is silent (all "designer decision pending confirmation")
@@ -68,3 +68,17 @@ Silver and Gold (and admin) see the score. Basic and visitors get a locked answe
 5. Exit load for ETFs: F (unknown) or 100 (no exit load by construction)?
 6. Fixed-term and interval funds: ACCRUAL is a default only.
 7. Should peers include funds of other houses only, or all houses (now: all)?
+
+## Upgrades (migration 073): history, breakdown, screener, leaderboard, compare, alerts, admin view
+
+All Gold only and server-redacted: below Gold the answer is `locked` with no value, no fund and no order (private, no-store). A Gold answer is kept in Redis for ten minutes AFTER the plan check, under a key made of the query.
+
+- **History.** Table `mf_score_history`: one row per scheme per ISO week (`week` = Monday; the last `score-mf` run of the week replaces the earlier ones, so a re-run is idempotent), written in the same transaction as `mf_scores`. Three-year retention: `prune` (`finlit.mfscore.scorehist.prune`). API: `GET /api/mf/{code}/score/history`, `GET /api/mf/etf/{symbol}/score/history`, `GET /api/mf/scores/history?codes=` (Fund Compare lines). The "what changed since last month" sentence is built from the stored rows (`scorehist.changed_since`): the latest row against the row nearest 28 days before it, never nearer than 21 days.
+- **Breakdown.** `GET /api/mf/{code}/score` now also carries `categoryMedian` (median parts of the category and plan, for the radar) and `whyText` on each measure. Fund page: radar, Data gaps box, NAV history length, peer set size and kind, measure-by-measure table (`src/mf/ScoreBreakdown.tsx`).
+- **Fund score screener** `/fund-score-screener` (card on the Mutual funds page and a link from the method page; not in the sidebar). `GET /api/mf/score-screener` (filters, sort with missing last, paging, `format=csv`, up to 6,000 rows) and `/api/mf/score-screener/facets`. Category leaderboard: `GET /api/mf/leaderboard?sub=&plan=`.
+- **Compare.** Rings, radar overlay, ahead / level / behind per part (level = within 3 points, stated on the page), score lines over time, ETF vs index fund link for index funds.
+- **Alerts.** Table `mf_score_alerts` (`band`: the label changed between two weekly rows; `move`: the score moved N points). `GET/POST/DELETE /api/mf/score-alerts`. `score-mf` fires them after writing the week's rows (at most one message per alert per week), in-app notification plus email when chosen and when the member's alert emails are on. They count against the member's alert cap (Gold 300).
+- **Score chip** (`ScoreChip`) beside fund names in the funds list and the search overlay, from the one batch endpoint `/api/mf/scores?codes=`.
+- **Admin** (`/api/admin/mf-score/health`, `/calibration`; Console, Data health tab): last run, counts by status, histogram per group, measures filled, zero-rule counters, NOT RATED by reason, top missing inputs, peer set sizes, and an INTERNAL descriptive look back by score quintile (needs stored history of at least `months_ago` months; never public, not a forecast).
+- Fixed on the way: the run record's `status` was overwritten by the per-status counts (now `byStatus`), which also made `--max-age-hours` never skip.
+- Speed on 5,120 synthetic funds: scoring about 4 s, rows 1 s, write with history and alerts about 2.3 s in one transaction; peak memory about 225 MB.
