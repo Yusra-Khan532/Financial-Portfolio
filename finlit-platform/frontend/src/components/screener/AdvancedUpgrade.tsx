@@ -2,15 +2,17 @@
 // Nothing here reads the universe, so no Prism value reaches the browser of a plan that does not include it.
 import { Link } from "react-router";
 import { Gate } from "../Gate";
-import { PageArt } from "../PageArt";
 import { Icon } from "../../lib/icons";
 import { useUI } from "../../lib/ui";
+import { LockedPresets } from "./presets/LockedPresets";
 import { MINUS } from "../../lib/format";
 import "../../styles/scorescreen.css";
+import { PageHeader } from "../PageHeader";
+import { FUND_PART_NAME } from "../../lib/prismNames";
 
 const POINTS = [
   "The FinLit Prism score with its rating word for every listed company",
-  "Four fundamental parts, each 0 to 100: Fundamentals, Valuation, Quality, Risk",
+  "Four fundamental parts, each 0 to 100: Growth & Profitability, Valuation, Quality, Risk",
   "Short-term and long-term technical views, from " + MINUS + "100 to +100",
   "Filters, quick views, compare, watchlist and CSV export",
 ];
@@ -28,10 +30,9 @@ export function AdvancedUpgrade() {
   const silver = has("silver");
   return (
     <>
-      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="research" />
-        <div className="eyebrow">Advanced score screener</div><h1>Screen every company with FinLit Prism.</h1>
-        <p>The advanced model for the whole market: the Prism score, its four fundamental parts and two technical views, side by side, with filters, quick views, compare and export. It is part of the Gold plan.{" "}
-          {silver ? <>Your plan includes the <Link to="/score-screener">Basic score screener</Link>, which uses the FinLit score.</> : <>The <Link to="/score-screener">Basic score screener</Link> uses the FinLit score and comes with Silver.</>}</p></div></section>
+      <PageHeader wrap plan="gold" title="Screen every company with FinLit Prism." art="rating" links={["/score-screener", "/screener", { to: "/plans", primary: true, label: "See the Gold plan" }]}
+        description={<>The advanced model for the whole market: the <b>Prism score</b>, its four fundamental parts and two technical views, side by side, with filters, quick views, compare and export. It is part of the Gold plan.{" "}
+          {silver ? <>Your plan includes the <Link to="/score-screener">Basic score screener</Link>, which uses the FinLit score.</> : <>The <Link to="/score-screener">Basic score screener</Link> uses the FinLit score and comes with Silver.</>}</>} />
       <div className="wrap scr-wrap">
         <div className="sx-up">
           <div className="sx-ex-h"><span className="tier gold">Example</span><span className="muted">Sample companies and figures, only to show the layout. Not real data.</span></div>
@@ -39,7 +40,7 @@ export function AdvancedUpgrade() {
             <section className="card sx-ex" aria-label="Example of the advanced score screener">
               <div className="scr-tw"><table className="scr-t ss-t sx-t">
                 <caption className="sr">Example of the advanced score screener with invented companies</caption>
-                <thead><tr><th scope="col">Company</th><th scope="col">Prism</th><th scope="col">Fundamentals</th><th scope="col">Valuation</th><th scope="col">Quality</th><th scope="col">Risk</th><th scope="col">Short-term technical</th><th scope="col">Long-term technical</th></tr></thead>
+                <thead><tr><th scope="col">Company</th><th scope="col">Prism</th><th scope="col">{FUND_PART_NAME}</th><th scope="col">Valuation</th><th scope="col">Quality</th><th scope="col">Risk</th><th scope="col">Short-term technical</th><th scope="col">Long-term technical</th></tr></thead>
                 <tbody>{SAMPLE.map((r) => (
                   <tr key={r.n}>
                     <td className="stick"><span className="co"><span><b>{r.n}</b><small>{r.sector}</small></span></span></td>
@@ -50,6 +51,7 @@ export function AdvancedUpgrade() {
               </table></div>
             </section>
           </Gate>
+          <LockedPresets />
           <section className="card sx-ben">
             <h2>What Gold adds</h2>
             <ul>{POINTS.map((p) => <li key={p}><Icon name="check" /><span>{p}</span></li>)}</ul>

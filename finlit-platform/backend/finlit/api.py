@@ -36,6 +36,7 @@ from .advanced import api as advanced_api
 from . import compare as compare_api
 from . import etf as etf_api
 from . import mf as mf_api
+from .mfscreen import api as mf_screen_api
 from . import mf_insights
 from .mfscore import api as mf_score_api
 from .mfscore import upgrade_api as mf_score_upgrade
@@ -74,6 +75,8 @@ LIMITED_PREFIX = "/api/"   # website files (scripts, styles, images) are not cou
 MAX_BODY = 64 * 1024  # every request body in this API is small JSON
 UPLOAD_PREFIXES = ("/api/content/admin/upload", "/api/portfolio/admin/upload")  # forwarded to the site backend, which caps files at 15 MB
 MAX_UPLOAD_BODY = 16 * 1024 * 1024
+IMPORT_PREFIX = "/api/me/mf-portfolio/import-"   # a member's fund statement, read in the browser and sent as rows (up to 2,000 of them)
+MAX_IMPORT_BODY = 2 * 1024 * 1024
 CACHE_PRIVATE = "private, no-cache"  # the browser keeps a copy but asks (cheap 304) every time, so a new plan shows at once
 
 
@@ -119,7 +122,7 @@ class BodyLimitMiddleware:
         headers = dict(scope["headers"])
         declared = headers.get(b"content-length")
         upload = scope.get("path", "").startswith(UPLOAD_PREFIXES) and headers.get(b"authorization", b"").strip().lower().startswith(b"bearer ")
-        limit = MAX_UPLOAD_BODY if upload else self.limit   # the large allowance only for a request that carries a CMS token
+        limit = MAX_UPLOAD_BODY if upload else MAX_IMPORT_BODY if scope.get("path", "").startswith(IMPORT_PREFIX) and scope["method"] == "POST" else self.limit   # the large allowance only for a request that carries a CMS token, or a member's fund-statement rows (the route needs a signed-in session and rate limits)
         too_big = JSONResponse({"status": "too_large", "detail": "Request is too large."}, status_code=413,
                                headers={"Cache-Control": "no-store"})
         if declared and declared.isdigit() and int(declared) > limit:
@@ -446,6 +449,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         status = await health_status()
         ok = all(status.values())
         body = {"ok": ok, **status} if settings.environment == "development" else {"ok": ok}  # no internals on any deployed site
+        body["version"] = os.getenv("APP_VERSION") or "unknown"  # commit the image was built from (Dockerfile ARG GIT_COMMIT)
         return JSONResponse(body, status_code=200 if ok else 503, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/stocks/search-index")
@@ -647,12 +651,15 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(notify.router)
     app.include_router(screener_api.router)
     app.include_router(screener_qapi.router)
+    app.include_router(__import__("finlit.presets.api", fromlist=["router"]).router)   # /api/screener/presets (Gold)
+    app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
     app.include_router(etf_api.router)
     app.include_router(mf_score_upgrade.router)   # score history, the fund score screener, the leaderboard and score alerts (Gold)
     app.include_router(mf_score_admin.router)   # /api/admin/mf-score/*
     app.include_router(mf_score_api.router)   # /api/mf/scores and /api/mf/{code}/score: before mf_api, whose /api/mf/{code} would otherwise claim /api/mf/scores
+    app.include_router(mf_screen_api.router)   # /api/mf/screen/*: before mf_api, whose /api/mf/{code} would otherwise claim it
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
     app.include_router(search_api.router)
@@ -678,6 +685,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.prism_technical", fromlist=["router"]).router)   # GET /api/technicals/status: public, read-only (when the technical views were last refreshed, and the bar dates held)
     app.include_router(prism.router)   # /api/prism/*: the members' door to the site backend's administrator-only /api/premium-reports
     app.include_router(__import__("finlit.outlook.router", fromlist=["router"]).router)   # /api/outlook/{symbol}: Gold profit and revenue outlook
+    app.include_router(__import__("finlit.mfportfolio.api", fromlist=["router"]).router)   # /api/me/mf-portfolio: My mutual funds (before the site-backend catch-all)
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: My portfolio page, before the site-backend catch-all
     if settings.site_api_url:
         register_catch_all(app, settings.site_api_url)  # last: everything the research API does not own

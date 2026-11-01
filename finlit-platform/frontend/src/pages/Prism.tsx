@@ -3,7 +3,7 @@
 // background: true, then GET /api/prism/jobs) and the page shows the stored rating when it is ready.
 // The research API keeps the signed snapshot; the browser gets a PrismReport and downloads the PDF from the API.
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { Gate } from "../components/Gate";
 import { PrismReportView, ReportSkeleton } from "../components/prism/ReportView";
@@ -19,7 +19,7 @@ import { PremiumHead } from "./Premium";
 import example from "../lib/__fixtures__/prismReport.json";
 
 function Head({ children }: { children?: React.ReactNode }) {
-  return <PremiumHead eyebrow="Gold · Financial health" title={PRISM_NAME}>{children ?? <p>A company's financial health, split into four parts the way a prism splits light. {PRISM_NOTE}</p>}</PremiumHead>;
+  return <PremiumHead title={PRISM_NAME} art="rating" links={["/advanced-score-screener", "/research", "/compare"]}>{children ?? <>A company's <b>financial health</b>, split into four parts the way a prism splits light. {PRISM_NOTE}</>}</PremiumHead>;
 }
 
 function Locked({ symbol }: { symbol?: string }) {
@@ -126,19 +126,18 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
 
 export function PrismPage() {
   const { symbol: raw } = useParams();
-  const [sp, setSp] = useSearchParams();
   const gold = useGold(), { showcase } = useAuth();
   const symbol = cleanSymbol(raw);
-  const statement: Statement = sp.get("statement") === "standalone" ? "standalone" : "consolidated";
+  const statement: Statement = "consolidated";   // FinLit Prism is calculated from consolidated statements only: there is no standalone choice (an old ?statement=standalone link opens the consolidated report)
   if (!raw) return gold ? <Landing /> : <Locked />;
   if (!symbol) return <><Head /><div className="wrap" style={{ paddingBottom: 56 }}><div className="pm-empty"><b>That is not a company symbol.</b><p><Link to="/prism">Search for a company</Link></p></div></div></>;
   if (!gold && !showcase.includes(symbol)) return <Locked symbol={symbol} />;
   return (
     <>
-      <Head><p>{symbol} · {statementWord(statement)} statements. <Link to="/prism">Another company</Link></p></Head>
+      <Head>{symbol} · {statementWord(statement)} statements. <Link to="/prism">Another company</Link></Head>
       <div className="wrap pzr-page" style={{ paddingBottom: 56 }}>
         <CompanyView key={symbol + statement} symbol={symbol} statement={statement}
-          picker={<Picker statement={statement} setStatement={(s) => setSp(s === "standalone" ? { statement: s } : {}, { replace: true })} />} />
+          picker={<Picker statement={statement} />} />
       </div>
     </>
   );

@@ -2,6 +2,7 @@ import { Suspense, useState } from "react";
 import { lazyPage as lazy } from "./lib/resilience";
 import { Navigate, Route, Routes } from "react-router";
 import { Layout } from "./components/Layout";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { AppShell } from "./components/AppShell";
 import { SearchPalette } from "./components/SearchPalette";
 import { Home } from "./pages/Home";
@@ -20,6 +21,7 @@ import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows
 const StockPage = lazy(() => import("./stock/StockPage").then((m) => ({ default: m.StockPage })));
 const Portfolio = lazy(() => import("./pages/Portfolio").then((m) => ({ default: m.Portfolio })));
 const FundScoreScreener = lazy(() => import("./pages/FundScoreScreener").then((m) => ({ default: m.FundScoreScreenerPage })));
+const MfScreener = lazy(() => import("./pages/MfScreener").then((m) => ({ default: m.MfScreenerPage })));
 const MfScoreMethod = lazy(() => import("./pages/MfScoreMethod").then((m) => ({ default: m.MfScoreMethodPage })));
 const Blog = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blog })));
 const BlogPost = lazy(() => import("./pages/Blog").then((m) => ({ default: m.BlogPost })));
@@ -58,6 +60,7 @@ const QuarterResultsPage = lazy(() => import("./pages/QuarterResults").then((m) 
 const NewsPage = lazy(() => import("./pages/News").then((m) => ({ default: m.NewsPage })));
 const DocumentsPage = lazy(() => import("./pages/Documents").then((m) => ({ default: m.DocumentsPage })));
 const AlertsPage = lazy(() => import("./pages/Alerts").then((m) => ({ default: m.AlertsPage })));
+const MfPortfolioPage = lazy(() => import("./pages/MfPortfolio").then((m) => ({ default: m.MfPortfolioPage })));
 const HoldingsPage = lazy(() => import("./pages/Holdings").then((m) => ({ default: m.HoldingsPage })));
 const ForumPage = lazy(() => import("./pages/Forum").then((m) => ({ default: m.ForumPage })));
 const EtfListPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfListPage })));
@@ -76,6 +79,8 @@ const Fallback = () => <div className="wrap state" role="status"><div className=
 export default function App() {
   const [search, setSearch] = useState(false);
   return (
+    <>
+    <UpdateBanner />
     <Suspense fallback={<Fallback />}>
       <Routes>
         <Route element={<Layout />}>
@@ -108,6 +113,7 @@ export default function App() {
             <Route path="fund-score-screener" element={<FundScoreScreener />} />
             <Route path="methodology/mf-score" element={<MfScoreMethod />} />
             <Route path="funds" element={<FundListPage />} />
+            <Route path="funds/screener" element={<MfScreener />} />
             <Route path="funds/compare" element={<FundComparePage />} />
             <Route path="funds/insights" element={<FundInsightsPage />} />
             <Route path="funds/:id" element={<FundDetailPage />} />
@@ -117,6 +123,7 @@ export default function App() {
             <Route path="outlook/:symbol" element={<OutlookPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="holdings" element={<HoldingsPage />} />
+            <Route path="mf-portfolio" element={<MfPortfolioPage />} />
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="forum/*" element={<ForumPage />} />
             <Route path="ipo" element={<IpoPage />} />
@@ -156,5 +163,6 @@ export default function App() {
         </Route>
       </Routes>
     </Suspense>
+    </>
   );
 }

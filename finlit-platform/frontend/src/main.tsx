@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UIProvider } from "./lib/ui";
 import { AuthProvider } from "./lib/auth";
 import { StateSync } from "./lib/sync";
@@ -33,15 +34,23 @@ import "./styles/headerlinks.css";
 import "./styles/design-system.css";
 import { installDemo } from "./lib/demo";
 import { installResilience } from "./lib/resilience";
+// Loaded last so these (sidebar, earnings dialog, opaque overlays) win over the page styles above. Kept apart from the style list so a team change there never collides with it.
+import "./styles/sidebar.css";
+import "./styles/earnings.css";
+import "./styles/overlay.css";
+import { purgeLegacy } from "./lib/persist";
 
 installDemo();
 installResilience();
+// Layout/behaviour flags written by releases before lib/persist.ts (raw, unversioned): drop them so stale values cannot reshape this release.
+purgeLegacy(["finlit-side", "finlit-side-groups", "finlit-dash-open", "finlit-etf-cols-v2", "finlit-mf-cols-v4"], ["finlit.side."]);
 
 const client = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
+      <ErrorBoundary>
       <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <AuthProvider>
           <UIProvider>
@@ -50,6 +59,7 @@ createRoot(document.getElementById("root")!).render(
           </UIProvider>
         </AuthProvider>
       </BrowserRouter>
+      </ErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 );

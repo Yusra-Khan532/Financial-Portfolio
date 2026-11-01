@@ -1,6 +1,7 @@
 // EPS calculator (free): earnings per share and P/E from four inputs, then a future-EPS and price scenario with Bear/Base/Bull cases, a
 // sensitivity grid, year-by-year charts, PEG and the growth a target price needs. All arithmetic lives in lib/epsCalc.ts (pure, tested).
 // A company can be loaded from our stored annual figures (net profit attributable to owners, diluted weighted shares, price); every field stays editable.
+import { PageHeader } from "../components/PageHeader";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -65,14 +66,8 @@ function CompanyLoader({ initial, loaded, onLoad }: { initial: string | null; lo
   const [q, setQ] = useState("");
   const [sym, setSym] = useState<string | null>(initial);
   const sf = useIndexFilter(true), index = sf.idx;   // the same index query the palette makes: no extra request
-  const hits = useMemo(() => {
-    const t = q.trim().toUpperCase();
-    if (!index.data) return [];
-    if (!t) return sf.on ? sf.rows.slice(0, 8) : [];                 // a filter with no text: the largest companies that pass
-    const starts = sf.rows.filter((r) => r[0].startsWith(t) || r[1].toUpperCase().startsWith(t));
-    const has = sf.rows.filter((r) => !starts.includes(r) && r[1].toUpperCase().includes(t));
-    return [...starts, ...has].slice(0, 8);
-  }, [q, index.data, sf.rows, sf.on]);
+  const hits = useMemo(() => sf.search(q, 8), [sf.search, q]);   // name, symbol, BSE/NSE code or ISIN that pass the filter
+
   const summary = useSummary(sym ?? "", !!sym), fin = useSection<Financials>(sym ?? "", "financials", !!sym);
   const busy = !!sym && (summary.isFetching || fin.isFetching) && !(summary.data && fin.data);
   const failed = !!sym && (summary.isError || fin.isError);
@@ -106,7 +101,7 @@ function CompanyLoader({ initial, loaded, onLoad }: { initial: string | null; lo
         <SearchFilters variant="panel" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
       </div>
       {(q.trim() || sf.on) && hits.length > 0 && <ul className="dcf-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><button type="button" onClick={() => { doneFor.current = null; setSym(h[0]); setQ(""); }}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>}
-      {index.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
+      {index.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
       {busy && <p className="muted" aria-live="polite">Loading {sym}…</p>}
       {failed && !busy && <p className="formerr" role="alert">Could not load this company's figures. Enter them by hand.</p>}
       {loaded && !busy && (
@@ -242,8 +237,8 @@ export function EpsCalculatorPage() {
 
   return (
     <>
-      <section className="pagehead"><div className="wrap"><div className="eyebrow">Free tool</div><h1>EPS calculator</h1>
-        <p>Work out earnings per share and the P/E ratio from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</p></div></section>
+      <PageHeader wrap plan="free" title="EPS & P/E calculator" art="calculator" links={["/dcf", "/sip-calculator", "/research"]}
+        description={<>Work out <b>earnings per share and the P/E ratio</b> from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</>} />
       <div className="wrap dcf eps">
         <CompanyLoader initial={sp.get("load") === "1" && form.sym ? form.sym : null} loaded={loaded} onLoad={onLoad} />
 

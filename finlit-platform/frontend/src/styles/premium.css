@@ -263,14 +263,7 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 .pagehead { background: transparent; border-bottom: 1px solid var(--border); }
 
 /* ---- product shell (left navigation): quiet list, not a floating card ---- */
-:root:root .side { border: 1px solid var(--border); border-radius: var(--r-l); box-shadow: none; }
-:root:root .side-i, :root:root .side-toggle, :root:root .side-ic, :root:root .side-plan { border-radius: var(--r-m); }
-:root:root .side-i.on { background: var(--s3); }
-:root:root .side-i.on .side-ic { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
-:root[data-theme="light"]:root .side-i.on .side-ic { background: #1C1A15; color: #FBF8F1; border-color: #1C1A15; }
-:root:root .side-b { border-radius: var(--r-s); }
 :root:root .shell-fab { border-radius: var(--r-m); border-width: 1px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
-@media (max-width: 960px) { :root:root .side { border-radius: 0; } }
 
 /* ---- footer: a real colophon ---- */
 footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
@@ -297,10 +290,11 @@ footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
 .marq div { animation: none !important; width: auto; flex-wrap: wrap; justify-content: center; gap: 8px 32px; font-size: clamp(20px, 2.4vw, 28px); }
 
 /* ---- motion: one-time reveals only ---- */
-.rv { transform: translateY(8px); transition: opacity .4s ease-out var(--d, 0ms), transform .4s ease-out var(--d, 0ms); }
+.rv.rv-pre { transform: translateY(8px); }
+.rv { transition: opacity .4s ease-out var(--d, 0ms), transform .4s ease-out var(--d, 0ms); }
 .live::before, .pm-live.on, .plan.feat, .dial-spin, .float-chip, .typing i { animation: none !important; }
 .skeleton { animation: none !important; background: var(--s2); }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .rv { transform: none; transition: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .rv, .rv.rv-pre { transform: none; transition: none; opacity: 1; } }
 
 /* ---- small screens ---- */
 @media (max-width: 640px) { .card, .feat { padding: 16px; } section.block { padding-block: 48px 0; } h2 { font-size: 28px; } }
@@ -345,3 +339,4 @@ footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
 :root:root .nt-n { color: var(--on-gold); }
 :root[data-theme="light"]:root .nt-n { color: #fff; }
 .sh .no { opacity: 1; }
+

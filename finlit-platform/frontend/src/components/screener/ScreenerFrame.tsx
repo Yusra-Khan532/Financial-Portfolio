@@ -14,6 +14,7 @@ import type { Plan } from "../../lib/ui";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
 import { KpiStrip, SectorBars, TitleCard, Toolbar, type Kpi } from "./PageParts";
 import "../../styles/fgx.css";
+import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
 import type { Screener } from "./useScreener";
 
@@ -36,11 +37,12 @@ type Props = {
   plain: string; how: ReactNode;
   /** The plan badge in the title card. */ tier: Plan;
   /** Columns offered in the "Sort by" list (beside Stock name and Market cap). */ sortChoices: { key: SortKey; label: string }[];
+  /** The header's key figures, quick links and illustration (real data only). */ head?: Pick<PageHeaderProps, "stats" | "links" | "art" | "meta">;
   /** A card drawn beside the sector bars (the donut), only when its numbers are real. */ donut?: ReactNode;
 };
 const KPI_ICONS: Kpi["icon"][] = ["building", "layers", "gauge", "tech"];
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, filters, tiles, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, filters, tiles, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, head }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
   const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
   const [collapsed, setCollapsed] = useState(false), [want, setWant] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });
@@ -61,7 +63,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
   return (
     <>
       <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
-        <TitleCard tier={tier} title={title} sub={intro} onLearn={() => s.setHow(true)} />
+        <TitleCard tier={tier} title={title} sub={intro} onLearn={() => s.setHow(true)} {...head} />
         <KpiStrip items={kpis} active={filterCount} filtersOpen={drawer || !collapsed} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />
         {beforeTable}
         <div className="fgx-two" style={donut ? undefined : { gridTemplateColumns: "minmax(0, 1fr)" }}>
@@ -79,7 +81,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
           {drawer && <div className="sx-back" onClick={() => setDrawer(false)} aria-hidden="true" />}
           <aside className="scr-side card sx-side" aria-label={sideLabel} hidden={sideW === 0 || (collapsed && !drawer)}>
             <button type="button" className="sx-close btn" onClick={() => setDrawer(false)}>Close filters</button>
-            <form onSubmit={(e) => { e.preventDefault(); s.apply(); }} noValidate>
+            <form onSubmit={(e) => { e.preventDefault(); s.apply(s.draft, true); }} onBlurCapture={(e) => { if ((e.target as HTMLElement).matches?.('input[type="number"]') && dirty && !bad) s.apply(); }} noValidate>
               <FgxFocus.Provider value={want}>
               <div className="fgx-top"><span>Filters{filterCount > 0 ? ` · ${filterCount} active` : ""}</span><span className="fgx-tl"><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> How scores work</button></span></div>
               <FilterGroup id="quick" title="Quick views" defaultOpen hint={<>Ready-made score combinations. <ChartHelp id="score-filter" /></>}>{presets}</FilterGroup>
@@ -97,8 +99,8 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
               </FilterGroup>
               {filters}
               </FgxFocus.Provider>
-              <div className="sx-hint" role="status" aria-live="polite">{bad ? "Fix the highlighted ranges to apply." : dirty ? "Unsaved changes. Press Apply filters (or Enter) to update the table." : ""}</div>
-              <div className="ss-actions"><button type="submit" className="btn primary" disabled={bad}>Apply filters</button><button type="button" className="btn" onClick={s.clear}>Clear all</button></div>
+              <div className="sx-hint" role="status" aria-live="polite">{bad ? "Fix the highlighted ranges to apply them." : dirty ? "Updating results…" : filterCount ? "Results are up to date with these filters." : ""}</div>
+              <div className="ss-actions"><button type="submit" className="btn primary" disabled={bad}>{dirty ? "Apply filters" : isLoading ? "Done" : `Show ${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"}`}</button><button type="button" className="btn" onClick={s.clear}>Clear all</button></div>
             </form>
           </aside>
           <SplitDivider width={sideW} set={setSide} />
