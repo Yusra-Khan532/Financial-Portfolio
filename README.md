@@ -1,11 +1,10 @@
 # FinLit Financial Portfolio
 
-Investment-research website with an admin CMS, Stock Fundamentals dashboard and on-demand Premium Company Reports.
+The application and AWS deployment source live in **[finlit-platform/](finlit-platform/)**. Make all application changes there. The retired root-level React app, backend and alternative hosting configurations have been removed.
 
-## Premium model documentation
+- [Platform architecture and local development](finlit-platform/README.md)
+- [AWS deployment runbook](finlit-platform/docs/AWS-DEPLOY.md)
+- [Team workflow and deployments](finlit-platform/docs/TEAM-DEPLOY.md)
+- [Premium model contract](finlit-platform/docs/prism/CONTRACT.md)
 
-- [Implementation, formulas and source-resolution policy](docs/premium-model-implementation.md)
-- [Model inputs, outputs and API contracts](docs/premium-model-input-output.md)
-- [Report lifecycle and deployment](docs/premium-report-lifecycle.md)
-
-The deterministic engine and its parameters live in `backend/premium_engine.py` and `backend/premium_model_config.py`. Reports share the Stock Fundamentals data loader. Generated audit files, report previews and temporary databases are ignored; small regression fixtures under `backend/tests/fixtures` are intentional source-controlled test data.
+Repository-level GitHub Actions and Dependabot configuration live in `.github/` and target `finlit-platform/`. Production settings remain outside the clone at `/opt/finlit/.env.aws`.

@@ -1,0 +1,28 @@
+name: Website
+on:
+  push:
+    branches: [main]
+    paths: ["finlit-platform/frontend/**", ".github/workflows/platform-frontend.yml"]
+  pull_request:
+    paths: ["finlit-platform/frontend/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: finlit-platform/frontend}}
+    steps:
+      - uses: actions/checkout@v5
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v5
+        with: {node-version: "22", cache: npm, cache-dependency-path: finlit-platform/frontend/package-lock.json}
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build
+        env: {VITE_API_BASE: "${{ vars.VITE_API_BASE }}"}
+      - uses: actions/upload-artifact@v4
+        with: {name: site, path: finlit-platform/frontend/dist, retention-days: 7}

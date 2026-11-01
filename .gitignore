@@ -97,3 +97,7 @@ credentials.json
 .credentials
 frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/6.pack
+
+# Ignored local remnants of the retired development app (never deploy these).
+/frontend/build/
+**/.pytest_cache/

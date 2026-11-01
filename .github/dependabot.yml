@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /finlit-platform/backend
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+  - package-ecosystem: pip          # the company site backend (its own pinned versions, its own virtual environment in the image)
+    directory: /finlit-platform/site-api/backend
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm          # the website. xlsx comes from SheetJS's own server (the npm registry copy is old and vulnerable),
+    directory: /finlit-platform/frontend            # so Dependabot cannot update it: check https://cdn.sheetjs.com for new versions by hand.
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: xlsx
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+  - package-ecosystem: docker       # the AWS application image
+    directory: /finlit-platform
+    schedule: {interval: weekly}
+  - package-ecosystem: docker
+    directory: /finlit-platform/backend
+    schedule: {interval: weekly}
