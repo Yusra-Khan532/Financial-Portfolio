@@ -1,9 +1,12 @@
+import { PageHeader } from "../components/PageHeader";
 import { DrawLayer } from "../components/DrawLayer";
+import { ChartInference } from "../components/ChartInference";
+import { chartInference, pFromR } from "../lib/chartInference";
 import { viewId } from "../lib/drawings";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { apiGet, apiSend, ApiError } from "../lib/api";
 import { useIndices } from "../lib/indices";
 import { useAuth, type Plan } from "../lib/auth";
@@ -111,6 +114,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, plan
       const pr = pearson(tfCols[xi], tfCols[yi]);
       body = xi === yi ? <div className="gx-note"><b>Pick two different series for X and Y.</b></div> : xs.length < 2 ? <div className="gx-note"><b>Not enough overlapping periods.</b><span>{pr.why}</span></div> : <>
         <Scatter xs={xs} ys={ys} labels={lb} xl={ok[xi].label} yl={ok[yi].label} xu={units(xi)} yu={units(yi)} r={pr.r} c={c} w={w} />
+        <ChartInference inference={chartInference({ kind: "series", n: pr.n, r: pr.r, p: pFromR(pr.r, pr.n), xName: ok[xi].label, yName: ok[yi].label, who: view.basis === "annual" ? "years" : "periods" })} id="gx-inf" />
         <p className="gx-r">{pr.r != null ? <><b>Pearson r = {pr.r.toFixed(2).replace("-", "−")}</b> ({strength(pr.r)}) over {pr.n} {view.basis === "annual" ? "years" : "periods"}. </> : <>{pr.why} </>}{pr.r != null && pr.n < 6 && "Few points: treat it as a hint. "}{tf === "values" && pr.r != null && Math.abs(pr.r) > 0.8 && "Two rising series correlate even when unrelated; try “Period change”. "}Correlation shows that two measures moved together, not that one causes the other.{align.maxGap > 31 && ` Period ends differ by up to ${align.maxGap} days.`}</p></>;
     } else if (k === "heatmap" && align) {
       const mode = cell.mode ?? (ok.length > 1 ? "corr" : "grid");
@@ -250,9 +254,8 @@ export function GraphStudio() {
 
   return (
     <>
-      <section className="pagehead"><div className="wrap"><div className="eyebrow">Chart builder</div><h1>Graphs, side by side.</h1>
-        <p>Put several graphs next to each other to see patterns and correlation. Choose companies and measures, pick a chart type for each, and keep what you build.</p>
-        <p className="gx-adv"><Link to="/graphs/advanced">Correlation charts</Link>: correlations across listed companies, with tested regression lines.</p></div></section>
+      <PageHeader wrap plan="free" title="Chart builder" art="chart" links={[{ to: "/graphs/advanced", primary: true }, "/compare", "/research"]}
+        description={<>Put several graphs next to each other to see patterns and correlation. Choose <b>companies and measures</b>, pick a chart type for each, and keep what you build.</>} />
       <div className="wrap gx">
         <aside className="gx-panel" aria-label="Choose companies and measures">
           <button className="btn ghost gx-toggle" aria-expanded={panel} onClick={() => setPanel(!panel)}>{panel ? "Hide" : "Choose"} companies and measures</button>
@@ -261,7 +264,7 @@ export function GraphStudio() {
             <div className="gx-chips">{companies.map((s) => <span key={s} className="gx-chip">{name(rows, s)}{isIndexSym(s) && <small> Index</small>}<button aria-label={`Remove ${name(rows, s)}`} onClick={() => removeCompany(s)}>×</button></span>)}</div>
             <div className="gx-search sf-host"><label className="sr" htmlFor="gx-co">Add a company or index</label><input id="gx-co" value={cq} onChange={(e) => setCq(e.target.value)} placeholder={`Add a company or index (${nCo(companies)}/${lim.companies} companies)`} autoComplete="off" />
               <SearchFilters variant="panel" className="sf-inline" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
-              {sf.on && !hits.length && idx.data && <FilterNote filter={sf.filter} q={cq.trim()} onChange={sf.setFilter} />}
+              {sf.on && !hits.length && idx.data && <FilterNote filter={sf.filter} q={cq.trim()} onChange={sf.setFilter} hidden={sf.hidden(cq)} />}
               {hits.length > 0 && <ul role="listbox" aria-label="Companies and indices">{hits.map((r) => <li key={r[0]} role="option" aria-selected={false}><button onClick={() => addCompany(r[0])}>{r[1]} <small>{isIndexSym(r[0]) ? "Index" : r[0]}</small></button></li>)}</ul>}</div>
             <h2>2. Measures</h2>
             <div className="gx-seg" role="tablist" aria-label="How to pick">{([["list", "Choose from list"], ["drag", "Drag & drop"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>

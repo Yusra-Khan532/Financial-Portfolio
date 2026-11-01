@@ -1,6 +1,7 @@
 // DCF calculator (Gold): intrinsic value from a two-stage, ten-year free cash flow model, in the order of the FinLit formula sheet, with the
 // checks and analysis an analyst expects around it. All arithmetic lives in lib/dcf.ts (pure and tested); this page collects inputs, can
 // load a listed company's figures from its stored report (Gold, enforced by the server), and shows every step of the working.
+import { PageHeader } from "../components/PageHeader";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -97,14 +98,8 @@ function CompanyLoader({ enabled, onLoad, loaded, initial }: { enabled: boolean;
   const [sym, setSym] = useState<string | null>(initial);   // opened from a stock page ("Value (DCF)"): that company loads at once
   const [basis, setBasis] = useState<"latest" | "avg3" | "avg5">("latest");
   const sf = useIndexFilter(true), index = sf.idx;   // the same index query the palette makes: no extra request
-  const hits = useMemo(() => {
-    const t = q.trim().toUpperCase();
-    if (!index.data) return [];
-    if (!t) return sf.on ? sf.rows.slice(0, 8) : [];                 // a filter with no text: the largest companies that pass
-    const starts = sf.rows.filter((r) => r[0].startsWith(t) || r[1].toUpperCase().startsWith(t));
-    const has = sf.rows.filter((r) => !starts.includes(r) && r[1].toUpperCase().includes(t));
-    return [...starts, ...has].slice(0, 8);
-  }, [q, index.data, sf.rows, sf.on]);
+  const hits = useMemo(() => sf.search(q, 8), [sf.search, q]);   // name, symbol, BSE/NSE code or ISIN that pass the filter
+
   const company = useQuery<Company, ApiError>({ queryKey: ["dcf-company", sym], queryFn: () => apiGet(`/api/dcf/company/${encodeURIComponent(sym as string)}`), enabled: enabled && !!sym, retry: false, staleTime: 300_000 });
   useEffect(() => { if (company.data && company.data.symbol === sym) onLoad(company.data, basis); }, [company.data]);   // eslint-disable-line react-hooks/exhaustive-deps
   const c = loaded;
@@ -124,7 +119,7 @@ function CompanyLoader({ enabled, onLoad, loaded, initial }: { enabled: boolean;
       </div>
       {(q.trim() || sf.on) && hits.length > 0 && (
         <ul className="dcf-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><button onClick={() => { setSym(h[0]); setQ(""); }}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>)}
-      {index.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
+      {index.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
       {company.isFetching && <p className="muted" aria-live="polite">Loading {sym}…</p>}
       {company.isError && <p className="formerr" role="alert">{(company.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
       {c && !company.isFetching && (
@@ -386,8 +381,8 @@ export function DcfPage() {
 
   return (
     <>
-      <section className="pagehead"><div className="wrap"><div className="eyebrow">Gold tool</div><h1>Fair value calculator</h1>
-        <p>Wish to calculate the intrinsic value of companies with ease? Here's our Discounted Cash Flow (DCF) calculator, so you don't have to break your head over complicated Excel sheets. Every step of the working is shown, with checks that stop impossible assumptions.</p></div></section>
+      <PageHeader wrap plan="gold" title="DCF valuation calculator" art="calculator" links={["/eps-calculator", "/sip-calculator", "/outlook"]}
+        description={<>Estimate a company's <b>intrinsic value</b> from its projected cash flows with a Discounted Cash Flow (DCF) calculator. Every step of the working is shown, with checks that stop impossible assumptions.</>} />
       <div className="wrap dcf">
         <Gate tier="gold" title="DCF calculator" points={["Intrinsic value per share, margin of safety and buy price", "Load any listed company's cash flow, debt and shares", "Sensitivity grids, reverse DCF and bear/base/bull cases", "Save scenarios, share links and export to Excel (CSV)"]}>
           <CompanyLoader enabled={gold && !!user && !DEMO} onLoad={onCompany} loaded={loaded} initial={sp.get("load") === "1" && form.symbol ? form.symbol.toUpperCase() : null} />

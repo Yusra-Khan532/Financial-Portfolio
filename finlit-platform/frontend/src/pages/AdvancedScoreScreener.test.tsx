@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 // The Advanced score screener (FinLit Prism only, Gold) in a DOM: columns, filters, quick views, sorting, CSV, and the upgrade page for every other plan.
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within, configure } from "@testing-library/react";
+configure({ asyncUtilTimeout: 8000 });
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Row } from "../lib/screener";
 
@@ -35,7 +37,7 @@ const DATA: Row[] = [
 ];
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/advanced-score-screener" + qs]}><Routes><Route path="/advanced-score-screener" element={<AdvancedScoreScreener />} /><Route path="*" element={<div>elsewhere</div>} /></Routes><Where /></MemoryRouter>);
+const open = (qs = "") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/advanced-score-screener" + qs]}><Routes><Route path="/advanced-score-screener" element={<AdvancedScoreScreener />} /><Route path="*" element={<div>elsewhere</div>} /></Routes><Where /></MemoryRouter></QueryClientProvider>);
 const loc = () => screen.getByTestId("loc").textContent || "";
 const symbols = () => within(screen.getByRole("table")).getAllByRole("row").slice(2).map((r) => within(r).queryAllByRole("cell")[2]?.querySelector("b")?.textContent).filter(Boolean);
 const rowOf = (s: string) => screen.getByRole("checkbox", { name: `Select ${s}` }).closest("tr")!;
@@ -46,12 +48,28 @@ beforeEach(() => { st.plan = "gold"; st.rows = DATA; st.cover = { rated: 3, prov
 afterEach(cleanup);
 
 describe("Advanced score screener (Gold)", () => {
+  it("ticking a filter updates the rows and every number above the table by itself, and Clear all restores them", async () => {
+    open();
+    const kpi = (l: string) => within(screen.getByLabelText("Summary")).getByText(l).previousSibling?.textContent;
+    expect(kpi("Companies found")).toBe("6"); expect(kpi("Rated by Prism")).toBe("4");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Banks 2" }));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
+    expect(kpi("Companies found")).toBe("2"); expect(kpi("Sectors")).toBe("1"); expect(kpi("Rated by Prism")).toBe("2"); expect(kpi("Active filters")).toBe("1");
+    expect(kpi("Median Prism")).toBe("75.5");
+    expect(screen.getByText("2 companies in this result")).toBeTruthy();
+    expect(screen.getByText("0 of 2 companies in this result are not rated yet.")).toBeTruthy();
+    expect(screen.getByLabelText("Sector mix of the result").textContent).toMatch(/Banks/);
+    fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(kpi("Companies found")).toBe("6"));
+    expect(kpi("Active filters")).toBe("0");
+  });
+
   it("shows the Prism score with its word, the four parts and the two technical views in the site's words, and nothing of the FinLit score", () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
     const h = heads();
-    expect(h).toEqual(expect.arrayContaining(["Prism", "Fundamentals", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
-    expect(h.join("|")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
+    expect(h).toEqual(expect.arrayContaining(["Prism", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
+    expect(h.join("|").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
     const r = rowOf("AAA").textContent!;
     expect(r).toMatch(/85\s*Strong/); expect(r).toMatch(/Strongly positive\+55/); expect(r).toMatch(/Positive\+30/);
     expect(rowOf("BBB").textContent).toMatch(/Neutral\+5/); expect(rowOf("BBB").textContent).toMatch(/Negative−35/);
@@ -97,7 +115,7 @@ describe("Advanced score screener (Gold)", () => {
     expect(symbols()).toEqual(["AAA"]);
     expect(loc()).toBe("/advanced-score-screener?zvmin=50&zrmin=65");
     expect(screen.getByRole("button", { name: "Remove filter Prism Valuation: 50 or more" })).toBeTruthy();
-    for (const p of ["Fundamentals", "Quality"]) expect(screen.getByRole("group", { name: `Prism ${p} score, exact range` })).toBeTruthy();
+    for (const p of ["Growth & Profitability", "Quality"]) expect(screen.getByRole("group", { name: `Prism ${p} score, exact range` })).toBeTruthy();
   });
 
   it("filters each technical view by Positive, Neutral or Negative, using the Prism card's bands", () => {
@@ -118,7 +136,7 @@ describe("Advanced score screener (Gold)", () => {
 
   it("offers four quick views built from the Prism parts only, each applying at once and switching off again", () => {
     open();
-    const views = screen.getAllByRole("button", { name: /^(Prism strong and lower risk|Strong fundamentals at a fair valuation|Positive on both technical views|Fundamentals strong but valuation weak)$/ });
+    const views = screen.getAllByRole("button", { name: /^(Prism strong and lower risk|Strong Growth & Profitability at a fair valuation|Positive on both technical views|Growth & Profitability strong but valuation weak)$/ });
     expect(views).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Prism strong and lower risk" }));
     expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?zmin=80&zrmin=65&rated=1");
@@ -126,8 +144,8 @@ describe("Advanced score screener (Gold)", () => {
     expect(symbols()).toHaveLength(6); expect(loc()).toBe("/advanced-score-screener");
     fireEvent.click(screen.getByRole("button", { name: "Positive on both technical views" }));
     expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?st=pos&lt=pos");
-    fireEvent.click(screen.getByRole("button", { name: "Fundamentals strong but valuation weak" }));
-    expect(symbols()).toEqual(["BBB"]);                                        // Fundamentals 66 or more and Valuation 40 (50 or less)
+    fireEvent.click(screen.getByRole("button", { name: "Growth & Profitability strong but valuation weak" }));
+    expect(symbols()).toEqual(["BBB"]);                                        // Growth & Profitability 66 or more and Valuation 40 (50 or less)
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
   });
 
@@ -171,7 +189,7 @@ describe("Advanced score screener (Gold)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Export all 6/ }));
     const text = await new Promise<string>((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.readAsText(blob!); });
     expect(text).toMatch(/Prism ratings as of: 2026-10-27/);
-    expect(text).toContain("Symbol,Name,Sector,Size,Price (Rs),Market cap (Rs Cr),Prism,Prism label,Prism status,Prism Fundamentals,Prism Valuation,Prism Quality,Prism Risk,Technical short term,Technical short term score,Technical long term,Technical long term score,Prism rated on");
+    expect(text).toContain("Symbol,Name,Sector,Size,Price (Rs),Market cap (Rs Cr),Prism,Prism label,Prism status,Prism Growth & Profitability,Prism Valuation,Prism Quality,Prism Risk,Technical short term,Technical short term score,Technical long term,Technical long term score,Prism rated on");
     expect(text).toContain("AAA,AAA Limited,Banks,Large cap,100,9000,85,Strong,RATED,85,55,70,70,Strongly positive,55,Positive,30,2026-10-27");
     expect(text).toContain("EEE,EEE Limited,Auto,Large cap,100,5000,,,,,,,,,,,,");
     expect(text).not.toMatch(/Overall|Balance sheet|\bBuy\b|\bHold\b/);

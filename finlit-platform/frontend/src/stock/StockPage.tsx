@@ -20,6 +20,7 @@ import { DiscussionLink } from "../components/DiscussionLink";
 import { BusinessSection, DividendsSection, MethodSection, OwnershipSection } from "./Sections2";
 import { useLeadership } from "../lib/leadership";
 import { LeadershipSection } from "./Leadership";
+import { EarningsCallSection } from "./EarningsCall";
 import { PlansBand } from "../pages/Plans";
 import { useDocTitle } from "../lib/title";
 import { navFor } from "../lib/sectionNav";
@@ -136,10 +137,11 @@ export function StockPage() {
         <ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary>
         <PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} />
         <ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary>
+        <ErrorBoundary section="This section"><EarningsCallSection symbol={symbol} name={s.profile.name} /></ErrorBoundary>
         <ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary>
         <ErrorBoundary section="This section"><TrendsSection f={fin} seg={seg} e={events} r={ratios} /></ErrorBoundary>
         <ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} /></ErrorBoundary>
+        <ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary>
         <ErrorBoundary section="This section"><OwnershipSection o={own} /></ErrorBoundary>
         <ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary>
         <ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} seg={seg} tech={tech} /></ErrorBoundary>

@@ -757,6 +757,9 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     p_rm = sub.add_parser("rebuild-metrics", help="recompute every screener filter value from stored snapshots (no provider calls)")
     p_rm.add_argument("--only-missing", action="store_true")
     sub.add_parser("refresh-indices", help="download NIFTY index constituent lists for the screener")
+    p_ec = sub.add_parser("refresh-earnings-calls", help="nightly: find the latest earnings-call transcripts of the largest companies, extract their text and answer the fixed questions with the language model (docs/EARNINGS-CALLS.md; needs GEMINI_API_KEY)")
+    p_ec.add_argument("--max-calls", type=int, default=None, help="summarise at most this many calls in this run")
+    sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
     p_ld.add_argument("--as-of", default=None, help="YYYY-MM-DD: the Friday to compute (default: the latest)")
@@ -809,6 +812,8 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     p_sc.add_argument("--symbols", nargs="*", default=None, help="AMFI scheme codes or ETF symbols: the whole universe is scored (peer medians need it) but only these are written")
     p_sc.add_argument("--limit", type=int, default=None, help="testing only: score just the first N schemes and N ETFs (their peer sets are then not the real ones); never removes other rows")
     p_sc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_ms = sub.add_parser("refresh-mf-screen", help="nightly, after refresh-facts / refresh-industry / refresh-portfolios: the Mutual Fund Screener's figures (volatility, worst month, downside capture, ranks in category, exit load, portfolio and category-flow summaries, theme tags) from tables already held; one transaction, idempotent, no network (finlit/mfscreen); recorded at /api/mf/status (run:refresh-mf-screen)")
+    p_ms.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_bf = sub.add_parser("backfill-mf", help="one-off, resumable: 5 years of NAV history from AMFI, one fund house at a time (run once after the first refresh-mf)")
     p_bf.add_argument("--amc", default="all", help="AMFI fund house id or name, or all")
     p_bf.add_argument("--force", action="store_true")
@@ -823,6 +828,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     p_fl.add_argument("--full", action="store_true", help="reload the full FPI history, month by month (the first run does this by itself)")
     p_fl.add_argument("--only", nargs="*", default=None, help="steps: fii dii nse oi nifty")
     p_fl.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_bd = sub.add_parser("backfill-dii", help="resumable: fill earlier days of DII flows from NSDL's own DII date form (insert-only, strictly validated); stops where NSDL has nothing older")
+    p_bd.add_argument("--from", dest="start", default="2025-04-01", help="oldest day to try (YYYY-MM-DD)")
+    p_bd.add_argument("--to", dest="end", default=None, help="newest day to try (default: the day before NSDL's first known DII report)")
+    p_bd.add_argument("--max-requests", type=int, default=150)
     p_sw = sub.add_parser("switch-get", help="print 1 or 0 for an admin switch (loads: unreadable database = 0, paused); no migration, no other output")
     p_sw.add_argument("name", choices=["loads", "loads-explicit", "web"])   # loads-explicit: paused only when an admin switched it off (an unreadable database does not pause the light results jobs)
     p_sv = sub.add_parser("supervise", help="the job supervisor (finlit/jobs, docs/JOBS.md): decides what is due, runs it within the machine's limits, retries failures; runs for ever, or --once for one pass")
@@ -944,6 +953,14 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                                                "failed": [k for k, v in result["steps"].items() if v["status"] == "failed"]})
             print(result)
             return 0 if result["status"] in ("ok", "partial") else 1
+        if args.cmd == "backfill-dii":
+            from datetime import date as _date
+            from . import flows
+            from .mf import record_run
+            result = await flows.backfill_dii(store, _date.fromisoformat(args.start), _date.fromisoformat(args.end) if args.end else None, max_requests=args.max_requests, settings=settings)
+            await record_run(store, args.cmd, {"status": "ok", **{k: result[k] for k in ("asked", "saved", "floorFound")}})
+            print(result)
+            return 0
         if args.cmd == "refresh-industry":
             from . import mf_insights
             from .mf import last_run_age_hours, record_run
@@ -1073,6 +1090,23 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                                                **{k: [str(x)[:60] for x in v[:4]] + ([f"+{len(v) - 4} more"] if len(v) > 4 else []) for k, v in result.items() if isinstance(v, list) and v}})
             print(result)
             return 0 if result.get("status") in ("ok", "partial", "skipped") else 1   # partial = some instruments failed but good rows were kept; skipped = nothing to do (no ETF price source set up); a refused or empty answer stops the boot chain
+        if args.cmd == "refresh-mf-screen":
+            await _step_aside(store)
+            from .mf import last_run_age_hours, record_run
+            from .mfscreen import job as screen_job
+            if args.max_age_hours:
+                age, last = await last_run_age_hours(store, args.cmd)
+                if age is not None and last == "ok" and age < args.max_age_hours:
+                    print({"status": "skipped", "reason": f"ran {age:.1f} hours ago ({last})"})
+                    return 0
+            try:
+                result = await screen_job.run(store, settings)
+            except Exception as exc:
+                await record_run(store, args.cmd, {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"[:300]})
+                raise
+            await record_run(store, args.cmd, result)
+            print(json.dumps(result, default=str)[:3000])
+            return 0 if result.get("status") in ("ok", "skipped") else 1
         if args.cmd == "score-mf":
             await _step_aside(store)   # a visitor waiting for a report comes first (this job is one long CPU-bound pass)
             from .mf import last_run_age_hours, record_run
@@ -1134,6 +1168,19 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     return 0
             print(await leadership.run(store, settings, as_of=as_of, backfill_from=_date.fromisoformat(args.backfill_from) if args.backfill_from else None))
             return 0
+        if args.cmd == "refresh-earnings-calls":
+            from .earnings import service as earnings_service
+            from .earnings.config import MAX_CALLS_PER_RUN
+            from .mf import record_run
+            res = await earnings_service.run(store, settings, max_calls=args.max_calls or MAX_CALLS_PER_RUN)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "refresh-presets":
+            from .presets import service as preset_service
+            res = await preset_service.refresh_presets(store)
+            print(json.dumps(res, default=str)[:3000])
+            return 0 if not res["failed"] else 1
         if args.cmd in ("rebuild-metrics", "refresh-indices"):
             from .screener import jobs
             if args.cmd == "rebuild-metrics":
