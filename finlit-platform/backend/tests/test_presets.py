@@ -64,6 +64,25 @@ def test_registry_shape_names_and_rules():
 
 
 # ---------------------------------------------------------------------------------------------------------------- maths
+def test_no_banned_word_in_any_visible_text_of_any_screen():
+    # every string a card, chip or ranking note can show, not only the name and the card text (a "not a sell list" note slipped through once)
+    import dataclasses
+
+    def texts(o):
+        if isinstance(o, str):
+            yield o
+        elif dataclasses.is_dataclass(o) and not isinstance(o, type):
+            for f in dataclasses.fields(o):
+                yield from texts(getattr(o, f.name))
+        elif isinstance(o, (tuple, list)):
+            for v in o:
+                yield from texts(v)
+    for p in ALL:
+        shown = " ".join(t for t in texts(p) if t != p.ql and not t.startswith(("ql_", "coalesce"))).lower()
+        for w in BANNED_WORDS:
+            assert not re.search(rf"\b{w}\b", shown), (p.id, w)
+
+
 def test_percentiles_ties_and_missing():
     assert derive.pct_ranks([10, 20, 30, None]) == [0.0, 0.5, 1.0, None]
     assert derive.pct_ranks([5, 5, 9]) == [0.25, 0.25, 1.0]
@@ -184,6 +203,31 @@ def test_top_sector_cap_is_three_per_label_and_ties_go_to_quality_then_prism():
     body = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
     same = [r["symbol"] for r in body["rows"] if r["symbol"] in {x["symbol"] for x in rows[:6]}]
     assert len(same) == 3 and len(body["rows"]) == 10
+
+
+def test_sector_spellings_merge_for_the_filter_the_cap_and_the_table_without_touching_the_row():
+    rows = uni()
+    for r, sec in zip(rows[:6], ["Oil, Gas & Consumable Fuels", "Oil Gas & Consumable Fuels", "oil gas and consumable fuels ", "Oil, Gas & Consumable Fuels", "OIL GAS & CONSUMABLE FUELS", "Oil, Gas & Consumable Fuels"]):
+        r["sector"] = sec
+    raw = [r["sector"] for r in rows[:6]]
+    t = Table(rows, {}, {})
+    assert len({t.sector[i] for i in range(6)}) == 1 and t.sector[0] == "Oil, Gas & Consumable Fuels" and [r["sector"] for r in rows[:6]] == raw
+    assert dict(t.sectors)["Oil, Gas & Consumable Fuels"] == 6 and sum(1 for n, _ in t.sectors if "oil" in n.lower()) == 1
+    assert len(t.match({}, {"sector": ["Oil Gas & Consumable Fuels"]})) == 6
+    prism = with_prism(rows)
+    for i, r in enumerate(rows[:6]):
+        prism[r["symbol"]] = pz(final=95 - i)
+    body = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
+    assert len([r for r in body["rows"] if r["symbol"] in {x["symbol"] for x in rows[:6]}]) == 3
+
+
+def test_rows_carry_the_exchange_from_the_company_record_and_none_when_it_is_not_known():
+    rows = uni()
+    prism = with_prism(rows)
+    got = engine.run(frame(rows, prism, listed={rows[0]["symbol"]: "NSE", rows[1]["symbol"]: "BSE"}), BY_ID["highest-rated-large"])
+    ex = {r["symbol"]: r["exchange"] for r in got["rows"]}
+    assert ex.get(rows[0]["symbol"], "NSE") == "NSE" and ex.get(rows[1]["symbol"], "BSE") == "BSE" and set(ex.values()) <= {"NSE", "BSE", None}
+    assert all(r["exchange"] is None for r in engine.run(frame(rows, prism), BY_ID["highest-rated-large"])["rows"])
 
 
 def test_a_short_top_list_is_filled_with_names_that_fail_only_the_trend_or_52_week_gate_and_badged():
