@@ -19,7 +19,9 @@ import { isinMap } from "../lib/searchFilters";
 import { plFlags } from "../lib/plFlags";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartInference } from "../components/ChartInference";
-import { chartInference, type Inference, type InfMarker } from "../lib/chartInference";
+import { CorrInsight } from "../components/CorrInsight";
+import { generateInsight, metricCfg, type Insight as CorrIns } from "../lib/corrInsight";
+import type { Inference } from "../lib/chartInference";
 import { useWidth } from "../components/GraphCharts";
 import { AdvScatter, type ScMark, type ScFit, type ScPt, type ScSeries } from "../components/AdvScatter";
 import {
@@ -289,16 +291,18 @@ function errText(e: ApiError | null): string {
   return e.body.detail || "The chart could not be loaded. Please try again.";
 }
 
-function statsInput(stats: Stats | null) {
-  const lin = !stats?.space || (stats.space.x !== "log" && stats.space.y !== "log");
-  return { n: stats?.n ?? 0, r: stats?.pearson?.r, p: stats?.pearson?.p, rho: stats?.spearman?.rho, lineDrawn: !!stats && stats.decision.line !== "none" && !!stats.line,
-    fit: lin && stats?.ols && stats.ols.slope != null && stats.ols.intercept != null ? { slope: stats.ols.slope, intercept: stats.ols.intercept } : null };
+/** The rule-based reading for any of the three views (lib/corrInsight): `selected` is empty for a company's own history or time series. */
+function insightOf(a: { xLabel: string; yLabel: string; points: { s: string; x: number; y: number }[]; selected?: { s: string; name: string; x: number | null; y: number | null; why: string | null }[]; stats: Stats | null; outside?: number | null; period: string | null; who: string; fx: (v: number) => string; fy: (v: number) => string }): CorrIns {
+  return generateInsight({ x: metricCfg(a.xLabel), y: metricCfg(a.yLabel), points: a.points, selected: a.selected ?? [], rho: a.stats?.spearman?.rho ?? null, p: a.stats?.spearman?.p ?? null,
+    outside: a.outside ?? 0, period: a.period, who: a.who, fx: a.fx, fy: a.fy, yGrowth: /growth|cagr/i.test(a.yLabel) });
 }
-function StatsPanel({ stats, sentence, method, extra, inference }: { stats: Stats | null; sentence: string; method?: string; extra?: ReactNode; inference?: Inference }) {
+const periodOf = (fys: string[]) => { const u = [...new Set(fys)].sort(); return u.length === 0 ? null : u.length === 1 ? u[0] : `${u[0]} to ${u[u.length - 1]}`; };
+
+function StatsPanel({ stats, sentence, method, extra, inference, insight }: { stats: Stats | null; sentence: string; method?: string; extra?: ReactNode; inference?: Inference; insight?: CorrIns }) {
   const R = stats ? rounded(stats) : null;
   const ci = (v: [number, number] | null | undefined, f: (n: number) => string) => (v ? `${f(v[0])} to ${f(v[1])}` : "—");
   return <div className="adv-stats">
-    {inference && <ChartInference inference={inference} />}
+    {insight ? <CorrInsight insight={insight} /> : inference && <ChartInference inference={inference} />}
     <p className="adv-sentence">{sentence}</p>
     {stats && R && <details className="adv-allstats"><summary>All statistics</summary>
       <table><tbody>
@@ -353,16 +357,17 @@ function CrossView({ cat, pair, xId, yId, st, set, scale, table, lim, plan, upgr
   const sentence = r ? advSentence(r.stats, { kind: "cross", who: "companies", x: { short: shortOf(r.x, mx), unit: ux! }, y: { short: shortOf(r.y, my), unit: uy! }, left, total: r.universeTotal, fy: r.fyBreakdown, builtAt: r.tableBuiltAt, indices: ixm.length > 0 }) : "";
   const xs = (r?.x.scale ?? scale.x) as Scale, ys = (r?.y.scale ?? scale.y) as Scale;
   const fx = (v: number) => fmtUnit(v, ux, mx?.digits), fy = (v: number) => fmtUnit(v, uy, my?.digits);
-  const topWhy = r ? [...r.excluded].sort((a, b) => b.count - a.count)[0] : undefined;
-  const infMarkers: InfMarker[] = r ? [...series.map((s) => ({ name: s.name, x: s.pts[0].x, y: s.pts[0].y })), ...marks.map((m) => ({ name: m.label, x: m.x, y: m.y }))] : [];
-  const inference = r ? chartInference({ kind: "cross", ...statsInput(r.stats), xName: shortOf(r.x, mx), yName: shortOf(r.y, my), who: "companies", left, total: r.universeTotal,
-    leftReason: topWhy ? topWhy.text.replace(/^./, (c) => c.toLowerCase()).replace(/[.\s]+$/, "") : null, outside: r.view?.outside, allShown: st.all, markers: infMarkers, cloud: r.points }) : null;
+  const insight = r ? insightOf({ xLabel: shortOf(r.x, mx), yLabel: shortOf(r.y, my), points: r.points.map((p) => ({ s: p.s, x: p.x, y: p.y })), stats: r.stats, outside: st.all ? 0 : r.view?.outside ?? 0, period: periodOf(r.fyBreakdown.map((f) => f.fy)), who: "companies", fx, fy,
+    selected: st.companies.map((c) => { const h = r.highlights.find((x) => x.s === c); const valid = !!h && h.x != null && h.y != null && (h.status === "included" || h.status === "outside");
+      return { s: c, name: h?.name || c, x: valid ? h!.x : null, y: valid ? h!.y : null, why: valid ? null : h?.reasonText ?? (h ? statusText(h.status) : null) }; }) }) : null;
   const lenderMsg = r?.lenders && r.lenders.count > 0 && r.lenders.mode === "excluded" ? `${r.lenders.count.toLocaleString("en-IN")} banks and lenders left out: ${r.lenders.forced ? "these ratios do not apply to lenders" : "as chosen in the filters"}.` : null;
 
   return <>
     {r?.sample && <p className="adv-banner bi">Demo preview: sample companies with made-up figures (marked “Sample”), not real data. The statistics are computed from them with the same formulas as the live site.</p>}
     {lenderMsg && <p className="adv-banner bi">{lenderMsg}</p>}
     {r?.preset && <p className="adv-banner bi">Filtered to {r.preset.label}.</p>}
+    <Companies st={st} set={set} lim={lim} plan={plan} upgrade={upgrade} status={r?.highlights ?? []} mode="cross" />
+    <IndexPicker cat={cat} st={st} set={set} markers={ixm} />
     <div ref={ref} className="adv-body" aria-busy={q.isFetching}><DrawLayer id={"adv:" + viewId(JSON.stringify([section, body, scale, st.all]))} enabled={!!r && r.n > 0 && !table && w > 0}>
       {q.isPending ? <div className="adv-state" role="status">Working out the chart…</div>
         : q.isError ? <div className="adv-state" role="alert"><b>{errText(q.error)}</b>{q.error.status === 403 && <button className="btn primary" onClick={() => upgrade((q.error.body.plan as Plan) || nextPlan(plan), title)}>See plans</button>}</div>
@@ -378,10 +383,8 @@ function CrossView({ cat, pair, xId, yId, st, set, scale, table, lim, plan, upgr
           {ixm.some((m) => !m.drawn) && <ul className="adv-ixmiss">{ixm.filter((m) => !m.drawn).map((m) => <li key={m.code}><b>{m.label}</b>: not drawn — {m.why}</li>)}</ul>}
         </> : null}
     </DrawLayer></div>
-    <Companies st={st} set={set} lim={lim} plan={plan} upgrade={upgrade} status={r?.highlights ?? []} mode="cross" />
-    <IndexPicker cat={cat} st={st} set={set} markers={ixm} />
     {!r && q.isPending && <ChartInference inference={null} />}
-    {r && <StatsPanel stats={r.stats} sentence={sentence} method={r.method} inference={inference!} extra={<>
+    {r && <StatsPanel stats={r.stats} sentence={sentence} method={r.method} insight={insight!} extra={<>
       <ExcludedList items={r.excluded} total={r.universeTotal} />
       {r.coverage && <p className="adv-cov faint">{r.coverage.withReport.toLocaleString("en-IN")} companies with a stored report out of {r.coverage.listed.toLocaleString("en-IN")} listed, mostly the largest.{r.tableBuiltAt ? ` Table built ${fmtWhen(r.tableBuiltAt)}.` : ""}</p>}
       {[...new Set(r.notes)].length > 0 && <ul className="adv-notes">{[...new Set(r.notes)].filter((t) => t !== pair?.mechanical).map((t) => <li key={t}>{t}</li>)}</ul>}
@@ -534,6 +537,7 @@ function HistoryView({ cat, pair, xId, yId, st, set, table, lim, plan, upgrade, 
   const total = cos.reduce((s, c) => s + c.points.length, 0);
   return <>
     {r?.sample && <p className="adv-banner bi">Demo preview: sample figures, not real data.</p>}
+    <Companies st={st} set={set} lim={lim} plan={plan} upgrade={upgrade} status={r?.companies.map((c) => ({ s: c.s, name: c.name, status: c.status })) ?? []} mode="history" />
     <div ref={ref} className="adv-body"><DrawLayer id={"adv:" + viewId(JSON.stringify([section, pair?.id ?? [xId, yId], "history", st.companies]))} enabled={!!r && total > 0 && !table && w > 0}>
       {!st.companies.length ? <div className="adv-state">Add a company below to see its own years on this chart (one point per financial year).</div>
         : q.isPending ? <div className="adv-state" role="status">Working out the chart…</div>
@@ -544,10 +548,9 @@ function HistoryView({ cat, pair, xId, yId, st, set, table, lim, plan, upgrade, 
               summary={`Scatter of ${r.y.label} against ${r.x.label} by financial year for ${cos.map((c) => `${c.name || c.s} (${c.n} years)`).join(", ")}. ${cos.map((c) => `${c.name || c.s}: ${c.stats ? c.stats.decision.text : "no statistics"}`).join(" ")}`} />
             <Legend fits={fits} /></>) : null}
     </DrawLayer></div>
-    <Companies st={st} set={set} lim={lim} plan={plan} upgrade={upgrade} status={r?.companies.map((c) => ({ s: c.s, name: c.name, status: c.status })) ?? []} mode="history" />
     {r && cos.map((c) => <div key={c.s} className="adv-co-stats">
       <h4><svg width="14" height="14" aria-hidden="true" style={{ color: COLORS[st.companies.indexOf(c.s) % COLORS.length] }}><path d={shapeIcon(st.companies.indexOf(c.s))} /></svg> {c.name || c.s}</h4>
-      {c.status !== "ok" ? <p>— {statusText(c.status)}</p> : <StatsPanel stats={c.stats} inference={chartInference({ kind: "history", ...statsInput(c.stats), xName: shortOf(r.x, mx), yName: shortOf(r.y, my), who: "financial years" })} sentence={advSentence(c.stats, { kind: "history", who: `financial years of ${c.name || c.s}`, x: { short: shortOf(r.x, mx), unit: ux! }, y: { short: shortOf(r.y, my), unit: uy! } })}
+      {c.status !== "ok" ? <p>— {statusText(c.status)}</p> : <StatsPanel stats={c.stats} insight={insightOf({ xLabel: shortOf(r.x, mx), yLabel: shortOf(r.y, my), points: c.points.map((q) => ({ s: q.fy, x: q.x, y: q.y })), stats: c.stats, period: periodOf(c.points.map((q) => q.fy)), who: "financial years", fx, fy })} sentence={advSentence(c.stats, { kind: "history", who: `financial years of ${c.name || c.s}`, x: { short: shortOf(r.x, mx), unit: ux! }, y: { short: shortOf(r.y, my), unit: uy! } })}
         extra={c.missing.length > 0 ? <details className="adv-excl"><summary>{c.missing.length} year value{c.missing.length === 1 ? "" : "s"} missing: why</summary><ul>{c.missing.map((m, i) => <li key={i}><b>{m.fy}</b> <span className="faint">({m.axis === "x" ? "across" : "up"})</span> — {m.text}</li>)}</ul></details> : null} />}
     </div>)}
     {r && <><ul className="adv-notes">{[...new Set(r.notes)].map((t) => <li key={t}>{t}</li>)}</ul><Caveats list={r.caveats} />
@@ -582,6 +585,7 @@ function TechView({ cat, pair, st, set, table, plan, upgrade }: { cat: Catalog; 
     {kind === "beta" && ixList.length > 0 && <label className="adv-field">Market index for the market return
       <select value={bix ?? ""} onChange={(e) => set({ indices: e.target.value ? [e.target.value] : [] })}><option value="">{ixList.find((x) => x.code === "NIF50")?.label ?? "Default index"}{ixList.some((x) => x.code === "NIF50") ? " (default)" : ""}</option>{ixList.filter((x) => x.code !== "NIF50").map((x) => <option key={x.code} value={x.code}>{x.label}</option>)}</select></label>}
     {r?.sample && <p className="adv-banner bi">Demo preview: sample prices, not real data.</p>}
+    <Companies st={st} set={set} lim={1} plan={plan} upgrade={upgrade} status={r ? [{ s: r.symbol, name: r.name, status: "included" }] : []} mode="tech" single />
     <div ref={ref} className="adv-body"><DrawLayer id={"adv:" + viewId(JSON.stringify([pair.id, "tech", sym, h, bix]))} enabled={!!r && r.n > 0 && !table && w > 0}>
       {!sym ? <div className="adv-state">Choose a company below: this chart follows one company over time, from its stored daily closes.</div>
         : q.isPending ? <div className="adv-state" role="status">Working out the chart…</div>
@@ -590,8 +594,7 @@ function TechView({ cat, pair, st, set, table, plan, upgrade }: { cat: Catalog; 
           : table ? <PointsTable head={["Signal date", r.x.label, r.y.label]} rows={r.points.map((p) => [p.d, fx(p.x), fy(p.y)])} caption={`${r.name}: ${r.x.label} and ${r.y.label}`} />
           : <><AdvScatter cloud={cloud} series={[]} fits={fits} sx="lin" sy="lin" xLabel={r.x.label} yLabel={r.y.label} fmtX={fx} fmtY={fy} tickX={(v) => tickUnit(v, ux)} tickY={(v) => tickUnit(v, uy)} all={st.all} w={w} summary={ariaSummary(r.stats, r.x.label, r.y.label, r.n, "windows")} /><Legend fits={fits} /></>) : null}
     </DrawLayer></div>
-    <Companies st={st} set={set} lim={1} plan={plan} upgrade={upgrade} status={r ? [{ s: r.symbol, name: r.name, status: "included" }] : []} mode="tech" single />
-    {r && <StatsPanel stats={r.stats} inference={chartInference({ kind: "tech", ...statsInput(r.stats), xName: r.x.label, yName: r.y.label, who: kind === "beta" ? "weeks" : "windows", outside: null })} sentence={advSentence(r.stats, { kind: "tech", who: `${kind === "beta" ? "weeks" : "non-overlapping windows"} of ${r.name}`, x: { short: r.x.label, unit: r.x.unit }, y: { short: r.y.label, unit: r.y.unit }, builtAt: null })}
+    {r && <StatsPanel stats={r.stats} insight={insightOf({ xLabel: r.x.label, yLabel: r.y.label, points: r.points.map((q) => ({ s: q.d, x: q.x, y: q.y })), stats: r.stats, period: r.asOf ? `data to ${r.asOf}` : null, who: kind === "beta" ? "weeks" : "windows", fx, fy })} sentence={advSentence(r.stats, { kind: "tech", who: `${kind === "beta" ? "weeks" : "non-overlapping windows"} of ${r.name}`, x: { short: r.x.label, unit: r.x.unit }, y: { short: r.y.label, unit: r.y.unit }, builtAt: null })}
       extra={<><ExcludedList items={r.excluded} /><p className="faint adv-cov">{r.grid}{r.asOf ? `. Prices up to ${r.asOf}.` : ""}</p><ul className="adv-notes">{[...new Set(r.notes)].map((t) => <li key={t}>{t}</li>)}</ul><Caveats list={r.caveats} />
         <ExportBtn plan={plan} upgrade={upgrade} body={{ mode: "tech", symbol: r.symbol, kind, ...(h ? { h } : {}), ...(bix ? { market: bix } : {}) }} demo={() => ["date,x,y,included,reason", ...r.points.map((p) => `${p.d},${p.x},${p.y},yes,`)].join("\n")} name={`${pair.id}-${r.symbol}`} /></>} />}
     {!r && <Caveats list={[]} />}
