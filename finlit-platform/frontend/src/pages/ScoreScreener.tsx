@@ -21,7 +21,7 @@ export function ScoreScreener() {
   return <Basic />;
 }
 
-const RANGES: [RangeKey, string][] = [["f", "Growth & Profitability score"], ["t", "Technical score"], ["o", "Overall score"]];
+const RANGES: [RangeKey, string][] = [["q", "Quality score"], ["g", "Growth score"], ["p", "Profitability score"], ["b", "Balance sheet score"]];   // the four pillars: tick one, then set the lowest and highest value
 
 function Basic() {
   useDocTitle("Basic score screener", "Every listed company with its FinLit IQ, the basic model: filter, sort, compare and export by size, sector and score.");
@@ -58,12 +58,14 @@ function Basic() {
         <div className="sx-pg" role="group" aria-label="Top 10 by size"><small className="sx-pgh">Top 10 by FinLit IQ</small>
           {TOP_PRESETS.map((p) => <QuickRow key={p.id} label={<>{locked && <Icon name="lock" />} {p.label}</>} on={topPreset === p.id} title={p.say} onClick={() => useTop(p.id)} />)}</div>
         <div className="sx-pg" role="group" aria-label="Ready-made screens in the Advanced screener"><small className="sx-pgh">Ready-made screens (Advanced, Gold)</small>
-          {READY_MADE.map((r) => <Link key={r.id} className="sx-ready" to={`/advanced-score-screener?preset=${r.id}`} title={r.say}>{!s.gold && <Icon name="lock" />}<span>{r.label}</span><Icon name="arrow" /></Link>)}</div>
+          {READY_MADE.map((r) => locked
+            ? <button key={r.id} type="button" className="sx-ready is-locked" title={r.say} onClick={() => upgrade("silver", "Ready-made screens come with the Silver plan.")}><Icon name="lock" /><span>{r.label}</span><Icon name="arrow" /></button>
+            : <Link key={r.id} className="sx-ready" to={`/advanced-score-screener?preset=${r.id}`} title={r.say}><span>{r.label}</span><Icon name="arrow" /></Link>)}</div>
         {PRESETS.map((p) => <QuickRow key={p.id} label={<>{locked && <Icon name="lock" />} {p.label}</>} on={preset === p.id} title={p.say} onClick={() => usePreset(p.id)} />)}
       </div>}
       filters={locked ? (
         <FilterGroup id="score" title="Score filters" defaultOpen>
-          <div className="scr-lock"><b><Icon name="lock" /> Score filters are part of Silver</b><span>See and filter by Growth & Profitability, Technical and Overall scores.</span>
+          <div className="scr-lock"><b><Icon name="lock" /> Score filters are part of Silver</b><span>See and filter by the Quality, Growth, Profitability and Balance sheet scores.</span>
             <button type="button" className="btn primary" onClick={() => upgrade("silver", "Score filters come with the Silver plan.")}>Unlock with Silver</button></div>
         </FilterGroup>
       ) : (<>
