@@ -1,6 +1,6 @@
 // The screen view: one prebuilt screen as a card (name, card text, match count, as-of date, how it works, its options) with a results table built from the response.
 // Values come from the response only: a missing one is a dash, never zero, and nothing is ranked or recommended here.
-import { titleOf, subOf, codeNote } from "../../../lib/companyLabel";
+import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
@@ -9,7 +9,7 @@ import { cr, dateIN, nf, MINUS } from "../../../lib/format";
 import { useUI } from "../../../lib/ui";
 import { HScroll } from "../../HScroll";
 import {
-  DISCLAIMER, asPct, downloadCsv, nextSortState, presetCsv, rowsForTheme, sortPresetRows, usePresetDetail,
+  DISCLAIMER, PLAN_OF, asPct, downloadCsv, nextSortState, presetCsv, rowsForTheme, sortPresetRows, usePresetDetail,
   type ColFormat, type PresetColumn, type PresetDetail, type PresetRow, type SortState, type Theme,
 } from "../../../lib/presets";
 import type { PresetRoute } from "./usePresetRoute";
@@ -17,7 +17,7 @@ import "../../../styles/presets.css";
 
 const STATE_WORD: Record<Theme["state"], string> = { in_play: "In play", emerging: "Emerging", fading: "Fading", closest: "Closest to qualifying" };
 const signed = (v: number, d = 1) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d);
-const BADGE_TONE: Record<string, string> = { "prism-confirmed": "good", provisional: "warn", "loss-making": "warn", "closest to qualifying": "info" };
+const BADGE_TONE: Record<string, string> = { "prism-confirmed": "good", provisional: "warn", "loss-making": "warn", "closest to qualifying": "info", "trend not confirmed": "warn", "not rated by prism": "plain" };
 export const Badge = ({ text }: { text: string }) => <span className={"psx-b psx-b-" + (BADGE_TONE[text.trim().toLowerCase()] ?? "plain")}>{text}</span>;
 
 /** One table cell in its column's format. A missing value is a dash. */
@@ -38,15 +38,16 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
   return (
     <div className="psx-themes" role="group" aria-label="Themes. Choose one to show only its leaders.">
       {themes.map((t) => {
-        const b50 = asPct(t.b50), pressed = on === t.industry;
+        const breadth = asPct(t.breadth), market = asPct(t.marketBreadth ?? null), pressed = on === t.industry;
         return (
           <button key={t.industry} type="button" className={"psx-th" + (pressed ? " is-on" : "")} aria-pressed={pressed} onClick={() => onPick(t.industry)}>
             <span className="psx-thh"><b>{t.industry}</b><span className={"psx-st psx-st-" + t.state}>{STATE_WORD[t.state] ?? t.state}</span></span>
             <span className="psx-thm">
-              <span title="Share of the industry's companies above their 50-day average"><small>B50</small><b>{b50 == null ? MINUS : nf(b50, 0) + "%"}</b></span>
-              <span title="3-month return of the industry against the market, in percentage points"><small>RS3</small><b>{t.rs3 == null ? MINUS : signed(t.rs3) + " pts"}</b></span>
+              <span title="Share of the sector's companies within 15% of their 52-week high"><small>Near the high</small><b>{breadth == null ? MINUS : nf(breadth, 0) + "%"}</b>{market != null && <small>market {nf(market, 0)}%</small>}</span>
+              <span title="3-month return of the sector against the market, in percentage points"><small>3M vs market</small><b>{t.rs3 == null ? MINUS : signed(t.rs3) + " pts"}</b></span>
               <span><small>Members</small><b>{t.members == null ? MINUS : nf(t.members, 0)}</b></span>
             </span>
+            {t.reason && <span className="psx-thr">{t.reason}</span>}
           </button>);
       })}
     </div>);
@@ -63,7 +64,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
       <tbody>{rows.map((r, i) => (
         <tr key={r.symbol}>
           <td className="psx-n">{i + 1}</td>
-          <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</Link>
+          <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
         </tr>))}
@@ -76,11 +77,11 @@ function Misses({ d }: { d: PresetDetail }) {
   const list = (d.closestMisses ?? []).slice(0, 5);
   return (
     <div className="psx-empty">
-      <p className="psx-eh" role="status">No company meets every rule today.</p>
+      <p className="psx-eh" role="status">{d.emptyText || "No company meets every rule today."}</p>
       {list.length > 0 && <>
         <h3>The {list.length === 1 ? "company" : `${list.length} companies`} closest to qualifying</h3>
         <ol className="psx-miss">{list.map((m) => (
-          <li key={m.symbol}><span className="psx-mh"><Link to={`/stocks/${encodeURIComponent(m.symbol)}`}><b title={codeNote(m)}>{titleOf(m)}</b></Link>{subOf(m) && <small>{subOf(m)}</small>}<Badge text="Closest to qualifying" /></span>
+          <li key={m.symbol}><span className="psx-mh"><Link to={`/stocks/${encodeURIComponent(m.symbol)}`}><b title={codeNote(m)}>{titleOf(m)}</b></Link>{subOf(m) && <small>{subOf(m)}</small>}{exchangeTag(m) && <small className="psx-ex">{exchangeTag(m)}</small>}<Badge text="Closest to qualifying" /></span>
             <span className="psx-mr">{m.failed.length > 1 ? "Rules missed" : "Rule missed"}: {m.failed.join("; ")}</span></li>))}
         </ol></>}
     </div>);
@@ -102,17 +103,19 @@ const Disclaimer = ({ text }: { text?: string }) => <p className="psx-disc" role
 export function ScreenView({ route }: { route: PresetRoute }) {
   const { id, preset, chips, list } = route;
   const { has, upgrade } = useUI();
+  const plan = PLAN_OF[route.tab], planName = plan === "gold" ? "Gold" : "Silver";
   const listReady = list.isSuccess || list.isError;
   const unknown = list.isSuccess && !preset;
   const blocked = preset?.status === "blocked", lockedList = !!preset?.locked;
   const q = usePresetDetail(id, chips, listReady && !unknown && !blocked && !lockedList);
   const d = q.data, err = q.error;
-  const [theme, setTheme] = useState<string | null>(null), [sort, setSortState] = useState<SortState>(null);
+  const [theme, setTheme] = useState<string | null>(null), [nseOnly, setNseOnly] = useState(false), [sort, setSortState] = useState<SortState>(null);
   const setSort = (k: string, first: 1 | -1) => setSortState((s) => nextSortState(s, k, first));
   const themes = d?.themes ?? [];
   const activeTheme = themes.find((t) => t.industry === theme) ?? null;
   const cols = useMemo(() => (d?.columns ?? []).filter((c) => !["symbol", "name", "stock", "badges"].includes(c.key)), [d]);
-  const rows = useMemo(() => sortPresetRows(rowsForTheme(d?.rows ?? [], activeTheme), sort), [d, activeTheme, sort]);
+  const bseCount = useMemo(() => (d?.rows ?? []).filter(isBseOnly).length, [d]);
+  const rows = useMemo(() => sortPresetRows(rowsForTheme(d?.rows ?? [], activeTheme), sort).filter((r) => !nseOnly || !isBseOnly(r)), [d, activeTheme, sort, nseOnly]);
   const name = d?.name ?? preset?.name ?? id ?? "";
 
   if (unknown) return (
@@ -121,8 +124,8 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   if (preset && blocked) return (
     <Frame route={route} name={preset.name} cardText={preset.cardText}><div className="psx-state"><h2>Coming soon</h2><p>{preset.blockedReason || "Coming soon: this screen needs data we do not hold yet."}</p></div><Disclaimer /></Frame>);
   if (lockedList || (err instanceof ApiError && err.status === 403)) return (
-    <Frame route={route} name={name} cardText={preset?.cardText}><div className="psx-state psx-lock"><h2><Icon name="lock" /> This screen is part of Gold</h2><p>{preset?.cardText ?? "Prebuilt screens narrow the whole market with ready-made rules."} Upgrade to see which companies it finds today.</p>
-      <button type="button" className="btn primary" onClick={() => upgrade("gold", "Prebuilt screens are part of Gold.")}>Unlock with Gold <Icon name="arrow" /></button></div><Disclaimer /></Frame>);
+    <Frame route={route} name={name} cardText={preset?.cardText}><div className="psx-state psx-lock"><h2><Icon name="lock" /> This screen is part of {planName}</h2><p>{preset?.cardText ?? "Prebuilt screens narrow the whole market with ready-made rules."} Upgrade to see which companies it finds today.</p>
+      <button type="button" className="btn primary" onClick={() => upgrade(plan, `Prebuilt screens on this page are part of ${planName}.`)}>Unlock with {planName} <Icon name="arrow" /></button></div><Disclaimer /></Frame>);
   if (err instanceof ApiError && err.status === 404) return (
     <section className="psx-screen card" aria-label="Prebuilt screen not found"><div className="psx-state"><h2>We could not find that screen</h2><p>There is no prebuilt screen called “{id}”. Pick one from the list, or go back to the filters.</p>
       <button type="button" className="btn primary" onClick={route.clear}>Clear screen</button></div></section>);
@@ -134,11 +137,11 @@ export function ScreenView({ route }: { route: PresetRoute }) {
     if (!d) return;
     if (!has("silver")) { upgrade("silver", "CSV export comes with the Silver plan."); return; }
     const labels = Object.fromEntries((preset?.chips ?? []).map((c) => [c.id, c.label]));
-    downloadCsv(presetCsv(d, rows, { chips, chipLabels: labels, sort, exportedOn: new Date().toISOString().slice(0, 10), theme: activeTheme?.industry }), `finlit-screen-${id}-${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadCsv(presetCsv(d, rows, { chips, chipLabels: labels, sort, exportedOn: new Date().toISOString().slice(0, 10), theme: activeTheme?.industry, tab: route.tab }), `finlit-screen-${id}-${new Date().toISOString().slice(0, 10)}.csv`);
   };
   const meta = d ? (
-    <p className="psx-meta"><b>{nf(d.count, 0)} match</b>{d.shown !== d.count && <span>showing {nf(d.shown, 0)}</span>}{d.asOf && <span>as of {dateIN(d.asOf)}</span>}</p>
-  ) : preset ? <p className="psx-meta">{preset.count != null && <b>{nf(preset.count, 0)} match</b>}{preset.asOf && <span>as of {dateIN(preset.asOf)}</span>}</p> : null;
+    <p className="psx-meta"><b>{d.listText || `${nf(d.count, 0)} match`}</b>{!d.listText && d.shown !== d.count && <span>showing {nf(d.shown, 0)}</span>}{d.asOf && <span>as of {dateIN(d.asOf)}</span>}</p>
+  ) : preset ? <p className="psx-meta">{preset.count != null && <b>{preset.listText || `${nf(preset.count, 0)} match`}</b>}{preset.asOf && <span>as of {dateIN(preset.asOf)}</span>}</p> : null;
   const how = d?.howItWorks?.length ? d.howItWorks : preset?.howItWorks ?? [];
   return (
     <Frame route={route} name={name} cardText={d?.cardText ?? preset?.cardText} meta={meta}
@@ -155,6 +158,14 @@ export function ScreenView({ route }: { route: PresetRoute }) {
               </div>);
           })}
         </div>)}
+      {bseCount > 0 && (
+        <div className="psx-chips" role="group" aria-label="Exchange">
+          <div className="psx-chipw">
+            <button type="button" className={"fgx-chip psx-chip" + (nseOnly ? " is-on" : "")} aria-pressed={nseOnly} aria-describedby="psx-cd-nse" onClick={() => setNseOnly((v) => !v)}>{nseOnly && <i aria-hidden="true">&#10003;</i>}NSE-listed only</button>
+            <small id="psx-cd-nse">Leaves out the {bseCount} {bseCount === 1 ? "company" : "companies"} listed only on the BSE.</small>
+          </div>
+        </div>)}
+      {!!d?.notes?.length && <div className="psx-notes" role="note">{d.notes.map((n) => <p key={n}>{n}</p>)}</div>}
       {themes.length > 0 && <ThemeCards themes={themes} on={theme} onPick={(i) => setTheme((t) => (t === i ? null : i))} />}
       <div className={"psx-res" + (q.isFetching && d ? " is-busy" : "")} aria-busy={q.isFetching}>
         {!d ? <div className="skeleton" style={{ height: 300 }} role="status" aria-label="Loading the screen" />
@@ -162,9 +173,10 @@ export function ScreenView({ route }: { route: PresetRoute }) {
           : <>
             {activeTheme && <p className="psx-filt" role="status">Showing the leaders of {activeTheme.industry}. <button type="button" className="fgx-link" onClick={() => setTheme(null)}>Show all</button></p>}
             <p className="sr" role="status" aria-live="polite">{rows.length} {rows.length === 1 ? "company" : "companies"} shown.</p>
-            {rows.length ? <Results d={d} cols={cols} rows={rows} sort={sort} setSort={setSort} /> : <p className="psx-filt">No leaders are listed for this theme today.</p>}
+            {rows.length ? <Results d={d} cols={cols} rows={rows} sort={sort} setSort={setSort} /> : <p className="psx-filt">{nseOnly ? "Every company shown for this screen is listed only on the BSE. Switch off NSE-listed only to see them." : "No leaders are listed for this theme today."}</p>}
           </>}
       </div>
+      {d?.rankScoreNote && !!d.rows.length && <p className="psx-notes" role="note">{d.rankScoreNote}</p>}
       <Disclaimer text={d?.disclaimer} />
     </Frame>);
 }
