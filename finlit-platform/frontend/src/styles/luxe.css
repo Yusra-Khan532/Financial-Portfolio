@@ -94,7 +94,7 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
   background: radial-gradient(700px 320px at 85% -10%, color-mix(in srgb, var(--acc) 17%, transparent), transparent 70%), radial-gradient(600px 300px at 0% 110%, color-mix(in srgb, var(--band-a), #fff 28%) 0%, transparent 70%), linear-gradient(165deg, color-mix(in srgb, var(--band-a), #fff 4%), var(--band-b) 72%, color-mix(in srgb, var(--band-b), #000 25%));
   border-bottom: 1px solid color-mix(in srgb, var(--acc) 40%, transparent);
 }
-.hh-hero { margin-top: 18px; border-radius: 28px; box-shadow: 0 30px 60px -40px rgba(10, 25, 17, .8); }
+.hh-hero { margin-top: 18px; border-radius: 0; box-shadow: none; }
 .hh-hero::before, .pagehead::before, .dash-h::before, .sip-hero::before, .fl-hero::before, .mc-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .5; mix-blend-mode: screen;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
 .hh-hero .hh-kicker, .pagehead .eyebrow { color: var(--acc-2); }
@@ -187,7 +187,7 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
   .pagehead, .sip-hero, .fl-hero, .mc-hero { padding: 26px 0 22px !important; min-height: 0 !important; }
   .shell .pagehead, .shell .sip-hero, .shell .fl-hero, .shell .mc-hero { margin: 0 0 12px; border-radius: 18px; }
   .pagehead .pa { display: none; }
-  .hh-hero { padding: 26px 0 28px !important; border-radius: 22px; }
+  .hh-hero { padding: 26px 0 28px !important; border-radius: 0; }
   .hh .tagline { padding: 14px 0; } .hh .tagline p { font-size: 17px !important; }
   .hh-sec, .sec { padding-block: 28px !important; }
   .hh-head { margin-bottom: 18px; } .hh-head::before { font-size: 13px; top: 10px; }
