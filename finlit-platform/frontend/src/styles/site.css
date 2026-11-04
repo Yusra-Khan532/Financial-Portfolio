@@ -151,7 +151,7 @@
 @media (max-width: 560px) { .ai-fab span { display: none; } .ai-fab { width: 52px; padding: 0; justify-content: center; } }
 .ai { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 58; width: min(390px, calc(100% - 24px)); height: min(600px, calc(100dvh - 90px)); display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: var(--s1); border: 1px solid var(--border-strong); box-shadow: 0 40px 90px -20px rgba(0,0,0,.7); }
 .ai header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: linear-gradient(135deg, var(--s3), var(--s2)); border-bottom: 1px solid var(--border); }
-.ai header b { display: block; font-size: 15px; } .ai header span { font-size: 12px; color: var(--muted); } .ai header button { width: 32px; height: 32px; border-radius: 10px; border: 0; background: var(--s1); color: var(--text); font-size: 18px; cursor: pointer; }
+.ai header b { display: block; font: var(--type-heading-04); } .ai header span { font: var(--type-caption); color: var(--muted); } .ai header button { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border-control); background: var(--s1); color: var(--text); font-size: 18px; cursor: pointer; }
 .ai-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .bub { max-width: 88%; padding: 10px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
 .bub.bot { background: var(--s2); border: 1px solid var(--border); border-bottom-left-radius: 4px; align-self: flex-start; }
@@ -162,7 +162,7 @@
 .chips button { border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); padding: 8px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; transition: border-color .15s, background .15s; }
 .chips button:hover { border-color: var(--gold); background: var(--gold-soft); } .chips .back { color: var(--muted); border-style: dashed; }
 .ai form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); } .ai form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 14px var(--sans); }
-.ai form button { width: 42px; border: 0; border-radius: 12px; cursor: pointer; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; } .ai form button:disabled { opacity: .4; cursor: default; }
+.ai form button { width: 44px; height: 44px; flex: none; border: 0; border-radius: 8px; cursor: pointer; background: var(--action-primary); color: var(--action-on-primary); display: grid; place-items: center; } .ai form button:disabled { opacity: .4; cursor: default; }
 .ai-fine { margin: 0; padding: 0 14px 10px; font-size: 11px; color: var(--faint); text-align: center; }
 
 /* footer extras */

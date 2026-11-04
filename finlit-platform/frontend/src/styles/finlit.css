@@ -7,12 +7,13 @@
    Text is a warm off-white (never pure white) on a faintly cool ink, so gold stays the only warm accent.
    Contrast on s1: text 15.4:1, muted 8.8:1, faint 5.9:1 (faint is 5.0:1 on s3), gold 9.8:1, chart colours >= 5.0:1; all pass WCAG AA. */
 :root, :root[data-theme="dark"] {
-  --bg: #0B0C0F; --s1: #121317; --s2: #181A1F; --s3: #21242A;
-  --border: #262930; --border-strong: #3B3F49;
-  --text: #ECEAE4; --muted: #B1B2B8; --faint: #8F919B;
-  --gold: #D9B96C; --gold-2: #EBD59F; --gold-deep: #A8843A; --gold-soft: rgba(217,185,108,.13); --on-gold: #1A1405;
-  --gain: #4FC08C; --loss: #F2878F; --warn: #D9B96C; --info: #9FA6B4;
-  --gain-soft: rgba(79,192,140,.14); --loss-soft: rgba(242,135,143,.14); --info-soft: rgba(159,166,180,.16); --warn-soft: rgba(217,185,108,.14);
+  /* v1.4 semantic aliases: keep existing component CSS on the new palette. */
+  --bg: var(--bg-page); --s1: var(--bg-surface); --s2: var(--bg-subtle); --s3: var(--bg-elevated);
+  --border: var(--border-subtle); --border-strong: var(--border-control);
+  --text: var(--text-primary); --muted: var(--text-secondary); --faint: var(--text-muted);
+  --gold: var(--brand-accent); --gold-2: var(--brand-accent); --gold-deep: var(--brand-navy-deep); --gold-soft: color-mix(in srgb, var(--brand-accent) 14%, transparent); --on-gold: var(--action-on-primary);
+  --gain: var(--financial-positive); --loss: var(--financial-negative); --warn: var(--status-warning); --info: var(--status-info);
+  --gain-soft: var(--financial-positive-bg); --loss-soft: var(--financial-negative-bg); --info-soft: var(--status-info-bg); --warn-soft: var(--status-warning-bg);
   --k1: #4A93F0; --k2: #E5703F; --k3: #22B583; --k4: #E0A21A; --k5: #E0699B; --k6: #58BF6A; --k7: #9C92F0; --k8: #EE7676; --c1: var(--k1); --c2: var(--k2); --c3: var(--k3); --c4: var(--k7); --c5: var(--k5); --p-quality: var(--k1); --p-growth: var(--k3); --p-profit: var(--k2); --p-balance: var(--k7); --p-tech: var(--k5); --line: var(--k1); --area: var(--k1);
   --v-strong: #4FC08C; --v-healthy: #ECEAE4; --v-mixed: #D9B96C; --v-weak: #F2878F;
 
@@ -20,36 +21,36 @@
   /* elevation: a faint top highlight plus a soft drop, never a glow */
   --shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 1px 2px rgba(0,0,0,.4), 0 10px 24px -14px rgba(0,0,0,.65);
   --lift: 0 0 0 1px rgba(255,255,255,.04), 0 18px 44px -12px rgba(0,0,0,.75);
-  --header: #0B0C0F;
+  --header: var(--bg-page);
   --page-glow: none;
-  --focus: #F4EFE3;
-  --pop-bg: #1C1F25; --tape-bg: #08090B;
-  --band-a: #15161B; --band-b: #0B0C0F; --rep-a: #16181D; --rep-b: #0F1013; --rep-border: #343842; --foot-a: #121317; --foot-b: #0B0C0F;
-  --sel: rgba(217,185,108,.30); --zebra: rgba(255,255,255,.022); --row-hover: rgba(217,185,108,.07);
+  --focus: var(--focus-ring);
+  --pop-bg: var(--bg-elevated); --tape-bg: var(--inverse-bg);
+  --band-a: var(--inverse-bg); --band-b: var(--inverse-bg); --rep-a: var(--inverse-bg); --rep-b: var(--inverse-bg); --rep-border: var(--inverse-border); --foot-a: var(--inverse-bg); --foot-b: var(--inverse-bg);
+  --sel: var(--bg-selected); --zebra: color-mix(in srgb, var(--bg-subtle) 35%, transparent); --row-hover: color-mix(in srgb, var(--bg-selected) 45%, transparent);
   color-scheme: dark;
-  --serif: "Newsreader Variable", "Newsreader", Georgia, "Times New Roman", serif;
-  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: "Source Serif 4", "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  --sans: "Inter", "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Inter", "Inter Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 :root[data-theme="light"] {
-  --bg: #F7F3EA; --s1: #FCFAF5; --s2: #EFE9DB; --s3: #E5DDCA;
-  --border: #DBD2BE; --border-strong: #B9AE95;
-  --text: #1C1A15; --muted: #4A463B; --faint: #675F50;
-  --gold: #7A5B16; --gold-2: #C9A24E; --gold-deep: #8A6A25; --gold-soft: rgba(168,132,58,.14); --on-gold: #1A1405;
-  --gain: #1F6B49; --loss: #A12E26; --warn: #7A5B16; --info: #5A5444;
-  --gain-soft: rgba(47,122,88,.10); --loss-soft: rgba(168,57,47,.09); --info-soft: rgba(90,84,68,.10); --warn-soft: rgba(138,106,37,.10);
+  --bg: var(--bg-page); --s1: var(--bg-surface); --s2: var(--bg-subtle); --s3: var(--bg-elevated);
+  --border: var(--border-subtle); --border-strong: var(--border-control);
+  --text: var(--text-primary); --muted: var(--text-secondary); --faint: var(--text-muted);
+  --gold: var(--brand-accent); --gold-2: var(--brand-accent); --gold-deep: var(--brand-navy-deep); --gold-soft: color-mix(in srgb, var(--brand-accent) 14%, transparent); --on-gold: var(--action-on-primary);
+  --gain: var(--financial-positive); --loss: var(--financial-negative); --warn: var(--status-warning); --info: var(--status-info);
+  --gain-soft: var(--financial-positive-bg); --loss-soft: var(--financial-negative-bg); --info-soft: var(--status-info-bg); --warn-soft: var(--status-warning-bg);
   --k1: #2a78d6; --k2: #eb6834; --k3: #1baf7a; --k4: #eda100; --k5: #e87ba4; --k6: #008300; --k7: #6250d6; --k8: #e34948; --c1: var(--k1); --c2: var(--k2); --c3: var(--k3); --c4: var(--k7); --c5: var(--k5); --p-quality: var(--k1); --p-growth: var(--k3); --p-profit: var(--k2); --p-balance: var(--k7); --p-tech: var(--k5); --line: var(--k1); --area: var(--k1);
   --v-strong: #1F6B49; --v-healthy: #2E2A20; --v-mixed: #7A5B16; --v-weak: #A12E26;
 
   --t-basic: #6B6555; --t-silver: #5B6270; --t-gold: #7A5B16;
   --shadow: none;
   --lift: 0 2px 8px rgba(51,46,34,.12);
-  --header: #F7F3EA;
+  --header: var(--bg-page);
   --page-glow: none;
-  --focus: #1C1A15;
-  --pop-bg: #29251C; --tape-bg: #0E0D0A;
-  --band-a: #1B1915; --band-b: #13110D; --rep-a: #211F1A; --rep-b: #17150F; --rep-border: #4A4436; --foot-a: #232018; --foot-b: #191610;
-  --sel: rgba(168,132,58,.28); --zebra: rgba(0,0,0,.02); --row-hover: rgba(138,106,37,.07);
+  --focus: var(--focus-ring);
+  --pop-bg: var(--bg-elevated); --tape-bg: var(--inverse-bg);
+  --band-a: var(--inverse-bg); --band-b: var(--inverse-bg); --rep-a: var(--inverse-bg); --rep-b: var(--inverse-bg); --rep-border: var(--inverse-border); --foot-a: var(--inverse-bg); --foot-b: var(--inverse-bg);
+  --sel: var(--bg-selected); --zebra: color-mix(in srgb, var(--bg-subtle) 35%, transparent); --row-hover: color-mix(in srgb, var(--bg-selected) 45%, transparent);
   color-scheme: light;
 }
 /* Rich bands (hero, plans, footer) keep their own palette in both themes */
@@ -66,10 +67,10 @@
   background: radial-gradient(900px 520px at 88% -8%, color-mix(in srgb, var(--dk-gold, #D4B26A) 20%, transparent), transparent 62%), radial-gradient(800px 620px at -8% 30%, rgba(193,183,161,.18), transparent 60%), radial-gradient(700px 520px at 55% 125%, rgba(193,183,161,.10), transparent 60%), linear-gradient(180deg, var(--band-a, #221E16), var(--band-b, #13110D));
 }
 :root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans {
-  --text: #1C1A15; --muted: #4A463B; --faint: #675F50;
-  --s1: #FCFAF5; --s2: #EFE9DB; --s3: #E5DDCA; --border: #DBD2BE; --border-strong: #B9AE95;
-  --gold: var(--lt-gold, #7A5B16); --gold-2: var(--lt-gold-2, #C9A24E); --gold-deep: var(--lt-gold-deep, #8A6A25); --gold-soft: var(--lt-gold-soft, rgba(168,132,58,.14));
-  --gain: #2F7A58; --loss: #A8392F; --gain-soft: rgba(47,122,88,.10); --loss-soft: rgba(168,57,47,.09);
+  --text: var(--inverse-text-primary); --muted: var(--inverse-text-body); --faint: var(--inverse-text-secondary);
+  --s1: color-mix(in srgb, var(--inverse-bg) 88%, white); --s2: color-mix(in srgb, var(--inverse-bg) 78%, white); --s3: color-mix(in srgb, var(--inverse-bg) 68%, white); --border: var(--inverse-border); --border-strong: var(--inverse-border);
+  --gold: var(--inverse-action-primary); --gold-2: var(--inverse-action-primary); --gold-deep: var(--inverse-action-primary); --gold-soft: color-mix(in srgb, var(--inverse-action-primary) 14%, transparent);
+  --gain: var(--financial-positive); --loss: var(--financial-negative); --gain-soft: var(--financial-positive-bg); --loss-soft: var(--financial-negative-bg);
   --c1: var(--k1); --c2: var(--k2); --c3: var(--k3); --c4: var(--k7); --c5: var(--k5); --p-quality: var(--k1); --p-growth: var(--k3); --p-profit: var(--k2); --p-balance: var(--k7); --p-tech: var(--k5); --line: var(--k1); --area: var(--k1);
   --t-basic: #6B6555; --t-silver: #5B6270; --t-gold: var(--lt-gold, #8A6A25);
   color-scheme: light;
@@ -94,7 +95,14 @@
   background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 56px 56px;
   -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000, transparent 75%); mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000, transparent 75%); }
 * { box-sizing: border-box; }
-html { scroll-padding-top: 128px; -webkit-text-size-adjust: 100%; }
+/* Keep document scrolling intact while removing only the browser viewport bar.
+   Nested overflow containers retain their own scrollbars and controls. */
+html { scroll-padding-top: 128px; -webkit-text-size-adjust: 100%; scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+@media (forced-colors: active) {
+  html { scrollbar-width: auto; }
+  html::-webkit-scrollbar { display: initial; }
+}
 body { margin: 0; color: var(--text); background: var(--page-glow), var(--bg); background-color: var(--bg); font: 15px/1.6 var(--sans); font-variant-numeric: tabular-nums lining-nums; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 .wrap { max-width: 1260px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 button { font: inherit; color: inherit; }
@@ -177,11 +185,13 @@ a { color: inherit; }
 .px-sub { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12.5px; color: var(--faint); white-space: nowrap; }
 .spark-hero { width: 150px; height: 54px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s2); cursor: pointer; font-size: 14px; font-weight: 600; white-space: nowrap; transition: border-color .15s, background-color .15s, transform .15s, box-shadow .15s; text-decoration: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border-strong); background: transparent; color: var(--text); cursor: pointer; font-size: 14px; font-weight: 600; white-space: nowrap; transition: border-color .15s, background-color .15s, transform .15s, box-shadow .15s; text-decoration: none; }
 .btn:hover { border-color: var(--gold); transform: translateY(-1px); }
 .btn svg { width: 17px; height: 17px; }
-.btn.primary { border: 0; color: var(--on-gold); background: linear-gradient(135deg, var(--gold-2), var(--gold) 45%, var(--gold-deep)); box-shadow: 0 10px 26px -12px rgba(212,178,106,.75), inset 0 1px 0 rgba(255,255,255,.5); }
-.btn.primary:hover { box-shadow: 0 14px 30px -12px rgba(212,178,106,.9), inset 0 1px 0 rgba(255,255,255,.5); }
+.btn.primary { border-color: var(--action-primary); color: var(--action-on-primary); background: var(--action-primary); box-shadow: none; }
+.btn.primary:hover { border-color: var(--action-primary-hover); background: var(--action-primary-hover); box-shadow: none; }
+.btn.primary:active { border-color: var(--action-primary-pressed); background: var(--action-primary-pressed); }
+.btn:disabled, .btn[aria-disabled="true"] { background: var(--action-disabled-bg); border-color: var(--action-disabled-bg); color: var(--text-disabled); }
 .btn.on { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); box-shadow: none; }
 .btn.on svg { fill: currentColor; }
 .btn .lk { width: 14px; height: 14px; opacity: .8; }

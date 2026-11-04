@@ -10,7 +10,7 @@ const Rings = ({ k }: { k: string }) => (<g><circle cx="240" cy="170" r="165" fi
 const chip = (x: number, y: number, t: string, c: string, d = 0) => (
   <g className="pa-float" style={{ animationDelay: `${d}ms` }} transform={`translate(${x} ${y})`}>
     <rect x="1" y="3" width={t.length * 6.8 + 34} height="30" rx="15" fill="#000" opacity=".22" />
-    <rect width={t.length * 6.8 + 34} height="30" rx="15" fill="#fff" /><circle cx="15" cy="15" r="5" fill={c} /><text x="28" y="19.5" fontSize="12" fontWeight="600" fill="#14130F" fontFamily="IBM Plex Sans, sans-serif">{t}</text>
+    <rect width={t.length * 6.8 + 34} height="30" rx="15" fill="#fff" /><circle cx="15" cy="15" r="5" fill={c} /><text x="28" y="19.5" fontSize="12" fontWeight="600" fill="#14130F" fontFamily="Inter, sans-serif">{t}</text>
   </g>
 );
 
@@ -34,7 +34,7 @@ const scenes: Record<string, (k: string) => React.ReactNode> = {
   why: (k) => (<>
     <defs><linearGradient id={`fn${k}`} x1="0" x2="1"><stop offset="0" stopColor="var(--c2)" /><stop offset="1" stopColor="var(--gold)" /></linearGradient></defs>
     <Rings k={k} />
-    {[[60, 330, 0, "144 cr"], [92, 270, 1, "39 cr"], [124, 214, 2, "12.5 cr"], [156, 160, 3, "38.5 cr"]].map(([y, w, i, t]) => <g key={t as string} className="pa-rise" style={{ animationDelay: `${(i as number) * 130}ms` }}><rect x={240 - (w as number) / 2} y={(y as number) - 20 + 20} width={w as number} height="26" rx="13" fill={`url(#fn${k})`} opacity={0.32 + (i as number) * 0.18} /><text x="240" y={(y as number) + 38} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--text)" fontFamily="IBM Plex Mono, monospace">{t as string}</text></g>)}
+    {[[60, 330, 0, "144 cr"], [92, 270, 1, "39 cr"], [124, 214, 2, "12.5 cr"], [156, 160, 3, "38.5 cr"]].map(([y, w, i, t]) => <g key={t as string} className="pa-rise" style={{ animationDelay: `${(i as number) * 130}ms` }}><rect x={240 - (w as number) / 2} y={(y as number) - 20 + 20} width={w as number} height="26" rx="13" fill={`url(#fn${k})`} opacity={0.32 + (i as number) * 0.18} /><text x="240" y={(y as number) + 38} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--text)" fontFamily="Inter, sans-serif">{t as string}</text></g>)}
     <path d="M240 232V268" stroke="var(--gold)" strokeWidth="2" strokeDasharray="3 4" /><circle cx="240" cy="276" r="10" fill="var(--gold)" className="pa-pulse" />
     {chip(30, 44, "India's population", "var(--c2)")}{chip(310, 296, "Addressable", "var(--gold)", 700)}
   </>),
@@ -62,8 +62,8 @@ const scenes: Record<string, (k: string) => React.ReactNode> = {
       {[["--p-quality", 56, 104], ["--p-growth", 44, 91], ["--p-profit", 51, 78], ["--p-balance", 75, 65], ["--p-tech", 31, 52]].map(([c, v, r], i) => { const R = r as number, C = 2 * Math.PI * R, len = ((v as number) / 100) * C * 0.75;
         return <g key={c as string} transform="rotate(135)"><circle r={R} fill="none" stroke="var(--s3)" strokeWidth="7" strokeLinecap="round" strokeDasharray={`${C * 0.75} ${C}`} />
           <circle r={R} fill="none" stroke={`var(${c})`} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${len} ${C}`} style={{ animationDelay: `${i * 140}ms` }} /></g>; })}
-      <text y="8" textAnchor="middle" fontSize="38" fontFamily="Newsreader Variable, Newsreader, Georgia, serif" fontWeight="300" fill="var(--text)">51</text>
-      <text y="28" textAnchor="middle" fontSize="8" letterSpacing="1.6" fill="var(--faint)" fontFamily="IBM Plex Sans, sans-serif">FINLIT IQ</text>
+      <text y="8" textAnchor="middle" fontSize="38" fontFamily="Source Serif 4, Georgia, serif" fontWeight="300" fill="var(--text)">51</text>
+      <text y="28" textAnchor="middle" fontSize="8" letterSpacing="1.6" fill="var(--faint)" fontFamily="Inter, sans-serif">FINLIT IQ</text>
     </g>
     {chip(30, 60, "5,700+ stocks", "var(--c3)")}{chip(300, 40, "Updated daily", "var(--gold)", 500)}{chip(318, 292, "5 pillars", "var(--c1)", 900)}
   </>),

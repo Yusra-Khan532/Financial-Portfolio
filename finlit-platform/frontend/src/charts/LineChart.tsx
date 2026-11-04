@@ -36,7 +36,7 @@ export function LineChart({ periods, series, fmt, height = 260, area = false, av
     <div className="lc">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={series.map((s) => s.label).join(", ") + " over time"}>
         <defs>{series.map((s) => <linearGradient key={s.key} id={`${id}-${s.key}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={s.color} stopOpacity=".38" /><stop offset="1" stopColor={s.color} stopOpacity="0" /></linearGradient>)}</defs>
-        {[0, 1, 2, 3, 4].map((k) => { const v = lo + step * k; return <g key={k}><line x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} stroke="var(--border)" strokeDasharray={k ? "3 5" : ""} /><text x={pl - 8} y={Y(v) + 4} textAnchor="end" fontSize="10.5" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(v)}</text></g>; })}
+        {[0, 1, 2, 3, 4].map((k) => { const v = lo + step * k; return <g key={k}><line x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} stroke="var(--border)" strokeDasharray={k ? "3 5" : ""} /><text x={pl - 8} y={Y(v) + 4} textAnchor="end" fontSize="10.5" fill="var(--faint)" fontFamily="Inter, sans-serif">{fmt(v)}</text></g>; })}
         {periods.map((p, i) => ((n - 1 - i) % every === 0) && <text key={p} x={X(i)} y={H - 8} textAnchor="middle" fontSize="10.5" fill="var(--faint)">{p}</text>)}
         {avg != null && <g><line x1={pl} x2={W - pr} y1={Y(avg)} y2={Y(avg)} stroke="var(--c2)" strokeDasharray="6 5" strokeWidth="1.6" /><text x={W - pr} y={Y(avg) - 6} textAnchor="end" fontSize="10.5" fontWeight="600" fill="var(--c2)">{avgLabel.toUpperCase()} {fmt(avg)}</text></g>}
         {series.map((s) => <g key={s.key}>

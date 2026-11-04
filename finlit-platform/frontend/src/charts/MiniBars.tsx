@@ -21,7 +21,7 @@ export function MiniBars({ labels, series, mode = "single", fmt, height = 150, h
   return (
     <div className="mb" onMouseLeave={() => setHv(null)}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${series.map((s) => s.label).join(", ")} by period`}>
-        {ticks.map((t, i) => <g key={i}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="9.5" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
+        {ticks.map((t, i) => <g key={i}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="9.5" fill="var(--faint)" fontFamily="Inter, sans-serif">{fmt(t)}</text></g>)}
         {labels.map((l, i) => {
           const on = hv === i || (hv == null && (highlight == null || highlight === i)) || !dim, op = on ? 1 : 0.38;
           let acc = 0, accN = 0;

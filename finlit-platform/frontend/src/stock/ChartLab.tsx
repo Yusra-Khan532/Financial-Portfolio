@@ -27,7 +27,7 @@ const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math
 const pc = (v: number, d = 1) => (v < 0 ? MINUS : "") + nf(v, d) + "%";
 const sg = (v: number, d = 0) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + "%";
 const row = (t: Table | undefined, k: string) => (t?.rows[k] || []) as N[];
-const C = (n: number) => `var(--c${n})`;
+const C = (n: number) => `var(--chart-${n})`;
 
 function Card({ title, sub, icon = "line", children, full, note, help }: { title: string; sub?: string; icon?: string; children: ReactNode; full?: boolean; note?: ReactNode; help?: string }) {
   return (
@@ -157,8 +157,8 @@ function CfTab({ f }: { f?: Financials }) {
         <Waterfall w={560} steps={steps} fmt={crf} height={250} />
       </Card>
       <Card help="cf-fcf" title="Free cash flow against capex" sub="What is left after investing in the business" icon="growth" full note="Free cash flow is cash from operations minus capital spending. It is the money available for dividends, debt repayment or buybacks.">
-        <MiniBars w={1000} mode="group" labels={cf.periods} fmt={crf} height={210} dim={false} series={[{ key: "fcf", label: "Free cash flow", values: g("free_cash_flow"), color: "var(--k1)" }, { key: "cx", label: "Capex", values: g("capex").map((x) => (x == null ? x : -Math.abs(x))), color: C(4) }]} />
-        <div className="clg"><span><i style={{ background: "var(--k1)" }} />Free cash flow</span><span><i style={{ background: C(4) }} />Capex (spending)</span></div>
+        <MiniBars w={1000} mode="group" labels={cf.periods} fmt={crf} height={210} dim={false} series={[{ key: "fcf", label: "Free cash flow", values: g("free_cash_flow"), color: "var(--chart-1)" }, { key: "cx", label: "Capex", values: g("capex").map((x) => (x == null ? x : -Math.abs(x))), color: C(4) }]} />
+        <div className="clg"><span><i style={{ background: "var(--chart-1)" }} />Free cash flow</span><span><i style={{ background: C(4) }} />Capex (spending)</span></div>
       </Card>
     </div>
   );

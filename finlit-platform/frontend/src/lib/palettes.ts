@@ -51,7 +51,7 @@ export function paletteVars(id: PaletteId, theme: Mode): Record<string, string> 
   const [la, lb, lc] = p.accent.light;
   const v: Record<string, string> = {
     "--gold": a, "--gold-2": b, "--gold-deep": c, "--gold-soft": soft(a, theme === "dark" ? 0.14 : 0.13),
-    "--t-gold": a, // chart colours are a separate fixed categorical set (--k1..--k8) and do not follow the palette
+    "--t-gold": a,
     // the always-dark bands and the always-light hero read these
     "--dk-gold": da, "--dk-gold-2": db, "--dk-gold-deep": dc, "--dk-gold-soft": soft(da, 0.14),
     "--lt-gold": la, "--lt-gold-2": lb, "--lt-gold-deep": lc, "--lt-gold-soft": soft(la, 0.13),
@@ -68,7 +68,11 @@ for (const id of PALETTE_IDS) for (const t of ["dark", "light"] as const) for (c
 /** Paint a palette onto the page. Inline custom properties on <html> beat the stylesheet, so this needs no extra CSS. */
 export function applyPalette(id: PaletteId, theme: Mode, root: HTMLElement = document.documentElement) {
   for (const k of ALL_VARS) root.style.removeProperty(k);
-  for (const [k, val] of Object.entries(paletteVars(id, theme))) root.style.setProperty(k, val);
+  const runtimeVars = paletteVars(id, theme);
+  // Keep the public palette spec/API intact, but prevent custom choices from
+  // overriding v1.4 semantic surfaces, actions, focus, status, or score roles.
+  const decorative = new Set(["--t-gold", "--dk-gold", "--dk-gold-2", "--dk-gold-deep", "--dk-gold-soft", "--lt-gold", "--lt-gold-2", "--lt-gold-deep", "--lt-gold-soft"]);
+  for (const [k, val] of Object.entries(runtimeVars)) if (decorative.has(k)) root.style.setProperty(k, val);
   root.dataset.palette = id;
-  try { localStorage.setItem("finlit-palette-vars", JSON.stringify({ id, theme, vars: paletteVars(id, theme) })); } catch { /* private mode */ } // read by theme-init.js before first paint
+  try { localStorage.setItem("finlit-palette-vars", JSON.stringify({ id, theme, vars: Object.fromEntries(Object.entries(runtimeVars).filter(([k]) => decorative.has(k))) })); } catch { /* private mode */ } // read by theme-init.js before first paint
 }

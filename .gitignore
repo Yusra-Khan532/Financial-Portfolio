@@ -91,9 +91,12 @@ memory/test_credentials.md
 android-sdk/frontend/node_modules/.cache/default-development/9.pack
 .env
 .env.*
+!.env.example
 *.env
 credentials.json
 *.key
+finlit-platform/site-api/.local/
+finlit-platform/site-api/*.log
 .credentials
 frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/6.pack

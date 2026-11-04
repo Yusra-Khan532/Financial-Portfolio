@@ -6,6 +6,7 @@ import { ASSISTANT } from "../content/site";
 import { askAssistant } from "../lib/siteApi";
 import { Icon } from "../lib/icons";
 import { useEnquiry } from "./Enquiry";
+import { useFocusTrap } from "../lib/focusTrap";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -17,6 +18,7 @@ export function Assistant() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const nav = useNavigate();
   const enquire = useEnquiry();
   const loc = useLocation();
@@ -27,6 +29,7 @@ export function Assistant() {
     const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k);
   }, [open]);
+  useFocusTrap(dialogRef, open);
   if (loc.pathname.startsWith("/admin")) return null;
 
   const cur = ASSISTANT[node];
@@ -52,22 +55,22 @@ export function Assistant() {
     <>
       <button className={"ai-fab" + (open ? " hide" : "")} onClick={() => setOpen(true)} aria-label="Open FinLit AI assistant"><Icon name="spark" /><span>Ask FinLit AI</span></button>
       {open && (
-        <section className="ai" role="dialog" aria-label="FinLit AI assistant">
-          <header><div><b>FinLit AI</b><span>Guided help and market concepts</span></div><button onClick={() => setOpen(false)} aria-label="Close">×</button></header>
+        <section ref={dialogRef} className="ai" role="dialog" aria-modal="true" aria-label="FinLit AI assistant" tabIndex={-1}>
+          <header><div><b>FinLit AI</b><span>Guided help and market concepts</span></div><button className="modal-x" type="button" onClick={() => setOpen(false)} aria-label="Close FinLit AI assistant">×</button></header>
           <div className="ai-body">
             <div className="bub bot">{ASSISTANT.main.greeting}</div>
             {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>)}
             {busy && <div className="bub bot typing"><i /><i /><i /></div>}
             {cur.answer && node !== "main" && <div className="bub bot" style={{ whiteSpace: "pre-wrap" }}>{cur.answer}</div>}
             {node === "main" && bank.length > 0 && <div className="chips" aria-label="Questions you can ask about this company">
-              {bank.map((b) => <button key={b.id} onClick={() => sendText(b.text)}>{b.text}</button>)}
+              {bank.map((b) => <button type="button" key={b.id} onClick={() => sendText(b.text)}>{b.text}</button>)}
             </div>}
             {node === "main" && pageFaq && <div className="chips" aria-label={`Questions about ${pageFaq.title}`}>
-              {pageFaq.items.slice(0, 4).map((it) => <button key={it.q} onClick={() => askPage(it.q, it.a)}>{it.q}</button>)}
+              {pageFaq.items.slice(0, 4).map((it) => <button type="button" key={it.q} onClick={() => askPage(it.q, it.a)}>{it.q}</button>)}
             </div>}
             <div className="chips">
-              {[...cur.options, ...(cur.additionalOptions || [])].map((o) => <button key={o.label} onClick={() => run(o.action, o.label)}>{o.label}</button>)}
-              {node !== "main" && <button className="back" onClick={() => setNode("main")}>← {cur.backLabel || "Main menu"}</button>}
+              {[...cur.options, ...(cur.additionalOptions || [])].map((o) => <button type="button" key={o.label} onClick={() => run(o.action, o.label)}>{o.label}</button>)}
+              {node !== "main" && <button type="button" className="back" onClick={() => setNode("main")}>← {cur.backLabel || "Main menu"}</button>}
             </div>
             <div ref={end} />
           </div>
