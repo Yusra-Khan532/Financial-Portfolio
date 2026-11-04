@@ -95,7 +95,14 @@
   background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 56px 56px;
   -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000, transparent 75%); mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000, transparent 75%); }
 * { box-sizing: border-box; }
-html { scroll-padding-top: 128px; -webkit-text-size-adjust: 100%; }
+/* Keep document scrolling intact while removing only the browser viewport bar.
+   Nested overflow containers retain their own scrollbars and controls. */
+html { scroll-padding-top: 128px; -webkit-text-size-adjust: 100%; scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+@media (forced-colors: active) {
+  html { scrollbar-width: auto; }
+  html::-webkit-scrollbar { display: initial; }
+}
 body { margin: 0; color: var(--text); background: var(--page-glow), var(--bg); background-color: var(--bg); font: 15px/1.6 var(--sans); font-variant-numeric: tabular-nums lining-nums; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 .wrap { max-width: 1260px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 button { font: inherit; color: inherit; }
