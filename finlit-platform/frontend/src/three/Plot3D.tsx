@@ -30,7 +30,7 @@ export default function Plot3D({ spec, label }: { spec: Plot3DSpec; label: strin
       const texts: { s: THREE.Sprite; text: string; bold: boolean; faint: boolean }[] = [];
       const paint = (t: (typeof texts)[number], pal: Palette) => {
         const mat = t.s.material as THREE.SpriteMaterial, c = document.createElement("canvas"), g = c.getContext("2d")!;
-        const font = `${t.bold ? 700 : 500} 40px IBM Plex Sans, system-ui, sans-serif`; g.font = font;
+        const font = `${t.bold ? 700 : 500} 40px Inter, system-ui, sans-serif`; g.font = font;
         c.width = Math.ceil(g.measureText(t.text).width) + 20; c.height = 64; g.font = font; g.textBaseline = "middle";
         g.fillStyle = "#" + (t.faint ? pal.ink.clone().lerp(pal.paper, 0.15) : pal.ink).getHexString(); g.fillText(t.text, 10, 34);
         mat.map?.dispose(); mat.map = new THREE.CanvasTexture(c); mat.map.colorSpace = THREE.SRGBColorSpace; mat.needsUpdate = true;

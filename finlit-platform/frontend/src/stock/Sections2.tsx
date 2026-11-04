@@ -47,9 +47,9 @@ function OwnDonut({ items, hl, setHl }: { items: { key: string; label: string; v
             </g>
           );
         })}
-        <text x={C} y={C - 12} textAnchor="middle" fontSize="11" letterSpacing="2" fill="var(--faint)" fontFamily="IBM Plex Sans, sans-serif" fontWeight="600">{cur.label.replace(/\s*\(.*\)/, "").toUpperCase().slice(0, 22)}</text>
-        <text x={C} y={C + 28} textAnchor="middle" fontSize="50" fontFamily="Newsreader Variable, Newsreader, Georgia, serif" fill="var(--text)">{nf(cur.value, 1)}<tspan fontSize="24" fill="var(--muted)">%</tspan></text>
-        <text x={C} y={C + 50} textAnchor="middle" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Sans, sans-serif">of all shares</text>
+        <text x={C} y={C - 12} textAnchor="middle" fontSize="11" letterSpacing="2" fill="var(--faint)" fontFamily="Inter, sans-serif" fontWeight="600">{cur.label.replace(/\s*\(.*\)/, "").toUpperCase().slice(0, 22)}</text>
+        <text x={C} y={C + 28} textAnchor="middle" fontSize="50" fontFamily="Source Serif 4, Georgia, serif" fill="var(--text)">{nf(cur.value, 1)}<tspan fontSize="24" fill="var(--muted)">%</tspan></text>
+        <text x={C} y={C + 50} textAnchor="middle" fontSize="11" fill="var(--faint)" fontFamily="Inter, sans-serif">of all shares</text>
       </svg>
     </div>
   );

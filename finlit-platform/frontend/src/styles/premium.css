@@ -141,10 +141,10 @@
    small radii, no glows, no glass, no looping motion. Loaded after finlit/site/stock2/tools; class names unchanged.
    Scale: 8px grid (4/8/16/24/32/48/64). Radius: 4px chips, 6px controls, 8px panels.
    ===================================================================================================================== */
-:root { --r-s: 4px; --r-m: 6px; --r-l: 8px; --btn-bg: var(--gold); --btn-fg: #1A1405; --btn-hover: var(--gold-2); }
-:root[data-theme="light"] { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
-.band, :root[data-theme="light"] .report, :root[data-theme="light"] .plan, :root[data-theme="light"] .cmp { --btn-bg: #D4B26A; --btn-fg: #1A1405; --btn-hover: #E8D29B; }
-:root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
+:root { --r-s: 4px; --r-m: 6px; --r-l: 8px; --btn-bg: var(--action-primary); --btn-fg: var(--action-on-primary); --btn-hover: var(--action-primary-hover); }
+:root[data-theme="light"] { --btn-bg: var(--action-primary); --btn-fg: var(--action-on-primary); --btn-hover: var(--action-primary-hover); }
+.band, :root[data-theme="light"] .report, :root[data-theme="light"] .plan, :root[data-theme="light"] .cmp { --btn-bg: var(--inverse-action-primary); --btn-fg: var(--inverse-action-on-primary); --btn-hover: var(--inverse-action-primary); }
+:root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans { --btn-bg: var(--inverse-action-primary); --btn-fg: var(--inverse-action-on-primary); --btn-hover: var(--inverse-action-primary); }
 
 /* numbers: tabular + lining everywhere (font shorthands elsewhere reset this) */
 body, body * { font-variant-numeric: tabular-nums lining-nums !important; }
@@ -156,15 +156,16 @@ p, li { text-wrap: pretty; }
 
 /* focus: a clear two-tone ring that works on paper, ink and gold */
 :focus-visible, .ptile:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: 2px; border-radius: var(--r-s); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bg) 90%, transparent); }
-.band :focus-visible, .report :focus-visible, .plan :focus-visible, .cmp :focus-visible { outline-color: #F4EFE3; box-shadow: 0 0 0 4px rgba(0,0,0,.5); }
-:root[data-theme="light"] .band.hero :focus-visible, :root[data-theme="light"] .band.plans :focus-visible { outline-color: #1C1A15; box-shadow: 0 0 0 4px rgba(247,243,234,.9); }
+.band :focus-visible, .report :focus-visible, .plan :focus-visible, .cmp :focus-visible { outline-color: var(--inverse-text-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--inverse-bg) 55%, transparent); }
+:root[data-theme="light"] .band.hero :focus-visible, :root[data-theme="light"] .band.plans :focus-visible { outline-color: var(--inverse-action-on-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--inverse-text-primary) 90%, transparent); }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; }
 ::selection { background: color-mix(in srgb, var(--gold) 35%, transparent); }
 
 /* ---- surfaces: flat, bordered, no glow ---- */
 .band, :root[data-theme="light"] footer.band { background: var(--band-a, #1B1915); }
-:root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans { background: transparent; }
-.band::before, .grid-fade, .aurora, .hero-canvas { display: none !important; }
+:root[data-theme="light"] .band.hero { background: transparent; }
+:root[data-theme="light"] .band.plans { background: var(--inverse-bg); }
+.band::before, .grid-fade, .aurora { display: none !important; }
 .hero { border-bottom: 1px solid var(--border); }
 .report, :root[data-theme="light"] .report { border: 1px solid var(--rep-border, #4A4436); border-radius: var(--r-l); background: var(--rep-a, #211F1A); box-shadow: none; }
 :root[data-theme="light"] .cmp { background: var(--rep-a, #211F1A); }
@@ -266,7 +267,7 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 :root:root .shell-fab { border-radius: var(--r-m); border-width: 1px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 
 /* ---- footer: a real colophon ---- */
-footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
+footer.band { border-top: 1px solid var(--inverse-border); --band-a: var(--inverse-bg); }
 .fcta { padding-block: 48px 40px; border-bottom: 1px solid var(--border); }
 .fcta h2 { font-size: 30px; font-weight: 400; }
 .fcols { gap: 32px 24px; padding: 32px 0; border-top: 0; margin-top: 0; }

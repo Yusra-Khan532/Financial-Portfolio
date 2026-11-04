@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin, type ProxyOptions } from "vite";
+import { defineConfig, loadEnv, type Plugin, type ProxyOptions } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
 
@@ -27,11 +27,24 @@ const proxy: Record<string, ProxyOptions> = {
   "/api": { target: SITE, changeOrigin: true },
 };
 
-export default defineConfig({
-  base: process.env.VITE_BASE || "/",
+export default defineConfig(({ mode }) => {
+  // Load non-secret local proxy settings from .env/.env.local as well as the
+  // shell environment. These values are used by Vite's dev/preview proxy,
+  // never exposed to the browser bundle.
+  const env = loadEnv(mode, process.cwd(), "");
+  const base = process.env.VITE_BASE || env.VITE_BASE || "/";
+  const research = process.env.RESEARCH_API || env.RESEARCH_API || RESEARCH;
+  const site = process.env.SITE_API || env.SITE_API || SITE;
+  const configuredProxy = Object.fromEntries(Object.entries(proxy).map(([route, options]) => [
+    route,
+    { ...options, target: route === "/api" || route === "^/api/stocks/admin" ? site : research },
+  ]));
+  return {
+  base,
   plugins: [react(), versionFile()],
   define: { __APP_VERSION__: JSON.stringify(version), __BUILT_AT__: JSON.stringify(builtAt) },
-  server: { port: 5173, proxy },
-  preview: { port: 4173, proxy },
+  server: { port: 5173, proxy: configuredProxy },
+  preview: { port: 4173, proxy: configuredProxy },
   build: { target: "es2022", sourcemap: "hidden", chunkSizeWarningLimit: 300 },
+  };
 });

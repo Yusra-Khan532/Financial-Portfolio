@@ -23,7 +23,7 @@ const DEFS: Def[] = [
   { key: "roa", label: "Return on assets", group: "Returns", say: "Net profit per ₹100 of everything the company owns." },
   { key: "rota", label: "Return on tangible assets", group: "Returns", say: "Net profit per ₹100 of physical assets, leaving out goodwill and other intangibles." },
 ];
-const LINE_COLORS = ["#4C8DF6", "#E8743B", "#2FB57E", "#B589F0", "#E0B341", "#E25D91", "#7BC4C4"];
+const LINE_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-6)", "var(--chart-4)", "var(--chart-5)", "var(--text-muted)"];
 const monthLabel = (p: string) => (/^FY\d{2}$/.test(p) ? `Mar 20${p.slice(2)}` : p);
 
 const median = (v: number[]) => { const s = [...v].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -67,11 +67,10 @@ function reading(periods: string[], rows: Record<string, Series>): { head: strin
   return { head, lines };
 }
 
-const HI = "37,99,235", LO = "217,84,24";   // blue above the median, orange below it
 function heat(x: number | null, med: number | null, spread: number): React.CSSProperties {
   if (x == null || med == null) return {};
-  const t = Math.min(1, Math.abs(x - med) / spread), rgb = x >= med ? HI : LO;
-  return { background: `rgba(${rgb}, ${0.2 + t * 0.72})`, ...(t > 0.5 ? { color: "#fff" } : {}) };
+  const t = Math.min(1, Math.abs(x - med) / spread), tone = x >= med ? "var(--financial-positive)" : "var(--financial-negative)";
+  return { background: `color-mix(in srgb, ${tone} ${Math.round(20 + t * 72)}%, transparent)`, ...(t > 0.5 ? { color: "var(--action-on-primary)" } : {}) };
 }
 
 function Heat({ periods, rows, defs }: { periods: string[]; rows: Record<string, Series>; defs: Def[] }) {

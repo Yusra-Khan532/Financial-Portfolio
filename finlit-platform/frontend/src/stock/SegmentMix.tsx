@@ -36,7 +36,7 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
   return (
     <div className="mx-chart" ref={box} onMouseLeave={() => setHv(null)}>
       <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={chartSummary(model)}>
-        {ticks.map((t) => <g key={t}><line x1={pl} x2={w - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="10" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
+        {ticks.map((t) => <g key={t}><line x1={pl} x2={w - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="10" fill="var(--faint)" fontFamily="Inter, sans-serif">{fmt(t)}</text></g>)}
         {model.years.map((y, i) => {
           let acc = 0;
           return (

@@ -6,17 +6,17 @@
 :root { --forest: color-mix(in srgb, var(--band-a), #fff 6%); --forest-2: color-mix(in srgb, var(--band-a), #fff 18%); --forest-ink: var(--band-b);
   /* the accent on dark surfaces: follows the chosen appearance (palettes set --dk-gold*) */ --acc: var(--dk-gold, #D9B96C); --acc-2: var(--dk-gold-2, #EBD59F); --acc-deep: var(--dk-gold-deep, #A8843A); --paper-line: rgba(122, 91, 22, .16); --r-card: 18px; --r-ctl: 12px; }
 :root[data-theme="light"] {
-  --bg: #F5F0E4; --s1: #FDFBF6; --s2: #EFE8D7; --s3: #E4DBC6; --border: #DDD3BD; --border-strong: #BCB093;
-  --header: rgba(245, 240, 228, .86);
-  --rep-a: #183024; --rep-b: #0C1812; --rep-border: #38543F; --band-a: #1A3025; --band-b: #0E1A13; --foot-a: #16251D; --foot-b: #09120D; --pop-bg: #1F2A23; --tape-bg: #0B140F;
+  --bg: var(--bg-page); --s1: var(--bg-surface); --s2: var(--bg-subtle); --s3: var(--bg-elevated); --border: var(--border-subtle); --border-strong: var(--border-control);
+  --header: var(--bg-page);
+  --rep-a: var(--inverse-bg); --rep-b: var(--inverse-bg); --rep-border: var(--inverse-border); --band-a: var(--inverse-bg); --band-b: var(--inverse-bg); --foot-a: var(--inverse-bg); --foot-b: var(--inverse-bg); --pop-bg: var(--bg-elevated); --tape-bg: var(--inverse-bg);
   --card-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 1px 2px rgba(60, 45, 15, .07), 0 18px 36px -24px rgba(60, 45, 15, .30);
   --card-shadow-hover: 0 1px 0 rgba(255,255,255,.9) inset, 0 2px 4px rgba(60, 45, 15, .08), 0 26px 44px -22px rgba(60, 45, 15, .38);
   --glow: radial-gradient(900px 380px at 12% -120px, rgba(201, 162, 78, .20), transparent 70%), radial-gradient(800px 360px at 100% -80px, rgba(44, 84, 65, .10), transparent 70%);
 }
 :root:not([data-theme="light"]) {
-  --bg: #0A0D0C; --s1: #111513; --s2: #181D1A; --s3: #212724; --border: #242A27; --border-strong: #3A423E;
-  --header: rgba(10, 13, 12, .84);
-  --rep-a: #14201A; --rep-b: #0B100D; --rep-border: #2F3F35; --band-a: #141F19; --band-b: #090D0B; --foot-a: #101813; --foot-b: #080B09; --pop-bg: #1A231E; --tape-bg: #070A08;
+  --bg: var(--bg-page); --s1: var(--bg-surface); --s2: var(--bg-subtle); --s3: var(--bg-elevated); --border: var(--border-subtle); --border-strong: var(--border-control);
+  --header: var(--bg-page);
+  --rep-a: var(--inverse-bg); --rep-b: var(--inverse-bg); --rep-border: var(--inverse-border); --band-a: var(--inverse-bg); --band-b: var(--inverse-bg); --foot-a: var(--inverse-bg); --foot-b: var(--inverse-bg); --pop-bg: var(--bg-elevated); --tape-bg: var(--inverse-bg);
   --card-shadow: 0 1px 0 rgba(255,255,255,.045) inset, 0 1px 2px rgba(0,0,0,.5), 0 18px 36px -22px rgba(0,0,0,.8);
   --card-shadow-hover: 0 1px 0 rgba(255,255,255,.06) inset, 0 2px 4px rgba(0,0,0,.5), 0 28px 48px -22px rgba(0,0,0,.9);
   --glow: radial-gradient(900px 420px at 12% -140px, rgba(217, 185, 108, .10), transparent 70%), radial-gradient(800px 380px at 100% -100px, rgba(60, 130, 95, .10), transparent 70%);

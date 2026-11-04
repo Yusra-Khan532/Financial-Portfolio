@@ -8,10 +8,12 @@ import { useEnquiry } from "../components/Enquiry";
 import { useSummary, useSearchIndex, type Summary } from "../lib/api";
 import { useDocTitle } from "../lib/title";
 import { nf } from "../lib/format";
+import { changeText } from "../lib/portfolioOverview";
 import { PlansBand } from "./Plans";
 import { PlatformGrid } from "../components/PlatformGrid";
 import { useAuth } from "../lib/auth";
 import { Safe3D } from "../three/Safe3D";
+import { HeroCanvas } from "../components/HeroCanvas";
 import { supports3d, whenIdle } from "../three/support";
 import "../styles/human-home.css";
 
@@ -26,28 +28,40 @@ function use3d(): boolean {
 }
 
 const SAMPLE = "RELIANCE";
-const PILLAR_VAR: Record<string, string> = { quality: "--p-quality", growth: "--p-growth", profitability: "--p-profit", balance: "--p-balance", technical: "--p-tech" };
 const inr = (n: number) => n.toLocaleString("en-IN");
 
 /** A real score card for a real stock, read from the same API the report page uses. */
 function ScoreCard({ s, tower, failed }: { s?: Summary; tower?: boolean; failed?: boolean }) {
-  if (!s && failed) return <div className="hh-card"><p className="muted" style={{ padding: 20 }}>The sample report is not available right now. <Link to={`/stocks/${SAMPLE}`}>Try opening it</Link>.</p></div>;
+  if (!s && failed) return (
+    <div className="hh-card hh-card-unavailable" aria-label="Sample report preview unavailable">
+      <div className="hh-card-top"><span className="hh-stamp">Sample report</span><span className="hh-tk">{SAMPLE}</span></div>
+      <div className="hh-card-name"><b>Reliance Industries Ltd</b><span className="muted">Data unavailable</span></div>
+      <div className="hh-card-score">
+        <svg viewBox="0 0 110 110" role="img" aria-label="Sample report score unavailable">
+          <circle cx="55" cy="55" r="46" fill="none" stroke="var(--s3)" strokeWidth="8" />
+          <text x="55" y="61" textAnchor="middle" className="hh-dial-n">—</text>
+        </svg>
+        <ul className="hh-bars" aria-label="Sample report pillars unavailable">{["Quality", "Growth", "Profitability", "Balance sheet", "Technical"].map((label) => <li className="is-missing" key={label}><span>{label}</span><em>Not available</em><small>Sample data could not be loaded</small></li>)}</ul>
+      </div>
+      <p className="hh-card-foot">The live sample is unavailable right now. <Link to={`/stocks/${SAMPLE}`}>Open the full report →</Link></p>
+    </div>
+  );
   if (!s) return <div className="hh-card" aria-busy="true"><div className="skeleton" style={{ height: 300 }} /></div>;
-  const o = s.score.overall ?? 0, circ = 2 * Math.PI * 46, up = (s.quote.changePct ?? 0) >= 0;
+  const o = s.score.overall, circ = 2 * Math.PI * 46;
   return (
     <Link to={`/stocks/${SAMPLE}`} className="hh-card" aria-label={`Open the full ${s.profile.name} report`}>
       <div className="hh-card-top"><span className="hh-stamp">A real report</span><span className="hh-tk">{s.profile.nse ?? SAMPLE}</span></div>
-      <div className="hh-card-name"><b>{s.profile.name}</b><span className={up ? "up" : "down"}>₹{nf(s.quote.price ?? 0)}{s.quote.changePct != null && <> · {up ? "+" : ""}{s.quote.changePct.toFixed(2)}%</>}</span></div>
+      <div className="hh-card-name"><b>{s.profile.name}</b><span className={s.quote.changePct == null ? "neutral" : s.quote.changePct > 0 ? "up" : s.quote.changePct < 0 ? "down" : "neutral"}>₹{s.quote.price == null ? "—" : nf(s.quote.price)}{s.quote.changePct != null && <> · {changeText(s.quote.changePct)}</>}</span></div>
       <div className="hh-card-score">
-        <svg viewBox="0 0 110 110" role="img" aria-label={`FinLit IQ ${o} out of 100`}>
+        <svg viewBox="0 0 110 110" role="img" aria-label={o == null ? "FinLit IQ not available" : `FinLit IQ ${o} out of 100`}>
           <circle cx="55" cy="55" r="46" fill="none" stroke="var(--s3)" strokeWidth="8" />
-          <circle cx="55" cy="55" r="46" fill="none" stroke="var(--gold)" strokeWidth="8" strokeLinecap="butt" strokeDasharray={`${(circ * o) / 100} ${circ}`} transform="rotate(-90 55 55)" />
-          <text x="55" y="58" textAnchor="middle" className="hh-dial-n">{o}</text>
+          {o != null && <circle cx="55" cy="55" r="46" fill="none" stroke="var(--text-secondary)" strokeWidth="8" strokeLinecap="butt" strokeDasharray={`${(circ * o) / 100} ${circ}`} transform="rotate(-90 55 55)" />}
+          <text x="55" y="58" textAnchor="middle" className="hh-dial-n">{o == null ? "—" : o}</text>
           <text x="55" y="76" textAnchor="middle" className="hh-dial-s">out of 100</text>
         </svg>
-        <ul className="hh-bars">{s.score.pillars.map((p) => <li key={p.key} style={{ "--pc": `var(${PILLAR_VAR[p.key] ?? "--gold"})` } as React.CSSProperties}><span>{p.label}</span><i><b style={{ width: `${p.score ?? 0}%` }} /></i><em>{p.score ?? "–"}</em></li>)}</ul>
+        <ul className="hh-bars">{s.score.pillars.map((p) => <li className={p.score == null ? "is-missing" : undefined} key={p.key} aria-label={p.score == null ? `${p.label}: Not available${p.reason ? `. ${p.reason}` : ""}` : undefined} style={{ "--pc": "var(--text-secondary)" } as React.CSSProperties}><span>{p.label}</span>{p.score == null ? <><em>Not available</em><small>{p.reason || "Insufficient data"}</small></> : <><i><b style={{ width: `${p.score}%` }} /></i><em>{p.score}</em></>}</li>)}</ul>
       </div>
-      {tower && <Safe3D><Suspense fallback={null}><ScoreTower3D scores={s.score.pillars.map((p) => p.score ?? 0)} /></Suspense></Safe3D>}
+      {tower && s.score.pillars.every((p) => p.score != null) && <Safe3D><Suspense fallback={null}><ScoreTower3D scores={s.score.pillars.map((p) => p.score as number)} /></Suspense></Safe3D>}
       <p className="hh-card-foot">Taken live from the same data as the full report. Open it →</p>
     </Link>
   );
@@ -114,6 +128,7 @@ export function Home() {
       <section className="tagline" aria-label="Our promise"><div className="wrap"><p><span>Quantify the market</span><span className="x" aria-hidden="true">×</span><span>Research deeper</span><span className="x" aria-hidden="true">×</span><span>Track what matters</span></p></div></section>
 
       <section className={"hh-hero" + (webgl ? " has3d" : "")}>
+        <HeroCanvas />
         {webgl && <Safe3D><Suspense fallback={null}><Hero3D /></Suspense></Safe3D>}
         <div className="wrap hh-hero-cols">
           <div>
