@@ -268,14 +268,22 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 .cmp tr.grp td { background: transparent; border-bottom: 1px solid var(--gold); }
 .art-wrap { background: var(--s2); border-radius: var(--r-l) var(--r-l) 0 0; }
 .plans .plan .btn,
-.plans .cmp .cta-r .btn {
+.plans .cmp .cta-r .btn:not(.primary) {
+  min-height: 44px; height: auto; width: 100%; padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-control); border-radius: var(--radius-md);
+  background: transparent; color: var(--text-primary); box-shadow: none;
+  font: var(--type-button-label); line-height: 1.25; white-space: normal;
+}
+.plans .plan .btn:hover, .plans .cmp .cta-r .btn:not(.primary):hover { background: var(--bg-subtle); border-color: var(--border-control); }
+.plans .plan .btn:active, .plans .cmp .cta-r .btn:not(.primary):active { background: var(--bg-selected); border-color: var(--border-control); }
+.plans .plan .btn.primary, .plans .cmp .cta-r .btn.primary {
   min-height: 44px; height: auto; width: 100%; padding: var(--space-3) var(--space-4);
   border: 1px solid var(--action-primary); border-radius: var(--radius-md);
   background: var(--action-primary); color: var(--action-on-primary); box-shadow: none;
   font: var(--type-button-label); line-height: 1.25; white-space: normal;
 }
-.plans .plan .btn:hover, .plans .cmp .cta-r .btn:hover { background: var(--action-primary-hover); border-color: var(--action-primary-hover); }
-.plans .plan .btn:active, .plans .cmp .cta-r .btn:active { background: var(--action-primary-pressed); border-color: var(--action-primary-pressed); }
+.plans .plan .btn.primary:hover, .plans .cmp .cta-r .btn.primary:hover { background: var(--action-primary-hover); border-color: var(--action-primary-hover); }
+.plans .plan .btn.primary:active, .plans .cmp .cta-r .btn.primary:active { background: var(--action-primary-pressed); border-color: var(--action-primary-pressed); }
 .plans .plan .btn:disabled, .plans .cmp .cta-r .btn:disabled { background: var(--action-disabled-bg); border-color: var(--action-disabled-bg); color: var(--text-disabled); }
 .plans .cmp { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
 .plans .cmp-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--border-control) var(--bg-subtle); }
@@ -290,12 +298,16 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 .plans .cmp thead th.cur { background: var(--bg-subtle); }
 .plans .cmp thead b { display: block; color: var(--text-primary); font: inherit; }
 .plans .cmp thead small { display: block; margin-top: var(--space-1); color: var(--text-secondary); font: var(--type-caption); }
-.plans .cmp tbody td { color: var(--text-body); background: var(--bg-surface); background-image: none; }
-.plans .cmp tbody tr:hover td { background: var(--bg-subtle); background-image: none; }
+.plans .cmp tbody td { color: var(--text-body); background: var(--bg-surface); }
+.plans .cmp tbody tr:nth-child(even):not(.grp) td { background: var(--bg-subtle); }
+.plans .cmp tbody tr:hover td { background: var(--bg-selected); }
 .plans .cmp tbody tr.grp td { width: auto; padding-block: var(--space-3); background: var(--bg-subtle); color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); font: var(--type-table-header); letter-spacing: 0; text-transform: none; }
 .plans .cmp .cf b { color: var(--text-primary); font: var(--type-table-value); font-weight: 600; }
 .plans .cmp .cf small { color: var(--text-secondary); font: var(--type-body-compact); }
-.plans .cmp .c-gold { background: var(--bg-surface); }
+.plans .cmp .th-i, :root .plans .plan-name .pi { color: var(--text-primary); }
+.plans .cmp .cf-i { color: var(--text-primary); background: var(--bg-subtle); border: 1px solid var(--border-subtle); }
+.plans .cmp .yes.ck { color: var(--text-primary); }
+.plans .cmp .soon-tag { background: var(--bg-subtle); border: 1px solid var(--border-control); color: var(--text-primary); }
 .plans .cmp .yes, .plans .cmp .x-no { margin-inline: auto; }
 .plans .cmp tfoot td { background: var(--bg-subtle); color: var(--text-primary); font: var(--type-table-header); }
 .plans .cmp tfoot .cnt { color: var(--text-primary); font: var(--type-table-value); font-weight: 600; }
