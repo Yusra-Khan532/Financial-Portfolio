@@ -304,12 +304,21 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
                 pass
         f["results_upcoming"] = int(await _one(conn, "SELECT count(*) FROM feed_items WHERE kind = 'result' AND item_date >= $1", today) or 0)
         f["ipo_updated"] = await _one(conn, "SELECT max(updated_at) FROM ipos")
+        f["macro_outlook_run"] = await _one(conn, "SELECT max(finished_at) FROM macro_run_log WHERE status IN ('ok', 'partial')")
         f["flows_newest"] = await _one(conn, "SELECT max(d) FROM flows_daily")
         f["mf_nav"] = await _one(conn, "SELECT max(nav_date) FROM mf_schemes WHERE active")
         f["mf_score_run"] = await _one(conn, "SELECT max(run_date) FROM mf_scores")
         f["etf_price"] = await _one(conn, "SELECT max(price_date) FROM etf_funds WHERE active")
         f["news_newest"] = await _one(conn, "SELECT max(item_date) FROM feed_items WHERE kind = 'news'")
         f["leadership"] = await _one(conn, "SELECT max(as_of) FROM leadership")
+        f["ownership_built"] = None     # the last COMPLETED run of the ownership job (an idle night changes no row, so row dates would look late)
+        raw = await _one(conn, "SELECT value FROM mf_meta WHERE key = 'run:refresh-ownership'")
+        if raw:
+            v = json.loads(raw) if isinstance(raw, str) else raw
+            try:
+                f["ownership_built"] = datetime.fromisoformat(v["at"])
+            except Exception:   # nosec B110
+                pass
         f["db_mb"] = await _one(conn, "SELECT pg_database_size(current_database()) / 1048576.0")
         f["tech_total"] = int(await _one(conn, "SELECT count(DISTINCT symbol) FROM prism_reports") or 0)
     from ..prism_technical import current_target
@@ -383,11 +392,14 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(ipo)
     flows = judge_session("flows", "FII / DII flows", ["flows", "flows-nse"], f.get("flows_newest"), exp, now, 3.0, 16.0)
     ds.append(flows)
+    ds.append(judge_age("macro_outlook", "Macro & Sector Outlook", ["macro-outlook"], f.get("macro_outlook_run"), now, 30.0, 54.0, "last successful scoring run"))
     ds.append(judge_nav(f.get("mf_nav"), now))
     ds.append(judge_age("fund_scores", "Fund scores", ["score-mf"], datetime.combine(_d(f["mf_score_run"]), time(12, 0), IST) if f.get("mf_score_run") else None, now, 40.0, 80.0))
     ds.append(judge_session("etf_prices", "ETF prices", ["etf"], f.get("etf_price"), exp, now, 3.0, 16.0))
     ds.append(judge_weekly("news", "News and filings", ["calendars"], f.get("news_newest"), today, 3, 6))
     ds.append(judge_weekly("leadership", "Leadership labels", ["leadership"], f.get("leadership"), today, 9, 14))
+    if f.get("ownership_built") is not None:
+        ds.append(judge_age("ownership", "Ownership insights", ["ownership-insights"], f.get("ownership_built"), now, 40.0, 96.0))
     ticker = judge_quotes(f.get("listing_newest"), now, f.get("found_target"), exp)
     ticker.key, ticker.label = "ticker", "Ticker quotes"
     ds.append(ticker)

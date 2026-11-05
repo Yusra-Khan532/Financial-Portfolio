@@ -903,6 +903,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("refresh-indices", help="download NIFTY index constituent lists for the screener")
     p_ec = sub.add_parser("refresh-earnings-calls", help="nightly: find the latest earnings-call transcripts of the largest companies, extract their text and answer the fixed questions with the language model (docs/EARNINGS-CALLS.md; needs GEMINI_API_KEY)")
     p_ec.add_argument("--max-calls", type=int, default=None, help="summarise at most this many calls in this run")
+    p_oi = sub.add_parser("refresh-ownership", help="nightly: ownership insights of every company (docs/OWNERSHIP.md): a row from the stored shareholding, then the premium filing details (shareholders, pledge, share count, lock-in, named holders) for the companies that lack them, bounded")
+    p_oi.add_argument("--max-minutes", type=float, default=20.0, help="start no new premium call after this many minutes")
+    p_oi.add_argument("--limit", type=int, default=120, help="premium calls per run")
+    p_oi.add_argument("--concurrency", type=int, default=3, help="premium calls at the same time")
+    p_oi.add_argument("symbols", nargs="*", help="only these companies")
     sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
@@ -979,6 +984,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_mc.add_argument("--full", action="store_true", help="reload the full history (the first run does this by itself)")
     p_mc.add_argument("--only", nargs="*", default=None, help="steps: cpi wpi gdp iip plfs rbi_tables rbi_home rbi_wss")
     p_mc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_mo = sub.add_parser("refresh-macro-outlook", help="evening and on new data: the Macro & Sector Outlook (finlit/macro_outlook): stored macro and commodity series -> observations with provenance -> signals -> sector scores -> immutable snapshots -> cache; database only, never calls a source")
+    p_mo.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_mo.add_argument("--reconstruct-months", type=int, default=24, help="month-end history to build once for a model version that has none (labelled reconstructed)")
     p_fl = sub.add_parser("refresh-flows", help="nightly: FII/DII institutional flows from NSDL (FPI and DII reports) and NSE's participant-wise open-interest files, plus Nifty closes for the correlation")
     p_fl.add_argument("--full", action="store_true", help="reload the full FPI history, month by month (the first run does this by itself)")
     p_fl.add_argument("--only", nargs="*", default=None, help="steps: fii dii nse oi nifty")
@@ -1116,6 +1124,18 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                                                "failed": [k for k, v in result["steps"].items() if v["status"] == "failed"]})
             print(result)
             return 0 if result["status"] in ("ok", "partial") else 1
+        if args.cmd == "refresh-macro-outlook":
+            from .macro_outlook import store as mo_store
+            from .mf import last_run_age_hours, record_run
+            if args.max_age_hours:
+                age, last = await last_run_age_hours(store, args.cmd)
+                if age is not None and last in ("ok", "partial") and age < args.max_age_hours:
+                    print({"status": "skipped", "reason": f"ran {age:.1f} hours ago ({last})"})
+                    return 0
+            result = await mo_store.run(store, "job", reconstruct_months=args.reconstruct_months)
+            await record_run(store, args.cmd, {"status": result["status"], "calc": result.get("calc"), "unusable": result.get("unusable")})
+            print(result)
+            return 0
         if args.cmd == "refresh-flows":
             from . import flows
             from .mf import last_run_age_hours, record_run
@@ -1361,6 +1381,14 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .earnings.config import MAX_CALLS_PER_RUN
             from .mf import record_run
             res = await earnings_service.run(store, settings, max_calls=args.max_calls or MAX_CALLS_PER_RUN)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "refresh-ownership":
+            from . import ownership_insights
+            from .mf import record_run
+            res = await ownership_insights.refresh(store, settings, max_minutes=args.max_minutes, limit=args.limit, concurrency=args.concurrency,
+                                                   symbols=[x.upper() for x in args.symbols] or None)
             await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0
