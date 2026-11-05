@@ -104,6 +104,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | **prism** (`precompute-prism`, 2 shards) | bulk | 40 | 26 h | probe every 10 min + NIGHT + MORNING; after ingest and score |
 | presets (`refresh-presets`) | bulk | 42 | 30 h | NIGHT, MORNING; after prism (docs/PRESETS.md) |
 | earnings-calls (`refresh-earnings-calls`, needs `GEMINI_API_KEY`) | bulk | 44 | 48 h | NIGHT, MORNING; bounded per run, resumable (docs/EARNINGS-CALLS.md) |
+| ownership-insights (`refresh-ownership`, always on; docs/OWNERSHIP.md) | light | 47 | 36 h | NIGHT (20 h), MORNING (14 h) and every 3 h; after ingest; resumable: pass 1 builds a row for every company from the stored shareholding (database only), pass 2 makes the slow premium call (3 at a time, 120 a run, none started after 20 min), visitors' companies first |
 | leadership | bulk | 45 | 8 d | Saturday NIGHT |
 | **mf-returns** (`fill-mf-returns`) | light | 27 | 30 h | every 30 min, NIGHT, MORNING; after `mf`; fills the 1/3/5 year returns of every fund that has none from the public mirror of AMFI's data (held funds first, newest NAV checked against AMFI's); also run at once when a fund is added (`finlit/mf_fill.py`) |
 | portfolios, score-mf, backfill-mf (funds, `FUND_LOADS_ENABLED=1`) | bulk | 50, 55, 60 | 26 h, 26 h, 8 d | NIGHT, MORNING; score-mf after portfolios |
@@ -112,6 +113,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | backtest-leadership | bulk | 70 | 100 d | first Sunday of Jan/Apr/Jul/Oct, NIGHT |
 | rebuild-metrics, short-history, history-probe, dhan-check, universe (Sunday) | bulk/light | 71-85 | 8-17 d | weekly NIGHT |
 | indices, coverage, integrity, logos | light | 60-80 | 30 h (logos 60 h) | NIGHT, MORNING |
+| **macro-outlook** (`refresh-macro-outlook`) | light | 22 | 30 h | AFTER_CLOSE from 19:40, MORNING; also every 6 h and as soon as a probe sees changed macro, commodity or company tables; after macro, flows-nse and flows; database only, never calls a source; never switchable off (docs/MACRO-OUTLOOK.md); dataset `macro_outlook` in the status |
 | macro, flows-nse, flows | light | 19-21 | 30 h | AFTER_CLOSE from 19:10; flows twice; MORNING |
 | instruments, mf, facts, industry, etf (funds) | light | 22-26 | 30 h (mf 26, etf 80) | MORNING / AFTER_CLOSE from 21:10 / NIGHT; etf weekdays |
 | drain-queue, commodities | ondemand | - | - | always on (scheduler.sh) |
@@ -133,6 +135,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | Quarterly results | no company whose declaration date passed still lacks figures: waiting yesterday = late, two or more days = stale (declaration is known by DATE only; target is 6 h, flagged at 24 h) | | results, results-light |
 | Results calendar | refreshed under 3 h ago and upcoming dates exist | 12 h | calendars |
 | IPO calendar, news, leadership | under 30 h / 3 days / 9 days | 96 h / 6 d / 14 d | calendars, leadership |
+| Ownership insights (`ownership`) | last completed run under 40 h | 96 h | ownership-insights |
 | FII/DII flows, ETF prices | the expected session | +3 h / +16 h | flows, etf |
 | Mutual fund NAV | the last business day after 23:30 IST | one business day behind (could be an AMFI holiday) / two | mf |
 | Fund scores | run under 40 h ago | 80 h | score-mf |
