@@ -14,6 +14,7 @@ import { ScoreAdminPanel } from "../mf/ScoreAdminPanel";
 import { LogoCoverage } from "../components/admin/LogoCoverage";
 import { AmfiImport } from "../components/admin/AmfiImport";
 import { MacroAdmin } from "../components/admin/MacroAdmin";
+import { BriefAdmin } from "../components/admin/BriefAdmin";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "—");
@@ -65,7 +66,7 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  const [tab, setTab] = useState<"users" | "requests" | "content" | "data" | "macro" | "audit">("requests");
+  const [tab, setTab] = useState<"users" | "requests" | "content" | "data" | "macro" | "brief" | "audit">("requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
   if (!isAdmin) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
@@ -74,13 +75,14 @@ export function Console() {
     <div className="wrap console">
       <header className="dash-h"><div><div className="eyebrow">Admin</div><h1>Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
-        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["macro", "Macro outlook"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
       {tab === "content" && <ContentAdmin />}
       {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><LogoCoverage /><Features /><NotifyList /></>}
       {tab === "macro" && <MacroAdmin />}
+      {tab === "brief" && <BriefAdmin />}
       {tab === "audit" && <Audit />}
     </div>
   );
@@ -184,14 +186,14 @@ function Health() {
       <p className="muted">Last load: {h.lastLoad ? stamp(h.lastLoad) : "never"} · last 24 hours: {Object.entries(h.runs24h).map(([k, v]) => `${v} ${k}`).join(", ") || "no runs"}.</p>
       {h.universe === 0 && <div className="formerr">The company list is empty. Run <code>python -m finlit.worker refresh-universe</code>, then <code>probe</code> and <code>ingest-all</code>.</div>}
       {h.coverage && <div style={{ marginTop: 14 }}>
-        <h3 style={{ margin: "0 0 6px", font: "600 15px var(--sans)" }}>What the provider sent against what the reports show</h3>
+        <h3 style={{ margin: "0 0 6px", font: "600 16px var(--sans)" }}>What the provider sent against what the reports show</h3>
         <p className="muted">{Object.entries(h.coverage.byState).map(([k, v]) => `${v} ${k}`).join(" · ") || "No company checked yet"}. "Provider sent it, report lacks it" must always be zero: any line below is a fault to fix, not a data gap.</p>
         {h.coverage.mismatches.length > 0 ? <div className="formerr" role="alert"><b>{h.coverage.mismatches.length} companies where the provider sent data the report lacks:</b> {h.coverage.mismatches.map((m) => `${m.symbol} (${m.lines.join("; ")})`).join(" · ")}</div> : <p className="pos">None: every figure the provider sent is shown.</p>}
         {h.coverage.providerEmpty.length > 0 && <p className="muted">The provider sent nothing for: {h.coverage.providerEmpty.map((c) => `${c.symbol}${c.name ? " " + c.name : ""}`).join(", ")}.</p>}
       </div>}
       <div style={{ marginTop: 14 }}>
         {h.resultsLight && <p className="muted" data-testid="results-light"><b>Quarter results, last {h.resultsLight.days} days:</b> {h.resultsLight.declared} declared · {h.resultsLight.filled} with figures ({h.resultsLight.fromFullReport} from the full report, {h.resultsLight.fromLightRow} from the light path) · {h.resultsLight.awaitingProvider} waiting for the data provider · {h.resultsLight.awaitingOurs} waiting for us.</p>}
-        <h3 style={{ margin: "0 0 6px", font: "600 15px var(--sans)" }}>Data integrity {h.integrity && <span className={h.integrity.level === "green" ? "pos" : "neg"}>{h.integrity.level === "green" ? "● green" : h.integrity.level === "amber" ? "● amber" : "● red"}</span>}</h3>
+        <h3 style={{ margin: "0 0 6px", font: "600 16px var(--sans)" }}>Data integrity {h.integrity && <span className={h.integrity.level === "green" ? "pos" : "neg"}>{h.integrity.level === "green" ? "● green" : h.integrity.level === "amber" ? "● amber" : "● red"}</span>}</h3>
         {!h.integrity ? <p className="muted">The nightly audit has not run yet. It samples up to 40 companies a night and checks prices, latest quarter, profit and loss sums, declared results and risk figures.</p> : (
           <>
             <p className="muted">Last audit {stamp(h.integrity.at)}, {h.integrity.sampled} companies sampled.</p>
