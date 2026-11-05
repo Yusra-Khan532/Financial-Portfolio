@@ -1,5 +1,6 @@
 // Shared filter-panel pieces for every screener: a collapsible group (serif heading, "n active" badge, chevron), checkbox rows with counts,
 // a Min - Max row that is enabled by its checkbox, chip rows, radio-style quick views and a search box. Styles: styles/fgx.css (class prefix fgx-).
+import { Icon } from "../../lib/icons";
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 /** Asking a group to open and scroll into view (the toolbar buttons use this). `n` changes on every request. */
@@ -7,8 +8,8 @@ export const FgxFocus = createContext<{ id: string | null; n: number }>({ id: nu
 
 export const Chev = () => <svg className="fgx-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
 
-type GroupProps = { id: string; title: string; active?: number; hint?: ReactNode; meta?: ReactNode; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; className?: string; children: ReactNode };
-export function FilterGroup({ id, title, active = 0, hint, meta, defaultOpen = false, open: ctl, onOpenChange, className = "", children }: GroupProps) {
+type GroupProps = { id: string; title: string; icon?: string; active?: number; hint?: ReactNode; meta?: ReactNode; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; className?: string; children: ReactNode };
+export function FilterGroup({ id, title, icon, active = 0, hint, meta, defaultOpen = false, open: ctl, onOpenChange, className = "", children }: GroupProps) {
   const [own, setOwn] = useState(defaultOpen || active > 0);
   const open = ctl ?? own;
   const set = (o: boolean) => { setOwn(o); onOpenChange?.(o); };
@@ -25,6 +26,7 @@ export function FilterGroup({ id, title, active = 0, hint, meta, defaultOpen = f
           if (i < 0 || !all.length) return;
           e.preventDefault(); all[e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : (i + (e.key === "ArrowDown" ? 1 : -1) + all.length) % all.length].focus();
         }}>
+        {icon && <span className="fgx-gi" aria-hidden="true"><Icon name={icon} /></span>}
         <span className="fgx-t">{title}</span>
         {meta != null && <span className="fgx-meta">{meta}</span>}
         {active > 0 && <span className="fgx-badge">{active} active</span>}
@@ -43,8 +45,8 @@ export function CheckRow({ label, count, checked, onChange, disabled }: { label:
 }
 
 /** A checkbox followed by Min and Max boxes. The boxes are off until the row is ticked; unticking clears them. */
-export function RangeRow({ label, group, min, max, onChange, error, minPh = "Min", maxPh = "Max", step = 1, maxOnly = false }: {
-  label: string; group?: string; min: number | string | null; max: number | string | null; onChange: (end: "min" | "max", v: string) => void; error?: string; minPh?: string; maxPh?: string; step?: number | string; maxOnly?: boolean }) {
+export function RangeRow({ label, group, min, max, onChange, error, minPh = "Min", maxPh = "Max", step = 1, maxOnly = false, maxExcl = false }: {
+  label: string; group?: string; min: number | string | null; max: number | string | null; onChange: (end: "min" | "max", v: string) => void; error?: string; minPh?: string; maxPh?: string; step?: number | string; maxOnly?: boolean; maxExcl?: boolean }) {
   const has = (min != null && min !== "") || (max != null && max !== "");
   const [ticked, setTicked] = useState(has);
   useEffect(() => { if (has) setTicked(true); }, [has]);
@@ -56,7 +58,7 @@ export function RangeRow({ label, group, min, max, onChange, error, minPh = "Min
       <div className={"fgx-mm" + (maxOnly ? " fgx-mx" : "")} id={id}>
         {!maxOnly && <><input type="number" inputMode="decimal" step={step} placeholder={minPh} aria-label="Min" disabled={!on} value={min ?? ""} onChange={(e) => onChange("min", e.target.value)} aria-invalid={!!error} />
         <span aria-hidden="true">&ndash;</span></>}
-        <input type="number" inputMode="decimal" step={step} placeholder={maxPh} aria-label="Max" disabled={!on} value={max ?? ""} onChange={(e) => onChange("max", e.target.value)} aria-invalid={!!error} />
+        <input type="number" inputMode="decimal" step={step} placeholder={maxPh} aria-label={maxExcl ? "Below (the score must be under this number)" : "Max"} title={maxExcl ? "Below this number" : undefined} disabled={!on} value={max ?? ""} onChange={(e) => onChange("max", e.target.value)} aria-invalid={!!error} />
       </div>
       {error && <p className="fgx-err" role="alert">{error}</p>}
     </div>);
