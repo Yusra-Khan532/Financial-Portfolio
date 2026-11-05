@@ -6,7 +6,7 @@ import { buildLines, nearestIndex, type LineSeries } from "../lib/mf";
 import { dateIN } from "../lib/format";
 
 export const SERIES_STYLE = [
-  { color: "var(--chart-1)", dash: "" }, { color: "var(--chart-2)", dash: "7 4" }, { color: "var(--chart-3)", dash: "2 4" }, { color: "var(--chart-6)", dash: "11 4 2 4" },
+  { color: "var(--k1)", dash: "" }, { color: "var(--k2)", dash: "7 4" }, { color: "var(--k3)", dash: "2 4" }, { color: "var(--k7)", dash: "11 4 2 4" },
 ];
 const W = 760, H = 300;
 

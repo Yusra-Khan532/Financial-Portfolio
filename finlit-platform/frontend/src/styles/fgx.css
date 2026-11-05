@@ -22,7 +22,7 @@
 .fgx-mm { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; padding-left: 33px; color: var(--faint); }
 .fgx-mm input { width: 100%; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 14px var(--mono); min-width: 0; }
 .fgx-mm input:disabled { background: var(--s2); opacity: .55; cursor: not-allowed; } .fgx-mm input[aria-invalid="true"] { border-color: var(--loss); }
-.fgx-err { margin: 0; padding-left: 33px; color: var(--form-error); font-size: 12.5px; }
+.fgx-err { margin: 0; padding-left: 33px; color: var(--loss); font-size: 12.5px; }
 .fgx-cr { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 0; } .fgx-cn { font-size: 14.5px; }
 .fgx-chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .fgx-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--muted); font: 600 12px var(--mono); cursor: pointer; }

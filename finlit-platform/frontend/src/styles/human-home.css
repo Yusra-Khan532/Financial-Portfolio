@@ -5,7 +5,7 @@
 .hh .tagline p { font: 400 clamp(19px, 2.6vw, 28px)/1.3 var(--serif); letter-spacing: 0; }
 .hh .tagline .x { color: var(--gold); }
 
-.hh-kicker { font: var(--type-identifier); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.hh-kicker { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
 .hh-head { max-width: 60ch; margin: 0 0 28px; padding-top: 14px; border-top: 2px solid var(--text); }
 .hh-head h2 { font: 400 clamp(26px, 3.4vw, 38px)/1.15 var(--serif); letter-spacing: -.01em; margin: 8px 0 8px; }
 .hh-head p { margin: 0; color: var(--muted); font-size: 16px; }
@@ -15,8 +15,8 @@
 /* hero */
 .hh-hero { padding: clamp(32px, 5vw, 64px) 0 clamp(36px, 5vw, 64px); }
 .hh-hero-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
-.hh-hero h1 { font: var(--type-display-01); letter-spacing: var(--tracking-default); margin: 12px 0 18px; text-wrap: balance; }
-.hh-lede { font: var(--type-editorial-body); color: var(--muted); max-width: 54ch; margin: 0 0 26px; }
+.hh-hero h1 { font: 400 clamp(34px, 5vw, 58px)/1.08 var(--serif); letter-spacing: -.015em; margin: 12px 0 18px; text-wrap: balance; }
+.hh-lede { font-size: clamp(16px, 1.5vw, 18px); line-height: 1.6; color: var(--muted); max-width: 54ch; margin: 0 0 26px; }
 .hh .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 860px) { .hh-hero-cols { grid-template-columns: minmax(0, 1fr); } }
 
@@ -28,20 +28,16 @@
 .hh-tk { font: 500 12px var(--mono); color: var(--faint); }
 .hh-card-name { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 12px 0 4px; }
 .hh-card-name b { font: 400 22px var(--serif); }
-.hh-card-name span { font: var(--type-table-value); font-variant-numeric: tabular-nums; }
+.hh-card-name span { font: 500 14px var(--mono); }
 .hh-card-name .up { color: var(--gain); } .hh-card-name .down { color: var(--loss); }
-.hh-card-name .neutral { color: var(--neutral); }
 .hh-card-score { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: center; padding: 8px 0; }
 .hh-card-score svg { width: 112px; height: 112px; }
-.hh-dial-n { font: var(--type-stat-value-md); fill: var(--text); font-variant-numeric: tabular-nums; } .hh-dial-s { font: var(--type-caption); fill: var(--faint); letter-spacing: 0; text-transform: none; }
+.hh-dial-n { font: 400 34px var(--serif); fill: var(--text); } .hh-dial-s { font: 400 8px var(--sans); fill: var(--faint); letter-spacing: .06em; text-transform: uppercase; }
 .hh-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
-.hh-bars li { display: grid; grid-template-columns: 82px minmax(0, 1fr) 48px; gap: 8px; align-items: center; font: var(--type-chart-label); color: var(--muted); }
+.hh-bars li { display: grid; grid-template-columns: 82px minmax(0, 1fr) 24px; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
 .hh-bars i { height: 6px; background: var(--s3); display: block; } .hh-bars b { display: block; height: 100%; background: var(--pc); }
-.hh-bars em { font: var(--type-chart-label); font-style: normal; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
-.hh-bars .is-missing { grid-template-columns: 82px minmax(0, 1fr); }
-.hh-bars .is-missing em { grid-column: 2; text-align: left; }
-.hh-bars .is-missing small { grid-column: 2; color: var(--muted); font: var(--type-caption); }
-.hh-card-foot { margin: 6px 0 0; padding-top: 8px; border-top: 1px solid var(--hh-rule); font: var(--type-caption); color: var(--muted); }
+.hh-bars em { font: 500 12px var(--mono); font-style: normal; text-align: right; color: var(--text); }
+.hh-card-foot { margin: 6px 0 0; padding-top: 8px; border-top: 1px solid var(--hh-rule); font-size: 12.5px; color: var(--muted); }
 @media (max-width: 420px) { .hh-card-score { grid-template-columns: minmax(0, 1fr); justify-items: center; } .hh-bars { width: 100%; } }
 
 /* coming soon: plain boxed note */

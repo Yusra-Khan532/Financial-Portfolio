@@ -13,7 +13,7 @@ import { niceTicks } from "../lib/etf";
 import { RANGES, align, corrWords, correlation, cut, fmt, frac, heat, signed, toCsv, useMacro, type Card, type Macro, type Pt, type RangeKey, type SeriesOut } from "../lib/macro";
 import "../styles/macro.css";
 
-const TONE = { up: "var(--loss)", down: "var(--gain)", flat: "var(--financial-neutral)" } as const;
+const TONE = { up: "var(--loss)", down: "var(--gain)", flat: "var(--muted)" } as const;
 // for these a rise is a worry (prices, joblessness); for the others it is a good sign
 const RISE_IS_BAD = new Set(["cpi", "wpi", "unemployment"]);
 // a move in these is a policy or price setting, not good or bad news in itself: shown without red or green

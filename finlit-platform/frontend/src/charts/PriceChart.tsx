@@ -21,12 +21,12 @@ export function PriceChart({ data, showEma50, showEma200, showVol }: { data: Pri
     niceTicks(mn, mx, 4).forEach((p) => {
       if (p < mn || p > mx) return;
       el("line", { x1: pl, x2: W - pr, y1: y(p), y2: y(p), stroke: css("--border"), "stroke-dasharray": "3 5" }, svgEl);
-      el("text", { x: W - pr + 10, y: y(p) + 4, fill: css("--faint"), "font-size": 11, "font-family": "Inter, sans-serif" }, svgEl).textContent = "₹" + Math.round(p).toLocaleString("en-IN");
+      el("text", { x: W - pr + 10, y: y(p) + 4, fill: css("--faint"), "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, svgEl).textContent = "₹" + Math.round(p).toLocaleString("en-IN");
     });
     const ticks = Math.max(2, Math.min(6, Math.floor((W - pl - pr) / 100)));
     for (let i = 0; i <= ticks; i++) {
       const idx = Math.round((i / ticks) * li);
-      const t = el("text", { x: x(idx), y: H - 6, fill: css("--faint"), "font-size": 11, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle", "font-family": "Inter, sans-serif" }, svgEl);
+      const t = el("text", { x: x(idx), y: H - 6, fill: css("--faint"), "font-size": 11, "text-anchor": i === 0 ? "start" : i === ticks ? "end" : "middle", "font-family": "IBM Plex Mono, monospace" }, svgEl);
       t.textContent = dateIN(s.t[idx], data.range === "1M" ? { day: "numeric", month: "short" } : { month: "short", year: "2-digit" });
     }
     if (showVol) {
@@ -45,12 +45,12 @@ export function PriceChart({ data, showEma50, showEma200, showVol }: { data: Pri
     let hi = 0, lo = 0; s.c.forEach((p, i) => { if (p > s.c[hi]) hi = i; if (p < s.c[lo]) lo = i; });
     ([[hi, "High", -12, "--gain"], [lo, "Low", 20, "--loss"]] as const).forEach(([i, lab, dy, c]) => {
       el("circle", { cx: x(i), cy: y(s.c[i]), r: 3.5, fill: css(c), stroke: css("--s1"), "stroke-width": 1.5 }, svgEl);
-      el("text", { x: Math.min(Math.max(x(i), 48), W - pr - 48), y: y(s.c[i]) + dy, "text-anchor": "middle", "font-size": 11, "font-weight": 600, fill: css(c), "font-family": "Inter, sans-serif" }, svgEl).textContent = `${lab} ₹${nf(s.c[i], 0)}`;
+      el("text", { x: Math.min(Math.max(x(i), 48), W - pr - 48), y: y(s.c[i]) + dy, "text-anchor": "middle", "font-size": 11, "font-weight": 600, fill: css(c), "font-family": "IBM Plex Sans, sans-serif" }, svgEl).textContent = `${lab} ₹${nf(s.c[i], 0)}`;
     });
     el("circle", { cx: x(li), cy: y(s.c[li]), r: 9, fill: css("--gold"), opacity: 0.2 }, svgEl);
     el("circle", { cx: x(li), cy: y(s.c[li]), r: 4.5, fill: css("--gold"), stroke: css("--s1"), "stroke-width": 2 }, svgEl);
     el("rect", { x: W - pr + 4, y: y(s.c[li]) - 10, width: 50, height: 20, rx: 6, fill: css("--gold") }, svgEl);
-    el("text", { x: W - pr + 29, y: y(s.c[li]) + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "#1A1405", "font-family": "Inter, sans-serif" }, svgEl).textContent = nf(s.c[li], 0);
+    el("text", { x: W - pr + 29, y: y(s.c[li]) + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "#1A1405", "font-family": "IBM Plex Sans, sans-serif" }, svgEl).textContent = nf(s.c[li], 0);
 
     const cross = el("line", { y1: pt, y2: pt + ph, stroke: css("--border-strong"), "stroke-dasharray": "3 3", visibility: "hidden" }, svgEl);
     const dot = el("circle", { r: 5, fill: css("--line"), stroke: css("--s1"), "stroke-width": 2, visibility: "hidden" }, svgEl);

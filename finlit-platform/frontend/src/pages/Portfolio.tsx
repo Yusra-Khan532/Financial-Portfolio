@@ -20,11 +20,11 @@ function CumulativeLine({ data }: { data: PortfolioReport["charts"]["cumulativeR
     s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
     const v = data.map((d) => d.realizedPnl), lo = Math.min(0, ...v), hi = Math.max(...v) * 1.05;
     const x = (i: number) => pl + (i / (n - 1)) * (W - pl - pr), y = (p: number) => pt + (1 - (p - lo) / (hi - lo || 1)) * (H - pt - pb);
-    niceTicks(lo, hi, 4).forEach((t) => { if (t < lo || t > hi) return; el("line", { x1: pl, x2: W - pr, y1: y(t), y2: y(t), stroke: css("--border"), "stroke-dasharray": "3 5" }, s); el("text", { x: W - pr + 8, y: y(t) + 4, fill: css("--faint"), "font-size": 11, "font-family": "Inter, sans-serif" }, s).textContent = nf(t / 1000, 0) + "k"; });
+    niceTicks(lo, hi, 4).forEach((t) => { if (t < lo || t > hi) return; el("line", { x1: pl, x2: W - pr, y1: y(t), y2: y(t), stroke: css("--border"), "stroke-dasharray": "3 5" }, s); el("text", { x: W - pr + 8, y: y(t) + 4, fill: css("--faint"), "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, s).textContent = nf(t / 1000, 0) + "k"; });
     const line = v.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p).toFixed(1)}`).join("");
     el("path", { d: `${line}L${x(n - 1)},${y(0)}L${x(0)},${y(0)}Z`, fill: vgrad(s, css("--gain"), 0.3, 0) }, s);
     drawIn(el("path", { d: line, fill: "none", stroke: css("--gain"), "stroke-width": 2.4, "stroke-linejoin": "round" }, s), first);
-    [0, Math.floor(n / 2), n - 1].forEach((i, k) => el("text", { x: x(i), y: H - 6, fill: css("--faint"), "font-size": 11, "text-anchor": k === 0 ? "start" : k === 2 ? "end" : "middle", "font-family": "Inter, sans-serif" }, s).textContent = dateIN(data[i].date, { day: "numeric", month: "short" }));
+    [0, Math.floor(n / 2), n - 1].forEach((i, k) => el("text", { x: x(i), y: H - 6, fill: css("--faint"), "font-size": 11, "text-anchor": k === 0 ? "start" : k === 2 ? "end" : "middle", "font-family": "IBM Plex Mono, monospace" }, s).textContent = dateIN(data[i].date, { day: "numeric", month: "short" }));
     el("circle", { cx: x(n - 1), cy: y(v[n - 1]), r: 5, fill: css("--gold"), stroke: css("--s1"), "stroke-width": 2 }, s);
   }, [data]);
   return <div className="chart-box" ref={wrap}><svg ref={svg} role="img" aria-label="Cumulative realised profit over the period" /></div>;

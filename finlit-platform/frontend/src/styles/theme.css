@@ -18,11 +18,8 @@
 :root:not([data-theme="light"]) {
   --page-glow: radial-gradient(1100px 420px at 50% -160px, rgba(130,150,210,.075), transparent 70%);
 }
-:root:not([data-theme="light"]) body { background: var(--page-glow), var(--bg-page); background-color: var(--bg-page); background-repeat: no-repeat; }
-:root:not([data-theme="light"]) ::selection { background: var(--bg-selected); color: var(--text-primary); }
-:root body { color: var(--text-body); }
-.topnav a { color: var(--text-body); }
-.topnav a:hover, .topnav a.hl { color: var(--text-primary); }
+:root:not([data-theme="light"]) body { background: var(--page-glow), var(--bg); background-color: var(--bg); background-repeat: no-repeat; }
+:root:not([data-theme="light"]) ::selection { background: var(--sel); color: var(--text); }
 :root:not([data-theme="light"]) .top { box-shadow: 0 1px 0 rgba(255,255,255,.03), 0 10px 30px -20px rgba(0,0,0,.8); }
 :root:not([data-theme="light"]) .demo-bar { background: var(--s2); color: var(--muted); border-bottom: 1px solid var(--border); }
 :root:not([data-theme="light"]) .demo-bar b { color: var(--gold); }
@@ -66,21 +63,15 @@
 :root:not([data-theme="light"]) textarea { background-color: var(--s2); border-color: var(--border-strong); color: var(--text); }
 :root:not([data-theme="light"]) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
 :root:not([data-theme="light"]) select:hover, :root:not([data-theme="light"]) textarea:hover { border-color: color-mix(in srgb, var(--border-strong) 60%, var(--faint)); }
-:root:not([data-theme="light"]) input:focus, :root:not([data-theme="light"]) select:focus, :root:not([data-theme="light"]) textarea:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 24%, transparent); outline: none; }
+:root:not([data-theme="light"]) input:focus, :root:not([data-theme="light"]) select:focus, :root:not([data-theme="light"]) textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); outline: none; }
 :root:not([data-theme="light"]) input:disabled, :root:not([data-theme="light"]) select:disabled { opacity: .55; }
 :root:not([data-theme="light"]) .search, :root:not([data-theme="light"]) .icon-btn, :root:not([data-theme="light"]) .seg { background: var(--s1); border-color: var(--border-strong); }
 :root:not([data-theme="light"]) .search:hover, :root:not([data-theme="light"]) .icon-btn:hover { border-color: var(--gold); }
-:root:not([data-theme="light"]) .btn:not(.primary) { background: transparent; border-color: var(--border-strong); color: var(--text-primary); }
+:root:not([data-theme="light"]) .btn:not(.primary) { background: var(--s2); border-color: var(--border-strong); color: var(--text); }
 :root:not([data-theme="light"]) .btn:not(.primary):hover { background: var(--s3); border-color: var(--gold); }
 :root:not([data-theme="light"]) .btn.on { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
 :root:not([data-theme="light"]) .tag, :root:not([data-theme="light"]) .kbd { background: var(--s2); border-color: var(--border-strong); }
-:root:not([data-theme="light"]) :focus-visible { outline-color: var(--focus-ring); box-shadow: 0 0 0 4px rgba(11,12,15,.9); }
-
-/* Shared semantic states. Existing page-specific classes remain compatible,
-   while controls with explicit state attributes use the v1.4 roles. */
-input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--form-error); }
-.formerr, .dcf-err, .nf-err, .fo-err, .evi-err { color: var(--form-error); }
-.seg button[aria-pressed="true"], [aria-selected="true"] { background: var(--bg-selected); }
+:root:not([data-theme="light"]) :focus-visible { outline-color: var(--gold-2); box-shadow: 0 0 0 4px rgba(11,12,15,.9); }
 
 /* popovers, menus, modals: one step above the cards, with a deep shadow */
 :root:not([data-theme="light"]) .ddm,

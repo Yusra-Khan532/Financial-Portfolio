@@ -159,8 +159,8 @@ function Mark({ s, w, h }: { s: Shape; w: number; h: number }) {
       const x0 = Math.min(X(s.a), X(s.b)), x1 = Math.max(X(s.a), X(s.b), x0 + 60), lines = fibLines(s.a, s.b);
       return wrap(<g>{lines.map((l, i) => <g key={l.level}>
         <line {...common} strokeWidth={Math.max(1, s.w / 2)} x1={x0} x2={x1} y1={l.y * h} y2={l.y * h} strokeDasharray={i === 0 || i === FIB_LEVELS.length - 1 ? undefined : "4 4"} />
-        <text x={x1 + 4} y={l.y * h + 4} fill={col} fontSize={11} fontFamily="Inter, sans-serif" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke">{(l.level * 100).toFixed(1).replace(".0", "")}%</text></g>)}</g>);
+        <text x={x1 + 4} y={l.y * h + 4} fill={col} fontSize={11} fontFamily="IBM Plex Mono, monospace" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke">{(l.level * 100).toFixed(1).replace(".0", "")}%</text></g>)}</g>);
     }
-    case "text": return wrap(<text x={X(s.a)} y={Y(s.a)} fill={col} fontSize={14} fontWeight={600} fontFamily="Inter, system-ui, sans-serif" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke">{s.t}</text>);
+    case "text": return wrap(<text x={X(s.a)} y={Y(s.a)} fill={col} fontSize={14} fontWeight={600} fontFamily="IBM Plex Sans, system-ui, sans-serif" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke">{s.t}</text>);
   }
 }

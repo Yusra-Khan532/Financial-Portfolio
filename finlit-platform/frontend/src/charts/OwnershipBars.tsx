@@ -101,7 +101,7 @@ export function OwnershipBars({ o, selected, onSelect }: { o: Ownership; selecte
       ))}</div>
       {view === "mix" && hidden.length > 0 && <p className="ob-warn" role="status">{MIX_HIDDEN_NOTE}.</p>}
       <div className="ob-wrap" ref={wrap}>
-        <svg className="ob-ax" width={AX} height={H} aria-hidden="true">{ticks.map((t) => <text key={t} x={AX - 6} y={Y(t) + 4} textAnchor="end" fontSize="10.5" fill="var(--faint)" fontFamily="Inter, sans-serif">{view === "mix" ? `${t}%` : (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t)}</text>)}</svg>
+        <svg className="ob-ax" width={AX} height={H} aria-hidden="true">{ticks.map((t) => <text key={t} x={AX - 6} y={Y(t) + 4} textAnchor="end" fontSize="10.5" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{view === "mix" ? `${t}%` : (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t)}</text>)}</svg>
         <div className="ob-scroll" ref={scroller} onScroll={(e) => { const left = e.currentTarget.scrollLeft; setBox((b) => ({ ...b, left })); }}>
           <div className="ob-plot" tabIndex={0} role="group" aria-label={`Shareholding bars, ${n} filings. Use the left and right arrow keys to move between bars, Enter to select one, Home and End to jump.`} aria-describedby={`${uid}-sum`} onKeyDown={onKey} onFocus={() => { setFocused(true); setFocus((f) => f ?? (selPos >= 0 ? selPos : n - 1)); }} onBlur={() => setFocused(false)} style={{ width: W }}>
             <svg width={W} height={H} role="img" aria-label={barsSummary(bars, visible, view)}>

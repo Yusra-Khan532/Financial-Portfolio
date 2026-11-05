@@ -47,15 +47,15 @@ export function RsiGauge({ value }: { value: number }) {
       const major = t === 30 || t === 70 || t === 0 || t === 100, [x0, y0] = polar(cx, cy, r - 15, ang(t)), [x1, y1] = polar(cx, cy, r - (major ? 24 : 20), ang(t));
       el("line", { x1: x0, y1: y0, x2: x1, y2: y1, stroke: css(major ? "--muted" : "--border-strong"), "stroke-width": major ? 1.8 : 1.2, "stroke-linecap": "round" }, s);
     }
-    ([[30, "30"], [70, "70"]] as const).forEach(([t, l]) => { const [x, y] = polar(cx, cy, r - 36, ang(t)); el("text", { x, y: y + 4, "text-anchor": "middle", fill: css("--faint"), "font-size": 11, "font-family": "Inter, sans-serif" }, s).textContent = l; });
+    ([[30, "30"], [70, "70"]] as const).forEach(([t, l]) => { const [x, y] = polar(cx, cy, r - 36, ang(t)); el("text", { x, y: y + 4, "text-anchor": "middle", fill: css("--faint"), "font-size": 11, "font-family": "IBM Plex Mono, monospace" }, s).textContent = l; });
     // marker
     const [mx, my] = polar(cx, cy, r, ang(v));
     const m = el("g", { class: "g-knob" }, s);
     el("circle", { cx: mx, cy: my, r: 15, fill: col, opacity: 0.25 }, m); el("circle", { cx: mx, cy: my, r: 10.5, fill: css("--s1"), stroke: col, "stroke-width": 4 }, m);
     // value
-    el("text", { x: cx, y: cy - 4, "text-anchor": "middle", "font-family": "Source Serif 4, Georgia, serif", "font-size": 50, "font-weight": 300, fill: text }, s).textContent = v.toFixed(1);
-    el("text", { x: cx, y: cy + 18, "text-anchor": "middle", "font-size": 10.5, "font-weight": 600, "letter-spacing": ".14em", fill: css("--faint"), "font-family": "Inter, sans-serif" }, s).textContent = "RSI · 14 DAYS";
-    ([[0, "0"], [100, "100"]] as const).forEach(([t, l]) => { const [x, y] = polar(cx, cy, r, ang(t)); el("text", { x, y: y + 26, "text-anchor": "middle", "font-size": 10, fill: css("--faint"), "font-family": "Inter, sans-serif" }, s).textContent = l; });
+    el("text", { x: cx, y: cy - 4, "text-anchor": "middle", "font-family": "Newsreader Variable, Newsreader, Georgia, serif", "font-size": 50, "font-weight": 300, fill: text }, s).textContent = v.toFixed(1);
+    el("text", { x: cx, y: cy + 18, "text-anchor": "middle", "font-size": 10.5, "font-weight": 600, "letter-spacing": ".14em", fill: css("--faint"), "font-family": "IBM Plex Sans, sans-serif" }, s).textContent = "RSI · 14 DAYS";
+    ([[0, "0"], [100, "100"]] as const).forEach(([t, l]) => { const [x, y] = polar(cx, cy, r, ang(t)); el("text", { x, y: y + 26, "text-anchor": "middle", "font-size": 10, fill: css("--faint"), "font-family": "IBM Plex Mono, monospace" }, s).textContent = l; });
   }, [value]);
   const copy = {
     cold: ["Oversold", "Sold heavily lately. Prices often bounce from here, but a falling stock can keep falling."],
@@ -78,8 +78,8 @@ export function Donut({ slices, centerValue, centerLabel }: { slices: { v: numbe
     el("circle", { cx: C, cy: C, r, fill: "none", stroke: css("--s3"), "stroke-width": 30 }, s);
     slices.forEach(({ v, color }) => { const len = (v / 100) * c; el("circle", { cx: C, cy: C, r, fill: "none", stroke: css(color), "stroke-width": 30, "stroke-dasharray": `${Math.max(0, len - 3)} ${c}`, "stroke-dashoffset": -off, transform: `rotate(-90 ${C} ${C})` }, s); off += len; });
     el("circle", { cx: C, cy: C, r: 70, fill: css("--s1") }, s);
-    el("text", { x: C, y: C - 2, "text-anchor": "middle", "font-family": "Source Serif 4, Georgia, serif", "font-size": 36, fill: css("--text") }, s).textContent = centerValue;
-    el("text", { x: C, y: C + 20, "text-anchor": "middle", "font-size": 11, "font-weight": 600, "letter-spacing": ".08em", fill: css("--muted"), "font-family": "Inter, sans-serif" }, s).textContent = centerLabel;
+    el("text", { x: C, y: C - 2, "text-anchor": "middle", "font-family": "Newsreader Variable, Newsreader, Georgia, serif", "font-size": 36, fill: css("--text") }, s).textContent = centerValue;
+    el("text", { x: C, y: C + 20, "text-anchor": "middle", "font-size": 11, "font-weight": 600, "letter-spacing": ".08em", fill: css("--muted"), "font-family": "IBM Plex Sans, sans-serif" }, s).textContent = centerLabel;
   }, [slices, centerValue, centerLabel]);
   return <div className="donut-wrap" ref={wrap} style={{ maxWidth: 260 }}><svg ref={svg} role="img" aria-label={`${centerLabel} ${centerValue}`} style={{ width: "100%", height: "auto" }} /></div>;
 }
