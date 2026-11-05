@@ -104,6 +104,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | **prism** (`precompute-prism`, 2 shards) | bulk | 40 | 26 h | probe every 10 min + NIGHT + MORNING; after ingest and score |
 | presets (`refresh-presets`) | bulk | 42 | 30 h | NIGHT, MORNING; after prism (docs/PRESETS.md) |
 | earnings-calls (`refresh-earnings-calls`, needs `GEMINI_API_KEY`) | bulk | 44 | 48 h | NIGHT, MORNING; bounded per run, resumable (docs/EARNINGS-CALLS.md) |
+| company-brief (`refresh-company-brief`, needs `GEMINI_API_KEY`, else it records "not configured" and writes nothing; docs/COMPANY-BRIEF.md) | bulk | 46 | 72 h | NIGHT (20 h), MORNING (14 h); only companies with new filings, followed and largest first, at most `BRIEF_MAX_WRITES_PER_NIGHT` (6) model calls a night, resumable; stores DRAFTS, a person publishes |
 | ownership-insights (`refresh-ownership`, always on; docs/OWNERSHIP.md) | light | 47 | 36 h | NIGHT (20 h), MORNING (14 h) and every 3 h; after ingest; resumable: pass 1 builds a row for every company from the stored shareholding (database only), pass 2 makes the slow premium call (3 at a time, 120 a run, none started after 20 min), visitors' companies first |
 | leadership | bulk | 45 | 8 d | Saturday NIGHT |
 | **mf-returns** (`fill-mf-returns`) | light | 27 | 30 h | every 30 min, NIGHT, MORNING; after `mf`; fills the 1/3/5 year returns of every fund that has none from the public mirror of AMFI's data (held funds first, newest NAV checked against AMFI's); also run at once when a fund is added (`finlit/mf_fill.py`) |
@@ -115,6 +116,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | indices, coverage, integrity, logos | light | 60-80 | 30 h (logos 60 h) | NIGHT, MORNING |
 | **macro-outlook** (`refresh-macro-outlook`) | light | 22 | 30 h | AFTER_CLOSE from 19:40, MORNING; also every 6 h and as soon as a probe sees changed macro, commodity or company tables; after macro, flows-nse and flows; database only, never calls a source; never switchable off (docs/MACRO-OUTLOOK.md); dataset `macro_outlook` in the status |
 | macro, flows-nse, flows | light | 19-21 | 30 h | AFTER_CLOSE from 19:10; flows twice; MORNING |
+| macro: Brent step | light | | | Inside the macro job: Brent crude daily from the U.S. EIA (series RBRTE) when `EIA_API_KEY` is set in `/opt/finlit/.env.aws`; without it the dashboard tile says "Brent: source key not set" (nothing is invented). No free public 10-year G-sec feed is wired in yet: that tile shows a dash and its reason. |
 | instruments, mf, facts, industry, etf (funds) | light | 22-26 | 30 h (mf 26, etf 80) | MORNING / AFTER_CLOSE from 21:10 / NIGHT; etf weekdays |
 | drain-queue, commodities | ondemand | - | - | always on (scheduler.sh) |
 
