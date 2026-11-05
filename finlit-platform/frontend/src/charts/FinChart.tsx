@@ -28,7 +28,7 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
     };
     const line = (d: HTMLElement, text: string, cls = "", tag = "span") => { const e = document.createElement(tag); e.className = cls; e.textContent = text; d.appendChild(e); };
     const axisText = (x: number, y: number, t: string, anchor = "middle", fill = css("--faint"), weight = 400) =>
-      (el("text", { x, y, fill, "font-size": 11, "text-anchor": anchor, "font-weight": weight, "font-family": "Inter, sans-serif" }, s).textContent = t);
+      (el("text", { x, y, fill, "font-size": 11, "text-anchor": anchor, "font-weight": weight, "font-family": "IBM Plex Mono, monospace" }, s).textContent = t);
 
     if (kind === "pl" || kind === "q") {
       const t = kind === "pl" ? pl : ql, labels = t.periods, n = labels.length;

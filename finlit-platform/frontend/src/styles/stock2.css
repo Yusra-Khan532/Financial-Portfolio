@@ -1,5 +1,5 @@
 /* ---------- Stock page: upgraded sections ---------- */
-.dcenter .n { font-size: 78px; font-weight: 400; background: none; -webkit-text-fill-color: var(--band-c, var(--text-primary)); color: var(--band-c, var(--text-primary)); letter-spacing: -.03em; }
+.dcenter .n { font-size: 78px; font-weight: 400; background: linear-gradient(180deg, #FFF3CC, #D4B26A 55%, #A8843A); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -.03em; }
 
 @media (max-width: 760px) { .dcenter .n { font-size: 62px; } }
 .ring-in { animation: ringIn 1.6s cubic-bezier(.16,1,.3,1) both; } @keyframes ringIn { from { stroke-dasharray: 0 400; } }

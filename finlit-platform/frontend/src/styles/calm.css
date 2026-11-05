@@ -13,7 +13,7 @@
   --tone: color-mix(in srgb, var(--brand-accent) 58%, var(--text-primary));
   --tone-soft: color-mix(in srgb, var(--brand-accent) 14%, transparent);
   --sans: var(--font-sans); --serif: var(--font-serif); --mono: var(--font-sans);
-  --code: "Inter", "Inter Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --code: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --u-text: var(--text); --u-muted: var(--muted); --u-faint: var(--faint); --u-border: var(--border); --u-border-strong: var(--border-strong);
   --u-s1: var(--s1); --u-s2: var(--s2); --u-s3: var(--s3); --u-gold: var(--gold); --u-gold-2: var(--gold-2); --u-gold-deep: var(--gold-deep); --u-on-gold: var(--on-gold);
   --u-gain: var(--gain); --u-loss: var(--loss); --u-focus: var(--focus);

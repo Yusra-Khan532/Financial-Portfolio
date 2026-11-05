@@ -37,13 +37,13 @@ export function HeroCanvas() {
         ctx.globalAlpha = a * .13; ctx.fillStyle = g; ctx.fill();
       }
       // candles riding the gold line
-      const candleAlpha = .58, candleBodyAlpha = .46; ctx.globalAlpha = candleAlpha; const step = small() ? 34 : 26;
+      ctx.globalAlpha = .5; const step = small() ? 34 : 26;
       for (let x = step; x < w; x += step) {
         const y = h * .8 + wave(x, t, 1) - (x / w) * h * .16, j = Math.sin(x * 12.9898) * 43758.5453, r = j - Math.floor(j);
         const body = 10 + r * 26, up = r > .42, col = up ? css("--gain", "#5FB88E") : css("--loss", "#E0707A");
         ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, y - body - 10); ctx.lineTo(x, y + body + 10); ctx.stroke();
-        ctx.globalAlpha = candleBodyAlpha; ctx.fillRect(x - 3.5, y - body / 2, 7, body); ctx.globalAlpha = candleAlpha;
+        ctx.globalAlpha = .38; ctx.fillRect(x - 3.5, y - body / 2, 7, body); ctx.globalAlpha = .5;
       }
       // particle mesh
       ctx.globalAlpha = 1;
