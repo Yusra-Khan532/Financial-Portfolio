@@ -6,10 +6,11 @@
   font: 400 14px/1.45 var(--font-sans, Inter, system-ui, sans-serif); font-variant-numeric: tabular-nums; color: var(--d-ink);
   padding-top: 24px; padding-bottom: 32px; display: flex; flex-direction: column; gap: 16px; min-width: 0;
 }
+/* dark: the site's own near-black surfaces, text and borders (as before the 5 Nov refresh), not the design system's navy */
 :root[data-theme="dark"] .dsh {
-  --d-card: var(--bg-surface); --d-line: var(--border-subtle); --d-line2: var(--border-subtle); --d-line3: color-mix(in srgb, var(--border-subtle) 55%, transparent);
-  --d-up: var(--financial-positive); --d-down: var(--financial-negative); --d-mut: var(--text-muted); --d-mut2: var(--text-secondary); --d-acc: var(--brand-accent);
-  --d-tile: var(--bg-subtle); --d-ink: var(--text-primary); --d-field: var(--bg-elevated); --d-on: var(--action-primary); --d-on-fg: var(--action-on-primary); --d-pill-bg: var(--financial-positive-bg);
+  --d-card: var(--s1); --d-line: var(--border); --d-line2: var(--border); --d-line3: color-mix(in srgb, var(--border) 55%, transparent);
+  --d-up: var(--gain); --d-down: var(--loss); --d-mut: var(--faint); --d-mut2: var(--muted); --d-acc: var(--gold);
+  --d-tile: var(--s2); --d-ink: var(--text); --d-field: var(--s2); --d-on: var(--action-primary); --d-on-fg: var(--action-on-primary); --d-pill-bg: var(--financial-positive-bg);
 }
 .dsh *, .dsh *::before, .dsh *::after { box-sizing: border-box; }
 .dsh .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
