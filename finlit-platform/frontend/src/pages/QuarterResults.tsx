@@ -359,7 +359,7 @@ export function QuarterResultsPage() {
         <FilterGroup id="qr-co" title="Companies" defaultOpen>
         <div className="qr-f1">
           <div className="chips" role="group" aria-label="Whose results">
-            {([["all", "All companies"], ["watchlist", "My watchlist"], ["portfolio", "My portfolio"]] as const).map(([k, l]) => <button key={k} type="button" className={f.scope === k ? "on" : ""} aria-pressed={f.scope === k} onClick={() => setScope(k)}>{l}</button>)}
+            {([["all", "All companies"], ["watchlist", "My watchlist"], ["portfolio", "Equity portfolio"]] as const).map(([k, l]) => <button key={k} type="button" className={f.scope === k ? "on" : ""} aria-pressed={f.scope === k} onClick={() => setScope(k)}>{l}</button>)}
             <span className="qr-sep" aria-hidden="true" />
             {INDICES.map(([k, l]) => <button key={k} type="button" className={f.index === k ? "on" : ""} aria-pressed={f.index === k} onClick={() => set({ index: f.index === k ? "" : k })}>{l}</button>)}
           </div>

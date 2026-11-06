@@ -310,7 +310,7 @@
 .dw-scope { margin-left: auto; } .dw-scope button { padding: 4px 11px; font-size: var(--fs-13); } .dw-scope button:disabled { opacity: .45; cursor: not-allowed; }
 .dw .card-h .dw-scope + .tier { margin-left: 8px; }
 
-/* ---- My portfolio: the holdings as a heat table ---- */
+/* ---- Equity portfolio: the holdings as a heat table ---- */
 .hold-bar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 4px 0 12px; }
 .hold-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .hchip { --bc: var(--gold); display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 13px var(--sans); cursor: pointer; transition: background-color .15s, transform .15s; }
@@ -362,7 +362,7 @@
 .jobs-banner ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
 @media (max-width: 480px) { .sys-dd { position: static; } .ddm.sys-pop { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; } }
 
-/* ---- My portfolio: model banner, tab strip (Overview, Ratios, Financials) and the cells of the three tables ---- */
+/* ---- Equity portfolio: model banner, tab strip (Overview, Ratios, Financials) and the cells of the three tables ---- */
 .pf-model { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: 12px; background: var(--s2); }
 .pf-model p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text); } .pf-model a { color: var(--gold); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .pf-model .ci { flex: none; margin-top: 2px; }
