@@ -140,6 +140,24 @@ line.adv-gl { stroke: var(--border); stroke-width: 1; }
 /* statistics */
 .adv-stats { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
 .adv-sentence { margin: 0 0 8px; font-size: var(--fs-14); line-height: 1.55; color: var(--text); max-width: 80ch; }
+/* Task #40: "All statistics" is a dropdown bar like "What does the chart say?"; the summary sentence now lives inside it */
+.adv-allstats { margin: 12px 0; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); }
+.adv-allstats > summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; cursor: pointer; list-style: none; border-radius: 14px; }
+.adv-allstats > summary::-webkit-details-marker { display: none; }
+.adv-allstats > summary:hover { border-color: var(--gold); }
+.adv-allstats > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.adv-as-t { flex: 1; min-width: 0; display: grid; gap: 2px; } .adv-as-t b { font: 500 var(--fs-18, 18px)/1.25 var(--serif, Georgia, serif); color: var(--text); } .adv-as-t small { font-size: var(--fs-14, 14px); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adv-as-chev { flex: none; width: 9px; height: 9px; margin: 0 6px 3px; border: solid var(--muted); border-width: 0 2.2px 2.2px 0; transform: rotate(45deg); transition: transform .2s; } .adv-allstats[open] .adv-as-chev { transform: rotate(225deg); margin-bottom: 0; margin-top: 6px; }
+.adv-as-body { padding: 0 16px 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .adv-as-chev { transition: none; } }
+/* the cells wrap (the shared table styles keep numbers on one line, which pushed values over their labels) */
+.adv-allstats th, .adv-allstats td { white-space: normal; overflow-wrap: anywhere; }
+/* phones: the table fits the box (labels wrap, values wrap under them) instead of running off the right edge */
+@media (max-width: 760px) {
+  .adv-as-body { padding-inline: 12px; }
+  .adv-allstats table { table-layout: fixed; max-width: 100%; }
+  .adv-allstats th { width: 40%; font-size: var(--fs-12); letter-spacing: .04em; }
+}
 .adv-allstats table { border-collapse: collapse; font-size: 13px; margin: 8px 0; width: 100%; max-width: 640px; }
 .adv-allstats th, .adv-allstats td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
 .adv-allstats th { color: var(--muted); font-weight: 600; width: 42%; }
