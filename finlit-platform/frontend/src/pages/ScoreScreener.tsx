@@ -1,5 +1,5 @@
 import { Link, Navigate, useSearchParams } from "react-router";
-import { ScreenerFrame, SortTh } from "../components/screener/ScreenerFrame";
+import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import { IQ_SUB, IQ_TITLE, IqScoreRows, iqActive } from "../components/screener/IqScoreFilter";
@@ -64,10 +64,10 @@ function Basic() {
         </FilterGroup>
       </>)}
       tiles={tiles}
-      lead={<Link to="/advanced-score-screener" className="sx-adv">
-        <span className="sx-adv-t"><TierChip tier="gold" /><b>Advanced score screener</b></span>
-        <span className="sx-adv-s">Advanced score screener (Gold): FinLit Prism, 4 financial-health parts and 2 technical views</span>
-        <Icon name="arrow" /></Link>}
+      lead={<div className="sx-adv sx-here">
+        <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic score screener</b></span>
+        <span className="sx-adv-s">The FinLit IQ: Growth & Profitability, its four pillars, Technical and Overall</span>
+        <Link to="/advanced-score-screener" className="sx-adv-go">Advanced score screener (Gold) <Icon name="arrow" /></Link></div>}
       beforeTable={<>
         <PriceColumnsToggle on={priceCols} set={setPriceCols} />
         <details className="pzs-explain">
@@ -75,7 +75,8 @@ function Basic() {
           <div className="pzs-two"><div><b>FinLit IQ</b><p>{EXPLAIN.finlit}</p></div></div>
         </details>
       </>}
-      groupHead={<tr className="gh"><th scope="col" colSpan={6} className="sr-only-th"><span className="sr">Company</span></th><th scope="colgroup" colSpan={7}>FinLit IQ</th>{priceCols && <th scope="colgroup" colSpan={PRICE_COL_COUNT}>Price</th>}<th scope="col"><span className="sr">Actions</span></th></tr>}
+      groupHead={<GroupRow groups={[{ g: "iq", n: 5, label: "FinLit IQ · Growth & Profitability", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" }, { g: "overall", n: 1, label: "Overall" },
+        ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
         <SortTh s={s} k="f" label="Growth & Profitability" of="FinLit IQ" help="score-table" />
         {PILLARS.map((x) => <SortTh key={x.k} s={s} k={x.col} label={x.short} of="FinLit IQ" cls="ss-ph" title={x.say} />)}

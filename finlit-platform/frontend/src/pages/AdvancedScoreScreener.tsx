@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { ScreenerFrame, SortTh } from "../components/screener/ScreenerFrame";
+import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup, QuickRow } from "../components/screener/FilterGroup";
 import { PRISM_SUB, PRISM_TITLE, PrismScoreRows, prismActive } from "../components/screener/PrismScoreFilter";
@@ -71,7 +71,8 @@ function Advanced() {
         {line && cover && (<div className="pzs-cover" role="note"><p>{line} {cover.per_night ? `More are added every night, largest first (about ${nf(cover.per_night, 0)} beyond the companies with a full report).` : "More are added over time, largest first."} Not rated yet? Use Rate now on its row: its Prism page starts the calculation.</p>
           <div className="pzs-bar" aria-hidden="true"><i style={{ width: Math.min(100, (n / cover.total) * 100) + "%" }} /></div></div>)}
       </>}
-      groupHead={<tr className="gh"><th scope="col" colSpan={6} className="sr-only-th"><span className="sr">Company</span></th><th scope="colgroup" colSpan={5}>FinLit Prism</th><th scope="colgroup" colSpan={2}>Technical views</th>{priceCols && <th scope="colgroup" colSpan={PRICE_COL_COUNT}>Price</th>}<th scope="col"><span className="sr">Actions</span></th></tr>}
+      groupHead={<GroupRow groups={[{ g: "prism", n: 5, label: "FinLit Prism", sub: "0–100, higher is better" }, { g: "tech", n: 2, label: "Technical views", sub: "short and long term" },
+        ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
         <SortTh s={s} k="prism_final" label="Prism" cls="pzs-h" title={EXPLAIN.prism} />
         {PRISM_PARTS.map((x) => <SortTh key={x.col} s={s} k={x.col} label={x.label} of="Prism" cls="ss-ph" title={"Prism " + x.label + ": " + x.say} />)}
