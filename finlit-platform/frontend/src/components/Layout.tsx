@@ -125,9 +125,25 @@ const FOOT: { title: string; items: { to: string; label: string }[] }[] = [
   { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "Fund Health Score" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
 ];
 
+/** The home page's footer: the logo, one line, the disclosure and the main links. Every other page keeps the full footer. */
+function SlimFooter() {
+  return (
+    <footer className="band foot-slim">
+      <div className="wrap">
+        <div className="fslim">
+          <div><span className="lg-mark" role="img" aria-label="FinLit" /><h2>Follow the numbers, not the noise.</h2></div>
+          <nav aria-label="Footer"><Link to="/about">About</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/faq">FAQs</Link><Link to="/contact">Contact</Link><Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Disclosures</Link></nav>
+        </div>
+        <div className="ffine"><span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span><span>© {new Date().getFullYear()} {COMPANY.name}</span></div>
+      </div>
+    </footer>
+  );
+}
+
 function Footer() {
   const enquire = useEnquiry();
   const { user } = useAuth();
+  if (useLocation().pathname === "/") return <SlimFooter />;
   return (
     <footer className="band">
       <div className="wrap">

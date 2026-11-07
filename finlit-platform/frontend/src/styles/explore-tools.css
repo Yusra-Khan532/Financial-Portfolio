@@ -1,0 +1,37 @@
+/* Landing page, "Explore the platform" (components/ExploreTools.tsx). Design tokens only; works in light and dark. */
+.xt-head { text-align: center; max-width: 760px; margin: 0 auto; }
+.xt-head h2 { font: 400 clamp(28px, 3.8vw, 44px)/1.12 var(--serif); letter-spacing: -.01em; margin: 10px 0 10px; text-wrap: balance; }
+.xt-head > p { margin: 0 auto 22px; color: var(--muted); font-size: var(--fs-16); max-width: 56ch; }
+.xt-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 24px; }
+.xt-chip { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 500 13px var(--sans); cursor: pointer; }
+.xt-chip:hover { border-color: var(--gold); }
+.xt-go svg { transition: transform .2s; } .xt-go[aria-expanded="true"] svg { transform: rotate(-90deg); }
+.xt-panel { margin-top: 36px; } .xt-panel[hidden] { display: none; }
+.xt-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.xt-tab { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 600 16px/1.2 var(--sans); text-align: left; cursor: pointer; }
+.xt-tab em { font: 500 13px var(--mono); font-style: normal; color: var(--faint); }
+.xt-tab:hover { border-color: var(--gold); }
+.xt-tab[aria-selected="true"] { background: var(--text); border-color: var(--text); color: var(--bg, var(--s1)); } .xt-tab[aria-selected="true"] em { color: inherit; opacity: .75; }
+.xt-tab:focus-visible, .xt-chip:focus-visible, .xt-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.xt-pane[hidden] { display: none; }
+.xt-ghead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 28px 0 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.xt-ghead h3 { margin: 0; font: 400 clamp(26px, 3vw, 34px)/1.1 var(--serif); } .xt-ghead p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-16); } .xt-ghead > span { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.xt-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.xt-card { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); overflow: hidden; }
+.xt-shot { aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--s2, var(--s1)); }
+.xt-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.xt-body { display: flex; flex-direction: column; flex: 1; gap: 12px; padding: 20px 22px 22px; }
+.xt-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .xt-top h4 { margin: 0; font: 400 24px/1.2 var(--serif); }
+.xt-badge { flex: none; padding: 4px 10px; border-radius: 999px; font: 700 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.xt-free { background: color-mix(in srgb, var(--gain, #1f7a55) 14%, var(--s1)); color: var(--gain, #1f7a55); }
+.xt-silver { background: color-mix(in srgb, #7a8594 18%, var(--s1)); color: var(--muted); }
+.xt-gold { background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--gold-deep, var(--gold)); }
+.xt-what { margin: 0; font-size: var(--fs-16); line-height: 1.45; color: var(--text); }
+.xt-pts { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 9px; font-size: var(--fs-14); color: var(--muted); line-height: 1.45; }
+.xt-pts li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; } .xt-pts svg { width: 16px; height: 16px; margin-top: 2px; color: var(--gold); }
+.xt-open { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; }
+.xt-open:hover { background: var(--text); color: var(--bg, var(--s1)); } .xt-open svg { width: 15px; height: 15px; }
+.xt-fine { margin: 28px 0 0; font-size: var(--fs-14); color: var(--faint); }
+@media (max-width: 1100px) { .xt-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); } .xt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) { .xt-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xt-grid { grid-template-columns: minmax(0, 1fr); } .xt-ghead { align-items: flex-start; flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .xt-go svg { transition: none; } }
