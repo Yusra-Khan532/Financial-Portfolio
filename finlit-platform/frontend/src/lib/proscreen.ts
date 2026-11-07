@@ -56,14 +56,12 @@ export const useScreen = (body: ReturnType<typeof toBody>, enabled: boolean) => 
   retry: (n, e) => e.status >= 500 && n < 1,
 });
 
-/** Core columns every visitor sees without clicking: P/E now, P/E 3-year average and P/B (each only where the plan allows it). */
-export const CORE_COLUMNS = ["pe", "pe_avg_3y", "pb"];
-/** Default columns: the server's own (market cap, price) plus the core valuation ones the plan can see. A phone gets one fewer (no P/B). */
-export function defaultColumns(cat: Pick<Catalog, "defaultColumns" | "groups"> | undefined, compact = false): string[] {
+/** Default columns: only the server's own (market cap and share price) beside the company name, and nothing else (task #41). A filter the visitor sets adds
+ *  its own column (see tableColumns), and the Columns menu offers every other column. */
+export function defaultColumns(cat: Pick<Catalog, "defaultColumns" | "groups"> | undefined): string[] {
   if (!cat) return [];
   const open = new Set(cat.groups.flatMap((g) => g.metrics.filter((m) => !m.locked).map((m) => m.key)));
-  const core = CORE_COLUMNS.filter((k) => open.has(k) && !(compact && k === "pb"));
-  return [...cat.defaultColumns, ...core].filter((k, i, a) => a.indexOf(k) === i);
+  return cat.defaultColumns.filter((k, i, a) => open.has(k) && a.indexOf(k) === i);
 }
 /** The column a chosen filter chip shows: its own, or the one for the period tab (Now / 3Y / 5Y / 7Y) it sits on. Locked metrics show nothing. */
 export function chipColumn(m: MetricInfo | undefined, period: string | undefined, byKey: Map<string, MetricInfo>): string | null {
