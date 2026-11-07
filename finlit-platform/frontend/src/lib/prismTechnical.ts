@@ -13,15 +13,22 @@
 // about a rating goes through `ratingWord`, `verdictView` and `safeText` below; lib/prismTechnical.test.ts asserts that no rendered string
 // contains one of the forbidden words.
 import { MINUS } from "./format";
-import WORDING from "./technicalWording.json";
+// Named imports, so the bundle carries only these keys: the file's `how` table (each signal's reading rule) stays on the server.
+import { alignment, bandTips, bandWords, bands, forbidden, phrases, ratingAlias, ratings, verdictAlias, verdicts, words } from "./technicalWording.json";
+const WORDING = { alignment, bandTips, bandWords, bands, forbidden, phrases, ratingAlias, ratings, verdictAlias, verdicts, words };
 
 /** What the technical view is, in plain words. Shown wherever it appears, next to the general Prism line. */
 export const TECH_NOTE = "Describes recent price and trend behaviour from past prices. It does not predict prices and is not a recommendation.";
 
 /* ------------------------------------------------------------------ types */
 export type FactorStatus = "available" | "unavailable" | "disabled";
+export type Direction = "supporting" | "adverse" | "neutral";
 export type TechFactor = {
-  key: string; label: string; signal: number | null; status: FactorStatus; detail: string;
+  key: string; label: string; status: FactorStatus; detail: string;
+  /** Which way the signal points. The research API sends only this word; the signal's size, its weight and its points stay on the server. */
+  direction: Direction | null;
+  /** Only on a report read before the server stopped sending it; never drawn. */
+  signal: number | null;
   /** The indicator's weight of this row and its points (weight x signal x 100 / weights in use). Null on a report stored before the breakdown existed. */
   weight: number | null; points: number | null;
 };
@@ -74,9 +81,12 @@ function parseFactor(v: unknown): TechFactor | null {
   let signal = num(f.signal);
   if (signal != null && (signal < -1 || signal > 1)) signal = null;       // the model never sends this; treat it as no signal rather than draw it
   if (status !== "available") signal = null;
+  const sent = f.direction === "supporting" || f.direction === "adverse" || f.direction === "neutral" ? f.direction : null;
+  const direction: Direction | null = status !== "available" ? null : sent ?? (signal == null ? null : signal > 0 ? "supporting" : signal < 0 ? "adverse" : "neutral");
   const weight = (num(f.weight) ?? 0) > 0 ? num(f.weight) : null, points = status === "available" && signal != null ? num(f.points) : null;
-  if (status === "available" && signal == null) return { key, label, signal: null, status: "unavailable", detail: str(f.detail) ?? str(f.reason) ?? str(f.observation) ?? "", weight, points: null };
-  return { key, label, signal, status, detail: str(f.detail) ?? str(f.reason) ?? str(f.observation) ?? "", weight, points };
+  const detail = str(f.detail) ?? str(f.reason) ?? str(f.observation) ?? "";
+  if (status === "available" && direction == null) return { key, label, direction: null, signal: null, status: "unavailable", detail, weight, points: null };
+  return { key, label, direction, signal, status, detail, weight, points };
 }
 
 function parseHorizon(v: unknown): TechHorizon {
@@ -206,8 +216,6 @@ export function verdictView(a: Pick<TechAssessment, "shortTerm" | "longTerm">): 
   return { tone: al.tone, word: al.label, detail: `Short term ${s}; long term ${l}.` };
 }
 
-/** How a row turns its reading into a signal (the indicator's rule, in our words). */
-export const HOW = WORDING.how as { st: Record<string, string>; lt: Record<string, string> };
 
 /* ------------------------------------------------------------------ safe wording of model-provided text */
 /** Words the site never shows (as whole words or word starts). From the shared wording file. */
@@ -252,18 +260,12 @@ export const FACTOR_GROUP_WORD: Record<FactorGroup | "all", string> = { all: "Al
 /** A factor's group; null for a factor that is switched off (it is listed in a note, not among the signals). */
 export function factorGroup(f: TechFactor): FactorGroup | null {
   if (f.status === "disabled") return null;
-  if (f.status === "unavailable" || f.signal == null) return "unavailable";
-  return f.signal > 0 ? "supporting" : f.signal < 0 ? "adverse" : "neutral";
+  if (f.status === "unavailable" || f.direction == null) return "unavailable";
+  return f.direction;
 }
 export const filterTechFactors = (rows: TechFactor[], filter: FactorGroup | "all") => rows.filter((f) => { const g = factorGroup(f); return g != null && (filter === "all" || g === filter); });
 export const disabledFactors = (rows: TechFactor[]) => rows.filter((f) => f.status === "disabled");
 
-/** Wording for how strong a signal is, from -1 to +1. */
-export function signalWord(signal: number): string {
-  const a = Math.abs(signal);
-  if (a === 0) return "Neutral";
-  return (signal > 0 ? "Supporting" : "Adverse") + (a >= 0.75 ? ", strong" : a >= 0.5 ? "" : ", mild");
-}
 
 export const STAGE_WORD: Record<1 | 2 | 3 | 4, string> = {
   1: "Stage 1: basing (price moving sideways after a decline)",
@@ -284,7 +286,6 @@ export function allShownText(a: TechAssessment): string[] {
   }
   const v = verdictView(a); out.push(v.word, v.detail);
   const al = trendAlignment(a.shortTerm.score, a.longTerm.score); if (al) out.push(al.rule, ...al.cells.map((c) => c.label), al.stBandWord, al.ltBandWord);
-  out.push(...Object.values(HOW.st), ...Object.values(HOW.lt));
   out.push(...a.notes.map(safeText), a.observations.benchmark ?? "", ...a.observations.benchmarksUsed, ...a.benchmarkSources.map((s) => `${s.name} ${s.provider ?? ""}`));
   return out;
 }

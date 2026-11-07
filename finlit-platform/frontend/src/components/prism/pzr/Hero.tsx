@@ -1,9 +1,9 @@
-// The hero of a Prism report: company, the signature prism ring (four arcs, length = weight, fill = score), chips, coverage, actions
+// The hero of a Prism report: company, the signature prism ring (four equal arcs, fill = score), chips, coverage, actions
 // and a score scale with the label thresholds. Status is always written in words next to any colour.
 import { Icon } from "../../../lib/icons";
 import { dateIN } from "../../../lib/format";
 import {
-  PRISM_NAME, PRISM_NOTE, completenessNote, notRatedReason, ringWhy, STATUS_TEXT, STATUS_WORD, isRated, labelTone, partInfo, partShare, pctWhole, ringSentence, score1, statementWord,
+  PRISM_NAME, PRISM_NOTE, completenessNote, notRatedReason, ringWhy, STATUS_TEXT, STATUS_WORD, isRated, labelTone, partInfo, pctWhole, ringSentence, score1, statementWord,
   type PrismRating, type PrismReport,
 } from "../../../lib/prism";
 import { THRESHOLDS, arcSegments, partVar } from "../../../lib/prismReport";
@@ -32,7 +32,7 @@ export function LabelChip({ label }: { label: PrismReport["rating"]["label"] }) 
 /* ---- the prism ring */
 const CX = 150, R = 118;
 const CIRC = 2 * Math.PI * R;
-export function PrismRing({ rating, size = 300 }: { rating: Pick<PrismRating, "status" | "final" | "label" | "parts" | "partWeights">; size?: number }) {
+export function PrismRing({ rating, size = 300 }: { rating: Pick<PrismRating, "status" | "final" | "label" | "parts">; size?: number }) {
   const rated = isRated(rating) && rating.final != null;
   const segs = arcSegments(rating);
   const rot = (frac: number) => `rotate(${(-90 + frac * 360).toFixed(2)} ${CX} ${CX})`;
@@ -66,14 +66,14 @@ export function PrismRing({ rating, size = 300 }: { rating: Pick<PrismRating, "s
   );
 }
 
-/** The ring's key: each part with its weight and, when rated, its score. */
+/** The ring's key: each part and, when rated, its score. */
 export function RingKey({ rating }: { rating: PrismRating }) {
   const rated = isRated(rating);
   return (
     <ul className="pzr-key" aria-label="The four parts of the ring">
       {arcSegments(rating).map((s, i) => (
         <li key={s.key} style={{ "--c": partVar(s.key, i) } as React.CSSProperties}>
-          <i aria-hidden="true" /><span>{partInfo(s.key).name}</span><small>{partShare(rating.partWeights, s.key)}%</small><b>{rated && s.score != null ? score1(s.score) : "—"}</b>
+          <i aria-hidden="true" /><span>{partInfo(s.key).name}</span><b>{rated && s.score != null ? score1(s.score) : "—"}</b>
         </li>
       ))}
     </ul>
@@ -179,7 +179,6 @@ export function Hero({ report, actions }: { report: PrismReport; actions: Report
       </div>
       <ScoreScale rating={rating} />
       <div className="pzr-hero-foot">
-        <span>Model {rating.modelVersion}</span>
         <span>Calculated {istTime(report.createdAt)}{report.cached ? " · stored report" : ""}</span>
         {report.technical?.asOf && <span data-testid="tech-asof">Technical view as of {dateIN(report.technical.asOf)}{report.technical.refreshing ? " (updating)" : ""}</span>}
       </div>

@@ -2,6 +2,7 @@
 // with the short- and long-term views), drawn by the same components (stock/PrismCardView) so the two pages can never drift apart. Above them, the company's name and its status words.
 import { Link } from "react-router";
 import { Icon } from "../../../lib/icons";
+import { useAuth } from "../../../lib/auth";
 import { PRISM_NAME, inputsLine, notRatedLede, statementWord, type PrismReport } from "../../../lib/prism";
 import { parseTechnical } from "../../../lib/prismTechnical";
 import { FundamentalSection, TechnicalSection } from "../../../stock/PrismCardView";
@@ -18,7 +19,26 @@ const STATUS_NOTE: Record<PrismReport["rating"]["status"], string> = {
   "NOT RATED": "The overall rating is withheld.",
 };
 
-export function CardTop({ report, actions }: { report: PrismReport; actions: ReportActions }) {
+const PLAN_WORD: Record<string, string> = { basic: "Basic member", silver: "Silver member", gold: "Gold member", bronze: "Bronze member" };
+/** A short, stable reference for one calculation: FL-<first four letters of the symbol>-<day and month>-<four characters of its id>. */
+export function reportRef(report: Pick<PrismReport, "id" | "company" | "createdAt">): string {
+  const d = new Date(report.createdAt), dm = Number.isNaN(d.getTime()) ? "0000" : `${String(d.getUTCDate()).padStart(2, "0")}${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  const sym = report.company.symbol.replace(/[^A-Z0-9]/gi, "").slice(0, 4).toUpperCase();
+  return `FL-${sym}-${dm}-${String(report.id).replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase()}`;
+}
+/** The session, or null outside the auth provider (a static render or a preview). useAuth always reads the context before it can throw, so the hook order never changes. */
+function useViewer(): ReturnType<typeof useAuth> | null {
+  try { return useAuth(); } catch { return null; }
+}
+/** "Prepared for Pranjal · Gold member · Report FL-RELI-0611-7Q2K · for personal use" under the header. Nothing for a visitor. */
+export function Viewer({ report }: { report: PrismReport }) {
+  const auth = useViewer(), user = auth?.user, plan = auth?.plan ?? "basic";
+  if (!user) return null;
+  const who = user.name?.trim() || user.email.split("@")[0];
+  return <p className="pzr-viewer">Prepared for <b>{who}</b> · {user.role === "admin" ? "Administrator" : PLAN_WORD[plan] ?? "Member"} · Report <b>{reportRef(report)}</b> · for personal use</p>;
+}
+
+export function CardTop({ report, actions, example = false }: { report: PrismReport; actions: ReportActions; example?: boolean }) {
   const r = report.rating, rep = report as unknown as PrismLatest;
   const { parts } = partsOf(r as unknown as PrismLatest["rating"]);
   const inp = inputsLine(r);
@@ -27,7 +47,8 @@ export function CardTop({ report, actions }: { report: PrismReport; actions: Rep
       <header className="pzr-ct-h">
         <div>
           <h2>{report.company.name}</h2>
-          <p className="pzr-ct-sub"><b>{report.company.symbol}</b> · {statementWord(report.statementType)} statements · Model {r.modelVersion} · Calculated {istTime(report.completedAt || report.createdAt)}</p>
+          <p className="pzr-ct-sub"><b>{report.company.symbol}</b> · {statementWord(report.statementType)} statements · Calculated {istTime(report.completedAt || report.createdAt)}</p>
+          {!example && <Viewer report={report} />}
         </div>
         <div className="pzr-ct-chips"><StatusChip status={r.status} />{r.status !== "NOT RATED" && <LabelChip label={r.label} />}
           {actions.onRecalculate && <button type="button" className="btn" onClick={actions.onRecalculate} disabled={actions.recalculating}><Icon name="refresh" />{actions.recalculating ? "Recalculating…" : "Recalculate"}</button>}</div>

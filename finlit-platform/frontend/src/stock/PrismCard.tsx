@@ -62,7 +62,8 @@ export function generateFailure(e: unknown): string {
   const st = e instanceof ApiError ? e.status : 0;
   if (st === 429) return e instanceof ApiError && e.body.status === "limit" ? (e.body.detail || "You have used today's Prism calculations.")
     : "Other companies are being calculated right now (the service does one at a time). Please try again in a minute; nothing is lost.";
-  if (st === 403 || st === 401) return "FinLit Prism is part of the Gold plan.";
+  if (st === 401) return "Sign in to see the FinLit Prism rating. Signing up is free.";
+  if (st === 403) return "FinLit Prism is part of the Gold plan.";
   if (st === 404) return "We could not find financial data for this company, so there is nothing to rate.";
   return "The rating could not be calculated right now. Nothing was changed. Please try again in a few minutes.";
 }

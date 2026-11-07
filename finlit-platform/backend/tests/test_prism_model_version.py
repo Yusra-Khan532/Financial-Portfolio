@@ -52,7 +52,9 @@ async def test_old_saved_reliance_is_hidden_and_recalculated_even_when_recent(en
     assert not prism._fresh(await prism._stored(app.state.store, 'RELIANCE', 'consolidated'))
     response = await generate(gold, 'RELIANCE')
     assert response.status_code == 200 and response.json()['cached'] is False
-    assert response.json()['rating']['modelVersion'] == prism.REQUIRED_MODEL_VERSION
+    assert 'modelVersion' not in response.json()['rating']           # the version stays on the server
+    stored = json.loads((await prism._stored(app.state.store, 'RELIANCE', 'consolidated'))['report'])
+    assert stored['rating']['modelVersion'] == prism.REQUIRED_MODEL_VERSION
     assert len(fake.reports) == 2
     assert (await gold.get('/api/prism/reports/latest?symbol=RELIANCE')).status_code == 200
     assert (await generate(gold, 'RELIANCE')).json()['cached'] is True

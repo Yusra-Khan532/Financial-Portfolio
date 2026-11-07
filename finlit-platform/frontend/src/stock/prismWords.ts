@@ -5,9 +5,9 @@ import { FUND_PART_NAME } from "../lib/prismNames";
 export const PRISM_NOTE = "Describes the company's financial health from its filings and prices; not a recommendation.";
 
 export type PrismPart = "fundamental" | "valuation" | "quality" | "risk";
-/** The four parts, in the model's order, with their share of the score and a decorative colour. */
-export const PRISM_PARTS: [PrismPart, string, number, string][] = [
-  ["fundamental", FUND_PART_NAME, 40, "--p-growth"], ["valuation", "Valuation", 30, "--p-quality"], ["quality", "Quality", 20, "--p-profit"], ["risk", "Risk", 10, "--p-balance"],
+/** The four parts, in the model's order, with a decorative colour. How much each part counts is FinLit's own and stays on the server. */
+export const PRISM_PARTS: [PrismPart, string, string][] = [
+  ["fundamental", FUND_PART_NAME, "--p-growth"], ["valuation", "Valuation", "--p-quality"], ["quality", "Quality", "--p-profit"], ["risk", "Risk", "--p-balance"],
 ];
 
 /** What Prism adds, for the unlock card. */

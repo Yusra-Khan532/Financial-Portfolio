@@ -28,14 +28,15 @@ describe("Prism score over time", () => {
     wrap();
     await screen.findByText(/Only one day is recorded so far/);
   });
-  it("draws the score line, summarises the change, marks a model change, and offers the same numbers as a table", async () => {
+  it("draws the score line, summarises the change, marks a method update without its version, and offers the same numbers as a table", async () => {
     st.body = { points: [pt("2026-11-02", 60), pt("2026-11-09", 62), pt("2026-11-16", 66, { modelVersion: "3.6.11" })] };
     wrap();
     await screen.findByText(/Prism score moved from 60 on 2 Nov 2026 to 66 on 16 Nov 2026 \(\+6 points\)/);
     const svg = document.querySelector(".phx svg")!;
     expect(svg.getAttribute("aria-label")).toBe("Prism score over time, 3 days recorded");
     expect(svg.querySelectorAll("path").length).toBe(1);                                      // only the score line is on by default
-    expect(screen.getByText(/dashed gold line marks a day the model version changed \(16 Nov\)/)).toBeTruthy();
+    expect(screen.getByText(/dashed gold line marks a day the scoring method was updated \(16 Nov\)/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/3\.6\.1/);
     expect(document.querySelectorAll(".phx-table tbody tr").length).toBe(3);
     fireEvent.click(screen.getByLabelText("Valuation"));
     expect(svg.querySelectorAll("path").length).toBe(2);                                      // a part can be added

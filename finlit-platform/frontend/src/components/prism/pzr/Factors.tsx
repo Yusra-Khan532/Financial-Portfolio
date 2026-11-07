@@ -1,41 +1,45 @@
-// Factor explorer: every factor of every part with value, points, a bar with threshold ticks, an input-state badge in words and the
-// comparison behind it. Filter chips and a points sort apply to all parts; on a phone each row becomes a stacked card.
+// Factor explorer: every factor of every part with its value, its reading (Very strong to Very weak), a bar of fixed length per reading, an
+// input-state badge in words and the comparison behind it. The exact points stay on the server. Filter chips and a reading sort apply to all
+// parts; on a phone each row becomes a stacked card.
 import { useMemo, useState } from "react";
-import { nf } from "../../../lib/format";
 import {
-  STANDING_WORD, factorDetail, factorValue, isRated, partInfo, partShare, partsOf, reviewItem, score1, standing,
+  READING_FILL, READING_WORD, STANDING_WORD, factorDetail, factorValue, isRated, partInfo, partsOf, readingOf, reviewItem, score1, standing,
   type PartKey, type PrismMetric, type PrismReport, type PrismReview, type ReviewPart,
 } from "../../../lib/prism";
-import { BADGE_WORD, FILTER_WORD, POINT_TICKS, filterFactors, partVar, sortFactors, valueBar, type FactorFilter, type FactorSort } from "../../../lib/prismReport";
+import { BADGE_WORD, FILTER_WORD, filterFactors, partVar, sortFactors, type FactorFilter, type FactorSort } from "../../../lib/prismReport";
 
 const FILTERS: FactorFilter[] = ["all", "strengths", "concerns", "estimated"];
-const SORTS: [FactorSort, string][] = [["model", "Model order"], ["high", "Points: high to low"], ["low", "Points: low to high"]];
+const SORTS: [FactorSort, string][] = [["model", "Model order"], ["high", "Strongest first"], ["low", "Weakest first"]];
 
-function PointsBar({ row }: { row: PrismMetric }) {
-  const st = standing(row), vb = valueBar(row);
+/** One bar per factor, filled to a fixed length for its reading (never to its exact points). */
+function ReadingBar({ row }: { row: PrismMetric }) {
+  const r = readingOf(row);
   return (
-    <span className={"pzr-pb " + st} aria-hidden="true">
-      <span className="pzr-pb-t"><i style={{ width: `${row.points == null ? 0 : Math.max(0, Math.min(100, row.points))}%` }} />{POINT_TICKS.map((t) => <u key={t} style={{ left: `${t}%` }} />)}</span>
-      {vb && <span className="pzr-vb" title="Where the value sits between its 0-point and 100-point values; ticks are the red and green boundaries">
-        <i className="r" style={{ width: `${(vb.red ?? 0) * 100}%` }} /><i className="g" style={{ left: `${(vb.green ?? 1) * 100}%` }} />
-        {vb.red != null && <u style={{ left: `${vb.red * 100}%` }} />}{vb.green != null && <u style={{ left: `${vb.green * 100}%` }} />}
-        <b style={{ left: `${vb.pos * 100}%` }} />
-      </span>}
+    <span className={"pzr-pb " + standing(row)} aria-hidden="true">
+      <span className="pzr-pb-t"><i style={{ width: `${r == null ? 0 : READING_FILL[r]}%` }} /></span>
     </span>
   );
 }
 
+/** The lines under a factor's name: each said once (a line that only repeats another, or is contained in it, is dropped). */
+export function noteLines(texts: (string | null | undefined)[]): string[] {
+  const norm = (t: string) => t.trim().replace(/\.$/, "").toLowerCase();
+  return texts.filter((t): t is string => !!t && !!t.trim()).reduce<string[]>((acc, t) => {
+    if (acc.some((a) => norm(a).includes(norm(t)))) return acc;
+    return [...acc.filter((a) => !norm(t).includes(norm(a))), t.trim()];
+  }, []);
+}
+
 function Row({ row, review, part, group }: { row: PrismMetric; review: PrismReview; part: PartKey; group: string }) {
-  const item = reviewItem(review, part, row.metric), st = standing(row), detail = factorDetail(row, group);
-  const hasVb = valueBar(row) != null;
-  const lines = [item?.summary, detail, item?.comparisonText].filter((t): t is string => !!t).reduce<string[]>((acc, t) => (acc.some((a) => a.includes(t.replace(/\.$/, ""))) ? acc : [...acc.filter((a) => !t.includes(a.replace(/\.$/, ""))), t]), []);
+  const item = reviewItem(review, part, row.metric), st = standing(row), detail = factorDetail(row, group), reading = readingOf(row);
+  const lines = noteLines([item?.summary, detail, item?.comparisonText]);
   return (
     <li className={"pzr-fr " + st} id={`pzr-f-${row.metric}`}>
       <span className="pzr-fr-n"><b>{item?.label || row.label}</b>
         {lines.map((t) => <small key={t}>{t}</small>)}</span>
       <span className="pzr-fr-v" data-l="Value">{row.value == null && item ? item.valueText : factorValue(row)}</span>
-      <span className="pzr-fr-b" data-l={hasVb ? "Points and range" : "Points"}><PointsBar row={row} /></span>
-      <span className="pzr-fr-p" data-l="Points">{row.points == null ? "—" : <>{nf(row.points, 0)}<small> / 100</small></>}</span>
+      <span className="pzr-fr-b" data-l="Position"><ReadingBar row={row} /></span>
+      <span className="pzr-fr-p" data-l="Reading">{reading == null ? <span className="pzr-rd none">—</span> : <span className={"pzr-rd " + reading}>{READING_WORD[reading]}</span>}</span>
       <span className="pzr-fr-s" data-l="Status">
         <span className={"pzr-badge s" + row.status}><i aria-hidden="true" />{BADGE_WORD[row.status]}</span>
         <span className={"pzr-sw " + st}><i aria-hidden="true" />{STANDING_WORD[st]}</span>
@@ -53,13 +57,13 @@ function PartSection({ part, index, report, review, filter, sort }: { part: Revi
     <section id={`pzr-part-${part.key}`} tabIndex={-1} className="pzr-fp" aria-labelledby={`pzr-fh-${part.key}`} style={{ "--c": partVar(part.key, index) } as React.CSSProperties}>
       <header className="pzr-fp-h">
         <span className="pzr-fp-sw" aria-hidden="true" />
-        <div><h4 id={`pzr-fh-${part.key}`}>{partInfo(part.key).name}</h4><p>{partInfo(part.key).what} Counts for {partShare(rating.partWeights, part.key)}% of the overall score.</p></div>
+        <div><h4 id={`pzr-fh-${part.key}`}>{partInfo(part.key).name}</h4><p>{partInfo(part.key).what}</p></div>
         <p className="pzr-fp-s">{score == null ? <small>Not rated</small> : <>{score1(score)}<small> / 100</small></>}</p>
       </header>
       {rated && part.notes?.map((n, i) => <p key={i} className="pzr-fnote">{n}</p>)}
       {rows.length ? (
         <>
-          <div className="pzr-fr-head" aria-hidden="true"><span>Factor</span><span>Value</span><span>Position</span><span>Points</span><span>Status</span></div>
+          <div className="pzr-fr-head" aria-hidden="true"><span>Factor</span><span>Value</span><span>Position</span><span>Reading</span><span>Status</span></div>
           <ul className="pzr-fl" aria-label={`${partInfo(part.key).name} factors`}>{rows.map((r) => <Row key={r.metric} row={r} review={review} part={part.key} group={rating.group} />)}</ul>
         </>
       ) : <p className="pzr-empty">{all.length ? `No ${FILTER_WORD[filter].toLowerCase()} in this part.` : "No factors are listed for this part."}</p>}
@@ -76,7 +80,7 @@ export function FactorExplorer({ report, review }: { report: PrismReport; review
   return (
     <section className="pzr-sec" aria-labelledby="pzr-h-fx">
       <header className="pzr-sh"><h3 id="pzr-h-fx">Every factor</h3>
-        <p>Points run from 0 to 100. A factor supports the score at 70 or more and weighs on it below 40. Estimated factors are never counted as strengths or concerns. A higher Risk score means lower risk.</p></header>
+        <p className="pzr-wide">Each factor is read against companies in the same industry group, from Very strong to Very weak. Strong and Very strong count as strengths, Weak and Very weak as concerns, and estimated factors as neither. A higher Risk score means lower risk.</p></header>
       <div className="pzr-tools pzr-noprint">
         <div className="pzr-chipsrow" role="group" aria-label="Filter factors">
           {FILTERS.map((f) => <button key={f} type="button" className={"pzr-chip" + (filter === f ? " on" : "")} aria-pressed={filter === f} onClick={() => setFilter(f)}>{FILTER_WORD[f]} <small>{count(f)}</small></button>)}

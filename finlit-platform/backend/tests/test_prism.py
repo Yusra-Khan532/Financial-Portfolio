@@ -29,6 +29,7 @@ import httpx
 import pytest
 
 from finlit import prism, prism_technical as pt
+from finlit.prism_public import direction_of, leaks, public_report, reading_of
 from finlit.api import create_app
 from finlit.auth.service import cookie_name, create_session
 from test_integration import make_settings, store  # noqa: F401  (fixtures)
@@ -155,25 +156,49 @@ def generate(c, symbol="TCS", **extra):
 # ------------------------------------------------------------------ plan gating
 async def test_only_gold_and_administrators_reach_prism_and_showcase_is_open(env):
     app, fake = env
-    visitor = client(app)
-    for c in (visitor, await member(app, "basic"), await member(app, "silver")):
+    for c in (await member(app, "basic"), await member(app, "silver")):
         for r in (await generate(c), await c.get("/api/prism/reports/latest?symbol=TCS")):
             assert r.status_code == 403 and r.json()["status"] == "plan_required" and r.json()["plan"] == "gold"
             assert r.headers["cache-control"] == "no-store"
     assert fake.reports == []                                               # refused before any calculation
     assert (await generate(await member(app, "gold"))).status_code == 200
     assert (await generate(await member(app, "basic", role="admin"), "INFY")).status_code == 200
-    r = await generate(visitor, "reliance")                                 # the showcase company is open to everyone
+    basic = await member(app, "basic")
+    r = await generate(basic, "reliance")                                   # the showcase company is open to every signed-in member
     assert r.status_code == 200 and r.json()["company"]["symbol"] == "RELIANCE"
-    assert (await visitor.get("/api/prism/reports/latest?symbol=RELIANCE")).status_code == 200
+    assert (await basic.get("/api/prism/reports/latest?symbol=RELIANCE")).status_code == 200
     assert len(fake.reports) == 3
+
+
+async def test_the_full_report_needs_a_sign_in_and_the_stock_page_card_does_not(env):
+    app, fake = env
+    await generate(await member(app, "gold"), "RELIANCE")
+    visitor = client(app)
+    for r in (await generate(visitor, "RELIANCE"), await visitor.get("/api/prism/reports/latest?symbol=RELIANCE"),
+              await visitor.get("/api/prism/history?symbol=RELIANCE")):
+        assert r.status_code == 401 and r.json()["status"] == "sign_in_required" and "rating" not in r.json()
+    card = await visitor.get("/api/prism/reports/latest?symbol=RELIANCE&view=summary")     # the public stock page's small card
+    assert card.status_code == 200 and card.json()["summary"]["final"] == SNAPSHOT["rating"]["final"]
+    assert len(fake.reports) == 1
+
+
+async def test_opening_reports_is_rate_limited(env, monkeypatch):
+    app, fake = env
+    monkeypatch.setattr(prism, "READ_LIMIT", 3)
+    gold = await member(app, "gold")
+    await generate(gold, "RELIANCE")
+    codes = [(await gold.get("/api/prism/reports/latest?symbol=RELIANCE")).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]                                    # the calculation above counted as the first of the three
+    admin = await member(app, "basic", role="admin")
+    assert [(await admin.get("/api/prism/reports/latest?symbol=RELIANCE")).status_code for _ in range(4)] == [200] * 4   # administrators are not limited
 
 
 async def test_member_posts_need_our_origin_and_csrf_token(env):
     app, fake = env
     gold = await member(app, "gold")
     assert (await gold.post("/api/prism/reports", json={"symbol": "TCS"}, headers={"X-CSRF-Token": "wrong"})).status_code == 403
-    assert (await client(app, Origin="https://evil.example").post("/api/prism/reports", json={"symbol": "RELIANCE"})).status_code == 403
+    evil = client(app, Origin="https://evil.example", **{"Cookie": gold.headers["Cookie"]})
+    assert (await evil.post("/api/prism/reports", json={"symbol": "RELIANCE"})).status_code == 403
     assert fake.reports == []
 
 
@@ -189,13 +214,13 @@ async def test_bad_input_is_a_422_before_anything_else(env):
 
 
 # ------------------------------------------------------------------ the token and the document
-async def test_token_is_a_five_minute_admin_token_for_the_member_or_the_visitor(env):
+async def test_token_is_a_five_minute_admin_token_for_the_member(env):
     app, fake = env
-    gold = await member(app, "gold")
+    gold, basic = await member(app, "gold"), await member(app, "basic")
     await generate(gold)
-    await generate(client(app), "RELIANCE")
+    await generate(basic, "RELIANCE")
     first, second = (claims(call["auth"].removeprefix("Bearer ")) for call in fake.reports)
-    assert first["sub"] == f"prism:{gold.user_id}" and second["sub"] == "prism:visitor"
+    assert first["sub"] == f"prism:{gold.user_id}" and second["sub"] == f"prism:{basic.user_id}"
     for c in (first, second):
         assert c["role"] == "admin" and c["exp"] - c["iat"] == 300
     assert fake.reports[0]["body"] == {"query": "TCS", "statement_type": "consolidated", "delivery": "inline", "priority": "interactive", "keep": True, "cache": True}
@@ -209,7 +234,11 @@ async def test_internal_fields_are_stripped_and_the_full_snapshot_is_kept_for_th
     assert r.status_code == 200 and body["cached"] is False
     for key in prism.INTERNAL:
         assert key in SNAPSHOT and key not in body                     # present in the real document, never sent to the browser
-    assert body["rating"]["modelVersion"] == SNAPSHOT["rating"]["modelVersion"] and body["review"] == SNAPSHOT["review"]
+    assert "modelVersion" not in body["rating"] and body["review"] == SNAPSHOT["review"]
+    assert leaks(body) == []                                           # no weight, point, cut-off or version reaches the browser
+    assert {m["reading"] for m in body["rating"]["metrics"]} <= {"very_strong", "strong", "middle", "weak", "very_weak", None}
+    for shown, source in zip(body["rating"]["metrics"], SNAPSHOT["rating"]["metrics"]):
+        assert shown["reading"] == reading_of(source.get("points")) and shown.get("value") == source.get("value")
     assert body["rating"]["metrics"] and body["trends"] and body["inputMeta"]
     until = datetime.fromisoformat(body["pdfAvailableUntil"])
     assert timedelta(minutes=29) < until - datetime.now(timezone.utc) <= timedelta(minutes=30)
@@ -341,9 +370,13 @@ async def test_technical_assessment_is_served_stored_and_kept_whole_for_the_pdf(
     app, fake = env
     gold = await member(app, "gold")
     body = (await generate(gold)).json()
-    assert body["technicalAssessment"] == prism.technical_view(TECH) and not SECRET_KEYS & keys_anywhere(body["technicalAssessment"])
+    assert body["technicalAssessment"] == public_report({"technicalAssessment": prism.technical_view(TECH)})["technicalAssessment"]
+    assert not SECRET_KEYS & keys_anywhere(body["technicalAssessment"]) and leaks(body["technicalAssessment"]) == []
+    for key in ("shortTerm", "longTerm"):                              # each signal shows its direction only
+        for shown, source in zip(body["technicalAssessment"][key]["factors"], TECH[key]["factors"]):
+            assert "signal" not in shown and shown["direction"] == (direction_of(source["signal"]) if source["status"] == "available" else None)
     stored = json.loads((await app.state.store.pool.fetchrow("SELECT report FROM prism_reports WHERE symbol = 'TCS'"))["report"])
-    assert stored["technicalAssessment"] == body["technicalAssessment"]
+    assert stored["technicalAssessment"] == prism.technical_view(TECH)  # stored whole: the server keeps the points for its own use
     assert (await gold.get("/api/prism/reports/latest?symbol=TCS")).json()["technicalAssessment"] == body["technicalAssessment"]
     summary = (await gold.get("/api/prism/reports/latest?symbol=TCS&view=summary")).json()["summary"]
     assert "technicalAssessment" not in summary
@@ -373,11 +406,12 @@ async def test_stored_report_is_reused_for_six_hours_unless_refreshed(env):
     assert standalone["statementType"] == "standalone" and len(fake.reports) == 4
 
 
-async def test_visitors_cannot_order_a_recalculation_of_a_fresh_showcase_report(env):
+async def test_members_below_gold_cannot_order_a_recalculation_of_a_fresh_showcase_report(env):
     app, fake = env
-    visitor = client(app)
-    await generate(visitor, "RELIANCE")
-    assert (await generate(visitor, "RELIANCE", refresh=True)).json()["cached"] is True and len(fake.reports) == 1
+    basic = await member(app, "basic")
+    await generate(basic, "RELIANCE")
+    r = await generate(basic, "RELIANCE", refresh=True)
+    assert len(fake.reports) == 1 and (r.status_code == 403 or r.json()["cached"] is True)
 
 
 async def test_daily_limit_counts_calculations_not_reuse_and_spares_administrators(env, monkeypatch):
@@ -581,9 +615,10 @@ async def test_summary_view_is_small_and_has_what_the_stock_page_needs(env):
     r = await gold.get("/api/prism/reports/latest?symbol=TCS&view=summary")
     s = r.json()["summary"]
     assert list(r.json()) == ["summary"] and r.headers["cache-control"] == "no-store"
-    assert set(s) == {"id", "final", "label", "status", "confidence", "parts", "partWeights", "generatedAt", "modelVersion", "technical", "topPros", "topCons", "freshness"}
+    assert set(s) == {"id", "final", "label", "status", "confidence", "parts", "generatedAt", "technical", "topPros", "topCons", "freshness"}
+    assert leaks(s) == []                                                  # no part weights and no model version
     assert s["id"] == full["id"] and s["final"] == full["rating"]["final"] and s["label"] == "AVERAGE" and s["status"] == "RATED"
-    assert s["parts"] == SNAPSHOT["rating"]["parts"] and s["partWeights"] == SNAPSHOT["rating"]["partWeights"]
+    assert s["parts"] == SNAPSHOT["rating"]["parts"]
     assert len(s["topPros"]) == 2 and len(s["topCons"]) == 2 and all(isinstance(x, str) and x for x in s["topPros"] + s["topCons"])
     assert len(r.content) < len(json.dumps(full)) / 5
     assert (await gold.get("/api/prism/reports/latest?symbol=TCS&view=other")).status_code == 422
@@ -602,9 +637,9 @@ async def test_a_technical_part_passes_through_untouched(env):
     fake.snapshot = with_technical
     gold = await member(app, "gold")
     report = (await generate(gold)).json()
-    assert report["rating"]["parts"]["technical"] == 61.5 and report["rating"]["partWeights"]["technical"] == 0.1
+    assert report["rating"]["parts"]["technical"] == 61.5 and "partWeights" not in report["rating"]
     s = (await gold.get("/api/prism/reports/latest?symbol=TCS&view=summary")).json()["summary"]
-    assert s["parts"]["technical"] == 61.5 and s["partWeights"]["technical"] == 0.1
+    assert s["parts"]["technical"] == 61.5 and "partWeights" not in s
 
 
 # ------------------------------------------------------------------ review fixes (docs/prism/REVIEW.md)
@@ -806,9 +841,10 @@ async def test_a_job_that_no_longer_exists_is_reported_failed_not_working_for_ev
 async def test_background_calculations_follow_the_same_rules_as_the_button(env, monkeypatch):
     app, fake = env
     monkeypatch.setattr(prism, "DAILY_LIMIT", 1)
-    visitor, gold = client(app), await member(app, "gold")
-    assert (await generate(visitor, "TCS", background=True)).status_code == 403                  # plan rules
-    assert (await generate(visitor, "RELIANCE", background=True)).status_code == 202            # the showcase company
+    visitor, basic, gold = client(app), await member(app, "basic"), await member(app, "gold")
+    assert (await generate(visitor, "RELIANCE", background=True)).status_code == 401            # a sign-in first
+    assert (await generate(basic, "TCS", background=True)).status_code == 403                    # plan rules
+    assert (await generate(basic, "RELIANCE", background=True)).status_code == 202              # the showcase company
     assert (await (await member(app, "basic")).get("/api/prism/jobs?symbol=TCS")).status_code == 403
     assert (await gold.get("/api/prism/jobs?symbol=A%20B")).status_code == 422
     assert (await generate(gold, "TCS", background=True)).status_code == 202

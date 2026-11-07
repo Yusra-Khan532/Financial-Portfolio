@@ -174,7 +174,7 @@ export function HistoryCharts({ report }: { report: PrismReport }) {
 }
 
 const cell = (v: number | null | undefined, d?: number) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(Math.abs(v), d ?? (Math.abs(v) >= 1000 ? 0 : 2)));
-export function HistoryTables({ history, income, note = null }: { history: PrismHistory; income: string; note?: string | null }) {
+export function HistoryTables({ history, income, note = null, benchmark }: { history: PrismHistory; income: string; note?: string | null; benchmark?: PrismReport["benchmark"] }) {
   const table = (title: string, rows: { period: string; [k: string]: number | string | null }[], fields: [string, string][]) => (
     <div className="pzr-htab"><h4>{title}</h4>
       {rows.length ? <div className="pzr-tw" tabIndex={0} role="region" aria-label={`${title}, scrolls sideways on a small screen`}>
@@ -188,8 +188,58 @@ export function HistoryTables({ history, income, note = null }: { history: Prism
       <p className="pzr-small">Oldest to newest · amounts in ₹ crore · EPS in ₹ per share · missing values shown as a dash.{note ? ` ${note}` : ""}</p>
       {table("Quarterly results", history.quarterly, [["sales", inc], ["profit", "Owner-attributable net profit"], ["ebitda", "EBITDA"], ["eps", "EPS (₹)"]])}
       {table("Annual results", history.annual, [["sales", inc], ["profit", "Owner-attributable net profit"], ["cashFlow", "Operating cash flow"], ["netWorth", "Book equity"]])}
-      <div className="pzr-htab"><h4>Key financial ratios</h4>
-        <dl className="pzr-ratios">{history.latest.map((r) => <div key={r.key}><dt>{r.key === "shares" ? "Shares outstanding" : r.label}</dt><dd>{r.value == null ? "—" : `${cell(r.value)} ${r.unit}`}</dd></div>)}</dl></div>
+      <KeyRatios latest={history.latest} benchmark={benchmark} />
+    </div>
+  );
+}
+
+/* ---- key financial ratios, as tables: the valuation multiples (company, own five-year median, benchmark) and three groups of single values */
+type Ratio = PrismHistory["latest"][number];
+const RATIO_GROUPS: [string, [string, string][]][] = [
+  ["Per share and size", [["price", "Price"], ["eps_ttm", "Trailing EPS"], ["shares", "Shares outstanding"], ["market_cap", "Market capitalisation"], ["ev", "Enterprise value"]]],
+  ["Balance sheet and profit", [["total_debt", "Total debt"], ["cash", "Cash and bank balances"], ["net_worth", "Latest book equity"], ["profit_before_tax", "Profit before tax, last FY"],
+    ["interest_cost", "Interest cost, last FY"], ["annual_net_worth", "Book equity matching annual profit"], ["annual_total_assets", "Assets matching annual profit"]]],
+  ["Risk and trading", [["volatility_pct", "Annualised volatility"], ["biggest_fall_pct", "Maximum one-year drawdown"], ["trading_value_cr", "Average daily trading value"], ["promoter_pledged_pct", "Promoter pledged shares"]]],
+];
+const MULTIPLES: [string, string][] = [["pe", "P/E"], ["pb", "P/B"], ["ev_ebitda", "EV/EBITDA"]];
+/** A ratio in the site's style: ₹ for prices and crores, × for multiples, % with two decimals. */
+export function ratioText(r: Pick<Ratio, "value" | "unit">): string {
+  const v = r.value;
+  if (v == null) return "—";
+  const sign = v < 0 ? MINUS : "", a = Math.abs(v);
+  switch (r.unit) {
+    case "INR/share": return `₹${sign}${nf(a, a >= 1000 ? 0 : 2)}`;
+    case "Cr": return `₹${sign}${nf(a, a >= 100 ? 0 : 2)} Cr`;
+    case "Cr shares": return `${sign}${nf(a, a >= 100 ? 0 : 2)} Cr`;
+    case "%": return `${sign}${nf(a, 2)}%`;
+    case "x": return `${sign}${nf(a, 2)}×`;
+    default: return `${sign}${nf(a, 2)}${r.unit ? " " + r.unit : ""}`;
+  }
+}
+export function KeyRatios({ latest, benchmark }: { latest: Ratio[]; benchmark?: PrismReport["benchmark"] }) {
+  if (!latest.length) return null;
+  const by = new Map(latest.map((r) => [r.key, r]));
+  const used = new Set<string>();
+  const take = (k: string) => { used.add(k); return by.get(k); };
+  const multiples = MULTIPLES.map(([k, label]) => ({ label, co: take(k), own: take(`own_5y_median_${k}`), bm: take(`industry_median_${k}`), scope: benchmark?.metrics?.[`industry_median_${k}`]?.scope }))
+    .filter((m) => m.co || m.own || m.bm);
+  const sector = multiples.some((m) => m.scope === "sector");
+  const providers = [...new Set(MULTIPLES.map(([k]) => benchmark?.metrics?.[`industry_median_${k}`]?.provider).filter((p): p is string => !!p))];
+  const groups = RATIO_GROUPS.map(([title, rows]) => [title, rows.map(([k, label]) => ({ label, r: take(k) })).filter((x) => x.r)] as const).filter(([, rows]) => rows.length);
+  const rest = latest.filter((r) => !used.has(r.key));
+  const one = (title: string, rows: { label: string; r?: Ratio }[]) => (
+    <div className="pzr-tw" key={title}><table className="pzr-t"><thead><tr><th scope="col">{title}</th><th scope="col" className="n">Value</th></tr></thead>
+      <tbody>{rows.map(({ label, r }) => <tr key={label}><th scope="row">{label}</th><td className="n">{r ? ratioText(r) : "—"}</td></tr>)}</tbody></table></div>
+  );
+  return (
+    <div className="pzr-htab"><h4>Key financial ratios</h4>
+      <div className="pzr-kr">
+        {multiples.length > 0 && <div className="pzr-tw pzr-kr-v"><table className="pzr-t"><thead><tr><th scope="col">Valuation multiple</th><th scope="col" className="n">Company</th><th scope="col" className="n">Own 5-year median</th><th scope="col" className="n">{sector ? "Sector benchmark" : "Industry median"}</th></tr></thead>
+          <tbody>{multiples.map((m) => <tr key={m.label}><th scope="row">{m.label}</th><td className="n pzr-kr-co">{m.co ? ratioText(m.co) : "—"}</td><td className="n">{m.own ? ratioText(m.own) : "—"}</td><td className="n">{m.bm ? ratioText(m.bm) : "—"}</td></tr>)}</tbody></table></div>}
+        {groups.map(([title, rows]) => one(title, rows))}
+        {rest.length > 0 && one("Other", rest.map((r) => ({ label: r.label, r })))}
+      </div>
+      <p className="pzr-small pzr-kr-note">{providers.length ? `${sector ? "Sector benchmarks" : "Benchmarks"} from ${providers.join(" and ")}. ` : ""}₹ Cr is ₹ crore.</p>
     </div>
   );
 }

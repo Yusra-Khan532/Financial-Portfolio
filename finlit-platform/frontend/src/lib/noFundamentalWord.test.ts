@@ -11,7 +11,7 @@ const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const
 const VISIBLE = /(["'`>])([^"'`<>\n]*\b[Ff]undamentals?\b[^"'`<>\n]*)(?=["'`<])/g;
 // The founder named the FinLit Prism Score panel himself (Nov 2026): "Fundamental Score", "Total Fundamental Score" and its subtitle are the only visible uses.
 // Task #24 (Nov 2026, asked for by the team and approved by the founder): the first Prism card is titled "Fundamental analysis" (it was "Financial health analysis").
-const ALLOWED = /^(Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components \(weighted\)|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
+const ALLOWED = /^(Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
 
 describe("no 'Fundamental' on any page", () => {
   it("no visible string uses the word (only routes, ids and data keys keep it)", () => {

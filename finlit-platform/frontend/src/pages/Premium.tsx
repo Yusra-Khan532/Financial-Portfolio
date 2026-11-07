@@ -31,8 +31,8 @@ function PrismHubCard() {
         <ul>{["A score out of 100 and a plain label, from Strong to Poor", "Shows how much of the data was available, and says so when a rating is provisional", "The same report on screen and as a PDF"].map((p) => <li key={p}><Icon name="check" />{p}</li>)}</ul>
       </div>
       <div className="pm-pv" aria-hidden="true">
-        {PRISM_PARTS.map(([k, name, w]) => <div key={k}><b>{name}</b><span className="pc-bar"><i style={{ width: `${w * 2.5}%`, background: "var(--gold)" }} /></span><em>{w}%</em></div>)}
-        <small>The four parts and their share of the score. {PRISM_NOTE}</small>
+        {PRISM_PARTS.map(([k, name]) => <div key={k}><b>{name}</b><span className="pc-bar"><i style={{ width: "100%", background: "var(--gold)" }} /></span></div>)}
+        <small>The four parts of the score, each scored out of 100. {PRISM_NOTE}</small>
       </div>
       <span className="go">Open FinLit Prism <Icon name="arrow" /></span>
     </Link>

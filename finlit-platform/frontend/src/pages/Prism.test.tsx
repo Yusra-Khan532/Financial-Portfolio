@@ -38,34 +38,36 @@ const V = variants as unknown as { limited: PrismReport; notRated: PrismReport }
 describe("Prism report", () => {
   const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={R} actions={{}} /></MemoryRouter>);
   const t = text(html);
-  it("shows the headline, the four parts, completeness, dates, history, factors, notes and benchmarks", () => {
+  it("shows the headline, the four parts, history, key ratios, factors with readings, notes, benchmarks and one boxed disclaimer", () => {
     expect(t).toContain("Example Components Ltd");
     expect(t).toContain("54.5");
     expect(html).toMatch(/pzr-lab average/);
     expect(t).toContain("Average");
     expect(t).toContain("Rated");
     expect(t).toContain("100% of inputs available");
-    expect(t).toContain("not a probability");
-    expect(t).toContain("Model 3.6.10");
+    expect(t).not.toContain("Model 3.");
     for (const name of ["Growth & Profitability", "Valuation", "Quality", "Risk"]) expect(t).toContain(name);
-    expect(t).toContain("40% of the overall score");
+    expect(t).not.toContain("% of the overall score");
     expect(t).toContain("Technical indicators assess price trend and momentum separately and are not included in this score");
-    expect(t).toContain("All applicable factors have usable inputs");
+    expect(t).not.toContain("Data completeness and freshness");
     for (const k of ["Growth & Profitability", "Valuation", "Quality", "Risk"]) expect(html).toContain(`aria-label="${k.replace("&", "&amp;")} factors"`);
-    for (const w of ["Strengths", "Concerns", "Estimated or missing", "What moved the score"]) expect(t).toContain(w);
+    for (const w of ["Strengths", "Concerns", "Estimated or missing", "Reading", "Strongest first"]) expect(t).toContain(w);
+    expect(t).not.toContain("What moved the score");
     expect(t).toContain("Period used: 2021 to 2026.");
     expect(t).toContain("Company P/E: 48.01x. Industry peer median: 38.00x. Source: FinEdge. Uses 41 positive multiples; 46 of 52 peer records available.");
-    for (const w of ["Quarterly results", "Annual results", "Key financial ratios", "Market price", "Balance sheet", "Ownership", "Quarterly results"]) expect(t).toContain(w);
+    for (const w of ["Quarterly results", "Annual results", "Key financial ratios", "Valuation multiple", "Per share and size", "Balance sheet and profit", "Risk and trading", "Notes", "How to read this report"]) expect(t).toContain(w);
     expect(t).toContain("Valuation against the benchmark");
     expect(t).toContain("Industry P/E median 38.00×");
-    expect(t).toContain("Consolidated statements are used throughout");
-    expect(t).toContain("Describes the company's financial health from its filings and prices; not a recommendation.");
+    expect(t).toContain("Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.");
+    expect((html.match(/class="pzr-disc"/g) || []).length).toBe(1);
+    expect(t).toContain("not all of them are shown in this report");
     expect(t).toContain("Show as table");
   });
   it("gives every chart a conclusion as its aria-label", () => {
     expect(html).toContain('aria-label="Sales rose from ₹2,400 Cr in 2021 to ₹4,295 Cr in 2026."');
-    expect(html).toMatch(/aria-label="Overall 54\.5 is the sum of Growth &amp; Profitability 27\.5 of 40/);
-    expect(html).toContain("Growth &amp; Profitability 69 of 100: Healthy. Counts for 40% of the overall score.");
+    expect(html).not.toContain("is the sum of");
+    expect(html).toContain("Growth &amp; Profitability 69 of 100: Healthy.");
+    expect(html).not.toContain("Counts for");
     expect(html).toMatch(/aria-label="FinLit Prism rating: Average, 54\.5 out of 100, rated\. 100% of inputs available\./);
   });
   it("does not leak internals", () => {
@@ -80,24 +82,17 @@ describe("Prism report", () => {
 });
 
 describe("limited and not-rated reports", () => {
-  it("lists missing inputs and short histories, the data caution and the basis switch", () => {
+  it("marks estimated factors on their own rows and keeps the data caution", () => {
     const t = text(renderToStaticMarkup(<MemoryRouter><PrismReportView report={V.limited} actions={{}} /></MemoryRouter>));
     expect(t).toContain("Provisional");
-    expect(t).toContain("2 factors unavailable");
-    expect(t).toContain("2 limited histories");
-    expect(t).toContain("Annual P&L interest expense.");
-    expect(t).toContain("Group estimate used: 50/100.");
-    expect(t).toContain("3 of 10 year-on-year comparisons available");
-    expect(t).toContain("7 of 14 observations available");
     expect(t).toContain("Data check: review required");
-    expect(t).toContain("Consolidated statements were requested but unavailable");
     expect(t).toContain("Estimated");
   });
   it("NOT RATED hides every category score", () => {
     const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={V.notRated} actions={{}} /></MemoryRouter>);
     const t = text(html);
     expect(t).toContain("Not rated");
-    expect(t).toContain("no category scores are shown");
+    expect(t).toContain("no part scores are shown");
     expect(t).toContain("Growth & Profitability: no data"); expect(t).toContain("NO SCORE");
     expect(html).not.toContain("What moved the score</h3><p>Each part adds");
     expect(t).not.toMatch(/58\.2|63\.8|16\.5|67\.1/);
@@ -105,8 +100,8 @@ describe("limited and not-rated reports", () => {
   it("an older report without a review asks for a recalculation instead of inventing commentary", () => {
     const { review: _r, ...old } = R;
     const t = text(renderToStaticMarkup(<MemoryRouter><PrismReportView report={old as unknown as PrismReport} actions={{}} /></MemoryRouter>));
-    expect(t).toContain("Recalculate this report to see the latest missing-input");
-    expect(t).not.toContain("All applicable scoring factors have usable inputs");
+    expect(t).toContain("This stored report predates the reader commentary");
+    expect(t).toContain("Recalculate this report for the latest factor commentary");
   });
   it("has no PDF button or PDF window in the report itself: the download sits in the page bar", () => {
     const t = text(renderToStaticMarkup(<MemoryRouter><PrismReportView report={{ ...R, pdfAvailableUntil: null }} actions={{ onRecalculate: () => undefined }} /></MemoryRouter>));
@@ -247,10 +242,10 @@ describe("Prism report: the technical score tables sit below the Risk table (tas
     expect(tv).toBeGreaterThan(risk);
     expect(hist).toBeGreaterThan(tv);
   });
-  it("has both score tables (short term and long term) with reading, signal, weight and points", () => {
-    expect(html).toContain("Short term: how the score is built");
-    expect(html).toContain("Long term: how the score is built");
-    for (const col of ["Reading now", "Signal", "Weight", "Points"]) expect(html).toContain(`>${col}</th>`);
+  it("lists every signal by direction only: no score tables, weights or points (task #37)", () => {
+    expect(html).not.toContain("how the score is built");
+    for (const col of ["Reading now", "Signal", "Weight", "Points"]) expect(html).not.toContain(`>${col}</th>`);
+    expect(html).toContain("Every signal");
   });
   it("uses descriptive trend words only, never the model's Buy, Hold, Reduce or Sell verdicts", () => {
     const plain = html.replace(/<[^>]+>/g, " ");
