@@ -1,9 +1,8 @@
-// Peer and benchmark panel, data completeness and freshness, review notes, warnings, and "how this is calculated".
+// Peer and benchmark panel, and the notes at the end of the report: review notes, the data checks recorded while loading and how to read it.
 import { useState, type ReactNode } from "react";
-import { Icon } from "../../../lib/icons";
 import { dateIN, nf } from "../../../lib/format";
-import { completenessNote, isRated, notRatedReason, pctWhole, statementWord, type BenchmarkDetail, type Completeness, type PrismReport } from "../../../lib/prism";
-import { ageWords, daysBefore, howRules, peerRows, type PeerRow } from "../../../lib/prismReport";
+import { isRated, type BenchmarkDetail, type PrismReport } from "../../../lib/prism";
+import { peerRows, type PeerRow } from "../../../lib/prismReport";
 import { ChartTable, ShowTable } from "../PrismCharts";
 
 /** A section that opens and closes; its content stays in the page so a printout always includes it. */
@@ -68,62 +67,26 @@ export function Peers({ report }: { report: PrismReport }) {
   );
 }
 
-/* ---- completeness and freshness */
-const DATES: [keyof PrismReport["inputMeta"], string][] = [["quarterlyAsOf", "Quarterly results"], ["annualAsOf", "Annual results"], ["balanceAsOf", "Balance sheet"], ["ownershipAsOf", "Ownership"], ["priceAsOf", "Market price"]];
+/** How to read the report, in words: what the score, the labels and the readings mean. The method itself stays on the server. */
+export const HOW_TO_READ = [
+  "The score runs from 0 to 100. Labels, best to worst: Strong, Healthy, Average, Weak, Poor.",
+  "Each part reads its factors against companies in the same industry group. Higher is better for all four; a high Risk score means lower risk.",
+  "Each factor's reading runs from Very strong to Very weak.",
+  "Not rated: too much of the data is missing, or there is too little income history. Provisional: part of the data is missing, and the label is held back.",
+  "A missing input may be estimated from industry figures. Estimates are always marked and never shown as strengths or concerns.",
+  "A recent loss, or weak growth or quality, can limit a part's score.",
+];
 
-function Freshness({ report }: { report: PrismReport }) {
-  const m = report.inputMeta, requested = m.requestedStatementType, used = report.statementType;
+/** The notes at the end of the report: what the review recorded, what the loader recorded, and how to read the report. */
+export function Notes({ report, notes }: { report: PrismReport; notes: string[] }) {
   return (
-    <div className="pzr-fresh">
-      <h4>Data freshness</h4>
-      <ol className="pzr-tl">{DATES.map(([k, label]) => {
-        const v = m[k] as string | null | undefined, d = daysBefore(v, report.createdAt);
-        return <li key={k} className={v ? "ok" : "na"}><i aria-hidden="true" /><span><b>{label}</b><em>{v ? dateIN(v) : "Not available"}</em><small>{v ? ageWords(d) : "No date was supplied for this input."}</small></span><strong>{v ? "Available" : "Not available"}</strong></li>;
-      })}</ol>
-      <p className="pzr-small"><b>{statementWord(used)} statements</b> are used throughout this report.
-        {requested && requested !== used ? ` ${statementWord(requested)} statements were requested but unavailable, so the whole report uses ${used} statements instead.` : ""}
-        {m.assetQualityStatementType && m.assetQualityStatementType !== used ? ` Asset-quality ratios use the ${m.assetQualityStatementType} disclosure.` : ""}</p>
-    </div>
-  );
-}
-
-function Checklist({ report, completeness, onRecalculate }: { report: PrismReport; completeness?: Completeness; onRecalculate?: () => void }) {
-  const { rating } = report;
-  const items: { ok: boolean; text: ReactNode }[] = [
-    { ok: rating.confidence >= 0.8, text: <><b>{pctWhole(rating.confidence)} of inputs available.</b> Completeness of the data, not a probability.{completenessNote(rating) ? " The data coverage is not what withheld the rating." : ""}</> },
-    { ok: rating.judgedQuarters >= 6, text: <><b>{rating.judgedQuarters} of 10 comparable quarters</b> for the growth streaks.</> },
-    { ok: rating.dataIntegrityStatus === "PASS", text: rating.dataIntegrityStatus === "PASS" ? <><b>Data checks passed.</b></> : <><b>Data check: review required.</b> {notRatedReason(rating) ?? "Some inputs could not be fully verified."} The caution does not change the score.</> },
-  ];
-  if (completeness) {
-    items.push({ ok: completeness.missingFactorCount === 0, text: completeness.missingFactorCount ? <><b>{completeness.missingFactorCount} factor{completeness.missingFactorCount === 1 ? "" : "s"} unavailable</b>, estimated or left out.</> : <><b>All applicable factors have usable inputs.</b></> });
-    items.push({ ok: completeness.limitedHistoryCount === 0, text: completeness.limitedHistoryCount ? <><b>{completeness.limitedHistoryCount} limited histor{completeness.limitedHistoryCount === 1 ? "y" : "ies"}</b>, with fewer comparisons than the model asks for.</> : <><b>Every history is long enough</b> for its comparison.</> });
-  }
-  return (
-    <div className="pzr-check">
-      <h4>Completeness</h4>
-      <ul className="pzr-cl">{items.map((it, i) => <li key={i} className={it.ok ? "ok" : "warn"}><Icon name={it.ok ? "check" : "alert"} /><span>{it.text}</span><strong>{it.ok ? "Complete" : "Check"}</strong></li>)}</ul>
-      {!completeness && <p className="pzr-small">Recalculate this report to see the latest missing-input and history checks.{onRecalculate && <> <button type="button" className="pzr-link pzr-noprint" onClick={onRecalculate}>Recalculate</button></>}</p>}
-      {completeness && completeness.items.length > 0 && (
-        <ul className="pzr-miss">{completeness.items.map((item) => (
-          <li key={`${item.category}-${item.metric}`}>
-            <p><span className={"pzr-kind " + item.kind}>{item.kind === "missing" ? "Unavailable" : "Limited history"}</span>{item.category} · {item.label}</p>
-            <p>{item.reason}</p><p className="pzr-small">{item.treatment}</p>
-          </li>))}</ul>
-      )}
-    </div>
-  );
-}
-
-export function Health({ report, completeness, onRecalculate, notes }: { report: PrismReport; completeness?: Completeness; onRecalculate?: () => void; notes: string[] }) {
-  return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-health">
-      <header className="pzr-sh"><h3 id="pzr-h-health">Data completeness and freshness</h3><p>What the score is built from, how recent each input is, and what is missing.</p></header>
-      <div className="pzr-two"><Checklist report={report} completeness={completeness} onRecalculate={onRecalculate} /><Freshness report={report} /></div>
+    <section className="pzr-sec" aria-labelledby="pzr-h-notes">
+      <header className="pzr-sh"><h3 id="pzr-h-notes">Notes</h3><p>Review notes, data checks and how to read this report.</p></header>
       <div className="pzr-cols">
         {notes.length > 0 && <Collapse id="pzr-notes" title="Review notes" count={notes.length}><ul className="pzr-notes">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul></Collapse>}
         {report.warnings.length > 0 && <Collapse id="pzr-warn" title="Data checks recorded while loading" count={report.warnings.length}><p className="pzr-small">What the data loader recorded while preparing this calculation, as recorded.</p><ul className="pzr-notes">{report.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></Collapse>}
-        <Collapse id="pzr-how" title="How this is calculated"><ul className="pzr-notes">{howRules(report.rating).map((r) => <li key={r}>{r}</li>)}</ul>
-          {!isRated(report.rating) && <p className="pzr-small">This company is not rated, so the part scores that exist inside the model are not shown.</p>}</Collapse>
+        <Collapse id="pzr-how" title="How to read this report"><ul className="pzr-notes">{HOW_TO_READ.map((r) => <li key={r}>{r}</li>)}</ul>
+          {!isRated(report.rating) && <p className="pzr-small">This company is not rated, so no part scores are shown.</p>}</Collapse>
       </div>
     </section>
   );

@@ -19,7 +19,7 @@ const ZOOM = [
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/ProfitabilityRatios.tsx", "stock/RevenueCash.tsx",
-  "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx", "components/prism/pzr/Parts.tsx",
+  "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
   "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/sectors/BreadthChart.tsx", "components/rotation/RotationMap.tsx", "components/rotation/RotationCard.tsx", "pages/LeadershipLabel.tsx",
   // funds, MF, ETFs
@@ -57,7 +57,7 @@ const EXEMPT: Record<string, string> = {
   "components/dashboard/Legacy.tsx": "six-bar spark inside a link card", "components/dashboard/Snapshot.tsx": "one breadth bar", "components/FlowsPanel.tsx": "46px bars under two figures (the full charts are on the FII/DII page)",
   "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/ScoreScreener.tsx": "completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",
   "pages/Watchlist.tsx": "one stacked industry strip", "stock/DuPont.tsx": "per-factor mini bars inside a table", "stock/CompanyBrief.tsx": "inline progress bars", "pages/PremiumReport.tsx": "inline score bars",
-  "portfolio/Summary.tsx": "one score scale", "components/sectors/Parts.tsx": "three small bars inside a table cell", "etf/common.tsx": "sparklines in list rows", "pages/Fundamentals.tsx.exempt": "",
+  "portfolio/Summary.tsx": "one score scale", "components/sectors/Parts.tsx": "three small bars inside a table cell", "components/prism/pzr/Parts.tsx": "a small score ring and one bar on each part card", "etf/common.tsx": "sparklines in list rows", "pages/Fundamentals.tsx.exempt": "",
 };
 delete EXEMPT["pages/Fundamentals.tsx.exempt"];
 

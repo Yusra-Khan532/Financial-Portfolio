@@ -5,11 +5,11 @@ import built from "./__fixtures__/prismTechnicalBuilt.json";
 import report from "./__fixtures__/prismReport.json";
 import { Technical, TechPointer } from "../components/prism/pzr/Technical";
 import { PrismTechRow } from "../stock/PrismTechRow";
-import { TrendMap, alignmentSentence, fmtPoints, fmtSignal } from "../components/prism/pzr/TechBreakdown";
+import { TrendMap, alignmentSentence } from "../components/prism/pzr/TechBreakdown";
 import type { PrismReport } from "./prism";
 import type { PrismLatest } from "../stock/PrismCard";
 import {
-  ALIGN_NA, BANDS, FORBIDDEN, HOW, RATING_WORD, modelVerdictTone, TECH_NOTE, allShownText, factorGroup, filterTechFactors, fmtScore, parseTechnical, ratingWord, safeText, scalePos, scoreBand, trendAlignment, trendBand,
+  ALIGN_NA, BANDS, FORBIDDEN, RATING_WORD, modelVerdictTone, TECH_NOTE, allShownText, factorGroup, filterTechFactors, fmtScore, parseTechnical, ratingWord, safeText, scalePos, scoreBand, trendAlignment, trendBand,
   verdictView,
 } from "./prismTechnical";
 
@@ -111,8 +111,10 @@ describe("parser", () => {
     expect(JSON.stringify(a)).not.toMatch(/inputHash|sourceCodeSha256/i);
     expect(JSON.stringify(fx)).not.toMatch(/"weight"|inputHash|sourceCodeSha256/);   // the older fixtures: reports stored before the breakdown existed
     expect(JSON.stringify(built)).not.toMatch(/inputHash|sourceCodeSha256/);          // and the new ones carry weights and points but never a hash
-    expect(A.capped.longTerm.stageCapped).toBe(true);
+    expect(A.capped.longTerm.stageCapped).toBe(false);                               // the research API no longer says a stage limit applied (it is a rule)
     expect(A.capped.longTerm.score).toBe(19);
+    expect(JSON.stringify(fx)).not.toMatch(/"signal"|"points"|"divisor"|"uncappedScore"|"stageCapped"/);   // direction words only
+    expect(A.ready.shortTerm.factors.filter((f) => f.status === "available").every((f) => f.direction != null)).toBe(true);
     expect(A.incomplete.status).toBe("incomplete"); expect(A.incomplete.longTerm.score).toBeNull(); expect(A.incomplete.shortTerm.score).not.toBeNull();
     expect(A.ready.benchmarkSources.map((s) => s.name)).toContain("Nifty 500");
     expect(A.ready.observations.stage).toBe(2);
@@ -153,9 +155,7 @@ describe("report page section", () => {
     expect(t).toContain("Technical view");
     expect(t).toContain("does not predict prices");
     expect(t).toContain("not a recommendation");
-    expect(t).toContain("Where this comes from");
-    expect(t).toContain("23 Oct 2026");
-    expect(t).toContain("FinEdge");
+    for (const gone of ["Where this comes from", "How these scores are built", "Switched off in this model", "Weight", "Points", "252-session", "−1 to +1", ", strong", ", mild"]) expect(t).not.toContain(gone);
     expect(h).not.toMatch(/inputHash|sourceCodeSha256/i);
   });
   it("ready: both scores, words, signals, observations and sources", () => {
@@ -169,7 +169,8 @@ describe("report page section", () => {
     expect(t).toContain("Volume flow (on-balance volume)");
     expect(t).toContain("Stage 2: advancing");
     expect(t).toContain("Nifty Midcap 100");
-    expect(t).toContain("Switched off in this model: Sector relative strength");
+    expect(t).not.toContain("Sector relative strength");     // a signal the model switches off is not listed
+    expect(t).toMatch(/Supporting/); expect(t).toMatch(/Adverse|Neutral/);
     expect(h).toContain('aria-pressed="true"');
   });
   it("mixed: opposite horizons are both stated beside the chip", () => {
@@ -177,9 +178,10 @@ describe("report page section", () => {
     expect(t).toContain("−35"); expect(t).toContain("+23");
     expect(t).toContain("Short-term −35 (Down) × long-term +23 (Up) = Dip in an uptrend.");
   });
-  it("capped: says why the long-term score is limited", () => {
+  it("capped: shows the score and its word, and not the rule that limited it", () => {
     const t = strip(html(fx.capped));
-    expect(t).toContain("Limited by the market stage");
+    expect(t).not.toContain("Limited by the market stage");
+    expect(t).not.toContain("+19 at most");
     expect(t).toContain("+19");
     expect(t).toContain("Sideways");
   });
@@ -254,9 +256,10 @@ describe("legend, gauge and light-theme contrast", () => {
     expect(bandLegend()).toBe("Strong uptrend: +50 or more · Uptrend: +20 up to +50 · Sideways: above −20 up to +20 · Downtrend: above −50 up to −20 · Strong downtrend: −50 or less.");
     expect(bandWidths()).toEqual([25, 15, 20, 15, 25]);
   });
-  it("the technical card shows that legend, and no aria-label sits on a plain span, paragraph or list item", () => {
+  it("the technical card does not print the band edges, and no aria-label sits on a plain span, paragraph or list item", () => {
     const html = renderToStaticMarkup(<Technical report={withTech(fx.ready)} />);
-    expect(strip(html)).toContain("Strong uptrend: +50 or more");
+    expect(strip(html)).not.toContain("Strong uptrend: +50 or more");
+    expect(strip(html)).not.toMatch(/[−-]50\b/);
     expect(html).not.toMatch(/<(span|p|li)\b[^>]*\baria-label=/);
   });
   it("`.pzt-rn small` keeps WCAG AA contrast (4.5:1) on every light surface", async () => {
@@ -318,41 +321,15 @@ describe("trend alignment and the build-up on the report page", () => {
     expect(h).toMatch(/pzt-mc neg now[^>]*aria-current="true"|pzt-mc pos now[^>]*aria-current="true"/);
     expect(strip(h)).toContain("Dip in an uptrend");
   });
-  it("the build-up table: every row with reading, signal, weight and points; the points add up to the score", () => {
-    const v = built.smallcap_stage2 as never as { shortTerm: { score: number; divisor: number; factors: { key: string; label: string; signal: number | null; weight?: number; points?: number; status: string }[] }; longTerm: { score: number; divisor: number; factors: { points?: number; status: string }[] } };
-    const t = strip(html(v));
-    expect(t).toContain("How these scores are built");
-    expect(t).toContain("Short term: how the score is built"); expect(t).toContain("Long term: how the score is built");
-    for (const c of ["Reading now", "Signal", "Weight", "Points", "Total of the points", "weights in use 96", "weights in use 92"]) expect(t).toContain(c);
-    for (const f of v.shortTerm.factors.filter((x) => x.status === "available")) { expect(t).toContain(f.label.replace("&", "&")); expect(t).toContain(fmtSignal(f.signal as number)); expect(t).toContain(fmtPoints(f.points as number)); }
-    const sum = (rows: { points?: number }[]) => rows.reduce((s, f) => s + (f.points ?? 0), 0);
-    expect(sum(v.shortTerm.factors)).toBeCloseTo(v.shortTerm.score, 9);
-    expect(sum(v.longTerm.factors)).toBeCloseTo(v.longTerm.score, 9);
-    expect(v.shortTerm.divisor).toBe(96); expect(v.longTerm.divisor).toBe(92);
-    expect(t).toContain("Switched off in this model");
-    expect(t).toContain("How it is read");
-    for (const how of [HOW.st.ema_stack, HOW.lt.stage]) expect(t).toContain(how.slice(0, 40));
-  });
-  it("the ADX trend factor and the stage limit are explained from the report's own numbers", () => {
-    const t = strip(html(built.stage3_cap_binds));
-    expect(t).toMatch(/Trend factor\. ADX is \d+\.\d, so the first three rows/);
-    expect(t).toMatch(/×(1\.00|0\.75|0\.50)/);
-    expect(t).toContain("Market stage."); expect(t).toContain("Stage 3: topping");
-    expect(t).toMatch(/\+21\.20 became \+19/);
-    const t2 = strip(html(built.smallcap_stage2));
-    expect(t2).toContain("The +19 limit applies only in Stage 3 and Stage 4.");
-  });
-  it("a report stored before the breakdown existed still shows the alignment, says why there is no table, and offers a recalculation", () => {
-    const t = strip(html(fx.ready, () => undefined));
-    expect(t).toContain("Rising on both");
-    expect(t).toContain("This stored report was made before the breakdown existed");
-    expect(t).toContain("Recalculate to add the breakdown");
-    expect(t).not.toContain("Total of the points");
-    expect(strip(html(fx.ready))).not.toContain("Recalculate to add the breakdown");
+  it("the method is not on the page: no build-up table, no trend factor or stage limit, no reading rules", () => {
+    for (const k of Object.keys(built)) {
+      const t = strip(html((built as Record<string, unknown>)[k], () => undefined));
+      for (const gone of ["How these scores are built", "Total of the points", "weights in use", "Trend factor", "The +19 limit", "How it is read", "Recalculate to add the breakdown"]) expect(t).not.toContain(gone);
+      expect(t).toContain("Every signal");
+    }
   });
   it("every string of the breakdown passes the compliance scan", () => {
     for (const k of Object.keys(built)) for (const s of allShownText(parseTechnical((built as Record<string, unknown>)[k])!)) expect(s, s).not.toMatch(FORBIDDEN);
-    expect(Object.values(HOW.st).concat(Object.values(HOW.lt)).filter((x) => FORBIDDEN.test(x))).toEqual([]);
   });
 });
 

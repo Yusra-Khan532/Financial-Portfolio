@@ -23,32 +23,41 @@ export type ModelGroup = "LIGHT" | "MFG" | "HEAVY" | "UTILITY" | "REALTY" | "BAN
 export type FactorState = "A" | "Z" | "S" | "F" | "N" | "L";
 export type FactorUnit = "%" | "pp" | "quarters" | "Cr" | "x";
 
-/** One scored factor (premium_engine.score_company rows). `details` holds the comparison periods/values, CAGR years and streak counts. */
+/** How a factor reads, in five steps. The server sends only this word: the points behind it, the weights and the cut-offs stay on the server. */
+export type Reading = "very_strong" | "strong" | "middle" | "weak" | "very_weak";
+export const READINGS: Reading[] = ["very_strong", "strong", "middle", "weak", "very_weak"];
+export const READING_WORD: Record<Reading, string> = { very_strong: "Very strong", strong: "Strong", middle: "Middle", weak: "Weak", very_weak: "Very weak" };
+/** The bar length of each reading: a fixed step, never the exact points. */
+export const READING_FILL: Record<Reading, number> = { very_strong: 95, strong: 78, middle: 55, weak: 30, very_weak: 10 };
+
+/** One scored factor (premium_engine.score_company rows), as the research API sends it: the value, its reading and the facts behind the note.
+ *  `details` holds the comparison periods/values, CAGR years and streak counts. Points, weights, shares and cut-offs are not sent; the optional
+ *  fields below exist only for reports read before the server stopped sending them. */
 export type PrismMetric = {
-  part: PartKey; metric: string; label: string; value: number | null; unit: FactorUnit; points: number | null;
-  status: FactorState; statusLabel: string; weight: number; share: number;
+  part: PartKey; metric: string; label: string; value: number | null; unit: FactorUnit; reading?: Reading | null; points?: number | null;
+  status: FactorState; statusLabel: string; weight?: number; share?: number;
   details: {
     basis?: string; note?: string | null; current?: number | null; previous?: number | null; years?: number; availableYears?: number;
     good?: number; slips?: number; judged?: number; medianYoY?: number | null; lossFill?: boolean; latestLoss?: boolean;
     operatingLoss?: boolean; opMarginNow?: number; growthUsed?: number; growthRaw?: number; growthBasis?: string; growthKind?: string; [k: string]: unknown;
   };
-  fallbackFor: string | null; worst: number | null; best: number | null; redBoundary: number | null; greenBoundary: number | null;
+  fallbackFor: string | null; worst?: number | null; best?: number | null; redBoundary?: number | null; greenBoundary?: number | null;
   severity?: "GREEN" | "AMBER" | "RED" | "NO DATA" | "NOT APPLICABLE"; pointsEarned?: number; pointsLost?: number;
 };
 export type PrismLoss = {
   ttmProfit: number | null; ttmSales: number | null; basis: string | null; lossNow: boolean; latestYearLoss: boolean;
   lossYears3: number; years3: number; lossYears5: number; years5: number; netMarginPct: number | null;
-  tier: string | null; cap: number | null; rawFundamental: number | null;
+  tier: string | null; cap?: number | null; rawFundamental?: number | null;
 };
 export type PrismRating = {
-  modelVersion: string; baselineVersion: string; fillVersion: string; group: ModelGroup | string;
+  modelVersion?: string; baselineVersion?: string; fillVersion?: string; group: ModelGroup | string;
   final: number | null; label: PrismLabel; status: PrismStatusWord;
   /** Internal category scores; they can exist for NOT RATED, which never shows them. */
-  parts: Record<PartKey, number | null>; partWeights: Record<PartKey, number>; coverage: Record<PartKey, number>;
+  parts: Record<PartKey, number | null>; partWeights?: Record<PartKey, number>; coverage: Record<PartKey, number>;
   /** Weighted overall coverage, 0-1. Completeness of the inputs, not a probability. */
   confidence: number; judgedQuarters: number; dataIntegrityStatus: "PASS" | "REVIEW REQUIRED";
   metrics: PrismMetric[]; loss?: PrismLoss; lossCapped?: boolean; valuationCapped?: boolean;
-  adjustments?: { metric: string; part: PartKey; rawScore: number; cap: number; pointsLost?: number }[]; capPointsLost?: number;
+  adjustments?: { metric: string; part: PartKey }[];
   alerts?: string[]; headline?: string;
   /** Why the company is not rated, most specific first (engine 3.6.10 with the classification fix); absent on older stored reports. */
   notRatedReasons?: { code: "classification" | "insufficient_history" | "low_confidence" | "data_integrity"; text: string }[];
@@ -114,9 +123,9 @@ const PART_TEXT: Record<string, { name: string; what: string }> = {
 const titleCase = (k: string) => k.replace(/[_-]+/g, " ").replace(/^./, (c) => c.toUpperCase());
 /** Name and one-line meaning of a part; an unknown part falls back to its key so it still shows. */
 export const partInfo = (k: PartKey) => PART_TEXT[k] ?? { name: titleCase(k), what: "" };
-/** The parts to show, from the data: every key in partWeights/parts (known ones first, in their usual order), nothing invented. */
-export const partsOf = (r: Pick<PrismRating, "parts" | "partWeights">): PartKey[] => {
-  const keys = [...new Set([...Object.keys(r.partWeights || {}), ...Object.keys(r.parts || {})])];
+/** The parts to show, from the data: every key in `parts` (known ones first, in their usual order), nothing invented. */
+export const partsOf = (r: Pick<PrismRating, "parts">): PartKey[] => {
+  const keys = Object.keys(r.parts || {});
   return [...KNOWN_PARTS.filter((k) => keys.includes(k)), ...keys.filter((k) => !KNOWN_PARTS.includes(k))];
 };
 export const LABEL_WORD: Record<PrismLabel, string> = { STRONG: "Strong", HEALTHY: "Healthy", AVERAGE: "Average", WEAK: "Weak", POOR: "Poor", "NOT RATED": "Not rated" };
@@ -169,11 +178,19 @@ export const STATE_WORD: Record<FactorState, string> = {
 };
 export type Standing = "pros" | "cons" | "mixed" | "unavailable" | "notApplicable";
 export const STANDING_WORD: Record<Standing, string> = { pros: "Supports", cons: "Weighs on the score", mixed: "Mixed", unavailable: "Not available", notApplicable: "Not applicable" };
-/** Where a factor sits in the reader view: the same thresholds as premium_presentation (>= 70 supports, < 40 weighs on). */
-export function standing(row: Pick<PrismMetric, "status" | "points">): Standing {
+/** A factor's reading: the server's word, or (a report read before the server sent words) the same five steps worked out from its points. */
+export function readingOf(row: Pick<PrismMetric, "reading" | "points">): Reading | null {
+  if (row.reading && READINGS.includes(row.reading)) return row.reading;
+  const p = row.points;
+  if (p == null) return null;
+  return p >= 90 ? "very_strong" : p >= 70 ? "strong" : p >= 40 ? "middle" : p >= 20 ? "weak" : "very_weak";
+}
+/** Where a factor sits in the reader view: Strong or Very strong supports the score, Weak or Very weak weighs on it, Middle is mixed. */
+export function standing(row: Pick<PrismMetric, "status" | "reading" | "points">): Standing {
   if (row.status === "N") return "notApplicable";
-  if (row.status === "F" || row.status === "L" || row.points == null) return "unavailable";
-  return row.points >= 70 ? "pros" : row.points < 40 ? "cons" : "mixed";
+  const r = readingOf(row);
+  if (row.status === "F" || row.status === "L" || r == null) return "unavailable";
+  return r === "very_strong" || r === "strong" ? "pros" : r === "weak" || r === "very_weak" ? "cons" : "mixed";
 }
 export const isRated = (r: Pick<PrismRating, "status">) => r.status !== "NOT RATED";
 /** The model calls this line "Sales" for every company (site-api premium_data.revenue). What it is differs by sector, so a neutral note says so. */
@@ -182,8 +199,6 @@ export const incomeNote = (group: string): string | null =>
   group === "BANK" || group === "NBFC" ? "For banks and NBFCs the model's sales line is net interest income: interest earned less interest paid."
   : group === "INSURANCE" ? "For insurers the model's sales line is net premium earned." : null;
 export const statementWord = (s?: string | null) => (s === "standalone" ? "Standalone" : "Consolidated");
-/** "counts for 40% of the overall score" */
-export const partShare = (weights: Record<PartKey, number> | undefined, key: PartKey) => Math.round((weights?.[key] ?? 0) * 100);
 export const score1 = (v: number | null | undefined) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, 1));
 export const pctWhole = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
@@ -208,7 +223,8 @@ export function factorDetail(row: PrismMetric, group: string): string | null {
   const income = row.metric.startsWith("SALES") ? incomeWord(group).toLowerCase() : "net profit";
   if (row.metric.endsWith("_STREAK") && d.judged != null) {
     if (!d.judged) return "No comparable quarters yet.";
-    return `${d.good ?? 0} growth quarters${d.slips ? ` and ${d.slips} forgiven slip${d.slips === 1 ? "" : "s"}` : ""} across ${d.judged} of 10 comparable quarters.`;
+    const good = d.good ?? 0;
+    return `${good} growth quarter${good === 1 ? "" : "s"}${d.slips ? ` and ${d.slips} forgiven slip${d.slips === 1 ? "" : "s"}` : ""} across ${d.judged} of 10 comparable quarters.`;
   }
   if (/_GROWTH$/.test(row.metric) && ("current" in d || "basis" in d) && (row.metric.startsWith("SALES") || row.metric.startsWith("PROFIT"))) {
     if (d.current == null || d.previous == null) return d.basis && d.basis !== "Insufficient history" ? `${d.basis}: a comparison period is missing.` : "Not enough history for a comparison.";
@@ -218,10 +234,7 @@ export function factorDetail(row: PrismMetric, group: string): string | null {
     if (d.years) return `${d.years}-year period: ${income} from ${crore(d.previous)} to ${crore(d.current)}.`;
     return "Needs at least two consecutive annual results ending in the latest financial year.";
   }
-  if (row.metric === "PEG" && d.growthUsed != null) {
-    const basis = typeof d.growthBasis === "string" ? ` (${d.growthBasis}${d.growthRaw != null && d.growthRaw > 40 ? `, ${nf(d.growthRaw, 1)}% before the 40% cap` : ", capped at 40%"})` : " (capped at 40%)";
-    return `Earnings growth used: ${nf(d.growthUsed, 1)}% a year${basis}.`;
-  }
+  if (row.metric === "PEG" && d.growthUsed != null) return `Earnings growth used: ${nf(d.growthUsed, 1)}% a year${typeof d.growthBasis === "string" ? ` (${d.growthBasis})` : ""}.`;
   if (d.operatingLoss && d.opMarginNow != null) return `The current operating margin is ${(d.opMarginNow < 0 ? MINUS : "") + nf(d.opMarginNow, 2)}%.`;
   const note = typeof d.note === "string" ? d.note : null;
   return note && note !== "Core group" ? note.replace(/\.?$/, ".") : null;
@@ -236,8 +249,8 @@ export function prismReview(report: Pick<PrismReport, "review" | "rating">): Pri
   const parts = partsOf(report.rating).map((key): ReviewPart => {
     const part: ReviewPart = { key, name: key[0].toUpperCase() + key.slice(1), score: rated ? report.rating.parts[key] : null, notes: [], pros: [], cons: [], mixed: [], unavailable: [] };
     report.rating.metrics.filter((row) => row.part === key && row.status !== "N").forEach((row) => {
-      const missing = row.status === "F" || row.status === "L" || row.points == null;
-      const bucket = missing ? "unavailable" : row.points! >= 70 ? "pros" : row.points! < 40 ? "cons" : "mixed";
+      const st = standing(row), missing = st === "unavailable" || st === "notApplicable";
+      const bucket = missing ? "unavailable" : st;
       part[bucket].push({
         metric: row.metric, label: row.label,
         valueText: row.value == null || missing ? "Not available" : `${Number(row.value).toLocaleString("en-IN", { maximumFractionDigits: 2 })} ${row.unit || ""}`,
@@ -336,7 +349,7 @@ export function growthSentence(points: GrowthPoint[], incomeLabel = "Sales"): st
   return `Growth against the previous year, ${last.period}: ` + GROWTH_METRICS.map((m) => `${word(m.key)} ${growthPercent(last[m.key])}`).join(", ") + ".";
 }
 /** Category scores in one sentence, with the highest and lowest; withheld when not rated. */
-export function partsSentence(rating: Pick<PrismRating, "status" | "parts" | "partWeights">): string {
+export function partsSentence(rating: Pick<PrismRating, "status" | "parts">): string {
   if (!isRated(rating)) return "Category scores are withheld because the company is not rated" + (notRatedReason(rating as PrismRating) ? `: ${notRatedReason(rating as PrismRating)}` : ".");
   const known = partsOf(rating).filter((k) => rating.parts[k] != null);
   if (!known.length) return "No category scores are available.";
@@ -363,7 +376,8 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
   const e = err instanceof ApiError ? err : null;
   const status = e?.status ?? 0;
   const detail = e?.body.detail;
-  if (status === 401 || status === 403) return { kind: "locked", title: `${PRISM_NAME} is part of Gold`, text: "Sign in with a Gold plan to open and calculate Prism ratings." };
+  if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company." };
+  if (status === 403) return { kind: "locked", title: `${PRISM_NAME} is part of Gold`, text: "Sign in with a Gold plan to open and calculate Prism ratings." };
   if (status === 404) return { kind: "missing", title: "We could not find this company", text: "Check the symbol, or choose the company from the search box." };
   if (status === 410) return { kind: "expired", title: "This PDF is not available", text: "The PDF of this report could not be found. Recalculate to create a fresh report, then download it." };
   if (status === 422) return { kind: "invalid", title: "That request was not accepted", text: detail || "Choose a listed company and a statement basis, then try again." };
@@ -441,7 +455,7 @@ export function useGeneratePrism() {
 }
 
 /** The small stored card (GET .../latest?view=summary): last score and label, no review body. Category scores are already withheld for NOT RATED. */
-export type PrismSummary = { id: string; final: number | null; label: PrismLabel; status: PrismStatusWord; confidence: number | null; parts: Record<PartKey, number | null> | null; partWeights: Record<PartKey, number> | null; generatedAt: string; modelVersion: string | null; technical?: TechnicalStamp };
+export type PrismSummary = { id: string; final: number | null; label: PrismLabel; status: PrismStatusWord; confidence: number | null; parts: Record<PartKey, number | null> | null; generatedAt: string; technical?: TechnicalStamp };
 export const summaryKey = (symbol: string, statement: Statement) => ["prism", "summary", symbol, statement] as const;
 /** The last stored score of a company for the landing cards; null when none is stored. Never calculates. */
 export const useStoredSummary = (symbol: string, statement: Statement = "consolidated") =>

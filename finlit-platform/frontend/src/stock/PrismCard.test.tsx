@@ -73,12 +73,13 @@ describe("FinLit Prism card", () => {
   });
 
   it("draws a technical part by itself the moment the model sends one", async () => {
-    answer(200, { ...REPORT, rating: { ...REPORT.rating, parts: { ...REPORT.rating.parts, technical: 44 }, partWeights: { fundamental: 0.3, valuation: 0.25, quality: 0.2, risk: 0.1, technical: 0.15 } } });
+    answer(200, { ...REPORT, rating: { ...REPORT.rating, parts: { ...REPORT.rating.parts, technical: 44 } } });
     const html = await render();
     const t = text(html);
     expect(t).toContain("Technical");
-    expect(t).toContain("15%");
-    expect(html).toContain('aria-label="Technical 44 of 100: Weak. Counts for 15% of the overall score.');
+    expect(t).not.toContain("15%");
+    expect(html).toContain('aria-label="Technical 44 of 100: Weak.');
+    expect(html).not.toContain("Counts for");
     expect(html.match(/class="pcx-card band-/g)).toHaveLength(5);   // a normal fifth tile, not a separate box
     expect(t).not.toContain("coming soon");
   });

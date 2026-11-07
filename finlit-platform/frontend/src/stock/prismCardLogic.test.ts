@@ -6,22 +6,22 @@ import { trendAlignment, type TechHorizon } from "../lib/prismTechnical";
 const H = (o: Partial<TechHorizon>): TechHorizon => ({ score: 1, rating: "Hold", status: "ready", horizon: "5–20 sessions", availableCount: 14, requiredCount: 14, stageCapped: false, provisional: false, provisionalNote: null, uncappedScore: null, divisor: null, factors: [], ...o });
 
 describe("ring geometry", () => {
-  it("sizes each arc by its weight and leaves the gaps", () => {
-    const a = ringArcs([{ key: "a", weight: 40, value: 55 }, { key: "b", weight: 30, value: 42 }, { key: "c", weight: 20, value: 79 }, { key: "d", weight: 10, value: 88 }], 8);
-    expect(a.map((x) => Math.round(x.share * 100))).toEqual([40, 30, 20, 10]);
-    expect(a[0].a0).toBeCloseTo(4); expect(a[0].a1).toBeCloseTo(144 - 4);
-    expect(a[1].a0).toBeCloseTo(144 + 4);
+  it("gives every part an equal arc (arc length says nothing about weight) and leaves the gaps", () => {
+    const a = ringArcs([{ key: "a", value: 55 }, { key: "b", value: 42 }, { key: "c", value: 79 }, { key: "d", value: 88 }], 8);
+    expect(a.map((x) => Math.round(x.share * 100))).toEqual([25, 25, 25, 25]);
+    expect(a[0].a0).toBeCloseTo(4); expect(a[0].a1).toBeCloseTo(90 - 4);
+    expect(a[1].a0).toBeCloseTo(90 + 4);
     expect(a[3].a1).toBeCloseTo(360 - 4);
-    expect(a[0].aFill).toBeCloseTo(4 + 136 * 0.55);
+    expect(a[0].aFill).toBeCloseTo(4 + 82 * 0.55);
   });
-  it("colours by the shared band rule and treats fractions like percents", () => {
-    const a = ringArcs([{ key: "a", weight: 0.4, value: 70 }, { key: "b", weight: 0.6, value: 49.9 }, { key: "c", weight: 0, value: null }]);
+  it("colours by the shared band rule", () => {
+    const a = ringArcs([{ key: "a", value: 70 }, { key: "b", value: 49.9 }, { key: "c", value: null }]);
     expect(a.map((x) => x.band)).toEqual(["hi", "lo", "na"]);
-    expect(a[0].share).toBeCloseTo(0.4);
+    expect(a[0].share).toBeCloseTo(1 / 3);
   });
-  it("clamps scores and survives no weights", () => {
-    expect(ringArcs([{ key: "a", weight: 1, value: 140 }])[0].value).toBe(100);
-    expect(ringArcs([{ key: "a", weight: 0, value: 5 }])[0].a1).toBeGreaterThan(0);
+  it("clamps scores and draws a single part", () => {
+    expect(ringArcs([{ key: "a", value: 140 }])[0].value).toBe(100);
+    expect(ringArcs([{ key: "a", value: 5 }])[0].a1).toBeGreaterThan(0);
   });
   it("puts 0 degrees at 12 o'clock, clockwise", () => {
     const [x, y] = polar(80, 80, 10, 0); expect(x).toBeCloseTo(80); expect(y).toBeCloseTo(70);
@@ -35,12 +35,13 @@ describe("words and captions", () => {
     expect([null, 34.9, 35, 49.9, 50, 64.9, 65, 79.9, 80].map((v) => partWord(v)[0])).toEqual(["No data", "Poor", "Weak", "Weak", "Average", "Average", "Healthy", "Healthy", "Strong"]);
   });
   it("builds the tooltip sentence", () => {
-    expect(partTip("Valuation", 42.4, "Weak", 30)).toBe("Valuation 42 of 100: Weak. Counts for 30% of the overall score.");
-    expect(partTip("Risk", null, "No data", 10)).toBe("Risk: no data. Counts for 10% of the overall score.");
+    expect(partTip("Valuation", 42.4, "Weak")).toBe("Valuation 42 of 100: Weak.");
+    expect(partTip("Risk", null, "No data")).toBe("Risk: no data.");
   });
   it("describes every part of the model, and the headline counts", () => {
     for (const [k] of PRISM_PARTS) expect(PART_LINE[k]).toBeTruthy();
-    expect(fundSubtitle(4)).toContain("four areas"); expect(basedOn(4, true)).toContain("higher Risk score means lower risk"); expect(basedOn(1, false)).toBe("Based on 1 weighted component. Higher is better.");
+    expect(fundSubtitle(4)).toContain("four areas"); expect(basedOn(4, true)).toContain("higher Risk score means lower risk"); expect(basedOn(1, false)).toBe("Higher is better.");
+    for (const [, name, color] of PRISM_PARTS) { expect(name).toBeTruthy(); expect(color).toMatch(/^--p-/); }       // no weight travels with the parts
   });
   it("uses the horizons and signal counts of the report, never invented ones", () => {
     expect(horizonCaption(H({}))).toBe("5–20 sessions"); expect(horizonCaption(H({ horizon: null }))).toBeNull();

@@ -316,11 +316,11 @@
   "items": [
    {
     "q": "What do I get from Prism?",
-    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value, points and status, the inputs that are missing, and a PDF of exactly the calculation you see."
+    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value and its reading, the inputs that are missing, and a PDF of this report, prepared for you."
    },
    {
-    "q": "How are the four parts weighted?",
-    "a": "Each part has a fixed share of the overall score: Growth & Profitability 40%, Valuation 30%, Quality 20% and Risk 10%. Each part is read against the company's own industry group. Higher is better for all four; a high Risk score means lower risk."
+    "q": "Why does the report not show the weights or the points?",
+    "a": "The method behind Prism is FinLit’s own work. The report shows every input it used and every result it reached, so you can check each reading against the company’s filings. The weights, the industry ranges and the rules stay on our side."
    },
    {
     "q": "How long does a rating take?",
@@ -332,7 +332,7 @@
    },
    {
     "q": "What does “100% of inputs available” mean?",
-    "a": "How complete the data behind the score was. It is not a probability and does not predict returns. The Data completeness and freshness section shows how recent each input is (quarterly and annual results, balance sheet, ownership, price)."
+    "a": "How complete the data behind the score was. It is not a probability and does not predict returns. Any input that was missing or estimated is marked on its factor."
    },
    {
     "q": "Is the technical view part of the score?",

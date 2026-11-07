@@ -1,5 +1,6 @@
-// Logic of the Prism report page: contribution maths, arcs, factor filters and sorting, threshold ticks, history series, and the
-// automatic fifth part. Fixtures are real-engine outputs (the example) and the production RELIANCE report.
+// Logic of the Prism report page: equal arcs, readings, factor filters and sorting, threshold ticks, history series, and the
+// automatic fifth part. Fixtures are real-engine outputs (the example) and the production RELIANCE report, as the research API sends them
+// (through the public view: readings, no weights or points).
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router";
@@ -7,53 +8,44 @@ import { PrismReportView } from "../components/prism/ReportView";
 import reliance from "./__fixtures__/prismReliance.json";
 import example from "./__fixtures__/prismReport.json";
 import variants from "./__fixtures__/prismVariants.json";
-import type { PrismMetric, PrismReport } from "./prism";
+import { readingOf, type PrismMetric, type PrismReport } from "./prism";
 import {
-  THRESHOLDS, arcSegments, bandLabel, capNotes, contributionTotal, contributions, daysBefore, filterFactors, monthIndex, peerRows, ratioPct,
-  sortFactors, thresholdTicks, topFactors, valueBar, yoy,
+  THRESHOLDS, arcSegments, bandLabel, daysBefore, filterFactors, monthIndex, peerRows, ratioPct,
+  sortFactors, thresholdTicks, topFactors, yoy,
 } from "./prismReport";
 
 const E = example as unknown as PrismReport, R = reliance as unknown as PrismReport, V = variants as unknown as { notRated: PrismReport; limited: PrismReport };
 
-describe("contributions", () => {
-  it("add up to the final score (weight x part score)", () => {
-    for (const r of [E, R]) {
-      const rows = contributions(r.rating);
-      expect(rows).toHaveLength(4);
-      expect(contributionTotal(rows)).toBeCloseTo(r.rating.final!, 6);
-      rows.forEach((c) => expect(c.points + c.lost).toBeCloseTo(c.weight * 100, 9));
-    }
+describe("the method stays on the server", () => {
+  it("the fixtures carry readings and no weight, point or cut-off", () => {
+    const text = JSON.stringify([E, R, V]);
+    for (const k of ["partWeights", "pointsLost", "pointsEarned", "capPointsLost", "\"weight\"", "\"points\"", "\"best\"", "\"worst\"", "redBoundary", "modelVersion"]) expect(text).not.toContain(k);
+    expect(R.rating.metrics.filter((m) => m.status !== "N" && m.status !== "L").every((m) => readingOf(m) != null)).toBe(true);
   });
-  it("are withheld when the company is not rated", () => { expect(contributions(V.notRated.rating)).toEqual([]); });
-  it("reports caps honestly: nothing when none applied, the loss ceiling and its points when one did", () => {
-    expect(capNotes(R.rating)).toEqual([]);
-    const notes = capNotes({ lossCapped: true, valuationCapped: false, capPointsLost: 4.2, loss: { cap: 40, rawFundamental: 62 } as never });
-    expect(notes[0]).toContain("limited to 40.0");
-    expect(notes[0]).toContain("62.0");
-    expect(notes[1]).toContain("4.2 points");
-    expect(capNotes({ valuationCapped: true })[0]).toContain("limited to 60");
-  });
-  it("shows a cap's lost points on its part", () => {
-    const rows = contributions({ ...R.rating, adjustments: [{ metric: "x", part: "valuation", rawScore: 70, cap: 60, pointsLost: 3 }] });
-    expect(rows.find((c) => c.key === "valuation")!.capLost).toBe(3);
+  it("the report page never shows a weight, a share of the score or points", () => {
+    const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={R} /></MemoryRouter>);
+    for (const t of ["% of the overall score", "Counts for", "weighted", "Points", "What moved the score", "Model 3.", "How this is calculated", "Data completeness and freshness"]) expect(html).not.toContain(t);
+    expect(html).toContain("Disclaimer");
+    expect(html).toContain("not all of them are shown in this report");
   });
 });
 
 describe("prism ring arcs", () => {
-  it("arc length follows the weight and the fill follows the score", () => {
+  it("arcs are equal (their length says nothing about weight) and the fill follows the score", () => {
     const segs = arcSegments(R.rating, 0);
     expect(segs.map((s) => s.key)).toEqual(["fundamental", "valuation", "quality", "risk"]);
-    expect(segs.map((s) => s.span)).toEqual([0.4, 0.3, 0.2, 0.1].map((x) => expect.closeTo(x, 9)));
-    expect(segs[0].fill).toBeCloseTo(0.4 * R.rating.parts.fundamental! / 100, 9);
-    expect(segs[3].start).toBeCloseTo(0.9, 9);
+    expect(segs.map((s) => s.span)).toEqual([0.25, 0.25, 0.25, 0.25].map((x) => expect.closeTo(x, 9)));
+    expect(segs[0].fill).toBeCloseTo(0.25 * R.rating.parts.fundamental! / 100, 9);
+    expect(segs[3].start).toBeCloseTo(0.75, 9);
   });
   it("draws no fill for a company that is not rated", () => {
     expect(arcSegments(V.notRated.rating).every((s) => s.fill === 0 && s.score === null)).toBe(true);
   });
   it("adds a fifth arc when the data has a technical part", () => {
-    const r = { ...R.rating, partWeights: { fundamental: 0.3, valuation: 0.25, quality: 0.2, risk: 0.1, technical: 0.15 }, parts: { ...R.rating.parts, technical: 60 } };
-    const segs = arcSegments(r);
+    const r = { ...R.rating, parts: { ...R.rating.parts, technical: 60 } };
+    const segs = arcSegments(r, 0);
     expect(segs).toHaveLength(5);
+    expect(segs[0].span).toBeCloseTo(0.2, 9);
     expect(segs[4].key).toBe("technical");
   });
 });
@@ -63,25 +55,14 @@ describe("threshold ticks and bands", () => {
   it("map a score to the model's label", () => {
     expect([bandLabel(34.9), bandLabel(35), bandLabel(50), bandLabel(65), bandLabel(80), bandLabel(null)]).toEqual(["POOR", "WEAK", "AVERAGE", "HEALTHY", "STRONG", "NOT RATED"]);
   });
-  it("places a factor's value between its 0-point and 100-point values, either direction", () => {
-    const up = valueBar({ value: 10, worst: 0, best: 20, redBoundary: 8, greenBoundary: 14, status: "A" })!;
-    expect(up.pos).toBeCloseTo(0.5); expect(up.red).toBeCloseTo(0.4); expect(up.green).toBeCloseTo(0.7);
-    const down = valueBar({ value: 1.0, worst: 1.6, best: 0.6, redBoundary: 1.2, greenBoundary: 0.9, status: "A" })!;
-    expect(down.pos).toBeCloseTo(0.6); expect(down.red).toBeCloseTo(0.4); expect(down.green).toBeCloseTo(0.7);
-    expect(valueBar({ value: 99, worst: 0, best: 20, redBoundary: null, greenBoundary: null, status: "A" })!.pos).toBe(1);
-  });
-  it("has no bar for an estimate, a missing value or a factor without bounds", () => {
-    expect(valueBar({ value: 5, worst: 0, best: 10, redBoundary: 3, greenBoundary: 7, status: "F" })).toBeNull();
-    expect(valueBar({ value: null, worst: 0, best: 10, redBoundary: 3, greenBoundary: 7, status: "A" })).toBeNull();
-    expect(valueBar({ value: 5, worst: null, best: null, redBoundary: null, greenBoundary: null, status: "A" })).toBeNull();
-  });
 });
 
 describe("factor filters and sorting", () => {
   const rows = R.rating.metrics;
-  it("strengths are 70+ actual points, concerns are below 40, estimated means F or L", () => {
-    expect(filterFactors(rows, "strengths").every((r) => r.points! >= 70)).toBe(true);
-    expect(filterFactors(rows, "concerns").every((r) => r.points! < 40)).toBe(true);
+  it("strengths read Strong or Very strong, concerns Weak or Very weak, estimated means F or L", () => {
+    expect(filterFactors(rows, "strengths").length).toBeGreaterThan(0);
+    expect(filterFactors(rows, "strengths").every((r) => ["strong", "very_strong"].includes(readingOf(r)!))).toBe(true);
+    expect(filterFactors(rows, "concerns").every((r) => ["weak", "very_weak"].includes(readingOf(r)!))).toBe(true);
     expect(filterFactors(rows, "all")).toHaveLength(rows.length);
     const lim = V.limited.rating.metrics;
     const est = filterFactors(lim, "estimated");
@@ -89,19 +70,19 @@ describe("factor filters and sorting", () => {
     expect(est.every((r) => r.status === "F" || r.status === "L")).toBe(true);
     expect(filterFactors(lim, "strengths").some((r) => r.status === "F" || r.status === "L")).toBe(false);
   });
-  it("sorts by points, keeps ties in model order and puts missing points last", () => {
-    const mk = (m: string, points: number | null) => ({ metric: m, points }) as PrismMetric;
-    const list = [mk("a", 50), mk("b", null), mk("c", 90), mk("d", 50), mk("e", 10)];
+  it("sorts by reading, keeps ties in model order and puts factors without a reading last", () => {
+    const mk = (m: string, reading: PrismMetric["reading"]) => ({ metric: m, reading }) as PrismMetric;
+    const list = [mk("a", "middle"), mk("b", null), mk("c", "very_strong"), mk("d", "middle"), mk("e", "very_weak")];
     expect(sortFactors(list, "high").map((r) => r.metric)).toEqual(["c", "a", "d", "e", "b"]);
     expect(sortFactors(list, "low").map((r) => r.metric)).toEqual(["e", "a", "d", "c", "b"]);
     expect(sortFactors(list, "model")).toBe(list);
   });
   it("picks a top strength and a biggest drag from real factors only", () => {
     const { strength, drag } = topFactors(R.rating.metrics.filter((m) => m.part === "fundamental"));
-    expect(strength!.points).toBeGreaterThanOrEqual(70);
-    expect(drag!.points).toBeLessThan(70);
-    const est = [{ metric: "x", status: "F", points: 50, share: 1 }, { metric: "y", status: "A", points: 20, share: 0.1, pointsLost: 1 }] as PrismMetric[];
-    expect(topFactors(est).drag!.metric).toBe("y");
+    expect(["strong", "very_strong"]).toContain(readingOf(strength!));
+    expect(["strong", "very_strong"]).not.toContain(readingOf(drag!));
+    const est = [{ metric: "x", status: "F", reading: "very_weak" }, { metric: "y", status: "A", reading: "weak" }, { metric: "z", status: "A", reading: "middle" }] as PrismMetric[];
+    expect(topFactors(est).drag!.metric).toBe("y");          // the estimate is never the drag, and the weakest real reading is
   });
 });
 
@@ -127,19 +108,19 @@ describe("history series", () => {
 describe("report rendering", () => {
   it("shows a fifth part card and arc by itself when the model sends a technical part", () => {
     const r = JSON.parse(JSON.stringify(E)) as PrismReport;
-    r.rating.partWeights = { fundamental: 0.3, valuation: 0.25, quality: 0.2, risk: 0.1, technical: 0.15 };
     r.rating.parts.technical = 61.2; r.rating.coverage.technical = 1;
     const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={r} /></MemoryRouter>);
-    expect(html).toMatch(/Technical 61 of 100: [A-Za-z]+\. Counts for 15% of the overall score\./);       // the fifth component of the ring, with its weight
+    expect(html).toMatch(/Technical 61 of 100: [A-Za-z]+\./);       // the fifth component of the ring, without a weight
+    expect(html).not.toContain("Counts for");
     expect(html).not.toContain("Technical part coming soon");
   });
   it("marks the locked preview as an example", () => {
     expect(renderToStaticMarkup(<MemoryRouter><PrismReportView report={E} example /></MemoryRouter>)).toContain("A fictional company, to show the layout");
   });
-  it("renders the real RELIANCE report with its waterfall and benchmark", () => {
+  it("renders the real RELIANCE report with its readings, key ratios as tables and benchmark", () => {
     const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={R} /></MemoryRouter>);
-    expect(html).toContain("Overall 58.4 is the sum of");
     expect(html).toContain("Sector P/E benchmark 15.98×");
-    expect(html).toContain("No loss or valuation limit was applied");
+    expect(html).toMatch(/class="pzr-rd (very_strong|strong|middle|weak|very_weak)">(Very strong|Strong|Middle|Weak|Very weak)</);
+    for (const t of ["Valuation multiple", "Own 5-year median", "Per share and size", "Balance sheet and profit", "Risk and trading", "How to read this report", "Notes"]) expect(html).toContain(t);
   });
 });

@@ -54,6 +54,7 @@ from .auth.service import Ctx, current
 from .premium import gateway_token
 from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
+from .prism_public import public_report, public_summary
 
 log = logging.getLogger("finlit.prism")
 router = APIRouter(prefix="/api/prism")
@@ -222,9 +223,23 @@ def target(symbol: Any, statement: Any) -> Optional[Tuple[str, str]]:
     return (symbol, statement) if SYMBOL.match(symbol) and statement in STATEMENTS else None
 
 
-async def _access(request: Request, symbol: str) -> Tuple[Ctx, Optional[JSONResponse]]:
-    """Gold members and administrators see every company; the showcase companies are open to everyone, as on the rest of the site."""
+READ_LIMIT = 120          # full reports one member (or one address) may open in READ_WINDOW seconds; a person reading never gets near it
+READ_WINDOW = 600
+
+
+async def _access(request: Request, symbol: str, full: bool = True) -> Tuple[Ctx, Optional[JSONResponse]]:
+    """Gold members and administrators see every company; the showcase companies are open to every signed-in member.
+    The full report needs a sign-in (the small stock-page card, `full=False`, does not) and is rate-limited, so the report data cannot be
+    collected in bulk by a script or a crawler."""
     ctx = await current(request)
+    if full and not ctx.authed:
+        return ctx, _reply({"status": "sign_in_required", "detail": f"Sign in to open the {PRISM_NAME} report. It is free.", "plan": "basic"}, 401)
+    if full and ctx.role != "admin":
+        limiter = getattr(request.app.state, "limiter", None)
+        if limiter is not None:
+            allowed, wait = await limiter.hit("prism-read", ctx.user_id or "ip:" + ip_of(request), READ_LIMIT, READ_WINDOW, fail_open=True)
+            if not allowed:
+                return ctx, _reply({"status": "limit", "detail": f"Too many {PRISM_NAME} reports opened in a short time. Please wait a few minutes."}, 429, wait or 60)
     if symbol in request.app.state.settings.showcase_symbols or ctx.role == "admin" or has(ctx.plan, "gold"):
         return ctx, None
     detail = f"{PRISM_NAME} is part of the Gold plan." if ctx.authed else f"Sign in with the Gold plan to see {PRISM_NAME}."
@@ -244,7 +259,7 @@ def _shape(row, cached: bool, refreshing: bool = False) -> Dict[str, Any]:
     report = json.loads(row["report"])
     if isinstance(report.get("technicalAssessment"), dict):       # reports stored before the mapping existed carry the model's raw words
         report["technicalAssessment"] = relabel_technical(report["technicalAssessment"])
-    return {**report, "cached": cached, "pdfAvailableUntil": until.isoformat() if live else None, "technical": _tech_state(row, refreshing)}
+    return {**public_report(report), "cached": cached, "pdfAvailableUntil": until.isoformat() if live else None, "technical": _tech_state(row, refreshing)}
 
 
 def _tech_state(row, refreshing: bool = False) -> Dict[str, Any]:
@@ -538,7 +553,7 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     wanted = target(symbol, statement)
     if not wanted:
         return _bad("Choose a company symbol and a statement basis (consolidated or standalone).")
-    _, refusal = await _access(request, wanted[0])
+    _, refusal = await _access(request, wanted[0], full=view != "summary")
     if refusal:
         return refusal
     row = await _stored(request.app.state.store, *wanted)
@@ -547,7 +562,7 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     refreshing = await _refresh_stale_technical(request.app, wanted[0], row)
     from . import scorelive
     fresh = await scorelive.on_open_prism(request.app, wanted[0], wanted[1], row)    # behind a newer quarter or a completed session: recalculated in the background, the stored one shown with its date
-    body = {"summary": {**_summary(row, refreshing), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": fresh}
+    body = {"summary": {**public_summary(_summary(row, refreshing)), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": fresh}
     return _reply(body)
 
 

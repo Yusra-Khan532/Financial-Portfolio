@@ -75,14 +75,14 @@ function RecentCard({ symbol }: { symbol: string }) {
   const s = useStoredSummary(symbol);
   const d = s.data, rated = !!d && d.status !== "NOT RATED" && d.final != null;
   const tone = d ? labelTone(d.label) : null;
-  const parts = rated && d!.parts && d!.partWeights ? partsOf({ parts: d!.parts, partWeights: d!.partWeights }).filter((k) => (d!.partWeights![k] ?? 0) > 0) : [];
+  const parts = rated && d!.parts ? partsOf({ parts: d!.parts }) : [];
   return (
     <li><Link to={`/prism/${symbol}`} className={"pzr-rc" + (tone ? " " + tone.tone : "")} aria-label={d ? `${symbol}: ${rated ? `${score1(d.final)} out of 100, ${tone!.word}` : "not rated"}` : `${symbol}: no stored rating`}>
       <span className="pzr-rc-s">{symbol}</span>
       {s.isLoading ? <span className="skeleton pzr-rc-sk" /> : d ? <>
         <span className="pzr-rc-n">{rated ? score1(d.final) : "—"}</span>
         <span className="pzr-rc-l"><i aria-hidden="true" />{rated ? tone!.word : "Not rated"}{d.status === "PROVISIONAL" ? " · provisional" : ""}</span>
-        {parts.length > 0 && <span className="pzr-rc-b" aria-hidden="true">{parts.map((k, i) => <i key={k} style={{ "--c": partVar(k, i), flex: d.partWeights![k] } as React.CSSProperties} title={partInfo(k).name}><b style={{ height: `${Math.max(4, d.parts![k] ?? 0)}%` }} /></i>)}</span>}
+        {parts.length > 0 && <span className="pzr-rc-b" aria-hidden="true">{parts.map((k, i) => <i key={k} style={{ "--c": partVar(k, i), flex: 1 } as React.CSSProperties} title={partInfo(k).name}><b style={{ height: `${Math.max(4, d.parts![k] ?? 0)}%` }} /></i>)}</span>}
         <small>{d.confidence != null ? `${pctWhole(d.confidence)} of inputs · ` : ""}{new Date(d.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</small>
       </> : <span className="pzr-rc-l none">No stored rating yet</span>}
     </Link></li>
@@ -122,7 +122,7 @@ export function Browse({ statement, open, onOpen }: { statement: Statement; open
   );
 }
 
-const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value, points and status, and which inputs are missing", "A PDF of exactly the calculation you see"];
+const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak, and which inputs are missing", "A PDF of the report, prepared for you"];
 export const PRISM_WHAT = WHAT;
 
 /** Six of the most searched companies, one tap each: straight to that company's Prism page, no typing. */

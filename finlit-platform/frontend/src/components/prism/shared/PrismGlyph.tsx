@@ -1,11 +1,11 @@
-// The "prism" glyph: the overall score ring split into one arc per part. An arc's length is its weight in the score; it is filled up to the
+// The "prism" glyph: the overall score ring split into equal arcs, one per part (arc length says nothing about how much a part counts); each is filled up to the
 // part's own score; the overall number sits in the middle. Pure SVG, no chart library; the entrance animation is CSS and switches off for
 // prefers-reduced-motion. Styles: styles/dash-shared.css (classes dk-gl*).
 import { useId, type CSSProperties } from "react";
 import { bandVar, scoreBand } from "../../../lib/scoreBands";
 import "../../../styles/dash-shared.css";
 
-export type GlyphPart = { key: string; name: string; /** share of the score, any positive number (percent or fraction) */ weight: number; /** 0..100 or null */ value: number | null; /** CSS custom property name, e.g. "--p-growth" */ color: string };
+export type GlyphPart = { key: string; name: string; /** 0..100 or null */ value: number | null; /** CSS custom property name, e.g. "--p-growth" */ color: string };
 export type PrismGlyphProps = {
   parts: GlyphPart[];
   /** Overall score 0..100; null draws "Not rated" and empty arcs. */
@@ -26,10 +26,10 @@ const arc = (r: number, a0: number, a1: number) => { const [x0, y0] = pt(r, a0),
 
 export function PrismGlyph({ parts, score, size = 150, caption = "out of 100", ariaLabel, example }: PrismGlyphProps) {
   const id = "pg" + useId().replace(/[^a-zA-Z0-9]/g, "");
-  const total = parts.reduce((s, p) => s + p.weight, 0) || 1;
+  const span = parts.length ? 360 / parts.length : 360;
   let at = 0;
   const arcs = parts.map((p) => {
-    const span = (p.weight / total) * 360, a0 = at + GAP / 2, a1 = at + span - GAP / 2;
+    const a0 = at + GAP / 2, a1 = at + span - GAP / 2;
     at += span;
     return { ...p, a0, a1, d: arc(RA, a0, Math.max(a0 + 0.5, a1)), end: pt(RA, a0 + (Math.max(a1 - a0, 0.5) * Math.max(0, Math.min(100, p.value ?? 0))) / 100) };
   });

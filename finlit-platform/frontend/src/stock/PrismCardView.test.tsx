@@ -13,13 +13,14 @@ const fund = (r = rating()) => renderToStaticMarkup(<FundamentalSection r={r} pa
 const BANNED = /\b(buy|buying|sell|selling|hold|accumulate|target|entry|stop[- ]loss|avoid)\b/i;
 
 describe("Fundamental section", () => {
-  it("draws one arc and one card per component, tinted by band, with weights and words", () => {
+  it("draws one equal arc and one card per component, tinted by band, with words and no weights", () => {
     const h = fund(), t = text(h);
     expect(h.match(/class="pcx-arc/g)).toHaveLength(4);
     expect(h.match(/class="pcx-card band-/g)).toHaveLength(4);
     for (const b of ["band-mid", "band-lo", "band-hi"]) expect(h).toContain(b);
     for (const w of ["AVERAGE", "Weak", "Healthy", "Strong", "59.1", "/ 100"]) expect(t.toLowerCase()).toContain(w.toLowerCase());
-    expect(h).toContain('aria-label="Valuation 42 of 100: Weak. Counts for 30% of the overall score. Higher is better: a higher score is a stronger result."');
+    expect(h).toContain('aria-label="Valuation 42 of 100: Weak. Higher is better: a higher score is a stronger result."');
+    expect(t).not.toMatch(/weighted|Counts for|% of the/);
     expect(h).toContain("a higher Risk score means lower risk");
     expect(t).toContain("Fundamental analysis");
   });
@@ -33,9 +34,10 @@ describe("Fundamental section", () => {
     expect(renderToStaticMarkup(<FundamentalSection r={rating()} parts={partsOf(rating()).parts} example />)).toContain("EXAMPLE");
   });
   it("counts a technical part as part of the score when the model sends one", () => {
-    const r = rating({ parts: { fundamental: 55, valuation: 42, quality: 79, risk: 88, technical: 44 }, partWeights: { fundamental: 0.3, valuation: 0.25, quality: 0.2, risk: 0.1, technical: 0.15 } });
+    const r = rating({ parts: { fundamental: 55, valuation: 42, quality: 79, risk: 88, technical: 44 } });
     const t = text(fund(r));
-    expect(t).toContain("Prism score"); expect(t).toContain("5 weighted components"); expect(t).not.toContain("not included in this score");
+    expect(t).toContain("Prism score"); expect(t).toContain("The score combines the components shown"); expect(t).not.toContain("not included in this score");
+    expect(fund(r).match(/class="pcx-arc/g)).toHaveLength(5);
   });
 });
 

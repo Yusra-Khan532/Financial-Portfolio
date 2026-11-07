@@ -1,6 +1,6 @@
-// FinLit Prism card on the stock page, the drawing of its two sections: "Fundamental analysis" (a segmented score ring, one arc per component sized by its
-// weight and coloured by its band, and one card per component) and "Technical analysis" (the short-term and long-term panels and the trend alignment).
-// Everything shown is read from the stored report (rating, weights, technicalAssessment); the rules (words, bands, captions) are in prismCardLogic.ts and lib/.
+// FinLit Prism card on the stock page, the drawing of its two sections: "Fundamental analysis" (a segmented score ring, one equal arc per component
+// coloured by its band, and one card per component) and "Technical analysis" (the short-term and long-term panels and the trend alignment).
+// Everything shown is read from the stored report (rating, technicalAssessment); the rules (words, bands, captions) are in prismCardLogic.ts and lib/.
 // Meaning is always in words and shapes (the status word, the number, the arrows); colour only decorates. The ring and the bars are hidden from screen
 // readers because every component and horizon carries its numbers and words in its own accessible name. Styles: styles/prism-card.css (classes pcx-*).
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
@@ -26,7 +26,7 @@ const C = 80, RA = 64, SW = 10, CAP = ((SW / 2) / RA) * (180 / Math.PI);   // ce
 
 export function SegRing({ parts, score, word, tone, hot, onHot, example = false }: { parts: CardPart[]; score: number | null; word: string; tone: ScoreBand; hot: string | null; onHot: (k: string | null) => void; example?: boolean }) {
   const id = "pcr" + useId().replace(/[^a-zA-Z0-9]/g, "");
-  const arcs = ringArcs(parts.map((p) => ({ key: p.key, weight: p.weight, value: p.value })), 9);
+  const arcs = ringArcs(parts.map((p) => ({ key: p.key, value: p.value })), 9);
   return (
     <span className="pcx-ring" aria-hidden="true">
       <svg viewBox="0 0 160 160">
@@ -38,7 +38,7 @@ export function SegRing({ parts, score, word, tone, hot, onHot, example = false 
           const p = parts[i];
           return (
             <g key={a.key} className={"pcx-arc" + (hot === a.key ? " hot" : "")} style={{ "--pc": bandVar(a.band), "--i": i } as CSSProperties} onMouseEnter={() => onHot(a.key)} onMouseLeave={() => onHot(null)}>
-              <title>{partTip(p.name, p.value, partWord(p.value)[0], p.weight)}</title>
+              <title>{partTip(p.name, p.value, partWord(p.value)[0])}</title>
               <path className="pcx-hit" d={arcPath(C, C, RA, s, e)} />
               <path className="pcx-trk" d={arcPath(C, C, RA, s, e)} />
               {v > 0 && <><path className="pcx-fill" d={arcPath(C, C, RA, s, e)} pathLength={100} strokeDasharray={`${v} 100`} /><circle className="pcx-knob" cx={kx.toFixed(2)} cy={ky.toFixed(2)} r="3" /></>}
@@ -79,7 +79,7 @@ export function ScaleBar({ value, ticks = TICKS }: { value: number | null; ticks
 }
 
 function PartCard({ p, index, hot, onHot, last, example }: { p: CardPart; index: number; hot: string | null; onHot: (k: string | null) => void; last: boolean; example: boolean }) {
-  const band = scoreBand(p.value), [word, tone] = partWord(p.value), tip = partTip(p.name, p.value, word, p.weight), hint = partHint(p.key);
+  const band = scoreBand(p.value), [word, tone] = partWord(p.value), tip = partTip(p.name, p.value, word), hint = partHint(p.key);
   return (
     <div className={"pcx-card band-" + band + (hot === p.key ? " hot" : "")} role="group" tabIndex={0} aria-label={tip + (hint ? " " + hint.long : "") + (example ? " Example numbers." : "")}
       style={{ "--pc": bandVar(band), "--i": index } as CSSProperties} onMouseEnter={() => onHot(p.key)} onMouseLeave={() => onHot(null)} onFocus={() => onHot(p.key)} onBlur={() => onHot(null)}>
@@ -110,11 +110,11 @@ export function FundamentalSection({ r, parts, example = false, children }: { r:
       <div className="pcx-fb">
         <div className="pcx-rc">
           <SegRing parts={parts} score={rated ? (r.final as number) : null} word={word} tone={rated ? scoreBand(r.final) : "na"} hot={hot} onHot={setHot} example={example} />
-          <p className="pcx-cap">{techIn ? "Overall Prism score" : "Cumulative fundamental score"}<InfoTip text={`The total of the component scores, each counted by its weight. Arc length shows a component's weight; the coloured part shows its score. ${BAND_RULE}`} /></p>
+          <p className="pcx-cap">{techIn ? "Overall Prism score" : "Cumulative fundamental score"}<InfoTip text={`The total of the component scores. Each arc is one component; the coloured part shows its score. ${BAND_RULE}`} /></p>
           <p className="pcx-bo">{basedOn(n, hasRisk)}</p>
         </div>
         <div className="pcx-cs">
-          <h4>{techIn ? "Components (weighted)" : "Fundamental components (weighted)"}</h4>
+          <h4>{techIn ? "Components" : "Fundamental components"}</h4>
           <div className="pcx-grid" style={{ "--n": n } as CSSProperties} role="group" aria-label={example ? "The components of a Prism rating (example numbers)" : "The components of the Prism rating"}>
             {parts.map((p, i) => <PartCard key={p.key} p={p} index={i} hot={hot} onHot={setHot} last={i === parts.length - 1} example={example} />)}
           </div>

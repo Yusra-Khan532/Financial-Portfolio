@@ -12,7 +12,7 @@ import { ChartZoom } from "../components/ChartZoom";
 const W = 640, H = 230, L = 40, R = 14, T = 12, B = 28;
 type View = "score" | "technical";
 const LINES: Record<View, { s: Series; name: string; color: string; w: number; on: boolean }[]> = {
-  score: [{ s: "final", name: "Prism score", color: "var(--text)", w: 2.4, on: true }, ...PRISM_PARTS.map(([k, name, , v]) => ({ s: k as Series, name, color: `var(${v})`, w: 1.5, on: false }))],
+  score: [{ s: "final", name: "Prism score", color: "var(--text)", w: 2.4, on: true }, ...PRISM_PARTS.map(([k, name, v]) => ({ s: k as Series, name, color: `var(${v})`, w: 1.5, on: false }))],
   technical: [{ s: "shortTerm", name: "Short term", color: "var(--gold)", w: 2.2, on: true }, { s: "longTerm", name: "Long term", color: "var(--text)", w: 2.2, on: true }],
 };
 const fmt = (v: number | null, signed = false) => (v == null ? MINUS : (signed && v > 0 ? "+" : "") + String(Math.round(v * 10) / 10).replace("-", MINUS));
@@ -48,7 +48,7 @@ export function HistoryChart({ points, view }: { points: HistPoint[]; view: View
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${view === "score" ? "Prism score" : "Technical views"} over time, ${points.length} days recorded`} onPointerMove={move} onPointerLeave={() => setHover(null)}>
         {ticks.map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth={g === 0 && view === "technical" ? 1.1 : 0.6} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="phx-ax">{fmt(g)}</text></g>)}
-        {changes.map((c) => <g key={c.day}><line x1={x(c.day)} x2={x(c.day)} y1={T} y2={H - B} stroke="var(--gold)" strokeDasharray="2 3" /><title>{`Model version changed on ${dateIN(c.day)}: ${c.from} to ${c.to}`}</title></g>)}
+        {changes.map((c) => <g key={c.day}><line x1={x(c.day)} x2={x(c.day)} y1={T} y2={H - B} stroke="var(--gold)" strokeDasharray="2 3" /><title>{`The scoring method was updated on ${dateIN(c.day)}`}</title></g>)}
         {defs.filter((l) => shown[l.s]).map((l) => <path key={l.s} d={path(l.s)} fill="none" stroke={l.color} strokeWidth={l.w} strokeLinejoin="round" strokeLinecap="round" />)}
         {defs.filter((l) => shown[l.s]).flatMap((l) => withValue(points, l.s).map((p) => <circle key={l.s + p.day} cx={x(p.day)} cy={y(valueOf(p, l.s)!)} r={points.length > 40 ? 0 : 2.6} fill="var(--bg)" stroke={l.color} strokeWidth="1.6" />))}
         {axis.map((p, i) => <text key={p.day} x={x(p.day)} y={H - 8} textAnchor={axis.length > 1 && i === 0 ? "start" : axis.length > 1 && i === axis.length - 1 ? "end" : "middle"} className="phx-ax">{dateIN(p.day, { day: "numeric", month: "short", year: "2-digit" })}</text>)}
@@ -58,9 +58,8 @@ export function HistoryChart({ points, view }: { points: HistPoint[]; view: View
         <div className="phx-tip" role="status">
           <b>{dateIN(h.day)}</b>
           {defs.filter((l) => shown[l.s]).map((l) => <span key={l.s}>{l.name} {fmt(valueOf(h, l.s), view === "technical")}</span>)}
-          {h.modelVersion && <small>Model {h.modelVersion}</small>}
         </div>)}
-      {changes.length > 0 && <p className="phx-note"><Icon name="info" /><span>The dashed gold line marks a day the model version changed ({changes.map((c) => dateIN(c.day, { day: "numeric", month: "short" })).join(", ")}): a jump there can come from the new formula, not from the business.</span></p>}
+      {changes.length > 0 && <p className="phx-note"><Icon name="info" /><span>The dashed gold line marks a day the scoring method was updated ({changes.map((c) => dateIN(c.day, { day: "numeric", month: "short" })).join(", ")}): a jump there can come from the new formula, not from the business.</span></p>}
       <details className="phx-table"><summary>Show as table</summary>
         <div className="tw"><table className="qtt"><thead><tr><th>Day</th>{defs.map((l) => <th key={l.s}>{l.name}</th>)}</tr></thead>
           <tbody>{[...points].reverse().map((p) => <tr key={p.day}><td>{dateIN(p.day)}</td>{defs.map((l) => <td key={l.s} className="num">{fmt(valueOf(p, l.s), view === "technical")}</td>)}</tr>)}</tbody></table></div>

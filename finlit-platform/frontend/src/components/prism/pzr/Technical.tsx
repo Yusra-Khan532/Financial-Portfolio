@@ -1,18 +1,18 @@
-// The technical view on the Prism report: a short-term and a long-term score on a -100..+100 scale, the combined trend, every signal
-// behind them, and where the numbers come from. It is an additive, independent assessment (report.technicalAssessment): it is not a part of the
-// 0-100 Prism score and never changes it. Older reports without the field get a calm "recalculate" note.
+// The technical view on the Prism report: a short-term and a long-term score on a -100..+100 scale, the combined trend and every signal
+// behind them, each by its direction only. How the scores are built (weights, points, rules, band edges, look-back lengths) stays on the server.
+// It is an additive, independent assessment (report.technicalAssessment): it is not a part of the 0-100 Prism score and never changes it.
+// Older reports without the field get a calm "recalculate" note.
 // Words: the model's own rating and verdict words are never shown; lib/prismTechnical.ts maps them to descriptive trend words (Positive, Neutral...).
 // Colour only decorates: every conclusion is also a word and a shape. Styles: styles/prism-technical.css (pzt-*).
 import { useMemo, useState } from "react";
 import { Icon } from "../../../lib/icons";
-import { dateIN } from "../../../lib/format";
 import type { PrismReport } from "../../../lib/prism";
 import {
-  BANDS, FACTOR_GROUP_WORD, bandLegend, bandTip, bandWidths, STAGE_WORD, TECH_NOTE, disabledFactors, factorGroup, filterTechFactors, fmtScore, isFresh, parseTechnical, ratingWord, safeText,
-  scalePos, scoreBand, signalWord, verdictView,
+  FACTOR_GROUP_WORD, bandTip, STAGE_WORD, TECH_NOTE, factorGroup, filterTechFactors, fmtScore, parseTechnical, ratingWord, safeText,
+  scalePos, scoreBand, verdictView,
   type FactorGroup, type TechAssessment, type TechFactor, type TechHorizon, type TrendTone,
 } from "../../../lib/prismTechnical";
-import { Breakdown, TrendAlignmentBlock } from "./TechBreakdown";
+import { TrendAlignmentBlock } from "./TechBreakdown";
 
 export const TECH_ID = "pzr-technical";
 const SHAPE: Record<TrendTone, string> = { strongpos: "▲▲", pos: "▲", neutral: "—", neg: "▼", strongneg: "▼▼", na: "–" };
@@ -25,20 +25,20 @@ export function horizonSummary(name: string, h: TechHorizon): string {
   const w = ratingWord(h.rating, h.score);
   const have = `${h.availableCount} of ${h.requiredCount} signals available`;
   if (h.score == null) return `${name}: no score, because ${have}.`;
-  return `${name}: ${fmtScore(h.score)} on a scale from minus 100 to plus 100, ${w.word.toLowerCase()}. ${have}.${h.stageCapped ? " Limited by the market stage." : ""}${h.provisional ? " Provisional score: a recent listing." : ""}`;
+  return `${name}: ${fmtScore(h.score)} on a scale from minus 100 to plus 100, ${w.word.toLowerCase()}. ${have}.${h.provisional ? " Provisional score: a recent listing." : ""}`;
 }
 
-/** The -100..+100 scale: five bands (their edges are the rating boundaries), a centre line and a marker. Words below say the same. */
+/** The -100..+100 scale with a centre line and a marker; the word beside it says what the score reads. The band edges are not drawn. */
 export function TechGauge({ score, label }: { score: number | null; label: string }) {
   const tone = scoreBand(score), pos = scalePos(score);
   return (
     <div className={"pzt-gauge " + tone} role="img" aria-label={label}>
-      <div className="pzt-g-bar" aria-hidden="true">
-        {bandWidths().map((w, i) => <i key={i} className={"b" + (i + 1)} style={{ flex: w }} />)}
+      <div className="pzt-g-bar pzt-g-plain" aria-hidden="true">
+        <i className="b1" style={{ flex: 50 }} /><i className="b5" style={{ flex: 50 }} />
         <u className="pzt-g-zero" />
         {score != null && <b className="pzt-g-mk" style={{ left: `${pos}%` }}><span>{fmtScore(score)}</span></b>}
       </div>
-      <div className="pzt-g-ticks" aria-hidden="true">{[[-100, "−100"], [BANDS.negative, "−50"], [0, "0"], [BANDS.strongPositive, "+50"], [100, "+100"]].map(([v, t]) => <span key={v} style={{ left: `${((v as number) + 100) / 2}%` }}>{t}</span>)}</div>
+      <div className="pzt-g-ticks" aria-hidden="true">{[[-100, "−100"], [0, "0"], [100, "+100"]].map(([v, t]) => <span key={v} style={{ left: `${((v as number) + 100) / 2}%` }}>{t}</span>)}</div>
     </div>
   );
 }
@@ -55,37 +55,34 @@ function HorizonCard({ name, h, id }: { name: string; h: TechHorizon; id: string
         {have ? <>{fmtScore(h.score)}<small> on −100 to +100{h.provisional ? " · provisional" : ""}</small></> : <>Not available<small> score withheld</small></>}
       </p>
       <TechGauge score={h.score} label={horizonSummary(name, h)} />
-      <p className="pzt-legend">{bandLegend()}</p>
       <ul className="pzt-facts">
         <li className={h.availableCount < h.requiredCount ? "warn" : ""}><Icon name={h.availableCount < h.requiredCount ? "alert" : "check"} /><span><b>{h.availableCount} of {h.requiredCount}</b> signals available. {STATE_WORD[h.status]}.</span></li>
         {h.provisional && <li className="warn pzt-prov"><Icon name="info" /><span><b>Provisional.</b> {h.provisionalNote ?? "The relative-strength rating needs about two years of prices, so this score uses the other signals only."}</span></li>}
-        {h.stageCapped && <li className="warn pzt-cap"><Icon name="info" /><span><b>Limited by the market stage.</b> When a stock is in Stage 3 (topping) or Stage 4 (declining), the model limits the long-term score to +19 at most, before the trend word is chosen.</span></li>}
       </ul>
     </article>
   );
 }
 
 function SignalRow({ f }: { f: TechFactor }) {
-  const g = factorGroup(f), s = f.signal;
+  const g = factorGroup(f) ?? "unavailable";
   const label = safeText(f.label), detail = safeText(f.detail);
-  const word = g === "unavailable" || s == null ? "Unavailable" : signalWord(s);
+  const word = FACTOR_GROUP_WORD[g];
   return (
     <li className={"pzt-sg " + g}>
       <span className="pzt-sg-n"><b>{label}</b>{detail && <small>{detail}</small>}</span>
-      <span className="pzt-sg-b" aria-hidden="true"><i className="pzt-sg-t">{s != null && s !== 0 && <em className={s > 0 ? "up" : "dn"} style={{ width: `${Math.abs(s) * 50}%` }} />}</i></span>
+      <span className="pzt-sg-b" aria-hidden="true"><i className="pzt-sg-t">{(g === "supporting" || g === "adverse") && <em className={g === "supporting" ? "up" : "dn"} style={{ width: "50%" }} />}</i></span>
       <span className="pzt-sg-w"><i aria-hidden="true">{g === "supporting" ? "▲" : g === "adverse" ? "▼" : g === "neutral" ? "◆" : "–"}</i>{word}</span>
     </li>
   );
 }
 
 function SignalList({ title, h, filter }: { title: string; h: TechHorizon; filter: FactorGroup | "all" }) {
-  const rows = filterTechFactors(h.factors, filter), off = disabledFactors(h.factors);
+  const rows = filterTechFactors(h.factors, filter);
   return (
     <section className="pzt-col" aria-label={`${title} signals`}>
       <h5>{title} signals <small>{h.availableCount} of {h.requiredCount} available</small></h5>
       {rows.length ? <ul className="pzt-sgl">{rows.map((f) => <SignalRow key={f.key} f={f} />)}</ul>
         : <p className="pzt-none">{h.factors.length ? `No ${FACTOR_GROUP_WORD[filter].toLowerCase()} signals here.` : "No signals were returned for this horizon."}</p>}
-      {filter === "all" && off.length > 0 && <p className="pzt-off">Switched off in this model: {off.map((f) => safeText(f.label)).join(", ")}. It is not counted, and nothing replaces it.</p>}
     </section>
   );
 }
@@ -111,12 +108,12 @@ const pctText = (v: number, d = 1) => minus((v >= 0 ? "+" : "") + v.toFixed(d)) 
 function Observations({ a }: { a: TechAssessment }) {
   const o = a.observations;
   const items: { k: string; v: string }[] = [];
-  if (o.stage) items.push({ k: "Market stage", v: STAGE_WORD[o.stage] + (o.stage === 2 && o.freshStage2 != null ? (o.freshStage2 ? ". A fresh advance: it began within the last 60 sessions after a basing phase." : ". An established advance.") : ".") });
-  if (o.slope150Pct != null) items.push({ k: "150-day average", v: `The 150-day average price has moved ${pctText(o.slope150Pct)} over the last 50 sessions.` });
+  if (o.stage) items.push({ k: "Market stage", v: STAGE_WORD[o.stage] + (o.stage === 2 && o.freshStage2 != null ? (o.freshStage2 ? ". A fresh advance that began recently after a basing phase." : ". An established advance.") : ".") });
+  if (o.slope150Pct != null) items.push({ k: "Longer-term average price", v: `The longer-term average price has moved ${pctText(o.slope150Pct)} over recent weeks.` });
   if (o.benchmark) items.push({ k: "Compared with", v: `${o.benchmark}, the index picked by the company's size.${o.benchmarksUsed.length > 1 ? ` Over the comparison window the size group changed, so it also used ${o.benchmarksUsed.filter((n) => n !== o.benchmark).join(", ")}.` : ""}` });
-  if (o.beta != null) items.push({ k: "Beta", v: `${o.beta.toFixed(2)}. How strongly the stock has moved with that index (126 daily returns, kept between 0.30 and 3.00).` });
-  if (o.rsRatingST != null) items.push({ k: "Short-term relative strength", v: `${o.rsRatingST.toFixed(1)} out of 100. Its recent gain over the index, allowing for beta, is at or above ${Math.round(o.rsRatingST)}% of the previous 126 sessions.` });
-  if (o.rsRatingLT != null) items.push({ k: "Long-term relative strength", v: `${o.rsRatingLT.toFixed(1)} out of 100. The same comparison over the previous 252 sessions.` });
+  if (o.beta != null) items.push({ k: "Beta", v: `${o.beta.toFixed(2)}. How strongly the stock has moved with that index.` });
+  if (o.rsRatingST != null) items.push({ k: "Short-term relative strength", v: `${o.rsRatingST.toFixed(1)} out of 100. Its recent gain over the index, allowing for beta, against its own recent record. Higher means it has been doing better than the index.` });
+  if (o.rsRatingLT != null) items.push({ k: "Long-term relative strength", v: `${o.rsRatingLT.toFixed(1)} out of 100. The same comparison over the past year.` });
   if (!items.length) return <p className="pzt-none">No market observations were returned.</p>;
   return <dl className="pzt-obs">{items.map((i) => <div key={i.k}><dt>{i.k}</dt><dd>{i.v}</dd></div>)}</dl>;
 }
@@ -133,27 +130,6 @@ function Missing({ a }: { a: TechAssessment }) {
         <div key={n}><h5>{n}</h5><ul>{rows.map((f) => <li key={f.key}><b>{safeText(f.label)}</b><span>{safeText(f.detail) || "No reason was given."}</span></li>)}</ul></div>
       ))}
       {!groups.length && <p className="pzt-none">No individual signal is listed as missing; see the notes below.</p>}
-    </section>
-  );
-}
-
-function Source({ a }: { a: TechAssessment }) {
-  const fresh = isFresh(a);
-  return (
-    <section className="pzt-src" aria-label="Where this comes from">
-      <h4>Where this comes from</h4>
-      <ul className="pzt-srcl">
-        <li><Icon name="calendar" /><span><b>Prices as of {a.asOf ? dateIN(a.asOf) : "an unknown date"}</b>, the last completed daily session.{a.provider && a.provider !== "Unavailable" ? ` Daily prices from ${a.provider}.` : ""}</span></li>
-        <li className={fresh ? "" : "warn"}><Icon name={fresh ? "check" : "alert"} /><span>{fresh ? "The latest price is within 10 days of when this was calculated." : "These prices may be out of date: the model withholds a current score when the latest price is more than 10 days old, or when it cannot tell."}</span></li>
-        {a.usableDailyBars != null && <li><Icon name="activity" /><span>{a.usableDailyBars.toLocaleString("en-IN")} complete daily candles were usable{a.dailyBars != null && a.dailyBars !== a.usableDailyBars ? ` of ${a.dailyBars.toLocaleString("en-IN")} received` : ""}. Missing candles are never filled in.</span></li>}
-        {a.modelVersion && <li><Icon name="info" /><span>Technical model {a.modelVersion}. Weekly signals use the week before the latest session.</span></li>}
-      </ul>
-      {a.benchmarkSources.length > 0 && (
-        <div className="pzt-tw"><table className="pzt-tbl"><caption>Index price history used for comparison</caption>
-          <thead><tr><th scope="col">Index</th><th scope="col">Source</th><th scope="col">Last date</th><th scope="col">Daily closes</th></tr></thead>
-          <tbody>{a.benchmarkSources.map((s) => <tr key={s.name}><th scope="row">{s.name}</th><td>{s.provider ?? "—"}</td><td>{s.asOf ? dateIN(s.asOf) : "—"}</td><td>{s.bars != null ? s.bars.toLocaleString("en-IN") : "—"}</td></tr>)}</tbody></table></div>
-      )}
-      {a.notes.length > 0 && <ul className="pzt-notes" aria-label="Notes from the model">{a.notes.map((n, i) => <li key={i}>{safeText(n)}</li>)}</ul>}
     </section>
   );
 }
@@ -197,11 +173,10 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
       <TrendAlignmentBlock a={a} />
       <Missing a={a} />
       <div className="pzt-blk"><h4>Every signal</h4>
-        <p className="pzt-sub">Each signal scores from −1 (adverse) to +1 (supporting) and the scores are combined into the numbers above. Neutral means the signal is flat; unavailable means it could not be calculated.</p>
+        <p className="pzt-sub">Each signal either supports the trend, works against it (adverse) or is neutral. Unavailable means it could not be calculated.</p>
         <Signals a={a} /></div>
-      <Breakdown a={a} onRecalculate={onRecalculate} />
       <div className="pzt-blk"><h4>What the market shows</h4><Observations a={a} /></div>
-      <Source a={a} />
+      {a.notes.length > 0 && <ul className="pzt-notes" aria-label="Notes">{a.notes.map((n, i) => <li key={i}>{safeText(n)}</li>)}</ul>}
       <p className="pzr-small pzt-line">{TECH_NOTE} It is not an investment recommendation.</p>
     </section>
   );

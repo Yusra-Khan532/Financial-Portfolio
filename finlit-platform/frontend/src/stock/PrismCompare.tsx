@@ -28,11 +28,10 @@ const STATUS_NOTE: Record<PrismLatest["rating"]["status"], string> = {
 };
 /** The parts to draw, from the data: the four of the model, and a technical part the moment the model sends one. */
 export function partsOf(r: PrismLatest["rating"]): { parts: CardPart[]; technicalSoon: boolean } {
-  const w = r.partWeights ?? {};
   const rated = r.status !== "NOT RATED";   // the model withholds category scores for a company it did not rate; so do we
-  const parts: CardPart[] = PRISM_PARTS.map(([k, name, share, color]) => ({ key: k, name, weight: Math.round((w[k] ?? share / 100) * 100), color, value: rated ? r.parts?.[k] ?? null : null }));
-  const tech = rated ? r.parts?.technical : null;
-  if (tech !== undefined && w.technical != null) parts.push({ key: "technical", name: "Technical", weight: Math.round(w.technical * 100), color: "--p-tech", value: tech });
+  const parts: CardPart[] = PRISM_PARTS.map(([k, name, color]) => ({ key: k, name, color, value: rated ? r.parts?.[k] ?? null : null }));
+  const tech = rated ? r.parts?.technical : undefined;
+  if (tech !== undefined) parts.push({ key: "technical", name: "Technical", color: "--p-tech", value: tech });
   return { parts, technicalSoon: !parts.some((p) => p.key === "technical") };
 }
 
@@ -67,7 +66,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
     : run.isError ? <p className="pz-err" role="alert"><Icon name="alert" />{generateFailure(run.error)}</p> : null;
   if (state.kind === "none") return (
     <div className="dk-empty">
-      <PrismGlyph parts={PRISM_PARTS.map(([k, n, w, c]) => ({ key: k, name: n, weight: w, value: null, color: c }))} score={null} size={120} />
+      <PrismGlyph parts={PRISM_PARTS.map(([k, n, c]) => ({ key: k, name: n, value: null, color: c }))} score={null} size={120} />
       <div className="dk-empty-t">
         <h3>No Prism rating for {name} yet</h3>
         <p>Prism rates a company's financial health in four parts: Growth & Profitability, Valuation, Quality and Risk. It reads the latest filings and prices, which usually takes under half a minute the first time. It is being calculated now and the result then stays stored here.</p>
