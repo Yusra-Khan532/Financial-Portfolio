@@ -306,7 +306,7 @@ function StatsPanel({ stats, sentence, method, extra, inference, insight }: { st
     {!(stats && R) && <p className="adv-sentence">{sentence}</p>}
     {stats && R && <details className="adv-allstats">
       <summary><span className="adv-as-t"><b>All statistics</b><small>Pearson r, p-values, R², slope, outliers and method</small></span>
-        <svg className="adv-as-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+        <span className="adv-as-chev" aria-hidden="true" /></summary>
       <div className="adv-as-body">
       <p className="adv-sentence">{sentence}</p>
       <table><tbody>
