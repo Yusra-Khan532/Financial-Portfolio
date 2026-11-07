@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { useSheet } from "../../lib/useSheet";
 import { Link } from "react-router";
 import { HScroll } from "../HScroll";
+import { TableZoom } from "../TableZoom";
 import { SplitDivider, useSideWidth } from "../SplitDivider";
 import { Plain } from "../Plain";
 import { ChartHelp } from "../ChartHelp";
@@ -141,7 +142,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   </span>
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
-                <HScroll className="scr-tw" label="results table"><table className="scr-t ss-t sx-t">
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table"><table className="scr-t ss-t sx-t">
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
@@ -168,7 +169,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                     {!rows.length && <tr><td colSpan={colSpan} className="empty"><div className="fgx-empty">No companies match all of these filters.{" "}{chips.length || qTrim ? <>Try removing one:{" "}
                       {qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")}>Search: {qTrim} ×</button>}{" "}{chips.map((c) => <button type="button" key={c.id} className="fchip" onClick={() => s.drop(c.id)}>{c.label} ×</button>)}</> : "Try clearing the search."}</div></td></tr>}
                   </tbody>
-                </table></HScroll>
+                </table></HScroll></TableZoom>
                 <div className="ss-foot">
                   <label className="muted">Rows per page <select value={size} onChange={(e) => s.go({ size: Number(e.target.value), page: 0 })} aria-label="Rows per page">{PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
                   <span className="muted" aria-live="polite">{pg.from}–{pg.to} of {nf(rows.length, 0)}</span>

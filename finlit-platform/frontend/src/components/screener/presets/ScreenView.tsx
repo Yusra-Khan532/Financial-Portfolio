@@ -8,6 +8,7 @@ import { Icon } from "../../../lib/icons";
 import { cr, dateIN, nf, MINUS } from "../../../lib/format";
 import { useUI } from "../../../lib/ui";
 import { HScroll } from "../../HScroll";
+import { TableZoom } from "../../TableZoom";
 import {
   DISCLAIMER, PAGE_SIZE, PLAN_OF, asPct, nextSortState, pageRange, rowsForTheme, sortPresetRows, usePresetDetail,
   type ColFormat, type PresetColumn, type PresetDetail, type PresetRow, type SortState, type Theme,
@@ -59,7 +60,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
     <th scope="col" className={"psx-a-" + align} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button></th>);
   return (
-    <HScroll className="scr-tw" label="results table"><table className="scr-t psx-t">
+    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table"><table className="scr-t psx-t">
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead><tr><th scope="col" className="psx-n">#</th>{head("symbol", "Stock", "left", 1)}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
       <tbody>{rows.map((r, i) => (
@@ -70,7 +71,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
         </tr>))}
       </tbody>
-    </table></HScroll>);
+    </table></HScroll></TableZoom>);
 }
 const Head = ({ c, h }: { c: PresetColumn; h: (key: string, label: string, align: string, first?: 1 | -1) => ReactNode }) => <>{h(c.key, c.label, alignOf(c), c.format === "text" || c.format === "label" ? 1 : -1)}</>;
 

@@ -66,6 +66,16 @@ describe("Advanced score screener (Gold)", () => {
     expect(kpi("Active filters")).toBe("0");
   });
 
+  it("the results table has the enlarge arrow (task #44), and the enlarged dialog holds the same table", async () => {
+    open();
+    const arrow = await screen.findByRole("button", { name: /Enlarge chart: Score screener results/ });
+    fireEvent.click(arrow);
+    const dlg = await screen.findByRole("dialog", { name: "Score screener results" });
+    expect(within(dlg).getAllByRole("columnheader").length).toBeGreaterThan(5);
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Score screener results" })).toBeNull());
+  });
+
   it("shows the Prism score with its word, the four parts and the two technical views in the site's words, and nothing of the FinLit IQ", () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
