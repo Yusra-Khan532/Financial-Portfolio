@@ -16,7 +16,7 @@ import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from ".
 import { QuarterSection, TrendsSection } from "./Sections4";
 import { ChartLab } from "./ChartLab";
 import { PlFlagsLayer } from "./PlFlagsLayer";
-import { DiscussionLink } from "../components/DiscussionLink";
+import { CommunitySection } from "./CommunitySection";
 import { MacroOutlookSection } from "./MacroOutlook";
 import { BusinessSection, DividendsSection, MethodSection, OwnershipSection } from "./Sections2";
 import { CompanyBriefSection } from "./CompanyBrief";
@@ -167,7 +167,7 @@ export function StockPage() {
         <ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary>
         <ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary>
         <ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary>
-        <DiscussionLink symbol={symbol} />
+        <ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary>
         <ErrorBoundary section="This section"><MethodSection s={s} /></ErrorBoundary>
         <ErrorBoundary section="This section"><LeadershipSection symbol={symbol} name={s.profile.name} /></ErrorBoundary>
       </div>

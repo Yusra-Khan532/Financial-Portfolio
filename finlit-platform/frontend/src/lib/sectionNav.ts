@@ -23,6 +23,7 @@ export const NAV: NavItem[] = [
   ["segments", "Segments", "pie", "Where the revenue comes from"],
   ["dividends", "Dividends", "coins", "Dividends, splits, bonuses and events"],
   ["announcements", "Announcements", "notes", "Exchange announcements, routine filings hidden"],
+  ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
   ["method", "Pros & cons", "info", "Pros, cons and how the Prism score has moved"],
   ["leadership", "Leadership", "medal", "Directors and key management"],
 ];

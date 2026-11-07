@@ -222,7 +222,7 @@ function Comment({ n, thread, depth, onChange, open }: { n: Node; thread: Post; 
 /** A discussion: the opening post, then every comment as a tree. Used on its own page and inside the company report. */
 export function ThreadView({ id, onBack, backLabel, header }: { id: number; onBack?: () => void; backLabel?: string; header?: (t: Post) => ReactNode }) {
   const qc = useQueryClient(), { data: me } = forumMe();
-  const [sort, setSort] = useState<CommentSort>("best"), [edit, setEdit] = useState(false), [title, setTitle] = useState(""), [body, setBody] = useState("");
+  const [sort, setSort] = useState<CommentSort>("best"), [writing, setWriting] = useState(false), [edit, setEdit] = useState(false), [title, setTitle] = useState(""), [body, setBody] = useState("");
   const q = useQuery<Page<{ thread: Post; replies: Post[]; truncated?: boolean }>>({ queryKey: ["forum", "thread", id, "tree"], queryFn: () => apiGet(`/api/forum/threads/${id}?tree=1`), retry: false });
   const act = useMutation({ mutationFn: (f: () => Promise<unknown>) => f(), onSuccess: () => qc.invalidateQueries({ queryKey: ["forum"] }) });
   const refresh = () => qc.invalidateQueries({ queryKey: ["forum"] });
@@ -254,7 +254,9 @@ export function ThreadView({ id, onBack, backLabel, header }: { id: number; onBa
           {act.isError && <div className="fo-err" role="alert">{msg(act.error)}</div>}
         </div>
       </article>
-      {open && <Writer><div className="fo-reply-box"><Composer thread={t.id} onDone={refresh} /></div></Writer>}
+      {open && <Writer><div className="fo-reply-box">{writing
+        ? <Composer thread={t.id} autoFocus onCancel={() => setWriting(false)} onDone={() => { setWriting(false); refresh(); }} />
+        : <button type="button" className="fo-reply-open" onClick={() => setWriting(true)}>Add a comment…</button>}</div></Writer>}
       <div className="fo-cbar">
         <h3>{plural(q.data.total, "comment")}</h3>
         {replies.length > 1 && <label className="fo-csort">Sort by <select value={sort} onChange={(e) => setSort(e.target.value as CommentSort)}><option value="best">Best</option><option value="new">Newest</option><option value="old">Oldest</option></select></label>}
