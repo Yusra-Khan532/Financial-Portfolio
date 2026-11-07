@@ -23,6 +23,20 @@ import type { Screener } from "./useScreener";
 
 export type Tile = [label: string, value: string, why?: string];
 
+/** The coloured group row above the column names. Only the one-column "Company" band is sticky (a band over six columns used to stay pinned at the left
+ *  and cover every other group's label). The checkbox and # columns, and the Action column, have no band. */
+export function GroupRow({ groups }: { groups: { g: string; n: number; label: string; sub?: string }[] }) {
+  return (
+    <tr className="gh tg-row">
+      <th colSpan={2} aria-hidden="true" className="tg-none" />
+      <th scope="colgroup" data-g="company" className="stick">Company</th>
+      <th scope="colgroup" colSpan={3} data-g="price">Price &amp; size</th>
+      {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}>{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</th>)}
+      <th aria-hidden="true" className="tg-none" />
+    </tr>
+  );
+}
+
 export function SortTh({ s, k, label, cls = "", help, title, of }: { s: Screener; k: SortKey; label: string; cls?: string; help?: string; title?: string; of?: string }) {
   const { sort } = s;
   return (
@@ -128,7 +142,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
                 <HScroll className="scr-tw" label="results table"><table className="scr-t ss-t sx-t">
-                  <caption className="sr">Companies matching the filters, {sort.key === "name" ? "sorted by name" : "sorted by " + sort.key}. Select a column heading to sort.</caption>
+                  <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
                     <th scope="col"><input ref={s.headBox} type="checkbox" checked={s.allOnPage} onChange={s.toggleAll} aria-label="Select all companies on this page" disabled={!pg.view.length} /></th>

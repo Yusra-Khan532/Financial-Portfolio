@@ -127,6 +127,7 @@ class Table:
             self.ax_miss.append(m.get("ax_miss") if isinstance(m.get("ax_miss"), dict) else {})
             self.ax_ready.append(isinstance(m.get("ax_miss"), dict) and _num(m.get("m_ver")) >= METRICS_VERSION)
         self.sector, self.sector_alias = _tidy_sectors(self.sector)   # variant spellings of one sector share a label in the filter, the cap and the tables; the stored label is untouched
+        self.industry, self.industry_alias = _tidy_sectors(self.industry)   # the same for industries ("Oil, Gas & Consumable Fuels" and "Oil Gas & Consumable Fuels" are one)
         self.sector_label, _ = _tidy_sectors(self.sector_label)   # same merge of spellings; the prebuilt screens group, cap and tag on this field
         n = len(self.symbols)
         self.n = n
@@ -210,7 +211,7 @@ class Table:
         if cats.get("sector"):
             want = {self.sector_alias.get(w, w) for w in cats["sector"]}; idx = [i for i in idx if self.sector[i] in want]
         if cats.get("industry"):
-            want = set(cats["industry"]); idx = [i for i in idx if self.industry[i] in want]
+            want = {self.industry_alias.get(w, w) for w in cats["industry"]}; idx = [i for i in idx if self.industry[i] in want]
         if cats.get("cap"):
             want = set(cats["cap"]); idx = [i for i in idx if self.cap[i] in want]
         if cats.get("band"):

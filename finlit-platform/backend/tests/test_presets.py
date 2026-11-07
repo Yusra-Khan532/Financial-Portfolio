@@ -221,6 +221,20 @@ def test_sector_spellings_merge_for_the_filter_the_cap_and_the_table_without_tou
     assert len([r for r in body["rows"] if r["symbol"] in {x["symbol"] for x in rows[:6]}]) == 3
 
 
+def test_industry_spellings_merge_too_and_an_old_spelling_still_filters():
+    # 6 Nov 2026: the Industry filter listed "Media, Entertainment & Publication" (61) and "Media Entertainment & Publication" (29), and "Services" next to "SERVICES".
+    rows = uni()
+    for r, ind in zip(rows[:5], ["Media, Entertainment & Publication", "Media Entertainment & Publication", "Media, Entertainment & Publication", "Services", "SERVICES"]):
+        r["industry"] = ind
+    raw = [r["industry"] for r in rows[:5]]
+    t = Table(rows, {}, {})
+    names = [n for n, _, _ in t.industries]
+    assert names.count("Media, Entertainment & Publication") == 1 and "Media Entertainment & Publication" not in names
+    assert "SERVICES" not in names and "Services" in names
+    assert dict((n, c) for n, _, c in t.industries)["Media, Entertainment & Publication"] == 3 and [r["industry"] for r in rows[:5]] == raw
+    assert len(t.match({}, {"industry": ["Media Entertainment & Publication"]})) == 3      # a saved screen with the old spelling still finds them
+
+
 def test_rows_carry_the_exchange_from_the_company_record_and_none_when_it_is_not_known():
     rows = uni()
     prism = with_prism(rows)

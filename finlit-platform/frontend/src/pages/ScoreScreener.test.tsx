@@ -366,12 +366,14 @@ describe("Basic score screener: no Prism", () => {
     const heads = within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent?.replace(/[▲▼▾]/g, "").trim());
     expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["Growth & Profitability", "Quality", "Growth", "Profit.", "Balance", "Technical", "Overall"]));
   });
-  it("links to the Advanced score screener (Gold) with a Gold chip", () => {
+  it("shows its own Basic heading above the table, with a link to the Advanced score screener (Gold)", () => {
     open();
-    const a = screen.getByRole("link", { name: /Advanced score screener/ });
+    const head = document.querySelector(".sx-here")!;
+    expect(head.textContent).toMatch(/Silver/); expect(head.textContent).toMatch(/Basic score screener/);
+    expect(head.textContent).toMatch(/The FinLit IQ: Growth & Profitability, its four pillars, Technical and Overall/);
+    expect(head.textContent).not.toMatch(/4 financial-health parts/);
+    const a = screen.getByRole("link", { name: /Advanced score screener \(Gold\)/ });
     expect(a.getAttribute("href")).toBe("/advanced-score-screener");
-    expect(a.textContent).toMatch(/Advanced score screener \(Gold\): FinLit Prism, 4 financial-health parts and 2 technical views/);
-    expect(a.textContent).toMatch(/Gold/);
   });
   it("Silver sees the scores, Basic sees the locked state as before", () => {
     st.plan = "silver"; open();
