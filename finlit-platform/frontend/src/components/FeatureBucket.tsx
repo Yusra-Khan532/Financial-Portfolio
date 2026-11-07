@@ -12,15 +12,15 @@ const PLAN_LINK: Record<ToolTier, string> = { free: "/plans#basic", silver: "/pl
 const INCLUDES: Record<ToolTier, ToolTier[]> = { free: [], silver: ["free"], gold: ["silver", "free"] };
 const PLAN_FILTERS: [ToolTier | "all", string][] = [["all", "Any plan"], ["free", "Free"], ["silver", "Silver"], ["gold", "Gold"]];
 
-/** Tools & Research Hub: five groups of tool cards, filtered by group and by the plan that opens them. Every card stays in the page (the filters only hide
- *  cards visually), so search engines and no-script readers see all 22. It replaces the numbered "Explore our platform" grid that listed the same tools. */
+/** Tools & Research Hub: six groups of tool cards, each with a real screenshot of the tool, filtered by group and by the plan that opens them. Every card
+ *  stays in the page (the filters only hide cards visually), so search engines and no-script readers see all of them. */
 export function FeatureBucket() {
   const [sel, setSel] = useState<GroupId | "all">("all");
   const [plan, setPlan] = useState<ToolTier | "all">("all");
   return (
     <section className="sec hh-sec fb" id="tools" aria-labelledby="fb-title"><div className="wrap">
       <div className="hh-head"><div className="hh-kicker">Tools &amp; Research Hub</div><h2 id="fb-title">Every tool, grouped by what you want to do</h2>
-        <p>Screeners, research tools and calculators to discover, assess, value, manage and follow the market. Each card shows the plan it opens on; you can open any of them.</p></div>
+        <p>{TOOL_IDS.length} tools for finding, checking, valuing and tracking Indian stocks and funds. The badge on each card shows the plan it needs, and you can open any of them.</p></div>
       <div className="fb-filters" role="group" aria-label="Show tools by group">
         {([["all", "All"], ...GROUPS.map((g) => [g.id, g.name])] as [GroupId | "all", string][]).map(([k, label]) => (
           <button key={k} type="button" className="fb-pill" aria-pressed={sel === k} onClick={() => setSel(k)}>{label}</button>
@@ -39,7 +39,7 @@ export function FeatureBucket() {
         return (
           <div key={g.id} className={`fb-group fb-g-${g.id}`} data-group={g.id} hidden={(sel !== "all" && sel !== g.id) || shown === 0} aria-labelledby={`fb-h-${g.id}`}>
             <div className="fb-ghead"><h3 id={`fb-h-${g.id}`}><span className="fb-dot" aria-hidden="true" />{g.name}</h3><span className="fb-count">{shown === ids.length ? `${ids.length} tools` : `${shown} of ${ids.length} tools`}</span><p>{g.desc}</p></div>
-            <ul className="fb-grid" style={{ ["--fb-cols" as string]: Math.min(ids.length, 5) }}>
+            <ul className="fb-grid">
               {ids.map((id) => {
                 const m = TOOL_ICONS[id], c = TOOL_COPY[id];
                 return (
@@ -47,11 +47,10 @@ export function FeatureBucket() {
                     <div className="fb-top"><ToolIcon id={id} size="md" /><div className="fb-name"><h4>{m.name}</h4><p className="fb-tag">{c.desc}</p></div>
                       <Link className={`fb-chip fb-${m.tier}`} to={PLAN_LINK[m.tier]} title={`Opens on the ${TIER_LABEL[m.tier]} plan: see what it includes`}>{TIER_LABEL[m.tier]}<span className="sr-only"> plan</span></Link></div>
                     <picture className="fb-shot">
-                      <img className="fb-l" src={`/feature-bucket/${id}-light.webp`} width={640} height={400} loading="lazy" decoding="async" alt={`The ${m.name} page: ${m.tagline.toLowerCase()}`} />
-                      <img className="fb-d" src={`/feature-bucket/${id}-dark.webp`} width={640} height={400} loading="lazy" decoding="async" alt={`The ${m.name} page: ${m.tagline.toLowerCase()}`} />
+                      <img className="fb-l" src={`${import.meta.env.BASE_URL}feature-bucket/${id}-light.webp`} width={800} height={500} loading="lazy" decoding="async" alt="" />
+                      <img className="fb-d" src={`${import.meta.env.BASE_URL}feature-bucket/${id}-dark.webp`} width={800} height={500} loading="lazy" decoding="async" alt="" />
                     </picture>
                     <ul className="fb-feat">{c.features.map((f) => <li key={f}>{f}</li>)}</ul>
-                    <p className="fb-edge">{c.edge}</p>
                     <Link className="fb-open" to={m.route}><span className="fb-n">{pad(c.n)}</span>Open {m.name} <span aria-hidden="true">{"→"}</span></Link>
                   </li>
                 );

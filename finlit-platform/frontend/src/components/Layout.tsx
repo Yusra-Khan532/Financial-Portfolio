@@ -114,10 +114,12 @@ function Header({ onSearch }: { onSearch: () => void }) {
 }
 
 const pick = (id: string) => SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items);
+/** Each link once, in order (a page in two menu sections is listed in the first column only once). */
+const once = (items: { to: string; label: string }[]) => items.filter((it, i) => items.findIndex((x) => x.to === it.to) === i);
 const FOOT: { title: string; items: { to: string; label: string }[] }[] = [
   { title: "Research", items: pick("research") },
-  { title: "Markets and news", items: [...pick("markets"), ...pick("news")] },
-  { title: "Funds and Workspace", items: [...pick("funds"), ...pick("myfinlit")] },
+  { title: "Markets and news", items: once([...pick("markets"), ...pick("news"), { to: "/premium/markets", label: "Market events & index" }, { to: "/premium/options", label: "Option chain" }]) },
+  { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "Fund Health Score" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
 ];
 
 function Footer() {
@@ -127,11 +129,11 @@ function Footer() {
     <footer className="band">
       <div className="wrap">
         <div className="fcta">
-          <div><span className="lg-mark" role="img" aria-label="FinLit" style={{ marginBottom: 18 }} /><h2>Follow the numbers, not the noise.</h2><p>Open a free account to follow stocks, set alerts and read the research reports we have built so far.</p></div>
+          <div><span className="lg-mark" role="img" aria-label="FinLit" style={{ marginBottom: 18 }} /><h2>Follow the numbers, not the noise.</h2>{!user && <p>Open a free account to follow stocks, set alerts and read the research reports we have built so far.</p>}</div>
           <div className="cta-row">{!user && <Link className="btn primary" to="/login?mode=signup">Create free account</Link>}<button className="btn" onClick={() => enquire()}>Talk to the team</button></div>
         </div>
         <div className="fcols fcols5">
-          <div className="fbrand"><b>{COMPANY.name}</b><p>Research and tools for Indian stocks. We are a technology company and are not registered with SEBI or AMFI.</p>
+          <div className="fbrand"><b>{COMPANY.name}</b><p>Research and tools for Indian stocks and funds.</p>
             <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></div>
           {FOOT.map((col) => <div key={col.title}><b>{col.title}</b>{col.items.map((it) => <Link key={it.to} to={it.to}>{it.label}</Link>)}</div>)}
           <div><b>Company</b><Link to="/about">About</Link><Link to="/why-we-exist">Why we exist</Link><Link to="/services">Services</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/forum">Forums</Link><Link to="/glossary">Glossary</Link><Link to="/faq">FAQs</Link><Link to="/mcp">Connect AI</Link><Link to="/contact">Contact</Link>

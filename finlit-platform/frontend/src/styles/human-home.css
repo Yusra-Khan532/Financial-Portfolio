@@ -94,3 +94,15 @@
 .hh-end { max-width: 62ch; padding-top: 18px; border-top: 2px solid var(--text); }
 .hh-end h2 { font: 400 clamp(26px, 3.4vw, 38px)/1.15 var(--serif); margin: 0 0 8px; } .hh-end p { color: var(--muted); }
 .hh-end .cta-row { margin-top: 16px; }
+
+/* Landing refresh (task #37): stats under the hero, section pictures (light / dark), step pictures, Connect AI, the named score on the hero card */
+.hh-stats { margin-top: 8px; } .hh-stats .hh-facts { margin-top: 0; }
+.hh-pic { display: block; } .hh-pic img { display: block; width: 100%; height: auto; }
+.hh-pic.wide { margin: 18px auto 10px; max-width: 1000px; }
+.hh-steps li { flex-wrap: wrap; align-content: flex-start; } .hh-steps .hh-pic { flex: 1 1 100%; margin-bottom: 6px; border-radius: 12px; overflow: hidden; } .hh-steps .hh-pic img { aspect-ratio: 16 / 10; object-fit: contain; }
+.hh-ai { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; align-items: center; }
+.hh-ai h2 { margin: 6px 0 10px; } .hh-ai p { color: var(--muted); line-height: 1.6; }
+.hh-ai-pts { list-style: none; margin: 14px 0 20px; padding: 0; display: grid; gap: 8px; } .hh-ai-pts li { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-14); line-height: 1.5; } .hh-ai-pts svg { width: 16px; height: 16px; flex: none; margin-top: 3px; color: var(--gain); }
+@media (max-width: 900px) { .hh-ai { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+.hh-card-iq { margin: 6px 0 0; font-size: var(--fs-13); color: var(--muted); } .hh-card-iq b { color: var(--text); }
+#lenses .hh-head p { max-width: 900px; }

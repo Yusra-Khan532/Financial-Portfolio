@@ -26,6 +26,9 @@ const G: Record<ToolId, ReactNode> = {
   "theme-tracker": <><path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8z" /><path d="M3.5 12.5l8.5 4.5 8.5-4.5" /><path d="M3.5 17l8.5 4.5 8.5-4.5" stroke={A} /></>,
   "market-dashboard": <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" fill={A} fillOpacity=".4" stroke={A} /></>,
   "newsroom": <><path d="M5 4h11v16H6.5A1.5 1.5 0 0 1 5 18.5z" /><path d="M16 8h3v10.5a1.5 1.5 0 0 1-3 0" /><path d="M8 8h5M8 11.5h5" /><path d="M8 15h5" stroke={A} /></>,
+  "market-data": <><path d="M4 19h16" /><path d="M6 15l4-5 3 3 5-7" /><circle cx="18" cy="6" r="1.6" fill={A} stroke="none" /></>,
+  "learn": <><path d="M4 6.5c2.5-1.2 5.5-1.2 8 0v12c-2.5-1.2-5.5-1.2-8 0z" /><path d="M20 6.5c-2.5-1.2-5.5-1.2-8 0v12c2.5-1.2 5.5-1.2 8 0z" /><path d="M14.5 9.5h3" stroke={A} /></>,
+  "connect-ai": <><rect x="4" y="6" width="9" height="12" rx="2" /><path d="M13 12h3" /><circle cx="18.5" cy="12" r="2.5" stroke={A} /><path d="M7 10h3M7 13h3" /></>,
   "investor-circle": <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c0-3.2 2.4-5.5 5.5-5.5s5.5 2.3 5.5 5.5" /><circle cx="17" cy="9.5" r="2.3" stroke={A} /><path d="M16.5 14c2.5.2 4 2 4 4.5" stroke={A} /></>,
 };
 
