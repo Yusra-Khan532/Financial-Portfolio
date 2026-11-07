@@ -52,7 +52,7 @@ const EXEMPT: Record<string, string> = {
   "components/prism/pzr/Hero.tsx": "score ring and scale: one figure", "components/prism/pzr/Landing.tsx": "decorative mark", "components/prism/shared/PartTile.tsx": "score tile ring",
   "components/prism/shared/PrismGlyph.tsx": "glyph", "components/rotation/Parts.tsx": "corner glyphs and a sparkline in a table row",
   "mf/ScoreCard.tsx": "score ring: one figure", "pages/Blog.tsx": "icons", "pages/Compare.tsx": "score ring; its radar charts carry the arrow (charts/Radar.tsx)", "pages/FundScoreScreener.tsx": "score ring",
-  "pages/Home.tsx": "FinLit IQ dial: one figure", "pages/Plans.tsx": "icons", "stock/Hero.tsx": "price sparkline in the header", "stock/PlFlagsLayer.tsx": "icons and small revenue-against-profit gap bars",
+  "pages/Forum.tsx": "icons", "components/forum/ForumParts.tsx": "icons (vote arrow, comment bubble, pencil)", "pages/Home.tsx": "FinLit IQ dial: one figure", "pages/Plans.tsx": "icons", "stock/Hero.tsx": "price sparkline in the header", "stock/PlFlagsLayer.tsx": "icons and small revenue-against-profit gap bars",
   "stock/PrismCardView.tsx": "score rings, scale bar and info icon", "components/prism/pzr/Technical.tsx": "technical gauges: one figure each",
   "components/dashboard/Legacy.tsx": "six-bar spark inside a link card", "components/dashboard/Snapshot.tsx": "one breadth bar", "components/FlowsPanel.tsx": "46px bars under two figures (the full charts are on the FII/DII page)",
   "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/ScoreScreener.tsx": "completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",

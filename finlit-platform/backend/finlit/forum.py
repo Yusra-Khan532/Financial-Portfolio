@@ -37,6 +37,7 @@ MIN_ACCOUNT_AGE_SECONDS = 5 * 60       # a brand-new account waits a few minutes
 TRUSTED_AFTER = 3                      # standing posts after which a member's links are no longer held
 PER_PAGE_MAX = 50
 REPLIES_PER_PAGE = 30
+THREAD_TREE_MAX = 500          # replies sent at once for a nested thread (tree=1)
 SORTS = {"active": "p.last_activity_at DESC, p.id DESC", "recent": "p.created_at DESC, p.id DESC", "top": "p.upvotes DESC, p.created_at DESC, p.id DESC"}
 REPORT_REASONS = ("advice", "promotion", "contact", "abuse", "spam", "misleading", "other")
 RULES_PUBLIC = {"titleMin": rules.TITLE_MIN, "titleMax": rules.TITLE_MAX, "bodyMin": rules.BODY_MIN, "bodyMax": rules.BODY_MAX, "replyMin": rules.REPLY_MIN,
@@ -81,6 +82,7 @@ class ThreadIn(BaseModel):
 
 class ReplyIn(BaseModel):
     body: str = Field(max_length=20000)
+    parentId: Optional[int] = Field(default=None, ge=1)    # answer another reply in the same discussion (nested comments)
 
 
 class EditIn(BaseModel):
@@ -103,7 +105,7 @@ class NoteIn(BaseModel):
 
 
 # ------------------------------------------------------------------ shaping
-POST_SELECT = """SELECT p.id, p.thread_id, p.symbol, p.plan, c.name AS company, p.user_id, p.title, p.body, p.status, p.upvotes, p.created_at, p.edited_at, p.last_activity_at,
+POST_SELECT = """SELECT p.id, p.thread_id, p.parent_id, p.symbol, p.plan, c.name AS company, p.user_id, p.title, p.body, p.status, p.upvotes, p.created_at, p.edited_at, p.last_activity_at,
                         p.flag_reasons, pr.handle, (u.role = 'admin') AS staff, extract(epoch FROM (now() - p.created_at)) AS age_s,
                         EXISTS (SELECT 1 FROM forum_votes v WHERE v.post_id = p.id AND v.user_id = $1::uuid) AS voted,
                         (SELECT count(*) FROM forum_posts r WHERE r.thread_id = p.id AND r.status = 'visible') AS replies
@@ -120,7 +122,7 @@ def post_json(r: Any, ctx: Ctx, *, preview: bool = False) -> Dict[str, Any]:
     if body is not None and preview and len(body) > 220:
         body = body[:217].rstrip() + "..."
     open_for_edit = mine and r["status"] in ("visible", "held") and r["age_s"] <= EDIT_WINDOW_SECONDS
-    return {"id": r["id"], "threadId": r["thread_id"] or r["id"], "kind": "reply" if r["thread_id"] else "thread", "symbol": r["symbol"], "company": r["company"], "plan": r["plan"],
+    return {"id": r["id"], "threadId": r["thread_id"] or r["id"], "parentId": r["parent_id"], "kind": "reply" if r["thread_id"] else "thread", "symbol": r["symbol"], "company": r["company"], "plan": r["plan"],
             "title": r["title"] if shown else None, "body": body,
             "author": {"handle": r["handle"] or "member", "staff": bool(r["staff"])},
             "createdAt": r["created_at"].isoformat(), "editedAt": r["edited_at"].isoformat() if r["edited_at"] else None,
@@ -251,20 +253,28 @@ async def list_threads(request: Request, symbol: str = Query("", max_length=24),
 
 
 @router.get("/forum/companies")
-async def active_companies(request: Request, limit_: int = Query(12, ge=1, le=30, alias="limit"), board: str = Query("", max_length=8)):
-    """Companies with discussion on the viewer's board in the last 30 days, most recently active first. Real counts only: an empty board returns an empty list."""
+async def active_companies(request: Request, limit_: int = Query(12, ge=1, le=500, alias="limit"), board: str = Query("", max_length=8),
+                           days: int = Query(30, ge=0, le=3650), q: str = Query("", max_length=60)):
+    """Each company with discussion on the viewer's board ONCE, with its number of discussions, replies and how many were active in the last 7 days.
+    `days=0` lists every company ever discussed (the forum front page); the default keeps the last 30 days. Most recently active first.
+    Real counts only: an empty board returns an empty list."""
     ctx = await current(request)
     where = view_board(ctx, board)
     if where is None:
         return out({"companies": []})
+    like = "%" + re.sub(r"([\\%_])", r"\\\1", q.strip().lower()) + "%" if q.strip() else None
     async with pool_of(request).acquire() as conn:
         rows = await conn.fetch(
             """SELECT p.symbol, c.name, count(*) AS threads, max(p.last_activity_at) AS last_at,
+                      count(*) FILTER (WHERE p.last_activity_at > now() - interval '7 days') AS recent,
                       sum((SELECT count(*) FROM forum_posts r WHERE r.thread_id = p.id AND r.status = 'visible')) AS replies
                FROM forum_posts p JOIN companies c ON c.symbol = p.symbol
-               WHERE p.thread_id IS NULL AND p.status = 'visible' AND p.plan = $2 AND p.last_activity_at > now() - interval '30 days'
-               GROUP BY p.symbol, c.name ORDER BY max(p.last_activity_at) DESC LIMIT $1""", limit_, where)
-    return out({"companies": [{"symbol": r["symbol"], "name": r["name"], "threads": r["threads"], "replies": int(r["replies"] or 0), "lastActivityAt": r["last_at"].isoformat()} for r in rows]})
+               WHERE p.thread_id IS NULL AND p.status = 'visible' AND p.plan = $2
+                 AND ($3 = 0 OR p.last_activity_at > now() - make_interval(days => $3))
+                 AND ($4::text IS NULL OR lower(p.symbol) LIKE $4 OR lower(c.name) LIKE $4)
+               GROUP BY p.symbol, c.name ORDER BY max(p.last_activity_at) DESC LIMIT $1""", limit_, where, days, like)
+    return out({"companies": [{"symbol": r["symbol"], "name": r["name"], "threads": r["threads"], "replies": int(r["replies"] or 0), "recent": r["recent"],
+                               "lastActivityAt": r["last_at"].isoformat()} for r in rows]})
 
 
 @router.get("/forum/stats")
@@ -284,7 +294,8 @@ async def company_stats(request: Request, symbol: str = Query(max_length=24), bo
 
 
 @router.get("/forum/threads/{tid}")
-async def get_thread(request: Request, tid: int, page: int = Query(1, ge=1, le=2000)):
+async def get_thread(request: Request, tid: int, page: int = Query(1, ge=1, le=2000), tree: bool = False):
+    """One discussion and its replies. `tree=1` returns every reply (up to THREAD_TREE_MAX, oldest first) with parentId, for nested comments."""
     ctx = await current(request)
     if tid > 2**62:
         raise fail(404, "not_found", "That discussion does not exist.")
@@ -299,8 +310,11 @@ async def get_thread(request: Request, tid: int, page: int = Query(1, ge=1, le=2
             raise fail(404, "not_found", "That discussion does not exist.")
         see_all = is_mod(ctx)
         total = await conn.fetchval("SELECT count(*) FROM forum_posts WHERE thread_id = $1 AND (status <> 'held' OR user_id = $2::uuid OR $3)", tid, ctx.user_id, see_all)
+        per, page = (THREAD_TREE_MAX, 1) if tree else (REPLIES_PER_PAGE, page)
         replies = await conn.fetch(f"{POST_SELECT} WHERE p.thread_id = $2 AND (p.status <> 'held' OR p.user_id = $1::uuid OR $3) ORDER BY p.created_at, p.id LIMIT $4 OFFSET $5",
-                                   ctx.user_id, tid, see_all, REPLIES_PER_PAGE, (page - 1) * REPLIES_PER_PAGE)
+                                   ctx.user_id, tid, see_all, per, (page - 1) * per)
+    if tree:
+        return out({"thread": post_json(root, ctx), "replies": [post_json(r, ctx) for r in replies], "total": total, "page": 1, "per": per, "pages": 1, "truncated": total > per})
     return out({"thread": post_json(root, ctx), "replies": [post_json(r, ctx) for r in replies], "total": total, "page": page, "per": REPLIES_PER_PAGE,
                 "pages": max(1, -(-total // REPLIES_PER_PAGE))})
 
@@ -318,12 +332,12 @@ async def write_limits(request: Request, ctx: Ctx, kind: str) -> None:
         await limit(request, "forum_reply_day", ctx.user_id, 80, 86400)
 
 
-async def store_post(conn, ctx: Ctx, symbol: str, thread_id: Optional[int], checked: Dict[str, Any], plan: str) -> int:
+async def store_post(conn, ctx: Ctx, symbol: str, thread_id: Optional[int], checked: Dict[str, Any], plan: str, parent_id: Optional[int] = None) -> int:
     status = "held" if checked["hold"] else "visible"
     pid = await conn.fetchval(
-        """INSERT INTO forum_posts (thread_id, symbol, user_id, title, body, content_hash, status, flag_reasons, plan)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id""",
-        thread_id, symbol, ctx.user_id, checked["title"], checked["body"], checked["hash"], status, checked["hold"], plan)
+        """INSERT INTO forum_posts (thread_id, symbol, user_id, title, body, content_hash, status, flag_reasons, plan, parent_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+        thread_id, symbol, ctx.user_id, checked["title"], checked["body"], checked["hash"], status, checked["hold"], plan, parent_id)
     if thread_id and status == "visible":
         await conn.execute("UPDATE forum_posts SET last_activity_at = now() WHERE id = $1", thread_id)
     return pid
@@ -353,11 +367,15 @@ async def create_reply(request: Request, tid: int, body: ReplyIn, ctx: Ctx = Dep
             root = None         # a thread on another plan's board does not exist for this member
         if root is None or root["status"] != "visible":
             raise fail(404 if root is None else 409, "not_found" if root is None else "thread_closed", "You can only reply to a discussion that is open.")
+        parent = body.parentId
+        if parent is not None:      # answering a reply: it must be an open reply in this same discussion
+            if parent > 2**62 or await conn.fetchval("SELECT status FROM forum_posts WHERE id = $1 AND thread_id = $2", parent, tid) != "visible":
+                raise fail(409, "reply_closed", "You can only answer a reply that is shown in this discussion.")
         await write_limits(request, ctx, "ip")
         await posting_member(request, conn, ctx)
         checked = await judge(conn, ctx, "reply", None, body.body)
         await write_limits(request, ctx, "reply")
-        pid = await store_post(conn, ctx, root["symbol"], tid, checked, root["plan"])
+        pid = await store_post(conn, ctx, root["symbol"], tid, checked, root["plan"], parent)
         row = await conn.fetchrow(f"{POST_SELECT} WHERE p.id = $2", ctx.user_id, pid)
     return out({"status": "held" if checked["hold"] else "posted", "post": post_json(row, ctx),
                 **({"detail": "Thanks. A moderator will look at this before others can see it."} if checked["hold"] else {})}, 201)
