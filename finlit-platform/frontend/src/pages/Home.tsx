@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { COMPANY } from "../content/site";
 import { NotifyForm } from "../components/NotifyForm";
 import { Icon } from "../lib/icons";
 import { Reveal } from "../components/Reveal";
@@ -9,6 +9,7 @@ import { useSummary, useSearchIndex, type Summary } from "../lib/api";
 import { useDocTitle } from "../lib/title";
 import { nf } from "../lib/format";
 import { PlansBand } from "./Plans";
+import { mfGet } from "../lib/mf";
 import { FeatureBucket } from "../components/FeatureBucket";
 import { useAuth } from "../lib/auth";
 import { Safe3D } from "../three/Safe3D";
@@ -45,6 +46,7 @@ function ScoreCard({ s, tower, failed }: { s?: Summary; tower?: boolean; failed?
           <text x="55" y="58" textAnchor="middle" className="hh-dial-n">{o}</text>
           <text x="55" y="76" textAnchor="middle" className="hh-dial-s">out of 100</text>
         </svg>
+        <p className="hh-card-iq"><b>{o}</b> · FinLit IQ out of 100{s.score.band?.label ? <> · {s.score.band.label}</> : null}</p>
         <ul className="hh-bars">{s.score.pillars.map((p) => <li key={p.key} style={{ "--pc": `var(${PILLAR_VAR[p.key] ?? "--gold"})` } as React.CSSProperties}><span>{p.label}</span><i><b style={{ width: `${p.score ?? 0}%` }} /></i><em>{p.score ?? "–"}</em></li>)}</ul>
       </div>
       {tower && <Safe3D><Suspense fallback={null}><ScoreTower3D scores={s.score.pillars.map((p) => p.score ?? 0)} /></Suspense></Safe3D>}
@@ -53,23 +55,67 @@ function ScoreCard({ s, tower, failed }: { s?: Summary; tower?: boolean; failed?
   );
 }
 
+/** A section picture in both themes: two images, one hidden per theme (as the tool cards switch). Transparent backgrounds. */
+function ThemeImg({ name, alt, w, h, className = "" }: { name: string; alt: string; w: number; h: number; className?: string }) {
+  return (
+    <picture className={"hh-pic " + className}>
+      <img className="fb-l" src={`${import.meta.env.BASE_URL}landing/${name}-light.webp`} width={w} height={h} loading="lazy" decoding="async" alt={alt} />
+      <img className="fb-d" src={`${import.meta.env.BASE_URL}landing/${name}-dark.webp`} width={w} height={h} loading="lazy" decoding="async" alt={alt} />
+    </picture>
+  );
+}
+const STEP_IMG = ["how-step-1-search", "how-step-2-score", "how-step-3-working", "how-step-4-watch"];
+const STEP_ALT = ["The search box with a company name typed in", "A FinLit IQ dial with its five pillar bars", "A company page with its statements and ratios", "A watchlist row with an alert set"];
+
 const STEPS: [string, string][] = [
   ["Search a company", "Type a name or an NSE/BSE symbol. Every listed company has a page."],
-  ["Read the score", "One number out of 100, split into five pillars so you can see what is pulling it up or down."],
+  ["Read the score", "The FinLit IQ: one number out of 100, split into five pillars so you can see what pulls it up or down."],
   ["Check the working", "Statements, ratios, peers, ownership and filings are on the same page. Each ratio explains itself."],
   ["Keep an eye on it", "Add it to a watchlist or set an alert on price, RSI, score, a ratio or a new filing."],
 ];
 
-/** The platform grid sits directly under the hero; below it, the two lenses (fundamental and technical) are explained in a short note. */
+/** The two lenses: the business (four pillars from the filings) and the share price (Technical), each shown on its own. */
 function Lenses() {
   return (
-    <section className="sec hh-sec" aria-label="Financial and technical analysis" style={{ paddingTop: 0 }}><div className="wrap">
-      <div className="split" role="note">
-        <div><h3><span className="mark" style={{ background: "var(--p-quality)" }} />Growth & Profitability</h3><p>The business itself: quality, growth, profitability and balance sheet, read from the company's statements.</p></div>
-        <div><h3><span className="mark" style={{ background: "var(--p-tech)" }} />Technical</h3><p>The share price only: trend, momentum and moving averages, read from the price chart.</p></div>
-        <p className="split-note"><b>These are two different lenses and we do not blend them.</b> Each gets its own score so you can read it on its own.</p>
-      </div>
+    <section className="sec hh-sec" id="lenses" aria-labelledby="lensTitle"><div className="wrap">
+      <Reveal className="hh-head"><div className="hh-kicker">Two lenses</div><h2 id="lensTitle">The business and the share price, read apart</h2>
+        <p>The FinLit IQ is the average of five pillars. Four read the business from its filed statements: quality, growth, profitability and balance sheet. The fifth, Technical, reads only the share price. Each pillar is shown on its own, and Growth & Profitability is also scored by itself, so a strong chart never hides a weak business.</p></Reveal>
+      <ThemeImg name="finlit-lenses" w={1200} h={480} className="wide" alt="Two panels: the business, read from the filings in four pillars, and the share price, read by the Technical pillar" />
+      <p className="hh-fine">FinLit Prism (Gold) keeps its two technical views outside its score.</p>
     </div></section>
+  );
+}
+
+/** Connect AI: the free, read-only connector on /mcp, which the landing page never mentioned. Every claim is taken from that page. */
+function ConnectAI() {
+  return (
+    <section className="sec hh-sec" id="connect-ai" aria-labelledby="aiTitle"><div className="wrap hh-ai">
+      <Reveal>
+        <div className="hh-kicker">Connect AI</div><h2 id="aiTitle">Use FinLit data inside your AI assistant</h2>
+        <p>Add one address to Claude, ChatGPT or Cursor, and your assistant can look up prices, financial statements, ratios, shareholding, results, funds and market flows from FinLit instead of guessing them. Every answer carries its source and an as-of date.</p>
+        <ul className="hh-ai-pts">
+          <li><Icon name="check" />Free and read-only: it cannot change an account, a watchlist or a portfolio</li>
+          <li><Icon name="check" />No sign-in and no key</li>
+          <li><Icon name="check" />It sees what a visitor without an account sees; paid figures stay behind their plan</li>
+        </ul>
+        <Link className="btn primary lg" to="/mcp">See the setup steps <Icon name="arrow" /></Link>
+      </Reveal>
+      <ThemeImg name="connect-ai-section" w={1200} h={580} alt="An AI assistant answering a question about a company with FinLit data, its source and date" />
+    </div></section>
+  );
+}
+
+/** The figures under the hero: companies in the index, those with a full report, screener filters and mutual fund schemes (all live except the filter count). */
+function Stats({ counts, schemes }: { counts: { all: number; ready: number } | null; schemes: number | null }) {
+  return (
+    <section className="wrap hh-stats" aria-label="The index today">
+      <dl className="hh-facts">
+        <div><dt>Companies in the index</dt><dd>{counts ? inr(counts.all) : "…"}</dd></div>
+        <div><dt>With a full report</dt><dd>{counts ? inr(counts.ready) : "…"}</dd></div>
+        <div><dt>Screener filters</dt><dd>160+</dd></div>
+        <div><dt>Mutual fund schemes</dt><dd>{schemes != null ? inr(schemes) : "…"}</dd></div>
+      </dl>
+    </section>
   );
 }
 
@@ -78,12 +124,13 @@ function Method({ s, failed }: { s?: Summary; failed?: boolean }) {
   return (
     <section className="sec hh-sec" id="method"><div className="wrap">
       <Reveal className="hh-head"><div className="hh-kicker">How the score is made</div><h2>The number, and what is behind it</h2><p>A score is only useful if you can check it. So we show the working.</p></Reveal>
+      <ThemeImg name="score-yardstick" w={1200} h={510} className="wide" alt="A pillar score on a 0 to 100 yardstick, with the ratios behind it" />
       <div className="hh-method">
         <ol className="hh-notes">
-          <li><b>Five pillars.</b> Quality, growth, profitability, balance sheet, and price trend. Each is scored from 0 to 100.</li>
+          <li><b>Five pillars.</b> Quality, growth, profitability and balance sheet read the business; Technical reads the share price. Each is scored from 0 to 100.</li>
           <li><b>Fixed yardsticks.</b> Inside a pillar, each ratio is compared with set thresholds, the same for every company in the model. Nobody adjusts them for a stock we like.</li>
           <li><b>Missing data stays missing.</b> If a pillar cannot be scored from the filings we have, the report says so. It does not fill the gap with a guess.</li>
-          <li><b>The score is a summary, not a verdict.</b> It does not tell you to buy or sell anything. {COMPANY.name} is not registered with SEBI or AMFI.</li>
+          <li><b>A summary, not a verdict.</b> The score does not tell you to buy or sell anything.</li>
         </ol>
         <figure className="hh-excerpt">
           <figcaption>From the {s ? s.profile.name : "sample"} report{s?.meta?.generatedAt ? `, generated ${new Date(s.meta.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}</figcaption>
@@ -101,14 +148,15 @@ function Method({ s, failed }: { s?: Summary; failed?: boolean }) {
 }
 
 export function Home() {
-  useDocTitle("Research on every listed Indian stock", "FinLit Ventures: a research report and a 0 to 100 score for every listed Indian stock, a screener, watchlists and alerts. Information only, not investment advice.");
+  useDocTitle("Every listed Indian stock, scored and explained", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0–100 FinLit IQ that shows its working. Start free.");
   const enquire = useEnquiry();
   const { user } = useAuth();
   const { data: s, isError: sErr } = useSummary(SAMPLE);
   const webgl = use3d();
   const { data: idx } = useSearchIndex(true);
   const counts = useMemo(() => idx ? { all: idx.rows.length, ready: idx.rows.filter((r) => r[3]).length } : null, [idx]);
-  const notify = () => { const el = document.getElementById("coming-soon"); el?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => el?.querySelector<HTMLInputElement>("input[type=email]")?.focus({ preventScroll: true }), 500); };
+  const mf = useQuery<{ total?: number }>({ queryKey: ["mf", "count"], queryFn: () => mfGet<{ total?: number }>("/api/mf?page=1&size=1"), staleTime: 3_600_000, retry: 1 });
+  const schemes = typeof mf.data?.total === "number" ? mf.data.total : null;
   return (
     <div className="hh">
       <section className="tagline" aria-label="Our promise"><div className="wrap"><p><span>Quantify the market</span><span className="x" aria-hidden="true">×</span><span>Research deeper</span><span className="x" aria-hidden="true">×</span><span>Track what matters</span></p></div></section>
@@ -118,12 +166,11 @@ export function Home() {
         <div className="wrap hh-hero-cols">
           <div>
             <div className="hh-kicker">Equity research · India</div>
-            <h1>A research report for every listed Indian stock.</h1>
-            <p className="hh-lede">Each report has a score out of 100, the financial statements, ratios, peers, ownership and filings. You can see how every number was worked out. We also do portfolio reviews and financial planning.</p>
+            <h1>Every listed Indian stock, scored and explained.</h1>
+            <p className="hh-lede">Financial statements, ratios, peers, ownership and filings for every listed company, with a 0–100 FinLit IQ that shows its working. Start free and add more when you need it.</p>
             <div className="cta-row">
-              {user ? <Link className="btn primary lg" to="/dashboard">Open your dashboard <Icon name="arrow" /></Link> : <Link className="btn primary lg" to="/login?mode=signup">Create free account <Icon name="arrow" /></Link>}
+              {user ? <Link className="btn primary lg" to="/dashboard">Open your dashboard <Icon name="arrow" /></Link> : <Link className="btn primary lg" to="/login?mode=signup">Create a free account <Icon name="arrow" /></Link>}
               <Link className="btn lg" to="/research">Explore stock research</Link>
-              <button type="button" className="btn lg" onClick={notify}><Icon name="bell" /> Notify me</button>
             </div>
             <p className="hh-fine">Information only. Not investment advice.</p>
           </div>
@@ -131,30 +178,28 @@ export function Home() {
         </div>
       </section>
 
+      <Stats counts={counts} schemes={schemes} />
       <FeatureBucket />
-      <Lenses />
-
-      <section className="wrap" id="coming-soon" aria-labelledby="soonTitle"><Reveal><div className="soon">
-        <div><div className="hh-kicker">Coming soon</div><h2 id="soonTitle">Be the first to know</h2>
-          <p>Leave your email and we will write to you the day each of these goes live. We will not send anything else, and you can ask us to stop at any time.</p>
-          <ul><li>Equity research reports</li><li>Online payments</li><li>Newsletter</li><li>Meet the team</li></ul></div>
-        <div><NotifyForm source="home" /><p className="fine">Equity research reports are subject to the required licence and approvals.</p></div>
-      </div></Reveal></section>
+      <ConnectAI />
 
       <section className="sec hh-sec" id="how"><div className="wrap">
         <Reveal className="hh-head"><div className="hh-kicker">How it works</div><h2>Four steps, no setup</h2></Reveal>
-        <ol className="hh-steps">{STEPS.map(([t, d], i) => <li key={t}><span className="hh-n">{i + 1}</span><div><h3>{t}</h3><p>{d}</p></div></li>)}</ol>
-        <dl className="hh-facts" aria-label="The index today">
-          {counts && <><div><dt>Companies in the index</dt><dd>{inr(counts.all)}</dd></div><div><dt>With a full report</dt><dd>{inr(counts.ready)}</dd></div></>}
-          <div><dt>Score pillars</dt><dd>5</dd></div><div><dt>Screener filters</dt><dd>160+</dd></div>
-        </dl>
+        <ol className="hh-steps">{STEPS.map(([t, d], i) => <li key={t}><ThemeImg name={STEP_IMG[i]} w={640} h={400} alt={STEP_ALT[i]} /><span className="hh-n">{i + 1}</span><div><h3>{t}</h3><p>{d}</p></div></li>)}</ol>
       </div></section>
 
+      <Lenses />
       <Method s={s} failed={sErr} />
 
       <PlansBand id="pricing" compact />
 
-      <section className="sec hh-sec"><div className="wrap"><div className="hh-end"><h2>Want to talk about your portfolio?</h2><p>Tell us where you are. We will tell you what we would look at first.</p><div className="cta-row"><button className="btn primary lg" onClick={() => enquire()}>Get in touch</button><Link className="btn lg" to="/services">Services and pricing</Link></div><p className="hh-fine">{COMPANY.disclaimer}</p></div></div></section>
+      <section className="wrap" id="coming-soon" aria-labelledby="soonTitle"><Reveal><div className="soon">
+        <div><div className="hh-kicker">Coming soon</div><h2 id="soonTitle">Be the first to know</h2>
+          <p>Leave your email and we will write to you the day each of these goes live. We will not send anything else, and you can ask us to stop at any time.</p>
+          <ul><li>Equity research reports</li><li>Newsletter</li></ul></div>
+        <div><NotifyForm source="home" /><p className="fine">Equity research reports are subject to the required licence and approvals.</p></div>
+      </div></Reveal></section>
+
+      <section className="sec hh-sec"><div className="wrap"><div className="hh-end"><h2>Questions about FinLit?</h2><p>Tell us what you are trying to do, and we will point you to the tools and reports that fit.</p><div className="cta-row"><button className="btn primary lg" onClick={() => enquire()}>Get in touch</button></div></div></div></section>
     </div>
   );
 }

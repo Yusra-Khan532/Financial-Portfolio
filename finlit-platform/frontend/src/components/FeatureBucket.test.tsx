@@ -13,8 +13,8 @@ const exists = (p: string) => routes.some((r) => r === p.slice(1) || (r.endsWith
 const html = renderToStaticMarkup(<MemoryRouter><FeatureBucket /></MemoryRouter>);
 
 describe("tool registry", () => {
-  it("has 22 tools, each with icon, tagline, tier and an existing route", () => {
-    expect(TOOL_IDS).toHaveLength(22);
+  it("has 25 tools, each with icon, tagline, tier and an existing route", () => {
+    expect(TOOL_IDS).toHaveLength(25);
     for (const id of TOOL_IDS) {
       const m = TOOL_ICONS[id];
       expect(m.tagline.length).toBeGreaterThan(5);
@@ -27,16 +27,16 @@ describe("tool registry", () => {
 });
 
 describe("Tools & Research Hub", () => {
-  it("renders 5 groups (h3) and 22 cards (h4) with a plan chip and a link each", () => {
+  it("renders 6 groups (h3) and 25 cards (h4) with a plan chip and a link each", () => {
     expect((html.match(/<h3/g) ?? []).length).toBe(GROUPS.length);
-    expect((html.match(/<h4/g) ?? []).length).toBe(22);
-    expect((html.match(/class="fb-chip/g) ?? []).length).toBe(22);
+    expect((html.match(/<h4/g) ?? []).length).toBe(25);
+    expect((html.match(/class="fb-chip/g) ?? []).length).toBe(25);
     for (const id of TOOL_IDS) expect(html).toContain(`href="${TOOL_ICONS[id].route}"`);
     expect(html).toContain("never investment advice");
     expect(html).toMatch(/Free<span class="sr-only"> plan/);
   });
   it("has filter pills for All and each group", () => {
-    expect((html.match(/class="fb-pill"/g) ?? []).length).toBe(6);
+    expect((html.match(/class="fb-pill"/g) ?? []).length).toBe(7);
   });
   it("uses no advice words", () => {
     const text = html.replace(/<[^>]+>/g, " ");

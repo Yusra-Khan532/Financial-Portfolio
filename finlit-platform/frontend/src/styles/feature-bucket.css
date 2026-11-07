@@ -1,6 +1,6 @@
 /* Tools & Research Hub (components/FeatureBucket.tsx). Design tokens only; the group colour is a small accent. */
-.fb-g-discover { --fb-c: #3fae7e; } .fb-g-company360 { --fb-c: #5b9bd8; } .fb-g-quantlab { --fb-c: #c9972f; } .fb-g-track { --fb-c: #9b79d6; } .fb-g-follow { --fb-c: #e0735e; }
-:root[data-theme="light"] .fb-g-discover { --fb-c: #1f7a55; } :root[data-theme="light"] .fb-g-company360 { --fb-c: #2b6cb0; } :root[data-theme="light"] .fb-g-quantlab { --fb-c: #96640f; } :root[data-theme="light"] .fb-g-track { --fb-c: #6b43b0; } :root[data-theme="light"] .fb-g-follow { --fb-c: #b04630; }
+.fb-g-discover { --fb-c: #4cc796; } .fb-g-company360 { --fb-c: #6aa8f0; } .fb-g-quantlab { --fb-c: #e0b155; } .fb-g-track { --fb-c: #a98be6; } .fb-g-follow { --fb-c: #ec8a6f; } .fb-g-learn { --fb-c: #e98bbd; }
+:root[data-theme="light"] .fb-g-discover { --fb-c: #1f7a55; } :root[data-theme="light"] .fb-g-company360 { --fb-c: #2b6cb0; } :root[data-theme="light"] .fb-g-quantlab { --fb-c: #96640f; } :root[data-theme="light"] .fb-g-track { --fb-c: #6b43b0; } :root[data-theme="light"] .fb-g-follow { --fb-c: #b04630; } :root[data-theme="light"] .fb-g-learn { --fb-c: #9d3a6e; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .fb-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
 .fb-pill { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-secondary); font: 600 14px var(--font-sans, inherit); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
@@ -71,3 +71,91 @@ a.fb-chip { text-decoration: none; min-height: 24px; display: inline-flex; align
   --text-primary: var(--text); --text-body: var(--muted); --text-secondary: var(--muted); --text-muted: var(--faint);
 }
 :root[data-theme="dark"] .fb-card:hover, :root[data-theme="dark"] .fb-card:focus-within, :root:not([data-theme="light"]) .fb-card:hover, :root:not([data-theme="light"]) .fb-card:focus-within { box-shadow: 0 10px 28px rgba(0, 0, 0, .45); }
+
+/* Bigger cards with the real screenshot of each tool (task #37, design package 2_landing/tool-cards). */
+/* ---------- Desktop, 1181px and up ----------
+   Was: 4 or 5 cards a row (about 230px wide, so the pictures were unreadable).
+   Now: a 6-column grid. A card takes a third of the row (about 390px), and the
+   first cards of a group take half a row (about 595px) so no row has a gap:
+     5 cards: 2 half + 3 third      4 cards: 2 half + 2 half
+     7 cards: 4 half + 3 third      6 cards: 3 third + 3 third
+   The inline style="--fb-cols: 5" on each <ul class="fb-grid"> is no longer
+   used; it can stay or be removed. */
+@media (min-width: 1181px) {
+  .fb-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 20px;
+  }
+  .fb-grid > .fb-card {
+    grid-column: span 2;
+  }
+  /* 2, 5, 8 ... cards: the first two are half width */
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 2),
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 2) + .fb-card {
+    grid-column: span 3;
+  }
+  /* 4, 7, 10 ... cards: the first four are half width */
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 4),
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 4) + .fb-card,
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 4) + .fb-card + .fb-card,
+  .fb-grid > .fb-card:first-child:nth-last-child(3n + 4) + .fb-card + .fb-card + .fb-card {
+    grid-column: span 3;
+  }
+  /* While a plan filter (Free / Silver / Gold) hides some cards, the counts above
+     no longer match what is on screen, so every card goes back to a third. */
+  .fb:has(.fb-pp-all[aria-pressed='false']) .fb-grid > .fb-card {
+    grid-column: span 2;
+  }
+}
+
+/* ---------- Tablet, 601px to 1180px: 2 a row (was 3) ---------- */
+@media (min-width: 601px) and (max-width: 1180px) {
+  .fb-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px;
+  }
+}
+
+/* ---------- The picture ----------
+   The new images are real screenshots of each tool, 800 x 500 (16:10).
+   Show the whole picture (was a 16:7 crop of the top). */
+.fb-shot {
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+}
+.fb-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+/* No zoom on hover: it cut off the edges of the screenshot */
+.fb-card:hover .fb-shot img {
+  transform: none;
+}
+
+/* ---------- A little more room inside the bigger card ---------- */
+.fb-card {
+  gap: 10px;
+  padding: 16px;
+}
+.fb-card h4 {
+  font-size: 18px;
+}
+.fb-name .fb-tag {
+  font-size: 14px;
+}
+.fb-feat {
+  font-size: 14px;
+}
+/* The one-line note under the bullets repeated them; hidden to keep cards short */
+.fb-edge {
+  display: none;
+}
+
+/* ---------- Phone, 600px and under: keep the swipe row, wider cards ---------- */
+@media (max-width: 600px) {
+  .fb-grid > .fb-card {
+    flex: 0 0 88%;
+  }
+}
