@@ -8,6 +8,7 @@ import { DASH_TABS, WIDGETS, prefs, usePrefs, type DashTab } from "../lib/prefs"
 import { useUniverse, type Row } from "../lib/screener";
 import { useWatchlist, watch } from "../lib/watchlist";
 import { useMyCompanies } from "../lib/mycompanies";
+import { usePortfolio } from "../lib/portfolio";
 import { useIndices } from "../lib/indices";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
@@ -17,6 +18,7 @@ import { MyStocks, type Followed } from "../components/dashboard/MyStocks";
 import { MarketToday } from "../components/dashboard/MarketToday";
 import { Snapshot, Sectors } from "../components/dashboard/Snapshot";
 import { Flows } from "../components/dashboard/Flows";
+import { PortfolioGlance } from "../components/dashboard/Portfolio";
 import { Stress } from "../components/dashboard/Stress";
 import { IndexHeatmap } from "../components/dashboard/Heatmap";
 import { AlertsScreens, Filings, Ipos, Learn, ResultsToday } from "../components/dashboard/NewsBlocks";
@@ -32,6 +34,7 @@ export function Dashboard() {
   const p = usePrefs();
   const wl = useWatchlist();
   const mine = useMyCompanies();
+  const pf = usePortfolio();
   const uni = useUniverse();
   const idx = useIndices();
   const phone = useIsPhone();
@@ -43,9 +46,11 @@ export function Dashboard() {
   const followed = useMemo<Followed[]>(() => {
     const out: Followed[] = [], seen = new Set<string>();
     for (const c of mine.companies.filter((c) => c.followed)) if (!seen.has(c.symbol)) { seen.add(c.symbol); out.push({ symbol: c.symbol, name: c.name ?? bySym.get(c.symbol)?.name ?? null }); }
-    for (const s of wl.lists.flatMap((l) => l.symbols)) if (!seen.has(s)) { seen.add(s); out.push({ symbol: s, name: bySym.get(s)?.name ?? null }); }
+    for (const s of [...wl.lists.flatMap((l) => l.symbols), ...pf.holdings.map((h) => h.symbol)]) if (!seen.has(s)) { seen.add(s); out.push({ symbol: s, name: bySym.get(s)?.name ?? null }); }
     return out;
-  }, [mine.companies, wl, bySym]);
+  }, [mine.companies, wl, pf.holdings, bySym]);
+  const watchSet = useMemo(() => new Set(wl.lists.flatMap((l) => l.symbols)), [wl]);
+  const heldSet = useMemo(() => new Set(pf.holdings.map((h) => h.symbol.toUpperCase())), [pf.holdings]);
   const items = followed.map((f) => bySym.get(f.symbol)).filter((r): r is Row => !!r);
   const sectors = useMemo(() => new Map(rows.map((r) => [r.symbol, r.sector])), [rows]);
   const names = useMemo(() => new Map(rows.map((r) => [r.symbol, r.name])), [rows]);
@@ -65,11 +70,12 @@ export function Dashboard() {
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;
     const legacy = (el: React.ReactNode) => <Card id={id} title={w.label}>{el}</Card>;
     switch (id) {
-      case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} />;
+      case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} watch={watchSet} held={heldSet} />;
       case "market": return <MarketToday />;
       case "snapshot": return <Snapshot rows={rows} loading={loadingRows} />;
       case "sectors": return <Sectors rows={rows} loading={loadingRows} />;
       case "flows": return <Flows />;
+      case "portfolio": return <PortfolioGlance held={[...heldSet]} rows={rows} loading={loadingRows} />;
       case "stress": return <Stress followed={followed} loading={loadingFollowed} sectors={sectors} />;
       case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} />;
       case "resultstoday": return <ResultsToday symbols={symbols} />;
