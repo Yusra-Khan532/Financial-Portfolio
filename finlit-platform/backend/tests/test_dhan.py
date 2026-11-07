@@ -152,6 +152,17 @@ def test_quote_conversion_reads_change_from_previous_close_and_drops_placeholder
                            "last_trade_time": "01/01/1980 00:00:00"})
     assert blank["price"] == 368.15 and blank["open"] is None and blank["volume"] is None and blank["asOf"] is None   # no trade yet: no zeros
     assert dhan.to_quote({"last_price": 0}) == {} and dhan.to_quote({}) == {}
+    assert blank["changePct"] is None and blank["change"] is None                 # no move and no previous close: unknown, never 0.00%
+
+
+def test_a_zero_net_change_is_worked_out_from_the_previous_close():
+    # 6 Nov 2026: Dhan sent net_change 0 for shares and indices that moved; ohlc.close is the previous session's close.
+    q = dhan.to_quote({**RAW, "net_change": 0})
+    assert q["previousClose"] == 1400.0 and q["change"] == 20.5 and q["changePct"] == round(20.5 / 1400 * 100, 2)
+    q = dhan.to_quote({**RAW, "net_change": None, "last_price": 1386.0})
+    assert q["change"] == -14.0 and q["changePct"] == round(-14 / 1400 * 100, 2)
+    q = dhan.to_quote({**RAW, "net_change": 0, "ohlc": {**RAW["ohlc"], "close": 0}})
+    assert q["changePct"] is None and q["previousClose"] is None                   # nothing to compare with: a dash, not 0.00%
 
 
 def test_plausibility_guard():

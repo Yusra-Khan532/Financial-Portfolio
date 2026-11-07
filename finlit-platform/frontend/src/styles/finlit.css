@@ -745,3 +745,8 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
 .plan { scroll-margin-top: 84px; }
 .tools-r { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; min-width: 0; }
 .secnav a.grp { margin-left: 10px; } .secnav a.grp::before { content: ""; position: absolute; left: -7px; top: 22%; bottom: 22%; width: 1px; background: var(--border-strong, var(--border)); }
+
+/* Score band colours, defined once for every page (task #37): they used to exist only inside some page styles, so a page that used them
+   without loading one of those (the MF portfolio, for example) drew invisible score colours and part bars. Page styles may still override. */
+:root { --band-hi: #2FBF7F; --band-mid: #F0A030; --band-lo: #E5484D; --band-hi-ink: #5FE0A5; --band-mid-ink: #FFB454; --band-lo-ink: #FF7A7F; }
+:root[data-theme="light"] { --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; --band-hi-ink: #11794D; --band-mid-ink: #8F5400; --band-lo-ink: #B82A30; }

@@ -566,9 +566,15 @@ def to_quote(raw: dict) -> dict:
     price = _f(raw.get("last_price"))
     if not price or price <= 0:
         return {}
-    change = _f(raw.get("net_change"))
-    prev = round(price - change, 2) if change is not None else None
     ohlc = raw.get("ohlc") if isinstance(raw.get("ohlc"), dict) else {}
+    change = _f(raw.get("net_change"))
+    if not change:
+        # Dhan often sends net_change 0 for a share or an index that did move (seen 6 Nov 2026: Nifty 50, Sensex and most quotes at
+        # 0.00%). Its ohlc.close is the previous session's close, so the change is worked out from that. When there is no usable previous
+        # close either, the change is unknown: None (the page shows a dash and the main provider's figure stands), never a made-up 0.
+        close = _f(ohlc.get("close"))
+        change = round(price - close, 2) if close and close > 0 and abs(price - close) >= 0.005 else None
+    prev = round(price - change, 2) if change is not None else None
     pos = lambda v: round(v, 2) if (v := _f(v)) and v > 0 else None   # noqa: E731
     vol = _f(raw.get("volume"))
     return {

@@ -350,7 +350,9 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     out["volume"] = _n(quote.get("volume")) or _last(vols)
     v20 = [x for x in vols[-21:-1] if x is not None]
     out["avg_volume_20d"] = sorted(v20)[len(v20) // 2] if len(v20) >= 10 else None   # the median day: one huge block-deal day must not set the "usual" volume
-    out["volume_vs_avg"] = _div(out["volume"], out["avg_volume_20d"])
+    # Both sides from the same daily candles: the latest session against the median of the 20 before it. The quote's volume comes from another
+    # source and counts differently, which put the median of this ratio near 9 instead of near 1 (seen 7 Nov 2026).
+    out["volume_vs_avg"] = _div(_last(vols), out["avg_volume_20d"])
     out["turnover_cr"] = _div(_n(price) * out["volume"], 1e7) if price is not None and out["volume"] is not None else None
     hi, lo = _n(quote.get("high52")) or _n((summary.get("range52") or {}).get("high")), _n(quote.get("low52")) or _n((summary.get("range52") or {}).get("low"))
     out["high_52w"], out["low_52w"] = hi, lo
