@@ -65,3 +65,24 @@ export function ScopeSeg({ label, scope, onChange, hasStocks }: { label: string;
     </div>
   );
 }
+
+/** The first `limit` items of a list, with a toggle for the rest. `resetKey` (a tab, say) closes the list again when it changes. */
+export function useShowMore<T>(items: readonly T[], limit = 5, resetKey?: unknown) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setOpen(false); }, [resetKey]);
+  const extra = Math.max(0, items.length - limit);
+  return { visible: open || extra === 0 ? items : items.slice(0, limit), extra, open, toggle: () => setOpen((v) => !v) };
+}
+export type ShowMore = ReturnType<typeof useShowMore>;
+
+/** "Show 2 more stocks" / "Show fewer" under a list; nothing when nothing is hidden. */
+export function ShowMoreButton({ more, noun, plural, controls }: { more: Pick<ShowMore, "extra" | "open" | "toggle">; noun: string; plural?: string; controls?: string }) {
+  if (!more.extra) return null;
+  const label = more.open ? "Show fewer" : `Show ${more.extra} more ${more.extra === 1 ? noun : plural ?? noun + "s"}`;
+  return (
+    <button type="button" className="dsh-more" aria-expanded={more.open} aria-controls={controls} onClick={more.toggle}>
+      <span>{label}</span>
+      <svg className={more.open ? "up" : ""} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6" /></svg>
+    </button>
+  );
+}

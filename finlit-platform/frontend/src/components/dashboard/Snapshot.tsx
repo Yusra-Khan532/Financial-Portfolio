@@ -1,11 +1,13 @@
-// Blocks 3 and 4: Market snapshot (breadth, and gainers / decliners for Nifty 50, Nifty 500 or all stocks) and Sectors today (a ranked bar list).
+// Blocks 3 and 4: Market snapshot (breadth, and gainers / decliners for Nifty 50, Nifty 500 or all stocks) and Sectors today (top 5 and bottom 5 by
+// cap-weighted move, the middle behind "Show N more", and the Sector Pulse counts under them).
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { titleOf } from "../../lib/companyLabel";
-import { MINUS, nf } from "../../lib/format";
+import { MINUS, dateIN, nf } from "../../lib/format";
 import { gainers, losers, sectorBoard, useMembers, weightedMove, MAX_MOVE } from "../../lib/markets";
 import { scopeStocks, type Scope } from "../../lib/dashboard";
 import type { Row } from "../../lib/screener";
+import { useSectorBoard, type Board } from "../../lib/sectors";
 import { Card, Rows, Seg, tone, useIsPhone } from "./parts";
 
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
@@ -42,20 +44,38 @@ export function Snapshot({ rows, loading }: { rows: Row[]; loading: boolean }) {
   );
 }
 
+/** The Sector Pulse counts for the line under "Sectors today": null while loading, on an error or with no reading; `locked` when the plan does not include it. */
+export function pulseLine(b: Board | undefined): { locked: true } | { locked: false; date: string; thrust: number; confirmed: number; fading: number; washout: number } | null {
+  if (!b || !b.counts) return null;
+  if (b.locked && Object.keys(b.locked).length) return { locked: true };
+  const c = b.counts as Record<string, number>;
+  return { locked: false, date: b.date, thrust: (c["Thrust C"] || 0) + (c["Thrust CAP"] || 0), confirmed: c.Confirmed || 0, fading: c.Fading || 0, washout: c.Washout || 0 };
+}
+
+const EDGE = 5;
 export function Sectors({ rows, loading }: { rows: Row[]; loading: boolean }) {
-  const phone = useIsPhone(), [all, setAll] = useState(false);
+  const [open, setOpen] = useState(false);
   const board = useMemo(() => [...sectorBoard(rows)].sort((a, b) => b.move - a.move), [rows]);
+  const pulse = pulseLine(useSectorBoard().data);
   const max = Math.max(0.01, ...board.map((s) => Math.abs(s.move)));
-  const list = phone && !all ? board.slice(0, 6) : board;
+  const middle = Math.max(0, board.length - EDGE * 2);
+  const top = open || !middle ? board : board.slice(0, EDGE), bottom = open || !middle ? [] : board.slice(board.length - EDGE);
+  const row = (s: (typeof board)[number]) => (
+    <div key={s.sector} className="dsh-sec-r" title={`${s.n} companies`}><span className="nm">{s.sector}</span>
+      <span className="bar" aria-hidden="true"><span className="neg">{s.move < 0 && <i style={{ width: `${(Math.abs(s.move) / max) * 100}%` }} />}</span><span className="pos">{s.move > 0 && <i style={{ width: `${(s.move / max) * 100}%` }} />}</span></span>
+      <span className={"v " + tone(s.move)}>{Math.abs(s.move) < 0.005 ? "0.00%" : sgn(s.move)}</span></div>
+  );
   return (
-    <Card id="sectors" title="Sectors today" sub="Cap-weighted move, ranked · companies above ₹100 crore">
+    <Card id="sectors" title="Sectors today" sub={middle ? `Top ${EDGE} and bottom ${EDGE} by cap-weighted move · companies above ₹100 crore` : "Cap-weighted move, ranked · companies above ₹100 crore"}>
       {loading || !board.length ? <Rows n={8} h={26} /> : <>
-        <div className="dsh-sec">{list.map((s) => (
-          <div key={s.sector} className="dsh-sec-r" title={`${s.n} companies`}><span className="nm">{s.sector}</span>
-            <span className="bar" aria-hidden="true"><span className="neg">{s.move < 0 && <i style={{ width: `${(Math.abs(s.move) / max) * 100}%` }} />}</span><span className="pos">{s.move > 0 && <i style={{ width: `${(s.move / max) * 100}%` }} />}</span></span>
-            <span className={"v " + tone(s.move)}>{Math.abs(s.move) < 0.005 ? "0.00%" : sgn(s.move)}</span></div>))}</div>
-        {phone && board.length > 6 && <button type="button" className="dsh-more" onClick={() => setAll(!all)}>{all ? "Show the top 6" : `All ${board.length} sectors →`}</button>}
-        <p className="dsh-callout">Coming soon: each sector's state (Thrust, Confirmed, Fading or Washout) from FinLit's sector engine.</p>
+        <div className="dsh-sec" id="dsh-sec-list">
+          {top.map(row)}
+          {middle > 0 && <button type="button" className="dsh-sec-more" aria-expanded={open} aria-controls="dsh-sec-list" onClick={() => setOpen(!open)}>{open ? "Show fewer sectors" : `Show ${middle} more sector${middle === 1 ? "" : "s"}`}</button>}
+          {bottom.map(row)}
+        </div>
+        {pulse && (pulse.locked
+          ? <p className="dsh-callout dsh-pulse"><b>Sector Pulse</b> shows which NSE industries are in a washout, a rebound or fading. <Link to="/plans">See plans →</Link></p>
+          : <p className="dsh-callout dsh-pulse"><b>Sector Pulse, {dateIN(pulse.date, { day: "numeric", month: "short" })}:</b> {pulse.thrust} {pulse.thrust === 1 ? "industry" : "industries"} in a thrust · {pulse.confirmed} confirmed · {pulse.fading} fading · {pulse.washout} in a washout. <Link to="/sectors">Open Sector Pulse →</Link></p>)}
       </>}
     </Card>
   );

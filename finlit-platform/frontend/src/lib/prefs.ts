@@ -21,6 +21,7 @@ export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" |
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", tab: "market" },
   { id: "sectors", label: "Sectors today", blurb: "Every sector's move today, ranked.", min: "basic", size: "half", tab: "market" },
   { id: "flows", label: "FII / DII flows", blurb: "Net buying and selling by foreign and domestic institutions.", min: "basic", size: "half", tab: "market" },
+  { id: "portfolio", label: "Your portfolio at a glance", blurb: "Average FinLit Prism score, score colours, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", tab: "stocks" },
   { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks" },
   { id: "heatmap", label: "Index heatmap", blurb: "Stocks of an index as a map or a list, coloured by today's move.", min: "basic", size: "full", tab: "market" },
   { id: "resultstoday", label: "Results today", blurb: "Companies that have filed, or are due to report, results.", min: "basic", size: "half", tab: "news" },
@@ -46,7 +47,13 @@ export function normaliseLayout(saved: WidgetPref[] | undefined | null): WidgetP
   const seen = new Set<string>();
   const dash: WidgetPref[] = [];
   for (const w of saved ?? []) if (w && known.has(w.id) && !seen.has(w.id)) { seen.add(w.id); dash.push({ id: w.id, on: !!w.on, size: w.size === "full" ? "full" : w.size === "third" ? "third" : "half" }); }
-  for (const w of WIDGETS) if (!seen.has(w.id)) dash.push({ id: w.id, on: !w.off, size: w.size }); // new blocks appear for existing members
+  // A block added since this layout was saved appears for existing members too, right after the block it follows in the default order (or at the end).
+  WIDGETS.forEach((w, i) => {
+    if (seen.has(w.id)) return;
+    const after = i > 0 ? dash.findIndex((d) => d.id === WIDGETS[i - 1].id) : -1;
+    dash.splice(after >= 0 ? after + 1 : dash.length, 0, { id: w.id, on: !w.off, size: w.size });
+    seen.add(w.id);
+  });
   return dash;
 }
 function normalise(raw: Partial<Prefs> | null | undefined): Prefs {

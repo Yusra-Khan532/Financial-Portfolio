@@ -127,9 +127,15 @@ describe("customise layout", () => {
   it("replaces a layout saved before the refresh", () => { expect(normaliseLayout([{ id: "movers", on: true, size: "half" }, { id: "learn", on: false, size: "full" }])[0].id).toBe("mystocks"); });
   it("keeps a member's own order, hidden blocks and widths, drops unknown blocks and adds new ones", () => {
     const mine = normaliseLayout([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "half" }, { id: "nope", on: true, size: "half" }, { id: "filings", on: false, size: "half" }]);
-    expect(mine.slice(0, 2)).toEqual([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "half" }]);
+    const saved = mine.filter((w) => w.id === "filings" || w.id === "mystocks");
+    expect(saved).toEqual([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "half" }]);   // the member's order and settings stay
     expect(mine.map((w) => w.id)).not.toContain("nope");
     expect(new Set(mine.map((w) => w.id)).size).toBe(WIDGETS.length);
+  });
+  it("puts a block added later right after the block it follows by default (Your portfolio at a glance after FII / DII flows)", () => {
+    const old = normaliseLayout(null).filter((w) => w.id !== "portfolio");
+    const ids = normaliseLayout(old).map((w) => w.id);
+    expect(ids.indexOf("portfolio")).toBe(ids.indexOf("flows") + 1);
   });
   it("moves a block up, down or to a dragged place", () => {
     const l = normaliseLayout(null).slice(0, 4);
