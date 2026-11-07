@@ -28,8 +28,6 @@
 .fo-pager { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
 .fo-q { border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin: 10px 0; background: var(--s1); }
 .fo-q pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 6px 0; }
-.fo-dl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); padding: 12px 16px; margin: 16px 0; }
-.fo-dl span { color: var(--muted); font-size: 14px; flex: 1 1 200px; }
 @media (max-width: 480px) { .fo-act .btn { flex: 1 1 auto; } }
 
 /* ===================================================================== Company → Discussions → Comments (forum front page, company page, thread) */
@@ -199,3 +197,13 @@
 .fo-crumb { flex-wrap: nowrap; min-width: 0; }
 .fo-crumb > * { flex: none; }
 .fo-crumb [aria-current] { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* "Community discussions" on a company report (task #43) */
+.fo-rep .fo-tl, .fo-rep .fo-thread { margin-top: 4px; }
+.fo-rep-gate { display: grid; gap: 8px; justify-items: start; padding: 18px; border: 1px dashed var(--border-strong); border-radius: 16px; background: var(--s1); }
+.fo-rep-gate span { color: var(--muted); font-size: var(--fs-14); }
+.fo-rep-more { margin: 12px 0 0; font-size: var(--fs-14); } .fo-rep-more a { color: var(--gold); font-weight: 600; text-decoration: none; }
+.fo-reply-open { display: block; width: 100%; text-align: left; height: 46px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--faint); font: 500 var(--fs-14) var(--sans); cursor: text; }
+.fo-reply-open:hover, .fo-reply-open:focus-visible { border-color: var(--gold); color: var(--muted); }
+.fo-rep { scroll-margin-top: 190px; }
+@media (max-width: 760px) { .fo-rep { scroll-margin-top: 120px; } }

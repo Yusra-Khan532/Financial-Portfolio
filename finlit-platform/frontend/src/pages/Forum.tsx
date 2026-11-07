@@ -84,6 +84,7 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
       <div className="fo-tabs" role="tablist" aria-label="Company">
         <button type="button" role="tab" aria-selected="true" className="on">Discussions{n != null ? ` (${n.toLocaleString("en-IN")})` : ""}</button>
         <Link role="tab" aria-selected="false" to={`/stocks/${symbol}`}>Research report</Link>
+        <Link role="tab" aria-selected="false" to={`/stocks/${symbol}#community`}>On the report page</Link>
       </div>
       <div className="fo-notes"><BoardNote board={board} compact /><Disclaimer compact /></div>
       <ThreadList symbol={symbol} board={board} onCount={setN} onOpen={(id) => nav(`/forum/t/${id}`)} />
