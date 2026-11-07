@@ -186,3 +186,337 @@
   .dsh-edit li { grid-template-columns: minmax(0, 1fr) auto; } .dsh-edit .grip { display: none; } .dsh-edit li small { grid-column: 1 / -1; grid-row: auto; } .dsh-edit .dsh-seg { grid-column: 1; } .dsh-edit .mv { grid-column: 2; }
 }
 .dsh-menu .dsh-pop button:hover { background: var(--d-tile); } .dsh-menu .dsh-pop button:focus-visible { outline: 2px solid var(--d-on); outline-offset: -2px; }
+
+/* ---------- Dashboard refresh (task #37, from the 7 Nov 2026 design package): equal-height rows, Show more, tabs and Held chip, top/bottom sectors,
+   30-session FII/DII bars, Your portfolio at a glance, one-line Stress Lab. Uses the --d-* colours, so light and dark both work. ---------- */
+/* ---------- 1. Equal-height rows: no empty space under short cards ---------- */
+.dsh-grid {
+  align-items: stretch; /* was: start. This one line removes the gaps. */
+}
+.dsh-cell > .dsh-card {
+  display: flex;
+  flex-direction: column;
+}
+/* Footer links and buttons sit at the bottom of each card, so they line up across a row */
+.dsh-card > .dsh-link.foot,
+.dsh-card > .dsh-btns,
+.dsh-card > .dsh-more:last-child,
+.dsh-card > .dsh-pulse,
+.dsh-card > .dsh-foot-push {
+  margin-top: auto;
+}
+.dsh-card > .dsh-link.foot {
+  align-self: flex-start;
+  padding-top: 16px;
+}
+
+/* One-line rows (use on the filing headline so each filing takes one line) */
+.dsh-1line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ---------- 2. Show more button (all lists: 5 rows, then this) ---------- */
+.dsh-more {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 20px;
+  border: 1px solid var(--d-line);
+  border-radius: 999px;
+  background: var(--d-tile);
+  color: var(--d-ink);
+  font: 600 14px/1 var(--font-sans, Inter, sans-serif);
+  cursor: pointer;
+}
+.dsh-more:hover {
+  border-color: var(--d-acc);
+}
+.dsh-more:focus-visible,
+.dsh-sec-more:focus-visible,
+.dsh-ys-tabs button:focus-visible {
+  outline: 2px solid var(--focus-ring, #6d28d9);
+  outline-offset: 2px;
+}
+.dsh-more svg {
+  transition: transform 0.2s;
+}
+.dsh-more svg.up {
+  transform: rotate(180deg);
+}
+
+/* ---------- 3. Your stocks today: tabs, Held chip, colours ---------- */
+.dsh-ys .dsh-ch {
+  align-items: flex-start;
+}
+.dsh-ys-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+.dsh-ys-tabs {
+  padding: 4px;
+  gap: 4px;
+  border-radius: 12px;
+  background: var(--d-tile);
+}
+.dsh-ys-tabs button {
+  border-color: transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dsh-ys-tabs button[aria-pressed='true'] {
+  background: var(--d-card);
+  border-color: var(--d-line);
+  color: var(--d-ink);
+  box-shadow: 0 1px 2px rgba(28, 26, 21, 0.12);
+}
+.dsh-ys-tabs .n {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--d-line2);
+  color: var(--d-mut2);
+}
+.dsh-ys-tabs button[aria-pressed='true'] .n {
+  background: var(--d-on);
+  color: var(--d-on-fg);
+}
+.dsh-ys-sym {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dsh-held {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--d-acc) 16%, var(--d-card));
+  color: var(--d-acc);
+}
+.dsh-st .ch.up,
+.dsh-st .yy.up,
+.dsh-sec-r .v.up {
+  color: var(--d-up);
+}
+.dsh-st .ch.down,
+.dsh-st .yy.down,
+.dsh-sec-r .v.down {
+  color: var(--d-down);
+}
+
+/* ---------- 4. Sectors today: top 5 / bottom 5 ---------- */
+.dsh-sec {
+  display: flex;
+  flex-direction: column;
+}
+.dsh-sec-more {
+  margin: 6px 0;
+  min-height: 36px;
+  border: 1px dashed var(--d-line);
+  border-radius: 10px;
+  background: var(--d-tile);
+  color: var(--d-ink);
+  font: 600 13px/1 var(--font-sans, Inter, sans-serif);
+  cursor: pointer;
+}
+.dsh-pulse a {
+  font-weight: 600;
+  color: var(--d-acc);
+}
+
+/* ---------- 5. FII / DII: 30-session bars ---------- */
+.dsh-fbars {
+  margin-top: 4px;
+}
+.dsh-fbars-row,
+.dsh-fbars-x {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.dsh-fbars-row + .dsh-fbars-row {
+  margin-top: 6px;
+}
+.dsh-fbars-row .lab {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-mut2);
+}
+.dsh-fbars-row .bars {
+  display: flex;
+  gap: 2px;
+  height: 64px;
+}
+.dsh-fbars-row .b {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.dsh-fbars-row .top,
+.dsh-fbars-row .bot {
+  height: 50%;
+  display: flex;
+}
+.dsh-fbars-row .top {
+  align-items: flex-end;
+}
+.dsh-fbars-row .bot {
+  align-items: flex-start;
+  border-top: 1px solid var(--d-line);
+}
+.dsh-fbars-row i {
+  display: block;
+  width: 100%;
+}
+.dsh-fbars-row .top i {
+  background: var(--d-up);
+  border-radius: 2px 2px 0 0;
+}
+.dsh-fbars-row .bot i {
+  background: var(--d-down);
+  border-radius: 0 0 2px 2px;
+}
+.dsh-fbars-x {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--d-mut);
+}
+
+/* ---------- 6. Your portfolio at a glance ---------- */
+.dsh-pg-top {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+.dsh-pg-kpi {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--d-tile);
+}
+.dsh-pg-kpi .k {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--d-mut);
+}
+.dsh-pg-kpi b {
+  font: 500 32px/1.1 var(--font-serif, 'Source Serif 4', Georgia, serif);
+  color: var(--d-ink);
+}
+.dsh-pg-mix {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--d-line3);
+}
+.dsh-pg-mix i {
+  display: block;
+  height: 100%;
+}
+.dsh-pg .g { background: var(--d-up); }
+.dsh-pg .o { background: #c98a2b; }
+.dsh-pg .r { background: var(--d-down); }
+.dsh-pg .n { background: var(--d-line); }
+.dsh-pg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--d-mut2);
+}
+.dsh-pg-legend b {
+  background: none !important;
+}
+.dsh-pg-legend b.g { color: var(--d-up); }
+.dsh-pg-legend b.o { color: #8a5a12; }
+.dsh-pg-legend b.r { color: var(--d-down); }
+.dsh-pg-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+.dsh-pg-part {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 10px;
+}
+.dsh-pg-part .t {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--d-line3);
+  overflow: hidden;
+}
+.dsh-pg-part .t i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.dsh-pg-part b {
+  text-align: right;
+}
+.dsh-pg-spread {
+  margin: 12px 0 0;
+}
+:root[data-theme='dark'] .dsh-pg .o { background: #e0a64a; }
+:root[data-theme='dark'] .dsh-pg-legend b.o { color: #f2c27a; }
+
+/* ---------- 7. Stress Lab, empty: one line ---------- */
+.dsh-card.dsh-strip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 14px 24px;
+}
+.dsh-strip .t {
+  font: 600 18px/1.2 var(--font-serif, 'Source Serif 4', Georgia, serif);
+  color: var(--d-ink);
+}
+.dsh-strip .m {
+  flex: 1 1 260px;
+  font-size: 14px;
+  color: var(--d-mut2);
+}
+
+/* ---------- 8. Phone ---------- */
+@media (max-width: 600px) {
+  .dsh-ys-tools {
+    width: 100%;
+  }
+  .dsh-ys-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dsh-ys-tabs button {
+    justify-content: center;
+    min-height: 40px;
+  }
+  .dsh-more {
+    width: 100%;
+    justify-content: center;
+  }
+  .dsh-pg-part {
+    grid-template-columns: 130px minmax(0, 1fr) 28px;
+  }
+}
