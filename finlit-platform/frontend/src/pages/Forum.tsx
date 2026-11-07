@@ -1,166 +1,139 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router";
+import { useMemo, useState } from "react";
+import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, apiGet } from "../lib/api";
+import { apiGet, useSearchIndex } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useDocTitle } from "../lib/title";
-import { BOARD_NAME, DISCLAIMER, PLANS, ago, draftProblem, forumMe, linkify, pageWindow, send, validHandle, type Page, type Post, type QueueItem } from "../lib/forum";
+import { useUI, TIER } from "../lib/ui";
+import { watch as wl, useWatchlist } from "../lib/watchlist";
+import { MINUS, nf } from "../lib/format";
+import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
+import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
 
-const msg = (e: unknown) => (e instanceof ApiError ? e.body.detail || e.body.status || "Failed" : "Could not reach the server.");
-const Disclaimer = () => <p className="fo-disc" role="note"><b>Not investment advice.</b> {DISCLAIMER} <Link to="/forum/guidelines">Community guidelines</Link></p>;
-/** Which board the viewer is on: the forum is split by plan, so a message reaches only members of the same plan. */
-function BoardNote({ board }: { board?: string }) {
+export { Body } from "../components/forum/ForumParts";
+
+const Shell = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1>{title}</h1><Disclaimer />{children}</div>;
+const FILTERS: [CompanyFilter, string][] = [["all", "All companies"], ["trending", "Trending"], ["discussed", "Most discussed"], ["following", "Following"]];
+const count = (n: number) => `${n.toLocaleString("en-IN")} ${n === 1 ? "discussion" : "discussions"}`;
+
+/** The front page's left column: every company with discussion on the viewer's board, listed once, with its logo and discussion count. */
+function Companies({ active, board }: { active?: string; board: string }) {
+  const { data: me } = forumMe(), wlState = useWatchlist(); void wlState;
+  const [q, setQ] = useState(""), [filter, setFilter] = useState<CompanyFilter>("all");
+  const list = useQuery<{ companies: ForumCompany[] }>({ queryKey: ["forum", "companies", "all", board], queryFn: () => apiGet(`/api/forum/companies?days=0&limit=500${board ? `&board=${board}` : ""}`), enabled: !!me?.signedIn, staleTime: 30_000 });
+  const all = list.data?.companies ?? [];
+  const term = q.trim().toLowerCase();
+  const shown = useMemo(() => pickCompanies(all.filter((c) => !term || c.symbol.toLowerCase().includes(term) || c.name.toLowerCase().includes(term)), filter, wl.has), [all, term, filter, wlState]); // eslint-disable-line react-hooks/exhaustive-deps
+  const quotes = useCompanyQuotes(shown.slice(0, 60).map((c) => c.symbol));
+  return (
+    <aside className="fo-co-col" aria-label="Companies">
+      <div className="fo-co-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company (e.g. Reliance, TCS…)" aria-label="Search companies" maxLength={60} /></div>
+      <div className="fo-filters" role="group" aria-label="Show">{FILTERS.map(([k, l]) => <button type="button" key={k} className={"chip" + (filter === k ? " on" : "")} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</div>
+      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: 14 }} />)}</ul>
+        : list.isError ? <div className="fo-err" role="alert">{msg(list.error)}</div>
+        : !shown.length ? <div className="fo-empty"><b>{term ? "No company matches that search." : filter === "following" ? "None of the companies you follow has a discussion yet." : filter === "trending" ? "Nothing active in the last 7 days." : "No discussions on your board yet."}</b>
+            <span>{term || filter !== "all" ? "Try All companies." : "Open any company's report and start the first discussion."}</span></div>
+        : <ul className="fo-co-list">{shown.map((c) => (
+            <li key={c.symbol}><Link className={"fo-co" + (c.symbol === active ? " on" : "")} to={`/forum/c/${c.symbol}`} aria-current={c.symbol === active ? "page" : undefined}>
+              <CompanyLogo symbol={c.symbol} name={c.name} logo={quotes.get(c.symbol)?.logo} size={38} />
+              <span className="fo-co-name"><b>{c.name}</b><small>{c.symbol}{c.recent > 0 && filter !== "trending" ? ` · ${c.recent} active this week` : ""}</small></span>
+              <span className="fo-co-n">{count(c.threads)}</span>
+              <svg className="fo-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+            </Link></li>))}</ul>}
+    </aside>
+  );
+}
+
+/** Follow = the member's watchlist (Silver and up), the same as the report's Watchlist button. */
+function FollowButton({ symbol }: { symbol: string }) {
+  const { has, toast, upgrade } = useUI(), wlState = useWatchlist(); void wlState;
+  const on = wl.has(symbol);
+  return <button type="button" className={"btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => {
+    if (!has("silver")) { upgrade("silver", `Following companies comes with the ${TIER.silver.n} plan.`); return; }
+    if (!on && !has("gold") && wl.total() >= 30) { upgrade("gold", "Silver follows up to 30 stocks; Gold follows up to 1,000."); return; }
+    if (on) wl.remove(symbol); else wl.add(symbol);
+    toast(on ? `${symbol} removed from your watchlist.` : `${symbol} added to your watchlist.`);
+  }}>{on ? "✓ Following" : "Follow"}</button>;
+}
+
+/** A company's discussion page: header with logo, name, price, Follow and Share; tabs; then its discussions. */
+function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
+  const nav = useNavigate();
+  const [n, setN] = useState<number | null>(null);
+  const idx = useSearchIndex(true);
+  const name = useMemo(() => idx.data?.rows.find((r) => r[0] === symbol)?.[1], [idx.data, symbol]);
+  const qt = useCompanyQuotes([symbol]).get(symbol);
+  useDocTitle(`${name || symbol} discussions`, `Discussions about ${name || symbol} on FinLit. Information and opinion only.`);
+  const up = (qt?.chg ?? 0) >= 0;
+  return (
+    <section className="fo-cp" aria-label={`${name || symbol} discussions`}>
+      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum" className="fo-crumb-back" aria-label="Back to the discussion forum"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></Link><Link to="/forum">Discussion forum</Link><span aria-hidden="true">›</span><span aria-current="page">{name || symbol}</span></nav>
+      <header className="fo-cp-head card">
+        <CompanyLogo symbol={symbol} name={name || symbol} logo={qt?.logo} size={64} />
+        <div className="fo-cp-id">
+          <h1>{name || symbol}</h1>
+          <div className="fo-cp-sub"><span className="tag tk">{symbol}</span>
+            {qt?.price != null ? <><b className="fo-px">₹{nf(qt.price)}</b>{qt.chg != null && <span className={up ? "up" : "down"}>{up ? "▲" : "▼"} {up ? "+" : MINUS}{nf(Math.abs(qt.chg))}%</span>}</> : <span className="muted">Price not available</span>}</div>
+        </div>
+        <div className="fo-cp-act"><FollowButton symbol={symbol} />
+          <button type="button" className="btn icon-only" aria-label="Share this page" title="Share" onClick={() => { const url = location.href; if (navigator.share) navigator.share({ title: `${name || symbol} discussions`, url }).catch(() => undefined); else navigator.clipboard?.writeText(url); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0-4 4m4-4 4 4M5 13v6h14v-6" /></svg></button></div>
+      </header>
+      <div className="fo-tabs" role="tablist" aria-label="Company">
+        <button type="button" role="tab" aria-selected="true" className="on">Discussions{n != null ? ` (${n.toLocaleString("en-IN")})` : ""}</button>
+        <Link role="tab" aria-selected="false" to={`/stocks/${symbol}`}>Research report</Link>
+      </div>
+      <div className="fo-notes"><BoardNote board={board} compact /><Disclaimer compact /></div>
+      <ThreadList symbol={symbol} board={board} onCount={setN} onOpen={(id) => nav(`/forum/t/${id}`)} />
+    </section>
+  );
+}
+
+function Home({ symbol }: { symbol?: string }) {
   const { data: me } = forumMe();
-  if (!me) return null;
-  const loc = typeof window !== "undefined" ? window.location.pathname : "/forum";
-  const on = (board || me.board) as keyof typeof BOARD_NAME | null;
-  if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Basic, Silver and Gold members talk among their own plan. <Link to={`/login?next=${encodeURIComponent(loc)}`}>Sign in</Link> (free) to see yours.</p>;
-  if (!on) return null;
-  const name = BOARD_NAME[on];
-  return <p className="fo-board" role="note" data-board={on}><b>{name} board.</b> {board && board !== me.board ? `You are looking at the ${name} board as a moderator.` : `Only ${name} members can read and reply here, and what you post is seen by ${name} members only.`}</p>;
-}
-const Shell = ({ title, children }: { title: string; children: ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1>{title}</h1><Disclaimer />{children}</div>;
-
-export function Body({ text }: { text: string }) {
-  return <div className="fo-body">{linkify(text).map((t, i) => t.t === "text" ? <span key={i}>{t.v}</span> : <a key={i} href={t.href} target="_blank" rel="nofollow noopener noreferrer ugc">{t.label}</a>)}</div>;
-}
-
-function Pager({ page, pages, go }: { page: number; pages: number; go: (n: number) => void }) {
-  if (pages <= 1) return null;
-  return <nav className="fo-pager" aria-label="Pages">{pageWindow(page, pages).map((n, i) => n === "…" ? <span key={i}>…</span> : <button key={n} className={"btn" + (n === page ? " on" : "")} aria-current={n === page ? "page" : undefined} onClick={() => go(n)}>{n}</button>)}</nav>;
-}
-
-/** Choose the public name (once) and accept the guidelines. */
-function JoinForm() {
-  const qc = useQueryClient();
-  const [handle, setHandle] = useState(""), [ok, setOk] = useState(false);
-  const m = useMutation({ mutationFn: () => send("POST", "/api/forum/profile", { handle, accept: ok }), onSuccess: () => qc.invalidateQueries({ queryKey: ["forum", "me"] }) });
+  const [pick, setPick] = useState("");      // moderators may look at another plan's board
+  const board = me?.moderator && PLANS.includes(pick as never) && pick !== me.board ? pick : "";
   return (
-    <form className="fo-form" onSubmit={(e: FormEvent) => { e.preventDefault(); m.mutate(); }}>
-      <label>Choose a public name (shown instead of your email or account name; it cannot be changed later)
-        <input value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={20} autoComplete="off" /></label>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />
-        <span>I have read the <Link to="/forum/guidelines">community guidelines</Link> and understand nothing here is investment advice.</span></label>
-      <button className="btn primary" disabled={!validHandle(handle) || !ok || m.isPending}>Join the discussion</button>
-      {m.isError && <div className="fo-err" role="alert">{msg(m.error)}</div>}
-    </form>
+    <div className="wrap fo fo2">
+      <div className={"fo2-grid" + (symbol ? " has-company" : "")}>
+        <div className="fo2-left">
+          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1">Discussion forum</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
+          {me?.moderator && <div className="seg fo-boards" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => setPick(b)}>{BOARD_NAME[b]}</button>)}</div>}
+          {me?.signedIn && <Companies active={symbol} board={board} />}
+        </div>
+        <div className="fo2-right">
+          {!symbol && <><Disclaimer /><BoardNote board={board} /></>}
+          {symbol ? <CompanyPanel key={symbol} symbol={symbol} board={board} /> : me?.signedIn ? <section aria-label="Latest discussions"><h2 className="fo-h2">Latest discussions</h2><ThreadList board={board} /></section> : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
-/** Gate for writing: visitors sign in, members without a name pick one. */
-function Writer({ children }: { children: ReactNode }) {
-  const { data: me } = forumMe();
-  const loc = typeof window !== "undefined" ? window.location.pathname : "/forum";
-  if (!me) return null;
-  if (!me.signedIn) return <p className="muted"><Link to={`/login?next=${encodeURIComponent(loc)}`}>Sign in</Link> (free) to read and join the discussion on your plan's board.</p>;
-  if (me.banned) return <p className="fo-err">Posting is paused on your account.</p>;
-  if (!me.canPost) return <JoinForm />;
-  return <>{children}</>;
+function Index() {
+  useDocTitle("Discussion forum", "Discuss listed companies: information and opinion only, moderated.");
+  return <Home />;
 }
-
-function Composer({ symbol, thread, onDone }: { symbol?: string; thread?: number; onDone: (p: Post) => void }) {
-  const [sym, setSym] = useState(symbol || ""), [title, setTitle] = useState(""), [body, setBody] = useState("");
-  const kind = thread ? "reply" : "thread", problem = draftProblem(kind, title, body) || (!thread && !sym.trim() ? "Enter the company symbol." : "");
-  const m = useMutation({
-    mutationFn: () => send<{ post: Post; status: string; detail?: string }>("POST", thread ? `/api/forum/threads/${thread}/replies` : "/api/forum/threads", thread ? { body } : { symbol: sym.trim().toUpperCase(), title, body }),
-    onSuccess: (r) => { setBody(""); setTitle(""); onDone(r.post); },
-  });
-  return (
-    <form className="fo-form" onSubmit={(e) => { e.preventDefault(); m.mutate(); }}>
-      {!thread && !symbol && <label>Company symbol<input value={sym} onChange={(e) => setSym(e.target.value)} placeholder="e.g. RELIANCE" maxLength={24} /></label>}
-      {!thread && <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} /></label>}
-      <label>{thread ? "Your reply" : "What would you like to discuss? Share data and reasoning, not what others should buy or sell."}
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} /></label>
-      <div className="fo-act"><button className="btn primary" disabled={!!problem || m.isPending}>{thread ? "Reply" : "Post discussion"}</button>{problem && (title || body) && <span className="muted">{problem}</span>}</div>
-      {m.data?.status === "held" && <div className="fo-note" role="status">{m.data.detail}</div>}
-      {m.isError && <div className="fo-err" role="alert">{msg(m.error)}</div>}
-    </form>
-  );
+function Company() {
+  const { symbol = "" } = useParams();
+  return <Home symbol={symbol.toUpperCase()} />;
 }
-
-function List({ symbol }: { symbol?: string }) {
-  const [sp, setSp] = useSearchParams();
-  const page = Number(sp.get("page")) || 1, sort = sp.get("sort") || "active", q = sp.get("q") || "";
-  const [text, setText] = useState(q);
-  const nav = useNavigate(), qc = useQueryClient(), { data: me } = forumMe();
-  const board = me?.moderator && PLANS.includes(sp.get("board") as never) ? sp.get("board")! : "";
-  const set = (k: string, v: string) => { const n = new URLSearchParams(sp); v ? n.set(k, v) : n.delete(k); if (k !== "page") n.delete("page"); setSp(n); };
-  const key = ["forum", "threads", symbol || "", sort, q, page, board];
-  const list = useQuery<Page<{ threads: Post[] }>>({ queryKey: key, queryFn: () => apiGet(`/api/forum/threads?sort=${sort}&page=${page}${symbol ? `&symbol=${symbol}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}${board ? `&board=${board}` : ""}`), enabled: !!me?.signedIn });
-  const companies = useQuery<{ companies: { symbol: string; name: string; threads: number }[] }>({ queryKey: ["forum", "companies", board], queryFn: () => apiGet(`/api/forum/companies${board ? `?board=${board}` : ""}`), enabled: !symbol && !!me?.signedIn });
-  if (me && !me.signedIn) return <BoardNote />;
-  return (
-    <>
-      <BoardNote board={board} />
-      {me?.moderator && <div className="seg" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => set("board", b === me.board ? "" : b)}>{BOARD_NAME[b]} board</button>)}</div>}
-      <Writer><details><summary className="btn primary" style={{ display: "inline-flex" }}>Start a discussion</summary>
-        <Composer symbol={symbol} onDone={(p) => { qc.invalidateQueries({ queryKey: ["forum"] }); if (p.status === "visible") nav(`/forum/t/${p.id}`); }} /></details></Writer>
-      {!symbol && !!companies.data?.companies.length && <div className="fo-chips" aria-label="Active companies">{companies.data.companies.map((c) => <Link key={c.symbol} className="chip ghost" to={`/forum/c/${c.symbol}`}>{c.symbol} · {c.threads}</Link>)}</div>}
-      <form className="fo-bar" role="search" onSubmit={(e) => { e.preventDefault(); set("q", text.trim()); }}>
-        <input aria-label="Search discussion titles" placeholder="Search titles" value={text} onChange={(e) => setText(e.target.value)} maxLength={60} />
-        <div className="seg" role="group" aria-label="Sort">{(["active", "recent", "top"] as const).map((s) => <button type="button" key={s} aria-pressed={sort === s} onClick={() => set("sort", s)}>{{ active: "Most active", recent: "Newest", top: "Top" }[s]}</button>)}</div>
-      </form>
-      {list.isPending ? <div className="skeleton" style={{ height: 80 }} /> : list.isError ? <div className="fo-err">{msg(list.error)}</div> : !list.data.threads.length ? (
-        <p className="muted">{q ? "Nothing matches that search." : symbol ? "No discussions about this company yet. Be the first to start one." : "No discussions yet. Be the first to start one."}</p>
-      ) : (
-        <ul className="fo-list">{list.data.threads.map((t) => (
-          <li key={t.id}><Link className="fo-row" to={`/forum/t/${t.id}`}>
-            <div className="fo-meta"><b>{t.symbol}</b><span>{t.company}</span></div>
-            <h3>{t.title}</h3><p>{t.body}</p>
-            <div className="fo-meta"><span>{t.author.handle}{t.author.staff && " (FinLit team)"}</span><span>{ago(t.createdAt)}</span><span>{t.replies} repl{t.replies === 1 ? "y" : "ies"}</span><span>{t.upvotes} upvote{t.upvotes === 1 ? "" : "s"}</span></div>
-          </Link></li>))}</ul>
-      )}
-      {list.data && <Pager page={page} pages={list.data.pages} go={(n) => set("page", String(n))} />}
-    </>
-  );
-}
-
-function PostView({ p, onChange }: { p: Post; onChange: () => void }) {
-  const { data: me } = forumMe();
-  const [edit, setEdit] = useState(false), [title, setTitle] = useState(p.title || ""), [body, setBody] = useState(p.body || ""), [rep, setRep] = useState(false);
-  const act = useMutation({ mutationFn: (f: () => Promise<unknown>) => f(), onSuccess: onChange });
-  const gone = p.body === null;
-  return (
-    <article className={"fo-post" + (gone ? " is-gone" : "")} id={`p${p.id}`}>
-      <div className="fo-meta"><b>{p.author.handle}</b>{p.author.staff && <span className="fo-staff">FinLit team</span>}<span>{ago(p.createdAt)}</span>{p.editedAt && <span>edited</span>}</div>
-      {p.note && <div className="fo-note">{p.note}</div>}
-      {!gone && !edit && <Body text={p.body!} />}
-      {edit && <form className="fo-form" onSubmit={(e) => { e.preventDefault(); act.mutate(() => send("PATCH", `/api/forum/posts/${p.id}`, { title: p.kind === "thread" ? title : undefined, body }).then(() => setEdit(false))); }}>
-        {p.kind === "thread" && <input aria-label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />}<textarea aria-label="Text" value={body} onChange={(e) => setBody(e.target.value)} />
-        <div className="fo-act"><button className="btn primary">Save</button><button type="button" className="btn" onClick={() => setEdit(false)}>Cancel</button></div></form>}
-      {!gone && me?.signedIn && (
-        <div className="fo-act">
-          {!p.mine && p.status === "visible" && <button className={"btn" + (p.voted ? " on" : "")} aria-pressed={p.voted} onClick={() => act.mutate(() => send(p.voted ? "DELETE" : "PUT", `/api/forum/posts/${p.id}/vote`))}>▲ {p.upvotes}</button>}
-          {p.mine && p.canEdit && <button className="btn" onClick={() => setEdit(true)}>Edit ({Math.max(1, Math.ceil(p.editableSeconds / 60))} min left)</button>}
-          {p.mine && <button className="btn" onClick={() => { if (confirm("Delete this post?")) act.mutate(() => send("DELETE", `/api/forum/posts/${p.id}`)); }}>Delete</button>}
-          {!p.mine && p.status === "visible" && <button className="btn" onClick={() => { const reason = prompt("Report this post. Reason: advice, promotion, contact, abuse, spam, misleading, other", "advice"); if (reason) act.mutate(() => send("POST", `/api/forum/posts/${p.id}/report`, { reason: reason.trim().toLowerCase() })); }}>Report</button>}
-          {p.kind === "thread" && p.status === "visible" && <button className="btn" onClick={() => setRep(!rep)}>Reply</button>}
-        </div>)}
-      {!gone && !me?.signedIn && p.upvotes > 0 && <div className="fo-meta">▲ {p.upvotes}</div>}
-      {rep && <Writer><Composer thread={p.id} onDone={() => { setRep(false); onChange(); }} /></Writer>}
-      {act.isError && <div className="fo-err" role="alert">{msg(act.error)}</div>}
-    </article>
-  );
-}
-
 function Thread() {
-  const { id } = useParams(), [sp, setSp] = useSearchParams(), page = Number(sp.get("page")) || 1, qc = useQueryClient();
-  const q = useQuery<Page<{ thread: Post; replies: Post[] }>>({ queryKey: ["forum", "thread", id, page], queryFn: () => apiGet(`/api/forum/threads/${id}?page=${page}`), retry: false });
+  const { id } = useParams(), nav = useNavigate();
+  const tid = Number(id);
+  const q = useQuery<{ thread: { title: string | null; symbol: string; company: string } }>({ queryKey: ["forum", "thread", tid, "tree"], queryFn: () => apiGet(`/api/forum/threads/${tid}?tree=1`), retry: false, enabled: tid > 0 });
   useDocTitle(q.data?.thread.title || "Discussion");
-  const refresh = () => qc.invalidateQueries({ queryKey: ["forum"] });
-  if (q.isPending) return <Shell title="Discussion"><div className="skeleton" style={{ height: 80 }} /></Shell>;
-  if (q.isError) return <Shell title="Discussion"><p className="muted">{q.error instanceof ApiError && q.error.status === 410 ? "This discussion was removed." : "This discussion is not available. It may have been removed, or it may belong to another plan's board."}</p><Link className="btn" to="/forum">All discussions</Link></Shell>;
-  const { thread, replies } = q.data;
+  const t = q.data?.thread;
   return (
-    <Shell title={thread.title || "Discussion"}>
-      <p className="muted"><Link to={`/forum/c/${thread.symbol}`}>{thread.company} ({thread.symbol})</Link> · <Link to={`/stocks/${thread.symbol}`}>Company report</Link></p>
-      <PostView p={thread} onChange={refresh} />
-      <h2 style={{ fontSize: 18 }}>{q.data.total} repl{q.data.total === 1 ? "y" : "ies"}</h2>
-      {replies.map((r) => <PostView key={r.id} p={r} onChange={refresh} />)}
-      <Pager page={page} pages={q.data.pages} go={(n) => setSp({ page: String(n) })} />
-      {thread.status === "visible" && <Writer><h3>Add a reply</h3><Composer thread={thread.id} onDone={refresh} /></Writer>}
-    </Shell>
+    <div className="wrap fo fo-t">
+      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum">Discussion forum</Link>{t && <><span aria-hidden="true">›</span><Link to={`/forum/c/${t.symbol}`}>{t.company}</Link></>}<span aria-hidden="true" className="fo-crumb-last">›</span><span aria-current="page" className="fo-crumb-last">Discussion</span></nav>
+      <div className="fo-notes"><BoardNote compact /><Disclaimer compact /></div>
+      {tid > 0 ? <ThreadView id={tid} onBack={t ? () => nav(`/forum/c/${t.symbol}`) : undefined} backLabel={t ? `All ${t.company} discussions` : undefined}
+        header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b>{th.symbol}</b> {th.company}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
+        : <div className="fo-empty"><b>This discussion is not available.</b></div>}
+    </div>
   );
 }
 
@@ -209,16 +182,6 @@ function Moderation() {
       {act.isError && <div className="fo-err">{msg(act.error)}</div>}
     </Shell>
   );
-}
-
-function Index() {
-  useDocTitle("Discussion forum", "Discuss listed companies: information and opinion only, moderated.");
-  return <Shell title="Discussion forum"><List /></Shell>;
-}
-function Company() {
-  const { symbol = "" } = useParams(), s = symbol.toUpperCase();
-  useDocTitle(`${s} discussion`);
-  return <Shell title={`${s} discussion`}><p className="muted"><Link to={`/stocks/${s}`}>Company report</Link> · <Link to="/forum">All discussions</Link></p><List symbol={s} /></Shell>;
 }
 
 export function ForumPage() {

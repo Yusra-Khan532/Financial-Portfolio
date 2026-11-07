@@ -15,7 +15,7 @@ export const BOARD_NAME: Record<Plan, string> = { basic: "Basic", silver: "Silve
 
 export type Author = { handle: string; staff: boolean };
 export type Post = {
-  id: number; threadId: number; kind: "thread" | "reply"; plan: Plan; symbol: string; company: string; title: string | null; body: string | null; author: Author;
+  id: number; threadId: number; parentId?: number | null; kind: "thread" | "reply"; plan: Plan; symbol: string; company: string; title: string | null; body: string | null; author: Author;
   createdAt: string; editedAt: string | null; lastActivityAt: string; upvotes: number; voted: boolean; replies: number;
   status: "visible" | "held" | "hidden" | "deleted" | "removed"; mine: boolean; note: string | null; canEdit: boolean; editableSeconds: number;
 };
@@ -77,4 +77,36 @@ export function pageWindow(page: number, pages: number): (number | "…")[] {
   const out: (number | "…")[] = []; let prev = 0;
   for (const n of [...keep].sort((a, b) => a - b)) { if (n - prev > 1) out.push("…"); out.push(n); prev = n; }
   return out;
+}
+
+/** One company on the forum's front page: listed once, with how many discussions it has on the viewer's board. */
+export type ForumCompany = { symbol: string; name: string; threads: number; replies: number; recent: number; lastActivityAt: string };
+export type CompanyFilter = "all" | "trending" | "discussed" | "following";
+/** Order and filter the company list. Trending: most discussions active in the last 7 days; Most discussed: most discussions;
+ *  Following: companies in the member's watchlist. Ties keep the most recently active first. */
+export function pickCompanies(list: ForumCompany[], filter: CompanyFilter, followed: (s: string) => boolean): ForumCompany[] {
+  const recent = (a: ForumCompany, b: ForumCompany) => b.lastActivityAt.localeCompare(a.lastActivityAt);
+  if (filter === "trending") return list.filter((c) => c.recent > 0).sort((a, b) => b.recent - a.recent || recent(a, b));
+  if (filter === "discussed") return [...list].sort((a, b) => b.threads - a.threads || b.replies - a.replies || recent(a, b));
+  if (filter === "following") return list.filter((c) => followed(c.symbol));
+  return list;
+}
+
+/** Reddit-style comment tree from the flat reply list (each reply knows its parent). A reply whose parent is missing
+ *  (removed, or past the page) is shown at the top level, so no comment is ever lost. */
+export type Node = { post: Post; children: Node[]; size: number };
+export type CommentSort = "best" | "new" | "old";
+export function buildTree(replies: Post[], sort: CommentSort = "best"): Node[] {
+  const nodes = new Map<number, Node>(replies.map((p) => [p.id, { post: p, children: [], size: 0 }]));
+  const roots: Node[] = [];
+  for (const n of nodes.values()) {
+    const parent = n.post.parentId != null ? nodes.get(n.post.parentId) : undefined;
+    (parent && parent !== n ? parent.children : roots).push(n);
+  }
+  const cmp = (a: Node, b: Node) => sort === "new" ? b.post.createdAt.localeCompare(a.post.createdAt)
+    : sort === "old" ? a.post.createdAt.localeCompare(b.post.createdAt)
+    : (b.post.upvotes - a.post.upvotes) || (b.size - a.size) || a.post.createdAt.localeCompare(b.post.createdAt);
+  const walk = (list: Node[]): number => { let total = 0; for (const n of list) { n.size = walk(n.children); total += 1 + n.size; } list.sort(cmp); return total; };
+  walk(roots);
+  return roots;
 }

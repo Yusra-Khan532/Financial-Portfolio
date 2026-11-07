@@ -104,7 +104,7 @@ async def fapp(app):  # noqa: F811
     """The shared fixtures drop users/companies but not the forum tables: rebuild them so the foreign keys are real."""
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DROP TABLE IF EXISTS forum_reports, forum_votes, forum_posts, forum_profiles CASCADE")
-        for name in ("032_forum.sql", "033_forum_reports.sql", "094_forum_plans.sql"):
+        for name in ("032_forum.sql", "033_forum_reports.sql", "094_forum_plans.sql", "095_forum_nested.sql"):
             await conn.execute((MIGRATIONS / name).read_text())
     return app
 
@@ -288,6 +288,46 @@ async def test_thread_reply_ordering_pagination_and_company_boards(fapp, monkeyp
     assert page2["pages"] == 2 and page2["total"] == 4 and len(page2["replies"]) == 2
     for c in (a, b):
         await c.aclose()
+
+
+async def test_nested_replies_form_a_tree_inside_one_discussion(fapp):
+    a = await member(fapp, "na@example.com", "nest_alpha")
+    b = await member(fapp, "nb@example.com", "nest_beta")
+    t1 = (await thread(a)).json()["post"]["id"]
+    t2 = (await thread(a, title="Another discussion about the margins", body=GOOD + " A second angle.")).json()["post"]["id"]
+    top = (await b.post(f"/api/forum/threads/{t1}/replies", json={"body": "The debt number is the one I would watch."})).json()["post"]
+    assert top["parentId"] is None
+    child = await a.post(f"/api/forum/threads/{t1}/replies", json={"body": "Agreed, interest cover fell last year.", "parentId": top["id"]})
+    assert child.status_code == 201 and child.json()["post"]["parentId"] == top["id"]
+    grand = await b.post(f"/api/forum/threads/{t1}/replies", json={"body": "It recovered in the last two quarters.", "parentId": child.json()["post"]["id"]})
+    assert grand.status_code == 201
+    # a parent from another discussion, or one that does not exist, is refused and nothing is stored
+    assert (await a.post(f"/api/forum/threads/{t2}/replies", json={"body": "This should not attach anywhere.", "parentId": top["id"]})).status_code == 409
+    assert (await a.post(f"/api/forum/threads/{t1}/replies", json={"body": "No such reply to answer here.", "parentId": 999999})).status_code == 409
+    tree = (await a.get(f"/api/forum/threads/{t1}?tree=1")).json()
+    assert tree["total"] == 3 and tree["pages"] == 1 and tree["truncated"] is False
+    by_id = {r["id"]: r for r in tree["replies"]}
+    assert by_id[grand.json()["post"]["id"]]["parentId"] == child.json()["post"]["id"]
+    assert (await a.get(f"/api/forum/threads/{t1}")).json()["thread"]["replies"] == 3     # every level counts as a comment
+    # a deleted reply can no longer be answered
+    assert (await b.delete(f"/api/forum/posts/{top['id']}")).status_code in (200, 204)
+    assert (await a.post(f"/api/forum/threads/{t1}/replies", json={"body": "Answering a deleted comment.", "parentId": top["id"]})).status_code == 409
+    for c in (a, b):
+        await c.aclose()
+
+
+async def test_front_page_lists_each_company_once_with_its_discussion_count(fapp):
+    a = await member(fapp, "ca@example.com", "comp_alpha")
+    for i in range(3):
+        assert (await thread(a, title=f"Reliance point number {i} on retail", body=GOOD + f" Detail {i}.")).status_code == 201
+    companies = (await a.get("/api/forum/companies?days=0&limit=200")).json()["companies"]
+    assert [c["symbol"] for c in companies].count("RELIANCE") == 1
+    rel = next(c for c in companies if c["symbol"] == "RELIANCE")
+    assert rel["threads"] == 3 and rel["recent"] == 3 and rel["name"]
+    assert (await a.get("/api/forum/companies?days=0&q=relia")).json()["companies"][0]["symbol"] == "RELIANCE"
+    assert (await a.get("/api/forum/companies?days=0&q=zzzz")).json()["companies"] == []
+    assert (await a.get("/api/forum/companies?days=0&q=%25")).json()["companies"] == []      # a percent sign is text, not a wildcard
+    await a.aclose()
 
 
 async def test_rule_breaking_text_is_refused_with_a_reason_and_nothing_is_stored(fapp):
