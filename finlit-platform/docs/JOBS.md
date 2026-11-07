@@ -1,5 +1,10 @@
 # Background jobs: the job supervisor
 
+> **THE FOUNDER'S RULE (7 Nov 2026). Background jobs NEVER stop. Every scheduled job runs every day and completes every day.**
+> Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished.
+> If a job cannot complete, fix the cause the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job
+> (now: the sector job, off since 7 Nov 2026 until `SECTORS_JOB=on`). The same rule is in `CLAUDE.md`, `jobs/registry.py` (`JOBS_RULE`), `GET /api/jobs/status` (`rule`) and the Admin Console.
+
 Written after the 31 Oct 2026 incident. **Goal: failures are impossible to miss, recover by themselves, and stale data is never shown as fresh.**
 No system can promise zero failures (see "What cannot be guaranteed" at the end); this one makes sure the founder is told, the box heals, and the pages say when data is old.
 
@@ -50,7 +55,10 @@ start.sh (deploy/start.sh) -> nohup deploy/scheduler.sh
 * **bulk** (`technicals`, `ingest`, `score`, `prism`, `portfolios`, `score-mf`, `backfill-*`, `leadership`, `prune` ...): at most `BULK_CONCURRENCY` (default **1**) at a time, in priority order, first come first served among equals, `nice 15`, `oom_score_adj +500`, `MALLOC_ARENA_MAX=2`.
 * **light** (results, calendars, quotes, listing, alerts, the fund data jobs ...): up to `LIGHT_CONCURRENCY` (default **2**) beside the bulk job. Jobs in one `group` (the fund jobs: `funds`) never run together.
 * **ondemand** (`drain-queue`, `commodities`): their own always-on processes; listed in the status as "kept alive by scheduler.sh", never started by the supervisor, never gated.
-* **Prerequisites**: a job waits while a prerequisite is running or due (score-mf after portfolios; score and prism after ingest). A prerequisite in backoff or held does **not** block for ever.
+* **Prerequisites**: a job always waits while a prerequisite is **running**. A prerequisite that is only **due** holds it back only while waiting makes sense: the prerequisite has finished nothing new since the job last succeeded **and** the job is still inside its SLA. A prerequisite in backoff or held does **not** block for ever. (Before 7 Nov 2026 any due prerequisite blocked: prism is due every 10 minutes and resumable jobs such as ingest and portfolios are due again 2 minutes after each time cap, so presets, score-mf and mf-screen waited three days.)
+* **Late jobs first**: among due bulk jobs, those past their SLA go first; a job that is only continuing (a resumable job back after its time cap or a restart) or is still inside its SLA goes to the back of the queue, by priority among its kind. A long or repeating job (ingest, portfolios, prism) no longer holds up the late ones (founder, 7 Nov 2026).
+* **Own time budget below the limit**: a job with its own budget stops by itself well before `max_runtime_min` (score-all: `--max-minutes 70` against 90). Both were 90, so the watchdog killed every score run as a timeout and it never recorded a success.
+* **Deploys**: every deploy restarts the app container and stops the running jobs (`killed`, retried a minute later). Merging several pull requests one after another in the morning restarts the long jobs each time; merge them together where possible.
 * **Memory gate**: a job starts only if `free MB >= weight` (bulk: weight + `JOBS_RESERVE_MB`, default 100, kept for the website), counting what was started in the same tick. Free memory = container limit minus usage plus droppable page cache. **A job that does not fit WAITS** ("waiting for memory: 300 MB free, needs about 550 MB"), is recorded, and is retried every tick: never skipped silently. A second bulk job also waits while the load average per core is above `JOBS_MAX_LOAD_PER_CPU` (3).
 * After a (re)start bulk and fund jobs wait `BOOT_LOAD_DELAY_S` (240) for the web server to settle. Results jobs do not wait.
 
@@ -278,7 +286,9 @@ Header lock icon > System > "Heavy data loads" switch. Switching OFF pauses for 
 
 ## Scheduled jobs are never switched off (founder's rule)
 
-* The environment switches `FUND_LOADS_ENABLED`, `SECTORS_ENABLED`, `PRISM_PRECOMPUTE_ENABLED` and `BOOT_LOAD_ENABLED` can no longer disable or hold back a job (`Gate.forced` in `jobs/registry.py`). Only a missing credential (no `DHAN_CLIENT_ID`, no `GEMINI_API_KEY`) keeps a job from starting, and the status says so.
+**Background jobs NEVER stop: every scheduled job runs every day and completes every day** (see the rule at the top of this file).
+
+* The environment switches `FUND_LOADS_ENABLED`, `PRISM_PRECOMPUTE_ENABLED` and `BOOT_LOAD_ENABLED` can no longer disable or hold back a job (`Gate.forced` in `jobs/registry.py`). The one written exception: the sector job, which the founder switched off on 7 Nov 2026 (`SECTORS_JOB=on` brings it back). Only a missing credential (no `DHAN_CLIENT_ID`, no `GEMINI_API_KEY`) keeps a job from starting, and the status says so.
 * The admin pause is ignored inside the MORNING, AFTER_CLOSE and NIGHT windows and for any job already past its promise (SLA). It can only hold daytime, not-yet-late work.
 * A job that cannot start because the server lacks memory waits and says so; it is never skipped, and it does not block the other jobs.
 

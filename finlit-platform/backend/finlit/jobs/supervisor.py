@@ -1,5 +1,9 @@
 """The job supervisor: decides what is due, runs it within the machine's limits, watches it, retries it, and says so when something is wrong.
 
+!!! THE FOUNDER'S RULE (registry.JOBS_RULE): background jobs NEVER stop; every scheduled job runs every day and completes every day. Nothing in this
+!!! file may skip, drop or indefinitely postpone a due job: it may only order the queue (late jobs first) and wait for memory or a running prerequisite.
+!!! One job stopping, failing, being held or switched off never stops another job: a prerequisite that is not running never blocks for ever.
+
 Every step is a method that takes its inputs from injected objects (state store, process runner, resources, Redis signals, clock, pause source, notifier),
 so the whole thing runs under a fake clock and a fake process runner in the tests. docs/JOBS.md explains the rules in plain words.
 """
@@ -156,7 +160,11 @@ class Supervisor:
     def _blocker(self, job: Job, plan: Plan, free_mb: float, load: float, reserved: Dict[str, float], now: datetime) -> Optional[str]:
         for p in job.prerequisites:
             pj = self.jobs.get(p)
-            if pj and (p in self.running or plan.verdicts[p].due):
+            if not pj:
+                continue
+            if p in self.running or any(j.name == p for j in plan.start):
+                return f"waiting for {p} to finish first"
+            if plan.verdicts[p].due and self._waits_for_due(job, p, plan, now):
                 return f"waiting for {p} to finish first"
         if job.cls == "bulk" or job.group == "funds":
             since = (now - self.started_at).total_seconds()
@@ -183,6 +191,28 @@ class Supervisor:
             return f"waiting for the CPU: load {load:.1f} per core is above {self.cfg.max_load_per_cpu:g}"
         return None
 
+    def _goes_last(self, job: Job, st: Optional[JobState], now: datetime) -> bool:
+        """True for a bulk job that should let late jobs go first: it is continuing a run it already started (it reached its time cap, or was stopped
+        by a restart) or it is still inside its SLA. Light, audit and on-demand jobs keep their place."""
+        if job.cls != "bulk" or st is None:
+            return False
+        if job.resumable and st.last_status in ("timeout", "killed"):
+            return True
+        return not sla_status(job, st, now).breached
+
+    def _waits_for_due(self, job: Job, p: str, plan: Plan, now: datetime) -> bool:
+        """Should `job` wait for its prerequisite `p`, which is due but not running? Only while waiting makes sense: `p` has nothing new since `job`
+        last succeeded, and `job` is still inside its promise. A resumable prerequisite that yields at its time cap is due again two minutes later,
+        and an interval job (prism, every 10 minutes) is due almost all the time; without this rule the jobs after them waited for days
+        (7 Nov 2026: presets, score-mf and mf-screen were 3 days old behind prism, ingest and portfolios)."""
+        st = plan.states.get(job.name) or JobState(job=job.name, first_seen_at=now)
+        ps = plan.states.get(p)
+        if ps and ps.last_success_at and (st.last_success_at is None or ps.last_success_at > st.last_success_at):
+            return False          # newer input is already there: use it now; the next round of `p` is picked up next time
+        if sla_status(job, st, now).breached:
+            return False          # past its promise: run on what is there rather than wait for ever
+        return True
+
     async def plan(self) -> Plan:
         now = self.clock.now()
         await self.state.ensure(self.jobs, now)
@@ -200,7 +230,11 @@ class Supervisor:
             else:
                 self._due_since.pop(n, None)
         # priority first, then first come first served among equals
-        for job in sorted(self.order, key=lambda j: (j.priority, self._due_since.get(j.name, 0.0), j.name)):
+        # Late jobs first, then the rest by priority. A bulk job that is only continuing (a resumable job back after its time cap or a restart) or is
+        # still inside its promise goes to the back of the queue, so a long or repeating job (ingest, portfolios, prism) never holds up the jobs that
+        # are already late (founder, 7 Nov 2026: "jisske karan job ruke usko last me kardo, baki job continue rakho").
+        last = {n: self._goes_last(j, states.get(n), now) for n, j in self.jobs.items()}
+        for job in sorted(self.order, key=lambda j: (last[j.name], j.priority, self._due_since.get(j.name, 0.0), j.name)):
             if not verdicts[job.name].due:
                 continue
             why = self._blocker(job, plan, snap.free_mb, snap.load_per_cpu, reserved, now)
