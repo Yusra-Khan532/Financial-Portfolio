@@ -303,8 +303,12 @@ function StatsPanel({ stats, sentence, method, extra, inference, insight }: { st
   const ci = (v: [number, number] | null | undefined, f: (n: number) => string) => (v ? `${f(v[0])} to ${f(v[1])}` : "—");
   return <div className="adv-stats">
     {insight ? <CorrInsight insight={insight} /> : inference && <ChartInference inference={inference} />}
-    <p className="adv-sentence">{sentence}</p>
-    {stats && R && <details className="adv-allstats"><summary>All statistics</summary>
+    {!(stats && R) && <p className="adv-sentence">{sentence}</p>}
+    {stats && R && <details className="adv-allstats">
+      <summary><span className="adv-as-t"><b>All statistics</b><small>Pearson r, p-values, R², slope, outliers and method</small></span>
+        <svg className="adv-as-chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+      <div className="adv-as-body">
+      <p className="adv-sentence">{sentence}</p>
       <table><tbody>
         <tr><th scope="row">Points used (n)</th><td>{stats.n.toLocaleString("en-IN")}</td></tr>
         <tr><th scope="row">Pearson r</th><td>{R.r}{stats.pearson?.ci ? <span className="faint"> (95% interval {ci(stats.pearson.ci, (v) => fmtR(v))})</span> : null}</td></tr>
@@ -320,6 +324,7 @@ function StatsPanel({ stats, sentence, method, extra, inference, insight }: { st
         {stats.space && (stats.space.x === "log" || stats.space.y === "log") && <tr><th scope="row">Computed on</th><td>{stats.space.x === "log" ? "log10 of X" : "X"} and {stats.space.y === "log" ? "log10 of Y" : "Y"} (Spearman is the same on either scale)</td></tr>}
       </tbody></table>
       {method && <p className="faint">{method}</p>}
+      </div>
     </details>}
     {extra}
   </div>;
