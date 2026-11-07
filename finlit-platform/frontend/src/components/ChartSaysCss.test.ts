@@ -24,3 +24,13 @@ describe("Correlation page statistics (task #40)", () => {
     expect(css).toContain(".adv-allstats > summary::-webkit-details-marker { display: none; }");
   });
 });
+
+describe("Chart builder cards (task #39)", () => {
+  it("give every chart the same header buttons and the same one-line explainer box", () => {
+    const css = readFileSync(join(__dirname, "../styles/graphs.css"), "utf8");
+    expect(css).toContain(".gx-cell header select { height: 38px");
+    expect(css).toMatch(/\.gx-cell header \.gx-x \{[^}]*width: 38px; height: 38px/);
+    expect(css).toContain(".gx-cell .csay-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }");
+    expect(css).toContain(".gx-cell .csay { margin: auto 0 0; }");
+  });
+});
