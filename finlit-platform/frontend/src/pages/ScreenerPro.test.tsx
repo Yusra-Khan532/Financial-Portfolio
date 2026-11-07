@@ -77,11 +77,21 @@ describe("Stock screener groups", () => {
 });
 
 describe("Stock screener columns", () => {
-  it("opens with market cap, price, P/E, 3Y average P/E and P/B, and the button counts them truthfully", async () => {
+  it("opens with only the company, market cap and share price (task #41), and the button counts them truthfully", async () => {
     mount(); await ready();
-    expect(heads()).toEqual(["Company", "Market cap", "Share price", "P/E Ratio", "P/E Ratio, 3Y average", "P/B Ratio"]);
-    expect(colBtn()).toBe("Columns · 5");
-    expect(st.bodies[0].columns).toEqual(["market_cap", "price", "pe", "pe_avg_3y", "pb"]);   // asked of the server straight away, no slider needed
+    expect(heads()).toEqual(["Company", "Market cap", "Share price"]);
+    expect(colBtn()).toBe("Columns · 2");
+    expect(st.bodies[0].columns).toEqual(["market_cap", "price"]);   // asked of the server straight away, no slider needed
+  });
+
+  it("the results table has the enlarge arrow, and enlarging opens the same table in a dialog", async () => {
+    mount(); await ready();
+    const arrow = await screen.findByRole("button", { name: /Enlarge chart: Stock screener results/ });
+    fireEvent.click(arrow);
+    const dlg = await screen.findByRole("dialog", { name: "Stock screener results" });
+    expect(within(dlg).getAllByRole("columnheader").length).toBe(3);
+    fireEvent.click(within(dlg).getByRole("button", { name: /Restore chart/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Stock screener results" })).toBeNull());
   });
 
   it("choosing a chip adds its column at once and unchoosing takes it away", async () => {
@@ -89,11 +99,11 @@ describe("Stock screener columns", () => {
     fireEvent.click(group(/^Valuation/));
     fireEvent.click(screen.getByRole("button", { name: "Dividend Yield" }));
     await waitFor(() => expect(heads()).toContain("Dividend Yield"));
-    expect(colBtn()).toBe("Columns · 6");
+    expect(colBtn()).toBe("Columns · 3");
     expect(st.bodies.at(-1)!.filters).toEqual({});                                          // no range was set
     fireEvent.click(screen.getByRole("button", { name: "Dividend Yield" }));
     await waitFor(() => expect(heads()).not.toContain("Dividend Yield"));
-    expect(colBtn()).toBe("Columns · 5");
+    expect(colBtn()).toBe("Columns · 2");
   });
 
   it("choosing a chip on the Now / 3Y / 5Y / 7Y card shows the column of the tab it is on, and switching tab switches the column", async () => {
@@ -130,19 +140,20 @@ describe("Stock screener columns", () => {
     expect(colBtn()).toBe("Columns · 2");
     fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
     fireEvent.click(screen.getByRole("button", { name: "Reset columns" }));
-    await waitFor(() => expect(heads()).toContain("P/E Ratio, 3Y average"));
+    await waitFor(() => expect(heads()).toEqual(["Company", "Market cap", "Share price"]));
     expect(localStorage.getItem("finlit.screener.cols")).toBeNull();
   });
 
   it("removing a default column from the panel is remembered", async () => {
     mount(); await ready();
     fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
-    fireEvent.click(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name: /^P\/B Ratio$/ }));
-    await waitFor(() => expect(heads()).not.toContain("P/B Ratio"));
-    expect(JSON.parse(localStorage.getItem("finlit.screener.cols")!)).toEqual(["market_cap", "price", "pe", "pe_avg_3y"]);
+    fireEvent.click(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name: /^Share price$/ }));
+    await waitFor(() => expect(heads()).not.toContain("Share price"));
+    expect(JSON.parse(localStorage.getItem("finlit.screener.cols")!)).toEqual(["market_cap"]);
   });
 
   it("an empty cell is a dash with the reason in its tooltip", async () => {
+    localStorage.setItem("finlit.screener.cols", JSON.stringify(["market_cap", "price", "pe"]));
     mount(); await ready();
     const cell = Array.from(document.querySelectorAll(".scr-t tbody tr")[1].querySelectorAll("td"))[3];
     expect(cell.textContent).toBe("–");
@@ -150,8 +161,8 @@ describe("Stock screener columns", () => {
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {
-    st.cat = catalog(true); mount(); await ready();
-    expect(st.bodies[0].columns).toEqual(["market_cap", "price", "pe"]);
+    st.cat = { ...catalog(true), defaultColumns: ["market_cap", "price", "pe_avg_3y"] }; mount(); await ready();   // a locked default is left out
+    expect(st.bodies[0].columns).toEqual(["market_cap", "price"]);
     expect(st.bodies[0].columns).not.toContain("pb");
     expect(st.bodies[0].columns).not.toContain("pe_avg_3y");
   });
@@ -159,9 +170,9 @@ describe("Stock screener columns", () => {
 
 describe("column helpers", () => {
   const cat = catalog(); const by = new Map(cat.groups.flatMap((g) => g.metrics.map((m) => [m.key, m] as const)));
-  it("defaults add P/E, P/E 3Y and P/B; a phone drops P/B", () => {
-    expect(defaultColumns(cat)).toEqual(["market_cap", "price", "pe", "pe_avg_3y", "pb"]);
-    expect(defaultColumns(cat, true)).toEqual(["market_cap", "price", "pe", "pe_avg_3y"]);
+  it("the table starts with only market cap and share price beside the company name", () => {
+    expect(defaultColumns(cat)).toEqual(["market_cap", "price"]);
+    expect(defaultColumns(undefined)).toEqual([]);
   });
   it("chip column follows the period and skips locked metrics", () => {
     const pb = by.get("pb")!;

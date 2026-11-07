@@ -13,6 +13,7 @@ import { screens, useSavedScreens } from "../lib/screens";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
+import { TableZoom } from "../components/TableZoom";
 import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
 import { ChartHelp } from "../components/ChartHelp";
@@ -131,7 +132,7 @@ export function ScreenerPro() {
   const byKey = useMemo(() => new Map((data?.groups || []).flatMap((g) => g.metrics.map((m) => [m.key, m] as const))), [data]);
   // Opens with useful columns (market cap, price, P/E, 3Y avg P/E, P/B) without any clicking. A saved choice wins over them. Every filter range and every
   // chip the visitor picks adds its own column (for the period tab it is on) and takes it away again when the filter or the pick goes.
-  const base = useMemo(() => cols ?? defaultColumns(data, typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 640px)").matches), [cols, data]);
+  const base = useMemo(() => cols ?? defaultColumns(data), [cols, data]);
   const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, f.ranges);
   const chipCols = Object.values(pick).map((k) => (k ? chipColumn(byKey.get(k), periodOf(byKey.get(k)!), byKey) : null));
   const columns = useMemo(() => tableColumns(base, f.ranges, chipCols, (k) => !data || byKey.has(k)), [base, f.ranges, chipCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -340,7 +341,7 @@ export function ScreenerPro() {
                 <>
                   {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}
-                  <HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table"><table className="scr-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table"><table className="scr-t">
                     <thead><tr><th className="stick"><button onClick={() => sortBy("name")}>Company {sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>
                       {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}</tr></thead>
                     <tbody>{rows.map((r) => (
@@ -349,7 +350,7 @@ export function ScreenerPro() {
                         {res.data!.columns.map((k) => { const m = byKey.get(k), v = r.v[k]; return <td key={k} className={tone(k, v)} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                       </tr>))}
                       {!rows.length && <tr><td colSpan={res.data.columns.length + 1} className="empty">No companies match all of these filters. Try loosening one, or <button className="alx-link" onClick={() => setF(norm({}))}>clear them all</button>.</td></tr>}
-                    </tbody></table></HScroll>
+                    </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match, lets you download them, and unlocks all {data ? data.groups.reduce((a, g) => a + g.metrics.length, 0) : 160}+ filters.</span>
                       <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
