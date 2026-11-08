@@ -4,15 +4,13 @@ import { ChartHelp } from "../components/ChartHelp";
 import { Icon } from "../lib/icons";
 import { useSection, type Financials } from "../lib/api";
 import { MINUS, nf } from "../lib/format";
-import { fyLabel, profitReality, type ProfitReality as PrModel, type Status } from "../lib/profitReality";
+import { fyLabel, profitReality, type ProfitReality as PrModel } from "../lib/profitReality";
 import { EarningsIntel } from "./EarningsIntel";
 import "../styles/profitreality.css";
 import { ChartZoom } from "../components/ChartZoom";
 
 const sn = (v: number | null, d = 0, suffix = "") => (v == null ? MINUS : (v < 0 ? MINUS : "") + nf(v, d) + suffix);
 const sg = (v: number | null, suffix = "%") => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, 1) + suffix);
-const mark: Record<Status, string> = { ok: "✓", warn: "!", flag: "⚑", na: "–" };
-const word: Record<Status, string> = { ok: "Passed", warn: "Watch", flag: "Flagged", na: "Not tested" };
 const tone = { Strong: "good", Mixed: "mid", "Needs a closer look": "bad" } as const;
 
 type View = { r: PrModel; lender: boolean };
@@ -129,10 +127,6 @@ export function ProfitReality({ symbol, lender, sector, industry }: { symbol: st
         {r.findings.length > 0 && <ul>{r.findings.map((t, i) => <li key={i}>{t}</li>)}</ul>}
         {r.verdict === "Strong" && !r.findings.length && <p>Profit is backed by cash, one-off items are small and receivables and inventory are keeping pace with sales.</p>}
       </div>
-      <details className="pr-rules"><summary>How this is decided</summary>
-        <ul>{r.rules.map((x) => <li key={x.key} className={x.status}><span className="m" aria-hidden="true">{mark[x.status]}</span><span><b>{word[x.status]}.</b> {x.text}. <small>{x.detail}</small></span></li>)}</ul>
-        <p className="faint">Two or more flagged rules, or "profit rose but cash did not", gives "Needs a closer look". One flagged rule or two watch rules gives "Mixed". Otherwise "Strong". At least three tests (one for lenders) need data first.</p>
-      </details>
       {r.notes.map((t, i) => <p className="faint pr-note" key={i}>{t}</p>)}
 
       <PrChart r={r} lender={lender} />

@@ -1,4 +1,4 @@
-// "What stands out across the report": every red flag, watch item and strength in one place, each linking to the section it comes from.
+// Section 02, "What's going well and what to watch": every red flag, watch item and strength in one place (it replaces the two blocks that repeated each other: Scorecard notes and Key findings), each linking to the section it comes from.
 // Red flags and watch items from the profit-and-loss checks (lib/plFlags) and the scorecard notes; strengths from the scorecard notes. They describe
 // what the figures did and are not a recommendation. Same Silver plan as the scorecard notes they repeat.
 import { useMemo } from "react";
@@ -17,8 +17,8 @@ export function findingsOf(s: Summary, f: Financials | undefined, lender: boolea
   const fromPl = (sev: "caution" | "watch") => pl.filter((i) => i.severity === sev).map((i) => ({ key: "pl-" + i.key, title: i.title, text: i.why, to: "financials" }));
   return {
     flags: fromPl("caution"),
-    watch: [...fromPl("watch"), ...s.watchouts.map((n) => ({ key: "w-" + n.key, title: n.title, text: n.text, to: "notes" }))],
-    good: s.strengths.map((n) => ({ key: "s-" + n.key, title: n.title, text: n.text, to: "notes" })),
+    watch: [...fromPl("watch"), ...s.watchouts.map((n) => ({ key: "w-" + n.key, title: n.title, text: n.text, to: "prism" }))],
+    good: s.strengths.map((n) => ({ key: "s-" + n.key, title: n.title, text: n.text, to: "prism" })),
   };
 }
 
@@ -41,8 +41,8 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
   const counts = `${k.flags.length} red flag${k.flags.length === 1 ? "" : "s"} · ${k.watch.length} to watch · ${k.good.length} positive${k.good.length === 1 ? "" : "s"}`;
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="findings" no="Key findings" icon="notes" tier="silver" title="What stands out across the report" color="--gold-deep" aside={<span className="sh-counts">{counts}</span>} />
-      <Gate tier="silver" title="See every key finding in one place" points={["Red flags, items to watch and strengths together", "Each links to its section"]}>
+      <SectionHead id="notes" no="02 · Scorecard notes" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" aside={<span className="sh-counts">{counts}</span>} />
+      <Gate tier="silver" title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
         <div className="kf-g">
           <Col kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />
           <Col kind="w" tag="Watch" icon="info" items={k.watch} empty="Nothing to watch right now." />

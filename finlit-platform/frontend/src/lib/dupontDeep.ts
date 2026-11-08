@@ -151,7 +151,7 @@ export function anomalies(years: DeepYear[]): Anomaly[] {
   return out;
 }
 
-// ------------------------------------------------------------------------------------------------ the move between two years (log method) and the badge
+// ------------------------------------------------------------------------------------------------ the move between two years and the badge
 
 export type Move = { first: DeepYear; last: DeepYear; roeChange: number; shares: { netMargin: number | null; turnover: number | null; multiplier: number | null }; change: { netMargin: number | null; turnover: number | null; multiplier: number | null } };
 /** First and last year with all three factors, and each factor's share of the ROE move (rounded factors, as the DuPont tiles do). */
@@ -230,7 +230,7 @@ export function qualityScore(years: DeepYear[], lender: boolean): Score {
   const [p0, p1, p2] = S.parts;
   const parts: ScorePart[] = [
     { ...p0, points: avgShare == null ? null : r(p0.max * clamp(1 - avgShare / S.oneOffNone, 0, 1), 1), detail: avgShare == null ? "one-off share not available" : `one-offs averaged ${nf(avgShare * 100, 0)}% of pre-tax profit over ${shares.length} years` },
-    { ...p1, points: ctx.marginCv == null ? null : r(p1.max * clamp(1 - ctx.marginCv / S.cvNone, 0, 1), 1), detail: ctx.marginCv == null ? `needs ${L.cvMinYears} years of positive net margin` : `coefficient of variation ${nf(ctx.marginCv, 2)}` },
+    { ...p1, points: ctx.marginCv == null ? null : r(p1.max * clamp(1 - ctx.marginCv / S.cvNone, 0, 1), 1), detail: ctx.marginCv == null ? `needs ${L.cvMinYears} years of positive net margin` : (ctx.marginCv < 0.15 ? "net margin steady" : "net margin varied") + " from year to year" },
     { ...p2, points: lender ? null : ctx.emLatest == null ? null : r(p2.max * clamp((S.leverageNone - ctx.emLatest) / (S.leverageNone - S.leverageFull), 0, 1), 1), detail: lender ? "not scored for banks and lenders" : ctx.emLatest == null ? "equity multiplier not available" : `equity multiplier ${nf(ctx.emLatest, 2)}×` },
   ];
   const need = parts.filter((p) => !(lender && p.key === "leverage"));
@@ -259,8 +259,8 @@ export function waterfall(years: DeepYear[], lender: boolean): Waterfall {
   }
   return { ok: true, from: a.label, to: b.label, start: ra, end: rb, method: logOk ? "log" : "substitution",
     steps: FIVE.map(([k, label], i) => ({ key: k, label, first: fa[k], last: fb[k], pp: pp[i] })),
-    note: logOk ? "Log method: each factor's contribution is its share of the log change, times the ROE change, so the five add up to the whole move."
-      : "A log is undefined here (a loss year or a negative factor), so each factor is switched from its first-year to its last-year value in turn, in the order shown. The five still add up to the whole move, but the split depends on that order." };
+    note: logOk ? "Each factor's contribution is shown; the five add up to the whole move."
+      : "Each factor is switched from its first-year to its last-year value in turn, in the order shown. The five still add up to the whole move, but the split depends on that order." };
 }
 
 // ------------------------------------------------------------------------------------------------ what-if arithmetic

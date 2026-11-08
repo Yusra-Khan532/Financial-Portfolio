@@ -60,12 +60,6 @@ export function EarningsIntel({ pr, sector, industry }: { pr: ProfitReality; sec
         </dl>
       </details>
 
-      <details className="ei-how">
-        <summary>How this is decided</summary>
-        <ul>{x.modules.map((m) => <li key={m.key}><b>{m.name}.</b> {m.rule}</li>)}</ul>
-        {x.lender ? <p>Cash-flow based labels are not shown for lenders. Missing inputs give "Not enough data"; nothing is estimated.</p>
-          : <p>The top label follows the Profit vs Cash Flow status: Red flag gives "Weak cash backing", Watch gives "Cash backing to watch", Steady gives "Cash backing steady". A single weak year alone is Watch. Missing inputs give "Not enough data"; nothing is estimated.</p>}
-      </details>
 
       {x.caveats.map((t, i) => <p className="ei-cav" key={i}><Icon name="info" />{t}</p>)}
       <p className="ei-disc">Describes the company's earnings quality from its filings; not a recommendation. Information only, not investment advice.</p>

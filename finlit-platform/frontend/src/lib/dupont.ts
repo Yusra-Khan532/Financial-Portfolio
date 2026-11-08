@@ -72,7 +72,7 @@ export function shareText(f: Pick<Factor, "shareOfMove">): string {
 }
 /** Tooltip for the share, or the reason there is none (ROE moved by less than SHARE_MIN_PTS, so the pts change is shown instead). */
 export function shareTitle(f: Pick<Factor, "shareOfMove">, roeFirst: number | null, roeLast: number | null): string {
-  if (f.shareOfMove != null) return "Share of the ROE change explained by this factor (log method). The three shares add up to 100%, so one can exceed 100% when another factor offsets it.";
+  if (f.shareOfMove != null) return "Share of the ROE change explained by this factor. The three shares add up to 100%, so one can exceed 100% when another factor offsets it.";
   if (roeFirst != null && roeLast != null && Math.abs(roeLast - roeFirst) < SHARE_MIN_PTS) return `${roeMoveText(roeFirst, roeLast)}: too small to split into shares.`;
   return "Shares need two comparable years with positive margin and ROE, and a clear ROE move.";
 }
