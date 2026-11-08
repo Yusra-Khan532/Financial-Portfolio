@@ -194,12 +194,12 @@ def rot_out(tmp_path, monkeypatch):
 async def test_rotation_map_and_cards_are_open_to_every_plan_but_the_leader_flag_count_follows_the_board(anon, app, rot_out):  # noqa: F811
     r = await anon.get("/api/rotation")
     m = r.json()
-    assert r.status_code == 200 and m["plan"] == "basic" and len(m["rows"]) == 3 and m["disclaimer"] and m["study"]["corners"]
+    assert r.status_code == 200 and m["plan"] == "basic" and len(m["rows"]) == 3 and m["disclaimer"] and "study" not in m and "params" not in m and "method" not in m
     assert all(x["corner"] and x["rank"] and x["tail"] for x in m["rows"]) and all(x["leader_flags"] is None for x in m["rows"]) and m["locked"] == {"leader_flags": "silver"}
     assert r.headers["cache-control"].startswith("private") and r.headers["etag"]
     card = await anon.get("/api/rotation/banks")
     c = card.json()
-    assert card.status_code == 200 and c["reading"] is True and c["name"] == "Banks" and c["summary"] and c["study"]
+    assert card.status_code == 200 and c.get("reading") is not False and c["name"] == "Banks" and c["summary"] and "study" not in c
     silver = await signed_in(app, "rs@example.com", plan="silver")
     assert (await silver.get("/api/rotation")).json()["locked"] == {}
     await silver.aclose()
