@@ -27,7 +27,9 @@ import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
-import { KeyFindings, findingsOf } from "./KeyFindings";
+import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";
+import { useProfitReality } from "./ProfitReality";
+import { earningsIntel } from "../lib/earningsIntel";
 import { GROUP_START, navFor } from "../lib/sectionNav";
 import { SectionsMenu } from "./SectionsMenu";
 import { PreparingReport, type PreparingMode } from "./PreparingReport";
@@ -70,7 +72,8 @@ export function StockPage() {
   const events = useSection<Events>(symbol, "events", ready).data;
   const lead = useLeadership(symbol, ready).data;
   const navItems = useMemo(() => navFor(!!(lead && (lead.available || lead.display))), [lead]);   // no pill for a section that is switched off
-  const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank) : null), [s, fin]);   // the red / orange dots on the tabs
+  const pReality = useProfitReality(symbol, !!s?.dataQuality.isBank);
+  const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank, checkItems(earningsIntel(pReality, s.profile.sector, s.profile.industry))) : null), [s, fin, pReality]);   // the red / orange dots on the tabs
   const dotOf = (id: string): "f" | "w" | null => { if (!found) return null; const only = (x: { to: string }[]) => x.filter((i) => i.to === id).length; if (id === "notes") return found.flags.length ? "f" : found.watch.length ? "w" : null; return only(found.flags) ? "f" : only(found.watch) ? "w" : null; };
   const tech = usePrice(symbol, "1Y", ready).data?.technical;   // waits for the summary, so a new stock is asked for once, not twice
   useDocTitle(s ? `${s.profile.name} research` : `${symbol} research`, s ? `FinLit research report for ${s.profile.name}: score ${s.score.overall ?? "n/a"}, financials, ratios, ownership and peers.` : undefined);
