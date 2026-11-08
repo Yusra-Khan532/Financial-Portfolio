@@ -500,3 +500,7 @@
 .sx-notcounted li { display: flex; gap: 8px; break-inside: avoid; padding: 2px 0; } .sx-notcounted li a { font-weight: 600; } .sx-notcounted .sx-note { margin-top: 12px; }
 .rt-t td.rt-mvc { white-space: nowrap; }
 .rt-t tbody th.nm { min-width: 170px; overflow-wrap: break-word; } .rt-t thead th:last-child { white-space: normal; min-width: 90px; } .rt-t td.sp { padding-right: 4px; }
+
+/* the Sector & peers block on the company page had no top padding, so it ran into Peers */
+.sx-stock { padding-top: 80px; }
+@media (max-width: 600px) { .sx-stock { padding-top: 56px; } }
