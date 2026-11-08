@@ -25,6 +25,10 @@ import { CountTable, HeatTable, MixCards, Treemap, WhereReadings } from "../port
 import { Together } from "../portfolio/Together";
 import { Nifty, RiskShare } from "../portfolio/Risk";
 import { Style } from "../portfolio/Style";
+import { CompanySize } from "../portfolio/CompanySize";
+import { usePortfolioTrend } from "../portfolio/usePortfolioTrend";
+import { TrendCard } from "../mf/Spread";
+import "../styles/mfspread.css";
 import { SharesTable, partDefs } from "../portfolio/SharesTable";
 import { sectorColors, sectorOrder, plural } from "../portfolio/derive";
 import { ADD_NOTE, HEAD_DESC, MODE_LABEL, MODE_SHORT, NAV, SIZES_NOTE } from "../portfolio/words";
@@ -59,6 +63,7 @@ export function HoldingsPage() {
   const symbols = useMemo(() => [...new Set(st.holdings.map((h) => h.symbol))], [st.holdings]);
   const ov = useOverview(symbols, !!model && !DEMO);
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
+  const tr = usePortfolioTrend(symbols, !!model && !DEMO);
   const byOv = useMemo(() => new Map((ov.data?.holdings || []).map((h) => [h.symbol, h])), [ov.data]);
   const lines: Line[] = useMemo(() => symbols.map((s) => ({ symbol: s, ov: byOv.get(s), name: by.get(s)?.name || index.find((r) => r[0] === s)?.[1] || "" })), [symbols, by, byOv, index]);
   useEffect(() => { if (!DEMO && symbols.length && uni.data && lines.some((l) => !l.ov)) { const t = setInterval(() => qc.invalidateQueries({ queryKey: ["universe"] }), 20_000); return () => clearInterval(t); } }, [symbols.length, uni.data, lines, qc]);
@@ -122,6 +127,12 @@ export function HoldingsPage() {
           {data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
+          <SharesTable lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
+            errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)} onExport={exportCsv}
+            actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
+          {page && <CompanySize page={page} />}
+          {tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
+          {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}
           {page && common && <>
             <div className="pfx-bar-row">
               <nav aria-label="On this page" className="pfx-nav">{NAV.filter(([id]) => id !== "style" || data?.styleTilt).map(([id, label]) => <button key={id} type="button" className={"pfx-pillbtn" + (nav === id ? " on" : "")} aria-current={nav === id ? "true" : undefined} onClick={() => goTo(id)}>{label}</button>)}</nav>
@@ -141,9 +152,6 @@ export function HoldingsPage() {
             <div className="pfx-row"><RiskShare page={page} mode={mode} colors={colors} /><Nifty page={page} mode={mode} /></div>
             <Style tilt={data?.styleTilt} />
           </>}
-          <SharesTable lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
-            errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)} onExport={exportCsv}
-            actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
         </>}
         </div>
       </Gate>

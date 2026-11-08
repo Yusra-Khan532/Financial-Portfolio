@@ -134,3 +134,17 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
         else:
             result = {**result, "styleTilt": TILT_LOCKED}
     return Response(orjson.dumps(result, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)
+
+
+@router.post("/trend")
+async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
+    """Short- and long-term trend of the listed shares (FinLit Prism technical scores). Names only; every share counts the same. Gold only (Prism), as the style
+    tilt: Silver gets a locked answer. Words, shares and counts: the bands and the gap figure stay here."""
+    if not (ctx.role == "admin" or has(ctx.plan, div.STYLE_TILT_TIER)):
+        return Response(orjson.dumps({"locked": True, "why": "The short- and long-term trend of your shares is part of the Gold plan."}), media_type="application/json", headers=NO_STORE)
+    from .. import prism_screen
+    from ..mfportfolio import trend
+    cards = prism_screen.cards(await request.app.state.store.prism_cards(body.symbols))
+    items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label")} for s in body.symbols]
+    per = {s: {"st": cards[s].get("prism_st"), "lt": cards[s].get("prism_lt")} for s in body.symbols if s in cards}
+    return Response(orjson.dumps({"locked": False, "trend": trend.public(trend.portfolio_trend(items)), "perShare": per}), media_type="application/json", headers=NO_STORE)

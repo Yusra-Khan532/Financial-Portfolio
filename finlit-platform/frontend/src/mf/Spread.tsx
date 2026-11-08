@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { MfSpread, TrendRead } from "../lib/mfPortfolio";
+import type { MfSpread, MfTrend, TrendRead } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
 
 /* The Diversification section of /mf-portfolio. Every word and figure is worked out on the server (backend mfportfolio/spread.py);
@@ -120,7 +120,7 @@ export function SpreadSection({ d }: { d: MfSpread }) {
 
 
       {d.trendLocked && <section className="card x-trend" aria-label="Short- and long-term trend underneath"><div className="card-h"><h3>Short- and long-term trend underneath</h3></div><p className="faint">How the stocks inside your funds are trending, short and long term, is part of the Gold plan. <Link to="/plans">See plans</Link></p></section>}
-      {d.trend && <TrendCard d={d} nm={n} />}
+      {d.trend && <TrendCard t={d.trend} nm={n} />}
       {d.topStocks.length > 0 && <section className="card" aria-label="Largest stocks underneath">
         <div className="card-h"><h3>Largest stocks underneath</h3><span className="s">{d.topStocks.length} of {r.underneath.stocks}</span></div>
         <table className="x-st"><thead><tr><th scope="col">Stock</th><th scope="col">Sector</th><th scope="col" className="r">Share of your list</th>{d.trend && <><th scope="col" className="c">Prism</th><th scope="col" className="c">Short term</th><th scope="col" className="c">Long term</th></>}<th scope="col">Held by</th></tr></thead>
@@ -139,20 +139,22 @@ export function SpreadSection({ d }: { d: MfSpread }) {
   );
 }
 
-function TrendCard({ d, nm }: { d: MfSpread; nm: (c: number) => string }) {
-  const t = d.trend!, a: TrendRead = t.all;
-  if (!a.rated) return <section className="card x-trend" aria-label="Short- and long-term trend underneath"><div className="card-h"><h3>Short- and long-term trend underneath</h3></div><p className="faint">None of the stocks inside your funds has a stored FinLit Prism trend reading yet, so there is nothing to show.</p></section>;
+/** The trend card, shared by the MF and the equity portfolio pages. `perFund` and `sharedWeakSpots` exist for funds only. */
+export function TrendCard({ t, nm, what = "stocks inside your funds" }: { t: MfTrend; nm: (c: number) => string; what?: string }) {
+  const a: TrendRead = t.all;
+  if (!a.rated) return <section className="card x-trend" aria-label="Short- and long-term trend underneath"><div className="card-h"><h3>Short- and long-term trend underneath</h3></div><p className="faint">None of the {what} has a stored FinLit Prism trend reading yet, so there is nothing to show.</p></section>;
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const biz = [["strong_up", "g", "Business and price agree (strong)"], ["strong_down", "m", "Price behind the business"], ["weak_up", "m", "Price ahead of the business"], ["weak_down", "b", "Business and price agree (weak)"]] as const;
-  const funds = Object.entries(t.perFund);
+  const funds = Object.entries(t.perFund || {});
   const lines: { tag: string; cls: string; text: string }[] = [
     { tag: "Long term", cls: a.words.longTerm === "Mostly rising" ? "tg-up" : a.words.longTerm === "Mostly falling" ? "tg-dn" : "tg-mx", text: `${pct(a.breadth.up)} of the rated stocks are in a long-term uptrend and ${pct(a.breadth.down)} in a downtrend.` },
     { tag: "Short vs long", cls: a.words.shortAgainstLong === "Improving" ? "tg-up" : a.words.shortAgainstLong === "Fading" ? "tg-dn" : "tg-mx", text: `The short-term trend is ahead of the long-term trend for ${pct(a.direction.improving)} and behind it for ${pct(a.direction.weakening)}.` },
   ];
-  if (t.sharedWeakSpots.n) lines.push({ tag: "Shared", cls: "tg-dn", text: `${t.sharedWeakSpots.n} stock${t.sharedWeakSpots.n === 1 ? " is" : "s are"} held through two or more funds and in a long-term downtrend (${pct(t.sharedWeakSpots.share)} of the rated list)${t.sharedWeakSpots.symbols.length ? `, the largest: ${t.sharedWeakSpots.symbols.slice(0, 3).join(", ")}` : ""}.` });
+  const sw = t.sharedWeakSpots;
+  if (sw && sw.n) lines.push({ tag: "Shared", cls: "tg-dn", text: `${sw.n} stock${sw.n === 1 ? " is" : "s are"} held through two or more funds and in a long-term downtrend (${pct(sw.share)} of the rated list)${sw.symbols.length ? `, the largest: ${sw.symbols.slice(0, 3).join(", ")}` : ""}.` });
   return (
     <section className="card x-trend" aria-label="Short- and long-term trend underneath">
-      <div className="card-h"><h3>Short- and long-term trend underneath</h3><span className="s">{a.rated} of {a.n} stocks rated</span></div>
+      <div className="card-h"><h3>Short- and long-term trend{what.includes("fund") ? " underneath" : ""}</h3><span className="s">{a.rated} of {a.n} stocks rated</span></div>
       <ul className="x-trd">
         <li><span className="x-k">Long-term trend</span><span className={"x-pill " + (a.words.longTerm === "Mostly rising" ? "good" : a.words.longTerm === "Mostly falling" ? "warn" : "mid")}>{a.words.longTerm}</span><b>{a.average?.ltLabel}</b><small>Average of the rated stocks.</small></li>
         <li><span className="x-k">Short against long</span><span className={"x-pill " + (a.words.shortAgainstLong === "Improving" ? "good" : a.words.shortAgainstLong === "Fading" ? "warn" : "mid")}>{a.words.shortAgainstLong}</span><b>{a.average?.stLabel}</b><small>Average short-term trend.</small></li>

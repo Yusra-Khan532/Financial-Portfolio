@@ -9,7 +9,7 @@ export const MODE_LABEL: Record<Mode, string> = { eq: "Equal amounts", mc: "Size
 export const MODE_SHORT: Record<Mode, string> = { eq: "Equal amounts", mc: "By company value" };
 export const MODE_NOTE: Record<Mode, string> = { eq: "If equal amounts were held", mc: "If amounts were sized by company value" };
 export const READINGS_FOOT = "Written from your list's figures. They describe the list and are not advice. Change \"Count as\" to see them for amounts sized by company value.";
-export const NAV = [["where", "Where your list sits"], ["together", "What moves together"], ["risk", "Share of risk"], ["style", "Style"], ["shares", "Your shares"]] as const;
+export const NAV = [["where", "Where your list sits"], ["together", "What moves together"], ["risk", "Share of risk"], ["style", "Style"]] as const;
 export const SECTION_TAG: Record<string, { label: string; to: string }> = {
   where: { label: "Where it sits", to: "where" }, together: { label: "Moves together", to: "together" }, risk: { label: "Risk", to: "risk" },
   market: { label: "NIFTY 50", to: "risk" }, data: { label: "Data", to: "shares" },

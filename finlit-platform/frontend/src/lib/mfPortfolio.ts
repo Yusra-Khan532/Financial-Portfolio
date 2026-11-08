@@ -192,4 +192,4 @@ export type TrendRead = {
   business: Record<"strong_up" | "strong_down" | "weak_up" | "weak_down", { n: number; share: number; symbols: string[] }>; average: { stLabel: string; ltLabel: string } | null;
   words: { longTerm: string; shortAgainstLong: string; businessAndPrice: string };
 };
-export type MfTrend = { all: TrendRead; perFund: Record<string, TrendRead>; sharedWeakSpots: { n: number; share: number; symbols: string[] } };
+export type MfTrend = { all: TrendRead; perFund?: Record<string, TrendRead>; sharedWeakSpots?: { n: number; share: number; symbols: string[] } };

@@ -13,7 +13,7 @@ import { ptsWord, weeksText } from "../lib/rotation";
 import { count, failureText, fullDate, ordinal, pct, signedPct, useStockSector, type StockSector } from "../lib/sectors";
 import "../styles/sectors.css";
 
-const NOTE = "This section describes price, breadth and peer data. It is not a recommendation to buy, sell or hold any security. Study results are past averages and do not predict future returns.";
+const NOTE = "This section describes price, breadth and peer data. It is not a recommendation to buy, sell or hold any security.";
 const an = (w: string) => (/^[AEIOU]/i.test(w) ? "an" : "a");
 const QUARTER_WORD: Record<number, string> = { 1: "top quarter", 2: "2nd quarter", 3: "3rd quarter", 4: "bottom quarter" };
 
@@ -116,7 +116,7 @@ export function SectorPeersSection({ symbol, tech, score, jump }: { symbol: stri
   const locked = !!s?.locked?.stock;
   const line = s && !locked ? oneLine(symbol, s) : null;
   return (
-    <section className="block sx sx-stock" data-testid="sector-peers" style={{ "--sc": "var(--gold-deep)", paddingBlock: 0 } as React.CSSProperties}>
+    <section className="block sx sx-stock" data-testid="sector-peers" style={{ "--sc": "var(--gold-deep)", paddingBottom: 0 } as React.CSSProperties}>
       <SectionHead id="sector" no="14 · Sector & peers" icon="layers" tier="gold" title="Where its industry stands, and how it ranks inside it" sub="The industry's breadth cycle, the stock's rank inside it, its peers and its own chart, side by side." color="--gold-deep" />
       {q.isLoading && <div className="sx-skel" role="status" aria-label="Loading the sector reading" style={{ height: 120 }} />}
       {q.isError && <p className="sx-note" role="status" data-testid="sector-blank">{failureText(q.error)}</p>}
