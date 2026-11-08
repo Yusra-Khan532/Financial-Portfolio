@@ -148,7 +148,7 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
   const showImpact = !!c && (c.status === "ok" || c.status === "insufficient_data");
   const imp = useSectorImpact(showImpact && c?.mapping?.basis === "revenue_weighted");   // the full sector table is read only for a company that spans several sectors
 
-  const head = <SectionHead id="macro" no="Macro" icon="globe" title="MACRO & SECTOR OUTLOOK" sub="How the economy is moving for this company's sector." color="--p-growth" />;
+  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's sector" sub="Backdrop, sector impact, indicator signals and what they mean." color="--p-growth" />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;

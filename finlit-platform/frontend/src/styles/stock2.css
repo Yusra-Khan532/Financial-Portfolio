@@ -518,3 +518,13 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 @media (max-width: 560px) { .ob-dl { margin-left: 0; } .ob-ctl { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .ob-r, .ob-li { transition: none; } }
 .biz-src { position: relative; margin: 10px 0 0; font-size: 12px; }
+
+/* Task #37: the five DuPont factor cards sit in one fold ("Each factor explained"), closed to start with, so the section is shorter */
+.dp-fold { margin: 14px 0 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
+.dp-fold > summary { display: grid; gap: 2px; padding: 12px 16px; cursor: pointer; list-style: none; border-radius: 14px; min-height: 44px; align-content: center; }
+.dp-fold > summary::-webkit-details-marker { display: none; }
+.dp-fold > summary b { font: 600 var(--fs-16) var(--sans); color: var(--text); }
+.dp-fold > summary small { font-size: var(--fs-13); color: var(--muted); }
+.dp-fold > summary:hover, .dp-fold > summary:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--gold); }
+.dp-fold[open] > summary { border-bottom: 1px solid var(--border); border-radius: 14px 14px 0 0; }
+.dp-fold > .dp-tiles { padding: 14px 14px 4px; }

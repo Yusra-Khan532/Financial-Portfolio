@@ -117,7 +117,7 @@ export function SectorPeersSection({ symbol, tech, score, jump }: { symbol: stri
   const line = s && !locked ? oneLine(symbol, s) : null;
   return (
     <section className="block sx sx-stock" data-testid="sector-peers" style={{ "--sc": "var(--gold-deep)", paddingBlock: 0 } as React.CSSProperties}>
-      <SectionHead id="sector" no="Sector & peers" icon="layers" tier="gold" title="Where its industry stands, and how it ranks inside it" sub="The industry's breadth cycle, the stock's rank inside it, its peers and its own chart, side by side." color="--gold-deep" />
+      <SectionHead id="sector" no="14 · Sector & peers" icon="layers" tier="gold" title="Where its industry stands, and how it ranks inside it" sub="The industry's breadth cycle, the stock's rank inside it, its peers and its own chart, side by side." color="--gold-deep" />
       {q.isLoading && <div className="sx-skel" role="status" aria-label="Loading the sector reading" style={{ height: 120 }} />}
       {q.isError && <p className="sx-note" role="status" data-testid="sector-blank">{failureText(q.error)}</p>}
       {s && locked && (

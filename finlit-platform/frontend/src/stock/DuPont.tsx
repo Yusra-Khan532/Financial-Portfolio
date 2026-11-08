@@ -77,6 +77,7 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
           </HScroll>
           {canFive && <button type="button" className="alx-link dp-more" aria-pressed={five} onClick={() => setFive(!five)}>{five ? "Show the simple three-factor view" : "Split net margin further (tax, interest, operating)"}</button>}
           {d.factors.length > 0 && (
+            <details className="dp-fold"><summary><b>Each factor explained</b><small>{d.factors.length} factors, with the last five years of each</small></summary>
             <div className="dp-tiles" role="list">{d.factors.map((x) => {
               const sh = shareText(x), spark = years.filter((y) => y[x.key] != null).slice(-5), top = Math.max(...spark.map((y) => Math.abs(y[x.key] as number)), 0);
               const dig = x.key === "netMargin" ? 1 : 2, unit = x.key === "netMargin" ? "%" : "×";
@@ -91,6 +92,7 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
                   </div>
                 </div>);
             })}</div>
+            </details>
           )}
           {summary && <p className="dp-sum1"><span className="dp-bulb"><Icon name="spark" /></span><span>{summary}</span></p>}
           {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}

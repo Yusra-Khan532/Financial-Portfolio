@@ -63,7 +63,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
   };
   return (
     <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
-      <SectionHead id="price" no="03 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
+      <SectionHead id="price" no="04 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
       {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, which {t.vsEma200Pct < 0 ? "suggests the longer trend is weak" : "suggests the longer trend is healthy"}.</>}</Plain>}
       <div className="grid g3">
@@ -148,7 +148,7 @@ export function FinancialsSection({ f }: { f?: Financials }) {
   const alt = useSection<Financials>(sym, "financials", !!f && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!f) return <section className="block"><SectionHead id="financials" no="05 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow by year" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!f) return <section className="block"><SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow by year" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
   const tiles = finTiles(f), tbl: Table = kind === "q" ? f.quarterly.pl : f.yearly[kind];
   const ROWS: Record<string, [string, string, boolean?][]> = {
     pl: [["revenue", "Revenue"], ["other_income", "Other income"], ["expenses", "Expenses"], ["operating_profit", "Operating profit", true], ["finance_costs", "Interest"], ["depreciation", "Depreciation"], ["profit_before_tax", "Profit before tax", true], ["tax", "Tax"], ["net_profit", "Net profit", true], ["eps", "EPS (₹)"]],
@@ -159,7 +159,7 @@ export function FinancialsSection({ f }: { f?: Financials }) {
   const last = tbl.periods.length - 1;
   return (
     <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="05 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow by year" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
+      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow by year" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
       {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       <div className="grid g4" style={{ marginBottom: 16 }}>
         {tiles.map((t) => (

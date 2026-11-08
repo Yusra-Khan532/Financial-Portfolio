@@ -27,7 +27,7 @@ describe("Macro & Sector Outlook section", () => {
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Private banks")).toBeTruthy(); expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
     expect(within(bar).getByText("Credit +")).toBeTruthy(); expect(within(bar).getByText("Deposits +")).toBeTruthy(); expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByRole("button", { name: "How it works" })).toBeNull();
-    expect(screen.getByText("MACRO & SECTOR OUTLOOK")).toBeTruthy();
+    expect(screen.getByText("Macro and sector outlook")).toBeTruthy();
   });
   it("Sector impact keeps only the row marked This company: no other sector, no show-all button, 50 marked on the bar", async () => {
     const { container } = wrap();
