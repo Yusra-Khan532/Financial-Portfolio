@@ -24,7 +24,7 @@ from ..auth.routes import NO_STORE, Ctx, fail, limit, secure_ctx
 from . import MODEL_VERSION, scorehist
 from .api import DISCLAIMER, METHOD_URL, PRIVATE, _json, _sub_label, may_see, resolve_mf
 from .groups import GROUP_NAMES
-from .scorehist import PILLAR_NAME
+from .scorehist import PILLAR_NAME, part_word, part_words
 
 router = APIRouter(prefix="/api/mf")
 CACHE_SECONDS = 600
@@ -70,7 +70,7 @@ async def cached(request: Request, name: str, params: Any, build) -> Any:
 def item_of(r: Dict[str, Any]) -> Dict[str, Any]:
     return {"key": r["key"], "kind": r["kind"], "code": r["code"], "symbol": r["symbol"], "name": r["name"] or r["symbol"] or r["key"], "amc": r["amc"], "plan": r["plan"],
             "group": r["grp"], "sub": r["sub"], "categoryLabel": _sub_label(r["category"]) if r["kind"] == "mf" else "Exchange-traded fund", "final": r["final"], "label": r["label"],
-            "status": r["status"], "reason": r["reason"], "pillars": {"performance": r["perf"], "risk": r["risk"], "cost": r["cost"], "quality": r["quality"]},
+            "status": r["status"], "reason": r["reason"], "pillars": part_words(r["perf"], r["risk"], r["cost"], r["quality"]),
             "rank": r["rank"], "rankOf": r["rank_of"], "aumCr": None if r["aum_lakh"] is None else round(r["aum_lakh"] / 100.0, 1), "ageYears": r["age_years"],
             "ter": r["ter"], "r1y": r["r1y"], "r3y": r["r3y"], "r5y": r["r5y"], "fullData": r["confidence"] is not None and r["confidence"] >= 0.999,
             "flags": list(r["flags"] or [])}
@@ -245,11 +245,12 @@ async def leaderboard(request: Request, sub: str = Query(..., min_length=1, max_
             rows = await conn.fetch(f"{SELECT} WHERE m.kind <> 'etf' AND m.sub = $1 AND m.plan = $2 AND m.final IS NOT NULL ORDER BY m.final DESC, m.key LIMIT 400", sub, plan)  # nosec B608 - fixed text
             n_all = await conn.fetchval("SELECT count(*) FROM mf_scores WHERE kind <> 'etf' AND sub = $1 AND plan = $2", sub, plan)
             run = await conn.fetchval("SELECT max(run_date) FROM mf_scores")
+        raw = [{k: r[c] for k, c in (('performance', 'perf'), ('risk', 'risk'), ('cost', 'cost'), ('quality', 'quality'))} for r in rows]
         items = [item_of(dict(r)) for r in rows]
         near = any("NEAR_IDENTICAL" in it["flags"] for it in items)
         stats = {**spread_of([it["final"] for it in items]), "n": len(items), "notRated": max(0, n_all - len(items))}
         for k in ("performance", "risk", "cost", "quality"):
-            stats[k] = spread_of([it["pillars"][k] for it in items if it["pillars"][k] is not None])["median"]
+            stats[k] = part_word(spread_of([raw[i][k] for i in range(len(items)) if raw[i][k] is not None])["median"])
         label = items[0]["categoryLabel"] if items else None
         return {"locked": False, "sub": sub, "plan": plan, "categoryLabel": label, "items": items, "stats": stats, "nearIdentical": near,
                 "nearIdenticalText": "Funds in this category are near-identical: their returns differ by a few hundredths of a percentage point, so cost carries the most weight and small score gaps mean little." if near else None,

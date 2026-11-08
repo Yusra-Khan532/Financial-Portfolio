@@ -280,7 +280,7 @@ def test_part_words_and_no_weights_in_the_pillars_the_site_gets():
     row = {"breakdown": "{}", "perf": 71.0, "risk": 55.5, "cost": 30.0, "quality": None}
     parts = score_api.pillars_view("EQ-LARGE", row, True)
     assert [p["reading"] for p in parts] == ["Strong", "Fair", "Weak", "Not scored"]
-    assert all("weight" not in p for p in parts)
+    assert all("weight" not in p and "score" not in p for p in parts)
     locked = score_api.locked_payload("EQ-LARGE", "Direct")
-    assert all("weight" not in p and p["reading"] is None and p["score"] is None for p in locked["pillars"])
+    assert all("weight" not in p and p["reading"] is None and "score" not in p for p in locked["pillars"])
     assert score_api.PRIVATE_METRIC_KEYS == ("weight", "pillarWeight")

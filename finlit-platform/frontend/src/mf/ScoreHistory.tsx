@@ -2,7 +2,7 @@
 // "what changed since last month" sentence, all from the weekly rows the server stored. Gold; the server sends nothing below Gold.
 import { useMemo, useState } from "react";
 import { PILLARS, ZONES, useScoreHistory, type HistPoint, type PillarKey } from "../lib/mfScoreUp";
-import { scoreText } from "../lib/mfScore";
+import { scoreText, wordPos } from "../lib/mfScore";
 import { dateIN } from "../lib/format";
 import "../styles/mfup.css";
 import { ChartZoom } from "../components/ChartZoom";
@@ -38,7 +38,7 @@ export function HistoryChart({ points }: { points: HistPoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Score over time, ${pts.length} weekly points, latest ${scoreText(pts[pts.length - 1]?.final)}`} onPointerMove={move} onPointerLeave={() => setHover(null)}>
         {ZONES.map(([n, a, b], i) => <g key={n}><rect x={L} y={y(b)} width={W - L - Rr} height={y(a) - y(b)} fill={ZCOL[i]} opacity={ZOP[i]} /><text x={W - Rr - 4} y={y(b) + 12} textAnchor="end" className="mfu-zl">{n}</text></g>)}
         {[0, 35, 50, 65, 80, 100].map((g) => <g key={g}><line x1={L} x2={W - Rr} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth="0.6" /><text x={L - 5} y={y(g) + 3} textAnchor="end" className="mfu-ax">{g}</text></g>)}
-        {PILLARS.map(([k]) => on[k] && <path key={k} d={line((p) => p.pillars[k])} fill="none" stroke={PCOL[k]} strokeWidth="1.5" strokeDasharray="4 3" />)}
+        {PILLARS.map(([k]) => on[k] && <path key={k} d={line((p) => wordPos(p.pillars[k]))} fill="none" stroke={PCOL[k]} strokeWidth="1.5" strokeDasharray="4 3" />)}
         <path d={line((p) => p.final)} fill="none" stroke="var(--text)" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
         {pts.map((p, i) => <circle key={p.week} cx={x(p.date)} cy={y(p.final!)} r={i === hover ? 5 : pts.length > 40 ? 0 : 3} fill="var(--bg)" stroke="var(--text)" strokeWidth="2" />)}
         {ticks.map((p) => <text key={p.week} x={x(p.date)} y={H - 7} textAnchor="middle" className="mfu-ax">{dateIN(p.date, { day: "numeric", month: "short", year: "2-digit" })}</text>)}
@@ -47,7 +47,7 @@ export function HistoryChart({ points }: { points: HistPoint[] }) {
       {h && (
         <div className="mfu-tip" role="status" style={{ left: `${Math.min(78, Math.max(2, (x(h.date) / W) * 100 - 8))}%` }}>
           <b>{dateIN(h.date)}</b> Score {scoreText(h.final)} · {h.label}{h.status === "PROVISIONAL" ? " (provisional)" : ""}
-          <small>{PILLARS.map(([k, n]) => `${n} ${scoreText(h.pillars[k])}`).join(" · ")}{h.rank ? ` · place ${h.rank} of ${h.rankOf}` : ""}</small>
+          <small>{PILLARS.map(([k, n]) => `${n} ${h.pillars[k] || "Not scored"}`).join(" · ")}{h.rank ? ` · place ${h.rank} of ${h.rankOf}` : ""}</small>
         </div>)}
     </div>
     </ChartZoom>

@@ -3,8 +3,8 @@
 import { Link } from "react-router";
 import { useUI } from "../lib/ui";
 import { Icon } from "../lib/icons";
-import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText, useScores, type ScoreItem } from "../lib/mfScore";
-import { LEVEL_TOLERANCE, PILLARS, compareTo, useManyHistory } from "../lib/mfScoreUp";
+import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText, wordBand, wordPos, useScores, type ScoreItem } from "../lib/mfScore";
+import { LEVEL_TOLERANCE, PILLARS, compareTo, compareWords, useManyHistory } from "../lib/mfScoreUp";
 import { Radar } from "./Radar";
 import { ScoreRing } from "./ScoreCard";
 import { dateIN } from "../lib/format";
@@ -13,6 +13,9 @@ import { ChartZoom } from "../components/ChartZoom";
 
 const COLORS = ["var(--gold)", "var(--k1)", "var(--k2)", "var(--k3)"];
 const WORD = { ahead: "ahead", level: "level", behind: "behind", na: "" } as const;
+const wordCell = (locked: boolean, w: string | null | undefined, why?: string | null) =>
+  locked ? <span className="mf-na" title="Part of the Gold plan"><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>
+    : !w || w === "Not scored" ? <span className="mf-na" title={why || "No score"}>—</span> : <b className={"mfs-pv b-" + wordBand(w)}>{w}</b>;
 const cellOf = (locked: boolean, v: number | null | undefined, why?: string | null) =>
   locked ? <span className="mf-na" title="Part of the Gold plan"><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>
     : v == null ? <span className="mf-na" title={why || "No score"}>—</span> : <b className={"mfs-pv b-" + bandOf(v)}>{scoreText(v)}</b>;
@@ -53,16 +56,16 @@ export function ScoreCompare({ codes, names = [] }: { codes: number[]; names?: s
       {!locked && its.some((i) => i?.final != null) && (
         <div className="mfu-cmptop">
           <div className="mfu-rings">{codes.map((c, i) => <div key={c}><ScoreRing score={its[i]?.final ?? null} label={its[i]?.label ?? null} size={92} /><small style={{ color: COLORS[i] }}>{nm[i]}</small></div>)}</div>
-          <Radar label="The four parts of each fund" series={codes.map((_, i) => ({ name: nm[i], values: PILLARS.map(([k]) => its[i]?.pillars?.[k] ?? null), color: COLORS[i], dashed: i > 0 && false }))} />
+          <Radar label="The four parts of each fund" series={codes.map((_, i) => ({ name: nm[i], values: PILLARS.map(([k]) => wordPos(its[i]?.pillars?.[k])), color: COLORS[i], dashed: i > 0 && false }))} />
         </div>)}
       <div className="tw"><table className="mf-cmp"><caption className="sr-only">Score and its four parts</caption>
         <thead><tr><th scope="col"><span className="sr-only">Measure</span></th>{codes.map((c, i) => <th scope="col" key={c}><Link to={`/funds/${c}`}>{nm[i]}</Link></th>)}</tr></thead>
         <tbody>
           <tr><th scope="row">Score (0 to 100)</th>{codes.map((c, i) => { const it = its[i]; return <td key={c}>{cellOf(locked, it?.final, it?.reason)}{!locked && it?.label && <small className="muted"> {it.label}{it.status === "PROVISIONAL" ? ", provisional" : ""}</small>}{!locked && i > 0 && compareTo(it?.final, ref?.final) !== "na" && <em className={"mfu-ahead " + compareTo(it?.final, ref?.final)}>{WORD[compareTo(it?.final, ref?.final)]}</em>}</td>; })}</tr>
-          {PILLARS.map(([k, label]) => <tr key={k}><th scope="row">{label}</th>{codes.map((c, i) => { const it: ScoreItem | undefined = its[i], a = compareTo(it?.pillars?.[k], ref?.pillars?.[k]); return <td key={c}>{cellOf(locked, it?.pillars?.[k], it?.reason)}{!locked && i > 0 && a !== "na" && <em className={"mfu-ahead " + a}>{WORD[a]}</em>}</td>; })}</tr>)}
+          {PILLARS.map(([k, label]) => <tr key={k}><th scope="row">{label}</th>{codes.map((c, i) => { const it: ScoreItem | undefined = its[i], a = compareWords(it?.pillars?.[k], ref?.pillars?.[k]); return <td key={c}>{wordCell(locked, it?.pillars?.[k], it?.reason)}{!locked && i > 0 && a !== "na" && <em className={"mfu-ahead " + a}>{WORD[a]}</em>}</td>; })}</tr>)}
           <tr><th scope="row">Rank in its category</th>{codes.map((c, i) => { const it = its[i]; return <td key={c}>{locked ? <Icon name="lock" /> : it?.rank ? `${it.rank} of ${it.rankOf}` : "—"}</td>; })}</tr>
         </tbody></table></div>
-      {!locked && <p className="faint mf-fine">Ahead, level or behind compares each fund with the first one, part by part. Level means within {LEVEL_TOLERANCE} points. These are gaps on a 0 to 100 score, not a verdict.</p>}
+      {!locked && <p className="faint mf-fine">Ahead, level or behind compares each fund with the first one, part by part. The four parts are shown as words: a higher word is ahead and the same word is level. The total score is level within {LEVEL_TOLERANCE} points. These are readings, not a verdict.</p>}
       {!locked && <Lines codes={codes} names={nm} />}
       {passive && <p className="mf-fine"><Link to="/etfs/compare-index-funds">ETF vs index fund</Link>: see an ETF and an index fund on the same index side by side.</p>}
       <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} Compare funds of the same category and plan: a score is measured against funds of the same kind.</p>

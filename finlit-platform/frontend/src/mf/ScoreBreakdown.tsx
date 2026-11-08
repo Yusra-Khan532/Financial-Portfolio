@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Radar } from "./Radar";
 import { Icon } from "../lib/icons";
 import { PEER_KIND_WORD, PILLARS, STATE_WORD, dataGaps, groupMetrics, stateLine, type CategoryMedian } from "../lib/mfScoreUp";
-import { bandOf, scoreText, type FundScore } from "../lib/mfScore";
+import { bandOf, scoreText, wordBand, wordPos, type FundScore } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import "../styles/mfup.css";
 
@@ -15,12 +15,12 @@ export function ScoreBreakdown({ s }: { s: S }) {
   const [open, setOpen] = useState(false);
   if (s.final == null || !s.metrics?.length) return null;
   const groups = groupMetrics(s), gaps = dataGaps(s), med = s.categoryMedian;
-  const own = PILLARS.map(([k]) => s.pillars.find((p) => p.key === k)?.score ?? null);
+  const own = PILLARS.map(([k]) => wordPos(s.pillars.find((p) => p.key === k)?.reading));
   return (
     <div className="mfu-bd" data-testid="score-breakdown">
       <h3 className="mf-h4">Score breakdown</h3>
       <div className="mfu-bdtop">
-        <Radar label="The four parts against the category median" series={[{ name: "This fund", values: own, color: "var(--gold)" }, ...(med ? [{ name: `Category median${med.n ? ` (${med.n} funds)` : ""}`, values: PILLARS.map(([k]) => med[k]), color: "var(--k1)", dashed: true }] : [])]} />
+        <Radar label="The four parts against the category median" series={[{ name: "This fund", values: own, color: "var(--gold)" }, ...(med ? [{ name: `Category median${med.n ? ` (${med.n} funds)` : ""}`, values: PILLARS.map(([k]) => wordPos(med[k])), color: "var(--k1)", dashed: true }] : [])]} />
         <div className="mfu-facts">
           <dl>
             <dt>NAV history used</dt><dd>{s.months ? `${s.months} months (${(s.months / 12).toFixed(1)} years)` : "—"}</dd>
@@ -41,7 +41,7 @@ export function ScoreBreakdown({ s }: { s: S }) {
           <thead><tr><th scope="col">Measure</th><th scope="col" className="num">This fund</th><th scope="col" className="num">Peer median</th><th scope="col" className="num">Points</th><th scope="col">State</th></tr></thead>
           {groups.map((g) => (
             <tbody key={g.key}>
-              <tr className="mfu-ph"><th scope="colgroup" colSpan={5}>{PILLARS.find(([k]) => k === g.key)![1]} <b className={"b-" + bandOf(g.score)}>{scoreText(g.score)}</b></th></tr>
+              <tr className="mfu-ph"><th scope="colgroup" colSpan={5}>{PILLARS.find(([k]) => k === g.key)![1]} <b className={"b-" + wordBand(g.word)}>{g.word || "Not scored"}</b></th></tr>
               {g.metrics.map((m) => (
                 <tr key={m.id}>
                   <th scope="row">{m.label}</th><td className="num">{num(m.own ?? m.value)}</td><td className="num">{num(m.peer)}</td>

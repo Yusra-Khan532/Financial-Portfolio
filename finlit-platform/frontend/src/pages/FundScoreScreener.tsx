@@ -8,7 +8,7 @@ import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import { apiUrl } from "../lib/api";
 import { nf } from "../lib/format";
-import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText } from "../lib/mfScore";
+import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText, wordBand, wordPos } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import {
   LABELS, PAGE, PILLARS, VIEWS, activeView, chips, clearChip, csvUrl, emptyQuery, paramsToQuery, queryToParams, useFacets, useLeaderboard, useScreener,
@@ -207,7 +207,7 @@ function Screener() {
                   <td className="sx-n">{(q.page - 1) * PAGE + i + 1}</td>
                   <th scope="row" className="mf-name stick"><Link to={link(it)}>{it.name}</Link><small>{it.amc?.replace(/\s*mutual fund\s*$/i, "")}</small></th>
                   <td className="num"><b className={"mfs-pv b-" + bandOf(it.final)}>{scoreText(it.final)}</b><small className="mfu-lb">{it.label}{it.status === "PROVISIONAL" ? " · prov." : ""}</small></td>
-                  {PILLARS.map(([k]) => <td className="num" key={k}><b className={"mfs-pv b-" + bandOf(it.pillars[k])}>{scoreText(it.pillars[k])}</b></td>)}
+                  {PILLARS.map(([k]) => <td className="num" key={k}><b className={"mfs-pv b-" + wordBand(it.pillars[k])}>{it.pillars[k] || "—"}</b></td>)}
                   <td>{it.categoryLabel}</td><td>{it.plan}</td>
                   <td className="num">{it.aumCr == null ? "—" : nf(it.aumCr, 0)}</td><td className="num">{it.ageYears == null ? "—" : it.ageYears.toFixed(1)}</td><td className="num">{it.ter == null ? "—" : it.ter.toFixed(2)}</td>
                   <td className="num">{it.r1y == null ? "—" : nf(it.r1y, 1)}</td><td className="num">{it.r3y == null ? "—" : nf(it.r3y, 1)}</td><td className="num">{it.r5y == null ? "—" : nf(it.r5y, 1)}</td>
@@ -242,7 +242,7 @@ function Board({ q, cats, set }: { q: SQuery; cats: { sub: string; label: string
             <li key={it.key}>
               <span className="mfu-pos" aria-label={`Ranks ${i + 1} of ${d.items.length} on this score`}>{i + 1}</span>
               <Link to={it.kind === "mf" ? `/funds/${it.code}` : `/etfs/${it.symbol}`} className="mfu-ln">{it.name}</Link>
-              <span className="mfu-mini" aria-hidden="true">{PILLARS.map(([k, n]) => <i key={k} title={`${n} ${scoreText(it.pillars[k])}`} style={{ height: `${Math.max(6, it.pillars[k] ?? 0)}%`, background: bandVar(bandOf(it.pillars[k])) }} />)}</span>
+              <span className="mfu-mini" aria-hidden="true">{PILLARS.map(([k, n]) => <i key={k} title={`${n} ${it.pillars[k] || "Not scored"}`} style={{ height: `${wordPos(it.pillars[k]) ?? 6}%`, background: bandVar(wordBand(it.pillars[k])) }} />)}</span>
               <b className={"mfs-pv b-" + bandOf(it.final)}>{scoreText(it.final)}</b><small>{it.label}</small>
             </li>))}</ol>
           <p className="faint mf-fine">Order is by this score only: a fund higher in the list ranks higher on this score. {MF_SCORE_COMPLIANCE}</p>

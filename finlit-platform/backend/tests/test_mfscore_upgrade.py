@@ -88,9 +88,9 @@ def test_change_sentence_uses_stored_rows_and_neutral_words():
     assert scorehist.changed_since([rowd(RUN, 60)]) is None
     assert scorehist.changed_since([rowd(RUN - timedelta(days=7), 60), rowd(RUN, 62)]) is None      # a week apart: too near for a month sentence
     c = scorehist.changed_since([rowd(RUN - timedelta(days=28), 68, perf=70, rank=4), rowd(RUN - timedelta(days=14), 65), rowd(RUN, 61, perf=60, risk=49, rank=9)])
-    assert c["delta"] == -7.0 and c["from"] == 68 and c["to"] == 61 and c["pillar"]["key"] == "performance" and c["pillar"]["delta"] == -10.0
+    assert c["delta"] == -7.0 and c["from"] == 68 and c["to"] == 61 and c["pillar"]["key"] == "performance" and c["pillar"]["direction"] == "down" and "delta" not in c["pillar"]
     assert c["rankFrom"] == 4 and c["rankTo"] == 9
-    assert "moved down 7 points" in c["text"] and "Performance moved most (-10.0)" in c["text"] and "Healthy to Average" in c["text"] and "4 to 9 of 20" in c["text"]
+    assert "moved down 7 points" in c["text"] and "Performance moved most (down)" in c["text"] and "Healthy to Average" in c["text"] and "4 to 9 of 20" in c["text"]
     flat = scorehist.changed_since([rowd(RUN - timedelta(days=28), 61), rowd(RUN, 61)])
     assert "unchanged" in flat["text"]
     for w in ("buy", "sell", "hold", "recommend", "best", "winner", "avoid", "top pick"):
@@ -261,8 +261,9 @@ async def test_screener_filters_sort_pages_and_csv(app):
     mid = sorted(i["final"] for i in asc)[10]
     f = (await g(f"min={mid}&limit=200")).json()
     assert f["total"] == sum(1 for i in asc if i["final"] >= mid) and all(i["final"] >= mid for i in f["items"])
-    f = (await g(f"cost_min=0&risk_max=100&perf_min={asc[5]['pillars']['performance']}")).json()
-    assert all(i["pillars"]["performance"] >= asc[5]["pillars"]["performance"] for i in f["items"])
+    assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # the parts are words; no figure leaves the server
+    f = (await g("cost_min=0&risk_max=100&perf_min=50")).json()
+    assert f["total"] > 0
     lab = asc[-1]["label"]
     assert all(i["label"] == lab for i in (await g(f"labels={lab}&limit=200")).json()["items"])
     assert (await g("sub=no-such-category")).json()["total"] == 0
@@ -343,3 +344,33 @@ async def test_admin_views_are_admin_only(app):
     assert h["history"]["rows"] == 30 * 3 and h["peerSizes"]["buckets"][0] == "0 to 7" and isinstance(h["topMissing"], list)
     cal = (await admin.get("/api/admin/mf-score/calibration?months_ago=12")).json()
     assert cal["internal"] is True and "not a forecast" in cal["label"] and cal["funds"] == 0 and cal["quintiles"] == [] and "too short" in cal["note"]
+
+
+async def test_gold_gets_part_words_never_part_figures(app):
+    funds, scores = await seed(app, n=12, weeks=4)
+    gold = await signed_in(app, "gw@example.com", plan="gold")
+    code = funds[0].code
+    sub = (await gold.get("/api/mf/score-screener")).json()["items"][0]["sub"]
+    paths = [f"/api/mf/{code}/score", f"/api/mf/scores?codes={code}", "/api/mf/score-screener", f"/api/mf/leaderboard?sub={sub}&plan=Direct", f"/api/mf/{code}/score/history"]
+    parts = {"performance", "risk", "cost", "quality"}
+
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k in parts and k != "reading":
+                    assert v is None or isinstance(v, str), (k, v)       # a part is a word, never a number
+                if k == "pillars" and isinstance(v, dict):
+                    assert all(w is None or isinstance(w, str) for w in v.values())
+                if k == "pillar" and v:
+                    assert "delta" not in v
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    for p in paths:
+        r = await gold.get(p)
+        assert r.status_code == 200, p
+        j = r.json()
+        walk(j)
+        for pill in (j.get("pillars") if isinstance(j.get("pillars"), list) else []):
+            assert "score" not in pill, p
