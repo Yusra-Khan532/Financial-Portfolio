@@ -10,6 +10,7 @@ const st = vi.hoisted(() => ({ data: null as unknown }));
 const mutation = () => ({ mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false, isError: false, error: null, reset: vi.fn() });
 vi.mock("../lib/mfPortfolio", async (orig) => ({
   ...(await orig<typeof import("../lib/mfPortfolio")>()),
+  useMfSpread: () => ({ data: undefined, isPending: false, isError: false, error: null }),
   useMfPortfolio: () => ({ data: st.data, isPending: false, isError: false, error: null, refetch: () => {} }),
   useMfWrites: () => new Proxy({}, { get: () => mutation() }),
 }));

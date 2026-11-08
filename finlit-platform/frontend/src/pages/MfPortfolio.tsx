@@ -15,12 +15,14 @@ import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStateme
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
 import {
   MF_INFO_ONLY, MF_SCORE_LINE, PARTS, STATUS_WORD, commitItems, crores, csvFileName, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings, toCsv,
-  useMfPortfolio, useMfWrites, type Decision, type Fund, type Holding, type Preview, type ReviewRow, type SortKey,
+  useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Holding, type Preview, type ReviewRow, type SortKey,
   shares, typeOf,
 } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
 import "../styles/mf.css";
 import "../styles/mfportfolio.css";
+import "../styles/mfspread.css";
+import { SpreadSection } from "../mf/Spread";
 import { ChartZoom } from "../components/ChartZoom";
 
 const K = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k7)", "var(--k5)", "var(--k4)", "var(--k6)", "var(--k8)", "var(--k1)"];
@@ -172,7 +174,7 @@ export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "Add the mutual funds you hold, by search or from your CAS PDF, Excel or CSV statement, and see each fund's NAV, returns and FinLit Health Score.");
   const { plan, has, toast, upgrade } = useUI();
   const silver = has("silver");
-  const q = useMfPortfolio(silver), w = useMfWrites();
+  const q = useMfPortfolio(silver), w = useMfWrites(), sp = useMfSpread(silver && !!q.data && q.data.count > 0);
   const [params] = useSearchParams();
   const [tab, setTab] = useState<"add" | "import">(params.get("tab") === "import" ? "import" : "add"), [key, setKey] = useState<SortKey>("name"), [dir, setDir] = useState<"asc" | "desc">("asc");
   const [group, setGroup] = useState<string>("All funds");   // the group tab (the categories under it are shown for reading only, they are not a filter)
@@ -216,6 +218,7 @@ export function MfPortfolioPage() {
           <div className="mp-tiles">
             <div className="card"><small>Funds</small><b>{s.funds}</b><span className="faint">of {limit} in your plan</span></div>
             <div className="card"><small>Portfolio Health Score</small>{locked ? <button className="mp-lock" onClick={unlock}><Icon name="lock" /><span>Gold</span></button> : <b className={"mfs-pv b-" + bandOf(s.score.value)}>{s.score.value == null ? "–" : scoreText(s.score.value)}</b>}<span className="faint">{locked ? "Unlock with Gold" : s.score.value != null ? `${s.score.label}. Average of your funds; weighted by value once units are added` : s.score.why}</span></div>
+            {sp.data && sp.data.count > 0 && <a className="card" href="#diversification"><small>Diversification</small><b>{sp.data.overall}</b><span className="faint">How spread your funds are</span></a>}
           </div>
           {s.notes.map((n) => <p key={n} className="faint mp-note" role="note">{n}</p>)}
           <section className="card mp-cat" aria-label="Your funds by category">
@@ -249,6 +252,9 @@ export function MfPortfolioPage() {
               </Fragment>))}</tbody></table></div>
             <p className="faint mp-note">Each fund's latest published NAV is shown with its date. Returns are the fund's own 1, 3 and 5 year returns (3 and 5 per year). {MF_INFO_ONLY}</p>
           </section>
+          {sp.isPending && <p className="faint mp-note" aria-busy="true">Working out how spread your funds are…</p>}
+          {sp.isError && <p className="faint mp-note" role="status">How spread your funds are could not be worked out right now. {errText(sp.error)}</p>}
+          {sp.data && sp.data.count > 0 && <SpreadSection d={sp.data} />}
         </>}
       </Gate>
       <PortfolioDisclaimer kind="mf" />

@@ -165,3 +165,22 @@ export function shares(hs: Holding[], keyOf: (h: Holding) => string | null): { s
   const total = [...m.values()].reduce((a, b) => a + b, 0);
   return { slices: [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value, pct: total ? Math.round((value / total) * 1000) / 10 : 0 })), by: byValue ? "value" : "count", left };
 }
+
+// ------------------------------------------------------------------------------------------------------------------ how spread the funds are
+
+export type SpreadReading = { word: string } & Record<string, any>;
+export type MfSpread = {
+  count: number; why?: string; basis: "value" | "equal"; overall: string; knownShares: number; disclaimer: string;
+  readings: { together: SpreadReading & { independent: number; of: number; range: [number, number] | null }; underneath: SpreadReading & { stocks: number; inTwoOrMore: number; inTwoOrMoreShare: number };
+    overlap: SpreadReading & { top: { a: number; b: number; pct: number; n: number } | null }; theme: SpreadReading & { theme: string | null; funds: number[] };
+    houses: SpreadReading & { top: string; count: number }; assets: SpreadReading & { equityShare: number } };
+  mix: { shares: number; sharesUnknown: number; debt: number; other: number };
+  size: { Large: number; Mid: number; Small: number; Other: number };
+  sectors: { name: string; share: number }[];
+  topStocks: { name: string; symbol: string | null; sector: string | null; w: number; funds: number[] }[];
+  overlap: { a: number; b: number; pct: number; n: number }[];
+  together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };
+  coverage: { funds: number; disclosed: number; missing: number[] };
+  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
+};
+export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
