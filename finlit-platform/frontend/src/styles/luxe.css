@@ -7,7 +7,7 @@
   /* the accent on dark surfaces: follows the chosen appearance (palettes set --dk-gold*) */ --acc: var(--dk-gold, #D9B96C); --acc-2: var(--dk-gold-2, #EBD59F); --acc-deep: var(--dk-gold-deep, #A8843A); --paper-line: rgba(122, 91, 22, .16); --r-card: 18px; --r-ctl: 12px; }
 :root[data-theme="light"] {
   --bg: #F5F0E4; --s1: #FDFBF6; --s2: #EFE8D7; --s3: #E4DBC6; --border: #DDD3BD; --border-strong: #BCB093;
-  --header: rgba(245, 240, 228, .86);
+  --header: #F5F0E4;   /* solid: the page scrolls under the bar and must never show through it */
   --rep-a: #183024; --rep-b: #0C1812; --rep-border: #38543F; --band-a: #1A3025; --band-b: #0E1A13; --foot-a: #16251D; --foot-b: #09120D; --pop-bg: #1F2A23; --tape-bg: #0B140F;
   --card-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 1px 2px rgba(60, 45, 15, .07), 0 18px 36px -24px rgba(60, 45, 15, .30);
   --card-shadow-hover: 0 1px 0 rgba(255,255,255,.9) inset, 0 2px 4px rgba(60, 45, 15, .08), 0 26px 44px -22px rgba(60, 45, 15, .38);
@@ -15,7 +15,7 @@
 }
 :root:not([data-theme="light"]) {
   --bg: #0A0D0C; --s1: #111513; --s2: #181D1A; --s3: #212724; --border: #242A27; --border-strong: #3A423E;
-  --header: rgba(10, 13, 12, .84);
+  --header: #0A0D0C;   /* solid: the page scrolls under the bar and must never show through it */
   --rep-a: #14201A; --rep-b: #0B100D; --rep-border: #2F3F35; --band-a: #141F19; --band-b: #090D0B; --foot-a: #101813; --foot-b: #080B09; --pop-bg: #1A231E; --tape-bg: #070A08;
   --card-shadow: 0 1px 0 rgba(255,255,255,.045) inset, 0 1px 2px rgba(0,0,0,.5), 0 18px 36px -22px rgba(0,0,0,.8);
   --card-shadow-hover: 0 1px 0 rgba(255,255,255,.06) inset, 0 2px 4px rgba(0,0,0,.5), 0 28px 48px -22px rgba(0,0,0,.9);
@@ -37,8 +37,8 @@ h1 { font-weight: 350; } h2 { font-weight: 400; }
 .eyebrow::before { content: ""; width: 22px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
 p { text-wrap: pretty; }
 
-/* ---- header: translucent paper with a gold hairline under it ---- */
-.top { background: var(--header); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); border-bottom: 0; }
+/* ---- header: solid paper with a gold hairline under it (never translucent: charts and labels must not show through) ---- */
+.top { background: var(--header); border-bottom: 0; isolation: isolate; }
 .top::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--paper-line) 12%, color-mix(in srgb, var(--gold) 45%, transparent) 50%, var(--paper-line) 88%, transparent); }
 .topnav a, .topnav button { transition: color .15s; }
 
