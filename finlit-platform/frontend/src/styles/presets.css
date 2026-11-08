@@ -108,3 +108,7 @@
 .psx-pg-b { display: flex; flex-wrap: wrap; gap: 8px; }
 .psx-pg-b .btn { min-height: 40px; } .psx-pg-b .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 520px) { .psx-pager { flex-direction: column; align-items: stretch; } .psx-pg-b { display: grid; grid-template-columns: 1fr 1fr; } }
+
+/* Task #44: the enlarge arrow sits in the card's top-right corner; the first row of the score screeners' result card (the selection actions) keeps clear of it */
+.scr-main:has(.cz-table) > .sx-bulk { padding-right: 52px; }
+@media (pointer: coarse), (max-width: 640px) { .scr-main:has(.cz-table) > .sx-bulk { padding-right: 0; padding-top: 44px; } }
