@@ -54,10 +54,10 @@ export function MixCards({ lines, model, parts }: { lines: { v: number | null }[
   return (
     <div className="pfx-stack">
       <section className="pfx-card" aria-labelledby="pfx-mix"><h2 id="pfx-mix">{name} score mix</h2>
-        {([["hi", "Green, 70+"], ["mid", "Orange, 50–69"], ["lo", "Red, under 50"]] as const).map(([b, l]) => (
+        {([["hi", "Green, strong"], ["mid", "Orange, fair"], ["lo", "Red, weak"]] as const).map(([b, l]) => (
           <div className="pfx-mixrow" key={b}><span>{l}</span><span className="pfx-bar"><i style={{ width: `${(mix[b] / max) * 100}%`, background: bandVar(b) }} /></span><b>{mix[b]}</b></div>))}</section>
       <section className="pfx-card" aria-labelledby="pfx-avg"><h2 id="pfx-avg">Average by {name} {model === "prism" ? "part" : "pillar"}</h2>
-        {parts.map((p) => (<div className="pfx-mixrow" key={p.label}><span>{p.label}</span><span className="pfx-bar"><i style={{ width: `${p.value ?? 0}%`, background: bandVar(scoreBand(p.value)) }} /></span><b>{p.value == null ? MINUS : Math.round(p.value)}</b></div>))}
+        {parts.map((p) => (<div className="pfx-mixrow" key={p.label}><span>{p.label}</span><span className="pfx-bar"><i style={{ width: `${p.value ?? 0}%`, background: bandVar(scoreBand(p.value)) }} /></span><b>{p.value == null ? MINUS : p.value >= 70 ? "Strong" : p.value >= 50 ? "Fair" : "Weak"}</b></div>))}
         <p className="pfx-fine">Each share counts once.{model === "prism" ? " A high Risk score means lower risk. Scores use FinLit Prism." : " Scores use the FinLit IQ."}</p></section>
     </div>
   );

@@ -25,7 +25,7 @@ export function Summary({ page, metas, lines, model, n, state }: { page: PageObj
       <div className="pfx-card pfx-k"><p className="pfx-eyebrow"><span className="pfx-long">Average {modelName(model)} score</span><span className="pfx-compact">Avg {modelName(model)}</span></p>
         <p className="pfx-big" style={avg == null ? undefined : { color: bandInk(scoreBand(avg)) }}>{avg ?? MINUS}</p>
         {scores.length > 0 && <div className="pfx-mixbar" aria-hidden="true">{(["hi", "mid", "lo"] as const).map((b) => mix[b] > 0 && <span key={b} style={{ flex: mix[b], background: bandVar(b) }} />)}</div>}
-        <p className="pfx-sub">{scores.length ? <><b className="pfx-hi">{mix.hi} green</b><span className="pfx-long"> (70+)</span> · <b className="pfx-mid">{mix.mid} orange</b><span className="pfx-long"> (50–69)</span><span className="pfx-long"> · {mix.lo} red</span></>
+        <p className="pfx-sub">{scores.length ? <><b className="pfx-hi">{mix.hi} strong</b> · <b className="pfx-mid">{mix.mid} fair</b><span className="pfx-long"> · {mix.lo} weak</span></>
           : lines.length ? "No share is scored yet: scores appear as each report is ready." : MINUS}</p></div>
       <div className="pfx-card pfx-k"><p className="pfx-eyebrow"><span className="pfx-long">Diversification score</span><span className="pfx-compact">Diversification</span></p>
         <p className="pfx-big-row"><span className="pfx-big">{score ? score.score : MINUS}</span><span className="pfx-of">/ 100</span>{score && <span className="pfx-pill pfx-long">{score.band}</span>}</p>
@@ -36,10 +36,8 @@ export function Summary({ page, metas, lines, model, n, state }: { page: PageObj
         {dots && <div className="pfx-dots" aria-hidden="true">{dots.map((f, i) => <span key={i}><i style={{ width: `${f * 100}%` }} /></span>)}</div>}
         {!dots && nCorr > 20 && <div className="pfx-ticks" aria-hidden="true"><i style={{ width: `${Math.min(100, ((eff ?? 0) / nCorr) * 100)}%` }} /></div>}
         <p className="pfx-sub">{page ? <>
-          {page.first_k ? <>The first {page.first_k.k} of these moved like {page.first_k.effective_stocks.toFixed(1)}. The other {page.first_k.rest} added {page.first_k.added.toFixed(1)}.</>
-            : <span className="pfx-long">out of {nCorr}, on {page.weeks} weekly prices to {dateText(page.to)}</span>}
-          {page.first_k && <span className="pfx-long"> Out of {nCorr}, on {page.weeks} weekly prices to {dateText(page.to)}.</span>}
-          {page.short_history.length > 0 && <> {plural(page.short_history.length, "share")} left out: under a year of prices.</>}</> : why}</p></div>
+          <span>Worked out on the {nCorr} shares with a year of weekly prices, to {dateText(page.to)}.</span>
+          {page.short_history.length > 0 && <> {plural(page.short_history.length, "newer share")} left out.</>}</> : why}</p></div>
     </section>
   );
 }
