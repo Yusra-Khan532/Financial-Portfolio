@@ -61,7 +61,7 @@ describe("category card score view", () => {
 const metric = (id: string, state: string, over: object = {}) => ({ id, label: id, pillar: "quality", state, value: null, own: null, peer: null, peerN: null, points: null, weight: 20, groupValue: 50, why: null, ...over });
 const base = (over: Partial<FundScore> = {}): FundScore => ({
   locked: false, kind: "etf", group: "OT-PASSIVE", groupName: "Others: Index funds and ETFs", status: "RATED", final: 71.2, label: "Healthy", pillars: [
-    { key: "performance", name: "Performance", weight: 20, score: 66 }, { key: "risk", name: "Risk", weight: 15, score: 70 }, { key: "cost", name: "Cost", weight: 40, score: 80 }, { key: "quality", name: "Quality", weight: 25, score: 60 }],
+    { key: "performance", name: "Performance", reading: "Fair" }, { key: "risk", name: "Risk", reading: "Strong" }, { key: "cost", name: "Cost", reading: "Strong" }, { key: "quality", name: "Quality", reading: "Fair" }],
   reasons: { strengths: [], watchouts: [], gaps: [], notApplicable: [], substitutions: [] }, metrics: [], disclaimer: "", method: "/methodology/mf-score", model: "1.1", ...over,
 } as FundScore);
 const html = (s: FundScore) => renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ScoreBody, { s })));

@@ -24,6 +24,7 @@ from . import MODEL_VERSION
 from .dashboard import summarize
 from .groups import GROUP_NAMES
 from .reasons import texts
+from .scorehist import part_word, part_words
 from .sheets import PILLAR_NAMES, PILLARS, WEIGHTS
 
 router = APIRouter(prefix="/api/mf")
@@ -66,25 +67,20 @@ def _load(v: Any) -> Any:
     return json.loads(v) if isinstance(v, str) else v
 
 
-def part_word(score: Optional[float]) -> str:
-    """A part's reading in words (the site shows words, never the model's weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak."""
-    return "Not scored" if score is None else "Strong" if score >= 70 else "Fair" if score >= 50 else "Weak"
-
-
 def pillars_view(group: str, r: Dict[str, Any], values: bool = True) -> List[Dict[str, Any]]:
     """The four parts of a score. No weight is sent: how much each part counts stays on the server."""
     flags = (_load(r["breakdown"]) or {}).get("pillarFlags", {}) if values else {}
     out = []
     for p in PILLARS:
         score = r[{"performance": "perf", "risk": "risk", "cost": "cost", "quality": "quality"}[p]] if values else None
-        out.append({"key": p, "name": PILLAR_NAMES[p], "reading": part_word(score), "score": None if score is None else round(float(score), 1), "allNotApplicable": bool(flags.get(p))})
+        out.append({"key": p, "name": PILLAR_NAMES[p], "reading": part_word(score), "allNotApplicable": bool(flags.get(p))})
     return out
 
 
 def locked_payload(group: Optional[str], plan: Optional[str], **extra: Any) -> Dict[str, Any]:
     """What a plan below Gold gets: the four part names and nothing a fund scored (no weights, no readings)."""
     return {"locked": True, "plan": "gold", "detail": "The FinLit Mutual Fund Health Score is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
-            "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "reading": None, "score": None} for p in PILLARS] if group in WEIGHTS else [],
+            "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "reading": None} for p in PILLARS] if group in WEIGHTS else [],
             "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION, **extra}
 
 
@@ -196,7 +192,7 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
         open_ = full or (r["code"] is not None and r["code"] in seen)
         item = {"code": r["code"], "symbol": r["symbol"], "plan": r["plan"], "group": r["grp"]}
         if open_:
-            item.update(final=r["final"], label=r["label"], status=r["status"], reason=r["reason"], pillars={"performance": r["perf"], "risk": r["risk"], "cost": r["cost"], "quality": r["quality"]},
+            item.update(final=r["final"], label=r["label"], status=r["status"], reason=r["reason"], pillars=part_words(r["perf"], r["risk"], r["cost"], r["quality"]),
                         rank=r["rank"], rankOf=r["rank_of"], rankScope=r["rank_scope"], percentile=None if r["percentile"] is None else int(r["percentile"]), flags=list(r["flags"] or []),
                         confidence=r["confidence"], category=r["category"])
         else:
@@ -311,5 +307,5 @@ async def category_median(request: Request, row) -> Dict[str, Any]:
                                 "percentile_cont(0.5) WITHIN GROUP (ORDER BY cost) AS cost, percentile_cont(0.5) WITHIN GROUP (ORDER BY quality) AS quality, "
                                 "percentile_cont(0.5) WITHIN GROUP (ORDER BY final) AS final, count(*) AS n FROM mf_scores WHERE sub = $1 AND plan = $2 AND final IS NOT NULL", row["sub"], row["plan"])
     r1 = lambda v: None if v is None else round(float(v), 1)  # noqa: E731
-    return {"performance": r1(m["perf"]), "risk": r1(m["risk"]), "cost": r1(m["cost"]), "quality": r1(m["quality"]), "final": r1(m["final"]), "n": m["n"],
+    return {**part_words(m["perf"], m["risk"], m["cost"], m["quality"]), "final": r1(m["final"]), "n": m["n"],
             "plan": row["plan"], "categoryLabel": _sub_label(row["category"]) if row["kind"] == "mf" else "Exchange-traded funds"}

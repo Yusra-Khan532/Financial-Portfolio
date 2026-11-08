@@ -38,13 +38,22 @@ def history_row(r: tuple, run_date: date) -> tuple:
     return (key, week_of(run_date), run_date, kind, code, symbol, plan, grp, sub, final, perf, risk, cost, quality, label, status, rank, rank_of, pct)
 
 
+def part_word(score: Optional[float]) -> str:
+    """A part's reading in words (the site shows words, never a part's figure): 70 or more Strong, 50 to 69 Fair, under 50 Weak."""
+    return "Not scored" if score is None else "Strong" if score >= 70 else "Fair" if score >= 50 else "Weak"
+
+
+def part_words(performance: Any, risk: Any, cost: Any, quality: Any) -> Dict[str, str]:
+    return {"performance": part_word(performance), "risk": part_word(risk), "cost": part_word(cost), "quality": part_word(quality)}
+
+
 def _f(v: Any) -> Optional[float]:
     return None if v is None else round(float(v), 1)
 
 
 def point(r: Dict[str, Any]) -> Dict[str, Any]:
     return {"date": r["run_date"].isoformat(), "week": r["week"].isoformat(), "final": _f(r["final"]), "label": r["label"], "status": r["status"],
-            "pillars": {"performance": _f(r["perf"]), "risk": _f(r["risk"]), "cost": _f(r["cost"]), "quality": _f(r["quality"])},
+            "pillars": part_words(r["perf"], r["risk"], r["cost"], r["quality"]),
             "rank": r["rank"], "rankOf": r["rank_of"], "percentile": None if r["percentile"] is None else int(r["percentile"])}
 
 
@@ -69,7 +78,7 @@ def changed_since(rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     rank_from = prev["rank"] if prev["rank"] is not None and prev["rank_of"] is not None else None
     rank_to = last["rank"] if last["rank"] is not None and last["rank_of"] is not None else None
     return {"since": prev["run_date"].isoformat(), "until": last["run_date"].isoformat(), "from": _f(prev["final"]), "to": _f(last["final"]), "delta": d_final,
-            "fromLabel": prev["label"], "toLabel": last["label"], "pillar": None if big is None else {"key": big[0], "name": PILLAR_NAME[big[0]], "delta": big[1]},
+            "fromLabel": prev["label"], "toLabel": last["label"], "pillar": None if big is None else {"key": big[0], "name": PILLAR_NAME[big[0]], "direction": "up" if big[1] > 0 else "down"},
             "rankFrom": rank_from, "rankTo": rank_to, "rankOf": last["rank_of"], "text": change_text(prev, last, d_final, big, rank_from, rank_to)}
 
 
@@ -84,7 +93,7 @@ def change_text(prev: Dict[str, Any], last: Dict[str, Any], d_final: float, big,
         s = (f"The score moved {'up' if d_final > 0 else 'down'} {_pts(d_final)}, from {float(prev['final']):.1f} to {float(last['final']):.1f}, "
              f"since {prev['run_date'].strftime('%d %b %Y')}.")
     if big and abs(big[1]) >= 0.5:
-        s += f" {PILLAR_NAME[big[0]]} moved most ({'+' if big[1] > 0 else '-'}{abs(big[1]):.1f})."
+        s += f" {PILLAR_NAME[big[0]]} moved most ({'up' if big[1] > 0 else 'down'})."
     if prev["label"] and last["label"] and prev["label"] != last["label"]:
         s += f" The label moved from {prev['label']} to {last['label']}."
     if rank_from is not None and rank_to is not None and rank_from != rank_to:

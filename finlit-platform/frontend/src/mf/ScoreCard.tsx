@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, confidenceText, filledText, etfMeasures, partWord, percentileText, rankText, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, confidenceText, filledText, etfMeasures, percentileText, rankText, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
@@ -31,7 +31,7 @@ function Pillars({ s }: { s: FundScore }) {
   return (
     <ul className="mfs-pillars" aria-label="The four parts of the score, in words">
       {s.pillars.map((p) => {
-        const band = bandOf(p.score), word = p.reading || partWord(p.score);
+        const word = p.reading || "Not scored", band = wordBand(word);
         return (
           <li key={p.key} title={PILLAR_HELP[p.key]}>
             <span className="mfs-pn">{p.name}</span>

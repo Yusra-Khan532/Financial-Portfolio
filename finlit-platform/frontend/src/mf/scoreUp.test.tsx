@@ -29,7 +29,8 @@ import { LEVEL_TOLERANCE, VIEWS, chips, clearChip, compareTo, csvUrl, emptyQuery
 import { MF_SCORE_COMPLIANCE, MF_SCORE_NAME } from "../lib/mfScore";
 
 const BANNED = /\b(buy|sell|hold|recommended|best[- ]to[- ]buy|top pick|winner|avoid)\b/i;
-const pill = (p: number, r: number, c: number, q: number) => ({ performance: p, risk: r, cost: c, quality: q });
+const wd = (v: number) => (v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
+const pill = (p: number, r: number, c: number, q: number) => ({ performance: wd(p), risk: wd(r), cost: wd(c), quality: wd(q) });
 const pt = (d: string, f: number) => ({ date: d, week: d, final: f, label: f >= 65 ? "Healthy" : "Average", status: "RATED", pillars: pill(f, f - 5, f + 5, f), rank: 5, rankOf: 40, percentile: 80 });
 const item = (n: number, o: Record<string, unknown> = {}) => ({ key: "mf:" + n, kind: "mf", code: n, symbol: null, name: `Fund ${n}`, amc: "Test Mutual Fund", plan: "Direct", group: "EQ-LARGE", sub: "large-cap", categoryLabel: "Large Cap",
   final: 80 - n, label: "Healthy", status: "RATED", reason: null, pillars: pill(70, 60, 50, 40), rank: n, rankOf: 40, aumCr: 1234, ageYears: 8.2, ter: 0.55, r1y: 12.3, r3y: 15.1, r5y: null, fullData: true, flags: [], ...o });
@@ -99,9 +100,9 @@ describe("score history", () => {
 describe("breakdown", () => {
   const m = (id: string, pillar: string, state: string, own: number | null, points: number | null, extra = {}) => ({ id, label: id.toLowerCase(), pillar, state, value: own, own, peer: 5, peerN: 30, points, weight: 8, groupValue: null, why: null, ...extra });
   const s = { locked: false, group: "EQ-LARGE", groupName: "Large", status: "RATED", final: 66, label: "Healthy", disclaimer: "", method: "", model: "", months: 74, peers: { kind: "grp", n: 31, text: "" },
-    pillars: [{ key: "performance", name: "Performance", weight: 35, score: 70 }, { key: "risk", name: "Risk", weight: 30, score: 60 }, { key: "cost", name: "Cost", weight: 15, score: 50 }, { key: "quality", name: "Quality", weight: 20, score: 40 }],
+    pillars: [{ key: "performance", name: "Performance", reading: "Strong" }, { key: "risk", name: "Risk", reading: "Fair" }, { key: "cost", name: "Cost", reading: "Fair" }, { key: "quality", name: "Quality", reading: "Weak" }],
     metrics: [m("A_ONE", "performance", "A", 12, 90), m("F_TWO", "cost", "F", null, 35, { whyText: "expense ratio not reported", why: "ter_missing" }), m("N_THREE", "quality", "N", null, null)],
-    categoryMedian: { performance: 55, risk: 52, cost: 50, quality: 51, final: 52, n: 40, plan: "Direct", categoryLabel: "Large Cap" } } as never;
+    categoryMedian: { performance: "Fair", risk: "Fair", cost: "Fair", quality: "Fair", final: 52, n: 40, plan: "Direct", categoryLabel: "Large Cap" } } as never;
   it("shows the radar, the data gaps box and the table with state explanations", () => {
     render(<ScoreBreakdown s={s} />);
     expect(screen.getByRole("img", { name: /Category median \(40 funds\)/ })).toBeTruthy();
@@ -227,7 +228,7 @@ describe("compare, chip, admin", () => {
     st.routes["/api/mf/scores?"] = { locked: false, total: 2, items: [mk(1, 70, 70, "OT-PASSIVE"), mk(2, 80, 71), mk(3, 60, 60)] };
     st.routes["/api/mf/scores/history"] = { locked: false, series: { "mf:1": [{ date: "2026-09-25", final: 60, label: "Average" }, { date: "2026-10-23", final: 70, label: "Healthy" }], "mf:2": [], "mf:3": [] } };
     wrap(<ScoreCompare codes={[1, 2, 3]} names={["A", "B", "C"]} />);
-    expect(await screen.findByText(/Level means within 3 points/)).toBeTruthy();
+    expect(await screen.findByText(/total score is level within 3 points/)).toBeTruthy();
     await screen.findAllByText("ahead");
     const perf = screen.getByRole("rowheader", { name: "Performance" }).closest("tr")!;
     expect(within(perf).getByText("level")).toBeTruthy(); expect(within(perf).getByText("behind")).toBeTruthy();
@@ -283,5 +284,12 @@ describe("exchange-traded funds get no Health Score", () => {
     st.routes = { "/api/mf/score-screener": { locked: false, total: 0, items: [], runDate: null } };
     wrap(<FundScoreScreenerPage />);
     expect(screen.queryByRole("button", { name: /^ETF$/ })).toBeNull();
+  });
+});
+
+describe("part words", () => {
+  it("compares the four parts as words", async () => {
+    const { compareWords } = await import("../lib/mfScoreUp");
+    expect([compareWords("Strong", "Fair"), compareWords("Fair", "Fair"), compareWords("Weak", "Fair"), compareWords(null, "Fair"), compareWords("Not scored", "Fair")]).toEqual(["ahead", "level", "behind", "na", "na"]);
   });
 });

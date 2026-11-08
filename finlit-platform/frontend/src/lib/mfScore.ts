@@ -18,9 +18,13 @@ export const PILLAR_HELP: Record<string, string> = {
 export type ScoreState = "A" | "Z" | "S" | "F" | "N";
 export type ScoreLine = { id: string; label: string; text: string; points: number; groupValue: number; effect: number; state: string };
 export type ScoreMetric = { id: string; label: string; pillar: string; state: ScoreState; value: number | null; own: number | null; peer: number | null; peerN: number | null; points: number | null; groupValue: number | null; why: string | null; whyText?: string | null };
-export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; score: number | null; allNotApplicable?: boolean };
+export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; allNotApplicable?: boolean };
 /** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
 export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
+/** A part word as a colour band, and as a FIXED position for charts (the charts show the word, never a figure). */
+export const wordBand = (w: string | null | undefined): ScoreBand => (w === "Strong" ? "hi" : w === "Fair" ? "mid" : w === "Weak" ? "lo" : "na");
+export const WORD_POS: Record<string, number> = { Strong: 85, Fair: 60, Weak: 30 };
+export const wordPos = (w: string | null | undefined): number | null => (w && WORD_POS[w] != null ? WORD_POS[w] : null);
 export type FundScore = {
   locked: boolean; notOffered?: boolean; plan?: string; detail?: string; key?: string; kind?: string; group: string | null; groupName: string | null; fundPlan?: string | null;
   status: "RATED" | "PROVISIONAL" | "NOT RATED" | "NOT SCORED" | null; reason?: string | null; final: number | null; label: string | null; cap?: string | null; rawFinal?: number | null;
@@ -33,7 +37,7 @@ export type FundScore = {
   disclaimer: string; method: string; model: string;
 };
 export type ScoreItem = { code: number | null; symbol: string | null; plan: string; group: string | null; final: number | null; label: string | null; status: string | null; reason: string | null;
-  pillars: Record<string, number | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null };
+  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null };
 export type ScoreList = { locked: boolean; items: ScoreItem[]; total: number | null };
 /** One sub-category of the Funds dashboard: median of the scored Direct-plan funds, how many, and the counts in the three colour bands. */
 export type CategoryScore = { median: number; n: number; green: number; orange: number; red: number };

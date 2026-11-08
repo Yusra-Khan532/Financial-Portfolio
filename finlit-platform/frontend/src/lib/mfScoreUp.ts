@@ -2,17 +2,17 @@
 // Everything describes past NAVs, costs and holdings. No buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";
-import { bandOf, type FundScore, type ScoreMetric } from "./mfScore";
+import { bandOf, wordPos, type FundScore, type ScoreMetric } from "./mfScore";
 
 export const PILLARS = [["performance", "Performance"], ["risk", "Risk"], ["cost", "Cost"], ["quality", "Quality"]] as const;
 export type PillarKey = (typeof PILLARS)[number][0];
-export type PillarMap = Record<PillarKey, number | null>;
+export type PillarMap = Record<PillarKey, string | null>;
 export const LABELS = ["Strong", "Healthy", "Average", "Weak", "Poor"] as const;
 /** Edges of the labels, drawn as zones behind the history chart. */
 export const ZONES: [string, number, number][] = [["Poor", 0, 35], ["Weak", 35, 50], ["Average", 50, 65], ["Healthy", 65, 80], ["Strong", 80, 100]];
 
 export type HistPoint = { date: string; week: string; final: number | null; label: string | null; status: string; pillars: PillarMap; rank: number | null; rankOf: number | null; percentile: number | null };
-export type Changes = { since: string; until: string; from: number; to: number; delta: number; fromLabel: string | null; toLabel: string | null; pillar: { key: string; name: string; delta: number } | null; rankFrom: number | null; rankTo: number | null; rankOf: number | null; text: string };
+export type Changes = { since: string; until: string; from: number; to: number; delta: number; fromLabel: string | null; toLabel: string | null; pillar: { key: string; name: string; direction: "up" | "down" } | null; rankFrom: number | null; rankTo: number | null; rankOf: number | null; text: string };
 export type ScoreHistory = { locked: boolean; points: HistPoint[]; count: number | null; firstDate: string | null; note: string | null; changes: Changes | null };
 export const useScoreHistory = (code: number, kind: "mf" | "etf" = "mf", symbol = "", enabled = true) =>
   useQuery<ScoreHistory, ApiError>({
@@ -36,19 +36,25 @@ export const STATE_EXPLAIN: Record<string, string> = {
 };
 export const stateLine = (m: ScoreMetric & { whyText?: string | null }) => `${STATE_EXPLAIN[m.state] ?? ""}${m.whyText ? ` Reason: ${m.whyText}.` : ""}`.trim();
 export const barBand = (points: number | null) => bandOf(points);
-export type MetricGroup = { key: PillarKey; name: string; score: number | null; metrics: (ScoreMetric & { whyText?: string | null })[] };
+export type MetricGroup = { key: PillarKey; name: string; word: string | null; metrics: (ScoreMetric & { whyText?: string | null })[] };
 export function groupMetrics(s: Pick<FundScore, "pillars" | "metrics">): MetricGroup[] {
-  return PILLARS.map(([key, name]) => ({ key, name, score: s.pillars.find((p) => p.key === key)?.score ?? null, metrics: (s.metrics || []).filter((m) => m.pillar === key) }));
+  return PILLARS.map(([key, name]) => ({ key, name, word: s.pillars.find((p) => p.key === key)?.reading ?? null, metrics: (s.metrics || []).filter((m) => m.pillar === key) }));
 }
 export const dataGaps = (s: Pick<FundScore, "metrics">) => (s.metrics || []).filter((m) => m.state === "F" || m.state === "S");
 export const PEER_KIND_WORD: Record<string, string> = { sub: "category and plan", grp: "widened to the whole group (too few in the category)", fam: "tracking the same index" };
-export type CategoryMedian = { performance: number | null; risk: number | null; cost: number | null; quality: number | null; final: number | null; n: number; plan: string; categoryLabel: string | null };
+export type CategoryMedian = { performance: string | null; risk: string | null; cost: string | null; quality: string | null; final: number | null; n: number; plan: string; categoryLabel: string | null };
 
 // ------------------------------------------------------------------------------------------------------------------ compare
 /** The gap (in points, 0 to 100) inside which two funds count as level. */
 export const LEVEL_TOLERANCE = 3;
 export type Ahead = "ahead" | "level" | "behind" | "na";
 export const compareTo = (v: number | null | undefined, ref: number | null | undefined): Ahead => (v == null || ref == null ? "na" : v - ref > LEVEL_TOLERANCE ? "ahead" : ref - v > LEVEL_TOLERANCE ? "behind" : "level");
+
+/** The same comparison for the four parts, which the site shows as words: a higher word is ahead, the same word is level. */
+export const compareWords = (v: string | null | undefined, ref: string | null | undefined): Ahead => {
+  const a = wordPos(v), b = wordPos(ref);
+  return a == null || b == null ? "na" : a > b ? "ahead" : a < b ? "behind" : "level";
+};
 
 // ------------------------------------------------------------------------------------------------------------------ screener
 export type ScreenerItem = {
