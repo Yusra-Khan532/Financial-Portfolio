@@ -60,3 +60,9 @@ The frozen reference for the byte-for-byte test (`tests/reference_v201/`, kept u
     If Rotation fails, the run still finishes without it (logged); `finlit/sector_job.py` publishes the set and the Rotation page says why it is blank.
 14. `tests/run_tests.py` runs the delivery's stress, company brief and rotation tests as well as the FinLit ones; `tests/test_sectors.py` is the delivery's with two FinLit changes (the panel cache file name, and an in-memory panel
     where a test edits a close).
+
+## Public views (package 2.4.2, 8 Nov 2026)
+
+`public.py` is the one file taken from 2.4.2 (the rest of the library is still the 2.4.1 above, with the patches kept). It is plain Python, so `finlit/sector_api.py` loads it by path:
+importing the package would pull in numpy and pandas, which the website process never loads. Every sector and rotation answer goes through `public_board`, `public_industry`,
+`public_rotation`, `public_rotation_group` and `public_stock_sector` before the plan redaction. Tests: `tests/test_sectors_public.py`. The `site_data/` files stay private.

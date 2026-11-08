@@ -28,6 +28,22 @@ from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_
 from .auth.service import current
 from .background import etag_matches
 
+def _load_public():
+    """finlit_technicals/public.py is plain Python; it is loaded by path because importing the package would pull in numpy and pandas, which the website process never loads."""
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parent.parent / "finlit_technicals" / "public.py"
+    spec = importlib.util.spec_from_file_location("finlit_sector_public", path)
+    mod = importlib.util.module_from_spec(spec)         # type: ignore[arg-type]
+    __import__("sys").modules[spec.name] = mod           # type: ignore[union-attr]
+    spec.loader.exec_module(mod)                         # type: ignore[union-attr]
+    return mod
+
+
+_pub = _load_public()
+public_board, public_industry, public_rotation = _pub.public_board, _pub.public_industry, _pub.public_rotation
+public_rotation_group, public_stock_sector = _pub.public_rotation_group, _pub.public_stock_sector
+
 router = APIRouter()
 PRIVATE_CACHE = "private, max-age=300, must-revalidate"      # the answer depends on the plan (Cookie), so no shared cache may keep it
 NO_STORE = "no-store"
@@ -87,11 +103,11 @@ async def board(request: Request) -> Response:
     data = sd.read_json(rel / "sectors" / "_board.json") if rel else None
     if not data:
         return _not_loaded(request, started)
-    return _reply(request, redact_sector_board(data, await _plan(request)), started)
+    return _reply(request, redact_sector_board(public_board(data), await _plan(request)), started)
 
 
 @router.get("/api/sectors/{slug}")
-async def industry(slug: str, request: Request) -> Response:
+async def industry(slug: str, request: Request, top: Optional[int] = None) -> Response:
     started = time.perf_counter()
     rel = sd.live_release()
     data = sd.read_json(rel / "sectors" / "_board.json") if rel else None
@@ -104,7 +120,7 @@ async def industry(slug: str, request: Request) -> Response:
     if not page:
         reason = "Sector data is not loaded yet: this industry's page is missing from the current data set. It is rebuilt at the next nightly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
-    return _reply(request, redact_sector_industry(page, await _plan(request)), started)
+    return _reply(request, redact_sector_industry(public_industry(page, top_stocks=top), await _plan(request)), started)
 
 
 @router.get("/api/technicals/{symbol}/sector")
@@ -122,7 +138,7 @@ async def stock_sector(symbol: str, request: Request) -> Response:
     doc = sd.read_json(path)
     if not isinstance(doc, dict):
         return _not_found(request, started, f"No sector reading for {sym}. It did not trade on the last session, or NSE has not classified its industry yet.")
-    return _reply(request, redact_sector_stock(doc.get("sector"), sym, await _plan(request)), started)
+    return _reply(request, redact_sector_stock(public_stock_sector(doc.get("sector")) if isinstance(doc.get("sector"), dict) else doc.get("sector"), sym, await _plan(request)), started)
 
 
 
@@ -142,7 +158,7 @@ async def rotation_map(request: Request) -> Response:
     data = sd.read_json(rel / "rotation" / "_map.json") if rel else None
     if not data:
         return _rotation_missing(request, started)
-    return _reply(request, redact_rotation_map(data, await _plan(request)), started)
+    return _reply(request, redact_rotation_map(public_rotation(data), await _plan(request)), started)
 
 
 @router.get("/api/rotation/{slug}")
@@ -160,4 +176,4 @@ async def rotation_card(slug: str, request: Request) -> Response:
     if not card:
         reason = "Rotation data is not loaded yet: this group's rotation card is missing from the current data set. It is rebuilt at the next nightly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
-    return _reply(request, card, started)
+    return _reply(request, public_rotation_group(card), started)

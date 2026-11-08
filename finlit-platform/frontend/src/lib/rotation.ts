@@ -18,23 +18,14 @@ export type RankPoint = { date: string; rank: number | null; corner: CornerCode 
 export type RotationRow = {
   name: string; slug: string; kind: "industry" | "sector"; sector: string | null; industries: string[];
   corner: CornerCode; corner_name: string; corner_since: string; weeks_in_corner: number; previous_corner: CornerCode | null; previous_corner_name: string | null;
-  this_week_reading: CornerCode | null; this_week_reading_name: string | null;
+  this_week_reading?: CornerCode | null; this_week_reading_name?: string | null;
   strength_pts: number | null; change_pts: number | null; vs_average: Record<string, number | null>;
   breadth_above_50: number | null; breadth: "broad" | "narrow" | "between" | null; breadth_name: string | null;
   sector_state: StateName | null; sector_state_code: StateCode | null;
-  rank: number | null; ranked: number; score: number | null; rank_change_1w: number | null; rank_change_4w: number | null; rank_best_26w: number | null; rank_worst_26w: number | null;
-  tail: TailPoint[]; rank_history: RankPoint[]; summary: string; leader_flags: number | null; stocks_counted: number;
-};
-export type CornerStudy = { name: string; cases: number; next_1m: number | null; next_3m: number | null; median_3m: number | null; beat_3m: number | null; next_6m: number | null };
-export type RotationStudy = {
-  period: { from: string; to: string; weeks: number; groups_per_week_median: number };
-  corners: Record<string, CornerStudy>;
-  spread_3m: { points: number | null; t: number | null; without_2020: number | null; since_2022: number | null; above_200d?: number | null; below_200d?: number | null };
-  breadth: Record<string, { broad: { cases: number; mean: number | null; beat: number | null }; narrow: { cases: number; mean: number | null; beat: number | null } }>;
-  moves: { median_weeks: number | null; mean_weeks: number | null; next_corner: Record<string, Record<string, number>> };
-  rank: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  sector_indices?: { indices: number; benchmark: string; spread_3m: number | null; t: number | null; by_year_3m: Record<string, number | null> };
-  text: Record<string, any> & { limits: string[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  rank: number | null; ranked: number; score?: number | null; rank_change_1w: number | null; rank_change_4w: number | null; rank_best_26w: number | null; rank_worst_26w: number | null;
+  tail: TailPoint[]; rank_history: RankPoint[]; summary: string; leader_flags?: number | null; stocks_counted: number;
+  /** Written by the server: "1 of 37" or "Not ranked yet"; one line on how to read the corner; the corner date as "16 Oct 2026". */
+  rank_label?: string; how?: string; corner_since_label?: string; corner_meaning?: string;
 };
 export type RotationMarket = { date: string; nifty50: number | null; nifty50_200d_average: number | null; pct_vs_200d: number | null; above_200d: boolean | null; average_label?: string; note: string | null };
 export type RotationMap = {
@@ -42,9 +33,10 @@ export type RotationMap = {
   counts: Record<string, number>; corner_meanings: Record<string, string>; rows: RotationRow[];
   moved_this_week: { name: string; slug: string; from: string; to: string }[];
   climbers_4w: { name: string; slug: string; rank: number; change: number }[]; fallers_4w: { name: string; slug: string; rank: number; change: number }[];
-  rank_weeks: string[]; method: Record<string, string>; params: Record<string, any>; study: RotationStudy | null; disclaimer: string; locked?: Locked; plan?: PlanName; // eslint-disable-line @typescript-eslint/no-explicit-any
+  rank_weeks: string[]; rank_weeks_labels?: string[]; disclaimer: string;
+  date_label?: string; data_line?: string; groups_ranked?: number; groups_line?: string; how_to_use?: { title: string; text: string }[]; locked?: Locked; plan?: PlanName; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
-export type RotationCard = RotationRow & { reading: boolean; note?: string; study?: CornerStudy | null };
+export type RotationCard = RotationRow & { reading?: boolean; note?: string };
 
 const retry = (n: number, e: unknown) => !(e instanceof ApiError && e.status < 500) && n < 1;
 const STALE = 5 * 60_000;
@@ -72,20 +64,6 @@ export const monthYear = (iso: string): string => new Date(iso + "T00:00:00Z").t
 export function shortName(name: string): string {
   return name.replace(/Pharmaceuticals & Biotechnology/, "Pharma & Biotech").replace(/Industrial Manufacturing/, "Industrial Mfg").replace(/Media Entertainment & Publication/, "Media & Entertainment")
     .replace(/Agricultural Commercial & Construction Vehicles/, "Agri & Construction Vehicles").replace(/Fast Moving Consumer Goods/, "FMCG").replace(/Fertilizers & Agrochemicals/, "Fertilizers & Agrochem").replace(/Electrical Equipment/, "Electrical Equip.");
-}
-
-// ------------------------------------------------------------------------------------------------ the study, in numbers taken from the file
-/** Where groups went after leaving a corner, as the study measured it: the most common destination, and a second one when it is 20% or more. */
-export function nextCorners(study: RotationStudy | null | undefined, c: CornerCode): { to: CornerCode; pct: number }[] {
-  const m = study?.moves?.next_corner?.[c];
-  if (!m) return [];
-  const all = Object.entries(m).map(([to, pct]) => ({ to: to as CornerCode, pct })).sort((a, b) => b.pct - a.pct);
-  return all.filter((x, i) => i === 0 || x.pct >= 20).slice(0, 2);
-}
-export function tileStudyLine(study: RotationStudy | null | undefined, c: CornerCode): string | null {
-  const s = study?.corners?.[c];
-  if (!s || s.next_3m == null) return null;
-  return `Study, next 3 months: ${pts(s.next_3m)} pts${s.beat_3m != null ? `, ${Math.round(s.beat_3m)}% beat the average` : ""}.`;
 }
 
 // ------------------------------------------------------------------------------------------------ filters

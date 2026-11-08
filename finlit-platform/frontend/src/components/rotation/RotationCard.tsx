@@ -2,7 +2,7 @@
 // the server's own summary sentence and the study line for the corner. Describes past prices; never advice. Past averages, not forecasts.
 import { Link } from "react-router";
 import { CornerBadge, RankMove } from "./Parts";
-import { cornerName, failureText, mapGeometry, pts, shortDate, useRotationCard, useRotationMap, weeksText, type RotationCard as Card } from "../../lib/rotation";
+import { failureText, mapGeometry, pts, shortDate, useRotationCard, useRotationMap, weeksText, type RotationCard as Card } from "../../lib/rotation";
 import { pct } from "../../lib/sectors";
 import { ChartZoom } from "../../components/ChartZoom";
 
@@ -59,8 +59,7 @@ export function RotationCard({ slug, groupName, kindLine }: { slug: string; grou
   if (q.isLoading) return <section className="rt-card rt-ic sx-sec" role="status" aria-label="Loading the rotation reading"><div className="sx-skel" style={{ height: 160 }} /></section>;
   if (q.isError) return <section className="rt-card rt-ic sx-sec" aria-labelledby="rt-ic"><h2 id="rt-ic">Against the other industries</h2><p className="rt-note" role="status">{failureText(q.error)}</p></section>;
   if (!c) return null;
-  if (!c.reading) return <section className="rt-card rt-ic sx-sec" aria-labelledby="rt-ic"><h2 id="rt-ic">Against the other industries</h2><p className="rt-note" role="status">{c.note ?? `${groupName} has too few counted stocks for a rotation reading.`}</p></section>;
-  const study = c.study, text = map.data?.study?.text?.[c.corner] as string | undefined;
+  if (c.reading === false) return <section className="rt-card rt-ic sx-sec" aria-labelledby="rt-ic"><h2 id="rt-ic">Against the other industries</h2><p className="rt-note" role="status">{c.note ?? `${groupName} has too few counted stocks for a rotation reading.`}</p></section>;
   const avg = map.data?.average_industry.return_1m;
   return (
     <section className="rt-card rt-ic sx-sec" aria-labelledby="rt-ic" data-testid="rotation-card">
@@ -70,7 +69,7 @@ export function RotationCard({ slug, groupName, kindLine }: { slug: string; grou
         <PathMap c={c} />
         <div className="rt-icm">
           <div className="rt-kpis">
-            <div className="rt-kpi"><small>Rotation rank</small><b>{c.rank ?? "—"} of {c.ranked}</b><span className="rt-note"><RankMove v={c.rank_change_4w} /> in 4 weeks · {c.rank_change_1w === 0 ? "no change on the week" : <><RankMove v={c.rank_change_1w} /> on the week</>}</span></div>
+            <div className="rt-kpi"><small>Rotation rank</small><b>{c.rank_label ?? (c.rank != null ? `${c.rank} of ${c.ranked}` : "Not ranked yet")}</b><span className="rt-note"><RankMove v={c.rank_change_4w} /> in 4 weeks · {c.rank_change_1w === 0 ? "no change on the week" : <><RankMove v={c.rank_change_1w} /> on the week</>}</span></div>
             <div className="rt-kpi"><small>Breadth</small><b>{c.breadth_above_50 == null ? "—" : `${Math.round(c.breadth_above_50)}%`}{c.breadth_name ? ` · ${c.breadth_name}` : ""}</b><span className="rt-note">of {c.stocks_counted} counted stocks above their 50-day average</span></div>
             <div className="rt-kpi"><small>6 months vs the average industry</small><b>{pts(c.strength_pts)} pts</b><span className="rt-note">3 months {pts(c.vs_average?.["63d"])} · 12 months {pts(c.vs_average?.["252d"])}</span></div>
             <div className="rt-kpi"><small>Last month vs the average</small><b>{pts(c.change_pts)} pts</b>{avg != null && <span className="rt-note">the average industry {avg < 0 ? "fell" : "rose"} {pct(Math.abs(avg), 1)}</span>}</div>
@@ -79,11 +78,11 @@ export function RotationCard({ slug, groupName, kindLine }: { slug: string; grou
         </div>
         <div className="rt-icr">
           <RankLine c={c} />
-          {(text || study) && <div className="rt-ics"><b>In the {map.data?.study ? `${map.data.study.period.from.slice(0, 4)}–${map.data.study.period.to.slice(0, 4)} ` : ""}study</b>, {text ?? (study && study.next_3m != null ? `groups ${cornerName(c.corner)} did ${pts(study.next_3m)} points against the average industry over the next 3 months${study.beat_3m != null ? ` (${Math.round(study.beat_3m)}% beat it)` : ""}.` : "")} <em>Past averages, not forecasts for this industry.</em></div>}
+          {c.how && <p className="rt-ics">{c.how}</p>}
           <Link className="sx-link" to={`/sectors/rotation?corner=${c.corner}`}>Open Sector Rotation →</Link>
         </div>
       </div>
-      <p className="rt-note rt-foot">{map.data?.disclaimer ?? "Describes past prices of NSE industry groups against the average industry; not a recommendation to buy, sell or hold any security. Study results are past averages and do not predict future returns."}</p>
+      <p className="rt-note rt-foot">{map.data?.disclaimer ?? "Describes past prices of NSE industry groups against the average industry; not a recommendation to buy, sell or hold any security."}</p>
     </section>
   );
 }

@@ -129,7 +129,7 @@
 .rt-t th, .rt-t td { padding: 10px 10px; border-top: 1px solid var(--border); vertical-align: middle; text-align: center; font-weight: 400; }
 .rt-t thead th { border-top: 0; font: 700 11px var(--sans); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--s2); white-space: nowrap; }
 .rt-t tbody th { white-space: normal; overflow-wrap: anywhere; text-transform: none; letter-spacing: normal; font-size: 13px; color: var(--text); }
-.rt-t .l { text-align: left; } .rt-t .r { text-align: right; } .rt-t .rk { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.rt-t .l { text-align: left; } .rt-t .r { text-align: right; } .rt-t .rt-rk { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
 .rt-t th.nm a { color: var(--text); font-weight: 700; text-decoration: none; font-size: 14px; } .rt-t th.nm a:hover { text-decoration: underline; }
 .rt-t small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; } .rt-t small.sub { margin-top: 2px; }
 .rt-t .num { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; font-size: 14px; }
@@ -197,7 +197,7 @@ td.rt-colc { white-space: nowrap; } td.rt-colc:first-of-type, .rt-colh + .rt-col
   .rt-t, .rt-t tbody, .rt-t tr, .rt-t td, .rt-t th { display: block; } .rt-t thead { display: none; }
   .rt-t tr { display: grid; grid-template-columns: 34px 44px minmax(0, 1fr) auto; grid-template-areas: "rk m1 nm v1" "rk m1 co v2"; gap: 0 8px; padding: 12px 10px; border-top: 1px solid var(--border); align-items: center; }
   .rt-t td, .rt-t th { border: 0; padding: 0; text-align: left; }
-  .rt-t td.rk { grid-area: rk; font-size: 18px; } .rt-t tr > td:nth-child(2) { grid-area: m1; } .rt-t tr > td:nth-child(3), .rt-t tr > td:nth-child(8), .rt-t tr > td:nth-child(9), .rt-t tr > td:nth-child(10) { display: none; }
+  .rt-t td.rt-rk { grid-area: rk; font-size: 18px; } .rt-t tr > td:nth-child(2) { grid-area: m1; } .rt-t tr > td:nth-child(3), .rt-t tr > td:nth-child(8), .rt-t tr > td:nth-child(9), .rt-t tr > td:nth-child(10) { display: none; }
   .rt-t th.nm { grid-area: nm; } .rt-t th.nm small, .rt-t td small.sub { display: none; } .rt-t tr > td:nth-child(5) { grid-area: co; } .rt-t td.v1 { grid-area: v1; text-align: right; } .rt-t td.v2 { grid-area: v2; text-align: right; }
   .rt-t tr { min-height: 44px; } .rt-t th.nm a { display: inline-flex; align-items: center; min-height: 24px; }
   .rt-tablebox { border: 0; background: transparent; }

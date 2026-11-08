@@ -336,3 +336,167 @@
 .sx table.sx-t { display: table; } .sx .sx-t thead { display: table-header-group; } .sx .sx-t tbody { display: table-row-group; } .sx .sx-t tr { display: table-row; } .sx .sx-t th, .sx .sx-t td { display: table-cell; } .sx .sx-t caption { display: table-caption; }
 .sx-ustats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 640px) { .sx-ustats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* =====================================================================
+   Sector Pulse (/sectors, /sectors/<slug>) and Sector Rotation (/sectors/rotation)
+   Layout and consistency fixes. Load after the current page CSS.
+   Class names checked on the live pages, 6 Nov 2026.
+   ===================================================================== */
+
+/* ---------- 1. Rotation: the title row of "Where each industry stands" (title and the Corners/Map toggle) ----------
+   It used the class of the small breadth bar, which squeezed the title to 56px. It has its own class now. */
+.rt-card > .rt-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 16px; }
+
+/* ---------- 2. One card style on all three pages ----------
+   Today: .sx-card h2 is 18px, .rt-card h2 20px; radii are 16px (cards), 14px (tiles)
+   and 14px (rotation cards on phones); paddings differ. */
+.sx-card,
+.rt-card,
+.sx-studybox {
+  background: var(--s1);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 20px 22px;
+  min-width: 0;
+}
+.sx-card h2,
+.rt-card h2 {
+  font: 600 20px/1.3 var(--sans);
+  margin: 0 0 6px;
+}
+.sx-card h3,
+.rt-card h3 {
+  font: 600 16px/1.35 var(--sans);
+  margin: 0 0 6px;
+}
+.sx-tile {
+  border-radius: 14px;
+}
+.rt-sub,
+.sx-card > p:first-of-type {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 80ch;
+}
+/* the same gap between every block on the page */
+.sx-sec,
+.sx-two,
+.rt-card + .rt-card {
+  margin-top: 16px;
+}
+@media (max-width: 600px) {
+  .sx-card,
+  .rt-card,
+  .sx-studybox {
+    padding: 16px;
+  }
+}
+
+/* ---------- 3. A two-column row that holds one card ----------
+   "The market behind the industries" sits alone in a .sx-two row at 613px of 1,120px.
+   With the study text gone it becomes a slim full-width strip of three figures. */
+.sx-two:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sx-mkt-figs {               /* new wrapper for Nifty 50 / 200-day average / Difference */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+  margin-top: 8px;
+}
+
+/* ---------- 4. "How to read this page" at the top, as four steps ---------- */
+.sx-how {                    /* new: replaces the old card; same markup on both pages */
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-how li {
+  background: var(--s1);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.sx-how b {
+  display: block;
+  font: 600 16px/1.3 var(--sans);
+  margin-bottom: 4px;
+}
+.sx-how p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+@media (max-width: 900px) {
+  .sx-how { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .sx-how { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- 5. Tables fit the 1,120px column ----------
+   Sector Pulse table is 1,195px and Rotation rank 1,222px inside 1,118 / 1,072px, so both scroll
+   sideways on a laptop. With the columns removed in the README (Higher-low share; 1 WK + 4 WKS
+   merged into Moved) they fit; these rules let the headers wrap instead of pushing the width. */
+.sx-sec table,
+.rt-rank table {
+  width: 100%;
+}
+.sx-sec thead th,
+.rt-rank thead th {
+  white-space: normal;
+  line-height: 1.25;
+  vertical-align: bottom;
+}
+.sx-sec td,
+.rt-rank td {
+  vertical-align: middle;
+}
+/* keep the scroll container for phones only */
+.sx-sec .sx-tablewrap,
+.rt-rank .rt-tablewrap {
+  overflow-x: auto;
+}
+
+/* ---------- 6. Small things ---------- */
+/* "PowerNew": the New badge after a group name needs a gap */
+.rt-card td .rt-newtag,
+.rt-card li .rt-newtag {
+  margin-left: 6px;
+}
+/* Not ranked yet: same size as a rank number, muted */
+.rt-unranked {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+  white-space: nowrap;
+}
+/* "Not counted" on industry pages: one line and a fold, not a 9,500px list */
+.sx-notcounted summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+.sx-notcounted ul {
+  columns: 3 220px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- 7. Learn pages and the stock-count line ---------- */
+.sx-learn { display: grid; gap: 16px; margin-top: 16px; max-width: 880px; }
+.sx-learn h3 { margin: 16px 0 4px; } .sx-learn p, .sx-learn li { font-size: 16px; line-height: 1.6; } .sx-learn ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+.sx-states { display: grid; gap: 10px; margin: 10px 0 14px; } .sx-states > div { display: grid; grid-template-columns: minmax(130px, 170px) minmax(0, 1fr); gap: 12px; align-items: start; } .sx-states dt, .sx-states dd { margin: 0; }
+@media (max-width: 600px) { .sx-states > div { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.sx-notcounted li { display: flex; gap: 8px; break-inside: avoid; padding: 2px 0; } .sx-notcounted li a { font-weight: 600; } .sx-notcounted .sx-note { margin-top: 12px; }
+.rt-t td.rt-mvc { white-space: nowrap; }
+.rt-t tbody th.nm { min-width: 170px; overflow-wrap: break-word; } .rt-t thead th:last-child { white-space: normal; min-width: 90px; } .rt-t td.sp { padding-right: 4px; }

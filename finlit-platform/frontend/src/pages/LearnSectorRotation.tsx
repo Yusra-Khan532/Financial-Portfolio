@@ -1,65 +1,60 @@
-// How Sector Rotation is measured (/learn/sector-rotation): the rules, in the package's own words (GET /api/rotation: method, params, study), and what the 2017-2026 study found. Every study number is
-// read from the file; every figure is a past average, not a forecast. Describes; never advises. Styles: styles/rotation.css.
+// How to use Sector Rotation (/learn/sector-rotation): what each reading means and how to use it, in plain words. It says what the page shows, never how the readings are made.
+// Describes past prices; never advice. Styles: styles/rotation.css.
 import { Link } from "react-router";
 import { PageHeader } from "../components/PageHeader";
-import { Blank } from "../components/sectors/Parts";
 import { CornerBadge } from "../components/rotation/Parts";
-import { CORNERS, cornerName, failureText, monthYear, pts, useRotationMap } from "../lib/rotation";
 import { useDocTitle } from "../lib/title";
+import "../styles/sectors.css";
 
-const TITLE = "How Sector Rotation is measured";
-const DESC = "Industries take turns leading the market. Sector Rotation shows where each NSE industry stands against the average industry, how long it has been there and how its rank has moved. It uses the same counted stocks and the same equal-weighted industry groups as Sector Pulse.";
+const TITLE = "How to use Sector Rotation";
+const DESC = "Which NSE industries have been pulling ahead of the rest, and which have been falling behind? This page explains the corners, breadth and the rotation rank, and how to use them.";
+const CORNERS: [string, string][] = [
+  ["ahead_gaining", "Ahead over 6 months, and still gaining ground last month"],
+  ["ahead_slowing", "Ahead over 6 months, but behind the average last month"],
+  ["behind_gaining", "Behind over 6 months, but ahead of the average last month"],
+  ["behind_slipping", "Behind over 6 months, and still losing ground last month"],
+];
 
 export function LearnSectorRotationPage() {
   useDocTitle(TITLE, DESC);
-  const q = useRotationMap();
-  const m = q.data, s = m?.study, p = m?.params;
-  const rules: [string, string][] = m ? [
-    ["Groups", `The NSE industries and sector groups with a Sector Pulse reading: ${p?.min_mem ?? 8} or more counted stocks. Each is the equal-weighted average of its counted stocks.`],
-    ["Average industry", m.method.benchmark],
-    ["Strength (across)", m.method.strength],
-    ["Change (up)", m.method.change],
-    ["Corner", m.method.corner],
-    ["Weekly readings", m.method.week],
-    ["Breadth", m.method.breadth],
-    ["Rotation rank", m.method.rank],
-    ["Rank changes", `Places moved since the previous weekly close and since 4 weekly closes ago. Moves of ${p?.move_places ?? 3} places or more are shown in bold; the 4-week climbers and fallers lists show moves of ${p?.move_places ?? 3} or more.`],
-  ] : [];
   return (
     <div className="wrap sx rt" data-testid="learn-rotation">
       <PageHeader eyebrow="Learn · Sector Rotation" title={TITLE} description={DESC} links={["/sectors/rotation"]} learn={false} />
-      {q.isLoading && <div className="sx-skel sx-sec" role="status" aria-label="Loading" />}
-      {q.isError && <div className="sx-sec"><Blank title="The method is not available right now" reason={failureText(q.error)} /></div>}
-      {m && (
-        <div className="rt-stack">
-          <section className="rt-card"><h2>The rules</h2>
-            <dl className="rt-rules">{rules.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-            <p className="rt-note">Groups with fewer than {p?.min_mem ?? 8} counted stocks are not ranked and not placed in a corner.</p></section>
-          {s && (
-            <section className="rt-card rt-study"><h2>What the {s.period.from.slice(0, 4)}–{s.period.to.slice(0, 4)} study found</h2>
-              <p className="rt-sub">{s.period.weeks} weeks from {monthYear(s.period.from)} to {monthYear(s.period.to)}, a median of {s.period.groups_per_week_median} groups a week, with the stock list rebuilt every month from what was known then. “Points” are the group's return minus the average industry's over the period after each weekly close. <b>Past averages, not forecasts.</b></p>
-              <HScrollTable>
-                <table className="rt-t"><thead><tr><th scope="col" className="l">Corner</th><th scope="col" className="r">Cases</th><th scope="col" className="r">Next 1 month</th><th scope="col" className="r">Next 3 months</th><th scope="col" className="r">Median, 3 months</th><th scope="col" className="r">Beat the average, 3 months</th><th scope="col" className="r">Next 6 months</th></tr></thead>
-                  <tbody>{CORNERS.map((c) => { const x = s.corners[c]; return x ? <tr key={c}><th scope="row" className="l"><CornerBadge corner={c} /></th><td className="r">{x.cases.toLocaleString("en-IN")}</td><td className="r">{pts(x.next_1m)}</td><td className="r"><b>{pts(x.next_3m)}</b></td><td className="r">{pts(x.median_3m)}</td><td className="r">{x.beat_3m != null ? `${Math.round(x.beat_3m)}%` : "—"}</td><td className="r">{pts(x.next_6m)}</td></tr> : null; })}</tbody></table>
-              </HScrollTable>
-              <div className="rt-scards two">
-                <div className="rt-sc"><h3>The gap between corners</h3><p>{s.text.spread}</p></div>
-                <div className="rt-sc"><h3>Rank moves</h3><p>{s.text.rank}</p></div>
-              </div>
-              <h3 style={{ marginTop: 18 }}>Where groups went next</h3>
-              <p className="rt-note">Share of moves out of each corner, by the corner they moved to (after two weekly closes). {s.text.stay}</p>
-              <HScrollTable><table className="rt-t"><thead><tr><th scope="col" className="l">From</th>{CORNERS.map((c) => <th key={c} scope="col" className="r">{cornerName(c)}</th>)}</tr></thead>
-                <tbody>{CORNERS.map((a) => <tr key={a}><th scope="row" className="l"><CornerBadge corner={a} /></th>{CORNERS.map((b) => <td key={b} className="r">{a === b ? "–" : s.moves.next_corner[a]?.[b] != null ? `${s.moves.next_corner[a][b]}%` : "—"}</td>)}</tr>)}</tbody></table></HScrollTable>
-              {s.rank?.by_year_3m && <><h3 style={{ marginTop: 18 }}>The rank gap, year by year</h3><p className="rt-note">Top third minus bottom third by rotation rank, next 3 months, points. The last year runs to {monthYear(s.period.to)}.</p>
-                <ul className="rt-years">{Object.entries(s.rank.by_year_3m as Record<string, number | null>).map(([y, v]) => <li key={y}><span>{y}</span><span className="tr" aria-hidden="true"><i style={{ width: `${Math.max(2, Math.min(100, Math.abs(v ?? 0) * 12))}%` }} /></span><b>{pts(v)}</b></li>)}</ul></>}
-            </section>
-          )}
-          {s && <section className="rt-card warn"><h2>Limits of the study</h2><ul>{s.text.limits.map((x: string) => <li key={x}>{x}</li>)}</ul></section>}
-          <footer className="sx-footer"><p>{m.disclaimer} <Link className="sx-link" to="/sectors/rotation">Open Sector Rotation</Link></p></footer>
-        </div>
-      )}
+      <div className="sx-learn">
+        <section className="rt-card sx-sec" aria-labelledby="lr-what">
+          <h2 id="lr-what">What Sector Rotation shows</h2>
+          <p>Which NSE industries have been pulling ahead of the rest, and which have been falling behind? Sector Rotation compares every industry with the <b>average industry</b>: all NSE industries and sector groups with a reading, each counted equally, so a few large companies do not set the bar.</p>
+        </section>
+        <section className="rt-card sx-sec" aria-labelledby="lr-three">
+          <h2 id="lr-three">The three things to read</h2>
+          <h3>1. The corner</h3>
+          <p>Each industry is compared with the average industry twice: over 6 months (ahead or behind) and over the last month (gaining or slowing). The two answers place it in one of four corners.</p>
+          <dl className="sx-states">{CORNERS.map(([c, t]) => <div key={c}><dt><CornerBadge corner={c as never} /></dt><dd>{t}</dd></div>)}</dl>
+          <p>Corners change slowly, so one noisy week does not move an industry.</p>
+          <h3>2. Breadth</h3>
+          <p><i>Broad</i> means most of the industry's stocks are above their 50-day average; <i>Narrow</i> means a few stocks carry it. A broad lead has held up better than a narrow one.</p>
+          <h3>3. The rotation rank</h3>
+          <p>Every group on one list, each week. The arrows show the places it moved since last week and since 4 weeks ago. A new group gets a rank once it has a full year of readings; until then it shows "Not ranked yet".</p>
+        </section>
+        <section className="rt-card sx-sec" aria-labelledby="lr-views">
+          <h2 id="lr-views">The views on the page</h2>
+          <ul>
+            <li><b>Corners</b> lists each industry in its corner, with its 6-month and last-month numbers in points against the average. <b>Map</b> plots them, with the path of the last 8 weeks.</li>
+            <li><b>Changed corner this week</b> and <b>Biggest rank moves</b> show what moved.</li>
+            <li><b>How the ranking changed</b> shows each group's rank at the last 12 weekly closes.</li>
+          </ul>
+        </section>
+        <section className="rt-card sx-sec" aria-labelledby="lr-habits">
+          <h2 id="lr-habits">Good habits</h2>
+          <ul>
+            <li>A corner describes the past. It is not a forecast, and it is not a reason to act on its own.</li>
+            <li><i>Behind but gaining</i> is often a short bounce. A second month of gains, with broad breadth, makes it more than that.</li>
+            <li>Read the corner together with the industry's <Link className="sx-link" to="/sectors">Sector Pulse</Link> state.</li>
+          </ul>
+          <p style={{ marginTop: 14 }}><Link className="btn primary" to="/sectors/rotation">Open Sector Rotation</Link></p>
+        </section>
+      </div>
+      <footer className="sx-footer"><p>Describes past prices of NSE industry groups against the average industry. Not a recommendation to buy, sell or hold any security.</p></footer>
     </div>
   );
 }
-import { HScroll } from "../components/HScroll";
-function HScrollTable({ children }: { children: React.ReactNode }) { return <div className="rt-tablebox"><HScroll label="table" className="rt-scroll">{children}</HScroll></div>; }
