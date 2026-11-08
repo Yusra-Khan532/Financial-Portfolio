@@ -170,6 +170,84 @@ async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
     return reply(await build_view(request, ctx))
 
 
+# ------------------------------------------------------------------------------------------------------------------------ diversification
+
+async def size_ranks(conn, isins: List[str]) -> Dict[str, str]:
+    """Large / Mid / Small by market-value rank, the site's one rule: the 100 biggest companies are Large, the next 150 Mid, the rest Small."""
+    if not isins:
+        return {}
+    rows = await conn.fetch(
+        """WITH r AS (SELECT c.symbol, row_number() OVER (ORDER BY COALESCE(NULLIF(l.market_cap, 0), x.market_cap) DESC NULLS LAST, c.symbol) AS rk,
+                             COALESCE(NULLIF(l.market_cap, 0), x.market_cap) AS mc
+                      FROM companies c LEFT JOIN listing_quotes l ON l.symbol = c.symbol
+                      LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true)
+           SELECT d.isin, r.rk FROM disclosure_isin d JOIN r ON r.symbol = d.symbol WHERE d.isin = ANY($1::text[]) AND r.mc IS NOT NULL""", isins)
+    return {r["isin"]: ("Large" if r["rk"] <= 100 else "Mid" if r["rk"] <= 250 else "Small") for r in rows}
+
+
+async def growth_series(conn, rows: List[Dict[str, Any]]) -> Dict[int, Dict[str, List[Any]]]:
+    """The last year of NAVs of each fund's Growth option (the same plan of the same fund; an IDCW option has no steady NAV line)."""
+    from ..mf import unpack_series
+    out: Dict[int, Dict[str, List[Any]]] = {}
+    for r in rows:
+        if r["option_class"] == "Growth":
+            gc = r["code"]
+        else:
+            gc = await conn.fetchval("SELECT code FROM mf_schemes WHERE family = $1 AND plan = $2 AND option_class = 'Growth' AND active ORDER BY code LIMIT 1", r["family"], r["plan"])
+        h = await conn.fetchrow("SELECT blob, d0 FROM mf_history WHERE code = $1", gc) if gc else None
+        if h is None:
+            continue
+        days, navs = unpack_series(bytes(h["blob"]), h["d0"].toordinal())
+        if not days:
+            continue
+        cut = days[-1] - 371
+        pairs = [(date.fromordinal(d).isoformat(), v) for d, v in zip(days, navs) if d >= cut]
+        if len(pairs) > 30:
+            out[r["code"]] = {"t": [p[0] for p in pairs], "v": [p[1] for p in pairs]}
+    return out
+
+
+@router.get("/diversification")
+async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """How spread the member's funds are: words and plain figures only. The levels and bands that give the overall word stay here."""
+    from .. import portfolios
+    from .spread import public_view, spread
+    store = request.app.state.store
+    async with store.pool.acquire() as conn:
+        held = await holdings_of(conn, ctx.user_id)
+        codes = sorted({h["code"] for h in held})
+        if not codes:
+            return reply({"count": 0, "why": "Add funds to see how spread they are."})
+        schemes = {r["code"]: dict(r) for r in await conn.fetch(f"SELECT {SCHEME_COLS} FROM mf_schemes WHERE code = ANY($1::int[])", codes)}  # nosec B608 - fixed column list; codes are bound
+        series = await growth_series(conn, [schemes[c] for c in codes if c in schemes])
+    units: Dict[int, Decimal] = defaultdict(Decimal)
+    for h in held:
+        for l in h["lots"]:
+            if l["units"] is not None:
+                units[h["code"]] += Decimal(str(l["units"]))
+    funds: List[Dict[str, Any]] = []
+    for c in codes:
+        s = schemes.get(c)
+        if s is None:
+            continue
+        port = await portfolios.get_portfolio(store.pool, c)
+        funds.append({"code": c, "name": s["name"], "amc": s["amc"], "category": mf.classify(s["category"])[2] if s["category"] else "", "units": float(units[c]) if units.get(c) else None,
+                      "nav": float(s["nav"]) if s.get("nav") is not None else None, "holdings": (port or {}).get("holdings") or None,
+                      "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "series": series.get(c), "asOf": (port or {}).get("asOf")})
+    if not funds:
+        return reply({"count": 0, "why": "None of your funds is in the fund list."})
+    isins = sorted({h["isin"] for f in funds for h in (f["holdings"] or []) if h.get("isin") and h.get("assetClass") == "equity"})
+    async with store.pool.acquire() as conn:
+        sizes = await size_ranks(conn, isins)
+    out = public_view(spread(funds, lambda isin, sym: sizes.get(isin or "")))
+    out["funds"] = [{"code": f["code"], "name": f["name"], "amc": f["amc"], "category": f["category"], "weight": round(f["w"] * 100, 1), "holdingsAsOf": f["asOf"],
+                     "why": None if f["holdings"] else "The fund house's monthly portfolio disclosure is not loaded yet."} for f in funds]
+    for t in out["topStocks"]:
+        t["w"] = round(t["w"], 6)
+    out.update(count=len(funds), disclaimer=DISCLAIMER)
+    return reply(out)
+
+
 # ------------------------------------------------------------------------------------------------------------------------ writing
 
 class LotIn(BaseModel):

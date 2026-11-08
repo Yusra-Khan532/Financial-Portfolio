@@ -443,3 +443,23 @@ async def test_a_missing_units_figure_is_still_refused_unless_following_was_aske
     assert (await c.post(URL, json={"code": BASE + 1})).status_code == 422
     assert (await c.post(URL, json={"code": BASE + 1, "follow": True, "units": "5"})).status_code == 201     # with units it is an ordinary purchase
     assert (await c.get(URL)).json()["holdings"][0].get("followed") is not True
+
+
+# ------------------------------------------------------------------------------------------------------------------ diversification
+
+async def test_diversification_is_silver_words_only_and_names_funds_without_holdings(app):
+    basic = await signed_in(app, "b@example.com")
+    assert (await basic.get(URL + "/diversification")).status_code == 403
+    silver = await signed_in(app, "s@example.com", plan="silver")
+    empty = await silver.get(URL + "/diversification")
+    assert empty.status_code == 200 and empty.json()["count"] == 0 and empty.json()["why"]
+    assert (await add(silver, BASE + 1, "100")).status_code == 201
+    assert (await add(silver, BASE + 5, "50")).status_code == 201
+    r = await silver.get(URL + "/diversification")
+    assert r.status_code == 200 and r.headers["cache-control"] == "private, no-store"
+    body = r.json()
+    assert body["count"] == 2 and body["basis"] == "value"
+    assert body["overall"] in ("Widely spread", "Spread", "Partly spread", "Concentrated")
+    assert all("level" not in x for x in body["readings"].values()), "the bands must stay on the server"
+    assert {f["code"] for f in body["funds"]} == {BASE + 1, BASE + 5} and all(f["why"] for f in body["funds"])
+    assert body["coverage"]["missing"] == sorted([BASE + 1, BASE + 5])
