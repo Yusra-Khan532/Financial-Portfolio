@@ -149,6 +149,9 @@ def read_query(request: Request) -> Dict[str, Any]:
         raise fail(400, "bad_request", "limit and offset must be whole numbers.")
     if not 0 <= off <= 100000 or not 1 <= lim <= CSV_MAX:
         raise fail(400, "bad_request", "limit or offset is out of range.")
+    for part in ("perf", "risk", "cost", "quality"):
+        if num(part + "_min", 0, 100) not in (None, 50.0, 70.0) or num(part + "_max", 0, 100) not in (None, 49.9, 69.9):
+            raise fail(400, "bad_request", f"{part} takes the bands Weak, Fair or Strong only.")   # an exact part range would let repeated filtering recover a part's figure
     q = {"plan": plan, "subs": lst("sub"), "groups": lst("group", set(GROUP_NAMES)), "labels": lst("labels", set(LABELS)), "status": status,
          "min": num("min", 0, 100), "max": num("max", 0, 100), "perf_min": num("perf_min", 0, 100), "perf_max": num("perf_max", 0, 100), "risk_min": num("risk_min", 0, 100),
          "risk_max": num("risk_max", 0, 100), "cost_min": num("cost_min", 0, 100), "cost_max": num("cost_max", 0, 100), "quality_min": num("quality_min", 0, 100),
