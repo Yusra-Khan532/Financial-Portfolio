@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
@@ -157,7 +158,7 @@ const Score = ({ h, locked, onUnlock }: { h: Holding; locked: boolean; onUnlock:
   if (s.final == null) return <span className="faint mp-nos" title={s.reason || ""}>{s.status === "NOT RATED" ? "Not rated" : "No score"}<small>{s.reason}</small></span>;
   return (<div className="mp-score" title={`${s.label}${s.status === "PROVISIONAL" ? ", provisional" : ""}. ${MF_SCORE_LINE}`}>
     <b className={"mfs-pv b-" + bandOf(s.final)}>{scoreText(s.final)}</b><small>{s.label}{s.status === "PROVISIONAL" ? " · provisional" : ""}</small>
-    <div className="mp-parts">{PARTS.map(([k, short, full]) => { const v = s.parts?.[k] ?? null; return <span key={k} title={`${full} ${v == null ? "n/a" : scoreText(v)}`} aria-label={`${full} ${v == null ? "not available" : scoreText(v)}`}><i style={{ height: `${v ?? 0}%`, background: bandVar(bandOf(v)) }} /><em>{short}</em><u>{v == null ? "–" : Math.round(v)}</u></span>; })}</div>
+    <div className="mp-parts">{PARTS.map(([k, short, full]) => { const v = s.parts?.[k] ?? null; return <span key={k} title={`${full}: ${v == null ? "n/a" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak"}`} aria-label={`${full}: ${v == null ? "not available" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak"}`}><i style={{ height: `${v == null ? 0 : v >= 70 ? 100 : v >= 50 ? 66 : 33}%`, background: bandVar(bandOf(v)) }} /><em>{short}</em><u>{v == null ? "–" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak"}</u></span>; })}</div>
   </div>);
 };
 
@@ -214,7 +215,7 @@ export function MfPortfolioPage() {
         {d && s && d.count > 0 && <>
           <div className="mp-tiles">
             <div className="card"><small>Funds</small><b>{s.funds}</b><span className="faint">of {limit} in your plan</span></div>
-            <div className="card"><small>Portfolio Health Score</small>{locked ? <button className="mp-lock" onClick={unlock}><Icon name="lock" /><span>Gold</span></button> : <b className={"mfs-pv b-" + bandOf(s.score.value)}>{s.score.value == null ? "–" : scoreText(s.score.value)}</b>}<span className="faint">{locked ? "Unlock with Gold" : s.score.value != null ? `${s.score.label}, weighted by value` : s.score.why}</span></div>
+            <div className="card"><small>Portfolio Health Score</small>{locked ? <button className="mp-lock" onClick={unlock}><Icon name="lock" /><span>Gold</span></button> : <b className={"mfs-pv b-" + bandOf(s.score.value)}>{s.score.value == null ? "–" : scoreText(s.score.value)}</b>}<span className="faint">{locked ? "Unlock with Gold" : s.score.value != null ? `${s.score.label}. Average of your funds; weighted by value once units are added` : s.score.why}</span></div>
           </div>
           {s.notes.map((n) => <p key={n} className="faint mp-note" role="note">{n}</p>)}
           <section className="card mp-cat" aria-label="Your funds by category">
@@ -232,7 +233,7 @@ export function MfPortfolioPage() {
           <section className="card pf-tabs-card">
             <div className="card-h"><h3>Your funds</h3><span className="s">{d.count} of {limit}</span><button className="btn" onClick={() => saveFile(csvFileName(), toCsv(rows, locked), "text/csv;charset=utf-8")}>Export CSV</button></div>
             {noReturns > 0 && <p className="faint mp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
-            {!locked && <p className="faint mp-note">Score parts: Perf = Performance, Risk, Cost, Qual = Quality. Green 70 or more, orange 50 to 69, red under 50.</p>}
+            {!locked && <p className="faint mp-note">Score parts: Perf = Performance, Risk, Cost, Qual = Quality. Green is strong, orange fair and red weak.</p>}
             <div className="mp-tablewrap"><table className="mp-t">
               <thead><tr>{th("name", "Fund", "l")}{th("score", "Health Score")}{COLS.map((c) => th(c.k, c.label))}<th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>{rows.map((h) => (<Fragment key={h.id}>
@@ -250,6 +251,7 @@ export function MfPortfolioPage() {
           </section>
         </>}
       </Gate>
+      <PortfolioDisclaimer kind="mf" />
     </div>
   );
 }

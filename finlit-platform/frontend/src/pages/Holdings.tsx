@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -146,6 +147,7 @@ export function HoldingsPage() {
         </>}
         </div>
       </Gate>
+      <PortfolioDisclaimer kind="equity" />
     </div>
   );
 }
