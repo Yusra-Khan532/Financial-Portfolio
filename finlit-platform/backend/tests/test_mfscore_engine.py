@@ -253,7 +253,7 @@ async def test_job_rows_and_api_gating(store, monkeypatch):
         assert (await c.get("/api/mf/scores?group=EQ-LARGE")).json()["items"] == []            # a list's order would leak the ranking
         body = (await c.get(f"/api/mf/scores?codes={code}")).text
         sd = (await c.get(f"/api/mf/{code}/score")).json()
-        assert sd["locked"] and sd["final"] is None and all(p["score"] is None for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
+        assert sd["locked"] and sd["final"] is None and all(p["reading"] is None and "score" not in p for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
         assert str(funds[0].code) in body
     async with await _client(store, monkeypatch, "gold") as c:
         r = (await c.get(f"/api/mf/{code}/score")).json()
@@ -274,7 +274,7 @@ async def test_not_rated_and_inherited_and_unscored_answers(store, monkeypatch):
     await _write(store, [tiny])
     async with await _client(store, monkeypatch, "gold") as c:
         n = (await c.get("/api/mf/910001/score")).json()
-        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["score"] is None
+        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["reading"] == "Not scored" and "score" not in n["pillars"][0]
         i = (await c.get("/api/mf/910002/score")).json()
         assert i["status"] == "NOT RATED" and i["inherited"]["code"] == 910001
         s = (await c.get("/api/mf/910003/score")).json()
