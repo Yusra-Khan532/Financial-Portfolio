@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
 import { planTarget } from "../lib/planTarget";
+import { FeatureInfo } from "../components/FeatureDemo";
 
 const PLANS: { k: Plan; tag: string; desc: string; price: string; per: string; cta: string; inc: string; feat?: boolean; f: [string, string][] }[] = [
   { k: "basic", tag: "Free", desc: "Look up any listed company and run a simple screen. No card needed.", price: "Free", per: "no card needed", cta: "Create a free account", inc: "What you get",
@@ -85,7 +86,7 @@ export function PlansBand({ id, h1 = false, landing = false }: { id?: string; h1
               {!DEMO && p.k === "basic" && !user ? <Link className="btn" to="/login?mode=signup">{cta(p.k, p.cta)} <Icon name="arrow" /></Link>
                 : <button className="btn" disabled={!DEMO && plan === p.k && (!!user || p.k === "basic")} onClick={() => go(p.k)}>{cta(p.k, p.cta)} <Icon name="arrow" /></button>}
               <div className="inc">{p.inc}<span className="inc-n">{p.f.length} features</span></div>
-              <ul>{(landing ? p.f.slice(0, 8) : p.f).map(([a, b]) => <li key={a}><span className="ck"><Icon name={fIcon(a)} /></span><span><b>{a}</b><span className="d">{b}</span></span></li>)}</ul>
+              <ul>{(landing ? p.f.slice(0, 8) : p.f).map(([a, b]) => <li key={a}><span className="ck"><Icon name={fIcon(a)} /></span><span><b>{a}<FeatureInfo feature={a} /></b><span className="d">{b}</span></span></li>)}</ul>
               {landing && <div className="plan-foot"><span>{p.f.length > 8 ? `+${p.f.length - 8} more in the full table` : "All features shown"}</span><button type="button" className="plan-all" onClick={openAll}>{p.f.length > 8 ? `See all ${p.f.length} features` : "Compare every feature"} <Icon name="arrow" /></button></div>}
             </div>
           ))}
@@ -96,7 +97,7 @@ export function PlansBand({ id, h1 = false, landing = false }: { id?: string; h1
         <div className="cmp" id="plans-table" hidden={!all}><div className="cmp-scroll"><table>
           <thead><tr><th>Feature</th>{PLANS.map((p) => <th key={p.k} className={"th-" + p.k + (plan === p.k ? " cur" : "")} style={{ "--tc": `var(${TIER[p.k].tc})` } as React.CSSProperties}><span className="th-i"><Icon name={TIER[p.k].ic} /></span><b>{TIER[p.k].n}</b><small>{p.k === "basic" ? "Free" : "Price to come"}</small></th>)}</tr></thead>
           <tbody>{CMP.map(([n, d, need]) => d === null ? <tr className="grp" key={n}><td colSpan={4}>{n}</td></tr> :
-            <tr key={n}><td><span className="cf"><span className="cf-i"><Icon name={fIcon(n)} /></span><span><b>{n.replace(" (coming soon)", "")}{n.endsWith("(coming soon)") && <span className="soon-tag">Coming soon</span>}</b>{d ? <small>{d}</small> : null}</span></span></td>{PLANS.map((p) => RANK[p.k] >= (need ?? 0) ? <td key={p.k} className={"c-" + p.k}><span className="yes ck" role="img" aria-label="Included"><Icon name="check" /></span></td> : <td key={p.k} className={"c-" + p.k}><span className="x-no" role="img" aria-label="Not included">✕</span></td>)}</tr>)}</tbody>
+            <tr key={n}><td><span className="cf"><span className="cf-i"><Icon name={fIcon(n)} /></span><span><b>{n.replace(" (coming soon)", "")}<FeatureInfo feature={n} />{n.endsWith("(coming soon)") && <span className="soon-tag">Coming soon</span>}</b>{d ? <small>{d}</small> : null}</span></span></td>{PLANS.map((p) => RANK[p.k] >= (need ?? 0) ? <td key={p.k} className={"c-" + p.k}><span className="yes ck" role="img" aria-label="Included"><Icon name="check" /></span></td> : <td key={p.k} className={"c-" + p.k}><span className="x-no" role="img" aria-label="Not included">✕</span></td>)}</tr>)}</tbody>
         </table></div></div>
         <p className="plans-note">Features and limits can change. {DEMO ? "Use “Preview” to see a stock page as each plan." : "Ask for a plan from your account and we will confirm it by email."} Scores and tools here are for information only and are not investment advice.</p>
         </>}

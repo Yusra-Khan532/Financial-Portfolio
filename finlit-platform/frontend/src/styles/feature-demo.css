@@ -1,0 +1,23 @@
+/* The (i) beside a plan feature, its hover preview and its full view with a short screen recording (components/FeatureDemo.tsx, task #51). Tokens only; light and dark. */
+.fd-i { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 6px; padding: 0; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; opacity: .7;
+  font: italic 700 11px/1 Georgia, var(--serif); vertical-align: 1px; cursor: pointer; transition: opacity .15s, transform .15s, background .15s; }
+.fd-i:hover, .fd-i:focus-visible { opacity: 1; transform: scale(1.12); background: color-mix(in srgb, currentColor 14%, transparent); }
+.fd-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.fd-peek { position: fixed; z-index: 400; width: min(340px, calc(100vw - 24px)); padding: 10px; border-radius: 16px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text);
+  box-shadow: 0 24px 48px -20px rgba(0, 0, 0, .45); animation: fd-in .16s ease-out; }
+.fd-peek b { display: block; margin: 10px 4px 2px; font-size: 14px; } .fd-peek p { margin: 0 4px 6px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.fd-frame { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: var(--s2); aspect-ratio: 16 / 10; }
+.fd-media { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.fd-more { margin: 0 4px 2px; padding: 4px 0; border: 0; background: none; color: var(--gold-deep, var(--gold)); font: 600 13px var(--sans); cursor: pointer; } .fd-more:hover { text-decoration: underline; }
+.fd-back { position: fixed; inset: 0; z-index: 420; display: grid; place-items: center; padding: 16px; background: var(--ov-backdrop); animation: fd-fade .16s ease-out; }
+.fd-dlg { width: min(960px, 100%); max-height: calc(100dvh - 32px); overflow: auto; border-radius: 18px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .6); }
+.fd-dlg header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.fd-dlg h2 { margin: 0; font: 400 24px/1.2 var(--serif); }
+.fd-x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--s2); color: var(--text); font-size: 20px; cursor: pointer; } .fd-x:hover { border-color: var(--gold); }
+.fd-frame.big { margin: 16px 20px 0; aspect-ratio: auto; } .fd-frame.big .fd-media { height: auto; object-fit: contain; }
+.fd-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 14px 20px 4px; } .fd-foot p { margin: 0; flex: 1 1 320px; color: var(--muted); font-size: 16px; line-height: 1.5; }
+.fd-fine { margin: 0; padding: 8px 20px 16px; color: var(--faint); font-size: 12px; }
+@keyframes fd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes fd-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 640px) { .fd-dlg h2 { font-size: 20px; } .fd-frame.big { margin: 12px 12px 0; } .fd-foot { padding: 12px 12px 4px; } .fd-fine { padding: 8px 12px 14px; } .fd-i { width: 22px; height: 22px; font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .fd-peek, .fd-back { animation: none; } .fd-i { transition: none; } }
