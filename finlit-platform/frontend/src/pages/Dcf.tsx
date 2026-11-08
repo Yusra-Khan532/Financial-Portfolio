@@ -432,7 +432,7 @@ export function DcfPage() {
               <div><span>Current price</span><b>{Number.isFinite(inputs.price) ? rs(inputs.price) : "—"}</b></div>
               <div><span>Upside / downside</span><b className={res ? (res.upside >= 0 ? "up" : "down") : ""}>{res && res.equity > 0 ? sgn(res.upside) : "—"}</b></div>
             </div>
-            <details className="dcf-grp" open><summary>1. Cash flow and growth</summary>
+            <details className="dcf-grp" open><summary><Icon name="growth" /><span>1. Cash Flow and Growth</span></summary>
               <div className="dcf-grid">
                 <SliderField id="fcf0" label="Initial FCF (₹ Cr)" help={HELP.fcf0} value={form.fcf0} onChange={set("fcf0")} error={err("fcf0")} min={0} max={1000} />
                 <GrowthField id="g1" label="Growth rate (1 to 5 years)" help={HELP.g1} preset={form.g1Preset} value={form.g1} onPreset={preset("g1")} onValue={set("g1")} error={err("g1")} />
@@ -442,16 +442,16 @@ export function DcfPage() {
                   : <SliderField id="exitMultiple" label="Exit multiple (× year-10 FCF)" help={HELP.exitMultiple} value={form.exitMultiple} onChange={set("exitMultiple")} unit="×" error={err("exitMultiple")} min={1} max={60} step={0.5} />}
               </div>
             </details>
-            <details className="dcf-grp" open><summary>2. Discount rate and margin of safety</summary>
+            <details className="dcf-grp" open><summary><Icon name="quality" /><span>2. Discount Rate and Margin of Safety</span></summary>
               <div className="dcf-grid">
                 <SliderField id="r" label="Discount rate" help={HELP.r} value={form.r} onChange={set("r")} unit="%" error={err("r")} min={1} max={30} step={0.1} />
-                <SliderField id="mos" label="Margin of safety" help={HELP.mos} value={form.mos} onChange={set("mos")} unit="%" error={err("mos")} min={0} max={60} step={1}>
+                <SliderField id="mos" label="Margin of safety" help={HELP.mos} value={form.mos} onChange={set("mos")} unit="%" error={err("mos")} min={0} max={80} step={1}>
                   <div className="dcf-chips" role="group" aria-label="Margin of safety by uncertainty">{MOS_PRESETS.map((m) => <button type="button" key={m.value} className={"chip-b" + (form.mos === String(m.value) ? " on" : "")} aria-pressed={form.mos === String(m.value)} onClick={() => set("mos")(String(m.value))}>{m.label} {m.value}%</button>)}</div>
                 </SliderField>
               </div>
               <RateBuilder onUse={(r) => set("r")(String(r))} />
             </details>
-            <details className="dcf-grp" open><summary>3. Price and balance sheet</summary>
+            <details className="dcf-grp" open><summary><Icon name="balance" /><span>3. Price and Balance Sheet</span></summary>
               <div className="dcf-grid">
                 <Field id="marketCap" label="Market capitalisation (₹ Cr)" help={HELP.marketCap} value={form.marketCap} onChange={set("marketCap")} error={err("marketCap")} />
                 <Field id="price" label="Current share price (₹)" help={HELP.price} value={form.price} onChange={set("price")} error={err("price")} />
