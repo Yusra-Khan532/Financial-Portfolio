@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { SpreadSection } from "./Spread";
 import type { MfSpread } from "../lib/mfPortfolio";
 
@@ -23,6 +23,27 @@ const d: MfSpread = {
   ],
 };
 
+afterEach(cleanup);
+const cell = (name: string, share = 0, n = 0) => ({ name, share, n, symbols: n ? ["AAA"] : [] });
+const trend = {
+  all: { n: 10, rated: 8, coverage: 0.9, breadth: { up: 0.4, down: 0.5 }, direction: { improving: 0.6, weakening: 0.2, steady: 0.2 }, average: { stLabel: "Sideways", ltLabel: "Downtrend" },
+    words: { longTerm: "Split", shortAgainstLong: "Improving", businessAndPrice: "Partly out of step" },
+    grid: Object.fromEntries(["1,1", "1,0", "1,-1", "0,1", "0,0", "0,-1", "-1,1", "-1,0", "-1,-1"].map((k) => [k, cell(k, k === "-1,1" ? 0.5 : 0, k === "-1,1" ? 4 : 0)])),
+    business: { strong_up: { n: 1, share: 0.1, symbols: ["AAA"] }, strong_down: { n: 2, share: 0.2, symbols: ["BBB"] }, weak_up: { n: 0, share: 0, symbols: [] }, weak_down: { n: 0, share: 0, symbols: [] } } },
+  perFund: {}, sharedWeakSpots: { n: 2, share: 0.3, symbols: ["BBB", "CCC"] },
+} as unknown as NonNullable<MfSpread["trend"]>;
+
+describe("SpreadSection trend", () => {
+  it("Gold sees the trend card and a Silver member sees the lock note, never the numbers", () => {
+    const { unmount } = render(<MemoryRouter><SpreadSection d={{ ...d, trend }} /></MemoryRouter>);
+    expect(screen.getByText("8 of 10 stocks rated")).toBeTruthy();
+    expect(screen.getByText(/2 stocks are held through two or more funds/)).toBeTruthy();
+    unmount();
+    render(<MemoryRouter><SpreadSection d={{ ...d, trendLocked: true }} /></MemoryRouter>);
+    expect(screen.getByText(/part of the Gold plan/)).toBeTruthy();
+  });
+});
+
 describe("SpreadSection", () => {
   it("shows words and plain figures, and names the funds whose holdings are missing", () => {
     render(<MemoryRouter><SpreadSection d={d} /></MemoryRouter>);
@@ -31,6 +52,6 @@ describe("SpreadSection", () => {
     expect(screen.getByText(/share the "MNC" theme/)).toBeTruthy();
     expect(screen.getByText(/21% of their money in the same 55 stocks/)).toBeTruthy();
     const text = document.body.textContent || "";
-    expect(text.match(/.{25}\b(buy|sell|hold|reduce|avoid|accumulate)\b.{15}/gi)).toBeNull();
+    expect(text.match(/\b(buy|sell|hold|reduce|avoid|accumulate)\b/gi)).toBeNull();
   });
 });
