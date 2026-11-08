@@ -262,8 +262,10 @@ async def test_screener_filters_sort_pages_and_csv(app):
     f = (await g(f"min={mid}&limit=200")).json()
     assert f["total"] == sum(1 for i in asc if i["final"] >= mid) and all(i["final"] >= mid for i in f["items"])
     assert all(set(i["pillars"].values()) <= {"Strong", "Fair", "Weak", "Not scored"} for i in d["items"])      # the parts are words; no figure leaves the server
-    f = (await g("cost_min=0&risk_max=100&perf_min=50")).json()
-    assert f["total"] > 0
+    f = (await g("perf_min=50&risk_max=69.9")).json()
+    assert f["total"] >= 0
+    for exact in ("perf_min=63", "risk_max=80", "cost_min=0", "quality_max=100", "perf_min=49.9"):
+        assert (await g(exact)).status_code == 400, exact        # a part filters by band only: an exact range would recover its figure
     lab = asc[-1]["label"]
     assert all(i["label"] == lab for i in (await g(f"labels={lab}&limit=200")).json()["items"])
     assert (await g("sub=no-such-category")).json()["total"] == 0

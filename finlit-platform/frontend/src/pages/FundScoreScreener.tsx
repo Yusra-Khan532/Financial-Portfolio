@@ -15,7 +15,7 @@ import {
   type ScreenerItem, type SQuery,
 } from "../lib/mfScoreUp";
 import { HScroll } from "../components/HScroll";
-import { CheckRow, FgxFocus, FilterGroup, QuickRow, RangeRow, SearchBox } from "../components/screener/FilterGroup";
+import { CheckRow, ChipRow, FgxFocus, FilterGroup, QuickRow, RangeRow, SearchBox } from "../components/screener/FilterGroup";
 import { KpiStrip, TitleCard, Toolbar } from "../components/screener/PageParts";
 import { PageHeader } from "../components/PageHeader";
 import "../styles/fgx.css";
@@ -61,6 +61,9 @@ const PARTS = ["perf", "risk", "cost", "quality"] as const;
 const PART_ROWS: [typeof PARTS[number], string, string][] = [["perf", "Performance", "bars"], ["risk", "Risk", "alert"], ["cost", "Cost", "coins"], ["quality", "Quality", "medal"]];
 type ScoreDraft = Pick<SQuery, "min" | "max" | "perf" | "risk" | "cost" | "quality">;
 const scoreDraft = (q: SQuery): ScoreDraft => ({ min: q.min, max: q.max, perf: q.perf, risk: q.risk, cost: q.cost, quality: q.quality });
+/** A part filters by band only (Weak under 50, Fair 50 to 69, Strong 70 or more): an exact range would let repeated filtering recover the part's figure. */
+const BANDS = [["weak", "Weak", ["", "49.9"]], ["fair", "Fair", ["50", "69.9"]], ["strong", "Strong", ["70", ""]]] as const;
+const bandOfRange = (r: [string, string]) => BANDS.find(([, , b]) => b[0] === r[0] && b[1] === r[1])?.[0] ?? "";
 const sameDraft = (a: ScoreDraft, b: ScoreDraft) => JSON.stringify(a) === JSON.stringify(b);
 
 /** "Score & analytics filters": the overall score and its four parts in one panel. Typing changes a draft; Apply filters puts it in the address (and the list). */
@@ -79,8 +82,9 @@ function ScorePanel({ q, set }: { q: SQuery; set: (p: Partial<SQuery>) => void }
       </div>
       <div className="fss-sec">
         <h4 className="fss-h"><Icon name="layers" />Score Breakdown Filters</h4>
-        <p className="fss-sub">Filter by each part of the score, on its own.</p>
-        {PART_ROWS.map(([k, name, icon]) => <RangeRow key={k} icon={icon} label={name} min={d[k][0]} max={d[k][1]} onChange={(end, v) => setD((o) => ({ ...o, [k]: end === "min" ? [v, o[k][1]] : [o[k][0], v] }))} />)}
+        <p className="fss-sub">Filter by each part of the score, on its own: Weak, Fair or Strong.</p>
+        {PART_ROWS.map(([k, name]) => <ChipRow key={k} label={name} group={`${name}, band`} chips={BANDS.map(([id, text]) => ({ key: id, text, on: bandOfRange(d[k]) === id, aria: `${name}: ${text}` }))}
+          onToggle={(id) => setD((o) => ({ ...o, [k]: bandOfRange(o[k]) === id ? ["", ""] : [...BANDS.find(([b]) => b === id)![2]] as [string, string] }))} />)}
       </div>
       <div className="fss-act">
         <button type="button" className="btn" onClick={() => { setD(empty); if (!sameDraft(applied, empty)) set(empty); }}><Icon name="refresh" />Reset</button>

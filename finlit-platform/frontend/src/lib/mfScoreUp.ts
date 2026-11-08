@@ -75,9 +75,9 @@ export const emptyQuery = (): SQuery => ({ plan: "Direct", subs: [], labels: [],
   terMax: "", full: false, q: "", sort: "final", dir: "desc", page: 1, view: "", tab: "table" });
 /** Quick views, built from the four parts only and named neutrally. */
 export const VIEWS: { id: string; label: string; say: string; set: Partial<SQuery> }[] = [
-  { id: "lowcost", label: "High score with a low-cost part", say: "Score 65 or more and a Cost part of 70 or more.", set: { min: "65", cost: ["70", ""] } },
-  { id: "risk", label: "High Risk part", say: "A Risk part of 70 or more: a smoother ride against similar funds.", set: { risk: ["70", ""] } },
-  { id: "consistent", label: "High Performance and Risk parts", say: "Performance and Risk parts both 65 or more: returns that were also steady.", set: { perf: ["65", ""], risk: ["65", ""] } },
+  { id: "lowcost", label: "High score with a low-cost part", say: "Score 65 or more and a Strong Cost part.", set: { min: "65", cost: ["70", ""] } },
+  { id: "risk", label: "High Risk part", say: "A Strong Risk part: a smoother ride against similar funds.", set: { risk: ["70", ""] } },
+  { id: "consistent", label: "High Performance and Risk parts", say: "Performance and Risk parts both Strong: returns that were also steady.", set: { perf: ["70", ""], risk: ["70", ""] } },
 ];
 export const activeView = (q: SQuery) => VIEWS.find((v) => q.view === v.id)?.id ?? "";
 
