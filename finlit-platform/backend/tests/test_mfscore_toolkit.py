@@ -271,3 +271,16 @@ def test_history_gaps_inside_a_window_are_tolerated_up_to_three():
     keep = [i for i in range(61) if i not in (30, 31)]                    # two months missing from the stored series
     h = history.compute([days[i] for i in keep], [navs[i] for i in keep])
     assert h.months == 61 and h.invalid == 3 and h.window_ok and h.break_flag
+
+
+# ---- the model's weights never leave the server (task #37, fund pages)
+def test_part_words_and_no_weights_in_the_pillars_the_site_gets():
+    from finlit.mfscore import api as score_api
+    assert [score_api.part_word(v) for v in (None, 49.9, 50.0, 69.9, 70.0, 100.0)] == ["Not scored", "Weak", "Fair", "Fair", "Strong", "Strong"]
+    row = {"breakdown": "{}", "perf": 71.0, "risk": 55.5, "cost": 30.0, "quality": None}
+    parts = score_api.pillars_view("EQ-LARGE", row, True)
+    assert [p["reading"] for p in parts] == ["Strong", "Fair", "Weak", "Not scored"]
+    assert all("weight" not in p for p in parts)
+    locked = score_api.locked_payload("EQ-LARGE", "Direct")
+    assert all("weight" not in p and p["reading"] is None and p["score"] is None for p in locked["pillars"])
+    assert score_api.PRIVATE_METRIC_KEYS == ("weight", "pillarWeight")

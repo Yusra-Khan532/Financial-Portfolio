@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, confidenceText, filledText, etfMeasures, percentileText, rankText, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, confidenceText, filledText, etfMeasures, partWord, percentileText, rankText, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
@@ -29,14 +29,14 @@ export function ScoreRing({ score, label, size = 132 }: { score: number | null; 
 
 function Pillars({ s }: { s: FundScore }) {
   return (
-    <ul className="mfs-pillars" aria-label="The four parts of the score">
+    <ul className="mfs-pillars" aria-label="The four parts of the score, in words">
       {s.pillars.map((p) => {
-        const band = bandOf(p.score);
+        const band = bandOf(p.score), word = p.reading || partWord(p.score);
         return (
           <li key={p.key} title={PILLAR_HELP[p.key]}>
-            <span className="mfs-pn">{p.name}<small>{p.weight}% of the score</small></span>
-            <span className="mfs-bar" aria-hidden="true"><i style={{ width: `${p.score ?? 0}%`, background: bandVar(band) }} /></span>
-            <b className={"mfs-pv b-" + band}>{p.score == null ? "—" : scoreText(p.score)}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as a neutral 50.">F</sup>}</b>
+            <span className="mfs-pn">{p.name}</span>
+            <span className="mfs-bar" aria-hidden="true"><i style={{ width: band === "hi" ? "100%" : band === "mid" ? "62%" : band === "lo" ? "28%" : "0%", background: bandVar(band) }} /></span>
+            <b className={"mfs-pv b-" + band}>{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}</b>
           </li>);
       })}
     </ul>

@@ -17,8 +17,10 @@ export const PILLAR_HELP: Record<string, string> = {
 
 export type ScoreState = "A" | "Z" | "S" | "F" | "N";
 export type ScoreLine = { id: string; label: string; text: string; points: number; groupValue: number; effect: number; state: string };
-export type ScoreMetric = { id: string; label: string; pillar: string; state: ScoreState; value: number | null; own: number | null; peer: number | null; peerN: number | null; points: number | null; weight: number | null; groupValue: number | null; why: string | null; whyText?: string | null };
-export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; weight: number; score: number | null; allNotApplicable?: boolean };
+export type ScoreMetric = { id: string; label: string; pillar: string; state: ScoreState; value: number | null; own: number | null; peer: number | null; peerN: number | null; points: number | null; groupValue: number | null; why: string | null; whyText?: string | null };
+export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; score: number | null; allNotApplicable?: boolean };
+/** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
+export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
 export type FundScore = {
   locked: boolean; notOffered?: boolean; plan?: string; detail?: string; key?: string; kind?: string; group: string | null; groupName: string | null; fundPlan?: string | null;
   status: "RATED" | "PROVISIONAL" | "NOT RATED" | "NOT SCORED" | null; reason?: string | null; final: number | null; label: string | null; cap?: string | null; rawFinal?: number | null;
@@ -86,17 +88,6 @@ export const FLAG_TEXT: Record<string, string> = {
   NEAR_IDENTICAL: "Funds in this category are near-identical: they differ by a few hundredths of a percentage point, so cost carries the most weight.",
 };
 export const STATE_TEXT: Record<string, string> = { A: "Actual", Z: "Zero points (loss)", S: "Substituted", F: "Group value used", N: "Not applicable" };
-
-/** The weights of each group, percent of the final score (Performance, Risk, Cost, Quality): the same table as backend/finlit/mfscore/sheets.py. */
-export const GROUP_WEIGHTS: { group: string; name: string; w: [number, number, number, number] }[] = [
-  { group: "EQ-LARGE", name: "Equity: Large Cap", w: [35, 30, 15, 20] }, { group: "EQ-BROAD", name: "Equity: Flexi, Multi, Large & Mid, Value, Contra, Focused, Dividend Yield, ELSS", w: [35, 30, 15, 20] },
-  { group: "EQ-MID", name: "Equity: Mid Cap", w: [35, 30, 15, 20] }, { group: "EQ-SMALL", name: "Equity: Small Cap", w: [35, 30, 15, 20] }, { group: "EQ-THEME", name: "Equity: Sectoral / Thematic", w: [35, 30, 15, 20] },
-  { group: "DB-CASH", name: "Debt: Overnight, Liquid, Money Market, Ultra Short, Low Duration", w: [20, 30, 35, 15] }, { group: "DB-ACCRUAL", name: "Debt: Short Duration, Banking & PSU, Corporate Bond, Floater", w: [25, 35, 20, 20] },
-  { group: "DB-DURATION", name: "Debt: Medium to Long Duration, Dynamic Bond, Gilt", w: [30, 35, 15, 20] }, { group: "DB-CREDIT", name: "Debt: Credit Risk", w: [25, 40, 15, 20] },
-  { group: "HY-ARB", name: "Hybrid: Arbitrage", w: [20, 20, 45, 15] }, { group: "HY-CONS", name: "Hybrid: Conservative, Equity Savings", w: [25, 35, 20, 20] },
-  { group: "HY-AGGR", name: "Hybrid: Aggressive, Balanced", w: [35, 30, 15, 20] }, { group: "HY-DYN", name: "Hybrid: Dynamic Allocation, Multi Asset", w: [30, 35, 15, 20] },
-  { group: "SOL", name: "Solution oriented: Retirement, Children's", w: [30, 35, 15, 20] }, { group: "OT-PASSIVE", name: "Others: Index funds and ETFs", w: [20, 15, 40, 25] }, { group: "OT-OTHER", name: "Others: Fund of funds and the rest", w: [30, 30, 20, 20] },
-];
 
 /** The two measures only ETFs have, called out on the ETF page. `tone`: lift or watch when the measure is one of the reasons listed, else neutral; gap when it could not be measured. */
 export type EtfMeasure = { id: "ETF_LIQUIDITY" | "ETF_PREMIUM"; label: string; tone: "lift" | "watch" | "neutral" | "gap"; points: number | null; text: string };

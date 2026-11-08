@@ -1,4 +1,4 @@
-// Full measure-by-measure breakdown of a score (Gold): pillars with every measure (your value, the category median, points, weight, state and what it means,
+// Full measure-by-measure breakdown of a score (Gold): pillars with every measure (your value, the category median, points, state and what it means,
 // a coloured bar), the radar of the four parts against the category median, and a "Data gaps" box. Rendered inside the score card when the score is rated.
 import { useState } from "react";
 import { Radar } from "./Radar";
@@ -38,15 +38,14 @@ export function ScoreBreakdown({ s }: { s: S }) {
       <button type="button" className="mf-linkbtn" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide the measure-by-measure table" : "Show the measure-by-measure table"}</button>
       {open && (
         <div className="tw"><table className="mf-cmp mfu-tbl"><caption className="sr-only">Every measure behind the score, by part</caption>
-          <thead><tr><th scope="col">Measure</th><th scope="col" className="num">This fund</th><th scope="col" className="num">Peer median</th><th scope="col" className="num">Points</th><th scope="col" className="num">Weight</th><th scope="col">State</th></tr></thead>
+          <thead><tr><th scope="col">Measure</th><th scope="col" className="num">This fund</th><th scope="col" className="num">Peer median</th><th scope="col" className="num">Points</th><th scope="col">State</th></tr></thead>
           {groups.map((g) => (
             <tbody key={g.key}>
-              <tr className="mfu-ph"><th scope="colgroup" colSpan={6}>{PILLARS.find(([k]) => k === g.key)![1]} <b className={"b-" + bandOf(g.score)}>{scoreText(g.score)}</b></th></tr>
+              <tr className="mfu-ph"><th scope="colgroup" colSpan={5}>{PILLARS.find(([k]) => k === g.key)![1]} <b className={"b-" + bandOf(g.score)}>{scoreText(g.score)}</b></th></tr>
               {g.metrics.map((m) => (
                 <tr key={m.id}>
                   <th scope="row">{m.label}</th><td className="num">{num(m.own ?? m.value)}</td><td className="num">{num(m.peer)}</td>
                   <td className="num"><span className="mfu-pbar" aria-hidden="true"><i style={{ width: `${m.points ?? 0}%`, background: bandVar(bandOf(m.points)) }} /></span><span>{m.points == null ? "—" : m.points.toFixed(0)}</span></td>
-                  <td className="num">{m.weight == null || m.state === "N" ? "—" : m.weight.toFixed(1) + "%"}</td>
                   <td><span className={"mfu-st st-" + m.state}>{STATE_WORD[m.state]}</span><small>{stateLine(m)}</small></td>
                 </tr>))}
             </tbody>))}

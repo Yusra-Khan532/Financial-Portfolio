@@ -66,19 +66,25 @@ def _load(v: Any) -> Any:
     return json.loads(v) if isinstance(v, str) else v
 
 
+def part_word(score: Optional[float]) -> str:
+    """A part's reading in words (the site shows words, never the model's weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak."""
+    return "Not scored" if score is None else "Strong" if score >= 70 else "Fair" if score >= 50 else "Weak"
+
+
 def pillars_view(group: str, r: Dict[str, Any], values: bool = True) -> List[Dict[str, Any]]:
+    """The four parts of a score. No weight is sent: how much each part counts stays on the server."""
     flags = (_load(r["breakdown"]) or {}).get("pillarFlags", {}) if values else {}
     out = []
-    for p, w in zip(PILLARS, WEIGHTS[group]):
+    for p in PILLARS:
         score = r[{"performance": "perf", "risk": "risk", "cost": "cost", "quality": "quality"}[p]] if values else None
-        out.append({"key": p, "name": PILLAR_NAMES[p], "weight": w, "score": None if score is None else round(float(score), 1), "allNotApplicable": bool(flags.get(p))})
+        out.append({"key": p, "name": PILLAR_NAMES[p], "reading": part_word(score), "score": None if score is None else round(float(score), 1), "allNotApplicable": bool(flags.get(p))})
     return out
 
 
 def locked_payload(group: Optional[str], plan: Optional[str], **extra: Any) -> Dict[str, Any]:
-    """What a plan below Gold gets: the model's fixed shape (pillar names and weights, which are not values) and nothing a fund scored."""
+    """What a plan below Gold gets: the four part names and nothing a fund scored (no weights, no readings)."""
     return {"locked": True, "plan": "gold", "detail": "The FinLit Mutual Fund Health Score is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
-            "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "weight": w, "score": None} for p, w in zip(PILLARS, WEIGHTS[group])] if group in WEIGHTS else [],
+            "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "reading": None, "score": None} for p in PILLARS] if group in WEIGHTS else [],
             "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION, **extra}
 
 
@@ -100,6 +106,7 @@ def _sub_label(category: Optional[str]) -> Optional[str]:
 
 
 PEER_TEXT = texts()["peerSets"]
+PRIVATE_METRIC_KEYS = ("weight", "pillarWeight")
 
 
 def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -110,6 +117,7 @@ def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) ->
     tx = texts()
     for m in b.get("metrics", []):
         table = {"F": "gaps", "N": "na", "S": "substitutes"}.get(m["state"])
+        m = {k: v for k, v in m.items() if k not in PRIVATE_METRIC_KEYS}      # the stored breakdown keeps its weights for the engine; the site never gets them
         metrics.append({**m, "label": t.get(m["id"], {}).get("label", m["id"]), "whyText": (tx.get(table, {}).get(m.get("why") or "") if table else None)})
     n_f = sum(1 for m in metrics if m["state"] == "F")
     n_all = sum(1 for m in metrics if m["state"] != "N")
