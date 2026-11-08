@@ -463,3 +463,15 @@ async def test_diversification_is_silver_words_only_and_names_funds_without_hold
     assert all("level" not in x for x in body["readings"].values()), "the bands must stay on the server"
     assert {f["code"] for f in body["funds"]} == {BASE + 1, BASE + 5} and all(f["why"] for f in body["funds"])
     assert body["coverage"]["missing"] == sorted([BASE + 1, BASE + 5])
+
+
+async def test_diversification_trend_is_gold_and_has_no_cutoffs(app):
+    silver = await signed_in(app, "s@example.com", plan="silver")
+    gold = await signed_in(app, "g@example.com", plan="gold")
+    for c in (silver, gold):
+        assert (await add(c, BASE + 1, "100")).status_code == 201
+    s = (await silver.get(URL + "/diversification")).json()
+    assert s["trendLocked"] is True and "trend" not in s
+    g = (await gold.get(URL + "/diversification")).json()
+    assert "trendLocked" not in g and set(g["trend"]) == {"all", "perFund", "sharedWeakSpots"}
+    assert "gap" not in g["trend"]["all"] and g["trend"]["all"]["rated"] == 0

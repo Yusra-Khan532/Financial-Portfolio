@@ -207,6 +207,21 @@ async def growth_series(conn, rows: List[Dict[str, Any]]) -> Dict[int, Dict[str,
     return out
 
 
+async def trend_block(request: Request, funds: List[Dict[str, Any]], top: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Gold: the short- and long-term price trend of the stocks inside the funds (Prism technical scores), as words and shares; the stocks table also gets
+    each large stock's Prism score and trend words. Companies without a stored rating are counted as not rated, never guessed."""
+    from .. import prism_screen
+    from . import trend
+    syms = sorted({h["stockSymbol"] for f in funds for h in (f["holdings"] or []) if h.get("stockSymbol") and h.get("assetClass") == "equity"})
+    cards = prism_screen.cards(await request.app.state.store.prism_cards(syms)) if syms else {}
+    tech = {s: {"st": c.get("prism_st_score"), "lt": c.get("prism_lt_score"), "prismLabel": c.get("prism_label")} for s, c in cards.items()}
+    ft = trend.fund_trends(funds, tech)
+    for t in top:
+        c = cards.get(t["symbol"] or "")
+        t["prism"] = {"score": c.get("prism_final"), "label": c.get("prism_label"), "st": c.get("prism_st"), "lt": c.get("prism_lt")} if c else None
+    return {"trend": {"all": trend.public(ft["all"]), "perFund": {str(k): trend.public(v) for k, v in ft["perFund"].items()}, "sharedWeakSpots": ft["sharedWeakSpots"]}}
+
+
 @router.get("/diversification")
 async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
     """How spread the member's funds are: words and plain figures only. The levels and bands that give the overall word stay here."""
@@ -244,6 +259,10 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
                      "why": None if f["holdings"] else "The fund house's monthly portfolio disclosure is not loaded yet."} for f in funds]
     for t in out["topStocks"]:
         t["w"] = round(t["w"], 6)
+    if is_gold(ctx):
+        out.update(await trend_block(request, funds, out["topStocks"]))
+    else:
+        out["trendLocked"] = True
     out.update(count=len(funds), disclaimer=DISCLAIMER)
     return reply(out)
 

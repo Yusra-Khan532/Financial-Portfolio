@@ -177,10 +177,19 @@ export type MfSpread = {
   mix: { shares: number; sharesUnknown: number; debt: number; other: number };
   size: { Large: number; Mid: number; Small: number; Other: number };
   sectors: { name: string; share: number }[];
-  topStocks: { name: string; symbol: string | null; sector: string | null; w: number; funds: number[] }[];
+  topStocks: { name: string; symbol: string | null; sector: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];
+  trendLocked?: boolean; trend?: MfTrend;
   overlap: { a: number; b: number; pct: number; n: number }[];
   together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };
   coverage: { funds: number; disclosed: number; missing: number[] };
   funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
 };
 export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
+
+export type TrendCell = { name: string; share: number; n: number; symbols: string[] };
+export type TrendRead = {
+  n: number; rated: number; coverage: number; grid: Record<string, TrendCell>; breadth: { up: number; down: number }; direction: { improving: number; weakening: number; steady: number };
+  business: Record<"strong_up" | "strong_down" | "weak_up" | "weak_down", { n: number; share: number; symbols: string[] }>; average: { stLabel: string; ltLabel: string } | null;
+  words: { longTerm: string; shortAgainstLong: string; businessAndPrice: string };
+};
+export type MfTrend = { all: TrendRead; perFund: Record<string, TrendRead>; sharedWeakSpots: { n: number; share: number; symbols: string[] } };
