@@ -8,7 +8,7 @@ import { HScroll } from "../components/HScroll";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import {
-  AVERAGES_NOTE, FILTERS, SORT_LABEL, averageLabel, STATES, count, failureText, filterCounts, flagAge, flagText, fullDate, groupKindText, groupsLine, inFilter, level, mergedReasons, pct, plural, signedPct, sortRows, thrustText,
+  FILTERS, SORT_LABEL, averageLabel, STATES, count, failureText, filterCounts, flagAge, flagText, fullDate, groupKindText, groupsLine, inFilter, level, plural, signedPct, sortRows, thrustText,
   useSectorBoard, type Board, type FilterKey, type GroupRow, type SortKey,
 } from "../lib/sectors";
 import { CornerBadge, RankMove, SectorTabs } from "../components/rotation/Parts";
@@ -40,35 +40,35 @@ function Market({ b }: { b: Board }) {
         <div className="sx-num"><small>{averageLabel(m)[0].toUpperCase() + averageLabel(m).slice(1)}</small><b>{level(m.nifty50_200d_average)}</b></div>
         <div className="sx-num"><small>Difference</small><b className={m.pct_vs_200d != null ? (m.pct_vs_200d < 0 ? "neg" : "pos") : ""}>{signedPct(m.pct_vs_200d, 1)}</b></div>
       </div>
-      {b.study?.market && <p className="sx-sub" style={{ marginBottom: 8 }}>{b.study.market}</p>}
-      <p className="sx-note">This split was examined after seeing the results, and rests on a small number of separate weeks. It describes the past; it is not a rule.</p>
+      {m.note && <p className="sx-sub" style={{ marginBottom: 0 }}>{m.note}</p>}
     </section>
   );
 }
 
-function HowTo() {
+/** Four short steps for the top of the page: the server writes them (how_to_use), so the words are the same everywhere. */
+function HowTo({ b }: { b: Board }) {
+  const steps = b.how_to_use ?? [];
+  if (!steps.length) return null;
   return (
-    <div className="sx-two even">
-      <section className="sx-card" aria-labelledby="sx-how">
-        <h2 id="sx-how">How to read this page</h2>
-        <ol className="sx-steps">
-          <li><i>1</i><span><b>The coloured state</b> shows where an industry is in its cycle, from a broad sell-off (Washout) through a broad rebound (Thrust) to an established trend (Confirmed).</span></li>
-          <li><i>2</i><span><b>The three bars</b> show the share of its counted stocks above their 9, 20 and 50-day averages: the short, medium and longer trend. Long bars mean most stocks are rising together. {AVERAGES_NOTE}</span></li>
-          <li><i>3</i><span><b>Industries are NSE's.</b> An industry with fewer than 10 counted stocks is read together with the other small industries of its NSE sector, as a sector group.</span></li>
-          <li><i>4</i><span><b>Open an industry</b> to see a year of its history, how each stock compares inside it, which stocks are not counted and why, and what the 2017–2026 study found for its state.</span></li>
-        </ol>
-        <p style={{ marginTop: 14 }}><Link className="sx-link" to="/learn/sector-signals">Learn how sector signals work →</Link></p>
-      </section>
-      <section className="sx-card" aria-labelledby="sx-cyc">
-        <h2 id="sx-cyc">The industry cycle</h2>
-        <div className="sx-cycle">
-          <div className="sx-stage st-washout"><b>Washout</b>Fewer than 40% of stocks above their 50-day average at some point in the last 30 sessions</div><span className="arrow" aria-hidden="true">→</span>
-          <div className="sx-stage st-thrust"><b>Thrust C / CAP</b>A sudden, broad rebound within 5 sessions</div><span className="arrow" aria-hidden="true">→</span>
-          <div className="sx-stage st-confirmed"><b>Confirmed</b>70%+ of stocks above all three averages</div>
-        </div>
-        <div className="sx-cycle-fade"><span className="arrow" aria-hidden="true">↓</span><div className="sx-stage st-fading"><b>Fading</b>A rebound or an uptrend lost its breadth. Industries that match none of these are Neutral.</div></div>
-      </section>
-    </div>
+    <section className="sx-sec" aria-labelledby="sx-how">
+      <h2 id="sx-how">How to read this page</h2>
+      <ul className="sx-how">{steps.map((x) => <li key={x.title}><b>{x.title}</b><p>{x.text}</p></li>)}</ul>
+      <p style={{ marginTop: 12 }}><Link className="sx-link" to="/learn/sector-signals">How to use Sector Pulse →</Link></p>
+    </section>
+  );
+}
+
+function Cycle() {
+  return (
+    <section className="sx-card" aria-labelledby="sx-cyc">
+      <h2 id="sx-cyc">The industry cycle</h2>
+      <div className="sx-cycle">
+        <div className="sx-stage st-washout"><b>Washout</b>Heavily sold; no broad rebound yet</div><span className="arrow" aria-hidden="true">→</span>
+        <div className="sx-stage st-thrust"><b>Thrust C / CAP</b>Most stocks turn up together</div><span className="arrow" aria-hidden="true">→</span>
+        <div className="sx-stage st-confirmed"><b>Confirmed</b>Most stocks trending up together</div>
+      </div>
+      <div className="sx-cycle-fade"><span className="arrow" aria-hidden="true">↓</span><div className="sx-stage st-fading"><b>Fading</b>A rebound or trend lost its breadth. Industries that match none of these are Neutral.</div></div>
+    </section>
   );
 }
 
@@ -110,14 +110,13 @@ function GroupsTable({ b }: { b: Board }) {
       <div className="sx-tablebox" style={{ marginTop: 10 }}>
         <HScroll label="industries table" className="sx-scroll">
           <table className="sx-t" data-testid="groups-table">
-            <caption className="sx-visually">Every industry and sector group with a reading: state, breadth, index against its 52-week high, higher-low share, last thrust and leader flags</caption>
+            <caption className="sx-visually">Every industry and sector group with a reading: state, breadth, index against its 52-week high, last thrust and leader flags</caption>
             <thead><tr>
               <Th k="name" label="Industry or sector group" sort={sort} dir={dir} onSort={onSort} />
               <Th k="state" label="State" sort={sort} dir={dir} onSort={onSort} cls="l" />
               <th scope="col" className="l">Above 9 / 20 / 50-day avg<span className="sx-visually"> (sort with the Sort by menu)</span>
                 {(["above_9", "above_20", "above_50"] as const).map((k) => <button key={k} type="button" className={"sx-sortbtn sx-mini" + (sort === k ? " on" : "")} aria-label={`Sort by the share above the ${k.slice(6)}-day average`} onClick={() => onSort(k)}>{k.slice(6)}{sort === k ? (dir === "asc" ? "▲" : "▼") : ""}</button>)}</th>
               <Th k="index" label="Index vs 52-wk high" sort={sort} dir={dir} onSort={onSort} />
-              <Th k="higher_low" label="Higher-low share" sort={sort} dir={dir} onSort={onSort} />
               <Th k="thrust" label="Last thrust" sort={sort} dir={dir} onSort={onSort} cls="l" />
               <Th k="flags" label="Leader flags" sort={sort} dir={dir} onSort={onSort} />
               <th scope="col" className="l rt-colh">Corner</th>
@@ -125,13 +124,12 @@ function GroupsTable({ b }: { b: Board }) {
             </tr></thead>
             <tbody>
               {rows.map((r) => <Row key={r.slug} r={r} />)}
-              {!rows.length && <tr><td colSpan={9} className="l" style={{ whiteSpace: "normal", textAlign: "left" }}>{filter === "thrust" ? "No group is in a fresh thrust today." : "No group matches this filter today."}</td></tr>}
+              {!rows.length && <tr><td colSpan={8} className="l" style={{ whiteSpace: "normal", textAlign: "left" }}>{filter === "thrust" ? "No group is in a fresh thrust today." : "No group matches this filter today."}</td></tr>}
             </tbody>
           </table>
         </HScroll>
       </div>
-      <p className="sx-note sx-foot">Higher-low share: of the counted stocks, the share that did not make a new low when the industry index did (under 20%, shown in red, is a capitulation). Index: the counted stocks averaged with equal weight. Thrust ages are in trading sessions.
-        {flagsLocked && <> Leader-flag counts are part of the Silver plan.</>}</p>
+      <p className="sx-note sx-foot">Index: the counted stocks averaged with equal weight. Thrust ages are in trading sessions.{flagsLocked && <> Leader-flag counts are part of the Silver plan.</>}</p>
     </section>
   );
 }
@@ -143,11 +141,10 @@ function Row({ r }: { r: GroupRow }) {
       <td className="l"><StateChip state={r.state} /></td>
       <td className="l"><BreadthBars b={r.breadth} name={r.name} /></td>
       <td>{signedPct(r.index_vs_52w_high, 1)}</td>
-      <td className={r.higher_low_share != null && r.higher_low_share < 20 ? "sx-low" : ""}>{r.higher_low_share == null ? <span className="sx-na" title={r.higher_low_note ?? undefined}>—<span className="sx-visually"> {r.higher_low_note ?? "No reading"}</span></span> : pct(r.higher_low_share)}{r.higher_low_share != null && r.higher_low_share < 20 ? <span className="sx-visually"> (under 20%: a capitulation)</span> : null}</td>
       <td className="l" style={{ whiteSpace: "normal", minWidth: 118 }}>{thrustText(r.last_thrust)}</td>
       <td className="sx-flagn">{r.leader_flags == null ? <span className="sx-na" title="Leader flags are part of the Silver plan">Silver</span> : r.leader_flags > 0 ? r.leader_flags : <span className="sx-na" aria-label="none">—</span>}</td>
       <td className="l rt-colc">{r.rotation ? <Link to={`/sectors/rotation?corner=${r.rotation.corner}`} className="rt-clink" title="Open Sector Rotation, filtered to this corner"><CornerBadge corner={r.rotation.corner} name={r.rotation.corner_name} /></Link> : <span className="sx-na" title="Fewer than 8 counted stocks: too few for a rotation reading, or the rotation files are not in this data set yet">No reading</span>}</td>
-      <td className="rt-colc">{r.rotation?.rank != null ? <><b>{r.rotation.rank}</b> <RankMove v={r.rotation.rank_change_1w} /></> : <span className="sx-na">—</span>}</td>
+      <td className="rt-colc">{r.rotation?.rank != null ? <><b>{r.rotation.rank}</b> <RankMove v={r.rotation.rank_change_1w} /></> : r.rotation ? <span className="sx-na">Not ranked yet</span> : <span className="sx-na">—</span>}</td>
     </tr>
   );
 }
@@ -158,7 +155,7 @@ function TooFew({ b }: { b: Board }) {
   return (
     <section className="sx-card sx-sec" aria-labelledby="sx-few">
       <h2 id="sx-few">Too few stocks for a reading</h2>
-      <p className="sx-sub">A group needs at least 8 counted stocks before its breadth means much: with fewer, one stock moves a reading by more than 12 points. These {b.too_few_stocks.length} NSE sector groups hold {count(total)} counted stocks between them, so they are shown without a state until they grow.</p>
+      <p className="sx-sub">These groups have too few counted stocks for a steady reading, so they are shown without a state until they grow. The {b.too_few_stocks.length} groups hold {count(total)} counted stocks between them.</p>
       <ul className="sx-chips" style={{ listStyle: "none", padding: 0 }}>{b.too_few_stocks.map((g) => <li key={g.slug} className="sx-pill">{g.name} <small>· {g.stocks_counted} counted</small></li>)}</ul>
     </section>
   );
@@ -167,26 +164,14 @@ function TooFew({ b }: { b: Board }) {
 function Counted({ b }: { b: Board }) {
   const u = b.universe;
   if (!u) return null;
-  const reasons = mergedReasons(u.reasons);
-  const max = Math.max(1, ...reasons.map((r) => r.stocks));
   return (
     <section className="sx-card sx-sec" aria-labelledby="sx-counted">
       <h2 id="sx-counted">Which stocks are counted</h2>
-      <p className="sx-sub">Thinly traded, very small or newly listed stocks move on a handful of trades and would add noise to the breadth readings, so they are left out. The list is reviewed on the first trading day of each month.</p>
+      {u.text && <p className="sx-sub">{u.text}</p>}
       <div className="sx-ustats">
         <div className="sx-num"><small>NSE stocks with an industry, traded on {fullDate(u.date).replace(/ \d{4}$/, "")}</small><b>{count(u.stocks_with_industry_traded)}</b></div>
         <div className="sx-num"><small>Meet the rules</small><b>{count(u.meet_rules)}</b></div>
         <div className="sx-num on"><small>Counted in the {b.groups} groups with a reading</small><b>{count(u.counted_in_groups_with_reading)}</b></div>
-      </div>
-      <div className="sx-ucols">
-        <div><h3>A stock is counted when it</h3><ul className="sx-rules">
-          <li>trades in NSE's normal EQ series</li><li>has a median traded value of Rs 2 crore a day or more over 65 sessions (once counted, it stays down to Rs 1 crore)</li>
-          <li>traded on at least 62 of those 65 sessions, and was stuck at a price band on no more than 1</li><li>is priced Rs 20 or more</li>
-          <li>has an AMFI average market cap of Rs 1,000 crore or more (stays down to Rs 800 crore)</li><li>has been listed for at least 6 months (126 sessions)</li></ul>
-          <p className="sx-note" style={{ marginTop: 10 }}>{b.universe_rules}</p></div>
-        <div><h3>Why the other {count(u.not_counted)} are not counted</h3>
-          <div className="sx-rb" role="list">{reasons.map((r) => <div className="r" role="listitem" key={r.reason}><span>{r.reason.charAt(0).toUpperCase() + r.reason.slice(1)}</span><span className="t" aria-hidden="true"><i style={{ width: `${(r.stocks / max) * 100}%` }} /></span><b>{count(r.stocks)}</b></div>)}</div>
-          <p className="sx-note" style={{ marginTop: 10 }}>Most of these stocks miss more than one rule, so the counts add up to more than {count(u.not_counted)}. Each industry page lists its own stocks that are not counted, with the reasons.</p></div>
       </div>
     </section>
   );
@@ -203,18 +188,17 @@ function Flags({ b }: { b: Board }) {
     );
   }
   const list = all ? b.leader_flags : b.leader_flags.slice(0, 10);
-  const full = b.leader_flags.filter((f) => f.tier_code === 2).length;
+  const full = b.leader_flags.filter((f) => /full/i.test(f.tier)).length;
   const groups = new Set(b.leader_flags.map((f) => f.group_slug)).size;
   return (
     <section className="sx-card sx-sec" aria-labelledby="sx-flags">
       <div className="sx-bar" style={{ marginBottom: 0 }}><div><h2 id="sx-flags">Leader flags: 52-week highs inside weak industries</h2>
-        <p className="sx-sub">A stock gets a flag when it closes at a 52-week high while its industry index is 15% or more below its own high (10–15% is the softer tier). The flag stays live for 60 sessions after the last such high. {b.leader_flags.length} flags are live in {groups} groups: {full} full flags and {b.leader_flags.length - full} in the softer tier.</p></div>
+        <p className="sx-sub">{b.leader_flag_text} {b.leader_flags.length} flags are live in {groups} groups: {full} full flags and {b.leader_flags.length - full} in the softer tier.</p></div>
         {b.leader_flags.length > 10 && <button type="button" className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${b.leader_flags.length}`}</button>}</div>
-      {!b.leader_flags.length ? <p className="sx-note" role="status">No stock is flagged today: none closed at a 52-week high in the last 60 sessions while its industry was 10% or more below its own high.</p> :
+      {!b.leader_flags.length ? <p className="sx-note" role="status">No stock is flagged today.</p> :
         <ul className="sx-flags" style={{ listStyle: "none", padding: 0 }}>{list.map((f) => (
-          <li className="sx-flag" key={f.symbol + f.group_slug}><div className="h"><Link to={`/stocks/${f.symbol}`}>{f.symbol}</Link><span className={"tier" + (f.tier_code === 2 ? "" : " soft")}>{flagText(f)}</span></div>
+          <li className="sx-flag" key={f.symbol + f.group_slug}><div className="h"><Link to={`/stocks/${f.symbol}`}>{f.symbol}</Link><span className={"tier" + (/full/i.test(f.tier) ? "" : " soft")}>{flagText(f)}</span></div>
             <span>{f.group}</span><span>{flagAge(f.sessions_ago)}{f.quarter ? ` · 6-month quarter ${f.quarter}` : ""}</span></li>))}</ul>}
-      {b.leader_flag_study && <div className="sx-study"><b>What the 2017–2026 study found</b>{b.leader_flag_study} <em>Past averages, not forecasts.</em></div>}
     </section>
   );
 }
@@ -231,11 +215,12 @@ export function SectorPulsePage() {
       {b && (
         <>
           <Tiles b={b} />
-          <div className="sx-two">
+          <HowTo b={b} />
+          <div className="sx-two sx-mk">
             <Market b={b} />
             {b.market_note && <section className="sx-warn" role="note" aria-labelledby="sx-wn"><h2 id="sx-wn"><Icon name="alert" /> Breadth is weak almost everywhere</h2><p>{b.market_note}{b.counts ? ` ${plural(b.counts.Washout ?? 0, "group")} ${(b.counts.Washout ?? 0) === 1 ? "is" : "are"} in a Washout; ${b.counts.Confirmed ? plural(b.counts.Confirmed, "group") + " Confirmed" : "none is Confirmed"} and ${(b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0) ? plural((b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0), "group") + " had a thrust today" : "none had a thrust today"}.` : ""}</p></section>}
           </div>
-          <div style={{ marginTop: 16 }}><HowTo /></div>
+          <div style={{ marginTop: 16 }}><Cycle /></div>
           <GroupsTable b={b} />
           <TooFew b={b} />
           <Counted b={b} />

@@ -53,7 +53,7 @@ export function BreadthChart({ page }: { page: IndustryPage }) {
           <g key={k}><rect className={`band st-${b.code}`} x={b.x} y={T} width={b.w} height={H - B - T}><title>{`${b.state}: ${fullDate(b.from)} to ${fullDate(b.to)}`}</title></rect>
             {PATTERN[b.code] && <rect x={b.x} y={T} width={b.w} height={H - B - T} fill={`url(#${uid}${PATTERN[b.code]})`} pointerEvents="none" />}</g>
         ))}
-        {[0, 20, 50, 80, 100].map((v) => <g key={v}><line className={v === 0 || v === 100 ? "ax" : "guide"} x1={L} x2={W - R} y1={g.y(v)} y2={g.y(v)} /><text x={L - 6} y={g.y(v) + 4} textAnchor="end">{v}%</text></g>)}
+        {[0, 25, 50, 75, 100].map((v) => <g key={v}><line className={v === 0 || v === 100 ? "ax" : "guide"} x1={L} x2={W - R} y1={g.y(v)} y2={g.y(v)} /><text x={L - 6} y={g.y(v) + 4} textAnchor="end">{v}%</text></g>)}
         {monthTicks.map((t) => <text key={t.i} x={g.x(t.i)} y={H - 12} textAnchor="middle">{t.label}</text>)}
         <path className="l50" d={g.path(h.above_50)} /><path className="l20" d={g.path(h.above_20)} /><path className="l9" d={g.path(h.above_9)} />
         {g.marks.filter((m) => m.kind === "turned_fading").map((m, k) => <g key={"x" + k}><line className="ev-x" x1={m.x - 4} x2={m.x + 4} y1={H - B - 12} y2={H - B - 4} /><line className="ev-x" x1={m.x + 4} x2={m.x - 4} y1={H - B - 12} y2={H - B - 4} /></g>)}
@@ -71,7 +71,7 @@ export function BreadthChart({ page }: { page: IndustryPage }) {
       <ul className="sx-legend" aria-label="Chart key">
         <li><span className="sw st-washout" />Washout</li><li><span className="sw st-thrust" />Thrust window</li><li><span className="sw st-confirmed" />Confirmed</li><li><span className="sw st-fading" />Fading</li><li><span className="sw st-neutral" />Neutral</li>
         <li><span className="ev">C</span><span className="ev">CAP</span> Thrust day</li><li><span className="xx" aria-hidden="true">×</span> Turned Fading</li>
-        <li><span className="ln l9" />9-day</li><li><span className="ln l20" />20-day</li><li><span className="ln l50" />50-day</li><li>Dotted lines: 80%, 50% and 20% guides</li>
+        <li><span className="ln l9" />9-day</li><li><span className="ln l20" />20-day</li><li><span className="ln l50" />50-day</li>
       </ul>
       <details className="sx-chartdata"><summary>Show the chart as a table ({n} sessions)</summary>
         <HScroll label="breadth history" className="sx-scroll">

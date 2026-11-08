@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import map from "../lib/__fixtures__/rotation/map.json";
 import media from "../lib/__fixtures__/rotation/media.json";
 import { ApiError } from "../lib/api";
-import { mapGeometry, nextCorners, placeLabels, rankGrid, rankMove, rowsByRank, shade, sparkPath, type RotationCard, type RotationMap } from "../lib/rotation";
+import { mapGeometry, placeLabels, rankGrid, rankMove, rowsByRank, shade, sparkPath, type RotationCard, type RotationMap } from "../lib/rotation";
 
 const st = vi.hoisted(() => ({ map: null as unknown, card: null as unknown }));
 const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: false, isError: true, error: d, refetch: () => {} } : { data: d, isLoading: false, isError: false, error: null, refetch: () => {} });
@@ -50,10 +50,6 @@ describe("helpers", () => {
   it("draws a sparkline that breaks at an unranked week", () => {
     expect(sparkPath([{ rank: 1 }, { rank: 5 }, { rank: null }, { rank: 3 }], 100, 30, 10)).toMatch(/^M.*L.*M/);
   });
-  it("reads where groups went next from the study, two at most", () => {
-    const n = nextCorners(M.study, "behind_gaining");
-    expect(n.length).toBeGreaterThan(0); expect(n.length).toBeLessThanOrEqual(2); expect(n[0].pct).toBe(Math.max(...Object.values(M.study!.moves.next_corner.behind_gaining)));
-  });
 });
 
 describe("the Rotation tab", () => {
@@ -79,7 +75,6 @@ describe("the Rotation tab", () => {
     at(<SectorRotationPage />);
     const t = screen.getByTestId("rank-table");
     expect(t.querySelectorAll("tbody tr").length).toBe(37);
-    expect(within(t).getAllByText(/this week reads/).length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain("Agricultural Commercial & Construction Vehicles");
     expect(document.body.textContent).not.toContain("Capital Goods");
   });
@@ -91,7 +86,7 @@ describe("the Rotation tab", () => {
   });
   it("lists who changed corner and the climbers and fallers from the file", () => {
     at(<SectorRotationPage />);
-    expect(screen.getByText(/11 of 37/)).toBeTruthy();
+    expect(screen.getAllByText(new RegExp(`${M.moved_this_week.length} of 37`)).length).toBeGreaterThan(0);
     for (const m of M.moved_this_week.slice(0, 3)) expect(screen.getAllByText(m.name).length).toBeGreaterThan(0);
     for (const c of M.climbers_4w) expect(screen.getAllByText(c.name).length).toBeGreaterThan(0);
   });
@@ -100,10 +95,20 @@ describe("the Rotation tab", () => {
     at(<SectorRotationPage />);
     expect(screen.getByText(/Rotation data is not loaded yet/)).toBeTruthy();
   });
-  it("says 'past averages, not forecasts' beside the study and keeps the disclaimer", () => {
+  it("has the how-to steps at the top, no study and one disclaimer", () => {
     at(<SectorRotationPage />);
-    expect(screen.getAllByText(/Past averages, not forecasts/i).length).toBeGreaterThan(0);
-    expect(document.body.textContent).toContain("not a recommendation to buy, sell or hold any security");
+    expect(screen.getByRole("heading", { name: "How to read this page" })).toBeTruthy();
+    expect(document.querySelectorAll(".sx-how li").length).toBe(4);
+    expect(document.body.textContent).not.toMatch(/\bstudy\b|25% breadth|two weekly closes|weights/i);
+    expect(document.body.textContent).toContain("Not a recommendation to buy, sell or hold any security");
+  });
+  it("shows the rank, 'Not ranked yet' for a group with none, and one Moved column", () => {
+    st.map = { ...M, rows: M.rows.map((r, i) => (i === 0 ? { ...r, rank: null, rank_label: "Not ranked yet", rank_change_1w: null, rank_change_4w: null } : r)) };
+    at(<SectorRotationPage />);
+    const t = screen.getByTestId("rank-table");
+    expect(within(t).getAllByText("Not ranked yet").length).toBeGreaterThan(0);
+    expect(within(t).getByRole("columnheader", { name: "Moved" })).toBeTruthy();
+    expect(within(t).queryByRole("columnheader", { name: "1 wk" })).toBeNull();
   });
   it("describes and never advises: no advice word in anything the page and the Learn page print", () => {
     at(<SectorRotationPage />);
@@ -111,16 +116,16 @@ describe("the Rotation tab", () => {
     expect(strip(document.body.textContent ?? "")).not.toMatch(BANNED);
     cleanup(); at(<LearnSectorRotationPage />);
     expect(strip(document.body.textContent ?? "")).not.toMatch(BANNED);
-    expect(JSON.stringify([M.study!.text, M.rows.map((r) => r.summary), M.method])).not.toMatch(BANNED);
+    expect(JSON.stringify([M.rows.map((r) => r.summary), M.how_to_use])).not.toMatch(BANNED);
   });
 });
 
 describe("the industry card", () => {
-  it("shows rank, breadth, strength, change, the server's summary and the study line", () => {
+  it("shows rank, breadth, strength, change, the server's summary and how to read the corner", () => {
     at(<CardView slug="media-entertainment-publication" groupName={C.name} />);
     const card = screen.getByTestId("rotation-card");
     expect(card.textContent).toContain(`${C.rank} of ${C.ranked}`); expect(card.textContent).toContain(C.summary); expect(card.textContent).toContain(C.corner_name);
-    expect(card.textContent).toMatch(/Past averages, not forecasts/);
+    expect(card.textContent).not.toMatch(/study/i);
   });
   it("says why when the group has no reading", () => {
     st.card = { name: "Tiny", slug: "tiny", reading: false, note: "Fewer than 8 counted stocks, too few for a rotation reading." };

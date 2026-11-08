@@ -7,8 +7,7 @@ import board from "../lib/__fixtures__/sectors/board.json";
 import ferrous from "../lib/__fixtures__/sectors/ferrous-metals.json";
 import sambhv from "../lib/__fixtures__/sectors/sambhv.json";
 import { ApiError } from "../lib/api";
-import { chartGeometry, filterCounts, inFilter, mergedReasons, sortRows, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
-import { mainFinding, studyCards, studyRows } from "../lib/sectorStudy";
+import { chartGeometry, filterCounts, inFilter, sortRows, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
 
 const st = vi.hoisted(() => ({ board: null as unknown, page: null as unknown, stock: null as unknown }));
 const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: false, isError: true, error: d, refetch: () => {} } : { data: d, isLoading: false, isError: false, error: null, refetch: () => {} });
@@ -47,26 +46,12 @@ describe("helpers", () => {
     const withNull = sortRows([{ ...B.rows[0], leader_flags: null }, { ...B.rows[1], leader_flags: 3 }], "flags", "asc");
     expect(withNull[0].leader_flags).toBe(3);
   });
-  it("merges the two traded-value reasons into one bar", () => {
-    const m = mergedReasons(B.universe.reasons);
-    expect(m.filter((r) => r.reason.startsWith("median traded value")).length).toBe(1);
-    expect(m[0].stocks).toBe(1076 + 97);
-    expect(m.reduce((s, r) => s + r.stocks, 0)).toBe(B.universe.reasons.reduce((s, r) => s + r.stocks, 0));
-  });
   it("places every band and event of the chart on the history", () => {
     const g = chartGeometry(P, 40, 880, 20, 300);
     expect(g.bandRects.length).toBe(P.bands.length);
     expect(g.marks.length).toBe(P.events.filter((e) => P.history.dates.includes(e.date)).length);
     expect(g.path(P.history.above_50).startsWith("M")).toBe(true);
     expect(g.y(0)).toBe(300); expect(g.y(100)).toBe(20);
-  });
-  it("builds study sentences only from the figures, and says nothing without them", () => {
-    expect(studyCards(B.study.figures).map((c) => c.key)).toEqual(["C", "CAP", "market", "Confirmed"]);
-    expect(studyCards(B.study.figures)[0].text).toContain("48%");
-    expect(studyRows(B.study.figures).find((r) => r.signal === "Big rallies")?.cases).toBe(285);
-    expect(studyRows(B.study.figures).find((r) => r.signal === "6-month quarter at a C thrust")?.cases).toBe(10914);
-    expect(mainFinding(B.study.figures)).toContain("215 cases in 36 separate weeks");
-    expect(studyCards(undefined)).toEqual([]); expect(mainFinding({})).toBeNull();
   });
 });
 
@@ -80,7 +65,9 @@ describe("Sector Pulse", () => {
     expect(within(tiles).getAllByRole("listitem")).toHaveLength(6);
     expect(tiles.querySelectorAll(".zero").length).toBe(4);
     expect(document.body.textContent).toContain("22,936.75"); expect(document.body.textContent).toContain("−4.1%");
-    expect(screen.getByText(/22 of 37 groups are Fading/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "How to read this page" })).toBeTruthy();
+    expect(document.querySelectorAll(".sx-how li").length).toBe(4);
+    expect(document.body.textContent).toContain("29 Oct 2026");
   });
   it("lists every group in a table whose rows open the industry page, and the filter buttons narrow it", () => {
     at(<SectorPulsePage />);
@@ -102,15 +89,18 @@ describe("Sector Pulse", () => {
     fireEvent.click(within(head).getByRole("button"));
     expect(head.getAttribute("aria-sort")).toBe("descending");
   });
-  it("shows the higher-low share under 20% with a spoken reason, the too-few list, the universe and the flags", () => {
+  it("has no higher-low column, no rules and no study; shows the too-few list, the universe totals and the flags", () => {
     at(<SectorPulsePage />);
-    expect(screen.getAllByText(/under 20%: a capitulation/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Higher-low share/i)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/study|capitulation\)|Rs 2 crore|65 sessions/i);
     expect(screen.getByText("Too few stocks for a reading")).toBeTruthy();
+    expect(screen.getByText(/too few counted stocks for a steady reading/)).toBeTruthy();
     expect(screen.getByText(/Construction Materials/)).toBeTruthy();
     expect(screen.getByText("2,591")).toBeTruthy(); expect(screen.getByText("1,198")).toBeTruthy();
     expect(screen.getByText(/Show all 58/)).toBeTruthy();
     expect(screen.getByText("KRISHANA")).toBeTruthy();
-    expect(document.body.textContent).toContain("not a recommendation");
+    expect(screen.getAllByText("Full flag").length).toBeGreaterThan(0);
+    expect(document.body.textContent).toContain("Not a recommendation");
     expect(document.body.textContent).not.toMatch(/\b(buy now|sell now|target price|accumulate)\b/i);
   });
   it("for Basic: leader flags are locked in words, the filter is disabled, nothing is an empty cell", () => {
@@ -136,10 +126,10 @@ describe("industry page", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Ferrous Metals" })).toBeTruthy();
     expect(document.body.textContent).toContain("Washout · since 21 Sept");
     expect(document.body.textContent).toContain("14 stocks counted, 8 not counted");
-    expect(document.body.textContent).toContain("Nifty 50 22,936.75, 4.1% below its 200-day exponential average");
+    expect(document.body.textContent).toContain("Nifty 50 22,936.75, 4.1% below its 200-day average");
     expect(screen.getByText(/Ferrous Metals stocks have been sold broadly/)).toBeTruthy();
     expect(document.querySelector(".sx-cyc4 .here")?.textContent).toContain("1 · Washout");
-    expect(document.body.textContent).toContain("2 · Thrust (CAP if it came now)");
+    expect(document.body.textContent).toContain("2 · Thrust");
   });
   it("draws the chart with its words, markers and a keyboard cursor", () => {
     open();
@@ -155,27 +145,22 @@ describe("industry page", () => {
     expect(screen.getByTestId("chart-story").textContent).toContain("C on 12 Dec, C on 28 Jan, C on 7 Apr, CAP on 29 Jul");
     expect(screen.getByText(/Show the chart as a table \(260 sessions\)/)).toBeTruthy();
   });
-  it("derives the six number cards from the data", () => {
+  it("has no numbers-behind-the-state section and no study box", () => {
     open();
     const t = document.body.textContent ?? "";
-    expect(t).toContain("29% · 14% · 7%"); expect(t).toContain("−16.9%"); expect(t).toContain("4 sessions ago");
-    expect(t).toContain("Only 2 of the 14 stocks"); expect(t).toContain("CAP · 29 Jul 2026");
-    expect(t).toContain("It turned Fading the next session, on 30 Jul");
-    expect(t).toContain("None has one live");
-  });
-  it("shows the study box from the board's figures and marks the type possible now", () => {
-    open();
-    expect(screen.getByText("C thrust · 476 cases")).toBeTruthy();
-    expect(screen.getByText("CAP thrust · 214 cases").closest(".sx-sc")?.textContent).toContain("The type possible here now");
-    expect(document.body.textContent).toContain("Today: Nifty below 200-day");
+    expect(t).not.toContain("The numbers behind the state"); expect(t).not.toMatch(/2017.2026|study/i);
+    expect(t).not.toContain("Higher-low share"); expect(t).toContain("1 · Washout"); expect(t).toContain("Heavily sold; no broad rebound yet");
   });
   it("Gold: ranked table with peer labels, notes and the not-counted chips with their reasons", () => {
     open();
     const rows = within(screen.getByTestId("ranked-table")).getAllByRole("row");
-    expect(rows).toHaveLength(15);
+    expect(rows).toHaveLength(11);                       // the header and the first 10 stocks
     expect(rows[1].textContent).toContain("KIRLFER"); expect(rows[1].textContent).toContain("+0.3%"); expect(rows[1].textContent).toContain("In line");
+    fireEvent.click(screen.getByRole("button", { name: /Show all 14/ }));
+    expect(within(screen.getByTestId("ranked-table")).getAllByRole("row")).toHaveLength(15);
     expect(screen.getByText("Not counted: 8 Ferrous Metals stocks")).toBeTruthy();
-    expect(screen.getAllByText("AMFI average market cap under Rs 1,000 crore", { selector: ".sx-pill" })).toHaveLength(7);
+    expect(document.querySelectorAll(".sx-notcounted li").length).toBe(8);
+    expect(document.body.textContent).not.toMatch(/market cap under Rs|traded value under/i);
     expect(document.body.textContent).toContain("Describes price and breadth data");
   });
   it("Basic: the table and the not-counted list are replaced by a sentence naming the plan; the chart stays", () => {
@@ -184,13 +169,12 @@ describe("industry page", () => {
     expect(screen.getByText("The ranked stock table is part of the Silver plan")).toBeTruthy();
     expect(screen.getByText("The list of stocks that are not counted is part of the Silver plan")).toBeTruthy();
     expect(screen.queryByTestId("ranked-table")).toBeNull(); expect(screen.getByTestId("chart-readout")).toBeTruthy();
-    expect(document.body.textContent).toContain("Whether any flag is live is part of the Silver plan");
     expect(document.body.textContent).toContain("14 stocks counted, 8 listed stocks not counted".replace("8 listed", "8 listed"));
   });
   it("Silver: the peer label column says Gold instead of a blank", () => {
     st.page = { ...P, stocks: P.stocks!.map((s) => ({ ...s, peer_label: null })), locked: { peer_label: "gold" } };
     open();
-    expect(within(screen.getByTestId("ranked-table")).getAllByText("Gold").length).toBe(14);
+    expect(within(screen.getByTestId("ranked-table")).getAllByText("Gold").length).toBe(10);
   });
   it("unknown or unavailable: says so, never a blank page", () => {
     st.page = new ApiError(404, { status: "not_found", reason: "There is no industry or sector group with this address." } as never);
@@ -213,8 +197,8 @@ describe("stock page section", () => {
     render(<MemoryRouter><SectorPeersSection symbol="SAMBHV" name="Sambhv Steel Tubes" /></MemoryRouter>);
     const t = screen.getByTestId("sector-peers").textContent ?? "";
     expect(t).toContain("20th of 105 counted Industrial Products stocks by 6-month return");
-    expect(t).toContain("Bottomed before the industry"); expect(t).toContain("−4.1%"); expect(t).toContain("105 of 219");
-    expect(t).toContain("No leader flag. A flag needs a 52-week closing high");
+    expect(t).toContain("−4.1%"); expect(t).toContain("105 of 219");
+    expect(t).toContain("No leader flag.");
     expect(screen.getByRole("link", { name: "Open the Industrial Products page" }).getAttribute("href")).toBe("/sectors/industrial-products");
     expect(t).toContain("not a recommendation");
   });
@@ -240,22 +224,12 @@ describe("stock page section", () => {
 });
 
 describe("Learn page", () => {
-  it("has the four steps, the live counts, the study table from the figures, the finding, tabs and the cannot-tell list", () => {
+  it("explains the states, the three bars, the market backdrop and leader flags without a rule or a study figure", () => {
     at(<LearnSectorSignalsPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "How to read sector signals" })).toBeTruthy();
-    expect(screen.getByText("Measure breadth")).toBeTruthy();
-    expect(document.body.textContent).toContain("1,243 of the 2,591 NSE stocks with an industry");
-    expect(within(screen.getByTestId("study-table")).getAllByRole("row").length).toBeGreaterThan(8);
-    expect(document.body.textContent).toContain("The main finding: the market mattered more than the thrust");
-    fireEvent.click(screen.getByRole("tab", { name: "A stock in its industry" }));
-    expect(screen.getByText("6-month quarter")).toBeTruthy();
-    expect(screen.getByText("What these signals cannot tell you")).toBeTruthy();
-    expect(document.body.textContent).toContain("These are past averages, not forecasts.");
-  });
-  it("without the board it still teaches, and says why the table is empty", () => {
-    st.board = notLoaded();
-    at(<LearnSectorSignalsPage />);
-    expect(screen.getByText("Place it in the cycle")).toBeTruthy();
-    expect(document.body.textContent).toContain("The study table is filled from the Sector Pulse data, which is not available just now. Sector data is not loaded yet");
+    expect(screen.getByRole("heading", { level: 1, name: "How to use Sector Pulse" })).toBeTruthy();
+    for (const h of ["What Sector Pulse shows", "The four things to read", "On an industry page", "Good habits"]) expect(screen.getByRole("heading", { name: h })).toBeTruthy();
+    const t = document.body.textContent ?? "";
+    expect(t).toContain("Washout"); expect(t).toContain("Thrust CAP"); expect(t).toMatch(/not a recommendation/i);
+    expect(t).not.toMatch(/\b(study|threshold|40%|70%|126-session|252-session)\b/i);
   });
 });

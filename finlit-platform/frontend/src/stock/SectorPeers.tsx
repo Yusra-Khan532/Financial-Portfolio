@@ -26,9 +26,8 @@ export function oneLine(symbol: string, s: StockSector): string | null {
   const rot = s.rotation?.corner_name ? `, ${s.rotation.corner_name} against other industries` : "";
   return `${inside}, and the industry as a whole is in ${an(g.state)} ${g.state}${rot}${mk == null ? "" : ` while the Nifty 50 is ${mk ? "above" : "below"} its 200-day exponential average`}.`;
 }
-const bottomWord = (code: number | null | undefined) => (code === 1 ? "Yes, and it is above its 20-day average" : code === 2 ? "Yes" : code === 3 ? "No" : null);
 
-function Cards({ symbol, name, s, tech, score, jump }: { symbol: string; name: string; s: StockSector; tech?: Technical; score?: Summary["score"]; jump?: (id: string) => void }) {
+function Cards({ symbol, s, tech, score, jump }: { symbol: string; s: StockSector; tech?: Technical; score?: Summary["score"]; jump?: (id: string) => void }) {
   const g = s.group, lead = useLeadership(symbol).data;
   const l = lead && lead.available ? lead : null;
   const counted = s.in_group !== false && g;
@@ -69,7 +68,6 @@ function Cards({ symbol, name, s, tech, score, jump }: { symbol: string; name: s
             <p>{s.rank_6m != null ? `${ordinal(s.rank_6m)} of ${count(s.ranked_6m)} counted ${g!.name} stocks by 6-month return.` : `Not ranked: the stock has too little price history for a 6-month return.`}{s.bottom ? ` ${s.bottom}.` : ""}</p>
             <div className="sx-mini2">
               <div><small>6-month return</small><b className={(s.return_6m_pct ?? 0) < 0 ? "sx-low" : s.return_6m_pct != null ? "sx-ret pos" : ""}>{signedPct(s.return_6m_pct ?? null, 1)}</b></div>
-              <div><small>Bottomed before the industry</small><b>{bottomWord(s.bottom_code) ?? "No recent low to compare"}</b></div>
             </div>
             {s.leader_flag_text && <p className="m">{s.leader_flag_text}</p>}
           </>}
@@ -103,11 +101,6 @@ function Cards({ symbol, name, s, tech, score, jump }: { symbol: string; name: s
           <div className="sx-mini2"><div><small>FinLit IQ</small><b>{score?.overall ?? "—"}</b></div><div><small>Band</small><b>{score?.overall == null ? "Not scored yet" : score?.band?.label ?? "—"}</b></div></div>
           <button type="button" className="more" onClick={() => jump?.("notes")}>Open the health score</button>
         </article>
-        <aside className="sx-c5 study" aria-labelledby={`sxs-${symbol}`}>
-          <h3 id={`sxs-${symbol}`}>What the 2017–2026 study found in situations like this</h3>
-          {s.study ? <ul>{s.study.quarter && <li>{s.study.quarter}</li>}{s.study.bottom && <li>{s.study.bottom}</li>}{s.study.leader_flag && <li>{s.study.leader_flag}</li>}</ul> : <p className="m">The study notes are part of the same data set and are not in this answer.</p>}
-          <p className="m">Past averages with wide spreads across NSE groups, not a forecast for {name || symbol}.</p>
-        </aside>
       </div>
       <div className="sx-help"><details><summary>How to read these five cards together</summary>
         <p>The cards go from the widest view to the narrowest. Card 1 describes the whole industry and the market around it: is buying spreading or drying up? Cards 2 and 3 describe how this stock has behaved compared with the rest of its industry and with its closest peers. Card 4 describes the stock's own trend, and card 5 the business behind it.</p>
@@ -117,7 +110,7 @@ function Cards({ symbol, name, s, tech, score, jump }: { symbol: string; name: s
   );
 }
 
-export function SectorPeersSection({ symbol, name, tech, score, jump }: { symbol: string; name: string; tech?: Technical; score?: Summary["score"]; jump?: (id: string) => void }) {
+export function SectorPeersSection({ symbol, tech, score, jump }: { symbol: string; name?: string; tech?: Technical; score?: Summary["score"]; jump?: (id: string) => void }) {
   const q = useStockSector(symbol);
   const s = q.data;
   const locked = !!s?.locked?.stock;
@@ -141,7 +134,7 @@ export function SectorPeersSection({ symbol, name, tech, score, jump }: { symbol
             {line ? <h3>{line}</h3> : <h3>Industry not yet classified.</h3>}
             <p className="sx-note" style={{ margin: 0 }}>{s.group ? `Data as of ${fullDate(s.group.date)} · industry: NSE's classification${s.sector ? ` (${s.sector}${s.industry ? ` · ${s.industry}` : ""}${s.amfi_category ? ` · ${s.amfi_category} (AMFI)` : ""})` : ""} · peer figures use the last completed week.` : (s.note ?? "NSE has not classified this stock's industry yet.")}</p>
           </div>
-          <Cards symbol={symbol} name={name} s={s} tech={tech} score={score} jump={jump} />
+          <Cards symbol={symbol} s={s} tech={tech} score={score} jump={jump} />
         </>
       )}
       <p className="sx-note" style={{ marginTop: 14 }}>{NOTE}</p>
