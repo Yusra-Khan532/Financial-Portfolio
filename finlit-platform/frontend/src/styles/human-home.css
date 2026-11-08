@@ -43,3 +43,15 @@
 @media (prefers-reduced-motion: reduce) { .cmp-toggle svg { transition: none; } }
 
 .pgrid-l .pl-art { display: none; }
+
+/* The tour's look switch and the trust line (landing page) */
+.hh-tour figcaption { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
+.hh-cap { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.hh-look { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; background: var(--s1); }
+.hh-look span { padding: 0 8px 0 10px; font-size: 12px; color: var(--muted); }
+.hh-look button { min-height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
+.hh-look button[aria-pressed="true"] { background: var(--text); color: var(--bg, var(--s1)); }
+.hh-look button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hh-tour[data-look="dark"] .hh-video { box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .7); }
+.hh-trust { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 0; padding: 0; font-size: 14px; color: var(--muted); }
+.hh-trust li { display: inline-flex; align-items: center; gap: 6px; } .hh-trust svg { width: 15px; height: 15px; color: var(--gold); }
