@@ -10,7 +10,7 @@ import { OwnInsightCards } from "./OwnInsightCards";
 import { OwnMoves } from "./OwnMoves";
 import { OwnersToday } from "./OwnersToday";
 
-const HEAD = { id: "ownership", no: "10 · Ownership", icon: "pie", tier: "basic" as const, title: "Who owns the company", color: "--p-balance" };
+const HEAD = { id: "ownership", no: "12 · Ownership", icon: "pie", tier: "basic" as const, title: "Who owns the company", color: "--p-balance" };
 
 /** The series the section draws: the stored shareholding (every filing the provider has, so every year is selectable), else the insights' own 21 filings. */
 export function seriesOf(o?: Ownership, ins?: OwnInsights): OwnSeries | null {

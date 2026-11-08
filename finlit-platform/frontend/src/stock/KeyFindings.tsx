@@ -41,7 +41,7 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
   const counts = `${k.flags.length} red flag${k.flags.length === 1 ? "" : "s"} · ${k.watch.length} to watch · ${k.good.length} positive${k.good.length === 1 ? "" : "s"}`;
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="notes" no="02 · Scorecard notes" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" aside={<span className="sh-counts">{counts}</span>} />
+      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" aside={<span className="sh-counts">{counts}</span>} />
       <Gate tier="silver" title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
         <div className="kf-g">
           <Col kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />

@@ -18,13 +18,13 @@ export const NAV: NavItem[] = [
   ["ownership", "Ownership", "pie", "Promoters, institutions and the public"],
   ["peers", "Peers", "layers", "How the company compares with its peers"],
   ["sector", "Sector & peers", "activity", "Where its industry stands, and how the stock ranks inside it"],
+  ["leadership", "Leadership", "medal", "Directors and key management"],
   ["insights", "What to watch", "crown", "Triggers to watch and where the company fits"],
   ["segments", "Segments", "pie", "Where the revenue comes from"],
   ["dividends", "Dividends", "coins", "Dividends, splits, bonuses and events"],
   ["announcements", "Announcements", "notes", "Exchange announcements, routine filings hidden"],
   ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
   ["method", "Pros & cons", "info", "Pros, cons and how the Prism score has moved"],
-  ["leadership", "Leadership", "medal", "Directors and key management"],
 ];
 
 /** The first section of each reading group: the bar draws a thin separator before it. */

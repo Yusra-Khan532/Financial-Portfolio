@@ -210,7 +210,7 @@ export function LeadershipSection({ symbol, name }: { symbol: string; name: stri
   if (!lead || (!lead.available && !lead.display)) return null;
   return (
     <section className="block ld-sec" ref={host} style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="leadership" no="Leadership" icon="medal" tier="basic" title="Where this stock stands among its peers" sub="How the last 12 months compare with the industry and the market, and whether that has meant anything here." color="--gold-deep" />
+      <SectionHead id="leadership" no="15 · Leadership" icon="medal" tier="basic" title="Where this stock stands among its peers" sub="How the last 12 months compare with the industry and the market, and whether that has meant anything here." color="--gold-deep" />
       {!lead.available ? (
         <div className="card ld-emptycard"><p className="ld-empty" role="note">{lead.display?.line}</p><p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>What the labels mean →</Link></p></div>
       ) : (
