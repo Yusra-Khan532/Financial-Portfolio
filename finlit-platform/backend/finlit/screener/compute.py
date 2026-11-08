@@ -12,9 +12,10 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..advanced.derive import latest as ax_latest
+from .price_fields import price_fields
 
 Num = Optional[float]
-METRICS_VERSION = 3.0   # 3: advanced-chart figures (ax_*); 2: annual operating profit metrics
+METRICS_VERSION = 3.0   # (the setup-scan price fields, screener/price_fields.py, did NOT bump this: the nightly rebuild adds them, and a bump would put every company's advanced charts into "being prepared"); 3: advanced-chart figures (ax_*); 2: annual operating profit metrics
 MULTIPLES = ("pe", "pb", "ps", "pfcf", "ev_ebitda", "ev_sales", "ev_cfo", "price_cfo", "peg", "price_to_tangible")
 
 
@@ -362,6 +363,13 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     out["near_high"] = _flag(out["pct_from_high"] <= 3) if out["pct_from_high"] is not None else None
     out["near_low"] = _flag(out["pct_from_low"] <= 3) if out["pct_from_low"] is not None else None
     out["vs_ema50"], out["vs_ema200"], out["rsi14"] = _n(tech.get("vsEma50Pct")), _n(tech.get("vsEma200Pct")), _n(tech.get("rsi14"))
+    try:   # the setup-scan fields: EMA 9/20 position, ranges, volume ratios, the latest base breakout (every figure from the same candles)
+        hs, ls_ = daily.get("h") or [], daily.get("l") or []
+        cs = [_n(x) for x in daily.get("c") or []]
+        if hs and ls_ and len(hs) == len(cs) == len(ls_) == len(vols):
+            out.update({k: v for k, v in price_fields([_n(x) for x in hs], [_n(x) for x in ls_], cs, vols).items() if v is not None})
+    except Exception:   # one odd series must never stop the screener build
+        logging.getLogger("finlit.screener").exception("setup price fields not computed")
     out["volatility"] = _n((stats.get("volatility") or {}).get("current"))
     out["max_drawdown"] = _n((stats.get("drawdown") or {}).get("max"))
 
