@@ -28,18 +28,21 @@ function Card({ c }: { c: PlatformCard }) {
   );
 }
 
-/** One tool in the compact directory: its name, two or three words, and a small plan mark for the paid ones. The assistant opens its panel; every other tool opens its page. */
+/** One tool in a group card: its name, a few words, a small plan mark for the paid ones and an arrow. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
-  const inner = <><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}<small>{SHORT[c.id]}</small></>;
+  const inner = <><span className="xt-tn"><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link}>{inner}</Link>}</li>;
 }
+const GROUP_ICON: Record<string, string> = { discover: "search", "company-360": "building", "quant-lab": "gauge", track: "wallet", market: "line", learn: "book" };
 
-/** A group's row: its name (a button that opens the full cards on that group) and all its tools in a few words each. */
+/** A group card: an icon, its name and count, one line on what it is for, every tool in a few words, and a button that opens the full cards on that group. */
 function Row({ b, onOpen }: { b: Bucket; onOpen: () => void }) {
   return (
     <li className="xt-row" data-group={b.id}>
-      <button type="button" className="xt-rn" onClick={onOpen}><b>{b.name}</b><span aria-hidden="true"> · {b.cards.length}</span><span className="sr-only"> ({b.cards.length} tools). Show the full cards.</span></button>
+      <header><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[b.id] ?? "grid"} /></span>
+        <div><h3>{b.name}</h3><p>{b.line}</p></div><span className="xt-cnt">{pad(b.cards.length)}</span></header>
       <ul className="xt-tools" aria-label={`${b.name} tools`}>{b.cards.map((c) => <Tool key={c.id} c={c} />)}</ul>
+      <button type="button" className="xt-rn" onClick={onOpen}>See the {b.cards.length} {b.name} cards <Icon name="arrow" /><span className="sr-only">. Show the full cards.</span></button>
     </li>);
 }
 
