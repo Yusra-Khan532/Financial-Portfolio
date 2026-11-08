@@ -1,10 +1,7 @@
 /* Landing page, "Explore the platform" (components/ExploreTools.tsx). Design tokens only; works in light and dark. */
 .xt-head { text-align: center; max-width: 760px; margin: 0 auto; }
 .xt-head h2 { font: 400 clamp(28px, 3.8vw, 44px)/1.12 var(--serif); letter-spacing: -.01em; margin: 10px 0 10px; text-wrap: balance; }
-.xt-head > p { margin: 0 auto 22px; color: var(--muted); font-size: var(--fs-16); max-width: 56ch; }
-.xt-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 24px; }
-.xt-chip { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 500 13px var(--sans); cursor: pointer; }
-.xt-chip:hover { border-color: var(--gold); }
+.xt-head > p { margin: 0 auto 18px; color: var(--muted); font-size: var(--fs-16); max-width: 56ch; }
 .xt-go svg { transition: transform .2s; } .xt-go[aria-expanded="true"] svg { transform: rotate(-90deg); }
 .xt-panel { margin-top: 36px; } .xt-panel[hidden] { display: none; }
 .xt-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
@@ -12,7 +9,7 @@
 .xt-tab em { font: 500 13px var(--mono); font-style: normal; color: var(--faint); }
 .xt-tab:hover { border-color: var(--gold); }
 .xt-tab[aria-selected="true"] { background: var(--text); border-color: var(--text); color: var(--bg, var(--s1)); } .xt-tab[aria-selected="true"] em { color: inherit; opacity: .75; }
-.xt-tab:focus-visible, .xt-chip:focus-visible, .xt-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.xt-tab:focus-visible, .xt-rn:focus-visible, .xt-tool:focus-visible, .xt-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .xt-pane[hidden] { display: none; }
 .xt-ghead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 28px 0 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 .xt-ghead h3 { margin: 0; font: 400 clamp(26px, 3vw, 34px)/1.1 var(--serif); } .xt-ghead p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-16); } .xt-ghead > span { font-size: 13px; color: var(--muted); white-space: nowrap; }
@@ -35,3 +32,16 @@
 @media (max-width: 1100px) { .xt-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); } .xt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 680px) { .xt-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xt-grid { grid-template-columns: minmax(0, 1fr); } .xt-ghead { align-items: flex-start; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { .xt-go svg { transition: none; } }
+
+/* the compact directory: one row per group, every tool named in a few words */
+.xt-dir { list-style: none; margin: 4px auto 22px; padding: 0; max-width: 1080px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); overflow: hidden; }
+.xt-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 8px 18px; align-items: start; padding: 8px 18px; border-top: 1px solid var(--border); } .xt-row:first-child { border-top: 0; }
+.xt-rn { all: unset; box-sizing: border-box; cursor: pointer; font: 500 var(--fs-14)/1.4 var(--sans); color: var(--text); padding: 5px 0; } .xt-rn b { font-weight: 700; } .xt-rn span { color: var(--faint); }
+.xt-rn:hover b { color: var(--gold-deep, var(--gold)); text-decoration: underline; text-underline-offset: 3px; }
+.xt-tools { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 6px; }
+.xt-tool { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 9px; border: 0; border-radius: 8px; background: none; color: var(--text); text-decoration: none; font: inherit; cursor: pointer; }
+.xt-tool b { font: 600 var(--fs-14)/1.3 var(--sans); } .xt-tool small { font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.xt-tool:hover { background: var(--s2); } .xt-tool:hover b { color: var(--gold-deep, var(--gold)); }
+.xt-badge.xt-mini { padding: 2px 6px; font-size: 11px; letter-spacing: .05em; align-self: center; }
+/* a phone: names only (the hint is on the full card), so a group is two or three short lines */
+@media (max-width: 760px) { .xt-row { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 8px 12px; } .xt-tool { padding: 6px 8px; min-height: 36px; align-items: center; } .xt-tool small { display: none; } .xt-tools { gap: 0 2px; } }

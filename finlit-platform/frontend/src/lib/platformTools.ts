@@ -22,7 +22,7 @@ export const BUCKETS: Bucket[] = [
   ] },
   { id: "quant-lab", name: "Quant Lab", line: "Value a company, test a forecast, read the options market.", cards: [
     { id: "dcf-calculator", title: "DCF Calculator", badge: "GOLD", link: "/dcf?sym=RELIANCE&load=1", what: "Work out what a share could be worth, and whether today's price is above it.", points: ["Fills a company's cash flow, debt, shares and price for you", "Intrinsic value, upside or downside, and a margin-of-safety price", "Sensitivity grid, reverse DCF and Bear, Base and Bull cases"], image: "dcf-calculator-light" },
-    { id: "profit-revenue-outlook", title: "Profit & Revenue Outlook", badge: "GOLD", link: "/outlook/RELIANCE", what: "Revenue and profit estimates built from a company's own history and its sector.", points: ["1, 3 and 5-year estimates", "Reported figures solid, estimates dotted", "Use our weights or set your own"], image: "profit-revenue-outlook-light" },
+    { id: "profit-revenue-outlook", title: "Profit & Revenue Outlook", badge: "GOLD", link: "/outlook/RELIANCE", what: "Revenue and profit estimates built from a company's own history and its sector.", points: ["1, 3, 5-year estimates", "Reported figures solid, estimates dotted", "Use our weights or set your own"], image: "profit-revenue-outlook-light" },
     { id: "calculators", title: "EPS & SIP Calculators", badge: "FREE", link: "/sip-calculator", what: "Change one number and watch the result.", points: ["EPS & P/E: what a future EPS and target P/E imply for the price", "SIP: monthly amount, step-ups, goals, inflation and tax", "Every formula is shown"], image: "calculators-light" },
     { id: "option-chain", title: "Option Chain", badge: "GOLD", link: "/premium/options", what: "Read an index or F&O stock's option chain at a glance.", points: ["Open interest, OI change, volume and IV for every strike", "Put-call ratio and max pain worked out for you", "Open interest by strike, as a chart"], image: "option-chain-light" },
   ] },
@@ -46,3 +46,13 @@ export const BUCKETS: Bucket[] = [
     { id: "finlit-bot", title: "FinLit Bot", badge: "FREE", link: "/", what: "Ask the FinLit assistant about the site or a market term.", points: ["Points you to the right page or tool", "Explains scores, charts and terms in plain words", "Never gives investment advice"], image: "finlit-bot-light" },
   ] },
 ];
+
+/** Two or three words under each tool's name in the compact directory on the landing page (the full card says the rest). */
+export const SHORT: Record<string, string> = {
+  "stock-screener": "190+ filters", "basic-score-screener": "rank by FinLit IQ", "advanced-score-screener": "rank by Prism", "query-builder": "rules in plain words", "mutual-funds": "filter every fund", "etfs": "350+ NSE ETFs", "fund-health-score": "score 1,200+ funds",
+  "company-report": "everything on one page", "finlit-prism": "health in four parts", "company-financials": "statements and ratios", "compare-companies": "side by side", "chart-builder": "build your own charts",
+  "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "calculators": "EPS, P/E and SIP", "option-chain": "OI, IV, max pain",
+  "watchlists": "follow your stocks", "portfolios": "strength and spread", "alerts": "price and filing alerts", "compare-funds": "head to head",
+  "sector-pulse": "which industries move", "sector-rotation": "who is pulling ahead", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "headlines and filings", "results-ipo": "who reports, who lists",
+  "glossary": "440+ terms", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
+};

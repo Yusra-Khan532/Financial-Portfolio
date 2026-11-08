@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { OPEN_AI } from "./Assistant";
-import { BUCKETS, type BucketId, type PlatformCard } from "../lib/platformTools";
+import { BUCKETS, SHORT, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
 import "../styles/explore-tools.css";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -28,7 +28,22 @@ function Card({ c }: { c: PlatformCard }) {
   );
 }
 
-/** "Explore the platform": a heading, the six group chips and one button. The button opens the groups inline (closed to begin with); inside, six tabs each show their
+/** One tool in the compact directory: its name, two or three words, and a small plan mark for the paid ones. The assistant opens its panel; every other tool opens its page. */
+function Tool({ c }: { c: PlatformCard }) {
+  const inner = <><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}<small>{SHORT[c.id]}</small></>;
+  return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link}>{inner}</Link>}</li>;
+}
+
+/** A group's row: its name (a button that opens the full cards on that group) and all its tools in a few words each. */
+function Row({ b, onOpen }: { b: Bucket; onOpen: () => void }) {
+  return (
+    <li className="xt-row" data-group={b.id}>
+      <button type="button" className="xt-rn" onClick={onOpen}><b>{b.name}</b><span aria-hidden="true"> · {b.cards.length}</span><span className="sr-only"> ({b.cards.length} tools). Show the full cards.</span></button>
+      <ul className="xt-tools" aria-label={`${b.name} tools`}>{b.cards.map((c) => <Tool key={c.id} c={c} />)}</ul>
+    </li>);
+}
+
+/** "Explore the platform": a heading, a compact directory (one row per group, every tool named in a few words) and one button. The button opens the groups inline (closed to begin with); inside, six tabs each show their
  *  tool cards. Every card is in the page whether or not it is open, so a reader without script still finds them (the panel is only hidden with CSS). */
 export function ExploreTools() {
   const [open, setOpen] = useState(false);
@@ -51,11 +66,9 @@ export function ExploreTools() {
         <div className="hh-kicker">The platform</div>
         <h2 id="xt-title">Everything you need. Nothing you don't.</h2>
         <p>{TOTAL} tools in six groups, from finding a stock to valuing it, tracking it and following its sector.</p>
-        <div className="xt-chips" aria-label="The six groups">
-          {BUCKETS.map((b) => <button key={b.id} type="button" className="xt-chip" onClick={() => show(b.id)}>{b.name}<span aria-hidden="true"> · {b.cards.length}</span><span className="sr-only"> ({b.cards.length} tools)</span></button>)}
-        </div>
         <button type="button" className="btn primary lg xt-go" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}>{open ? "Hide the platform tools" : "Explore the platform"} <Icon name="arrow" /></button>
       </div>
+      <ul className="xt-dir" aria-label="The six groups and their tools">{BUCKETS.map((b) => <Row key={b.id} b={b} onOpen={() => show(b.id)} />)}</ul>
       <div id={panel} className="xt-panel" hidden={!open}>
         <div className="xt-tabs" role="tablist" aria-label="Tool groups">
           {BUCKETS.map((b, i) => (

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { ExploreTools } from "./ExploreTools";
-import { BUCKETS } from "../lib/platformTools";
+import { BUCKETS, SHORT } from "../lib/platformTools";
 
 afterEach(cleanup);
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
@@ -43,7 +43,18 @@ describe("<ExploreTools />", () => {
     expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
     expect(within(screen.getByRole("tabpanel")).getAllByRole("heading", { level: 4 })).toHaveLength(5);
   });
-  it("a group chip opens the section on that group", () => {
+  it("the directory has one row per group naming every tool in a few words, each linking to its page", () => {
+    view();
+    const rows = within(screen.getByRole("list", { name: /six groups and their tools/i })).getAllByRole("listitem").filter((li) => li.classList.contains("xt-row"));
+    expect(rows).toHaveLength(6);
+    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 4, 4, 6, 3]);
+    const first = rows[0].querySelector("a.xt-tool")!;
+    expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
+    expect(rows[0].textContent).toMatch(/Advanced Score Screener.*Gold/);
+    for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
+    expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
+  });
+  it("a group name opens the section on that group", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /^Learn & connect/ }));
     expect(screen.getAllByRole("tab")[5].getAttribute("aria-selected")).toBe("true");
     expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
