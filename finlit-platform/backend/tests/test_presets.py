@@ -36,7 +36,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live"]
-    assert len(live) == 17 and [p.id for p in ADVANCED if p.status == "blocked"] == ["setup-ema9-consolidation", "rating-upgrades", "psu-stocks"] and len(QUICK_VIEWS) == 3
+    assert len(live) == 18 and [p.id for p in ADVANCED if p.status == "blocked"] == ["setup-ema9-consolidation", "psu-stocks"] and len(QUICK_VIEWS) == 3
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -56,7 +56,7 @@ def test_registry_shape_names_and_rules():
     assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 60] and all(p.prism_filters["zmin"] == 60 and p.prism_filters["zqmin"] == 50 for p in tops)
     assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text == "The 10 large caps with the strongest mix of Prism rating, valuation, risk and price strength."
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
-                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback"]
+                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "rating-upgrades"]
     assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue"] and "Valuation below 50" in BY_ID["weakvalue"].card_text
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
@@ -359,7 +359,7 @@ def test_higher_risk_has_three_ways_in_and_ranks_the_lowest_risk_first():
 
 
 def test_blocked_and_quick_views_do_not_run():
-    for pid in ("rating-upgrades", "psu-stocks", "strongsafe"):
+    for pid in ("psu-stocks", "strongsafe"):
         with pytest.raises(engine.Blocked):
             engine.run(frame([mrow("A")]), BY_ID[pid])
 

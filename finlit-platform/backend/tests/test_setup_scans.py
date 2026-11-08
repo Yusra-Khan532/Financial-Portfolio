@@ -153,3 +153,18 @@ def test_the_closer_to_the_level_and_the_higher_volume_rank_first_and_the_blocke
             _row("MID", **{**PULL, "vs_breakout": 2, "breakout_vol_ratio": 2.0})]
     body = engine.run(_frame(rows, {}), BY_ID["basic-setup-breakout-pullback"])
     assert _ids(body)[0] == "NEAR" and _ids(body)[-1] == "FAR"
+
+
+def test_rating_upgrades_lists_a_band_up_or_an_eight_point_rise_and_says_how_long_the_history_is():
+    from finlit.presets.service import band_of
+    assert [band_of(x) for x in (80, 79.9, 65, 50, 35, 34.9)] == [4, 3, 3, 2, 1, 0]
+    rows = [_row(s, market_cap=5000) for s in ("UP", "RISE", "FLAT", "DOWN", "NEW")]
+    pz = {"UP": _pz(prism_rise_30d=4, prism_band_up=1), "RISE": _pz(prism_rise_30d=9, prism_band_up=0), "FLAT": _pz(prism_rise_30d=2, prism_band_up=0),
+          "DOWN": _pz(prism_rise_30d=-6, prism_band_up=0), "NEW": _pz()}
+    fr = _frame(rows, pz)
+    fr.history_days = 12
+    body = engine.run(fr, BY_ID["rating-upgrades"])
+    assert _ids(body) == ["RISE", "UP"]                       # ranked by the size of the rise; no history means left out
+    assert any("12 days" in n for n in body["notes"])
+    fr.history_days = 30
+    assert any("last 30 days" in n for n in engine.run(fr, BY_ID["rating-upgrades"])["notes"])
