@@ -61,3 +61,13 @@ describe("DCF SliderField", () => {
     expect(css).toMatch(/\.dcf-grid > \.dcf-sl \{[^}]*grid-row: span 4;[^}]*grid-template-rows: subgrid/);
   });
 });
+
+describe("DCF input groups (task #47)", () => {
+  it("are cards with Title Case headings, an icon, and each input in its own card; margin of safety runs to 80%", () => {
+    const src = readFileSync(join(process.cwd(), "src/pages/Dcf.tsx"), "utf8");
+    for (const h of ["1. Cash Flow and Growth", "2. Discount Rate and Margin of Safety", "3. Price and Balance Sheet"]) expect(src).toContain(h);
+    expect(src).toMatch(/id="mos"[^>]*min=\{0\} max=\{80\}/);
+    const css = readFileSync(join(process.cwd(), "src/styles/dcf.css"), "utf8");
+    expect(css).toMatch(/\.dcf-grp > \.dcf-grid > \.dcf-f, \.dcf-grp > \.dcf-grid > \.dcf-sl \{[^}]*border: 1px solid/);
+  });
+});
