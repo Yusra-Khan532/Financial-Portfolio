@@ -1,25 +1,50 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { PlansBand } from "./Plans";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
+import { TOUR_CHOICE_KEY, asChoice, tourLook, type Choice, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
 const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · Fund Health Score · Portfolio";
 const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const src = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-720p.mp4" : "finlit-tour-720p.mp4"}`;
+const poster = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-poster.jpg" : "finlit-tour-poster.jpg"}`;
+const read = (): Choice => { try { return asChoice(localStorage.getItem(TOUR_CHOICE_KEY)); } catch { return "auto"; } };
 
-/** The 45-second product tour in a browser-style frame. It starts by itself, muted and looping, with controls so anyone can pause it; people who ask their device for
- *  less motion get the still poster and press play themselves. Only the 720p file is shipped, so phones never download the large one. */
+/** The page's theme, kept up to date when the visitor switches it. */
+function useSiteLook(): Look {
+  const get = (): Look => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  const [look, setLook] = useState<Look>(get);
+  useEffect(() => { const o = new MutationObserver(() => setLook(get())); o.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); setLook(get()); return () => o.disconnect(); }, []);
+  return look;
+}
+
+/** The product tour in a browser-style frame. By default it is shown in the opposite theme to the page, so it stands out; Light / Dark buttons under it switch
+ *  the look (and are remembered). It starts by itself, muted and looping, with controls so anyone can pause it; people who ask their device for less motion get the
+ *  still poster. Only 720p files are shipped, so phones never download the large one. Switching keeps the place in the video. */
 function Tour() {
   const v = useRef<HTMLVideoElement>(null);
+  const site = useSiteLook();
+  const [choice, setChoice] = useState<Choice>(read);
+  const look = tourLook(site, choice);
+  const at = useRef(0);
   useEffect(() => { if (reduced()) v.current?.pause(); }, []);
+  const pick = (c: Choice) => { at.current = v.current?.currentTime ?? 0; setChoice(c); try { localStorage.setItem(TOUR_CHOICE_KEY, c); } catch { /* private window: the choice lasts for this visit */ } };
+  const resume = () => { const el = v.current; if (!el) return; if (at.current > 0 && Number.isFinite(at.current)) { el.currentTime = Math.min(at.current, Math.max(0, (el.duration || at.current) - 0.1)); at.current = 0; } if (!reduced()) void el.play().catch(() => undefined); };
   return (
-    <figure className="hh-tour" id="tour">
+    <figure className="hh-tour" id="tour" data-look={look}>
       <div className="hh-frame" aria-hidden="true"><i /><i /><i /><span>finlitventures.com</span></div>
-      <video ref={v} className="hh-video" src={`${import.meta.env.BASE_URL}landing/finlit-tour-720p.mp4`} poster={`${import.meta.env.BASE_URL}landing/finlit-tour-poster.jpg`}
-        autoPlay={!reduced()} muted loop playsInline controls preload="metadata" width={1280} height={720} aria-label="A 45-second tour of FinLit: screeners, company report, FinLit Prism, sector pages, fund health score and portfolio" />
-      <figcaption><b>45-sec product tour</b><span>{TOUR}</span></figcaption>
+      <video ref={v} key={look} className="hh-video" src={src(look)} poster={poster(look)} onLoadedMetadata={resume}
+        autoPlay={!reduced()} muted loop playsInline controls preload="metadata" width={1280} height={720} aria-label={`A tour of FinLit in ${look} mode: screeners, company report, FinLit Prism, sector pages, fund health score and portfolio`} />
+      <figcaption>
+        <div className="hh-cap"><b>Product tour</b><span>{TOUR}</span></div>
+        <div className="hh-look" role="group" aria-label="Show the tour in">
+          <span>Show in</span>
+          {(["light", "dark"] as const).map((l) => <button key={l} type="button" aria-pressed={look === l} onClick={() => pick(l)}>{l === "light" ? "Light" : "Dark"}</button>)}
+        </div>
+      </figcaption>
     </figure>
   );
 }
@@ -50,8 +75,9 @@ export function Home() {
           <p className="hh-lede">Explore every listed company, see what drives its scores, and make better-informed decisions, all in one workspace.</p>
           <div className="cta-row">
             <a className="btn primary lg" href="#platform" onClick={() => dispatchEvent(new Event(OPEN_EXPLORE))}>Explore the platform <Icon name="arrow" /></a>
-            <a className="btn lg" href="#tour" onClick={() => { const el = document.querySelector<HTMLVideoElement>("#tour video"); void el?.play?.().catch(() => undefined); }}><Icon name="play" />Watch the 45-sec tour</a>
+            <Link className="btn lg" to="/stocks/RELIANCE"><Icon name="building" />See a sample company report</Link>
           </div>
+          <ul className="hh-trust" aria-label="Why start here"><li><Icon name="check" />Free to start, no card</li><li><Icon name="check" />Every listed company</li><li><Icon name="check" />Scores that show their working</li></ul>
           <p className="hh-fine">Information only. Not investment advice.</p>
         </div>
         <Tour />
