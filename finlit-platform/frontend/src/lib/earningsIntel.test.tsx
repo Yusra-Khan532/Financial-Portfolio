@@ -114,7 +114,7 @@ describe("earnings intelligence rules", () => {
     expect(html).toContain("Peer comparison: not available");
     expect(html).toContain("not a recommendation. Information only, not investment advice.");
     expect(html).toContain("Some businesses have seasonal or project-based cash cycles.");
-    for (const h of ["What is happening?", "What should you investigate?", "Intelligence modules", "How this is decided"]) expect(html).toContain(h);
+    for (const h of ["What is happening?", "What should you investigate?", "Intelligence modules"]) expect(html).toContain(h);
     expect(html).toContain("−₹1,012 Cr");
   });
 });

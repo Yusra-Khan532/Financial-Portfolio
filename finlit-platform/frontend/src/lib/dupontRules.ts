@@ -6,7 +6,7 @@
 
 export type Measure =
   | "roeChange"          // ROE last comparable year minus first, in percentage points
-  | "emShare" | "marginShare" | "turnoverShare"   // share of the ROE move (log method), in per cent; positive = moved the same way as ROE
+  | "emShare" | "marginShare" | "turnoverShare"   // share of the ROE move, in per cent; positive = moved the same way as ROE
   | "emLatest" | "emDelta"                        // equity multiplier in the latest year, and its change from the year before
   | "marginCv" | "marginMean" | "marginStd"       // net margin spread over the last years: coefficient of variation = std / mean
   | "turnoverChange" | "marginChange"             // relative change first to last comparable year, per cent
@@ -49,7 +49,7 @@ export const INSIGHT_RULES: InsightRule[] = [
     evidence: ["Equity multiplier now {emLatest}×, {emDelta}× on the year before (rule applies above {threshold}×)"] },
   { id: "earnings-volatile", importance: 70, threshold: 0.5, when: [{ measure: "marginCv", op: ">", value: "threshold" }],
     template: "Earnings are volatile, so ROE is unreliable as a trend.",
-    evidence: ["Net margin averaged {marginMean}% with a standard deviation of {marginStd}%: coefficient of variation {marginCv} (rule applies above {threshold})"] },
+    evidence: ["Net margin averaged {marginMean}% but varied a lot from year to year."] },
   { id: "margin-driven", importance: 60, threshold: 40, when: [{ measure: "marginShare", op: ">", value: "threshold" }, { measure: "turnoverShare", op: "<=", value: "threshold" }],
     template: "Profitability, not efficiency, drove the change.",
     evidence: ["Net margin {marginFirst}% to {marginLast}%: {marginShare}% of the ROE move", "Asset turnover {turnoverFirst}× to {turnoverLast}×: {turnoverShare}% of the ROE move"] },
@@ -67,7 +67,7 @@ export const INSIGHT_RULES: InsightRule[] = [
     evidence: ["Equity multiplier now {emLatest}×, {emDelta}× on the year before"] },
   { id: "earnings-steady", importance: 30, threshold: 0.15, when: [{ measure: "marginCv", op: "<", value: "threshold" }],
     template: "Net margin stayed in a narrow band, so the ROE trend is not a product of earnings swings.",
-    evidence: ["Net margin averaged {marginMean}% with a standard deviation of {marginStd}%: coefficient of variation {marginCv} (rule applies below {threshold})"] },
+    evidence: ["Net margin averaged {marginMean}% and moved little from year to year."] },
 ];
 
 /** Everything else product may want to tune. */
@@ -102,9 +102,9 @@ export const DUPONT_LIMITS = {
  *  It is a description of how clean and steady the ROE is, not a rating of the company. */
 export const QUALITY_SCORE = {
   parts: [
-    { key: "oneOffs", label: "Clean earnings", max: 40, how: "Full points when one-off items are 0% of pre-tax profit, none when they average 50% or more (the low-quality-earnings line)." },
-    { key: "stability", label: "Margin stability", max: 35, how: "Full points when the net margin's coefficient of variation is 0, none at 0.5 or more (the volatile-earnings line)." },
-    { key: "leverage", label: "Leverage level", max: 25, how: "Full points when the equity multiplier is 2× or lower, none at 6× or higher, in a straight line between. Not scored for banks and lenders, whose balance sheets are built on leverage." },
+    { key: "oneOffs", label: "Clean earnings", max: 40, how: "How much of pre-tax profit comes from one-off items. The smaller the share, the cleaner the earnings." },
+    { key: "stability", label: "Margin stability", max: 35, how: "How steady the net margin has been from year to year." },
+    { key: "leverage", label: "Leverage level", max: 25, how: "How much borrowing sits behind the equity multiplier. Not scored for banks and lenders, whose balance sheets are built on leverage." },
   ],
   leverageFull: 2, leverageNone: 6, oneOffNone: 0.5, cvNone: 0.5,
 } as const;

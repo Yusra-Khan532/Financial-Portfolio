@@ -11,7 +11,7 @@ import { OpenAccess } from "../components/Gate";
 import { useAuth } from "../lib/auth";
 import { Hero } from "./Hero";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { FinancialsSection, Notes, PriceSection } from "./Sections";
+import { FinancialsSection, PriceSection } from "./Sections";
 import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from "./Sections3";
 import { QuarterSection, TrendsSection } from "./Sections4";
 import { ChartLab } from "./ChartLab";
@@ -71,7 +71,7 @@ export function StockPage() {
   const lead = useLeadership(symbol, ready).data;
   const navItems = useMemo(() => navFor(!!(lead && (lead.available || lead.display))), [lead]);   // no pill for a section that is switched off
   const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank) : null), [s, fin]);   // the red / orange dots on the tabs
-  const dotOf = (id: string): "f" | "w" | null => { if (!found) return null; const only = (x: { to: string }[]) => x.filter((i) => i.to === id).length; if (id === "findings") return found.flags.length ? "f" : found.watch.length ? "w" : null; return only(found.flags) ? "f" : only(found.watch) ? "w" : null; };
+  const dotOf = (id: string): "f" | "w" | null => { if (!found) return null; const only = (x: { to: string }[]) => x.filter((i) => i.to === id).length; if (id === "notes") return found.flags.length ? "f" : found.watch.length ? "w" : null; return only(found.flags) ? "f" : only(found.watch) ? "w" : null; };
   const tech = usePrice(symbol, "1Y", ready).data?.technical;   // waits for the summary, so a new stock is asked for once, not twice
   useDocTitle(s ? `${s.profile.name} research` : `${symbol} research`, s ? `FinLit research report for ${s.profile.name}: score ${s.score.overall ?? "n/a"}, financials, ratios, ownership and peers.` : undefined);
 
@@ -152,7 +152,6 @@ export function StockPage() {
         <ErrorBoundary section="This section"><BusinessSection s={s} /></ErrorBoundary>
         <ErrorBoundary section="Company brief"><CompanyBriefSection symbol={symbol} /></ErrorBoundary>
         <ErrorBoundary section="Macro outlook"><MacroOutlookSection symbol={symbol} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><Notes s={s} /></ErrorBoundary>
         <ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary>
         <ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary>
         <PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} />

@@ -12,3 +12,36 @@
 .ec-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ec-fold { margin-top: 12px; } .ec-fold summary { cursor: pointer; font: 600 14px var(--sans); color: var(--text); } .ec-fold ul { margin: 8px 0; padding-left: 18px; font-size: var(--fs-14); line-height: 1.55; } .ec-fold dt { font-weight: 600; margin-top: 8px; } .ec-fold dd { margin: 2px 0 0; font-size: var(--fs-14); line-height: 1.55; }
 @media (max-width: 760px) { .ec-tiles { grid-template-columns: minmax(0, 1fr); } .ec-sec { padding: 16px; } }
+
+/* ---------- 1. Earnings & cash quality, "Six checks": the same colour code as section 02 ----------
+   Section 02 marks a strength green, a watch amber and a red flag red (.ins.s / .ins.w / .ins.f:
+   a 3px left edge in the colour and a 7% tint of it). The six checks were all the same beige
+   (only the pill border differed), so an "Investigate" row looked like an "OK" row.
+   Each row now takes its colour from its pill: ok = green, watch = amber, alert = red,
+   na = no colour. No markup change is needed. */
+.ec-checks > li > details {
+  --ic: var(--border-strong);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ic);
+  background: color-mix(in srgb, var(--ic) 7%, var(--s1));
+  border-radius: 10px;
+}
+.ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--gain); }
+.ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--warn, #cc7a00); }
+.ec-checks > li > details:has(.ei-pill.alert) { --ic: var(--loss); border-left-width: 4px; }
+.ec-checks > li > details:has(.ei-pill.na)    { --ic: var(--border-strong); background: var(--s1); }
+
+/* the pill itself in the row's colour, like the .ins-tag labels in section 02 */
+.ec-checks .ei-pill {
+  background: var(--s1);
+}
+.ec-checks .ei-pill.ok    { color: var(--gain);  border-color: color-mix(in srgb, var(--gain) 55%, transparent); }
+.ec-checks .ei-pill.watch { color: var(--warn, #cc7a00); border-color: color-mix(in srgb, var(--warn, #cc7a00) 55%, transparent); }
+.ec-checks .ei-pill.alert { color: var(--loss);  border-color: color-mix(in srgb, var(--loss) 55%, transparent); }
+.ec-checks .ei-pill .m    { color: inherit; }
+/* the small icon picks up the colour too */
+.ec-checks summary .ci { color: var(--ic); }
+
+
+/* On a phone the hidden labels of a wide table escaped its scroll box and the page scrolled sideways by about 60px: the box is positioned. */
+.tw { position: relative; }

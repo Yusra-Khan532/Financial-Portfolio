@@ -98,7 +98,7 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
         <div className="dp-stat">
           <span className="k">ROE driven by</span>
           {drv ? <b className="dp-badge">{drv.name}</b> : <b className="dp-badge off">Not clear</b>}
-          <small>{drv && mv ? `${nf(Math.abs(drv.share), 0)}% of the ROE move from ${mv.first.label} to ${mv.last.label}, the largest of the three (log method)` : driverWhy}</small>
+          <small>{drv && mv ? `${nf(Math.abs(drv.share), 0)}% of the ROE move from ${mv.first.label} to ${mv.last.label}, the largest of the three` : driverWhy}</small>
         </div>
         <div className="dp-stat">
           <span className="k">ROE quality score</span>

@@ -90,11 +90,6 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
           <li key={mo.key}><details><summary><span className="ci"><Icon name={mo.icon} /></span><span className="nm">{mo.name}</span><Pill tone={mo.tone}>{mo.badge}</Pill></summary>
             <ul className="ei-facts">{mo.facts.map((t, i) => <li key={i}>{t}</li>)}</ul></details></li>))}</ul></section>)}
 
-      <details className="ec-fold"><summary>How this is decided</summary>
-        <ul>{pr.rules.map((x) => <li key={x.key}><b>{x.text}.</b> <small>{x.detail}</small></li>)}</ul>
-        {intel && <ul>{intel.modules.map((mo) => <li key={mo.key}><b>{mo.name}.</b> {mo.rule}</li>)}</ul>}
-        <p className="faint">Two or more flagged rules, or "profit rose but cash did not", gives "Needs a closer look". One flagged rule or two watch rules gives "Mixed". Otherwise "Strong".</p>
-      </details>
       {intel && <details className="ec-fold"><summary>Investor interpretation</summary>
         <dl><dt>Why it matters</dt><dd>{intel.meaning.why}</dd>
           {intel.meaning.risks.length > 0 && <><dt>Possible risks</dt><dd><ul>{intel.meaning.risks.map((t, i) => <li key={i}>{t}</li>)}</ul></dd></>}

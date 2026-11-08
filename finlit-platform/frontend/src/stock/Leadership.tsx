@@ -69,7 +69,7 @@ function LeadTip({ text }: { text: string }) {
       {open && createPortal(
         <span ref={tip} className="ld-tip" role="tooltip" onMouseEnter={hold} onMouseLeave={release}
           style={{ position: "fixed", left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, overflowY: "auto", visibility: pos ? "visible" : "hidden" }}>
-          {text} <Link to={EXPLAINER} onClick={() => setOpen(false)}>How this works</Link>
+          {text} <Link to={EXPLAINER} onClick={() => setOpen(false)}>What the labels mean →</Link>
         </span>, document.body)}
     </span>
   );
@@ -182,7 +182,7 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
           <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{n.symbol}</span>}<span className="why">{n.text}</span></li>)}</ul>
         </details>
       )}
-      <p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>How this works</Link></p>
+      <p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>What the labels mean →</Link></p>
     </div>
   );
 }
@@ -212,7 +212,7 @@ export function LeadershipSection({ symbol, name }: { symbol: string; name: stri
     <section className="block ld-sec" ref={host} style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
       <SectionHead id="leadership" no="Leadership" icon="medal" tier="basic" title="Where this stock stands among its peers" sub="How the last 12 months compare with the industry and the market, and whether that has meant anything here." color="--gold-deep" />
       {!lead.available ? (
-        <div className="card ld-emptycard"><p className="ld-empty" role="note">{lead.display?.line}</p><p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>How this works</Link></p></div>
+        <div className="card ld-emptycard"><p className="ld-empty" role="note">{lead.display?.line}</p><p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>What the labels mean →</Link></p></div>
       ) : (
         <>
           <Plain>{lead.display.line}. {lead.display.note ? lead.display.note + ". " : ""}A label like this is a snapshot, so below is how the stock got here and whether being ahead has lasted in this part of the market.</Plain>
@@ -222,7 +222,7 @@ export function LeadershipSection({ symbol, name }: { symbol: string; name: stri
             <ReliabilityCard lead={lead} />
             <StripPlot self={symbol} lead={lead} />
           </div>
-          <p className="ld-foot">{LEAD_NOTE} Based on weekly prices, refreshed after each Friday's close. <Link to={EXPLAINER}>How this works</Link></p>
+          <p className="ld-foot">{LEAD_NOTE} Based on weekly prices, refreshed after each Friday's close. <Link to={EXPLAINER}>What the labels mean →</Link></p>
         </>
       )}
     </section>
@@ -407,7 +407,7 @@ function ReliabilityCard({ lead }: { lead: LeadershipOn }) {
           {table && <ChartTable caption={concl} head={["Period", "Checks where leaders beat laggards"]} rows={[["Overall", `${rate}% of ${r.checks}`], ...r.periods.map((p) => [p.years, `${Math.round(p.hitRate6m * 100)}%`])]} />}
         </>
       ) : (
-        <p className="ld-sm">Judging this needs about 10 years of weekly prices for the group. <Link to={EXPLAINER}>See how it held in four large sectors</Link>.</p>
+        <p className="ld-sm">Judging this needs about 10 years of weekly prices for the group..</p>
       )}
     </div>
   );

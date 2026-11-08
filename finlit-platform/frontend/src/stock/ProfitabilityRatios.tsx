@@ -4,7 +4,6 @@ import { LineChart } from "../charts/LineChart";
 import { MINUS, nf } from "../lib/format";
 import { ptsChange } from "../lib/profitChange";
 import { downloadCsv } from "../lib/premium";
-import { ChartZoom } from "../components/ChartZoom";
 
 /** Profitability over the years, three ways to read the same eight years: a table coloured against each row's own median (with the unusual
  *  years marked), lines you can switch on and off, and a then-versus-now comparison of any two years. Ends with a reading in plain words. */
@@ -76,40 +75,22 @@ function heat(x: number | null, med: number | null, spread: number): React.CSSPr
 }
 
 function Heat({ periods, rows, defs }: { periods: string[]; rows: Record<string, Series>; defs: Def[] }) {
-  const [sel, setSel] = useState(defs.find((d) => d.key === "roe")?.key || defs[0].key);
-  const cur = defs.find((d) => d.key === sel) || defs[0], vals = rows[cur.key], an = analyse(vals);
-  const last = periods.length - 1, now = vals[last];
-  const slope = (() => { const pts = vals.map((v, i) => [i, v] as const).filter((p): p is [number, number] => p[1] != null); if (pts.length < 3) return null; const n = pts.length, sx = pts.reduce((a, p) => a + p[0], 0), sy = pts.reduce((a, p) => a + p[1], 0), sxy = pts.reduce((a, p) => a + p[0] * p[1], 0), sxx = pts.reduce((a, p) => a + p[0] * p[0], 0); return (n * sxy - sx * sy) / (n * sxx - sx * sx); })();
-  const have = vals.map((v, i) => [v, i] as const).filter((p): p is [number, number] => p[0] != null);
-  const best = have.length ? have.reduce((a, b) => (b[0] > a[0] ? b : a)) : null, worst = have.length ? have.reduce((a, b) => (b[0] < a[0] ? b : a)) : null;
+  const last = periods.length - 1;
   const groups = ["Margins", "Tax", "Returns"] as const;
   const [sort, setSort] = useState<"none" | "desc" | "asc">("none");
   const lab0 = monthLabel(periods[0]), lab1 = monthLabel(periods[last]);
   const chg = useMemo(() => Object.fromEntries(defs.map((d) => [d.key, ptsChange(rows[d.key][0], rows[d.key][last], lab0, lab1)])), [defs, rows, last, lab0, lab1]);
   const ordered = (ds: Def[]) => sort === "none" ? ds : [...ds].sort((x, y) => { const a = chg[x.key].pts, b = chg[y.key].pts; if (a == null || b == null) return a == null ? (b == null ? 0 : 1) : -1; return sort === "desc" ? b - a : a - b; });   // gaps always last
   const exportCsv = () => downloadCsv("finlit-profitability-ratios.csv", ["Metric", ...periods.map(monthLabel), `Change ${lab0} to ${lab1} (percentage points)`], defs.map((d) => [d.label, ...rows[d.key].map((x) => (x == null ? "" : Math.round(x * 100) / 100)), chg[d.key].pts == null ? "" : Math.round((chg[d.key].pts as number) * 10) / 10]));
-  const cur2 = (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel((e.currentTarget as HTMLElement).dataset.k!); } };
   return (
     <>
       <p className="pr-key"><span>Below median (dashed edge)</span><i className="lo" /><i className="lo2" /><i className="mid" /><i className="hi2" /><i className="hi" /><span>Above median (solid edge)</span><span className="pr-odd-k" title="A year that sits far from the other years in the same row, by a robust spread measure (median absolute deviation), and by more than 15% of the median."><b className="pr-odd" />Unusual year (far from the other years)</span><button type="button" className="btn sm pr-csv" onClick={exportCsv}>Download CSV</button></p>
       <HScroll className="" label="profitability table">
         <table className="pr-t"><thead><tr><th scope="col">Metric</th>{periods.map((p) => <th scope="col" key={p}>{monthLabel(p)}</th>)}<th scope="col" className="pr-chg-h" aria-sort={sort === "none" ? "none" : sort === "desc" ? "descending" : "ascending"}><button type="button" className={"pr-sort " + sort} onClick={() => setSort((s0) => (s0 === "none" ? "desc" : s0 === "desc" ? "asc" : "none"))} title="Last year minus first year shown, in percentage points. Click to sort within each group: biggest rise first, biggest fall first, then original order.">CHANGE<small>{monthLabel(periods[0])} to {monthLabel(periods[last])}</small></button></th></tr></thead>
           <tbody>{groups.flatMap((g) => { const ds = ordered(defs.filter((d) => d.group === g)); return ds.length ? [<tr key={g} className="pr-g"><td colSpan={periods.length + 2}>{g}</td></tr>, ...ds.map((d) => { const a = analyse(rows[d.key]); return (
-            <tr key={d.key} className={d.key === sel ? "on" : ""} onClick={() => setSel(d.key)} tabIndex={0} data-k={d.key} onKeyDown={cur2} aria-current={d.key === sel ? "true" : undefined}>
+            <tr key={d.key} data-k={d.key}>
               <td title={d.say}>{d.label}</td>{rows[d.key].map((x, i) => <td key={i} className={x == null || a.med == null ? undefined : x >= a.med ? "pr-ab" : "pr-be"} style={heat(x, a.med, a.spread)} title={x != null && a.med != null ? `${nf(Math.abs(x - a.med), 2)} pts ${x >= a.med ? "above" : "below"} the row median ${nf(a.med, 2)}%` : x == null ? "No figure reported" : undefined}>{x == null ? MINUS : <>{a.odd.has(i) && <b className="pr-odd" title="Unusual year: far from this row's other years" />}{nf(x, 2)}%</>}</td>)}{(() => { const c = chg[d.key], tone = d.key === "effective_tax_rate" || c.dir === "flat" || c.dir === "none" ? "" : c.dir; return <td className={"pr-chg " + tone} title={c.reason ?? undefined} aria-label={c.reason ?? `${d.label}, ${monthLabel(periods[0])} to ${monthLabel(periods[last])}: ${c.text.replace("pts", "percentage points")}`}>{c.dir === "up" ? "▲ " : c.dir === "down" ? "▼ " : ""}{c.text}</td>; })()}</tr>); })] : []; })}</tbody></table>
       </HScroll>
-      <div className="pr-sel">
-        <div className="card pr-chart"><div className="pr-ch"><b>{cur.label}</b>{an.med != null && <span><i className="pr-med" />{periods.length}-year median {nf(an.med, 2)}%</span>}</div><p className="muted" style={{ margin: "2px 0 10px", fontSize: 13 }}>{cur.say}</p>
-          <ChartZoom label={`${cur.label} by year`} className="cz-top"><div className="pr-bars" role="img" aria-label={`${cur.label} by year`}>{vals.map((x, i) => { const hi = Math.max(an.hi, 0.01), lo = Math.min(an.lo, 0), h = x == null ? 0 : Math.min(100, ((Math.max(x, 0) - 0) / (hi - lo || 1)) * 100);
-            return <div key={i} className={"pr-bar" + (i === last ? " now" : "")} title={`${monthLabel(periods[i])}: ${x == null ? "—" : nf(x, 2) + "%"}`}><i style={{ height: `${h}%` }} /><span>{periods[i]}</span></div>; })}
-            {an.med != null && <u className="pr-line" style={{ bottom: `calc(${(Math.max(an.med, 0) / (Math.max(an.hi, 0.01) - Math.min(an.lo, 0) || 1)) * 100}% * .86 + 22px)` }} />}</div></ChartZoom></div>
-        <div className="card pr-say">
-          <span className={"chip " + (now != null && an.med != null ? (Math.abs(now - an.med) < an.spread * 0.15 ? "gold" : now > an.med ? "up" : "down") : "ghost")}>
-            {now == null || an.med == null ? "Not enough years" : Math.abs(now - an.med) < an.spread * 0.15 ? "Close to its usual level" : now > an.med ? "Above its usual level" : "Below its usual level"}</span>
-          {now != null && an.med != null && <p>Latest ({periods[last]}): {nf(now, 2)}%, {nf(Math.abs(now - an.med), 2)} pts {now >= an.med ? "above" : "below"} its {periods.length}-year median of {nf(an.med, 2)}%.</p>}
-          {slope != null && <p>Trend: {Math.abs(slope) < 0.05 ? "flat" : slope > 0 ? "rising" : "falling"} ({pp(slope, 2)} pts a year on average).</p>}
-          {best && worst && <p>Best {periods[best[1]]} at {nf(best[0], 2)}%, weakest {periods[worst[1]]} at {nf(worst[0], 2)}%.</p>}</div>
-      </div>
     </>
   );
 }

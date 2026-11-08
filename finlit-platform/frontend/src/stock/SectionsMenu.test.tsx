@@ -14,7 +14,7 @@ describe("All sections panel", () => {
   it("is closed to start with and lists Leadership only when it is shown", () => {
     const h = renderToStaticMarkup(<SectionsMenu items={navFor(false)} active={null} onPick={() => {}} />);
     expect(h).toContain("hidden"); expect(h).toContain('aria-expanded="false"'); expect(h).not.toContain('data-s="leadership"'); expect(h).not.toContain('data-s="history"'); expect(h).toContain('data-s="ownership"'); expect(h).not.toContain('data-s="plans"');
-    expect(navFor(false)).toHaveLength(22); expect(navFor(true)).toHaveLength(23);   // Community discussions (task #43) is the 22nd section
+    expect(navFor(false)).toHaveLength(21); expect(navFor(true)).toHaveLength(22);   // Key findings is merged into Strengths & watch-outs (task #37)
   });
 });
 

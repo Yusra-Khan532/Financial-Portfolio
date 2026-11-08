@@ -205,7 +205,7 @@ describe("waterfall", () => {
     const pl = t(["FY24", "FY25"], { revenue: [1000, 900], net_profit: [100, -50], profit_before_tax: [130, -40], finance_costs: [10, 20] });
     const bs = t(["FY24", "FY25"], { total_assets: [1000, 1000], total_equity: [500, 400] });
     const w = waterfall(deepYears(pl, bs, false), false); expect(w.ok).toBe(true); if (!w.ok) return;
-    expect(w.method).toBe("substitution"); expect(w.note).toMatch(/log is undefined/);
+    expect(w.method).toBe("substitution"); expect(w.note).toMatch(/switched from its first-year/);
     expect(w.steps.reduce((a, s) => a + s.pp, 0)).toBeCloseTo(w.end - w.start, 8); expect(w.end).toBeCloseTo(-12.5, 6);
   });
   it("is not shown for banks and lenders, or without two usable years", () => {

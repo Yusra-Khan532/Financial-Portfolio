@@ -37,24 +37,6 @@ export function SectionHead({ id, no, icon, tier, title, sub, color, aside }: { 
   );
 }
 
-/* ---------------- Notes ---------------- */
-export function Notes({ s }: { s: Summary }) {
-  const list = (items: Summary["strengths"], kind: "s" | "w", tag: string) => (
-    <div className="ins-list">{items.length ? items.map((n) => <div className={"ins " + kind} key={n.key}><span className="ins-tag">{tag}</span><b>{n.title}</b><p>{n.text}</p></div>) : <p className="muted">Nothing stands out.</p>}</div>
-  );
-  return (
-    <section className="block" style={{ "--sc": "var(--p-quality)" } as React.CSSProperties}>
-      <SectionHead id="notes" no="02 · Scorecard notes" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history." color="--p-quality" aside={<span className="sh-counts">{s.watchouts.length} to watch · {s.strengths.length} positive{s.strengths.length === 1 ? "" : "s"}</span>} />
-      <Gate tier="silver" title="See the full scorecard notes" points={["Strengths and watch-outs in plain English", "What drives each pillar score", "Updated with every result"]}>
-        <div className="grid g2">
-          <div className="card acc note hover-lift" style={{ "--ac": "var(--p-quality)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="check" /></span>Strengths</h3><span className="chip up">{s.strengths.length}</span></div>{list(s.strengths, "s", "Strength")}</div>
-          <div className="card acc note hover-lift" style={{ "--ac": "var(--p-tech)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Watch-outs</h3><span className="chip down">{s.watchouts.length}</span></div>{list(s.watchouts, "w", "Watch")}</div>
-        </div>
-      </Gate>
-    </section>
-  );
-}
-
 /* ---------------- Price & technicals ---------------- */
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
