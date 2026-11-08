@@ -96,3 +96,29 @@ async def test_trend_is_gold_names_only_and_has_no_cutoffs(app):  # noqa: F811
     assert g["locked"] is False and g["trend"]["n"] == len(SAMPLE) and "gap" not in g["trend"]
     basic = await signed_in(app, "bt@example.com", plan="basic")
     assert (await basic.post("/api/portfolio/trend", json={"symbols": SAMPLE})).status_code == 403
+
+
+SCORE = "/api/portfolio/score"
+
+
+async def test_score_is_gold_strict_and_never_returns_weights(app):  # noqa: F811
+    await seed(app)
+    items = [{"symbol": s, "qty": 10} for s in SAMPLE]
+    silver = await signed_in(app, "ss@example.com", plan="silver")
+    r = (await silver.post(SCORE, json={"items": items})).json()
+    assert r["locked"] is True and "total" not in r
+    basic = await signed_in(app, "bs@example.com", plan="basic")
+    assert (await basic.post(SCORE, json={"items": items})).status_code == 403
+    gold = await signed_in(app, "gs@example.com", plan="gold")
+    for bad in ({"items": [{"symbol": "TCS", "qty": 0}]}, {"items": [{"symbol": "TCS", "qty": -1}]}, {"items": [{"symbol": "TCS", "qty": 2e9}]},
+                {"items": [{"symbol": "TCS", "qty": 1, "price": 5}]}, {"items": [{"symbol": "TCS"}, {"symbol": "TCS"}]}, {"items": items, "horizon": "never"},
+                {"items": items, "benchmark": "SENSEX"}, {"items": items, "extra": 1}, {"items": []}):
+        assert (await gold.post(SCORE, json=bad)).status_code == 422, bad
+    none = (await gold.post(SCORE, json={"items": [{"symbol": s} for s in SAMPLE]})).json()
+    assert none["locked"] is False and none["needsQuantities"] is True and none["total"] is None
+    full = (await gold.post(SCORE, json={"items": items, "risk": "low", "goal": "protect"})).json()
+    assert full["needsQuantities"] is False and isinstance(full["total"], int)
+    text = str(full).lower()
+    assert "weight" not in text and "points" not in text and "blend" not in text
+    # the names-only page endpoint is untouched
+    assert (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422

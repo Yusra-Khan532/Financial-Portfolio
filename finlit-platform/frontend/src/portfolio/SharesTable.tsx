@@ -35,6 +35,8 @@ const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x
 type Props = {
   lines: Line[]; meta: Record<string, Meta>; page: PageObject | null; mode: Mode; colors: Record<string, string>; model: Model; tab: Tab; period: Period; limit: number;
   state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; onExport: () => void; actions: (symbol: string) => ReactNode;
+  /** Quantity the member typed for a share (null when none) and the setter; with the latest price they give the Value column. */
+  qtyOf: (symbol: string) => number | null; onQty: (symbol: string, qty: number | null) => void;
 };
 
 export function SharesTable(p: Props) {
@@ -80,6 +82,7 @@ export function SharesTable(p: Props) {
     return <td key={c.id} className="r">{s?.value == null ? <Dash why={blankWhy(h, c.id, period) || "Not available."} /> : c.id === "tax_ratio" ? dash(s.value, 1) : money(s.value, c.id === "eps" ? 2 : 0)}</td>;
   };
 
+  const valueOf = (l: Line): number | null => { const q = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return q && pr ? q * pr : null; };
   const row = (l: Line, indent = false): ReactNode => {
     const h = l.ov, m = meta[l.symbol];
     const name = l.name || (isReady(h) ? h.name : "") || m?.name || "";
@@ -88,6 +91,9 @@ export function SharesTable(p: Props) {
         <td className="pfx-name"><Link to={`/stocks/${l.symbol}`}><b>{l.symbol}</b></Link>{long && letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{name}</small></td>
         {tab === "overview" && !long && <td><span className="pfx-sec"><i className="pfx-dot" style={{ background: colors[secOf(l.symbol)] }} aria-hidden="true" />{secOf(l.symbol).replace(/ \(not classified\)$/, "")}</span></td>}
         {tab === "overview" && <td>{m ? SIZE_WORD[m.size] : MINUS}</td>}
+        {tab === "overview" && <td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
+          onChange={(e) => { const n = Number(e.target.value); p.onQty(l.symbol, e.target.value.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 1_000_000_000 ? n : null); }} /></td>}
+        {tab === "overview" && <td className="r x-val">{valueOf(l) == null ? MINUS : "₹" + Math.round(valueOf(l)!).toLocaleString("en-IN")}</td>}
         {isReady(h) ? cols.map((c) => cell(h, c)) : <td colSpan={cols.length} className="pfx-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : p.state === "error" ? "Not loaded." : "Preparing…"}</td>}
         {tab === "overview" && <td className="r">{rest[l.symbol] != null ? short2(rest[l.symbol]) : <Dash why={page?.short_history.includes(l.symbol) ? "Under a year of weekly prices, so it is left out of the co-movement figures." : "Not available until the figures are ready."} />}</td>}
         <td className="r pfx-act">{p.actions(l.symbol)}</td>
@@ -104,17 +110,20 @@ export function SharesTable(p: Props) {
   const filtering = q.trim() !== "" || band != null;                     // a search or colour filter shows the matching shares at once
   const isOpen = (sec: string) => filtering || openSet.has(sec);
   const toggle = (sec: string) => setOpenSet((c) => { const n = new Set(c); if (n.has(sec)) n.delete(sec); else n.add(sec); return n; });
-  const nCols = (tab === "overview" ? (long ? 2 : 3) : 1) + cols.length + (tab === "overview" ? 1 : 0) + 1;
+  const nCols = (tab === "overview" ? (long ? 2 : 3) + 2 : 1) + cols.length + (tab === "overview" ? 1 : 0) + 1;
 
   const avgOf = (ls: Line[], c: Col) => (c.id === "score" ? mean(ls.map((l) => scoreOf(l.ov, model).value)) : c.id.startsWith("p_") || c.id.startsWith("f_") ? mean(ls.map((l) => (isReady(l.ov) ? parts.find((d) => d.id === c.id.slice(2))?.get(l.ov) : null))) : undefined);
   const restAvg = (ls: Line[]) => mean(ls.map((l) => rest[l.symbol]));
   const foot = (ls: Line[], label: string, extra?: ReactNode) => (
     <tr className="pfx-avg"><th scope="row" colSpan={tab === "overview" ? (long ? 2 : 3) : 1}>{label}{extra}</th>
+      {tab === "overview" && <><td />{(() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}</>}
       {cols.map((c) => { const v = avgOf(ls, c); return <td key={c.id} className={c.id === "score" || c.id.startsWith("p_") || c.id.startsWith("f_") ? "c" : ""}>{v == null ? "" : <Chip v={v} big={c.id === "score"} />}</td>; })}
       {tab === "overview" && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}<td /></tr>);
   const th = (<tr>{head({ id: "share", label: "Share", sortable: false })}
     {tab === "overview" && !long && head({ id: "sector", label: "Sector", sortable: false })}
     {tab === "overview" && head({ id: "size", label: "Size", sortable: false })}
+    {tab === "overview" && head({ id: "qty", label: "Qty", sortable: false, num: true })}
+    {tab === "overview" && head({ id: "value", label: "Value", sortable: false, num: true })}
     {cols.map((c) => head({ id: c.id, label: tab === "overview" && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num }))}
     {tab === "overview" && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}<th scope="col"><span className="sr-only">Actions</span></th></tr>);
 
