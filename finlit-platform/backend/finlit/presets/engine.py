@@ -111,6 +111,9 @@ class Frame:
         if name == "profit_plus_balance":                           # the Basic tab's "Profitability + Balance sheet" (both pillars needed)
             a, b = self.get(i, "pillar_profitability"), self.get(i, "pillar_balance")
             return None if a is None or b is None else a + b
+        if name == "abs_vs_breakout":                               # how far the price is from the level it broke, either way (the Setups screens rank on closeness)
+            v = self.get(i, "vs_breakout")
+            return None if v is None else abs(v)
         if name == "high_over_low":                                 # how far the 52-week high stands above the 52-week low, in %
             hi, lo = self.get(i, "high_52w"), self.get(i, "low_52w")
             return None if hi is None or lo is None or lo <= 0 else round((hi / lo - 1.0) * 100.0, 4)
@@ -284,14 +287,16 @@ def _pct_in(arr: Sequence[float], v: float) -> float:
 
 
 def rank_scores_of(fr: Frame, terms: Sequence[Tuple[str, float]], member: Callable[[int], bool]) -> Dict[int, float]:
-    """100 x the weighted sum of each input's percentile among its own size bucket's members. A company missing an input has no score (never a zero)."""
+    """100 x the weighted sum of each input's percentile among its own size bucket's members. A company missing an input has no score (never a zero).
+    A term written "-field" counts the other way round: the lower the figure, the higher its percentile (for example how far below the high)."""
+    terms = [(f, w) for f, w in terms]
     pops: Dict[Tuple[str, str], List[float]] = {}
     for i in range(fr.t.n):
         b = fr.t.cap[i]
         if b is None or not member(i):
             continue
         for f, _ in terms:
-            v = fr.get(i, f)
+            v = fr.get(i, f.lstrip("-"))
             if v is not None:
                 pops.setdefault((b, f), []).append(v)
     for arr in pops.values():
@@ -303,11 +308,12 @@ def rank_scores_of(fr: Frame, terms: Sequence[Tuple[str, float]], member: Callab
             continue
         tot, ok = 0.0, True
         for f, w in terms:
-            v, arr = fr.get(i, f), pops.get((b, f))
+            v, arr = fr.get(i, f.lstrip("-")), pops.get((b, f))
             if v is None or not arr:
                 ok = False
                 break
-            tot += w * _pct_in(arr, v)
+            p = _pct_in(arr, v)
+            tot += w * (1.0 - p if f.startswith("-") else p)
         if ok:
             out[i] = round(100.0 * tot, 4)
     return out

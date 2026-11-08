@@ -1,8 +1,9 @@
 """The small rule language of a screen's `derived` rules: rules that need a nightly field or a Prism part, which the Query builder's own language cannot see.
 
     rule   :=  and ("or" and)*          and := cmp ("and" cmp)*          cmp := value op value        op := > >= < <= = !=
-    value  :=  number | field | coalesce(field, number) | bankzero(field)
+    value  :=  number | field | coalesce(field, number) | bankzero(field) | missing(field)
 
+    missing(f)       1 when f is missing, else 0 (never unknown): "no breakout in the last 30 sessions" is  missing(breakout_age) = 1
     coalesce(f, n)   f, or n when f is missing
     bankzero(f)      f; a bank's or lender's missing figure counts as 0 (their red-flag count is not computed), anyone else's stays unknown
 
@@ -81,7 +82,7 @@ class _P:
         t = self.take()
         if re.fullmatch(r"-?\d+(?:\.\d+)?", t):
             return ("num", float(t))
-        if t in ("coalesce", "bankzero"):
+        if t in ("coalesce", "bankzero", "missing"):
             if self.take() != "(":
                 raise RuleError(f"{t} needs (")
             field = self.take()
@@ -111,7 +112,7 @@ def fields_in(node: Node) -> List[str]:
     k = node[0]
     if k == "field":
         return [node[1]]
-    if k in ("coalesce", "bankzero"):
+    if k in ("coalesce", "bankzero", "missing"):
         return [node[1]] + (["is_bank"] if k == "bankzero" else [])
     if k == "cmp":
         return fields_in(node[2]) + fields_in(node[3])
@@ -127,6 +128,8 @@ def _val(node: Node, get: Callable[[str], Optional[float]]) -> Optional[float]:
     if k == "field":
         return get(node[1])
     v = get(node[1])
+    if k == "missing":
+        return 1.0 if v is None else 0.0
     if k == "coalesce":
         return node[2] if v is None else v
     if v is None:      # bankzero

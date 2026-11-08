@@ -43,7 +43,7 @@ INPUT_CUT_SQL = ("CASE section "
                  "WHEN 'ratios' THEN jsonb_build_object('latest', j -> 'latest', 'history', j -> 'history', 'valuationHistory', j -> 'valuationHistory')::text "
                  "WHEN 'stats' THEN jsonb_build_object('volatility', jsonb_build_object('current', j #> '{volatility,current}'), 'drawdown', jsonb_build_object('max', j #> '{drawdown,max}'))::text "
                  "WHEN 'events' THEN jsonb_build_object('actions', j -> 'actions', 'dividendsByFY', j -> 'dividendsByFY')::text "
-                 "WHEN 'price' THEN jsonb_build_object('daily', jsonb_build_object('t', j #> '{daily,t}', 'c', j #> '{daily,c}', 'v', j #> '{daily,v}'), 'technical', j -> 'technical')::text "
+                 "WHEN 'price' THEN jsonb_build_object('daily', jsonb_build_object('t', j #> '{daily,t}', 'c', j #> '{daily,c}', 'v', j #> '{daily,v}', 'h', j #> '{daily,h}', 'l', j #> '{daily,l}'), 'technical', j -> 'technical')::text "
                  "ELSE body END")
 VIEWED_KEY = "viewed"   # sorted set: symbol -> last time a member or visitor opened its report (keeps it stored when pruning)
 # What the website lists for every company. The 170 screener numbers (scores.metrics) are left out on purpose: they are ~2 KB a company and only /api/screener/query needs them.
@@ -104,7 +104,7 @@ def cut_input(name: str, body: Any) -> Any:
         return {k: g(body, k) for k in ("actions", "dividendsByFY")}
     if name == "price":
         d = g(body, "daily")
-        return {"daily": {k: g(d, k) for k in ("t", "c", "v")}, "technical": g(body, "technical")}
+        return {"daily": {k: g(d, k) for k in ("t", "c", "v", "h", "l")}, "technical": g(body, "technical")}
     return body
 
 
