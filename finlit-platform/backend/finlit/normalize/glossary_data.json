@@ -1,5 +1,5 @@
 {
- "version": 5,
+ "version": 6,
  "source": "FinLit Glossary, November 2026",
  "topics": [
   "Banks and lenders",
@@ -10040,6 +10040,149 @@
    "read": "CAGR depends heavily on the start year: growth measured from a bad year looks better than it is.",
    "why": "It smooths out ups and downs so different periods and companies can be compared.",
    "formula": "(Operating profit now ÷ 5 years ago)^(1 ÷ 5) − 1; blank unless both ends are profits."
+  },
+  "vs_ema9": {
+   "label": "Price against 9-day average",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "How far the price sits above (+) or below (−) its 9-day exponential moving average.",
+   "read": "The 9-day average follows the price closely, so this shows short-term stretch.",
+   "why": "It describes how far the latest close has moved from its recent path.",
+   "formula": "(Price − 9-day exponential average) ÷ that average × 100."
+  },
+  "vs_ema20": {
+   "label": "Price against 20-day average",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "How far the price sits above (+) or below (−) its 20-day exponential moving average.",
+   "read": "Small gaps mean the price is close to its one-month path.",
+   "why": "It shows whether a pullback has reached the one-month average.",
+   "formula": "(Price − 20-day exponential average) ÷ that average × 100."
+  },
+  "ema_stack": {
+   "label": "9-day above 20-day above 50-day average",
+   "unit": "flag",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "Yes when the 9-day average is above the 20-day, and the 20-day is above the 50-day.",
+   "read": "Yes means the shorter averages sit above the longer ones, the pattern of a steady uptrend.",
+   "why": "It checks that the short, medium and longer paths agree.",
+   "formula": "1 if EMA 9 > EMA 20 > EMA 50 on the latest session, else 0."
+  },
+  "ema9_hold_10": {
+   "label": "Closes at or above the 9-day average (last 10)",
+   "unit": "n",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "Of the last 10 closes, how many were at or above that day's 9-day average.",
+   "read": "10 means the price held above its short average every day.",
+   "why": "It describes how steadily the price has stayed above its short-term path.",
+   "formula": "Count of the last 10 sessions where close ≥ the 9-day exponential average of that day."
+  },
+  "range_10d": {
+   "label": "Range of the last 10 sessions",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "average-true-range-atr",
+   "what": "The highest high minus the lowest low of the last 10 sessions, as a share of the latest close.",
+   "read": "A small range means the price has moved within a narrow band.",
+   "why": "It shows how tight the recent trading has been.",
+   "formula": "(10-session high − 10-session low) ÷ latest close × 100."
+  },
+  "atr_ratio": {
+   "label": "Volatility now against the longer run",
+   "unit": "x",
+   "better": null,
+   "group": "trading",
+   "term": "average-true-range-atr",
+   "what": "The 10-day average true range divided by the 50-day one.",
+   "read": "Under 1 means daily price swings are shrinking against the longer run; over 1 means they are growing.",
+   "why": "It compares recent swings with the usual size of swings.",
+   "formula": "ATR(10) ÷ ATR(50), Wilder smoothing."
+  },
+  "vol_ratio_10_50": {
+   "label": "Volume, last 10 sessions against 50",
+   "unit": "x",
+   "better": null,
+   "group": "trading",
+   "term": "average-volume-and-volume-spike",
+   "what": "The average volume of the last 10 sessions as a multiple of the last 50.",
+   "read": "Under 1 means trading has been quieter than usual; over 1 busier.",
+   "why": "It shows whether trading interest is drying up or building.",
+   "formula": "Mean volume of the last 10 sessions ÷ mean volume of the last 50, from the same daily candles."
+  },
+  "vol_ratio_5_50": {
+   "label": "Volume, last 5 sessions against 50",
+   "unit": "x",
+   "better": null,
+   "group": "trading",
+   "term": "average-volume-and-volume-spike",
+   "what": "The average volume of the last 5 sessions as a multiple of the last 50.",
+   "read": "Under 1 means the last week has been quieter than usual.",
+   "why": "It shows the very recent trading activity against the usual.",
+   "formula": "Mean volume of the last 5 sessions ÷ mean volume of the last 50, from the same daily candles."
+  },
+  "days_since_high": {
+   "label": "Sessions since the 52-week closing high",
+   "unit": "n",
+   "better": null,
+   "group": "trading",
+   "term": "52-week-high-and-low",
+   "what": "How many trading sessions ago the highest close of the last 52 weeks was set.",
+   "read": "0 means the latest close is the 52-week closing high.",
+   "why": "It tells how long the price has rested below its high.",
+   "formula": "Sessions between the latest close and the highest close of the last 252 sessions."
+  },
+  "breakout_age": {
+   "label": "Sessions since the latest breakout",
+   "unit": "n",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "Sessions since the close last rose above a 52-week closing high that was set at least 15 sessions earlier (last 30 sessions only).",
+   "read": "Blank means no such breakout in the last 30 sessions.",
+   "why": "It dates the latest move above an old high.",
+   "formula": "Latest session t in the last 30 where close > the highest close of the prior 252 sessions and that high is at least 15 sessions old."
+  },
+  "breakout_level": {
+   "label": "Level of that breakout",
+   "unit": "Rs",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "The earlier high that the price broke above.",
+   "read": "The price can come back to this level after a breakout.",
+   "why": "It names the level that the breakout crossed.",
+   "formula": "The highest close of the prior 252 sessions on the breakout day."
+  },
+  "vs_breakout": {
+   "label": "Price against the breakout level",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "How far the latest close is above (+) or below (−) the level it broke.",
+   "read": "Near 0 means the price has come back to the level.",
+   "why": "It shows how far the price has moved from the breakout level since.",
+   "formula": "(Latest close ÷ breakout level − 1) × 100."
+  },
+  "breakout_vol_ratio": {
+   "label": "Volume on the breakout day",
+   "unit": "x",
+   "better": null,
+   "group": "trading",
+   "term": "average-volume-and-volume-spike",
+   "what": "The breakout day's volume as a multiple of the 50 sessions before it.",
+   "read": "Above 1.5 means the breakout came on much heavier trading than usual.",
+   "why": "It shows how much trading interest came with the breakout.",
+   "formula": "Breakout-day volume ÷ mean volume of the 50 sessions before it."
   }
  }
 }
