@@ -116,7 +116,7 @@
 .ol-mdot { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid var(--border-strong); border-radius: 50%; } .ol-mcard.on .ol-mdot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
 .ol-mt { display: grid; gap: 4px; min-width: 0; } .ol-mt b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; }
 .ol-mt small { font-size: var(--fs-13); color: var(--muted); line-height: 1.45; }
-.ol-usp { font: 700 10.5px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
+.ol-usp { font: 700 11px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
 @media (max-width: 760px) { .ol-models { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- key takeaways */
