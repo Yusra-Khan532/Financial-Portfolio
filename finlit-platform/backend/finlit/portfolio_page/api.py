@@ -17,7 +17,7 @@ import asyncio
 import hashlib
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal, Optional
 
 import orjson
 from fastapi import APIRouter, Depends, Request, Response
@@ -148,3 +148,99 @@ async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_c
     items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label")} for s in body.symbols]
     per = {s: {"st": cards[s].get("prism_st"), "lt": cards[s].get("prism_lt")} for s in body.symbols if s in cards}
     return Response(orjson.dumps({"locked": False, "trend": trend.public(trend.portfolio_trend(items)), "perShare": per}), media_type="application/json", headers=NO_STORE)
+
+
+class ScoreItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbol: str
+    qty: Optional[float] = Field(default=None, gt=0, le=1_000_000_000)
+
+    @field_validator("symbol")
+    @classmethod
+    def sym(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not SYMBOL.match(v):
+            raise ValueError("bad symbol")
+        return v
+
+
+class ScoreIn(BaseModel):
+    """The shares with the quantity of each (optional) and the five choices. Anything else is a 422. Quantities are used for this answer only: never stored or logged."""
+    model_config = ConfigDict(extra="forbid")
+    items: List[ScoreItem] = Field(min_length=1, max_length=MAX_SYMBOLS)
+    horizon: Literal["lt1", "1-3", "3-5", "gt5"] = "3-5"
+    risk: Literal["low", "medium", "high"] = "medium"
+    goal: Literal["grow", "income", "protect"] = "grow"
+    benchmark: Literal["NIF50", "NIF500", "NIFMID150", "NIFSMA250"] = "NIF50"
+
+    @field_validator("items")
+    @classmethod
+    def unique(cls, v: List[ScoreItem]) -> List[ScoreItem]:
+        if len({i.symbol for i in v}) != len(v):
+            raise ValueError("a share is listed twice")
+        return v
+
+
+def _score_compute(prices, nifty_rows, bench_rows, meta, symbols, values, cards, week, horizon, risk, goal, benchmark):
+    """pandas part (worker thread): the diversification page score and the market measures for the value weights against the chosen index."""
+    import numpy as np
+    from . import metrics, score
+    from ..mfportfolio import trend
+    page_score = None
+    market = None
+    known = [s for s in symbols if s in meta]
+    if known:
+        page = inputs.run(prices, nifty_rows, {s: meta[s] for s in known}, week)
+        page_score = inputs.card_score(page) and page["score"]
+        frame, bench = inputs.build_frame(prices, bench_rows, known, week)
+        r, rn, _short = metrics.weekly_returns(frame, bench)
+        if len(r.columns) >= 1 and len(r) >= 20:
+            w = np.array([max(values.get(s, 0.0), 0.0) for s in r.columns], dtype=float)
+            w = w / w.sum() if w.sum() > 0 else np.ones(len(r.columns)) / len(r.columns)
+            market = metrics.market_measures(r, rn, w)
+    return score.build(symbols, values, cards, page_score, market, horizon, risk, goal, benchmark, trend.portfolio_trend)
+
+
+@router.post("/score")
+async def score_page(request: Request, body: ScoreIn, ctx: Ctx = Depends(member_ctx)) -> Response:
+    """Your portfolio score (Gold: it reads FinLit Prism). The total and the readings come back as words and plain figures; the blend and its points stay here."""
+    if not (ctx.role == "admin" or has(ctx.plan, div.STYLE_TILT_TIER)):
+        return Response(orjson.dumps({"locked": True, "why": "Your portfolio score is part of the Gold plan."}), media_type="application/json", headers=NO_STORE)
+    app = request.app
+    allowed, retry = await app.state.limiter.hit("portfolio_score", ip_of(request), 30, 60, fail_open=False)
+    if not allowed:
+        return Response(orjson.dumps({"status": "rate_limited", "detail": "Too many requests. Please wait and try again.", "retryAfter": retry}), status_code=429,
+                        media_type="application/json", headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
+    from .. import prism_screen
+    symbols = [i.symbol for i in body.items]
+    qty = {i.symbol: i.qty for i in body.items if i.qty}
+    week = div.unfinished_week(div.now_ist())
+    facts = div._facts(await app.state.store.diversification_facts(symbols))
+    known = [s for s in symbols if s in facts]
+    unknown = [s for s in symbols if s not in facts]
+    cards = prism_screen.cards(await app.state.store.prism_cards(known)) if known else {}
+    prices = await div._prices(app, known) if known else {}
+    nifty_rows = await div._index(app)
+    if known and not nifty_rows:
+        raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now. Please try again in a moment.")
+    bench_rows = nifty_rows
+    if body.benchmark != "NIF50" and known:
+        from ..indices import _cached, _fetch_levels, shape_levels
+        raw = await _cached(app, f"idx:px:{body.benchmark}", 6 * 3600, lambda: _fetch_levels(app, body.benchmark))
+        bench_rows = shape_levels(raw, 5)["rows"] if raw else None
+        if not bench_rows:
+            raise fail(502, "provider_unavailable", "The chosen index is not available right now. Please try again in a moment.")
+    values = {}
+    for s in known:
+        p = prices.get(s)
+        last = p["c"][-1] if p and p.get("c") else None
+        if s in qty and last:
+            values[s] = float(qty[s]) * float(last)
+    meta = inputs.build_meta(known, facts, await _sector_spellings(app)) if known else {}
+    try:
+        out = await asyncio.to_thread(_score_compute, prices, nifty_rows, bench_rows, meta, known, values, cards, week, body.horizon, body.risk, body.goal, body.benchmark)
+    except AssertionError:
+        log.exception("a reading failed the wording check")
+        raise fail(500, "wording_check", "The score could not be worked out for this list. This has been logged.")
+    out.update(locked=False, unknown=unknown, noQuantity=[s for s in known if s not in values])
+    return Response(orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)

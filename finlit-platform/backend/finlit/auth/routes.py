@@ -180,6 +180,7 @@ class Holding(BaseModel):
     price: float = Field(ge=0, le=100_000_000)  # average buy price per share
     date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     note: Optional[str] = Field(default=None, max_length=200)
+    owned: Optional[bool] = None  # true once the member typed a real quantity (a name added without one is kept with qty 1 and no amount)
 
     @field_validator("symbol")
     @classmethod

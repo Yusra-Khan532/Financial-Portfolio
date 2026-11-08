@@ -43,7 +43,7 @@ describe.each(cases)("the page text, %s", (_n, s) => {
       <CountTable page={page} meta={meta} symbols={symbols} mode={mode} colors={colors} /><MixCards lines={[]} model="prism" parts={[{ label: "Quality", value: 69 }]} /><WhereReadings page={page} mode={mode} />
       <Together page={page} meta={meta} mode={mode} colors={colors} open onToggle={() => {}} />
       <RiskShare page={page} mode={mode} colors={colors} /><Nifty page={page} mode={mode} /><Style tilt={TILT} />
-      <SharesTable lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} onExport={() => {}} actions={() => null} />
+      <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} onExport={() => {}} actions={() => null} />
     </div></MemoryRouter>);
     const text = container.textContent || "";
     expect(text.length).toBeGreaterThan(500);
