@@ -126,7 +126,7 @@ describe("CSV per tab", () => {
     expect(a[0]).toBe('"Symbol","Company","Sector","Latest price","Today (%)","Market cap","FinLit IQ","Quality","Growth","Profit.","Balance","Technical","Note"');
     expect(b[0]).toContain('"Prism score","Growth & Profitability","Valuation","Quality","Risk","Short term","Long term"'); expect(b[0]).not.toMatch(/Growth(?! & Profitability)/);
     expect(a).toHaveLength(8); expect(a[1].startsWith('"RELIANCE","Reliance Industries Ltd","Refineries & Marketing",1184,-1.21,1602252.58,51,')).toBe(true);
-    expect(b[1]).toContain(",71.4,68.8,41.2,77.3,73.7,34.2,-22.4,");
+    expect(b[1]).toContain(',71.4,"Fair","Weak","Strong","Strong",34.2,-22.4,');
   });
   it("Ratios and Financials CSV carry the stock page's numbers, and blanks with a reason in Note", () => {
     const r = rows(toCsv(S, "ratios", "finlit", "year")), f = rows(toCsv(S, "financials", "finlit", "year"));

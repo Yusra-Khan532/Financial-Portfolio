@@ -1,9 +1,9 @@
-import { SECTION_TAG, MODE_NOTE, READINGS_FOOT, SCORE_PARTS, FULL_AT } from "./words";
+import { SECTION_TAG, MODE_NOTE, READINGS_FOOT, SCORE_PARTS, SPREAD_WORD } from "./words";
 import type { Mode, PageObject } from "./types";
 
 const jump = (id: string, open?: () => void) => (e: React.MouseEvent) => { e.preventDefault(); open?.(); setTimeout(() => document.getElementById("pf-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
 
-/** "What this means": the page's five highest-priority readings for the chosen mode, written by the server's fixed rules; the tag links to the section it is about. */
+/** "What this means": the page's five highest-priority readings for the chosen mode, written by the server from the list's figures; the tag links to the section it is about. */
 export function WhatThisMeans({ page, mode, onOpenTogether }: { page: PageObject; mode: Mode; onOpenTogether: () => void }) {
   const items = page.summary[mode];
   return (
@@ -19,16 +19,16 @@ export function WhatThisMeans({ page, mode, onOpenTogether }: { page: PageObject
   );
 }
 
-/** "How the score is made": the two parts with bars, and the score with its band. */
+/** "What goes into the score": the two parts as words, with bars of a fixed length per word. No shares, points or cut-offs. */
 export function ScoreMade({ page }: { page: PageObject }) {
   const s = page.score;
-  const row = (label: string, v: number, text: string) => (
-    <div className="pfx-part"><div className="pfx-part-h"><span>{label}</span><b>{v}</b></div><div className="pfx-bar"><i style={{ width: `${v}%` }} /></div><p>{text}</p></div>);
+  const row = (label: string, v: number, text: string) => { const w = SPREAD_WORD(v);
+    return <div className="pfx-part"><div className="pfx-part-h"><span>{label}</span><b>{w.word}</b></div><div className="pfx-bar"><i style={{ width: `${w.bar}%` }} /></div><p>{text}</p></div>; };
   return (
     <aside className="pfx-card pfx-side" aria-labelledby="pfx-how">
-      <h2 id="pfx-how">How the score is made</h2>
-      {row(SCORE_PARTS.comove, s.comovement, `${page.order.length} shares move like ${s.effective_stocks.toFixed(1)} independent ones; ${FULL_AT.stocks}`)}
-      {row(SCORE_PARTS.sector, s.sector_spread, `About ${s.effective_sectors.toFixed(1)} effective sectors; ${FULL_AT.sectors}`)}
+      <h2 id="pfx-how">What goes into the score</h2>
+      {row(SCORE_PARTS.comove, s.comovement, `${page.order.length} shares move like ${s.effective_stocks.toFixed(1)} independent ones.`)}
+      {row(SCORE_PARTS.sector, s.sector_spread, `About ${s.effective_sectors.toFixed(1)} effective sectors.`)}
       <div className="pfx-total"><span>Diversification score</span><b>{s.score} · {s.band}</b></div>
     </aside>
   );

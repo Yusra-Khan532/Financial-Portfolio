@@ -251,7 +251,8 @@ export function toCsv(lines: Line[], tab: Tab, model: Model, period: Period): st
   const head = ["Symbol", "Company", "Sector", ...body.map((c) => c.label), "Note"];
   const rows = lines.map((l) => {
     const h = l.ov;
-    const values = isReady(h) ? body.map((c) => c.csv(h)) : body.map(() => null);
+    const word = (v: unknown): unknown => (typeof v === "number" ? (v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak") : v);   // the part scores leave as words: only the total is a number
+    const values = (isReady(h) ? body.map((c) => (/^[pf]_/.test(c.id) ? word(c.csv(h)) : c.csv(h))) : body.map(() => null)) as (string | number | null)[];
     return [cell(l.symbol), cell(l.name || (isReady(h) ? h.name : "") || ""), cell(isReady(h) ? h.sector : ""), ...values.map(cell),
       cell(isReady(h) ? scoreWhy(h, model) || "" : h?.reason || "Scores are loading.")].join(",");
   });

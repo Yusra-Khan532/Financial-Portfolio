@@ -131,7 +131,7 @@ export function HoldingsPage() {
               <section className="pfx-card pfx-grow" aria-labelledby="pfx-wh"><div className="pfx-h"><h2 id="pfx-wh">{page.layout === "long" ? "Where your list sits" : "Where your list sits: sector and size"}</h2>
                 <p className="pfx-note">{page.layout === "long" ? "Each block is a sector and each tile a share. Bigger means more of the list; the tile colour is its score." : "Each chip is one share. Darker cells contain more of the list."}</p></div>
                 {page.layout === "long" ? <Treemap {...common} /> : <HeatTable {...common} />}
-                {page.layout === "long" && <p className="pfx-legend"><span><i className="b-hi lg" />Score 70+</span><span><i className="b-mid lg" />50–69</span><span><i className="b-lo lg" />Under 50</span><span className="pfx-note">Hover a tile for the company name and its share of the list.</span></p>}
+                {page.layout === "long" && <p className="pfx-legend"><span><i className="b-hi lg" />Strong</span><span><i className="b-mid lg" />Fair</span><span><i className="b-lo lg" />Weak</span><span className="pfx-note">Hover a tile for the company name and its share of the list.</span></p>}
                 <WhereReadings page={page} mode={mode} />
                 {page.layout === "short" && <p className="pfx-fine">{SIZES_NOTE}</p>}</section>
               {page.layout === "long" ? <CountTable page={page} meta={meta} symbols={ids} mode={mode} colors={colors} /> : <MixCards lines={scoreLines} model={model} parts={partAvg} />}

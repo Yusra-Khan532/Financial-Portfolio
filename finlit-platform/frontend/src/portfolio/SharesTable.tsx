@@ -22,6 +22,13 @@ const Chip = ({ v, big, why }: { v: number | null | undefined; big?: boolean; wh
   const b = scoreBand(v);
   return <span className={"pfx-sc" + (big ? " big" : "")} style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{Math.round(v)}</span>;
 };
+/** A part score as a word (Strong, Fair, Weak) with its colour: the four exact part scores of every share would let anyone solve the model, so only the total shows a number. */
+const WORD = { hi: "Strong", mid: "Fair", lo: "Weak" } as const;
+const PartChip = ({ v, why }: { v: number | null | undefined; why?: string }) => {
+  if (v == null) return <span className="pfx-sc na" title={why || "Not enough data to score yet."}>{MINUS}<span className="sr-only"> {why || "not enough data to score yet"}</span></span>;
+  const b = scoreBand(v) as "hi" | "mid" | "lo";
+  return <span className="pfx-sc" style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{WORD[b]}</span>;
+};
 const Dash = ({ why }: { why: string }) => <span className="pfx-dash" title={why}>{MINUS}<span className="sr-only"> not available: {why}</span></span>;
 const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 
@@ -64,7 +71,7 @@ export function SharesTable(p: Props) {
     if (c.id === "change") return <td key={c.id} className="r">{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
     if (c.id === "cap") return <td key={c.id} className="r">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : `₹${money(h.marketCapCr)} Cr`}</td>;
     if (c.id === "score") return <td key={c.id} className="c"><Chip v={scoreOf(h, model).value} big why={scoreWhy(h, model) || undefined} /></td>;
-    if (c.id.startsWith("p_") || c.id.startsWith("f_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className="c"><Chip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
+    if (c.id.startsWith("p_") || c.id.startsWith("f_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className="c"><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
     if (c.id.startsWith("t_")) { const t = h[("prism" as const)]?.[c.id.slice(2) as "shortTerm"]; return <td key={c.id} className="r">{t ? <span title={t.word}>{t.word}</span> : <Dash why="Not calculated for this rating." />}</td>; }
     if (c.id === "yearEnd") { const s = h.financials[period]; return <td key={c.id}>{s.periodEnd ? monthYear(s.periodEnd) : <Dash why={blankWhy(h, "revenue", period) || "No statement is stored yet."} />}</td>; }
     if (c.id === "basis") return <td key={c.id}>{h.basis ? BASIS_WORD[h.basis] : <Dash why="The report does not say which statement it used." />}</td>;
@@ -120,9 +127,9 @@ export function SharesTable(p: Props) {
           <button type="button" className="pfx-btn" onClick={p.onExport} disabled={!lines.length}>Export CSV</button></div></div>
       <div className="pfx-tools">
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
-        <div className="pfx-chipsrow" role="group" aria-label="Filter by score colour">
+        <div className="pfx-chipsrow" role="group" aria-label="Filter by score">
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
-          {([["hi", "Green"], ["mid", "Orange"], ["lo", "Red"], ["na", "Not scored"]] as const).filter(([b]) => counts[b]).map(([b, l]) => <button key={b} type="button" className={"pfx-pillbtn bf-" + b + (band === b ? " on" : "")} aria-pressed={band === b} onClick={() => setBand(band === b ? null : b)}>{l} {counts[b]}</button>)}</div>
+          {([["hi", "Strong"], ["mid", "Fair"], ["lo", "Weak"], ["na", "Not scored"]] as const).filter(([b]) => counts[b]).map(([b, l]) => <button key={b} type="button" className={"pfx-pillbtn bf-" + b + (band === b ? " on" : "")} aria-pressed={band === b} onClick={() => setBand(band === b ? null : b)}>{l} {counts[b]}</button>)}</div>
         {tab === "financials" && <div className="pfx-chipsrow" role="group" aria-label="Period shown">{([["year", "Latest year"], ["quarter", "Latest quarter"]] as const).map(([k, l]) => <button key={k} type="button" className={"pfx-pillbtn" + (period === k ? " on" : "")} aria-pressed={period === k} onClick={() => p.onPeriod(k)}>{l}</button>)}</div>}
         {long && <div className="pfx-chipsrow"><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set(bySector.map((g) => g.sec)))}>Open all</button><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set())}>Close all</button></div>}
         <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""} · limit {p.limit}</span>
