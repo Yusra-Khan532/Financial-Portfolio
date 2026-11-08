@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 7      # 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 8      # 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 RUN_GUARD = ("coalesce(ret_1y, 0) <= 300", "1-year return no more than 300%")   # a stock that has run far past that is not a steady leader: kept out of the Top 10 and momentum lists
@@ -245,8 +245,13 @@ PRESETS: List[Preset] = [
            False, None, ("provisional",), "p14 (Higher-risk list)"),
 
     # ---- not built: the data does not exist yet. Listed so the cards can say so in plain words, never computed.
-    Preset("rating-upgrades", "Rating upgrades", "top-rated", "Companies whose Prism rating moved up a band, or whose score rose 8 points or more, in the last 30 days.", "blocked",
-           blocked_reason="Needs rating history; coming once weekly rating snapshots start.", spec="p9"),
+    Preset("rating-upgrades", "Rating upgrades", "top-rated", "Companies whose Prism rating moved up a band, or whose score rose 8 points or more, over the last 30 days.", "rules",
+           _m(rated=1), "", (("prism_band_up = 1 or prism_rise_30d >= 8", "Prism rating up a band, or score up 8 points or more"),), (("prism_rise_30d", "desc"), ("prism_final", "desc")), 25,
+           with_status((STOCK, SECTOR, PRISM, PLABEL, Col("prism_rise_30d", "Score change", "num1"), MCAP)), (PROVISIONAL,),
+           ("Only companies with a Prism score, compared over the last 30 days of the site's own daily Prism history.",
+            "Listed when the rating moved up a band (Poor under 35, Weak 35 to 49, Average 50 to 64, Healthy 65 to 79, Strong 80 or more) or the score rose 8 points or more.",
+            "Ranked by the size of the rise. A company with fewer than two days of history is left out; while the history is shorter than 30 days the card says how many days it covers."),
+           False, None, ("provisional",), "p9 (Rating upgrades)", "advanced"),
     Preset("psu-stocks", "PSU stocks", "ownership", "Public-sector companies with a Prism score of 55 or more, ranked by Prism score.", "blocked",
            blocked_reason="Needs a maintained list of public-sector companies; coming once that list is shown as a column.", spec="p14"),
 ]

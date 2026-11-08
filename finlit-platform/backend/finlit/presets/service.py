@@ -33,15 +33,49 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
         hist_rows = [dict(r) for r in await conn.fetch(
             "SELECT as_of, industry, b50, b200, rs3, in_play FROM industry_breadth_daily WHERE as_of < $1 AND as_of IN "
             "(SELECT DISTINCT as_of FROM industry_breadth_daily WHERE as_of < $1 ORDER BY as_of DESC LIMIT $2)", as_of, themes.KEEP_SESSIONS)]
+    history_days = await _rating_changes(store, prism, as_of)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
     industry = {s: v[1] for s, v in clean.items()}
     tags = theme_map.tags_for(table.symbols, table.sector_label)      # found from the Sector LABEL (not the broad macro sector) and the research team's named lists, shown as a column
     pos = table.pos
     ev = themes.evaluate(table, themes.by_sector_label(table), themes.history_from_rows(hist_rows))      # grouped by the Sector label, not the Industry
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
+    fr.history_days = history_days
     if persist:
         await _persist(store, fr, clean, ev, pos)
     return fr
+
+
+BANDS = ((80, 4), (65, 3), (50, 2), (35, 1))     # Strong, Healthy, Average, Weak; under 35 is Poor (0)
+
+
+def band_of(score: float) -> int:
+    return next((b for lo, b in BANDS if score >= lo), 0)
+
+
+async def _rating_changes(store, prism: Dict[str, dict], as_of: date) -> int:
+    """Puts prism_rise_30d (score change) and prism_band_up (1 or 0) on each company's Prism fields, from the oldest and newest daily Prism history rows of the last
+    30 days (consolidated first). A company with fewer than two days keeps both blank. Returns how many days the history used spans (0 when none)."""
+    try:
+        async with store.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """WITH d AS (SELECT DISTINCT ON (symbol, day) symbol, day, final FROM prism_history WHERE final IS NOT NULL AND day >= $1::date - 30
+                              ORDER BY symbol, day, (statement = 'consolidated') DESC),
+                        a AS (SELECT DISTINCT ON (symbol) symbol, day, final FROM d ORDER BY symbol, day ASC),
+                        b AS (SELECT DISTINCT ON (symbol) symbol, day, final FROM d ORDER BY symbol, day DESC)
+                   SELECT a.symbol, a.final AS f0, b.final AS f1, (b.day - a.day) AS span FROM a JOIN b USING (symbol) WHERE b.day > a.day""", as_of)
+    except Exception:
+        log.warning("prism history not read: the rating-change fields stay blank", exc_info=True)
+        return 0
+    span = 0
+    for r in rows:
+        z = prism.get(r["symbol"])
+        if z is None:
+            continue
+        z["prism_rise_30d"] = round(float(r["f1"]) - float(r["f0"]), 1)
+        z["prism_band_up"] = 1 if band_of(float(r["f1"])) > band_of(float(r["f0"])) else 0
+        span = max(span, int(r["span"]))
+    return span
 
 
 async def _persist(store, fr, clean, ev, pos) -> None:

@@ -55,6 +55,7 @@ class Frame:
         self.growth = growth if growth is not None else derive.growth_scores(table)
         self.caps = caps if caps is not None else derive.outlier_caps(table)
         self.latest_q = table.latest_quarter()
+        self.history_days = 0       # how many days apart the oldest and newest Prism history rows used by the rating-change fields are (set by build_frame)
         self.rank_scores: Dict[int, float] = {}      # set by run() for a screen that has a rank score
         self._r3: Dict[str, float] = {}
         if theme_eval is not None:
@@ -461,6 +462,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if preset.rank_score:
         out["rankScoreNote"] = "Ranked by a weighted score: each input is the company's percentile among its own size group."
     notes = view_notes(fr, rules)
+    if preset.id == "rating-upgrades":
+        notes = notes + [f"The Prism history on file covers {fr.history_days} day{'' if fr.history_days == 1 else 's'}, so changes are measured over that span, up to 30 days." if fr.history_days < 30
+                         else "Changes are measured over the last 30 days."]
     if notes:
         out["notes"] = notes
     if preset.top10:
