@@ -89,3 +89,38 @@
 @media (prefers-reduced-motion: reduce) { .ol-chartcard { transition: none; } }
 .ol-ctable th { background: none; }
 @media (max-width: 640px) { .ol-build th[scope=row] { min-width: 0; width: 42%; } .ol-ctable tbody th small { max-width: 20ch; } .ol-ctable .num { padding-left: 4px; padding-right: 4px; } .ol-ctable thead th { font-size: var(--fs-11); letter-spacing: .02em; white-space: normal; } }
+
+/* ---- landing / company picker (components/OutlookPicker.tsx) */
+.olp { display: grid; gap: 14px; }
+.olp h2 { margin: 0; }
+.olp-intro { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.6; max-width: 80ch; }
+.olp-snap { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.olp-snap > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); min-width: 0; }
+.olp-snap dt { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.olp-snap dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.olp .up { color: var(--gain); } .olp .dn { color: var(--loss); }
+.olp-row { display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; }
+.olp-l { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 92px; }
+.olp-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.olp-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); text-decoration: none; font-size: var(--fs-14); }
+.olp-chip small { font-size: 12px; } .olp-chip:hover { border-color: var(--gold); } .olp-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.olp-chip.on { background: var(--gold-soft); border-color: var(--gold); }
+@media (max-width: 760px) { .olp-snap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .olp-l { min-width: 0; width: 100%; } }
+
+/* ---- the two model cards */
+.ol-models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; min-width: 0; }
+.ol-models-row { align-items: stretch; }
+.ol-mcard { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px 16px; border: 1.5px solid var(--border-strong); border-radius: 14px; background: var(--s1); color: var(--text); cursor: pointer; font: inherit; min-width: 0; }
+.ol-mcard:hover { border-color: var(--gold); } .ol-mcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ol-mcard.on { border-color: var(--gold); background: var(--gold-soft); box-shadow: 0 0 0 1px var(--gold) inset; }
+.ol-mdot { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid var(--border-strong); border-radius: 50%; } .ol-mcard.on .ol-mdot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
+.ol-mt { display: grid; gap: 4px; min-width: 0; } .ol-mt b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; }
+.ol-mt small { font-size: var(--fs-13); color: var(--muted); line-height: 1.45; }
+.ol-usp { font: 700 10.5px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
+@media (max-width: 760px) { .ol-models { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- key takeaways */
+.ol-take-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ol-take-l li { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-14); line-height: 1.5; }
+.ol-take-l svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--gain); }
+.olp-cap { margin: 0 0 -6px; font-size: var(--fs-13); }
