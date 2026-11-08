@@ -300,3 +300,8 @@
 .pfx-heat .pfx-sec > span { overflow: visible; white-space: normal; }
 @media (max-width: 760px) { .pfx-cell { background: var(--s2); min-height: 44px; } .pfx-cell[style] { background-color: unset; } .pfx-heat-r > .pfx-cell:not([style]) { background: var(--s2); } .pfx-sec { font-size: 14px; } }
 .pfx-ct th[scope=row] { text-transform: none; letter-spacing: 0; font-size: 13px; } .pfx-ct tfoot th { font-size: 12px; }
+
+.pfx-sizes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pfx-sizes li { display: grid; gap: 4px; align-content: start; border: 1px solid var(--border); background: var(--s1); border-radius: 12px; padding: 14px 16px; }
+.pfx-sizes small { font-size: 12px; color: var(--muted); }
+@media (max-width: 640px) { .pfx-sizes { grid-template-columns: minmax(0, 1fr); } }

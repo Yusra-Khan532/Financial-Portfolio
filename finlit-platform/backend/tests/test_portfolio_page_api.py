@@ -83,3 +83,16 @@ async def test_cache_by_list_and_week(app, monkeypatch):  # noqa: F811
     monkeypatch.setattr(div_api, "now_ist", lambda: datetime(2026, 11, 10, 12, 0, tzinfo=IST))   # the next ISO week: a new entry
     await silver.post(URL, json={"symbols": SAMPLE})
     assert len(calls) == 3
+
+
+async def test_trend_is_gold_names_only_and_has_no_cutoffs(app):  # noqa: F811
+    await seed(app)
+    silver = await signed_in(app, "st@example.com", plan="silver")
+    s = (await silver.post("/api/portfolio/trend", json={"symbols": SAMPLE})).json()
+    assert s["locked"] is True and "trend" not in s
+    assert (await silver.post("/api/portfolio/trend", json={"symbols": SAMPLE, "quantity": [1]})).status_code == 422
+    gold = await signed_in(app, "gt@example.com", plan="gold")
+    g = (await gold.post("/api/portfolio/trend", json={"symbols": SAMPLE})).json()
+    assert g["locked"] is False and g["trend"]["n"] == len(SAMPLE) and "gap" not in g["trend"]
+    basic = await signed_in(app, "bt@example.com", plan="basic")
+    assert (await basic.post("/api/portfolio/trend", json={"symbols": SAMPLE})).status_code == 403
