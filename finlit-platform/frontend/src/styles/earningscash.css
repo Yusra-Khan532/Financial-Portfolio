@@ -2,7 +2,9 @@
 .ec-h { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .ec-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap, 16px); margin-bottom: 16px; }
 .ec-tile { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); border-top: 3px solid var(--border-strong); }
-.ec-tile.s { border-top-color: var(--gain); } .ec-tile.w { border-top-color: var(--warn, #CC7A00); } .ec-tile.f { border-top-color: var(--loss); }
+.ec { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; }
+:root:not([data-theme="light"]) .ec { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; }
+.ec-tile.s { border-top: 4px solid var(--ck-ok); background: color-mix(in srgb, var(--ck-ok) 9%, var(--s1)); } .ec-tile.w { border-top: 4px solid var(--ck-watch); background: color-mix(in srgb, var(--ck-watch) 9%, var(--s1)); } .ec-tile.f { border-top: 4px solid var(--ck-alert); background: color-mix(in srgb, var(--ck-alert) 9%, var(--s1)); }
 .ec-tile .k { font: 700 var(--fs-micro, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .ec-tile b { font: 400 var(--fs-kpi, 22px)/1.2 var(--serif); color: var(--text); } .ec-tile small { color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
 .ec-sec { margin-top: 32px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
@@ -19,25 +21,27 @@
    (only the pill border differed), so an "Investigate" row looked like an "OK" row.
    Each row now takes its colour from its pill: ok = green, watch = amber, alert = red,
    na = no colour. No markup change is needed. */
+/* Deeper colours for the checks (task 50): the pale tint and mid-tone text were hard to tell apart, so each row now has a stronger tint, a 4px edge and a darker
+   green / amber / red for its text, icon and pill. Light paper gets dark shades; the dark theme keeps light shades on a deeper tint. */
+.ec-checks { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; --ck-tint: 15%; }
+:root:not([data-theme="light"]) .ec-checks { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; --ck-tint: 20%; }
 .ec-checks > li > details {
   --ic: var(--border-strong);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--ic);
-  background: color-mix(in srgb, var(--ic) 7%, var(--s1));
+  border: 1px solid color-mix(in srgb, var(--ic) 35%, var(--border));
+  border-left: 4px solid var(--ic);
+  background: color-mix(in srgb, var(--ic) var(--ck-tint), var(--s1));
   border-radius: 10px;
 }
-.ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--gain); }
-.ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--warn, #cc7a00); }
-.ec-checks > li > details:has(.ei-pill.alert) { --ic: var(--loss); border-left-width: 4px; }
+.ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--ck-ok); }
+.ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--ck-watch); }
+.ec-checks > li > details:has(.ei-pill.alert) { --ic: var(--ck-alert); border-left-width: 5px; }
 .ec-checks > li > details:has(.ei-pill.na)    { --ic: var(--border-strong); background: var(--s1); }
 
 /* the pill itself in the row's colour, like the .ins-tag labels in section 02 */
-.ec-checks .ei-pill {
-  background: var(--s1);
-}
-.ec-checks .ei-pill.ok    { color: var(--gain);  border-color: color-mix(in srgb, var(--gain) 55%, transparent); }
-.ec-checks .ei-pill.watch { color: var(--warn, #cc7a00); border-color: color-mix(in srgb, var(--warn, #cc7a00) 55%, transparent); }
-.ec-checks .ei-pill.alert { color: var(--loss);  border-color: color-mix(in srgb, var(--loss) 55%, transparent); }
+.ec-checks .ei-pill { background: var(--s1); font-weight: 700; }
+.ec-checks .ei-pill.ok    { color: var(--ck-ok);    border-color: color-mix(in srgb, var(--ck-ok) 80%, transparent); }
+.ec-checks .ei-pill.watch { color: var(--ck-watch); border-color: color-mix(in srgb, var(--ck-watch) 80%, transparent); }
+.ec-checks .ei-pill.alert { color: var(--ck-alert); border-color: color-mix(in srgb, var(--ck-alert) 80%, transparent); }
 .ec-checks .ei-pill .m    { color: inherit; }
 /* the small icon picks up the colour too */
 .ec-checks summary .ci { color: var(--ic); }
