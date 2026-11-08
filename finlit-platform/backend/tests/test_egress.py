@@ -310,7 +310,7 @@ async def test_a_full_load_stores_the_cached_inputs_and_a_prune_drops_them(inges
     st = ingested
     assert await st.redis.exists("mi:RELIANCE:consolidated")                                      # ingest_one stored them
     got = await st.metric_inputs([("RELIANCE", "consolidated")])
-    assert got[("RELIANCE", "consolidated")]["price"]["daily"].keys() == {"t", "c", "v"}          # only what the figures read
+    assert got[("RELIANCE", "consolidated")]["price"]["daily"].keys() == {"t", "c", "v", "h", "l"}          # only what the figures read (highs and lows for the setup-scan price fields)
     await st.prune(keep_top=0, keep_viewed_days=0)
     assert not await st.redis.exists("mi:RELIANCE:consolidated")
 

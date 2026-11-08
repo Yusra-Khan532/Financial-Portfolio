@@ -21,7 +21,7 @@ from .screener.compute import MULTIPLES
 from .screener.data import get_table
 
 router = APIRouter(prefix="/api/compare")
-MAX_METRICS = 200   # the whole catalogue fits; the website itself offers fewer at a time
+MAX_METRICS = 300   # the whole catalogue fits (205 metrics today); the website itself offers fewer at a time
 SET_LIMITS = {"silver": 10, "gold": 30}   # saved measure sets kept in the account (Basic keeps them in the browser only)
 KEY = re.compile(r"^[a-z0-9_]{2,40}$")
 
