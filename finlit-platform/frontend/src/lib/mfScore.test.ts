@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { FLAG_TEXT, GROUP_WEIGHTS, MF_SCORE_COMPLIANCE, PILLAR_HELP, STATE_TEXT, STATUS_TEXT, confidenceText, filledText, rankText } from "./mfScore";
+import { FLAG_TEXT, MF_SCORE_COMPLIANCE, PILLAR_HELP, STATE_TEXT, STATUS_TEXT, confidenceText, filledText, partWord, rankText } from "./mfScore";
 import { MfScoreMethodPage } from "../pages/MfScoreMethod";
+import * as mfScoreModule from "./mfScore";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -14,7 +15,7 @@ describe("Mutual Fund Health Score wording", () => {
     expect(MF_SCORE_COMPLIANCE).toBe("Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.");
   });
   it("uses no advice words in any fixed text", () => {
-    const all = [...Object.values(PILLAR_HELP), ...Object.values(STATUS_TEXT), ...Object.values(FLAG_TEXT), ...Object.values(STATE_TEXT), ...GROUP_WEIGHTS.map((g) => g.name)];
+    const all = [...Object.values(PILLAR_HELP), ...Object.values(STATUS_TEXT), ...Object.values(FLAG_TEXT), ...Object.values(STATE_TEXT)];
     for (const t of all) expect(t).not.toMatch(BANNED);
   });
   it("scans the method page and the score components", () => {
@@ -26,7 +27,10 @@ describe("Mutual Fund Health Score wording", () => {
       for (const s of strings) expect(s.replace(/not a recommendation/gi, "")).not.toMatch(BANNED);
     }
   });
-  it("weights add to 100 for every group", () => { for (const g of GROUP_WEIGHTS) expect(g.w.reduce((a, b) => a + b, 0)).toBe(100); expect(GROUP_WEIGHTS).toHaveLength(16); });
+  it("shows a part in words, and the site holds no weights table any more", () => {
+    expect([null, 49.9, 50, 69.9, 70].map((v) => partWord(v))).toEqual(["Not scored", "Weak", "Fair", "Fair", "Strong"]);
+    expect(Object.keys(mfScoreModule)).not.toContain("GROUP_WEIGHTS");
+  });
   it("writes the rank line", () => {
     expect(rankText({ rank: 12, of: 48, scope: "sub", percentile: 77, categoryLabel: "Large Cap", plan: "Direct" })).toBe("12 of 48 in Large Cap (Direct plan)");
     expect(rankText({ rank: 2, of: 14, scope: "fam", percentile: 92, categoryLabel: null, plan: "Regular" }, { key: "nifty50", index: "NIFTY 50 TRI" })).toBe("2 of 14 funds tracking NIFTY 50 TRI (Regular plan)");

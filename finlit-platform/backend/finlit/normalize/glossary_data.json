@@ -1,5 +1,5 @@
 {
- "version": 4,
+ "version": 5,
  "source": "FinLit Glossary, November 2026",
  "topics": [
   "Banks and lenders",
@@ -4128,13 +4128,13 @@
   {
    "term": "Mutual Fund Health Score",
    "topic": "FinLit words",
-   "meaning": "FinLit's 0 to 100 score of a mutual fund against funds of the same kind, built from four parts: Performance, Risk, Cost and Quality (age, size and how the portfolio is built), with weights that depend on the fund group.",
+   "meaning": "FinLit's 0 to 100 score of a mutual fund against funds of the same kind, built from four parts: Performance, Risk, Cost and Quality (age, size and how the portfolio is built). How much each part counts depends on the fund group and stays with the model.",
    "why": "Return is only one part of a fund; how bumpy and deep its falls were and what it costs count too.",
    "how": "Read the group, the rank inside it and the risk-o-meter next to the score: a 75 for a small-cap fund and a 75 for a liquid fund do not mean the same thing. It is not a forecast or advice.",
-   "formula": "Score = Performance × weight + Risk × weight + Cost × weight + Quality × weight",
+   "formula": "Score combines Performance, Risk, Cost and Quality",
    "id": "mutual-fund-health-score",
    "letter": "M",
-   "finlit": "Each measure earns 0 points at its worst value and 100 at its best, in a straight line between. Performance is capped at 35% of the score. Direct and Regular plans are scored separately. A fund with 12 to 35 months of NAV history is provisional and its label stops at Healthy; under 12 months it is not rated.",
+   "finlit": "Each measure earns more points the nearer it sits to the good end of its range. Direct and Regular plans are scored separately. A fund with 12 to 35 months of NAV history is provisional and its label stops at Healthy; under 12 months it is not rated.",
    "aliases": [
     "Health score",
     "MF health score",
