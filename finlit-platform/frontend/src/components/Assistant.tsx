@@ -47,6 +47,8 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [find, setFind] = useState("");
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
+  const [big, setBig] = useState<boolean>(() => { try { return localStorage.getItem("finlit-ai-full") === "1"; } catch { return false; } });   // the full window, remembered
+  const toggleBig = () => setBig((b) => { try { localStorage.setItem("finlit-ai-full", b ? "0" : "1"); } catch { /* private window */ } return !b; });
   const end = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const [pick, setPick] = useState(0);                      // bumps when the input must select XYZ
@@ -58,9 +60,13 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, view, tab, open, busy, found]);
   useEffect(() => {   // Esc closes the panel (a dialog must)
     if (!open) return;
-    const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const k = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (big) setBig(false); else setOpen(false); };   // Esc leaves the full window first
     document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k);
-  }, [open]);
+  }, [open, big]);
+  useEffect(() => {   // the page behind a full window does not scroll
+    if (!open || !big) return;
+    const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; };
+  }, [open, big]);
   useEffect(() => {   // a question about two companies lands in the input with XYZ selected, ready to be typed over
     const el = field.current;
     if (!pick || !el) return;
@@ -115,11 +121,12 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   return (
     <>
       {open && (
-        <section className="ai aif" role="dialog" aria-label="FinLit AI assistant">
+        <section className={"ai aif" + (big ? " full" : "")} role="dialog" aria-label="FinLit AI assistant">
           <header>
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
             {company && view !== "home" && <button type="button" className="aif-change" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>}
+            <button type="button" className="aif-full" onClick={toggleBig} aria-pressed={big} aria-label={big ? "Back to the small window" : "Open in a full window"} title={big ? "Back to the small window" : "Full window"}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{big ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg></button>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>
           </header>
           <div className="ai-body">

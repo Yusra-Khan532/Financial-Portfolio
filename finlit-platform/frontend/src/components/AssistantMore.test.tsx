@@ -157,3 +157,20 @@ describe("Assistant away from a company page", () => {
     for (const x of STARTERS) expect(x.a).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i);
   });
 });
+
+describe("Assistant full window (task #52)", () => {
+  it("a button opens the full window, Esc leaves it first and then closes the chat, and the choice is remembered", () => {
+    localStorage.removeItem("finlit-ai-full");
+    open("/about");
+    const dlg = () => screen.getByRole("dialog", { name: "FinLit AI assistant" });
+    expect(dlg().className).not.toMatch(/\bfull\b/);
+    fireEvent.click(screen.getByRole("button", { name: "Open in a full window" }));
+    expect(dlg().className).toMatch(/\bfull\b/); expect(localStorage.getItem("finlit-ai-full")).toBe("1");
+    expect(document.body.style.overflow).toBe("hidden");
+    act(() => { fireEvent.keyDown(document, { key: "Escape" }); });
+    expect(dlg().className).not.toMatch(/\bfull\b/); expect(document.body.style.overflow).not.toBe("hidden");
+    act(() => { fireEvent.keyDown(document, { key: "Escape" }); });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    localStorage.removeItem("finlit-ai-full");
+  });
+});
