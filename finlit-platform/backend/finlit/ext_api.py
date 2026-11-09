@@ -2,7 +2,7 @@
 FinLit button (the glossary and the company list live inside the extension, so no other request is made).
 
 Cheap on purpose: two indexed single-row reads, no on-demand report build, no view counting, no side effects, and the answer is kept in Redis for five minutes per
-symbol and access level. Plan rules are the site's own (as in /api/search/quotes): the score, its two parts and the key figures are Silver; a Basic or signed-out
+symbol and access level. Plan rules are the site's own (as in /api/search/quotes): the score, its two parts and the key figures are Silver; an admin counts as Silver; a Basic or signed-out
 visitor gets name, sector, price and market value, and `locked: true` (the free showcase company stays open). The wording describes; it never advises.
 Information only, not investment advice.
 """
@@ -91,7 +91,8 @@ async def company(request: Request, symbol: str):
     sym = symbol.strip().upper()
     if not SYMBOL.match(sym):
         return JSONResponse({"status": "not_found", "detail": "No such company."}, status_code=404)
-    level = "silver" if has((await current(request)).plan, "silver") else "basic"
+    who = await current(request)
+    level = "silver" if who.role == "admin" or has(who.plan, "silver") else "basic"
     store = request.app.state.store
     key = f"ext:company:{level}:{sym}"
     try:
@@ -108,4 +109,5 @@ async def company(request: Request, symbol: str):
             await store.redis.set(key, orjson.dumps(body), ex=TTL)
         except Exception:   # nosec B110 - Redis down: answered from the database, just not kept
             pass
-    return JSONResponse(body, headers={"Cache-Control": "private, max-age=300", "Vary": "Cookie"})
+    body = {**body, "signedIn": bool(who.user_id)}      # never cached: it lets the card say "sign in" or "see plans", whichever is true for this person
+    return JSONResponse(body, headers={"Cache-Control": "private, no-cache", "Vary": "Cookie"})

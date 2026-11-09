@@ -5,11 +5,11 @@ A website cannot install an extension into someone's browser by itself: Chrome a
 ## A. Chrome Web Store (about 30 minutes of work, then Google's review, usually 1 to 3 days)
 
 1. Sign in to https://chrome.google.com/webstore/devconsole with the company Google account and pay the one-time registration fee (US$5).
-2. Press **New item** and upload `extension/dist/finlit-extension-1.1.0.zip` (made by `python extension/build.py --zip`) or `frontend/public/extension/finlit-extension.zip` (the same files).
+2. Press **New item** and upload `extension/dist/finlit-extension-1.2.0.zip` (made by `python extension/build.py --zip`) or `frontend/public/extension/finlit-extension.zip` (the same files).
 3. **Store listing** tab: paste the text below; upload `store/screenshots/*.png` (1280x800), `store/promo-tile-440x280.png` (small promo tile) and, as the icon, `icons/icon128.png`. Category: *Productivity* (or *Education*). Language: English.
 4. **Privacy** tab:
    - Single purpose: *Show the meaning of a financial term, or a company's FinLit score, for text the user selects.*
-   - Permission justifications: **storage** (the on/off switches and a cached public company list); **contextMenus** (the right-click "Look up on FinLit" item); **activeTab** (the toolbar menu reads the current site's name for the per-site switch); **host permission finlitventures.com** (fetches one company card); **content script on all sites** (shows the small button next to text the user selects; it reads only the selection).
+   - Permission justifications: **storage** (the on/off switches and a cached public company list); **contextMenus** (the right-click "Look up on FinLit" item); **activeTab** (the toolbar menu reads the current site's name for the per-site switch); **host permissions finlitventures.com, www.finlitventures.com and app.finlitventures.com** (fetch one company card, and note which of FinLit's addresses the person is signed in on); **content script on all sites** (shows the small button next to text the user selects; it reads only the selection).
    - Remote code: **No**. Data use: tick *none of the listed types are collected*; certify the three policy statements.
    - Privacy policy URL: `https://finlitventures.com/browser-extension#privacy`
 5. **Distribution**: Public, all regions. Press **Submit for review**.

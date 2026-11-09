@@ -23,7 +23,7 @@ Nothing the card says tells anyone to buy, sell or hold: it describes, and every
 
 ## Files
 
-- `manifest.json`: MV3. Permissions: `storage` (the two switches and the cached company list), `contextMenus` (the right-click item), `activeTab` (the toolbar menu reads the current site's name for the per-site switch). Host access: `https://finlitventures.com/*` only. One content script on `http(s)` pages.
+- `manifest.json`: MV3. Permissions: `storage` (the two switches and the cached company list), `contextMenus` (the right-click item), `activeTab` (the toolbar menu reads the current site's name for the per-site switch). Host access: FinLit's own three addresses only (`finlitventures.com`, `www.`, `app.`: the sign-in cookie belongs to the exact address). One content script on `http(s)` pages.
 - `content.js`: selection button and the card. `background.js`: lookups and the only network calls. `lib/`: pure logic (tested). `popup.*`: toolbar menu.
 - `build.py`: refreshes `data/glossary.json` from `frontend/src/content/glossary.json`; `python extension/build.py --zip` packs `dist/finlit-extension-<version>.zip` for the store.
 - Tests: `frontend/src/extension.test.ts` (logic), `backend/tests/test_ext_api.py` (the API), `backend/tests/test_extension_package.py` (manifest, glossary in step with the site, privacy rules in the code).

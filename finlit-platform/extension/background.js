@@ -9,16 +9,19 @@ import { makeGlossary } from "./lib/glossary.js";
 import { makeCompanies, slimIndex } from "./lib/companies.js";
 
 const SITE = "https://finlitventures.com";
+const ORIGINS = new Set(["https://finlitventures.com", "https://www.finlitventures.com", "https://app.finlitventures.com"]);
 const DAY = 24 * 3600 * 1000;
 const CARD_TTL = 10 * 60 * 1000;
 const TIMEOUT = 8000;
 const MENU = "finlit-lookup";
 
-/** The site's address. A test build may point at a local server by saving apiBase (localhost only); a real install always uses the site. */
+/** The FinLit address to ask. The sign-in cookie belongs to the exact address a person signed in on (finlitventures.com, www or app), so it is the one this browser last
+ *  visited (told to us by site.js); otherwise finlitventures.com. A test build may point at a local server by saving apiBase (localhost only). */
 async function base() {
   try {
-    const { apiBase } = await chrome.storage.local.get("apiBase");
+    const { apiBase, finlitOrigin } = await chrome.storage.local.get(["apiBase", "finlitOrigin"]);
     if (typeof apiBase === "string" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(apiBase)) return apiBase;
+    if (ORIGINS.has(finlitOrigin)) return finlitOrigin;
   } catch { /* storage unavailable: the site */ }
   return SITE;
 }
@@ -111,7 +114,7 @@ async function company(symbol) {
       if (res.status === 429) return { ok: false, kind: "busy", message: "FinLit is busy right now. Try again in a minute." };
       if (!res.ok) return { ok: false, kind: "error", message: "FinLit could not answer right now." };
       const data = await res.json();
-      await saveCard(symbol, data);
+      if (!data.locked) await saveCard(symbol, data);       // a locked card is asked for again every time, so signing in or upgrading shows at once
       return { ok: true, data };
     } catch {
       return { ok: false, kind: "offline", message: "Could not reach FinLit. Check your connection." };
@@ -123,6 +126,11 @@ async function company(symbol) {
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.id !== chrome.runtime.id || !msg || typeof msg.type !== "string") return false;
+  if (msg.type === "seen-site") {          // from site.js on a FinLit page: remember that address (only if the page really is on it)
+    let page = ""; try { page = new URL(sender.tab && sender.tab.url).origin; } catch { /* no tab */ }
+    if (ORIGINS.has(page) && msg.origin === page) chrome.storage.local.set({ finlitOrigin: page });
+    return false;
+  }
   if (msg.type === "lookup") lookup(String(msg.text || "").slice(0, 400)).then(reply, () => reply({ ok: false, kind: "error", message: "Something went wrong." }));
   else if (msg.type === "company") company(msg.symbol).then(reply, () => reply({ ok: false, kind: "error", message: "Something went wrong." }));
   else if (msg.type === "site") base().then((b) => reply({ site: b }));

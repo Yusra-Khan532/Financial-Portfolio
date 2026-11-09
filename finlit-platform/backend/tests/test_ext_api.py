@@ -1,7 +1,7 @@
 """GET /api/ext/company/{symbol}: the browser extension's one lookup. Plan rules (the score is Silver), the showcase company stays open, no side effects, strict symbol check."""
 import pytest
 
-from test_auth import app, new_client, signed_in  # noqa: F401
+from test_auth import app, make_admin, new_client, signed_in  # noqa: F401
 from test_integration import ingested, make_settings, store  # noqa: F401
 
 pytestmark = pytest.mark.integration
@@ -50,3 +50,19 @@ async def test_unknown_and_malformed_symbols_are_refused_without_a_database_read
     assert (await c.get("/api/ext/company/NOSUCHCO")).status_code == 404
     for bad in ("bad%20symbol", "A" * 40, "x;drop"):
         assert (await c.get(f"/api/ext/company/{bad}")).status_code in (404, 422)
+
+
+async def test_the_card_says_whether_the_person_is_signed_in_so_it_can_say_sign_in_or_see_plans(app):  # noqa: F811
+    assert (await new_client(app).get(f"/api/ext/company/{SYM}")).json()["signedIn"] is False
+    basic = await signed_in(app, "ebs@example.com", plan="basic")
+    j = (await basic.get(f"/api/ext/company/{SYM}")).json()
+    assert j["signedIn"] is True and j["locked"] is True
+    silver = await signed_in(app, "ess@example.com", plan="silver")
+    j = (await silver.get(f"/api/ext/company/{SYM}")).json()
+    assert j["signedIn"] is True and j["locked"] is False and j["score"] == 82
+
+
+async def test_an_admin_sees_the_score(app):  # noqa: F811
+    admin = await make_admin(app, "ead@example.com")
+    j = (await admin.get(f"/api/ext/company/{SYM}")).json()
+    assert j["locked"] is False and j["score"] == 82

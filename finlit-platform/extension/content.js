@@ -83,7 +83,7 @@
 .take{background:var(--tint2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}.take b{display:block;font-size:13px;margin-bottom:2px}
 .what{font-size:12px;color:var(--mut);margin:0 0 10px}
 .btn{display:flex;gap:8px;align-items:center;justify-content:center;width:100%;border:0;border-radius:12px;background:var(--gd);color:#fff;font-weight:700;font-size:14px;padding:11px;text-decoration:none;cursor:pointer}.btn:hover{background:var(--g)}
-.btn.ghost{background:var(--tint);color:var(--g);border:1px solid var(--line)}
+.btn.ghost{background:var(--tint);color:var(--g);border:1px solid var(--line);margin-bottom:8px}
 .term h2{margin:0;font:700 22px/1.2 Georgia,"Times New Roman",serif}.term .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}.term .row .chip{margin-left:auto}
 .term p{margin:0 0 10px}.fx{display:flex;gap:8px;background:var(--tint2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:10px;font-size:13px}
 .hint{color:var(--mut);margin:0 0 10px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chips button{border:1px solid var(--line);background:var(--tint2);color:var(--ink);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}.chips button:hover{border-color:var(--g)}
@@ -203,10 +203,13 @@
     co.lastChild.setAttribute("aria-label", "Open on FinLit"); co.lastChild.appendChild(icon("open", 16));
     frag.appendChild(co);
     if (d.locked) {
-      const l = el("div", "lock"); l.append(icon("lock", 16), el("span", null, d.lockedWhy || "The FinLit IQ score is part of the Silver plan."));
+      const l = el("div", "lock"); l.append(icon("lock", 16), el("span", null, d.signedIn
+        ? "The FinLit IQ score is part of the Silver plan."
+        : "Sign in to FinLit in this browser to see the FinLit IQ score."));
       frag.appendChild(l);
       const parts = [d.price != null ? `Price ₹${d.price.toLocaleString("en-IN")}` : null, d.marketCapCr ? `Market value ${fmtCr(d.marketCapCr)}` : null].filter(Boolean);
       if (parts.length) frag.appendChild(el("p", "hint", parts.join(" · ")));
+      frag.appendChild(link(site, d.signedIn ? "/plans" : "/login", "btn ghost", d.signedIn ? "See plans" : "Sign in to FinLit"));
     } else if (d.score != null) {
       const sc = el("div", "sc"), big = el("div", "big");
       const lab = el("div", "l", "FinLit IQ score");
