@@ -27,7 +27,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from . import scorelive
-from . import alertapi, commodities, indices, intraday, leadership_api, notify, ownership_insights, premium, prism
+from . import alertapi, commodities, feedback, indices, intraday, leadership_api, notify, ownership_insights, premium, prism
 from .aliases import SYMBOL_ALIASES
 from . import results as results_api
 from . import prism_screen
@@ -667,6 +667,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(indices.router)
     app.include_router(commodities.router)
     app.include_router(notify.router)
+    app.include_router(feedback.router)
     app.include_router(screener_api.router)
     app.include_router(screener_qapi.router)
     app.include_router(__import__("finlit.presets.api", fromlist=["router"]).router)   # /api/screener/presets (Gold)

@@ -81,6 +81,7 @@ export const MORE: NavSection = { id: "more", label: "More", groups: [
     i("/about", "About FinLit", "Who we are and how we work", "users"),
     i("/why-we-exist", "Why we exist", "The problem we set out to fix", "quality"),
     i("/contact", "Contact", "Talk to the team", "notes"),
+    i("/feedback", "Share feedback", "Help us build a smarter FinLit", "spark"),
   ] },
 ] };
 MORE.wide = true;
