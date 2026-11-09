@@ -42,6 +42,7 @@ const AdvancedCharts = lazy(() => import("./pages/AdvancedCharts").then((m) => (
 const FeedbackPage = lazy(() => import("./pages/Feedback").then((m) => ({ default: m.FeedbackPage })));
 const LeadershipLabelPage = lazy(() => import("./pages/LeadershipLabel").then((m) => ({ default: m.LeadershipLabelPage })));
 const ConnectAIPage = lazy(() => import("./pages/ConnectAI").then((m) => ({ default: m.ConnectAIPage })));
+const BrowserExtensionPage = lazy(() => import("./pages/BrowserExtension").then((m) => ({ default: m.BrowserExtensionPage })));
 const GlossaryPage = lazy(() => import("./pages/Glossary").then((m) => ({ default: m.GlossaryPage })));
 const WatchlistPage = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.WatchlistPage })));
 const SectorPulsePage = lazy(() => import("./pages/SectorPulse").then((m) => ({ default: m.SectorPulsePage })));
@@ -148,6 +149,7 @@ export default function App() {
             <Route path="news" element={<NewsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="glossary" element={<GlossaryPage />} />
+            <Route path="browser-extension" element={<BrowserExtensionPage />} />
             <Route path="account" element={<Account />} />
             <Route path="account/:tab" element={<Account />} />
             <Route path="console" element={<Console />} />

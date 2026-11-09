@@ -71,6 +71,7 @@ export const MORE: NavSection = { id: "more", label: "More", groups: [
     i("/forum", "Discussion forums", "Information and opinion only, moderated", "users"),
     i("/blog", "Insights & blog", "Research notes and explainers", "spark"),
     i("/glossary", "Glossary", "Terms in plain words, with formulas", "book"),
+    i("/browser-extension", "Browser extension", "Look up terms and scores on any web page", "spark"),
     i("/learn/sector-signals", "How to use Sector Pulse", "Reading the states, the breadth bars and the leader flags", "book"),
     i("/learn/sector-rotation", "How to use Sector Rotation", "Reading the four corners and the rotation rank", "book"),
     i("/documents", "Documents", "Annual reports and presentations", "layers"),

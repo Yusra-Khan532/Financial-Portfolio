@@ -213,7 +213,7 @@
       const n = el("div", "n", String(d.score)); n.appendChild(el("span", null, " /100"));
       big.append(lab, n, el("span", "chip " + bandClass(d.band), d.band || ""));
       const bars = el("div", "bars");
-      for (const [label, v] of [["Fundamental score", d.fundamental], ["Technical score", d.technical]]) {
+      for (const [label, v] of [["Growth & Profitability", d.fundamental], ["Technical", d.technical]]) {
         const b = el("div", "bar"), r = el("div", "r"); r.append(el("span", null, label), el("span", null, v == null ? "–" : `${v}/100`));
         const i = el("i"); const u = el("u"); u.style.width = `${v == null ? 0 : Math.max(0, Math.min(100, v))}%`; i.appendChild(u); b.append(r, i); bars.appendChild(b);
       }

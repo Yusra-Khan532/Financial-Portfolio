@@ -1,7 +1,7 @@
 # FinLit browser extension (task #54)
 
 Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit IQ score**
-(Fundamental and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
+(Growth & Profitability and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
 

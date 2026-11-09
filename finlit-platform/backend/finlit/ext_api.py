@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/ext")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 TTL = 300
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
-WHAT_IT_IS = ("The FinLit IQ score runs from 0 to 100 and describes a company's financial health from its filings and prices. The Fundamental score reads the business "
+WHAT_IT_IS = ("The FinLit IQ score runs from 0 to 100 and describes a company's financial health from its filings and prices. The Growth & Profitability score reads the business "
               "(quality, growth, profitability and balance sheet); the Technical score reads the price trend.")
 DETAIL_SQL = """SELECT name, sector, market_cap, pe, roe, debt_to_equity, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical
                 FROM scores WHERE symbol = $1 AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1"""
