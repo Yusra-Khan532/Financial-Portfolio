@@ -48,6 +48,7 @@ from . import dcf as dcf_api
 from . import logos as logos_api
 from . import amfi_import as amfi_import_api
 from . import search as search_api
+from . import ext_api
 from . import macro as macro_api
 from . import clienterrors as clienterrors_api
 from . import markets as markets_api
@@ -682,6 +683,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
     app.include_router(search_api.router)
+    app.include_router(ext_api.router)   # /api/ext/company/{symbol}: the browser extension's one lookup
     app.include_router(logos_api.router)
     app.include_router(amfi_import_api.router)
     app.include_router(macro_api.router)
