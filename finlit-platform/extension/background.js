@@ -101,7 +101,13 @@ async function company(symbol) {
   const job = (async () => {
     try {
       const res = await getJson(`${await base()}/api/ext/company/${encodeURIComponent(symbol)}`, { credentials: "include", headers: { Accept: "application/json" } });
-      if (res.status === 404) return { ok: false, kind: "notfound", message: "FinLit has no report for this company." };
+      if (res.status === 404) {
+        let j = null;
+        try { j = await res.json(); } catch { /* not JSON */ }
+        // FinLit's own "no such company" answer says so; any other 404 means the site has not got this feature yet, which is not the company's fault
+        return j && j.status === "not_found" ? { ok: false, kind: "notfound", message: "FinLit has no report for this company yet." }
+                                             : { ok: false, kind: "error", message: "The company card is not available from FinLit right now." };
+      }
       if (res.status === 429) return { ok: false, kind: "busy", message: "FinLit is busy right now. Try again in a minute." };
       if (!res.ok) return { ok: false, kind: "error", message: "FinLit could not answer right now." };
       const data = await res.json();

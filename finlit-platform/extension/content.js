@@ -229,13 +229,23 @@
     if (others && others.length) {
       frag.appendChild(el("p", "hint", "Not this one?"));
       const chips = el("div", "chips");
-      for (const o of others) { const b = el("button", null, o.name, { type: "button" }); b.addEventListener("click", () => swap(o.symbol)); chips.appendChild(b); }
+      for (const o of others) { const b = el("button", null, o.name, { type: "button" }); b.addEventListener("click", () => swap(o.symbol, o.name)); chips.appendChild(b); }
       frag.appendChild(chips);
     }
     frag.appendChild(link(site, d.url || `/stocks/${d.symbol}`, "btn", "Open full analysis on FinLit"));
     body.replaceChildren(frag);
   }
   const fmtCr = (v) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)} L Cr` : `₹${Math.round(v).toLocaleString("en-IN")} Cr`);
+
+  /** The card could not be loaded: the company is still named, with a note and the button that opens it on FinLit, so a lookup never ends in a dead end. */
+  function companyFallback(body, symbol, name, r, site) {
+    const frag = document.createDocumentFragment();
+    const co = el("div", "co"), who = el("div");
+    who.append(el("h2", null, name || symbol), el("small", null, symbol));
+    co.appendChild(who);
+    frag.append(co, el("p", "hint", r.message || "The card could not be loaded."), link(site, `/stocks/${encodeURIComponent(symbol)}`, "btn", "Open on FinLit"));
+    body.replaceChildren(frag);
+  }
 
   function errView(body, r, site) {
     const e = el("div", "err", r.message || "Something went wrong.");
@@ -273,12 +283,12 @@
       body.replaceChildren(which === "g" ? gBody : cBody);
       if (which === "c" && !loadedC) { loadedC = true; await loadCompany(r.company.symbol); }
     };
-    const loadCompany = async (symbol) => {
+    const loadCompany = async (symbol, name) => {
       skeleton(cBody);
       const c = await send({ type: "company", symbol });
       if (panelState !== mine) return;
-      if (!c || !c.ok) { errView(cBody, c || { message: "Something went wrong." }, site); return; }
-      companyView(cBody, c.data, site, symbol === r.company.symbol ? r.company.others : [], (s) => loadCompany(s));
+      if (!c || !c.ok) { companyFallback(cBody, symbol, name || (symbol === r.company.symbol ? r.company.name : symbol), c || { message: "Something went wrong." }, site); return; }
+      companyView(cBody, c.data, site, symbol === r.company.symbol ? r.company.others : [], (s, n) => loadCompany(s, n));
     };
     if (hasG) glossaryView(gBody, r.glossary, site);
     if (hasG && hasC) {
