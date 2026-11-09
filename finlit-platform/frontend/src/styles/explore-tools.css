@@ -33,15 +33,31 @@
 @media (max-width: 680px) { .xt-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xt-grid { grid-template-columns: minmax(0, 1fr); } .xt-ghead { align-items: flex-start; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { .xt-go svg { transition: none; } }
 
-/* the compact directory: one row per group, every tool named in a few words */
-.xt-dir { list-style: none; margin: 4px auto 22px; padding: 0; max-width: 1080px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); overflow: hidden; }
-.xt-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 8px 18px; align-items: start; padding: 8px 18px; border-top: 1px solid var(--border); } .xt-row:first-child { border-top: 0; }
-.xt-rn { all: unset; box-sizing: border-box; cursor: pointer; font: 500 var(--fs-14)/1.4 var(--sans); color: var(--text); padding: 5px 0; } .xt-rn b { font-weight: 700; } .xt-rn span { color: var(--faint); }
-.xt-rn:hover b { color: var(--gold-deep, var(--gold)); text-decoration: underline; text-underline-offset: 3px; }
-.xt-tools { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 6px; }
-.xt-tool { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 9px; border: 0; border-radius: 8px; background: none; color: var(--text); text-decoration: none; font: inherit; cursor: pointer; }
-.xt-tool b { font: 600 var(--fs-14)/1.3 var(--sans); } .xt-tool small { font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
-.xt-tool:hover { background: var(--s2); } .xt-tool:hover b { color: var(--gold-deep, var(--gold)); }
-.xt-badge.xt-mini { padding: 2px 6px; font-size: 11px; letter-spacing: .05em; align-self: center; }
-/* a phone: names only (the hint is on the full card), so a group is two or three short lines */
-@media (max-width: 760px) { .xt-row { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 8px 12px; } .xt-tool { padding: 6px 8px; min-height: 36px; align-items: center; } .xt-tool small { display: none; } .xt-tools { gap: 0 2px; } }
+/* The directory: six group cards, each with an accent colour, an icon, the tools as tidy rows and a button for the full cards (premium layout, task: landing upgrade) */
+.xt-dir { list-style: none; margin: 8px auto 26px; padding: 0; max-width: 1180px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.xt-row { --ac: var(--gold); position: relative; display: flex; flex-direction: column; min-width: 0; padding: 20px 18px 14px; border: 1px solid var(--border); border-radius: 20px; background: linear-gradient(180deg, color-mix(in srgb, var(--ac) 7%, var(--s1)), var(--s1) 120px); overflow: hidden;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.xt-row::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--ac), color-mix(in srgb, var(--ac) 30%, transparent)); }
+.xt-row:hover, .xt-row:focus-within { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); box-shadow: 0 24px 44px -26px color-mix(in srgb, var(--ac) 55%, rgba(0, 0, 0, .4)); }
+.xt-row[data-group="discover"] { --ac: #1f7a55; } .xt-row[data-group="company-360"] { --ac: #2b6cb0; } .xt-row[data-group="quant-lab"] { --ac: #a15c07; }
+.xt-row[data-group="track"] { --ac: #6b43b0; } .xt-row[data-group="market"] { --ac: #b4235a; } .xt-row[data-group="learn"] { --ac: #0e7490; }
+:root[data-theme="dark"] .xt-row[data-group="discover"] { --ac: #4fc08c; } :root[data-theme="dark"] .xt-row[data-group="company-360"] { --ac: #7fb0ea; } :root[data-theme="dark"] .xt-row[data-group="quant-lab"] { --ac: #e9a94b; }
+:root[data-theme="dark"] .xt-row[data-group="track"] { --ac: #c4a5ff; } :root[data-theme="dark"] .xt-row[data-group="market"] { --ac: #f28bb0; } :root[data-theme="dark"] .xt-row[data-group="learn"] { --ac: #5cc8e0; }
+.xt-row header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.xt-gi { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac); } .xt-gi svg { width: 22px; height: 22px; }
+.xt-row h3 { margin: 0; font: 400 20px/1.2 var(--serif); } .xt-row header p { margin: 3px 0 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.4; }
+.xt-cnt { padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 12%, var(--s1)); color: var(--ac); font: 700 12px var(--mono); }
+.xt-tools { list-style: none; margin: 14px 0 6px; padding: 0; display: grid; gap: 2px; align-content: start; flex: 1; }
+.xt-tool { display: grid; grid-template-columns: minmax(0, 1fr) 14px; grid-template-rows: auto auto; align-items: center; gap: 1px 10px; width: 100%; box-sizing: border-box; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
+.xt-tn { display: inline-flex; align-items: center; gap: 6px; min-width: 0; } .xt-tool b { font: 600 var(--fs-14)/1.3 var(--sans); white-space: nowrap; }
+.xt-tool small { grid-column: 1; font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.xt-tool > svg { grid-column: 2; grid-row: 1 / span 2; width: 14px; height: 14px; color: var(--faint); opacity: 0; transform: translateX(-4px); transition: opacity .15s, transform .15s; }
+.xt-tool:hover, .xt-tool:focus-visible { background: color-mix(in srgb, var(--ac) 9%, var(--s2)); } .xt-tool:hover b, .xt-tool:focus-visible b { color: var(--ac); }
+.xt-tool:hover > svg, .xt-tool:focus-visible > svg { opacity: 1; transform: none; color: var(--ac); }
+.xt-badge.xt-mini { padding: 2px 6px; font-size: 11px; letter-spacing: .05em; }
+.xt-rn { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 11px 10px 4px; border-top: 1px solid var(--border); color: var(--ac); font: 600 var(--fs-13)/1.3 var(--sans); cursor: pointer; }
+.xt-rn svg { width: 14px; height: 14px; transition: transform .15s; } .xt-rn:hover svg { transform: translateX(3px); } .xt-rn:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 1100px) { .xt-dir { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .xt-dir { grid-template-columns: minmax(0, 1fr); gap: 14px; } .xt-tool { min-height: 44px; } .xt-tool > svg { opacity: .6; transform: none; }  }
+@media (hover: none) { .xt-tool > svg { opacity: .6; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .xt-row, .xt-tool > svg, .xt-rn svg { transition: none; } .xt-row:hover, .xt-row:focus-within { transform: none; } }

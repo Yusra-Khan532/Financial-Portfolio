@@ -55,7 +55,7 @@ describe("<ExploreTools />", () => {
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
   it("a group name opens the section on that group", () => {
-    view(); fireEvent.click(screen.getByRole("button", { name: /^Learn & connect/ }));
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 3 Learn & connect cards/ }));
     expect(screen.getAllByRole("tab")[5].getAttribute("aria-selected")).toBe("true");
     expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
   });
