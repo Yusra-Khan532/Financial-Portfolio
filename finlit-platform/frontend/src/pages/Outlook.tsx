@@ -199,6 +199,19 @@ export function OutlookPage() {
               <p>The weights are the team's starting values and have not yet been validated against later results. Reported figures come from the company's own results.</p></details>
           </div>
 
+          {mode === "custom" && (
+            <section className="card ol-assume" aria-labelledby="ol-as-h">
+              <div className="ol-assume-h">
+                <h2 id="ol-as-h">Set your own model: assumptions</h2>
+                <div className="ol-mode" role="radiogroup" aria-label="Which estimate to adjust">
+                  {TABS.map((t) => <button key={t.kind} type="button" role="radio" aria-checked={kind === t.kind} className={kind === t.kind ? "on" : ""} onClick={() => setKind(t.kind)}>{t.label} estimate</button>)}
+                </div>
+              </div>
+              <p className="faint ol-assume-p">Move a slider to change how much each input counts. The other weights move with it so the total stays 100%, and the charts and tables below update as you go.</p>
+              <Sliders kind={kind} horizon={horizon} names={names} weights={getW(kind, horizon)} onChange={(l, v) => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: rebalance(c[wkey(kind, horizon)] ?? DEFAULT_WEIGHTS[kind][horizon], l, v) }))}
+              onReset={() => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: { ...DEFAULT_WEIGHTS[kind][horizon] } }))} />
+            </section>)}
+
           {!gold ? null : (
             <div className="ol-charts">
               <ChartCard sym={sym} kind="revenue" horizon={horizon} own={own("revenue")} gold={gold} />
@@ -211,8 +224,6 @@ export function OutlookPage() {
                 className={kind === t.kind ? "on" : ""} onClick={() => setKind(t.kind)} onKeyDown={(e) => onTabKey(e, i)}>{t.label} estimate</button>))}
           </div>
           <div id="ol-panel" role="tabpanel" aria-labelledby={`ol-tab-${kind}`} className="ol-panel">
-            {mode === "custom" && <Sliders kind={kind} horizon={horizon} names={names} weights={getW(kind, horizon)} onChange={(l, v) => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: rebalance(c[wkey(kind, horizon)] ?? DEFAULT_WEIGHTS[kind][horizon], l, v) }))}
-              onReset={() => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: { ...DEFAULT_WEIGHTS[kind][horizon] } }))} />}
             {!gold ? null : q.isLoading && !d ? <Skeleton /> : err && !d ? (
               <p className="formerr" role="alert">{err.status === 404 ? "This company's report is not stored yet. Open its page once, then come back." : (err.body?.detail as string) || "Could not load the estimate."}</p>
             ) : d ? (
