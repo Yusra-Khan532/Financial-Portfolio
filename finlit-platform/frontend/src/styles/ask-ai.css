@@ -1,8 +1,16 @@
 /* Ask FinLit AI (components/Assistant.tsx, task #46): landing cards, segment rows, company tabs, question rows, quarter chips and answers. Tokens only; light and dark. */
-.aif { width: min(420px, calc(100% - 24px)); }
+.aif { width: min(480px, calc(100% - 24px)); height: min(720px, calc(100dvh - 90px)); }
+.aif.full { right: 0; bottom: 0; top: 0; left: 0; width: auto; height: auto; max-width: none; border-radius: 0; border: 0; }
+.aif.full > header { padding-left: max(16px, calc((100% - 920px) / 2 + 8px)); padding-right: max(16px, calc((100% - 920px) / 2 + 8px)); }
+.aif.full > form, .aif.full > .ai-fine { width: min(920px, 100%); margin-left: auto; margin-right: auto; box-sizing: border-box; }
+.aif.full .ai-body { width: min(920px, 100%); margin: 0 auto; box-sizing: border-box; padding: 20px 24px; }
+.aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(4, 1fr); }
+.aif.full .aif-qs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .aif.full .aif-qchips { max-width: 480px; }
+.aif .aif-full { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; border: 0; background: var(--s1); color: var(--text); cursor: pointer; } .aif .aif-full:hover { background: var(--gold-soft); }
+@media (max-width: 720px) { .aif.full .aif-cats { grid-template-columns: 1fr 1fr; } .aif.full .aif-qs { grid-template-columns: minmax(0, 1fr); } .aif.full .bub { max-width: 92%; } .aif.full .ai-body { padding: 14px; } }
 .aif header { gap: 10px; justify-content: flex-start; }
 .aif header .aif-title { flex: 1; min-width: 0; } .aif header .aif-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.aif header button:last-child { margin-left: auto; }
+.aif header .aif-title + * { margin-left: auto; }
 .aif .aif-back { transform: rotate(180deg); display: grid; place-items: center; } .aif .aif-back svg { width: 16px; height: 16px; }
 .aif .aif-change { width: auto; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 12px var(--sans); cursor: pointer; white-space: nowrap; }
 .aif .aif-change:hover { border-color: var(--gold); }

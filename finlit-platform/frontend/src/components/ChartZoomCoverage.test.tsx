@@ -45,7 +45,7 @@ const EXEMPT: Record<string, string> = {
   "components/GraphCharts.tsx": "chart builder primitives; the builder's cells have their own arrow (GraphStudio)",
   "components/DrawLayer.tsx": "drawing tool layer, not a chart",
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",
-  "components/LogoLoader.tsx": "logo animation", "components/TierEmblem.tsx": "plan emblem", "lib/icons.tsx": "icons",
+  "components/LogoLoader.tsx": "logo animation", "components/Assistant.tsx": "icon in the chat header", "components/TierEmblem.tsx": "plan emblem", "lib/icons.tsx": "icons",
   "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/SearchFilters.tsx": "icons",
   "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/screener/PageParts.tsx": "small completeness ring in a summary strip",
   "components/search/SearchOverlay.tsx": "icons", "components/search/parts.tsx": "sparklines and icons in search rows", "components/search/prismParts.tsx": "score ring in a search row",
