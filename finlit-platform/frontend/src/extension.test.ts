@@ -1,7 +1,7 @@
 // The browser extension's lookup logic (extension/lib): what is selected, the glossary inside the extension, and finding a listed company. Pure functions, no browser.
 import { describe, expect, it } from "vitest";
-import glossaryDoc from "../../extension/data/glossary.json";
 
+// The extension lives outside the frontend folder (the site's Docker build copies only this folder), so everything is loaded with ignored dynamic imports, never typed ones.
 // @ts-ignore: plain JavaScript files shared with the extension (no build step there)
 const text = await import("../../extension/lib/text.js");
 // @ts-ignore
@@ -10,6 +10,8 @@ const gl = await import("../../extension/lib/glossary.js");
 const co = await import("../../extension/lib/companies.js");
 // @ts-ignore
 const fmt = await import("../../extension/lib/format.js");
+// @ts-ignore
+const glossaryDoc: { terms: { id: string; term: string; topic: string; meaning: string; formula: string; aliases: string[] }[] } = (await import("../../extension/data/glossary.json")).default;
 
 describe("cleanSelection", () => {
   it("keeps a short phrase, trims quotes and sentence punctuation, collapses spaces", () => {
@@ -74,5 +76,13 @@ describe("number wording", () => {
     expect(fmt.crores(0)).toBeNull();
     expect(fmt.num(null)).toBeNull();
     expect(fmt.pct(9.84)).toBe("9.8%");
+  });
+});
+
+describe("the site's Docker build", () => {
+  it("copies only the frontend folder, so no typed import may reach into the extension folder", async () => {
+    const { readFileSync } = await import("node:fs");
+    const own = readFileSync(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"), "utf8");
+    expect(own.split("\n").filter((l) => /^\s*import\b.*from\s+["']\.\.\/\.\.\/extension/.test(l))).toEqual([]);
   });
 });
