@@ -2,9 +2,10 @@
 .ec-h { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .ec-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap, 16px); margin-bottom: 16px; }
 .ec-tile { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); border-top: 3px solid var(--border-strong); }
-.ec { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; }
-:root:not([data-theme="light"]) .ec { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; }
-.ec-tile.s { border-top: 4px solid var(--ck-ok); background: color-mix(in srgb, var(--ck-ok) 9%, var(--s1)); } .ec-tile.w { border-top: 4px solid var(--ck-watch); background: color-mix(in srgb, var(--ck-watch) 9%, var(--s1)); } .ec-tile.f { border-top: 4px solid var(--ck-alert); background: color-mix(in srgb, var(--ck-alert) 9%, var(--s1)); }
+.ec { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; --ck-solid-ok: #14573A; --ck-solid-watch: #8A4B00; --ck-solid-alert: #8E1F18; }
+:root:not([data-theme="light"]) .ec { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; --ck-solid-ok: #17794F; --ck-solid-watch: #A35700; --ck-solid-alert: #B3342E; }
+.ec-tile.s { border-top: 6px solid var(--ck-solid-ok); background: color-mix(in srgb, var(--ck-solid-ok) 18%, var(--s1)); } .ec-tile.w { border-top: 6px solid var(--ck-solid-watch); background: color-mix(in srgb, var(--ck-solid-watch) 18%, var(--s1)); } .ec-tile.f { border-top: 6px solid var(--ck-solid-alert); background: color-mix(in srgb, var(--ck-solid-alert) 18%, var(--s1)); }
+.ec-tile.s b { color: var(--ck-ok); } .ec-tile.w b { color: var(--ck-watch); } .ec-tile.f b { color: var(--ck-alert); }
 .ec-tile .k { font: 700 var(--fs-micro, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .ec-tile b { font: 400 var(--fs-kpi, 22px)/1.2 var(--serif); color: var(--text); } .ec-tile small { color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
 .ec-sec { margin-top: 32px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
@@ -21,30 +22,29 @@
    (only the pill border differed), so an "Investigate" row looked like an "OK" row.
    Each row now takes its colour from its pill: ok = green, watch = amber, alert = red,
    na = no colour. No markup change is needed. */
-/* Deeper colours for the checks (task 50): the pale tint and mid-tone text were hard to tell apart, so each row now has a stronger tint, a 4px edge and a darker
-   green / amber / red for its text, icon and pill. Light paper gets dark shades; the dark theme keeps light shades on a deeper tint. */
-.ec-checks { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; --ck-tint: 15%; }
-:root:not([data-theme="light"]) .ec-checks { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; --ck-tint: 20%; }
+/* Deep, clearly different colours for the six checks (task 50, second pass): a strong tint on the whole row, a 6px edge, the name in the deep colour and a SOLID pill with white
+   text. Green / orange / red can no longer be mistaken for each other or for the neutral cream. Light paper gets dark shades; the dark theme gets rich shades on a deeper tint. */
+.ec-checks { --ck-ok: #14573A; --ck-watch: #8A4B00; --ck-alert: #8E1F18; --ck-solid-ok: #14573A; --ck-solid-watch: #8A4B00; --ck-solid-alert: #8E1F18; --ck-tint: 24%; }
+:root:not([data-theme="light"]) .ec-checks { --ck-ok: #6CD3A2; --ck-watch: #F0B45A; --ck-alert: #FF9AA2; --ck-solid-ok: #17794F; --ck-solid-watch: #A35700; --ck-solid-alert: #B3342E; --ck-tint: 30%; }
 .ec-checks > li > details {
-  --ic: var(--border-strong);
-  border: 1px solid color-mix(in srgb, var(--ic) 35%, var(--border));
-  border-left: 4px solid var(--ic);
+  --ic: var(--border-strong); --ink: var(--text); --solid: var(--s3);
+  border: 1px solid color-mix(in srgb, var(--ic) 55%, var(--border));
+  border-left: 6px solid var(--ic);
   background: color-mix(in srgb, var(--ic) var(--ck-tint), var(--s1));
   border-radius: 10px;
 }
-.ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--ck-ok); }
-.ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--ck-watch); }
-.ec-checks > li > details:has(.ei-pill.alert) { --ic: var(--ck-alert); border-left-width: 5px; }
+.ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--ck-solid-ok);    --ink: var(--ck-ok);    --solid: var(--ck-solid-ok); }
+.ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--ck-solid-watch); --ink: var(--ck-watch); --solid: var(--ck-solid-watch); }
+.ec-checks > li > details:has(.ei-pill.alert) { --ic: var(--ck-solid-alert); --ink: var(--ck-alert); --solid: var(--ck-solid-alert); border-left-width: 8px; }
 .ec-checks > li > details:has(.ei-pill.na)    { --ic: var(--border-strong); background: var(--s1); }
-
-/* the pill itself in the row's colour, like the .ins-tag labels in section 02 */
-.ec-checks .ei-pill { background: var(--s1); font-weight: 700; }
-.ec-checks .ei-pill.ok    { color: var(--ck-ok);    border-color: color-mix(in srgb, var(--ck-ok) 80%, transparent); }
-.ec-checks .ei-pill.watch { color: var(--ck-watch); border-color: color-mix(in srgb, var(--ck-watch) 80%, transparent); }
-.ec-checks .ei-pill.alert { color: var(--ck-alert); border-color: color-mix(in srgb, var(--ck-alert) 80%, transparent); }
+.ec-checks .nm { color: var(--ink); font-weight: 700; }
+/* the pill: solid colour, white text */
+.ec-checks .ei-pill { background: var(--s2); font-weight: 700; }
+.ec-checks .ei-pill.ok, .ec-checks .ei-pill.watch, .ec-checks .ei-pill.alert { background: var(--solid, var(--s2)); color: #fff; border-color: var(--solid, var(--border-strong)); }
+.ec-checks > li > details:has(.ei-pill.ok) .ei-pill, .ec-checks > li > details:has(.ei-pill.watch) .ei-pill, .ec-checks > li > details:has(.ei-pill.alert) .ei-pill { background: var(--solid); border-color: var(--solid); color: #fff; }
 .ec-checks .ei-pill .m    { color: inherit; }
 /* the small icon picks up the colour too */
-.ec-checks summary .ci { color: var(--ic); }
+.ec-checks summary .ci { color: var(--ink); }
 
 
 /* On a phone the hidden labels of a wide table escaped its scroll box and the page scrolled sideways by about 60px: the box is positioned. */
