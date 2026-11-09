@@ -3,6 +3,7 @@
 
     python extension/build.py          # data/glossary.json from frontend/src/content/glossary.json
     python extension/build.py --zip    # also dist/finlit-extension-<version>.zip (only the files the extension needs)
+    python extension/build.py --site   # also frontend/public/extension/finlit-extension.zip, the download on the website's /extension page
 
 The extension keeps only what a lookup shows: id, term, topic, meaning, formula, aliases. Run it whenever the site glossary changes (a test fails until you do).
 """
@@ -14,8 +15,22 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parent / "frontend" / "src" / "content" / "glossary.json"
 OUT = HERE / "data" / "glossary.json"
-SHIP = ["manifest.json", "background.js", "content.js", "popup.html", "popup.css", "popup.js", "data/glossary.json", "lib/text.js", "lib/glossary.js", "lib/companies.js",
+SHIP = ["manifest.json", "background.js", "content.js", "site.js", "popup.html", "popup.css", "popup.js", "data/glossary.json", "lib/text.js", "lib/glossary.js", "lib/companies.js", "lib/format.js",
         "icons/icon16.png", "icons/icon32.png", "icons/icon48.png", "icons/icon128.png"]
+
+
+SITE_ZIP = HERE.parent / "frontend" / "public" / "extension" / "finlit-extension.zip"
+
+
+def pack(dest: Path) -> None:
+    """Every shipped file, in a fixed order with a fixed date, so the same sources always give the same zip."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as f:
+        for rel in SHIP:
+            info = zipfile.ZipInfo(rel, date_time=(2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            f.writestr(info, (HERE / rel).read_bytes())
 
 
 def slim() -> dict:
@@ -34,10 +49,11 @@ def main() -> None:
         dist = HERE / "dist"
         dist.mkdir(exist_ok=True)
         z = dist / f"finlit-extension-{ver}.zip"
-        with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as f:
-            for rel in SHIP:
-                f.write(HERE / rel, rel)
+        pack(z)
         print(f"packed {z.name}: {z.stat().st_size // 1024} KB")
+    if "--site" in sys.argv:
+        pack(SITE_ZIP)
+        print(f"website download: {SITE_ZIP.relative_to(HERE.parent)} ({SITE_ZIP.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":

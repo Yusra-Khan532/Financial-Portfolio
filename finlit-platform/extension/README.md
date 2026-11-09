@@ -1,7 +1,7 @@
 # FinLit browser extension (task #54)
 
 Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit IQ score**
-(Fundamental and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
+(Growth & Profitability and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
 
@@ -23,7 +23,7 @@ Nothing the card says tells anyone to buy, sell or hold: it describes, and every
 
 ## Files
 
-- `manifest.json`: MV3. Permissions: `storage` (the two switches and the cached company list), `contextMenus` (the right-click item), `activeTab` (the toolbar menu reads the current site's name for the per-site switch). Host access: `https://finlitventures.com/*` only. One content script on `http(s)` pages.
+- `manifest.json`: MV3. Permissions: `storage` (the two switches and the cached company list), `contextMenus` (the right-click item), `activeTab` (the toolbar menu reads the current site's name for the per-site switch). Host access: FinLit's own three addresses only (`finlitventures.com`, `www.`, `app.`: the sign-in cookie belongs to the exact address). One content script on `http(s)` pages.
 - `content.js`: selection button and the card. `background.js`: lookups and the only network calls. `lib/`: pure logic (tested). `popup.*`: toolbar menu.
 - `build.py`: refreshes `data/glossary.json` from `frontend/src/content/glossary.json`; `python extension/build.py --zip` packs `dist/finlit-extension-<version>.zip` for the store.
 - Tests: `frontend/src/extension.test.ts` (logic), `backend/tests/test_ext_api.py` (the API), `backend/tests/test_extension_package.py` (manifest, glossary in step with the site, privacy rules in the code).
@@ -38,7 +38,7 @@ For a local server, save `apiBase` (only `http://localhost:PORT` is honoured) in
 ## Publishing (Chrome Web Store)
 
 1. `python extension/build.py --zip`, upload `extension/dist/finlit-extension-<version>.zip` in the Developer Dashboard (one-time registration fee applies).
-2. Listing text: see below. Privacy policy: `PRIVACY.md` (host it on the site, e.g. `/privacy-extension`, and paste the URL).
+2. The full step-by-step for the owner, with the listing text, screenshots and promo tile, is `store/LISTING.md`. Privacy policy URL: `https://finlitventures.com/browser-extension#privacy` (same text as `PRIVACY.md`).
 3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit score, for text the user selects."
 4. Permission justifications: `storage` (settings and cached company list), `contextMenus` (right-click lookup), `activeTab` (read the current site name for the per-site switch), host access to finlitventures.com (the company card), content script on all sites (shows the button next to text the user selects).
 5. Raise `version` in `manifest.json` for every update; rerun `build.py` whenever the site glossary changes (a test fails until you do).

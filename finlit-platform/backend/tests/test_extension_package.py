@@ -16,8 +16,10 @@ def test_manifest_asks_for_the_least_it_needs():
     m = manifest()
     assert m["manifest_version"] == 3
     assert sorted(m["permissions"]) == ["activeTab", "contextMenus", "storage"]
-    assert m["host_permissions"] == ["https://finlitventures.com/*"]
-    assert len(m["content_scripts"]) == 1 and m["content_scripts"][0]["js"] == ["content.js"] and m["content_scripts"][0]["all_frames"] is False
+    assert sorted(m["host_permissions"]) == ["https://app.finlitventures.com/*", "https://finlitventures.com/*", "https://www.finlitventures.com/*"]   # FinLit's own addresses only
+    scripts = {tuple(c["js"]): c for c in m["content_scripts"]}
+    assert set(scripts) == {("content.js",), ("site.js",)} and all(c["all_frames"] is False for c in scripts.values())
+    assert all(re.match(r"^https://(www\.|app\.)?finlitventures\.com/\*$", x) for x in scripts[("site.js",)]["matches"])    # the website marker runs on FinLit's own pages only
     assert "web_accessible_resources" not in m and "externally_connectable" not in m       # pages cannot reach into the extension
     assert "unsafe" not in json.dumps(m.get("content_security_policy", {}))
     for size, rel in m["icons"].items():
@@ -48,3 +50,24 @@ def test_background_sends_only_a_symbol_and_the_public_list_and_uses_no_remote_c
     assert urls == {"/api/stocks/search-index", "/api/ext/company/"}, urls
     assert 'credentials: "omit"' in js                      # the public list is fetched without the session cookie
     assert "text" not in re.search(r"company/\$\{[^}]*\}", js).group(0)   # the selected words are not part of the company request
+
+
+def test_the_website_marker_sets_one_attribute_and_names_the_finlit_address_and_nothing_else():
+    js = "\n".join(ln for ln in (EXT / "site.js").read_text().splitlines() if not ln.strip().startswith("//"))
+    assert js.count("setAttribute") == 1 and "data-finlit-extension" in js
+    assert js.count("sendMessage") == 1 and 'type: "seen-site", origin: location.origin' in js
+    for banned in ("fetch(", "innerHTML", "querySelector", "storage", "cookie", "innerText", "textContent"):
+        assert banned not in js, banned
+
+
+def test_the_website_download_is_this_exact_extension_and_its_version_is_the_one_the_site_shows():
+    import zipfile
+    zpath = ROOT / "frontend" / "public" / "extension" / "finlit-extension.zip"
+    assert zpath.is_file(), "run: python extension/build.py --site"
+    with zipfile.ZipFile(zpath) as z:
+        names = z.namelist()
+        assert names[0] == "manifest.json" and "site.js" in names and "content.js" in names
+        for n in names:
+            assert z.read(n) == (EXT / n).read_bytes(), f"{n} differs from extension/: run: python extension/build.py --site"
+    ts = (ROOT / "frontend" / "src" / "lib" / "extension.ts").read_text()
+    assert f'version: "{manifest()["version"]}"' in ts, "frontend/src/lib/extension.ts must show the manifest version"
