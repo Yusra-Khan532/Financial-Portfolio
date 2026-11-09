@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { FeatureInfo } from "./FeatureDemo";
 import { DEMOS, FEATURE_DEMO, demoFor } from "../lib/featureDemos";
+import STEPS_JSON from "../content/featureSteps.json";
 
 afterEach(cleanup);
 const PUB = join(process.cwd(), "public");
@@ -26,7 +27,7 @@ describe("feature demos", () => {
       if (d.kind === "video") {
         const v = join(PUB, "plans/demos", d.id + ".mp4");
         expect(existsSync(v), v).toBe(true); expect(existsSync(join(PUB, "plans/demos", d.id + ".jpg"))).toBe(true);
-        expect(readFileSync(v).length).toBeLessThan(700_000);
+        expect(readFileSync(v).length).toBeLessThan(1_800_000);
       } else expect(existsSync(join(PUB, "landing/tools", d.image + ".webp")), d.image).toBe(true);
     }
     for (const id of Object.values(FEATURE_DEMO)) expect(DEMOS[id], id).toBeTruthy();
@@ -37,10 +38,34 @@ describe("feature demos", () => {
 });
 
 describe("<FeatureInfo />", () => {
-  const view = (f = "DCF calculator") => render(<MemoryRouter><p><b>{f}<FeatureInfo feature={f} /></b></p></MemoryRouter>);
-  it("renders nothing for a feature without a demo", () => {
+  const view = (f = "DCF calculator") => render(<MemoryRouter><p><b><FeatureInfo feature={f} label={f} /></b></p></MemoryRouter>);
+  it("shows a plain label, no button, for a feature without a demo", () => {
     view("Bigger limits");
     expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("Bigger limits")).toBeTruthy();
+  });
+  it("the whole feature name is the button, so a click on the words opens the player too", () => {
+    view();
+    const b = screen.getByRole("button", { name: "See how DCF calculator works" });
+    expect(b.textContent).toContain("DCF calculator");
+    fireEvent.click(screen.getByText("DCF calculator"));        // the words, not only the small (i)
+    expect(screen.getByRole("dialog", { name: "DCF calculator" })).toBeTruthy();
+  });
+  it("closing the player and pressing again opens it again, every time", () => {
+    view();
+    for (let k = 0; k < 3; k++) {
+      fireEvent.click(screen.getByRole("button", { name: "See how DCF calculator works" }));
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      act(() => { fireEvent.keyDown(document, { key: "Escape" }); });
+      expect(screen.queryByRole("dialog")).toBeNull();
+    }
+  });
+  it("a recording that cannot load leaves the poster and a plain line, never a blank box", () => {
+    view();
+    fireEvent.click(screen.getByRole("button", { name: "See how DCF calculator works" }));
+    fireEvent.error(screen.getByRole("dialog").querySelector("video")!);
+    expect(screen.getByRole("status").textContent).toMatch(/could not be loaded/);
+    expect(screen.getByRole("link", { name: /Open the DCF calculator/ })).toBeTruthy();
   });
   it("a click opens the full view with the clip, the words and a link; Esc closes it and returns focus", () => {
     view();
@@ -55,9 +80,13 @@ describe("<FeatureInfo />", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(i);
   });
-  it("a picture stands in where there is no recording", () => {
-    view("Alerts");
-    fireEvent.click(screen.getByRole("button", { name: /See how Alerts works/ }));
-    expect(screen.getByRole("dialog").querySelector("img")?.getAttribute("src")).toMatch(/landing\/tools\/alerts-light\.webp$/);
+  it("the player lists the steps of the walkthrough, the same as the captions in the clip", () => {
+    view();
+    fireEvent.click(screen.getByRole("button", { name: "See how DCF calculator works" }));
+    const steps = screen.getByRole("dialog").querySelectorAll(".fd-steps li");
+    expect(steps.length).toBeGreaterThanOrEqual(3);
+    expect(steps[0].textContent).toMatch(/assumption/i);
   });
+  it("every demo has its steps", () => { for (const d of Object.values(DEMOS)) expect((STEPS_JSON as Record<string, string[]>)[d.id]?.length, d.id).toBeGreaterThanOrEqual(3); });
+  it("every demo is a recording", () => { expect(Object.values(DEMOS).filter((d) => d.kind !== "video").map((d) => d.id)).toEqual(["fund-health"].filter(() => false)); });
 });

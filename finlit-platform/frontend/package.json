@@ -13,7 +13,8 @@
     "layout-guard": "node e2e/layout_guard.mjs",
     "layout-guard:api": "GUARD_MODE=api node e2e/layout_guard.mjs",
     "reveal-guard": "node e2e/reveal_guard.mjs",
-    "page-headers": "node e2e/page_headers.mjs"
+    "page-headers": "node e2e/page_headers.mjs",
+    "feature-info-guard": "node e2e/feature_info_guard.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

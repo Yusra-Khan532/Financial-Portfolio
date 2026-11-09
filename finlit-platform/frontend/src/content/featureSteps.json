@@ -1,0 +1,134 @@
+{
+ "overview": [
+  "One page for any listed company. Price, scores, notes and every statement",
+  "Jump to any section from the bar",
+  "Every section explains itself. Each figure says what it means"
+ ],
+ "iq": [
+  "The FinLit IQ: one score out of 100. Built from five pillars",
+  "Quality, Growth, Profitability, Balance sheet, Technical. Each pillar is scored on its own",
+  "Strengths and watch-outs in plain words"
+ ],
+ "price": [
+  "Pick a time range",
+  "Switch the averages and volume on or off",
+  "Trend and momentum readings sit beside the chart"
+ ],
+ "quarter": [
+  "The newest quarter at a glance",
+  "Against last quarter (QoQ) and a year ago (YoY)",
+  "Plus how sales, profit and cash have moved"
+ ],
+ "financials": [
+  "Profit and loss, year by year",
+  "Switch to the balance sheet",
+  "Then cash flow",
+  "Quarterly view too"
+ ],
+ "ratios": [
+  "Valuation, returns, margins and debt in six meters",
+  "Every ratio over the years, best years in green",
+  "Each row explains what the change means"
+ ],
+ "ownership": [
+  "Who owns the company",
+  "Promoters, institutions and the public, quarter by quarter",
+  "See who bought or sold"
+ ],
+ "peers": [
+  "Companies in the same industry, side by side",
+  "Size, growth, returns and valuation",
+  "Where it stands inside its industry"
+ ],
+ "screener": [
+  "Start from a ready-made screen",
+  "Or set your own filters. Size, valuation, growth and more",
+  "The matches update at once"
+ ],
+ "glossary": [
+  "Type any finance word",
+  "Get the meaning, why it matters and how to use it",
+  "With the formula where there is one"
+ ],
+ "flows": [
+  "What foreign and domestic institutions did today",
+  "Streaks and totals over 30 sessions",
+  "Years of history, month by month"
+ ],
+ "dcf": [
+  "Change an assumption. Here: growth for the first five years",
+  "The intrinsic value updates at once",
+  "Pick a margin of safety",
+  "Every step of the working is shown below"
+ ],
+ "adv-screener": [
+  "Ready-made screens on the Prism rating",
+  "Each company's score, rating and technical views",
+  "Plus screens by trend, growth and theme"
+ ],
+ "prism": [
+  "FinLit Prism: financial health in four parts",
+  "Growth & Profitability, Valuation, Quality and Risk",
+  "Short and long-term technical views, kept apart"
+ ],
+ "portfolio": [
+  "Add your shares by name",
+  "Each share's score, and your list's average",
+  "Sector and size mix, and how spread your list is"
+ ],
+ "compare": [
+  "Pick two companies (four on Gold)",
+  "Financials, valuation and a spider view of the scores",
+  "Quality, growth and technical tabs"
+ ],
+ "alerts": [
+  "Your alerts and what they watch",
+  "Create one: a price, a ratio, a score or a new filing",
+  "Choose the condition and where to be told. In the app, by email or in your browser"
+ ],
+ "watchlists": [
+  "Your lists, with each company's score",
+  "Group by industry or size",
+  "Add notes and price levels to any stock"
+ ],
+ "calendars": [
+  "When companies report results",
+  "Open IPOs and upcoming issues",
+  "And company filings as they land"
+ ],
+ "iq-table": [
+  "Every listed company with its FinLit IQ",
+  "Sort by any pillar",
+  "Filter by size, sector and score"
+ ],
+ "outlook": [
+  "Estimates from the company's own history and its sector",
+  "Choose a horizon: short, mid or long term",
+  "Two models side by side, with the reasons"
+ ],
+ "downloads": [
+  "Save a company report",
+  "A PDF note, an offline copy or a CSV",
+  "Tables have their own CSV button"
+ ],
+ "segments": [
+  "Where the revenue and profit come from",
+  "Segment by segment, over the years",
+  "How the mix has shifted"
+ ],
+ "gold-dash": [
+  "Gold dashboards: four tools for serious investors. Fast to open, always up to date",
+  "FinLit Prism, company financials, market events and the option chain",
+  "Each one opens with a short guide to reading it"
+ ],
+ "options": [
+  "Pick an index or an F&O stock",
+  "Open interest, volume and implied volatility by strike",
+  "Put-call ratio and max pain, worked out for you"
+ ],
+ "fund-health": [
+  "A 0 to 100 score for every fund",
+  "Filter by category, plan and each of the four parts",
+  "Sort the list, or open any fund for its reasons"
+ ]
+}

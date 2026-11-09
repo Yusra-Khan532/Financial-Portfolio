@@ -1,6 +1,7 @@
 // The short "see it working" clips behind the (i) next to each feature on the Plans page and the plan table (task #51).
-// Each demo is a 10 to 15 second screen recording of the real page (public/plans/demos/<id>.mp4 with a poster .jpg), or, where a recording
-// is not made yet, a full-page picture of the tool (public/landing/tools/<image>.webp). Every feature label used in Plans.tsx maps to one demo.
+// Each demo is a short walkthrough recording of the real page (public/plans/demos/<id>.mp4 with a poster .jpg): a cursor, a ring on what is pressed and
+// numbered captions. The same captions are the "What you will see" list in the player (content/featureSteps.json, written from scripts/record-feature-demos.mjs).
+// A demo may still be a full-page picture (kind "still", public/landing/tools/<image>.webp) when a recording cannot be made. Every feature label used in Plans.tsx maps to one demo.
 export type Demo = {
   id: string; title: string;
   /** One or two plain sentences: what the clip shows and what the feature does. Describes; never advises. */
@@ -11,7 +12,6 @@ export type Demo = {
 };
 
 const v = (id: string, title: string, say: string, to: string, toLabel: string): Demo => ({ id, title, say, kind: "video", to, toLabel });
-const s = (id: string, title: string, say: string, image: string, to: string, toLabel: string): Demo => ({ id, title, say, kind: "still", image, to, toLabel });
 
 export const DEMOS: Record<string, Demo> = {
   overview: v("overview", "Company overview", "Open any listed company: what it does, its price, its scores and its key figures on one page, then scroll through every section.", "/stocks/RELIANCE", "Open a company page"),
@@ -30,16 +30,16 @@ export const DEMOS: Record<string, Demo> = {
   prism: v("prism", "FinLit Prism", "A company's financial health in four parts, with the short and long-term technical views kept apart.", "/prism", "Open FinLit Prism"),
   "fund-health": v("fund-health", "Mutual Fund Health Score", "A 0 to 100 health score for every fund from its NAVs, costs and holdings, with category leaderboards.", "/fund-score-screener", "Open the Fund Health Score"),
   portfolio: v("portfolio", "Portfolio scorecard", "Add your shares by name to see each one's score, the average for your list, its sector mix and how spread it is.", "/holdings", "Open the portfolio"),
-  compare: s("compare", "Compare companies", "Two companies side by side (four on Gold): financials, charts, a spider view of the scores and valuation.", "compare-companies-light", "/compare", "Open Compare"),
-  alerts: s("alerts", "Alerts", "Get a message when a price, a ratio, a score or a new filing reaches the level you set.", "alerts-light", "/alerts", "Open alerts"),
-  watchlists: s("watchlists", "Watchlists", "Keep the companies you follow in lists, with your notes and price levels, grouped by industry and size.", "watchlists-light", "/watchlist", "Open watchlists"),
-  calendars: s("calendars", "Results, IPO and news calendars", "Result dates, open and upcoming IPOs and company filings, in one place.", "results-ipo-light", "/results", "Open the calendars"),
-  "iq-table": s("iq-table", "FinLit IQ table", "Every listed company with its score and five pillars, to sort and filter.", "basic-score-screener-light", "/score-screener", "Open the score screener"),
-  outlook: s("outlook", "Revenue and profit outlook", "Estimates of revenue and profit from the company's own history and its sector, with the weights you choose.", "profit-revenue-outlook-light", "/outlook", "Open the outlook"),
-  downloads: s("downloads", "Downloads", "Save a company's report as a PDF note or an offline copy, and download tables as CSV.", "company-report-light", "/stocks/RELIANCE", "Open a company report"),
-  segments: s("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "company-financials-light", "/premium/fundamentals", "Open company financials"),
-  "gold-dash": s("gold-dash", "Gold dashboards", "Markets and financials: index moves with the events behind them, and every ratio over the years.", "market-events-light", "/premium", "Open the Gold dashboards"),
-  options: s("options", "Option chain", "Open interest, its change, volume and implied volatility by strike, with the put-call ratio and max pain.", "option-chain-light", "/premium/options", "Open the option chain"),
+  compare: v("compare", "Compare companies", "Two companies side by side (four on Gold): financials, charts, a spider view of the scores and valuation.", "/compare", "Open Compare"),
+  alerts: v("alerts", "Alerts", "Get a message when a price, a ratio, a score or a new filing reaches the level you set.", "/alerts", "Open alerts"),
+  watchlists: v("watchlists", "Watchlists", "Keep the companies you follow in lists, with your notes and price levels, grouped by industry and size.", "/watchlist", "Open watchlists"),
+  calendars: v("calendars", "Results, IPO and news calendars", "Result dates, open and upcoming IPOs and company filings, in one place.", "/results", "Open the calendars"),
+  "iq-table": v("iq-table", "FinLit IQ table", "Every listed company with its score and five pillars, to sort and filter.", "/score-screener", "Open the score screener"),
+  outlook: v("outlook", "Revenue and profit outlook", "Estimates of revenue and profit from the company's own history and its sector, with the weights you choose.", "/outlook", "Open the outlook"),
+  downloads: v("downloads", "Downloads", "Save a company's report as a PDF note or an offline copy, and download tables as CSV.", "/stocks/RELIANCE", "Open a company report"),
+  segments: v("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "/premium/fundamentals", "Open company financials"),
+  "gold-dash": v("gold-dash", "Gold dashboards", "Markets and financials: index moves with the events behind them, and every ratio over the years.", "/premium", "Open the Gold dashboards"),
+  options: v("options", "Option chain", "Open interest, its change, volume and implied volatility by strike, with the put-call ratio and max pain.", "/premium/options", "Open the option chain"),
 };
 
 /** Feature names as the Plans page writes them (cards and table) -> the demo that shows them. A name not listed here gets no (i). */
