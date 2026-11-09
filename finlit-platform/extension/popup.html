@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinLit Ventures</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 20v-5M12 20V10M19 20V4"/></svg></span><h1>FinLit Ventures</h1></header>
+<main>
+  <label class="row"><input type="checkbox" id="enabled"><span><b>Highlight &amp; Explore</b><small>Show the FinLit button when I select a word or phrase</small></span></label>
+  <label class="row" id="siteRow" hidden><input type="checkbox" id="site"><span><b>Turn off on <span id="hostName"></span></b><small>The button will not appear on this site</small></span></label>
+  <p class="how">Select a financial term or a company name on any page, then press the green FinLit button. Shortcut: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, or right-click &rarr; Look up on FinLit.</p>
+  <nav>
+    <a href="https://finlitventures.com/" target="_blank" rel="noopener noreferrer">Open FinLit</a>
+    <a href="https://finlitventures.com/glossary" target="_blank" rel="noopener noreferrer">Glossary</a>
+    <a href="https://finlitventures.com/watchlist" target="_blank" rel="noopener noreferrer">My Watchlist</a>
+  </nav>
+  <p class="fine">FinLit reads only the words you select. They stay in your browser: they are never sent to FinLit.</p>
+</main>
+<script src="popup.js"></script>
+</body>
+</html>
