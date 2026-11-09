@@ -38,7 +38,7 @@ For a local server, save `apiBase` (only `http://localhost:PORT` is honoured) in
 ## Publishing (Chrome Web Store)
 
 1. `python extension/build.py --zip`, upload `extension/dist/finlit-extension-<version>.zip` in the Developer Dashboard (one-time registration fee applies).
-2. Listing text: see below. Privacy policy: `PRIVACY.md` (host it on the site, e.g. `/privacy-extension`, and paste the URL).
+2. The full step-by-step for the owner, with the listing text, screenshots and promo tile, is `store/LISTING.md`. Privacy policy URL: `https://finlitventures.com/browser-extension#privacy` (same text as `PRIVACY.md`).
 3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit score, for text the user selects."
 4. Permission justifications: `storage` (settings and cached company list), `contextMenus` (right-click lookup), `activeTab` (read the current site name for the per-site switch), host access to finlitventures.com (the company card), content script on all sites (shows the button next to text the user selects).
 5. Raise `version` in `manifest.json` for every update; rerun `build.py` whenever the site glossary changes (a test fails until you do).

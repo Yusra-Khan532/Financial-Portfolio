@@ -102,6 +102,13 @@ export function BrowserExtensionPage() {
           <details><summary>How do I remove it?</summary><p>Open <span className="ext-code">chrome://extensions</span>, find FinLit Ventures and press Remove.</p></details>
           <details><summary>Is this advice?</summary><p>No. The card describes a company's financial health from its filings and prices. Information only, not investment advice.</p></details>
         </section>
+        <section className="ext-card" id="privacy" aria-labelledby="ext-priv">
+          <h2 id="ext-priv">Privacy of the FinLit browser extension</h2>
+          <p><b>What it reads.</b> Only the words you select on a page, at the moment you select them. It does not read the page, the article around your selection, images, forms, passwords, other sites' cookies or your browsing history. Selections inside text boxes are ignored.</p>
+          <p><b>What it sends.</b> Your selected words are never sent anywhere: they are looked up on lists kept inside the extension (the FinLit glossary and the public list of company names). When a listed company is recognised and you open its card, the extension asks finlitventures.com for that one company by its stock symbol. If you are signed in to FinLit in the same browser, that request carries your FinLit session so the card shows what your plan allows; if not, you see the free view.</p>
+          <p><b>What it stores.</b> On your device only: your two switches (on or off, and the sites you turned it off on), the public company list (refreshed at most once a day) and, for ten minutes, the cards you opened.</p>
+          <p><b>What it does not do.</b> No tracking, no analytics, no advertising, no data sold or shared, and no remote code: everything it runs ships inside the extension. Turn it off for everything or for one site from the toolbar icon, or remove it at any time.</p>
+        </section>
         <p className="ext-fine">Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
       </div>
     </>
