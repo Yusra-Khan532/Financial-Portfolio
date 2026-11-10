@@ -38,7 +38,7 @@ class Page:
 
 
 PUBLIC: Dict[str, Page] = {
-    "": Page("Indian Stock Analysis and Scores for Every Listed Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit IQ that shows its working. Start free.",
+    "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit IQ that shows its working. Start free.",
              "Every listed Indian stock, scored and explained", "FinLit reads company filings and prices and describes each listed Indian company's financial health with a 0 to 100 score that shows its working. Free to start; information only, not investment advice."),
     "research": Page("Stock Research: Company Reports for Indian Stocks | FinLit", "Browse research on listed Indian companies: statements, ratios, peers, ownership and a plain-English reading of each company's financial health.", "Stock research", "Company reports for listed Indian stocks, built from filings and prices.", "Research"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
@@ -49,7 +49,7 @@ PUBLIC: Dict[str, Page] = {
     "eps-calculator": Page("EPS Calculator: Earnings Per Share Explained | FinLit", "Calculate earnings per share from profit and share count, see basic and diluted EPS and how it changes over time. Free, with the formula.", "EPS calculator", "Earnings per share from profit and share count, with the formula shown.", "EPS calculator"),
     "dcf": Page("DCF Calculator: Estimate a Company's Value | FinLit", "Build a simple discounted cash flow from the numbers you enter and see how the value changes with each assumption. A scenario tool, not a forecast.", "DCF calculator", "A discounted cash flow calculator where every assumption is yours.", "DCF calculator"),
     "macro": Page("India Macro Indicators: CPI, GDP, Repo Rate Data | FinLit", "India's inflation, growth, interest rates, reserves and more in one place, from MoSPI and RBI releases, with plain-English readings.", "India macro indicators", "Inflation, growth, interest rates and reserves from official releases.", "Macro"),
-    "fii-dii": Page("FII and DII Data: Daily Institutional Flows in India | FinLit", "Daily FII and DII buying and selling in Indian equities, with trends over time and what the flows describe. Information only.", "FII and DII activity", "Daily institutional flows in Indian equities.", "FII and DII"),
+    "fii-dii": Page("FII and DII Data: Daily Institutional Flows | FinLit", "Daily FII and DII buying and selling in Indian equities, with trends over time and what the flows describe. Information only.", "FII and DII activity", "Daily institutional flows in Indian equities.", "FII and DII"),
     "sectors": Page("Sector Performance India: Sector Pulse and Rotation | FinLit", "See which Indian sectors are strengthening or weakening, how breadth is changing and which companies lead each sector.", "Indian sectors", "Sector states, breadth and leaders across Indian markets.", "Sectors"),
     "ipo": Page("IPO Calendar India: Upcoming and Recent IPOs | FinLit", "Upcoming and recent Indian IPOs with dates, price bands and issue size, in one calendar. Information only, not advice.", "IPO calendar", "Upcoming and recent Indian IPOs.", "IPO calendar"),
     "results": Page("Quarterly Results Calendar: Company Results India | FinLit", "Which Indian companies report results and when, with the numbers once they are out and how they compare with the year before.", "Quarterly results", "Company results calendar and the numbers as they arrive.", "Results"),
@@ -135,6 +135,7 @@ def _head(base: str, path: str, title: str, desc: str, index: bool, ld: List[Dic
     tags = [f"<title>{_e(title)}</title>", f'<meta name="description" content="{_e(desc)}">', f'<meta name="robots" content="{robots}">']
     if index:
         tags.append(f'<link rel="canonical" href="{_e(url)}">')
+        tags.append(f'<link rel="alternate" hreflang="en-IN" href="{_e(url)}"><link rel="alternate" hreflang="x-default" href="{_e(url)}">')
         img = base + OG_IMAGE
         tags += [f'<meta property="og:type" content="{og_type}">', f'<meta property="og:site_name" content="{SITE_NAME}">', f'<meta property="og:locale" content="en_IN">',
                  f'<meta property="og:title" content="{_e(title)}">', f'<meta property="og:description" content="{_e(desc)}">', f'<meta property="og:url" content="{_e(url)}">',
@@ -150,16 +151,35 @@ NAV = [("Stock screener", "/screener"), ("Compare stocks", "/compare"), ("Mutual
        ("Plans", "/plans"), ("About", "/about")]
 
 
-def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]]) -> str:
+POPULAR = [("Reliance Industries", "RELIANCE"), ("Tata Consultancy Services", "TCS"), ("HDFC Bank", "HDFCBANK"), ("Infosys", "INFY"), ("ICICI Bank", "ICICIBANK"),
+           ("State Bank of India", "SBIN"), ("Bharti Airtel", "BHARTIARTL"), ("ITC", "ITC"), ("Larsen and Toubro", "LT"), ("Hindustan Unilever", "HINDUNILVR"),
+           ("Asian Paints", "ASIANPAINT"), ("Titan Company", "TITAN")]
+GUIDE_TERMS = ("price-to-earnings-ratio-p-e", "return-on-equity-roe", "return-on-capital-employed-roce", "earnings-per-share-eps", "debt-to-equity-ratio-d-e", "market-capitalisation-market-cap", "dividend-yield", "free-cash-flow-fcf", "operating-margin-opm", "book-value")
+
+
+def _explore(current: str) -> str:
+    """The same helpful block on every page: what the site offers, well-known companies and terms. Gives a reader (and a crawler that does not run scripts) real text and real links."""
+    tools = [(pg.crumb or pg.h1, "/" + k, pg.intro) for k, pg in PUBLIC.items() if k and k != current and pg.index and not k.startswith("legal/")]
+    out = ["<h2>What you can do on FinLit</h2><p>FinLit turns company filings and prices into plain-English readings of financial health. Every number links back to its working, and every blank says why it is blank. These are the main tools, all free to start.</p><ul>"]
+    out += [f'<li><a href="{_e(u)}">{_e(n)}</a>: {_e(i)}</li>' for n, u, i in tools]
+    out.append("</ul><h2>Well-known companies</h2><p>Open a company report to see its statements, ratios, growth, peers, ownership and filings in one page.</p><ul>")
+    out += [f'<li><a href="/stocks/{sym}">{_e(n)} ({sym}) share analysis</a></li>' for n, sym in POPULAR]
+    out.append("</ul><h2>Learn the terms</h2><p>New to reading financial statements? The glossary explains each measure with its formula and an example.</p><ul>")
+    out += [f'<li><a href="/glossary/{tid}">{_e(TERMS[tid]["term"])}</a></li>' for tid in GUIDE_TERMS if tid in TERMS]
+    out.append('<li><a href="/glossary">All glossary terms</a></li></ul>')
+    return "".join(out)
+
+
+def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "") -> str:
     return ('<main data-seo="1" style="max-width:760px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif">' + f"<h1>{_e(h1)}</h1>" + "".join(f"<p>{_e(p)}</p>" for p in paragraphs)
-            + "<nav aria-label=\"Main pages\"><ul>" + "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links) + "</ul></nav></main>")
+            + "<nav aria-label=\"Main pages\"><ul>" + "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links) + "</ul></nav>" + _explore(current) + "</main>")
 
 
 def render_static(base: str, path: str) -> Rendered:
     p = clean(path)
     pg = PUBLIC[p]
     ld = organization(base) if not p else [_crumbs(base, [(pg.crumb, "/" + p)])]
-    return Rendered(200, _head(base, p, pg.title, pg.description, True, ld), _body(pg.h1, [pg.intro, pg.description, DISCLAIMER], NAV), "index", pg.title)
+    return Rendered(200, _head(base, p, pg.title, pg.description, True, ld), _body(pg.h1, [pg.intro, pg.description, DISCLAIMER], NAV, p), "index", pg.title)
 
 
 def render_private(base: str, path: str) -> Rendered:
