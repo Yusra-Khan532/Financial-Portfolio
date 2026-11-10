@@ -107,6 +107,8 @@ def is_known(path: str) -> Optional[bool]:
         return True
     if p.startswith("stocks/") and p.count("/") == 1 or p.startswith("glossary/") and p.count("/") == 1:
         return None
+    if p.startswith("funds/") and p.count("/") == 1 and p.split("/")[1].isdigit():
+        return None
     if p.startswith("companies/"):
         return None if p.count("/") == 1 and p.split("/")[1] in DIR_LETTERS else False
     return any(p.startswith(x + "/") and p.count("/") == x.count("/") + 1 for x in PARAM_PREFIXES)
@@ -279,6 +281,33 @@ def render_directory(base: str, letter: Optional[str], groups: Dict[str, List[Tu
     return Rendered(200, _head(base, path, title, desc, bool(total) and (letter is None or bool(groups.get(letter))), ld), _body(h1, paras, NAV, path, extra), "index" if (letter is None or groups.get(letter)) else "noindex", title)
 
 
+def _pct(v: Any) -> str:
+    return f"{v:.2f}%" if isinstance(v, (int, float)) else ""
+
+
+def render_fund(base: str, code: int, row: Dict[str, Any]) -> Rendered:
+    """One mutual fund plan: its name, AMC, category and the latest NAV and returns the stored data holds. Only an active scheme is offered to search engines."""
+    name, amc, cat = row["name"], row["amc"], row["category"]
+    plan = " ".join(x for x in (row.get("plan") if row.get("plan") != "Unspecified" else "", row.get("option_class") if row.get("option_class") != "Other" else "") if x)
+    title = f"{name} NAV, Returns and Details | {BRAND}"
+    if len(title) > 70:
+        title = f"{name[:44].rstrip()} NAV and Returns | {BRAND}"
+    nav = row.get("nav")
+    nav_txt = f"Latest NAV Rs {nav:,.4f} on {row['nav_date'].isoformat()}." if nav and row.get("nav_date") else "The latest NAV is not available yet."
+    desc = f"{name}: {cat} from {amc}. {nav_txt} Returns, risk and holdings described from public data. Information only, not investment advice."
+    if len(desc) > 160:
+        desc = desc[:157].rsplit(" ", 1)[0] + "..."
+    facts = [f"{name} is a {cat.split(' - ')[-1]} scheme from {amc}" + (f" ({plan} plan)." if plan else "."), nav_txt]
+    rets = [f"{lbl} {_pct(row.get(k))}" for lbl, k in (("1 year", "r1y"), ("3 years a year", "r3y"), ("5 years a year", "r5y")) if _pct(row.get(k))]
+    if rets:
+        facts.append("Past returns on the stored NAV history: " + "; ".join(rets) + ". Past returns do not describe what a fund will do next.")
+    facts.append(DISCLAIMER)
+    ld = [_crumbs(base, [("Mutual funds", "/funds"), (name, f"/funds/{code}")]),
+          {"@context": "https://schema.org", "@type": "InvestmentFund", "name": name, "url": f"{base}/funds/{code}", "description": desc, "provider": {"@type": "Organization", "name": amc}}]
+    ok = bool(row.get("active"))
+    return Rendered(200, _head(base, f"funds/{code}", title, desc, ok, ld, "article"), _body(name, facts, NAV, f"funds/{code}"), "index" if ok else "noindex", title)
+
+
 def render_company(base: str, symbol: str, name: str, sector: Optional[str]) -> Rendered:
     sym = symbol.upper()
     title = f"{name} ({sym}) Share Analysis and Financial Health | {BRAND}"
@@ -331,7 +360,7 @@ def inject(index_html: str, r: Rendered) -> str:
 
 # ---------------------------------------------------------------------------------------------------------------- sitemap
 
-def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: date, letters: Tuple[str, ...] = ()) -> str:
+def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: date, letters: Tuple[str, ...] = (), funds: Tuple[int, ...] = ()) -> str:
     seen = set()
     rows: List[str] = []
 
@@ -345,6 +374,8 @@ def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: d
         if p == "pricing":
             continue                                  # the same page as /plans, which is the one listed
         add(p, today, "weekly" if p in ("", "news", "results", "ipo", "fii-dii", "macro") else "monthly", "1.0" if not p else "0.8")
+    for code in funds:
+        add(f"funds/{code}", today, "weekly", "0.5")
     for lt in letters:
         add(f"companies/{lt}", today, "weekly", "0.6")
     for tid in TERMS:

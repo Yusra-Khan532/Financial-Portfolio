@@ -43,7 +43,7 @@ def test_every_route_in_the_app_is_classified_so_none_is_a_soft_404_by_accident(
 def test_unknown_addresses_are_not_known_and_params_need_a_real_parent():
     for bad in ("this-page-does-not-exist", "stocks", "stocks/a/b", "funds/x/y/z", "docs", "wp-admin"):
         assert seo.is_known(bad) is False, bad
-    assert seo.is_known("stocks/TCS") is None and seo.is_known("glossary/roe") is None and seo.is_known("funds/123456") is True and seo.is_known("sectors/it") is True
+    assert seo.is_known("stocks/TCS") is None and seo.is_known("glossary/roe") is None and seo.is_known("funds/123456") is None and seo.is_known("funds/some-name") is True and seo.is_known("sectors/it") is True
 
 
 def test_the_head_has_one_of_each_tag_and_valid_json_ld():
@@ -96,9 +96,15 @@ def site(tmp_path):
 
     class Conn:
         async def fetchrow(self, q, sym):
+            if "mf_schemes" in q:
+                import datetime as _d
+                return {"name": "Example Banking and PSU Debt Fund", "amc": "Example Mutual Fund", "category": "Income/Debt Oriented Schemes - Banking and PSU Debt Fund", "plan": "Direct",
+                        "option_class": "Growth", "nav": 107.4135, "nav_date": _d.date(2026, 11, 9), "active": sym == 119551, "r1y": 7.5, "r3y": None, "r5y": None}
             return {"name": "Tata Consultancy Services Ltd", "sector": "Information Technology"} if sym == "TCS" else None
 
         async def fetch(self, q, *a):
+            if "mf_schemes" in q:
+                return [{"code": 119551}]
             return [{"symbol": "TCS", "name": "Tata Consultancy Services Ltd", "sector": "Information Technology", "updated_at": None}, {"symbol": "3MINDIA", "name": "3M India Ltd", "sector": None, "updated_at": None}]
 
     class Acq:
@@ -203,3 +209,14 @@ def test_every_link_text_and_address_is_used_once_and_the_heading_words_are_in_t
         text = re.sub(r"<[^>]+>", " ", body.replace(f"<h1>{h1}</h1>", "")).lower()
         assert all(w.lower() in text for w in re.findall(r"[A-Za-z]{4,}", h1)), path
         assert body.count('rel="noopener"') >= 5          # official sources and share links
+
+
+async def test_a_fund_page_has_its_own_head_and_facts_and_only_active_funds_are_offered(site):
+    seo._cache.clear()
+    r = await site.get("/funds/119551")
+    assert r.status_code == 200 and "Example Banking and PSU Debt Fund NAV, Returns and Details | FinLit" in r.text and "Latest NAV Rs 107.4135 on 2026-11-09." in r.text
+    assert f'<link rel="canonical" href="{BASE}/funds/119551">' in r.text and "1 year 7.50%" in r.text and '"@type": "InvestmentFund"' in r.text
+    seo._cache.clear()
+    gone = await site.get("/funds/42")                       # the stand-in database answers every code; an inactive scheme is kept out of search engines
+    assert gone.status_code == 200 and gone.headers.get("x-robots-tag") == "noindex, nofollow"
+    assert f"{BASE}/funds/119551</loc>" in (await site.get("/sitemap.xml")).text
