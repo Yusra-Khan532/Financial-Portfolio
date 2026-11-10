@@ -93,7 +93,7 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
             return seo.render_private(base, p)
         return seo.render_generic(base, p)
 
-    @app.get("/sitemap.xml", include_in_schema=False)
+    @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
     async def sitemap(request: Request):
         redis = request.app.state.store.redis
         try:
@@ -112,7 +112,7 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
                 pass
         return Response(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600", **SITE_HEADERS})
 
-    @app.get("/{path:path}", include_in_schema=False)
+    @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def website(path: str, request: Request):
         if path == "api" or path.startswith("api/"):
             return JSONResponse({"status": "not_found"}, status_code=404, headers={"Cache-Control": "no-store"})

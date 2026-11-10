@@ -10,6 +10,7 @@ import { Icon } from "../lib/icons";
 import { OpenAccess } from "../components/Gate";
 import { useAuth } from "../lib/auth";
 import { Hero } from "./Hero";
+import { Defer } from "./Defer";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { FinancialsSection, PriceSection } from "./Sections";
 import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from "./Sections3";
@@ -93,6 +94,9 @@ export function StockPage() {
   }, [s]);
   const slide = (d: number) => links.current?.scrollBy({ left: d * links.current.clientWidth * 0.6, behavior: "smooth" });
 
+  const [openAll, setOpenAll] = useState(false);
+  const opened = useRef(false);
+  const [shown, setShown] = useState(0);
   useEffect(() => {
     if (!s) return;
     const vis = new Map<string, boolean>();
@@ -102,7 +106,7 @@ export function StockPage() {
     const io2 = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.bottom < 200), { rootMargin: "-130px 0px 0px 0px" });   // gone off the TOP of the screen, not merely below it
     if (hero) io2.observe(hero);
     return () => { io.disconnect(); io2.disconnect(); };
-  }, [s, ratios, fin, own, peers, seg, events, navItems]);
+  }, [s, ratios, fin, own, peers, seg, events, navItems, shown]);
 
   useEffect(() => {
     const a = links.current?.querySelector<HTMLAnchorElement>(`a[data-s="${active}"]`);
@@ -113,7 +117,7 @@ export function StockPage() {
   }, [active]);
 
   // The Prism section hides itself when there is nothing to show; its links then open the Prism page instead.
-  const jump = (id: string) => { const t = document.getElementById(id); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
+  const jump = (id: string) => { const t = document.getElementById(id); if (!t && id !== "prism" && !opened.current) { opened.current = true; setOpenAll(true); setTimeout(() => jump(id), 80); setTimeout(() => jump(id), 600); return; } if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
   const q = useMemo(() => s?.quote, [s]);
 
   const err = (sum.error ?? sum.failureReason) as ApiError | null;   // while it retries, the last answer is the failure reason (it carries the progress)
@@ -158,20 +162,20 @@ export function StockPage() {
         <ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary>
         <ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary>
         <PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} />
-        <ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><SectorPeersSection symbol={symbol} name={s.profile.name} tech={tech} score={s.score} jump={jump} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><LeadershipSection symbol={symbol} name={s.profile.name} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary>
-        <ErrorBoundary section="This section"><MethodSection s={s} /></ErrorBoundary>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SectorPeersSection symbol={symbol} name={s.profile.name} tech={tech} score={s.score} jump={jump} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><LeadershipSection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><MethodSection s={s} /></ErrorBoundary></Defer>
       </div>
       <div className="wrap"><p className="rp-plans" id="plans">Basic, Silver and Gold open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>
       {partial && <div className="prep-toast" role="status"><i aria-hidden="true" />Ownership, peers, segments and announcements are still loading. Everything above is final.</div>}

@@ -8,6 +8,10 @@
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
+	# One address per page: www goes to the bare domain with a permanent redirect (search engines then count one site, not two copies).
+	@www host www.finlitventures.com
+	redir @www https://finlitventures.com{uri} permanent
+
 	# Security headers. "?" = only when the app has not already set the same header.
 	header {
 		?X-Content-Type-Options "nosniff"

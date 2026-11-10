@@ -154,3 +154,21 @@ async def test_a_lookup_failure_serves_the_plain_app_instead_of_an_error(site):
     seo._cache.clear()
     r = await site.get("/stocks/TCS")
     assert r.status_code == 200 and 'id="root"' in r.text
+
+
+async def test_head_requests_are_answered_like_get(site):
+    """Audit tools probe with HEAD; a 405 there is scored as a broken server."""
+    seo._cache.clear()
+    for path in ("/", "/robots.txt", "/sitemap.xml", "/glossary"):
+        assert (await site.head(path)).status_code in (200, 404), path
+
+
+def test_static_pages_carry_real_text_and_many_links_without_scripts():
+    """Audit tools that do not run scripts judge the page by this block: enough words, section headings and internal links."""
+    import re
+    for path in ("", "screener", "sip-calculator"):
+        body = seo.render_static(BASE, path).body
+        words = len(re.sub(r"<[^>]+>", " ", body).split())
+        assert words >= 450 and body.count("<h2") >= 3 and body.count("<a ") >= 30, (path, words)
+        hrefs = re.findall(r'href="(/[^"]*)"', body)
+        assert all(h == "/" or seo.is_known(h.strip("/")) is not False for h in hrefs), [h for h in hrefs if seo.is_known(h.strip("/")) is False]
