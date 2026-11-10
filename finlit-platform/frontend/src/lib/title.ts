@@ -11,5 +11,8 @@ export function useDocTitle(title: string, description?: string) {
     const text = description || siteDescription;
     if (!m && text) { m = document.createElement("meta"); m.name = "description"; document.head.appendChild(m); }
     if (m && text) m.content = text;
+    // the canonical address follows client-side navigation (the server sets it for the first page): this page's own address on the site's own host
+    const c = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (c) c.href = new URL(location.pathname.replace(/\/+$/, "") || "/", c.href).href;
   }, [title, description]);
 }

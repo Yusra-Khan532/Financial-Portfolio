@@ -1,14 +1,17 @@
 import { PageHeader } from "../components/PageHeader";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { LETTERS, TERMS, TOPICS, search } from "../lib/glossary";
 import { useDocTitle } from "../lib/title";
 import "../styles/glossary.css";
 
 export function GlossaryPage() {
-  useDocTitle("Glossary", `FinLit Glossary: ${TERMS.length} investing terms in plain English, from A to Z, with formulas and how FinLit measures them.`);
+  const { id } = useParams();                                   // /glossary/<term>: one term on its own address (searchable and shareable); /glossary: all of them
+  const one = id ? TERMS.find((t) => t.id === id) : undefined;
+  useDocTitle(one ? `${one.term}: meaning and formula` : "Glossary", one ? one.meaning.slice(0, 155) : `FinLit Glossary: ${TERMS.length} investing terms in plain English, from A to Z, with formulas and how FinLit measures them.`);
   const [q, setQ] = useState(""), [letter, setLetter] = useState(""), [topic, setTopic] = useState("");
-  const pool = useMemo(() => TERMS.filter((t) => (!topic || t.topic === topic) && (!letter || t.letter === letter)), [topic, letter]);
+  const pool = useMemo(() => (one ? [one] : TERMS.filter((t) => (!topic || t.topic === topic) && (!letter || t.letter === letter))), [topic, letter, one]);
   const list = useMemo(() => (q.trim() ? search(q, pool) : pool), [q, pool]);
   const counts = useMemo(() => Object.fromEntries(LETTERS.map((l) => [l, TERMS.filter((t) => t.letter === l && (!topic || t.topic === topic)).length])), [topic]);
   useEffect(() => {  // deep link #term-id: show everything, then scroll to the card
@@ -20,6 +23,7 @@ export function GlossaryPage() {
       <PageHeader wrap title="Glossary" art="report" links={["/blog", "/faq", "/research"]} stats={[{ icon: "book", value: TERMS.length, label: "Terms" }]}
         description={<>The language of investing in plain words: <b>{TERMS.length} terms from A to Z</b>. Each says what it means, why it matters and how to use it, with the formula where there is a standard one, and how FinLit measures it. For education only; not investment, tax or legal advice.</>} />
       <div className="wrap gx">
+        {one && <p className="gx-back"><Link to="/glossary">All {TERMS.length} glossary terms</Link></p>}
         <div className="gx-bar">
           <div className="gx-az" role="group" aria-label="Letters">
             <button className={!letter ? "on" : ""} aria-pressed={!letter} onClick={() => setLetter("")}>All</button>
@@ -33,7 +37,7 @@ export function GlossaryPage() {
         </div>
         <div className="gx-list">{list.map((x) => (
           <article className="gx-card" key={x.id} id={x.id}>
-            <header><h3><a href={"#" + x.id}>{x.term}</a></h3><span className="chip gold">{x.topic}</span></header>
+            <header><h3>{one ? x.term : <Link to={`/glossary/${x.id}`}>{x.term}</Link>}</h3><span className="chip gold">{x.topic}</span></header>
             <dl>
               <dt>Meaning</dt><dd>{x.meaning}</dd>
               <dt>Why it matters</dt><dd>{x.why}</dd>

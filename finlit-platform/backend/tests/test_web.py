@@ -8,7 +8,7 @@ from finlit.web import mount_frontend
 @pytest.fixture
 def site(tmp_path):
     (tmp_path / "assets").mkdir()
-    (tmp_path / "index.html").write_text("<html>shell</html>")
+    (tmp_path / "index.html").write_text("<html><head><title>x</title></head><body><div id=\"root\"></div></body></html>")
     (tmp_path / "assets" / "app-abc123.js").write_text("console.log(1)")
     (tmp_path / "robots.txt").write_text("User-agent: *")
     (tmp_path.parent / "secret.txt").write_text("do not serve")
@@ -23,9 +23,10 @@ def site(tmp_path):
 
 
 async def test_files_shell_and_api(site):
-    assert (await site.get("/")).text == "<html>shell</html>"
-    deep = await site.get("/stocks/TCS")  # client-side route: app shell
-    assert deep.status_code == 200 and deep.text == "<html>shell</html>" and deep.headers["cache-control"] == "no-cache"
+    home = await site.get("/")
+    assert "<h1>" in home.text and "<title>" in home.text           # the home page now carries its own title and content
+    deep = await site.get("/stocks/TCS")  # a company address: the app shell (without a database here, the plain shell)
+    assert deep.status_code == 200 and 'id="root"' in deep.text and deep.headers["cache-control"] == "no-cache"
     asset = await site.get("/assets/app-abc123.js")
     assert asset.text == "console.log(1)" and "immutable" in asset.headers["cache-control"]
     assert "default-src 'self'" in deep.headers["content-security-policy"] and deep.headers["x-frame-options"] == "DENY"

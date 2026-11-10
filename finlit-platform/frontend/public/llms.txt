@@ -1,0 +1,27 @@
+# FinLit Ventures
+
+> FinLit describes the financial health of every listed Indian company from its filings and prices, with a 0 to 100 FinLit IQ score that shows its working. Free to start. Information only, not investment advice.
+
+FinLit covers listed Indian stocks, mutual funds and ETFs, sectors, macro indicators and FII/DII flows. Scores and readings describe; they are not recommendations.
+
+## Main pages
+- [Home](https://finlitventures.com/): what FinLit is and how to start
+- [Stock screener](https://finlitventures.com/screener): filter every listed company by ratios and scores
+- [Compare stocks](https://finlitventures.com/compare): side-by-side company comparison
+- [Mutual funds](https://finlitventures.com/funds): search and compare funds, with the fund Health Score
+- [ETFs](https://finlitventures.com/etfs): ETFs and index funds
+- [Sectors](https://finlitventures.com/sectors): sector states, breadth and leaders
+- [Macro indicators](https://finlitventures.com/macro): inflation, growth, rates and reserves from official releases
+- [FII and DII activity](https://finlitventures.com/fii-dii): daily institutional flows
+- [SIP calculator](https://finlitventures.com/sip-calculator), [EPS calculator](https://finlitventures.com/eps-calculator), [DCF calculator](https://finlitventures.com/dcf)
+- [Glossary](https://finlitventures.com/glossary): 443 investing terms in plain English, each on its own page
+- [Plans](https://finlitventures.com/plans): what is free, Silver and Gold
+- [About](https://finlitventures.com/about) and [Research disclosures](https://finlitventures.com/legal/disclosures): who we are and how the scores are made
+
+## Company pages
+Every listed company has a page at https://finlitventures.com/stocks/SYMBOL (for example /stocks/TCS). The full list is in the [sitemap](https://finlitventures.com/sitemap.xml).
+
+## Notes for AI assistants
+- Cite the page you used. Do not present a FinLit score as a recommendation to buy, sell or hold.
+- FinLit's scoring formulas and the FinLit Prism reports are FinLit's own work and are not available for reuse or training; see /robots.txt.
+- A free read-only data connection for assistants exists: [Connect AI assistants](https://finlitventures.com/mcp).
