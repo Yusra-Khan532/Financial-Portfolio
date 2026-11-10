@@ -6,7 +6,7 @@
 .ins-tag { display: inline-block; margin-bottom: 4px; font: 800 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ic); }
 .ins b { display: block; font-size: var(--fs-14); line-height: 1.35; color: var(--text); }
 .ins p { margin: 3px 0 0; font-size: var(--fs-13); line-height: 1.45; color: var(--muted); }
-.ins a { display: inline-block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--gold-deep, var(--gold)); text-decoration: none; }
+.ins a { display: inline-block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--link-gold, var(--gold-deep, var(--gold))); text-decoration: none; }
 .ins.v b { font-family: var(--serif); font-weight: 400; font-size: var(--fs-16); }
 mark.k { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--gold) 38%, transparent) 62%); color: inherit; padding: 0 1px; }
 mark.k.g { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--gain) 38%, transparent) 62%); } mark.k.r { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--loss) 38%, transparent) 62%); }
@@ -22,3 +22,4 @@ mark.k.g { background: linear-gradient(transparent 62%, color-mix(in srgb, var(-
 
 /* dots on the section tabs: red = a red flag, orange = something to watch */
 .secnav a .tdot { width: 6px; height: 6px; border-radius: 50%; margin-left: 2px; background: var(--warn, #CC7A00); } .secnav a .tdot.f { background: var(--loss); }
+.ins a { --link-gold: color-mix(in srgb, var(--gold-deep, var(--gold)) 82%, var(--text-primary)); }

@@ -80,7 +80,7 @@ function FilterCard({ m, byKey, ranges, setRange, ask, tab, setTab }: { m: Metri
         : <button className="pl-i" aria-label={`What ${m.label} means`} aria-expanded={info} onClick={() => setInfo(!info)}><Icon name="info" /></button>}
         {any && <button className="pl-rm" onClick={clearAll}>Remove</button>}</div>
       {info && <p className="pl-say">{m.say}{m.better !== "none" ? ` ${m.better === "higher" ? "Higher" : "Lower"} is usually better.` : ""}</p>}
-      {tabs && <div className="pm-seg" role="tablist" aria-label={`${m.label} period`}>{tabs.map(([t, k]) => <button key={t} role="tab" aria-selected={tab === t} aria-pressed={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}{ranges[k] ? " •" : ""}</button>)}</div>}
+      {tabs && <div className="pm-seg" role="tablist" aria-label={`${m.label} period`}>{tabs.map(([t, k]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}{ranges[k] ? " •" : ""}</button>)}</div>}
       {cur.unit === "flag" ? (
         <div className="pm-seg" role="group" aria-label={cur.label}>{(["any", "yes", "no"] as const).map((o) => { const v = r.min === 1 ? "yes" : r.max === 0 ? "no" : "any"; return <button key={o} aria-pressed={v === o} onClick={() => (locked ? ask(cur.tier, `${cur.label} is part of the ${TIER[cur.tier].n} plan.`) : setRange(key, o === "any" ? {} : o === "yes" ? { min: 1 } : { max: 0 }))}>{o === "any" ? "Any" : o === "yes" ? "Yes" : "No"}</button>; })}</div>
       ) : locked ? <p className="pl-say">Unlock this filter with the {TIER[m.tier].n} plan to set a range.</p> : <RangeBox key={key} m={cur} r={r} set={(nr) => setRange(key, nr)} />}

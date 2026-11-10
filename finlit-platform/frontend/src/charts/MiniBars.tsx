@@ -57,7 +57,7 @@ export function MiniBars({ labels, series, mode = "single", fmt, height = 150, h
                 const fill = mode === "single" && v < 0 ? "var(--loss)" : s.color;
                 return <rect key={s.key} x={x} y={top} width={Math.max(1, w - (mode === "group" ? 1 : 0))} height={Math.max(1.5, bot - top - (mode === "stack" ? 1.5 : 0))} rx={mode === "stack" ? 1 : 3.5} fill={fill} />;
               })}
-              <rect x={X(i) - (W - pl - pr) / n / 2} y={pt} width={(W - pl - pr) / n} height={H - pt - pb} fill="transparent" tabIndex={0} onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)} aria-label={`${l}: ${series.map((s) => `${s.label} ${s.values[i] == null ? "n/a" : fmt(s.values[i] as number)}`).join(", ")}`} style={{ outline: "none" }} />
+              <rect x={X(i) - (W - pl - pr) / n / 2} y={pt} width={(W - pl - pr) / n} height={H - pt - pb} fill="transparent" tabIndex={0} role="img" onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)} aria-label={`${l}: ${series.map((s) => `${s.label} ${s.values[i] == null ? "n/a" : fmt(s.values[i] as number)}`).join(", ")}`} style={{ outline: "none" }} />
             </g>
           );
         })}

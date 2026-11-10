@@ -7,15 +7,15 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { AppShell } from "./components/AppShell";
 import { SearchPalette } from "./components/SearchPalette";
 import { Home } from "./pages/Home";
-import { Research } from "./pages/Research";
-import { PlansPage } from "./pages/Plans";
-import { Services } from "./pages/Services";
-import { About } from "./pages/About";
-import { Why } from "./pages/Why";
-import { Contact } from "./pages/Contact";
-import { FaqsPage } from "./pages/Faqs";
+const Research = lazy(() => import("./pages/Research").then((m) => ({ default: m.Research })));
+const PlansPage = lazy(() => import("./pages/Plans").then((m) => ({ default: m.PlansPage })));
+const Services = lazy(() => import("./pages/Services").then((m) => ({ default: m.Services })));
+const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
+const Why = lazy(() => import("./pages/Why").then((m) => ({ default: m.Why })));
+const Contact = lazy(() => import("./pages/Contact").then((m) => ({ default: m.Contact })));
+const FaqsPage = lazy(() => import("./pages/Faqs").then((m) => ({ default: m.FaqsPage })));
 import { Legal, NotFound } from "./pages/Legal";
-import { Login } from "./pages/Login";
+const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
 import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows";
 
 // Heavier pages load on demand so the first visit stays small and fast.

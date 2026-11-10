@@ -20,7 +20,7 @@ export function Gate({ tier, title, points, children }: { tier: Plan; title: str
         <div className="lock-card">
           <div className="lk-ic"><Icon name="lock" /></div>
           <span className={"tier " + tier}><Icon name={t.ic} />{t.n} plan</span>
-          <h4>{title}</h4>
+          <h4 aria-level={2}>{title}</h4>
           <ul>{points.map((p) => <li key={p}><Icon name="check" /><span>{p}</span></li>)}</ul>
           <button className="btn" onClick={() => upgrade(tier, `${title} is part of ${t.n}.`)}>
             Unlock with {t.n} <Icon name="arrow" />

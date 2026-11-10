@@ -84,7 +84,7 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
 
   return (
     <section className="dp-deep" id="decoding-roe" aria-labelledby={uid + "-h"}>
-      <div className="dp-head"><h4 id={uid + "-h"}><span className="ci"><Icon name="layers" /></span>Decoding ROE</h4><p className="faint">Return on equity can look high or low for reasons that have little to do with how well the business runs. Here it is cleaned of one-off items, split into its causes and checked for gaps and odd jumps.</p></div>
+      <div className="dp-head"><h4 id={uid + "-h"} aria-level={3}><span className="ci"><Icon name="layers" /></span>Decoding ROE</h4><p className="faint">Return on equity can look high or low for reasons that have little to do with how well the business runs. Here it is cleaned of one-off items, split into its causes and checked for gaps and odd jumps.</p></div>
 
       <div className="dp-bar">
         <div className="seg" role="group" aria-label="Show reported or normalized figures">{(["reported", "normalized"] as View[]).map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{v === "reported" ? "Reported" : "Normalized"}</button>)}</div>

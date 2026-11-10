@@ -30,7 +30,7 @@ export function Waterfall({ bars, ariaLabel, height = 250 }: { bars: WfBar[]; ar
               <text x={X(i)} y={y1 - 6} textAnchor="middle" fontSize="11" fontWeight={600} fill="var(--text)" stroke="var(--s1)" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round" fontFamily="IBM Plex Mono, monospace">{text(b)}</text>
               <text x={X(i)} y={H - 22} textAnchor="middle" fontSize="11" fill="var(--muted)">{(tight && b.narrow ? b.narrow : b.label)[0]}</text>
               <text x={X(i)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--muted)">{(tight && b.narrow ? b.narrow : b.label)[1]}</text>
-              <rect x={X(i) - step / 2} y={pt - 14} width={step} height={H - pt + 14} fill="transparent" tabIndex={0} style={{ outline: "none" }} onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)} aria-label={`${b.label.join(" ")}: ${b.kind === "total" ? text(b) : `${b.value > 0 ? "up " : b.value < 0 ? "down " : ""}${nf(b.value, 1)} percentage points`}`} />
+              <rect x={X(i) - step / 2} y={pt - 14} width={step} height={H - pt + 14} fill="transparent" tabIndex={0} role="img" style={{ outline: "none" }} onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)} aria-label={`${b.label.join(" ")}: ${b.kind === "total" ? text(b) : `${b.value > 0 ? "up " : b.value < 0 ? "down " : ""}${nf(b.value, 1)} percentage points`}`} />
             </g>
           );
         })}

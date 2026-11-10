@@ -138,8 +138,8 @@ function Screener() {
         stats={[{ icon: "layers", value: facets.data ? cats.length : null, label: "Categories" }, { icon: "calendar", value: list.data?.runDate, label: "Scores worked out" }]}
         sub={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, with its four parts. {MF_SCORE_COMPLIANCE}</>} />
       <div className="seg" role="tablist" aria-label="View">
-        <button role="tab" aria-selected={q.tab === "table"} aria-pressed={q.tab === "table"} onClick={() => set({ tab: "table" })}>All funds</button>
-        <button role="tab" aria-selected={q.tab === "board"} aria-pressed={q.tab === "board"} onClick={() => set({ tab: "board", subs: q.subs.slice(0, 1) })}>Category leaderboard</button>
+        <button role="tab" aria-selected={q.tab === "table"} onClick={() => set({ tab: "table" })}>All funds</button>
+        <button role="tab" aria-selected={q.tab === "board"} onClick={() => set({ tab: "board", subs: q.subs.slice(0, 1) })}>Category leaderboard</button>
       </div>
       {q.tab === "board" ? <Board q={q} cats={cats} set={set} /> : (<>
         <KpiStrip items={[

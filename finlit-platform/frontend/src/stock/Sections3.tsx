@@ -227,7 +227,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
               return (
                 <g key={i.symbol}>
                   <line x1={CX} y1={CY} x2={x} y2={y} stroke={c} strokeWidth={on ? 2.4 : 1.2} strokeOpacity={on ? 0.9 : 0.35} strokeDasharray={on ? "" : "4 5"} />
-                  <g className="orb-n" tabIndex={0} role="link" aria-label={`Open ${i.name || i.symbol}`} transform={`translate(${x} ${y})`} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onFocus={() => setHv(i.symbol)} onBlur={() => setHv(null)} onClick={() => go(i.symbol)} onKeyDown={(e) => e.key === "Enter" && go(i.symbol)} style={{ cursor: "pointer" }}>
+                  <g className="orb-n" tabIndex={0} role="link" aria-label={`Open ${i.name || i.symbol} (${i.symbol})`} transform={`translate(${x} ${y})`} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onFocus={() => setHv(i.symbol)} onBlur={() => setHv(null)} onClick={() => go(i.symbol)} onKeyDown={(e) => e.key === "Enter" && go(i.symbol)} style={{ cursor: "pointer" }}>
                     <circle r={r + 8} fill={c} opacity={on ? 0.28 : 0.12} /><circle r={r} fill={`color-mix(in srgb, ${c} 30%, var(--s1))`} stroke={c} strokeWidth={on ? 3 : 2} />
                     <text textAnchor="middle" dy=".35em" fontSize={11} fontWeight="700" fontFamily="IBM Plex Mono, monospace" fill="var(--text)">{i.symbol.length > (r > 28 ? 7 : 5) ? i.symbol.slice(0, r > 28 ? 6 : 4) + "…" : i.symbol}</text>
                   </g>

@@ -49,7 +49,7 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
                 acc += v;
                 return <rect key={s.key} x={X(i) - bw / 2} y={y0} width={bw} height={Math.max(1, y1 - y0)} fill={s.color} stroke="var(--s1)" strokeWidth={1} rx={1.5} />;
               })}
-              <rect x={X(i) - slot / 2} y={pt} width={slot} height={H - pt - pb} fill="transparent" tabIndex={0} style={{ outline: "none" }}
+              <rect role="img" x={X(i) - slot / 2} y={pt} width={slot} height={H - pt - pb} fill="transparent" tabIndex={0} style={{ outline: "none" }}
                 onMouseEnter={() => setHv(i)} onFocus={() => setHv(i)} onBlur={() => setHv(null)}
                 onKeyDown={(e) => { if (e.key === "Escape") setHv(null); }}
                 aria-label={`${y}: ${model.series.filter((s) => s.values[i] != null).map((s) => `${s.label} ${rs(s.values[i])}, ${s.shares[i] == null ? "—" : nf(s.shares[i] as number, 1) + "%"}`).join("; ")}`} />
