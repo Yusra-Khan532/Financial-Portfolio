@@ -99,7 +99,7 @@ def site(tmp_path):
             return {"name": "Tata Consultancy Services Ltd", "sector": "Information Technology"} if sym == "TCS" else None
 
         async def fetch(self, q, *a):
-            return [{"symbol": "TCS", "updated_at": None}]
+            return [{"symbol": "TCS", "name": "Tata Consultancy Services Ltd", "sector": "Information Technology", "updated_at": None}, {"symbol": "3MINDIA", "name": "3M India Ltd", "sector": None, "updated_at": None}]
 
     class Acq:
         async def __aenter__(self):
@@ -172,3 +172,19 @@ def test_static_pages_carry_real_text_and_many_links_without_scripts():
         assert words >= 450 and body.count("<h2") >= 3 and body.count("<a ") >= 30, (path, words)
         hrefs = re.findall(r'href="(/[^"]*)"', body)
         assert all(h == "/" or seo.is_known(h.strip("/")) is not False for h in hrefs), [h for h in hrefs if seo.is_known(h.strip("/")) is False]
+
+
+async def test_the_company_directory_lists_every_company_under_its_letter(site):
+    seo._cache.clear()
+    idx = await site.get("/companies")
+    assert idx.status_code == 200 and '<a href="/companies/t">T (1)</a>' in idx.text and '/companies/0-9' in idx.text and "<h1>Listed Indian companies, A to Z</h1>" in idx.text
+    t = await site.get("/companies/t")
+    assert t.status_code == 200 and '<a href="/stocks/TCS">Tata Consultancy Services Ltd (TCS)</a>' in t.text and "Information Technology" in t.text
+    assert f'<link rel="canonical" href="{BASE}/companies/t">' in t.text and "noindex" not in t.text.split("</head>")[0]
+    assert "3M India Ltd" in (await site.get("/companies/0-9")).text
+    empty = await site.get("/companies/q")
+    assert empty.status_code == 200 and empty.headers.get("x-robots-tag") == "noindex, nofollow"      # a letter with no company: not offered to search engines
+    assert (await site.get("/companies/zz")).status_code == 404
+    assert (await site.get("/companies/t/x")).status_code == 404
+    sm = (await site.get("/sitemap.xml")).text
+    assert f"{BASE}/companies</loc>" in sm and f"{BASE}/companies/t</loc>" in sm and f"{BASE}/companies/q</loc>" not in sm
