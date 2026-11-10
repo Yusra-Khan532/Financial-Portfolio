@@ -11,6 +11,10 @@ Disallow: /watchlist
 Disallow: /holdings
 Disallow: /alerts
 Disallow: /api/prism/
+Disallow: /api/scores
+Disallow: /api/v1/scores
+Disallow: /api/stocks/export
+Disallow: /api/stocks/_all
 
 # AI crawlers: no data feeds and no FinLit Prism report (the scores and readings are FinLit's own work)
 User-agent: GPTBot
