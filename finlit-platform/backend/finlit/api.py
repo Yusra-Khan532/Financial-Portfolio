@@ -59,7 +59,8 @@ from .auth import routes as auth_routes
 from .mcp import server as mcp_server
 from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan
 from .auth.mailer import ConsoleMailer, ResendMailer
-from .auth.service import current
+from .auth.service import cookie_name, current
+from .modelguard import ModelGuardMiddleware
 from .config import Settings, get_settings
 from .siteproxy import register_catch_all, register_stock_admin
 from .web import mount_frontend
@@ -292,6 +293,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     install_error_handlers(app)
     # Last added runs first: headers wrap everything, then host check, CORS, rate limit, gzip.
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+    app.add_middleware(ModelGuardMiddleware, cookie=cookie_name(settings), header=settings.client_ip_header)
     app.add_middleware(RateLimitMiddleware, settings=settings)
     app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
