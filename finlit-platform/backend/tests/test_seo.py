@@ -226,3 +226,10 @@ def test_the_organization_names_its_founder_and_linkedin_and_never_a_made_up_pho
     org = seo.organization(BASE)[0]
     assert org["sameAs"] == ["https://www.linkedin.com/company/finlitventures/"] and org["founder"]["name"] == "Nishant Jain"
     assert "telephone" not in json.dumps(org) and "0000000" not in json.dumps(org)
+
+
+def test_a_long_fund_name_is_cut_at_a_whole_word_in_the_title():
+    import datetime
+    row = {"name": "Aditya Birla Sun Life Banking & PSU Debt Fund", "amc": "A", "category": "Debt - Banking", "plan": "Direct", "option_class": "Growth", "nav": 1.0, "nav_date": datetime.date(2026, 11, 9), "active": True}
+    t = seo.render_fund(BASE, 1, row).title
+    assert len(t) <= 70 and "Debt NAV and Returns" in t and "Fun " not in t
