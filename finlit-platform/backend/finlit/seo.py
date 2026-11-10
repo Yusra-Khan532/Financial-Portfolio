@@ -294,7 +294,7 @@ def render_fund(base: str, code: int, row: Dict[str, Any]) -> Rendered:
     plan = " ".join(x for x in (row.get("plan") if row.get("plan") != "Unspecified" else "", row.get("option_class") if row.get("option_class") != "Other" else "") if x)
     title = f"{name} NAV, Returns and Details | {BRAND}"
     if len(title) > 70:
-        title = f"{name[:44].rstrip()} NAV and Returns | {BRAND}"
+        title = f"{name[:46].rsplit(' ', 1)[0].rstrip(' &,-')} NAV and Returns | {BRAND}"      # cut at a whole word
     nav = row.get("nav")
     nav_txt = f"Latest NAV Rs {nav:,.4f} on {row['nav_date'].isoformat()}." if nav and row.get("nav_date") else "The latest NAV is not available yet."
     desc = f"{name}: {cat} from {amc}. {nav_txt} Returns, risk and holdings described from public data. Information only, not investment advice."
