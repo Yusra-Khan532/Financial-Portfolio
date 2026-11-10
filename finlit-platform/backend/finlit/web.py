@@ -93,6 +93,15 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
             if p == "companies":
                 return seo.render_directory(base, None, await directory(request))
             if known is None:
+                if p.startswith("funds/"):
+                    code = int(p.split("/", 1)[1])
+                    hit, row = seo.recall(f"mf:{code}")
+                    if not hit:
+                        async with request.app.state.store.pool.acquire() as conn:
+                            rec = await conn.fetchrow("SELECT name, amc, category, plan, option_class, nav, nav_date, active, r1y, r3y, r5y FROM mf_schemes WHERE code = $1", code)
+                        row = dict(rec) if rec else None
+                        seo.remember(f"mf:{code}", row, 3600.0)  # type: ignore[arg-type]
+                    return seo.render_fund(base, code, row) if row else seo.not_found(base)  # type: ignore[arg-type]
                 if p.startswith("companies/"):
                     return seo.render_directory(base, p.split("/", 1)[1], await directory(request))
                 if p.startswith("stocks/"):
@@ -121,8 +130,13 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
             async with request.app.state.store.pool.acquire() as conn:
                 rows = await conn.fetch("SELECT c.symbol, c.updated_at FROM companies c WHERE EXISTS (SELECT 1 FROM scores s WHERE s.symbol = c.symbol AND s.model = 'v1') ORDER BY c.symbol")
             groups = await directory(request)
+            try:
+                async with request.app.state.store.pool.acquire() as conn:
+                    fund_codes = tuple(r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes WHERE active AND plan = 'Direct' AND option_class = 'Growth' ORDER BY code"))
+            except Exception:   # nosec B110 - no fund table yet: the sitemap just leaves funds out
+                fund_codes = ()
             body = seo.sitemap_xml(base_of(request), [(r["symbol"], r["updated_at"].date() if r["updated_at"] else None) for r in rows], datetime.now(timezone.utc).date(),
-                                   tuple(k for k in seo.DIR_LETTERS if groups.get(k)))
+                                   tuple(k for k in seo.DIR_LETTERS if groups.get(k)), fund_codes)
             try:
                 await redis.set("seo:sitemap:v1", body, ex=3600)
             except Exception:   # nosec B110 - Redis down: built each time

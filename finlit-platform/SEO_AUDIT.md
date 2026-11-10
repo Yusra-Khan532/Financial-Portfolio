@@ -124,7 +124,44 @@ Canonical hostname, what `app.finlitventures.com` is for, contact email/phone/ad
 | Glossary | ⚠️ one address, anchors | ✅ 443 term addresses |
 | llms.txt | ❌ | ✅ |
 | Real content in the first HTML | ❌ empty | ✅ heading and summary per address (companies show no plan-gated data) |
-| Hostname duplicates | ❌ | ⚠️ canonical points to one; redirect waits for the owner (see plan) |
+| Hostname duplicates | ❌ | ✅ `www` redirects (301) to the bare domain; `app.` left alone until the owner says what it is for |
 | Speed, directory, analytics, long-form content | ❌ | next steps in `docs/SEO-SECURITY-PLAN.md` |
 
-Lighthouse after the deploy has to be re-run on the live site; the speed work is a later step, so the 57 is expected to stay until then.
+
+
+## Final results (live site, 10 to 11 November 2026)
+
+| Measure | Baseline | Now |
+|---|---|---|
+| Lighthouse mobile, home: Performance / Accessibility / Best practices / SEO | 57 / 100 / 100 / 100 | 56 / 100 / 100 / 100 (largest paint 4.4 s, blocking time 1,190 ms) |
+| Lighthouse mobile, `/stocks/TCS`: Performance | 39 (blocking time 3,410 ms, largest paint 6.5 s) | 50 (blocking time 830 ms, largest paint 5.4 s) |
+| Lighthouse mobile, `/stocks/TCS`: Accessibility | 84 (local) | 96 |
+| Seobility on-page score, home page (owner's check) | 61% (meta data 86, page quality 52, links 71, server 0, external factors 0) | 85% (meta data 100, page quality 83, structure 100, links 68, server 86, external factors 3); a further round of fixes (unique link texts, heading words in the text, official source and share links) shipped after that check |
+| HEAD requests | 405 error | 200 |
+| `www` | a second full copy | 301 to the bare domain |
+| Words / links the page shows without scripts (home) | 121 / 8 | 661 / 65 |
+| Company directory | none | `/companies` and 27 letter pages |
+| Model-copy guard | none | per-visitor distinct-company budgets, crawl slow-down, trap addresses (`finlit/modelguard.py`) |
+
+Still open: Performance on `/stocks/*` (the heavy main script and the long page), response time (the server is in Sydney: moves to Mumbai when the AWS account is upgraded, owner's decision), backlinks (Seobility "external factors"), analytics and long-form content (Phase 5, needs the owner's answers).
+
+## Launch-day checklist
+1. Search Console: add `https://finlitventures.com` as a domain property, verify (DNS record or the verification setting), submit `https://finlitventures.com/sitemap.xml`.
+2. Bing Webmaster Tools: import from Search Console.
+3. Open `https://finlitventures.com/robots.txt` and `/sitemap.xml`, `/llms.txt`: each answers 200.
+4. `curl -I https://www.finlitventures.com/` shows `301` to the bare domain; `curl -I https://finlitventures.com/` shows 200.
+5. Inspect five URLs in Search Console (home, `/stocks/TCS`, `/companies/t`, `/glossary/dividend-yield`, a fund page): "URL is available to Google", canonical is the bare-domain address.
+6. Run Lighthouse (mobile) on home and one company page; run an SEO checker; record scores.
+7. Paste the home page into the Rich Results Test: Organization and BreadcrumbList are valid.
+8. Share a company link in WhatsApp or LinkedIn: the preview shows title, description and image.
+9. Check `https://finlitventures.com/not-a-page` answers 404 and a private page (`/account`) carries `noindex`.
+10. Confirm the contact details, social links and registration facts are filled in on About and Contact (owner facts needed).
+
+## 90-day ranking growth plan
+**Days 1 to 30: be found.** Verify Search Console and Bing, submit the sitemap, fix every "Excluded" or "Crawled, not indexed" reason shown. Fill the trust pages with the owner's real facts (address, registration, who writes and reviews). Get the first real backlinks: company profile on LinkedIn, Crunchbase, Product Hunt, AngelList, Indian startup directories, the Chrome Web Store listing (links to the site), and the glossary shared where investors ask questions. Decide on analytics (privacy-friendly counter or Google Analytics).
+
+**Days 31 to 60: earn the long tail.** Write 20 long-form pages from the keyword map (each from real product facts: how the FinLit IQ is made, how to read a balance sheet, what each ratio means, sector explainers), each with question-and-answer sections and links to the tools. Add mutual fund category pages. Publish one data-led note a week (for example, what the quarter's results described) with the numbers sourced.
+
+**Days 61 to 90: build authority.** Pitch the data notes to Indian finance writers and communities for links; add a methodology page that others can cite; answer questions on investing forums with links to the glossary where it helps. Move the server to Mumbai when the AWS account is upgraded and re-measure response time. Review Search Console: queries, pages with impressions but low click-through (rewrite titles), pages stuck at positions 8 to 20 (add depth and internal links).
+
+**Every week:** check Search Console coverage and Core Web Vitals; review the `model guard:` log lines; keep the sitemap, `llms.txt` and glossary current.

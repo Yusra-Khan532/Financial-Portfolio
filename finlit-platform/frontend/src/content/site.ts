@@ -4,7 +4,7 @@ export const COMPANY = {
   name: "FinLit Ventures",
   tagline: "Invest with clarity, not noise.",
   email: "finlit.start@gmail.com", // replace with the company email at launch
-  linkedin: "https://www.linkedin.com/company/finlitventures/about/",
+  linkedin: "https://www.linkedin.com/company/finlitventures/",
   disclaimer:
     "FinLit Ventures is a technology company and is not registered with SEBI or AMFI. Research shown here is for information only and is not investment advice.",
 };
