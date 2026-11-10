@@ -71,7 +71,7 @@ const HI = "37,99,235", LO = "217,84,24";   // blue above the median, orange bel
 function heat(x: number | null, med: number | null, spread: number): React.CSSProperties {
   if (x == null || med == null) return {};
   const t = Math.min(1, Math.abs(x - med) / spread), rgb = x >= med ? HI : LO;
-  return { background: `rgba(${rgb}, ${0.2 + t * 0.72})`, ...(t > 0.5 ? { color: "#fff" } : {}) };
+  return { background: `rgba(${rgb}, ${0.2 + t * 0.4})`, color: "var(--text-primary)" };   // text from the theme, tint kept light enough for 4.5:1 in both themes
 }
 
 function Heat({ periods, rows, defs }: { periods: string[]; rows: Record<string, Series>; defs: Def[] }) {
@@ -138,7 +138,7 @@ export function ProfitabilityRatios({ periods, rows }: { periods: string[]; rows
   return (
     <div className="pr">
       <div className="pr-top"><div className="pm-seg" role="tablist" aria-label="How to read it">
-        {([["table", "Table"], ["lines", "Trend lines"], ["change", "Then vs now"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
+        {([["table", "Table"], ["lines", "Trend lines"], ["change", "Then vs now"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
         <span className="faint">Annual · {monthLabel(periods[0])} – {monthLabel(periods[periods.length - 1])}{view === "table" ? " · tap a row to chart it" : view === "lines" ? " · tap a ratio to show or hide it" : " · pick any two years"}</span></div>
       {view === "table" ? <Heat periods={periods} rows={rows} defs={defs} /> : view === "lines" ? <Lines periods={periods} rows={rows} defs={defs} /> : <ThenNow periods={periods} rows={rows} defs={defs} />}
       {defs.length < DEFS.length && <p className="faint pr-miss">Not shown for this company: {DEFS.filter((d) => !defs.includes(d)).map((d) => d.label).join(", ")}. Banks and lenders are not measured on gross, EBITDA or EBIT margin (their interest is their trade, not a cost of making goods), and a ratio also stays out when the company's statements do not hold what it needs.</p>}

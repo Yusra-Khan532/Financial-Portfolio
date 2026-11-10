@@ -1,7 +1,7 @@
 /* Ownership section (section 11): the team's redesign (docs/OWNERSHIP.md). Design tokens only, except the five group colours, which are fixed and set in ownView.ts.
    Type scale: card titles 15px, numbers 13px, notes 12px, nothing under 11px. Controls here are small chips, so the 44px control height of the
    design system is lifted inside .ow (the chips keep a 32px target with 8px gaps, as in the team's reference build). */
-.ow { --ow-line: var(--border-subtle); --ow-chip: var(--bg-subtle); --ow-ink: var(--text-primary); --ow-body: var(--text-body); --ow-muted: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ow { --ow-line: var(--border-subtle); --ow-chip: var(--bg-subtle); --ow-ink: var(--text-primary); --ow-body: var(--text-body); --ow-muted: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .ow .ow-muted { color: var(--ow-muted); } .ow .ow-body { color: var(--ow-body); } .ow .ow-small { font-size: 12px; line-height: 1.4; } .ow .ow-r { text-align: right; }
 .ow a { color: var(--text-link); }
 .ow-row { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; align-items: stretch; }
@@ -115,3 +115,4 @@
   .ow-donut-wrap { gap: 8px; } .ow-d { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .ow-donut circle { transition: none; } }
+.ow-tick { color: var(--text-secondary); opacity: 1; }

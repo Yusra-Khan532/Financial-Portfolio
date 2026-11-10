@@ -32,7 +32,7 @@
 .mo-t { width: 100%; border-collapse: collapse; font-size: 14px; } .mo-t th, .mo-t td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .mo-t thead th { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); } .mo-t .num { text-align: right; font-variant-numeric: tabular-nums; width: 56px; }
 .mo-t tbody th { font-weight: 600; } .mo-t tr.me { background: color-mix(in srgb, var(--gold) 12%, transparent); box-shadow: inset 3px 0 0 var(--gold); }
-.mo-you { display: inline-block; margin-left: 8px; padding: 0 7px; border-radius: 6px; font: 600 11px var(--sans); background: var(--gold); color: #0B192C; }
+.mo-you { display: inline-block; margin-left: 8px; padding: 0 7px; border-radius: 6px; font: 600 11px var(--sans); background: var(--gold-soft); color: var(--text-primary); border: 1px solid var(--gold); }
 .mo-t td:nth-child(2) { width: 22%; }
 .mo .mo-more { min-height: 0; margin-top: 10px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: none; color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
 /* C */
