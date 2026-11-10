@@ -135,6 +135,7 @@ def _head(base: str, path: str, title: str, desc: str, index: bool, ld: List[Dic
     tags = [f"<title>{_e(title)}</title>", f'<meta name="description" content="{_e(desc)}">', f'<meta name="robots" content="{robots}">']
     if index:
         tags.append(f'<link rel="canonical" href="{_e(url)}">')
+        tags.append(f'<link rel="alternate" hreflang="en-IN" href="{_e(url)}"><link rel="alternate" hreflang="x-default" href="{_e(url)}">')
         img = base + OG_IMAGE
         tags += [f'<meta property="og:type" content="{og_type}">', f'<meta property="og:site_name" content="{SITE_NAME}">', f'<meta property="og:locale" content="en_IN">',
                  f'<meta property="og:title" content="{_e(title)}">', f'<meta property="og:description" content="{_e(desc)}">', f'<meta property="og:url" content="{_e(url)}">',
