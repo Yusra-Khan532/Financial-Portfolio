@@ -14,12 +14,14 @@ import html
 import json
 import re
 import time
+from urllib.parse import quote
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from .normalize.glossary import TERMS
 
+_SITE_ROOT = "https://finlitventures.com"
 BRAND = "FinLit"
 SITE_NAME = "FinLit Ventures"
 OG_IMAGE = "/og-finlit-1200x630.png"
@@ -40,6 +42,8 @@ class Page:
 PUBLIC: Dict[str, Page] = {
     "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit IQ that shows its working. Start free.",
              "Every listed Indian stock, scored and explained", "FinLit reads company filings and prices and describes each listed Indian company's financial health with a 0 to 100 score that shows its working. Free to start; information only, not investment advice."),
+    "companies": Page("All Listed Indian Companies, A to Z | FinLit", "Browse every listed Indian company from A to Z with its sector, and open its financial statements, ratios, peers and ownership. Free to start.",
+                      "Listed Indian companies, A to Z", "Every listed Indian company in one alphabetical directory. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership.", "Companies"),
     "research": Page("Stock Research: Company Reports for Indian Stocks | FinLit", "Browse research on listed Indian companies: statements, ratios, peers, ownership and a plain-English reading of each company's financial health.", "Stock research", "Company reports for listed Indian stocks, built from filings and prices.", "Research"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
     "score-screener": Page("Stock Score Screener: Financial Health Scores | FinLit", "Filter Indian stocks by their FinLit IQ score and the pillars behind it: quality, growth, profitability, balance sheet and technical.", "Stock score screener", "Filter listed Indian companies by FinLit IQ and its pillars.", "Score screener"),
@@ -103,6 +107,8 @@ def is_known(path: str) -> Optional[bool]:
         return True
     if p.startswith("stocks/") and p.count("/") == 1 or p.startswith("glossary/") and p.count("/") == 1:
         return None
+    if p.startswith("companies/"):
+        return None if p.count("/") == 1 and p.split("/")[1] in DIR_LETTERS else False
     return any(p.startswith(x + "/") and p.count("/") == x.count("/") + 1 for x in PARAM_PREFIXES)
 
 
@@ -157,22 +163,48 @@ POPULAR = [("Reliance Industries", "RELIANCE"), ("Tata Consultancy Services", "T
 GUIDE_TERMS = ("price-to-earnings-ratio-p-e", "return-on-equity-roe", "return-on-capital-employed-roce", "earnings-per-share-eps", "debt-to-equity-ratio-d-e", "market-capitalisation-market-cap", "dividend-yield", "free-cash-flow-fcf", "operating-margin-opm", "book-value")
 
 
-def _explore(current: str) -> str:
-    """The same helpful block on every page: what the site offers, well-known companies and terms. Gives a reader (and a crawler that does not run scripts) real text and real links."""
-    tools = [(pg.crumb or pg.h1, "/" + k, pg.intro) for k, pg in PUBLIC.items() if k and k != current and pg.index and not k.startswith("legal/")]
+SOURCES = [("Securities and Exchange Board of India (SEBI)", "https://www.sebi.gov.in/"), ("National Stock Exchange of India (NSE)", "https://www.nseindia.com/"),
+           ("BSE Limited", "https://www.bseindia.com/"), ("Reserve Bank of India (RBI)", "https://www.rbi.org.in/"), ("Ministry of Statistics and Programme Implementation (MoSPI)", "https://www.mospi.gov.in/")]
+
+
+def _explore(current: str, taken: set) -> str:
+    """The same helpful block on every page: what the site offers, well-known companies and terms, where the data comes from. Gives a reader (and a crawler that does not run scripts)
+    real text and real links. Each link text and address appears once on the page."""
+    def li(text: str, href: str, tail: str = "", ext: bool = False) -> str:
+        if href in taken or text.lower() in taken:
+            return ""
+        taken.update((href, text.lower()))
+        rel = ' rel="noopener" target="_blank"' if ext else ""
+        return f'<li><a href="{_e(href)}"{rel}>{_e(text)}</a>{_e(tail)}</li>'
+
     out = ["<h2>What you can do on FinLit</h2><p>FinLit turns company filings and prices into plain-English readings of financial health. Every number links back to its working, and every blank says why it is blank. These are the main tools, all free to start.</p><ul>"]
-    out += [f'<li><a href="{_e(u)}">{_e(n)}</a>: {_e(i)}</li>' for n, u, i in tools]
+    out += [li(f"{pg.crumb or pg.h1} on FinLit", "/" + k, f": {pg.intro}") for k, pg in PUBLIC.items() if k and k != current and pg.index and not k.startswith("legal/")]
     out.append("</ul><h2>Well-known companies</h2><p>Open a company report to see its statements, ratios, growth, peers, ownership and filings in one page.</p><ul>")
-    out += [f'<li><a href="/stocks/{sym}">{_e(n)} ({sym}) share analysis</a></li>' for n, sym in POPULAR]
+    out += [li(f"{n} ({sym}) share analysis", f"/stocks/{sym}") for n, sym in POPULAR]
     out.append("</ul><h2>Learn the terms</h2><p>New to reading financial statements? The glossary explains each measure with its formula and an example.</p><ul>")
-    out += [f'<li><a href="/glossary/{tid}">{_e(TERMS[tid]["term"])}</a></li>' for tid in GUIDE_TERMS if tid in TERMS]
-    out.append('<li><a href="/glossary">All glossary terms</a></li></ul>')
+    out += [li(TERMS[tid]["term"], f"/glossary/{tid}") for tid in GUIDE_TERMS if tid in TERMS]
+    out.append("</ul><h2>Where the data comes from</h2><p>FinLit reads public filings and official releases. These are the primary sources it relies on.</p><ul>")
+    out += [li(n, u, ext=True) for n, u in SOURCES]
+    out.append("</ul><h2>Share FinLit</h2><p>Found this useful? Pass it on.</p><ul>")
+    url = quote(f"{_SITE_ROOT}/{current}".rstrip("/"), safe="")
+    out += [li("Share on WhatsApp", f"https://wa.me/?text={url}", ext=True), li("Share on LinkedIn", f"https://www.linkedin.com/sharing/share-offsite/?url={url}", ext=True),
+            li("Share on X", f"https://twitter.com/intent/tweet?url={url}", ext=True), li("Share on Facebook", f"https://www.facebook.com/sharer/sharer.php?u={url}", ext=True)]
+    out.append("</ul>")
     return "".join(out)
 
 
-def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "") -> str:
+_WORD = re.compile(r"[A-Za-z]{4,}")
+
+
+def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "", extra: str = "") -> str:
+    paragraphs = list(paragraphs)
+    seen_text = " ".join(paragraphs).lower()
+    if paragraphs and any(w.lower() not in seen_text for w in _WORD.findall(h1)):
+        paragraphs[0] = f"{h1}. {paragraphs[0]}"      # the heading's words are said in the text too
+    taken: set = set()
+    nav = "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links if u not in taken and not taken.update((u, n.lower())))
     return ('<main data-seo="1" style="max-width:760px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif">' + f"<h1>{_e(h1)}</h1>" + "".join(f"<p>{_e(p)}</p>" for p in paragraphs)
-            + "<nav aria-label=\"Main pages\"><ul>" + "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links) + "</ul></nav>" + _explore(current) + "</main>")
+            + f'<nav aria-label="Main pages"><ul>{nav}</ul></nav>' + extra + _explore(current, taken) + "</main>")
 
 
 def render_static(base: str, path: str) -> Rendered:
@@ -199,6 +231,52 @@ def render_generic(base: str, path: str) -> Rendered:
         return render_private(base, p)
     title = f"{parent.crumb} | {BRAND}" if parent.crumb else parent.title
     return Rendered(200, _head(base, p, title, parent.description, True, [_crumbs(base, [(parent.crumb, "/" + section), (p.rsplit('/', 1)[-1].replace('-', ' ').title(), "/" + p)])]), _body(parent.h1, [parent.intro, DISCLAIMER], NAV), "index", title)
+
+
+DIR_LETTERS = tuple("abcdefghijklmnopqrstuvwxyz") + ("0-9",)
+
+
+def letter_of(name: str) -> str:
+    """The directory page a company name belongs on: its first letter or digit; a digit goes to 0-9."""
+    for ch in name:
+        if ch.isalnum():
+            c = ch.lower()
+            return c if "a" <= c <= "z" else "0-9"
+    return "0-9"
+
+
+def bucket(rows: List[Tuple[str, str, Optional[str]]]) -> Dict[str, List[Tuple[str, str, Optional[str]]]]:
+    out: Dict[str, List[Tuple[str, str, Optional[str]]]] = {k: [] for k in DIR_LETTERS}
+    for sym, name, sector in rows:
+        if SYMBOL.match(sym):
+            out[letter_of(name)].append((sym, name, sector))
+    for v in out.values():
+        v.sort(key=lambda r: (r[1].lower(), r[0]))
+    return out
+
+
+def render_directory(base: str, letter: Optional[str], groups: Dict[str, List[Tuple[str, str, Optional[str]]]]) -> Rendered:
+    """/companies (every letter with its count) or /companies/<letter> (that letter's companies, each a link to its report)."""
+    total = sum(len(v) for v in groups.values())
+    pg = PUBLIC["companies"]
+    nav = "<nav aria-label=\"Letters\"><ul>" + "".join(f'<li><a href="/companies/{k}">{k.upper()} ({len(groups[k])})</a></li>' for k in DIR_LETTERS if groups.get(k)) + "</ul></nav>"
+    if letter is None:
+        desc = f"Browse all {total:,} listed Indian companies from A to Z with their sectors, and open any company's statements, ratios, peers and ownership. Free to start."
+        title = pg.title
+        extra = nav
+        h1, paras, trail = pg.h1, [pg.intro, desc, DISCLAIMER], [("Companies", "/companies")]
+        path = "companies"
+    else:
+        rows = groups.get(letter, [])
+        shown = letter.upper()
+        title = f"Indian Companies Starting with {shown}: List of {len(rows)} | {BRAND}"
+        desc = f"{len(rows)} listed Indian companies whose names start with {shown}, with their sectors. Open any to see its statements, ratios, peers and ownership."
+        extra = nav + f"<h2>Companies starting with {shown}</h2><ul>" + "".join(
+            f'<li><a href="/stocks/{_e(sym)}">{_e(name)} ({_e(sym)})</a>' + (f" · {_e(sec)}" if sec else "") + "</li>" for sym, name, sec in rows) + "</ul>"
+        h1, paras, trail = f"Indian companies starting with {shown}", [f"{len(rows)} listed Indian companies start with {shown}. Each links to its FinLit report: financial statements, ratios, growth, peers, ownership and filings.", DISCLAIMER], [("Companies", "/companies"), (shown, f"/companies/{letter}")]
+        path = f"companies/{letter}"
+    ld = [_crumbs(base, trail), {"@context": "https://schema.org", "@type": "CollectionPage", "name": title, "url": f"{base}/{path}", "description": desc}]
+    return Rendered(200, _head(base, path, title, desc, bool(total) and (letter is None or bool(groups.get(letter))), ld), _body(h1, paras, NAV, path, extra), "index" if (letter is None or groups.get(letter)) else "noindex", title)
 
 
 def render_company(base: str, symbol: str, name: str, sector: Optional[str]) -> Rendered:
@@ -253,7 +331,7 @@ def inject(index_html: str, r: Rendered) -> str:
 
 # ---------------------------------------------------------------------------------------------------------------- sitemap
 
-def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: date) -> str:
+def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: date, letters: Tuple[str, ...] = ()) -> str:
     seen = set()
     rows: List[str] = []
 
@@ -267,6 +345,8 @@ def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: d
         if p == "pricing":
             continue                                  # the same page as /plans, which is the one listed
         add(p, today, "weekly" if p in ("", "news", "results", "ipo", "fii-dii", "macro") else "monthly", "1.0" if not p else "0.8")
+    for lt in letters:
+        add(f"companies/{lt}", today, "weekly", "0.6")
     for tid in TERMS:
         add(f"glossary/{tid}", None, "yearly", "0.5")
     for sym, updated in companies:

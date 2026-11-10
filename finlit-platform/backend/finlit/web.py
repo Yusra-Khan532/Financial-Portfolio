@@ -72,6 +72,17 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
         seo.remember(sym, value)
         return value
 
+    async def directory(request: Request) -> dict:
+        """Every company grouped by the first letter of its name; kept for an hour (one query serves the index, every letter page and the sitemap)."""
+        hit, value = seo.recall("dir:all")
+        if hit and value:
+            return value  # type: ignore[return-value]
+        async with request.app.state.store.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT symbol, name, sector FROM companies ORDER BY lower(name)")
+        groups = seo.bucket([(r["symbol"], r["name"], r["sector"]) for r in rows])
+        seo.remember("dir:all", groups, 3600.0)  # type: ignore[arg-type]
+        return groups
+
     async def rendered(request: Request, path: str) -> Optional[seo.Rendered]:
         """This address's head and content; the 404 version for an address that does not exist; None when a lookup failed (the plain shell is served)."""
         base, p = base_of(request), seo.clean(path)
@@ -79,7 +90,11 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
         if known is False:
             return seo.not_found(base)
         try:
+            if p == "companies":
+                return seo.render_directory(base, None, await directory(request))
             if known is None:
+                if p.startswith("companies/"):
+                    return seo.render_directory(base, p.split("/", 1)[1], await directory(request))
                 if p.startswith("stocks/"):
                     c = await company(request, p.split("/", 1)[1])
                     return seo.render_company(base, p.split("/", 1)[1], c[0], c[1]) if c else seo.not_found(base)
@@ -105,7 +120,9 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
         else:
             async with request.app.state.store.pool.acquire() as conn:
                 rows = await conn.fetch("SELECT c.symbol, c.updated_at FROM companies c WHERE EXISTS (SELECT 1 FROM scores s WHERE s.symbol = c.symbol AND s.model = 'v1') ORDER BY c.symbol")
-            body = seo.sitemap_xml(base_of(request), [(r["symbol"], r["updated_at"].date() if r["updated_at"] else None) for r in rows], datetime.now(timezone.utc).date())
+            groups = await directory(request)
+            body = seo.sitemap_xml(base_of(request), [(r["symbol"], r["updated_at"].date() if r["updated_at"] else None) for r in rows], datetime.now(timezone.utc).date(),
+                                   tuple(k for k in seo.DIR_LETTERS if groups.get(k)))
             try:
                 await redis.set("seo:sitemap:v1", body, ex=3600)
             except Exception:   # nosec B110 - Redis down: built each time

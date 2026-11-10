@@ -43,6 +43,7 @@ const FeedbackPage = lazy(() => import("./pages/Feedback").then((m) => ({ defaul
 const LeadershipLabelPage = lazy(() => import("./pages/LeadershipLabel").then((m) => ({ default: m.LeadershipLabelPage })));
 const ConnectAIPage = lazy(() => import("./pages/ConnectAI").then((m) => ({ default: m.ConnectAIPage })));
 const BrowserExtensionPage = lazy(() => import("./pages/BrowserExtension").then((m) => ({ default: m.BrowserExtensionPage })));
+const CompaniesPage = lazy(() => import("./pages/Companies").then((m) => ({ default: m.CompaniesPage })));
 const GlossaryPage = lazy(() => import("./pages/Glossary").then((m) => ({ default: m.GlossaryPage })));
 const WatchlistPage = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.WatchlistPage })));
 const SectorPulsePage = lazy(() => import("./pages/SectorPulse").then((m) => ({ default: m.SectorPulsePage })));
@@ -148,6 +149,8 @@ export default function App() {
             <Route path="results/quarter" element={<QuarterResultsPage />} />
             <Route path="news" element={<NewsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
+            <Route path="companies" element={<CompaniesPage />} />
+            <Route path="companies/:letter" element={<CompaniesPage />} />
             <Route path="glossary" element={<GlossaryPage />} />
             <Route path="glossary/:id" element={<GlossaryPage />} />
             <Route path="browser-extension" element={<BrowserExtensionPage />} />
