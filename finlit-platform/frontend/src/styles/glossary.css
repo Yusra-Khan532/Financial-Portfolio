@@ -26,3 +26,4 @@
 @media (max-width: 900px) { .gx-list { grid-template-columns: minmax(0, 1fr); } }
 /* graphs.css also defines .gx as a 2-column grid (320px + rest); on the glossary that squeezed the term list into the first column. The glossary lays itself out. */
 .wrap.gx { display: block; }
+.gx-back { margin: 0 0 12px; font-size: var(--fs-14); }

@@ -1,0 +1,156 @@
+"""Search readiness (seo.py and web.py): every address gets its own head and content, unknown addresses a real 404, private pages noindex, one sitemap from the database."""
+import json
+import re
+from pathlib import Path
+
+import httpx
+import pytest
+from fastapi import FastAPI
+
+from finlit import seo
+from finlit.web import mount_frontend
+
+BASE = "https://finlitventures.com"
+ROOT = Path(__file__).resolve().parents[2]
+APP_TSX = (ROOT / "frontend" / "src" / "App.tsx").read_text()
+INDEX = (ROOT / "frontend" / "index.html").read_text()
+
+
+def test_every_public_page_has_a_distinct_title_and_description_of_a_good_length():
+    titles, descs = {}, {}
+    for p, pg in seo.PUBLIC.items():
+        assert 30 <= len(pg.title) <= 70, (p, len(pg.title))
+        assert 90 <= len(pg.description) <= 165, (p, len(pg.description))
+        if p != "pricing":                                           # the same page as /plans
+            assert pg.title not in titles and pg.description not in descs, p
+            titles[pg.title], descs[pg.description] = p, p
+        text = (pg.title + " " + pg.description + " " + pg.intro).lower()
+        assert not re.search(r"\b(buy|sell|hold|avoid|accumulate|multibagger|top pick)\b", text), p
+        assert pg.title.rstrip().endswith(("FinLit", "FinLit Ventures")) or "FinLit" in pg.title, p
+
+
+def test_every_route_in_the_app_is_classified_so_none_is_a_soft_404_by_accident():
+    paths = re.findall(r'<Route path="([^"]+)"', APP_TSX)
+    assert len(paths) > 60
+    for raw in paths:
+        if raw == "*":
+            continue
+        p = raw.replace("/*", "")
+        concrete = re.sub(r":[a-z]+", "x", p)
+        assert seo.is_known(concrete) is not False, f"route {raw} is not known to seo.py: add it to PUBLIC, PRIVATE or PARAM_PREFIXES"
+
+
+def test_unknown_addresses_are_not_known_and_params_need_a_real_parent():
+    for bad in ("this-page-does-not-exist", "stocks", "stocks/a/b", "funds/x/y/z", "docs", "wp-admin"):
+        assert seo.is_known(bad) is False, bad
+    assert seo.is_known("stocks/TCS") is None and seo.is_known("glossary/roe") is None and seo.is_known("funds/123456") is True and seo.is_known("sectors/it") is True
+
+
+def test_the_head_has_one_of_each_tag_and_valid_json_ld():
+    r = seo.render_static(BASE, "screener")
+    page = seo.inject(INDEX, r)
+    assert page.count("<title>") == 1 and page.count('name="description"') == 1 and page.count('rel="canonical"') == 1
+    assert page.count('property="og:title"') == 1 and page.count('name="twitter:card"') == 1 and page.count('property="og:image"') == 1
+    assert f'<link rel="canonical" href="{BASE}/screener">' in page and "max-image-preview:large" in page
+    blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S)
+    assert blocks and all(json.loads(b)["@context"] == "https://schema.org" for b in blocks)
+    crumb = json.loads(blocks[0])
+    assert crumb["@type"] == "BreadcrumbList" and [i["position"] for i in crumb["itemListElement"]] == [1, 2]
+    home = seo.inject(INDEX, seo.render_static(BASE, ""))
+    kinds = [json.loads(b)["@type"] for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', home, re.S)]
+    assert kinds == ["Organization", "WebSite"]
+    assert "<h1>Every listed Indian stock, scored and explained</h1>" in home
+
+
+def test_company_and_term_pages_use_only_facts_we_hold():
+    r = seo.render_company(BASE, "tcs", "Tata Consultancy Services Ltd", "Information Technology")
+    assert "TCS" in r.title and "Share Analysis" in r.title and r.status == 200
+    text = (r.head + r.body).lower()
+    for word in ("aggregaterating", "\"review\"", "ratingvalue", " buy ", " sell ", "target price"):
+        assert word not in text, word                             # no plan-gated score, no invented rating or review, no advice
+    t = seo.render_term(BASE, "52-week-high-and-low")
+    assert t and "DefinedTerm" in t.head and "canonical" in t.head and seo.render_term(BASE, "no-such-term") is None
+
+
+def test_private_pages_are_noindex_and_have_no_canonical_or_social_tags():
+    r = seo.render_private(BASE, "account/profile")
+    assert "noindex, nofollow" in r.head and "canonical" not in r.head and "og:title" not in r.head and r.robots == "noindex"
+    for p in ("dashboard", "console", "admin/login", "login", "holdings", "watchlist", "premium/report/TCS"):
+        assert seo.is_private(p), p
+    assert not seo.is_private("screener") and not seo.is_private("stocks/TCS")
+
+
+def test_the_sitemap_lists_each_canonical_page_once_with_a_date():
+    from datetime import date
+    xml = seo.sitemap_xml(BASE, [("TCS", date(2026, 11, 9)), ("BAD SYMBOL!", None), ("TCS", None)], date(2026, 11, 10))
+    locs = re.findall(r"<loc>(.*?)</loc>", xml)
+    assert len(locs) == len(set(locs)) and f"{BASE}/stocks/TCS" in locs and f"{BASE}/pricing" not in locs and f"{BASE}/plans" in locs
+    assert all("BAD" not in x for x in locs) and any("/glossary/" in x for x in locs) and xml.count("<lastmod>") == len(locs)
+    assert f"{BASE}/account" not in locs and f"{BASE}/dashboard" not in locs
+
+
+@pytest.fixture
+def site(tmp_path):
+    (tmp_path / "index.html").write_text(INDEX)
+    app = FastAPI()
+
+    class Conn:
+        async def fetchrow(self, q, sym):
+            return {"name": "Tata Consultancy Services Ltd", "sector": "Information Technology"} if sym == "TCS" else None
+
+        async def fetch(self, q, *a):
+            return [{"symbol": "TCS", "updated_at": None}]
+
+    class Acq:
+        async def __aenter__(self):
+            return Conn()
+
+        async def __aexit__(self, *a):
+            return False
+
+    class Pool:
+        def acquire(self):
+            return Acq()
+
+    class Redis:
+        async def get(self, k):
+            return None
+
+        async def set(self, *a, **k):
+            return True
+
+    class S:
+        public_site_url = BASE
+
+    app.state.settings, app.state.store = S(), type("St", (), {"pool": Pool(), "redis": Redis()})()
+    assert mount_frontend(app, tmp_path)
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+
+
+async def test_the_server_answers_each_kind_of_address_correctly(site):
+    seo._cache.clear()
+    home = await site.get("/")
+    assert home.status_code == 200 and "<h1>Every listed Indian stock" in home.text and home.headers.get("x-robots-tag") is None
+    tcs = await site.get("/stocks/TCS")
+    assert tcs.status_code == 200 and "Tata Consultancy Services Ltd (TCS)" in tcs.text and f'{BASE}/stocks/TCS' in tcs.text
+    gone = await site.get("/stocks/NOSUCHCO")
+    assert gone.status_code == 404 and "noindex" in gone.text and gone.headers["x-robots-tag"].startswith("noindex")
+    assert (await site.get("/this-page-does-not-exist")).status_code == 404
+    assert (await site.get("/glossary/52-week-high-and-low")).status_code == 200 and (await site.get("/glossary/not-a-term")).status_code == 404
+    acct = await site.get("/account/profile")
+    assert acct.status_code == 200 and acct.headers["x-robots-tag"].startswith("noindex") and 'content="noindex, nofollow"' in acct.text
+    assert "default-src 'self'" in tcs.headers["content-security-policy"] and tcs.headers["cache-control"] == "no-cache"
+
+
+async def test_the_sitemap_and_api_404(site):
+    s = await site.get("/sitemap.xml")
+    assert s.status_code == 200 and s.headers["content-type"].startswith("application/xml") and f"{BASE}/stocks/TCS" in s.text
+    r = await site.get("/api/nothing")
+    assert r.status_code == 404 and r.json() == {"status": "not_found"}
+
+
+async def test_a_lookup_failure_serves_the_plain_app_instead_of_an_error(site):
+    site._transport.app.state.store = None
+    seo._cache.clear()
+    r = await site.get("/stocks/TCS")
+    assert r.status_code == 200 and 'id="root"' in r.text

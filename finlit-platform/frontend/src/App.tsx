@@ -149,6 +149,7 @@ export default function App() {
             <Route path="news" element={<NewsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="glossary" element={<GlossaryPage />} />
+            <Route path="glossary/:id" element={<GlossaryPage />} />
             <Route path="browser-extension" element={<BrowserExtensionPage />} />
             <Route path="account" element={<Account />} />
             <Route path="account/:tab" element={<Account />} />
