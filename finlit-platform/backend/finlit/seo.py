@@ -14,12 +14,14 @@ import html
 import json
 import re
 import time
+from urllib.parse import quote
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from .normalize.glossary import TERMS
 
+_SITE_ROOT = "https://finlitventures.com"
 BRAND = "FinLit"
 SITE_NAME = "FinLit Ventures"
 OG_IMAGE = "/og-finlit-1200x630.png"
@@ -161,22 +163,48 @@ POPULAR = [("Reliance Industries", "RELIANCE"), ("Tata Consultancy Services", "T
 GUIDE_TERMS = ("price-to-earnings-ratio-p-e", "return-on-equity-roe", "return-on-capital-employed-roce", "earnings-per-share-eps", "debt-to-equity-ratio-d-e", "market-capitalisation-market-cap", "dividend-yield", "free-cash-flow-fcf", "operating-margin-opm", "book-value")
 
 
-def _explore(current: str) -> str:
-    """The same helpful block on every page: what the site offers, well-known companies and terms. Gives a reader (and a crawler that does not run scripts) real text and real links."""
-    tools = [(pg.crumb or pg.h1, "/" + k, pg.intro) for k, pg in PUBLIC.items() if k and k != current and pg.index and not k.startswith("legal/")]
+SOURCES = [("Securities and Exchange Board of India (SEBI)", "https://www.sebi.gov.in/"), ("National Stock Exchange of India (NSE)", "https://www.nseindia.com/"),
+           ("BSE Limited", "https://www.bseindia.com/"), ("Reserve Bank of India (RBI)", "https://www.rbi.org.in/"), ("Ministry of Statistics and Programme Implementation (MoSPI)", "https://www.mospi.gov.in/")]
+
+
+def _explore(current: str, taken: set) -> str:
+    """The same helpful block on every page: what the site offers, well-known companies and terms, where the data comes from. Gives a reader (and a crawler that does not run scripts)
+    real text and real links. Each link text and address appears once on the page."""
+    def li(text: str, href: str, tail: str = "", ext: bool = False) -> str:
+        if href in taken or text.lower() in taken:
+            return ""
+        taken.update((href, text.lower()))
+        rel = ' rel="noopener" target="_blank"' if ext else ""
+        return f'<li><a href="{_e(href)}"{rel}>{_e(text)}</a>{_e(tail)}</li>'
+
     out = ["<h2>What you can do on FinLit</h2><p>FinLit turns company filings and prices into plain-English readings of financial health. Every number links back to its working, and every blank says why it is blank. These are the main tools, all free to start.</p><ul>"]
-    out += [f'<li><a href="{_e(u)}">{_e(n)}</a>: {_e(i)}</li>' for n, u, i in tools]
+    out += [li(f"{pg.crumb or pg.h1} on FinLit", "/" + k, f": {pg.intro}") for k, pg in PUBLIC.items() if k and k != current and pg.index and not k.startswith("legal/")]
     out.append("</ul><h2>Well-known companies</h2><p>Open a company report to see its statements, ratios, growth, peers, ownership and filings in one page.</p><ul>")
-    out += [f'<li><a href="/stocks/{sym}">{_e(n)} ({sym}) share analysis</a></li>' for n, sym in POPULAR]
+    out += [li(f"{n} ({sym}) share analysis", f"/stocks/{sym}") for n, sym in POPULAR]
     out.append("</ul><h2>Learn the terms</h2><p>New to reading financial statements? The glossary explains each measure with its formula and an example.</p><ul>")
-    out += [f'<li><a href="/glossary/{tid}">{_e(TERMS[tid]["term"])}</a></li>' for tid in GUIDE_TERMS if tid in TERMS]
-    out.append('<li><a href="/glossary">All glossary terms</a></li></ul>')
+    out += [li(TERMS[tid]["term"], f"/glossary/{tid}") for tid in GUIDE_TERMS if tid in TERMS]
+    out.append("</ul><h2>Where the data comes from</h2><p>FinLit reads public filings and official releases. These are the primary sources it relies on.</p><ul>")
+    out += [li(n, u, ext=True) for n, u in SOURCES]
+    out.append("</ul><h2>Share FinLit</h2><p>Found this useful? Pass it on.</p><ul>")
+    url = quote(f"{_SITE_ROOT}/{current}".rstrip("/"), safe="")
+    out += [li("Share on WhatsApp", f"https://wa.me/?text={url}", ext=True), li("Share on LinkedIn", f"https://www.linkedin.com/sharing/share-offsite/?url={url}", ext=True),
+            li("Share on X", f"https://twitter.com/intent/tweet?url={url}", ext=True), li("Share on Facebook", f"https://www.facebook.com/sharer/sharer.php?u={url}", ext=True)]
+    out.append("</ul>")
     return "".join(out)
 
 
+_WORD = re.compile(r"[A-Za-z]{4,}")
+
+
 def _body(h1: str, paragraphs: List[str], links: List[Tuple[str, str]], current: str = "", extra: str = "") -> str:
+    paragraphs = list(paragraphs)
+    seen_text = " ".join(paragraphs).lower()
+    if paragraphs and any(w.lower() not in seen_text for w in _WORD.findall(h1)):
+        paragraphs[0] = f"{h1}. {paragraphs[0]}"      # the heading's words are said in the text too
+    taken: set = set()
+    nav = "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links if u not in taken and not taken.update((u, n.lower())))
     return ('<main data-seo="1" style="max-width:760px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif">' + f"<h1>{_e(h1)}</h1>" + "".join(f"<p>{_e(p)}</p>" for p in paragraphs)
-            + "<nav aria-label=\"Main pages\"><ul>" + "".join(f'<li><a href="{_e(u)}">{_e(n)}</a></li>' for n, u in links) + "</ul></nav>" + extra + _explore(current) + "</main>")
+            + f'<nav aria-label="Main pages"><ul>{nav}</ul></nav>' + extra + _explore(current, taken) + "</main>")
 
 
 def render_static(base: str, path: str) -> Rendered:

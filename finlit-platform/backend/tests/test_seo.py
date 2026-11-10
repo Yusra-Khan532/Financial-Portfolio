@@ -188,3 +188,18 @@ async def test_the_company_directory_lists_every_company_under_its_letter(site):
     assert (await site.get("/companies/t/x")).status_code == 404
     sm = (await site.get("/sitemap.xml")).text
     assert f"{BASE}/companies</loc>" in sm and f"{BASE}/companies/t</loc>" in sm and f"{BASE}/companies/q</loc>" not in sm
+
+
+def test_every_link_text_and_address_is_used_once_and_the_heading_words_are_in_the_text():
+    """Audit tools flag repeated link texts and a heading whose words the text never says."""
+    import re
+    for path in ("", "screener", "dcf", "companies"):
+        body = seo.render_static(BASE, path).body
+        links = re.findall(r'<a href="([^"]+)"[^>]*>(.*?)</a>', body)
+        texts = [t.lower() for _, t in links]
+        assert len(texts) == len(set(texts)), (path, [t for t in texts if texts.count(t) > 1])
+        assert len({h for h, _ in links}) == len(links), path
+        h1 = re.search(r"<h1>(.*?)</h1>", body).group(1)
+        text = re.sub(r"<[^>]+>", " ", body.replace(f"<h1>{h1}</h1>", "")).lower()
+        assert all(w.lower() in text for w in re.findall(r"[A-Za-z]{4,}", h1)), path
+        assert body.count('rel="noopener"') >= 5          # official sources and share links
