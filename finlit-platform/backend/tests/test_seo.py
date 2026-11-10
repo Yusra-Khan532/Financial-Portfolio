@@ -220,3 +220,9 @@ async def test_a_fund_page_has_its_own_head_and_facts_and_only_active_funds_are_
     gone = await site.get("/funds/42")                       # the stand-in database answers every code; an inactive scheme is kept out of search engines
     assert gone.status_code == 200 and gone.headers.get("x-robots-tag") == "noindex, nofollow"
     assert f"{BASE}/funds/119551</loc>" in (await site.get("/sitemap.xml")).text
+
+
+def test_the_organization_names_its_founder_and_linkedin_and_never_a_made_up_phone():
+    org = seo.organization(BASE)[0]
+    assert org["sameAs"] == ["https://www.linkedin.com/company/finlitventures/"] and org["founder"]["name"] == "Nishant Jain"
+    assert "telephone" not in json.dumps(org) and "0000000" not in json.dumps(org)

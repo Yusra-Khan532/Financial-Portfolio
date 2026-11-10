@@ -124,7 +124,10 @@ def _crumbs(base: str, trail: List[Tuple[str, str]]) -> Dict[str, Any]:
 
 def organization(base: str) -> List[Dict[str, Any]]:
     return [{"@context": "https://schema.org", "@type": "Organization", "name": SITE_NAME, "url": base + "/", "logo": base + "/icon-512.png",
-             "description": "Free, plain-English financial research for Indian investors: company filings and prices described with a 0 to 100 score that shows its working."},
+             "description": "Free, plain-English financial research for Indian investors: company filings and prices described with a 0 to 100 score that shows its working.",
+             "sameAs": ["https://www.linkedin.com/company/finlitventures/"],
+             "founder": {"@type": "Person", "name": "Nishant Jain", "sameAs": "https://www.linkedin.com/in/nishant-jain-1464071ab/"},
+             "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": "finlit.start@gmail.com", "areaServed": "IN", "availableLanguage": "English"}},
             {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME, "url": base + "/"}]
 
 
