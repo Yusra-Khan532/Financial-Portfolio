@@ -17,6 +17,7 @@ import { decodeKeys, encodeKeys } from "../lib/compareSets";
 import { DiversificationCard } from "../components/diversification/DiversificationCard";
 import { LABEL_WORD, PRISM_PARTS, hasPrism, toneOf, type PrismLabel } from "../lib/scorePrism";
 import { CoLogo } from "../components/CoLogo";
+import { useHoverTip } from "../components/HoverTip";
 
 type TabDef = { id: string; label: string; model?: boolean; blurb: string; groups: { title: string; keys: NumKey[] }[] };
 const TABS: TabDef[] = [
@@ -41,6 +42,7 @@ function Ring({ v, band }: { v: number | null; band: string | null }) {
 export function Compare() {
   useDocTitle("Compare companies", "Put companies side by side on size, valuation, quality, growth and price behaviour. Choose exactly which measures to compare.");
   const { has, upgrade, toast } = useUI();
+  const tip = useHoverTip();
   const { data, isLoading, isError } = useUniverse();
   const [sp, setSp] = useSearchParams();
   const [tab, setTab] = useState(() => (sp.has("m") ? "custom" : "overview"));
@@ -144,10 +146,10 @@ export function Compare() {
             {showPrism && (
               <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>The FinLit Prism parts</h3><span className="s">0–100, higher is better (a higher Risk score means lower risk)</span></div>
                 <div className="pil-grid">
-                  <Radar axes={PRISM_PARTS.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PRISM_PARTS.map((x) => r[x.col] ?? null) }))} />
+                  <Radar axes={PRISM_PARTS.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PRISM_PARTS.map((x) => r[x.col] ?? null), tips: PRISM_PARTS.map((x) => r[x.col] == null ? null : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`) }))} />
                   <div>{PRISM_PARTS.map((x) => { const v = picked.map((r) => r[x.col]), top = Math.max(...v.map((n) => n ?? -1)); return (
                     <div className="pil-r" key={x.col}><span className="pil-l">{x.label}</span>
-                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (picked.filter((q) => q[x.col] === top).length === 1 && r[x.col] === top ? " win" : "")}><i style={{ width: `${r[x.col] ?? 0}%` }} /><b>{r[x.col] ?? "—"}</b></div>)}</div></div>); })}</div>
+                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (picked.filter((q) => q[x.col] === top).length === 1 && r[x.col] === top ? " win" : "")} tabIndex={0} {...tip.bind(r[x.col] == null ? `${r.name || r.symbol}\n${x.label}: no score` : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`)}><i style={{ width: `${r[x.col] ?? 0}%` }} /><b>{r[x.col] ?? "—"}</b></div>)}</div></div>); })}</div>
                 </div>
                 <div className="pil-key">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
                 <p className="faint cmp-foot">Describes each company's financial health from its filings and prices. Not a recommendation. A company with no stored rating shows a dash.</p>
@@ -156,10 +158,10 @@ export function Compare() {
             {showIq && <Gate tier="silver" title="Compare the five FinLit pillars" points={["Quality, Growth, Profitability, Balance sheet, Technical", "See where each company is stronger"]}>
               <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="quality" /></span>The five FinLit pillars<ChartHelp id="cmp-pillars" /></h3><span className="s">0–100, higher is better</span></div>
                 <div className="pil-grid">
-                  <Radar axes={PILLARS.map((k) => METRICS[k].short)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PILLARS.map((k) => r[k]) }))} />
+                  <Radar axes={PILLARS.map((k) => METRICS[k].short)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PILLARS.map((k) => r[k]), tips: PILLARS.map((k) => r[k] == null ? null : `${r.name || r.symbol}\n${METRICS[k].short}: ${r[k]} / 100`) }))} />
                   <div>{PILLARS.map((k) => { const w = win(k); return (
                     <div className="pil-r" key={k}><span className="pil-l">{METRICS[k].short}</span>
-                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (w === r.symbol ? " win" : "")}><i style={{ width: `${r[k] ?? 0}%` }} /><b>{r[k] ?? "—"}</b></div>)}</div></div>); })}</div>
+                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (w === r.symbol ? " win" : "")} tabIndex={0} {...tip.bind(r[k] == null ? `${r.name || r.symbol}\n${METRICS[k].short}: no score` : `${r.name || r.symbol}\n${METRICS[k].short}: ${r[k]} / 100`)}><i style={{ width: `${r[k] ?? 0}%` }} /><b>{r[k] ?? "—"}</b></div>)}</div></div>); })}</div>
                 </div>
                 <div className="pil-key">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
               </div>
@@ -227,6 +229,7 @@ export function Compare() {
         {picked.length >= 2 && !data?.sample && <DiversificationCard symbols={picked.map((r) => r.symbol)} listLabel="Compared companies" candidates={rows.map((r) => [r.symbol, r.name || r.symbol] as [string, string])} />}
         <p className="faint cmp-foot">A comparison shows differences; it is not advice to buy or sell. For the full story behind any number, open the company's report{picked[0] && !picked[0].sample ? <> — start with <Link to={`/stocks/${picked[0].symbol}`}>{picked[0].name}</Link></> : null}.</p>
       </div>
+      {tip.node}
     </>
   );
 }

@@ -18,6 +18,17 @@ export type DiversificationProps = {
 
 const Skeleton = () => <div className="dv-skel" role="status" aria-label="Working out the diversification figures"><i style={{ height: 120 }} /><i style={{ height: 60 }} /><i style={{ height: 180 }} /></div>;
 
+/** The list being analysed, always on show (task #78): who is in it and how many. It follows every add, remove or change of the list. */
+function CurrentList({ names, count }: { names: string[]; count: number }) {
+  return (
+    <div className="dv-cur" aria-label="The list being analysed">
+      <span className="dv-cur-i" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg></span>
+      <span className="dv-cur-t"><b>Current list</b><span title={names.join(", ")}>{names.length ? names.join(" + ") : "No names yet"}</span></span>
+      <em className="dv-cur-n">{W.plural(count, "stock")}</em>
+    </div>
+  );
+}
+
 function WhatIf({ base, removed, added, candidates, onToggle, onAdd, onReset }: { base: string[]; removed: Set<string>; added: string[]; candidates: [string, string][]; onToggle: (s: string) => void; onAdd: (s: string) => void; onReset: () => void }) {
   const [text, setText] = useState("");
   const names = useMemo(() => new Map(candidates), [candidates]);
@@ -28,8 +39,7 @@ function WhatIf({ base, removed, added, candidates, onToggle, onAdd, onReset }: 
   };
   const changed = removed.size > 0 || added.length > 0;
   return (
-    <details className="dv-whatif" open={changed || undefined}>
-      <summary>Try a different list</summary>
+    <>
       <p className="dv-note">Leave a name out, or add a name you choose, to see the same figures for that list. FinLit does not suggest names.</p>
       <ul className="dv-chips">{[...base, ...added].map((s) => { const off = removed.has(s); return <li key={s}><button type="button" aria-pressed={off} className={off ? "off" : ""} onClick={() => onToggle(s)}>{s}<span aria-hidden="true">{off ? " +" : " ×"}</span><span className="sr-only">{off ? ", left out. Put back" : ", included. Leave out"}</span></button></li>; })}</ul>
       <form className="dv-add" onSubmit={submit}>
@@ -39,7 +49,7 @@ function WhatIf({ base, removed, added, candidates, onToggle, onAdd, onReset }: 
         <button className="dv-btn" disabled={!text.trim()}>Add</button>
         {changed && <button type="button" className="dv-btn ghost" onClick={onReset}>Back to the original list</button>}
       </form>
-    </details>
+    </>
   );
 }
 
@@ -47,7 +57,8 @@ export function DiversificationCard({ symbols, listLabel, candidates = [], whatI
   const [horizon, setHorizon] = useState<Horizon>("weekly");
   const [riskView, setRiskView] = useState<"equal" | "mcap">("equal"), [riskBy, setRiskBy] = useState<"sector" | "stock">("sector");
   const [removed, setRemoved] = useState<Set<string>>(new Set()), [added, setAdded] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false), [wiOpen, setWiOpen] = useState(false);
+  const nameOf = useMemo(() => new Map(candidates), [candidates]);
   const base = useMemo(() => [...new Set(symbols.map((s) => s.toUpperCase()))], [symbols]);
   const live = useMemo(() => [...base.filter((s) => !removed.has(s)), ...added.filter((s) => !removed.has(s) && !base.includes(s))], [base, removed, added]);
   const weekly = useDiversification(live, "weekly");
@@ -100,7 +111,11 @@ export function DiversificationCard({ symbols, listLabel, candidates = [], whatI
   return (
     <section className="dv" aria-labelledby="dv-title" data-testid="diversification-card">
       <header className="dv-head"><div><p className="dv-eyebrow">Diversification</p><h2 id="dv-title">How spread out these stocks are</h2></div><p className="dv-side">{W.SIDE_NOTE}</p></header>
-      {whatIf && <WhatIf base={base} removed={removed} added={added} candidates={candidates} onToggle={toggle} onAdd={(s) => { if (!live.includes(s) && !added.includes(s)) { if (removed.has(s)) toggle(s); else setAdded([...added, s]); } }} onReset={reset} />}
+      <div className="dv-listrow">
+        <CurrentList names={live.map((x) => nameOf.get(x) || x)} count={live.length} />
+        {whatIf && <button type="button" className={"dv-try" + (wiOpen || removed.size > 0 || added.length > 0 ? " on" : "")} aria-expanded={wiOpen || removed.size > 0 || added.length > 0} aria-controls="dv-whatif" onClick={() => setWiOpen((o) => !o)}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg><span>Try a different list</span><svg className="dv-car" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>}
+      </div>
+      {whatIf && (wiOpen || removed.size > 0 || added.length > 0) && <div id="dv-whatif" className="dv-whatif"><WhatIf base={base} removed={removed} added={added} candidates={candidates} onToggle={toggle} onAdd={(s) => { if (!live.includes(s) && !added.includes(s)) { if (removed.has(s)) toggle(s); else setAdded([...added, s]); } }} onReset={reset} /></div>}
       <div className={"dv-body" + (weekly.isFetching && !weekly.isPending ? " busy" : "")} aria-busy={weekly.isFetching}>{body}</div>
     </section>
   );

@@ -101,7 +101,7 @@ describe("what-if: the person's own choices only", () => {
   it("leaving a name out asks again with that name missing; adding sends the chosen name; the site proposes nothing", async () => {
     wrap(<DiversificationCard symbols={SAMPLE} candidates={[["WIPRO", "Wipro"], ["ITC", "ITC"]]} />);
     await screen.findByText("Fairly spread");
-    fireEvent.click(screen.getByText("Try a different list"));
+    fireEvent.click(screen.getByRole("button", { name: /Try a different list/ }));
     fireEvent.click(screen.getByRole("button", { name: /^TCS/ }));
     await waitFor(() => expect(st.calls.some((c) => !(c.body.symbols as string[]).includes("TCS"))).toBe(true));
     fireEvent.change(screen.getByLabelText("Add a name to the list"), { target: { value: "WIPRO" } });
@@ -116,7 +116,7 @@ describe("wording: the card describes and never advises", () => {
   it("no sentence the card can show contains a word from the Never use list", async () => {
     const { container } = wrap(<DiversificationCard symbols={SAMPLE} candidates={[["WIPRO", "Wipro"]]} />);
     await screen.findByText("Fairly spread");
-    fireEvent.click(screen.getByText("Try a different list"));
+    fireEvent.click(screen.getByRole("button", { name: /Try a different list/ }));
     for (const h of ["monthly", "yearly", "weekly"]) { fireEvent.click(screen.getByRole("radio", { name: new RegExp(h, "i") })); await waitFor(() => expect(container.textContent).toMatch(/Correlations from/)); }
     fireEvent.click(screen.getByRole("radio", { name: "If sized by company value" })); fireEvent.click(screen.getByRole("radio", { name: "By stock" }));
     const text = (container.textContent || "").replace(/([a-z.%)])([A-Z])/g, "$1 $2");

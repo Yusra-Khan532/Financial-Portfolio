@@ -47,3 +47,6 @@
 .cz-zv { min-width: 48px; text-align: center; font: 600 var(--fs-13)/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
 .cz-body .cz-host { zoom: var(--cz-z, 1); }
 @media (max-width: 640px) { .cz-bar { flex-wrap: wrap; } .cz-title { flex-basis: 100%; order: -1; } .cz-zb { min-width: 44px; height: 40px; } .cz-zoom { flex: 1 1 auto; justify-content: space-between; } }
+
+/* the tooltip that follows the pointer over chart points and score bars (components/HoverTip.tsx) */
+.hv-tip { position: fixed; z-index: var(--z-tip, 9999); max-width: 240px; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 600 var(--fs-13)/1.4 var(--sans); white-space: pre-line; pointer-events: none; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
