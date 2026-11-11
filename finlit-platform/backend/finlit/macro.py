@@ -39,6 +39,7 @@ RBI_HOME = "https://www.rbi.org.in/"
 RBI_RSS = "https://rbi.org.in/pressreleases_rss.xml"
 EIA_URL = "https://api.eia.gov/v2/petroleum/pri/spt/data/"   # U.S. Energy Information Administration open data, series RBRTE (public domain)
 EIA_NO_KEY = "Brent: source key not set"
+FRED_BRENT_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"   # the same EIA series (RBRTE) republished by the St. Louis Fed, open and without a key
 WB_PAGE = "https://www.worldbank.org/en/research/commodity-markets"      # World Bank Commodity Price Data ("Pink Sheet"), CC BY 4.0; the page links the current workbook
 WB_FALLBACK = "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
 WB_LINK = re.compile(r"https://thedocs\.worldbank\.org/[^\"'\s<>]*CMO-Historical-Data-Monthly\.xlsx")
@@ -321,11 +322,38 @@ async def step_rbi_home(src: Sources, conn, today: date, full: bool) -> dict:
     return {"points": n, "repo": got["rates"]["repo"]}
 
 
+def parse_fred_brent(text: str) -> "S.Points":
+    """FRED's csv (DATE,DCOILBRENTEU): a blank day is '.', skipped and never filled in."""
+    pts: S.Points = {}
+    for line in text.splitlines()[1:]:
+        d, _, v = line.partition(",")
+        try:
+            pts[date.fromisoformat(d.strip())] = round(float(v), 2)
+        except ValueError:
+            continue
+    return pts
+
+
+async def _fred_brent(src: Sources, full: bool) -> "S.Points":
+    """Brent without an EIA key: the same daily series from FRED (five years the first time, the last 60 days after). Empty when it cannot be read."""
+    start = (date.today() - timedelta(days=1500 if full else 60)).isoformat()
+    src.calls += 1
+    try:
+        r = await src.web.get(FRED_BRENT_URL, params={"id": "DCOILBRENTEU", "cosd": start})
+    except httpx.TransportError:
+        return {}
+    return parse_fred_brent(r.text) if r.status_code == 200 else {}
+
+
 async def step_eia_brent(src: Sources, conn, today: date, full: bool) -> dict:
     """Brent crude (EIA series RBRTE, US$ a barrel, daily). Needs the free EIA key in EIA_API_KEY; without it nothing is loaded and the page says the key is not set
     (a price is never filled in). The first run loads about 5 years, later runs the last 60 days."""
     key = os.getenv("EIA_API_KEY", "").strip()
     if not key:
+        pts = await _fred_brent(src, full or not await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'brent_d'"))
+        if pts:
+            await set_meta(conn, "run:eia_brent", {"status": "ok", "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+            return {"points": await save_points(conn, "brent_d", pts), "latest": max(pts).isoformat(), "via": "FRED"}
         await set_meta(conn, "run:eia_brent", {"status": "nokey", "reason": EIA_NO_KEY, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
         return {"skipped": EIA_NO_KEY}
     have = await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'brent_d'")
