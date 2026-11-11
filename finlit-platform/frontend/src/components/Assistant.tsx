@@ -50,6 +50,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [find, setFind] = useState("");
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
+  const [menuOpen, setMenuOpen] = useState(true);
   const [big, setBig] = useState<boolean>(() => { try { const v = localStorage.getItem("finlit-ai-full"); if (v != null) return v === "1"; } catch { /* private window */ } return typeof window !== "undefined" && window.innerWidth >= 1100; });   // the full window: remembered once chosen, and the first choice on a wide screen (task #59)
   const toggleBig = () => setBig((b) => { try { localStorage.setItem("finlit-ai-full", b ? "0" : "1"); } catch { /* private window */ } return !b; });
   const end = useRef<HTMLDivElement>(null);
@@ -126,9 +127,10 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   return (
     <>
       {open && (
-        <section className={"ai aif" + (big ? " full" : "")} role="dialog" aria-label="FinLit AI assistant">
-          {big && <aside className="aif-side" aria-label="FinLit AI menu">
-            <div className="aif-brand"><Icon name="bars" /><b>FinLit</b><span>AI</span></div>
+        <section className={"ai aif" + (big ? " full" : "") + (big && !menuOpen ? " nomenu" : "")} role="dialog" aria-label="FinLit AI assistant">
+          {big && !menuOpen && <button type="button" className="aif-unfold" onClick={() => setMenuOpen(true)} aria-label="Show the menu" title="Show the menu"><Icon name="bars" /></button>}
+          {big && menuOpen && <aside className="aif-side" aria-label="FinLit AI menu">
+            <div className="aif-brand"><Icon name="bars" /><b>FinLit</b><span>AI</span><button type="button" className="aif-fold" onClick={() => setMenuOpen(false)} aria-label="Hide the menu" title="Hide the menu"><Icon name="bars" /></button></div>
             <nav aria-label="FinLit AI sections">
               <button type="button" className={view === "home" ? "on" : ""} aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}><Icon name="home" />Home</button>
               <button type="button" className={view === "history" ? "on" : ""} aria-current={view === "history" ? "page" : undefined} onClick={() => setView("history")}><Icon name="refresh" />Chat History</button>
@@ -139,20 +141,29 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             <button type="button" className="aif-va" onClick={() => setView("home")}>View all <Icon name="arrow" /></button>
             <Link className="aif-pro" to="/pricing" onClick={() => setOpen(false)}><Icon name="crown" /><span><b>FinLit AI <em>Pro</em></b><small>Deeper analysis · More questions</small></span><Icon name="arrow" /></Link>
           </aside>}
-          <header>
+          <header className={big ? "aif-hd" : undefined}>
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
             {company && view !== "home" && <button type="button" className="aif-change" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>}
             <button type="button" className="aif-full" onClick={toggleBig} aria-pressed={big} aria-label={big ? "Back to the small window" : "Open in a full window"} title={big ? "Back to the small window" : "Full window"}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{big ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg></button>
+            {big && <Link className="aif-help" to="/faq" onClick={() => setOpen(false)} aria-label="Help and frequently asked questions" title="Help"><Icon name="info" /></Link>}
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>
           </header>
           <div className="ai-body">
             {view === "home" && big && <>
-              <div className="aif-hero"><svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><line x1="32" y1="4" x2="32" y2="13" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /><circle cx="32" cy="4" r="3" fill="currentColor" /><rect x="8" y="13" width="48" height="38" rx="14" fill="none" stroke="currentColor" strokeWidth="3" /><circle cx="22" cy="31" r="5" fill="currentColor" /><circle cx="42" cy="31" r="5" fill="currentColor" /><path d="M24 42q8 5 16 0" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+              <div className="aif-hero"><svg className="aif-bot" viewBox="0 0 120 110" width="132" height="120" aria-hidden="true">
+                <defs><radialGradient id="aifbg" cx="50%" cy="55%" r="60%"><stop offset="0" stopColor="currentColor" stopOpacity=".35" /><stop offset="1" stopColor="currentColor" stopOpacity="0" /></radialGradient>
+                  <linearGradient id="aifbh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".28" /><stop offset="1" stopColor="currentColor" stopOpacity=".06" /></linearGradient></defs>
+                <ellipse cx="60" cy="62" rx="58" ry="44" fill="url(#aifbg)" />
+                <line x1="60" y1="8" x2="60" y2="22" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" /><circle cx="60" cy="8" r="4.5" fill="currentColor" />
+                <rect x="22" y="22" width="76" height="62" rx="26" fill="url(#aifbh)" stroke="currentColor" strokeWidth="3.5" />
+                <rect x="32" y="35" width="56" height="36" rx="18" fill="#04120c" fillOpacity=".75" />
+                <circle cx="48" cy="53" r="6.5" fill="currentColor" /><circle cx="72" cy="53" r="6.5" fill="currentColor" />
+                <rect x="14" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /><rect x="98" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /></svg>
                 <h2>Hi, I’m <em>FinLit AI</em></h2><p>Your investing &amp; market research assistant</p></div>
               <ul className="aif-cats" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
-                  <li key={c.id}><button type="button" className="aif-cat" onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
+                  <li key={c.id}><button type="button" className={"aif-cat aif-c-" + c.id} onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
                     <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>))}
               </ul>
               <div className="aif-ex">
