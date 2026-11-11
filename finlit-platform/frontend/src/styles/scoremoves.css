@@ -11,3 +11,13 @@
 .scm-t caption { text-align: left; padding: 6px 0; font: 700 12px var(--sans); letter-spacing: .04em; color: var(--muted); } .scm-t td:first-child { white-space: nowrap; }
 .scm-empty { margin: 8px 0; } .scm-foot { margin: 12px 0 0; font-size: 12px; }
 @media (max-width: 640px) { .scm-sum { font-size: 16px; } .scm-keys { gap: 6px 14px; } }
+/* every recorded day is a dot on its line and a small tick under the chart; the chart can be read with the arrow keys */
+.scm-dot { cursor: crosshair; } .scm-rug { stroke: var(--border-strong); stroke-width: 1; }
+.scm-panel svg:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+.scm-tip small { color: var(--muted); font-size: 11px; }
+/* on a phone the chart keeps a readable width (it scrolls sideways) so the dots, ticks and dates stay clear, and the day's figures sit under it instead of over it */
+@media (max-width: 640px) {
+  .scm-panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .scm-panel svg { min-width: 560px; }
+  .scm-tip { position: sticky; left: 0; top: auto; right: auto; margin: 4px 0 0; width: max-content; max-width: 100%; }
+}

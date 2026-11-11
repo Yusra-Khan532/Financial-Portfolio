@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandWord, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
+import { axisIndexes, bandWord, dotRadius, inForce, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
 import type { HistPoint } from "./prismHistory";
 
 const day = (n: number) => new Date(Date.UTC(2026, 7, 1) + n * 86_400_000).toISOString().slice(0, 10);
@@ -32,5 +32,34 @@ describe("score moves", () => {
   });
   it("no recommendation word in any sentence", () => {
     expect(moveSentence(pts, ["fundamental", "valuation", "quality", "risk", "shortTerm", "longTerm"], "3M")).not.toMatch(/\b(buy|sell|hold|accumulate|reduce|avoid|target|best|good|bad)\b/i);
+  });
+});
+
+describe("every recorded day is readable on the chart", () => {
+  // Valuation is recorded on days 0 and 40 only (Prism re-rated then), the short-term view on every day.
+  const sparse: HistPoint[] = [P(0, 58, 47, 80, 88, -10, -80), { ...P(20, 58, 47, 80, 88, -15, -80), parts: { fundamental: null, valuation: null, quality: null, risk: null } }, P(40, 58, 50, 79, 88, -20, -80)];
+  it("a day with its own figure shows it", () => {
+    expect(inForce(sparse, "valuation", 0)).toEqual({ value: 47, day: day(0), exact: true });
+    expect(inForce(sparse, "shortTerm", 1)).toEqual({ value: -15, day: day(20), exact: true });
+  });
+  it("a day between two ratings shows the rating in force and the day it was made, not a blank", () => {
+    expect(inForce(sparse, "valuation", 1)).toEqual({ value: 47, day: day(0), exact: false });
+    expect(inForce(sparse, "valuation", 2)).toEqual({ value: 50, day: day(40), exact: true });
+  });
+  it("before the first figure there is none, and an index outside the list is none", () => {
+    const late = [{ ...sparse[1] }, sparse[2]];
+    expect(inForce(late, "valuation", 0)).toBeNull();
+    expect(inForce(sparse, "valuation", -1)).toBeNull(); expect(inForce(sparse, "valuation", 9)).toBeNull();
+  });
+  it("few days: every day is labelled; many days: about six evenly spread, always the first and the last", () => {
+    expect(axisIndexes(0)).toEqual([]); expect(axisIndexes(1)).toEqual([0]); expect(axisIndexes(7)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    const many = axisIndexes(250);
+    expect(many[0]).toBe(0); expect(many[many.length - 1]).toBe(249); expect(many).toHaveLength(6);
+    expect(many).toEqual([...many].sort((a, b) => a - b));
+    expect(axisIndexes(8)).toHaveLength(6);
+  });
+  it("the dot is large for a month of days and smaller for a year, but always visible", () => {
+    expect([6, 31, 45].map(dotRadius)).toEqual([3.6, 3.6, 3.6]);
+    expect(dotRadius(90)).toBe(2.6); expect(dotRadius(250)).toBe(1.8); expect(dotRadius(250)).toBeGreaterThanOrEqual(1.5);
   });
 });
