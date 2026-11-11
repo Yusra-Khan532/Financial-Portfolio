@@ -199,6 +199,7 @@ export function OutlookPage() {
               <p>The weights are the team's starting values and have not yet been validated against later results. Reported figures come from the company's own results.</p></details>
           </div>
 
+          <div className={"ol-top" + (mode === "custom" ? " side" : "")}>
           {mode === "custom" && (
             <section className="card ol-assume" aria-labelledby="ol-as-h">
               <div className="ol-assume-h">
@@ -217,6 +218,7 @@ export function OutlookPage() {
               <ChartCard sym={sym} kind="revenue" horizon={horizon} own={own("revenue")} gold={gold} />
               <ChartCard sym={sym} kind="profit" horizon={horizon} own={own("profit")} gold={gold} />
             </div>)}
+          </div>
 
           <div className="ol-tabs" role="tablist" aria-label="Details of the estimate">
             {TABS.map((t, i) => (
@@ -228,12 +230,13 @@ export function OutlookPage() {
               <p className="formerr" role="alert">{err.status === 404 ? "This company's report is not stored yet. Open its page once, then come back." : (err.body?.detail as string) || "Could not load the estimate."}</p>
             ) : d ? (
               <div className={"ol-out" + (q.isFetching ? " is-busy" : "")} aria-busy={q.isFetching}>
-                <BuildTable d={d} />
-                <YearTable d={d} />
-                <Takeaways d={d} model={d.mode === "custom" ? modelQ.data ?? null : null} />
+                <div className="ol-pair"><YearTable d={d} /><Takeaways d={d} model={d.mode === "custom" ? modelQ.data ?? null : null} /></div>
+                <div className="ol-fold3">
+                  <details><summary>How this estimate is built <em>{d.mode === "custom" ? "Your weights" : "FinLit model"}</em></summary><BuildTable d={d} /></details>
+                  <details><summary>Why these inputs and weights</summary><p className="ol-disc">Each year's figure is the year before, grown by one weighted yearly growth rate, made from the company's own growth and its sector's. The weights are the team's starting values and have not yet been validated against later results.</p></details>
+                  <details><summary>Important notes</summary><p className="ol-disc">{d.disclaimer} Information only, not investment advice.</p>{d.isLender && <p className="ol-note" role="note"><Icon name="info" />This is a bank or lender: total income is used as its revenue.</p>}</details>
+                </div>
                 <p className="faint">Latest reported year {d.asOf.yearly ?? "—"} · {d.statement} statements · {d.mode === "custom" ? "your weights" : "FinLit model"}.</p>
-                {d.isLender && <p className="ol-note" role="note"><Icon name="info" />This is a bank or lender: total income is used as its revenue.</p>}
-                <p className="ol-disc">{d.disclaimer} Information only, not investment advice.</p>
               </div>
             ) : null}
           </div>

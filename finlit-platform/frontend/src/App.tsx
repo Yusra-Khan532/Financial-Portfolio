@@ -19,6 +19,7 @@ const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login
 import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows";
 
 // Heavier pages load on demand so the first visit stays small and fast.
+const ReverseValuationPage = lazy(() => import("./pages/ReverseValuation").then((m) => ({ default: m.ReverseValuationPage })));
 const StockPage = lazy(() => import("./stock/StockPage").then((m) => ({ default: m.StockPage })));
 const Portfolio = lazy(() => import("./pages/Portfolio").then((m) => ({ default: m.Portfolio })));
 const FundScoreScreener = lazy(() => import("./pages/FundScoreScreener").then((m) => ({ default: m.FundScoreScreenerPage })));
@@ -131,6 +132,7 @@ export default function App() {
             <Route path="funds/:id" element={<FundDetailPage />} />
             <Route path="watchlist" element={<WatchlistPage />} />
             <Route path="dcf" element={<DcfPage />} />
+            <Route path="reverse-valuation" element={<ReverseValuationPage />} />
             <Route path="outlook" element={<OutlookIndexPage />} />
             <Route path="outlook/:symbol" element={<OutlookPage />} />
             <Route path="research/stress-lab" element={<StressLabIndexPage />} />
