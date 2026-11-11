@@ -1,7 +1,7 @@
 // The screen view: one prebuilt screen as a card (name, card text, match count, as-of date, how it works, its options) with a results table built from the response.
 // Values come from the response only: a missing one is a dash, never zero, and nothing is ranked or recommended here.
 import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
@@ -65,12 +65,16 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead><tr><th scope="col" className="psx-n">#</th>{head("symbol", "Stock", "left", 1)}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
       <tbody>{rows.map((r, i) => (
-        <tr key={r.symbol}>
-          <td className="psx-n">{first + i + 1}</td>
+        <Fragment key={r.symbol}>
+        {d.topCount ? (r.top === true && (i === 0 || rows[i - 1].top !== true)
+          ? <tr className="psx-band"><td colSpan={cols.length + 2}>Top {d.topCount} · the strongest by this screen's score, at most three from one industry</td></tr>
+          : r.top !== true && (i === 0 || rows[i - 1].top === true) && <tr className="psx-band"><td colSpan={cols.length + 2}>{nf(Math.max(0, d.count - d.topCount), 0)} more {d.count - d.topCount === 1 ? "company passes" : "companies pass"} · ranked by the same score</td></tr>) : null}
+        <tr>
+          <td className="psx-n">{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
           <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
-        </tr>))}
+        </tr></Fragment>))}
       </tbody>
     </table></HScroll></TableZoom>);
 }

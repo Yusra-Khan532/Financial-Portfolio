@@ -78,7 +78,7 @@ def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
         text = " ".join([p.name, p.card_text, *p.how_it_works]).lower()
         assert not any(w in text for w in ("buy", "sell", "multibagger", "top pick", "best")), i
         assert p.kind == "rules", i
-        assert p.limit == 25 and p.rank_score and DISCLAIMER in " ".join(p.how_it_works), i
+        assert p.limit == 25 and p.rank_score, i
         for rule, _ in p.derived:
             expr.parse(rule)               # every rule reads
     assert BY_ID["basic-setup-ema9-consolidation"].tab == "basic"

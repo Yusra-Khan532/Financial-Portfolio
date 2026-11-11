@@ -63,6 +63,36 @@ class Frame:
                 if v["r3"] is not None:
                     self._r3[ind] = v["r3"]
 
+    # ---- Quality for lenders (fix 12): a bank or finance company passes a Quality minimum when it ranks as high among lenders as the minimum does among the others
+    def _fit(self, field: str) -> List[Optional[float]]:
+        cache = self.__dict__.setdefault("_fit_cache", {})
+        if field in cache:
+            return cache[field]
+        n = self.t.n
+        raw = [self.get_raw(i, field) for i in range(n)]
+        pool_ok = [(self.get_raw(i, "market_cap") or 0) >= LEADER_FLOOR for i in range(n)]
+        lender = [self.t.cols["is_bank"][i] == 1.0 if "is_bank" in self.t.cols else False for i in range(n)]
+        others = sorted(raw[i] for i in range(n) if raw[i] is not None and pool_ok[i] and not lender[i])
+        lend = sorted(raw[i] for i in range(n) if raw[i] is not None and pool_ok[i] and lender[i])
+        out: List[Optional[float]] = list(raw)
+        if len(others) >= 20 and len(lend) >= 10:
+            for i in range(n):
+                if raw[i] is not None and lender[i]:
+                    p = _pct_in(lend, raw[i])
+                    pos = p * (len(others) - 1)
+                    lo = int(pos)
+                    hi = min(lo + 1, len(others) - 1)
+                    out[i] = others[lo] + (others[hi] - others[lo]) * (pos - lo)
+        cache[field] = out
+        return out
+
+    def get_raw(self, i: int, name: str) -> Any:
+        if name in self.t.cols:
+            v = self.t.cols[name][i]
+            return v if v == v else None
+        z = self.pz[i]
+        return z.get(name)
+
     # ---- fields
     def industry_of(self, i: int) -> Optional[str]:
         return self.industry.get(self.symbols[i])
@@ -115,6 +145,16 @@ class Frame:
         if name == "abs_vs_breakout":                               # how far the price is from the level it broke, either way (the Setups screens rank on closeness)
             v = self.get(i, "vs_breakout")
             return None if v is None else abs(v)
+        if name == "quality_fit":
+            return self._fit("pillar_quality")[i]
+        if name == "prism_quality_fit":
+            return self._fit("prism_quality")[i] if self.has_prism(i) else None
+        if name == "business_watch":                                # how many of the four business scores are in Watch (below 45)
+            vals = [self.get(i, k) for k in ("pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance")]
+            return float(sum(1 for v in vals if v is not None and v < 45))
+        if name == "balance_weak_ex":                               # Balance sheet below 35, except for insurers and brokers, whose policy reserves and client funding read as debt
+            b = self.get(i, "pillar_balance")
+            return None if b is None else (1.0 if b < 35 and self.industry_of(i) not in ("Insurance", "Capital Markets") else 0.0)
         if name == "abs_b2_level":                                  # the same for the version 2 Breakouts screen
             v = self.get(i, "b2_vs_level")
             return None if v is None else abs(v)
@@ -207,7 +247,7 @@ def _n(v: Any) -> str:
 
 PRISM_PARAMS = {  # filter -> (field, plain words)
     "zmin": ("prism_final", "Prism score {n} or more"), "zfmin": ("prism_fundamental", "Prism Growth & Profitability {n} or more"), "zvmin": ("prism_valuation", "Prism Valuation {n} or more"),
-    "zqmin": ("prism_quality", "Prism Quality {n} or more"), "zrmin": ("prism_risk", "Prism Risk {n} or more"),
+    "zqmin": ("prism_quality_fit", "Prism Quality {n} or more (a bank or finance company against other lenders)"), "zrmin": ("prism_risk", "Prism Risk {n} or more"),
     "st": ("prism_st_score", "Short-term technical view {n} or more"), "lt": ("prism_lt_score", "Long-term technical view {n} or more"),
 }
 
@@ -227,7 +267,7 @@ def prism_rules(fr: Frame, pf: Dict[str, Any]) -> List[Rule]:
     for key, (field, words) in PRISM_PARAMS.items():
         if key in pf:
             lim = float(pf[key])
-            out.append(Rule(words.format(n=_n(pf[key])), [(fr.pz[i].get(field) is not None and fr.pz[i].get("prism_status") in SCORED and fr.pz[i][field] >= lim) for i in range(n)]))
+            out.append(Rule(words.format(n=_n(pf[key])), [(fr.get(i, field) is not None and fr.pz[i].get("prism_status") in SCORED and fr.get(i, field) >= lim) for i in range(n)]))
     return out
 
 
@@ -477,6 +517,22 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
         filled = [i for i in taken if i not in set(listed)][:preset.limit - len(listed)]
     rows = [_row(fr, preset, i, pos) for pos, i in enumerate(listed[:preset.limit], 1)]
     rows += [_row(fr, preset, i, pos, ("Trend not confirmed",)) for pos, i in enumerate(filled, len(rows) + 1)]
+    rest: List[int] = []
+    if preset.top10:
+        # fix 10: the top ten first (at most three from one Sector label), then every other company that passes, by the same score; `held` marks a company whose
+        # score would have put it in the top ten but whose Sector label already has its three
+        top = listed[:preset.limit]
+        intop = set(top)
+        rest = [i for i in idx if i not in intop]
+        cut = idx.index(top[-1]) if top and top[-1] in idx else -1
+        for r in rows:
+            r["top"] = True
+        for pos, i in enumerate(rest, len(rows) + 1):
+            r = _row(fr, preset, i, pos)
+            r["top"], r["held"] = False, idx.index(i) < cut
+            if r["held"]:
+                r["badges"] = r["badges"] + ["Industry limit"]
+            rows.append(r)
     out = _base(fr, preset, cfg, active, len(idx), rows)
     if preset.rank_score:
         out["rankScoreNote"] = "Ranked by a weighted score: each input is the company's percentile among its own size group."
@@ -487,9 +543,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if notes:
         out["notes"] = notes
     if preset.top10:
-        out["listText"] = f"Top {preset.limit} of {len(idx)} that pass"      # the Top 10 lists are ten by rule and never page
-    else:
-        out["pageSize"] = PAGE                                                   # the rest page: the API serves ?offset=25, 50 ... from exportRows
+        out["listText"] = f"{len(idx)} pass · the top {preset.limit} first"     # the top ten, then every other company that passes: paged like every screen
+        out["topCount"] = min(preset.limit, len(listed))
+    out["pageSize"] = PAGE                                                       # the API serves ?offset=25, 50 ... from exportRows
     out["cardText"] = render_card(preset, sum(1 for i in range(n) if fr.t.cap[i] == preset.prism_filters.get("cap") and fr.pz[i].get("prism_status") == "RATED") or None) if "{n}" in preset.card_text else preset.card_text
     out["ratedCount"] = sum(1 for i in idx if fr.has_prism(i))
     if preset.id == "fno-both-positive":
@@ -499,7 +555,7 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if not idx:
         out["closestMisses"] = closest_misses(fr, rules)
         out["emptyText"] = "No company meets every rule today."
-    out["exportRows"] = [_row(fr, preset, i, pos) for pos, i in enumerate(listed[:EXPORT_MAX], 1)]
+    out["exportRows"] = rows[:EXPORT_MAX] if preset.top10 else [_row(fr, preset, i, pos) for pos, i in enumerate(listed[:EXPORT_MAX], 1)]
     if not preset.top10 and len(listed) > EXPORT_MAX:
         out["notes"] = out.get("notes", []) + [f"The first {EXPORT_MAX} of {len(listed)} companies are available to page through and export."]
     return out
