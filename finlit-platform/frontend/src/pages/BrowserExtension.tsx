@@ -10,13 +10,20 @@ const TERMS = ["EBITDA", "Return on equity", "Debt to equity", "Reliance Industr
 /** What the card looks like, with example figures (it is a picture of the extension, not live data). */
 function Preview() {
   return (
-    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit score 82 out of 100, Strong, with Growth and Profitability and Technical scores and key figures">
+    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit score 82 out of 100, Strong, with Growth and Profitability and Technical scores, FinLit Prism 78 out of 100 with its four parts for Gold, and key figures">
       <div className="eh"><Icon name="bars" />FinLit Ventures</div>
       <div className="eb">
         <h4>Reliance Industries Ltd</h4><small>RELIANCE · Oil &amp; Gas · example</small>
         <div className="es">
           <div className="eg"><small>FinLit score</small><div><b>82</b> <small>/100</small></div><i>Strong</i></div>
           <div className="eb2"><div><span>Growth &amp; Profitability 84/100</span><i><u style={{ width: "84%" }} /></i></div><div><span>Technical score 76/100</span><i><u style={{ width: "76%" }} /></i></div></div>
+        </div>
+        <div className="ep">
+          <div className="ephd"><b>FinLit Prism</b><span><strong>78</strong> <small>/100</small><i>Healthy</i></span></div>
+          <div className="eb2">
+            {([["Growth & Profitability", 84], ["Valuation", 61], ["Quality", 79], ["Risk", 72]] as const).map(([k, v]) => <div key={k}><span>{k} {v}/100</span><i><u style={{ width: `${v}%` }} /></i></div>)}
+          </div>
+          <small className="epn">Gold plan: the Prism rating and its four parts show on the card. Others see that it is part of Gold.</small>
         </div>
         <div className="ef"><div><small>MCap</small><b>₹19.6 L Cr</b></div><div><small>PE</small><b>26.4</b></div><div><small>ROE</small><b>9.8%</b></div><div><small>Debt/Equity</small><b>0.41</b></div></div>
         <span className="eo">Open full analysis on FinLit</span>
@@ -90,7 +97,7 @@ export function BrowserExtensionPage() {
 
         <div className="ext-three">
           <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 443 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
-          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, Growth &amp; Profitability and Technical scores, market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
+          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, Growth &amp; Profitability and Technical scores, and (on the Gold plan) its FinLit Prism rating with the four parts, plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
           <section className="ext-card"><h3>Private by design</h3><p>It acts only on text you select. It never reads the page or what is around your selection, and the words you select stay in your browser.</p></section>
         </div>
 

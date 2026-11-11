@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FinLit Ventures: select to understand",
   "short_name": "FinLit",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Select a financial term or a listed company on any web page to see its FinLit glossary meaning or FinLit score. Reads only the words you select.",
   "icons": {
     "16": "icons/icon16.png",

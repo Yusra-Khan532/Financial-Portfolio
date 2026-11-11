@@ -87,6 +87,11 @@
 .term h2{margin:0;font:700 22px/1.2 Georgia,"Times New Roman",serif}.term .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}.term .row .chip{margin-left:auto}
 .term p{margin:0 0 10px}.fx{display:flex;gap:8px;background:var(--tint2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:10px;font-size:13px}
 .hint{color:var(--mut);margin:0 0 10px}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chips button{border:1px solid var(--line);background:var(--tint2);color:var(--ink);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}.chips button:hover{border-color:var(--g)}
+.pz{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.pz .h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.pz .h b{font-size:13px;display:flex;align-items:center;gap:6px}
+.pz .v{font:700 20px/1 Georgia,"Times New Roman",serif}.pz .v span{font:500 12px system-ui;color:var(--mut)}
+.pz .bars{gap:8px}.pz .pv{display:flex;align-items:center;gap:8px}
+.pz.off{background:var(--tint2);color:var(--mut);font-size:12px;display:flex;gap:8px;align-items:center}.pz.off a{color:var(--g);font-weight:700;margin-left:auto;white-space:nowrap}
 .lock{display:flex;gap:8px;align-items:flex-start;background:var(--warnbg);color:var(--warn);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px}
 .sk{height:14px;border-radius:7px;background:var(--bar);margin:10px 0;animation:sk 1.1s ease-in-out infinite alternate}@keyframes sk{from{opacity:.5}to{opacity:1}}
 .ft{border-top:1px solid var(--line);padding:8px 14px 10px;font-size:11px;color:var(--mut)}
@@ -194,7 +199,30 @@
     body.replaceChildren(box);
   }
 
-  const bandClass = (w) => (w === "Strong" || w === "Healthy" ? "" : w === "Mixed" ? "mid" : "low");
+  const bandClass = (w) => (w === "Strong" || w === "Healthy" ? "" : w === "Mixed" || w === "Average" ? "mid" : "low");
+  /** FinLit Prism under the FinLit score: its score and label with the four parts for Gold, one line naming it for everyone else, a plain reason when there is no rating. */
+  function prismView(p, site) {
+    if (!p) return null;
+    const name = p.name || "FinLit Prism";
+    if (p.locked) {
+      const o = el("div", "pz off"); o.append(icon("lock", 16), el("span", null, `${name} is part of the Gold plan.`), link(site, "/plans", "", "See plans"));
+      return o;
+    }
+    const box = el("div", "pz"), h = el("div", "h"), t = el("b", null, name);
+    h.appendChild(t);
+    if (p.rated) {
+      const v = el("div", "v", String(p.score)); v.appendChild(el("span", null, " /100"));
+      const right = el("div", "pv"); right.append(v, el("span", "chip " + bandClass(p.label), (p.label || "") + (p.provisional ? " · provisional" : "")));
+      h.appendChild(right); box.appendChild(h);
+      const bars = el("div", "bars");
+      for (const part of p.parts || []) {
+        const b = el("div", "bar"), r = el("div", "r"); r.append(el("span", null, part.label), el("span", null, part.score == null ? "–" : `${part.score}/100`));
+        const i = el("i"); const u = el("u"); u.style.width = `${part.score == null ? 0 : Math.max(0, Math.min(100, part.score))}%`; i.appendChild(u); b.append(r, i); bars.appendChild(b);
+      }
+      box.appendChild(bars);
+    } else { box.append(h, el("p", "hint", p.why || `${name} has no rating for this company yet.`)); }
+    return box;
+  }
   function companyView(body, d, site, others, swap) {
     const frag = document.createDocumentFragment();
     const co = el("div", "co"), who = el("div");
@@ -209,6 +237,7 @@
       frag.appendChild(l);
       const parts = [d.price != null ? `Price ₹${d.price.toLocaleString("en-IN")}` : null, d.marketCapCr ? `Market value ${fmtCr(d.marketCapCr)}` : null].filter(Boolean);
       if (parts.length) frag.appendChild(el("p", "hint", parts.join(" · ")));
+      const pzL = prismView(d.prism, site); if (pzL) frag.appendChild(pzL);
       frag.appendChild(link(site, d.signedIn ? "/plans" : "/login", "btn ghost", d.signedIn ? "See plans" : "Sign in to FinLit"));
     } else if (d.score != null) {
       const sc = el("div", "sc"), big = el("div", "big");
@@ -221,6 +250,7 @@
         const i = el("i"); const u = el("u"); u.style.width = `${v == null ? 0 : Math.max(0, Math.min(100, v))}%`; i.appendChild(u); b.append(r, i); bars.appendChild(b);
       }
       sc.append(big, bars); frag.appendChild(sc);
+      const pz = prismView(d.prism, site); if (pz) frag.appendChild(pz);
       const f = d.figures || {}, fig = el("div", "fig");
       for (const [k, v] of [["MCap", d.marketCapCr ? fmtCr(d.marketCapCr) : "–"], ["PE", f.pe == null ? "–" : f.pe.toFixed(1)], ["ROE", f.roe == null ? "–" : `${f.roe.toFixed(1)}%`], ["Debt/Equity", f.debtToEquity == null ? "–" : f.debtToEquity.toFixed(2)]]) {
         const c = el("div"); c.append(el("small", null, k), el("b", null, v)); fig.appendChild(c);

@@ -1,6 +1,6 @@
 # FinLit browser extension (task #54)
 
-Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score**
+Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score** (and, on the Gold plan, its **FinLit Prism** rating with the four parts)
 (Growth & Profitability and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
@@ -47,4 +47,4 @@ Listing: **FinLit Ventures: select to understand.** Select any financial term or
 
 ## Not in version 1 (suggestions)
 
-Firefox build; a "my watchlist" mark on a company card; the NSE/BSE-listed ETFs and mutual funds; showing the Prism score to Gold.
+Firefox build; a "my watchlist" mark on a company card; the NSE/BSE-listed ETFs and mutual funds.
