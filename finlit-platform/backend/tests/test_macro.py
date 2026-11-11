@@ -331,3 +331,22 @@ def test_the_dashboard_layout_accepts_third_width_blocks():
     from finlit.auth.routes import PrefsIn
     p = PrefsIn(dashboard=[{"id": "mystocks", "on": True, "size": "full"}, {"id": "ipos", "on": True, "size": "third"}])
     assert [w.size for w in p.dashboard] == ["full", "third"]
+
+
+def test_fred_brent_csv_skips_blank_days():
+    got = macro.parse_fred_brent("observation_date,DCOILBRENTEU\n2026-11-02,107.39\n2026-11-03,.\n2026-11-04,107.03\nbad,1\n")
+    assert got == {D(2026, 11, 2): 107.39, D(2026, 11, 4): 107.03}
+
+
+@pytest.mark.integration
+async def test_brent_without_an_eia_key_comes_from_fred(mstore, monkeypatch):
+    monkeypatch.delenv("EIA_API_KEY", raising=False)
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.host == "fred.stlouisfed.org":
+            assert req.url.params["id"] == "DCOILBRENTEU"
+            return httpx.Response(200, text="observation_date,DCOILBRENTEU\n2026-11-02,107.39\n2026-11-03,107.03\n")
+        return httpx.Response(404)
+    res = await macro.refresh(mstore, transport=httpx.MockTransport(handler), today=D(2026, 11, 4), only=["eia_brent"])
+    assert res["steps"]["eia_brent"]["status"] != "skipped"
+    async with mstore.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'brent_d'") == 2
