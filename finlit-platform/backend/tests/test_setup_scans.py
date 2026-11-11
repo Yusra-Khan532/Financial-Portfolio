@@ -111,8 +111,8 @@ def _frame(rows, prism):
 
 
 PRE = dict(ret_1y=30, vs_ema50=4, vs_ema200=9, pct_from_high=5, days_since_high=20, range_10d=5, atr_ratio=0.7, rsi14=55, pillar_technical=70, market_cap=5000)
-PULL = dict(ret_1y=30, vs_ema50=3, vs_ema200=8, b2_age=8, b2_pullback=6, b2_vs_level=1, vs_ema20=-1, rsi14=50, pillar_technical=65, market_cap=5000)
-EMA9 = dict(ret_1y=30, vs_ema50=6, ema_stack=1, ema9_above4=1, vs_ema9=1.5, ema9_near4=1, ema9_touch4=1, range_4d=3, rsi14=60, pillar_technical=70, market_cap=5000)
+PULL = dict(b2_vol_x=2.0, ret_1y=30, vs_ema50=3, vs_ema200=8, b2_age=8, b2_pullback=6, b2_vs_level=1, vs_ema20=-1, rsi14=50, pillar_technical=65, market_cap=5000)
+EMA9 = dict(turnover20_cr=5.0, ret_1y=30, vs_ema50=6, ema_stack=1, ema9_above4=1, vs_ema9=1.5, ema9_near4=1, ema9_touch4=1, range_4d=3, rsi14=60, pillar_technical=70, market_cap=5000)
 
 
 def _ids(body):
@@ -122,9 +122,9 @@ def _ids(body):
 @pytest.mark.parametrize("card,base,fails", [
     ("basic-setup-pre-breakout", PRE, [dict(pct_from_high=9), dict(days_since_high=10), dict(range_10d=11), dict(atr_ratio=1.2), dict(rsi14=70), dict(pillar_technical=50),
                                        dict(market_cap=1500), dict(vs_ema200=3), dict(ret_1y=None)]),
-    ("basic-setup-breakout-pullback", PULL, [dict(b2_age=2), dict(b2_age=26), dict(b2_pullback=1), dict(b2_pullback=13), dict(b2_vs_level=7), dict(b2_vs_level=-4), dict(vs_ema20=-6),
+    ("basic-setup-breakout-pullback", PULL, [dict(b2_age=2), dict(b2_age=26), dict(b2_vol_x=1.2), dict(b2_pullback=1), dict(b2_pullback=13), dict(b2_vs_level=7), dict(b2_vs_level=-4), dict(vs_ema20=-6),
                                              dict(vs_ema50=-1), dict(rsi14=70), dict(pillar_technical=40), dict(market_cap=1500)]),
-    ("basic-setup-ema9-consolidation", EMA9, [dict(ema_stack=0), dict(ema9_above4=0), dict(vs_ema9=3.5), dict(ema9_near4=0), dict(ema9_touch4=0), dict(range_4d=7), dict(vs_ema50=-1),
+    ("basic-setup-ema9-consolidation", EMA9, [dict(ema_stack=0), dict(turnover20_cr=0.5), dict(ema9_above4=0), dict(vs_ema9=3.5), dict(ema9_near4=0), dict(ema9_touch4=0), dict(range_4d=7), dict(vs_ema50=-1),
                                               dict(pillar_technical=50), dict(market_cap=500)]),
 ])
 def test_basic_setup_cards_keep_a_company_that_meets_every_rule_and_drop_one_that_misses_any(card, base, fails):

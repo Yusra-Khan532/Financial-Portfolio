@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 12      # 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 13      # 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
@@ -92,7 +92,7 @@ class Preset:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Breakouts"), ("chart-patterns", "Chart patterns"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Breakouts"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
                                  ("safety", "Safety"), ("ownership", "Ownership"), ("prism-basics", "Prism basics")]
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
@@ -277,7 +277,8 @@ def _between(field: str, lo: float, hi: float, label: str) -> Tuple[str, str]:
     return (f"{field} >= {lo:g} and {field} <= {hi:g}", label)
 
 
-VOLUME_TESTS = False   # fix 8 of the handover: the daily volume is rebuilt from NSE's bhavcopy first; until then the two volume tests (breakout day, value traded) stay off
+import os as _os
+VOLUME_TESTS = _os.environ.get("BHAV_VOLUME", "on").lower() != "off"   # fix 8: the volume is NSE's full-day figure (finlit/bhav_volume.py), so the two volume tests (breakout day, value traded) are on; BHAV_VOLUME=off switches them off
 FULL_YEAR = ("missing(ret_1y) = 0", "A full year of prices")
 S_B2AGE = Col("b2_age", "Sessions since the breakout", "num1")
 S_B2LEV = Col("b2_level", "Breakout level (Rs)", "num1")
@@ -348,7 +349,7 @@ QUICK_VIEWS: List[Preset] = [
 # ------------------------------------------------------------------------------------------------------------------------------ the Basic tab (Silver)
 # Built only from what the Basic score screener shows: the FinLit IQ, its pillars (Quality, Growth, Profitability, Balance sheet, Technical), the Growth & Profitability
 # score (the average of the four business pillars, needs 3 of 4), market cap, Sector, 52-week and return fields. Every rule is a "derived" rule with a plain-words label.
-BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
+BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "gainers": "top-gainers", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
 B_TECH = Col("pillar_technical", "Technical", "score")
 B_QUAL = Col("pillar_quality", "Quality", "score")
 B_GROW = Col("pillar_growth", "Growth", "score")
@@ -484,6 +485,18 @@ BASIC += [
     Preset(f"basic-pattern-{k}", _PNAMES[k], BASIC_GROUP["patterns"], _PTEXTS[k], "pattern", _m(), "", (), (("overall", "desc"),), 25,
            (RANK, STOCK, FINLIT, B_TECH) + _pcols(k) + (SECTOR, MCAP), (), (), False, None, (), k, "basic")
     for k in _SCANS]
+
+# Top gainers (Today, This week, This month): companies our screens listed, ranked by the rise since the day they joined. Stored nightly (presets/history.py).
+GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the previous close, ranked by how far the price has risen since."),
+            ("week", "This week", "Companies that joined a screen of this page at one of the last 5 closes, ranked by how far the price has risen since."),
+            ("month", "This month", "Companies that joined a screen of this page at one of the last 21 closes, ranked by how far the price has risen since."))
+GAIN_COLS = (Col("joined", "Joined", "text", "left"), Col("screen", "Screen it came from", "text", "left"), Col("closeJoined", "Close when it joined", "num1"), Col("since", "Since it joined", "pct"),
+             Col("bench", "NIFTY 500, same days", "pct"), Col("highest", "Highest close since", "pct"), Col("stillOn", "Still on it", "text", "left"))
+GAINERS: List[Preset] = [
+    Preset(f"{'basic-' if tab == 'basic' else ''}gainers-{w}", f"Top gainers: {name}", "top-gainers", text, "gainers", _m(), "", (), (), 20, (RANK, STOCK) + GAIN_COLS + (SECTOR, MCAP), (), (), False, None, (), "top gainers", tab)
+    for tab in ("basic", "advanced") for w, name, text in GAIN_WIN]
+PRESETS = PRESETS + [p for p in GAINERS if p.tab == "advanced"]
+BASIC = BASIC + [p for p in GAINERS if p.tab == "basic"]
 
 ADVANCED: List[Preset] = list(PRESETS)
 PRESETS = PRESETS + BASIC

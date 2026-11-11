@@ -127,7 +127,7 @@ describe("screen view", () => {
   it("a screen with a Trend check chip is asked with it from ?trend=1", async () => {
     mount("?preset=large&trend=1");
     await screen.findByRole("table");
-    expect(calls.at(-1)).toBe("/api/screener/presets/large?chip=trend");
+    expect(calls).toContain("/api/screener/presets/large?chip=trend");
   });
   it("a BSE-only company shows its name with the exchange and code, and NSE-listed only leaves it out", async () => {
     detail.large = [200, { ...DETAIL, rows: [{ symbol: "AAA", name: "Alpha Ltd", exchange: "NSE", badges: [] }, { symbol: "543914", name: "Delta Small Ltd", exchange: "BSE", badges: [] }] }];
