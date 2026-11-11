@@ -22,6 +22,7 @@ import { Dash } from "./cells";
 import { FindStocksTabs } from "./FindStocksTabs";
 import type { Screener } from "./useScreener";
 import { CoLogo } from "../CoLogo";
+import { ChartPanel, type PanelRow } from "./ChartPanel";
 
 export type Tile = [label: string, value: string, why?: string];
 
@@ -65,6 +66,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
   const [sideW, setSide] = useSideWidth(splitKey);
   const { isAdmin } = useAuth();
   const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
+  const [chart, setChart] = useState<PanelRow | null>(null);
   const [collapsed, setCollapsed] = useState(false), [want, setWant] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });
   const showPanel = (id: string | null) => { if (narrow()) setDrawer(true); else setCollapsed(false); if (id) setWant((w) => ({ id, n: w.n + 1 })); };
   const kpis: Kpi[] = tiles.slice(0, -1).map(([label, value, why], i) => ({ icon: KPI_ICONS[i] ?? "layers", label, value, why }));
@@ -159,7 +161,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   <tbody>{pg.view.map((r, i) => {
                     const on = sel.includes(r.symbol);
                     return (
-                    <tr key={r.symbol} className={on ? "sx-sel" : ""}>
+                    <tr key={r.symbol} className={(on ? "sx-sel " : "") + (chart?.symbol === r.symbol ? "cp-row" : "")} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,a,button,select")) setChart(r); }}>
                       <td><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n">{pg.page * size + i + 1}</td>
                       <td className="stick"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
@@ -167,7 +169,8 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                       <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
                       <td className="ss-sec">{r.sector || <Dash why="sector not listed" />}</td>
                       {cells(r)}
-                      <td className="ss-act"><Link className="btn" to={`/stocks/${r.symbol}`} aria-label={`Open ${r.symbol} report`}>Report</Link>
+                      <td className="ss-act"><button type="button" className="btn" onClick={() => setChart(r)} aria-label={`Open ${r.symbol} chart`}>Chart</button>
+                        <Link className="btn" to={`/stocks/${r.symbol}`} aria-label={`Open ${r.symbol} report`}>Report</Link>
                         <button type="button" className={"btn" + (watch.has(r.symbol) ? " on" : "")} aria-pressed={watch.has(r.symbol)} aria-label={`${watch.has(r.symbol) ? "Remove" : "Add"} ${r.symbol} ${watch.has(r.symbol) ? "from" : "to"} watchlist`} onClick={() => s.addWatch(r.symbol)}><Icon name="wallet" /></button></td>
                     </tr>);
                   })}
@@ -192,6 +195,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
         </div>
       </div>
       {s.how && how}
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}
     </>
   );
 }
