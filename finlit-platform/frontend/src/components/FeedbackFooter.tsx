@@ -11,3 +11,9 @@ export function FeedbackFooter({ what = "report" }: { what?: "report" | "dashboa
     </aside>
   );
 }
+
+/** Which pages get the block (task #67): every page of every report, and every page of the dashboard area. One place decides, so a new report page gets it without any edit. */
+const REPORTS = [/^\/stocks\/[^/]+/, /^\/prism\/[^/]+/, /^\/premium(\/|$)/, /^\/outlook\/[^/]+/, /^\/research\/stress-lab\/[^/]+/, /^\/dcf(\/|$)/, /^\/compare(\/|$)/, /^\/funds\/(?!screener|compare|insights)[^/]+$/, /^\/diversification(\/|$)/];
+const DASHBOARD = /^\/(dashboard|portfolio|watchlist|mf-portfolio)(\/|$)/;
+export const feedbackKind = (path: string): "report" | "dashboard" | null => (DASHBOARD.test(path) ? "dashboard" : REPORTS.some((r) => r.test(path)) ? "report" : null);
+export function FeedbackFooterFor({ path }: { path: string }) { const k = feedbackKind(path); return k ? <div className="wrap"><FeedbackFooter what={k} /></div> : null; }

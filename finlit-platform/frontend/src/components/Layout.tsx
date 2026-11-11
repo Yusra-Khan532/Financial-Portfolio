@@ -2,6 +2,7 @@ import { ExtensionBanner } from "./ExtensionBanner";
 import { Fragment, useEffect, useState } from "react";
 import { initDepth } from "../lib/depth";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { FeedbackFooterFor } from "./FeedbackFooter";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { COMPANY } from "../content/site";
 import { useUI } from "../lib/ui";
@@ -221,7 +222,7 @@ export function Layout() {
         <Tape />
         <Header onSearch={() => setSearch(true)} />
         {!bare && <ExtensionBanner />}
-        <main id="main"><ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
+        <main id="main"><ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /><FeedbackFooterFor path={loc.pathname} /></main>
         {!bare && <Footer />}
         <SearchPalette open={search} onClose={() => setSearch(false)} />
         <AlertToasts />
