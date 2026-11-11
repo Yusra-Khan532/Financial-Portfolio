@@ -113,3 +113,11 @@
 /* Task #44: the enlarge arrow sits in the card's top-right corner; the first row of the score screeners' result card (the selection actions) keeps clear of it */
 .scr-main:has(.cz-table) > .sx-bulk { padding-right: 52px; }
 @media (pointer: coarse), (max-width: 640px) { .scr-main:has(.cz-table) > .sx-bulk { padding-right: 0; padding-top: 44px; } }
+
+/* Column lines on every score-screener table, the prebuilt-screen tables included, in a colour that shows on the dark theme too (a line between every two columns, in headings and rows) */
+.sx-t, .psx-t { --col-line: color-mix(in srgb, var(--text) 24%, var(--s1)); }
+.psx-t tbody td { border-bottom: 1px solid var(--border); }
+.psx-t thead th { border-bottom: 2px solid var(--col-line); }
+.psx-t thead tr:not(.gh) th + th, .psx-t tbody td + td, .psx-t thead tr:not(.gh) td + th { border-left: 1px solid var(--col-line); }
+.sx-t thead tr:not(.gh) th + th, .sx-t tbody td + td { border-left: 1px solid var(--col-line); }
+.sx-t thead tr:not(.gh) th:nth-child(7), .sx-t tbody td:nth-child(7), .sx-t:has(.gh th[colspan="5"]) thead tr:not(.gh) th:nth-child(12), .sx-t:has(.gh th[colspan="5"]) tbody td:nth-child(12) { border-left: 2px solid color-mix(in srgb, var(--text) 38%, var(--s1)); }
