@@ -1,4 +1,4 @@
-// Prebuilt screens on the Advanced score screener with every /api/** call mocked (the contract of /api/screener/presets).
+// Prebuilt screens on the Advanced stock screener with every /api/** call mocked (the contract of /api/screener/presets).
 //   node e2e/presets.mjs http://127.0.0.1:5199 /path/to/out
 import { chromium } from "playwright";
 const base = (process.argv[2] || "http://127.0.0.1:5199").replace(/\/$/, ""), out = process.argv[3] || ".";

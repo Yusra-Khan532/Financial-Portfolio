@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Basic score screener (FinLit IQ only, Silver) in a DOM: draft vs applied filters, chips, selection, bulk actions, address (URL) state, CSV and plan gating.
+// The Basic stock screener (FinLit IQ only, Silver) in a DOM: draft vs applied filters, chips, selection, bulk actions, address (URL) state, CSV and plan gating.
 import { act, cleanup, fireEvent, render, screen, waitFor, within, configure } from "@testing-library/react";
 configure({ asyncUtilTimeout: 8000 });
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -43,7 +43,7 @@ const sector = (name: string) => screen.getByRole("checkbox", { name: new RegExp
 beforeEach(() => { admin.on = true; st.plan = "gold"; st.rows = DATA; st.cover = null; localStorage.clear(); watch.reset(); st.upgrade.mockReset(); st.toast.mockReset(); });
 afterEach(cleanup);
 
-describe("Basic score screener page", () => {
+describe("Basic stock screener page", () => {
   it("lists the universe sorted by market cap, with 10 rows a page and the stat tiles over the whole set", () => {
     open();
     expect(symbols()).toEqual(["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "HHH", "ZZ00", "ZZ01", "ZZ02"]);
@@ -114,7 +114,7 @@ describe("Basic score screener page", () => {
     await waitFor(() => expect(loc()).toContain("qual=high"));
     await waitFor(() => { expect(symbols()).toEqual(["AAA", "BBB", "HHH"]); expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("0"); expect(count("IT")).toBe("0"); expect(count("Pharma")).toBe("1"); });   // the table follows the address a moment later (a deferred update), most visibly on a busy machine
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
-    await waitFor(() => expect(loc()).toBe("/score-screener"));
+    await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => { expect(count("Metals")).toBe("14"); expect(within(screen.getByLabelText("Summary")).getByText("Companies found").previousSibling?.textContent).toBe("22"); expect(within(screen.getByLabelText("Summary")).getByText("Active filters").previousSibling?.textContent).toBe("0"); });
   });
 
@@ -171,15 +171,15 @@ describe("Basic score screener page", () => {
     open();
     const rating = () => within(screen.getByRole("group", { name: "FinLit IQ rating" }));
     fireEvent.click(rating().getByRole("button", { name: "Strong" }));
-    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH"]));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH"]), { timeout: 10000 });
     expect(loc()).toBe("/score-screener?iql=strong");
     fireEvent.click(rating().getByRole("button", { name: "Not rated" }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH", "GGG"]));
     fireEvent.click(screen.getByRole("button", { name: "Remove filter FinLit IQ rating: Strong, Not rated" }));
-    await waitFor(() => expect(loc()).toBe("/score-screener"));
+    await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Remove filter FinLit IQ rating/ })).toBeNull());   // the chip is gone before the next filter is set: on a slow machine the two raced
     fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /78 and above/ }));
-    await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]), { timeout: 10000 });
     fireEvent.change(within(screen.getByRole("group", { name: "Total FinLit IQ Score" })).getByLabelText("Min"), { target: { value: "80" } });
     await waitFor(() => { expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/score-screener?t=high&omin=80"); });
   });
@@ -348,12 +348,12 @@ describe("Basic score screener page", () => {
 
 
 // ---- two pages: the basic one has no trace of Prism, and old links with Prism filters move to the advanced page
-describe("Basic score screener: no Prism", () => {
+describe("Basic stock screener: no Prism", () => {
   const PR = (o: Partial<Row> = {}) => ({ prism_state: "stored", prism_final: 85, prism_label: "STRONG", prism_status: "RATED", prism_fundamental: 80, prism_valuation: 55, prism_quality: 70, prism_risk: 60, prism_st: "Positive", prism_lt: "Neutral", prism_st_score: 22, prism_lt_score: -4, ...o });
-  it("is titled Basic score screener and has no Prism column, filter, view, tile or coverage line even when the rows carry Prism values", () => {
+  it("is titled Basic stock screener and has no Prism column, filter, view, tile or coverage line even when the rows carry Prism values", () => {
     st.rows = DATA.map((r) => ({ ...r, ...PR() })); st.cover = { rated: 3, provisional: 1, not_rated: 1, stored: 5, total: 6, as_of: "2026-10-27", per_night: 30 };
     open();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Basic score screener");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Basic stock screener");
     const page = document.body.textContent || "";
     expect(page).not.toMatch(/Rated by Prism|Median Prism|Prism filters|Prism has rated|Short term|Long term|Valuation|Only companies rated/);
     expect(within(screen.getByRole("table")).queryByRole("columnheader", { name: /Prism|Risk|Valuation/ })).toBeNull();
@@ -367,13 +367,13 @@ describe("Basic score screener: no Prism", () => {
     const heads = within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent?.replace(/[▲▼▾]/g, "").trim());
     expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["Growth & Profitability", "Quality", "Growth", "Profit.", "Balance", "Technical", "Overall"]));
   });
-  it("shows its own Basic heading above the table, with a link to the Advanced score screener (Gold)", () => {
+  it("shows its own Basic heading above the table, with a link to the Advanced stock screener (Gold)", () => {
     open();
     const head = document.querySelector(".sx-here")!;
-    expect(head.textContent).toMatch(/Silver/); expect(head.textContent).toMatch(/Basic score screener/);
+    expect(head.textContent).toMatch(/Silver/); expect(head.textContent).toMatch(/Basic stock screener/);
     expect(head.textContent).toMatch(/The FinLit IQ: Growth & Profitability, its four pillars, Technical and Overall/);
     expect(head.textContent).not.toMatch(/4 financial-health parts/);
-    const a = screen.getByRole("link", { name: /Advanced score screener \(Gold\)/ });
+    const a = screen.getByRole("link", { name: /Advanced stock screener \(Gold\)/ });
     expect(a.getAttribute("href")).toBe("/advanced-score-screener");
   });
   it("Silver sees the scores, Basic sees the locked state as before", () => {

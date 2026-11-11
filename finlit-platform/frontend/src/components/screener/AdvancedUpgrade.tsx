@@ -32,14 +32,14 @@ export function AdvancedUpgrade() {
     <>
       <PageHeader wrap plan="gold" title="Screen every company with FinLit Prism." art="rating" links={["/score-screener", "/screener", { to: "/plans", primary: true, label: "See the Gold plan" }]}
         description={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts and two technical views, side by side, with filters, quick views and compare. It is part of the Gold plan.{" "}
-          {silver ? <>Your plan includes the <Link to="/score-screener">Basic score screener</Link>, which uses the FinLit IQ.</> : <>The <Link to="/score-screener">Basic score screener</Link> uses the FinLit IQ and comes with Silver.</>}</>} />
+          {silver ? <>Your plan includes the <Link to="/score-screener">Basic stock screener</Link>, which uses the FinLit IQ.</> : <>The <Link to="/score-screener">Basic stock screener</Link> uses the FinLit IQ and comes with Silver.</>}</>} />
       <div className="wrap scr-wrap">
         <div className="sx-up">
           <div className="sx-ex-h"><span className="tier gold">Example</span><span className="muted">Sample companies and figures, only to show the layout. Not real data.</span></div>
-          <Gate tier="gold" title="Advanced score screener" points={POINTS}>
-            <section className="card sx-ex" aria-label="Example of the advanced score screener">
+          <Gate tier="gold" title="Advanced stock screener" points={POINTS}>
+            <section className="card sx-ex" aria-label="Example of the advanced stock screener">
               <div className="scr-tw"><table className="scr-t ss-t sx-t">
-                <caption className="sr">Example of the advanced score screener with invented companies</caption>
+                <caption className="sr">Example of the advanced stock screener with invented companies</caption>
                 <thead><tr><th scope="col">Company</th><th scope="col">Prism</th><th scope="col">{FUND_PART_NAME}</th><th scope="col">Valuation</th><th scope="col">Quality</th><th scope="col">Risk</th><th scope="col">Short-term technical</th><th scope="col">Long-term technical</th></tr></thead>
                 <tbody>{SAMPLE.map((r) => (
                   <tr key={r.n}>
@@ -56,7 +56,7 @@ export function AdvancedUpgrade() {
             <h2>What Gold adds</h2>
             <ul>{POINTS.map((p) => <li key={p}><Icon name="check" /><span>{p}</span></li>)}</ul>
             <p className="muted">It describes financial health and price trend from filings and prices. Information only, not advice.</p>
-            <button type="button" className="btn primary" onClick={() => upgrade("gold", "The Advanced score screener is part of Gold.")}>Unlock with Gold <Icon name="arrow" /></button>
+            <button type="button" className="btn primary" onClick={() => upgrade("gold", "The Advanced stock screener is part of Gold.")}>Unlock with Gold <Icon name="arrow" /></button>
           </section>
         </div>
       </div>

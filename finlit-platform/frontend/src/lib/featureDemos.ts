@@ -26,7 +26,7 @@ export const DEMOS: Record<string, Demo> = {
   glossary: v("glossary", "Glossary", "Type a word and get its meaning in plain English, why it matters and the formula.", "/glossary", "Open the glossary"),
   flows: v("flows", "FII & DII flows and the economy", "Daily buying and selling by foreign and domestic institutions, their streaks and history, next to the economy and commodity prices.", "/fii-dii", "Open FII & DII flows"),
   dcf: v("dcf", "DCF calculator", "Change the growth or discount rate and the intrinsic value, margin of safety and the full working update at once.", "/dcf", "Open the DCF calculator"),
-  "adv-screener": v("adv-screener", "Advanced score screener", "Every listed company rated by FinLit Prism: ready-made screens by size and theme, with the parts and technical views beside each one.", "/advanced-score-screener", "Open the advanced screener"),
+  "adv-screener": v("adv-screener", "Advanced stock screener", "Every listed company rated by FinLit Prism: ready-made screens by size and theme, with the parts and technical views beside each one.", "/advanced-score-screener", "Open the advanced screener"),
   prism: v("prism", "FinLit Prism", "A company's financial health in four parts, with the short and long-term technical views kept apart.", "/prism", "Open FinLit Prism"),
   "fund-health": v("fund-health", "Mutual Fund Health Score", "A 0 to 100 health score for every fund from its NAVs, costs and holdings, with category leaderboards.", "/fund-score-screener", "Open the Fund Health Score"),
   portfolio: v("portfolio", "Portfolio scorecard", "Add your shares by name to see each one's score, the average for your list, its sector mix and how spread it is.", "/holdings", "Open the portfolio"),
@@ -55,7 +55,7 @@ export const FEATURE_DEMO: Record<string, string> = {
   "FinLit IQ and five pillars": "iq", "How the score is built": "iq", "Growth & Profitability and technical scores side by side": "iq", "FinLit IQ table for every company": "iq-table",
   "Watchlists": "watchlists", "Watchlists with notes and targets": "watchlists", "Bigger watchlists": "watchlists",
   "Downloads": "downloads", "Downloads: PDF note, offline copy, CSV": "downloads", "Portfolio scorecard": "portfolio",
-  "FinLit Prism": "prism", "Advanced score screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit outlook": "outlook",
+  "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit outlook": "outlook",
   "FinLit Mutual Fund Health Score": "fund-health", "Fund Health Score": "fund-health", "Revenue by segment": "segments",
   "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
 };

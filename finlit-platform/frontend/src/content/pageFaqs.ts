@@ -59,7 +59,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which screener should I use?",
-    "a": "Use this Stock screener when you want to combine many rules. The Basic score screener (Silver) filters by the FinLit IQ, the Advanced score screener (Gold) by the FinLit Prism rating, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
+    "a": "Use this Stock screener when you want to combine many rules. The Basic stock screener (Silver) filters by the FinLit IQ, the Advanced stock screener (Gold) by the FinLit Prism rating, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    },
    {
     "q": "What can I filter on?",
@@ -93,7 +93,7 @@ export const PAGE_FAQS: PageFaq[] = [
  },
  {
   "id": "basic-score-screener",
-  "title": "Basic score screener",
+  "title": "Basic stock screener",
   "section": "Find stocks",
   "routes": [
    "/score-screener"
@@ -136,7 +136,7 @@ export const PAGE_FAQS: PageFaq[] = [
  },
  {
   "id": "advanced-score-screener",
-  "title": "Advanced score screener",
+  "title": "Advanced stock screener",
   "section": "Find stocks",
   "routes": [
    "/advanced-score-screener"
@@ -164,8 +164,8 @@ export const PAGE_FAQS: PageFaq[] = [
     "a": "Each rating takes about 30 seconds to calculate, so they are added in steps, largest companies first, with more every night. For a company that is not rated yet, select Rate now on its row: its Prism page starts the calculation."
    },
    {
-    "q": "How is this different from the Basic score screener?",
-    "a": "The Basic score screener uses the FinLit IQ (five pillars, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
+    "q": "How is this different from the Basic stock screener?",
+    "a": "The Basic stock screener uses the FinLit IQ (five pillars, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
    },
    {
     "q": "What do the Quick views do?",

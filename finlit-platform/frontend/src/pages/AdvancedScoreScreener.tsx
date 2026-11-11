@@ -19,11 +19,11 @@ import { PRISM_PRESETS, TECH_BANDS, activePrismPreset, withPrismPreset, withoutP
 import { EXPLAIN, PRISM_PARTS, coverageLine } from "../lib/scorePrism";
 import "../styles/scorescreen.css";
 
-/** Advanced score screener (Gold only): the whole company universe with the FinLit Prism rating, its four parts and its two technical views.
+/** Advanced stock screener (Gold only): the whole company universe with the FinLit Prism rating, its four parts and its two technical views.
  *  Informational; not a recommendation. Plans below Gold get the upgrade page and never request the universe. */
 export function AdvancedScoreScreener() {
   const { has } = useUI();
-  useDocTitle("Advanced score screener", "Every listed company with its FinLit Prism rating: the four financial-health parts and the short-term and long-term technical views. Gold plan.");
+  useDocTitle("Advanced stock screener", "Every listed company with its FinLit Prism rating: the four financial-health parts and the short-term and long-term technical views. Gold plan.");
   return has("gold") ? <Advanced /> : <AdvancedUpgrade />;
 }
 
@@ -51,7 +51,7 @@ function Advanced() {
   if (route.id) return <PresetPage route={route} basics={basics} />;
 
   return (
-    <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced score screener" title="Every listed company, rated by FinLit Prism." sideLabel="Advanced score screener filters" errorTitle="The advanced score screener is unavailable right now"
+    <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced stock screener" title="Every listed company, rated by FinLit Prism." sideLabel="Advanced stock screener filters" errorTitle="The advanced stock screener is unavailable right now"
       intro={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth & Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>}
       head={{ art: "rating", links: ["/score-screener", "/screener", "/query-builder"], stats: [{ icon: "building", value: cover && cover.total > 0 ? nf(cover.total, 0) : null, label: "Companies" }, { icon: "layers", value: cover && cover.total > 0 ? nf(cover.rated + cover.provisional, 0) : null, label: "Rated by Prism" }] }}
       tier="gold" sortChoices={[{ key: "prism_final", label: "Prism Fundamental score" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short-term technical" }, { key: "prism_lt_score", label: "Long-term technical" }]}
@@ -99,7 +99,7 @@ function Advanced() {
           <dt>Not rated yet</dt><dd>Prism ratings are calculated about 30 seconds each from the provider's data, so they are added in steps: first for companies with a full report, then a few hundred more companies every night, largest first. A company without one shows "Not rated yet" and a Rate now link to its Prism page, which starts the calculation when opened. "Not rated" means Prism looked and the filed data was not enough.</dd>
           <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Missing data</dt><dd>A dash means the figure is not available (not rated yet, or not enough data). It never counts as a pass and is never treated as zero.</dd>
-          <dt>FinLit IQ</dt><dd>The basic model has its own page, the <Link to="/score-screener">Basic score screener</Link> (Silver).</dd>
+          <dt>FinLit IQ</dt><dd>The basic model has its own page, the <Link to="/score-screener">Basic stock screener</Link> (Silver).</dd>
         </dl>
       </HowDialog>} />
   );

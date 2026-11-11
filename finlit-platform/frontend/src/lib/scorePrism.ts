@@ -1,4 +1,4 @@
-// FinLit Prism on the Advanced score screener: labels, columns, plain-words explanations and the reasons a Prism cell can be empty.
+// FinLit Prism on the Advanced stock screener: labels, columns, plain-words explanations and the reasons a Prism cell can be empty.
 // Pure data and small functions (no React). Wording: the rating describes financial health from filings and prices; never advice.
 import type { Row } from "./screener";
 import { FUND_PART_NAME } from "./prismNames";

@@ -321,7 +321,7 @@ export const IQ_LABEL_PARAM = "iql";
 export const isBandList = (s: string | null) => !!s && s.split(",").every((x) => (BAND_ORDER as string[]).includes(x));
 const parseBands = (s: string | null): Band[] => BAND_ORDER.filter((b) => (s || "").split(",").includes(b));
 const parseTech = (s: string | null): TechBand[] => TECH_BAND_ORDER.filter((b) => (s || "").split(",").includes(b));
-/** Which page reads the address: the Basic score screener (FinLit IQ only), the Advanced one (Prism only), or both (the pure logic and its tests). */
+/** Which page reads the address: the Basic stock screener (FinLit IQ only), the Advanced one (Prism only), or both (the pure logic and its tests). */
 export type Scope = "all" | "basic" | "advanced";
 const FINLIT_SORT: SortKey[] = ["f", "t", "overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance"];
 const PRISM_SORT: SortKey[] = ["prism_final", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk", "prism_st_score", "prism_lt_score"];

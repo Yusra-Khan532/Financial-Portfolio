@@ -19,8 +19,8 @@ import { PILLARS, hasPrismParams } from "../lib/scoreScreen";
 import { EXPLAIN } from "../lib/scorePrism";
 import "../styles/scorescreen.css";
 
-/** Basic score screener (Silver): the whole company universe with the FinLit IQ, the basic model. Informational; not a recommendation.
- *  The FinLit Prism rating has its own page, the Advanced score screener (Gold). Old shared links that carry Prism filters go there. */
+/** Basic stock screener (Silver): the whole company universe with the FinLit IQ, the basic model. Informational; not a recommendation.
+ *  The FinLit Prism rating has its own page, the Advanced stock screener (Gold). Old shared links that carry Prism filters go there. */
 export function ScoreScreener() {
   const [params] = useSearchParams();
   if (hasPrismParams(params)) return <Navigate to={"/advanced-score-screener" + (params.toString() ? "?" + params.toString() : "")} replace />;
@@ -28,7 +28,7 @@ export function ScoreScreener() {
 }
 
 function Basic() {
-  useDocTitle("Basic score screener", "Every listed company with its FinLit IQ, the basic model: filter, sort and compare by size, sector and score.");
+  useDocTitle("Basic stock screener", "Every listed company with its FinLit IQ, the basic model: filter, sort and compare by size, sector and score.");
   const s = useScreener("basic");
   const [priceCols, setPriceCols] = usePriceColumns();
   const { draft, setDraft, locked, upgrade, isLoading, sum, asOf } = s;
@@ -48,7 +48,7 @@ function Basic() {
   ];
 
   return (
-    <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic score screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
+    <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic stock screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
       intro={<>Every listed company with its <b>FinLit IQ</b>, the basic model: Growth & Profitability, its four pillars, Technical and Overall. Filter, sort and compare by size, sector and score.</>}
       head={{ art: "rating", links: ["/screener", { to: "/advanced-score-screener", primary: true }, "/query-builder"], stats: [{ icon: "building", value: !isLoading && s.items.length > 0 ? nf(s.items.length, 0) : null, label: "Companies" }, { icon: "quality", value: !isLoading && s.items.length > 0 ? nf(s.items.length - s.unscored, 0) : null, label: "Scored" }] }}
       tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "f", label: "Growth & Profitability" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
@@ -67,9 +67,9 @@ function Basic() {
       </>)}
       tiles={tiles}
       lead={<div className="sx-adv sx-here">
-        <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic score screener</b></span>
+        <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic stock screener</b></span>
         <span className="sx-adv-s">The FinLit IQ: Growth & Profitability, its four pillars, Technical and Overall</span>
-        <Link to="/advanced-score-screener" className="sx-adv-go">Advanced score screener (Gold) <Icon name="arrow" /></Link></div>}
+        <Link to="/advanced-score-screener" className="sx-adv-go">Advanced stock screener (Gold) <Icon name="arrow" /></Link></div>}
       beforeTable={<>
         <PriceColumnsToggle on={priceCols} set={setPriceCols} />
         <details className="pzs-explain">
@@ -103,7 +103,7 @@ function Basic() {
           <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Missing data</dt><dd>A dash or a lock means the figure is not available (not scored yet, not enough data, or not in your plan). It never counts as a pass and is never treated as zero.</dd>
           <dt>Data date</dt><dd>{asOf ? <>Newest scores were computed on {dateIN(asOf)}. </> : <>The score date is not available right now. </>}Scores refresh every night; prices come from the latest market refresh.</dd>
-          <dt>FinLit Prism</dt><dd>The advanced model has its own page, the <Link to="/advanced-score-screener">Advanced score screener</Link> (Gold).</dd>
+          <dt>FinLit Prism</dt><dd>The advanced model has its own page, the <Link to="/advanced-score-screener">Advanced stock screener</Link> (Gold).</dd>
         </dl>
       </HowDialog>} />
   );

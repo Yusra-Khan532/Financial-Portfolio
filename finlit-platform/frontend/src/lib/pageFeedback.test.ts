@@ -7,7 +7,7 @@ const doc = (title: string, h1 = "") => ({ title, querySelector: (s: string) => 
 describe("pageNameFor", () => {
   it("names pages the way the menus do, and company, fund and report pages by what they are", () => {
     expect(pageNameFor("/")).toBe("Home");
-    expect(pageNameFor("/score-screener")).toBe("Basic score screener");
+    expect(pageNameFor("/score-screener")).toBe("Basic stock screener");
     expect(pageNameFor("/dcf")).toBe("DCF valuation calculator");
     expect(pageNameFor("/stocks/RELIANCE")).toBe("Company report");
     expect(pageNameFor("/stocks/RELIANCE/")).toBe("Company report");

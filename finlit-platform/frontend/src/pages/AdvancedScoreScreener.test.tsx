@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Advanced score screener (FinLit Prism only, Gold) in a DOM: columns, filters, quick views, sorting, CSV, and the upgrade page for every other plan.
+// The Advanced stock screener (FinLit Prism only, Gold) in a DOM: columns, filters, quick views, sorting, CSV, and the upgrade page for every other plan.
 import { cleanup, fireEvent, render, screen, waitFor, within, configure } from "@testing-library/react";
 configure({ asyncUtilTimeout: 8000 });
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -49,7 +49,7 @@ const forbidden = /\b(buy|sell|hold|reduce|avoid|accumulate)\b/;
 beforeEach(() => { st.plan = "gold"; st.rows = DATA; st.cover = { rated: 3, provisional: 1, not_rated: 1, stored: 5, total: 6, as_of: "2026-10-27", per_night: 30 }; st.loads = 0; localStorage.clear(); watch.reset(); st.upgrade.mockReset(); st.toast.mockReset(); });
 afterEach(cleanup);
 
-describe("Advanced score screener (Gold)", () => {
+describe("Advanced stock screener (Gold)", () => {
   it("ticking a filter updates the rows and every number above the table by itself, and Clear all restores them", async () => {
     open();
     const kpi = (l: string) => within(screen.getByLabelText("Summary")).getByText(l).previousSibling?.textContent;
@@ -246,7 +246,7 @@ describe("Advanced score screener (Gold)", () => {
   });
 });
 
-describe("Advanced score screener: every plan below Gold gets the upgrade page", () => {
+describe("Advanced stock screener: every plan below Gold gets the upgrade page", () => {
   const nothing = () => {
     expect(st.loads).toBe(0);                                                  // the universe is never requested
     const page = document.body.textContent || "";
@@ -260,12 +260,12 @@ describe("Advanced score screener: every plan below Gold gets the upgrade page",
       expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
       expect(screen.getByText("Example")).toBeTruthy();
       expect(screen.getByText(/Sample companies and figures, only to show the layout/)).toBeTruthy();
-      expect(screen.getByRole("table", { hidden: true, name: /Example of the advanced score screener/ }).textContent).toMatch(/Example Company A/);
+      expect(screen.getByRole("table", { hidden: true, name: /Example of the advanced stock screener/ }).textContent).toMatch(/Example Company A/);
       expect(screen.getAllByText(/Four financial-health parts, each 0 to 100/).length).toBeGreaterThan(0);
       fireEvent.click(screen.getAllByRole("button", { name: /Unlock with Gold/ })[0]);
       expect(st.upgrade).toHaveBeenCalledWith("gold", expect.any(String));
       expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
-      expect(screen.getByRole("link", { name: "Basic score screener" }).getAttribute("href")).toBe("/score-screener");
+      expect(screen.getByRole("link", { name: "Basic stock screener" }).getAttribute("href")).toBe("/score-screener");
     });
   }
   it("a Silver response (rows with no Prism values) still renders nothing of Prism", () => {
