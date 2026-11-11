@@ -22,6 +22,8 @@ import { matchesMetric, rankMetrics } from "../lib/metricSearch";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "../components/screener/FilterGroup";
 import { KpiStrip, SectorBars, TitleCard, Toolbar, Donut, type Kpi } from "../components/screener/PageParts";
 import { FindStocksTabs } from "../components/screener/FindStocksTabs";
+import { ChartPanel, type PanelRow } from "../components/screener/ChartPanel";
+import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
 import { CoLogo } from "../components/CoLogo";
 
@@ -148,6 +150,8 @@ export function ScreenerPro() {
   const safeSort = known(dsort.key) || dsort.key === "name" || dsort.key === "symbol" || ratios.some((r) => r.id === dsort.key) ? dsort : { key: "market_cap", dir: "desc" as const };
   const body = useMemo(() => toBody(safe, safeSort, columns, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, columns, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
   const res = useScreen(body, !!data && columns.length > 0);
+  const [chart, setChart] = useState<PanelRow | null>(null);
+  const [typed, setTyped] = useState(""), [typedErr, setTypedErr] = useState<string[]>([]);
   const rows = res.data?.rows || [];
   const nActive = activeCount(f) + ratios.filter((r) => r.op !== "none").length;
 
@@ -336,19 +340,29 @@ export function ScreenerPro() {
                 <button className="btn" onClick={exportCsv}><Icon name="table" />Download</button>
               </div>
             </div>
+            <form className="pl-type" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
+              if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setPg({ k: "", p: 0 }); if (!r.errors.length) setTyped(""); } }}>
+              <label><span>Type rules</span><input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="pe < 20 and roe > 15" aria-describedby="pl-type-h" /></label>
+              <button type="submit" className="btn" disabled={!typed.trim()}>Add</button>
+              <small id="pl-type-h" className="muted">Short names: pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq. For “or” and brackets use the Query builder.</small>
+              {typedErr.map((m) => <small key={m} className="pl-type-e" role="alert">{m}</small>)}
+            </form>
             {chips.length > 0 && <div className="scr-chips">{chips.map((c) => <button key={c.label} className="fchip" onClick={c.clear} onKeyDown={(e) => { if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); c.clear(); } }}>{c.label}<span aria-hidden="true">×</span><span className="sr">remove</span></button>)}<button className="alx-link" onClick={() => setF(norm({}))}>Clear all</button></div>}
             {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
               : res.isError ? <div className="state"><h2>That filter is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
               : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
-                <>
+                <>{!!res.data.funnel?.length && <ol className="pl-funnel" aria-label="What is left after each rule">
+                  <li><b>{nf(data?.total ?? 0, 0)}</b><small>listed</small></li>
+                  {res.data.funnel.map((st) => <li key={st.key}><b>{nf(st.after, 0)}</b><small>after {byKey.get(st.key)?.label ?? ({ size: "size", sector: "sector", industry: "industry", index: "index", band: "rating" } as Record<string, string>)[st.key] ?? st.key}{st.missing > 0 ? ` · ${nf(st.missing, 0)} have no figure` : ""}</small></li>)}
+                </ol>}
                   {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table"><table className="scr-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table" pinHead><table className="scr-t">
                     <thead><tr><th className="stick"><button onClick={() => sortBy("name")}>Company {sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>
                       {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}
                       {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} {sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>)}</tr></thead>
                     <tbody>{rows.map((r) => (
-                      <tr key={r.symbol} tabIndex={0} onClick={() => nav(`/stocks/${r.symbol}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/stocks/${r.symbol}`)}>
+                      <tr key={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null }); }} onKeyDown={(e) => e.key === "Enter" && setChart({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null })}>
                         <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
                         {res.data!.columns.map((k) => { const m = byKey.get(k), v = r.v[k]; return <td key={k} className={tone(k, v)} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
@@ -367,6 +381,7 @@ export function ScreenerPro() {
           </section>
         </div>
       </div>
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}
     </>
   );
 }
