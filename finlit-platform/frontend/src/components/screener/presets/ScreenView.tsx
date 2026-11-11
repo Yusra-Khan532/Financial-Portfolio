@@ -33,6 +33,8 @@ export function CellValue({ v, f }: { v: unknown; f: ColFormat }) {
   if (typeof v !== "number") return <>{String(v)}</>;
   if (f === "since") return <>{signed(v)}%</>;
   if (f === "pct") return <>{signed(v)}%</>;
+  /* A distance below a high is stored as a positive number; it is shown as a minus (the price is that far down). Zero stays 0.0%. */
+  if (f === "pct_down") return <>{v === 0 ? "" : MINUS}{nf(Math.abs(v), 1)}%</>;
   if (f === "num1") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 1)}</>;
   if (f === "score") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(Math.round(v)), 0)}</>;
   if (f === "cr") return <>{cr(v)}</>;
