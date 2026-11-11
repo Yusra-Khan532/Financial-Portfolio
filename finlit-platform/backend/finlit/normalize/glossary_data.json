@@ -10183,6 +10183,116 @@
    "read": "Above 1.5 means the breakout came on much heavier trading than usual.",
    "why": "It shows how much trading interest came with the breakout.",
    "formula": "Breakout-day volume ÷ mean volume of the 50 sessions before it."
+  },
+  "b2_age": {
+   "label": "Sessions since the recent breakout",
+   "unit": "n",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "Sessions since the close rose above a 52-week closing high that was at least 10 sessions old (last 25 sessions only).",
+   "read": "A small number is a fresh breakout; the Breakouts screens look at 3 to 25.",
+   "why": "It shows how long ago the price moved above its old high.",
+   "formula": "Today's session number minus the breakout day's."
+  },
+  "b2_level": {
+   "label": "Breakout level, recent 25 sessions",
+   "unit": "Rs",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "The earlier 52-week closing high that the price rose above.",
+   "read": "The price now is compared with this level.",
+   "why": "The level is the line the breakout is measured against.",
+   "formula": "Highest close of the 252 sessions before the breakout day."
+  },
+  "b2_vs_level": {
+   "label": "Price against the recent breakout level",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "How far the latest close is above (+) or below (−) the level it broke.",
+   "read": "Near zero means the price is back at the level.",
+   "why": "It shows whether the old high is holding as a floor.",
+   "formula": "(Latest close ÷ breakout level − 1) × 100."
+  },
+  "b2_pullback": {
+   "label": "Below the highest close since the breakout",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "base-and-breakout",
+   "what": "How far the latest close is below the highest close since the breakout day.",
+   "read": "A small positive number is a shallow pullback.",
+   "why": "It shows how much of the breakout move has been given back.",
+   "formula": "(Highest close since breakout − latest close) ÷ highest close since breakout × 100."
+  },
+  "b2_vol_x": {
+   "label": "Breakout-day volume, recent 25 sessions",
+   "unit": "x",
+   "better": null,
+   "group": "trading",
+   "term": "average-volume-and-volume-spike",
+   "what": "The breakout day's volume as a multiple of the 50 sessions before it.",
+   "read": "Above 1.3 means heavier trading than usual on that day.",
+   "why": "It shows how much trading interest came with the breakout.",
+   "formula": "Breakout-day volume ÷ mean volume of the 50 sessions before it."
+  },
+  "ema9_above4": {
+   "label": "Last four closes above the 9-day average",
+   "unit": "flag",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "Yes if each of the last four closes was above that day's 9-day average.",
+   "read": "1 means yes, 0 means no.",
+   "why": "It shows whether the price is holding close to its short average.",
+   "formula": "Each of the last 4 closes > that day's 9-day average."
+  },
+  "ema9_near4": {
+   "label": "Last four closes within 4% of the 9-day average",
+   "unit": "flag",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "Yes if each of the last four closes was no more than 4% above that day's 9-day average.",
+   "read": "1 means yes, 0 means no.",
+   "why": "It shows whether the price is holding close to its short average.",
+   "formula": "Each of the last 4 closes ≤ 1.04 × that day's 9-day average."
+  },
+  "ema9_touch4": {
+   "label": "Touched the 9-day average in the last four sessions",
+   "unit": "flag",
+   "better": null,
+   "group": "trading",
+   "term": "exponential-moving-average-ema",
+   "what": "Yes if the low of any of the last four sessions reached the 9-day average.",
+   "read": "1 means yes, 0 means no.",
+   "why": "It shows whether the price is holding close to its short average.",
+   "formula": "Any of the last 4 lows ≤ that day's 9-day average."
+  },
+  "range_4d": {
+   "label": "Range of the last 4 sessions",
+   "unit": "%",
+   "better": null,
+   "group": "trading",
+   "term": "average-true-range-atr",
+   "what": "The 4-session high minus low, as a share of the latest close.",
+   "read": "A small number is a tight range.",
+   "why": "It shows how quiet the last few sessions were.",
+   "formula": "(Highest high − lowest low of the last 4 sessions) ÷ latest close × 100."
+  },
+  "turnover20_cr": {
+   "label": "Average value traded (20 sessions)",
+   "unit": "Cr",
+   "better": null,
+   "group": "trading",
+   "term": "traded-value-turnover",
+   "what": "The average of price times volume over the last 20 sessions, in rupee crore.",
+   "read": "A larger number means the stock changes hands more easily.",
+   "why": "It shows how much money trades in the stock on a usual day.",
+   "formula": "Mean of (close × volume) over the last 20 sessions ÷ 1 crore."
   }
  }
 }
