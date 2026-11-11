@@ -24,3 +24,13 @@ export function HighFilter({ s }: { s: Screener }) {
     </div>
   );
 }
+
+/** The same filter as a visible bar just above the results table, so it is not buried in the long side panel (task #60). */
+export function HighBar({ s }: { s: Screener }) {
+  return (
+    <section className="sx-hibar" aria-labelledby="sx-hibar-t">
+      <h3 id="sx-hibar-t">Down from 52-week high{highActive(s) > 0 && <span className="sx-hibar-on">On</span>}</h3>
+      <HighFilter s={s} />
+    </section>
+  );
+}
