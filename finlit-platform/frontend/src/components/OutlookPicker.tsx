@@ -1,6 +1,6 @@
 // "Choose a company" for the profit and revenue outlook: a short explanation of the simulator, search by company name or NSE symbol, five quick picks, the companies last
 // opened here, and (for the open company) a small market snapshot. Numbers come from the screener list; a missing one is a dash, never zero.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { cr, nf, MINUS } from "../lib/format";
@@ -10,7 +10,6 @@ import { useIndexFilter } from "./SearchFilters";
 
 const pct = (v: number | null | undefined) => (v == null ? MINUS : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), 2)}%`);
 const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? " up" : " dn");
-const to = (s: string) => `/outlook/${encodeURIComponent(s)}`;
 
 function Snapshot({ r }: { r: Row }) {
   const items: [string, string, string?][] = [
@@ -24,7 +23,8 @@ function Snapshot({ r }: { r: Row }) {
 }
 
 /** `current`: the company open on the page (none on the landing page). */
-export function OutlookPicker({ current, intro }: { current?: string; intro?: boolean }) {
+export function OutlookPicker({ current, intro, base = "/outlook", introText }: { current?: string; intro?: boolean; base?: string; introText?: ReactNode }) {
+  const to = (s: string) => `${base}/${encodeURIComponent(s)}`;
   const nav = useNavigate();
   const [q, setQ] = useState("");
   const sf = useIndexFilter(true);
@@ -37,7 +37,7 @@ export function OutlookPicker({ current, intro }: { current?: string; intro?: bo
   return (
     <section className="card olp" aria-labelledby="olp-h">
       <h2 id="olp-h">{current ? "Change company" : "Choose a company"}</h2>
-      {intro && <p className="olp-intro">This simulator estimates a company's <b>revenue and net profit</b> for the next 1, 3 or 5 years from its own reported growth and its sector's. Use <b>our model</b>, or <b>set your own</b> weights and see how the estimate changes. It is a what-if tool built on past results, not a prediction or advice.</p>}
+      {intro && (introText ? <p className="olp-intro">{introText}</p> : <p className="olp-intro">This simulator estimates a company's <b>revenue and net profit</b> for the next 1, 3 or 5 years from its own reported growth and its sector's. Use <b>our model</b>, or <b>set your own</b> weights and see how the estimate changes. It is a what-if tool built on past results, not a prediction or advice.</p>)}
       {open && <><p className="olp-cap faint">Snapshot: <b>{open.name || open.symbol}</b></p><Snapshot r={open} /></>}
       <label className="ol-search"><Icon name="search" /><span className="sr-only">Search a company by name or NSE symbol</span>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by company name or NSE symbol, e.g. Reliance or TCS" autoComplete="off" spellCheck={false} maxLength={60}
