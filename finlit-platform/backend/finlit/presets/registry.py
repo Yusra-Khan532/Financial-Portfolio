@@ -46,7 +46,7 @@ def _m(**kw) -> Mapping:
 class Col:
     key: str
     label: str
-    format: str = "text"      # text | num1 | pct | score | cr | label | badge
+    format: str = "text"      # text | num1 | pct | pct_down | score | cr | label | badge
     align: str = "right"
 
 
@@ -117,7 +117,7 @@ FINLIT = Col("overall", "FinLit IQ", "score")
 
 R3M = Col("ret_3m", "3-month return", "pct")
 R6M = Col("ret_6m", "6-month return", "pct")
-W52 = Col("pct_from_high", "Below 52-week high", "pct")
+W52 = Col("pct_from_high", "Down from 52-week high", "pct_down")
 RSC = Col("rank_score", "Rank score", "score")
 SUBT = Col("sub_theme", "Sub-theme", "text", "left")
 TOP_COLS = (RANK, STOCK, SECTOR, PRISM, PLABEL, FUND, VAL, QUAL, RISK, STS, LTS, R3M, R6M, R1Y, W52, MCAP, RSC)
@@ -257,7 +257,7 @@ PRESETS: List[Preset] = [
 # ------------------------------------------------------------------------------------------------------------------------------ Setups (task #37, both tabs)
 # Rules of the design package's 3_screeners/setup-scans (setupScans.js, "full" rules: they run on the nightly price fields of screener/price_fields.py).
 # The page shows what a card finds and why, never how it ranks: the rank score stays on the server.
-S_HIGH = Col("pct_from_high", "Below 52-week high (%)", "num1")
+S_HIGH = Col("pct_from_high", "Down from 52-week high (%)", "pct_down")
 S_DSH = Col("days_since_high", "Sessions since the high", "num1")
 S_R10 = Col("range_10d", "10-session range (%)", "num1")
 S_ATR = Col("atr_ratio", "Volatility against the longer run", "num1")
