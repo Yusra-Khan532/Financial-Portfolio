@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons";
 
 import { LineChart } from "../charts/LineChart";
-import { cr, dateIN, initials, nf, pct, signed } from "../lib/format";
+import { cr, dateIN, nf, pct, signed } from "../lib/format";
 import type { Events, Ratios, Segments, Summary } from "../lib/api";
 import { SectionHead } from "./Sections";
 import { Plain } from "../components/Plain";
@@ -11,6 +11,7 @@ import { ScoreMovesCard } from "./ScoreMoves";
 import { SegmentHistory } from "./SegmentMix";
 import { OTHERS_COLOR, segmentColors, segmentNames } from "../lib/segmentMix";
 import { ChartZoom } from "../components/ChartZoom";
+import { CoLogo } from "../components/CoLogo";
 
 const v = (n: string) => `var(${n})`;
 
@@ -39,7 +40,7 @@ export function BusinessSection({ s }: { s: Summary }) {
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
             {[[10, 60, 36], [52, 30, 30], [88, 74, 26], [120, 20, 40], [166, 52, 30], [202, 38, 34], [244, 70, 28], [278, 14, 36], [320, 48, 30], [356, 66, 30]].map(([x, y, w], i) => <g key={i}><rect x={x} y={y} width={w} height={120 - y} rx="3" fill="var(--p-growth)" opacity={0.1 + (i % 3) * 0.05} />{Array.from({ length: 4 }, (_, j) => <rect key={j} x={x + 6 + (j % 2) * 12} y={y + 8 + Math.floor(j / 2) * 14} width="5" height="6" rx="1" fill="var(--gold)" opacity=".5" className="win" style={{ animationDelay: `${(i * 4 + j) * 140}ms` }} />)}</g>)}
           </svg>
-          <div className="biz-id"><span className="biz-av">{initials(p.name)}</span><div><b>{p.name}</b><div className="biz-tags">{p.sector && <span className="chip">{p.sector}</span>}{p.industry && <span className="chip">{p.industry}</span>}</div></div></div>
+          <div className="biz-id"><span className="biz-av"><CoLogo symbol={p.symbol} name={p.name} size={58} /></span><div><b>{p.name}</b><div className="biz-tags">{p.sector && <span className="chip">{p.sector}</span>}{p.industry && <span className="chip">{p.industry}</span>}</div></div></div>
           <p className={"biz-desc" + (more ? " open" : "")}>{desc}</p>
           <div className="biz-actions">{long && <button className="btn" onClick={() => setMore(!more)}>{more ? "Show less" : "Read the full description"}</button>}
             {p.website && /^[\w.-]+\.[a-z]{2,}/i.test(p.website) && <a className="chip gold" href={`https://${p.website.replace(/^https?:\/\//, "")}`} target="_blank" rel="noopener noreferrer">{p.website} ↗</a>}

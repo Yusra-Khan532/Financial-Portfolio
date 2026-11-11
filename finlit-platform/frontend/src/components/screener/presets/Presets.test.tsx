@@ -31,6 +31,7 @@ let calls: string[] = [], listBody: unknown = LIST, listStatus = 200, detail: Re
 beforeEach(() => {
   calls = []; listBody = LIST; listStatus = 200; st.plan = "gold"; st.upgrade.mockReset(); detail = { large: [200, DETAIL], themes: [200, THEMES], debt: [200, EMPTY], emp: [200, { ...DETAIL, id: "emp", name: "Emerging tech" }] };
   vi.stubGlobal("fetch", vi.fn(async (u: string) => {
+    if (u.includes("/api/search/quotes")) return { ok: true, status: 200, headers: new Headers(), json: async () => ({ rows: [] }) } as unknown as Response;   // the shared logo list, not a screen
     calls.push(u);
     const m = /\/api\/screener\/presets\/([^?]+)/.exec(u);
     const [status, body] = m ? detail[m[1]] ?? [404, { detail: { status: "not_found" } }] : [listStatus, listBody];

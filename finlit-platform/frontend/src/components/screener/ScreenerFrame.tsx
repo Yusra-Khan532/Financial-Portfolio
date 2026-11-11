@@ -21,6 +21,7 @@ import "../../styles/fgx.css";
 import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
 import type { Screener } from "./useScreener";
+import { CoLogo } from "../CoLogo";
 
 export type Tile = [label: string, value: string, why?: string];
 
@@ -157,7 +158,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                     <tr key={r.symbol} className={on ? "sx-sel" : ""}>
                       <td><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n">{pg.page * size + i + 1}</td>
-                      <td className="stick"><Link to={`/stocks/${r.symbol}`} className="co"><span className="av mini" aria-hidden="true">{(r.name || r.symbol).slice(0, 2).toUpperCase()}</span><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
+                      <td className="stick"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
                       <td>{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
                       <td>{r.market_cap != null ? <>{cr(r.market_cap)}{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
                       <td style={{ fontFamily: "var(--sans)", textAlign: "left" }}>{r.sector || <Dash why="sector not listed" />}</td>

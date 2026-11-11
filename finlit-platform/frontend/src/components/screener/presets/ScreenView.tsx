@@ -15,6 +15,7 @@ import {
 } from "../../../lib/presets";
 import type { PresetRoute } from "./usePresetRoute";
 import "../../../styles/presets.css";
+import { CoLogo } from "../../CoLogo";
 
 const STATE_WORD: Record<Theme["state"], string> = { in_play: "In play", emerging: "Emerging", fading: "Fading", closest: "Closest to qualifying" };
 const signed = (v: number, d = 1) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d);
@@ -66,7 +67,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
       <tbody>{rows.map((r, i) => (
         <tr key={r.symbol}>
           <td className="psx-n">{first + i + 1}</td>
-          <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</Link>
+          <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
         </tr>))}

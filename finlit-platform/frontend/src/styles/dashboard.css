@@ -520,3 +520,8 @@
     grid-template-columns: 130px minmax(0, 1fr) 28px;
   }
 }
+
+/* Logos in the index heatmap (task 71): on tiles big enough to hold one, beside the ticker in the tooltip, and in the list view */
+.dsh-map .t .t-lg { display: inline-flex; margin-bottom: 2px; } .dsh-map .t .t-lg .gs-logo { box-shadow: none; }
+.dsh-htn { display: flex; align-items: center; gap: 8px; }
+.dsh-hl .dsh-hc { display: flex; align-items: center; gap: 10px; min-width: 0; } .dsh-hl .dsh-hc > span { display: grid; min-width: 0; }

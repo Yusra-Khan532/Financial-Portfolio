@@ -7,6 +7,7 @@ import { cr, nf, MINUS } from "../lib/format";
 import { QUICK_PICKS, readRecent } from "../lib/outlookPick";
 import { useUniverse, type Row } from "../lib/screener";
 import { useIndexFilter } from "./SearchFilters";
+import { CoLogo } from "./CoLogo";
 
 const pct = (v: number | null | undefined) => (v == null ? MINUS : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), 2)}%`);
 const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? " up" : " dn");
@@ -42,15 +43,15 @@ export function OutlookPicker({ current, intro }: { current?: string; intro?: bo
       <label className="ol-search"><Icon name="search" /><span className="sr-only">Search a company by name or NSE symbol</span>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by company name or NSE symbol, e.g. Reliance or TCS" autoComplete="off" spellCheck={false} maxLength={60}
           onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); nav(to(hits[0][0])); } }} /></label>
-      {hits.length > 0 && <ul className="ol-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><Link to={to(h[0])}><b>{h[1]}</b><span className="mono faint">{h[4] || h[0]}</span></Link></li>)}</ul>}
+      {hits.length > 0 && <ul className="ol-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><Link to={to(h[0])}><span className="ol-hn"><CoLogo symbol={h[0]} name={h[1]} size={22} inline /><b>{h[1]}</b></span><span className="mono faint">{h[4] || h[0]}</span></Link></li>)}</ul>}
       {q.trim() && sf.idx.data && hits.length === 0 && <p className="faint">No listed company matches “{q.trim()}”.</p>}
       <div className="olp-row"><span className="olp-l" id="olp-qp">Quick picks</span>
         <ul className="olp-chips" aria-labelledby="olp-qp">{QUICK_PICKS.map((p) => { const r = by.get(p.symbol); return (
           <li key={p.symbol}><Link to={to(p.symbol)} className={"olp-chip" + (current?.toUpperCase() === p.symbol ? " on" : "")} aria-current={current?.toUpperCase() === p.symbol ? "page" : undefined}>
-            <b>{p.name}</b>{r && <small className={"mono" + tone(r.change_pct)}>{pct(r.change_pct)}</small>}</Link></li>); })}</ul></div>
+            <CoLogo symbol={p.symbol} name={p.name} size={20} inline /><b>{p.name}</b>{r && <small className={"mono" + tone(r.change_pct)}>{pct(r.change_pct)}</small>}</Link></li>); })}</ul></div>
       {recent.length > 0 && (
         <div className="olp-row"><span className="olp-l" id="olp-rc">Last searched</span>
-          <ul className="olp-chips" aria-labelledby="olp-rc">{recent.map((s) => <li key={s}><Link to={to(s)} className="olp-chip"><b>{by.get(s)?.name ?? s}</b><small className="mono faint">{s}</small></Link></li>)}</ul></div>)}
+          <ul className="olp-chips" aria-labelledby="olp-rc">{recent.map((s) => <li key={s}><Link to={to(s)} className="olp-chip"><CoLogo symbol={s} name={by.get(s)?.name} size={20} inline /><b>{by.get(s)?.name ?? s}</b><small className="mono faint">{s}</small></Link></li>)}</ul></div>)}
       <p className="ol-disc faint">Estimates from past results, not a prediction or advice.</p>
     </section>);
 }

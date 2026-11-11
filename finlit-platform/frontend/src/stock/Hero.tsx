@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertButton } from "../components/AlertComposer";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
-import { MINUS, dateIN, fmtUnit, initials, nf, signed } from "../lib/format";
+import { MINUS, dateIN, fmtUnit, nf, signed } from "../lib/format";
 import { useUI } from "../lib/ui";
 import { Spark } from "../charts/Small";
 import { Gate } from "../components/Gate";
@@ -18,6 +18,7 @@ import { csvOf, metric, offlineHtml, saveFile } from "./derive";
 import { TradingFacts } from "./TradingFacts";
 import { NameDots, Row, SubLine } from "./HeaderScore";
 import { useReportHeader } from "./useReportHeader";
+import { CoLogo } from "../components/CoLogo";
 
 const KPI_SPEC: [key: string, label: string, icon: string, color: string][] = [
   ["market_cap", "Market cap", "cap", "--p-growth"], ["pe", "P/E", "tag", "--p-quality"], ["pb", "P/B", "id", "--p-quality"], ["ev_ebitda", "EV/EBITDA", "gauge", "--p-quality"],
@@ -46,7 +47,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
         <div className="crumbs"><Link to="/research">Research</Link><span>›</span><span>{p.macroSector || p.sector}</span><span>›</span><span style={{ color: "var(--text)" }}>{p.nse || p.symbol}</span></div>
         <div className="idrow">
           <div className="idl">
-            <div className="badge" aria-hidden="true">{initials(p.name)}</div>
+            <div className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></div>
             <div style={{ minWidth: 0 }}>
               <div className="hs-name"><h1>{p.name}</h1><NameDots score={s.score} plan={effPlan} admin={isAdmin} prism={prismIn} /></div>
               <div className="hs-grid">

@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
-import { initials } from "../lib/format";
 import { useFocusTrap } from "../lib/focusTrap";
 import { ApiError } from "../lib/api";
 import {
@@ -10,6 +9,7 @@ import {
   type Answer, type CallDetail, type CallList, type CallRow, type HistoryItem, type QuestionMeta,
 } from "../lib/earnings";
 import { SectionHead } from "./Sections";
+import { CoLogo } from "../components/CoLogo";
 
 /* ------------------------------------------------------------------------------------------ the section on the stock page */
 export function EarningsCallSection({ symbol, name }: { symbol: string; name: string }) {
@@ -113,7 +113,7 @@ export function EarningsCallDialog({ symbol, name, list, initialQuestion, onClos
         </header>
         <div className="ec-body">
           <aside className="ec-rail" aria-label="About this call">
-            <div className="ec-co"><span className="ec-badge" aria-hidden="true">{initials(name)}</span><div><b>{name}</b><small>{symbol}</small></div></div>
+            <div className="ec-co"><span className="ec-badge"><CoLogo symbol={symbol} name={name} size={38} /></span><div><b>{name}</b><small>{symbol}</small></div></div>
             <div className="ec-lab" id={uid + "q"}>Quarter</div>
             <div className="ec-qs" role="group" aria-labelledby={uid + "q"}>{[1, 2, 3, 4].map(quarterChip)}</div>
             <label className="ec-lab" htmlFor={uid + "fy"}>Financial year</label>

@@ -13,6 +13,7 @@ import { signals } from "../../pages/Watchlist";
 import { MiniBars } from "../../charts/MiniBars";
 import { Icon } from "../../lib/icons";
 import { MINUS, cr, nf } from "../../lib/format";
+import { CoLogo } from "../CoLogo";
 
 const sgn = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + "%");
 const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "up" : "down");
@@ -26,7 +27,7 @@ export function Movers({ items }: { items: Row[] }) {
   const max = Math.max(...top.map((r) => Math.abs(r.change_pct as number)), 1);
   return (
     <ul className="dv">{top.map((r) => (
-      <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</Link>
+      <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</Link>
         <span className="dvbar" aria-hidden="true"><i className={tone(r.change_pct)} style={{ width: `${(Math.abs(r.change_pct as number) / max) * 50}%`, [(r.change_pct as number) >= 0 ? "left" : "right"]: "50%" }} /></span>
         <span className={"dvv " + tone(r.change_pct)}>{sgn(r.change_pct)}</span></li>))}</ul>
   );
@@ -62,7 +63,7 @@ export function SecondLook({ items, meta }: { items: Row[]; meta: Record<string,
   const flagged = items.map((r) => ({ r, s: signals(r, meta[r.symbol]?.target) })).filter((x) => x.s.length).slice(0, 5);
   if (!items.length) return <Empty icon="quality" title="Nothing to review yet" text="Add stocks to your watchlist and FinLit flags the ones that need a second look." to="/watchlist" cta="Open watchlist" />;
   if (!flagged.length) return <p className="muted dw-ok"><Icon name="check" /> Nothing in your watchlist needs attention right now.</p>;
-  return <ul className="sl">{flagged.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}>{titleOf(r)}</b>{r.band && <span className={"band-dot " + r.band}>{BAND_LABEL[r.band]}</span>}</Link><span>{s[0]}</span></li>)}</ul>;
+  return <ul className="sl">{flagged.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b>{r.band && <span className={"band-dot " + r.band}>{BAND_LABEL[r.band]}</span>}</Link><span>{s[0]}</span></li>)}</ul>;
 }
 export function Buckets({ items }: { items: Row[] }) {
   const order = ["strong", "healthy", "mixed", "watch"] as const;

@@ -8,6 +8,7 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { Reveal } from "../components/Reveal";
 import { nf } from "../lib/format";
+import { CoLogo } from "../components/CoLogo";
 
 const FEATURED = ["RELIANCE", "TCS", "HDFCBANK", "INFY", "BPCL", "ITC"];
 const TABS = [["score", "Highest scoring", "Silver"], ["size", "Largest companies", ""], ["up", "Top gainers today", ""], ["down", "Top decliners today", ""]] as const;
@@ -51,7 +52,7 @@ export function Research({ onSearch }: { onSearch: () => void }) {
         {isLoading && <div className="skeleton" style={{ height: 160 }} />}
         <div className="sgrid">
           {(rows.length ? list : FEATURED.map((s) => ({ symbol: s, name: s, band: null, overall: null, price: null, sector: null, change_pct: null, market_cap: null } as unknown as Row))).map((r) => (
-            <Link className="scard" key={r.symbol} to={`/stocks/${r.symbol}`}><b title={codeNote(r)}>{titleOf(r)}</b><span>{subOf(r) && subOf(r) !== r.symbol ? subOf(r) : r.sector || "Open the report"}</span>
+            <Link className="scard" key={r.symbol} to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={24} inline />{titleOf(r)}</b><span>{subOf(r) && subOf(r) !== r.symbol ? subOf(r) : r.sector || "Open the report"}</span>
               <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {r.overall != null && <span className={"vd " + (r.band === "strong" ? "strong" : r.band === "healthy" ? "healthy" : r.band === "mixed" ? "mixed" : "weak")}>{r.band ? BAND_LABEL[r.band] : ""} {r.overall}</span>}
                 {r.price != null && <span className="mono">₹{nf(r.price)}</span>}

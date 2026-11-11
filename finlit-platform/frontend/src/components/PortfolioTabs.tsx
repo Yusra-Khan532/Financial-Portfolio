@@ -12,6 +12,7 @@ import {
   type BandFilter, type Col, type Line, type Model, type Period, type Ready, type Tab,
 } from "../lib/portfolioOverview";
 import "../styles/scorescreen.css";
+import { CoLogo } from "./CoLogo";
 
 /** The imported holdings as three tabs over one table: Overview (share, price, size and the plan's score model), Ratios and Financials.
  *  Silver sees the basic FinLit IQ and its pillars; Gold only FinLit Prism (four parts and two technical views). Information only, not advice. */
@@ -41,7 +42,7 @@ function ScoreBadge({ l, model }: { l: Line; model: Model }) {
 function ShareCell({ l, flag }: { l: Line; flag?: string }) {
   const h = isReady(l.ov) ? l.ov : null;
   const where = h ? [h.sector, h.industry && h.industry !== h.sector ? h.industry : null].filter(Boolean).join(" · ") : "";
-  return <><Link to={`/stocks/${l.symbol}`}><b title={codeNote({ symbol: l.symbol, name: l.name || h?.name })}>{titleOf({ symbol: l.symbol, name: l.name || h?.name })}</b></Link>{subOf({ symbol: l.symbol, name: l.name || h?.name }) && <small className="muted">{subOf({ symbol: l.symbol, name: l.name || h?.name })}</small>}{where && <small className="faint">{where}</small>}
+  return <><Link to={`/stocks/${l.symbol}`}><b title={codeNote({ symbol: l.symbol, name: l.name || h?.name })}><CoLogo symbol={l.symbol} name={l.name || h?.name} size={20} inline />{titleOf({ symbol: l.symbol, name: l.name || h?.name })}</b></Link>{subOf({ symbol: l.symbol, name: l.name || h?.name }) && <small className="muted">{subOf({ symbol: l.symbol, name: l.name || h?.name })}</small>}{where && <small className="faint">{where}</small>}
     {flag && <small className="down" title={flag}> ⚑ {flag}</small>}</>;
 }
 
