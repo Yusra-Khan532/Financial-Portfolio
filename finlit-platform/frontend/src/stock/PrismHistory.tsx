@@ -36,7 +36,11 @@ export function HistoryChart({ points, view }: { points: HistPoint[]; view: View
     points.forEach((p, i) => { const d = Math.abs(x(p.day) - px); if (d < bd) { bd = d; best = i; } });
     setHover(best);
   };
-  const axis = points.length > 1 ? [points[0], points[Math.floor(points.length / 2)], points[points.length - 1]] : points;
+  // one tick on the baseline for every recorded day, and a date under up to eight of them, spaced evenly (task #65)
+  const stepL = Math.max(1, Math.ceil((points.length - 1) / 7));
+  const idx = points.length > 1 ? points.map((_, i) => i).filter((i) => i % stepL === 0 || i === points.length - 1) : [0];
+  if (idx.length > 2 && idx[idx.length - 1] - idx[idx.length - 2] < stepL / 2) idx.splice(idx.length - 2, 1);   // never two dates on top of each other at the right end
+  const axis = idx.map((i) => points[i]).filter(Boolean);
   return (
     <div className="phx">
       <div className="phx-tog" role="group" aria-label="Lines to show">
@@ -50,7 +54,8 @@ export function HistoryChart({ points, view }: { points: HistPoint[]; view: View
         {ticks.map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth={g === 0 && view === "technical" ? 1.1 : 0.6} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="phx-ax">{fmt(g)}</text></g>)}
         {changes.map((c) => <g key={c.day}><line x1={x(c.day)} x2={x(c.day)} y1={T} y2={H - B} stroke="var(--gold)" strokeDasharray="2 3" /><title>{`The scoring method was updated on ${dateIN(c.day)}`}</title></g>)}
         {defs.filter((l) => shown[l.s]).map((l) => <path key={l.s} d={path(l.s)} fill="none" stroke={l.color} strokeWidth={l.w} strokeLinejoin="round" strokeLinecap="round" />)}
-        {defs.filter((l) => shown[l.s]).flatMap((l) => withValue(points, l.s).map((p) => <circle key={l.s + p.day} cx={x(p.day)} cy={y(valueOf(p, l.s)!)} r={points.length > 40 ? 0 : 2.6} fill="var(--bg)" stroke={l.color} strokeWidth="1.6" />))}
+        {defs.filter((l) => shown[l.s]).flatMap((l) => withValue(points, l.s).map((p) => <circle key={l.s + p.day} cx={x(p.day)} cy={y(valueOf(p, l.s)!)} r={(hover != null && points[hover]?.day === p.day ? 1.8 : 1) * (points.length <= 14 ? 4.6 : points.length <= 40 ? 3.6 : points.length <= 130 ? 2.4 : 1.6)} fill={l.color} stroke="var(--s1, var(--bg))" strokeWidth="1.4" />))}
+        {points.map((p) => <line key={"t" + p.day} x1={x(p.day)} x2={x(p.day)} y1={H - B} y2={H - B + 4} stroke="var(--muted)" strokeWidth="1" />)}
         {axis.map((p, i) => <text key={p.day} x={x(p.day)} y={H - 8} textAnchor={axis.length > 1 && i === 0 ? "start" : axis.length > 1 && i === axis.length - 1 ? "end" : "middle"} className="phx-ax">{dateIN(p.day, { day: "numeric", month: "short", year: "2-digit" })}</text>)}
         {h && <line x1={x(h.day)} x2={x(h.day)} y1={T} y2={H - B} stroke="var(--border-strong)" strokeDasharray="3 3" />}
       </svg>

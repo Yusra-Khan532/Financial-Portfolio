@@ -8,6 +8,7 @@ import { useSavedScreens } from "../../lib/screens";
 import { encodeState, toBody, useScreen, type PState } from "../../lib/proscreen";
 import { dedupeFilings, filingLine, filingTag, istToday, resultLines, shortDay, titleCase } from "../../lib/dashboard";
 import { nf } from "../../lib/format";
+import { CoLogo } from "../CoLogo";
 import { Card, Rows, ScopeSeg, ShowMoreButton, useScope, useShowMore } from "./parts";
 
 export function ResultsToday({ symbols }: { symbols: string[] }) {
@@ -34,7 +35,7 @@ export function Filings({ symbols }: { symbols: string[] }) {
   return (
     <Card id="filings" title="Filings and news" sub="Exchange filings, newest first" right={<ScopeSeg label="Filings" scope={scope} onChange={setScope} hasStocks={symbols.length > 0} />}>
       {q.isLoading ? <Rows n={5} h={46} /> : q.isError ? <p className="dsh-note">Filings are not available right now.</p> : !items.length ? <p className="dsh-note">{scope === "mine" ? "No new filings for your stocks." : "No new exchange filings yet."}</p> :
-        <><div className="dsh-lines" id="dsh-filings-list">{more.visible.map((x) => <Link key={x.id} to="/news" className="dsh-line2 f" title={filingLine(x)}><span className="hd"><b>{who(x) || "Market"}</b><i className="dsh-tag">{filingTag(x)}</i><em>{shortDay(x.date, today)}</em></span><span className="tx dsh-1line">{filingLine(x)}</span></Link>)}</div>
+        <><div className="dsh-lines" id="dsh-filings-list">{more.visible.map((x) => <Link key={x.id} to="/news" className="dsh-line2 f" title={filingLine(x)}><span className="hd">{x.symbol && !/^\d+$/.test(x.symbol) && <CoLogo symbol={x.symbol} name={x.company || x.symbol} size={22} />}<b>{who(x) || "Market"}</b><i className="dsh-tag">{filingTag(x)}</i><em>{shortDay(x.date, today)}</em></span><span className="tx dsh-1line">{filingLine(x)}</span></Link>)}</div>
           <ShowMoreButton more={more} noun="filing" controls="dsh-filings-list" /></>}
       <Link className="dsh-link foot" to="/news">All news and filings →</Link>
     </Card>

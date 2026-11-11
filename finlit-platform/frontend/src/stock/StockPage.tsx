@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FeedbackFooter } from "../components/FeedbackFooter";
 import { Link, useNavigate, useParams } from "react-router";
 import { canon } from "../lib/aliases";
 import { visits } from "../lib/recentVisits";
@@ -178,6 +179,7 @@ export function StockPage() {
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><MethodSection s={s} /></ErrorBoundary></Defer>
       </div>
       <div className="wrap"><p className="rp-plans" id="plans">Basic, Silver and Gold open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>
+      <div className="wrap"><FeedbackFooter what="report" /></div>
       {partial && <div className="prep-toast" role="status"><i aria-hidden="true" />Ownership, peers, segments and announcements are still loading. Everything above is final.</div>}
     </>
     </OpenAccess.Provider>

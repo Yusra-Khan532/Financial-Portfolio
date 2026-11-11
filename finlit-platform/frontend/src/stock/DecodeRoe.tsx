@@ -12,6 +12,7 @@ import {
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
+import { scoreBand } from "../lib/scoreBands";
 import { saveFile } from "./derive";
 
 const sg = (v: number, d: number) => (v < 0 ? MINUS : "") + nf(v, d);
@@ -102,7 +103,7 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
         </div>
         <div className="dp-stat">
           <span className="k">ROE quality score</span>
-          <b className="dp-badge">{score.total == null ? "Not scored" : `${score.total} / 100`}</b>
+          {score.total == null ? <b className="dp-badge off">Not scored</b> : (() => { const b = scoreBand(score.total); const word = b === "hi" ? "Clean and steady" : b === "mid" ? "Mixed" : "Uneven"; return <b className={"dp-badge dp-verdict " + b} title={b === "hi" ? "Green: 70 or more" : b === "mid" ? "Orange: 50 to 69" : "Red: under 50"}>{score.total} / 100<span className="dp-vw"><i aria-hidden="true" />{word}</span></b>; })()}
           <small>{score.total == null ? score.reason : "A description of how clean and steady the ROE is, not a rating of the company."}</small>
           <ul className="dp-parts" aria-label="How the score was made">{score.parts.map((p) => <li key={p.key} title={p.how}><span>{p.label}</span><b>{p.points == null ? "–" : `${nf(p.points, 1)} of ${p.max}`}</b><small>{p.detail}</small></li>)}</ul>
           {score.scaled && score.total != null && <small>Scored on the two parts that apply and scaled to 100.</small>}

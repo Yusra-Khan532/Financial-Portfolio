@@ -80,8 +80,8 @@ describe("Advanced score screener (Gold)", () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
     const h = heads();
-    expect(h).toEqual(expect.arrayContaining(["Prism", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
-    expect(h.join("|").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
+    expect(h).toEqual(expect.arrayContaining(["Prism Fundamental score", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
+    expect(h.join("|").replace("Prism Fundamental score", "").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
     const r = rowOf("AAA").textContent!;
     expect(r).toMatch(/85\s*Strong/); expect(r).toMatch(/Strong uptrend\+55/); expect(r).toMatch(/Uptrend\+30/);
     expect(rowOf("BBB").textContent).toMatch(/Sideways\+5/); expect(rowOf("BBB").textContent).toMatch(/Downtrend−35/);
@@ -199,9 +199,9 @@ describe("Advanced score screener (Gold)", () => {
 
   it("sorts on the Prism score, each part and each technical view, companies without a value last", () => {
     open("?size=50");
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism Fundamental score" }));
     expect(symbols()).toEqual(["AAA", "BBB", "CCC", "FFF", "DDD", "EEE"]);
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism Fundamental score" }));
     expect(symbols()).toEqual(["FFF", "CCC", "BBB", "AAA", "DDD", "EEE"]);
     fireEvent.click(screen.getByRole("button", { name: "Sort by Long-term technical" }));
     expect(loc()).toContain("sort=prism_lt_score"); expect(symbols().slice(-2)).toEqual(["DDD", "EEE"]);

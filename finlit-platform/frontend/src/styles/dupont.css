@@ -92,3 +92,9 @@
 .dp-main-t tr:hover > td, .dp-main-t tr:hover > th { background: var(--s2); }
 @media (max-width: 420px) { .dp-sc b { font-size: var(--fs-20); } .dp-pill { font-size: var(--fs-12); } .dp-head p, .dp-title p { overflow-wrap: anywhere; } }
 @media (prefers-reduced-motion: reduce) { .dp *, .dp-deep * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+
+/* The ROE quality score and its verdict in the site's one colour rule (task #96): green 70 or more, orange 50 to 69, red under 50 */
+.dp-verdict { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; } .dp-verdict .dp-vw { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; font: 700 var(--fs-13) var(--sans); border: 1px solid currentColor; }
+.dp-verdict .dp-vw i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.dp-verdict.hi { color: var(--band-hi-ink, var(--gain)); } .dp-verdict.mid { color: var(--band-mid-ink, #c27a12); } .dp-verdict.lo { color: var(--band-lo-ink, var(--loss)); }
+.dp-verdict.hi .dp-vw { background: color-mix(in srgb, var(--band-hi, var(--gain)) 14%, transparent); } .dp-verdict.mid .dp-vw { background: color-mix(in srgb, var(--band-mid, #e0a21a) 16%, transparent); } .dp-verdict.lo .dp-vw { background: color-mix(in srgb, var(--band-lo, var(--loss)) 14%, transparent); }

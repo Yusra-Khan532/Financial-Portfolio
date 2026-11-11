@@ -49,3 +49,18 @@
 @media (max-width: 720px) { .fb-two, .fb-three { grid-template-columns: minmax(0, 1fr); } .fb-side ul { grid-template-columns: minmax(0, 1fr); } .fb-steps span { display: none; } .fb-steps li.now span { display: inline; } .fb-steps { grid-template-columns: auto auto 1fr; }
   .fb-star { width: 44px; height: 44px; } .fb-nps button { min-width: 44px; height: 44px; } .fb-foot .btn { flex: 1; justify-content: center; } .fb-priv { display: none; } }
 @media (prefers-reduced-motion: reduce) { .fb-bar i, .fb-star { transition: none; } }
+
+/* Task #67: boxes of one row share one height, the question text stays inside its box, stars and the 0-10 scale sit on an even grid */
+.fb-q legend, .fb-q > label { float: none; display: block; width: auto; max-width: 100%; margin-bottom: 2px; overflow-wrap: break-word; }
+.fb-q { align-content: start; height: 100%; }
+.fb-two, .fb-three { align-items: stretch; }
+.fb-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fb-row { flex-wrap: wrap; row-gap: 2px; } .fb-star { width: 36px; height: 36px; } .fb-word { margin: 0; flex-basis: 100%; min-height: 18px; }
+.fb-nps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; } .fb-nps button { min-width: 0; width: 100%; }
+@media (max-width: 900px) { .fb-three { grid-template-columns: minmax(0, 1fr); } .fb-two { grid-template-columns: minmax(0, 1fr); } }
+
+/* the feedback block at the bottom of reports and dashboards (components/FeedbackFooter.tsx) */
+.fbf { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 28px auto 8px; max-width: 1180px; padding: 16px 20px; border: 1px solid var(--border-strong, var(--border)); border-radius: 16px; background: var(--s1); }
+.fbf-i { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--gold-soft); color: var(--gold); } .fbf-i svg { width: 20px; height: 20px; }
+.fbf > div { flex: 1 1 280px; min-width: 0; } .fbf b { display: block; font: 600 16px/1.3 var(--sans); } .fbf p { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+@media print { .fbf { display: none; } }
