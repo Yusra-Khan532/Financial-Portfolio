@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, createChart, createSeriesMarkers, type IChartApi, type MouseEventParams, type Time } from "lightweight-charts";
-import { usePrice } from "../../lib/api";
+import { apiGet, usePrice } from "../../lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { useFocusTrap } from "../../lib/focusTrap";
 import { CoLogo } from "../CoLogo";
 import "../../styles/chartpanel.css";
@@ -12,9 +13,9 @@ import "../../styles/chartpanel.css";
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y"] as const;
 type Range = (typeof RANGES)[number];
 const KEY = "fl.chart.v1";
-const read = (): { range: Range; ema50: boolean; ema200: boolean; log: boolean } => {
-  const d = { range: "6M" as Range, ema50: true, ema200: true, log: false };
-  try { const o = JSON.parse(localStorage.getItem(KEY) || "{}"); return { ...d, ...(RANGES.includes(o.range) ? { range: o.range } : {}), ema50: o.ema50 !== false, ema200: o.ema200 !== false, log: o.log === true }; } catch { return d; }
+const read = (): { range: Range; ema50: boolean; ema200: boolean; log: boolean; bench: boolean; events: boolean } => {
+  const d = { range: "6M" as Range, ema50: true, ema200: true, log: false, bench: false, events: true };
+  try { const o = JSON.parse(localStorage.getItem(KEY) || "{}"); return { ...d, ...(RANGES.includes(o.range) ? { range: o.range } : {}), ema50: o.ema50 !== false, ema200: o.ema200 !== false, log: o.log === true, bench: o.bench === true, events: o.events !== false }; } catch { return d; }
 };
 const num = (n: number | null | undefined, d = 2) => (n == null ? "–" : n.toLocaleString("en-IN", { maximumFractionDigits: d, minimumFractionDigits: d }));
 const css = (v: string, fb: string) => { try { return getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb; } catch { return fb; } };
@@ -33,6 +34,8 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
   useFocusTrap(box, false);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
 
+  const bq = useQuery<{ rows: { d: string; c: number }[] }, Error>({ queryKey: ["nif500-for-chart"], queryFn: () => apiGet("/api/indices/NIF500/history"), enabled: opt.bench, staleTime: 3_600_000, retry: 0 });
+  const eq = useQuery<{ actions: { date: string; type: string; title: string }[] }, Error>({ queryKey: ["events-for-chart", row.symbol], queryFn: () => apiGet(`/api/stocks/${encodeURIComponent(row.symbol)}/events`), enabled: opt.events, staleTime: 3_600_000, retry: 0 });
   const s = q.data?.series;
   const bars = useMemo(() => {
     if (!s) return [];
@@ -60,6 +63,16 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
     vol.setData(bars.filter((b) => b.v != null).map((b) => ({ time: b.t as Time, value: b.v as number, color: (b.c >= b.o ? up : down) + "66" })));
     if (opt.ema50) c.addSeries(LineSeries, { color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(bars.filter((b) => b.e50 != null).map((b) => ({ time: b.t as Time, value: b.e50 as number })));
     if (opt.ema200) c.addSeries(LineSeries, { color: "#6366f1", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(bars.filter((b) => b.e200 != null).map((b) => ({ time: b.t as Time, value: b.e200 as number })));
+    if (opt.bench && bq.data?.rows?.length) {          // NIFTY 500 on the same days, drawn as the same starting level so the two can be compared by eye
+      const first = bars[0], byDate = new Set(bars.map((b) => b.t)), from = bq.data.rows.find((r) => r.d >= first.t);
+      if (from) c.addSeries(LineSeries, { color: "#0ea5e9", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: "NIFTY 500 (scaled)" })
+        .setData(bq.data.rows.filter((r) => r.d >= first.t && byDate.has(r.d)).map((r) => ({ time: r.d as Time, value: (r.c / from.c) * first.c })));
+    }
+    if (opt.events && eq.data?.actions?.length) {
+      const days = new Set(bars.map((b) => b.t));
+      const mk = eq.data.actions.filter((a) => days.has(a.date)).map((a) => ({ time: a.date as Time, position: "aboveBar" as const, color: "#b8892b", shape: "circle" as const, text: /dividend/i.test(a.type) ? "D" : /bonus/i.test(a.type) ? "B" : /split/i.test(a.type) ? "S" : /right/i.test(a.type) ? "Rt" : "" })).filter((m) => m.text);
+      if (mk.length) createSeriesMarkers(candles, mk.sort((a, b) => String(a.time).localeCompare(String(b.time))));
+    }
     const dr = row.draw;
     if (dr) {
       const line = (price: number, title: string, color: string) => candles.createPriceLine({ price, color, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title });
@@ -85,11 +98,11 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
     c.subscribeCrosshairMove(show);
     show({} as MouseEventParams<Time>);
     return () => { c.remove(); chart.current = null; };
-  }, [bars, opt.ema50, opt.ema200, opt.log, row.draw]);
+  }, [bars, opt.ema50, opt.ema200, opt.log, opt.bench, opt.events, bq.data, eq.data, row.draw]);
 
   const last = bars[bars.length - 1], first = bars[0];
   const chg = last && first ? (last.c / first.c - 1) * 100 : null;
-  const tog = (k: "ema50" | "ema200" | "log") => setOpt((o) => ({ ...o, [k]: !o[k] }));
+  const tog = (k: "ema50" | "ema200" | "log" | "bench" | "events") => setOpt((o) => ({ ...o, [k]: !o[k] }));
   return (
     <aside className="cp" ref={box} role="complementary" aria-label={`${row.name || row.symbol} chart`}>
       <header className="cp-h">
@@ -104,6 +117,8 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
         <button type="button" className={opt.ema50 ? "on" : ""} aria-pressed={opt.ema50} onClick={() => tog("ema50")}>50-day</button>
         <button type="button" className={opt.ema200 ? "on" : ""} aria-pressed={opt.ema200} onClick={() => tog("ema200")}>200-day</button>
         <button type="button" className={opt.log ? "on" : ""} aria-pressed={opt.log} onClick={() => tog("log")}>Log</button>
+        <button type="button" className={opt.bench ? "on" : ""} aria-pressed={opt.bench} onClick={() => tog("bench")}>vs NIFTY 500</button>
+        <button type="button" className={opt.events ? "on" : ""} aria-pressed={opt.events} onClick={() => tog("events")} title="D dividend, B bonus, S split, Rt rights">Events</button>
       </div>
       {!!row.facts?.length && <dl className="cp-facts" aria-label="What the chart shows">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
       <div className="cp-leg" aria-live="off">{legend || " "}</div>
