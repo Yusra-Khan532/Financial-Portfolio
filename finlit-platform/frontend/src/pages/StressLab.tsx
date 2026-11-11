@@ -2,7 +2,7 @@
 // The page is the design team's reference page, drawn in a shadow root (so its own light "paper" styles cannot leak and the site's cannot reach in); the model runs in the browser
 // (stress/engine.js, a port of finlit_technicals/stress.py) so the sliders answer at once. The server decides what each plan receives. Information only, never advice (docs/STRESS.md).
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../components/PageHeader";
 import { OutlookPicker } from "../components/OutlookPicker";
@@ -77,7 +77,10 @@ export function StressLabPage() {
         <Gate tier="silver" title="Stress Lab" points={GATE}>
           {q.isLoading ? <div className="ol-skel" aria-busy="true" aria-label="Loading Stress Lab"><div className="sk-lines"><i /><i /><i /><i /><i /></div></div>
             : err ? <section className="card" role="alert"><h2>{err.status === 404 ? "Stress Lab does not cover this company yet" : err.status === 503 ? "Stress Lab is getting ready for this company" : "Stress Lab is unavailable right now"}</h2>
-              <p className="muted">{why || "Please try again in a moment."}</p></section>
+              <p className="muted">{why || "Please try again in a moment."}</p>
+              {err.status === 404 && <>
+                <p className="muted">{/financial/i.test(why) ? "Banks and lenders earn from interest, not from selling goods, so a fuel, currency or raw-material shock does not describe them. Stress Lab for banks is being built. Until then these pages describe this company:" : "These pages describe this company in the meantime:"}</p>
+                <p className="sl-nc"><Link className="btn primary" to={`/stocks/${encodeURIComponent(sym)}`}>Company report</Link>{" "}<Link className="btn" to={`/outlook/${encodeURIComponent(sym)}`}>Outlook</Link>{" "}<Link className="btn" to={BASE}>Pick another company</Link></p></>}</section>
             : <div ref={host} className="sl-host" />}
           {peerQ.error && wantPeer && <p className="ol-note" role="note">{(peerQ.error.body?.detail as string) || "The second company could not be loaded."}</p>}
           {def.data && !def.data.peer && wantPeer && <p className="ol-note" role="note">No peer of this company is covered by Stress Lab yet. Use “Compare with” to search for one.</p>}
