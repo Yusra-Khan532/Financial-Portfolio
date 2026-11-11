@@ -1,6 +1,8 @@
 /* /browser-extension: the install page. The preview card uses the extension's own greens so it looks like what the person will get. */
 .ext { display: grid; gap: 20px; padding-bottom: 48px; }
 .ext-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }   /* two equal boxes, side by side, one height (task #66) */
+.ext-hero > .ext-card { display: flex; flex-direction: column; justify-content: center; }   /* short intro box, centred beside the example card: no tall step list stretching the pair (task #66) */
+.ext-hero > .ext-card > .ext-badge { align-self: flex-start; }
 .ext-card { border: 1px solid var(--border); background: var(--s1); border-radius: 16px; padding: 24px; }
 .ext-card h2 { margin: 0 0 8px; font: 500 24px/1.2 var(--serif); }
 .ext-card h3 { margin: 0 0 6px; font: 500 18px/1.3 var(--serif); }
