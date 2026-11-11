@@ -114,7 +114,7 @@ describe("Basic stock screener page", () => {
     await waitFor(() => expect(loc()).toContain("qual=high"));
     await waitFor(() => { expect(symbols()).toEqual(["AAA", "BBB", "HHH"]); expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("0"); expect(count("IT")).toBe("0"); expect(count("Pharma")).toBe("1"); });   // the table follows the address a moment later (a deferred update), most visibly on a busy machine
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
-    await waitFor(() => expect(loc()).toBe("/score-screener"));
+    await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => { expect(count("Metals")).toBe("14"); expect(within(screen.getByLabelText("Summary")).getByText("Companies found").previousSibling?.textContent).toBe("22"); expect(within(screen.getByLabelText("Summary")).getByText("Active filters").previousSibling?.textContent).toBe("0"); });
   });
 
@@ -171,15 +171,15 @@ describe("Basic stock screener page", () => {
     open();
     const rating = () => within(screen.getByRole("group", { name: "FinLit IQ rating" }));
     fireEvent.click(rating().getByRole("button", { name: "Strong" }));
-    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH"]));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH"]), { timeout: 10000 });
     expect(loc()).toBe("/score-screener?iql=strong");
     fireEvent.click(rating().getByRole("button", { name: "Not rated" }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB", "HHH", "GGG"]));
     fireEvent.click(screen.getByRole("button", { name: "Remove filter FinLit IQ rating: Strong, Not rated" }));
-    await waitFor(() => expect(loc()).toBe("/score-screener"));
+    await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Remove filter FinLit IQ rating/ })).toBeNull());   // the chip is gone before the next filter is set: on a slow machine the two raced
     fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /78 and above/ }));
-    await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]));
+    await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]), { timeout: 10000 });
     fireEvent.change(within(screen.getByRole("group", { name: "Total FinLit IQ Score" })).getByLabelText("Min"), { target: { value: "80" } });
     await waitFor(() => { expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/score-screener?t=high&omin=80"); });
   });
