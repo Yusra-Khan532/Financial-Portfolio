@@ -25,7 +25,7 @@ export function StressLabIndexPage() {
   const { has } = useUI();
   return (
     <>
-      <PageHeader wrap plan={has("gold") ? "gold" : "silver"} title="Stress Lab" art="chart" links={["/outlook", "/dcf", "/research"]}
+      <PageHeader wrap eyebrow="Quant Lab" plan={has("gold") ? "gold" : "silver"} title="Stress Lab" art="chart" links={["/outlook", "/dcf", "/research"]}
         description={<>See how a shock to <b>crude, the rupee, inflation, interest rates or demand</b> would move a company's earnings over the next 12 months, under assumptions you can see. Illustrative, not a forecast and not advice.</>} />
       <div className="wrap ol"><OutlookPicker intro base={BASE} introText={<>Pick a large or mid cap that is not a bank, NBFC or insurer. Stress Lab starts from its last four reported quarters, applies the shock you choose, and shows what happens to earnings per share, interest cover and an earnings-based value, with every assumption and its source.</>} /></div>
     </>
@@ -71,10 +71,9 @@ export function StressLabPage() {
   const err = q.error, why = (err?.body?.detail as string) || "";
   return (
     <>
-      <PageHeader wrap plan={gold ? "gold" : "silver"} title="Stress Lab" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, BASE, "/outlook"]}
+      <PageHeader wrap eyebrow="Quant Lab" plan={gold ? "gold" : "silver"} title="Stress Lab" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, BASE, "/outlook"]}
         description={<>{data?.company?.name ? <><b>{data.company.name}</b> <span className="mono faint">{sym}</span> · </> : <><span className="mono">{sym}</span> · </>}How a shock would move this company's earnings. Illustrative, not a forecast and not advice.</>} />
       <div className="wrap ol">
-        <OutlookPicker current={sym} base={BASE} />
         <Gate tier="silver" title="Stress Lab" points={GATE}>
           {q.isLoading ? <div className="ol-skel" aria-busy="true" aria-label="Loading Stress Lab"><div className="sk-lines"><i /><i /><i /><i /><i /></div></div>
             : err ? <section className="card" role="alert"><h2>{err.status === 404 ? "Stress Lab does not cover this company yet" : err.status === 503 ? "Stress Lab is getting ready for this company" : "Stress Lab is unavailable right now"}</h2>
