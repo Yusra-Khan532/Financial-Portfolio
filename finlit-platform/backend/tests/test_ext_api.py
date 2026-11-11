@@ -13,14 +13,16 @@ async def seeded(app):  # noqa: F811
     async with app.state.store.pool.acquire() as c:
         await c.execute("INSERT INTO companies (symbol, name, sector) VALUES ($1, 'Ext Test Industries Ltd', 'Capital Goods') ON CONFLICT (symbol) DO NOTHING", SYM)
         await c.execute("DELETE FROM scores WHERE symbol = $1", SYM)
+        await c.execute("DELETE FROM prism_reports WHERE symbol = $1", SYM)
         await c.execute("INSERT INTO scores (symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical, price, market_cap, pe, roe, "
                         "debt_to_equity, name, sector) VALUES ($1,'consolidated','v1',82,'strong',90,80,85,81,76,100,19600,26.4,9.8,0.41,'Ext Test Industries Ltd','Capital Goods')", SYM)
-    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}")
+    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}", f"ext:company:gold:{SYM}")
     yield
     async with app.state.store.pool.acquire() as c:
         await c.execute("DELETE FROM scores WHERE symbol = $1", SYM)
+        await c.execute("DELETE FROM prism_reports WHERE symbol = $1", SYM)
         await c.execute("DELETE FROM companies WHERE symbol = $1", SYM)
-    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}")
+    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}", f"ext:company:gold:{SYM}")
 
 
 async def test_a_silver_member_gets_the_score_two_parts_and_four_figures(app):  # noqa: F811
@@ -66,3 +68,53 @@ async def test_an_admin_sees_the_score(app):  # noqa: F811
     admin = await make_admin(app, "ead@example.com")
     j = (await admin.get(f"/api/ext/company/{SYM}")).json()
     assert j["locked"] is False and j["score"] == 82
+
+
+async def _prism(app, final=78.4, label="HEALTHY", status="RATED", parts=None):
+    import json
+    parts = parts or {"fundamental": 84, "valuation": 61, "quality": 79.4, "risk": 72}
+    async with app.state.store.pool.acquire() as c:
+        await c.execute("""INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status) VALUES ($1, 'consolidated', $2, $3::jsonb, 'v1', $4, $5, $6)
+                           ON CONFLICT (symbol, statement) DO UPDATE SET report = EXCLUDED.report, final = EXCLUDED.final, label = EXCLUDED.label, status = EXCLUDED.status""",
+                         SYM, "a" * 32, json.dumps({"rating": {"parts": parts}}), final, label, status)
+    await app.state.store.redis.delete(f"ext:company:gold:{SYM}")
+
+
+async def test_a_gold_member_sees_finlit_prism_with_its_four_parts(app):  # noqa: F811
+    await _prism(app)
+    gold = await signed_in(app, "eg@example.com", plan="gold")
+    j = (await gold.get(f"/api/ext/company/{SYM}")).json()
+    assert j["locked"] is False and j["score"] == 82                                    # the FinLit score is still there
+    p = j["prism"]
+    assert p["rated"] is True and p["name"] == "FinLit Prism" and p["score"] == 78 and p["label"] == "Healthy" and p["provisional"] is False
+    assert [(x["label"], x["score"]) for x in p["parts"]] == [("Growth & Profitability", 84), ("Valuation", 61), ("Quality", 79), ("Risk", 72)]
+
+
+async def test_an_admin_counts_as_gold_for_prism(app):  # noqa: F811
+    await _prism(app)
+    admin = await make_admin(app, "eadp@example.com")
+    assert (await admin.get(f"/api/ext/company/{SYM}")).json()["prism"]["rated"] is True
+
+
+async def test_everyone_below_gold_only_sees_that_finlit_prism_is_part_of_gold_and_never_its_numbers(app):  # noqa: F811
+    await _prism(app)
+    for who in (await signed_in(app, "esp@example.com", plan="silver"), await signed_in(app, "ebp@example.com", plan="basic"), new_client(app)):
+        r = await who.get(f"/api/ext/company/{SYM}")
+        assert r.json()["prism"] == {"locked": True, "plan": "gold", "name": "FinLit Prism"}
+        assert "78" not in str(r.json()["prism"]) and "parts" not in r.json()["prism"]
+
+
+async def test_prism_says_why_when_there_is_no_rating(app):  # noqa: F811
+    gold = await signed_in(app, "egn@example.com", plan="gold")
+    assert (await gold.get(f"/api/ext/company/{SYM}")).json()["prism"] == {"name": "FinLit Prism", "rated": False, "why": "FinLit Prism has not rated this company yet."}
+    await _prism(app, final=None, label="NOT RATED", status="NOT RATED", parts={})
+    j = (await gold.get(f"/api/ext/company/{SYM}")).json()["prism"]
+    assert j["rated"] is False and "too thin" in j["why"] and "parts" not in j
+    await _prism(app, status="PROVISIONAL")
+    assert (await gold.get(f"/api/ext/company/{SYM}")).json()["prism"]["provisional"] is True
+
+
+async def test_the_card_never_uses_the_old_name(app):  # noqa: F811
+    gold = await signed_in(app, "eold@example.com", plan="gold")
+    assert "FinLit IQ" not in (await gold.get(f"/api/ext/company/{SYM}")).text
+    assert "FinLit IQ" not in (await new_client(app).get(f"/api/ext/company/{SYM}")).text
