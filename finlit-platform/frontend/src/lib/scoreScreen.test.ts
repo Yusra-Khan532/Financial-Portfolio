@@ -30,12 +30,12 @@ describe("scores per company", () => {
     const [a] = withScores([row("A", { pillar_technical: 37, overall: 51 })]);
     expect([a.t, a.overall]).toEqual([37, 51]);
   });
-  it("size buckets: 100 Large, next 150 Mid, rest Small; no price or market cap means no bucket", () => {
-    const rows = Array.from({ length: 260 }, (_, i) => row("S" + i, { market_cap: 100000 - i }));
-    rows.push(row("NOCAP", { market_cap: null }), row("NOPRICE", { price: null, market_cap: 5e6 }));
+  it("size is by market value in rupees crore: Large above 50,000, Mid 10,000 to 50,000, Small below; no market cap means no size", () => {
+    const rows = [50_001, 50_000, 49_999, 10_000, 9_999, 1].map((v, i) => row("S" + i, { market_cap: v }));
+    rows.push(row("NOCAP", { market_cap: null }), row("ZERO", { market_cap: 0 }), row("NOPRICE", { price: null, market_cap: 5e6 }));
     const by = Object.fromEntries(withScores(rows).map((r) => [r.symbol, r.cap]));
-    expect([by.S0, by.S99, by.S100, by.S249, by.S250, by.S259]).toEqual(["Large", "Large", "Mid", "Mid", "Small", "Small"]);
-    expect([by.NOCAP, by.NOPRICE]).toEqual([null, null]);
+    expect([by.S0, by.S1, by.S2, by.S3, by.S4, by.S5]).toEqual(["Large", "Mid", "Mid", "Mid", "Small", "Small"]);
+    expect([by.NOCAP, by.ZERO, by.NOPRICE]).toEqual([null, null, "Large"]);              // a price is not needed any more: the size is the market value's
   });
 });
 
@@ -64,8 +64,8 @@ describe("bands and ranges", () => {
 
 describe("applying filters", () => {
   const items = [
-    it1("A", 90, 90, { sector: "Banks", market_cap: 900 }), it1("B", 90, 30, { sector: "IT", market_cap: 800 }), it1("C", 50, 90, { sector: "IT", market_cap: 700 }),
-    it1("D", null, 80, { sector: "Auto", market_cap: 600 }), it1("E", 44, 45, { sector: null, market_cap: 500 }), it1("F", 78, null, { sector: "Banks", market_cap: 400 }),
+    it1("A", 90, 90, { sector: "Banks", market_cap: 180000 }), it1("B", 90, 30, { sector: "IT", market_cap: 160000 }), it1("C", 50, 90, { sector: "IT", market_cap: 140000 }),
+    it1("D", null, 80, { sector: "Auto", market_cap: 120000 }), it1("E", 44, 45, { sector: null, market_cap: 100000 }), it1("F", 78, null, { sector: "Banks", market_cap: 80000 }),
   ];
   it("empty filters keep every company, including ones with no scores", () => { expect(applyFilters(items, emptyFilters())).toHaveLength(6); });
   it("multi-select sectors is OR within the group", () => {
@@ -95,7 +95,7 @@ describe("applying filters", () => {
     expect(syms(applyFilters(x, f))).toEqual(["G"]);
   });
   it("size filter is multi-select", () => {
-    const x = withScores([row("L", { market_cap: 5 }), row("M", { market_cap: 4 })]);
+    const x = withScores([row("L", { market_cap: 60_000 }), row("M", { market_cap: 20_000 })]);
     const f = emptyFilters(); f.caps = ["Large", "Mid"];
     expect(applyFilters(x, f)).toHaveLength(2);
   });
@@ -369,7 +369,7 @@ describe("Top 10 large / mid / small caps by FinLit IQ", () => {
   // 320 companies: market caps 3200 down to 10 (so ranks 1-100 are Large, 101-250 Mid, 251+ Small), each with an IQ; a few are given none.
   const row = (i: number, o: Partial<Row> = {}): Row => ({
     symbol: "S" + String(i).padStart(3, "0"), name: "S" + i, sector: "X", overall: 50 + (i % 41), band: null, pillar_quality: 40 + (i % 7), pillar_growth: 50, pillar_profitability: 50, pillar_balance: 50, pillar_technical: 50,
-    price: 100, market_cap: (321 - i) * 10, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
+    price: 100, market_cap: i < 100 ? 90000 - i * 10 : i < 250 ? 30000 - i * 10 : 9000 - i * 10, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
     operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
   } as Row);
   const rows: Row[] = Array.from({ length: 320 }, (_, i) => row(i + 1)).map((r, i) => (i % 53 === 0 ? { ...r, overall: null, scored: false } : r));

@@ -133,11 +133,9 @@ class Table:
         self.n = n
         self.n_full = sum(self.full)
         self.pos = {s: i for i, s in enumerate(self.symbols)}
-        # size bucket by SEBI's rule: the 100 largest are Large, the next 150 Mid, the rest Small
-        order = sorted((i for i in range(n) if self.cols["market_cap"][i] == self.cols["market_cap"][i] and self.cols["market_cap"][i] > 0), key=lambda i: -self.cols["market_cap"][i])
-        self.cap: List[Optional[str]] = [None] * n
-        for rank, i in enumerate(order):
-            self.cap[i] = CAPS[0] if rank < 100 else CAPS[1] if rank < 250 else CAPS[2]
+        self._fp: Optional[str] = None
+        # size by market value in rupees crore, one scale for the whole site (task 64, fix 2): Large above 50,000 Cr, Mid 10,000 to 50,000 Cr, Small below 10,000 Cr; no size without a market cap
+        self.cap: List[Optional[str]] = [size_of(self.cols["market_cap"][i]) for i in range(n)]
         # against-the-sector valuation
         by_sector: Dict[str, List[int]] = {}
         for i, s in enumerate(self.sector):
@@ -200,6 +198,15 @@ class Table:
         return sorted(c.items(), key=lambda t: t[0])
 
     # ------------------------------------------------------------------ query
+    def fingerprint(self) -> str:
+        """A short id of what is IN the table (not of when it was loaded): the prebuilt lists carry it, and the API rebuilds a list built from another one (task 64, fix 1)."""
+        if self._fp is None:
+            def tot(k: str) -> float:
+                col = self.cols.get(k) or []
+                return sum(v for v in col if v == v)
+            self._fp = f"{self.n}:{round(tot('market_cap'))}:{round(tot('price'), 1)}:{round(tot('pct_from_high'), 1)}:{round(tot('ret_3m'), 1)}"
+        return self._fp
+
     def match(self, filters: Dict[str, Dict[str, Optional[float]]], cats: Dict[str, List[str]], q: str = "") -> List[int]:
         idx = range(self.n)
         for key, rg in filters.items():
@@ -245,6 +252,16 @@ _lock = asyncio.Lock()
 _lock_loop: Any = None
 _refreshing: Optional[asyncio.Task] = None
 SCORE_COLS = ("symbol", "name", "sector", "macro_sector", "industry", "band", "metrics") + tuple(sorted(set(LEGACY.values())))
+LARGE_MIN_CR, MID_MIN_CR = 50_000.0, 10_000.0
+
+
+def size_of(market_cap: Optional[float]) -> Optional[str]:
+    """Large, Mid or Small by market value in rupees crore (Large above 50,000, Mid 10,000 to 50,000, Small below 10,000); None when there is no market cap."""
+    if market_cap is None or market_cap != market_cap or market_cap <= 0:
+        return None
+    return CAPS[0] if market_cap > LARGE_MIN_CR else CAPS[1] if market_cap >= MID_MIN_CR else CAPS[2]
+
+
 QUOTE_COLS = ("price", "change_pct", "market_cap", "high52", "low52", "volume")
 
 
