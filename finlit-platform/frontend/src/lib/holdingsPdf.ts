@@ -420,9 +420,10 @@ export async function readPdfItems(file: File, password?: string): Promise<PdfIt
   const data = new Uint8Array(await file.arrayBuffer());
   if (String.fromCharCode(...data.slice(0, 5)) !== "%PDF-") throw new PdfReadError();
   const pdfjs = await loader();
-  let doc: Awaited<ReturnType<PdfJs["getDocument"]>["promise"]>;
+  const task = pdfjs.getDocument({ data, password, disableFontFace: true, useSystemFonts: false, verbosity: 0 });      // pdf.js 6 never evaluates font programs, so isEvalSupported is gone
+  let doc: Awaited<typeof task.promise>;
   try {
-    doc = await pdfjs.getDocument({ data, password, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 }).promise;
+    doc = await task.promise;
   } catch (e) {
     const err = e as { name?: string; code?: number };
     if (err?.name === "PasswordException") throw new PdfPasswordError(err.code === 2);
@@ -434,7 +435,7 @@ export async function readPdfItems(file: File, password?: string): Promise<PdfIt
       const page = await doc.getPage(p), content = await page.getTextContent();
       pages.push(content.items.flatMap((it) => ("str" in it && it.str ? [{ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width, h: it.height || Math.abs(it.transform[3]) }] : [])));
     }
-  } catch { throw new PdfReadError(); } finally { try { await doc.destroy(); } catch { /* already gone */ } }
+  } catch { throw new PdfReadError(); } finally { try { await task.destroy(); } catch { /* already gone */ } }
   if (!pages.some((p) => p.some((i) => i.str.trim()))) throw new PdfNoTextError();
   return pages;
 }
