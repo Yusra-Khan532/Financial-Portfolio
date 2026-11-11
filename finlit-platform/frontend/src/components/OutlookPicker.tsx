@@ -1,3 +1,4 @@
+import "../styles/outlook.css";   // the picker is also used by Stress Lab, which does not load the Outlook page
 // "Choose a company" for the profit and revenue outlook: a short explanation of the simulator, search by company name or NSE symbol, five quick picks, the companies last
 // opened here, and (for the open company) a small market snapshot. Numbers come from the screener list; a missing one is a dash, never zero.
 import { useMemo, useState, type ReactNode } from "react";
