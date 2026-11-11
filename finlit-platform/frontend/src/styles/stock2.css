@@ -530,9 +530,12 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .dp-fold > .dp-tiles { padding: 14px 14px 4px; }
 
 /* Financials: the Quarterly / Yearly switch reads as two clear tabs (task #95) */
-.seg.seg-period { padding: 3px; border-color: var(--border-strong); }
-.seg-period button { min-width: 96px; padding: 7px 16px; font-size: var(--fs-14); }
-.seg-period button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold, #1a1405); box-shadow: none; }
+.seg.seg-period { padding: 3px; border: 1.5px solid var(--border-strong); border-radius: 12px; gap: 3px; }
+.seg.seg-period button { min-width: 104px; min-height: 40px; padding: 8px 18px; font-size: var(--fs-14); font-weight: 600; color: var(--muted); border-radius: 9px; }
+/* the chosen tab is a solid gold block with dark text, so it is never the same colour as the card (the general .seg rule paints a chosen button the card's own shade and wins on order unless this one is as specific as it) */
+.seg.seg-period button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold, #1a1405); font-weight: 700; box-shadow: 0 1px 6px -2px rgba(0, 0, 0, .35); }
+.seg.seg-period button[aria-pressed="false"]:hover { color: var(--text); background: var(--s2); }
+.seg.seg-period button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
 
 /* Latest quarter: Revenue and Net profit stand out in the tiles and in the table (task #57) */
 .qt.hl { border-color: color-mix(in srgb, var(--gain) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gain) 28%, transparent); background: color-mix(in srgb, var(--gain) 6%, var(--s1)); }
