@@ -2,10 +2,29 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 /** The one card every block uses: serif title, 13px subtitle, optional right-hand control. Placeholders (not "no data" text) belong in `children` while a call is pending. */
+/** Panels that are a helpful extra rather than the page's main job: they get Hide / Show (the user's own shares, alerts and the main lists never do). The choice is kept per panel in this browser. */
+export const HIDEABLE = new Set(["sectors", "snapshot", "flows", "heatmap", "stress"]);
+const hideKey = (id: string) => `finlit.hide.dashboard.${id}`;
+function useHidden(id: string): [boolean, (v: boolean) => void] {
+  const [hidden, set] = useState<boolean>(() => { try { return localStorage.getItem(hideKey(id)) === "1"; } catch { return false; } });
+  return [hidden, (v) => { set(v); try { localStorage.setItem(hideKey(id), v ? "1" : "0"); } catch { /* private window: lasts for this visit */ } }];
+}
+
 export function Card({ id, title, sub, right, children, className = "" }: { id: string; title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+  const can = HIDEABLE.has(id);
+  const [hidden, setHidden] = useHidden(id);
+  const label = typeof title === "string" ? title : id;
+  const btn = can ? <button type="button" className="dsh-hide" aria-expanded={!hidden} aria-label={`${hidden ? "Show" : "Hide"}: ${label}`} onClick={() => setHidden(!hidden)}>{hidden ? "Show" : "Hide"}</button> : null;
+  if (can && hidden) {
+    return (
+      <section className={"dsh-card dsh-is-hidden " + className} aria-labelledby={`dsh-${id}`}>
+        <div className="dsh-ch dsh-ch-h"><h2 id={`dsh-${id}`}>{title}</h2><span className="dsh-tag">Hidden</span>{btn}</div>
+      </section>
+    );
+  }
   return (
     <section className={"dsh-card " + className} aria-labelledby={`dsh-${id}`}>
-      <div className="dsh-ch"><div><h2 id={`dsh-${id}`}>{title}</h2>{sub ? <p className="dsh-sub">{sub}</p> : null}</div>{right}</div>
+      <div className="dsh-ch"><div><h2 id={`dsh-${id}`}>{title}</h2>{sub ? <p className="dsh-sub">{sub}</p> : null}</div><div className="dsh-chr">{right}{btn}</div></div>
       {children}
     </section>
   );
