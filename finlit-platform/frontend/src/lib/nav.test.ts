@@ -12,7 +12,7 @@ describe("site map", () => {
     expect(RESEARCH.groups.map((g) => g.title)).toEqual(["Find stocks", "Analyse a company", "Investment calculators", "Charts"]);
     expect(RESEARCH.groups[0].items.map((i) => i.label)).toEqual(["Stock screener", "Basic score screener", "Advanced score screener", "Query builder"]);
     expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue outlook", "Stress Lab"]);
-    expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["EPS & P/E calculator", "DCF valuation calculator", "SIP calculator"]);
+    expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["EPS & P/E calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
     expect(RESEARCH.groups[3].items.map((i) => i.label)).toEqual(["Chart builder", "Correlation charts"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);
     expect(names("news")).toEqual(["Results calendar", "Latest results", "IPO calendar", "News & filings"]);
@@ -20,7 +20,7 @@ describe("site map", () => {
     expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "Equity portfolio", "MF portfolio", "Alerts"]);
   });
   it("marks the Gold tools of the Research menu", () => {
-    expect(RESEARCH.groups.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/prism"]);
+    expect(RESEARCH.groups.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/prism", "/reverse-valuation"]);
   });
   it("lists every address once, and every one of them is a real route", () => {
     const paths = [...all.map((i) => i.to), PRICING.to];

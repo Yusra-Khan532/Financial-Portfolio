@@ -132,3 +132,13 @@
 .ol-assume .ol-sliders { background: none; border: 0; padding: 0; }
 @media (max-width: 640px) { .ol-assume-h .ol-mode { width: 100%; } .ol-assume-h .ol-mode button { flex: 1; } }
 .ol-hn { display: inline-flex; align-items: center; }
+
+/* Profit and revenue outlook, new layout (task #55): charts beside the assumptions, the year table beside the key takeaways, three folded notes at the bottom */
+.ol-top { display: grid; gap: 16px; }
+.ol-top.side { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; }
+.ol-top.side > .ol-assume { grid-column: 2; grid-row: 1; position: sticky; top: 90px; } .ol-top.side > .ol-charts { grid-column: 1; grid-row: 1; }
+.ol-pair { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; } .ol-pair > * { min-width: 0; }
+.ol-fold3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.ol-fold3 details { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); } .ol-fold3 summary { cursor: pointer; font-weight: 600; font-size: var(--fs-14); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .ol-fold3 summary em { font-style: normal; padding: 1px 10px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: var(--fs-12); color: var(--muted); }
+.ol-fold3 details[open] { grid-column: 1 / -1; }
+@media (max-width: 1100px) { .ol-top.side { grid-template-columns: minmax(0, 1fr); } .ol-top.side > .ol-assume { grid-column: 1; grid-row: 1; position: static; } .ol-top.side > .ol-charts { grid-column: 1; grid-row: 2; } .ol-pair, .ol-fold3 { grid-template-columns: minmax(0, 1fr); } }
