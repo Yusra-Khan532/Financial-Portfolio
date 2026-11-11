@@ -21,6 +21,8 @@ def test_price_fields_find_the_breakout_and_the_pullback():
     f = price_fields(h, l, c, v)
     assert set(f) == set(FIELDS)
     assert f["breakout_age"] == 7 and f["breakout_level"] == 100.0 and f["days_since_high"] == 4
+    assert f["b2_age"] == 7 and f["b2_level"] == 100.0 and f["b2_pullback"] > 0 and f["b2_vol_x"] > 2.5 and f["range_4d"] > 0 and f["turnover20_cr"] > 0
+    assert all(f[k] in (0.0, 1.0) for k in ("ema9_above4", "ema9_near4", "ema9_touch4"))
     assert f["breakout_vol_ratio"] > 2.5 and 0 < f["vs_breakout"] < 4 and f["ema_stack"] == 1.0
     assert f["vs_ema20"] is not None and f["range_10d"] > 0 and f["vol_ratio_5_50"] < 1
 
@@ -68,19 +70,18 @@ def test_a_term_with_a_minus_ranks_the_lower_figure_higher():
 
 
 def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
-    assert ("setups", "Setups") in GROUPS
+    assert ("setups", "Breakouts") in GROUPS
     ids = [p.id for p in PRESETS if p.group == "setups"]
     assert ids == ["setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
     for i in ids:
         p = BY_ID[i]
         text = " ".join([p.name, p.card_text, *p.how_it_works]).lower()
         assert not any(w in text for w in ("buy", "sell", "multibagger", "top pick", "best")), i
-        assert (p.kind == "blocked") == i.endswith("ema9-consolidation"), i
-        if p.kind != "blocked":
-            assert p.limit == 25 and p.rank_score and DISCLAIMER in " ".join(p.how_it_works), i
-            for rule, _ in p.derived:
-                expr.parse(rule)           # every rule reads
-    assert BY_ID["setup-ema9-consolidation"].blocked_reason and BY_ID["basic-setup-ema9-consolidation"].tab == "basic"
+        assert p.kind == "rules", i
+        assert p.limit == 25 and p.rank_score and DISCLAIMER in " ".join(p.how_it_works), i
+        for rule, _ in p.derived:
+            expr.parse(rule)               # every rule reads
+    assert BY_ID["basic-setup-ema9-consolidation"].tab == "basic"
 
 
 # ---- the cards run through the real engine
@@ -100,7 +101,7 @@ def _row(sym, **m):
 
 def _pz(**over):
     z = {"prism_final": 70, "prism_status": "RATED", "prism_label": "HEALTHY", "prism_fundamental": 70, "prism_valuation": 60, "prism_quality": 75, "prism_risk": 70,
-         "prism_st_score": 0, "prism_lt_score": 30, "prism_st": "Positive", "prism_lt": "Positive"}
+         "prism_st_score": 25, "prism_lt_score": 30, "prism_st": "Positive", "prism_lt": "Positive"}
     z.update(over)
     return z
 
@@ -109,8 +110,9 @@ def _frame(rows, prism):
     return engine.Frame(Table(rows, {}, {}, None), prism, date(2026, 10, 30), None, None, None)
 
 
-PRE = dict(vs_ema50=4, vs_ema200=9, pct_from_high=5, days_since_high=20, range_10d=5, atr_ratio=0.7, vol_ratio_10_50=0.7, rsi14=55, pillar_technical=70, market_cap=5000)
-PULL = dict(vs_ema50=3, vs_ema200=8, breakout_age=8, breakout_vol_ratio=2.0, pct_from_high=6, vs_breakout=1, vs_ema20=-1, vol_ratio_5_50=0.8, rsi14=50, pillar_technical=65, market_cap=5000)
+PRE = dict(ret_1y=30, vs_ema50=4, vs_ema200=9, pct_from_high=5, days_since_high=20, range_10d=5, atr_ratio=0.7, rsi14=55, pillar_technical=70, market_cap=5000)
+PULL = dict(ret_1y=30, vs_ema50=3, vs_ema200=8, b2_age=8, b2_pullback=6, b2_vs_level=1, vs_ema20=-1, rsi14=50, pillar_technical=65, market_cap=5000)
+EMA9 = dict(ret_1y=30, vs_ema50=6, ema_stack=1, ema9_above4=1, vs_ema9=1.5, ema9_near4=1, ema9_touch4=1, range_4d=3, rsi14=60, pillar_technical=70, market_cap=5000)
 
 
 def _ids(body):
@@ -118,10 +120,12 @@ def _ids(body):
 
 
 @pytest.mark.parametrize("card,base,fails", [
-    ("basic-setup-pre-breakout", PRE, [dict(pct_from_high=9), dict(days_since_high=10), dict(breakout_age=5), dict(range_10d=9), dict(atr_ratio=0.9), dict(vol_ratio_10_50=1.0),
-                                       dict(rsi14=70), dict(pillar_technical=50), dict(market_cap=1500), dict(vs_ema200=3), dict(flag_count=3)]),
-    ("basic-setup-breakout-pullback", PULL, [dict(breakout_age=2), dict(breakout_age=25), dict(breakout_vol_ratio=1.2), dict(pct_from_high=2), dict(vs_breakout=6), dict(vs_ema20=-6),
-                                             dict(vs_ema50=-1), dict(vol_ratio_5_50=1.3), dict(rsi14=65), dict(pillar_technical=40), dict(market_cap=1500)]),
+    ("basic-setup-pre-breakout", PRE, [dict(pct_from_high=9), dict(days_since_high=10), dict(range_10d=11), dict(atr_ratio=1.2), dict(rsi14=70), dict(pillar_technical=50),
+                                       dict(market_cap=1500), dict(vs_ema200=3), dict(ret_1y=None)]),
+    ("basic-setup-breakout-pullback", PULL, [dict(b2_age=2), dict(b2_age=26), dict(b2_pullback=1), dict(b2_pullback=13), dict(b2_vs_level=7), dict(b2_vs_level=-4), dict(vs_ema20=-6),
+                                             dict(vs_ema50=-1), dict(rsi14=70), dict(pillar_technical=40), dict(market_cap=1500)]),
+    ("basic-setup-ema9-consolidation", EMA9, [dict(ema_stack=0), dict(ema9_above4=0), dict(vs_ema9=3.5), dict(ema9_near4=0), dict(ema9_touch4=0), dict(range_4d=7), dict(vs_ema50=-1),
+                                              dict(pillar_technical=50), dict(market_cap=500)]),
 ])
 def test_basic_setup_cards_keep_a_company_that_meets_every_rule_and_drop_one_that_misses_any(card, base, fails):
     for i, bad in enumerate(fails):
@@ -133,7 +137,7 @@ def test_basic_setup_cards_keep_a_company_that_meets_every_rule_and_drop_one_tha
 
 
 def test_a_company_without_the_new_price_fields_is_left_out_not_guessed():
-    rows = [_row("NEW", **PRE), _row("OLD", vs_ema50=4, vs_ema200=9, pct_from_high=5, pillar_technical=70, rsi14=55)]
+    rows = [_row("NEW", **PRE), _row("OLD", vs_ema50=4, vs_ema200=9, pct_from_high=5, pillar_technical=70, rsi14=55, ret_1y=30)]
     body = engine.run(_frame(rows, {}), BY_ID["basic-setup-pre-breakout"])
     assert _ids(body) == ["NEW"]
 
@@ -148,9 +152,8 @@ def test_advanced_setup_cards_need_a_prism_rating_and_the_long_term_view():
     assert _ids(body) == ["OK"]
 
 
-def test_the_closer_to_the_level_and_the_higher_volume_rank_first_and_the_blocked_card_lists_nothing():
-    rows = [_row("NEAR", **{**PULL, "vs_breakout": 0.2, "breakout_vol_ratio": 3.0}), _row("FAR", **{**PULL, "vs_breakout": 3.5, "breakout_vol_ratio": 1.6}),
-            _row("MID", **{**PULL, "vs_breakout": 2, "breakout_vol_ratio": 2.0})]
+def test_the_closer_to_the_level_ranks_first():
+    rows = [_row("NEAR", **{**PULL, "b2_vs_level": 0.2}), _row("FAR", **{**PULL, "b2_vs_level": 5.5}), _row("MID", **{**PULL, "b2_vs_level": 2})]
     body = engine.run(_frame(rows, {}), BY_ID["basic-setup-breakout-pullback"])
     assert _ids(body)[0] == "NEAR" and _ids(body)[-1] == "FAR"
 

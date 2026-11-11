@@ -115,6 +115,9 @@ class Frame:
         if name == "abs_vs_breakout":                               # how far the price is from the level it broke, either way (the Setups screens rank on closeness)
             v = self.get(i, "vs_breakout")
             return None if v is None else abs(v)
+        if name == "abs_b2_level":                                  # the same for the version 2 Breakouts screen
+            v = self.get(i, "b2_vs_level")
+            return None if v is None else abs(v)
         if name == "high_over_low":                                 # how far the 52-week high stands above the 52-week low, in %
             hi, lo = self.get(i, "high_52w"), self.get(i, "low_52w")
             return None if hi is None or lo is None or lo <= 0 else round((hi / lo - 1.0) * 100.0, 4)

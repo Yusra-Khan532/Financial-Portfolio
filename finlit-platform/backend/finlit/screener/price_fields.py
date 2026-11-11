@@ -15,7 +15,8 @@ HIGH_WINDOW = 252           # 52 weeks of sessions
 MIN_SESSIONS = 60
 
 FIELDS = ("vs_ema9", "vs_ema20", "ema_stack", "ema9_hold_10", "range_10d", "atr_ratio", "vol_ratio_10_50", "vol_ratio_5_50",
-          "days_since_high", "breakout_age", "breakout_level", "vs_breakout", "breakout_vol_ratio")
+          "days_since_high", "breakout_age", "breakout_level", "vs_breakout", "breakout_vol_ratio",
+          "b2_age", "b2_level", "b2_vs_level", "b2_pullback", "b2_vol_x", "ema9_above4", "ema9_near4", "ema9_touch4", "range_4d", "turnover20_cr")
 
 
 def _ema(xs: Sequence[float], n: int) -> List[float]:
@@ -78,4 +79,33 @@ def price_fields(h: Sequence[Optional[float]], l: Sequence[Optional[float]], c: 
                 out["vs_breakout"] = _r((last / level - 1) * 100)
                 out["breakout_vol_ratio"] = _r(vol[t] / vbase) if vbase else None
                 break
+    _breakouts_v2(out, hi, lo, cl, vol, e9, n)
     return out
+
+
+def _breakouts_v2(out: Dict[str, Optional[float]], hi, lo, cl, vol, e9, n: int) -> None:
+    """The Breakouts group's fields (version 2 of the rules, 11 Nov 2026): a breakout 3 to 25 sessions ago whose old high was at least 10 sessions old, the pull
+    back from the highest close since, and the 9-day-average fields (the last four sessions). Needs a full year of sessions, else left out."""
+    if n < 240:
+        return
+    last, i = cl[-1], n - 1
+    for b in range(i - 3, i - 26, -1):
+        start = max(0, b - 252)
+        prior = cl[start:b]
+        if not prior:
+            continue
+        level = max(prior)
+        if cl[b] > level and b - (start + prior.index(level)) >= 10:
+            base = [x for x in vol[max(0, b - 50):b] if x > 0]
+            newhigh = max(cl[b:])
+            out["b2_age"], out["b2_level"] = float(i - b), _r(level)
+            out["b2_vs_level"], out["b2_pullback"] = _r((last / level - 1) * 100), _r((newhigh - last) / newhigh * 100)
+            out["b2_vol_x"] = _r(vol[b] / _mean(base)) if base and vol[b] > 0 else None
+            break
+    w = range(i - 3, i + 1)
+    out["ema9_above4"] = 1.0 if all(cl[j] > e9[j] for j in w) else 0.0
+    out["ema9_near4"] = 1.0 if all((cl[j] / e9[j] - 1) * 100 <= 4 for j in w) else 0.0
+    out["ema9_touch4"] = 1.0 if any(lo[j] <= e9[j] for j in w) else 0.0
+    out["range_4d"] = _r((max(hi[j] for j in w) - min(lo[j] for j in w)) / last * 100)
+    tv = [cl[j] * vol[j] for j in range(i - 19, i + 1) if vol[j] > 0]
+    out["turnover20_cr"] = _r(_mean(tv) / 1e7) if tv else None
