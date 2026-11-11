@@ -182,3 +182,11 @@
 .sx-bulkb .btn:not(.primary):not(:disabled) { border-color: var(--gold); color: var(--text); }
 .sx-bulkhint { display: block; font-size: var(--fs-13); }
 @media (max-width: 700px) { .scr-main .ss-t.sx-t th, .scr-main .ss-t.sx-t td { padding: 10px 12px; } .scr-main .ss-t.sx-t tbody td { height: 64px; } .scr-main .ss-t.sx-t th.stick, .scr-main .ss-t.sx-t td.stick { min-width: 170px; max-width: 190px; } .scr-main .ss-t.sx-t td.stick small { max-width: 130px; } .sx-bulkb .btn { min-width: 0; } }
+
+/* Frozen columns (task #64, handover 11 Nov): the select box, # and Company stay in place when the table scrolls sideways */
+.scr-main .ss-t.sx-t th:first-child, .scr-main .ss-t.sx-t td:first-child { position: sticky; left: 0; z-index: 3; background-color: var(--s1); }
+.scr-main .ss-t.sx-t th.sx-n, .scr-main .ss-t.sx-t td.sx-n { position: sticky; left: 48px; z-index: 3; background-color: var(--s1); }
+.scr-main .ss-t.sx-t th.stick, .scr-main .ss-t.sx-t td.stick { left: 104px; z-index: 3; box-shadow: 2px 0 0 var(--border-strong, var(--border)); }
+.scr-main .ss-t.sx-t tbody tr:nth-child(even) td:first-child, .scr-main .ss-t.sx-t tbody tr:nth-child(even) td.sx-n { background-color: color-mix(in srgb, var(--s2) 45%, var(--s1)); }
+.scr-main .ss-t.sx-t tbody tr.sx-sel td:first-child, .scr-main .ss-t.sx-t tbody tr.sx-sel td.sx-n { background-color: var(--gold-soft); }
+.scr-main .ss-t.sx-t thead th:first-child, .scr-main .ss-t.sx-t thead th.sx-n, .scr-main .ss-t.sx-t thead th.stick { z-index: 4; }

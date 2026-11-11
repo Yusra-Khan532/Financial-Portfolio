@@ -1,4 +1,4 @@
-/* Prebuilt screens on the Advanced score screener (components/screener/presets/*). Class prefix psx- ; colours come from the theme variables, surfaces are opaque. */
+/* Prebuilt screens on the Advanced stock screener (components/screener/presets/*). Class prefix psx- ; colours come from the theme variables, surfaces are opaque. */
 
 /* grouped quick views */
 .psx-panel { display: grid; gap: 6px; }
@@ -121,3 +121,11 @@
 .psx-t thead tr:not(.gh) th + th, .psx-t tbody td + td, .psx-t thead tr:not(.gh) td + th { border-left: 1px solid var(--col-line); }
 .sx-t thead tr:not(.gh) th + th, .sx-t tbody td + td { border-left: 1px solid var(--col-line); }
 .sx-t thead tr:not(.gh) th:nth-child(7), .sx-t tbody td:nth-child(7), .sx-t:has(.gh th[colspan="5"]) thead tr:not(.gh) th:nth-child(12), .sx-t:has(.gh th[colspan="5"]) tbody td:nth-child(12) { border-left: 2px solid color-mix(in srgb, var(--text) 38%, var(--s1)); }
+
+/* Find stocks tabs (task #64) */
+.fst { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; padding: 4px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); overflow-x: auto; }
+.fst-k { padding: 0 12px; font: 700 var(--fs-11) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.fst-t { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 10px; color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: none; white-space: nowrap; }
+.fst-t:hover { background: var(--s2); } .fst-t.on { background: var(--gold); color: var(--on-gold, #1a1405); }
+.fst-p { font-style: normal; font: 700 var(--fs-11) var(--sans); letter-spacing: .06em; padding: 1px 7px; border-radius: 6px; border: 1px solid currentColor; opacity: .85; }
+.fst-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

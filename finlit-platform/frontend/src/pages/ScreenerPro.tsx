@@ -21,6 +21,7 @@ import { ChartHelp } from "../components/ChartHelp";
 import { matchesMetric, rankMetrics } from "../lib/metricSearch";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "../components/screener/FilterGroup";
 import { KpiStrip, SectorBars, TitleCard, Toolbar, Donut, type Kpi } from "../components/screener/PageParts";
+import { FindStocksTabs } from "../components/screener/FindStocksTabs";
 import "../styles/fgx.css";
 import { CoLogo } from "../components/CoLogo";
 
@@ -224,6 +225,7 @@ export function ScreenerPro() {
   return (
     <>
       <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
+        <FindStocksTabs />
         <TitleCard tier="free" title="Stock screener" onLearn={() => document.getElementById("scr-about")?.scrollIntoView?.({ block: "center" })} learnLabel="Learn more" art="screener"
           sub={<>Explore and screen {data ? <b>{nf(data.total, 0)}</b> : "every listed"} companies using {data ? <b>{nf(nFilters, 0)}</b> : "160+"} filters across valuation, quarterly results, ownership and financial red flags.{plan !== "gold" && " Gold adds filters built on the FinLit research model."}</>}
           stats={[{ icon: "building", value: data ? nf(data.total, 0) : null, label: "Companies" }, { icon: "table", value: data ? nf(nFilters, 0) : null, label: "Filters" }]}

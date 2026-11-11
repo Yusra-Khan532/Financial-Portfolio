@@ -19,6 +19,7 @@ import {
   type Basket, type Completion, type Problem, type Ratio, type Reading, type RunBad, type RunBody, type RunOk, type Validation,
 } from "../lib/query";
 import { QueryRules } from "../components/QueryRules";
+import { FindStocksTabs } from "../components/screener/FindStocksTabs";
 import { onlyFix, ruleFor } from "../lib/queryRules";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
@@ -281,6 +282,7 @@ export function QueryBuilder() {
       <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/score-screener"]}
         description={<>Type a rule, get the companies: <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>. We check every word as you type, show how we read it, and list the listed companies that match all of it.</>} />
       <div className="wrap qb">
+        <FindStocksTabs />
         {/* page flow: the rules, then the examples, then the box (an example fills the box below it) */}
         <QueryRules open={rulesOpen} onToggle={toggleRules} onInsert={(q) => { loadExample(q); requestAnimationFrame(() => taRef.current?.focus()); }} />
         <section className="qb-examples" aria-label="Examples">

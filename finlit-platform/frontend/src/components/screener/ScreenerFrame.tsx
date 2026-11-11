@@ -19,6 +19,7 @@ import { KpiStrip, SectorBars, TitleCard, Toolbar, type Kpi } from "./PageParts"
 import "../../styles/fgx.css";
 import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
+import { FindStocksTabs } from "./FindStocksTabs";
 import type { Screener } from "./useScreener";
 import { CoLogo } from "../CoLogo";
 
@@ -82,6 +83,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
   return (
     <>
       <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
+        <FindStocksTabs />
         <TitleCard tier={tier} title={title} sub={intro} onLearn={() => s.setHow(true)} {...head} />
         <KpiStrip items={kpis} active={filterCount} filtersOpen={drawer || !collapsed} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />
         {beforeTable}

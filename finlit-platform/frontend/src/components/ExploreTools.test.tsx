@@ -50,7 +50,7 @@ describe("<ExploreTools />", () => {
     expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 4, 4, 6, 3]);
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
-    expect(rows[0].textContent).toMatch(/Advanced Score Screener.*Gold/);
+    expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
@@ -62,6 +62,6 @@ describe("<ExploreTools />", () => {
   it("cards link to their pages and show the plan badge", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /explore the platform/i }));
     expect(screen.getByRole("link", { name: /open stock screener/i }).getAttribute("href")).toBe("/screener");
-    expect(screen.getByRole("link", { name: /open advanced score screener/i }).getAttribute("href")).toBe("/advanced-score-screener");
+    expect(screen.getByRole("link", { name: /open advanced stock screener/i }).getAttribute("href")).toBe("/advanced-score-screener");
   });
 });

@@ -23,7 +23,7 @@ const member = { id: "u1", email: "m@example.com", name: "M", role: "investor", 
 const open = (path = "/score-screener", withBanner = true) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
     <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path="*" element={<>{withBanner && <PageHeader title="Basic score screener" description="Score every company" />}<PageFeedbackDock /></>} /></Routes>
+      <Routes><Route path="*" element={<>{withBanner && <PageHeader title="Basic stock screener" description="Score every company" />}<PageFeedbackDock /></>} /></Routes>
     </MemoryRouter>
   </QueryClientProvider>);
 
