@@ -117,7 +117,7 @@
    },
    {
     "q": "How is Large, Mid or Small cap decided?",
-    "a": "By SEBI's rule, ranked by market value among the companies loaded here: the 100 largest are Large cap, the next 150 Mid cap and the rest Small cap."
+    "a": "By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size."
    },
    {
     "q": "Why is a company not scored?",

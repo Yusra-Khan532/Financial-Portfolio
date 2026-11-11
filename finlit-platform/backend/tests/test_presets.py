@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from finlit.presets import service as presets_service
 from finlit.presets import derive, engine, expr, industry, theme_map, themes
 from finlit.presets.registry import ADVANCED, ALL, BANNED_WORDS, BY_ID, DISCLAIMER, PRESETS, QUICK_VIEWS
 from finlit.screener.data import Table
@@ -449,8 +450,8 @@ def test_theme_screen_in_play_small_groups_leaders_and_never_empty():
     rows = theme_universe()
     t = Table(rows, {}, {})
     ind = {r["symbol"]: r["industry"] for r in rows}      # the Industry column: NOT what themes group by
-    ev = themes.evaluate(t, lambda i: t.sector_label[i], [])
-    assert ev.in_play == ["Hot"] and ev.industries["Tiny"]["small"] and "Capital Goods" not in ev.industries and ev.industries["Cold"]["state"] == "none"
+    ev = themes.evaluate(t, lambda i: None if t.sector_label[i] == "Capital Goods" else t.sector_label[i], [])
+    assert ev.in_play == ["Hot"] and ev.industries["Tiny"]["small"] and ev.industries["Cold"]["state"] == "none"
     prism = {f"H{i}": pz(final=40 + i) for i in range(5, 10)}
     fr = engine.Frame(t, prism, AS_OF, {}, ind, ev)
     body = engine.run(fr, BY_ID["sector-themes"])
@@ -730,3 +731,31 @@ def test_a_long_screen_keeps_every_ranked_row_for_paging_and_a_top_10_never_page
     top = engine.run(frame(uni(), with_prism(uni())), BY_ID["highest-rated-large"])
     assert "pageSize" not in top and top["shown"] == 10 and top["listText"].startswith("Top 10 of ")
     assert "pageSize" not in engine.run(frame(theme_universe(), {}, theme_eval=None), BY_ID["sector-themes"])
+
+
+def test_themes_group_on_nse_industries_a_company_with_none_stays_out_and_the_count_is_industries():
+    rows = theme_universe()
+    t = Table(rows, {}, {})
+    nse = {r["symbol"]: ("Hot" if r["sector"] == "Hot" else None) for r in rows}      # only the hot group has an NSE industry; the rest are BSE-only here
+    ev = themes.evaluate(t, lambda i: nse.get(t.symbols[i]), [])
+    assert set(ev.industries) == {"Hot"} and ev.in_play == ["Hot"]
+    nse_map = presets_service.nse_industries()
+    assert len(set(nse_map.values())) == 58 and nse_map["20MICRONS"] == "Minerals & Mining"
+    body = engine.run(frame(rows, tags=None, industry=nse, theme_eval=ev), BY_ID["sector-themes"])
+    assert body["count"] == len(body["themes"]) - sum(1 for c in body["themes"] if c["state"] != "in_play") and body["listText"].startswith("1 industry · ")
+
+
+def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_rules():
+    rows = uni()
+    small = row("TINY", mcap=400, sector="Z", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15)
+    rows.append(small)
+    prism = with_prism(rows)
+    prism["TINY"] = pz(final=20, risk=20, st=-60, lt=-60)                                    # would pass "Higher-risk list" but for its size
+    body = engine.run(frame(rows, prism), BY_ID["higher-risk-list"])
+    assert "TINY" not in [r["symbol"] for r in body["exportRows"]] and any("1,000 Cr" in h for h in body["howItWorks"])
+    prism["L001"] = pz(status="PROVISIONAL")
+    top = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
+    assert "L001" not in [r["symbol"] for r in top["exportRows"]]                              # Top rated: full ratings only by default
+    withp = engine.run(frame(rows, prism), BY_ID["highest-rated-large"], ["include-provisional"])
+    assert any(r["symbol"] == "L001" and "Provisional" in r["badges"] for r in withp["exportRows"])
+    assert BY_ID["at-52-week-high"].name == "Near a 52-week high"

@@ -95,7 +95,7 @@ function Advanced() {
           <dt>Prism parts</dt><dd>{PRISM_PARTS.map((x) => `${x.label}: ${x.say}`).join(" ")} Each part is 0 to 100 and higher is better; a high Risk score means lower risk.</dd>
           <dt>Technical views</dt><dd>{EXPLAIN.technical} The filter bands are the ones on the Prism card: Positive {TECH_BANDS.pos.label.replace("Positive ", "")}, Neutral {TECH_BANDS.neutral.label.replace("Neutral ", "")}, Negative {TECH_BANDS.neg.label.replace("Negative ", "")}. Strongly positive counts as Positive and strongly negative as Negative.</dd>
           <dt>Not rated yet</dt><dd>Prism ratings are calculated about 30 seconds each from the provider's data, so they are added in steps: first for companies with a full report, then a few hundred more companies every night, largest first. A company without one shows "Not rated yet" and a Rate now link to its Prism page, which starts the calculation when opened. "Not rated" means Prism looked and the filed data was not enough.</dd>
-          <dt>Size</dt><dd>Follows SEBI's rule, ranked by market value among the companies loaded here: the 100 largest are Large cap, the next 150 Mid cap, the rest Small cap.</dd>
+          <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Missing data</dt><dd>A dash means the figure is not available (not rated yet, or not enough data). It never counts as a pass and is never treated as zero.</dd>
           <dt>FinLit IQ</dt><dd>The basic model has its own page, the <Link to="/score-screener">Basic score screener</Link> (Silver).</dd>
         </dl>

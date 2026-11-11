@@ -71,14 +71,13 @@ export const level = scoreBand;
 export const bandName = (v: number | null) => (v == null ? null : v >= 78 ? "Strong" : v >= 62 ? "Healthy" : v >= 45 ? "Mixed" : "Watch");
 
 /** Business score = the average of the four business pillars (needs at least three); Technical = the price-trend pillar.
- *  Size buckets follow SEBI's rule: the 100 largest companies are Large, the next 150 Mid, the rest Small (ranked among the companies loaded here). */
+ *  Size is by market value, one scale for the whole site: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr (no size without a market cap). */
 export function withScores(rows: Row[]): Item[] {
-  const rank = new Map(rows.filter((r) => (r.market_cap ?? 0) > 0 && r.price != null).sort((a, b) => (b.market_cap as number) - (a.market_cap as number)).map((r, i) => [r.symbol, i + 1]));
   return rows.map((r) => {
     const parts = FUNDAMENTAL.map((k) => r[k]).filter((v): v is number => v != null);
-    const n = rank.get(r.symbol);
+    const mc = r.market_cap;
     return { ...r, f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
-      cap: n == null ? null : n <= 100 ? "Large" : n <= 250 ? "Mid" : "Small" };
+      cap: mc == null || !(mc > 0) ? null : mc > 50_000 ? "Large" : mc >= 10_000 ? "Mid" : "Small" };
   });
 }
 

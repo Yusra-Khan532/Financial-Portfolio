@@ -22,7 +22,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence
 
-from .industry import is_generic
 
 FLOOR = 1000.0          # Rs crore
 MIN_MEMBERS = 8
@@ -116,7 +115,7 @@ def evaluate(table, industry_of: Callable[[int], Optional[str]], history: Sequen
     by: Dict[str, List[int]] = {}
     for i in members:
         ind = industry_of(i)
-        if ind and not is_generic(ind):
+        if ind:                       # NSE industries are one level each: no list of generic labels to leave out. A company with no NSE industry (BSE-only) stays out of theme status
             by.setdefault(ind, []).append(i)
     ev = ThemeEval(market)
     for ind, idx in sorted(by.items()):
