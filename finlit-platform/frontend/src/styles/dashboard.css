@@ -537,3 +537,10 @@
 /* Filings and news (task #70): the company's logo and name sit at the left, the tag and day after them, and the headline under them, all left-aligned */
 .dsh-line2.f { align-items: stretch; text-align: left; } .dsh-line2.f .hd { justify-content: flex-start; width: 100%; min-width: 0; } .dsh-line2.f .hd .gs-logo, .dsh-line2.f .hd > :first-child:not(b) { flex: none; }
 .dsh-line2.f .tx { text-align: left; padding-left: 30px; }
+
+/* Task #70 (second pass): the filing row's header was a COLUMN (the generic first-span rule of .dsh-line2 sets flex-direction: column, which the .hd rule never reset), so the logo, name, tag and day
+   stacked and sat in the middle. One row now: logo, company name, tag, then the day at the end; the headline sits under them, left-aligned with the name. */
+.dsh-line2.f > .hd { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 4px 8px; width: 100%; text-align: left; }
+.dsh-line2.f > .hd b { min-width: 0; overflow-wrap: anywhere; } .dsh-line2.f > .hd em { margin-left: auto; white-space: nowrap; }
+.dsh-line2.f > .hd .dsh-tag { flex: none; }
+.dsh-line2.f > .tx { padding-left: 30px; text-align: left; align-self: stretch; }
