@@ -51,7 +51,7 @@ def price_fields(h: Sequence[Optional[float]], l: Sequence[Optional[float]], c: 
     if n < MIN_SESSIONS:
         return out
     hi, lo, cl = [float(x[0]) for x in rows], [float(x[1]) for x in rows], [float(x[2]) for x in rows]
-    vol = [float(x[3]) if x[3] is not None else 0.0 for x in rows]
+    vol = [float(x[3]) if x[3] is not None and x[3] > 0 else 0.0 for x in rows]        # a blank or zero volume is not a quiet day: the averages below skip it
     last = cl[-1]
     e9, e20, e50 = _ema(cl, 9), _ema(cl, 20), _ema(cl, 50)
     out["vs_ema9"], out["vs_ema20"] = _r((last / e9[-1] - 1) * 100), _r((last / e20[-1] - 1) * 100)
@@ -60,9 +60,10 @@ def price_fields(h: Sequence[Optional[float]], l: Sequence[Optional[float]], c: 
     out["range_10d"] = _r((max(hi[-10:]) - min(lo[-10:])) / last * 100)
     a10, a50 = _atr(hi, lo, cl, 10)[-1], _atr(hi, lo, cl, 50)[-1]
     out["atr_ratio"] = _r(a10 / a50) if a50 else None
-    v50 = _mean(vol[-50:])
-    if v50:
-        out["vol_ratio_10_50"], out["vol_ratio_5_50"] = _r(_mean(vol[-10:]) / v50), _r(_mean(vol[-5:]) / v50)
+    pos = lambda xs: [x for x in xs if x > 0]   # noqa: E731
+    v50 = _mean(pos(vol[-50:])) if pos(vol[-50:]) else 0.0
+    if v50 and pos(vol[-10:]) and pos(vol[-5:]):
+        out["vol_ratio_10_50"], out["vol_ratio_5_50"] = _r(_mean(pos(vol[-10:])) / v50), _r(_mean(pos(vol[-5:])) / v50)
     w = cl[-HIGH_WINDOW:]
     out["days_since_high"] = float(len(w) - 1 - w.index(max(w)))     # the latest of equal highs counts as the high
     if n > BASE_MIN_SESSIONS + 20:
@@ -74,7 +75,7 @@ def price_fields(h: Sequence[Optional[float]], l: Sequence[Optional[float]], c: 
             level = max(prior)
             set_at = start + prior.index(level)
             if cl[t] > level and (t - set_at) >= BASE_MIN_SESSIONS:
-                vbase = _mean(vol[max(0, t - 50):t])
+                vbase = _mean(pos(vol[max(0, t - 50):t])) if pos(vol[max(0, t - 50):t]) else 0.0
                 out["breakout_age"], out["breakout_level"] = float(n - 1 - t), _r(level)
                 out["vs_breakout"] = _r((last / level - 1) * 100)
                 out["breakout_vol_ratio"] = _r(vol[t] / vbase) if vbase else None

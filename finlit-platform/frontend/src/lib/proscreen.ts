@@ -20,7 +20,8 @@ export type PState = {
 };
 export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] };
 export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
-export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number };
+export type FunnelStep = { key: string; before: number; after: number; missing: number };
+export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[] };
 
 export const norm = (s: Partial<PState> | undefined): PState => ({ ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } });
 export const activeCount = (s: PState) => Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length ? 1 : 0)
@@ -38,7 +39,7 @@ export const saveRatios = (v: CustomRatio[]) => { try { localStorage.setItem(RKE
 export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
   ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
-  cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit,
+  cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
 });
 
 /** Shareable link: the whole screen packed into one `s=` parameter. */

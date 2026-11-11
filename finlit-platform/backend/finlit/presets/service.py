@@ -13,7 +13,7 @@ import orjson
 from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
-from . import derive, engine, industry as ind_mod, patterns as pat_mod, theme_map, themes
+from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, theme_map, themes
 from .registry import PRESETS, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
@@ -227,15 +227,28 @@ async def refresh_presets(store) -> dict:
         log.exception("chart-pattern scans failed; the last saved run stays in use")
         pattern_note = {"patternsError": type(exc).__name__}
     done, failed = 0, []
+    kept: list = []
     for p in live_presets():
+        if p.kind == "gainers":
+            continue            # read from the gainers table the history step fills
         for combo in nightly_combos(p):
             try:
-                await store_result(store, p, engine.run(fr, p, combo or [engine.NO_CHIPS]))
+                body = engine.run(fr, p, combo or [engine.NO_CHIPS])
+                await store_result(store, p, body)
+                kept.append((p, combo or [engine.NO_CHIPS], body))
                 done += 1
             except Exception as exc:
                 log.exception("preset %s %s failed", p.id, combo)
                 failed.append(f"{p.id}:{type(exc).__name__}")
+    history_note: dict = {}
+    try:        # its own guard again: the history of the lists never stops the lists
+        history_note = await hist_mod.record(store, fr, kept)
+        bench = await hist_mod._bench(store, fr.as_of)
+        history_note.update(await hist_mod.gainers(store, fr, bench))
+    except Exception as exc:
+        log.exception("screen history failed; tonight's lists are still served")
+        history_note = {"historyError": type(exc).__name__}
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     return {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
-            "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note}
+            "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}

@@ -131,3 +131,26 @@
 .fst-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .psx-band > td { background: var(--soft, #f6f3ea); color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 12px; }
 .psx-gold { display: inline-block; min-width: 22px; padding: 1px 5px; text-align: center; border-radius: 6px; background: #b8892b; color: #fff; }
+.psx-bench { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
+.psx-ason { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 13px; }
+.psx-ason select { margin-left: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; }
+.psx-i { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 50%; font-size: 11px; cursor: help; color: var(--muted); }
+.psx-left { margin: 12px 0; }
+.psx-left summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.pl-funnel { display: flex; flex-wrap: wrap; gap: 4px 6px; list-style: none; margin: 4px 0 10px; padding: 0; }
+.pl-funnel li { display: flex; flex-direction: column; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.pl-funnel li b { font-size: 16px; }
+.pl-funnel li small { color: var(--muted); }
+.pl-type { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.pl-type label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.pl-type input { min-width: 240px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; }
+.pl-type small { flex-basis: 100%; }
+.pl-type-e { color: var(--red, #dc2626); }
+.pin-head { background: var(--card, #fff); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+.pin-head table { border-collapse: collapse; }
+.pin-head th { background: var(--card, #fff); }
+.psx-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.psx-bar input[type=search] { min-width: 220px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; }
+.psx-barp { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 14px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; max-height: 260px; overflow: auto; font-size: 13px; }
+.psx-barp b { grid-column: 1 / -1; }
+.psx-view { display: inline-flex; gap: 4px; margin: 6px 0; } .psx-view button { padding: 5px 14px; border: 1px solid var(--line); background: transparent; color: inherit; border-radius: 999px; cursor: pointer; } .psx-view button.on { background: var(--brand, #1d4ed8); border-color: var(--brand, #1d4ed8); color: #fff; }

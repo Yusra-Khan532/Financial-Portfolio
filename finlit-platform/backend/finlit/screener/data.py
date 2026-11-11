@@ -231,6 +231,30 @@ class Table:
             idx = [i for i in idx if t in self.symbols[i].lower() or t in self.name[i].lower()]
         return list(idx)
 
+    def funnel(self, filters: Dict[str, Dict[str, Optional[float]]], cats: Dict[str, List[str]], q: str = "") -> List[dict]:
+        """What is left after each rule in turn (the screen's own order): [{key, before, after, missing}], `missing` being the companies of that step that have no figure for the rule.
+        Categories (size, sector, industry, index, rating, search) count as one step each, first."""
+        steps: List[dict] = []
+        have: Dict[str, Dict[str, Optional[float]]] = {}
+        stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("industry", {"industry": cats.get("industry") or []}),
+                  ("index", {"index": cats.get("index") or []}), ("band", {"band": cats.get("band") or []})]
+        cur = list(range(self.n))
+        for name, c in stages:
+            if not any(c.values()):
+                continue
+            nxt = set(self.match({}, {**{k: [] for k in ("sector", "industry", "cap", "band", "index")}, **c}))
+            before = len(cur)
+            cur = [i for i in cur if i in nxt]
+            steps.append({"key": name, "before": before, "after": len(cur), "missing": 0})
+        for key, rg in filters.items():
+            have[key] = rg
+            col, lo, hi = self.cols[key], rg.get("min"), rg.get("max")
+            before = len(cur)
+            miss = sum(1 for i in cur if col[i] != col[i])
+            cur = [i for i in cur if col[i] == col[i] and (lo is None or col[i] >= lo) and (hi is None or col[i] <= hi)]
+            steps.append({"key": key, "before": before, "after": len(cur), "missing": miss})
+        return steps
+
     def sort(self, idx: List[int], key: str, desc: bool) -> List[int]:
         if key == "name":
             return sorted(idx, key=lambda i: self.name[i].lower(), reverse=desc)
