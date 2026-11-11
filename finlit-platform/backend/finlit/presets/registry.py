@@ -277,7 +277,8 @@ def _between(field: str, lo: float, hi: float, label: str) -> Tuple[str, str]:
     return (f"{field} >= {lo:g} and {field} <= {hi:g}", label)
 
 
-VOLUME_TESTS = False   # fix 8 of the handover: the daily volume is rebuilt from NSE's bhavcopy first; until then the two volume tests (breakout day, value traded) stay off
+import os as _os
+VOLUME_TESTS = _os.environ.get("BHAV_VOLUME", "on").lower() != "off"   # fix 8: the volume is NSE's full-day figure (finlit/bhav_volume.py), so the two volume tests (breakout day, value traded) are on; BHAV_VOLUME=off switches them off
 FULL_YEAR = ("missing(ret_1y) = 0", "A full year of prices")
 S_B2AGE = Col("b2_age", "Sessions since the breakout", "num1")
 S_B2LEV = Col("b2_level", "Breakout level (Rs)", "num1")

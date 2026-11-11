@@ -347,6 +347,13 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     # ---------------- trading, range, trend
     daily = price_sec.get("daily") or {}
     vols = [_n(x) for x in daily.get("v") or []]
+    try:       # fix 8: full-day volume from NSE's bhavcopy, a blank where it has none (the provider's part-day volume is not used when the file is there)
+        from .. import bhav_volume
+        sym = str((profile.get("symbol") or summary.get("symbol") or (summary.get("meta") or {}).get("symbol") or "")).upper()
+        if sym and daily.get("t") and len(daily["t"]) == len(vols):
+            vols = [_n(x) for x in bhav_volume.for_candles(sym, daily["t"], vols)]
+    except Exception:
+        logging.getLogger("finlit.screener").exception("bhavcopy volume not applied")
     tech = price_sec.get("technical") or {}
     out["volume"] = _n(quote.get("volume")) or _last(vols)
     v20 = [x for x in vols[-21:-1] if x is not None]
