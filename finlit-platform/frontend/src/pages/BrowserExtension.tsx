@@ -81,13 +81,16 @@ export function BrowserExtensionPage() {
                 <h2 id="ext-get">Add FinLit to your browser</h2>
                 <p>Understand any term and score any company wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
                 <div className="ext-btns">{Get}</div>
-                {!store && <><h3 style={{ marginTop: 16 }}>Install it in four steps</h3><Steps /></>}
                 {store && <p className="ext-fine">Prefer a file? <a href={EXTENSION.zipUrl} download>Download the ZIP</a>.</p>}
               </>
             )}
           </section>
           <Preview />
         </div>
+
+        {!installed && can && !store && (
+          <section className="ext-card" aria-labelledby="ext-steps"><h2 id="ext-steps">Install it in four steps</h2><Steps /></section>
+        )}
 
         <section className="ext-card" aria-labelledby="ext-try">
           <h2 id="ext-try">Try it here</h2>
