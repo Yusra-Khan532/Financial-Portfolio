@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup, QuickRow } from "../components/screener/FilterGroup";
-import { HighFilter, highActive } from "../components/screener/HighFilter";
+import { HighBar } from "../components/screener/HighFilter";
 import { PRISM_SUB, PRISM_TITLE, PrismScoreRows, prismActive } from "../components/screener/PrismScoreFilter";
 import { Donut } from "../components/screener/PageParts";
 import { PrismPart, PrismScore, PrismTrend, med } from "../components/screener/cells";
@@ -61,10 +61,10 @@ function Advanced() {
         <FilterGroup id="score" icon="bars" title={PRISM_TITLE} defaultOpen active={prismActive(s)} hint={PRISM_SUB}>
           <PrismScoreRows s={s} />
         </FilterGroup>
-        <FilterGroup id="high" icon="bars" title="Down from 52-week high" active={highActive(s)} hint="How far the price is below its 52-week high"><HighFilter s={s} /></FilterGroup>
       </>}
       tiles={tiles}
       beforeTable={<>
+        <HighBar s={s} />
         <PriceColumnsToggle on={priceCols} set={setPriceCols} />
         <details className="pzs-explain">
           <summary>What the Prism rating means</summary>
