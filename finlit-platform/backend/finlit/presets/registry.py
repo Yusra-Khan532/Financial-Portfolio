@@ -489,12 +489,12 @@ BASIC += [
 GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the previous close, ranked by how far the price has risen since."),
             ("week", "This week", "Companies that joined a screen of this page at one of the last 5 closes, ranked by how far the price has risen since."),
             ("month", "This month", "Companies that joined a screen of this page at one of the last 21 closes, ranked by how far the price has risen since."))
-GAIN_COLS = (Col("joined", "Joined", "text", "left"), Col("screen", "Screen it came from", "text", "left"), Col("closeJoined", "Close when it joined", "num1"), Col("since", "Since it joined (%)", "num1"),
-             Col("bench", "NIFTY 500, same days (%)", "num1"), Col("best", "Best close since (%)", "num1"), Col("stillOn", "Still on it", "text", "left"))
+GAIN_COLS = (Col("joined", "Joined", "text", "left"), Col("screen", "Screen it came from", "text", "left"), Col("closeJoined", "Close when it joined", "num1"), Col("since", "Since it joined", "pct"),
+             Col("bench", "NIFTY 500, same days", "pct"), Col("highest", "Highest close since", "pct"), Col("stillOn", "Still on it", "text", "left"))
 GAINERS: List[Preset] = [
     Preset(f"{'basic-' if tab == 'basic' else ''}gainers-{w}", f"Top gainers: {name}", "top-gainers", text, "gainers", _m(), "", (), (), 20, (RANK, STOCK) + GAIN_COLS + (SECTOR, MCAP), (), (), False, None, (), "top gainers", tab)
     for tab in ("basic", "advanced") for w, name, text in GAIN_WIN]
-PRESETS = PRESETS + GAINERS
+PRESETS = PRESETS + [p for p in GAINERS if p.tab == "advanced"]
 BASIC = BASIC + [p for p in GAINERS if p.tab == "basic"]
 
 ADVANCED: List[Preset] = list(PRESETS)

@@ -131,3 +131,9 @@
 .fst-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .psx-band > td { background: var(--soft, #f6f3ea); color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 12px; }
 .psx-gold { display: inline-block; min-width: 22px; padding: 1px 5px; text-align: center; border-radius: 6px; background: #b8892b; color: #fff; }
+.psx-bench { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
+.psx-ason { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 13px; }
+.psx-ason select { margin-left: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; }
+.psx-i { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 50%; font-size: 11px; cursor: help; color: var(--muted); }
+.psx-left { margin: 12px 0; }
+.psx-left summary { cursor: pointer; font-size: 13px; color: var(--muted); }

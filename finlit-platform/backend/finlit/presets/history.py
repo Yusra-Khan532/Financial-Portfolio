@@ -187,7 +187,7 @@ async def gainers(store, fr, bench: Dict[str, float]) -> dict:
                     b0, b1 = _bench_at(bench, sp["added_on"].isoformat()), _bench_at(bench, session.isoformat())
                     rows.append({"symbol": sym, "name": fr.t.name[i] if i is not None else sym, "joined": sp["added_on"].isoformat(), "screen": names.get(sp["preset_id"]), "screenId": sp["preset_id"],
                                  "others": d["other"], "closeJoined": round(c0, 2) if c0 else None, "since": since, "bench": _pct(b0, b1),
-                                 "best": _pct(c0, max(best, c1) if best else c1), "stillOn": bool(on), "leftOn": None if on else (left.isoformat() if left else None),
+                                 "highest": _pct(c0, max(best, c1) if best else c1), "stillOn": bool(on), "leftOn": None if on else (left.isoformat() if left else None),
                                  "sector": fr.t.sector_label[i] if i is not None else None, "market_cap": fr.get(i, "market_cap") if i is not None else None})
                 rows.sort(key=lambda r: (-r["since"], r["symbol"]))
                 rows = rows[:GAINERS_MAX]

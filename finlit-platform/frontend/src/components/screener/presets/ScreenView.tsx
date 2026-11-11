@@ -3,6 +3,7 @@
 import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
 import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
+import { useAsOn, usePresetHistory, usePresetLeft, type LeftRow } from "../../../lib/presets";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
@@ -27,12 +28,25 @@ export const Badge = ({ text }: { text: string }) => <span className={"psx-b psx
 export function CellValue({ v, f }: { v: unknown; f: ColFormat }) {
   if (v == null || v === "") return <span className="psx-dash" aria-label="not available" title="not available">{MINUS}</span>;
   if (f === "badge") return <>{(Array.isArray(v) ? v : [v]).map((b) => <Badge key={String(b)} text={String(b)} />)}</>;
+  if (f === "date" && typeof v === "string") return <>{dayLabel(v)}</>;
   if (typeof v !== "number") return <>{String(v)}</>;
+  if (f === "since") return <>{signed(v)}%</>;
   if (f === "pct") return <>{signed(v)}%</>;
   if (f === "num1") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 1)}</>;
   if (f === "score") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(Math.round(v)), 0)}</>;
   if (f === "cr") return <>{cr(v)}</>;
   return <>{String(v)}</>;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayLabel = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}` : iso; };
+
+function LeftList({ rows }: { rows: LeftRow[] }) {
+  return (
+    <details className="psx-left"><summary>{rows.length} {rows.length === 1 ? "company" : "companies"} left this list in the last 2 months · Show</summary>
+      <div className="scr-tw"><table className="scr-t psx-t"><thead><tr><th scope="col">Company</th><th scope="col">Joined</th><th scope="col">Left</th><th scope="col">Sessions on the list</th><th scope="col">Price change while on it</th><th scope="col">Why it left</th></tr></thead>
+        <tbody>{rows.map((r) => <tr key={r.symbol + r.left_on}><td><Link to={`/stocks/${encodeURIComponent(r.symbol)}`}>{r.symbol}</Link></td><td>{dayLabel(r.added_on)}</td><td>{dayLabel(r.left_on)}</td><td>{r.sessions ?? MINUS}</td><td>{r.change_pct == null ? MINUS : signed(r.change_pct) + "%"}</td><td>{r.reason}</td></tr>)}</tbody></table></div>
+    </details>);
 }
 
 const alignOf = (c: PresetColumn) => c.align ?? (c.format === "text" || c.format === "label" || c.format === "badge" ? "left" : "right");
@@ -75,7 +89,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
           <td className="psx-n">{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
           <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
-          {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
+          {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} />{c.format === "since" && typeof r.bench_since_added_pct === "number" && <small className="psx-bench">NIFTY 500 {signed(r.bench_since_added_pct)}%</small>}</td>)}
         </tr></Fragment>))}
       </tbody>
     </table></HScroll></TableZoom>
@@ -133,7 +147,10 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const pageKey = `${id}|${[...chips].sort().join(",")}`;
   const [pg, setPg] = useState({ key: "", offset: 0 });
   const offset = pg.key === pageKey ? pg.offset : 0;                      // a new screen or a new option starts at the first 25
-  const q = usePresetDetail(id, chips, listReady && !unknown && !blocked && !lockedList, offset);
+  const [asOn, setAsOnDay] = useAsOn();
+  const q = usePresetDetail(id, chips, listReady && !unknown && !blocked && !lockedList, offset, asOn);
+  const hist = usePresetHistory(id, chips, listReady && !unknown && !blocked && !lockedList && preset?.kind !== "themes" && preset?.kind !== "gainers");
+  const leftQ = usePresetLeft(id, chips, listReady && !unknown && !blocked && !lockedList && preset?.kind !== "themes" && preset?.kind !== "gainers");
   const d = q.data, err = q.error;
   const top = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<string | null>(null), [nseOnly, setNseOnly] = useState(false), [sort, setSortState] = useState<SortState>(null);
@@ -188,6 +205,16 @@ export function ScreenView({ route }: { route: PresetRoute }) {
             <small id="psx-cd-nse">Leaves out the {bseCount} {bseCount === 1 ? "company" : "companies"} listed only on the BSE.</small>
           </div>
         </div>)}
+      {(hist.data?.sessions?.length ?? 0) > 0 && (
+        <div className="psx-ason">
+          <label>As on <select value={asOn ?? ""} onChange={(e) => { setAsOnDay(e.target.value || null); setPg({ key: pageKey, offset: 0 }); }} aria-label="Show this screen as it stood after a past close">
+            <option value="">Latest close · {dayLabel(hist.data!.sessions[0].date)}</option>
+            {hist.data!.sessions.slice(1).map((s2) => <option key={s2.date} value={s2.date}>{dayLabel(s2.date)}{s2.rulesUpdated ? " · rules updated" : ""}</option>)}</select></label>
+          <span className="psx-i" tabIndex={0} role="note" aria-label="Pick any close of the last 2 months to see this screen's list exactly as it stood that day. The date stays as you move between screens.">i</span>
+          {asOn && <button type="button" className="fgx-link" onClick={() => setAsOnDay(null)}>Back to the latest close</button>}
+        </div>)}
+      {d?.asOn && <p className="psx-notes" role="status">The list as it stood after the close of {dayLabel(d.asOn)}: {nf(d.count, 0)} {d.count === 1 ? "company" : "companies"}.{typeof d.benchSincePct === "number" && <> Since then NIFTY 500 has moved {signed(d.benchSincePct)}%.</>}</p>}
+      {d?.heading && <p className="psx-notes" role="note">{d.heading}</p>}
       {!!d?.notes?.length && <div className="psx-notes" role="note">{d.notes.map((n) => <p key={n}>{n}</p>)}</div>}
       {themes.length > 0 && <ThemeCards themes={themes} on={theme} onPick={(i) => setTheme((t) => (t === i ? null : i))} />}
       <div ref={top} className={"psx-res" + (q.isFetching && d ? " is-busy" : "")} aria-busy={q.isFetching}>
@@ -200,6 +227,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
             {paged && range && <Pager d={d} range={range} busy={q.isFetching} hidden={nseOnly ? bseCount : 0} goTo={goTo} />}
           </>}
       </div>
+      {(leftQ.data?.left?.length ?? 0) > 0 && <LeftList rows={leftQ.data!.left} />}
       {d?.rankScoreNote && !!d.rows.length && <p className="psx-notes" role="note">{d.rankScoreNote}</p>}
       <Disclaimer text={d?.disclaimer} />
     </Frame>);
