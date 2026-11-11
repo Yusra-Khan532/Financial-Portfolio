@@ -1,0 +1,21 @@
+.cp { position: fixed; top: 72px; right: 12px; bottom: 12px; width: min(648px, calc(100vw - 24px)); z-index: 40; overflow: auto; background: var(--card, #fff); color: var(--text, #111); border: 1px solid var(--line, #e5e7eb); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.18); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.cp-h { display: flex; align-items: center; gap: 10px; }
+.cp-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cp-t b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-t small { color: var(--muted, #6b7280); }
+.cp-x { font-size: 24px; line-height: 1; width: 36px; height: 36px; border: 1px solid var(--line, #e5e7eb); background: transparent; color: inherit; border-radius: 8px; cursor: pointer; }
+.cp-p { display: flex; align-items: baseline; gap: 10px; font-size: 24px; }
+.cp-p span { font-size: 14px; }
+.cp-p .up { color: var(--green, #16a34a); } .cp-p .dn { color: var(--red, #dc2626); }
+.cp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cp-bar button { border: 1px solid var(--line, #e5e7eb); background: transparent; color: inherit; border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; min-height: 32px; }
+.cp-bar button.on { background: var(--brand, #1d4ed8); border-color: var(--brand, #1d4ed8); color: #fff; }
+.cp-gap { flex: 1; }
+.cp-leg { font-size: 12px; color: var(--muted, #6b7280); font-variant-numeric: tabular-nums; min-height: 16px; }
+.cp-c { position: relative; min-height: 360px; }
+.cp-m { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted, #6b7280); }
+.cp-f { font-size: 11px; color: var(--muted, #6b7280); margin: 0; }
+.cp-r { align-self: flex-start; }
+@media (max-width: 700px) { .cp { top: 56px; right: 0; left: 0; bottom: 0; width: auto; border-radius: 12px 12px 0 0; } }
+tr.cp-row > td { background: color-mix(in srgb, var(--brand, #1d4ed8) 9%, transparent); }
+.scr-t tbody tr { cursor: pointer; }
