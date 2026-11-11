@@ -3,6 +3,7 @@
 import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
 import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
+import { ChartCards } from "../ChartCards";
 import { NO_BAR, useAsOn, usePresetHistory, usePresetLeft, type BarFilter, type LeftRow } from "../../../lib/presets";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
@@ -73,10 +74,15 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: PresetColumn[]; rows: PresetRow[]; sort: SortState; setSort: (k: string, first: 1 | -1) => void }) {
   const first = d.offset ?? 0;
   const [chart, setChart] = useState<PanelRow | null>(null);
+  const [view, setView] = useState<"table" | "charts">("table"), [cards, setCards] = useState(9);
+  const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"] });
   const head = (key: string, label: string, align: string, first: 1 | -1 = -1) => (
     <th scope="col" className={"psx-a-" + align} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button></th>);
   return (<>
+    <div className="psx-view" role="group" aria-label="Table or charts"><button type="button" className={view === "table" ? "on" : ""} aria-pressed={view === "table"} onClick={() => setView("table")}>Table</button>
+      <button type="button" className={view === "charts" ? "on" : ""} aria-pressed={view === "charts"} onClick={() => setView("charts")}>Charts</button></div>
+    {view === "charts" ? <><ChartCards rows={rows.slice(0, cards).map((r) => ({ ...openRow(r), facts: r.facts as PanelRow["facts"] }))} onOpen={(r) => setChart(r)} />{rows.length > cards && <button type="button" className="btn" onClick={() => setCards((n) => n + 9)}>Show 9 more of {rows.length} on this page</button>}</> :
     <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" pinHead><table className="scr-t psx-t">
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead><tr><th scope="col" className="psx-n">#</th>{head("symbol", "Stock", "left", 1)}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
@@ -92,7 +98,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} />{c.format === "since" && typeof r.bench_since_added_pct === "number" && <small className="psx-bench">NIFTY 500 {signed(r.bench_since_added_pct)}%</small>}</td>)}
         </tr></Fragment>))}
       </tbody>
-    </table></HScroll></TableZoom>
+    </table></HScroll></TableZoom>}
     {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}</>);
 }
 const Head = ({ c, h }: { c: PresetColumn; h: (key: string, label: string, align: string, first?: 1 | -1) => ReactNode }) => <>{h(c.key, c.label, alignOf(c), c.format === "text" || c.format === "label" ? 1 : -1)}</>;

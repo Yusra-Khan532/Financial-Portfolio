@@ -153,3 +153,4 @@
 .psx-bar input[type=search] { min-width: 220px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; }
 .psx-barp { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 14px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; max-height: 260px; overflow: auto; font-size: 13px; }
 .psx-barp b { grid-column: 1 / -1; }
+.psx-view { display: inline-flex; gap: 4px; margin: 6px 0; } .psx-view button { padding: 5px 14px; border: 1px solid var(--line); background: transparent; color: inherit; border-radius: 999px; cursor: pointer; } .psx-view button.on { background: var(--brand, #1d4ed8); border-color: var(--brand, #1d4ed8); color: #fff; }
