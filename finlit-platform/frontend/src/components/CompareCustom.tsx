@@ -11,6 +11,8 @@ import "../styles/compare.css";
 
 type Flat = MetricInfo & { group: string; groupLabel: string };
 const UNIT_NAME: Record<string, string> = { Cr: "₹ crore", Rs: "₹", "%": "percent", x: "times (×)", d: "days", n: "count", pts: "points", flag: "yes / no" };
+/** The unit under a measure's name: a share price is "₹ per share", other rupee figures per share say so in their own name. */
+const unitLine = (m: { key: string; label: string; unit: string }): string => (m.unit === "Rs" && (m.key === "price" || /price|per share/i.test(m.label)) ? "₹ per share" : UNIT_NAME[m.unit] || m.unit);
 const DIRECTION = { higher: "Higher is better", lower: "Lower is better", none: "No better or worse" } as const;
 
 const usePhone = () => {
@@ -157,12 +159,12 @@ export function CompareCustom({ companies, keysParam, onKeys }: { companies: { s
                     {g.items.map((m) => { const cells = res.data!.values[m.key] || {}, mk = bestWorst(Object.fromEntries(symbols.map((s) => [s, cells[s]?.v ?? null])), m.better);
                       return (
                         <tr key={m.key}>
-                          <th scope="row"><b>{m.label}</b><small>{UNIT_NAME[m.unit] || m.unit} · {DIRECTION[m.better]}</small></th>
+                          <th scope="row"><b>{m.label}</b><small className="cx-unit">{unitLine(m)}</small><small className="cx-dir">{DIRECTION[m.better]}</small></th>
                           {symbols.map((s) => { const c = cells[s], v = c?.v ?? null, best = mk.best.includes(s), worst = mk.worst.includes(s);
                             return (
                               <td key={s} className={best ? "best" : worst ? "worst" : ""}>
                                 {v == null ? <><span className="cx-na" aria-label={"No figure. " + (c?.why || "Not available")}>{MINUS}</span><small>{c?.why || "Not available"}</small></>
-                                  : <><b>{fmtMetric({ key: m.key, unit: m.unit, digits: m.digits }, v)}</b>{best && <span className="cx-tag best">Best</span>}{worst && <span className="cx-tag worst">Weakest</span>}</>}
+                                  : <><b>{fmtMetric({ key: m.key, unit: m.unit, digits: m.digits }, v)}</b><span className="cx-bw">{best && <span className="cx-tag best">Best</span>}{worst && <span className="cx-tag worst">Weakest</span>}</span></>}
                               </td>); })}
                         </tr>); })}
                   </tbody>))}

@@ -89,6 +89,7 @@ export function Compare() {
   const tally = picked.map((r) => keys.filter((k) => win(k) === r.symbol).length);
   const scored = keys.filter((k) => METRICS[k].better !== "none" && win(k)).length;
   const pc = (r: Row, k: NumKey) => percentile(dists.get(k) || null, k, r[k]);
+  const dotWhy = (p: number): string => (p >= 67 ? `Green: better than ${p}% of companies, so among the stronger third.` : p <= 33 ? `Red: better than only ${p}% of companies, so among the weaker third.` : `Amber: better than ${p}% of companies, around the middle.`);
   const dot = (p: number | null) => (p == null ? "" : p >= 67 ? "good" : p <= 33 ? "poor" : "mid");
 
   if (isError) return <div className="wrap state"><h2>Comparison is unavailable right now</h2><p>Please try again in a moment.</p></div>;
@@ -169,11 +170,17 @@ export function Compare() {
         {picked.length >= 2 && tab === "spider" && (
           <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Eight measures, against every company<ChartHelp id="cmp-fundamentals" /></h3><span className="s">Each axis: % of all companies beaten</span></div>
             <div className="pil-grid">
-              <Radar axes={SPIDER.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: SPIDER.map((x) => pc(r, x.key)) }))} />
+              <div className="sp-chart">
+                <Radar axes={SPIDER.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: SPIDER.map((x) => pc(r, x.key)),
+                  tips: SPIDER.map((x) => { const p = pc(r, x.key); return p == null ? null : `${r.name || r.symbol}\n${x.label}: ${fmt(METRICS[x.key], r[x.key])}\nPercentile score: ${p} (beats ${p}% of companies)`; }) }))} />
+                <p className="sp-axis" role="note"><b>Every axis is a percentile score, 0 to 100.</b> It is the share of companies this one beats on that measure, not the ratio itself. Hover a marker for the actual figure.</p>
+                <div className="pil-key sp-legend" aria-label="Companies">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
+                {picked.some((r) => SPIDER.some((x) => pc(r, x.key) == null)) && <p className="sp-axis sp-gap" role="note">Where a company has no figure for a measure, its line stops at that axis (a cross marks the gap) instead of dropping to zero: {picked.map((r) => ({ n: r.name || r.symbol, m: SPIDER.filter((x) => pc(r, x.key) == null).map((x) => x.label) })).filter((x) => x.m.length).map((x) => `${x.n}: ${x.m.join(", ")}`).join("; ")}.</p>}
+              </div>
               <div className="sp-t" style={{ "--n": picked.length } as React.CSSProperties}><div className="sp-h" role="row"><span />{picked.map((r, i) => <span key={r.symbol} title={r.name || r.symbol}><i className={"mk k" + i} /><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span>)}</div>{SPIDER.map((x) => (
-                <div className="sp-r" key={x.key}><span className="pil-l">{x.label}</span>{picked.map((r, i) => { const p = pc(r, x.key); return <span key={r.symbol} className={"sp-v k" + i}><i className={"dt " + dot(p)} />{fmt(METRICS[x.key], r[x.key])}<small>{p == null ? "" : `beats ${p}%`}</small></span>; })}</div>))}</div>
+                <div className="sp-r" key={x.key}><span className="pil-l">{x.label}</span>{picked.map((r, i) => { const p = pc(r, x.key); return <span key={r.symbol} className={"sp-v k" + i}>{p == null ? <span className="sp-na" tabIndex={0} title="No figure: this company has not reported this measure, so it is left out of the chart (not counted as zero)."><i className="dt none" />{"—"}</span> : <><i className={"dt " + dot(p)} tabIndex={0} title={dotWhy(p)} aria-label={dotWhy(p)} />{fmt(METRICS[x.key], r[x.key])}<small>{`beats ${p}%`}</small></>}</span>; })}</div>))}
+                <div className="sp-key" aria-label="What the dots mean"><span title={dotWhy(90)}><i className="dt good" />Beats 67% or more</span><span title={dotWhy(50)}><i className="dt mid" />Beats 34 to 66%</span><span title={dotWhy(10)}><i className="dt poor" />Beats 33% or fewer</span><span title="No figure: the company has not reported this measure, so it is left out (not counted as zero)."><i className="dt none" />— No figure</span></div></div>
             </div>
-            <div className="pil-key">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
             <p className="faint cmp-foot">“Beats 82%” means the company's value is better than 82% of companies in the list, where better is lower for debt and P/E and higher for everything else.</p>
           </div>
         )}
@@ -198,15 +205,16 @@ export function Compare() {
                             <div className="mt-n"><b>{m.label}</b><small>{m.say}</small>{m.better !== "none" && <em>{m.better === "higher" ? "Higher is better" : "Lower is better"}</em>}</div>
                             {picked.map((r, i) => { const v = r[k], p = pc(r, k); return (
                               <div key={r.symbol} className={"mt-c k" + i + (w === r.symbol ? " win" : "")}>
-                                <b>{p != null && <i className={"dt " + dot(p)} title={`Beats ${p}% of companies`} />}{fmt(m, v)}</b>
+                                <b>{v == null ? <span className="mt-na" tabIndex={0} title="No figure: this company has not reported this measure, so no marker is drawn.">—</span> : <>{p != null && <i className={"dt " + dot(p)} title={dotWhy(p)} />}{fmt(m, v)}</>}</b>
                                 {w === r.symbol ? <span className="bt-badge">Better</span> : null}
                                 {p != null && <small>beats {p}% of companies</small>}
                               </div>); })}
                             {d && (
-                              <div className="strip" role="img" aria-label={`Where each company sits among all companies on ${m.label}`}>
-                                <span className="st-band" style={{ left: `${at(d.p10)}%`, width: `${at(d.p90) - at(d.p10)}%` }} /><span className="st-med" style={{ left: `${at(d.p50)}%` }} title={`Typical: ${fmt(m, d.p50)}`} />
-                                {picked.map((r, i) => r[k] != null && <span key={r.symbol} className={"st-m k" + i} style={{ left: `${at(r[k] as number)}%` }}><i className={"mk k" + i} /></span>)}
-                                <em className="st-l" style={{ left: 0 }}>{fmt(m, lo)}</em><em className="st-l mid" style={{ left: `${at(d.p50)}%` }}>typical {fmt(m, d.p50)}</em><em className="st-l" style={{ right: 0 }}>{fmt(m, hi)}</em>
+                              <div className="strip" role="img" aria-label={`Where each company sits among all companies on ${m.label}: ${picked.map((r) => `${r.name || r.symbol} ${r[k] == null ? "no figure" : fmt(m, r[k])}`).join(", ")}; lowest ${fmt(m, lo)}, typical ${fmt(m, d.p50)}, highest ${fmt(m, hi)}`}>
+                                <span className="st-band" style={{ left: `${at(d.p10)}%`, width: `${at(d.p90) - at(d.p10)}%` }} title="The range most companies fall in" /><span className="st-med" style={{ left: `${at(d.p50)}%` }} title={`Typical: ${fmt(m, d.p50)}`} />
+                                {picked.map((r, i) => r[k] != null && <span key={r.symbol} className={"st-m k" + i} style={{ left: `${at(r[k] as number)}%` }} title={`${r.name || r.symbol}: ${fmt(m, r[k])}`}><i className={"mk k" + i} /></span>)}
+                                <em className="st-l lo">{fmt(m, lo)}</em><em className="st-l hi">{fmt(m, hi)}</em>
+                                <em className="st-l mid" style={{ "--at": `${at(d.p50)}%` } as React.CSSProperties}>typical {fmt(m, d.p50)}</em>
                               </div>)}
                           </div>); })}
                     </div>))}
