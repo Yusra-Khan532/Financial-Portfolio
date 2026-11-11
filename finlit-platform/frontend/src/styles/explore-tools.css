@@ -63,8 +63,6 @@
 @media (prefers-reduced-motion: reduce) { .xt-row, .xt-tool > svg, .xt-rn svg { transition: none; } .xt-row:hover, .xt-row:focus-within { transform: none; } }
 
 /* Compact directory (task 89): all six groups in about two screens. Tools sit in two columns, one line each (name and plan mark); the few-words line stays as the tooltip and for screen readers. */
-.xt-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 28px; margin: 0 auto 18px; padding: 0; }
-.xt-stats > div { display: flex; align-items: baseline; gap: 8px; } .xt-stats dd { margin: 0; font: 600 var(--fs-18) var(--serif); color: var(--text); } .xt-stats dt { order: 2; font: 500 var(--fs-13) var(--sans); color: var(--muted); }
 .xt-row { padding: 16px 16px 12px; }
 .xt-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 6px; margin: 10px 0 4px; }
 .xt-tool { grid-template-rows: auto; grid-template-columns: minmax(0, 1fr); padding: 6px 8px; min-height: 34px; } .xt-tool > svg { display: none; }
@@ -73,3 +71,30 @@
 .xt-tool b { white-space: normal; overflow-wrap: anywhere; }
 .xt-tn { flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; width: 100%; } .xt-tn b { flex: 1 1 auto; min-width: 0; font-size: var(--fs-13); } .xt-tn .xt-badge { flex: none; margin-top: 1px; }
 @media (max-width: 700px) { .xt-tools { grid-template-columns: minmax(0, 1fr); } .xt-tool { min-height: 44px; } .xt-stats { gap: 4px 18px; } }
+
+/* Overview (task 89, second pass): a three-part header (what it is for, the heading and buttons, the numbers), icons on every tool, a faint chart in each group's corner */
+.xt-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px 32px; align-items: center; max-width: 1180px; margin: 0 auto 26px; }
+.xt-hero .xt-head { margin: 0; max-width: none; } .xt-head h2 em { font-style: normal; color: var(--gold-deep, var(--gold)); }
+.xt-head > p { margin-bottom: 16px; }
+.xt-cta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; } .xt-tour { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; } .xt-tour svg { width: 16px; height: 16px; }
+.xt-checks { list-style: none; margin: 0; padding: 0 0 0 16px; display: grid; gap: 12px; border-left: 1px solid var(--border); }
+.xt-checks li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-14); color: var(--text); } .xt-checks svg { flex: none; width: 18px; height: 18px; padding: 3px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 22%, var(--s1)); color: var(--gold-deep, var(--gold)); box-sizing: border-box; }
+.xt-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; padding: 0 0 0 20px; border-left: 1px solid var(--border); }
+.xt-stats > div { display: grid; grid-template-columns: 26px auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; } .xt-stats svg { grid-row: 1 / span 2; width: 22px; height: 22px; color: var(--gold-deep, var(--gold)); }
+.xt-stats dd { margin: 0; font: 600 var(--fs-20) var(--serif); color: var(--text); } .xt-stats dt { font: 500 var(--fs-13) var(--sans); color: var(--muted); }
+.xt-ti { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 7px; background: color-mix(in srgb, var(--ac) 14%, var(--s1)); color: var(--ac); } .xt-ti svg { width: 13px; height: 13px; }
+.xt-tn { align-items: center; } .xt-tn b { display: inline; }
+.xt-deco { position: absolute; right: 14px; bottom: -4px; width: 96px; height: 44px; fill: var(--ac); stroke: var(--ac); opacity: .16; pointer-events: none; } .xt-row header { position: relative; }
+.xt-cnt small { font-size: var(--fs-11); font-weight: 500; color: inherit; opacity: .8; }
+@media (max-width: 1100px) { .xt-hero { grid-template-columns: minmax(0, 1fr); } .xt-hero .xt-head { order: -1; } .xt-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; padding-left: 0; } .xt-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); border-left: 0; padding-left: 0; } }
+@media (max-width: 700px) { .xt-checks { grid-template-columns: minmax(0, 1fr); } .xt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.xt-tn { flex-wrap: wrap; row-gap: 3px; justify-content: flex-start; } .xt-tn b { flex: 0 1 auto; overflow-wrap: normal; word-break: normal; line-height: 1.25; }
+.xt-tn .xt-badge { margin-left: 30px; flex-basis: auto; } .xt-tn b + .xt-badge { margin-top: 0; }
+.xt-ti { margin-right: 8px; } .xt-dir, .xt-hero { max-width: 1240px; } .xt-tool { align-items: start; }
+@media (max-width: 700px) { .xt-tn .xt-badge { margin-left: 8px; } }
+
+/* a tool: icon on the left, name beside it, the plan mark under the name */
+.xt-tn { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 8px; row-gap: 3px; align-items: center; width: 100%; }
+.xt-tn .xt-ti { grid-column: 1; grid-row: 1; margin: 0; } .xt-tn b { grid-column: 2; grid-row: 1; } .xt-tn .xt-badge { grid-column: 2; grid-row: 2; justify-self: start; margin: 0; }
+@media (max-width: 700px) { .xt-tn { grid-template-columns: 22px auto 1fr; } .xt-tn b { grid-column: 2; } .xt-tn .xt-badge { grid-column: 3; grid-row: 1; margin-left: 6px; } }
