@@ -401,7 +401,10 @@ async def test_stored_report_is_reused_for_six_hours_unless_refreshed(env):
     await app.state.store.pool.execute("UPDATE prism_reports SET generated_at = now() - interval '7 hours', pdf_until = now() - interval '6 hours'")
     old = (await gold.get("/api/prism/reports/latest?symbol=TCS")).json()
     assert old["pdfAvailableUntil"] is None                              # the snapshot of a stored report has expired
-    assert (await generate(gold)).json()["cached"] is False and len(fake.reports) == 3
+    # Opening a stored report older than six hours may already start a refresh behind the page, so by the time this request arrives the new report can be there (cached: True):
+    # what matters is that the old report was replaced by a newly calculated one, exactly once.
+    again = (await generate(gold)).json()
+    assert again["id"] != fresh["id"] and len(fake.reports) == 3
     standalone = (await gold.post("/api/prism/reports", json={"symbol": "TCS", "statement": "standalone"})).json()
     assert standalone["statementType"] == "standalone" and len(fake.reports) == 4
 
