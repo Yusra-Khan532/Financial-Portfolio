@@ -39,7 +39,17 @@ class Sort(BaseModel):
     dir: Literal["asc", "desc"] = "desc"
 
 
+class Ratio(BaseModel):
+    """A ratio the member builds: one catalogue figure divided by another, with an optional range on the result (task #61)."""
+    id: str = Field(pattern=r"^r[0-9]$")
+    num: str = Field(max_length=40)
+    den: str = Field(max_length=40)
+    min: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
+    max: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
+
+
 class Query_(BaseModel):
+    ratios: List[Ratio] = Field(default_factory=list, max_length=3)
     filters: Dict[str, Rng] = Field(default_factory=dict, max_length=60)
     cats: Cats = Field(default_factory=Cats)
     q: str = Field(default="", max_length=60)
@@ -107,17 +117,31 @@ def _run(t, body: Query_, plan: str):
     bad = [c for c in cols if c not in BY_KEY]
     if bad:
         raise fail(400, "bad_request", "Unknown column.")
-    need = list(filters) + [c for c in cols] + ([body.sort.key] if body.sort.key in BY_KEY else [])
+    for rt in body.ratios:
+        if rt.num not in BY_KEY or rt.den not in BY_KEY or BY_KEY[rt.num].unit == "flag" or BY_KEY[rt.den].unit == "flag":
+            raise fail(400, "bad_request", "A ratio needs two numeric figures.")
+    need = list(filters) + [c for c in cols] + ([body.sort.key] if body.sort.key in BY_KEY else []) + [k for rt in body.ratios for k in (rt.num, rt.den)]
     locked = _locked(plan, need)
     if body.cats.band and not allowed(plan, "gold"):
         locked["overall"] = "gold"
     if locked:
         raise _refuse(locked, "Filtering or showing")
-    if body.sort.key not in BY_KEY and body.sort.key not in ("name", "symbol"):
+    ids = {rt.id for rt in body.ratios}
+    if body.sort.key not in BY_KEY and body.sort.key not in ("name", "symbol") and body.sort.key not in ids:
         raise fail(400, "bad_request", "Unknown sort.")
     idx = t.match(filters, body.cats.model_dump(), body.q)
-    idx = t.sort(idx, body.sort.key, body.sort.dir == "desc")
-    return idx, cols
+    vals = {rt.id: t.ratio(rt.num, rt.den) for rt in body.ratios}
+    for rt in body.ratios:                      # a ratio with a range keeps only companies where both figures exist and the result is inside it
+        if rt.min is not None or rt.max is not None:
+            v = vals[rt.id]
+            idx = [i for i in idx if v[i] == v[i] and (rt.min is None or v[i] >= rt.min) and (rt.max is None or v[i] <= rt.max)]
+    if body.sort.key in ids:
+        v = vals[body.sort.key]
+        known = sorted([i for i in idx if v[i] == v[i]], key=lambda i: v[i], reverse=body.sort.dir == "desc")
+        idx = known + [i for i in idx if v[i] != v[i]]
+    else:
+        idx = t.sort(idx, body.sort.key, body.sort.dir == "desc")
+    return idx, cols, vals
 
 
 @router.post("/query")
@@ -125,13 +149,16 @@ async def query(request: Request, body: Query_):
     started = time.perf_counter()
     plan = _plan(await current(request))
     t = await _table(request)
-    idx, cols = _run(t, body, plan)
+    idx, cols, rv = _run(t, body, plan)
     total = len(idx)
     capped = plan == "basic" and total > BASIC_ROWS
     lim = min(body.limit, BASIC_ROWS) if plan == "basic" else body.limit
     off = 0 if plan == "basic" else body.offset
     page = idx[off: off + lim]
     rows = [t.row(i, cols) for i in page]
+    for r, i in zip(rows, page):
+        if rv:
+            r["r"] = {k: (None if v[i] != v[i] else round(v[i], 4)) for k, v in rv.items()}
     if not allowed(plan, "silver"):  # the score band is a model output: below Silver only the free showcase companies keep it, as on the universe list
         showcase = set(request.app.state.settings.showcase_symbols)
         for r in rows:
@@ -149,7 +176,7 @@ async def export(request: Request, body: Query_):
     if not allowed(plan, "silver"):
         raise fail(403, "plan_required", "Downloading results is part of the Silver plan.", plan="silver")
     t = await _table(request)
-    idx, cols = _run(t, body, plan)
+    idx, cols, _rv = _run(t, body, plan)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Symbol", "Company", "Sector", "Size"] + [BY_KEY[c].label + (f" ({BY_KEY[c].unit})" if BY_KEY[c].unit not in ("flag", "n", "pts") else "") for c in cols])

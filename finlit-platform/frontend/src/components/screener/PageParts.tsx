@@ -52,7 +52,7 @@ export function Toolbar({ q, setQ, searchLabel, buttons, sort }: { q: string; se
   return (
     <div className="fgx-tool" role="search">
       <SearchBox value={q} onChange={setQ} placeholder={searchLabel} label={searchLabel} />
-      {buttons.map((b) => <button key={b.id} type="button" className="fgx-pb" onClick={b.onClick} aria-label={b.active > 0 ? `${b.label}, ${b.active} active` : b.label}>{b.label}{b.active > 0 && <span className="fgx-badge">{b.active}</span>}<Chev /></button>)}
+      {buttons.map((b) => <button key={b.id} type="button" className="fgx-pb" onClick={b.onClick} aria-label={b.active > 0 ? `${b.label}, ${b.active} active` : b.label}>{b.label}{b.active > 0 && <span className="fgx-badge">{b.active}</span>}</button>)}
       {sort}
     </div>);
 }

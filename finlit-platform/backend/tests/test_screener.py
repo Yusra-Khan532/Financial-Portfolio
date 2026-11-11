@@ -63,6 +63,18 @@ def test_filter_engine():
     assert t.cap[t.pos["A11"]] == "Mid" and t.cap[t.pos["NOPE"]] == "Small"            # by market value in rupees crore (12,000 is Mid, 50 is Small)
 
 
+def test_custom_ratio_divides_two_figures_and_never_guesses():
+    """Task #61: a member-built ratio is num / den; a missing figure or a zero denominator gives no value (NaN), never 0."""
+    rows = [_row(f"A{i}", "IT", market_cap=1000 * (i + 1), pe=10 + i, roe=5 + i) for i in range(4)]
+    rows.append(_row("NOPE", "IT", market_cap=50))                           # no P/E and no ROE
+    t = Table(rows, {}, {})
+    v = t.ratio("market_cap", "pe")
+    assert v[t.pos["A0"]] == pytest.approx(1000 / 10) and v[t.pos["A3"]] == pytest.approx(4000 / 13)
+    assert v[t.pos["NOPE"]] != v[t.pos["NOPE"]]                               # NaN: nothing to divide by
+    rows2 = [_row("Z", "IT", market_cap=500, pe=0.0, roe=1.0)]
+    assert Table(rows2, {}, {}).ratio("market_cap", "pe")[0] != Table(rows2, {}, {}).ratio("market_cap", "pe")[0]   # zero denominator: no value
+
+
 def test_size_is_by_market_value_one_scale_with_no_size_without_a_market_cap():
     from finlit.screener.data import size_of
     assert [size_of(v) for v in (50_001, 50_000, 49_999, 10_000, 9_999.9, 1, None, 0, float("nan"))] == ["Large", "Mid", "Mid", "Mid", "Small", "Small", None, None, None]

@@ -12,7 +12,7 @@ export type Pillar = "pillar_quality" | "pillar_growth" | "pillar_profitability"
 /** `ret_3m`, `ret_6m` and `pct_from_high` feed the optional 52-week and return columns: read from the stored screener numbers, blank without enough price history. */
 export type Item = Row & { cap: Cap | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
 export type BandKey = "f" | "t" | "o" | "q" | "g" | "p" | "b";   // o: the overall FinLit IQ ("Total FinLit IQ Score" row of the Basic panel)
-export type RangeKey = "f" | "t" | "o" | "q" | "g" | "p" | "b" | PrismRangeKey;   // q g p b: the four pillars (min and max boxes in the Basic screener)
+export type RangeKey = "f" | "t" | "o" | "q" | "g" | "p" | "b" | "dh" | PrismRangeKey;   // q g p b: the four pillars (min and max boxes in the Basic screener)
 export type SortKey = "name" | "price" | "market_cap" | "sector" | "f" | "t" | "overall" | Pillar | PrismCol | "ret_3m" | "ret_6m" | "return_1y" | "pct_from_high";
 /** `maxExcl`: the maximum is a strict upper bound ("below 50"), so a score of 49.75 is in and 50 is out, with no gap between "below 50" and "50 or more". */
 export type Range = { min: number | null; max: number | null; maxExcl?: boolean };
@@ -38,7 +38,9 @@ export const trendWord = (score: number | null | undefined): string | null => (s
 
 export const CAPS: Cap[] = ["Large", "Mid", "Small"];
 export const BAND_KEYS: BandKey[] = ["f", "t", "o", "q", "g", "p", "b"];
-export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", ...PRISM_RANGE_KEYS];
+export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", ...PRISM_RANGE_KEYS];
+/** "dh": how far the price is down from its 52-week high, in percent (0 = at the high). Shared by both screeners, since it is about the price, not a model (task #60). */
+export const SHARED_RANGES: RangeKey[] = ["dh"];
 /** The three score bands. They follow the FinLit model: Strong 78 and above, Watch under 45; "mid" joins its Healthy (62+) and Mixed (45+) bands. */
 export const BANDS: Record<Band, { label: string; short: string; min: number; max: number }> = {
   low: { label: "Under 45 (Watch)", short: "<45", min: 0, max: 44 },
@@ -62,7 +64,7 @@ export const PILLARS: { k: "q" | "g" | "p" | "b"; col: Pillar; label: string; sh
   { k: "p", col: "pillar_profitability", label: "Profitability", short: "Profit.", say: "Margins and returns on the money in the business." },
   { k: "b", col: "pillar_balance", label: "Balance sheet", short: "Balance", say: "Debt, interest cover and liquidity." },
 ];
-export const NAMES: Record<BandKey | RangeKey, string> = { f: "Growth & Profitability", t: "Technical", q: "Quality", g: "Growth", p: "Profitability", b: "Balance sheet", o: "Total FinLit IQ", ...PRISM_NAMES };
+export const NAMES: Record<BandKey | RangeKey, string> = { f: "Growth & Profitability", t: "Technical", q: "Quality", g: "Growth", p: "Profitability", b: "Balance sheet", o: "Total FinLit IQ", dh: "Down from 52-week high", ...PRISM_NAMES };
 export const PAGE_SIZES = [5, 10, 20, 50];
 
 /** Colour level of a score: the site's one colour rule (green 70+, orange 50 to 69, red under 50), see lib/scoreBands.ts. Colour only decorates; the model's word and the number carry the meaning. */
@@ -140,7 +142,7 @@ export function toggleRangeBand(r: Range, b: Band): Range {
   return bandsToRange(next);
 }
 export const inRange = (v: number | null, r: Range) => (r.min == null && r.max == null) || (v != null && (r.min == null || v >= r.min) && (r.max == null || (r.maxExcl ? v < r.max : v <= r.max)));
-const rangeValue = (r: Item, k: RangeKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : k === "q" || k === "g" || k === "p" || k === "b" ? r[PILLARS.find((x) => x.k === k)!.col] : prismRangeValue(r, k) ?? null);
+const rangeValue = (r: Item, k: RangeKey) => (k === "dh" ? r.pct_from_high ?? null : k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : k === "q" || k === "g" || k === "p" || k === "b" ? r[PILLARS.find((x) => x.k === k)!.col] : prismRangeValue(r, k) ?? null);
 const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : r[PILLARS.find((x) => x.k === k)!.col]);
 
 /** True when the company passes every filter. `skip` leaves one group out (used for the live counts beside the size and sector options). */
@@ -228,7 +230,7 @@ export function chipsFor(f: Filters): Chip[] {
   if (f.caps.length) out.push({ id: "caps", label: `Market cap: ${CAPS.filter((c) => f.caps.includes(c)).join(", ")}` });
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].short).join(", ")}` }); });
-  RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) out.push({ id: "range:" + k, label: `${NAMES[k]}: ${rangeText(r)}` }); });
+  RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) out.push({ id: "range:" + k, label: `${NAMES[k]}: ${rangeText(r)}${k === "dh" ? "%" : ""}` }); });
   if (f.iqLabels.length) out.push({ id: "iqlabels", label: `FinLit IQ rating: ${IQ_LABELS.filter((l) => f.iqLabels.includes(l)).map((l) => IQ_LABEL_WORD[l]).join(", ")}` });
   if (f.labels.length) out.push({ id: "labels", label: `Prism rating: ${PRISM_LABELS.filter((l) => f.labels.includes(l)).map((l) => LABEL_WORD[l]).join(", ")}` });
   TECH_KEYS.forEach((k) => { if (f.tech[k].length) out.push({ id: "tech:" + k, label: `${TECH_NAMES[k]}: ${TECH_BAND_ORDER.filter((b) => f.tech[k].includes(b)).map((b) => TECH_BANDS[b].short).join(", ")}` }); });
@@ -336,7 +338,7 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   const finlit = scope !== "advanced", prism = scope !== "basic";
   BAND_KEYS.forEach((k) => { f.bands[k] = finlit ? parseBands(p.get(BAND_PARAM[k]) ?? (k === "q" && isBandList(p.get("q")) ? p.get("q") : null)) : []; });
   RANGE_KEYS.forEach((k) => {
-    if (!(PRISM_RANGE_KEYS as string[]).includes(k) ? !finlit : !prism) return;
+    if (!SHARED_RANGES.includes(k) && (!(PRISM_RANGE_KEYS as string[]).includes(k) ? !finlit : !prism)) return;
     let min = num(p.get(k + "min")), max = num(p.get(k + "max"));
     const lt = num(p.get(k + "lt"));      // ?zvlt=50: below 50 (a strict bound); an exact maximum in the same address wins
     if (lt != null && max == null) { f.ranges[k] = { min, max: lt, maxExcl: true }; return; }
