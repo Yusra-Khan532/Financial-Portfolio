@@ -101,6 +101,9 @@ class Exposure:
 
 
 _EXPOSURE_KEYS = {f.name for f in fields(Exposure)} - {"notes", "source"}
+# Shares that must add up to 1 or less. Each level describes the whole mix it knows about (2.1.1: before, a sector's
+# metal share could be added to an industry's crude and farm shares, e.g. tyres at 140% of raw materials).
+_SHARE_GROUPS = (("crude_rm", "import_rm", "metal_rm", "agri_rm"), ("export_rev", "crude_rev"))
 _LEVEL_NAMES = {"sectors": "sector", "industries": "industry", "basic_industries": "basic industry",
                 "companies": "company"}
 
@@ -124,6 +127,10 @@ class ExposureTable:
             hit = self._levels[lvl].get(_norm(name)) if name else None
             if hit:
                 key, vals = hit
+                for group in _SHARE_GROUPS:              # a level that sets any share in a group sets the whole mix:
+                    if any(k in vals for k in group):    # shares it leaves out are 0, not inherited from a wider level
+                        for k in group:
+                            setattr(e, k, 0.0)
                 for k, v in vals.items():
                     if k in _EXPOSURE_KEYS:
                         setattr(e, k, v)

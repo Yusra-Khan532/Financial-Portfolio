@@ -705,6 +705,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(graphviews_api.router)
     app.include_router(forum_api.router)
     app.include_router(dcf_api.router)
+    app.include_router(__import__("finlit.stress.router", fromlist=["router"]).router)   # /api/stress/*: Stress Lab (Silver page, Gold runs)
     app.include_router(options_api.router)
     app.include_router(results_api.router)
     app.include_router(mcp_server.router)   # POST /mcp (MCP for AI assistants) and /.well-known/mcp.json: before the site-backend catch-all and the website
