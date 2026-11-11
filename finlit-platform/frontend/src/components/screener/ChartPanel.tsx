@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, createChart, type IChartApi, type MouseEventParams, type Time } from "lightweight-charts";
+import { CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, createChart, createSeriesMarkers, type IChartApi, type MouseEventParams, type Time } from "lightweight-charts";
 import { usePrice } from "../../lib/api";
 import { useFocusTrap } from "../../lib/focusTrap";
 import { CoLogo } from "../CoLogo";
@@ -19,7 +19,10 @@ const read = (): { range: Range; ema50: boolean; ema200: boolean; log: boolean }
 const num = (n: number | null | undefined, d = 2) => (n == null ? "–" : n.toLocaleString("en-IN", { maximumFractionDigits: d, minimumFractionDigits: d }));
 const css = (v: string, fb: string) => { try { return getComputedStyle(document.documentElement).getPropertyValue(v).trim() || fb; } catch { return fb; } };
 
-export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null };
+/** What a chart-pattern scan found, as the server words it: facts ([label, value]) and the drawing (level, box, pole, swings, bar, dates already worked out). The page never sees a rule. */
+export type Draw = { level?: number; from?: string | null; box?: { from: string | null; to: string | null; low: number; high: number }; pole?: { from: string | null; low: number; to: string | null; high: number };
+  swings?: { date: string | null; price: number; kind: string }[]; bar?: string | null; ema?: number };
+export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string };
 
 export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => void }) {
   const [opt, setOpt] = useState(read);
@@ -57,6 +60,18 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
     vol.setData(bars.filter((b) => b.v != null).map((b) => ({ time: b.t as Time, value: b.v as number, color: (b.c >= b.o ? up : down) + "66" })));
     if (opt.ema50) c.addSeries(LineSeries, { color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(bars.filter((b) => b.e50 != null).map((b) => ({ time: b.t as Time, value: b.e50 as number })));
     if (opt.ema200) c.addSeries(LineSeries, { color: "#6366f1", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }).setData(bars.filter((b) => b.e200 != null).map((b) => ({ time: b.t as Time, value: b.e200 as number })));
+    const dr = row.draw;
+    if (dr) {
+      const line = (price: number, title: string, color: string) => candles.createPriceLine({ price, color, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title });
+      if (dr.level != null) line(dr.level, "Pivot", "#b8892b");
+      if (dr.box) { line(dr.box.high, "Top of base", "#6366f1"); line(dr.box.low, "Bottom of base", "#6366f1"); }
+      if (dr.pole) { line(dr.pole.high, "Run-up high", "#16a34a"); }
+      if (dr.swings && dr.swings.length > 1) {
+        const pts = dr.swings.filter((w) => w.date).map((w) => ({ time: w.date as Time, value: w.price }));
+        if (pts.length > 1) c.addSeries(LineSeries, { color: "#a855f7", lineWidth: 2, priceLineVisible: false, lastValueVisible: false }).setData(pts);
+      }
+      if (dr.bar) createSeriesMarkers(candles, [{ time: dr.bar as Time, position: "belowBar", color: "#b8892b", shape: "arrowUp", text: "" }]);
+    }
     c.timeScale().fitContent();
     const byDay = new Map(bars.map((b, i) => [b.t, i]));
     const show = (p: MouseEventParams<Time>) => {
@@ -70,7 +85,7 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
     c.subscribeCrosshairMove(show);
     show({} as MouseEventParams<Time>);
     return () => { c.remove(); chart.current = null; };
-  }, [bars, opt.ema50, opt.ema200, opt.log]);
+  }, [bars, opt.ema50, opt.ema200, opt.log, row.draw]);
 
   const last = bars[bars.length - 1], first = bars[0];
   const chg = last && first ? (last.c / first.c - 1) * 100 : null;
@@ -90,6 +105,7 @@ export function ChartPanel({ row, onClose }: { row: PanelRow; onClose: () => voi
         <button type="button" className={opt.ema200 ? "on" : ""} aria-pressed={opt.ema200} onClick={() => tog("ema200")}>200-day</button>
         <button type="button" className={opt.log ? "on" : ""} aria-pressed={opt.log} onClick={() => tog("log")}>Log</button>
       </div>
+      {!!row.facts?.length && <dl className="cp-facts" aria-label="What the chart shows">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
       <div className="cp-leg" aria-live="off">{legend || " "}</div>
       <div className="cp-c" ref={host}>
         {q.isLoading && <p className="cp-m">Loading the chart…</p>}

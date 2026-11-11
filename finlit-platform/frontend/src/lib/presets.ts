@@ -24,7 +24,7 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -40,7 +40,7 @@ export function pageRange(d: Pick<PresetDetail, "count" | "offset" | "shown">): 
 
 export const DISCLAIMER = "A screen narrows a list. It is not a recommendation.";
 /** The order the groups are shown in; a group the API adds later follows these, before "Prism basics". */
-export const GROUP_ORDER = ["Top rated", "Trend", "Breakouts", "Growth", "Themes", "Value and income", "Safety", "Ownership"];
+export const GROUP_ORDER = ["Top rated", "Trend", "Breakouts", "Chart patterns", "Growth", "Themes", "Value and income", "Safety", "Ownership"];
 export const BASICS = "Prism basics";
 
 /** Groups in the spec's order. A group the API omits is simply absent; unknown ones come last (but before Prism basics, which the page adds itself). */

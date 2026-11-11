@@ -1,7 +1,8 @@
 // The screen view: one prebuilt screen as a card (name, card text, match count, as-of date, how it works, its options) with a results table built from the response.
 // Values come from the response only: a missing one is a dash, never zero, and nothing is ranked or recommended here.
 import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChartPanel, type PanelRow } from "../ChartPanel";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
@@ -57,22 +58,28 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 
 function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: PresetColumn[]; rows: PresetRow[]; sort: SortState; setSort: (k: string, first: 1 | -1) => void }) {
   const first = d.offset ?? 0;
+  const [chart, setChart] = useState<PanelRow | null>(null);
   const head = (key: string, label: string, align: string, first: 1 | -1 = -1) => (
     <th scope="col" className={"psx-a-" + align} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button></th>);
-  return (
+  return (<>
     <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table"><table className="scr-t psx-t">
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead><tr><th scope="col" className="psx-n">#</th>{head("symbol", "Stock", "left", 1)}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
       <tbody>{rows.map((r, i) => (
-        <tr key={r.symbol}>
-          <td className="psx-n">{first + i + 1}</td>
+        <Fragment key={r.symbol}>
+        {d.topCount ? (r.top === true && (i === 0 || rows[i - 1].top !== true)
+          ? <tr className="psx-band"><td colSpan={cols.length + 2}>Top {d.topCount} · the strongest by this screen's score, at most three from one industry</td></tr>
+          : r.top !== true && (i === 0 || rows[i - 1].top === true) && <tr className="psx-band"><td colSpan={cols.length + 2}>{nf(Math.max(0, d.count - d.topCount), 0)} more {d.count - d.topCount === 1 ? "company passes" : "companies pass"} · ranked by the same score</td></tr>) : null}
+        <tr className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"] }); }}>
+          <td className="psx-n">{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
           <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
           {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} /></td>)}
-        </tr>))}
+        </tr></Fragment>))}
       </tbody>
-    </table></HScroll></TableZoom>);
+    </table></HScroll></TableZoom>
+    {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}</>);
 }
 const Head = ({ c, h }: { c: PresetColumn; h: (key: string, label: string, align: string, first?: 1 | -1) => ReactNode }) => <>{h(c.key, c.label, alignOf(c), c.format === "text" || c.format === "label" ? 1 : -1)}</>;
 
