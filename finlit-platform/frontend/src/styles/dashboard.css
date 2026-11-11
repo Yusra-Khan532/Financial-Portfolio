@@ -525,3 +525,11 @@
 .dsh-map .t .t-lg { display: inline-flex; margin-bottom: 2px; } .dsh-map .t .t-lg .gs-logo { box-shadow: none; }
 .dsh-htn { display: flex; align-items: center; gap: 8px; }
 .dsh-hl .dsh-hc { display: flex; align-items: center; gap: 10px; min-width: 0; } .dsh-hl .dsh-hc > span { display: grid; min-width: 0; }
+
+/* Hide / Show on optional panels (task 58): hidden, a panel shrinks to one row, its title, a "Hidden" tag and a Show button */
+.dsh-chr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dsh-hide { min-height: 32px; padding: 0 14px; border: 1px solid var(--d-line); border-radius: 999px; background: none; color: var(--muted); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.dsh-hide:hover { color: var(--text); border-color: var(--border-strong); } .dsh-hide:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dsh-is-hidden { padding-block: 12px; } .dsh-ch-h { margin-bottom: 0 !important; align-items: center !important; justify-content: flex-start !important; }
+.dsh-ch-h h2 { margin: 0; } .dsh-ch-h .dsh-hide { margin-left: auto; }
+.dsh-tag { font: 600 var(--fs-12) var(--sans); color: var(--faint); border: 1px solid var(--d-line); border-radius: 999px; padding: 2px 10px; }
