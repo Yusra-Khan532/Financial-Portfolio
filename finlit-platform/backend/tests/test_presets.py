@@ -36,7 +36,7 @@ def syms(body):
 
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
-    live = [p for p in ADVANCED if p.status == "live" and p.kind != "pattern"]       # the eleven Chart patterns screens are checked in their own test
+    live = [p for p in ADVANCED if p.status == "live" and p.kind not in ("pattern", "gainers")]       # the eleven Chart patterns screens are checked in their own test
     assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 3
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
@@ -495,7 +495,7 @@ def edit(r, **kw):
 
 
 def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
-    basic = [p for p in PRESETS if p.tab == "basic" and p.kind != "pattern"]
+    basic = [p for p in PRESETS if p.tab == "basic" and p.kind not in ("pattern", "gainers")]
     assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
                                      "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
                                      "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",

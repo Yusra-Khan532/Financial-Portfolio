@@ -1,5 +1,6 @@
 // Prebuilt screens on the Advanced (Gold) and Basic (Silver) score screeners: the API types, the address (?preset=<id>&chip=<id>...), the two queries, client-side sorting and the CSV.
 // Every number shown comes from the response; nothing is computed here except ordering and layout.
+import { useSyncExternalStore } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
 
@@ -8,7 +9,7 @@ export type Preset = {
   id: string; name: string; group: string; cardText: string; count: number | null; asOf: string | null; status: "live" | "blocked"; blockedReason: string | null;
   /** "Top 10 of 40 that pass" or "First 25 of 129 that pass", as the card says it; null when the whole match is listed. */
   listText?: string | null;
-  chips: PresetChip[]; howItWorks: string[]; locked: boolean; tab?: PresetTab;
+  chips: PresetChip[]; howItWorks: string[]; locked: boolean; tab?: PresetTab; kind?: string;
 };
 /** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
 export type PresetTab = "advanced" | "basic";
@@ -16,7 +17,7 @@ export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold",
 export type PresetGroup = { id: string; name: string; presets: Preset[] };
 export type PresetList = { asOf: string | null; groups: PresetGroup[]; tab?: PresetTab };
 
-export type ColFormat = "text" | "num1" | "pct" | "score" | "cr" | "label" | "badge";
+export type ColFormat = "text" | "num1" | "pct" | "score" | "cr" | "label" | "badge" | "date" | "since";
 export type PresetColumn = { key: string; label: string; format: ColFormat; align?: "left" | "right" | "center" };
 export type PresetRow = { symbol: string; name?: string | null; exchange?: string | null; badges?: string[] } & Record<string, unknown>;
 export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
@@ -24,7 +25,7 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -92,18 +93,41 @@ export function usePresetList(enabled = true, tab: PresetTab = "advanced") {
   });
 }
 /** `offset` and `limit` page a long screen (the first page leaves them out, so it is the cached answer as sent). */
-export const detailPath = (id: string, chips: string[], offset = 0, limit?: number) => {
+/** The filter bar of a screen: search, size chips, sector and Only Strong or Healthy (applied by the server to the screen's own list). */
+export type BarFilter = { q: string; sizes: string[]; sectors: string[]; strong: boolean };
+export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], strong: false };
+export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)), ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.strong ? ["strong=1"] : [])];
+export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
+  q.push(...barParams(bar));
+  if (asOn) q.push("as_on=" + encodeURIComponent(asOn));
   if (offset > 0) q.push("offset=" + offset);
   if (limit != null) q.push("limit=" + limit);
   return `/api/screener/presets/${encodeURIComponent(id)}` + (q.length ? "?" + q.join("&") : "");
 };
-export function usePresetDetail(id: string | null, chips: string[], enabled: boolean, offset = 0) {
+export function usePresetDetail(id: string | null, chips: string[], enabled: boolean, offset = 0, asOn: string | null = null, bar: BarFilter = NO_BAR) {
   return useQuery<PresetDetail, ApiError>({
-    queryKey: ["preset", id, [...chips].sort().join(","), offset], enabled: enabled && !!id, staleTime: 300_000, placeholderData: keepPreviousData,
+    queryKey: ["preset", id, [...chips].sort().join(","), offset, asOn, barParams(bar).join("&")], enabled: enabled && !!id, staleTime: 300_000, placeholderData: keepPreviousData,
     retry: (n, e) => !(e instanceof ApiError && e.status >= 400 && e.status < 500) && n < 1,
-    queryFn: () => apiGet<PresetDetail>(detailPath(id!, chips, offset)),
+    queryFn: () => apiGet<PresetDetail>(detailPath(id!, chips, offset, undefined, asOn, bar)),
   });
+}
+
+// ---------- screen history: the day picked in "As on" stays while the reader moves between screens and between the two pages ----------
+const AS_ON_KEY = "fl.asOn.v1";
+const asOnListeners = new Set<() => void>();
+const readAsOn = (): string | null => { try { return sessionStorage.getItem(AS_ON_KEY); } catch { return null; } };
+export const setAsOn = (d: string | null) => { try { if (d) sessionStorage.setItem(AS_ON_KEY, d); else sessionStorage.removeItem(AS_ON_KEY); } catch { /* private window: the pick lasts for this page only */ } asOnListeners.forEach((f) => f()); };
+export const useAsOn = (): [string | null, (d: string | null) => void] => [useSyncExternalStore((f) => { asOnListeners.add(f); return () => { asOnListeners.delete(f); }; }, readAsOn, () => null), setAsOn];
+export type HistorySession = { date: string; count: number; rulesUpdated: boolean };
+export function usePresetHistory(id: string | null, chips: string[], enabled: boolean) {
+  return useQuery<{ sessions: HistorySession[] }, ApiError>({ queryKey: ["preset-history", id, [...chips].sort().join(",")], enabled: enabled && !!id, staleTime: 600_000, retry: false,
+    queryFn: () => apiGet(`/api/screener/presets/${encodeURIComponent(id!)}/history` + (chips.length ? "?" + chips.map((c) => "chip=" + encodeURIComponent(c)).join("&") : "")) });
+}
+export type LeftRow = { symbol: string; added_on: string; left_on: string; sessions: number | null; change_pct: number | null; reason: string };
+export function usePresetLeft(id: string | null, chips: string[], enabled: boolean) {
+  return useQuery<{ left: LeftRow[] }, ApiError>({ queryKey: ["preset-left", id, [...chips].sort().join(",")], enabled: enabled && !!id, staleTime: 600_000, retry: false,
+    queryFn: () => apiGet(`/api/screener/presets/${encodeURIComponent(id!)}/left` + (chips.length ? "?" + chips.map((c) => "chip=" + encodeURIComponent(c)).join("&") : "")) });
 }
 
 // ---------- the table ----------
