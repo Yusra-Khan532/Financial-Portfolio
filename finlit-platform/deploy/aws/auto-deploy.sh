@@ -54,10 +54,19 @@ flock -n 8 || exit 0                                    # a check is already run
 # server itself, before anything else, so it also works while deploys are paused or nothing new has been committed.
 disk_pct() { if [ -n "${DISK_PCT_CMD:-}" ]; then sh -c "$DISK_PCT_CMD" 2>/dev/null; else df --output=pcent / 2>/dev/null | tail -n 1 | tr -dc '0-9'; fi; }
 housekeeping() {
-  local pct last now
+  local pct last now dlast
   pct="$(disk_pct)"; [ -n "$pct" ] || return 0
+  now="$(date +%s)"
+  # every day, whatever the disk says: clear the waste (build cache, unused images, stopped containers, old logs) before it can pile up
+  dlast="$(cat "$STATE/last_daily_clean" 2>/dev/null || echo 0)"
+  if [ $((now - dlast)) -ge "$(conf DAILY_CLEAN_SECONDS 86400)" ]; then
+    echo "$now" > "$STATE/last_daily_clean"
+    log "daily cleaning of waste (disk ${pct}% full)"
+    bash "$DEPLOY_SH" clean >> "$LOG" 2>&1 || log "the daily cleaning did not finish (see above)"
+    return 0
+  fi
   [ "$pct" -ge "$(conf DISK_CLEAN_PCT 78)" ] || return 0
-  now="$(date +%s)"; last="$(cat "$STATE/last_clean" 2>/dev/null || echo 0)"
+  last="$(cat "$STATE/last_clean" 2>/dev/null || echo 0)"
   [ $((now - last)) -ge 1800 ] || return 0
   echo "$now" > "$STATE/last_clean"
   log "the disk is ${pct}% full: cleaning build cache and unused images"

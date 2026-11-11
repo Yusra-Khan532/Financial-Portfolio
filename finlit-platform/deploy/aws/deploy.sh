@@ -178,6 +178,8 @@ cmd_clean() {
   docker container prune -f >/dev/null 2>&1 || true
   docker network prune -f >/dev/null 2>&1 || true
   command -v journalctl >/dev/null 2>&1 && journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+  find "$FINLIT_HOME/logs" -type f \( -name '*.log.*' -o -name '*.gz' -o -name '*.old' \) -mtime +14 -delete 2>/dev/null || true   # rotated logs older than two weeks
+  find /tmp -xdev -maxdepth 1 -type f -mtime +3 \( -name 'tmp*' -o -name '*.tmp' \) -delete 2>/dev/null || true               # stray temp files
   command -v apt-get >/dev/null 2>&1 && apt-get clean >/dev/null 2>&1 || true
   after="$(disk_pct)"
   info "disk ${after:-?}% full after cleaning"
