@@ -30,17 +30,34 @@ function Card({ c }: { c: PlatformCard }) {
 
 /** One tool in a group card: its name, a few words, a small plan mark for the paid ones and an arrow. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
-  const inner = <><span className="xt-tn"><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
+  const inner = <><span className="xt-tn"><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
+const TOOL_ICON: Record<string, string> = {
+  "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
+  "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line",
+  "dcf-calculator": "rupee", "profit-revenue-outlook": "activity", "calculators": "percent", "option-chain": "grid",
+  "watchlists": "star", "portfolios": "wallet", "alerts": "bell", "compare-funds": "compare",
+  "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-ipo": "calendar",
+  "glossary": "book", "discussion-forum": "users", "finlit-bot": "chat",
+};
 const GROUP_ICON: Record<string, string> = { discover: "search", "company-360": "building", "quant-lab": "gauge", track: "wallet", market: "line", learn: "book" };
+
+/** A faint chart-like drawing in the card's corner, in the group's accent colour (decoration only). */
+function Deco({ id }: { id: string }) {
+  const bars = id === "discover" || id === "market" || id === "track";
+  return (
+    <svg className="xt-deco" viewBox="0 0 120 56" aria-hidden="true" focusable="false">
+      {bars ? [10, 18, 14, 26, 22, 34, 44].map((h, i) => <rect key={i} x={8 + i * 15} y={56 - h} width="9" height={h} rx="2" />) : <path d="M4 48 L26 36 L44 40 L68 22 L90 26 L116 6" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>);
+}
 
 /** A group card: an icon, its name and count, one line on what it is for, every tool in a few words, and a button that opens the full cards on that group. */
 function Row({ b, onOpen }: { b: Bucket; onOpen: () => void }) {
   return (
     <li className="xt-row" data-group={b.id}>
       <header><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[b.id] ?? "grid"} /></span>
-        <div><h3>{b.name}</h3><p>{b.line}</p></div><span className="xt-cnt">{pad(b.cards.length)}</span></header>
+        <div><h3>{b.name}</h3><p>{b.line}</p></div><span className="xt-cnt">{pad(b.cards.length)} <small>tools</small></span><Deco id={b.id} /></header>
       <ul className="xt-tools" aria-label={`${b.name} tools`}>{b.cards.map((c) => <Tool key={c.id} c={c} />)}</ul>
       <button type="button" className="xt-rn" onClick={onOpen}>See the {b.cards.length} {b.name} cards <Icon name="arrow" /><span className="sr-only">. Show the full cards.</span></button>
     </li>);
@@ -65,14 +82,21 @@ export function ExploreTools() {
   };
   return (
     <section className="sec hh-sec xt" id="platform" aria-labelledby="xt-title"><div className="wrap">
-      <div className="xt-head">
-        <div className="hh-kicker">The platform</div>
-        <h2 id="xt-title">Everything you need. Nothing you don't.</h2>
-        <p>{TOTAL} tools in six groups, from finding a stock to valuing it, tracking it and following its sector.</p>
+      <div className="xt-hero">
+        <ul className="xt-checks" aria-label="What the platform is for">{["Screen & discover opportunities", "Analyse companies in depth", "Value with proven models", "Track your portfolio & market", "Learn, discuss & stay informed"].map((t) => <li key={t}><Icon name="check" />{t}</li>)}</ul>
+        <div className="xt-head">
+          <div className="hh-kicker">The platform</div>
+          <h2 id="xt-title">Everything you need. <em>Nothing you don't.</em></h2>
+          <p>{TOTAL} tools in six groups, from finding a stock to valuing it, tracking it and following its sector.</p>
+          <div className="xt-cta">
+            <button type="button" className="btn primary lg xt-go" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}>{open ? "Hide the platform tools" : "Explore the platform"} <Icon name="arrow" /></button>
+            <a className="btn lg xt-tour" href="#tour"><Icon name="play" /> Watch the tour</a>
+          </div>
+        </div>
         <dl className="xt-stats" aria-label="The platform in numbers">
-          <div><dt>Listed companies</dt><dd>5,800+</dd></div><div><dt>Mutual funds</dt><dd>1,200+</dd></div><div><dt>Tools</dt><dd>{TOTAL}</dd></div><div><dt>Groups</dt><dd>{BUCKETS.length}</dd></div>
+          <div><Icon name="building" /><dd>5,800+</dd><dt>Listed companies</dt></div><div><Icon name="pie" /><dd>1,200+</dd><dt>Mutual funds</dt></div>
+          <div><Icon name="grid" /><dd>{TOTAL}</dd><dt>Tools</dt></div><div><Icon name="layers" /><dd>{BUCKETS.length}</dd><dt>Groups</dt></div>
         </dl>
-        <button type="button" className="btn primary lg xt-go" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}>{open ? "Hide the platform tools" : "Explore the platform"} <Icon name="arrow" /></button>
       </div>
       <ul className="xt-dir" aria-label="The six groups and their tools">{BUCKETS.map((b) => <Row key={b.id} b={b} onOpen={() => show(b.id)} />)}</ul>
       <div id={panel} className="xt-panel" hidden={!open}>
