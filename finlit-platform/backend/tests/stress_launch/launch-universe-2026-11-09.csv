@@ -1,0 +1,472 @@
+symbol,name,market_cap_cr,size,site_industry,nse_industry,nse_sector,settings_from,has_industry_row,settings_on_defaults
+RELIANCE,Reliance Industries Ltd,1791573,Large,Refineries & Marketing,Petroleum Products,Oil Gas & Consumable Fuels,Industry row: Refineries & Marketing,yes,6
+JPL,Jio Platforms Ltd,1300960,Large,Telecommunication,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+BHARTIARTL,Bharti Airtel Ltd,1293230,Large,Telecom - Cellular & Fixed line services,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+TCS,Tata Consultancy Services Ltd,894066,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+LT,Larsen & Toubro Ltd,575812,Large,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+INFY,Infosys Ltd,468366,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+HINDUNILVR,Hindustan Unilever Ltd,467639,Large,Diversified FMCG,Diversified FMCG,Fast Moving Consumer Goods,Industry row: Diversified FMCG,yes,9
+SUNPHARMA,Sun Pharmaceutical Industries Ltd,456953,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+ADANIPORTS,Adani Ports & Special Economic Zone Ltd,447590,Large,Port & Port services,Transport Infrastructure,Services,NSE sector row: Services,no,11
+TITAN,Titan Company Ltd,444337,Large,"Gems, Jewellery And Watches",Consumer Durables,Consumer Durables,"Industry row: Gems, Jewellery And Watches",yes,9
+M&M,Mahindra & Mahindra Ltd,409196,Large,Passenger Cars & Utility Vehicles,Automobiles,Automobile and Auto Components,Industry row: Passenger Cars & Utility Vehicles,yes,8
+MARUTI,Maruti Suzuki India Ltd,406460,Large,Passenger Cars & Utility Vehicles,Automobiles,Automobile and Auto Components,Industry row: Passenger Cars & Utility Vehicles,yes,8
+ADANIPOWER,Adani Power Ltd,397265,Large,Integrated Power Utilities,Power,Power,Industry row: Integrated Power Utilities,yes,9
+HCLTECH,HCL Technologies Ltd,381813,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+ADANIENT,Adani Enterprises Ltd,366358,Large,Trading - Minerals,Metals & Minerals Trading,Metals & Mining,NSE sector row: Metals & Mining,no,7
+ULTRACEMCO,UltraTech Cement Ltd,361719,Large,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+ETERNAL,ETERNAL Ltd,350742,Large,E-Retail/ E-Commerce,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+ITC,ITC Ltd,349351,Large,Diversified FMCG,Diversified FMCG,Fast Moving Consumer Goods,Industry row: Diversified FMCG,yes,9
+HAL,Hindustan Aeronautics Ltd,334321,Large,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+JSWSTEEL,JSW Steel Ltd,329403,Large,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+NTPC,NTPC Ltd,318778,Large,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+DIVISLAB,Divi's Laboratories Ltd,307028,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+BAJAJ-AUTO,Bajaj Auto Ltd,301707,Large,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+ONGC,Oil & Natural Gas Corporation Ltd,293750,Large,Oil Exploration & Production,Oil,Oil Gas & Consumable Fuels,Industry row: Oil Exploration & Production,yes,6
+BEL,Bharat Electronics Ltd,288407,Large,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+NESTLEIND,Nestle India Ltd,250257,Large,Packaged Foods,Food Products,Fast Moving Consumer Goods,Industry row: Packaged Foods,yes,9
+COALINDIA,Coal India Ltd,247433,Large,Coal,Consumable Fuels,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+HINDZINC,Hindustan Zinc Ltd,243357,Large,Zinc,Non - Ferrous Metals,Metals & Mining,NSE sector row: Metals & Mining,no,7
+ASIANPAINT,Asian Paints Ltd,240692,Large,Paints,Consumer Durables,Consumer Durables,Industry row: Paints,yes,5
+POWERGRID,Power Grid Corporation Of India Ltd,239909,Large,Power - Transmission,Power,Power,NSE sector row: Power,no,9
+ADANIGREEN,Adani Green Energy Ltd,238659,Large,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+TATASTEEL,Tata Steel Ltd,230758,Large,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+DMART,Avenue Supermarts Ltd,226127,Large,Diversified Retail,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+HINDALCO,Hindalco Industries Ltd,215734,Large,Aluminium,Non - Ferrous Metals,Metals & Mining,Industry row: Aluminium,yes,7
+GRASIM,Grasim Industries Ltd,215724,Large,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+TVSMOTOR,TVS Motor Company Ltd,214070,Large,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+INDIGO,InterGlobe Aviation Ltd,209960,Large,Airline,Transport Services,Services,Industry row: Airline,yes,5
+EICHERMOT,Eicher Motors Ltd,209433,Large,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+IOC,Indian Oil Corporation Ltd,207370,Large,Refineries & Marketing,Petroleum Products,Oil Gas & Consumable Fuels,Industry row: Refineries & Marketing,yes,6
+WIPRO,Wipro Ltd,197114,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+DLF,DLF Ltd,186886,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+TORNTPHARM,Torrent Pharmaceuticals Ltd,181816,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+TECHM,Tech Mahindra Ltd,176919,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+ADANIENSOL,Adani Energy Solutions Ltd,175995,Large,Power Distribution,Power,Power,NSE sector row: Power,no,9
+SOLARINDS,Solar Industries India Ltd,172148,Large,Explosives,Chemicals & Petrochemicals,Chemicals,NSE sector row: Chemicals,no,6
+HYUNDAI,Hyundai Motor India Ltd,171446,Large,Automobile and Auto Components,Automobiles,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+MOTHERSON,Samvardhana Motherson International Ltd,170887,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+TRENT,Trent Ltd,166326,Large,Speciality Retail,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+PIDILITIND,Pidilite Industries Ltd,161693,Large,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+TMCV,Tata Motors Ltd,160809,Large,Capital Goods,Agricultural Commercial & Construction Vehicles,Capital Goods,NSE sector row: Capital Goods,no,8
+VAML,Vedanta Aluminium Metal Ltd,151508,Large,Metals & Mining,Non - Ferrous Metals,Metals & Mining,NSE sector row: Metals & Mining,no,7
+BHEL,Bharat Heavy Electricals Ltd,147274,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+VBL,Varun Beverages Ltd,147139,Large,Other Beverages,Beverages,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+ABB,ABB India Ltd,146993,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+BOSCHLTD,Bosch Ltd,146153,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+IDEA,Vodafone Idea Ltd,137271,Large,Telecom - Cellular & Fixed line services,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+BPCL,Bharat Petroleum Corporation Ltd,137097,Large,Refineries & Marketing,Petroleum Products,Oil Gas & Consumable Fuels,Industry row: Refineries & Marketing,yes,6
+LAURUSLABS,Laurus Labs Ltd,132593,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+SIEMENS,Siemens Ltd,130162,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+LTM,LTM Ltd,128087,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+INDHOTEL,The Indian Hotels Company Ltd,126920,Large,Hotels & Resorts,Leisure Services,Consumer Services,Industry row: Hotels & Resorts,yes,9
+CGPOWER,CG Power & Industrial Solutions Ltd,126037,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+POWERINDIA,Hitachi Energy India Ltd,125471,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+LENSKART,Lenskart Solutions Ltd,125021,Large,Consumer Services,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+GAIL,GAIL (India) Ltd,123612,Large,Gas Transmission/Marketing,Gas,Oil Gas & Consumable Fuels,Industry row: Gas Transmission/Marketing,yes,7
+APOLLOHOSP,Apollo Hospitals Enterprise Ltd,122929,Large,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+LGEINDIA,LG Electronics India Ltd,121772,Large,Consumer Durables,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+ZYDUSLIFE,Zydus Lifesciences Ltd,121286,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+LODHA,Lodha Developers Ltd,119427,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+POLYCAB,Polycab India Ltd,118033,Large,Cables - Electricals,Industrial Products,Capital Goods,Industry row: Cables - Electricals,yes,8
+MARICO,Marico Ltd,117278,Large,Edible Oil,Agricultural Food & other Products,Fast Moving Consumer Goods,Industry row: Edible Oil,yes,9
+JINDALSTEL,Jindal Steel Ltd,116902,Large,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+DRREDDY,Dr Reddy's Laboratories Ltd,115603,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+BRITANNIA,Britannia Industries Ltd,115376,Large,Packaged Foods,Food Products,Fast Moving Consumer Goods,Industry row: Packaged Foods,yes,9
+TATAPOWER,Tata Power Company Ltd,115032,Large,Integrated Power Utilities,Power,Power,Industry row: Integrated Power Utilities,yes,9
+CUMMINSIND,Cummins India Ltd,114628,Large,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+CIPLA,Cipla Ltd,113409,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+MEESHO,Meesho Ltd,110381,Large,Consumer Services,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+MANKIND,Mankind Pharma Ltd,110213,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+TMPV,Tata Motors Passenger Vehicles Ltd,108648,Large,Passenger Cars & Utility Vehicles,Automobiles,Automobile and Auto Components,Industry row: Passenger Cars & Utility Vehicles,yes,8
+HEROMOTOCO,Hero MotoCorp Ltd,108286,Large,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+TATACONSUM,Tata Consumer Products Ltd,107273,Large,Tea & Coffee,Agricultural Food & other Products,Fast Moving Consumer Goods,NSE industry row: Agricultural Food & other Products,no,9
+AUROPHARMA,Aurobindo Pharma Ltd,106750,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+GMRAIRPORT,GMR Airports Ltd,105970,Large,Airport & Airport services,Transport Infrastructure,Services,NSE sector row: Services,no,11
+GVT&D,GE Vernova T&D India Ltd,105133,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+UNITDSPR,United Spirits Ltd,104186,Large,Breweries & Distilleries,Beverages,Fast Moving Consumer Goods,Industry row: Breweries & Distilleries,yes,9
+NYKAA,FSN E-Commerce Ventures Ltd,103029,Large,E-Retail/ E-Commerce,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+ASHOKLEY,Ashok Leyland Ltd,102710,Large,Commercial Vehicles,Agricultural Commercial & Construction Vehicles,Capital Goods,NSE sector row: Capital Goods,no,8
+VEDL,Vedanta Ltd,102452,Large,,Diversified Metals,Metals & Mining,NSE sector row: Metals & Mining,no,7
+LLOYDSME,Lloyds Metals & Energy Ltd,101687,Large,Industrial Minerals,Minerals & Mining,Metals & Mining,NSE sector row: Metals & Mining,no,7
+INDUSTOWER,Indus Towers Ltd,101187,Large,Telecom - Infrastructure,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+ENRIN,Siemens Energy India Ltd,101038,Large,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+AMBUJACEM,Ambuja Cements Ltd,96796,Large,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+JSWENERGY,JSW Energy Ltd,95919,Large,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+PERSISTENT,Persistent Systems Ltd,95281,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+LUPIN,Lupin Ltd,92601,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+COFORGE,Coforge Ltd,90690,Large,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+SHREECEM,Shree Cement Ltd,89913,Large,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+MAXHEALTH,Max Healthcare Institute Ltd,89058,Large,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+MANIPALHOS,Manipal Health Enterprises Ltd,87473,Large,Healthcare,Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+OFSS,Oracle Financial Services Software Ltd,87442,Large,Software Products,IT - Software,Information Technology,NSE sector row: Information Technology,no,7
+GODREJCP,Godrej Consumer Products Ltd,87047,Large,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+BHARATFORG,Bharat Forge Ltd,84296,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+BHARTIHEXA,Bharti Hexacom Ltd,82798,Large,Telecom - Cellular & Fixed line services,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+HINDPETRO,Hindustan Petroleum Corporation Ltd,82081,Large,Refineries & Marketing,Petroleum Products,Oil Gas & Consumable Fuels,Industry row: Refineries & Marketing,yes,6
+NHPC,NHPC Ltd,80752,Large,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+JSWINFRA,JSW Infrastructure Ltd,79045,Large,Port & Port services,Transport Infrastructure,Services,NSE sector row: Services,no,11
+UNOMINDA,UNO Minda Ltd,78178,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+NAUKRI,Info Edge (India) Ltd,77823,Large,Internet & Catalogue Retail,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+DIXON,Dixon Technologies (India) Ltd,77093,Large,Consumer Electronics,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+PHOENIXLTD,The Phoenix Mills Ltd,76793,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+MAZDOCK,Mazagon Dock Shipbuilders Ltd,75755,Large,Ship Building & Allied Services,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+GLENMARK,Glenmark Pharmaceuticals Ltd,75385,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+ATHERENERG,Ather Energy Ltd,73491,Large,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+SRF,SRF Ltd,72921,Large,Commodity Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Commodity Chemicals,yes,6
+HAVELLS,Havells India Ltd,72672,Large,Consumer Electronics,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+OIL,Oil India Ltd,71408,Large,Oil Exploration & Production,Oil,Oil Gas & Consumable Fuels,Industry row: Oil Exploration & Production,yes,6
+WAAREEENER,Waaree Energies Ltd,70302,Large,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+SAIL,Steel Authority Of India Ltd,70050,Large,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+NTPCGREEN,NTPC Green Energy Ltd,69517,Large,Power,Power,Power,NSE sector row: Power,no,9
+PRESTIGE,Prestige Estates Projects Ltd,68809,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+DABUR,Dabur India Ltd,66568,Large,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+ALKEM,Alkem Laboratories Ltd,64547,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+OBEROIRLTY,Oberoi Realty Ltd,64539,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+ASTERDM,Aster DM Quality Care Ltd,63937,Large,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+ATGL,Adani Total Gas Ltd,63234,Large,LPG/CNG/PNG/LNG Supplier,Gas,Oil Gas & Consumable Fuels,Industry row: LPG/CNG/PNG/LNG Supplier,yes,7
+KALYANKJIL,Kalyan Jewellers India Ltd,63101,Large,"Gems, Jewellery And Watches",Consumer Durables,Consumer Durables,"Industry row: Gems, Jewellery And Watches",yes,9
+INDOMIM,INDO-MIM Ltd,63017,Large,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+NMDC,NMDC Ltd,62862,Large,Industrial Minerals,Minerals & Mining,Metals & Mining,NSE sector row: Metals & Mining,no,7
+TORNTPOWER,Torrent Power Ltd,62282,Large,Integrated Power Utilities,Power,Power,Industry row: Integrated Power Utilities,yes,9
+RADICO,Radico Khaitan Ltd,61110,Large,Breweries & Distilleries,Beverages,Fast Moving Consumer Goods,Industry row: Breweries & Distilleries,yes,9
+APLAPOLLO,APL Apollo Tubes Ltd,60566,Large,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+NATIONALUM,National Aluminium Company Ltd,60425,Large,Aluminium,Non - Ferrous Metals,Metals & Mining,Industry row: Aluminium,yes,7
+BIOCON,Biocon Ltd,60054,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+APARINDS,Apar Industries Ltd,59480,Large,Other Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+FORTIS,Fortis Healthcare Ltd,58475,Large,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+WELCORP,Welspun Corp Ltd,58089,Large,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+LINDEINDIA,Linde India Ltd,57993,Large,Industrial Gases,Chemicals & Petrochemicals,Chemicals,NSE sector row: Chemicals,no,6
+SONACOMS,Sona BLW Precision Forgings Ltd,57669,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+JSL,Jindal Stainless Ltd,56827,Large,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+ABBOTINDIA,Abbott India Ltd,56693,Large,Healthcare,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+COROMANDEL,Coromandel International Ltd,55448,Large,Fertilizers,Fertilizers & Agrochemicals,Chemicals,Industry row: Fertilizers,yes,6
+SCHAEFFLER,Schaeffler India Ltd,55356,Large,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+BERGEPAINT,Berger Paints (I) Ltd,54942,Large,Paints,Consumer Durables,Consumer Durables,Industry row: Paints,yes,5
+GODREJPROP,Godrej Properties Ltd,54661,Large,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+GLAND,Gland Pharma Ltd,54493,Large,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+ANTHEM,Anthem Biosciences Ltd,54099,Large,Healthcare,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+SUZLON,Suzlon Energy Ltd,53487,Large,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+MRF,MRF Ltd,53142,Large,Tyres & Rubber Products,Auto Components,Automobile and Auto Components,Industry row: Tyres & Rubber Products,yes,7
+SWIGGY,Swiggy Ltd,51894,Large,Consumer Services,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+CPPLUS,Aditya Infotech Ltd,51809,Large,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+FLUOROCHEM,Gujarat Fluorochemicals Ltd,50155,Large,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+IPCALAB,IPCA Laboratories Ltd,49718,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+TATACOMM,Tata Communications Ltd,48476,Mid,Telecom - Cellular & Fixed line services,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+FACT,Fertilizers & Chemicals Travancore Ltd,48427,Mid,Fertilizers,Fertilizers & Agrochemicals,Chemicals,Industry row: Fertilizers,yes,6
+PETRONET,Petronet LNG Ltd,48068,Mid,LPG/CNG/PNG/LNG Supplier,Gas,Oil Gas & Consumable Fuels,Industry row: LPG/CNG/PNG/LNG Supplier,yes,7
+MPHASIS,MphasiS Ltd,46878,Mid,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+NAVINFLUOR,Navin Fluorine International Ltd,46767,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+PATANJALI,Patanjali Foods Ltd,46729,Mid,Edible Oil,Agricultural Food & other Products,Fast Moving Consumer Goods,Industry row: Edible Oil,yes,9
+COLPAL,Colgate Palmolive (India) Ltd,46102,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+CUPID,Cupid Ltd,46102,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+GLAXO,GlaxoSmithKline Pharmaceuticals Ltd,45909,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+UPL,UPL Ltd,45712,Mid,Pesticides & Agrochemicals,Fertilizers & Agrochemicals,Chemicals,Industry row: Pesticides & Agrochemicals,yes,6
+BALKRISIND,Balkrishna Industries Ltd,45306,Mid,Tyres & Rubber Products,Auto Components,Automobile and Auto Components,Industry row: Tyres & Rubber Products,yes,7
+LTTS,L&T Technology Services Ltd,44579,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+VMM,Vishal Mega Mart Ltd,43391,Mid,Diversified Retail,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+AEGISLOG,Aegis Logistics Ltd,43057,Mid,Trading - Gas,Gas,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+TIINDIA,Tube Investments Of India Ltd,42770,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+RVNL,Rail Vikas Nigam Ltd,42055,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+EMCURE,Emcure Pharmaceuticals Ltd,42021,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+SUPREMEIND,Supreme Industries Ltd,41876,Mid,Plastic Products - Industrial,Industrial Products,Capital Goods,Industry row: Plastic Products - Industrial,yes,7
+AJANTPHARM,Ajanta Pharma Ltd,41786,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+HINDCOPPER,Hindustan Copper Ltd,41582,Mid,Copper,Non - Ferrous Metals,Metals & Mining,Industry row: Copper,yes,7
+BDL,Bharat Dynamics Ltd,40676,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+PAGEIND,Page Industries Ltd,40578,Mid,Garments & Apparels,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+PREMIERENE,Premier Energies Ltd,40220,Mid,Other Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+KPRMILL,KPR Mill Ltd,39445,Mid,Other Textile Products,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+JKCEMENT,JK Cement Ltd,39214,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+SAILIFE,Sai Life Sciences Ltd,39000,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+JBCHEPHARM,JB Chemicals & Pharmaceuticals Ltd,38731,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+NH,Narayana Hrudayalaya Ltd,38618,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+MEDANTA,Global Health Ltd,38430,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+KEI,KEI Industries Ltd,38266,Mid,Cables - Electricals,Industrial Products,Capital Goods,Industry row: Cables - Electricals,yes,8
+PTCIL,PTC Industries Ltd,37099,Mid,Other Industrial Products,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+ITCHOTELS,ITC Hotels Ltd,36849,Mid,Hotels & Resorts,Leisure Services,Consumer Services,Industry row: Hotels & Resorts,yes,9
+PWL,Physicswallah Ltd,36806,Mid,Consumer Services,Other Consumer Services,Consumer Services,NSE sector row: Consumer Services,no,10
+IRCTC,Indian Railway Catering & Tourism Corporation Ltd,36796,Mid,"Tour, Travel Related Services",Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+SHYAMMETL,Shyam Metalics & Energy Ltd,36656,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+VOLTAS,Voltas Ltd,36070,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+ENDURANCE,Endurance Technologies Ltd,34969,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+STLTECH,Sterlite Technologies Ltd,34491,Mid,Telecom -  Equipment & Accessories,Telecom - Equipment & Accessories,Telecommunication,NSE sector row: Telecommunication,no,10
+ASTRAL,Astral Ltd,34194,Mid,Plastic Products - Industrial,Industrial Products,Capital Goods,Industry row: Plastic Products - Industrial,yes,7
+CONCOR,Container Corporation Of India Ltd,33968,Mid,Logistics Solution Provider,Transport Services,Services,Industry row: Logistics Solution Provider,yes,9
+LALPATHLAB,Dr Lal Path Labs Ltd,33916,Mid,Healthcare Service Provider,Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+COCHINSHIP,Cochin Shipyard Ltd,33911,Mid,Ship Building & Allied Services,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+NLCINDIA,NLC India Ltd,33695,Mid,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+DHOOTTRANS,Dhoot Transmission Ltd,33362,Mid,Automobile and Auto Components,Auto Components,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+THERMAX,Thermax Ltd,33196,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+WOCKPHARMA,Wockhardt Ltd,33010,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+PPLPHARMA,Piramal Pharma Ltd,32800,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+EXIDEIND,Exide Industries Ltd,32729,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+DELHIVERY,Delhivery Ltd,32456,Mid,Logistics Solution Provider,Transport Services,Services,Industry row: Logistics Solution Provider,yes,9
+BLUESTARCO,Blue Star Ltd,32436,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+UBL,United Breweries Ltd,32363,Mid,Breweries & Distilleries,Beverages,Fast Moving Consumer Goods,Industry row: Breweries & Distilleries,yes,9
+GODREJIND,Godrej Industries Ltd,32009,Mid,Diversified,Diversified,Diversified,NSE sector row: Diversified,no,14
+ACUTAAS,Acutaas Chemicals Ltd,31787,Mid,Healthcare,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+3MINDIA,3M India Ltd,31621,Mid,Diversified,Diversified,Diversified,NSE sector row: Diversified,no,14
+HFCL,HFCL Ltd,31602,Mid,Telecom - Infrastructure,Telecom - Services,Telecommunication,NSE sector row: Telecommunication,no,10
+MRPL,Mangalore Refinery & Petrochemicals Ltd,30846,Mid,Refineries & Marketing,Petroleum Products,Oil Gas & Consumable Fuels,Industry row: Refineries & Marketing,yes,6
+HEXT,Hexaware Technologies Ltd,30603,Mid,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+KIMS,Krishna Institute Of Medical Sciences Ltd,30369,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+RUBICON,Rubicon Research Ltd,29327,Mid,Healthcare,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+AIAENG,AIA Engineering Ltd,29269,Mid,Castings & Forgings,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+ZETWERK,Zetwerk Manufacturing Businesses Ltd,29122,Mid,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+SANSERA,Sansera Engineering Ltd,29045,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+HSCL,Himadri Speciality Chemical Ltd,29013,Mid,Carbon Black,Chemicals & Petrochemicals,Chemicals,NSE sector row: Chemicals,no,6
+ACMESOLAR,Acme Solar Holdings Ltd,28876,Mid,Power,Power,Power,NSE sector row: Power,no,9
+IKS,Inventurus Knowledge Solutions Ltd,28344,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+JUBLFOOD,Jubilant Foodworks Ltd,28274,Mid,Restaurants,Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+SYRMA,Syrma SGS Technology Ltd,28250,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+AEGISVOPAK,Aegis Vopak Terminals Ltd,28032,Mid,"Oil, Gas & Consumable Fuels",Oil,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+GODFRYPHLP,Godfrey Phillips India Ltd,27684,Mid,Cigarettes & Tobacco Products,Cigarettes & Tobacco Products,Fast Moving Consumer Goods,NSE industry row: Cigarettes & Tobacco Products,no,9
+CRAFTSMAN,Craftsman Automation Ltd,27444,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+DALBHARAT,Dalmia Bharat Ltd,27403,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+GABRIEL,Gabriel India Ltd,27216,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+ESCORTS,Escorts Kubota Ltd,27190,Mid,Tractors,Agricultural Commercial & Construction Vehicles,Capital Goods,NSE sector row: Capital Goods,no,8
+TATATECH,Tata Technologies Ltd,27035,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+ASAHIINDIA,Asahi India Glass Ltd,26915,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+HONAUT,Honeywell Automation India Ltd,26582,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+ZFCVINDIA,ZF Commercial Vehicle Control Systems India Ltd,26459,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+APOLLOTYRE,Apollo Tyres Ltd,26373,Mid,Tyres & Rubber Products,Auto Components,Automobile and Auto Components,Industry row: Tyres & Rubber Products,yes,7
+NEULANDLAB,Neuland Laboratories Ltd,26070,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+PIIND,Pi Industries Ltd,25988,Mid,Pesticides & Agrochemicals,Fertilizers & Agrochemicals,Chemicals,Industry row: Pesticides & Agrochemicals,yes,6
+MSUMI,Motherson Sumi Wiring India Ltd,25837,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+REDINGTON,Redington Ltd,25681,Mid,Trading & Distributors,Commercial Services & Supplies,Services,NSE sector row: Services,no,11
+SCHNEIDER,Schneider Electric Infrastructure Ltd,25369,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+GRSE,Garden Reach Shipbuilders & Engineers Ltd,25144,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+FORCEMOT,Force Motors LTD,24820,Mid,Automobile and Auto Components,Automobiles,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+URBANCO,Urban Company Ltd,24538,Mid,Consumer Services,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+TATAELXSI,Tata Elxsi Ltd,24236,Mid,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+SUNTV,Sun TV Network Ltd,24043,Mid,TV Broadcasting & Software Production,Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+GILLETTE,Gillette India Ltd,23955,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+ITI,ITI Ltd,23903,Mid,Telecom -  Equipment & Accessories,Telecom - Equipment & Accessories,Telecommunication,NSE sector row: Telecommunication,no,10
+WELSPUNLIV,Welspun Living Ltd,23828,Mid,Other Textile Products,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+JYOTICNC,Jyoti CNC Automation Ltd,23570,Mid,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+KIRLOSENG,Kirloskar Oil Engines Ltd,23560,Mid,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+KPIL,Kalpataru Projects International Ltd,23401,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+HATSUN,Hatsun Agro Product Ltd,23253,Mid,Dairy Products,Food Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+SUNDRMFAST,Sundram Fasteners Ltd,23223,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+ACC,ACC Ltd,23190,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+PGHH,Procter & Gamble Hygiene & Health Care Ltd,23180,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+AFFLE,Affle 3i Ltd,22908,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+MILKYMIST,Milky Mist Dairy Food Ltd,22841,Mid,Fast Moving Consumer Goods,Food Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+NETWEB,Netweb Technologies India Ltd,22835,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+TIMKEN,Timken India Ltd,22732,Mid,Abrasives & Bearings,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+SJVN,SJVN Ltd,22683,Mid,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+DATAPATTNS,Data Patterns (India) Ltd,22534,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+METROBRAND,Metro Brands Ltd,22490,Mid,Footwear,Consumer Durables,Consumer Durables,Industry row: Footwear,yes,9
+CEMPRO,Cemindia Projects Ltd,22401,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+RRKABEL,R R Kabel Ltd,22275,Mid,Cables - Electricals,Industrial Products,Capital Goods,Industry row: Cables - Electricals,yes,8
+KAYNES,Kaynes Technology India Ltd,22183,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+THELEELA,Leela Palaces Hotels & Resorts Ltd,22165,Mid,Consumer Services,Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+IRB,IRB Infrastructure Developers Ltd,22103,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+HBLENGINE,HBL Engineering Ltd,22065,Mid,Other Industrial Products,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+DIACABS,Diamond Power Infrastructure Ltd,22051,Mid,Other Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+AMBER,Amber Enterprises India Ltd,21972,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+GRINDWELL,Grindwell Norton Ltd,21910,Mid,Abrasives & Bearings,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+GRANULES,Granules India Ltd,21801,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+PFOCUS,Prime Focus Ltd,21763,Mid,Media & Entertainment,Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+CHENNPETRO,Chennai Petroleum Corporation Ltd,21731,Mid,,Petroleum Products,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+NBCC,NBCC (India) Ltd,21708,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+AWL,AWL Agri Business Ltd,21620,Mid,Edible Oil,Agricultural Food & other Products,Fast Moving Consumer Goods,Industry row: Edible Oil,yes,9
+GUJENERGY,Gujarat Energy Ltd,21331,Mid,LPG/CNG/PNG/LNG Supplier,Gas,Oil Gas & Consumable Fuels,Industry row: LPG/CNG/PNG/LNG Supplier,yes,7
+AETHER,Aether Industries Ltd,21051,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+BELRISE,Belrise Industries Ltd,21032,Mid,Automobile and Auto Components,Auto Components,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+DEEPAKNTR,Deepak Nitrite Ltd,21021,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+SAGILITY,Sagility Ltd,20926,Mid,Information Technology,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+FSL,Firstsource Solutions Ltd,20784,Mid,Business Process Outsourcing (BPO)/ Knowledge Process Outsourcing (KPO),Commercial Services & Supplies,Services,NSE sector row: Services,no,11
+KIOCL,KIOCL Ltd,20457,Mid,Sponge Iron,Ferrous Metals,Metals & Mining,NSE sector row: Metals & Mining,no,7
+GESHIP,The Great Eastern Shipping Company Ltd,20330,Mid,Shipping,Transport Services,Services,Industry row: Shipping,yes,8
+ABDL,Allied Blenders & Distillers Ltd,20139,Mid,Breweries & Distilleries,Beverages,Fast Moving Consumer Goods,Industry row: Breweries & Distilleries,yes,9
+IGL,Indraprastha Gas Ltd,20103,Mid,LPG/CNG/PNG/LNG Supplier,Gas,Oil Gas & Consumable Fuels,Industry row: LPG/CNG/PNG/LNG Supplier,yes,7
+LALITHAA,Lalithaa Jewellery Mart Ltd,20049,Mid,Consumer Durables,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+CARBORUNIV,Carborundum Universal Ltd,20047,Mid,Abrasives & Bearings,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+SHRIPISTON,SPR Auto Technologies Ltd,20024,Mid,Automobile and Auto Components,Auto Components,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+APLLTD,Alembic Pharmaceuticals Ltd,19996,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+RAMCOCEM,The Ramco Cements Ltd,19896,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+EIHOTEL,EIH Ltd,19296,Mid,Hotels & Resorts,Leisure Services,Consumer Services,Industry row: Hotels & Resorts,yes,9
+CAPLIPOINT,Caplin Point Laboratories Ltd,19022,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+FINCABLES,Finolex Cables Ltd,18848,Mid,Cables - Electricals,Industrial Products,Capital Goods,Industry row: Cables - Electricals,yes,8
+CASTROLIND,Castrol India Ltd,18823,Mid,Lubricants,Petroleum Products,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+KAJARIACER,Kajaria Ceramics Ltd,18808,Mid,Ceramics,Consumer Durables,Consumer Durables,Industry row: Ceramics,yes,7
+LMW,LMW Ltd,18504,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+ONESOURCE,Onesource Specialty Pharma Ltd,18503,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+IGIL,International Gemological Institute Ltd,18408,Mid,Services,Commercial Services & Supplies,Services,NSE sector row: Services,no,11
+TDPOWERSYS,TD Power Systems Ltd,18376,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+EMMVEE,Emmvee Photovoltaic Power Ltd,18311,Mid,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+GRWRHITECH,Garware Hi-tech Films Ltd,18284,Mid,Plastic Products - Industrial,Industrial Products,Capital Goods,Industry row: Plastic Products - Industrial,yes,7
+SHILPAMED,Shilpa Medicare Ltd,18276,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+ALIVUS,Alivus Life Sciences Ltd,18101,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+PFIZER,Pfizer Ltd,17949,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+EMAMILTD,Emami Ltd,17925,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+BRIGADE,Brigade Enterprises Ltd,17845,Mid,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+SIGMAADV,Sigma ADVANCED Systems Ltd,17814,Mid,Other Telecom Services,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+CHALET,Chalet Hotels Ltd,17779,Mid,Hotels & Resorts,Leisure Services,Consumer Services,Industry row: Hotels & Resorts,yes,9
+SYNGENE,Syngene International Ltd,17636,Mid,"Healthcare Research, Analytics & Technology",Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+ELGIEQUIP,Elgi Equipments Ltd,17554,Mid,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+ERIS,Eris Lifesciences Ltd,17419,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+INOXINDIA,INOX India Ltd,17272,Mid,Other Industrial Products,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+TENNIND,Tenneco Clean Air India Ltd,17135,Mid,Automobile and Auto Components,Auto Components,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+CESC,CESC Ltd,17092,Mid,Integrated Power Utilities,Power,Power,Industry row: Integrated Power Utilities,yes,9
+AGARWALEYE,Dr Agarwal's Health Care Ltd,17054,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+HAPPYFORGE,Happy Forgings Ltd,17011,Mid,Castings & Forgings,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+SUMICHEM,Sumitomo Chemical India Ltd,16988,Mid,Pesticides & Agrochemicals,Fertilizers & Agrochemicals,Chemicals,Industry row: Pesticides & Agrochemicals,yes,6
+OLAELEC,Ola Electric Mobility Ltd,16976,Mid,2/3 Wheelers,Automobiles,Automobile and Auto Components,Industry row: 2/3 Wheelers,yes,8
+COHANCE,Cohance Lifesciences Ltd,16974,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+MTARTECH,Mtar Technologies Ltd,16969,Mid,Aerospace & Defense,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+RATNAMANI,Ratnamani Metals & Tubes Ltd,16910,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+TBOTEK,TBO Tek Ltd,16875,Mid,"Tour, Travel Related Services",Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+MINDACORP,Minda Corporation Ltd,16831,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+ENGINERSIN,Engineers India Ltd,16774,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+SHADOWFAX,Shadowfax Technologies Ltd,16713,Mid,Services,Transport Services,Services,NSE industry row: Transport Services,no,10
+AARTIIND,Aarti Industries Ltd,16679,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+BEML,BEML Ltd,16588,Mid,Construction Vehicles,Agricultural Commercial & Construction Vehicles,Capital Goods,NSE sector row: Capital Goods,no,8
+JSWCEMENT,JSW Cement Ltd,16550,Mid,Construction Materials,Cement & Cement Products,Construction Materials,NSE sector row: Construction Materials,no,8
+POLYMED,Poly Medicure Ltd,16441,Mid,Medical Equipment & Supplies,Healthcare Equipment & Supplies,Healthcare,NSE sector row: Healthcare,no,9
+ASTRAZEN,AstraZeneca Pharma India Ltd,16286,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+FINEORG,Fine Organic Industries Ltd,16272,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+KANSAINER,Kansai Nerolac Paints Ltd,16198,Mid,Paints,Consumer Durables,Consumer Durables,Industry row: Paints,yes,5
+ANANTRAJ,Anant Raj Ltd,16178,Mid,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+PGEL,PG Electroplast Ltd,16173,Mid,Consumer Electronics,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+TRITURBINE,Triveni Turbine Ltd,16062,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+JINDALSAW,Jindal Saw Ltd,16056,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+TRAVELFOOD,Travel Food Services Ltd,15870,Mid,Consumer Services,Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+AEQUS,Aequs Ltd,15855,Mid,Capital Goods,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+HONASA,Honasa Consumer Ltd,15781,Mid,Personal Care,Personal Products,Fast Moving Consumer Goods,Industry row: Personal Care,yes,9
+NATCOPHARM,Natco Pharma Ltd,15779,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+NAZARA,Nazara Technologies Ltd,15772,Mid,Digital Entertainment,Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+AZAD,Azad Engineering Ltd,15724,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+ASTRAMICRO,Astra Microwave Products Ltd,15709,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+GSPL,Gujarat State Petronet Ltd,15674,Mid,Gas Transmission/Marketing,Gas,Oil Gas & Consumable Fuels,Industry row: Gas Transmission/Marketing,yes,7
+BAYERCROP,Bayer Cropscience Ltd,15669,Mid,Chemicals,Fertilizers & Agrochemicals,Chemicals,NSE industry row: Fertilizers & Agrochemicals,no,6
+PVRINOX,PVR INOX Ltd,15614,Mid,"Film Production, Distribution & Exhibition",Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+DEVYANI,Devyani International Ltd,15607,Mid,Restaurants,Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+CHAMBLFERT,Chambal Fertilizers & Chemicals Ltd,15599,Mid,Fertilizers,Fertilizers & Agrochemicals,Chemicals,Industry row: Fertilizers,yes,6
+ATUL,Atul Ltd,15575,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+SARDAEN,Sarda Energy & Minerals Ltd,15575,Mid,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+CORONA,Corona Remedies Ltd,15531,Mid,Healthcare,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+ZENTEC,Zen Technologies Ltd,15463,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+MOLBIO,Molbio Diagnostics Ltd,15417,Mid,Healthcare,Healthcare Equipment & Supplies,Healthcare,NSE sector row: Healthcare,no,9
+TATACHEM,Tata Chemicals Ltd,15406,Mid,Commodity Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Commodity Chemicals,yes,6
+JUBLPHARMA,Jubilant Pharmova Ltd,15387,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+APOLLO,Apollo Micro Systems Ltd,15386,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+VTL,Vardhman Textiles Ltd,15246,Mid,Other Textile Products,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+VIJAYA,Vijaya Diagnostic Centre Ltd,15244,Mid,Healthcare Service Provider,Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+LUMAXTECH,Lumax Auto Technologies Ltd,15227,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+GMDCLTD,Gujarat Mineral Development Corporation Ltd,15208,Mid,Industrial Minerals,Minerals & Mining,Metals & Mining,NSE sector row: Metals & Mining,no,7
+NAVA,Nava Ltd,15157,Mid,Power Generation,Power,Power,Industry row: Power Generation,yes,9
+ZYDUSWELL,Zydus Wellness Ltd,14934,Mid,Packaged Foods,Food Products,Fast Moving Consumer Goods,Industry row: Packaged Foods,yes,9
+USHAMART,Usha Martin Ltd,14932,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+GRAPHITE,Graphite India Ltd,14909,Mid,Electrodes & Refractories,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+PCJEWELLER,PC Jeweller Ltd,14908,Mid,"Gems, Jewellery And Watches",Consumer Durables,Consumer Durables,"Industry row: Gems, Jewellery And Watches",yes,9
+KPITTECH,KPIT Technologies Ltd,14868,Mid,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+DEEPAKFERT,Deepak Fertilizers & Petrochemicals Corporation Ltd,14862,Mid,Commodity Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Commodity Chemicals,yes,6
+SWANDEF,Swan Defence & Heavy Industries Ltd,14856,Mid,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+JNPR,Juniper Green Energy Ltd,14845,Mid,Power,Power,Power,NSE sector row: Power,no,9
+INDGN,Indegene Ltd,14778,Mid,"Healthcare Research, Analytics & Technology",Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+CLEANMAX,Clean Max Enviro Energy Solutions Ltd,14723,Mid,Power,Power,Power,NSE sector row: Power,no,9
+BHARATCOAL,Bharat Coking Coal Ltd,14679,Mid,"Oil, Gas & Consumable Fuels",Consumable Fuels,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+LTFOODS,LT Foods Ltd,14623,Mid,Other Agricultural Products,Agricultural Food & other Products,Fast Moving Consumer Goods,NSE industry row: Agricultural Food & other Products,no,9
+SKYGOLD,SKY Gold & Diamonds Ltd,14543,Mid,"Gems, Jewellery And Watches",Consumer Durables,Consumer Durables,"Industry row: Gems, Jewellery And Watches",yes,9
+PARADEEP,Paradeep Phosphates Ltd,14529,Mid,Fertilizers,Fertilizers & Agrochemicals,Chemicals,Industry row: Fertilizers,yes,6
+BBOX,Black Box Ltd,14487,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+CENTURYPLY,Century Plyboards (India) Ltd,14438,Mid,Plywood Boards/ Laminates,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+ECLERX,EClerx Services Ltd,14366,Mid,Business Process Outsourcing (BPO)/ Knowledge Process Outsourcing (KPO),Commercial Services & Supplies,Services,NSE sector row: Services,no,11
+SHREEJISPG,Shreeji Shipping Global Ltd,14312,Mid,Services,Transport Services,Services,NSE industry row: Transport Services,no,10
+SHAILY,Shaily Engineering Plastics Ltd,14176,Mid,Plastic Products - Industrial,Consumer Durables,Consumer Durables,Industry row: Plastic Products - Industrial,yes,8
+CROMPTON,Crompton Greaves Consumer Electricals Ltd,14121,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+GPIL,Godawari Power & Ispat Ltd,14051,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+DCMSHRIRAM,DCM Shriram Ltd,14050,Mid,Diversified,Diversified,Diversified,NSE sector row: Diversified,no,14
+MARKSANS,Marksans Pharma Ltd,13985,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+CEATLTD,CEAT Ltd,13978,Mid,Tyres & Rubber Products,Auto Components,Automobile and Auto Components,Industry row: Tyres & Rubber Products,yes,7
+ARE&M,Amara Raja Energy & Mobility Ltd,13943,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+BALRAMCHIN,Balrampur Chini Mills Ltd,13932,Mid,Sugar,Agricultural Food & other Products,Fast Moving Consumer Goods,Industry row: Sugar,yes,9
+ACE,Action Construction Equipment Ltd,13893,Mid,Construction Vehicles,Agricultural Commercial & Construction Vehicles,Capital Goods,NSE sector row: Capital Goods,no,8
+VEDPOWER,Vedanta Power Ltd,13804,Mid,Power,Power,Power,NSE sector row: Power,no,9
+SEDEMAC,Sedemac Mechatronics Ltd,13803,Mid,Automobile and Auto Components,Auto Components,Automobile and Auto Components,NSE sector row: Automobile and Auto Components,no,8
+FRACTAL,Fractal Analytics Ltd,13699,Mid,Information Technology,IT - Software,Information Technology,NSE sector row: Information Technology,no,7
+SUDEEPPHRM,Sudeep Pharma Ltd,13672,Mid,Healthcare,Chemicals & Petrochemicals,Chemicals,NSE sector row: Chemicals,no,6
+CIEINDIA,CIE Automotive India Ltd,13651,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+ANURAS,Anupam Rasayan India Ltd,13643,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+PRIVISCL,Privi Speciality Chemicals Ltd,13626,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+ARVIND,Arvind Ltd,13613,Mid,Garments & Apparels,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+SOBHA,Sobha Ltd,13498,Mid,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+ESDS,ESDS Software Solution Ltd,13421,Mid,Information Technology,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+RKFORGE,Ramkrishna Forgings Ltd,13239,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+THANGAMAYL,Thangamayil Jewellery Ltd,13169,Mid,"Gems, Jewellery And Watches",Consumer Durables,Consumer Durables,"Industry row: Gems, Jewellery And Watches",yes,9
+BONFIG,Bonfiglioli Transmissions Ltd,13156,Mid,Capital Goods,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+CARTRADE,Cartrade Tech Ltd,13143,Mid,E-Retail/ E-Commerce,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+CMPDI,Central Mine Planning & Design Institute Ltd,13138,Mid,Construction,Commercial Services & Supplies,Services,NSE sector row: Services,no,11
+GALLANTT,Gallantt Ispat Ltd,13126,Mid,Iron & Steel Products,Industrial Products,Capital Goods,Industry row: Iron & Steel Products,yes,8
+SPLPETRO,Supreme Petrochem Ltd,13108,Mid,Petrochemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Petrochemicals,yes,4
+CCL,CCL Products (India) Ltd,13088,Mid,Tea & Coffee,Agricultural Food & other Products,Fast Moving Consumer Goods,NSE industry row: Agricultural Food & other Products,no,9
+VGUARD,V-Guard Industries Ltd,13042,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+RAINBOW,Rainbow Childrens Medicare Ltd,12985,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+LLOYDSENGG,LLOYDS ENGINEERING Works Ltd,12974,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+KIRLOSBROS,Kirloskar Brothers Ltd,12952,Mid,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+VENTIVE,Ventive Hospitality Ltd,12775,Mid,Hotels & Resorts,Leisure Services,Consumer Services,Industry row: Hotels & Resorts,yes,9
+JSWDULUX,JSW Dulux Ltd,12751,Mid,Paints,Consumer Durables,Consumer Durables,Industry row: Paints,yes,5
+ZENSARTECH,Zensar Technologies Ltd,12735,Mid,Computers - Software & Consulting,IT - Software,Information Technology,Industry row: Computers - Software & Consulting,yes,7
+HORIZONIND,Horizon Industrial Parks Ltd,12725,Mid,Realty,Realty,Realty,NSE sector row: Realty,no,10
+BASF,BASF India Ltd,12706,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+TEGA,Tega Industries Ltd,12644,Mid,Industrial Products,Industrial Manufacturing,Capital Goods,NSE sector row: Capital Goods,no,8
+WABAG,VA Tech Wabag Ltd,12560,Mid,Water Supply & Management,Other Utilities,Utilities,NSE sector row: Utilities,no,11
+INGERRAND,Ingersoll Rand (India) Ltd,12509,Mid,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+SAREGAMA,Saregama India Ltd,12490,Mid,Media & Entertainment,Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+CONCORDBIO,Concord Biotech Ltd,12487,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+AVALON,Avalon Technologies Ltd,12440,Mid,Other Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+IWEL,Inox Wind Energy Ltd,12411,Mid,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+DOMS,DOMS Industries Ltd,12385,Mid,Stationary,Household Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+KARAMTARA,Karamtara Engineering Ltd,12358,Mid,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+MANORAMA,Manorama Industries Ltd,12353,Mid,Other Food Products,Food Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+PGIL,Pearl Global Industries Ltd,12314,Mid,Garments & Apparels,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+VARROC,Varroc Engineering Ltd,12307,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+NUVOCO,Nuvoco Vistas Corporation Ltd,12175,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+SCI,Shipping Corporation Of India Ltd,12173,Mid,Shipping,Transport Services,Services,Industry row: Shipping,yes,8
+VOGL,Vedanta Oil & Gas Ltd,12154,Mid,"Oil, Gas & Consumable Fuels",Oil,Oil Gas & Consumable Fuels,NSE sector row: Oil Gas & Consumable Fuels,no,8
+ASKAUTOLTD,ASK Automotive Ltd,12140,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+METROPOLIS,Metropolis Healthcare Ltd,12126,Mid,Healthcare Service Provider,Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+ABREL,Aditya Birla Real Estate Ltd,12039,Mid,Paper & Paper Products,Realty,Realty,NSE sector row: Realty,no,10
+TI,Tilaknagar Industries Ltd,12029,Mid,Breweries & Distilleries,Beverages,Fast Moving Consumer Goods,Industry row: Breweries & Distilleries,yes,9
+AKUMS,Akums Drugs & Pharmaceuticals Ltd,12025,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+BIKAJI,Bikaji Foods International Ltd,12018,Mid,Packaged Foods,Food Products,Fast Moving Consumer Goods,Industry row: Packaged Foods,yes,9
+TRIDENT,Trident Ltd,12011,Mid,Other Textile Products,Textiles & Apparels,Textiles,NSE sector row: Textiles,no,9
+UTLSOLAR,Fujiyama Power Systems Ltd,11972,Mid,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+AMAGI,Amagi Media Labs Ltd,11938,Mid,Information Technology,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+JBMA,JBM Auto Ltd,11872,Mid,Auto Components & Equipments,Auto Components,Automobile and Auto Components,Industry row: Auto Components & Equipments,yes,8
+NSLNISP,NMDC Steel Ltd,11851,Mid,Iron & Steel,Ferrous Metals,Metals & Mining,Industry row: Iron & Steel,yes,7
+SKFINDUS,SKF India (Industrial) Ltd,11765,Mid,Capital Goods,Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+MANYAVAR,Vedant Fashions Ltd,11663,Mid,Speciality Retail,Retailing,Consumer Services,NSE industry row: Retailing,no,8
+PARKHOSPS,Park Medi World Ltd,11550,Mid,Healthcare,Healthcare Services,Healthcare,NSE industry row: Healthcare Services,no,9
+INOXWIND,Inox Wind Ltd,11527,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+CYIENT,Cyient Ltd,11446,Mid,IT Enabled Services,IT - Services,Information Technology,NSE sector row: Information Technology,no,7
+GODREJAGRO,Godrej Agrovet Ltd,11445,Mid,Animal Feed,Food Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+EIDPARRY,EID Parry India Ltd,11443,Mid,Other Food Products,Food Products,Fast Moving Consumer Goods,NSE sector row: Fast Moving Consumer Goods,no,9
+SGMART,SG Mart Ltd,11378,Mid,Metals & Mining,Metals & Minerals Trading,Metals & Mining,NSE sector row: Metals & Mining,no,7
+ATLANTAELE,Atlanta Electricals Ltd,11311,Mid,Capital Goods,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+BLUESTONE,BlueStone Jewellery & Lifestyle Ltd,11287,Mid,Consumer Durables,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+QPOWER,Quality Power Electrical Equipments Ltd,11113,Mid,Heavy Electrical Equipment,Electrical Equipment,Capital Goods,NSE sector row: Capital Goods,no,8
+KSB,Ksb Ltd,11111,Mid,"Compressors, Pumps & Diesel Engines",Industrial Products,Capital Goods,NSE sector row: Capital Goods,no,8
+MGL,Mahanagar Gas Ltd,11091,Mid,LPG/CNG/PNG/LNG Supplier,Gas,Oil Gas & Consumable Fuels,Industry row: LPG/CNG/PNG/LNG Supplier,yes,7
+VINATIORGA,Vinati Organics Ltd,11065,Mid,Specialty Chemicals,Chemicals & Petrochemicals,Chemicals,Industry row: Specialty Chemicals,yes,6
+GRAVITA,Gravita India Ltd,11046,Mid,Industrial Minerals,Minerals & Mining,Metals & Mining,NSE sector row: Metals & Mining,no,7
+LOTUSDEV,Sri Lotus Developers & Realty Ltd,10991,Mid,Realty,Realty,Realty,NSE sector row: Realty,no,10
+TECHNOE,Techno Electric & Engineering Company Ltd,10965,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+PCBL,PCBL Chemical Ltd,10928,Mid,Carbon Black,Chemicals & Petrochemicals,Chemicals,NSE sector row: Chemicals,no,6
+BLUEJET,Blue Jet Healthcare Ltd,10899,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+BLUEDART,Blue Dart Express Ltd,10860,Mid,Logistics Solution Provider,Transport Services,Services,Industry row: Logistics Solution Provider,yes,9
+WHIRLPOOL,Whirlpool Of India Ltd,10632,Mid,Household Appliances,Consumer Durables,Consumer Durables,NSE sector row: Consumer Durables,no,9
+INDIACEM,The India Cements Ltd,10552,Mid,Cement & Cement Products,Cement & Cement Products,Construction Materials,Industry row: Cement & Cement Products,yes,8
+WESTLIFE,Westlife Foodworld Ltd,10480,Mid,Restaurants,Leisure Services,Consumer Services,NSE industry row: Leisure Services,no,9
+IRCON,Ircon International Ltd,10474,Mid,Civil Construction,Construction,Construction,NSE sector row: Construction,no,8
+VISL,Vedanta Iron & Steel Ltd,10417,Mid,Metals & Mining,Ferrous Metals,Metals & Mining,NSE sector row: Metals & Mining,no,7
+JKTYRE,JK Tyre & Industries Ltd,10301,Mid,Tyres & Rubber Products,Auto Components,Automobile and Auto Components,Industry row: Tyres & Rubber Products,yes,7
+VIYASH,Viyash Scientific Ltd,10286,Mid,Pharmaceuticals,Pharmaceuticals & Biotechnology,Healthcare,NSE industry row: Pharmaceuticals & Biotechnology,no,9
+BLACKBUCK,BLACKBUCK Ltd,10220,Mid,Services,Transport Services,Services,NSE industry row: Transport Services,no,10
+SIGNATURE,Signatureglobal (India) Ltd,10212,Mid,"Residential, Commercial Projects",Realty,Realty,NSE sector row: Realty,no,10
+PARAS,Paras Defence & Space Technologies Ltd,10128,Mid,Aerospace & Defense,Aerospace & Defense,Capital Goods,NSE sector row: Capital Goods,no,8
+YATHARTH,Yatharth Hospital & Trauma Care Services Ltd,10117,Mid,Hospital,Healthcare Services,Healthcare,Industry row: Hospital,yes,9
+TIPSMUSIC,Tips Music Ltd,10098,Mid,Media & Entertainment,Entertainment,Media Entertainment & Publication,NSE sector row: Media Entertainment & Publication,no,10
+E2E,E2E Networks Ltd,10032,Mid,Information Technology,IT - Services,Information Technology,NSE sector row: Information Technology,no,7

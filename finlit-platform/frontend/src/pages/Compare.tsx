@@ -109,6 +109,7 @@ export function Compare() {
         </div>
 
         <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}{t.model && !has("silver") && <Icon name="lock" />}</button>)}</div>
+        {picked.length >= 2 && !data?.sample && <p className="cmp-stress"><Link to={`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`}><Icon name="gauge" /> Stress test: see how a shock to crude, the rupee or rates would move {picked[0].symbol} and {picked[1].symbol} {has("gold") ? "side by side" : "(Gold)"}</Link></p>}
         <p className="cmp-blurb">{T.blurb}</p>
 
         {picked.length >= 2 && !locked && tab !== "overview" && tab !== "custom" && scored > 0 && (

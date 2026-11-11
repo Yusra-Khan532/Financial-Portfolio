@@ -109,6 +109,8 @@ class Settings:
     cms_jwt_secret: str = field(default_factory=lambda: os.getenv("CMS_JWT_SECRET", ""))
     # Folder holding the built website (frontend/dist). Empty = API only (the website is then hosted elsewhere).
     frontend_dist: str = field(default_factory=lambda: os.getenv("FRONTEND_DIST", ""))
+    # Stress Lab: the value move (a percentage, never applied to a price). One switch removes it everywhere, API and page (docs/STRESS.md).
+    stress_show_value: bool = field(default_factory=lambda: os.getenv("STRESS_SHOW_VALUE", "1").strip().lower() not in ("0", "false", "no", "off"))
     showcase_symbols: List[str] = field(default_factory=lambda: _list(os.getenv("SHOWCASE_SYMBOLS", "RELIANCE")))
     session_days: int = field(default_factory=lambda: int(os.getenv("SESSION_DAYS", "30")))
     session_idle_days: int = field(default_factory=lambda: int(os.getenv("SESSION_IDLE_DAYS", "7")))

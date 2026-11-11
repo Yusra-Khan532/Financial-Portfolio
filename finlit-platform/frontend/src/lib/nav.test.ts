@@ -11,7 +11,7 @@ describe("site map", () => {
     const names = (id: string) => SECTIONS.find((s) => s.id === id)!.groups.flatMap((g) => g.items.map((i) => i.label));
     expect(RESEARCH.groups.map((g) => g.title)).toEqual(["Find stocks", "Analyse a company", "Investment calculators", "Charts"]);
     expect(RESEARCH.groups[0].items.map((i) => i.label)).toEqual(["Stock screener", "Basic score screener", "Advanced score screener", "Query builder"]);
-    expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue outlook"]);
+    expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue outlook", "Stress Lab"]);
     expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["EPS & P/E calculator", "DCF valuation calculator", "SIP calculator"]);
     expect(RESEARCH.groups[3].items.map((i) => i.label)).toEqual(["Chart builder", "Correlation charts"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);

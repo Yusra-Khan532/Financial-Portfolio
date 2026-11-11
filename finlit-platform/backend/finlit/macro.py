@@ -349,6 +349,50 @@ async def step_eia_brent(src: Sources, conn, today: date, full: bool) -> dict:
     return {"points": await save_points(conn, "brent_d", pts), "latest": max(pts).isoformat()}
 
 
+async def step_eia_steo(src: Sources, conn, today: date, full: bool) -> dict:
+    """The EIA's Short-Term Energy Outlook for Brent (monthly, US$ a barrel): the average of each of the next four calendar quarters, kept for Stress Lab's "Crude eases" toggle.
+    Needs the same free key as the Brent step; without it nothing is stored and the toggle is not offered."""
+    key = os.getenv("EIA_API_KEY", "").strip()
+    if not key:
+        return {"skipped": EIA_NO_KEY}
+    start = f"{today.year}-{today.month:02d}"
+    params = {"api_key": key, "frequency": "monthly", "data[0]": "value", "facets[seriesId][]": "BREPUUS", "start": start, "sort[0][column]": "period", "sort[0][direction]": "asc", "length": 30}
+    src.calls += 1
+    try:
+        r = await src.web.get("https://api.eia.gov/v2/steo/data/", params=params)
+    except httpx.TransportError as exc:
+        raise RuntimeError(f"EIA STEO: {type(exc).__name__}") from exc      # the message never carries the URL (it holds the key)
+    if r.status_code != 200:
+        raise RuntimeError(f"EIA STEO answered {r.status_code}")
+    months: Dict[str, float] = {}
+    for row in (r.json().get("response") or {}).get("data") or []:
+        try:
+            months[str(row["period"])[:7]] = float(row["value"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    nxt = steo_quarters(months, today)
+    if nxt is None:
+        raise RuntimeError("EIA STEO sent fewer than four full quarters")
+    await set_meta(conn, "eia_steo", {"asOf": today.isoformat(), "next4": nxt, "source": "U.S. EIA, Short-Term Energy Outlook (BREPUUS)"})
+    return {"next4": nxt}
+
+
+def steo_quarters(months: Dict[str, float], today: date) -> Optional[List[float]]:
+    """Average Brent of the next four calendar quarters that start after `today` (a quarter needs all three months)."""
+    q = (today.month - 1) // 3 + 1
+    y = today.year
+    out: List[float] = []
+    for _ in range(4):
+        q += 1
+        if q == 5:
+            q, y = 1, y + 1
+        ms = [f"{y}-{m:02d}" for m in range(3 * q - 2, 3 * q + 1)]
+        if not all(m in months for m in ms):
+            return None
+        out.append(round(sum(months[m] for m in ms) / 3, 2))
+    return out
+
+
 def parse_pink_sheet(content: bytes) -> Tuple[Dict[str, S.Points], str]:
     """(copper, aluminium and US natural gas monthly averages keyed by month end, the workbook's 'Updated on ...' text). A column whose heading or unit row is not the
     expected one raises: a price is never taken from a column that might be something else. Blank and placeholder cells are skipped, never filled."""
@@ -426,7 +470,7 @@ async def step_rbi_wss(src: Sources, conn, today: date, full: bool) -> dict:
 
 
 STEPS: List[Tuple[str, Callable]] = [("cpi", step_cpi), ("wpi", step_wpi), ("gdp", step_gdp), ("iip", step_iip), ("plfs", step_plfs),
-                                    ("rbi_tables", step_rbi_tables), ("rbi_home", step_rbi_home), ("rbi_wss", step_rbi_wss), ("eia_brent", step_eia_brent), ("worldbank", step_worldbank)]
+                                    ("rbi_tables", step_rbi_tables), ("rbi_home", step_rbi_home), ("rbi_wss", step_rbi_wss), ("eia_brent", step_eia_brent), ("eia_steo", step_eia_steo), ("worldbank", step_worldbank)]
 
 
 def load_decisions() -> List[S.Decision]:

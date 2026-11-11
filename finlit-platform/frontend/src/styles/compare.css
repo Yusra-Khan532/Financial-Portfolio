@@ -43,3 +43,4 @@
   .cx-m { grid-template-columns: 22px minmax(0, 1fr); } .cx-u { grid-column: 2; justify-self: start; }
   .cx-t { min-width: calc(130px + var(--n) * 128px); font-size: 13px; } .cx-t tbody th[scope="row"], .cx-t thead th:first-child { width: 130px; min-width: 130px; max-width: 130px; } .cx-t td { min-width: 128px; } .cx-t td b, .cx-na { font-size: 16px; }
 }
+.cmp-stress{margin:10px 0 0}.cmp-stress a{display:inline-flex;gap:8px;align-items:center;font-size:var(--fs-14);font-weight:600}
