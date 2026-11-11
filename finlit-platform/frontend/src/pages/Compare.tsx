@@ -16,6 +16,7 @@ import { CompareCustom } from "../components/CompareCustom";
 import { decodeKeys, encodeKeys } from "../lib/compareSets";
 import { DiversificationCard } from "../components/diversification/DiversificationCard";
 import { LABEL_WORD, PRISM_PARTS, hasPrism, toneOf, type PrismLabel } from "../lib/scorePrism";
+import { CoLogo } from "../components/CoLogo";
 
 type TabDef = { id: string; label: string; model?: boolean; blurb: string; groups: { title: string; keys: NumKey[] }[] };
 const TABS: TabDef[] = [
@@ -129,7 +130,7 @@ export function Compare() {
             )}
             <div className={"cmp-cards n" + picked.length}>{picked.map((r, i) => (
               <div className="cc" key={r.symbol}>
-                <div className="cc-h"><span className="av" aria-hidden="true">{(r.name || r.symbol).slice(0, 2).toUpperCase()}</span><div><span className="tk">Company {LETTER[i]}{isBseCode(r.symbol) ? "" : ` · ${r.symbol}`}</span><b>{r.name || r.symbol}</b><small>{r.sector}</small></div></div>
+                <div className="cc-h"><CoLogo symbol={r.symbol} name={r.name} size={44} /><div><span className="tk">Company {LETTER[i]}{isBseCode(r.symbol) ? "" : ` · ${r.symbol}`}</span><b>{r.name || r.symbol}</b><small>{r.sector}</small></div></div>
                 <div className="cc-p"><b>{fmt(METRICS.price, r.price)}</b><span className={(r.change_pct ?? 0) >= 0 ? "pos" : "neg"}>{fmt(METRICS.change_pct, r.change_pct)}</span></div>
                 <div className="cc-g"><div><span>Market cap</span><b>{fmt(METRICS.market_cap, r.market_cap)}</b></div><div><span>P/E</span><b>{fmt(METRICS.pe, r.pe)}</b></div><div><span>ROE</span><b>{fmt(METRICS.roe, r.roe)}</b></div><div><span>Debt/Equity</span><b>{fmt(METRICS.debt_to_equity, r.debt_to_equity)}</b></div></div>
                 {showIq && <Gate tier="silver" title="See the FinLit IQ" points={["Overall research score", "Five-pillar scorecard"]}>

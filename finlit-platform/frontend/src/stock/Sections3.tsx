@@ -9,7 +9,7 @@ import { ChartHelp } from "../components/ChartHelp";
 import { Plain } from "../components/Plain";
 import { Spark } from "../charts/Small";
 import { LineChart } from "../charts/LineChart";
-import { MINUS, cr, fmtUnit, initials, nf, num } from "../lib/format";
+import { MINUS, cr, fmtUnit, nf, num } from "../lib/format";
 import { Fragment } from "react";
 import { NotMeaningful, ReadingCell, ReadingFilter, ReadingMobileRow, useRatioReadings } from "./RatioReading";
 import { prefetchStock, type Peers, type Ratios, type Segments, type Summary } from "../lib/api";
@@ -23,6 +23,7 @@ import { SegmentCard } from "./Sections2";
 import { PeerRanking } from "./Leadership";
 import { useLeadership } from "../lib/leadership";
 import { ChartZoom } from "../components/ChartZoom";
+import { CoLogo } from "../components/CoLogo";
 
 const v = (n: string) => `var(${n})`;
 
@@ -239,11 +240,11 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
           </ChartZoom>
         </div>
         <div className="pr-list">
-          <div className="pr-row me"><span className="av" style={{ background: "linear-gradient(140deg,var(--gold-2),var(--gold-deep))", color: "#2a1c00" }}>{initials(s.profile.name)}</span><span className="pr-nm"><b>{s.profile.name}</b><span className="tk">{self} · this company</span></span>
+          <div className="pr-row me"><CoLogo symbol={s.profile.symbol} name={s.profile.name} size={32} /><span className="pr-nm"><b>{s.profile.name}</b><span className="tk">{self} · this company</span></span>
             <span className="pr-st"><span>Score</span><b>{me.score ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{me.pe != null ? nf(me.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{me.roe != null ? nf(me.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{me.mcap ? "₹" + cr(me.mcap) : "—"}</b></span></div>
           {peers.map((i) => { const c = hue(i.symbol); return (
             <a key={i.symbol} className={"pr-row" + (hv === i.symbol ? " hot" : "")} href={`/stocks/${i.symbol}`} style={{ "--pc": c } as React.CSSProperties} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onClick={(e) => { e.preventDefault(); go(i.symbol); }}>
-              <span className="av" style={{ background: `linear-gradient(140deg, ${c}, color-mix(in srgb, ${c} 55%, #000))` }}>{initials(i.name || i.symbol)}</span>
+              <CoLogo symbol={i.symbol} name={i.name} size={32} />
               <span className="pr-nm"><b>{i.name || i.symbol}</b><span className="tk">{i.symbol}</span></span>
               {hasData ? <><span className="pr-st"><span>Score</span><b>{i.overall ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{i.pe != null ? nf(i.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{i.roe != null ? nf(i.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{i.market_cap ? "₹" + cr(i.market_cap) : "—"}</b></span></> : <span className="pr-go">Open report <Icon name="arrow" /></span>}
             </a>); })}

@@ -14,6 +14,7 @@ import { useDocTitle } from "../lib/title";
 import { csvText, nf } from "../lib/format";
 import { saveFile } from "../stock/derive";
 import { BAND_LABEL, EMPTY, GROUPS, METRICS, QUICK, activeCount, applyFilters, fmt, useUniverse, type NumKey, type Row, type State } from "../lib/screener";
+import { CoLogo } from "../components/CoLogo";
 
 const COLS: { id: string; label: string; keys: NumKey[] }[] = [
   { id: "size", label: "Size & price", keys: ["market_cap", "price"] },
@@ -165,7 +166,7 @@ export function ScreenerLite() {
                 </thead>
                 <tbody>{result.slice(0, shown).map((r) => (
                   <tr key={r.symbol} tabIndex={0} onClick={() => openRow(r)} onKeyDown={(e) => e.key === "Enter" && openRow(r)}>
-                    <td className="stick"><span className="co"><span className="av mini" aria-hidden="true">{(r.name || r.symbol).slice(0, 2).toUpperCase()}</span><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></span></td>
+                    <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></span></td>
                     {COLS.flatMap((g) => g.keys).filter((k) => cols.includes(k)).map((k) => <td key={k} className={tone(k, r[k]) + (k === "overall" ? " sc" : "")}>{k === "overall" && r.band ? <span className={"vd " + r.band}>{r.overall}</span> : fmt(METRICS[k], r[k])}</td>)}
                   </tr>))}
                   {!result.length && <tr><td colSpan={cols.length + 1} className="empty">No companies match all of these filters. Try loosening one.</td></tr>}

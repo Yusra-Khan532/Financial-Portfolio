@@ -21,6 +21,7 @@ import { matchesMetric, rankMetrics } from "../lib/metricSearch";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "../components/screener/FilterGroup";
 import { KpiStrip, SectorBars, TitleCard, Toolbar, Donut, type Kpi } from "../components/screener/PageParts";
 import "../styles/fgx.css";
+import { CoLogo } from "../components/CoLogo";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
@@ -335,7 +336,7 @@ export function ScreenerPro() {
                       {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}</tr></thead>
                     <tbody>{rows.map((r) => (
                       <tr key={r.symbol} tabIndex={0} onClick={() => nav(`/stocks/${r.symbol}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/stocks/${r.symbol}`)}>
-                        <td className="stick"><span className="co"><span className="av mini" aria-hidden="true">{(r.name || r.symbol).slice(0, 2).toUpperCase()}</span><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
+                        <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
                         {res.data!.columns.map((k) => { const m = byKey.get(k), v = r.v[k]; return <td key={k} className={tone(k, v)} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                       </tr>))}
                       {!rows.length && <tr><td colSpan={res.data.columns.length + 1} className="empty">No companies match all of these filters. Try loosening one, or <button className="alx-link" onClick={() => setF(norm({}))}>clear them all</button>.</td></tr>}

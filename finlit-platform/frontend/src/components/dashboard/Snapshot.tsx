@@ -9,6 +9,7 @@ import { scopeStocks, type Scope } from "../../lib/dashboard";
 import type { Row } from "../../lib/screener";
 import { useSectorBoard, type Board } from "../../lib/sectors";
 import { Card, Rows, Seg, tone, useIsPhone } from "./parts";
+import { CoLogo } from "../CoLogo";
 
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 const SCOPES = [["n50", "Nifty 50"], ["n500", "Nifty 500"], ["all", "All stocks"]] as const;
@@ -28,7 +29,7 @@ export function Snapshot({ rows, loading }: { rows: Row[]; loading: boolean }) {
   const up = gainers(pick.stocks, take), down = losers(pick.stocks, take);
   const col = (title: string, list: Row[], cls: string) => (
     <div><div className="dsh-lh">{SCOPE_WORD[scope]} {title}</div>
-      {list.length ? list.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b>{titleOf(r)}</b><span className={cls}>{sgn(r.change_pct)}</span></Link>) : <p className="dsh-note">{pick.note ?? `No ${title} in this group today.`}</p>}</div>
+      {list.length ? list.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b><span className={cls}>{sgn(r.change_pct)}</span></Link>) : <p className="dsh-note">{pick.note ?? `No ${title} in this group today.`}</p>}</div>
   );
   return (
     <Card id="snapshot" title="Market snapshot" sub={m.n ? <>{m.n.toLocaleString("en-IN")} companies{m.all != null ? <> · cap-weighted move <b className={tone(m.all)}>{sgn(m.all)}</b></> : null}</> : undefined}>

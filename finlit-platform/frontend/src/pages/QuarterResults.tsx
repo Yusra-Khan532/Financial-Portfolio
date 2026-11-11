@@ -19,6 +19,7 @@ import { GrowthCharts, GrowthPanel } from "../components/QrGrowth";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
 import "../styles/qresults.css";
+import { CoLogo } from "../components/CoLogo";
 
 const SORTS: [string, string, boolean][] = [   // value, label, needs Silver
   ["date", "Date declared", false], ["marketCap", "Market cap", false], ["revenueYoY", "Revenue growth (YoY)", true], ["profitYoY", "Profit growth (YoY)", true],
@@ -83,7 +84,7 @@ function Copy({ text }: { text: string }) {
 function Company({ r }: { r: QRow }) {
   return (
     <div className="qr-co">
-      <Link to={`/stocks/${r.symbol}#quarter`} className="qr-sym"><b>{titleOf(r)}</b></Link>
+      <Link to={`/stocks/${r.symbol}#quarter`} className="qr-sym"><b><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b></Link>
       <small>{r.name}{r.sector ? ` · ${r.sector}` : ""}</small>
       <span className="qr-tags">
         {r.indices.includes("NIFTY50") ? <i>N50</i> : r.indices.includes("NIFTY100") ? <i>N100</i> : r.indices.includes("NIFTY500") ? <i>N500</i> : null}

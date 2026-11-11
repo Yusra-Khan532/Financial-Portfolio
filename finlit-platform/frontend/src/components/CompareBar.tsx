@@ -4,10 +4,10 @@ import { cr, nf } from "../lib/format";
 import type { Row } from "../lib/screener";
 import { FilterNote, SearchFilters, useRowFilter } from "./SearchFilters";
 import { hiddenRowMatches } from "../lib/searchFilters";
+import { CoLogo } from "./CoLogo";
 
 const ITEM = 56, VIEW = 336;
 const POPULAR: string[][] = [["TCS", "INFY"], ["INFY", "WIPRO"], ["TCS", "HCLTECH"], ["WIPRO", "TECHM"], ["HDFCBANK", "ICICIBANK"], ["ICICIBANK", "SBIN"], ["HDFCBANK", "KOTAKBANK"], ["SBIN", "PNB"], ["AXISBANK", "KOTAKBANK"], ["RELIANCE", "ONGC"], ["MARUTI", "TATAMOTORS"], ["HINDUNILVR", "ITC"], ["SUNPHARMA", "CIPLA"], ["BAJFINANCE", "BAJAJFINSV"]];
-const ini = (r: Row) => (r.name || r.symbol).replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
 
 /** One field for the whole comparison: picked companies are chips with a cross, and the box beside them searches every listed company. */
 export function CompareBar({ rows, ids, max, onChange, onLimit }: { rows: Row[]; ids: string[]; max: number; onChange: (ids: string[]) => void; onLimit: () => void }) {
@@ -73,7 +73,7 @@ export function CompareBar({ rows, ids, max, onChange, onLimit }: { rows: Row[];
             <div style={{ height: list.length ? list.length * ITEM : undefined, position: "relative" }}>
               {list.slice(from, to).map((r, k) => { const i = from + k, on = ids.includes(r.symbol); return (
                 <button key={r.symbol} id={`cb-o-${r.symbol}`} role="option" aria-selected={on} className={"cb-o" + (i === active ? " act" : "") + (on ? " on" : "")} style={{ position: "absolute", top: i * ITEM, height: ITEM }} onMouseMove={() => setActive(i)} onClick={() => toggle(r.symbol)}>
-                  <span className="av mini" aria-hidden="true">{ini(r)}</span><span className="cb-nm"><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.sector].filter(Boolean).join(" · ")}</small></span>
+                  <CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="cb-nm"><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.sector].filter(Boolean).join(" · ")}</small></span>
                   <span className="cb-mc">{r.market_cap != null ? "₹" + cr(r.market_cap) + " Cr" : ""}</span><span className="cb-st" aria-hidden="true">{on ? "✓" : "+"}</span></button>); })}
               {!list.length && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={hiddenRowMatches(all, (r) => ({ sector: r.sector, cap: r.market_cap }), q, sf.filter)} /> : <p className="muted" style={{ padding: 16 }}>No company matches “{q}”. Try the ticker, or part of the name.</p>)}
             </div>

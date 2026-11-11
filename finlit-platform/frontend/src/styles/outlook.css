@@ -131,3 +131,4 @@
 .ol-assume-h h2 { margin: 0; } .ol-assume-p { margin: 0; font-size: var(--fs-14); }
 .ol-assume .ol-sliders { background: none; border: 0; padding: 0; }
 @media (max-width: 640px) { .ol-assume-h .ol-mode { width: 100%; } .ol-assume-h .ol-mode button { flex: 1; } }
+.ol-hn { display: inline-flex; align-items: center; }

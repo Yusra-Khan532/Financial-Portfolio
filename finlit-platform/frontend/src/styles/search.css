@@ -196,3 +196,12 @@
   .gs-tabs button, .gs-ring-fg, .gs-open { transition: none; }
 }
 
+
+/* Logos in company headers and tiles (task 71): the logo fills the tile the initials used to sit in; in tables and lists it sits beside the name at 24px */
+.badge .gs-logo, .biz-av .gs-logo, .mhbar-bd .gs-logo, .ec-badge .gs-logo, .pr-row .gs-logo { width: 100% !important; height: 100% !important; border-radius: inherit !important; }
+.pr-row > .gs-logo { width: 32px !important; height: 32px !important; border-radius: 9px !important; }
+.badge:has(.gs-logo-img), .biz-av:has(.gs-logo-img), .mhbar-bd:has(.gs-logo-img), .ec-badge:has(.gs-logo-img) { padding: 0; overflow: hidden; background: none; border: 0; box-shadow: none; }
+td.stick .co > .gs-logo, .cb-item .gs-logo, .psx-co > .gs-logo { flex: none; }
+td.stick .co { display: inline-flex; align-items: center; gap: 10px; }
+.cc-h > .gs-logo { margin-right: 4px; }
+.cl-in { display: inline-flex; vertical-align: middle; margin-right: 8px; flex: none; } .cl-in .gs-logo { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); padding: 2px; }
