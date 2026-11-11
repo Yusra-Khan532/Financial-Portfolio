@@ -44,8 +44,9 @@ async def build_supervisor(settings: Any, store: Any, dry_run: bool = False) -> 
         out = []
         disk = disk_percent()
         if disk is not None and disk >= freshness.DISK_ALERT_PCT:
-            out.append(("disk", "FinLit server disk is almost full", f"The server disk is {disk:.0f}% full (alert at {freshness.DISK_ALERT_PCT:.0f}%). Free space: docker system prune -f; check "
-                        "the backups volume and /var/log. The prune job also runs every night."))
+            out.append(("disk", "FinLit server disk is almost full", f"The server disk is {disk:.0f}% full (alert at {freshness.DISK_ALERT_PCT:.0f}%). On the server run: bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh clean "
+                        "(it caps the build cache and removes unused images; the server also does this by itself from 78% full). Then check the backups volume and /var/log: "
+                        "docker system df; du -xh / --max-depth=2 | sort -h | tail. The nightly prune job only clears old database rows, not Docker."))
         for p, detail in (await signals.credential_refused()).items():
             name = {"dhan": "Dhan", "finedge": "FinEdge"}.get(p, p)
             out.append((f"cred:{p}", f"The {name} key is not accepted", f"The {name} key is not accepted ({detail}). Update it in /opt/finlit/.env.aws and run: docker compose up -d app (see docs/JOBS.md, failure table)."))

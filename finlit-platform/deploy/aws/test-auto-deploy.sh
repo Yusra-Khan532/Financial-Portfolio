@@ -16,6 +16,7 @@ cat > "$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" <<FAKE
 echo "\$1" >> "$T/calls"
 case "\$1" in
   backup) exit 0 ;;
+  clean) exit 0 ;;
   rollback) echo imgA > "$T/image"; exit 0 ;;
   deploy) case "\${FAKE_MODE:-ok}" in
             ok) echo imgB > "$T/image"; exit 0 ;;
@@ -24,7 +25,7 @@ case "\$1" in
           esac ;;
 esac
 FAKE
-export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image"
+export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image" DISK_PCT_CMD="echo 40"
 A="$HERE/auto-deploy.sh"
 fail=0; ok() { if [ "$2" = "$3" ]; then echo "PASS  $1"; else echo "FAIL  $1 (wanted '$2', got '$3')"; fail=1; fi; }
 calls() { tr '\n' ' ' < "$T/calls" | sed 's/ $//'; }
@@ -58,4 +59,9 @@ ok "unreachable repository: no deploy, exit 0" "0 " "$rc $(calls)"
 printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
 exec 8>"$FINLIT_HOME/state/auto_deploy.lock"; flock -n 8; reset; bash "$A" >/dev/null 2>&1
 ok "a check is already running: nothing runs" "" "$(calls)"
+exec 8>&-   # release the lock the previous test held
+# 7. housekeeping: a disk at 90% is cleaned (once in 30 minutes); a disk at 40% is not
+reset; DISK_PCT_CMD="echo 90" bash "$A" >/dev/null 2>&1; ok "a full disk is cleaned first" "clean" "$(calls | cut -d" " -f1)"
+reset; DISK_PCT_CMD="echo 90" bash "$A" >/dev/null 2>&1; ok "...but not again within 30 minutes" "" "$(calls)"
+reset; rm -f "$FINLIT_HOME/state/last_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a disk with room is left alone" "" "$(calls)"
 exit $fail
