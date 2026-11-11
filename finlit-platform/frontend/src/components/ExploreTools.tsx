@@ -31,7 +31,7 @@ function Card({ c }: { c: PlatformCard }) {
 /** One tool in a group card: its name, a few words, a small plan mark for the paid ones and an arrow. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
   const inner = <><span className="xt-tn"><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
-  return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link}>{inner}</Link>}</li>;
+  return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
 const GROUP_ICON: Record<string, string> = { discover: "search", "company-360": "building", "quant-lab": "gauge", track: "wallet", market: "line", learn: "book" };
 
@@ -69,6 +69,9 @@ export function ExploreTools() {
         <div className="hh-kicker">The platform</div>
         <h2 id="xt-title">Everything you need. Nothing you don't.</h2>
         <p>{TOTAL} tools in six groups, from finding a stock to valuing it, tracking it and following its sector.</p>
+        <dl className="xt-stats" aria-label="The platform in numbers">
+          <div><dt>Listed companies</dt><dd>5,800+</dd></div><div><dt>Mutual funds</dt><dd>1,200+</dd></div><div><dt>Tools</dt><dd>{TOTAL}</dd></div><div><dt>Groups</dt><dd>{BUCKETS.length}</dd></div>
+        </dl>
         <button type="button" className="btn primary lg xt-go" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}>{open ? "Hide the platform tools" : "Explore the platform"} <Icon name="arrow" /></button>
       </div>
       <ul className="xt-dir" aria-label="The six groups and their tools">{BUCKETS.map((b) => <Row key={b.id} b={b} onOpen={() => show(b.id)} />)}</ul>

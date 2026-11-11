@@ -61,3 +61,15 @@
 @media (max-width: 700px) { .xt-dir { grid-template-columns: minmax(0, 1fr); gap: 14px; } .xt-tool { min-height: 44px; } .xt-tool > svg { opacity: .6; transform: none; }  }
 @media (hover: none) { .xt-tool > svg { opacity: .6; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .xt-row, .xt-tool > svg, .xt-rn svg { transition: none; } .xt-row:hover, .xt-row:focus-within { transform: none; } }
+
+/* Compact directory (task 89): all six groups in about two screens. Tools sit in two columns, one line each (name and plan mark); the few-words line stays as the tooltip and for screen readers. */
+.xt-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 28px; margin: 0 auto 18px; padding: 0; }
+.xt-stats > div { display: flex; align-items: baseline; gap: 8px; } .xt-stats dd { margin: 0; font: 600 var(--fs-18) var(--serif); color: var(--text); } .xt-stats dt { order: 2; font: 500 var(--fs-13) var(--sans); color: var(--muted); }
+.xt-row { padding: 16px 16px 12px; }
+.xt-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 6px; margin: 10px 0 4px; }
+.xt-tool { grid-template-rows: auto; grid-template-columns: minmax(0, 1fr); padding: 6px 8px; min-height: 34px; } .xt-tool > svg { display: none; }
+.xt-tool > svg { grid-row: 1; }
+.xt-tool small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.xt-tool b { white-space: normal; overflow-wrap: anywhere; }
+.xt-tn { flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; width: 100%; } .xt-tn b { flex: 1 1 auto; min-width: 0; font-size: var(--fs-13); } .xt-tn .xt-badge { flex: none; margin-top: 1px; }
+@media (max-width: 700px) { .xt-tools { grid-template-columns: minmax(0, 1fr); } .xt-tool { min-height: 44px; } .xt-stats { gap: 4px 18px; } }
