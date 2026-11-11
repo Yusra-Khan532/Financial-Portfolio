@@ -243,6 +243,17 @@ CATALOG: List[Metric] = [
     M("breakout_level", "Level of that breakout", "trading", "Rs", "none", "silver", "The earlier high that the price broke above.", 2),
     M("vs_breakout", "Price against the breakout level", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the level it broke.", 1),
     M("breakout_vol_ratio", "Volume on the breakout day", "trading", "x", "none", "silver", "The breakout day's volume as a multiple of the 50 sessions before it.", 2),
+    # ---- the Breakouts group, version 2 rules (task #64): a breakout 3 to 25 sessions ago and the last four sessions against the 9-day average
+    M("b2_age", "Sessions since the recent breakout", "trading", "n", "none", "silver", "Sessions since the close rose above a 52-week closing high that was at least 10 sessions old (last 25 sessions only).", 0),
+    M("b2_level", "Breakout level, recent 25 sessions", "trading", "Rs", "none", "silver", "The earlier high that the price broke above.", 2),
+    M("b2_vs_level", "Price against the recent breakout level", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the level it broke.", 1),
+    M("b2_pullback", "Below the highest close since the breakout", "trading", "%", "none", "silver", "How far the latest close is below the highest close since the breakout day.", 1),
+    M("b2_vol_x", "Breakout-day volume, recent 25 sessions", "trading", "x", "none", "silver", "The breakout day's volume as a multiple of the 50 sessions before it.", 2),
+    M("ema9_above4", "Last four closes above the 9-day average", "trading", "flag", "none", "silver", "Yes if each of the last four closes was above that day's 9-day average.", 0),
+    M("ema9_near4", "Last four closes within 4% of the 9-day average", "trading", "flag", "none", "silver", "Yes if each of the last four closes was no more than 4% above that day's 9-day average.", 0),
+    M("ema9_touch4", "Touched the 9-day average in the last four sessions", "trading", "flag", "none", "silver", "Yes if the low of any of the last four sessions reached the 9-day average.", 0),
+    M("range_4d", "Range of the last 4 sessions", "trading", "%", "none", "silver", "The 4-session high minus low, as a share of the latest close.", 1),
+    M("turnover20_cr", "Average value traded (20 sessions)", "trading", "Cr", "none", "silver", "The average of price times volume over the last 20 sessions, in rupee crore.", 1),
     M("volatility", "Volatility (yearly)", "trading", "%", "lower", "silver", "How much the price swings in a year.", 0),
     M("max_drawdown", "Worst fall (since data starts)", "trading", "%", "higher", "silver", "Biggest drop from a peak to a low.", 0),
     # ---- FinLit model (Gold)

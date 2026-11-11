@@ -37,7 +37,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live"]
-    assert len(live) == 18 and [p.id for p in ADVANCED if p.status == "blocked"] == ["setup-ema9-consolidation", "psu-stocks"] and len(QUICK_VIEWS) == 3
+    assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 3
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -57,7 +57,7 @@ def test_registry_shape_names_and_rules():
     assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 60] and all(p.prism_filters["zmin"] == 60 and p.prism_filters["zqmin"] == 50 for p in tops)
     assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text == "The 10 large caps with the strongest mix of Prism rating, valuation, risk and price strength."
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
-                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "rating-upgrades"]
+                                         "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades"]
     assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue"] and "Valuation below 50" in BY_ID["weakvalue"].card_text
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
@@ -496,7 +496,7 @@ def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
                                      "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
                                      "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",
                                      "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
-    assert [p.id for p in basic if p.status != "live"] == ["basic-setup-ema9-consolidation"] and sum(1 for p in basic if p.top10) == 3
+    assert [p.id for p in basic if p.status != "live"] == [] and sum(1 for p in basic if p.top10) == 3
     for p in basic:
         text = " ".join(p.how_it_works).lower()
         assert "prism" not in text and "prism" not in p.card_text.lower(), p.id       # the Basic tab never names a Prism field

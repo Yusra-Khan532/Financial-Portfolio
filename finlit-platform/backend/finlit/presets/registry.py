@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 9      # 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 10      # 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 RUN_GUARD = ("coalesce(ret_1y, 0) <= 300", "1-year return no more than 300%")   # a stock that has run far past that is not a steady leader: kept out of the Top 10 and momentum lists
@@ -91,7 +91,7 @@ class Preset:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Setups"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Breakouts"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
                                  ("safety", "Safety"), ("ownership", "Ownership"), ("prism-basics", "Prism basics")]
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
@@ -279,32 +279,51 @@ def _between(field: str, lo: float, hi: float, label: str) -> Tuple[str, str]:
     return (f"{field} >= {lo:g} and {field} <= {hi:g}", label)
 
 
-PB_RULES = (S_UP, S_FLAGS, _between("pct_from_high", 1.5, 8, "1.5% to 8% below the 52-week high"), ("days_since_high >= 15", "The 52-week closing high is at least 15 sessions old: a base of three weeks or more"),
-            ("missing(breakout_age) = 1", "No breakout above the 52-week high in the last 30 sessions"), _between("range_10d", 0, 8, "The last 10 sessions moved within an 8% range"),
-            _between("atr_ratio", 0, 0.85, "Price swings are shrinking (10-day against 50-day range at most 0.85)"), _between("vol_ratio_10_50", 0, 0.9, "Volume is drying up (last 10 sessions at most 0.9 times the last 50)"),
-            _between("rsi14", 45, 65, "RSI between 45 and 65"))
-BR_RULES = (S_FLAGS, _between("breakout_age", 3, 20, "Broke above the 52-week high 3 to 20 sessions ago"), ("breakout_vol_ratio >= 1.5", "The breakout came on volume (1.5 times the usual or more)"),
-            _between("pct_from_high", 3, 12, "3% to 12% below the new high"), _between("vs_breakout", -3, 4, "Back within 3% below to 4% above the level it broke"),
-            _between("vs_ema20", -4, 3, "Within 4% below to 3% above its 20-day average"), ("vs_ema50 > 0", "Price above its 50-day average"),
-            _between("vol_ratio_5_50", 0, 1.0, "A quieter pullback (last 5 sessions at most the usual volume)"), _between("rsi14", 40, 60, "RSI between 40 and 60"))
+MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
+VOLUME_TESTS = False   # fix 8 of the handover: the daily volume is rebuilt from NSE's bhavcopy first; until then the two volume tests (breakout day, value traded) stay off
+FULL_YEAR = ("missing(ret_1y) = 0", "A full year of prices")
+S_B2AGE = Col("b2_age", "Sessions since the breakout", "num1")
+S_B2LEV = Col("b2_level", "Breakout level (Rs)", "num1")
+S_B2VS = Col("b2_vs_level", "Against the breakout level (%)", "num1")
+S_B2PULL = Col("b2_pullback", "Below the highest close since (%)", "num1")
+S_B2VOL = Col("b2_vol_x", "Volume on the breakout day", "num1")
+S_V9 = Col("vs_ema9", "Against the 9-day average (%)", "num1")
+S_R4 = Col("range_4d", "4-session range (%)", "num1")
+S_TURN = Col("turnover20_cr", "Value traded a day, 20-session average (Rs Cr)", "num1")
+PB_RULES = (FULL_YEAR, S_UP, _between("pct_from_high", 1.5, 8, "1.5% to 8% below the 52-week high"), ("days_since_high >= 15", "The 52-week closing high is at least 15 sessions old: a base of three weeks or more"),
+            ("range_10d <= 10", "The last 10 sessions moved within a 10% range"), ("atr_ratio < 1.1", "Price swings are not widening (10-day against 50-day range under 1.1)"),
+            _between("rsi14", 45, 68, "RSI between 45 and 68"))
+BR_RULES = (FULL_YEAR, ("vs_ema50 > 0", "Price above its 50-day average"), _between("b2_age", 3, 25, "Broke above a 52-week closing high 3 to 25 sessions ago (an old high at least 10 sessions old)"),
+            _between("b2_pullback", 2, 12, "2% to 12% below the highest close since the breakout"), _between("b2_vs_level", -3, 6, "Back within 3% below to 6% above the level it broke"),
+            _between("vs_ema20", -4, 4, "Within 4% of its 20-day average"), _between("rsi14", 40, 65, "RSI between 40 and 65")) \
+           + ((("b2_vol_x >= 1.3", "The breakout came on volume (1.3 times the usual or more)"),) if VOLUME_TESTS else ())
+E9_RULES = (FULL_YEAR, ("vs_ema50 > 0 and ema_stack = 1", "In an uptrend: price above the 50-day average, with the 9-day above the 20-day above the 50-day"),
+            ("ema9_above4 = 1", "The last four closes were each above the 9-day average"), ("vs_ema9 <= 3 and ema9_near4 = 1", "Within 3% of the 9-day average now, and never more than 4% above it in the last four sessions"),
+            ("ema9_touch4 = 1", "Touched the 9-day average in the last four sessions"), ("range_4d <= 6", "The last four sessions moved within a 6% range")) \
+           + ((("turnover20_cr >= 1", "At least Rs 1 Cr traded a day on average"),) if VOLUME_TESTS else ())
 SETUP_BLOCK = "Needs the 9-day average signal, which the nightly price job does not store yet; turns on once it does."
 
 SETUPS_ADV: List[Preset] = [
-    Preset("setup-pre-breakout", "Pre-breakout", "setups", "Stocks in an uptrend resting just under their 52-week high, with price and volume going quiet.", "rules", _m(rated=1), "",
-           PB_RULES + (("coalesce(prism_lt_score, -100) >= 20", "Long-term technical view +20 or more"), ("coalesce(prism_st_score, -100) >= -10", "Short-term technical view -10 or more")),
+    Preset("setup-pre-breakout", "Pre-breakout", "setups", "Stocks in an uptrend resting just under their 52-week high, with price swings no wider than before.", "rules", _m(rated=1), "",
+           PB_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more"), ("prism_lt_score >= 20", "Long-term technical view +20 or more")),
            (("rank_score", "desc"), ("prism_lt_score", "desc")), 25, with_status((STOCK, S_HIGH, S_DSH, S_R10, S_ATR, S_V10, S_RSI, STS, LTS, PRISM, SECTOR, MCAP)), (),
-           ("Rated or provisional by Prism (a Provisional rating is badged).", "In an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day; at most 2 red flags.",
-            "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old, and no breakout in the last 30 sessions.",
-            "Quiet: a 10-session range of 8% or less, price swings shrinking, volume drying up, RSI between 45 and 65, and positive technical views.", S_NOTE),
+           ("Rated or provisional by Prism (a Provisional rating is badged); a full year of prices; market cap Rs 1,000 Cr or more.", "In an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day.",
+            "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old.",
+            "Quiet: a 10-session range of 10% or less, price swings not widening, RSI between 45 and 68, and both technical views at +20 or more.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-pct_from_high", 0.4), ("-range_10d", 0.3), ("prism_lt_score", 0.3))),
-    Preset("setup-breakout-pullback", "Breakout, then pulled back", "setups", "Stocks that broke above their 52-week high on volume in the last four weeks and have eased back towards that level.", "rules", _m(rated=1), "",
-           BR_RULES + (("coalesce(prism_lt_score, -100) >= 20", "Long-term technical view +20 or more"),),
-           (("rank_score", "desc"), ("prism_lt_score", "desc")), 25, with_status((STOCK, S_BAGE, S_BLEV, S_VSB, S_BVOL, S_HIGH, S_E20, S_RSI, LTS, PRISM, SECTOR, MCAP)), (),
-           ("Rated or provisional by Prism (a Provisional rating is badged).", "At most 2 red flags; price above its 50-day average.",
-            "A recent breakout: the close rose above a 52-week closing high that was at least 15 sessions old, 3 to 20 sessions ago, on at least 1.5 times the usual volume.",
-            "Now pulled back: 3% to 12% below the new high, back near the level it broke and its 20-day average, on quieter volume, RSI between 40 and 60, and a positive long-term technical view.", S_NOTE),
-           False, None, ("provisional",), "setup scans", "advanced", (("-abs_vs_breakout", 0.4), ("breakout_vol_ratio", 0.3), ("prism_lt_score", 0.3))),
-    Preset("setup-ema9-consolidation", "Consolidating above the 9 EMA", "setups", "Stocks in an uptrend or strong uptrend, holding a tight range just above their 9-day average.", "blocked", blocked_reason=SETUP_BLOCK, spec="setup scans"),
+    Preset("setup-breakout-pullback", "Breakout, then pulled back", "setups", "Stocks that broke above their 52-week high in the last five weeks and have eased back towards that level.", "rules", _m(rated=1), "",
+           BR_RULES + (MCAP1000, ("prism_lt_score >= 20", "Long-term technical view +20 or more")),
+           (("rank_score", "desc"), ("prism_lt_score", "desc")), 25, with_status((STOCK, S_B2AGE, S_B2LEV, S_B2VS, S_B2PULL, S_B2VOL, S_E20, S_RSI, LTS, PRISM, SECTOR, MCAP)), (),
+           ("Rated or provisional by Prism (a Provisional rating is badged); a full year of prices; market cap Rs 1,000 Cr or more; price above its 50-day average.",
+            "A recent breakout: the close rose above a 52-week closing high that was at least 10 sessions old, 3 to 25 sessions ago.",
+            "Now pulled back: 2% to 12% below the highest close since, back near the level it broke and its 20-day average, RSI between 40 and 65, and a long-term technical view of +20 or more.", S_NOTE),
+           False, None, ("provisional",), "setup scans", "advanced", (("-abs_b2_level", 0.4), ("prism_lt_score", 0.6))),
+    Preset("setup-ema9-consolidation", "Consolidating above the 9 EMA", "setups", "Stocks in an uptrend, holding a tight range just above their 9-day average.", "rules", _m(rated=1), "",
+           E9_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more")),
+           (("rank_score", "desc"), ("prism_st_score", "desc")), 25, with_status((STOCK, S_V9, S_R4, S_TURN, S_E20, S_RSI, STS, LTS, PRISM, SECTOR, MCAP)), (),
+           ("Rated or provisional by Prism (a Provisional rating is badged); a full year of prices; market cap Rs 1,000 Cr or more.", "In an uptrend: price above its 50-day average, with the 9-day above the 20-day above the 50-day.",
+            "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less.", S_NOTE),
+           False, None, ("provisional",), "setup scans", "advanced", (("-range_4d", 0.5), ("prism_st_score", 0.5))),
 ]
 PRESETS = PRESETS[:-2] + SETUPS_ADV + PRESETS[-2:]
 
@@ -429,22 +448,26 @@ BASIC: List[Preset] = [
 ]
 
 BASIC += [
-    Preset("basic-setup-pre-breakout", "Pre-breakout", BASIC_GROUP["setups"], "Stocks in an uptrend resting just under their 52-week high, with price and volume going quiet.", "rules", _m(), "",
+    Preset("basic-setup-pre-breakout", "Pre-breakout", BASIC_GROUP["setups"], "Stocks in an uptrend resting just under their 52-week high, with price swings no wider than before.", "rules", _m(), "",
            (MC2000,) + PB_RULES + (("pillar_technical >= 60", "Technical 60 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
            (RANK, STOCK, S_HIGH, S_DSH, S_R10, S_ATR, S_V10, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
-           ("Market cap Rs 2,000 Cr or more; at most 2 red flags; in an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day.",
-            "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old, and no breakout in the last 30 sessions.",
-            "Quiet: a 10-session range of 8% or less, price swings shrinking, volume drying up, RSI between 45 and 65, and a Technical score of 60 or more.", S_NOTE, B_NOTE),
+           ("Market cap Rs 2,000 Cr or more; a full year of prices; in an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day.",
+            "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old.",
+            "Quiet: a 10-session range of 10% or less, price swings not widening, RSI between 45 and 68, and a Technical score of 60 or more.", S_NOTE, B_NOTE),
            False, None, (), "setup scans", "basic", (("-pct_from_high", 0.4), ("-range_10d", 0.3), ("pillar_technical", 0.3))),
-    Preset("basic-setup-breakout-pullback", "Breakout, then pulled back", BASIC_GROUP["setups"], "Stocks that broke above their 52-week high on volume in the last four weeks and have eased back towards that level.", "rules", _m(), "",
+    Preset("basic-setup-breakout-pullback", "Breakout, then pulled back", BASIC_GROUP["setups"], "Stocks that broke above their 52-week high in the last five weeks and have eased back towards that level.", "rules", _m(), "",
            (MC2000,) + BR_RULES + (("pillar_technical >= 55", "Technical 55 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
-           (RANK, STOCK, S_BAGE, S_BLEV, S_VSB, S_BVOL, S_HIGH, S_E20, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
-           ("Market cap Rs 2,000 Cr or more; at most 2 red flags; price above its 50-day average.",
-            "A recent breakout: the close rose above a 52-week closing high that was at least 15 sessions old, 3 to 20 sessions ago, on at least 1.5 times the usual volume.",
-            "Now pulled back: 3% to 12% below the new high, back near the level it broke and its 20-day average, on quieter volume, RSI between 40 and 60, and a Technical score of 55 or more.", S_NOTE, B_NOTE),
-           False, None, (), "setup scans", "basic", (("-abs_vs_breakout", 0.4), ("breakout_vol_ratio", 0.3), ("pillar_technical", 0.3))),
-    Preset("basic-setup-ema9-consolidation", "Consolidating above the 9 EMA", BASIC_GROUP["setups"], "Stocks in an uptrend or strong uptrend, holding a tight range just above their 9-day average.", "blocked",
-           blocked_reason=SETUP_BLOCK, spec="setup scans", tab="basic"),
+           (RANK, STOCK, S_B2AGE, S_B2LEV, S_B2VS, S_B2PULL, S_B2VOL, S_E20, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
+           ("Market cap Rs 2,000 Cr or more; a full year of prices; price above its 50-day average.",
+            "A recent breakout: the close rose above a 52-week closing high that was at least 10 sessions old, 3 to 25 sessions ago.",
+            "Now pulled back: 2% to 12% below the highest close since, back near the level it broke and its 20-day average, RSI between 40 and 65, and a Technical score of 55 or more.", S_NOTE, B_NOTE),
+           False, None, (), "setup scans", "basic", (("-abs_b2_level", 0.4), ("pillar_technical", 0.6))),
+    Preset("basic-setup-ema9-consolidation", "Consolidating above the 9 EMA", BASIC_GROUP["setups"], "Stocks in an uptrend, holding a tight range just above their 9-day average.", "rules", _m(), "",
+           (MC1000,) + E9_RULES + (("pillar_technical >= 60", "Technical 60 or more"),), (("rank_score", "desc"), ("pillar_technical", "desc")), 25,
+           (RANK, STOCK, S_V9, S_R4, S_TURN, S_E20, S_RSI, B_TECH, FINLIT, SECTOR, MCAP), (),
+           ("Market cap Rs 1,000 Cr or more; a full year of prices; in an uptrend: price above its 50-day average, with the 9-day above the 20-day above the 50-day.",
+            "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less, with a Technical score of 60 or more.", S_NOTE, B_NOTE),
+           False, None, (), "setup scans", "basic", (("-range_4d", 0.5), ("pillar_technical", 0.5))),
 ]
 
 ADVANCED: List[Preset] = list(PRESETS)
