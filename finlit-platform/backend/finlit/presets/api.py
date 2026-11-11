@@ -222,12 +222,59 @@ def _int(request: Request, name: str, default: int, lo: int, hi: int) -> int:
     return v
 
 
+def _size_of(r: dict) -> str | None:
+    mc = r.get("market_cap")
+    return None if not isinstance(mc, (int, float)) else ("Large" if mc > 50000 else "Mid" if mc >= 10000 else "Small")
+
+
+def _strong(r: dict) -> bool:
+    iq, pr = r.get("overall"), r.get("prism_final")
+    return (isinstance(iq, (int, float)) and iq >= 62) or (isinstance(pr, (int, float)) and pr >= 65)
+
+
+def _facets(rows: List[dict]) -> dict:
+    """What the filter bar offers for this screen's list: counts by size and by sector (the list as the screen made it, before the bar's own filters)."""
+    sizes, sectors = {}, {}
+    for r in rows:
+        z = _size_of(r)
+        if z:
+            sizes[z] = sizes.get(z, 0) + 1
+        if r.get("sector"):
+            sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
+    return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80], "strong": sum(1 for r in rows if _strong(r))}
+
+
+def _filtered(request: Request, rows: List[dict]) -> List[dict]:
+    """The filter bar: search, size, sector and Only Strong or Healthy, applied to the screen's own list. Order and ranks stay as the screen made them."""
+    q = (request.query_params.get("q") or "").strip().lower()[:60]
+    sizes = set(request.query_params.getlist("size"))
+    secs = set(request.query_params.getlist("sector"))
+    strong = request.query_params.get("strong") == "1"
+    if not (q or sizes or secs or strong):
+        return rows
+    out = []
+    for r in rows:
+        if q and q not in str(r.get("symbol", "")).lower() and q not in str(r.get("name", "")).lower() and q not in str(r.get("sector", "")).lower():
+            continue
+        if sizes and _size_of(r) not in sizes:
+            continue
+        if secs and r.get("sector") not in secs:
+            continue
+        if strong and not _strong(r):
+            continue
+        out.append(r)
+    return out
+
+
 def _page(request: Request, body: dict) -> dict:
     """A screen that is not a Top-10 list and not a theme view pages: `offset` (default 0) and `limit` (default 25, at most EXPORT_MAX) pick rows of the ranked list.
     The answer carries `offset`, `limit`, `available` (rows that can be paged to) and `hasMore`; `count` stays the number of companies that pass."""
     if "pageSize" not in body:
         return body
     avail = body.get("exportRows") or body["rows"]
+    facets = _facets(avail)
+    avail = _filtered(request, avail)
+    body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
     rows = avail[offset:offset + limit]

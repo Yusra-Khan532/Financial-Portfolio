@@ -39,3 +39,18 @@ def test_funnel_counts_each_rule_in_turn_and_says_how_many_had_no_figure():
     f = t.funnel({"pe": {"min": None, "max": 5.0}, "market_cap": {"min": 1002.0, "max": None}}, {})
     assert [s["key"] for s in f] == ["pe", "market_cap"]
     assert (f[0]["before"], f[0]["missing"], f[0]["after"]) == (10, 1, 4) and (f[1]["before"], f[1]["after"]) == (4, 2)
+
+
+def test_filter_bar_search_size_sector_and_strong_keep_the_screens_own_order():
+    from finlit.presets import api
+
+    class Req:
+        def __init__(self, **q):
+            self.query_params = type("Q", (), {"get": lambda s, k, d=None: q.get(k, [d])[0] if k in q else d, "getlist": lambda s, k: q.get(k, [])})()
+    rows = [{"symbol": "AAA", "name": "Alpha", "sector": "IT", "market_cap": 90000, "overall": 80}, {"symbol": "BBB", "name": "Beta", "sector": "Auto", "market_cap": 20000, "overall": 50},
+            {"symbol": "CCC", "name": "Gamma", "sector": "IT", "market_cap": 3000, "overall": 70}]
+    assert [r["symbol"] for r in api._filtered(Req(size=["Large", "Small"]), rows)] == ["AAA", "CCC"]
+    assert [r["symbol"] for r in api._filtered(Req(sector=["IT"], strong=["1"]), rows)] == ["AAA", "CCC"]
+    assert [r["symbol"] for r in api._filtered(Req(q=["bet"]), rows)] == ["BBB"]
+    f = api._facets(rows)
+    assert f["sizes"] == {"Large": 1, "Mid": 1, "Small": 1} and f["sectors"][0] == ("IT", 2) and f["strong"] == 2

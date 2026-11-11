@@ -3,7 +3,7 @@
 import { titleOf, subOf, codeNote, exchangeTag, isBseOnly } from "../../../lib/companyLabel";
 import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
-import { useAsOn, usePresetHistory, usePresetLeft, type LeftRow } from "../../../lib/presets";
+import { NO_BAR, useAsOn, usePresetHistory, usePresetLeft, type BarFilter, type LeftRow } from "../../../lib/presets";
 import { Link } from "react-router";
 import { ApiError } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
@@ -148,7 +148,8 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const [pg, setPg] = useState({ key: "", offset: 0 });
   const offset = pg.key === pageKey ? pg.offset : 0;                      // a new screen or a new option starts at the first 25
   const [asOn, setAsOnDay] = useAsOn();
-  const q = usePresetDetail(id, chips, listReady && !unknown && !blocked && !lockedList, offset, asOn);
+  const [bar, setBar] = useState<BarFilter>(NO_BAR), [barOpen, setBarOpen] = useState(false);
+  const q = usePresetDetail(id, chips, listReady && !unknown && !blocked && !lockedList, offset, asOn, bar);
   const hist = usePresetHistory(id, chips, listReady && !unknown && !blocked && !lockedList && preset?.kind !== "themes" && preset?.kind !== "gainers");
   const leftQ = usePresetLeft(id, chips, listReady && !unknown && !blocked && !lockedList && preset?.kind !== "themes" && preset?.kind !== "gainers");
   const d = q.data, err = q.error;
@@ -204,6 +205,18 @@ export function ScreenView({ route }: { route: PresetRoute }) {
             <button type="button" className={"fgx-chip psx-chip" + (nseOnly ? " is-on" : "")} aria-pressed={nseOnly} aria-describedby="psx-cd-nse" onClick={() => setNseOnly((v) => !v)}>{nseOnly && <i aria-hidden="true">&#10003;</i>}NSE-listed only</button>
             <small id="psx-cd-nse">Leaves out the {bseCount} {bseCount === 1 ? "company" : "companies"} listed only on the BSE.</small>
           </div>
+        </div>)}
+      {d && (d.facets || bar !== NO_BAR) && d.shown >= 0 && (
+        <div className="psx-bar" role="search" aria-label="Filter this screen">
+          <input type="search" value={bar.q} onChange={(e) => { setBar({ ...bar, q: e.target.value }); setPg({ key: pageKey, offset: 0 }); }} placeholder="Search company or sector" aria-label="Search this screen" />
+          {(["Large", "Mid", "Small"] as const).map((z) => (d.facets?.sizes[z] ?? 0) > 0 || bar.sizes.includes(z) ? <button key={z} type="button" className={"fgx-chip psx-chip" + (bar.sizes.includes(z) ? " is-on" : "")} aria-pressed={bar.sizes.includes(z)}
+            onClick={() => { setBar({ ...bar, sizes: bar.sizes.includes(z) ? bar.sizes.filter((x) => x !== z) : [...bar.sizes, z] }); setPg({ key: pageKey, offset: 0 }); }}>{z} cap{d.facets ? ` · ${d.facets.sizes[z] ?? 0}` : ""}</button> : null)}
+          {(d.facets?.strong ?? 0) > 0 && <button type="button" className={"fgx-chip psx-chip" + (bar.strong ? " is-on" : "")} aria-pressed={bar.strong} onClick={() => { setBar({ ...bar, strong: !bar.strong }); setPg({ key: pageKey, offset: 0 }); }}>Only Strong or Healthy · {d.facets!.strong}</button>}
+          {!!d.facets?.sectors.length && <button type="button" className="btn" aria-expanded={barOpen} onClick={() => setBarOpen((v) => !v)}>+ Add a filter{bar.sectors.length ? ` · ${bar.sectors.length}` : ""}</button>}
+          {bar !== NO_BAR && (bar.q || bar.sizes.length || bar.sectors.length || bar.strong) && <button type="button" className="fgx-link" onClick={() => { setBar(NO_BAR); setPg({ key: pageKey, offset: 0 }); }}>Clear all</button>}
+          {barOpen && !!d.facets?.sectors.length && <div className="psx-barp" role="group" aria-label="Industry"><b>Industry</b>{d.facets.sectors.map(([n, c]) => <label key={n}><input type="checkbox" checked={bar.sectors.includes(n)}
+            onChange={() => { setBar({ ...bar, sectors: bar.sectors.includes(n) ? bar.sectors.filter((x) => x !== n) : [...bar.sectors, n] }); setPg({ key: pageKey, offset: 0 }); }} /> {n} <small>{c}</small></label>)}</div>}
+          {typeof d.filtered === "number" && d.filtered !== d.count && <small className="muted">{nf(d.filtered, 0)} of {nf(d.count, 0)} shown</small>}
         </div>)}
       {(hist.data?.sessions?.length ?? 0) > 0 && (
         <div className="psx-ason">
