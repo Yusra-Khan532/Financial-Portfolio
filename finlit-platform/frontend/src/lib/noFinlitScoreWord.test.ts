@@ -6,12 +6,14 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? (n === "__fixtures__" ? [] : files(p)) : /\.(tsx?|json)$/.test(n) ? [p] : []; });
+// Task #94 (Nov 2026, asked for by the founder's team): the browser extension and the pages that describe it say "FinLit score" (the extension's own card does).
+const EXTENSION_PAGES = ["pages/BrowserExtension.tsx", "components/ExtensionBanner.tsx"];
 const OLD = /FinLit(?:['’]s)? (?:research |overall |model |company )?scores?\b(?!-)/gi;
 
 describe("'FinLit score' is 'FinLit IQ' everywhere a person can read it", () => {
   it("no source text names it the old way", () => {
     const hits: string[] = [];
-    for (const f of files(ROOT).filter((x) => !x.endsWith("noFinlitScoreWord.test.ts"))) {
+    for (const f of files(ROOT).filter((x) => !x.endsWith("noFinlitScoreWord.test.ts") && !EXTENSION_PAGES.some((e) => x.endsWith(e)))) {
       const src = readFileSync(f, "utf8").split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
       for (const m of src.matchAll(OLD)) {
         const around = src.slice(Math.max(0, (m.index ?? 0) - 12), (m.index ?? 0) + m[0].length + 14);

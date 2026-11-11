@@ -533,3 +533,7 @@
 .dsh-is-hidden { padding-block: 12px; } .dsh-ch-h { margin-bottom: 0 !important; align-items: center !important; justify-content: flex-start !important; }
 .dsh-ch-h h2 { margin: 0; } .dsh-ch-h .dsh-hide { margin-left: auto; }
 .dsh-tag { font: 600 var(--fs-12) var(--sans); color: var(--faint); border: 1px solid var(--d-line); border-radius: 999px; padding: 2px 10px; }
+
+/* Filings and news (task #70): the company's logo and name sit at the left, the tag and day after them, and the headline under them, all left-aligned */
+.dsh-line2.f { align-items: stretch; text-align: left; } .dsh-line2.f .hd { justify-content: flex-start; width: 100%; min-width: 0; } .dsh-line2.f .hd .gs-logo, .dsh-line2.f .hd > :first-child:not(b) { flex: none; }
+.dsh-line2.f .tx { text-align: left; padding-left: 30px; }

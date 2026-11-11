@@ -1,3 +1,4 @@
+import { FeedbackFooter } from "../components/FeedbackFooter";
 import { HScroll } from "../components/HScroll";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -71,7 +72,7 @@ export function PremiumReportPage() {
           <input ref={box} value={text} onChange={(e) => { setText(e.target.value); setOpen(true); }} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Choose a company, for example RELIANCE" aria-label="Choose a company" />
           {open && sug.length > 0 && <div className="pm-sug" role="listbox">{sug.map((r) => <button key={r.symbol} role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(""); nav(`/premium/report/${r.symbol}`); }}><b>{r.symbol}</b><small>{r.name}</small></button>)}</div>}</div>
         {recent.length > 0 && <div className="pm-recent pm-noprint" aria-label="Recently viewed"><span className="faint">Recent</span>{recent.map((x) => <Link key={x} className={"fchip" + (x === symbol?.toUpperCase() ? " on" : "")} to={`/premium/report/${x}`}>{x}</Link>)}</div>}
-        {symbol ? <Report key={symbol} symbol={symbol.toUpperCase()} /> : <div className="pm-empty"><b>Choose a company to build its report.</b><p>Try <Link to="/premium/report/RELIANCE">RELIANCE</Link>, <Link to="/premium/report/TCS">TCS</Link> or <Link to="/premium/report/HDFCBANK">HDFCBANK</Link>.</p></div>}
+        {symbol ? <><Report key={symbol} symbol={symbol.toUpperCase()} /><FeedbackFooter what="report" /></> : <div className="pm-empty"><b>Choose a company to build its report.</b><p>Try <Link to="/premium/report/RELIANCE">RELIANCE</Link>, <Link to="/premium/report/TCS">TCS</Link> or <Link to="/premium/report/HDFCBANK">HDFCBANK</Link>.</p></div>}
       </div>
     </>
   );

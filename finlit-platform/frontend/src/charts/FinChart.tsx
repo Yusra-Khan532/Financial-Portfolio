@@ -10,6 +10,11 @@ const v0 = (x: number | null | undefined) => (x == null ? 0 : x);
 
 export type FinKind = "pl" | "bs" | "cf" | "q";
 
+/** The unit an axis is drawn in, chosen from its largest value so a small company never shows 0.0 and 0.03 (task #63): lakh crore from ₹1 lakh crore up, thousand crore from ₹1,000 Cr, otherwise plain crore. */
+export function axisUnit(max: number): { div: number; label: string; digits: number } {
+  return max >= 1e5 ? { div: 1e5, label: "₹ L Cr", digits: 2 } : max >= 1000 ? { div: 1000, label: "₹ '000 Cr", digits: 1 } : { div: 1, label: "₹ Cr", digits: 0 };
+}
+
 /** Statement charts: P&L (revenue bars, profit bars, margin line), balance-sheet funding stack, cash-flow groups. */
 export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; bs: Table; cf: Table; ql: Table }) {
   const tip = useRef<HTMLDivElement>(null);
@@ -40,15 +45,16 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       const pl_ = 50, pr = 46, step = (W - pl_ - pr) / n, bw = Math.min(54, step * 0.52), topH = H * 0.44, botT = topH + 40, botH = H - botT - 28;
       const rmx = Math.max(...rev) * 1.1 || 1, nmx = Math.max(...np.map(Math.abs), 1) * 1.15, mmx = Math.max(...margins.map(Math.abs), 1) * 1.2;
       const gRev = vgrad(s, css("--c2"), 0.9, 0.35), gGold = vgrad(s, css("--c1"), 1, 0.55), gNp = vgrad(s, css("--c3"), 0.9, 0.35), gLoss = vgrad(s, css("--loss"), 0.9, 0.4);
-      axisText(0, 10, "REVENUE · ₹ L Cr", "start", css("--muted"), 600); axisText(0, botT - 10, "NET PROFIT · ₹ '000 Cr", "start", css("--muted"), 600); axisText(W, botT - 10, "NET MARGIN %", "end", css("--c4"), 600);
-      [0, 0.5, 1].forEach((f) => { const yy = 20 + (1 - f) * (topH - 20); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((rmx * f) / 1e5, 1), "end"); });
-      [0, 0.5, 1].forEach((f) => { const yy = botT + (1 - f) * botH; el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((nmx * f) / 1000, 0), "end"); });
+      const ru = axisUnit(rmx), nu = axisUnit(nmx);
+      axisText(0, 10, `REVENUE · ${ru.label}`, "start", css("--muted"), 600); axisText(0, botT - 10, `NET PROFIT · ${nu.label}`, "start", css("--muted"), 600); axisText(W, botT - 10, "NET MARGIN %", "end", css("--c4"), 600);
+      [0, 0.5, 1].forEach((f) => { const yy = 20 + (1 - f) * (topH - 20); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((rmx * f) / ru.div, ru.digits), "end"); });
+      [0, 0.5, 1].forEach((f) => { const yy = botT + (1 - f) * botH; el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((nmx * f) / nu.div, nu.digits), "end"); });
       [0, 0.5, 1].forEach((f) => axisText(W - pr + 8, botT + (1 - f) * botH + 4, nf(mmx * f, 1), "start", css("--faint")));
       let ml = "";
       labels.forEach((lab, i) => {
         const cx = pl_ + step * (i + 0.5), last = i === n - 1, rh = (rev[i] / rmx) * (topH - 20);
         el("rect", { x: cx - bw / 2, y: topH - rh, width: bw, height: Math.max(0, rh), rx: 6, fill: last ? gGold : gRev }, s);
-        if (!small || last) axisText(cx, topH - rh - 7, nf(rev[i] / 1e5, 2), "middle", last ? css("--gold") : css("--muted"), 600);
+        if (!small || last) axisText(cx, topH - rh - 7, nf(rev[i] / ru.div, ru.digits), "middle", last ? css("--gold") : css("--muted"), 600);
         const nh = (Math.abs(np[i]) / nmx) * botH;
         el("rect", { x: cx - bw / 2, y: botT + botH - nh, width: bw, height: Math.max(0, nh), rx: 6, fill: np[i] < 0 ? gLoss : last ? gGold : gNp }, s);
         ml += `${i ? "L" : "M"}${cx},${botT + (1 - Math.max(0, margins[i]) / mmx) * botH}`;

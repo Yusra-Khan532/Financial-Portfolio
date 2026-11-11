@@ -1,7 +1,7 @@
 // FinLit browser extension: the page script.
 //
 // What it does: when a person selects a short phrase (2 to 80 characters, up to 8 words) it shows a small FinLit button beside the selection. Pressing the button (or the
-// right-click menu item, or Alt+Shift+F) opens the FinLit card: the meaning of a financial term, or a listed company's FinLit IQ score.
+// right-click menu item, or Alt+Shift+F) opens the FinLit card: the meaning of a financial term, or a listed company's FinLit score.
 // What it never does: read the page, the article around the selection, images, forms or anything else; send the selected words anywhere (the background worker looks the
 // words up on the extension's own lists, and only a recognised company's symbol is ever requested); run inside text boxes; touch the host page's own elements. It adds one
 // element to the page, with its look kept inside a shadow root.
@@ -204,15 +204,15 @@
     frag.appendChild(co);
     if (d.locked) {
       const l = el("div", "lock"); l.append(icon("lock", 16), el("span", null, d.signedIn
-        ? "The FinLit IQ score is part of the Silver plan."
-        : "Sign in to FinLit in this browser to see the FinLit IQ score."));
+        ? "The FinLit score is part of the Silver plan."
+        : "Sign in to FinLit in this browser to see the FinLit score."));
       frag.appendChild(l);
       const parts = [d.price != null ? `Price ₹${d.price.toLocaleString("en-IN")}` : null, d.marketCapCr ? `Market value ${fmtCr(d.marketCapCr)}` : null].filter(Boolean);
       if (parts.length) frag.appendChild(el("p", "hint", parts.join(" · ")));
       frag.appendChild(link(site, d.signedIn ? "/plans" : "/login", "btn ghost", d.signedIn ? "See plans" : "Sign in to FinLit"));
     } else if (d.score != null) {
       const sc = el("div", "sc"), big = el("div", "big");
-      const lab = el("div", "l", "FinLit IQ score");
+      const lab = el("div", "l", "FinLit score");
       const n = el("div", "n", String(d.score)); n.appendChild(el("span", null, " /100"));
       big.append(lab, n, el("span", "chip " + bandClass(d.band), d.band || ""));
       const bars = el("div", "bars");

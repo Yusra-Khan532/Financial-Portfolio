@@ -28,13 +28,13 @@ Raise `version` in `extension/manifest.json`, run `python extension/build.py --z
 
 **Name:** FinLit Ventures: select to understand
 
-**Summary (132 characters max):** Select any financial term or listed company on a web page and see its meaning or FinLit IQ score in a small card.
+**Summary (132 characters max):** Select any financial term or listed company on a web page and see its meaning or FinLit score in a small card.
 
 **Description:**
 Select any financial term or listed company on any web page and a small FinLit card opens beside it, without leaving the page.
 
 - Financial terms: the meaning in plain words, the formula where there is one, from the FinLit glossary of 443 terms.
-- Listed companies: the FinLit IQ score, Growth & Profitability and Technical scores, market value, PE, ROE and debt to equity, with a button to open the full analysis on FinLit.
+- Listed companies: the FinLit score, Growth & Profitability and Technical scores, market value, PE, ROE and debt to equity, with a button to open the full analysis on FinLit.
 
 Built to be light and private: nothing happens until you select text. It reads only the words you select, never the page around them, and those words stay in your browser. Turn it off for one site or everywhere from the toolbar icon. Free. Company scores follow your FinLit plan: sign in at finlitventures.com to see them.
 

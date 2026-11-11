@@ -9,12 +9,15 @@ import {
   type CategoryId, type Q, type TabId,
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
+import { Link } from "react-router";
+import { TOPICS, clearRecent, loadRecent, loadSaved, pushRecent, searchQuestions, toggleSaved } from "../lib/askExplorer";
+import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
 
 /** Fired by the header button; the assistant panel listens for it. */
 export const OPEN_AI = "finlit:open-ai";
 type Msg = { role: "user" | "assistant"; content: string };
-type View = "home" | "segments" | "topic" | "company" | "chat";
+type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved";
 
 let indexPromise: Promise<SearchIndex> | null = null;
 /** Companies matching what the user typed (symbol first, then name), from the site's own search index (loaded once). */
@@ -47,11 +50,13 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [find, setFind] = useState("");
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
-  const [big, setBig] = useState<boolean>(() => { try { return localStorage.getItem("finlit-ai-full") === "1"; } catch { return false; } });   // the full window, remembered
+  const [big, setBig] = useState<boolean>(() => { try { const v = localStorage.getItem("finlit-ai-full"); if (v != null) return v === "1"; } catch { /* private window */ } return typeof window !== "undefined" && window.innerWidth >= 1100; });   // the full window: remembered once chosen, and the first choice on a wide screen (task #59)
   const toggleBig = () => setBig((b) => { try { localStorage.setItem("finlit-ai-full", b ? "0" : "1"); } catch { /* private window */ } return !b; });
   const end = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const [pick, setPick] = useState(0);                      // bumps when the input must select XYZ
+  const [topicId, setTopicId] = useState(TOPICS[0].id), [exq, setExq] = useState("");   // the question explorer of the full window
+  const [recent, setRecent] = useState<string[]>(() => loadRecent()), [saved, setSaved] = useState<string[]>(() => loadSaved());
   const loc = useLocation();
   const pageCompany = companyOf(loc.pathname);
   const lender = isLenderSector(sector);
@@ -92,7 +97,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const goCompany = (sym: string, t: TabId) => { setCompany(sym); setTab(t); setFind(""); setFound([]); setView("company"); };
   const ask = async (q: string, via: View) => {
     if (!q || busy) return;
-    setBack(via === "chat" ? back : via); setView("chat"); setText("");
+    setBack(via === "chat" ? back : via); setView("chat"); setText(""); setRecent((r) => pushRecent(r, q));
     const written = writtenAnswer(q);
     const history = msgs.filter((m) => m.content);
     setMsgs((m) => [...m, { role: "user", content: q }]);
@@ -122,6 +127,18 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
     <>
       {open && (
         <section className={"ai aif" + (big ? " full" : "")} role="dialog" aria-label="FinLit AI assistant">
+          {big && <aside className="aif-side" aria-label="FinLit AI menu">
+            <div className="aif-brand"><Icon name="bars" /><b>FinLit</b><span>AI</span></div>
+            <nav aria-label="FinLit AI sections">
+              <button type="button" className={view === "home" ? "on" : ""} aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}><Icon name="home" />Home</button>
+              <button type="button" className={view === "history" ? "on" : ""} aria-current={view === "history" ? "page" : undefined} onClick={() => setView("history")}><Icon name="refresh" />Chat History</button>
+              <button type="button" className={view === "saved" ? "on" : ""} aria-current={view === "saved" ? "page" : undefined} onClick={() => setView("saved")}><Icon name="star" />Saved Questions</button>
+            </nav>
+            <p className="aif-sl"><Icon name="spark" /> Popular Questions</p>
+            <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
+            <button type="button" className="aif-va" onClick={() => setView("home")}>View all <Icon name="arrow" /></button>
+            <Link className="aif-pro" to="/pricing" onClick={() => setOpen(false)}><Icon name="crown" /><span><b>FinLit AI <em>Pro</em></b><small>Deeper analysis · More questions</small></span><Icon name="arrow" /></Link>
+          </aside>}
           <header>
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
@@ -130,7 +147,27 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>
           </header>
           <div className="ai-body">
-            {view === "home" && <>
+            {view === "home" && big && <>
+              <div className="aif-hero"><svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><line x1="32" y1="4" x2="32" y2="13" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /><circle cx="32" cy="4" r="3" fill="currentColor" /><rect x="8" y="13" width="48" height="38" rx="14" fill="none" stroke="currentColor" strokeWidth="3" /><circle cx="22" cy="31" r="5" fill="currentColor" /><circle cx="42" cy="31" r="5" fill="currentColor" /><path d="M24 42q8 5 16 0" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+                <h2>Hi, I’m <em>FinLit AI</em></h2><p>Your investing &amp; market research assistant</p></div>
+              <ul className="aif-cats" aria-label="What would you like to explore?">
+                {CATEGORIES.map((c) => (
+                  <li key={c.id}><button type="button" className="aif-cat" onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
+                    <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>))}
+              </ul>
+              <div className="aif-ex">
+                <div className="aif-exh"><h3><Icon name="spark" /> Choose a question to ask</h3>
+                  <label className="aif-exs"><Icon name="search" /><span className="sr-only">Search questions</span><input type="search" value={exq} onChange={(e) => setExq(e.target.value)} placeholder="Search questions (e.g., P/E, cash flow, DuPont)" autoComplete="off" /></label></div>
+                {exq.trim() ? (() => { const hits = searchQuestions(exq); return hits.length ? <ul className="aif-exq" aria-label="Matching questions">{hits.map(({ topic, q }) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}<small>{topic.title}</small></span><Icon name="arrow" /></button></li>)}</ul> : <p className="aif-none">No question matches “{exq.trim()}”. Try a single word, or type your own question below.</p>; })() : (
+                  <div className="aif-expane">
+                    <div className="aif-ext" role="tablist" aria-label="Question topics" aria-orientation="vertical">{TOPICS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={topicId === t.id} className={topicId === t.id ? "on" : ""} onClick={() => setTopicId(t.id)}><Icon name={t.icon} />{t.title}</button>)}</div>
+                    <ul className="aif-exq" role="tabpanel" aria-label={TOPICS.find((t) => t.id === topicId)!.title}>{TOPICS.find((t) => t.id === topicId)!.questions.map((q) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>)}</ul>
+                  </div>)}
+              </div>
+              {pageFaq && <><p className="aif-label">Questions about this page</p><ul className="aif-qs" aria-label={`Questions about ${pageFaq.title}`}>
+                {pageFaq.items.slice(0, 4).map((it) => <li key={it.q}><button type="button" className="aif-q" onClick={() => askPage(it.q, it.a)}><Icon name="chat" /><span>{it.q}</span><Icon name="arrow" /></button></li>)}</ul></>}
+            </>}
+            {view === "home" && !big && <>
               <div className="bub bot aif-hi"><b>Hi, I'm FinLit AI</b><span>How can I help you today?</span></div>
               <ul className="aif-cats" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
@@ -139,6 +176,17 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
               </ul>
               {pageFaq && <><p className="aif-label">Questions about this page</p><ul className="aif-qs" aria-label={`Questions about ${pageFaq.title}`}>
                 {pageFaq.items.slice(0, 4).map((it) => <li key={it.q}><button type="button" className="aif-q" onClick={() => askPage(it.q, it.a)}><Icon name="chat" /><span>{it.q}</span><Icon name="arrow" /></button></li>)}</ul></>}
+            </>}
+
+            {view === "history" && <>
+              <div className="aif-h"><h2>Chat History</h2><p>Your recent questions, kept in this browser only.</p></div>
+              {recent.length ? <><ul className="aif-qs" aria-label="Recent questions">{recent.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="chat" /><span>{t}</span><Icon name="arrow" /></button></li>)}</ul>
+                <button type="button" className="aif-clear" onClick={() => setRecent(clearRecent())}>Clear history</button></> : <p className="aif-none">No questions yet. Ask one and it appears here.</p>}
+            </>}
+            {view === "saved" && <>
+              <div className="aif-h"><h2>Saved Questions</h2><p>Questions you starred, kept in this browser only.</p></div>
+              {saved.length ? <ul className="aif-qs" aria-label="Saved questions">{saved.map((t) => <li key={t} className="aif-sv"><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="star" /><span>{t}</span><Icon name="arrow" /></button><button type="button" className="aif-unsave" aria-label={`Remove from saved: ${t}`} onClick={() => setSaved((l) => toggleSaved(l, t))}>×</button></li>)}</ul>
+                : <p className="aif-none">Nothing saved yet. Use the star beside an answer’s question to keep it here.</p>}
             </>}
 
             {view === "segments" && <>
@@ -180,7 +228,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>)}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}</div>)}
               {busy && <div className="bub bot typing"><i /><i /><i /></div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
                 <ul className="aif-qs" aria-label="Related questions">{relatedQs.map((q) => row(q))}</ul></div>}

@@ -10,12 +10,12 @@ const TERMS = ["EBITDA", "Return on equity", "Debt to equity", "Reliance Industr
 /** What the card looks like, with example figures (it is a picture of the extension, not live data). */
 function Preview() {
   return (
-    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit IQ score 82 out of 100, Strong, with Growth and Profitability and Technical scores and key figures">
+    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit score 82 out of 100, Strong, with Growth and Profitability and Technical scores and key figures">
       <div className="eh"><Icon name="bars" />FinLit Ventures</div>
       <div className="eb">
         <h4>Reliance Industries Ltd</h4><small>RELIANCE · Oil &amp; Gas · example</small>
         <div className="es">
-          <div className="eg"><small>FinLit IQ score</small><div><b>82</b> <small>/100</small></div><i>Strong</i></div>
+          <div className="eg"><small>FinLit score</small><div><b>82</b> <small>/100</small></div><i>Strong</i></div>
           <div className="eb2"><div><span>Growth &amp; Profitability 84/100</span><i><u style={{ width: "84%" }} /></i></div><div><span>Technical score 76/100</span><i><u style={{ width: "76%" }} /></i></div></div>
         </div>
         <div className="ef"><div><small>MCap</small><b>₹19.6 L Cr</b></div><div><small>PE</small><b>26.4</b></div><div><small>ROE</small><b>9.8%</b></div><div><small>Debt/Equity</small><b>0.41</b></div></div>
@@ -34,13 +34,13 @@ function Steps() {
       <li><span><b>Download and unzip</b>Press the download button, then open the file and choose Extract All (Windows) or double-click it (Mac). Keep the folder; Chrome reads the extension from it.</span></li>
       <li><span><b>Open the extensions page</b>In Chrome, Edge or Brave, type <span className="ext-code">chrome://extensions<button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></span> in the address bar (in Edge it is <span className="ext-code">edge://extensions</span>) and press Enter.</span></li>
       <li><span><b>Turn on Developer mode</b>It is the switch at the top right of that page.</span></li>
-      <li><span><b>Load the folder</b>Press <b>Load unpacked</b>, choose the unzipped folder (the one that holds <span className="ext-code">manifest.json</span>) and press Select Folder. Done: the FinLit button appears next to any text you select.<small>Browsers allow one-click install only from their store. Until the store listing is live, this takes about a minute, once.</small></span></li>
+      <li><span><b>Load the folder</b>Press <strong>Load unpacked</strong>, choose the unzipped folder (the one that holds <span className="ext-code">manifest.json</span>) and press Select Folder. Done: the FinLit button appears next to any text you select.<small>Browsers allow one-click install only from their store. Until the store listing is live, this takes about a minute, once.</small></span></li>
     </ol>
   );
 }
 
 export function BrowserExtensionPage() {
-  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit IQ score in a small card, without leaving the page. Free.");
+  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit score in a small card, without leaving the page. Free.");
   const installed = useExtensionInstalled();
   const can = canInstallExtension();
   const target = installTarget();
@@ -52,7 +52,7 @@ export function BrowserExtensionPage() {
   return (
     <>
       <PageHeader wrap title="Browser extension" art="report" learn={false} links={["/glossary", "/mcp"]}
-        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit IQ score</b>. Free, and it reads only the words you select.</>} />
+        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit score</b>. Free, and it reads only the words you select.</>} />
       <div className="wrap ext">
         <div className="ext-hero">
           <section className="ext-card" aria-labelledby="ext-get">
@@ -90,7 +90,7 @@ export function BrowserExtensionPage() {
 
         <div className="ext-three">
           <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 443 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
-          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit IQ score, Growth &amp; Profitability and Technical scores, market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
+          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, Growth &amp; Profitability and Technical scores, market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
           <section className="ext-card"><h3>Private by design</h3><p>It acts only on text you select. It never reads the page or what is around your selection, and the words you select stay in your browser.</p></section>
         </div>
 

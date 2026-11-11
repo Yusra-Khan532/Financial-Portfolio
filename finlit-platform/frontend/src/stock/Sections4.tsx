@@ -62,7 +62,7 @@ export function QuarterSection({ f }: { f?: Financials }) {
       <SectionHead id="quarter" no="05 · Latest quarter" icon="notes" tier="basic" title={`${q.periods[last]} quarter against a year ago`} sub={`Quarter ended ${end}. Compared with the previous quarter and the same quarter a year earlier.`} color="--gold-deep" />
       {rvY != null && npY != null && <Plain tone={npY >= 0 ? "good" : "warn"}>In the latest quarter, sales {rvY >= 0 ? "grew" : "fell"} {nf(Math.abs(rvY), 1)}% and profit {npY >= 0 ? "rose" : "fell"} {nf(Math.abs(npY), 1)}% compared with the same quarter last year.{opm[last] != null && opm[yoy] != null ? ` The operating margin ${(opm[last] as number) >= (opm[yoy] as number) ? "widened" : "narrowed"} from ${nf(opm[yoy] as number, 1)}% to ${nf(opm[last] as number, 1)}%.` : ""}</Plain>}
       <div className="qk">{tiles.map((t) => (
-        <div className="qt" key={t.k} style={{ "--qc": t.c } as React.CSSProperties}>
+        <div className={"qt" + (t.k === "Revenue" || t.k === "Net profit" ? " hl" : "")} key={t.k} style={{ "--qc": t.c } as React.CSSProperties}>
           <div className="qt-h"><span className="qt-i"><Icon name={t.ic} /></span><span className="label">{t.k}</span></div>
           <div className="qt-v">{t.v[last] == null ? "—" : t.fmt(t.v[last] as number)}</div>
           {t.sub && <div className="qt-s">{t.sub}</div>}
@@ -81,7 +81,7 @@ export function QuarterSection({ f }: { f?: Financials }) {
         <HScroll className="" label="table"><table className="qtt"><thead><tr><th>Line</th>{cols.map((i, j) => <th key={i} className={j === 0 ? "latest" : ""}>{q.periods[i]}{j === 0 ? " (latest)" : j === 1 ? " (last quarter)" : " (year ago)"}</th>)}</tr></thead>
           <tbody>{lines.map(([k, v, b]) => { const qoq = chg(v[last], v[last - 1]), yoyC = yoy >= 0 ? chg(v[last], v[yoy]) : null;
             const tag = (c: number | null, label: string) => c == null ? null : <small className={"chg " + (c >= 0 ? "pos" : "neg")} title={label}>{c >= 0 ? "+" : MINUS}{nf(Math.abs(c), 1)}% {label}</small>;
-            return <tr key={k} className={b ? "sub" : ""}><td>{k}</td>{cols.map((i, j) => { const x = v[i]; return <td key={i} className={j === 0 ? "latest" : ""}>{x == null ? "—" : num(x, k.startsWith("EPS") ? 2 : 0)}{j === 0 && <span className="chgs">{tag(qoq, "vs last quarter")}{tag(yoyC, "vs year ago")}</span>}</td>; })}</tr>; })}</tbody></table></HScroll>
+            return <tr key={k} className={(b ? "sub" : "") + (k === "Revenue" || k === "Net profit" ? " hl" : "")}><td>{k}</td>{cols.map((i, j) => { const x = v[i]; return <td key={i} className={j === 0 ? "latest" : ""}>{x == null ? "—" : num(x, k.startsWith("EPS") ? 2 : 0)}{j === 0 && <span className="chgs">{tag(qoq, "vs last quarter")}{tag(yoyC, "vs year ago")}</span>}</td>; })}</tr>; })}</tbody></table></HScroll>
         <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
       </div>
     </section>

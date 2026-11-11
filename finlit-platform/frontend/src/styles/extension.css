@@ -1,6 +1,6 @@
 /* /browser-extension: the install page. The preview card uses the extension's own greens so it looks like what the person will get. */
 .ext { display: grid; gap: 20px; padding-bottom: 48px; }
-.ext-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.ext-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }   /* two equal boxes, side by side, one height (task #66) */
 .ext-card { border: 1px solid var(--border); background: var(--s1); border-radius: 16px; padding: 24px; }
 .ext-card h2 { margin: 0 0 8px; font: 500 24px/1.2 var(--serif); }
 .ext-card h3 { margin: 0 0 6px; font: 500 18px/1.3 var(--serif); }
@@ -26,7 +26,9 @@
 .ext-fine { font-size: 12px; color: var(--muted); }
 
 /* the preview card */
-.ext-demo { border: 1px solid #dce8e0; border-radius: 16px; background: #fff; color: #10231a; box-shadow: 0 18px 50px rgba(0, 0, 0, .18); overflow: hidden; font-size: 14px; line-height: 1.45; max-width: 400px; justify-self: end; width: 100%; }
+.ext-demo { border: 1px solid #dce8e0; border-radius: 16px; background: #fff; color: #10231a; box-shadow: 0 18px 50px rgba(0, 0, 0, .18); overflow: hidden; font-size: 14px; line-height: 1.45; width: 100%; display: flex; flex-direction: column; }
+.ext-demo .eb { flex: 1; display: flex; flex-direction: column; } .ext-demo .eb .eo { margin-top: auto; }
+.ext-steps strong { font-weight: 700; }
 .ext-demo .eh { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font: 700 16px/1.2 var(--serif); }
 .ext-demo .eh svg { color: #0f6b45; }
 .ext-demo .eb { padding: 0 14px 12px; }
@@ -45,7 +47,7 @@
 .ext-demo .ef b { display: block; font-size: 13px; }
 .ext-demo .eo { display: block; text-align: center; background: #0b4d33; color: #fff; border-radius: 12px; padding: 10px; font-weight: 700; }
 .ext-demo .ex { padding: 8px 14px 10px; border-top: 1px solid #dce8e0; font-size: 11px; color: #56685e; }
-@media (max-width: 960px) { .ext-hero { grid-template-columns: minmax(0, 1fr); } .ext-demo { justify-self: start; } .ext-three { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 960px) { .ext-hero { grid-template-columns: minmax(0, 1fr); } .ext-demo { justify-self: stretch; } .ext-three { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 480px) { .ext-card { padding: 18px; } .ext-demo .es { grid-template-columns: minmax(0, 1fr); } }
 
 /* the thin banner under the header */

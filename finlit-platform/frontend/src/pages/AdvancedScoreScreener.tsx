@@ -54,7 +54,7 @@ function Advanced() {
     <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced score screener" title="Every listed company, rated by FinLit Prism." sideLabel="Advanced score screener filters" errorTitle="The advanced score screener is unavailable right now"
       intro={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth & Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>}
       head={{ art: "rating", links: ["/score-screener", "/screener", "/query-builder"], stats: [{ icon: "building", value: cover && cover.total > 0 ? nf(cover.total, 0) : null, label: "Companies" }, { icon: "layers", value: cover && cover.total > 0 ? nf(cover.rated + cover.provisional, 0) : null, label: "Rated by Prism" }] }}
-      tier="gold" sortChoices={[{ key: "prism_final", label: "Prism" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short-term technical" }, { key: "prism_lt_score", label: "Long-term technical" }]}
+      tier="gold" sortChoices={[{ key: "prism_final", label: "Prism Fundamental score" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short-term technical" }, { key: "prism_lt_score", label: "Long-term technical" }]}
       donut={!isLoading && sum.found > 0 ? <Donut part={sum.nZ} total={sum.found} partLabel="Rated" restLabel="Not rated yet" title={`${nf(sum.found - sum.nZ, 0)} of ${nf(sum.found, 0)} companies in this result are not rated yet.`} note="More are added every night, largest first." /> : undefined}
       presets={<PresetPanel route={route} basics={basics} basicsActive={!!prismPreset} />}
       filters={<>
@@ -76,7 +76,7 @@ function Advanced() {
       groupHead={<GroupRow groups={[{ g: "prism", n: 5, label: "FinLit Prism", sub: "0–100, higher is better" }, { g: "tech", n: 2, label: "Technical views", sub: "short and long term" },
         ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
-        <SortTh s={s} k="prism_final" label="Prism" cls="pzs-h" title={EXPLAIN.prism} />
+        <SortTh s={s} k="prism_final" label="Prism Fundamental score" cls="pzs-h" title={EXPLAIN.prism} />
         {PRISM_PARTS.map((x) => <SortTh key={x.col} s={s} k={x.col} label={x.label} of="Prism" cls="ss-ph" title={"Prism " + x.label + ": " + x.say} />)}
         <SortTh s={s} k="prism_st_score" label="Short-term technical" of="Technical" cls="ss-ph" title="Prism's short-term (5 to 20 sessions) price-trend reading" />
         <SortTh s={s} k="prism_lt_score" label="Long-term technical" of="Technical" cls="ss-ph" title="Prism's long-term (6 to 18 months) price-trend reading" />

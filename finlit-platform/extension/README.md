@@ -1,6 +1,6 @@
 # FinLit browser extension (task #54)
 
-Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit IQ score**
+Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score**
 (Growth & Profitability and Technical scores, market value, PE, ROE, Debt/Equity, a one-line "quick take"), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
@@ -43,7 +43,7 @@ For a local server, save `apiBase` (only `http://localhost:PORT` is honoured) in
 4. Permission justifications: `storage` (settings and cached company list), `contextMenus` (right-click lookup), `activeTab` (read the current site name for the per-site switch), host access to finlitventures.com (the company card), content script on all sites (shows the button next to text the user selects).
 5. Raise `version` in `manifest.json` for every update; rerun `build.py` whenever the site glossary changes (a test fails until you do).
 
-Listing: **FinLit Ventures: select to understand.** Select any financial term or listed company on a web page and see its meaning or FinLit IQ score in a small card, without leaving the page. Reads only the words you select; they stay in your browser.
+Listing: **FinLit Ventures: select to understand.** Select any financial term or listed company on a web page and see its meaning or FinLit score in a small card, without leaving the page. Reads only the words you select; they stay in your browser.
 
 ## Not in version 1 (suggestions)
 

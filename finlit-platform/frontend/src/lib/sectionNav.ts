@@ -9,7 +9,7 @@ export const NAV: NavItem[] = [
   ["notes", "Strengths & watch-outs", "notes", "Every red flag, watch item and strength in one list, each linking to its section"],
   ["price", "Price", "line", "Price chart, returns and technical levels"],
   ["quarter", "Quarter", "notes", "The latest quarter against a year ago"],
-  ["financials", "Financials", "bars", "Profit and loss, balance sheet and cash flow by year"],
+  ["financials", "Financials", "bars", "Profit and loss, balance sheet and cash flow, quarterly and yearly"],
   ["trends", "Trends", "line", "How sales, profit and cash have moved"],
   ["charts", "Charts", "bars", "Price history, statements and ownership in charts"],
   ["ratios", "Ratios", "gauge", "Valuation, returns, margins and debt"],
