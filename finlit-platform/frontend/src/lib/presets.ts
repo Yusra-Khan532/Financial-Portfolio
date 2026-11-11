@@ -24,7 +24,7 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;

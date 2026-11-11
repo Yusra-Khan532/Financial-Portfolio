@@ -129,3 +129,5 @@
 .fst-t:hover { background: var(--s2); } .fst-t.on { background: var(--gold); color: var(--on-gold, #1a1405); }
 .fst-p { font-style: normal; font: 700 var(--fs-11) var(--sans); letter-spacing: .06em; padding: 1px 7px; border-radius: 6px; border: 1px solid currentColor; opacity: .85; }
 .fst-t:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.psx-band > td { background: var(--soft, #f6f3ea); color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 12px; }
+.psx-gold { display: inline-block; min-width: 22px; padding: 1px 5px; text-align: center; border-radius: 6px; background: #b8892b; color: #fff; }

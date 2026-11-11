@@ -42,16 +42,15 @@ function Basic() {
   const tiles: [string, string, string?][] = [
     ["Companies found", isLoading ? "…" : nf(sum.found, 0)],
     ["Sectors", isLoading ? "…" : nf(sum.sectors, 0)],
-    ["Median Growth & Profitability score", med(sum.medF) ?? MINUS, sum.medF == null ? (locked ? "Scores are part of the Silver plan" : "No company in this result has a Growth & Profitability score") : `Middle value of ${nf(sum.nF, 0)} companies with a Fundamental score`],
     ["Median Technical", med(sum.medT) ?? MINUS, sum.medT == null ? (locked ? "Scores are part of the Silver plan" : "No company in this result has a Technical score") : `Middle value of ${nf(sum.nT, 0)} companies with a Technical score`],
     ["Active filters", nf(s.filterCount, 0)],
   ];
 
   return (
     <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic stock screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
-      intro={<>Every listed company with its <b>FinLit IQ</b>, the basic model: Growth & Profitability, its four pillars, Technical and Overall. Filter, sort and compare by size, sector and score.</>}
+      intro={<>Every listed company with its <b>FinLit IQ</b>, the basic model: its four business scores, Technical and Overall. Filter, sort and compare by size, sector and score.</>}
       head={{ art: "rating", links: ["/screener", { to: "/advanced-score-screener", primary: true }, "/query-builder"], stats: [{ icon: "building", value: !isLoading && s.items.length > 0 ? nf(s.items.length, 0) : null, label: "Companies" }, { icon: "quality", value: !isLoading && s.items.length > 0 ? nf(s.items.length - s.unscored, 0) : null, label: "Scored" }] }}
-      tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "f", label: "Growth & Profitability" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
+      tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
       donut={!isLoading && s.rows.length > 0 ? <Donut part={s.rows.length - notScored} total={s.rows.length} partLabel="Scored" restLabel="Not scored" title={notScored > 0 ? `${nf(notScored, 0)} of ${nf(s.rows.length, 0)} companies in this result are not scored yet.` : `All ${nf(s.rows.length, 0)} companies in this result are scored.`} note="Scoring fills in every night, or open a company's report to score it now." /> : undefined}
       presets={<PresetPanel route={route} />}
       filters={locked ? (
@@ -68,7 +67,7 @@ function Basic() {
       tiles={tiles}
       lead={<div className="sx-adv sx-here">
         <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic stock screener</b></span>
-        <span className="sx-adv-s">The FinLit IQ: Growth & Profitability, its four pillars, Technical and Overall</span>
+        <span className="sx-adv-s">The FinLit IQ: its four business scores, Technical and Overall</span>
         <Link to="/advanced-score-screener" className="sx-adv-go">Advanced stock screener (Gold) <Icon name="arrow" /></Link></div>}
       beforeTable={<>
         <PriceColumnsToggle on={priceCols} set={setPriceCols} />
@@ -77,17 +76,15 @@ function Basic() {
           <div className="pzs-two"><div><b>FinLit IQ</b><p>{EXPLAIN.finlit}</p></div></div>
         </details>
       </>}
-      groupHead={<GroupRow groups={[{ g: "iq", n: 5, label: "FinLit IQ · Growth & Profitability", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" }, { g: "overall", n: 1, label: "Overall" },
+      groupHead={<GroupRow groups={[{ g: "iq", n: 4, label: "FinLit IQ · business scores", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" }, { g: "overall", n: 1, label: "Overall" },
         ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
-        <SortTh s={s} k="f" label="Growth & Profitability" of="FinLit IQ" help="score-table" />
         {PILLARS.map((x) => <SortTh key={x.k} s={s} k={x.col} label={x.short} of="FinLit IQ" cls="ss-ph" title={x.say} />)}
         <SortTh s={s} k="t" label="Technical" of="FinLit IQ" /><SortTh s={s} k="overall" label="Overall" of="FinLit IQ" />
         {priceCols && <PriceHeads s={s} />}
       </>}
-      colSpan={14 + (priceCols ? PRICE_COL_COUNT : 0)}
+      colSpan={13 + (priceCols ? PRICE_COL_COUNT : 0)}
       cells={(r) => <>
-        <td><Score r={r} k="f" locked={locked} /></td>
         {PILLARS.map((x) => <td key={x.k} className="ss-pc"><Score r={r} k={x.col} locked={locked} /></td>)}
         <td><Score r={r} k="t" locked={locked} /></td><td><Score r={r} k="overall" locked={locked} /></td>
         {priceCols && <PriceCells r={r} />}
@@ -96,7 +93,6 @@ function Basic() {
       how={<HowDialog onClose={() => s.setHow(false)}>
         <p>Every score runs from 0 to 100 and is worked out from a company's filed statements and its prices. Nothing on this page is computed differently from the company's own report page.</p>
         <dl>
-          <dt>Growth & Profitability</dt><dd>The average of four business pillars, rounded to a whole number: Quality (steady earnings, cash that matches profit), Growth (sales and profit growth over 3 to 5 years), Profitability (margins and returns on capital) and Balance sheet (debt, interest cover, liquidity). It needs at least 3 of the 4 pillars; with fewer it shows a dash.</dd>
           <dt>Technical</dt><dd>The technical pillar: how the price is trending against its 50 and 200 day averages, and its momentum.</dd>
           <dt>Overall</dt><dd>The FinLit IQ shown on every company page: the average of the pillar scores that are available, rounded to a whole number.</dd>
           <dt>Bands</dt><dd>Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45. The filter groups Healthy and Mixed together as 45 to 77. Bands use whole numbers: 44 is Watch, 45 is Mixed, 77 is Healthy, 78 is Strong.</dd>

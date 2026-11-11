@@ -1,0 +1,322 @@
+{
+ "basic-top-large": {
+  "text": "Large caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
+  "how": [
+   "Large caps (above ₹50,000 Cr) with a full year of prices.",
+   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
+  ]
+ },
+ "basic-top-mid": {
+  "text": "Mid caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
+  "how": [
+   "Mid caps (₹10,000–50,000 Cr) with a full year of prices.",
+   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
+  ]
+ },
+ "basic-top-small": {
+  "text": "Small caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
+  "how": [
+   "Small caps (below ₹10,000 Cr) with a full year of prices.",
+   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Healthy balance sheet, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
+  ]
+ },
+ "basic-strong-both": {
+  "text": "A Strong FinLit IQ and a Strong Technical score.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, with a full year of prices, whose FinLit IQ and Technical score are both Strong.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-strong-all-four": {
+  "text": "Strong on Quality, Growth, Profitability and Balance sheet. Banks and finance companies, which have no Balance sheet score, are judged on the other three.",
+  "how": [
+   "Companies of ₹1,000 Cr or more whose Quality, Growth, Profitability and Balance sheet scores are all Strong.",
+   "Banks and finance companies have no Balance sheet score, so they are judged on the other three, with Quality compared with other lenders.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-momentum-leaders": {
+  "text": "A Strong Technical score and a Healthy or Strong FinLit IQ, near the 52-week high, with prices rising over 3 and 6 months.",
+  "how": [
+   "Companies of ₹2,000 Cr or more, with a full year of prices, a Strong Technical score, a Healthy or Strong FinLit IQ, a price near its 52-week high and rising over three and six months.",
+   "Ordered by the momentum score, the strongest price rise against other companies first."
+  ]
+ },
+ "basic-near-high": {
+  "text": "Close to the 52-week high with a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Companies of ₹2,000 Cr or more, with a full year of prices, trading close to their 52-week high, with a Healthy or Strong FinLit IQ.",
+   "Ordered by Technical score."
+  ]
+ },
+ "basic-setup-pre-breakout": {
+  "text": "In an uptrend and resting just under its 52-week high: the high is a few weeks old and the price has gone quiet in a narrow range.",
+  "how": []
+ },
+ "basic-setup-breakout-pullback": {
+  "text": "Closed above an older 52-week high on strong volume in the last few weeks, then eased back towards the level it cleared and its 20-day average.",
+  "how": []
+ },
+ "basic-setup-ema9-consolidation": {
+  "text": "In an uptrend, holding a narrow range just above its 9-day average for the last few sessions, with a low touching the average.",
+  "how": []
+ },
+ "daily_base": {
+  "text": "A young base on the daily chart, a few weeks to a few months old. The price is back near the top of the base and has not closed above it.",
+  "how": []
+ },
+ "weekly_base": {
+  "text": "The same on the weekly chart: a longer base, roughly 4 to 18 months old, with the price back near its top.",
+  "how": []
+ },
+ "near_pivot": {
+  "text": "In an uptrend, the price sits just under a recent high that has held. How close counts depends on how much the stock usually moves in a day.",
+  "how": []
+ },
+ "vcp": {
+  "text": "In a strong uptrend, each pullback is smaller than the one before, tightening under a high, while trading volume dries up.",
+  "how": []
+ },
+ "tight_range": {
+  "text": "In an uptrend, the price is moving in a very narrow band: a few closes very close together, or a narrow range over two weeks.",
+  "how": []
+ },
+ "flag": {
+  "text": "A sharp run up, then a short, orderly pause that gives back only part of it, on lighter volume.",
+  "how": []
+ },
+ "ema50_pullback": {
+  "text": "A stock in a strong uptrend resting on its 50-day EMA after a quiet few weeks.",
+  "how": []
+ },
+ "rs_before_price": {
+  "text": "The stock’s strength line against the market made a new high while the price is still under its own high.",
+  "how": []
+ },
+ "ipo_base": {
+  "text": "Listed in the last year, still inside its first base and sitting near the top of it.",
+  "how": []
+ },
+ "big_reversal": {
+  "text": "After a clear fall, one strong up day on heavy volume that closed near its high.",
+  "how": []
+ },
+ "shakeout": {
+  "text": "In an uptrend, a quick drop below the 50-day average that was bought back within days. The trend is still in place.",
+  "how": []
+ },
+ "basic-growth-leaders": {
+  "text": "Strong growth with healthy profits, a balance sheet that is not weak and a steady price.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, with a full year of prices: Strong Growth, Healthy or Strong Profitability, a Balance sheet score out of Watch and a Technical score that is not weak.",
+   "Ordered by Growth, then FinLit IQ."
+  ]
+ },
+ "basic-quality-compounders": {
+  "text": "Strong Quality with healthy growth, profitability and balance sheet.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Strong Quality score and Growth, Profitability and Balance sheet scores that are Healthy or Strong.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-emerging-tech": {
+  "text": "Companies in new-technology businesses (electronics, defence, software, digital platforms, fintech, EVs, clean energy) that are still growing.",
+  "how": [
+   "Companies in the themes shown, of ₹1,000 Cr or more, with Healthy or Strong Growth and a Balance sheet score out of Watch.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-sector-themes": {
+  "text": "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.",
+  "how": [
+   "Industries (NSE’s own list) where more of the stocks sit near their 52-week high than in the market as a whole, and whose middle stock has risen more than the market over three months.",
+   "Leaders: up to five companies an industry, near their high and ahead of their industry over three months. Ordered by FinLit IQ."
+  ]
+ },
+ "basic-strong-business-lagging": {
+  "text": "Every business score Healthy or Strong while the Technical score is weak, with how far the price is below its high.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, with a full year of prices, whose Quality, Growth, Profitability and Balance sheet scores are all Healthy or Strong, while the Technical score is weak.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry. Lenders have no Balance sheet score.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-quality-off-highs": {
+  "text": "Strong Quality, the other business scores Healthy or Strong, and a price well below its 52-week high.",
+  "how": [
+   "The Quality compounders, with a full year of prices, whose price sits well below the 52-week high.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-strong-trend-weaker-business": {
+  "text": "A caution view: a Strong Technical score while two or more business scores are weak.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, with a full year of prices, a Strong Technical score and at least two of Quality, Growth, Profitability and Balance sheet weak.",
+   "A caution view, not a signal. Ordered by Technical score."
+  ]
+ },
+ "basic-profitable-debt-light": {
+  "text": "Strong Profitability and Balance sheet. Not for banks and finance companies, which have no Balance sheet score.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with Strong Profitability and Strong Balance sheet scores.",
+   "Banks and finance companies have no Balance sheet score, so this screen does not list them.",
+   "Ordered by FinLit IQ."
+  ]
+ },
+ "basic-caution-list": {
+  "text": "Companies with more warning signs than usual. Read the company page before acting.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a FinLit IQ in Watch, a very weak Balance sheet score, or a price far below its 52-week high with a weak Technical score.",
+   "Insurers and brokers are not flagged on the Balance sheet score alone, because it misreads their balance sheets; they can still appear on the other two signs.",
+   "A caution list, not a recommendation. Lowest FinLit IQ first."
+  ]
+ },
+ "highest-rated-large": {
+  "text": "Large caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "how": [
+   "Large caps (above ₹50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by the screen score, which combines the Prism score with the long-term and short-term views, each counted once.",
+   "The 10 strongest come first, at most three from one industry. Every other company that passes follows, in the same order. If fewer than 10 pass, the next companies that miss only the trend check fill the top 10, badged Trend not confirmed."
+  ]
+ },
+ "highest-rated-mid": {
+  "text": "Mid caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "how": [
+   "Mid caps (₹10,000–50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by the screen score, which combines the Prism score with the long-term and short-term views, each counted once.",
+   "The 10 strongest come first, at most three from one industry. Every other company that passes follows, in the same order. If fewer than 10 pass, the next companies that miss only the trend check fill the top 10, badged Trend not confirmed."
+  ]
+ },
+ "highest-rated-small": {
+  "text": "Small caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "how": [
+   "Small caps (below ₹10,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by the screen score, which combines the Prism score with the long-term and short-term views, each counted once.",
+   "The 10 strongest come first, at most three from one industry. Every other company that passes follows, in the same order. If fewer than 10 pass, the next companies that miss only the trend check fill the top 10, badged Trend not confirmed."
+  ]
+ },
+ "rating-upgrades": {
+  "text": "Companies whose Prism rating moved up a band, or whose score rose sharply, in the last month.",
+  "how": []
+ },
+ "momentum-leaders": {
+  "text": "Rated stocks in an uptrend near their 52-week high, ranked by how they have done against the market.",
+  "how": []
+ },
+ "at-52-week-high": {
+  "text": "Close to the 52-week high, with a positive short-term view.",
+  "how": []
+ },
+ "both-views-positive": {
+  "text": "Large and mid-size companies whose short-term and long-term technical views are both positive.",
+  "how": []
+ },
+ "setup-pre-breakout": {
+  "text": "In an uptrend and resting just under its 52-week high: the high is a few weeks old and the price has gone quiet in a narrow range.",
+  "how": []
+ },
+ "setup-breakout-pullback": {
+  "text": "Closed above an older 52-week high on strong volume in the last few weeks, then eased back towards the level it cleared and its 20-day average.",
+  "how": []
+ },
+ "setup-ema9-consolidation": {
+  "text": "In an uptrend, holding a narrow range just above its 9-day average for the last few sessions, with a low touching the average.",
+  "how": []
+ },
+ "consistent-growers": {
+  "text": "Strong Growth & Profitability, quality and risk scores together.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with strong Growth & Profitability and sound Quality and Risk scores.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by Growth & Profitability."
+  ]
+ },
+ "emerging-tech": {
+  "text": "Companies in new-technology businesses (electronics, defence, software, digital platforms, fintech, EVs, clean energy) that are still growing.",
+  "how": [
+   "Companies in the themes shown, of ₹1,000 Cr or more, rated or provisional by Prism, still growing and not high-risk.",
+   "Ordered by the same screen score as Highest-rated: the Prism score with the long-term and short-term views. Companies Prism has not rated yet follow, largest first."
+  ]
+ },
+ "sector-themes": {
+  "text": "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.",
+  "how": [
+   "Industries (NSE’s own list) where more of the stocks sit near their 52-week high than in the market as a whole, and whose middle stock has risen more than the market over three months.",
+   "Leaders: up to five companies an industry, near their high and ahead of their industry over three months. Rated companies first, by Prism score."
+  ]
+ },
+ "quality-fair-price": {
+  "text": "Strong quality and Growth & Profitability without a stretched valuation.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with strong Quality and Growth & Profitability and a valuation that is not stretched.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by Prism score."
+  ]
+ },
+ "quality-off-highs": {
+  "text": "High quality, with the price well below its 52-week high.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with high Quality, strong Growth & Profitability and a sound Risk score, while the price sits well below its 52-week high.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by Prism score."
+  ]
+ },
+ "value-with-quality": {
+  "text": "Cheaper-valued companies that also score well on quality, risk and Growth & Profitability.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a high Valuation score (which means cheaper) and sound Quality, Risk and Growth & Profitability.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by Valuation, cheapest first."
+  ]
+ },
+ "low-risk-compounders": {
+  "text": "High scores on risk, quality and Growth & Profitability together.",
+  "how": [
+   "Companies of ₹1,000 Cr or more, rated or provisional by Prism, with a high Risk score (which means lower risk), high Quality and strong Growth & Profitability.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "Ordered by Prism score."
+  ]
+ },
+ "low-volatility": {
+  "text": "A low-risk score and a narrow 52-week range.",
+  "how": []
+ },
+ "higher-risk-list": {
+  "text": "Companies with more warning signs than usual. Read the company page before acting.",
+  "how": []
+ },
+ "strongsafe": {
+  "text": "A Strong Prism score with a high Risk score (a higher Risk score means lower risk).",
+  "how": []
+ },
+ "fairvalue": {
+  "text": "Strong Growth & Profitability with a reasonable valuation score.",
+  "how": []
+ },
+ "uptrend-both": {
+  "text": "Short-term and long-term technical views both in an uptrend, companies of any size.",
+  "how": []
+ },
+ "weakvalue": {
+  "text": "Strong Growth & Profitability, but a weak valuation score.",
+  "how": []
+ },
+ "psu-stocks": {
+  "text": "Public-sector companies with a good Prism score, ranked by Prism score.",
+  "how": []
+ }
+}

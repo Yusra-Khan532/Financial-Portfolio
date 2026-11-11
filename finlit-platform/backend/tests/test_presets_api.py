@@ -164,7 +164,7 @@ async def test_results_page_by_25_with_offset_and_limit_and_export_keeps_every_r
     assert (await gold.get("/api/screener/presets/emerging-tech?chip=none&limit=0")).status_code == 422
     assert (await gold.get("/api/screener/presets/emerging-tech?chip=none&offset=900")).json()["rows"] == []
     top = (await gold.get("/api/screener/presets/highest-rated-large?chip=none&offset=25")).json()
-    assert "offset" not in top and top["shown"] == len(top["rows"]) <= 10                      # the Top 10 lists are ten by rule
+    assert top["offset"] == 25 and top["shown"] == len(top["rows"]) and top["pageSize"] == 25              # the Top 10 lists page like every screen: the ten first, then every company that passes
     e = await gold.get("/api/screener/presets/emerging-tech/export?chip=none")
     assert e.text.count("\n") >= 30 + 2
     card = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"] if c["id"] == "emerging-tech"][0]

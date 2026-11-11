@@ -54,11 +54,11 @@ def test_registry_shape_names_and_rules():
                 expr.parse(rule)
     tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small")]
     assert all(p.limit == 10 and p.top10 and p.sector_cap == 3 and abs(sum(w for _, w in p.rank_score) - 1.0) < 1e-9 for p in tops)
-    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 60] and all(p.prism_filters["zmin"] == 60 and p.prism_filters["zqmin"] == 50 for p in tops)
-    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text == "The 10 large caps with the strongest mix of Prism rating, valuation, risk and price strength."
+    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
+    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades"]
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue"] and "Valuation below 50" in BY_ID["weakvalue"].card_text
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue"] and "weak valuation" in BY_ID["weakvalue"].card_text
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
             assert not re.search(r"prism_reports|is_psu|one row|flag", p.blocked_reason or "", re.I), p.id
@@ -153,6 +153,9 @@ def uni(extra=()):
     return rows + list(extra)
 
 
+tops = lambda body: [r for r in body["rows"] if r.get("top")]   # the first ten (at most three from one Sector label); every other company that passes follows them
+
+
 def with_prism(rows, **over):
     prism = {r["symbol"]: pz(final=70, qual=70, risk=70, val=60, st=30, lt=30) for r in rows}
     for k, v in over.items():
@@ -169,14 +172,14 @@ def test_top_large_gates_each_fail_and_count_text():
     rows[5]["metrics"] = json.dumps({**json.loads(rows[5]["metrics"]), "pct_from_high": 31}); rows[5]["symbol"] = "G_HIGH"; prism["G_HIGH"] = pz()
     body = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
     got = syms(body)
-    assert not set(bad) & set(got) and "G_HIGH" not in got and body["shown"] == 10 and body["listText"] == f"Top 10 of {body['count']} that pass"
+    assert not set(bad) & set(got) and "G_HIGH" not in got and len(tops(body)) == 10 and body["listText"] == f"{body['count']} pass · the top 10 first"
     assert all(s.startswith("L") or s in bad or s == "G_HIGH" for s in got)
 
 
-def test_top_small_risk_floor_is_60():
+def test_top_small_risk_floor_is_50_like_every_size():
     rows = uni()
     prism = with_prism(rows)
-    prism["X000"] = pz(risk=59); prism["X001"] = pz(risk=60)
+    prism["X000"] = pz(risk=49); prism["X001"] = pz(risk=50)
     got = syms(engine.run(frame(rows, prism), BY_ID["highest-rated-small"]))
     assert "X000" not in got and all(s.startswith("X") for s in got)
 
@@ -203,7 +206,8 @@ def test_top_sector_cap_is_three_per_label_and_ties_go_to_quality_then_prism():
         prism[r["symbol"]] = pz(final=95 - i, qual=70 + i, risk=70, val=60, st=30, lt=30)
     body = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
     same = [r["symbol"] for r in body["rows"] if r["symbol"] in {x["symbol"] for x in rows[:6]}]
-    assert len(same) == 3 and len(body["rows"]) == 10
+    same = [r["symbol"] for r in tops(body) if r["symbol"] in {x["symbol"] for x in rows[:6]}]
+    assert len(same) == 3 and len(tops(body)) == 10
 
 
 def test_sector_spellings_merge_for_the_filter_the_cap_and_the_table_without_touching_the_row():
@@ -219,7 +223,7 @@ def test_sector_spellings_merge_for_the_filter_the_cap_and_the_table_without_tou
     for i, r in enumerate(rows[:6]):
         prism[r["symbol"]] = pz(final=95 - i)
     body = engine.run(frame(rows, prism), BY_ID["highest-rated-large"])
-    assert len([r for r in body["rows"] if r["symbol"] in {x["symbol"] for x in rows[:6]}]) == 3
+    assert len([r for r in tops(body) if r["symbol"] in {x["symbol"] for x in rows[:6]}]) == 3
 
 
 def test_industry_spellings_merge_too_and_an_old_spelling_still_filters():
@@ -504,9 +508,9 @@ def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
 
 def test_basic_top_gates_sector_cap_and_the_bank_balance_sheet_blank():
     rows = buni()
-    edit(rows[0], fundamental_score=64)                       # fails the Growth & Profitability gate
+    edit(rows[0], overall=61)                                # FinLit IQ below Healthy
     edit(rows[1], pillar_technical=44)
-    edit(rows[2], pillar_quality=49)
+    edit(rows[2], pillar_quality=44)
     edit(rows[3], pillar_balance=44)
     edit(rows[4], pct_from_high=31)
     edit(rows[5], pillar_balance=None)                        # blank, not a bank: out
@@ -514,19 +518,19 @@ def test_basic_top_gates_sector_cap_and_the_bank_balance_sheet_blank():
     body = engine.run(frame(rows), BY_ID["basic-top-large"])
     got = syms(body)
     assert all(s not in got for s in ("L000", "L001", "L002", "L003", "L004", "L005"))
-    assert body["listText"] == f"Top 10 of {body['count']} that pass" and body["count"] == 94 and body["shown"] == 10
-    secs = [r["sector"] for r in body["rows"]]
-    assert max(secs.count(s) for s in set(secs)) <= 3 and body["rows"][0]["rank_score"] >= body["rows"][-1]["rank_score"]
+    assert body["listText"] == f"{body['count']} pass · the top 10 first" and body["count"] == 94 and len(tops(body)) == 10
+    secs = [r["sector"] for r in tops(body)]
+    assert max(secs.count(s) for s in set(secs)) <= 3 and all(r["rank"] == i for i, r in enumerate(body["rows"], 1))
     allrows = engine.run(frame(rows), BY_ID["basic-top-large"])["exportRows"]
     assert allrows[0]["symbol"] and all(c["key"] != "prism_final" for c in body["columns"])
     mids = engine.run(frame(rows), BY_ID["basic-top-mid"])
     assert all(s.startswith("M") for s in syms(mids)) and mids["count"] == 60
 
 
-def test_basic_small_cap_needs_a_balance_sheet_of_55_and_one_thousand_crore():
+def test_basic_small_cap_needs_a_healthy_balance_sheet_and_one_thousand_crore():
     rows = buni(100, 150)
     smalls = [row(f"X{i:03d}", sector=f"SecX{i}", market_cap=3000 - i * 10, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=70 + i % 5, pillar_technical=60, pillar_quality=60,
-                  pillar_growth=60, pillar_profitability=60, pillar_balance=55 if i else 54, overall=70, is_bank=0) for i in range(20)]
+                  pillar_growth=60, pillar_profitability=60, pillar_balance=62 if i else 61, overall=70, is_bank=0) for i in range(20)]
     smalls.append(row("MICRO", sector="Other", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=90, pillar_technical=90, pillar_quality=90, pillar_growth=90,
                       pillar_profitability=90, pillar_balance=90, overall=90, is_bank=0))
     body = engine.run(frame(rows + smalls), BY_ID["basic-top-small"])
@@ -539,29 +543,29 @@ def test_basic_two_sided_cards_blank_allowed_and_cautions():
                     ret_3m=4, ret_6m=9, ret_1y=20, is_bank=0)
         base.update(kw)
         return row(sym, **base)
-    rows = [one("BOTH"), one("LAG", pillar_technical=40, pct_from_high=35), one("TREND", fundamental_score=40, pillar_quality=40), one("NOBAL", pillar_balance=None),
-            one("SMALLMC", market_cap=1500), one("RISKY", overall=40, pct_from_high=50, pillar_technical=20), one("DEEP", pct_from_high=30, fundamental_score=75)]
+    rows = [one("BOTH"), one("LAG", pillar_technical=40, pct_from_high=35), one("TREND", overall=70, pillar_quality=40, pillar_growth=40), one("NOBAL", pillar_balance=None),
+            one("SMALLMC", market_cap=1500), one("RISKY", overall=40, pct_from_high=50, pillar_technical=20), one("DEEP", pct_from_high=30)]
 
     def ids(pid): return set(syms(engine.run(frame(rows), BY_ID[pid])))
-    assert ids("basic-strong-both") == {"BOTH", "NOBAL", "SMALLMC"}
+    assert ids("basic-strong-both") == {"BOTH", "NOBAL", "SMALLMC", "DEEP"}
     assert ids("basic-strong-business-lagging") == {"LAG", "RISKY"} and ids("basic-strong-trend-weaker-business") == {"TREND"}
-    assert "NOBAL" not in ids("basic-strong-all-four") and "NOBAL" in ids("basic-growth-leaders") and "SMALLMC" not in ids("basic-growth-leaders")     # blank balance sheet allowed there; floor Rs 2,000 Cr
+    assert "NOBAL" not in ids("basic-strong-all-four") and "NOBAL" in ids("basic-growth-leaders") and "SMALLMC" in ids("basic-growth-leaders")     # blank balance sheet allowed there; floor Rs 1,000 Cr
     assert ids("basic-caution-list") >= {"RISKY"} and "BOTH" not in ids("basic-caution-list")
     assert ids("basic-quality-off-highs") == {"LAG", "RISKY", "DEEP"}
     assert ids("basic-near-high") >= {"BOTH"} and "LAG" not in ids("basic-near-high") and "SMALLMC" not in ids("basic-near-high")
     pb = engine.run(frame(rows), BY_ID["basic-profitable-debt-light"])
-    assert pb["rows"][0]["profit_plus_balance"] == 160
+    assert "profit_plus_balance" not in pb["rows"][0] and "fundamental_score" not in pb["rows"][0]      # no sixth score on the Basic page
 
 
 def test_a_stock_that_ran_over_300_percent_in_a_year_stays_out_of_top_10_and_momentum_lists():
     rows = buni()
     edit(rows[0], ret_1y=450)
-    edit(rows[1], ret_1y=None)                  # not enough price history: not a reason to drop it
+    edit(rows[1], ret_1y=None)                  # no full year of prices: out of every price-reading screen
     for pid in ("basic-top-large", "basic-momentum-leaders"):
         body = engine.run(frame(rows), BY_ID[pid])
         got = [r["symbol"] for r in body["exportRows"]]
         assert "L000" not in got, pid
-    assert engine.run(frame(rows), BY_ID["basic-top-large"])["count"] == 99       # only the 450% run is out; the blank one still passes
+    assert engine.run(frame(rows), BY_ID["basic-top-large"])["count"] == 98       # the 450% run and the company without a full year are out
 
 
 # ---------------------------------------------------------------------------------------------------------------- issue 30.b: Sector label, not the macro sector or the Industry
@@ -594,7 +598,7 @@ def test_top_small_caps_cap_three_per_sector_label_not_per_macro_sector():
     prism = with_prism(rows)
     for i, sym in enumerate(names):
         prism[sym] = pz(final=90 - i, qual=80, risk=70, val=60)
-    got = syms(engine.run(frame(rows, prism), BY_ID["highest-rated-small"]))
+    got = [r["symbol"] for r in tops(engine.run(frame(rows, prism), BY_ID["highest-rated-small"]))]
     assert set(names) <= set(got) and len(got) == 10          # none replaced by a lower-ranked small cap (the macro-sector cap kept three and let KPIL, Caplin Point and TMB go)
     # the other way round: four stocks of ONE label stay capped at three even when their macro sectors differ
     rows2 = uni()
@@ -604,7 +608,7 @@ def test_top_small_caps_cap_three_per_sector_label_not_per_macro_sector():
     prism2 = with_prism(rows2)
     for i, sym in enumerate(names[:4]):
         prism2[sym] = pz(final=90 - i, qual=80)
-    got2 = syms(engine.run(frame(rows2, prism2), BY_ID["highest-rated-small"]))
+    got2 = [r["symbol"] for r in tops(engine.run(frame(rows2, prism2), BY_ID["highest-rated-small"]))]
     assert sum(1 for s in got2 if s in names[:4]) == 3
 
 
@@ -613,13 +617,13 @@ def test_basic_top_ten_also_caps_on_the_sector_label():
     for i in range(6):
         mac(rows[i], "Consumer Discretionary", f"Label {i}")
         edit(rows[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got = syms(engine.run(frame(rows), BY_ID["basic-top-large"]))
+    got = [r["symbol"] for r in tops(engine.run(frame(rows), BY_ID["basic-top-large"]))]
     assert {f"L00{i}" for i in range(6)} <= set(got)          # six labels, one macro sector: all six stand
     rows2 = buni()
     for i in range(5):
         mac(rows2[i], f"Macro {i}", "One Label")
         edit(rows2[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got2 = syms(engine.run(frame(rows2), BY_ID["basic-top-large"]))
+    got2 = [r["symbol"] for r in tops(engine.run(frame(rows2), BY_ID["basic-top-large"]))]
     assert sum(1 for s in got2 if s in {f"L00{i}" for i in range(5)}) == 3
 
 
@@ -675,7 +679,7 @@ def test_emerging_tech_universe_is_the_union_of_named_list_and_sector_label_memb
     assert tags["LABELCAMS"] == ["Fintech and market infrastructure"] and tags["LABELWEB"] == ["Digital platforms"]
     body = engine.run(frame(rows, {}, tags=tags), BY_ID["emerging-tech"])
     assert set(syms(body)) == set(tags)
-    basic = engine.run(frame([edit(r, pillar_growth=60, pillar_balance=60) for r in rows], {}, tags=tags), BY_ID["basic-emerging-tech"])
+    basic = engine.run(frame([edit(r, pillar_growth=62, pillar_balance=60) for r in rows], {}, tags=tags), BY_ID["basic-emerging-tech"])
     assert set(syms(basic)) == set(tags)
 
 
@@ -718,18 +722,18 @@ def test_fair_and_weak_valuation_views_split_at_exactly_50():
 def test_the_two_valuation_views_are_one_partition_at_50_in_the_registry():
     f, w = BY_ID["fairvalue"].prism_filters, BY_ID["weakvalue"].prism_filters
     assert f["zvmin"] == 50 and w["zvbelow"] == 50 and "zvmin" not in w and "zvbelow" not in f and f["zfmin"] == w["zfmin"] == 65
-    assert "Valuation below 50" in BY_ID["weakvalue"].card_text and "Valuation 50 or more" in BY_ID["fairvalue"].card_text
+    assert "weak valuation" in BY_ID["weakvalue"].card_text and "reasonable valuation" in BY_ID["fairvalue"].card_text
 
 
 # ---------------------------------------------------------------------------------------------------------------- issue 30.b: results page by 25
-def test_a_long_screen_keeps_every_ranked_row_for_paging_and_a_top_10_never_pages():
+def test_a_long_screen_keeps_every_ranked_row_for_paging_and_a_top_10_is_followed_by_every_company_that_passes():
     rows = [mrow(f"G{i:03d}", market_cap=3000 + i) for i in range(60)]
     prism = {r["symbol"]: pz(fund=80 + (i % 10) / 10, qual=70, risk=60) for i, r in enumerate(rows)}
     body = engine.run(frame(rows, prism), BY_ID["consistent-growers"])
     assert body["count"] == 60 and body["shown"] == 25 and body["pageSize"] == 25 and len(body["exportRows"]) == 60 and "listText" not in body
     assert [r["position"] for r in body["exportRows"]] == list(range(1, 61)) and body["exportRows"][:25] == body["rows"]
     top = engine.run(frame(uni(), with_prism(uni())), BY_ID["highest-rated-large"])
-    assert "pageSize" not in top and top["shown"] == 10 and top["listText"].startswith("Top 10 of ")
+    assert top["pageSize"] == 25 and len(tops(top)) == 10 and top["listText"].endswith("the top 10 first") and top["rows"][0]["rank"] == 1
     assert "pageSize" not in engine.run(frame(theme_universe(), {}, theme_eval=None), BY_ID["sector-themes"])
 
 

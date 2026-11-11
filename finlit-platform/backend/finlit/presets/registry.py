@@ -30,9 +30,10 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 10      # 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 11      # 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
+MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
 RUN_GUARD = ("coalesce(ret_1y, 0) <= 300", "1-year return no more than 300%")   # a stock that has run far past that is not a steady leader: kept out of the Top 10 and momentum lists
 LIQUIDITY_FLOOR_CR = 1000   # market cap, until the average-volume data is fixed (spec p2-3)
 
@@ -136,22 +137,19 @@ SMALL_GROUPS = Chip("small-groups", "Include small groups", "Also lists sectors 
                     _m(small_groups=True), ("Small groups (5 to 7 companies) are included.",))
 SUB_CHIPS = tuple(Chip(slug(sub), sub, f"Only companies in {sub}. Pick several to see any of them.", False, _m(sub=sub), (f"Sub-theme: {sub}.",)) for sub in THEME_SUBS)
 
-TOP_RANK = (("prism_final", 0.40), ("prism_valuation", 0.075), ("prism_risk", 0.075), ("prism_lt_score", 0.15), ("prism_st_score", 0.05), ("momentum_score", 0.15), ("w52_score", 0.10))
-TOP_ORDER = (("rank_score", "desc"), ("prism_quality", "desc"), ("prism_final", "desc"))
+TOP_RANK = (("prism_final", 0.55), ("prism_lt_score", 0.40), ("prism_st_score", 0.05))      # fix 9: each input once (the Prism score already holds Valuation and Risk)
+TOP_ORDER = (("rank_score", "desc"), ("prism_quality", "desc"), ("prism_final", "desc"), ("market_cap", "desc"))   # fix 12: exact ties go to the larger market cap
 
 
 def _top(n: int, bucket: str, label: str) -> Preset:
-    risk = 60 if bucket == "Small" else 50
-    filters = {"cap": bucket, "rated": 1, "status": "RATED", "zmin": 60, "zqmin": 50, "zrmin": risk}
+    filters = {"cap": bucket, "rated": 1, "status": "RATED", "zmin": 65, "zqmin": 50, "zrmin": 50}      # fix 12: Healthy or Strong only; one Risk minimum for every size
     how = [f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them.",
-           "Only companies with a full Prism rating (Provisional ratings appear only with the Include provisional chip, with their badge).",
-           f"Gates: Prism score 60 or more, Quality 50 or more, Risk {risk} or more, long-term technical view above -20, no more than 30% below the 52-week high, and a 1-year return of 300% or less.",
-           "Ranked by a weighted score, 55% business and 45% price. Each input is the company's percentile among the rated companies of its size group: Prism score 40%, Valuation 7.5%, Risk 7.5%, "
-           "long-term view 15%, short-term view 5%, momentum 15% (the momentum score of the Momentum leaders screen), and 52-week position 10% (100 minus the % below the high).",
-           "At most 3 companies from one Sector label. Ties go to the higher Quality, then the higher Prism score.",
+           "Only companies with a full Prism rating (Provisional ratings appear only with the Include provisional chip, with their badge). Market cap Rs 1,000 Cr or more.",
+           "Healthy or Strong on Prism, with sound quality and risk, a firm long-term trend and a price not far below its 52-week high.",
+           "The strongest ten come first, at most three from one Sector label, then every other company that passes, ranked by the same score.",
            "If fewer than 10 pass, the list is filled with the next names that fail only the trend or the 52-week gate, badged Trend not confirmed."]
-    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"The 10 {label} caps with the strongest mix of Prism rating, valuation, risk and price strength.", "rules",
-                  _m(**filters), "Below 52-week high <= 30", (("prism_lt_score > -20", "Long-term technical view above -20"), RUN_GUARD), TOP_ORDER, 10, TOP_COLS, (PROVISIONAL,), tuple(how), True, None, ("provisional",),
+    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"{label.title()} caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.", "rules",
+                  _m(**filters), "Below 52-week high <= 30", (("prism_lt_score > -20", "Long-term technical view above -20"), RUN_GUARD, MCAP1000), TOP_ORDER, 10, TOP_COLS, (PROVISIONAL,), tuple(how), True, None, ("provisional",),
                   f"p4 (Top 10, {label})", "advanced", TOP_RANK, 3, ("technical view", "52-week high"))
 
 
@@ -279,7 +277,6 @@ def _between(field: str, lo: float, hi: float, label: str) -> Tuple[str, str]:
     return (f"{field} >= {lo:g} and {field} <= {hi:g}", label)
 
 
-MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
 VOLUME_TESTS = False   # fix 8 of the handover: the daily volume is rebuilt from NSE's bhavcopy first; until then the two volume tests (breakout day, value traded) stay off
 FULL_YEAR = ("missing(ret_1y) = 0", "A full year of prices")
 S_B2AGE = Col("b2_age", "Sessions since the breakout", "num1")
@@ -339,7 +336,6 @@ QUICK_VIEWS: List[Preset] = [
 # Built only from what the Basic score screener shows: the FinLit IQ, its pillars (Quality, Growth, Profitability, Balance sheet, Technical), the Growth & Profitability
 # score (the average of the four business pillars, needs 3 of 4), market cap, Sector, 52-week and return fields. Every rule is a "derived" rule with a plain-words label.
 BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
-B_FUND = Col("fundamental_score", "Growth & Profitability score", "score")
 B_TECH = Col("pillar_technical", "Technical", "score")
 B_QUAL = Col("pillar_quality", "Quality", "score")
 B_GROW = Col("pillar_growth", "Growth", "score")
@@ -347,10 +343,14 @@ B_PROF = Col("pillar_profitability", "Profitability", "score")
 B_BAL = Col("pillar_balance", "Balance sheet", "score")
 B_MOM = Col("momentum_score", "Momentum score", "score")
 B_PB = Col("profit_plus_balance", "Profitability + Balance sheet", "score")
-B_BASE = (RANK, STOCK, FINLIT, B_FUND, B_TECH)
+B_BASE = (RANK, STOCK, FINLIT, B_TECH)
 B_TAIL = (R3M, R6M, R1Y, W52, SECTOR, MCAP)
-B_RANK_SCORE = (("fundamental_score", 0.50), ("pillar_technical", 0.20), ("momentum_score", 0.15), ("w52_score", 0.10), ("pillar_quality", 0.05))
-B_TOP_ORDER = (("rank_score", "desc"), ("fundamental_score", "desc"), ("overall", "desc"))
+B_RANK_SCORE = (("overall", 1.0),)                                              # fix 13: FinLit IQ itself; it counts each of its five scores once
+B_TOP_ORDER = (("rank_score", "desc"), ("pillar_technical", "desc"), ("market_cap", "desc"))   # ties: Technical, then the larger market cap
+B_FULL = (("missing(ret_1y) = 0", "A full year of prices"), RUN_GUARD)           # fix 14: every screen that reads the price needs a full year and a 1-year return of 300% or less
+Q_FIT = lambda n, w: (f"quality_fit >= {n}", f"Quality {w} (a bank or finance company against other lenders)")   # noqa: E731
+IQ_HEALTHY = ("overall >= 62", "FinLit IQ Healthy or Strong")
+IQ_STRONG = ("overall >= 78", "FinLit IQ Strong")
 MC1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
 MC2000 = ("market_cap >= 2000", "Market cap Rs 2,000 Cr or more")
 B_NOTE = "A company with a blank score drops out of any rule that uses that score."
@@ -365,86 +365,83 @@ def _bal(minimum: int, blank: str = "any") -> Tuple[str, str]:
 
 def _bt(bucket: str, label: str) -> Preset:
     small = bucket == "Small"
-    rules = (("fundamental_score >= 65", "Growth & Profitability score 65 or more"), ("pillar_technical >= 45", "Technical 45 or more"), ("pillar_quality >= 50", "Quality 50 or more"),
-             _bal(55 if small else 45, "bank"), ("pct_from_high <= 30", "No more than 30% below the 52-week high"), RUN_GUARD, MC1000)
-    how = (f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them.",
-           "Market cap Rs 1,000 Cr or more" + (": thinly traded micro caps are left out." if small else "."),
-           f"Gates: Growth & Profitability score 65 or more, Technical 45 or more, Quality 50 or more, Balance sheet {55 if small else 45} or more (a blank is allowed for banks), "
-           "no more than 30% below the 52-week high, and a 1-year return of 300% or less.",
-           "Ranked by a weighted score: each input is the company's percentile among the companies of its size group with a market cap of Rs 1,000 Cr or more: Growth & Profitability 50%, "
-           "Technical 20%, momentum 15% (the momentum score of the Momentum leaders card), 52-week position 10% (100 minus the % below the high) and Quality 5%.",
-           "At most 3 companies from one Sector label. Ties go to the higher Growth & Profitability score, then the higher FinLit IQ.", B_NOTE)
-    return Preset(f"basic-top-{label}", f"Top 10 {label} caps", BASIC_GROUP["top"], f"The 10 {label} caps with the strongest mix of business scores and price strength, from the FinLit score.", "rules",
-                  _m(cap=bucket), "", rules, B_TOP_ORDER, 10, B_BASE + (B_QUAL, B_BAL, R3M, R6M, W52, SECTOR, MCAP, RSC), (), how, True, None, (), f"p5 (Top 10, {label}, Basic)", "basic", B_RANK_SCORE, 3)
+    rules = (IQ_HEALTHY, ("pillar_technical >= 45", "Technical out of Watch"), Q_FIT(45, "out of Watch"), _bal(62 if small else 45, "bank"), ("pct_from_high <= 30", "No more than 30% below the 52-week high"),
+             MC1000) + B_FULL
+    how = (f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them. Market cap Rs 1,000 Cr or more.",
+           "FinLit IQ Healthy or Strong, Technical and Quality out of Watch, a Balance sheet " + ("Healthy" if small else "out of Watch") + " (a blank is allowed for banks), no more than 30% below the 52-week high and a full year of prices.",
+           f"The {label} caps with the highest FinLit IQ come first, at most three from one Sector label, then every other company that passes, in FinLit IQ order.", B_NOTE)
+    return Preset(f"basic-top-{label}", f"Top 10 {label} caps", BASIC_GROUP["top"], f"{label.title()} caps with a strong FinLit IQ. The 10 highest come first, then every other company that passes.", "rules",
+                  _m(cap=bucket), "", rules, B_TOP_ORDER, 10, B_BASE + (B_QUAL, B_BAL, R3M, R6M, W52, SECTOR, MCAP), (), how, True, None, (), f"p5 (Top 10, {label}, Basic)", "basic", B_RANK_SCORE, 3)
 
 
 def _bp(pid, name, group, text, rules, rank, cols, how, **kw) -> Preset:
     return Preset(pid, name, BASIC_GROUP[group], text, "rules", _m(), "", tuple(rules), tuple(rank), 25, tuple(cols), (), tuple(how) + (B_NOTE,), False, None, (), kw.pop("spec", "p15-17"), "basic", **kw)
 
 
-B_THEME_RULES = (MC1000, ("pillar_growth >= 55", "Growth 55 or more"), _bal(40))
+B_THEME_RULES = (MC1000, ("pillar_growth >= 62", "Growth Healthy or Strong"), _bal(45))
 BASIC: List[Preset] = [
     _bt("Large", "large"), _bt("Mid", "mid"), _bt("Small", "small"),
-    _bp("basic-strong-both", "Strong on both", "top", "Growth & Profitability score and Technical both 78 or more.",
-        (("fundamental_score >= 78", "Growth & Profitability score 78 or more"), ("pillar_technical >= 78", "Technical 78 or more"), MC1000), (("overall", "desc"),),
-        B_BASE + B_TAIL, ("Growth & Profitability score 78 or more and Technical 78 or more.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
-    _bp("basic-strong-business-lagging", "Strong business, price lagging", "value", "Growth & Profitability score 78 or more while the Technical score is below 45, and how far below the 52-week high.",
-        (("fundamental_score >= 78", "Growth & Profitability score 78 or more"), ("pillar_technical < 45", "Technical below 45"), MC1000), (("fundamental_score", "desc"), ("overall", "desc")),
-        (RANK, STOCK, B_FUND, B_TECH, W52, FINLIT, R3M, R6M, R1Y, SECTOR, MCAP),
-        ("Growth & Profitability score 78 or more and Technical below 45: a strong business whose price has not followed.", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth & Profitability score; the % below the 52-week high is shown.")),
-    _bp("basic-strong-trend-weaker-business", "Strong trend, weaker business", "safety", "A caution view: Technical 78 or more while the Growth & Profitability score is below 45.",
-        (("pillar_technical >= 78", "Technical 78 or more"), ("fundamental_score < 45", "Growth & Profitability score below 45"), MC1000), (("pillar_technical", "desc"), ("overall", "desc")),
-        (RANK, STOCK, B_TECH, B_FUND, FINLIT, W52, R3M, R6M, R1Y, SECTOR, MCAP),
-        ("Technical 78 or more and Growth & Profitability score below 45: the price is strong but the business scores are weak. This is a caution view, not a signal.", "Market cap Rs 1,000 Cr or more.", "Ranked by Technical.")),
-    _bp("basic-strong-all-four", "Strong on all four pillars", "top", "Quality, Growth, Profitability and Balance sheet all 78 or more.",
-        (("pillar_quality >= 78", "Quality 78 or more"), ("pillar_growth >= 78", "Growth 78 or more"), ("pillar_profitability >= 78", "Profitability 78 or more"), ("pillar_balance >= 78", "Balance sheet 78 or more"), MC1000),
+    _bp("basic-strong-both", "Strong on both", "top", "FinLit IQ and Technical both Strong.",
+        (IQ_STRONG, ("pillar_technical >= 78", "Technical Strong"), MC1000) + B_FULL, (("overall", "desc"),),
+        B_BASE + B_TAIL, ("FinLit IQ Strong and Technical Strong, with a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
+    _bp("basic-strong-business-lagging", "Strong business, price lagging", "value", "Quality, Growth, Profitability and Balance sheet all Healthy or Strong while the Technical score is in Watch.",
+        (Q_FIT(62, "Healthy or Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62, "bank"),
+         ("pillar_technical < 45", "Technical in Watch"), MC1000) + B_FULL, (("overall", "desc"),),
+        (RANK, STOCK, FINLIT, B_QUAL, B_GROW, B_PROF, B_BAL, B_TECH, W52, R3M, R6M, R1Y, SECTOR, MCAP),
+        ("The four business scores Healthy or Strong and Technical in Watch: a strong business whose price has not followed.", "Market cap Rs 1,000 Cr or more; a full year of prices.", "Ranked by FinLit IQ; the % below the 52-week high is shown.")),
+    _bp("basic-strong-trend-weaker-business", "Strong trend, weaker business", "safety", "A caution view: Technical Strong while two or more of the four business scores are in Watch.",
+        (("pillar_technical >= 78", "Technical Strong"), ("business_watch >= 2", "Two or more business scores in Watch"), MC1000) + B_FULL, (("pillar_technical", "desc"), ("overall", "desc")),
+        (RANK, STOCK, B_TECH, B_QUAL, B_GROW, B_PROF, B_BAL, FINLIT, W52, R3M, R6M, R1Y, SECTOR, MCAP),
+        ("Technical Strong and two or more of Quality, Growth, Profitability and Balance sheet in Watch: the price is strong but the business scores are weak. This is a caution view, not a signal.", "Market cap Rs 1,000 Cr or more; a full year of prices.", "Ranked by Technical.")),
+    _bp("basic-strong-all-four", "Strong on all four pillars", "top", "Quality, Growth, Profitability and Balance sheet all Strong. Banks and finance companies are judged on their other scores.",
+        (Q_FIT(78, "Strong"), ("pillar_growth >= 78", "Growth Strong"), ("pillar_profitability >= 78", "Profitability Strong"), _bal(78, "bank"), MC1000),
         (("overall", "desc"),), (RANK, STOCK, FINLIT, B_QUAL, B_GROW, B_PROF, B_BAL, B_TECH, W52, SECTOR, MCAP),
-        ("Quality, Growth, Profitability and Balance sheet all 78 or more.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
+        ("Quality, Growth, Profitability and Balance sheet all Strong. A bank or finance company has no Balance sheet score, so it is judged on the other three, with Quality against other lenders.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
     _bp("basic-growth-leaders", "Growth leaders", "growth", "High growth with real profitability, a sound balance sheet and a price that is not falling apart.",
-        (("pillar_growth >= 78", "Growth 78 or more"), ("pillar_profitability >= 60", "Profitability 60 or more"), _bal(50), ("pillar_technical >= 45", "Technical 45 or more"), MC2000),
-        (("pillar_growth", "desc"), ("fundamental_score", "desc")), (RANK, STOCK, B_GROW, B_PROF, B_BAL, B_FUND, B_TECH, FINLIT, R6M, W52, SECTOR, MCAP),
-        ("Growth 78 or more, Profitability 60 or more, Balance sheet 50 or more (a blank is allowed), Technical 45 or more.", "Market cap Rs 2,000 Cr or more.", "Ranked by Growth, then Growth & Profitability score.")),
-    _bp("basic-profitable-debt-light", "Profitable and debt-light", "safety", "Profitability and Balance sheet both 78 or more.",
-        (("pillar_profitability >= 78", "Profitability 78 or more"), ("pillar_balance >= 78", "Balance sheet 78 or more"), MC1000), (("profit_plus_balance", "desc"), ("overall", "desc")),
-        (RANK, STOCK, B_PB, B_PROF, B_BAL, FINLIT, B_TECH, W52, SECTOR, MCAP),
-        ("Profitability 78 or more and Balance sheet 78 or more.", "Market cap Rs 1,000 Cr or more.", "Ranked by Profitability plus Balance sheet.")),
-    _bp("basic-quality-compounders", "Quality compounders", "growth", "Top Quality with growth, profitability and a sound balance sheet.",
-        (("pillar_quality >= 78", "Quality 78 or more"), ("pillar_growth >= 60", "Growth 60 or more"), ("pillar_profitability >= 70", "Profitability 70 or more"), _bal(60), MC1000),
-        (("fundamental_score", "desc"), ("overall", "desc")), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, B_FUND, FINLIT, B_TECH, SECTOR, MCAP),
-        ("Quality 78 or more, Growth 60 or more, Profitability 70 or more, Balance sheet 60 or more (a blank is allowed).", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth & Profitability score.")),
-    _bp("basic-momentum-leaders", "Momentum leaders", "trend", "High Technical score, within 15% of the 52-week high, with 3- and 6-month returns up.",
-        (("pillar_technical >= 75", "Technical 75 or more"), ("fundamental_score >= 55", "Growth & Profitability score 55 or more"), ("pct_from_high <= 15", "No more than 15% below the 52-week high"),
-         ("ret_3m > 0", "3-month return above 0"), ("ret_6m > 0", "6-month return above 0"), RUN_GUARD, MC2000), (("momentum_score", "desc"), ("pillar_technical", "desc")),
-        (RANK, STOCK, B_MOM, R3M, R6M, R1Y, W52, B_TECH, B_FUND, FINLIT, SECTOR, MCAP),
-        ("Technical 75 or more, Growth & Profitability score 55 or more, no more than 15% below the 52-week high, 3-month and 6-month returns both positive, 1-year return 300% or less.", "Market cap Rs 2,000 Cr or more (the fastest movers below that are thinly traded).",
-         "Ranked by the momentum score: 100 x (0.3 x P3M + 0.4 x P6M + 0.3 x P12M), P being the percentile (0 to 1) of that period's return among stocks of Rs 1,000 Cr or more.")),
-    _bp("basic-near-high", "Near 52-week high", "trend", "Within 5% of the 52-week high with a high Technical score.",
-        (("pct_from_high <= 5", "No more than 5% below the 52-week high"), ("pillar_technical >= 75", "Technical 75 or more"), ("fundamental_score >= 55", "Growth & Profitability score 55 or more"), MC2000),
-        (("pillar_technical", "desc"), ("momentum_score", "desc")), (RANK, STOCK, W52, B_TECH, B_MOM, B_FUND, FINLIT, R3M, R6M, SECTOR, MCAP),
-        ("No more than 5% below the 52-week high, Technical 75 or more, Growth & Profitability score 55 or more.", "Market cap Rs 2,000 Cr or more.", "Ranked by Technical, then momentum score.")),
-    _bp("basic-quality-off-highs", "Quality off its highs", "value", "High Quality and Growth & Profitability, 25% or more below the 52-week high.",
-        (("pillar_quality >= 78", "Quality 78 or more"), ("fundamental_score >= 70", "Growth & Profitability score 70 or more"), ("pct_from_high >= 25", "At least 25% below the 52-week high"), MC1000),
-        (("fundamental_score", "desc"), ("overall", "desc")), (RANK, STOCK, B_QUAL, B_FUND, W52, B_TECH, FINLIT, R6M, SECTOR, MCAP),
-        ("Quality 78 or more, Growth & Profitability score 70 or more, at least 25% below the 52-week high.", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth & Profitability score.")),
+        (("pillar_growth >= 78", "Growth Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(45), ("pillar_technical >= 45", "Technical out of Watch"), MC1000) + B_FULL,
+        (("pillar_growth", "desc"), ("overall", "desc")), (RANK, STOCK, B_GROW, B_PROF, B_BAL, B_TECH, FINLIT, R6M, W52, SECTOR, MCAP),
+        ("Growth Strong, Profitability Healthy or Strong, Balance sheet and Technical out of Watch (a blank Balance sheet is allowed), and a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth, then FinLit IQ.")),
+    _bp("basic-profitable-debt-light", "Profitable and debt-light", "safety", "Profitability and Balance sheet both Strong. Not for banks and finance companies, which have no Balance sheet score.",
+        (("pillar_profitability >= 78", "Profitability Strong"), ("pillar_balance >= 78", "Balance sheet Strong"), MC1000), (("overall", "desc"),),
+        (RANK, STOCK, FINLIT, B_PROF, B_BAL, B_TECH, W52, SECTOR, MCAP),
+        ("Profitability Strong and Balance sheet Strong.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
+    _bp("basic-quality-compounders", "Quality compounders", "growth", "Top Quality with healthy growth, profitability and balance sheet.",
+        (Q_FIT(78, "Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62), MC1000),
+        (("overall", "desc"),), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, FINLIT, B_TECH, SECTOR, MCAP),
+        ("Quality Strong (a bank or finance company against other lenders); Growth, Profitability and Balance sheet Healthy or Strong (a blank Balance sheet is allowed).", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
+    _bp("basic-momentum-leaders", "Momentum leaders", "trend", "Strong Technical score, within 15% of the 52-week high, with 3- and 6-month returns up.",
+        (("pillar_technical >= 78", "Technical Strong"), IQ_HEALTHY, ("pct_from_high <= 15", "No more than 15% below the 52-week high"),
+         ("ret_3m > 0", "3-month return above 0"), ("ret_6m > 0", "6-month return above 0"), MC2000) + B_FULL, (("momentum_score", "desc"), ("pillar_technical", "desc")),
+        (RANK, STOCK, B_MOM, R3M, R6M, R1Y, W52, B_TECH, FINLIT, SECTOR, MCAP),
+        ("Technical Strong, FinLit IQ Healthy or Strong, no more than 15% below the 52-week high, 3-month and 6-month returns both positive, a full year of prices.", "Market cap Rs 2,000 Cr or more (the fastest movers below that are thinly traded).",
+         "Ranked by the momentum score: 3-, 6- and 12-month returns against stocks of Rs 1,000 Cr or more.")),
+    _bp("basic-near-high", "Near 52-week high", "trend", "Within 5% of the 52-week high with a FinLit IQ that is Healthy or Strong.",
+        (("pct_from_high <= 5", "No more than 5% below the 52-week high"), IQ_HEALTHY, MC2000) + B_FULL,
+        (("pillar_technical", "desc"), ("momentum_score", "desc")), (RANK, STOCK, W52, B_TECH, B_MOM, FINLIT, R3M, R6M, SECTOR, MCAP),
+        ("No more than 5% below the 52-week high, FinLit IQ Healthy or Strong, and a full year of prices.", "Market cap Rs 2,000 Cr or more.", "Ranked by Technical, then momentum score.")),
+    _bp("basic-quality-off-highs", "Quality off its highs", "value", "The Quality compounders that are 25% or more below the 52-week high.",
+        (Q_FIT(78, "Strong"), ("pillar_growth >= 62", "Growth Healthy or Strong"), ("pillar_profitability >= 62", "Profitability Healthy or Strong"), _bal(62), ("pct_from_high >= 25", "At least 25% below the 52-week high"), MC1000) + B_FULL,
+        (("overall", "desc"),), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, W52, B_TECH, FINLIT, R6M, SECTOR, MCAP),
+        ("Quality Strong; Growth, Profitability and Balance sheet Healthy or Strong; at least 25% below the 52-week high; a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),
     Preset("basic-emerging-tech", "Emerging tech", BASIC_GROUP["themes"], "Companies in new-technology businesses (electronics, defence and shipbuilding, software and data, digital platforms, fintech, EVs, clean energy), still growing.",
            "tags", _m(), "", B_THEME_RULES, (("rank_score", "desc"), ("overall", "desc")), 25,
-           (RANK, STOCK, SUBT, FINLIT, B_FUND, B_TECH, B_GROW, B_BAL, R6M, W52, SECTOR, MCAP, RSC), SUB_CHIPS,
+           (RANK, STOCK, SUBT, FINLIT, B_TECH, B_GROW, B_BAL, R6M, W52, SECTOR, MCAP), SUB_CHIPS,
            ("Companies in a sub-theme: every company whose Sector label belongs to it (for example Aerospace & Defense, Ship Building, Explosives, Consumer Electronics, E-Retail, Exchange and Data Platform) joined with a short named list that the research team reviews every quarter. The sub-theme is shown as a column.",
-            "Market cap Rs 1,000 Cr or more, Growth 55 or more, Balance sheet 40 or more (a blank is allowed).",
-            "Ranked by a theme rank score: 50% Growth & Profitability score, 30% Technical, 20% Growth, each a percentile among companies of its size group of Rs 1,000 Cr or more.", B_NOTE),
-           False, None, (), "p6-9 (Emerging tech, Basic)", "basic", (("fundamental_score", 0.50), ("pillar_technical", 0.30), ("pillar_growth", 0.20))),
+            "Market cap Rs 1,000 Cr or more, Growth Healthy or Strong, Balance sheet out of Watch (a blank is allowed).",
+            "Ranked by FinLit IQ.", B_NOTE),
+           False, None, (), "p6-9 (Emerging tech, Basic)", "basic", B_RANK_SCORE),
     Preset("basic-sector-themes", "Sector themes in play", BASIC_GROUP["themes"], "Sectors where more stocks sit near their 52-week high than in the market as a whole, and the companies leading them.", "themes",
-           _m(), "", (), (("rank_score", "desc"), ("overall", "desc")), 25, (RANK, STOCK, SECTOR, FINLIT, B_FUND, B_TECH, R3M, Col("vs_industry_3m", "3-month return against the sector median (points)", "num1"), W52, MCAP),
+           _m(), "", (), (("rank_score", "desc"), ("overall", "desc")), 25, (RANK, STOCK, SECTOR, FINLIT, B_TECH, R3M, Col("vs_industry_3m", "3-month return against the sector median (points)", "num1"), W52, MCAP),
            (SMALL_GROUPS,),
            ("Every night each sector (by its Sector label) is scored on breadth, the share of its stocks within 15% of their 52-week high, and its median 3-month return against the whole market; stocks of Rs 1,000 Cr or more.",
             "In play: breadth at least 40% and 15 points above the market's, and median 3-month return at least 5 points above the market's.",
-            "Leaders (up to 5 per sector): market cap Rs 1,000 Cr or more, within 15% of their 52-week high, 3-month return above the sector median; ranked by the Top 10 rank score of the Basic tab.",
+            "Leaders (up to 5 per sector): market cap Rs 1,000 Cr or more, within 15% of their 52-week high, 3-month return above the sector median; ranked by FinLit IQ.",
             "Generic labels (Capital Goods, Financial Services, Services, FMCG, Healthcare, Information Technology) and groups under 8 companies are left out of theme status."),
            False, None, (), "p12 (Sector themes, Basic)", "basic", B_RANK_SCORE),
     _bp("basic-caution-list", "Caution list", "safety", "Companies with more warning signs than usual. Read the company page before acting.",
-        (("overall < 45 or pillar_balance < 35 or (pct_from_high >= 40 and pillar_technical <= 25)", "FinLit IQ below 45, or Balance sheet below 35, or 40% or more below the high with Technical 25 or less"), MC1000),
+        (("overall < 45 or balance_weak_ex = 1 or (pct_from_high >= 40 and pillar_technical <= 25)", "FinLit IQ below 45, or Balance sheet below 35 (not for insurers and brokers), or 40% or more below the high with Technical 25 or less"), MC1000),
         (("overall", "asc"),), (RANK, STOCK, FINLIT, B_BAL, B_TECH, W52, R6M, SECTOR, MCAP),
-        ("FinLit IQ below 45 (Watch), or Balance sheet below 35, or 40% or more below the 52-week high with Technical 25 or less.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ, lowest first. This is a caution list, not a recommendation.")),
+        ("FinLit IQ below 45 (Watch), or Balance sheet below 35 (not tested for insurers and capital-markets companies), or 40% or more below the 52-week high with Technical 25 or less.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ, lowest first. This is a caution list, not a recommendation.")),
 ]
 
 BASIC += [
@@ -473,6 +470,25 @@ BASIC += [
 ADVANCED: List[Preset] = list(PRESETS)
 PRESETS = PRESETS + BASIC
 
+# fix 11 (no model rules on the page): the card text and the "How this screen works" lines come from plain.json (the handover's data/screens.json): words only, never a
+# weight, a cut-off or a formula. A screen without plain lines shows its card text only. The rule lists above stay on the server, in the presets job.
+import json as _json
+from dataclasses import replace as _replace
+from pathlib import Path as _Path
+_PLAIN: Dict[str, dict] = _json.loads((_Path(__file__).with_name("plain.json")).read_text(encoding="utf-8"))
+
+
+def _plain(p: Preset) -> Preset:
+    w = _PLAIN.get(p.id)
+    if w is None:
+        return _replace(p, how_it_works=())
+    return _replace(p, card_text=w["text"], how_it_works=tuple(w.get("how") or ()))
+
+
+PRESETS = [_plain(p) for p in PRESETS]
+BASIC = [_plain(p) for p in BASIC]
+QUICK_VIEWS = [_plain(p) for p in QUICK_VIEWS]
+ADVANCED = [p for p in PRESETS if p.tab != "basic"]
 ALL: List[Preset] = PRESETS + QUICK_VIEWS
 BY_ID: Dict[str, Preset] = {p.id: p for p in ALL}
 
