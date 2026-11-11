@@ -66,7 +66,15 @@ describe("Sector Pulse", () => {
     expect(tiles.querySelectorAll(".zero").length).toBe(4);
     expect(document.body.textContent).toContain("22,936.75"); expect(document.body.textContent).toContain("−4.1%");
     expect(screen.getByRole("heading", { name: "How to read this page" })).toBeTruthy();
-    expect(document.querySelectorAll(".sx-how li").length).toBe(4);
+    expect(document.querySelectorAll(".sxg-steps li").length).toBe(4);
+    // a step opens its full explanation under the row, and closes again (task #85)
+    const first = document.querySelector(".sxg-card") as HTMLElement;
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(first);
+    expect(first.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector(".sxg-full p")?.textContent?.length).toBeGreaterThan(40);
+    fireEvent.click(first);
+    expect(document.querySelector(".sxg-full")?.hasAttribute("hidden")).toBe(true);
     expect(document.body.textContent).toContain("29 Oct 2026");
   });
   it("lists every group in a table whose rows open the industry page, and the filter buttons narrow it", () => {

@@ -213,6 +213,8 @@ export function QueryBuilder() {
   const openAll = (q = "") => { setSeed(q); setDrawer(true); };
   const insertName = (r: Ratio) => { const t = taRef.current; const s = t?.selectionStart ?? text.length, e = t?.selectionEnd ?? text.length; const next = text.slice(0, s) + r.label + text.slice(e); edit(next, s + r.label.length); };
   const addLine = (cond: string, joiner: "AND" | "OR" = "AND") => { const r = addCondition(text, cond, joiner); edit(r.text, r.caret); };
+  /** An example card fills the box and takes the reader to it: the box now sits below the examples (task #84). */
+  const pickExample = (q: string) => { loadExample(q); requestAnimationFrame(() => { const t = taRef.current; if (!t) return; t.scrollIntoView?.({ block: "center", behavior: "smooth" }); t.focus({ preventScroll: true }); }); };
   const loadExample = (q: string) => { if (text.trim() && text.trim() !== q) setUndo(text); setText(q); setClosed(true); setRes(null); setBad(null); if (basketId) { setParams({}, { replace: true }); } };
 
   // ---- running
@@ -268,7 +270,7 @@ export function QueryBuilder() {
   const colsToShow = res?.columns ?? [];
   const sortMark = (k: string) => (res?.sort.key === k ? (res.sort.dir === "asc" ? "▲" : "▼") : "▾");
   const total = res?.total ?? 0;
-  const statusLine = !text.trim() ? "Type a query, or pick an example below."
+  const statusLine = !text.trim() ? "Type a query, or pick an example above."
     : netErr ? "We could not check the query just now. You can still run it."
     : checking || !val ? "Checking…"
     : errors.length ? `${errors.length} problem${errors.length > 1 ? "s" : ""} to fix${warnings.length ? `, ${warnings.length} thing${warnings.length > 1 ? "s" : ""} to look at` : ""}`
@@ -279,8 +281,15 @@ export function QueryBuilder() {
       <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/score-screener"]}
         description={<>Type a rule, get the companies: <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>. We check every word as you type, show how we read it, and list the listed companies that match all of it.</>} />
       <div className="wrap qb">
-        {/* the rules sit above the box they explain, so they are read before writing (they used to open below it) */}
+        {/* page flow: the rules, then the examples, then the box (an example fills the box below it) */}
         <QueryRules open={rulesOpen} onToggle={toggleRules} onInsert={(q) => { loadExample(q); requestAnimationFrame(() => taRef.current?.focus()); }} />
+        <section className="qb-examples" aria-label="Examples">
+          <div className="label">Start from an example</div>
+          <div className="qb-chips">{(rat.data?.examples ?? []).map((x) => <button key={x.id} className="qb-ex" onClick={() => pickExample(x.query)} title={x.about}><b>{x.title}</b><small>{x.about}</small>{x.locked && <span className="qb-lk"><Icon name="lock" />{TIER[x.plan].n}</span>}</button>)}
+            {rat.isLoading && <div className="skeleton" style={{ height: 64, width: "100%" }} />}
+            {rat.isError && <p className="qb-err">The list of ratios did not load. <button className="lnk" onClick={() => rat.refetch()}>Try again</button></p>}</div>
+        </section>
+
         <section className="card qb-ed" aria-label="Your query">
           <div className="qb-bar">
             <label htmlFor="qb-text" className="qb-lab">Your query</label>
@@ -344,13 +353,6 @@ export function QueryBuilder() {
         </section>
 
         {helper && rat.data && <div id="qb-helper"><ConditionHelper ratios={ratios} hasText={!!text.trim()} onAdd={addLine} /></div>}
-
-        <section className="qb-examples" aria-label="Examples">
-          <div className="label">Start from an example</div>
-          <div className="qb-chips">{(rat.data?.examples ?? []).map((x) => <button key={x.id} className="qb-ex" onClick={() => loadExample(x.query)} title={x.about}><b>{x.title}</b><small>{x.about}</small>{x.locked && <span className="qb-lk"><Icon name="lock" />{TIER[x.plan].n}</span>}</button>)}
-            {rat.isLoading && <div className="skeleton" style={{ height: 64, width: "100%" }} />}
-            {rat.isError && <p className="qb-err">The list of ratios did not load. <button className="lnk" onClick={() => rat.refetch()}>Try again</button></p>}</div>
-        </section>
 
         <section className="card qb-save" aria-label="Save as a basket">
           <h3>Keep this query as a basket</h3>

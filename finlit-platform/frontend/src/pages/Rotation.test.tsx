@@ -98,7 +98,15 @@ describe("the Rotation tab", () => {
   it("has the how-to steps at the top, no study and one disclaimer", () => {
     at(<SectorRotationPage />);
     expect(screen.getByRole("heading", { name: "How to read this page" })).toBeTruthy();
-    expect(document.querySelectorAll(".sx-how li").length).toBe(4);
+    expect(document.querySelectorAll(".sxg-steps li").length).toBe(4);
+    // a step opens its full explanation under the row, and closes again (task #85)
+    const first = document.querySelector(".sxg-card") as HTMLElement;
+    expect(first.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(first);
+    expect(first.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector(".sxg-full p")?.textContent?.length).toBeGreaterThan(40);
+    fireEvent.click(first);
+    expect(document.querySelector(".sxg-full")?.hasAttribute("hidden")).toBe(true);
     expect(document.body.textContent).not.toMatch(/\bstudy\b|25% breadth|two weekly closes|weights/i);
     expect(document.body.textContent).toContain("Not a recommendation to buy, sell or hold any security");
   });

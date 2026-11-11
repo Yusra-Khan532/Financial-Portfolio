@@ -12,6 +12,7 @@ import {
   useSectorBoard, type Board, type FilterKey, type GroupRow, type SortKey,
 } from "../lib/sectors";
 import { CornerBadge, RankMove, SectorTabs } from "../components/rotation/Parts";
+import { HowToGuide } from "../components/sectors/HowTo";
 import { BreadthBars, Blank, LockedBlock, SectorFooter, StateChip } from "../components/sectors/Parts";
 
 const TITLE = "Sector Pulse";
@@ -47,15 +48,7 @@ function Market({ b }: { b: Board }) {
 
 /** Four short steps for the top of the page: the server writes them (how_to_use), so the words are the same everywhere. */
 function HowTo({ b }: { b: Board }) {
-  const steps = b.how_to_use ?? [];
-  if (!steps.length) return null;
-  return (
-    <section className="sx-sec" aria-labelledby="sx-how">
-      <h2 id="sx-how">How to read this page</h2>
-      <ul className="sx-how">{steps.map((x) => <li key={x.title}><b>{x.title}</b><p>{x.text}</p></li>)}</ul>
-      <p style={{ marginTop: 12 }}><Link className="sx-link" to="/learn/sector-signals">How to use Sector Pulse →</Link></p>
-    </section>
-  );
+  return <HowToGuide kind="pulse" steps={b.how_to_use ?? []} learnTo="/learn/sector-signals" learnLabel="How to use Sector Pulse" />;
 }
 
 function Cycle() {
