@@ -13,7 +13,8 @@ const streak = (s: Streak | null) => (!s || s.side === "flat" || !s.days ? "No s
 const day = (iso: string) => dateIN(iso, { day: "numeric", month: "short" });
 const crore = (v: number | null | undefined) => (v == null ? "no figure" : inr(v));
 
-/** One row of bars (FII or DII): one bar per session, its height the net flow against the largest of the period. */
+/** One row of bars (FII or DII): one bar per session, its height the net flow against the largest of the period.
+ *  The halves are `up` / `dn`: never `top`, which is the site header's class (sticky, z-index 40) and once made these bars stick over the navigation. */
 function BarRow({ label, days, pick, max }: { label: string; days: FlowDay[]; pick: (d: FlowDay) => number | null | undefined; max: number }) {
   const vals = days.map((d) => ({ d: d.d, v: pick(d) }));
   const nums = vals.filter((x): x is { d: string; v: number } => typeof x.v === "number");
@@ -25,7 +26,7 @@ function BarRow({ label, days, pick, max }: { label: string; days: FlowDay[]; pi
       <div className="bars" role="img" aria-label={`${label} net, last ${days.length} sessions: lowest ${inr(lo.v)} on ${day(lo.d)}, highest ${inr(hi.v)} on ${day(hi.d)}.`}>
         {vals.map((x) => {
           const h = typeof x.v === "number" ? Math.max(1, Math.round((Math.abs(x.v) / max) * 100)) : 0;
-          return <span className="b" key={x.d} title={`${day(x.d)}: ${crore(x.v)}`}><span className="top">{x.v != null && x.v > 0 && <i style={{ height: `${h}%` }} />}</span><span className="bot">{x.v != null && x.v < 0 && <i style={{ height: `${h}%` }} />}</span></span>;
+          return <span className="b" key={x.d} title={`${day(x.d)}: ${crore(x.v)}`}><span className="up">{x.v != null && x.v > 0 && <i style={{ height: `${h}%` }} />}</span><span className="dn">{x.v != null && x.v < 0 && <i style={{ height: `${h}%` }} />}</span></span>;
         })}
       </div>
     </div>
