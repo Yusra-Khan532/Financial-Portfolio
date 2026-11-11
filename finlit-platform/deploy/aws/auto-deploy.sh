@@ -49,6 +49,21 @@ esac
 
 exec 8>"$STATE/auto_deploy.lock"
 flock -n 8 || exit 0                                    # a check is already running
+
+# Housekeeping: when the disk is DISK_CLEAN_PCT full (default 78) or more, free build cache and unused images, at most once every 30 minutes. This runs on the
+# server itself, before anything else, so it also works while deploys are paused or nothing new has been committed.
+disk_pct() { if [ -n "${DISK_PCT_CMD:-}" ]; then sh -c "$DISK_PCT_CMD" 2>/dev/null; else df --output=pcent / 2>/dev/null | tail -n 1 | tr -dc '0-9'; fi; }
+housekeeping() {
+  local pct last now
+  pct="$(disk_pct)"; [ -n "$pct" ] || return 0
+  [ "$pct" -ge "$(conf DISK_CLEAN_PCT 78)" ] || return 0
+  now="$(date +%s)"; last="$(cat "$STATE/last_clean" 2>/dev/null || echo 0)"
+  [ $((now - last)) -ge 1800 ] || return 0
+  echo "$now" > "$STATE/last_clean"
+  log "the disk is ${pct}% full: cleaning build cache and unused images"
+  bash "$DEPLOY_SH" clean >> "$LOG" 2>&1 || log "the cleaning did not finish (see above)"
+}
+housekeeping
 [ ! -e "$STATE/auto_paused" ] || exit 0
 GIT_TOKEN_FILE="$FINLIT_HOME/git-token"
 if [ -r "$GIT_TOKEN_FILE" ]; then

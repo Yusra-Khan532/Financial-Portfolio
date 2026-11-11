@@ -157,15 +157,41 @@ wait_healthy() {  # wait_healthy -> 0 when /api/ping and then /api/health answer
 image_id() { docker image inspect -f '{{.Id}}' "$1" 2>/dev/null || true; }
 image_commit() { docker image inspect -f '{{index .Config.Labels "finlit.commit"}}' "$1" 2>/dev/null || true; }
 
-disk_guard() {  # before a deploy: if the disk is more than 90% full, clean what is safe to clean and say so; refuse above 97% (a full disk stops the database)
+disk_pct() { df --output=pcent / | tail -n 1 | tr -dc '0-9'; }
+
+# Free what is safe to free (task: the "disk is almost full" alert kept coming back on days with many automatic deploys, because each build adds image layers and
+# build cache and the old rule kept a whole day of cache). Never touches the running containers, the database volume, the backups volume or the two images a rollback needs.
+#   - the build cache is capped by size (BUILD_CACHE_KEEP, default 2gb), not by age
+#   - every finlit-app image other than current, previous and pending is removed, then dangling images, stopped containers and unused networks
+#   - the journal is cut to 200 MB and the package cache is emptied, when those exist
+cmd_clean() {
+  local before after keep id tag
+  before="$(disk_pct)"; keep="${BUILD_CACHE_KEEP:-2gb}"
+  info "disk ${before:-?}% full before cleaning"
+  docker builder prune -af --keep-storage "$keep" >/dev/null 2>&1 || docker builder prune -af >/dev/null 2>&1 || true
+  for id in $(docker images "$IMAGE" -q 2>/dev/null | sort -u); do
+    tag="$(docker image inspect -f '{{join .RepoTags " "}}' "$id" 2>/dev/null || true)"
+    case " $tag " in *" $IMAGE:current "*|*" $IMAGE:previous "*|*" $IMAGE:pending "*) continue ;; esac
+    docker rmi "$id" >/dev/null 2>&1 || true            # refused by docker while a container still uses it: that is the point
+  done
+  docker image prune -f >/dev/null 2>&1 || true
+  docker container prune -f >/dev/null 2>&1 || true
+  docker network prune -f >/dev/null 2>&1 || true
+  command -v journalctl >/dev/null 2>&1 && journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+  command -v apt-get >/dev/null 2>&1 && apt-get clean >/dev/null 2>&1 || true
+  after="$(disk_pct)"
+  info "disk ${after:-?}% full after cleaning"
+  docker system df 2>/dev/null | sed 's/^/    /' || true
+}
+
+disk_guard() {  # before a deploy: from 75% clean what is safe to clean and say so; refuse above 97% (a full disk stops the database)
   local pct
-  pct="$(df --output=pcent / | tail -n 1 | tr -dc '0-9')"
+  pct="$(disk_pct)"
   [ -n "$pct" ] || return 0
-  if [ "$pct" -ge 90 ]; then
-    info "WARNING: the disk is ${pct}% full; removing unused build cache and images first"
-    docker builder prune -af >/dev/null 2>&1 || true
-    docker image prune -f >/dev/null 2>&1 || true
-    pct="$(df --output=pcent / | tail -n 1 | tr -dc '0-9')"
+  if [ "$pct" -ge 75 ]; then
+    info "WARNING: the disk is ${pct}% full; cleaning build cache and unused images first"
+    cmd_clean
+    pct="$(disk_pct)"
     info "the disk is now ${pct}% full"
   fi
   [ "${pct:-0}" -lt 97 ] || die "the disk is ${pct}% full: a deploy now could stop the database. Free space first (docker system df; bash $0 backups)."
@@ -208,7 +234,7 @@ cmd_deploy() {
     exit 1
   fi
   docker image prune -f >/dev/null 2>&1 || true
-  docker builder prune -f --filter until=24h >/dev/null 2>&1 || true   # the cache of builds older than a day: automatic deploys add up to a gigabyte a day otherwise
+  docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-2gb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
   say "Done: FinLit is running (commit $commit)"
   info "Open:        $(site_url)"
   info "Check it:    cd $PROJ && bash scripts/smoke.sh $(site_url)"
@@ -303,10 +329,11 @@ main() {
     restart)  shift; cmd_restart "$@" ;;
     backup)   cmd_backup ;;
     backups)  cmd_backups ;;
+    clean)    cmd_clean ;;
     restore)  shift; cmd_restore "$@" ;;
     compose)  shift; need_stack; dc "$@" ;;
     -h|--help|help) sed -n '2,19p' "$0" ;;
-    *) die "unknown command '$1'. Use: deploy | rollback | status | logs [service] | restart [service] | backup | backups | restore FILE | compose ARGS" ;;
+    *) die "unknown command '$1'. Use: deploy | rollback | status | logs [service] | restart [service] | backup | backups | clean | restore FILE | compose ARGS" ;;
   esac
 }
 { main "$@"; exit $?; }
