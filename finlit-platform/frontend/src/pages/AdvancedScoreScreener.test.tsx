@@ -68,7 +68,7 @@ describe("Advanced score screener (Gold)", () => {
 
   it("the results table has the enlarge arrow (task #44), and the enlarged dialog holds the same table", async () => {
     open();
-    const arrow = await screen.findByRole("button", { name: /Enlarge chart: Score screener results/ });
+    const arrow = await screen.findByRole("button", { name: /Enlarge table: Score screener results/ });
     fireEvent.click(arrow);
     const dlg = await screen.findByRole("dialog", { name: "Score screener results" });
     expect(within(dlg).getAllByRole("columnheader").length).toBeGreaterThan(5);

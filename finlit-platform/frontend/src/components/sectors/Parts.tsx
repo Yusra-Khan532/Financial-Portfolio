@@ -13,7 +13,7 @@ export function StateChip({ state, big, extra }: { state: string | null | undefi
 
 /** The share of counted stocks above their 9, 20 and 50-day averages: three bars with the figure written beside each. */
 export function BreadthBars({ b, name }: { b: Breadth; name?: string }) {
-  const rows: [string, string, number | null][] = [["9", "b9", b.above_9], ["20", "b20", b.above_20], ["50", "b50", b.above_50]];
+  const rows: [string, string, number | null][] = [["9D", "b9", b.above_9], ["20D", "b20", b.above_20], ["50D", "b50", b.above_50]];
   const label = `${name ? name + ": " : ""}share of counted stocks above their 9-day average ${pct(b.above_9)}, 20-day ${pct(b.above_20)}, 50-day ${pct(b.above_50)}`;
   return (
     <div className="sx-bars" role="img" aria-label={label}>

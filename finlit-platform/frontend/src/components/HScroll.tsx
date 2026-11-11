@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { TableZoom } from "./TableZoom";
 
 /** A wide table's scroll box with its own controls: ◀ ▶ buttons and a slider, shown only when the table is wider than the space,
  *  so it can be moved sideways without a mouse wheel or trackpad. The slider and the table stay in step both ways. */
@@ -20,7 +21,7 @@ export function HScroll({ children, className = "", label = "table" }: { childre
   const go = (to: number) => box.current?.scrollTo({ left: Math.max(0, Math.min(max, to)), behavior: "smooth" });
   const step = () => Math.max(160, (box.current?.clientWidth || 600) * 0.6);
   return (
-    <>
+    <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>
       {max > 4 && (
         <div className="hs-bar" role="group" aria-label={`Scroll the ${label} sideways`}>
           <button type="button" className="hs-btn" aria-label="Scroll left" disabled={pos <= 1} onClick={() => go(pos - step())}>◀</button>
@@ -30,6 +31,6 @@ export function HScroll({ children, className = "", label = "table" }: { childre
         </div>
       )}
       <div ref={box} className={"tw " + className}>{children}</div>
-    </>
+    </TableZoom>
   );
 }

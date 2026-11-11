@@ -43,7 +43,7 @@ describe("ChartZoom", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enlarge chart: Revenue" }));
     expect(screen.getByText("range 1")).toBeTruthy();
     fireEvent.click(screen.getByText("range 1"));
-    fireEvent.click(screen.getByRole("button", { name: "Restore chart: Revenue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close enlarged chart: Revenue" }));
     expect(screen.getByText("range 2")).toBeTruthy();
     expect(screen.getByText("small")).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -111,5 +111,24 @@ describe("ChartZoom arrow placement", () => {
     const head = screen.getByTestId("head");
     unmount();
     expect(head.hasAttribute("data-cz-head")).toBe(false);
+  });
+  it("zooms the enlarged view in, out and back to 100%, keeping the state", () => {
+    render(<ChartZoom label="Revenue" kind="table"><Counter /></ChartZoom>);
+    fireEvent.click(screen.getByRole("button", { name: "Enlarge table: Revenue" }));
+    const body = document.querySelector(".cz-body") as HTMLElement;
+    expect(screen.getByText("100%")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(screen.getByText("110%")).toBeTruthy();
+    expect(body.style.getPropertyValue("--cz-z")).toBe("1.1");
+    fireEvent.keyDown(document, { key: "-" }); fireEvent.keyDown(document, { key: "-" });
+    expect(screen.getByText("90%")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reset zoom to 100%" }));
+    expect(screen.getByText("100%")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "+" }); fireEvent.keyDown(document, { key: "0" });
+    expect(screen.getByText("100%")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close enlarged table: Revenue" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Enlarge table: Revenue" }));
+    expect(screen.getByText("100%")).toBeTruthy();   // opens at 100% every time
   });
 });

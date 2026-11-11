@@ -70,14 +70,24 @@ function lockScroll(): () => void {
   return () => { if (--locks === 0) document.body.style.overflow = savedOverflow; };
 }
 
-export function ChartZoom({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
+/** The scale steps of the enlarged view (task #87): 50% to 300%, 100% is the size the page draws it at. */
+export const ZOOM_STEPS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+export const zoomStep = (z: number, dir: 1 | -1): number => {
+  const i = ZOOM_STEPS.findIndex((x) => Math.abs(x - z) < 0.001);
+  const at = i < 0 ? ZOOM_STEPS.findIndex((x) => x >= z) : i;
+  return ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, (at < 0 ? ZOOM_STEPS.length - 1 : at) + dir))];
+};
+
+/** kind="table" says "table" where the chart wording would be wrong (the arrow's label, the dialog's Restore button). */
+export function ChartZoom({ label, children, className = "", kind = "chart" }: { label: string; children: ReactNode; className?: string; kind?: "chart" | "table" }) {
   const parent = useContext(Ctx);
   if (parent.inside) return <>{children}</>;
-  return <Zoomable label={label} className={className}>{children}</Zoomable>;
+  return <Zoomable label={label} className={className} kind={kind}>{children}</Zoomable>;
 }
 
-function Zoomable({ label, children, className }: { label: string; children: ReactNode; className: string }) {
+function Zoomable({ label, children, className, kind }: { label: string; children: ReactNode; className: string; kind: "chart" | "table" }) {
   const [open, setOpen] = useState(false);
+  const [z, setZ] = useState(1);   // the scale in the enlarged view; starts at 100% each time it opens
   const server = useSyncExternalStore(subscribeNone, () => false, () => true);   // true while rendering to a string: no portals there
   const host = useMemo(() => { if (typeof document === "undefined") return null; const d = document.createElement("div"); d.className = "cz-host"; return d; }, []);
   const root = useRef<HTMLDivElement>(null);
@@ -85,6 +95,7 @@ function Zoomable({ label, children, className }: { label: string; children: Rea
   const slot = useRef<HTMLDivElement>(null), body = useRef<HTMLDivElement>(null), dlg = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null);
   const tid = useId();
   const close = useCallback(() => setOpen(false), []);
+  const openIt = () => { setZ(1); setOpen(true); };
 
   // One live copy of the chart: its DOM moves between the card and the dialog, so its React state is never lost.
   useLayoutEffect(() => {
@@ -131,7 +142,14 @@ function Zoomable({ label, children, className }: { label: string; children: Rea
   useEffect(() => {
     if (!open) return;
     const unlock = lockScroll();
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+      const t = e.target as HTMLElement | null;
+      if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))) return;
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); setZ((v) => zoomStep(v, 1)); }
+      else if (e.key === "-" || e.key === "_") { e.preventDefault(); setZ((v) => zoomStep(v, -1)); }
+      else if (e.key === "0") { e.preventDefault(); setZ(1); }
+    };
     document.addEventListener("keydown", key, true);
     return () => { document.removeEventListener("keydown", key, true); unlock(); };
   }, [open, close]);
@@ -144,16 +162,22 @@ function Zoomable({ label, children, className }: { label: string; children: Rea
         <div className="cz-slot" ref={slot} />
         {createPortal(children, host)}
       </Ctx.Provider>
-      {(has || open) && <button ref={btn} type="button" className={"cz-btn" + (at ? " cz-at-box" : "")} style={at ? ({ "--cz-dt": `${at.t}px`, "--cz-dr": `${at.r}px` } as React.CSSProperties) : undefined} aria-label={`Enlarge chart: ${label}`} aria-haspopup="dialog" aria-expanded={open} title="Enlarge chart" onClick={() => setOpen(true)}><ZoomGlyph /></button>}
+      {(has || open) && <button ref={btn} type="button" className={"cz-btn" + (at ? " cz-at-box" : "")} style={at ? ({ "--cz-dt": `${at.t}px`, "--cz-dr": `${at.r}px` } as React.CSSProperties) : undefined} aria-label={`Enlarge ${kind}: ${label}`} aria-haspopup="dialog" aria-expanded={open} title={`Enlarge ${kind}`} onClick={openIt}><ZoomGlyph /></button>}
       {open && createPortal(
         <>
           <div className="cz-scrim" onClick={close} aria-hidden="true" />
           <div className="cz-modal" role="dialog" aria-modal="true" aria-labelledby={tid} tabIndex={-1} ref={dlg}>
             <div className="cz-bar">
               <h2 id={tid} className="cz-title">{label}</h2>
-              <button type="button" className="cz-btn cz-restore" aria-label={`Restore chart: ${label}`} title="Restore (Esc)" onClick={close}><ZoomGlyph zoomed /><span>Restore</span></button>
+              <div className="cz-zoom" role="group" aria-label={`Zoom the ${kind}`}>
+                <button type="button" className="cz-zb" aria-label="Zoom out" title="Zoom out (-)" disabled={z <= ZOOM_STEPS[0]} onClick={() => setZ((v) => zoomStep(v, -1))}>−</button>
+                <output className="cz-zv" aria-live="polite">{Math.round(z * 100)}%</output>
+                <button type="button" className="cz-zb" aria-label="Zoom in" title="Zoom in (+)" disabled={z >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => setZ((v) => zoomStep(v, 1))}>+</button>
+                <button type="button" className="cz-zb cz-zr" aria-label="Reset zoom to 100%" title="Reset (0)" disabled={z === 1} onClick={() => setZ(1)}>Reset</button>
+              </div>
+              <button type="button" className="cz-btn cz-restore" aria-label={`Close enlarged ${kind}: ${label}`} title="Close (Esc)" onClick={close}><ZoomGlyph zoomed /><span>Close</span></button>
             </div>
-            <div className="cz-body" ref={body} />
+            <div className="cz-body" ref={body} style={{ "--cz-z": z } as React.CSSProperties} />
           </div>
         </>, document.body)}
     </div>
