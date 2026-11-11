@@ -57,6 +57,7 @@ class Query_(BaseModel):
     columns: List[str] = Field(default_factory=list, max_length=40)
     offset: int = Field(default=0, ge=0, le=10000)
     limit: int = Field(default=50, ge=1, le=100)
+    funnel: bool = False
 
     @field_validator("filters")
     @classmethod
@@ -166,6 +167,8 @@ async def query(request: Request, body: Query_):
                 r["band"] = None
     out = {"total": total, "offset": off, "limit": lim, "capped": capped, "columns": cols, "rows": rows,
            "took": round((time.perf_counter() - started) * 1000, 1)}
+    if body.funnel:        # what is left after each rule in turn, and how many companies a rule left out for having no figure (the Stock screener's funnel)
+        out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, body.cats.model_dump())
     return Response(content=__import__("json").dumps(out, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
