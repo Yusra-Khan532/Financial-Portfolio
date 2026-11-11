@@ -142,3 +142,4 @@
 .ol-fold3 details { padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); } .ol-fold3 summary { cursor: pointer; font-weight: 600; font-size: var(--fs-14); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .ol-fold3 summary em { font-style: normal; padding: 1px 10px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: var(--fs-12); color: var(--muted); }
 .ol-fold3 details[open] { grid-column: 1 / -1; }
 @media (max-width: 1100px) { .ol-top.side { grid-template-columns: minmax(0, 1fr); } .ol-top.side > .ol-assume { grid-column: 1; grid-row: 1; position: static; } .ol-top.side > .ol-charts { grid-column: 1; grid-row: 2; } .ol-pair, .ol-fold3 { grid-template-columns: minmax(0, 1fr); } }
+.sl-nc { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
