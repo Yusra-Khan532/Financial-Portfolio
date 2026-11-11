@@ -97,7 +97,7 @@ export function FeedbackPage() {
             {step === 0 && <section className="fb-sec" aria-label={STEPS[0]}>
               <div className="fb-two">
                 <Stars id="q-rate" label="How would you rate your overall experience with FinLit Ventures?" value={f.rating} onChange={set("rating")} required />
-                <fieldset className="fb-q" aria-required><legend id="q-nps">How likely are you to recommend FinLit Ventures to a friend or colleague?<i aria-hidden="true"> *</i></legend>
+                <fieldset className="fb-q fb-npsq" aria-required><legend id="q-nps">How likely are you to recommend FinLit Ventures to a friend or colleague?<i aria-hidden="true"> *</i></legend>
                   <div className="fb-nps" role="radiogroup" aria-labelledby="q-nps">{Array.from({ length: 11 }, (_, n) => <button key={n} type="button" role="radio" aria-checked={f.nps === n} className={f.nps === n ? "on" : ""} onClick={() => set("nps")(n)}>{n}</button>)}</div>
                   <div className="fb-ends"><span>Not likely</span><span>Very likely</span></div></fieldset>
               </div>

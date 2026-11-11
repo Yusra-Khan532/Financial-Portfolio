@@ -13,7 +13,6 @@ import { useIndices } from "../lib/indices";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
 import { firstName, greetingWord, istHour, longDay, readTab, writeTab } from "../lib/dashboard";
-import { FeedbackFooter } from "../components/FeedbackFooter";
 import { Card, useIsPhone } from "../components/dashboard/parts";
 import { MyStocks, type Followed } from "../components/dashboard/MyStocks";
 import { MarketToday } from "../components/dashboard/MarketToday";
@@ -110,7 +109,6 @@ export function Dashboard() {
         {shown.map((w) => <div key={w.id} className={"dsh-cell " + w.size} data-block={w.id}>{body(w.id)}</div>)}
         {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">{phone ? "Every block on this tab is switched off." : "Every block is switched off."} <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
       </div>
-      <FeedbackFooter what="dashboard" />
       <p className="dsh-fine">Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
     </div>
   );

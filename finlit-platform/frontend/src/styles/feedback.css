@@ -50,14 +50,21 @@
   .fb-star { width: 44px; height: 44px; } .fb-nps button { min-width: 44px; height: 44px; } .fb-foot .btn { flex: 1; justify-content: center; } .fb-priv { display: none; } }
 @media (prefers-reduced-motion: reduce) { .fb-bar i, .fb-star { transition: none; } }
 
-/* Task #67: boxes of one row share one height, the question text stays inside its box, stars and the 0-10 scale sit on an even grid */
-.fb-q legend, .fb-q > label { float: none; display: block; width: auto; max-width: 100%; margin-bottom: 2px; overflow-wrap: break-word; }
-.fb-q { align-content: start; height: 100%; }
+/* Task #67 (second pass): the question sits INSIDE its box (a floated legend, so the browser does not draw it on the border), the boxes of one row share one height and
+   their first line, the stars of a row start at the same level, and the 0-10 scale is one even row (11 across when there is room, else 6 and 5 on a six-column grid). */
+.fb-q { box-sizing: border-box; height: 100%; align-content: start; padding: 16px 18px; }
+.fb-q legend, .fb-q > label { float: left; width: 100%; display: block; box-sizing: border-box; margin: 0 0 4px; padding: 0; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
+.fb-q legend + *, .fb-q > label + * { clear: both; }
+.fb-three .fb-q legend, .fb-two .fb-q legend { min-height: 2.8em; }                       /* two lines, so the stars and scales of neighbouring boxes line up */
 .fb-two, .fb-three { align-items: stretch; }
+.fb-two:has(.fb-npsq) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr); }
 .fb-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.fb-row { flex-wrap: wrap; row-gap: 2px; } .fb-star { width: 36px; height: 36px; } .fb-word { margin: 0; flex-basis: 100%; min-height: 18px; }
-.fb-nps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; } .fb-nps button { min-width: 0; width: 100%; }
-@media (max-width: 900px) { .fb-three { grid-template-columns: minmax(0, 1fr); } .fb-two { grid-template-columns: minmax(0, 1fr); } }
+.fb-row { flex-wrap: wrap; row-gap: 2px; margin-left: -4px; } .fb-star { width: 36px; height: 36px; } .fb-word { margin: 0 0 0 4px; flex-basis: 100%; min-height: 18px; }
+.fb-npsq { container-type: inline-size; }
+.fb-nps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; } .fb-nps button { min-width: 0; width: 100%; padding: 0; }
+@container (min-width: 350px) { .fb-nps { grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; } }
+.fb-ends { margin-top: 2px; }
+@media (max-width: 900px) { .fb-three, .fb-two, .fb-two:has(.fb-npsq) { grid-template-columns: minmax(0, 1fr); } .fb-three .fb-q legend, .fb-two .fb-q legend { min-height: 0; } }
 
 /* the feedback block at the bottom of reports and dashboards (components/FeedbackFooter.tsx) */
 .fbf { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 28px auto 8px; max-width: 1180px; padding: 16px 20px; border: 1px solid var(--border-strong, var(--border)); border-radius: 16px; background: var(--s1); }
