@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import orjson
@@ -22,6 +23,19 @@ COMPUTE_TIMEOUT = 45
 WAIT_S = 10
 
 
+_NSE: Optional[Dict[str, str]] = None
+
+
+def nse_industries() -> Dict[str, str]:
+    """symbol -> NSE industry (58 names, one level each: the list Sector Pulse uses, finlit_technicals/data/nse_industries.json). A company not in it has no industry."""
+    global _NSE
+    if _NSE is None:
+        path = Path(__file__).resolve().parents[2] / "finlit_technicals" / "data" / "nse_industries.json"
+        raw = json.loads(path.read_text(encoding="utf-8")).get("stocks") or {}
+        _NSE = {str(k).upper(): v[0] for k, v in raw.items() if v and v[0]}
+    return _NSE
+
+
 async def build_frame(store, persist: bool = False, now: Optional[datetime] = None) -> engine.Frame:
     now = now or datetime.now(timezone.utc)
     as_of = expected_session(now)
@@ -35,7 +49,8 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
             "(SELECT DISTINCT as_of FROM industry_breadth_daily WHERE as_of < $1 ORDER BY as_of DESC LIMIT $2)", as_of, themes.KEEP_SESSIONS)]
     history_days = await _rating_changes(store, prism, as_of)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
-    industry = {s: v[1] for s, v in clean.items()}
+    nse = nse_industries()
+    industry = {s: nse[s] for s in table.symbols if s in nse}      # NSE industry, one level (task 64, fix 6); the site's own cleaned label is still stored in industry_clean
     tags = theme_map.tags_for(table.symbols, table.sector_label)      # found from the Sector LABEL (not the broad macro sector) and the research team's named lists, shown as a column
     pos = table.pos
     ev = themes.evaluate(table, themes.by_sector_label(table), themes.history_from_rows(hist_rows))      # grouped by the Sector label, not the Industry
@@ -134,12 +149,19 @@ async def read_cached(store, pid: str, ckey: str) -> Optional[dict]:
     return body
 
 
+def same_snapshot(body: dict, snapshot: str) -> bool:
+    """A saved list answers only when it was built from the table the universe is serving now; an older one is rebuilt first (a list saved before this stamp existed counts as the same)."""
+    have = body.get("snapshot")
+    return have is None or have == snapshot
+
+
 async def get_result(store, preset: Preset, active: List[str]) -> Optional[dict]:
     """The cached answer; on a miss compute it once (a Redis lock keeps concurrent first requests to one computation, bounded by COMPUTE_TIMEOUT).
     None when another worker is computing and did not finish within WAIT_S (the API answers 503 'computing')."""
     ckey = engine.chip_key(active)
+    snap = (await get_table(store)).fingerprint()
     body = await read_cached(store, preset.id, ckey)
-    if body is not None:
+    if body is not None and same_snapshot(body, snap):
         return body
     lock = f"presets:lock:{preset.id}:{ckey}"
     got = False
@@ -161,7 +183,7 @@ async def get_result(store, preset: Preset, active: List[str]) -> Optional[dict]
     for _ in range(WAIT_S * 2):
         await asyncio.sleep(0.5)
         body = await read_cached(store, preset.id, ckey)
-        if body is not None:
+        if body is not None and same_snapshot(body, snap):
             return body
     return None
 

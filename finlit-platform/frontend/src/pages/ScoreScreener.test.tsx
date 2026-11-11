@@ -22,7 +22,7 @@ import { watch } from "../lib/watchlist";
 
 const mk = (symbol: string, sector: string | null, f: number | null, t: number | null, cap: number | null, o: Partial<Row> = {}): Row => ({
   symbol, name: symbol + " Limited", sector, overall: f == null ? null : f, band: null, pillar_quality: f, pillar_growth: f, pillar_profitability: f, pillar_balance: f, pillar_technical: t,
-  price: cap == null ? null : 100, market_cap: cap, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
+  price: cap == null ? null : 100, market_cap: cap == null ? null : cap * 100,   /* x100: the fixture companies are all Large on the rupee scale */ pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
   operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
 });
 const CARD = { id: "basic-top-large", name: "Top 10 large caps", group: "top-rated", cardText: "The 10 large caps with the strongest mix of business scores and price strength.", count: 40, asOf: "2026-10-30", status: "live", blockedReason: null,
@@ -331,7 +331,7 @@ describe("Basic score screener page", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /How scores work/ })[0]);
     const d = screen.getByRole("dialog", { name: "How scores work" });
     expect(d.textContent).toMatch(/Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45/);
-    expect(d.textContent).toMatch(/100 largest are Large cap, the next 150 Mid cap/);
+    expect(d.textContent).toMatch(/Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr/);
     expect(d.textContent).toMatch(/26 Oct 2026/);
     expect(d.textContent?.toLowerCase()).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target)\b/);
     fireEvent.keyDown(document, { key: "Escape" });

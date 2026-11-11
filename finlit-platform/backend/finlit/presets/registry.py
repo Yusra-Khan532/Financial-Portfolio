@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 8      # 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 9      # 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 RUN_GUARD = ("coalesce(ret_1y, 0) <= 300", "1-year return no more than 300%")   # a stock that has run far past that is not a steady leader: kept out of the Top 10 and momentum lists
@@ -168,21 +168,21 @@ PRESETS: List[Preset] = [
            (("prism_st_score >= 0", "Short-term technical view 0 or more"), RUN_GUARD),
            (("momentum_score", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, Col("momentum_score", "Momentum score", "score"), R3M, R6M, R1Y, W52, STS, LTS, PRISM, SECTOR, MCAP)), (),
-           ("Rated by Prism with a score of 50 or more.", "Long-term technical view +20 or more (price above its long-term average) and short-term view 0 or more (not stretched down).",
+           ("Rated or provisional by Prism with a score of 50 or more.", "Long-term technical view +20 or more (price above its long-term average) and short-term view 0 or more (not stretched down).",
             "No more than 15% below its 52-week high; 3-month and 6-month returns both positive; 1-year return 300% or less; market cap Rs 1,000 Cr or more.",
             "Ranked by the momentum score: 100 x (0.3 x P3M + 0.4 x P6M + 0.3 x P12M), P being the percentile (0 to 1) of that period's return among stocks of Rs 1,000 Cr or more."),
            False, None, ("provisional",), "p10 (Momentum leaders)"),
 
-    Preset("at-52-week-high", "At a 52-week high", "trend", "Within 5% of the 52-week high with a positive short-term view.", "rules",
+    Preset("at-52-week-high", "Near a 52-week high", "trend", "Within 5% of the 52-week high with a positive short-term view.", "rules",
            _m(rated=1, zmin=50, st=20), "Below 52-week high <= 5", (), (("prism_st_score", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, STS, LTS, W52, R3M, R6M, PRISM, SECTOR, MCAP)), (),
-           ("Rated by Prism with a score of 50 or more.", "No more than 5% below the 52-week high.", "Short-term technical view +20 or more.", "Ranked by the short-term view."),
+           ("Rated or provisional by Prism with a score of 50 or more.", "No more than 5% below the 52-week high.", "Short-term technical view +20 or more.", "Ranked by the short-term view."),
            False, None, ("provisional",), "p10 (At a 52-week high)"),
 
     Preset("both-views-positive", "Positive on both technical views", "trend", "Large and mid caps whose short-term and long-term technical views are both positive.", "rules",
            _m(rated=1, st=20, lt=20), "", (("is_large_mid = 1", "Large or mid cap"),), (("prism_final", "desc"),), 25,
            with_status((STOCK, PRISM, STS, LTS, ST, LT, R6M, W52, SECTOR, MCAP)), (ALL_CAPS,),
-           ("Rated by Prism.", "Short-term and long-term technical views both +20 or more.", "Large and mid caps by default; the All caps chip adds small caps.", "Ranked by Prism score."),
+           ("Rated or provisional by Prism.", "Short-term and long-term technical views both +20 or more.", "Large and mid caps by default; the All caps chip adds small caps.", "Ranked by Prism score."),
            False, None, ("provisional",), "p10 (merged with F&O stocks)"),
 
     Preset("consistent-growers", "Consistent growers", "growth", "Companies with strong Growth & Profitability, quality and risk scores together.", "rules",
@@ -241,14 +241,14 @@ PRESETS: List[Preset] = [
     Preset("higher-risk-list", "Higher-risk list", "safety", "Companies with more warning signs than usual. Read the company page before acting.", "rules",
            _m(rated=1), "", (("prism_risk < 40 or prism_final < 35 or (pct_from_high >= 40 and prism_lt_score <= -50)", "Risk below 40, or Prism below 35, or 40% or more below the high with a long-term view of -50 or lower"),),
            (("prism_risk", "asc"), ("prism_final", "asc")), 25, with_status((STOCK, RISK, PRISM, PLABEL, W52, LTS, R6M, SECTOR, MCAP)), (),
-           ("Rated by Prism.", "Prism Risk below 40, or Prism score below 35, or 40% or more below the 52-week high with a long-term technical view of -50 or lower.", "Ranked by the Risk part, lowest first. This is a caution list, not a recommendation."),
+           ("Rated or provisional by Prism.", "Prism Risk below 40, or Prism score below 35, or 40% or more below the 52-week high with a long-term technical view of -50 or lower.", "Ranked by the Risk part, lowest first. This is a caution list, not a recommendation."),
            False, None, ("provisional",), "p14 (Higher-risk list)"),
 
     # ---- not built: the data does not exist yet. Listed so the cards can say so in plain words, never computed.
     Preset("rating-upgrades", "Rating upgrades", "top-rated", "Companies whose Prism rating moved up a band, or whose score rose 8 points or more, over the last 30 days.", "rules",
-           _m(rated=1), "", (("prism_band_up = 1 or prism_rise_30d >= 8", "Prism rating up a band, or score up 8 points or more"),), (("prism_rise_30d", "desc"), ("prism_final", "desc")), 25,
+           _m(rated=1, status="RATED"), "", (("prism_band_up = 1 or prism_rise_30d >= 8", "Prism rating up a band, or score up 8 points or more"),), (("prism_rise_30d", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, SECTOR, PRISM, PLABEL, Col("prism_rise_30d", "Score change", "num1"), MCAP)), (PROVISIONAL,),
-           ("Only companies with a Prism score, compared over the last 30 days of the site's own daily Prism history.",
+           ("Only companies with a full Prism rating, compared over the last 30 days of the site's own daily Prism history. The Include provisional chip adds the provisional ones, badged.",
             "Listed when the rating moved up a band (Poor under 35, Weak 35 to 49, Average 50 to 64, Healthy 65 to 79, Strong 80 or more) or the score rose 8 points or more.",
             "Ranked by the size of the rise. A company with fewer than two days of history is left out; while the history is shorter than 30 days the card says how many days it covers."),
            False, None, ("provisional",), "p9 (Rating upgrades)", "advanced"),
@@ -293,14 +293,14 @@ SETUPS_ADV: List[Preset] = [
     Preset("setup-pre-breakout", "Pre-breakout", "setups", "Stocks in an uptrend resting just under their 52-week high, with price and volume going quiet.", "rules", _m(rated=1), "",
            PB_RULES + (("coalesce(prism_lt_score, -100) >= 20", "Long-term technical view +20 or more"), ("coalesce(prism_st_score, -100) >= -10", "Short-term technical view -10 or more")),
            (("rank_score", "desc"), ("prism_lt_score", "desc")), 25, with_status((STOCK, S_HIGH, S_DSH, S_R10, S_ATR, S_V10, S_RSI, STS, LTS, PRISM, SECTOR, MCAP)), (),
-           ("Rated by Prism (a Provisional rating is badged).", "In an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day; at most 2 red flags.",
+           ("Rated or provisional by Prism (a Provisional rating is badged).", "In an uptrend: price above its 50- and 200-day averages, with the 50-day above the 200-day; at most 2 red flags.",
             "Resting under the high: 1.5% to 8% below the 52-week high, a closing high at least 15 sessions old, and no breakout in the last 30 sessions.",
             "Quiet: a 10-session range of 8% or less, price swings shrinking, volume drying up, RSI between 45 and 65, and positive technical views.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-pct_from_high", 0.4), ("-range_10d", 0.3), ("prism_lt_score", 0.3))),
     Preset("setup-breakout-pullback", "Breakout, then pulled back", "setups", "Stocks that broke above their 52-week high on volume in the last four weeks and have eased back towards that level.", "rules", _m(rated=1), "",
            BR_RULES + (("coalesce(prism_lt_score, -100) >= 20", "Long-term technical view +20 or more"),),
            (("rank_score", "desc"), ("prism_lt_score", "desc")), 25, with_status((STOCK, S_BAGE, S_BLEV, S_VSB, S_BVOL, S_HIGH, S_E20, S_RSI, LTS, PRISM, SECTOR, MCAP)), (),
-           ("Rated by Prism (a Provisional rating is badged).", "At most 2 red flags; price above its 50-day average.",
+           ("Rated or provisional by Prism (a Provisional rating is badged).", "At most 2 red flags; price above its 50-day average.",
             "A recent breakout: the close rose above a 52-week closing high that was at least 15 sessions old, 3 to 20 sessions ago, on at least 1.5 times the usual volume.",
             "Now pulled back: 3% to 12% below the new high, back near the level it broke and its 20-day average, on quieter volume, RSI between 40 and 60, and a positive long-term technical view.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-abs_vs_breakout", 0.4), ("breakout_vol_ratio", 0.3), ("prism_lt_score", 0.3))),
@@ -393,13 +393,13 @@ BASIC: List[Preset] = [
         (("pillar_quality >= 78", "Quality 78 or more"), ("pillar_growth >= 60", "Growth 60 or more"), ("pillar_profitability >= 70", "Profitability 70 or more"), _bal(60), MC1000),
         (("fundamental_score", "desc"), ("overall", "desc")), (RANK, STOCK, B_QUAL, B_GROW, B_PROF, B_BAL, B_FUND, FINLIT, B_TECH, SECTOR, MCAP),
         ("Quality 78 or more, Growth 60 or more, Profitability 70 or more, Balance sheet 60 or more (a blank is allowed).", "Market cap Rs 1,000 Cr or more.", "Ranked by Growth & Profitability score.")),
-    _bp("basic-momentum-leaders", "Momentum leaders", "trend", "Strong Technical score, within 15% of the 52-week high, with 3- and 6-month returns up.",
+    _bp("basic-momentum-leaders", "Momentum leaders", "trend", "High Technical score, within 15% of the 52-week high, with 3- and 6-month returns up.",
         (("pillar_technical >= 75", "Technical 75 or more"), ("fundamental_score >= 55", "Growth & Profitability score 55 or more"), ("pct_from_high <= 15", "No more than 15% below the 52-week high"),
          ("ret_3m > 0", "3-month return above 0"), ("ret_6m > 0", "6-month return above 0"), RUN_GUARD, MC2000), (("momentum_score", "desc"), ("pillar_technical", "desc")),
         (RANK, STOCK, B_MOM, R3M, R6M, R1Y, W52, B_TECH, B_FUND, FINLIT, SECTOR, MCAP),
         ("Technical 75 or more, Growth & Profitability score 55 or more, no more than 15% below the 52-week high, 3-month and 6-month returns both positive, 1-year return 300% or less.", "Market cap Rs 2,000 Cr or more (the fastest movers below that are thinly traded).",
          "Ranked by the momentum score: 100 x (0.3 x P3M + 0.4 x P6M + 0.3 x P12M), P being the percentile (0 to 1) of that period's return among stocks of Rs 1,000 Cr or more.")),
-    _bp("basic-near-high", "Near 52-week high", "trend", "Within 5% of the 52-week high with a strong Technical score.",
+    _bp("basic-near-high", "Near 52-week high", "trend", "Within 5% of the 52-week high with a high Technical score.",
         (("pct_from_high <= 5", "No more than 5% below the 52-week high"), ("pillar_technical >= 75", "Technical 75 or more"), ("fundamental_score >= 55", "Growth & Profitability score 55 or more"), MC2000),
         (("pillar_technical", "desc"), ("momentum_score", "desc")), (RANK, STOCK, W52, B_TECH, B_MOM, B_FUND, FINLIT, R3M, R6M, SECTOR, MCAP),
         ("No more than 5% below the 52-week high, Technical 75 or more, Growth & Profitability score 55 or more.", "Market cap Rs 2,000 Cr or more.", "Ranked by Technical, then momentum score.")),

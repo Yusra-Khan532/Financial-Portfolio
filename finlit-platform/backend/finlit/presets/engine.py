@@ -168,6 +168,8 @@ class Config:
         self.subs: List[str] = []
         self.small_groups = False
         self.how: List[str] = list(preset.how_it_works)
+        if needs_floor(self):
+            self.how.append("Market cap Rs 1,000 Cr or more.")
         for c in [c for c in preset.chips if c.id in set(active)]:
             e = c.effect
             for k, v in (e.get("prism_set") or {}).items():
@@ -254,6 +256,17 @@ def tag_rule(fr: Frame, subs: Sequence[str]) -> Rule:
     return Rule("Tagged " + THEME + (": " + " or ".join(subs) if subs else ""), ok)
 
 
+FLOOR_RULE = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
+
+
+def needs_floor(cfg: "Config") -> bool:
+    """Every Advanced list has a floor of Rs 1,000 Cr (task 64, fix 5): a screen that already names a market-cap rule keeps its own; the Basic screens keep theirs."""
+    p = cfg.preset
+    if p.tab != "advanced" or p.kind not in ("rules", "tags"):
+        return False
+    return not any("market_cap" in r or "Market cap" in r for r in [x for x, _ in cfg.derived] + list(cfg.ql))
+
+
 def build_rules(fr: Frame, cfg: Config) -> List[Rule]:
     rules: List[Rule] = []
     if cfg.preset.kind == "tags":
@@ -261,6 +274,8 @@ def build_rules(fr: Frame, cfg: Config) -> List[Rule]:
     rules += prism_rules(fr, cfg.prism)
     rules += [ql_rule(fr, ln) for ln in cfg.ql]
     rules += [derived_rule(fr, r, lab) for r, lab in cfg.derived]
+    if needs_floor(cfg):
+        rules.append(derived_rule(fr, FLOOR_RULE[0], FLOOR_RULE[1]))
     return rules
 
 
@@ -424,7 +439,8 @@ def _columns(preset: Preset) -> List[dict]:
 
 def _base(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str], count: int, rows: List[dict]) -> dict:
     return {"id": preset.id, "name": preset.name, "asOf": fr.as_of.isoformat(), "count": count, "shown": len(rows), "columns": _columns(preset), "rows": rows,
-            "chips": list(active), "howItWorks": cfg.how, "cardText": preset.card_text, "disclaimer": DISCLAIMER, "version": REGISTRY_VERSION}
+            "chips": list(active), "howItWorks": cfg.how, "cardText": preset.card_text, "disclaimer": DISCLAIMER, "version": REGISTRY_VERSION,
+            "snapshot": fr.t.fingerprint() if hasattr(fr.t, "fingerprint") else None}
 
 
 # ------------------------------------------------------------------------------------------------------------------------------ run
@@ -530,6 +546,8 @@ def run_themes(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) ->
         for ind in ev.closest:
             cards.append(card(ind, "closest", [], themes.why_not(ev.industries[ind], market)))
     out = _base(fr, preset, cfg, active, in_play_n, rows)
+    if in_play_n:
+        out["listText"] = f"{in_play_n} {'industry' if in_play_n == 1 else 'industries'} · {len(rows)} {'company' if len(rows) == 1 else 'companies'}"   # the count is industries, not companies
     out["themes"] = cards
     out["market"] = None if ev is None else {"breadth": ev.market.b50, "r3": ev.market.r3, "members": ev.market.members}
     out["closestTitle"] = "Closest to qualifying"

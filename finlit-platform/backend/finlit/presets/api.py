@@ -43,8 +43,10 @@ def _chips(p: Preset) -> List[dict]:
 
 def _list_text(p: Preset, cached: dict | None) -> str | None:
     """What the card says about its list: "Top 10 of 40 that pass" (the Top 10 screens), nothing for the others (they page through everything that passes)."""
-    if not cached or p.kind in ("themes",):
+    if not cached:
         return None
+    if p.kind == "themes":
+        return cached.get("listText")
     n = cached["count"]
     return f"Top {p.limit} of {n} that pass" if p.top10 else None      # the other screens page through everything that passes: the count says it all
 

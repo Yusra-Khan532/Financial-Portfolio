@@ -60,7 +60,12 @@ def test_filter_engine():
     assert pick({}, {"sector": ["IT"]}, "a")[0] == "A10"
     assert pick({"flag_loss": {"min": 1}}) == ["A3"] and "A3" not in pick({"flag_loss": {"max": 0}})
     assert t.sort(t.match({}, {}), "pe", False)[-1] == t.pos["NOPE"]        # unknowns sort last either way
-    assert t.cap[t.pos["A11"]] == "Large"
+    assert t.cap[t.pos["A11"]] == "Mid" and t.cap[t.pos["NOPE"]] == "Small"            # by market value in rupees crore (12,000 is Mid, 50 is Small)
+
+
+def test_size_is_by_market_value_one_scale_with_no_size_without_a_market_cap():
+    from finlit.screener.data import size_of
+    assert [size_of(v) for v in (50_001, 50_000, 49_999, 10_000, 9_999.9, 1, None, 0, float("nan"))] == ["Large", "Mid", "Mid", "Mid", "Small", "Small", None, None, None]
 
 
 async def _q(c, body):

@@ -44,7 +44,7 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     await silver.aclose()
 
 
-async def test_gold_detail_cache_chips_usage_and_export(app, store):  # noqa: F811
+async def test_gold_detail_cache_chips_usage_and_export(app, store, monkeypatch):  # noqa: F811
     await wipe(store)
     gold = await signed_in(app, "g@example.com", plan="gold")
     assert (await gold.get("/api/screener/presets/nope")).status_code == 404
@@ -58,7 +58,7 @@ async def test_gold_detail_cache_chips_usage_and_export(app, store):  # noqa: F8
     assert b["chips"] == [] and {"key", "label", "format", "align"} <= set(b["columns"][0]) and b["rows"][0]["symbol"] and b["asOf"]
     async with store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT count(*) FROM preset_results WHERE preset_id = 'emerging-tech' AND chips = 'none'") == 1
-    data.reset()                                                                    # the second answer is the cached one, not a recomputation
+    monkeypatch.setattr(service.engine, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("recomputed")))   # the second answer is the cached one, not a recomputation
     assert (await gold.get("/api/screener/presets/emerging-tech?chip=none")).json()["count"] == 30
     assert (await gold.get("/api/screener/presets/emerging-tech")).json()["chips"] == []   # defaults when no chip is given
     e = await gold.get("/api/screener/presets/emerging-tech/export?chip=none")
@@ -170,3 +170,16 @@ async def test_results_page_by_25_with_offset_and_limit_and_export_keeps_every_r
     card = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"] if c["id"] == "emerging-tech"][0]
     assert card["listText"] is None
     await gold.aclose()
+
+
+async def test_a_list_built_from_another_table_is_rebuilt_before_it_is_served(store):  # noqa: F811
+    from finlit.presets.registry import BY_ID
+    await wipe(store)
+    p = BY_ID["emerging-tech"]
+    first = await service.get_result(store, p, [])
+    assert first["snapshot"] == data._table.fingerprint()
+    stale = {**first, "snapshot": "0:0:0:0:0", "count": -1}
+    await service.store_result(store, p, stale)
+    again = await service.get_result(store, p, [])
+    assert again["count"] != -1 and again["snapshot"] == data._table.fingerprint()      # rebuilt from the table now serving
+    assert service.same_snapshot({"count": 1}, "anything")                                  # a list saved before the stamp existed is not rebuilt for that alone
