@@ -29,3 +29,13 @@ def test_top_gainers_screens_exist_on_both_pages_with_the_seven_columns():
         keys = [c.key for c in p.columns]
         assert keys[2:9] == ["joined", "screen", "closeJoined", "since", "bench", "highest", "stillOn"], pid
     assert history.WINDOWS == {"day": 1, "week": 5, "month": 21}
+
+
+def test_funnel_counts_each_rule_in_turn_and_says_how_many_had_no_figure():
+    from finlit.screener.data import Table
+    import json
+    rows = [{"symbol": f"S{i}", "name": f"S{i}", "sector": "X", "industry": "Y", "band": "mixed", "metrics": json.dumps({"market_cap": 1000 + i, "pe": (None if i == 3 else float(i + 1))})} for i in range(10)]
+    t = Table(rows, {}, {})
+    f = t.funnel({"pe": {"min": None, "max": 5.0}, "market_cap": {"min": 1002.0, "max": None}}, {})
+    assert [s["key"] for s in f] == ["pe", "market_cap"]
+    assert (f[0]["before"], f[0]["missing"], f[0]["after"]) == (10, 1, 4) and (f[1]["before"], f[1]["after"]) == (4, 2)

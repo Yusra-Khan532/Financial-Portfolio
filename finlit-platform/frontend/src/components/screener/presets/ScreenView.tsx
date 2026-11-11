@@ -77,7 +77,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
     <th scope="col" className={"psx-a-" + align} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button></th>);
   return (<>
-    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table"><table className="scr-t psx-t">
+    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" pinHead><table className="scr-t psx-t">
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead><tr><th scope="col" className="psx-n">#</th>{head("symbol", "Stock", "left", 1)}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
       <tbody>{rows.map((r, i) => (

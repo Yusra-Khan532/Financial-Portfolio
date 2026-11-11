@@ -149,7 +149,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   {sel.length < 2 && <small className="muted sx-bulkhint">Tick the box on 2 to {maxCompare} rows to compare them. Tick any rows to add them to your watchlist.</small>}
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
-                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table"><table className="scr-t ss-t sx-t">
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" pinHead><table className="scr-t ss-t sx-t">
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
