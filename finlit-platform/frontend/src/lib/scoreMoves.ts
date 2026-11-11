@@ -67,3 +67,25 @@ export function reRated(points: HistPoint[]): string[] {
   for (let i = 1; i < points.length; i++) if (BUSINESS.some((s) => { const a = valueOf(points[i - 1], s), b = valueOf(points[i], s); return a != null && b != null && a !== b; })) out.push(points[i].day);
   return out;
 }
+
+/** The figure of a series on day `i` of `points`: its own, or, when that day has none, the latest one recorded before it with the day it was recorded
+ *  (the four business scores change only when Prism re-rates the company, so the figure in force on a day between two ratings is the earlier one). Null when there is none yet. */
+export function inForce(points: HistPoint[], s: Series, i: number): { value: number; day: string; exact: boolean } | null {
+  if (i < 0 || i >= points.length) return null;
+  const own = valueOf(points[i], s);
+  if (own != null) return { value: own, day: points[i].day, exact: true };
+  for (let j = i - 1; j >= 0; j--) { const v = valueOf(points[j], s); if (v != null) return { value: v, day: points[j].day, exact: false }; }
+  return null;
+}
+
+/** Which recorded days get a date under the chart: every one when there are few, else about `max` evenly spread, always the first and the last. */
+export function axisIndexes(n: number, max = 6): number[] {
+  if (n <= 0) return [];
+  if (n <= max + 1) return Array.from({ length: n }, (_, i) => i);
+  const out = new Set<number>();
+  for (let k = 0; k < max; k++) out.add(Math.round((k * (n - 1)) / (max - 1)));
+  return [...out].sort((a, b) => a - b);
+}
+
+/** The size of the dot drawn on every recorded day: large while the chart has few days, smaller as they crowd, never so small it cannot be seen. */
+export const dotRadius = (n: number): number => (n <= 45 ? 3.6 : n <= 120 ? 2.6 : 1.8);

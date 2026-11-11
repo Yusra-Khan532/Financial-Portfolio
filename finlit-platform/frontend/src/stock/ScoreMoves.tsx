@@ -8,7 +8,7 @@ import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
 import { OpenAccess } from "../components/Gate";
 import { toWeekly, usePrismHistory, valueOf, withValue, type HistPoint, type Series } from "../lib/prismHistory";
-import { BUSINESS, NAME, PERIODS, TECHNICAL, inPeriod, moveSentence, movesOf, readingNow, reRated, seriesFor, type Period, type Show } from "../lib/scoreMoves";
+import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, inForce, inPeriod, moveSentence, movesOf, readingNow, reRated, seriesFor, type Period, type Show } from "../lib/scoreMoves";
 import "../styles/scoremoves.css";
 import { ChartZoom } from "../components/ChartZoom";
 
@@ -25,20 +25,30 @@ function Panel({ points, series, lo, hi, ticks, h, marks, label, signed }: { poi
     const r = e.currentTarget.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * W;
     let best = 0, bd = Infinity; points.forEach((p, i) => { const d = Math.abs(x(p.day) - px); if (d < bd) { bd = d; best = i; } }); setHover(best);
   };
-  const axis = points.length > 1 ? [points[0], points[points.length - 1]] : points, hp = hover == null ? null : points[hover];
+  const n = points.length, dr = dotRadius(n), hp = hover == null ? null : points[hover];
+  const axis = axisIndexes(n), last = axis.length - 1;
+  const key = (e: React.KeyboardEvent<SVGSVGElement>) => {
+    const to = e.key === "ArrowRight" ? Math.min(n - 1, (hover ?? -1) + 1) : e.key === "ArrowLeft" ? Math.max(0, (hover ?? n) - 1) : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : null;
+    if (to != null) { e.preventDefault(); setHover(to); }
+  };
   return (
     <div className="scm-panel">
-      <svg viewBox={`0 0 ${W} ${h}`} role="img" aria-label={`${label}, ${points.length} days recorded`} onPointerMove={move} onPointerLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${h}`} role="img" tabIndex={0} aria-label={`${label}, ${n} days recorded. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHover(null)}
+        onKeyDown={key} onFocus={() => setHover((c) => c ?? n - 1)} onBlur={() => setHover(null)}>
         {ticks.map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth={g === 0 && signed ? 1.2 : 0.6} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="scm-ax">{fmt(g)}</text></g>)}
         {signed && <rect x={L} width={W - L - R} y={y(20)} height={y(-20) - y(20)} fill="var(--gold)" opacity=".07" />}
         {marks.map((d) => <g key={d}><line x1={x(d)} x2={x(d)} y1={T} y2={h - B} stroke="var(--gold)" strokeDasharray="2 3" /><path d={`M${x(d) - 4},${h - B + 8} l4,-7 l4,7z`} fill="var(--gold-deep, var(--gold))"><title>{`Prism re-rated on ${dateIN(d)}`}</title></path></g>)}
-        {series.map((s) => { const v = withValue(points, s); if (!v.length) return null;
+        {points.map((p) => <line key={"r" + p.day} className="scm-rug" x1={x(p.day)} x2={x(p.day)} y1={h - B} y2={h - B + 5} />)}
+        {series.map((s) => { const v = withValue(points, s); if (!v.length) return null; const end = v[v.length - 1];
           return <g key={s}><path d={v.map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)},${y(valueOf(p, s)!).toFixed(1)}`).join("")} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-            <circle cx={x(v[v.length - 1].day)} cy={y(valueOf(v[v.length - 1], s)!)} r="3" fill="var(--bg)" stroke={COLOR[s]} strokeWidth="1.8" /></g>; })}
-        {axis.map((p, i) => <text key={p.day} x={x(p.day)} y={h - 5} textAnchor={axis.length > 1 && i === 0 ? "start" : axis.length > 1 ? "end" : "middle"} className="scm-ax">{dateIN(p.day, { day: "numeric", month: "short" })}</text>)}
+            {v.map((p) => <circle key={p.day} className="scm-dot" cx={x(p.day)} cy={y(valueOf(p, s)!)} r={hp && hp.day === p.day ? dr + 2 : dr} fill={COLOR[s]} stroke="var(--bg)" strokeWidth={dr > 2 ? 1.3 : 0.7}><title>{`${NAME[s]} ${fmt(valueOf(p, s), signed)} on ${dateIN(p.day)}`}</title></circle>)}
+            <circle cx={x(end.day)} cy={y(valueOf(end, s)!)} r={dr + 2.4} fill="none" stroke={COLOR[s]} strokeWidth="1.4" /></g>; })}
+        {axis.map((i, k) => <text key={points[i].day} x={x(points[i].day)} y={h - 5} textAnchor={axis.length > 1 && k === 0 ? "start" : axis.length > 1 && k === last ? "end" : "middle"} className="scm-ax">{dateIN(points[i].day, { day: "numeric", month: "short" })}</text>)}
         {hp && <line x1={x(hp.day)} x2={x(hp.day)} y1={T} y2={h - B} stroke="var(--border-strong)" strokeDasharray="3 3" />}
       </svg>
-      {hp && <div className="scm-tip" role="status"><b>{dateIN(hp.day)}</b>{series.map((s) => <span key={s}><i style={{ background: COLOR[s] }} />{NAME[s]} {fmt(valueOf(hp, s), signed)}</span>)}</div>}
+      {hp && hover != null && <div className="scm-tip" role="status"><b>{dateIN(hp.day)}</b>{series.map((s) => {
+        const f = signed ? (valueOf(hp, s) == null ? null : { value: valueOf(hp, s)!, day: hp.day, exact: true }) : inForce(points, s, hover);   // business scores: the figure in force that day
+        return <span key={s}><i style={{ background: COLOR[s] }} />{NAME[s]} {f ? fmt(f.value, signed) : "no figure yet"}{f && !f.exact && <small> · rated {dateIN(f.day, { day: "numeric", month: "short" })}</small>}</span>; })}</div>}
     </div>);
 }
 
