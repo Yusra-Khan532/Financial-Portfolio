@@ -101,9 +101,7 @@
 .dv-skel i { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--bg-subtle, #ECEFF3), color-mix(in srgb, var(--bg-subtle, #ECEFF3) 60%, var(--bg-surface, #fff)), var(--bg-subtle, #ECEFF3)); background-size: 200% 100%; animation: dv-sh 1.4s linear infinite; }
 @keyframes dv-sh { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .dv-skel i { animation: none; } .dv-body.busy { transition: none; } }
-.dv-whatif { border: 1px solid var(--dv-line); border-radius: 8px; padding: 0 16px; margin-bottom: 16px; }
-.dv-whatif summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-primary, #0B192C); }
-.dv-whatif[open] { padding-bottom: 16px; }
+.dv-whatif { border: 1px solid var(--dv-line); border-radius: 10px; padding: 14px 16px 16px; margin-bottom: 16px; background: var(--bg-subtle); }
 .dv-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .dv-chips button { min-height: 44px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--dv-hue); background: var(--dv-hue-soft); color: var(--text-primary, #0B192C); font: inherit; font-size: 13px; cursor: pointer; }
 .dv-chips button.off { border-style: dashed; background: transparent; color: var(--text-muted, #5B6779); text-decoration: line-through; }
@@ -134,3 +132,19 @@
   .dv-table td::before { content: attr(data-label); color: var(--text-muted, #5B6779); text-align: left; }
   .dv-table tbody th::before { content: none; }
 }
+
+/* Task #78: FinLit brand hue for the whole card (dark forest surface, mint accent, soft lines, neutral text) - one hue, no verdict colours; the current list always on show */
+.dv { --bg-surface: #F1F8F3; --bg-subtle: #E3F0E7; --dv-line: #A9D0B8; --text-primary: #0B2A1B; --text-body: #1F3B2C; --text-secondary: #3D5A4A; --text-muted: #5A7566; --dv-hue: #1F7A55; --border-control: #7DA992; --focus-ring: #1F7A55; }
+:root[data-theme="dark"] .dv { --bg-surface: #0C2419; --bg-subtle: #12301F; --dv-line: rgba(95, 211, 155, .28); --text-primary: #EAF4EE; --text-body: #CFE0D6; --text-secondary: #AFC7B8; --text-muted: #8FAE9C; --dv-hue: #5FD39B; --border-control: rgba(95, 211, 155, .5); --focus-ring: #5FD39B; }
+.dv-listrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 14px; align-items: stretch; margin-bottom: 14px; }
+.dv-cur { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border: 1px solid var(--dv-hue); border-radius: 12px; background: color-mix(in srgb, var(--dv-hue) 10%, var(--bg-surface)); }
+.dv-cur-i { flex: none; display: inline-flex; color: var(--dv-hue); }
+.dv-cur-t { display: grid; gap: 2px; min-width: 0; flex: 1; } .dv-cur-t b { font-size: 16px; color: var(--text-primary); font-weight: 600; } .dv-cur-t span { font-size: 14px; color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-cur-n { flex: none; font-style: normal; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--dv-hue); background: color-mix(in srgb, var(--dv-hue) 18%, transparent); color: var(--text-primary); white-space: nowrap; }
+.dv-try { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 16px; border: 1px solid var(--dv-line); border-radius: 12px; background: var(--bg-subtle); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }
+.dv-try span { flex: 1; } .dv-try:hover, .dv-try.on { border-color: var(--dv-hue); } .dv-try:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.dv-try.on .dv-car { transform: rotate(180deg); }
+.dv-empty:not([role]) { border: 1px solid var(--dv-line); border-radius: 12px; padding: 14px 16px; background: color-mix(in srgb, var(--dv-hue) 7%, var(--bg-surface)); color: var(--text-secondary); font-size: 14px; }
+.dv-empty:not([role]) b { color: var(--text-primary); }
+.dv-bar i, .dv-scale-bar i.on { background: var(--dv-hue); }
+@media (max-width: 760px) { .dv-listrow { grid-template-columns: minmax(0, 1fr); } .dv-cur-t span { white-space: normal; } }

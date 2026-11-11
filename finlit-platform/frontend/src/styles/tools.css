@@ -20,7 +20,7 @@
 .scr-split { position: sticky; top: 130px; align-self: stretch; min-height: 200px; display: flex; align-items: center; justify-content: center; cursor: col-resize; touch-action: none; outline: none; } .scr-split::before { content: ""; width: 3px; height: 64px; border-radius: 3px; background: var(--border-strong); transition: background .15s, height .15s; } .scr-split:hover::before, .scr-split:focus-visible::before { background: var(--gold); height: 120px; }
 .scr-split-btn { position: absolute; top: 36px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--s1); color: var(--muted); cursor: pointer; z-index: 1; }
 .scr-split-btn svg { width: 12px; height: 12px; } /* a drawn chevron, centred (the text arrow sat off-centre); the gutter (28px) is wider than the button (24px), so it never covers the cards' edges */ .scr-split-btn:hover { border-color: var(--gold); color: var(--gold); }
-.scr-side { position: sticky; top: 130px; padding: 16px; max-height: calc(100vh - 150px); overflow: auto; }
+.scr-side { position: sticky; top: 76px; padding: 16px; max-height: calc(100vh - 92px); max-height: calc(100dvh - 92px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .scr-tabs { width: 100%; display: grid; grid-template-columns: 1fr 1fr; } .scr-tabs button { justify-content: center; } .dotn { margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; font: 700 11px/18px var(--sans); font-style: normal; background: var(--gold); color: var(--on-gold); }
 .scr-find { display: flex; align-items: center; gap: 10px; margin: 14px 0 6px; padding: 0 14px; height: 44px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s2); } .scr-find svg { width: 16px; height: 16px; color: var(--faint); } .scr-find input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font: 14px var(--sans); } .scr-find:focus-within { border-color: var(--gold); } .scr-find.sm { margin: 0; height: 40px; min-width: 220px; }
 .scr-g { border-top: 1px solid var(--border); } .scr-gh { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 2px; background: none; border: 0; color: var(--text); font: 600 16px var(--sans); cursor: pointer; text-align: left; } .scr-gh > span:first-child { flex: 1; } .scr-n { color: var(--faint); font: 500 13px var(--sans); } .scr-gh svg { width: 14px; height: 14px; transform: rotate(90deg); transition: transform .2s; color: var(--faint); } .scr-gh[aria-expanded="true"] svg { transform: rotate(-90deg); }
@@ -385,3 +385,13 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .sp-v { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 2px; } .sp-v small { flex-basis: 100%; margin-top: 2px; }
 .pil-grid { align-items: start; gap: 32px; }
 @media (max-width: 900px) { .st-l.lo { left: 0; } .st-l.hi { right: 0; } }
+
+/* Filter panel (task #76): it sits just under the site header (no empty band above it), the tabs and search stay at the top while the filter groups scroll,
+   the "Save as a screen" row stays at the bottom, and nothing leaves a blank gap between groups. */
+.scr > .scr-side:not(.sx-side) { display: flex; flex-direction: column; padding-top: 0; padding-bottom: 0; }
+.scr > .scr-side:not(.sx-side) > .scr-tabs { position: sticky; top: 0; z-index: 3; margin: 0; padding: 16px 0 8px; background: var(--s1); }
+.scr > .scr-side:not(.sx-side) > .scr-find { position: sticky; top: 59px; z-index: 3; flex: none; margin: 0 0 8px; box-shadow: 0 -4px 0 var(--s1), 0 8px 0 var(--s1); }
+.scr > .scr-side:not(.sx-side) > .scr-groups { flex: 1 0 auto; min-height: 0; padding-bottom: 4px; }
+.scr > .scr-side:not(.sx-side) > .scr-save { position: sticky; bottom: 0; z-index: 3; margin-top: 0; padding: 12px 0 16px; background: var(--s1); }
+.scr-side .scr-groups > :last-child { margin-bottom: 0; }
+@media (max-width: 1000px) { .scr > .scr-side:not(.sx-side) { display: block; padding: 16px; } .scr > .scr-side:not(.sx-side) > .scr-tabs, .scr > .scr-side:not(.sx-side) > .scr-find, .scr > .scr-side:not(.sx-side) > .scr-save { position: static; padding-inline: 0; } }

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { ChartZoom } from "../components/ChartZoom";
+import { useHoverTip } from "../components/HoverTip";
 
 /** `values` are 0-100 positions; a missing figure is null (never drawn as 0). `tips` is the text a point shows on hover (the actual figure and its percentile). */
 export type RadarSeries = { key: string; label: string; values: (number | null)[]; cls: string; tips?: (string | null)[] };
@@ -8,6 +9,7 @@ export type RadarSeries = { key: string; label: string; values: (number | null)[
  *  A missing figure is not drawn as zero: the outline is only joined between neighbouring axes that both have a figure, and the area is filled only when every axis has one. */
 export function Radar({ axes, series, size = 360 }: { axes: string[]; series: RadarSeries[]; size?: number }) {
   const id = useId().replace(/:/g, "");
+  const { bind, node } = useHoverTip();
   const C = size / 2, R = size / 2 - 58, n = axes.length;
   const pt = (i: number, v: number): [number, number] => { const a = (i / n) * Math.PI * 2 - Math.PI / 2; return [C + (R * v) / 100 * Math.cos(a), C + (R * v) / 100 * Math.sin(a)]; };
   const ring = (v: number) => axes.map((_, i) => pt(i, v).join(",")).join(" ");
@@ -35,9 +37,10 @@ export function Radar({ axes, series, size = 360 }: { axes: string[]; series: Ra
           <path className="rs-l" d={d} fill="none" />
           {vals.map((v, i) => v == null
             ? <g key={i} className="rs-x"><path d={`M${pt(i, 100)[0] - 4} ${pt(i, 100)[1] - 4}l8 8m0 -8l-8 8`} /><title>{`${s.label}, ${axes[i]}: no figure`}</title></g>
-            : <g key={i} className="rs-m">{mark(s.cls, ...pt(i, v))}<circle className="rs-hit" cx={pt(i, v)[0]} cy={pt(i, v)[1]} r="11" /><title>{s.tips?.[i] ?? `${s.label}, ${axes[i]}: ${v}`}</title></g>)}
+            : <g key={i} className="rs-m" tabIndex={0} aria-label={(s.tips?.[i] ?? `${s.label}, ${axes[i]}: ${v}`).replace(/\n/g, ", ")} {...bind(s.tips?.[i] ?? `${s.label}\n${axes[i]}: ${v}`)}>{mark(s.cls, ...pt(i, v))}<circle className="rs-hit" cx={pt(i, v)[0]} cy={pt(i, v)[1]} r="11" /></g>)}
         </g>); })}
     </svg>
+    {node}
     </ChartZoom>
   );
 }
