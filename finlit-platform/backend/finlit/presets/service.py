@@ -13,7 +13,7 @@ import orjson
 from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
-from . import derive, engine, industry as ind_mod, theme_map, themes
+from . import derive, engine, industry as ind_mod, patterns as pat_mod, theme_map, themes
 from .registry import PRESETS, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
@@ -56,6 +56,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     ev = themes.evaluate(table, themes.by_sector_label(table), themes.history_from_rows(hist_rows))      # grouped by the Sector label, not the Industry
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
     fr.history_days = history_days
+    fr.patterns = await pat_mod.load(store)          # the nightly chart-pattern run (None until the first one has been made)
     if persist:
         await _persist(store, fr, clean, ev, pos)
     return fr
@@ -215,6 +216,16 @@ def live_presets() -> List[Preset]:
 async def refresh_presets(store) -> dict:
     """The nightly job: seed top-up, derived tables, every live screen for its common chip sets into the cache."""
     fr = await build_frame(store, persist=True)
+    pattern_note: dict = {}
+    try:       # its own guard: a scan problem never stops the screens below (the founder's rule: one step stopping never stops another)
+        previous = fr.patterns
+        found = await pat_mod.scan_all(store, fr.t, fr.as_of)
+        await pat_mod.save(store, found, previous)
+        fr.patterns = found
+        pattern_note = {"patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"])}
+    except Exception as exc:
+        log.exception("chart-pattern scans failed; the last saved run stays in use")
+        pattern_note = {"patternsError": type(exc).__name__}
     done, failed = 0, []
     for p in live_presets():
         for combo in nightly_combos(p):
@@ -227,4 +238,4 @@ async def refresh_presets(store) -> dict:
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     return {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
-            "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0}
+            "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note}

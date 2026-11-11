@@ -36,7 +36,7 @@ def syms(body):
 
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
-    live = [p for p in ADVANCED if p.status == "live"]
+    live = [p for p in ADVANCED if p.status == "live" and p.kind != "pattern"]       # the eleven Chart patterns screens are checked in their own test
     assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 3
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
@@ -495,7 +495,7 @@ def edit(r, **kw):
 
 
 def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
-    basic = [p for p in PRESETS if p.tab == "basic"]
+    basic = [p for p in PRESETS if p.tab == "basic" and p.kind != "pattern"]
     assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
                                      "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
                                      "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",
@@ -763,3 +763,31 @@ def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_
     withp = engine.run(frame(rows, prism), BY_ID["highest-rated-large"], ["include-provisional"])
     assert any(r["symbol"] == "L001" and "Provisional" in r["badges"] for r in withp["exportRows"])
     assert BY_ID["at-52-week-high"].name == "Near a 52-week high"
+
+
+# ---------------------------------------------------------------------------------------------------------------- Chart patterns
+def test_chart_pattern_screens_exist_on_both_tabs_with_worded_facts_and_no_rules():
+    from finlit.presets.patterns import SCAN_IDS, facts_of
+    adv = [p for p in PRESETS if p.kind == "pattern" and p.tab == "advanced"]
+    bas = [p for p in PRESETS if p.kind == "pattern" and p.tab == "basic"]
+    assert [p.spec for p in adv] == SCAN_IDS == [p.spec for p in bas] and len(adv) == 11
+    assert all(p.group == "chart-patterns" and p.status == "live" for p in adv + bas)
+    for p in adv + bas:
+        assert not re.search(r"\d", p.card_text.replace("50-day", "")) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
+    assert facts_of("daily_base", {"length": 30, "depth_pct": 12.34, "to_pivot_pct": 3.1}) == [["Base age", "30 sessions"], ["Depth", "12.3%"], ["Below the pivot", "3.1%"]]
+    assert facts_of("flag", {"depth_pct": 9.0, "detail": {"pole_rise": 25.0}, "to_pivot_pct": 2.0})[0] == ["Run-up", "25.0%"]       # a fact with no value is left out
+
+
+def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_score_with_facts_and_drawing():
+    rows = [mrow(f"P{i}", market_cap=3000 + i) for i in range(5)]
+    for i, r in enumerate(rows):
+        r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 50 + i})
+    fr = frame(rows, {})
+    fr.patterns = {"as_of": "2026-11-06", "left_out": [["P4", "candles end 5 Nov, before the 6 Nov close"]],
+                   "scans": {"daily_base": {"P1": {"facts": [["Base age", "20 sessions"]], "draw": {"level": 101.0}, "new": True}, "P3": {"facts": [], "draw": {}, "new": False}}}}
+    body = engine.run(fr, BY_ID["basic-pattern-daily_base"])
+    assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
+    assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
+    assert body["leftOut"] == [["P4", "candles end 5 Nov, before the 6 Nov close"]]
+    fr.patterns = None
+    assert engine.run(fr, BY_ID["basic-pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")

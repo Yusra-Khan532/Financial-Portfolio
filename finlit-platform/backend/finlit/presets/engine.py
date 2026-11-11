@@ -57,6 +57,7 @@ class Frame:
         self.latest_q = table.latest_quarter()
         self.history_days = 0       # how many days apart the oldest and newest Prism history rows used by the rating-change fields are (set by build_frame)
         self.rank_scores: Dict[int, float] = {}      # set by run() for a screen that has a rank score
+        self.patterns: Optional[dict] = None         # the nightly chart-pattern run (presets/patterns.py), None until one exists
         self._r3: Dict[str, float] = {}
         if theme_eval is not None:
             for ind, v in theme_eval.industries.items():
@@ -498,6 +499,8 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     fr.rank_scores = rank_scores_of(fr, preset.rank_score, rank_member(preset)(fr)) if preset.rank_score else {}
     if preset.kind == "themes":
         return run_themes(fr, preset, cfg, active)
+    if preset.kind == "pattern":
+        return run_pattern(fr, preset, cfg, active)
     rules = build_rules(fr, cfg)
     n = fr.t.n
     idx = [i for i in range(n) if all(r.ok[i] for r in rules)]
@@ -558,6 +561,40 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     out["exportRows"] = rows[:EXPORT_MAX] if preset.top10 else [_row(fr, preset, i, pos) for pos, i in enumerate(listed[:EXPORT_MAX], 1)]
     if not preset.top10 and len(listed) > EXPORT_MAX:
         out["notes"] = out.get("notes", []) + [f"The first {EXPORT_MAX} of {len(listed)} companies are available to page through and export."]
+    return out
+
+
+def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -> dict:
+    """A Chart patterns screen: the companies the nightly scan found for this pattern, with the facts it worded and the drawing the chart panel places.
+    Ranked by the page's own score (FinLit IQ on Basic, the Prism score on Advanced), then the larger market cap. The page never sees a rule."""
+    from . import patterns as P
+    run = fr.patterns or {}
+    hits = (run.get("scans") or {}).get(preset.spec) or {}
+    n = fr.t.n
+    in_scope = [i for i in range(n) if fr.symbols[i] in hits and (preset.tab == "basic" or fr.has_prism(i))]
+    key = sort_key(fr, preset.rank)
+    in_scope.sort(key=key)
+    labels = P.FACT_LABELS[preset.spec]
+    rows = []
+    for pos, i in enumerate(in_scope, 1):
+        row = _row(fr, preset, i, pos)
+        h = hits[fr.symbols[i]]
+        row["facts"], row["draw"], row["new"] = h.get("facts") or [], h.get("draw") or {}, bool(h.get("new"))
+        by = {lab: val for lab, val in row["facts"]}
+        for j, lab in enumerate(labels, 1):
+            if lab:
+                row[f"pf{j}"] = by.get(lab)
+        rows.append(row)
+    out = _base(fr, preset, cfg, active, len(rows), rows[:preset.limit])
+    out["pageSize"] = PAGE
+    out["exportRows"] = rows[:EXPORT_MAX]
+    out["newToday"] = sum(1 for r in rows if r["new"])
+    out["leftOut"] = [[s, why] for s, why in (run.get("left_out") or []) if s in {x for x in fr.symbols}][:400]
+    out["cardText"] = preset.card_text
+    if not run:
+        out["emptyText"] = "The nightly chart-pattern run has not been made yet. Check back after the next evening update."
+    elif not rows:
+        out["emptyText"] = "No company shows this pattern at the latest close."
     return out
 
 

@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 11      # 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 12      # 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
@@ -92,7 +92,7 @@ class Preset:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Breakouts"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "Breakouts"), ("chart-patterns", "Chart patterns"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
                                  ("safety", "Safety"), ("ownership", "Ownership"), ("prism-basics", "Prism basics")]
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
@@ -322,7 +322,20 @@ SETUPS_ADV: List[Preset] = [
             "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-range_4d", 0.5), ("prism_st_score", 0.5))),
 ]
-PRESETS = PRESETS[:-2] + SETUPS_ADV + PRESETS[-2:]
+# ------------------------------------------------------------------------------------------------------------------------------ Chart patterns (task #64, both tabs)
+# Eleven scans on daily candles, run nightly (presets/patterns.py). The rules live only in finlit/pattern_scans.py; the page shows what a scan found, in words.
+from .patterns import FACT_LABELS as _FACTS, NAMES as _PNAMES, SCAN_IDS as _SCANS, TEXTS as _PTEXTS   # noqa: E402
+
+
+def _pcols(scan: str) -> Tuple[Col, ...]:
+    return tuple(Col(f"pf{j}", lab, "text", "left") for j, lab in enumerate(_FACTS[scan], 1) if lab)
+
+
+PATTERNS_ADV: List[Preset] = [
+    Preset(f"pattern-{k}", _PNAMES[k], "chart-patterns", _PTEXTS[k], "pattern", _m(), "", (), (("prism_final", "desc"),), 25,
+           with_status((STOCK, PRISM, STS, LTS) + _pcols(k) + (SECTOR, MCAP)), (), (), False, None, ("provisional",), k, "advanced")
+    for k in _SCANS]
+PRESETS = PRESETS[:-2] + SETUPS_ADV + PATTERNS_ADV + PRESETS[-2:]
 
 # the page's existing four quick views (frontend/src/lib/scoreScreen.ts, PRISM_PRESETS): listed under "Prism basics", handled by the page itself
 QUICK_VIEWS: List[Preset] = [
@@ -335,7 +348,7 @@ QUICK_VIEWS: List[Preset] = [
 # ------------------------------------------------------------------------------------------------------------------------------ the Basic tab (Silver)
 # Built only from what the Basic score screener shows: the FinLit IQ, its pillars (Quality, Growth, Profitability, Balance sheet, Technical), the Growth & Profitability
 # score (the average of the four business pillars, needs 3 of 4), market cap, Sector, 52-week and return fields. Every rule is a "derived" rule with a plain-words label.
-BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
+BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
 B_TECH = Col("pillar_technical", "Technical", "score")
 B_QUAL = Col("pillar_quality", "Quality", "score")
 B_GROW = Col("pillar_growth", "Growth", "score")
@@ -467,6 +480,11 @@ BASIC += [
            False, None, (), "setup scans", "basic", (("-range_4d", 0.5), ("pillar_technical", 0.5))),
 ]
 
+BASIC += [
+    Preset(f"basic-pattern-{k}", _PNAMES[k], BASIC_GROUP["patterns"], _PTEXTS[k], "pattern", _m(), "", (), (("overall", "desc"),), 25,
+           (RANK, STOCK, FINLIT, B_TECH) + _pcols(k) + (SECTOR, MCAP), (), (), False, None, (), k, "basic")
+    for k in _SCANS]
+
 ADVANCED: List[Preset] = list(PRESETS)
 PRESETS = PRESETS + BASIC
 
@@ -479,6 +497,8 @@ _PLAIN: Dict[str, dict] = _json.loads((_Path(__file__).with_name("plain.json")).
 
 
 def _plain(p: Preset) -> Preset:
+    if p.kind == "pattern":          # the page words, without the look-back lengths the pack's texts printed (the handover drops them)
+        return _replace(p, how_it_works=())
     w = _PLAIN.get(p.id)
     if w is None:
         return _replace(p, how_it_works=())

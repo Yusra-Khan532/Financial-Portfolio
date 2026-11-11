@@ -179,7 +179,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "digest": "fixed: members who switched the digest on; measured about 6 s",
     "scores-live": "deadline: stops itself at --max-minutes; at most RT_PRISM_PER_RUN companies a run, what is left stays queued",
     "prune": "database: deletes old rows; measured about 9 s",
-    "presets": "database: builds the prebuilt screens from tables already held; measured about 4 s",
+    "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
     "score-mf": "database: scores from tables already held; measured about 2 s",
     "mf-screen": "database: one transaction over tables already held; measured about 4 s",

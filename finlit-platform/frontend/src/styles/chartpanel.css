@@ -19,3 +19,8 @@
 @media (max-width: 700px) { .cp { top: 56px; right: 0; left: 0; bottom: 0; width: auto; border-radius: 12px 12px 0 0; } }
 tr.cp-row > td { background: color-mix(in srgb, var(--brand, #1d4ed8) 9%, transparent); }
 .scr-t tbody tr { cursor: pointer; }
+.cp-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; }
+.cp-facts > div { display: flex; flex-direction: column; }
+.cp-facts dt { font-size: 11px; color: var(--muted, #6b7280); }
+.cp-facts dd { margin: 0; font-size: 14px; font-weight: 600; }
+.psx-t tbody tr { cursor: pointer; }
