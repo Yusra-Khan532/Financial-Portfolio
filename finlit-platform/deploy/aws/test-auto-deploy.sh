@@ -27,6 +27,7 @@ esac
 FAKE
 export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image" DISK_PCT_CMD="echo 40"
 A="$HERE/auto-deploy.sh"
+mkdir -p "$FINLIT_HOME/state"; date +%s > "$FINLIT_HOME/state/last_daily_clean"   # today's daily cleaning is done, so the tests below only see what they ask for
 fail=0; ok() { if [ "$2" = "$3" ]; then echo "PASS  $1"; else echo "FAIL  $1 (wanted '$2', got '$3')"; fail=1; fi; }
 calls() { tr '\n' ' ' < "$T/calls" | sed 's/ $//'; }
 reset() { : > "$T/calls"; }
@@ -63,5 +64,7 @@ exec 8>&-   # release the lock the previous test held
 # 7. housekeeping: a disk at 90% is cleaned (once in 30 minutes); a disk at 40% is not
 reset; DISK_PCT_CMD="echo 90" bash "$A" >/dev/null 2>&1; ok "a full disk is cleaned first" "clean" "$(calls | cut -d" " -f1)"
 reset; DISK_PCT_CMD="echo 90" bash "$A" >/dev/null 2>&1; ok "...but not again within 30 minutes" "" "$(calls)"
-reset; rm -f "$FINLIT_HOME/state/last_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a disk with room is left alone" "" "$(calls)"
+reset; rm -f "$FINLIT_HOME/state/last_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a disk with room is left alone (already cleaned today)" "" "$(calls)"
+reset; rm -f "$FINLIT_HOME/state/last_daily_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a day without cleaning: waste is cleared even with room" "clean" "$(calls | cut -d" " -f1)"
+reset; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "...and only once a day" "" "$(calls)"
 exit $fail
