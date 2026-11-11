@@ -142,6 +142,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                     <button type="button" className="btn" disabled={!sel.length} onClick={s.addSelected}><span aria-hidden="true">Add to watchlist ({sel.length})</span><span className="sr">Add to watchlist</span></button>
                     {sel.length > 0 && <button type="button" className="alx-link" onClick={() => s.setPicked([])}>Clear selection</button>}
                   </span>
+                  {sel.length < 2 && <small className="muted sx-bulkhint">Tick the box on 2 to {maxCompare} rows to compare them. Tick any rows to add them to your watchlist.</small>}
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
                 <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table"><table className="scr-t ss-t sx-t">
@@ -150,7 +151,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   <tr>
                     <th scope="col"><input ref={s.headBox} type="checkbox" checked={s.allOnPage} onChange={s.toggleAll} aria-label="Select all companies on this page" disabled={!pg.view.length} /></th>
                     <th scope="col" className="sx-n">#</th>
-                    <SortTh s={s} k="name" label="Stock" cls="stick" /><SortTh s={s} k="price" label="LTP (₹)" /><SortTh s={s} k="market_cap" label="Market cap" /><SortTh s={s} k="sector" label="Sector" />
+                    <SortTh s={s} k="name" label="Stock" cls="stick" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" /><SortTh s={s} k="sector" label="Sector" cls="ss-sec" />
                     {columnHeads}
                     <th scope="col">Action</th></tr></thead>
                   <tbody>{pg.view.map((r, i) => {
@@ -160,9 +161,9 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                       <td><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n">{pg.page * size + i + 1}</td>
                       <td className="stick"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
-                      <td>{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
-                      <td>{r.market_cap != null ? <>{cr(r.market_cap)}{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
-                      <td style={{ fontFamily: "var(--sans)", textAlign: "left" }}>{r.sector || <Dash why="sector not listed" />}</td>
+                      <td className="ss-px">{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
+                      <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
+                      <td className="ss-sec">{r.sector || <Dash why="sector not listed" />}</td>
                       {cells(r)}
                       <td className="ss-act"><Link className="btn" to={`/stocks/${r.symbol}`} aria-label={`Open ${r.symbol} report`}>Report</Link>
                         <button type="button" className={"btn" + (watch.has(r.symbol) ? " on" : "")} aria-pressed={watch.has(r.symbol)} aria-label={`${watch.has(r.symbol) ? "Remove" : "Add"} ${r.symbol} ${watch.has(r.symbol) ? "from" : "to"} watchlist`} onClick={() => s.addWatch(r.symbol)}><Icon name="wallet" /></button></td>

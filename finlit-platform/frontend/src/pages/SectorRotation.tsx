@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { HScroll } from "../components/HScroll";
+import { HowToGuide } from "../components/sectors/HowTo";
 import { Blank, StateChip } from "../components/sectors/Parts";
 import { CornerBadge, RankMove, SectorTabs, Spark } from "../components/rotation/Parts";
 import { RotationMapChart } from "../components/rotation/RotationMap";
@@ -198,15 +199,7 @@ function RankGrid({ m }: { m: RotationMap }) {
 
 /** Four short steps for the top of the page. The server writes them, so the words are the same everywhere. */
 function HowTo({ m }: { m: RotationMap }) {
-  const steps = m.how_to_use ?? [];
-  if (!steps.length) return null;
-  return (
-    <section className="sx-sec" aria-labelledby="rt-how">
-      <h2 id="rt-how">How to read this page</h2>
-      <ul className="sx-how">{steps.map((x) => <li key={x.title}><b>{x.title}</b><p>{x.text}</p></li>)}</ul>
-      <p style={{ marginTop: 12 }}><Link className="sx-link" to="/learn/sector-rotation">How to use Sector Rotation →</Link></p>
-    </section>
-  );
+  return <HowToGuide kind="rotation" steps={m.how_to_use ?? []} learnTo="/learn/sector-rotation" learnLabel="How to use Sector Rotation" />;
 }
 
 export function SectorRotationPage() {
