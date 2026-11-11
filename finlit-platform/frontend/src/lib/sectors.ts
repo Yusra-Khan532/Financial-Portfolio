@@ -120,6 +120,12 @@ export const ordinal = (n: number): string => `${n}${n % 100 >= 10 && n % 100 <=
 export const stateClass = (s: string | null | undefined): string => (s ? "st-" + s.toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "") : "st-na");
 
 export const thrustText = (t: Thrust): string => (t ? `${t.type} · ${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago` : "None in the past year");
+/** What "CAP" and "1 session ago" mean, for the tooltip on the Last thrust cell (task #86). */
+export const thrustHelp = (t: Thrust): string => t
+  ? `${/cap/i.test(t.type) ? "CAP: a broad rebound after a capitulation, a sell-off in which almost every stock kept falling to the end. " : "C: a broad rebound, most stocks turning up together after a washout. "}${t.sessions_ago === 0 ? "It happened on the latest trading session." : `It happened ${t.sessions_ago} trading ${t.sessions_ago === 1 ? "session" : "sessions"} ago (days the market was open, not calendar days).`}${t.date ? ` Date: ${fullDate(t.date)}.` : ""}`
+  : "No broad rebound (thrust) in the past year.";
+/** What the leader-flag number counts, for its tooltip. */
+export const FLAGS_HELP = "Leader flags: stocks that closed at a 52-week high while their industry is still well below its own high. A full flag means the industry is further down, an early flag less far. About the share price only.";
 export const thrustLong = (t: Thrust): string => (t ? `${t.type} · ${fullDate(t.date)}` : "None");
 /** "80 stocks counted (1 did not trade today)": members with no price on the last session are said, never hidden. */
 export const countedText = (r: Pick<GroupRow, "stocks_counted" | "members_not_traded_today">): string =>

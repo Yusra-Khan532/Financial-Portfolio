@@ -2,7 +2,7 @@
    Colours come from the site tokens (var(--...)); the six state colours are defined here for dark (the default theme) and light, each as a background / text /
    border trio picked for contrast (text on its background is at least 7:1 in both themes). Meaning never rests on colour alone: every state is also written as a word,
    the chart's bands have patterns, and its events are letters. No motion. */
-.sx {
+.sx, .cz-modal {
   --sx-washout-bg: #4D3A10; --sx-washout-fg: #FFDC95; --sx-washout-bd: #9C7826;
   --sx-c-bg: #0F4029; --sx-c-fg: #8FE9B7; --sx-c-bd: #25895A;
   --sx-cap-bg: #1F9A5E; --sx-cap-fg: #FFFFFF; --sx-cap-bd: #4FD08F;
@@ -21,7 +21,7 @@
   --sx-good: #5FD6A0;
   --sx-lead: #A8C9FF;
 }
-:root[data-theme="light"] .sx {
+:root[data-theme="light"] .sx, :root[data-theme="light"] .cz-modal {
   --sx-washout-bg: #F7DFA9; --sx-washout-fg: #4F3000; --sx-washout-bd: #BE8A1F;
   --sx-c-bg: #CDEEDA; --sx-c-fg: #06461F; --sx-c-bd: #3F9C6B;
   --sx-cap-bg: #0F6B3A; --sx-cap-fg: #FFFFFF; --sx-cap-bd: #0F6B3A;
@@ -504,3 +504,43 @@
 /* the Sector & peers block on the company page had no top padding, so it ran into Peers */
 .sx-stock { padding-top: 80px; }
 @media (max-width: 600px) { .sx-stock { padding-top: 56px; } }
+
+/* Sector Pulse table (task #86): fixed column widths, every cell centred on the row, one visual language for the three averages */
+.sx-legend2 { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: var(--fs-13); color: var(--muted); }
+.sx-legend2 li { display: inline-flex; align-items: center; gap: 7px; }
+.sx-legend2 b { color: var(--text); font-weight: 600; }
+.sx-legend2 i { width: 22px; height: 8px; border-radius: 4px; display: inline-block; }
+.sx-legend2 i.k9 { background: var(--sx-bar-9); } .sx-legend2 i.k20 { background: var(--sx-bar-20); } .sx-legend2 i.k50 { background: var(--sx-bar-50); }
+.sx-legend2-note { flex-basis: 100%; font-size: var(--fs-12); }
+.sx-t.sx-pulse { table-layout: fixed; width: 100%; min-width: 1100px; }
+.sx-pulse col.c-name { width: 210px; } .sx-pulse col.c-state { width: 108px; } .sx-pulse col.c-bars { width: 220px; } .sx-pulse col.c-idx { width: 108px; }
+.sx-pulse col.c-thr { width: 120px; } .sx-pulse col.c-flag { width: 80px; } .sx-pulse col.c-cor { width: 176px; } .sx-pulse col.c-rk { width: 98px; }
+.sx-pulse th, .sx-pulse td { padding: 12px 14px; vertical-align: middle; }
+.sx-pulse tbody td { height: 76px; }
+.sx-pulse thead th { padding-top: 12px; padding-bottom: 12px; vertical-align: middle; line-height: 1.35; }
+.sx-pulse th:first-child, .sx-pulse td:first-child { min-width: 0; max-width: none; padding-left: 18px; }
+.sx-pulse td.num { font-weight: 600; }
+.sx-pulse th.c, .sx-pulse td.c { text-align: center; }
+.sx-pulse tbody tr:nth-child(even) td { background-color: color-mix(in srgb, var(--s3) 55%, var(--s1)); }
+.sx-pulse tbody tr:hover td { background-color: var(--sx-solid-hover); }
+.sx-pulse .sx-name { gap: 3px; } .sx-pulse .sx-name small { font-size: var(--fs-12); white-space: normal; }
+.sx-pulse .sx-chip { height: 22px; padding: 0 9px; font-size: var(--fs-12); font-weight: 600; }
+.sx-pulse .sx-chip.st-thrust_cap { background: var(--sx-c-bg); color: var(--sx-c-fg); border-color: var(--sx-c-bd); }
+.sx-pulse .sx-bars { min-width: 0; gap: 5px; }
+.sx-pulse .sx-bars .r { grid-template-columns: 30px minmax(60px, 1fr) 40px; gap: 8px; }
+.sx-pulse .sx-bars .r > span:first-child { font-size: var(--fs-12); font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+.sx-pulse .sx-bars .tr { height: 8px; }
+.sx-pulse .sx-bars b { font-variant-numeric: tabular-nums; }
+.sx-thr { display: inline-grid; gap: 2px; cursor: help; border-radius: 6px; outline-offset: 3px; }
+.sx-thr b { font-size: var(--fs-14); font-weight: 600; color: var(--text); } .sx-thr small { font-size: var(--fs-12); color: var(--muted); }
+.sx-flagpill { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 28px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--s2); font-weight: 700; cursor: help; font-variant-numeric: tabular-nums; }
+.sx-pulse .rt-colh { border-left: 0; background-color: var(--sx-solid-head); }
+.sx-pulse td.rt-colc { white-space: nowrap; }
+.sx-pulse .rt-corner { font-size: var(--fs-13); white-space: nowrap; }
+.rt-rk2 { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.rt-rk2 b { min-width: 26px; text-align: right; font-size: var(--fs-16); font-variant-numeric: tabular-nums; }
+.rt-rk2 .rt-move { min-width: 34px; text-align: left; }
+.sx-pulse thead th:last-child, .sx-pulse tbody td:last-child { text-align: right; }
+@media (max-width: 700px) { .sx-t.sx-pulse { min-width: 1060px; } .sx-pulse tbody td { height: 68px; } }
+.sx-minis { display: flex; gap: 4px; margin-top: 6px; } .sx-minis .sx-mini { margin-left: 0; }
+.sx-pulse th, .sx-pulse td { padding-left: 12px; padding-right: 12px; }

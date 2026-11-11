@@ -36,3 +36,14 @@
 /* table wrappers bleed into a card's padding; the dialog has none */
 .cz-body .cz-host .tw { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
 .cz-body .cz-host .ipo-strip { padding: 0 24px; }
+
+/* zoom controls of the enlarged view (task #87): - 100% + Reset; the content is scaled with CSS zoom so layout, scrolling and text all follow */
+.cz-zoom { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-subtle); }
+.cz-zb { min-width: 36px; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text-primary); cursor: pointer; font: 700 var(--fs-18)/1 var(--sans); }
+.cz-zb:hover:not(:disabled) { background: var(--bg-hover, rgba(127, 127, 127, .16)); }
+.cz-zb:disabled { opacity: .4; cursor: default; }
+.cz-zb:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.cz-zb.cz-zr { font-size: var(--fs-13); font-weight: 600; }
+.cz-zv { min-width: 48px; text-align: center; font: 600 var(--fs-13)/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.cz-body .cz-host { zoom: var(--cz-z, 1); }
+@media (max-width: 640px) { .cz-bar { flex-wrap: wrap; } .cz-title { flex-basis: 100%; order: -1; } .cz-zb { min-width: 44px; height: 40px; } .cz-zoom { flex: 1 1 auto; justify-content: space-between; } }

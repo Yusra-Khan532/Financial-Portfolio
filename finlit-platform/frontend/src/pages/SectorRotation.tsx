@@ -134,10 +134,25 @@ function Ranking({ m, filter, setFilter }: { m: RotationMap; filter: CornerFilte
         <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All {m.groups}</button>
         {CORNERS.map((c) => <button key={c} type="button" aria-pressed={filter === c} onClick={() => setFilter(filter === c ? "all" : c)}>{cornerName(c)} · {m.counts?.[cornerName(c)] ?? 0}</button>)}
       </div>
+      <ul className="rt-key" aria-label="How to read the Moved column">
+        <li><b>Moved</b> is the number of places the group has climbed <span className="rt-move up">▲</span> or fallen <span className="rt-move down">▼</span> in the ranking.</li>
+        <li><i>1W</i> since last week · <i>4W</i> since 4 weeks ago · <span className="rt-move flat">–</span> no change · <span className="rt-move new">new</span> first week in the ranking</li>
+      </ul>
       <div className="rt-tablebox"><HScroll label="rotation ranking table" className="rt-scroll">
-        <table className="rt-t" data-testid="rank-table">
+        <table className="rt-t rt-rank-t" data-testid="rank-table">
           <caption className="sx-visually">Every group with a rotation reading, by rank: places moved in 1 and 4 weeks, corner, strength and change against the average industry, breadth, Sector Pulse state and the rank over 26 weeks</caption>
-          <thead><tr><th scope="col" className="r">Rank</th><th scope="col">Moved</th><th scope="col" className="l">Industry or sector group</th><th scope="col" className="l">Corner</th><th scope="col" className="r">6M vs avg</th><th scope="col" className="r">1M vs avg</th><th scope="col" className="l">Breadth</th><th scope="col" className="l">Sector Pulse</th><th scope="col" className="l">Rank, last 26 weeks</th></tr></thead>
+          <colgroup><col className="c-rk" /><col className="c-mv" /><col className="c-nm" /><col className="c-co" /><col className="c-v1" /><col className="c-v2" /><col className="c-br" /><col className="c-sp" /><col className="c-tr" /></colgroup>
+          <thead><tr>
+            <th scope="col" className="c" title="Rank this week among all groups: 1 is the strongest against the average industry">Rank</th>
+            <th scope="col" className="c" title="Places moved in the ranking: since last week (1W) and since 4 weeks ago (4W)"><span className="rt-h2">Moved<small><i>1W</i><i>4W</i></small></span></th>
+            <th scope="col" className="l">Industry or sector group</th>
+            <th scope="col" className="l" title="Where the group sits against the average industry: ahead or behind over 6 months, gaining or slipping over the last month">Corner</th>
+            <th scope="col" className="r" title="Return over 6 months minus the average industry's, in points">6M vs avg</th>
+            <th scope="col" className="r" title="Return over the last month minus the average industry's, in points">1M vs avg</th>
+            <th scope="col" className="l" title="Share of the group's counted stocks above their 50-day average">Breadth</th>
+            <th scope="col" className="l" title="The group's state on Sector Pulse">Sector Pulse</th>
+            <th scope="col" className="l" title="Rank at each of the last 26 weekly closes; a line higher up means a better rank">Rank trend, 26 weeks</th>
+          </tr></thead>
           <tbody>
             {rows.map((r) => <RankRow key={r.slug} r={r} worst={worst} />)}
             {!rows.length && <tr><td colSpan={9} className="rt-note">No group is in this corner today.</td></tr>}
@@ -152,14 +167,14 @@ function RankRow({ r, worst }: { r: RotationRow; worst: number }) {
   const b = r.breadth_above_50;
   return (
     <tr>
-      <td className="r rt-rk">{r.rank ?? <span className="rt-note">Not ranked yet</span>}</td>
-      <td className="rt-mvc">{r.rank == null ? "–" : <><RankMove v={r.rank_change_1w} /> <RankMove v={r.rank_change_4w} /></>}</td>
-      <th scope="row" className="l nm"><Link to={`/sectors/${r.slug}`}>{r.name}</Link><small>{r.stocks_counted} stocks counted{r.kind === "sector" ? " · sector group" : ""}{r.leader_flags ? ` · ${r.leader_flags} leader ${r.leader_flags === 1 ? "flag" : "flags"}` : ""}</small></th>
-      <td className="l"><CornerBadge corner={r.corner} /><small className="sub">{weeksText(r.weeks_in_corner)}{r.weeks_in_corner === 1 && r.previous_corner ? " · new this week" : ""}{r.this_week_reading_name ? ` · this week reads ${r.this_week_reading_name}` : ""}</small></td>
+      <td className="c rt-rk">{r.rank != null ? <span className="rt-rkb">{r.rank}</span> : <span className="rt-note">Not ranked yet</span>}</td>
+      <td className="c rt-mvc">{r.rank == null ? "–" : <span className="rt-mv"><span><i>1W</i><RankMove v={r.rank_change_1w} /></span><span><i>4W</i><RankMove v={r.rank_change_4w} /></span></span>}</td>
+      <th scope="row" className="l nm"><Link to={`/sectors/${r.slug}`} title={r.name}>{r.name}</Link><small>{r.stocks_counted} stocks{r.kind === "sector" ? " · sector group" : ""}{r.leader_flags ? ` · ${r.leader_flags} leader ${r.leader_flags === 1 ? "flag" : "flags"}` : ""}</small></th>
+      <td className="l co" title={`${weeksText(r.weeks_in_corner)} in this corner${r.weeks_in_corner === 1 && r.previous_corner ? ", new this week" : ""}${r.this_week_reading_name ? `; this week reads ${r.this_week_reading_name}` : ""}`}><CornerBadge corner={r.corner} className="tag" />{(r.weeks_in_corner === 1 && r.previous_corner) || r.this_week_reading_name ? <small className="sub">{r.weeks_in_corner === 1 && r.previous_corner ? "new this week" : `this week reads ${r.this_week_reading_name}`}</small> : null}</td>
       <td className="r num v1">{pts(r.strength_pts)}</td><td className="r num v2">{pts(r.change_pts)}</td>
-      <td className="l br">{b == null ? <span className="rt-note">No reading</span> : <><span className="rt-bar" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, b))}%` }} className={r.breadth ?? ""} /></span><b>{Math.round(b)}%</b><small className="sub">{r.breadth_name}</small></>}</td>
+      <td className="l br">{b == null ? <span className="rt-note">No reading</span> : <span className="rt-brw" title={r.breadth_name ?? undefined}><span className="rt-bar" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, b))}%` }} className={r.breadth ?? ""} /></span><b>{Math.round(b)}%</b></span>}</td>
       <td className="l">{r.sector_state ? <StateChip state={r.sector_state} /> : <span className="rt-note">—</span>}</td>
-      <td className="l sp"><Spark hist={r.rank_history} worst={worst} /><small className="sub">best {r.rank_best_26w ?? "—"}<br />worst {r.rank_worst_26w ?? "—"}</small></td>
+      <td className="l sp"><span className="rt-spw"><Spark hist={r.rank_history} worst={worst} w={120} h={38} /><span className="rt-bw"><span>Best <b>{r.rank_best_26w ?? "—"}</b></span><span>Worst <b>{r.rank_worst_26w ?? "—"}</b></span></span></span></td>
     </tr>
   );
 }

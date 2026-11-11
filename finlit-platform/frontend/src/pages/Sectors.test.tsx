@@ -83,11 +83,18 @@ describe("Sector Pulse", () => {
   });
   it("sorts by a column header and says which way", () => {
     at(<SectorPulsePage />);
-    const head = screen.getByRole("columnheader", { name: /Index vs 52-wk high/ });
+    const head = screen.getByRole("columnheader", { name: /Index vs 52-week high/ });
     fireEvent.click(within(head).getByRole("button"));
     expect(head.getAttribute("aria-sort")).toBe("ascending");
     fireEvent.click(within(head).getByRole("button"));
     expect(head.getAttribute("aria-sort")).toBe("descending");
+  });
+  it("explains the three bar colours, the thrust and leader flags, and the table can be enlarged (task #86, #87)", () => {
+    at(<SectorPulsePage />);
+    expect(screen.getByLabelText("What the three bar colours mean")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Enlarge table: Industries table" })).toBeTruthy();
+    expect(document.querySelector(".sx-thr")?.getAttribute("title")).toMatch(/trading session|No broad rebound/);
+    expect(screen.getByTestId("groups-table").querySelectorAll("col").length).toBe(8);
   });
   it("has no higher-low column, no rules and no study; shows the too-few list, the universe totals and the flags", () => {
     at(<SectorPulsePage />);

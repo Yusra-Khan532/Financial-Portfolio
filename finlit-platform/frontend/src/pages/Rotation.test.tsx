@@ -107,8 +107,14 @@ describe("the Rotation tab", () => {
     at(<SectorRotationPage />);
     const t = screen.getByTestId("rank-table");
     expect(within(t).getAllByText("Not ranked yet").length).toBeGreaterThan(0);
-    expect(within(t).getByRole("columnheader", { name: "Moved" })).toBeTruthy();
+    expect(within(t).getByRole("columnheader", { name: /^Moved/ })).toBeTruthy();
     expect(within(t).queryByRole("columnheader", { name: "1 wk" })).toBeNull();
+  });
+  it("explains the Moved column and the ranking table can be enlarged (task #88, #87)", () => {
+    at(<SectorRotationPage />);
+    expect(screen.getByLabelText("How to read the Moved column")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Enlarge table: Rotation ranking table" })).toBeTruthy();
+    expect(screen.getByTestId("rank-table").querySelectorAll("tbody tr").length).toBeGreaterThan(5);
   });
   it("describes and never advises: no advice word in anything the page and the Learn page print", () => {
     at(<SectorRotationPage />);

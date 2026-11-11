@@ -86,11 +86,11 @@ describe("Stock screener columns", () => {
 
   it("the results table has the enlarge arrow, and enlarging opens the same table in a dialog", async () => {
     mount(); await ready();
-    const arrow = await screen.findByRole("button", { name: /Enlarge chart: Stock screener results/ });
+    const arrow = await screen.findByRole("button", { name: /Enlarge table: Stock screener results/ });
     fireEvent.click(arrow);
     const dlg = await screen.findByRole("dialog", { name: "Stock screener results" });
     expect(within(dlg).getAllByRole("columnheader").length).toBe(3);
-    fireEvent.click(within(dlg).getByRole("button", { name: /Restore chart/ }));
+    fireEvent.click(within(dlg).getByRole("button", { name: /Close enlarged table/ }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Stock screener results" })).toBeNull());
   });
 
