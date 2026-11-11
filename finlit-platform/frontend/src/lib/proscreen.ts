@@ -19,14 +19,24 @@ export type PState = {
   sort?: string; dir?: "asc" | "desc"; cols?: string[];
 };
 export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] };
-export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; full?: boolean; v: Record<string, number | null> };
+export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
 export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number };
 
 export const norm = (s: Partial<PState> | undefined): PState => ({ ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } });
 export const activeCount = (s: PState) => Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length ? 1 : 0)
   + (s.industries.length ? 1 : 0) + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
-export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number) => ({
+/** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
+export type CustomRatio = { id: string; name: string; num: string; den: string; op: "gt" | "lt" | "between" | "none"; a?: number; b?: number };
+export const MAX_RATIOS = 3;
+export const ratioRange = (r: CustomRatio): Range => (r.op === "gt" && r.a != null ? { min: r.a } : r.op === "lt" && r.a != null ? { max: r.a } : r.op === "between" && r.a != null && r.b != null ? { min: Math.min(r.a, r.b), max: Math.max(r.a, r.b) } : {});
+export const ratioLabel = (r: CustomRatio): string => r.name.trim() || "Custom ratio";
+const RKEY = "finlit.screener.ratios";
+export const loadRatios = (): CustomRatio[] => { try { const v = JSON.parse(localStorage.getItem(RKEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && /^r[0-9]$/.test(x.id) && typeof x.num === "string" && typeof x.den === "string").slice(0, MAX_RATIOS) : []; } catch { return []; } };
+export const saveRatios = (v: CustomRatio[]) => { try { localStorage.setItem(RKEY, JSON.stringify(v)); } catch { /* private window: lasts for this visit */ } };
+
+export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
+  ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
   cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit,
 });

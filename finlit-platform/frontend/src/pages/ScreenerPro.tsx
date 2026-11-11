@@ -8,7 +8,8 @@ import { Icon } from "../lib/icons";
 import { nf } from "../lib/format";
 import { API_BASE, apiUrl } from "../lib/api";
 import { limitsFor, useAuth } from "../lib/auth";
-import { READY, UNIT_SUFFIX, activeCount, chipColumn, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
+import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
+import { READY, UNIT_SUFFIX, loadRatios, saveRatios, ratioLabel, type CustomRatio, activeCount, chipColumn, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
 import { screens, useSavedScreens } from "../lib/screens";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
@@ -117,7 +118,8 @@ export function ScreenerPro() {
   const [period, setPeriod] = useState<Record<string, string>>({});
   const [q, setQ] = useState(""), [pg, setPg] = useState({ k: "", p: 0 });
   const [tab, setTab] = useState<"filters" | "quick">("filters");
-  const [pick, setPick] = useState<Record<string, string>>({});
+  // the filters opened in each group (several at once, task #75): every one keeps its card, range and chart until it is clicked again or cleared
+  const [pick, setPick] = useState<Record<string, string[]>>({});
   const [find, setFind] = useState(""), [open, setOpen] = useState<Record<string, boolean>>({});
   const [moreGroups, setMoreGroups] = useState(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState(""), [saveName, setSaveName] = useState("");
   const saved = useSavedScreens();
@@ -130,7 +132,7 @@ export function ScreenerPro() {
   // chip the visitor picks adds its own column (for the period tab it is on) and takes it away again when the filter or the pick goes.
   const base = useMemo(() => cols ?? defaultColumns(data), [cols, data]);
   const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, f.ranges);
-  const chipCols = Object.values(pick).map((k) => (k ? chipColumn(byKey.get(k), periodOf(byKey.get(k)!), byKey) : null));
+  const chipCols = Object.values(pick).flat().map((k) => (k ? chipColumn(byKey.get(k), periodOf(byKey.get(k)!), byKey) : null));
   const columns = useMemo(() => tableColumns(base, f.ranges, chipCols, (k) => !data || byKey.has(k)), [base, f.ranges, chipCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const ask = (tier: Plan, why: string) => upgrade(tier, why);
 
@@ -138,13 +140,15 @@ export function ScreenerPro() {
   // The page belongs to the filters it was chosen under: change a filter, the sort or the search and it is page 1 at once (no request with the old offset).
   const pkey = JSON.stringify([dq, dsort, dqq]), page = pg.k === pkey ? pg.p : 0, setPage = (p: number) => setPg({ k: pkey, p });
   // A shared or old link can name a filter or sort the screener does not have: leave those out instead of failing the whole screen.
+  const [ratios, setRatiosState] = useState<CustomRatio[]>(() => loadRatios());   // custom ratios (task #61): kept in this browser
+  const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (sort.key.startsWith("r") && /^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
   const known = (k: string) => !data || byKey.has(k);
   const safe = useMemo(() => ({ ...dq, ranges: Object.fromEntries(Object.entries(dq.ranges).filter(([k]) => known(k))) }), [dq, data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const safeSort = known(dsort.key) || dsort.key === "name" || dsort.key === "symbol" ? dsort : { key: "market_cap", dir: "desc" as const };
-  const body = useMemo(() => toBody(safe, safeSort, columns, dqq, page * PAGE, PAGE), [safe, safeSort.key, safeSort.dir, columns, dqq, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  const safeSort = known(dsort.key) || dsort.key === "name" || dsort.key === "symbol" || ratios.some((r) => r.id === dsort.key) ? dsort : { key: "market_cap", dir: "desc" as const };
+  const body = useMemo(() => toBody(safe, safeSort, columns, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, columns, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
   const res = useScreen(body, !!data && columns.length > 0);
   const rows = res.data?.rows || [];
-  const nActive = activeCount(f);
+  const nActive = activeCount(f) + ratios.filter((r) => r.op !== "none").length;
 
   // keep the address bar in step so a screen can be shared
   useEffect(() => { const s = encodeState(dq, dsort.key, dsort.dir); const n = new URLSearchParams(params); s ? n.set("s", s) : n.delete("s"); if (n.toString() !== params.toString()) setParams(n, { replace: true }); }, [dq, dsort]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -152,10 +156,7 @@ export function ScreenerPro() {
   const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r; return { ...s, ranges }; });
   const toggle = (key: "sectors" | "industries" | "indices" | "caps" | "bands", v: string) => setF((s) => ({ ...s, [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] }));
   const fl = find.trim().toLowerCase();
-  const lastTap = useRef({ k: "", t: 0 });
-  /** True on the second click/tap of the same chip within 400 ms: works for mouse, touch and Enter alike. */
-  const tap = (k: string) => { const now = Date.now(), dbl = lastTap.current.k === k && now - lastTap.current.t < 400; lastTap.current = dbl ? { k: "", t: 0 } : { k, t: now }; return dbl; };
-  const clearMetric = (m: MetricInfo, gid: string) => { (m.variants ? Object.values(m.variants) : [m.key]).forEach((k) => setRange(k, {})); setPick((x) => ({ ...x, [gid]: "" })); };
+  const clearMetric = (m: MetricInfo, gid: string) => { (m.variants ? Object.values(m.variants) : [m.key]).forEach((k) => setRange(k, {})); setPick((x) => ({ ...x, [gid]: (x[gid] || []).filter((k) => k !== m.key) })); };
 
   const sortBy = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: key === "name" || byKey.get(key)?.better === "lower" ? "asc" : "desc" }));
   const pickCols = (c: string[] | null) => { setCols(c); storeCols(c); };
@@ -163,6 +164,7 @@ export function ScreenerPro() {
 
   const chips: { label: string; clear: () => void }[] = [
     ...Object.entries(f.ranges).map(([k, r]) => { const m = byKey.get(k); return { label: m?.unit === "flag" ? `${m.label}: ${r.min === 1 ? "Yes" : "No"}` : `${m?.label || k} ${r.min != null ? "≥ " + r.min : ""}${r.min != null && r.max != null ? " and " : ""}${r.max != null ? "≤ " + r.max : ""}`, clear: () => setRange(k, {}) }; }),
+    ...ratios.map((r) => ({ label: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...f.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
     ...f.bands.map((s) => ({ label: `FinLit band: ${s}`, clear: () => toggle("bands", s) })),
@@ -177,7 +179,7 @@ export function ScreenerPro() {
   const exportCsv = async () => {
     if (!data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
     try {
-      const r = await fetch(apiUrl("/api/screener/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv" }, body: JSON.stringify(toBody(safe, safeSort, columns, dqq, 0, 100)) });
+      const r = await fetch(apiUrl("/api/screener/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv" }, body: JSON.stringify(toBody(safe, safeSort, columns, dqq, 0, 100, ratios)) });
       if (!r.ok) throw new Error(String(r.status));
       saveFile("FinLit-screen.csv", await r.text(), "text/csv;charset=utf-8"); toast("Saved your results as FinLit-screen.csv.");
     } catch { toast("We could not prepare the download. Please try again."); }
@@ -204,15 +206,17 @@ export function ScreenerPro() {
     return out;
   }, [rows, res.data?.columns]);
   const tone = (k: string, v: number | null) => { const m = byKey.get(k), h = heat[k]; if (v == null || !m || !h || m.better === "none" || m.unit === "flag" || h[0] === h[1]) return ""; const good = m.better === "higher" ? v >= h[1] : v <= h[0], bad = m.better === "higher" ? v <= h[0] : v >= h[1]; return good ? "tone-good" : bad ? "tone-bad" : ""; };
+  // the colour note shows only while a column beyond the default set is on the table and carries green or red cells (task #73); back on the default columns it is gone
+  const dflt = useMemo(() => defaultColumns(data), [data]);
+  const coloured = (res.data?.columns || []).filter((k) => !dflt.includes(k) && heat[k] && byKey.get(k) && byKey.get(k)!.better !== "none" && byKey.get(k)!.unit !== "flag");
   const err = res.error as { status?: number; body?: { plan?: string; detail?: string } } | null;
   const total = res.data?.total ?? 0;
 
-  // Sector, Industry and Index sit straight after the FinLit model group (or at the top while a search hides it)
+  // Sector (the industry list, one unified Sector filter, task #74) and Index sit straight after the FinLit model group (or at the top while a search hides it)
   const grp = (id: string, title: string, active: number, meta: number, body: React.ReactNode, defaultOpen = false) => (
     <FilterGroup id={id} title={title} active={active} meta={meta} open={fl ? true : open[id] ?? (active > 0 || defaultOpen)} onOpenChange={(o) => setOpen((x) => ({ ...x, [id]: o }))}>{body}</FilterGroup>);
   const facetBlocks = <>
-    {data && facetMatch("Sector") && grp("sector", "Sector", f.sectors.length, data.sectors.length, <Checks search items={data.sectors.map((x) => ({ key: x.name, label: x.name, n: x.n }))} picked={f.sectors} toggle={(k) => toggle("sectors", k)} />)}
-    {data && facetMatch("Industry") && grp("industry", "Industry", f.industries.length, data.industries.length, <Checks search items={data.industries.map((x) => ({ key: x.name, label: x.name, n: x.n }))} picked={f.industries} toggle={(k) => toggle("industries", k)} />)}
+    {data && facetMatch("Sector") && grp("industry", "Sector", f.industries.length, data.industries.length, <Checks search items={data.industries.map((x) => ({ key: x.name, label: x.name, n: x.n }))} picked={f.industries} toggle={(k) => toggle("industries", k)} />)}
     {data && data.indices.length > 0 && facetMatch("Index") && grp("index", "Index", f.indices.length, data.indices.length, <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} />)}
   </>;
 
@@ -234,12 +238,12 @@ export function ScreenerPro() {
             <Donut part={data.withReport} total={data.total} partLabel="Report loaded" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no full report loaded yet.`}
               note="Ratios, growth and statements show a dash until a company's report is loaded." />
             <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.sectors].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))}
-              action={<button type="button" className="fgx-link" onClick={() => showPanel("sector")}>View all sectors &rsaquo;</button>} />
+              action={<button type="button" className="fgx-link" onClick={() => showPanel("industry")}>View all sectors &rsaquo;</button>} />
           </div>)}
         <Toolbar q={q} setQ={setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "size", label: "Market cap", active: f.caps.length, onClick: () => showPanel("size") },
-          { id: "sector", label: "Sector", active: f.sectors.length, onClick: () => showPanel("sector") },
-          { id: "more", label: "More filters", active: Math.max(0, nActive - (f.caps.length ? 1 : 0) - (f.sectors.length ? 1 : 0)), onClick: () => showPanel("valuation") }]}
+          { id: "sector", label: "Sector", active: f.sectors.length + f.industries.length, onClick: () => showPanel("industry") },
+          { id: "more", label: "More filters", active: Math.max(0, nActive - (f.caps.length ? 1 : 0) - (f.sectors.length || f.industries.length ? 1 : 0)), onClick: () => showPanel("valuation") }]}
           sort={<label className="fgx-sort"><span className="sr">Sort by</span><select aria-label="Sort by" value={`${sort.key}:${sort.dir}`} onChange={(e) => { const [k, d] = e.target.value.split(":"); setSort({ key: k, dir: d as "asc" | "desc" }); }}>
             {[["name", "Company"], ["market_cap", "Market cap"], ...(res.data?.columns || []).map((k) => [k, byKey.get(k)?.label || k])].flatMap(([k, l]) => (k === "name" ? ["asc", "desc"] : byKey.get(k)?.better === "lower" ? ["asc", "desc"] : ["desc", "asc"]).map((d) => ({ k, d, l })))
               .concat(res.data?.columns.includes(sort.key) || sort.key === "name" ? [] : [{ k: sort.key, d: sort.dir, l: byKey.get(sort.key)?.label || sort.key }]).filter((o, i, a) => a.findIndex((x) => x.k === o.k && x.d === o.d) === i)
@@ -278,10 +282,13 @@ export function ScreenerPro() {
                                 const visible = shownMetrics.filter((m) => !m.hidden), MAIN = visible.length > 8 ? 6 : visible.length;
                                 const chip = (m: MetricInfo) => {
                                   const active = m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key];
-                                  return <button key={m.key} className={"pl-chip" + (active ? " on" : "") + (pick[g.id] === m.key ? " open" : "") + (m.locked ? " is-locked" : "")} aria-pressed={pick[g.id] === m.key} onClick={() => { if (active && tap(m.key)) { clearMetric(m, g.id); return; } setPick((x) => ({ ...x, [g.id]: x[g.id] === m.key ? "" : m.key })); }} onKeyDown={(e) => { if (active && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); clearMetric(m, g.id); } }} title={active ? "Double-click (or press Delete) to remove this filter" : undefined}>{m.label}{m.locked && <Icon name="lock" />}</button>;
+                                  const opened = (pick[g.id] || []).includes(m.key);
+                                  // a click opens a filter (its range and chart appear under the chips); a click on a chosen filter takes it away again. Other filters stay as they are.
+                                  return <button key={m.key} className={"pl-chip" + (active ? " on" : "") + (opened ? " open" : "") + (m.locked ? " is-locked" : "")} aria-pressed={opened || active} onClick={() => { if (opened || active) { clearMetric(m, g.id); return; } setPick((x) => ({ ...x, [g.id]: [...(x[g.id] || []), m.key] })); }} onKeyDown={(e) => { if ((active || opened) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); clearMetric(m, g.id); } }} title={active || opened ? "Click again (or press Delete) to remove this filter" : undefined}>{m.label}{m.locked && <Icon name="lock" />}</button>;
                                 };
-                                const pm = pick[g.id] ? byKey.get(pick[g.id]) : undefined;
-                                const card = pm && <FilterCard key={pm.key} m={pm} byKey={byKey} ranges={f.ranges} setRange={setRange} ask={ask} tab={periodOf(pm)} setTab={(t) => setPeriod((x) => ({ ...x, [pm.key]: t }))} />;
+                                const openKeys = [...new Set([...(pick[g.id] || []), ...visible.filter((m) => (m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key])).map((m) => m.key)])];
+                                const pms = openKeys.map((k) => byKey.get(k)).filter((m): m is MetricInfo => !!m && visible.some((v) => v.key === m.key));
+                                const card = pms.map((pm) => <FilterCard key={pm.key} m={pm} byKey={byKey} ranges={f.ranges} setRange={setRange} ask={ask} tab={periodOf(pm)} setTab={(t) => setPeriod((x) => ({ ...x, [pm.key]: t }))} />);
                                 return <>
                                   <div className="pl-chips" role="group" aria-label={`${g.label} filters`}>{visible.slice(0, MAIN).map(chip)}</div>
                                   {card}
@@ -292,6 +299,9 @@ export function ScreenerPro() {
                           </>)}
                       </FilterGroup>{model && facetBlocks}</Fragment>);
                   })}
+                  <FilterGroup id="custom" title="Custom ratio" active={ratios.length} open={fl ? true : open.custom ?? ratios.length > 0} onOpenChange={(o) => setOpen((x) => ({ ...x, custom: o }))} meta={<span className="tier" style={{ marginRight: 8 }}>New</span>}>
+                    <CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} />
+                  </FilterGroup>
                   {!fl && groups.length > VISIBLE_GROUPS && <button className="alx-link" style={{ margin: "10px 0 4px" }} onClick={() => setMoreGroups(!moreGroups)}>{moreGroups ? "Show fewer categories" : `Show ${groups.length - VISIBLE_GROUPS} more categories`}</button>}
                 </div>
                 <div className="scr-save"><div className="scr-sh"><span>Save as a screen</span><button className="lnk" onClick={() => { setF(norm({})); toast("Filters cleared."); }}>Reset all</button></div>
@@ -333,13 +343,15 @@ export function ScreenerPro() {
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table"><table className="scr-t">
                     <thead><tr><th className="stick"><button onClick={() => sortBy("name")}>Company {sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>
-                      {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}</tr></thead>
+                      {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}
+                      {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} {sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>)}</tr></thead>
                     <tbody>{rows.map((r) => (
                       <tr key={r.symbol} tabIndex={0} onClick={() => nav(`/stocks/${r.symbol}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/stocks/${r.symbol}`)}>
                         <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
                         {res.data!.columns.map((k) => { const m = byKey.get(k), v = r.v[k]; return <td key={k} className={tone(k, v)} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
+                        {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
                       </tr>))}
-                      {!rows.length && <tr><td colSpan={res.data.columns.length + 1} className="empty">No companies match all of these filters. Try loosening one, or <button className="alx-link" onClick={() => setF(norm({}))}>clear them all</button>.</td></tr>}
+                      {!rows.length && <tr><td colSpan={res.data.columns.length + ratios.length + 1} className="empty">No companies match all of these filters. Try loosening one, or <button className="alx-link" onClick={() => setF(norm({}))}>clear them all</button>.</td></tr>}
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match, lets you download them, and unlocks all {data ? data.groups.reduce((a, g) => a + g.metrics.length, 0) : 160}+ filters.</span>
@@ -347,7 +359,7 @@ export function ScreenerPro() {
                   ) : total > PAGE && (
                     <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next</button></div>)}
                 </>)}
-            <Plain>Green cells are in the best quarter of the results shown for that column, red cells the weakest quarter. “Best” means lower for P/E, P/B and debt, higher for returns and profitability. Hover a column name for what it means.</Plain>
+            {coloured.length > 0 && <Plain>Green cells are in the best quarter of the results shown for that column, red cells the weakest quarter ({coloured.map((k) => byKey.get(k)?.label || k).join(", ")}). “Best” means lower for P/E, P/B and debt, higher for returns and profitability. Hover a column name for what it means.</Plain>}
             {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); filtering on one of those leaves out the companies that lack it.</p>}
             <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
           </section>

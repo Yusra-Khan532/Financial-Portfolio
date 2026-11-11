@@ -2,6 +2,7 @@ import { Link, Navigate, useSearchParams } from "react-router";
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
+import { HighFilter, highActive } from "../components/screener/HighFilter";
 import { IQ_SUB, IQ_TITLE, IqScoreRows, iqActive } from "../components/screener/IqScoreFilter";
 import { Donut } from "../components/screener/PageParts";
 import { Score, med } from "../components/screener/cells";
@@ -62,6 +63,7 @@ function Basic() {
         <FilterGroup id="score" icon="bars" title={IQ_TITLE} defaultOpen active={iqActive(s)} hint={IQ_SUB}>
           <IqScoreRows s={s} allStrong={allStrong} setAllStrong={setAllStrong} />
         </FilterGroup>
+        <FilterGroup id="high" icon="bars" title="Down from 52-week high" active={highActive(s)} hint="How far the price is below its 52-week high"><HighFilter s={s} /></FilterGroup>
       </>)}
       tiles={tiles}
       lead={<div className="sx-adv sx-here">

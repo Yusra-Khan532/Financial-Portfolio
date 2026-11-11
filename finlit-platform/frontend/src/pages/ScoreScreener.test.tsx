@@ -317,12 +317,12 @@ describe("Basic score screener page", () => {
     const heads = () => within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent);
     expect(heads().join("|")).not.toMatch(/52-week/);
     fireEvent.click(screen.getByRole("button", { name: "Add 52-week and return columns" }));
-    expect(heads().join("|")).toMatch(/3M return.*6M return.*1Y return.*Below 52-week high/);
+    expect(heads().join("|")).toMatch(/3M return.*6M return.*1Y return.*Down from 52-week high/);
     const first = within(screen.getByRole("table")).getAllByRole("row")[2].textContent!;
-    expect(first).toMatch(/\+12\.3%/); expect(first).toMatch(/−3\.2%/); expect(first).toMatch(/4\.6%/);
+    expect(first).toMatch(/\+12\.3%/); expect(first).toMatch(/−3\.2%/); expect(first).toMatch(/−4\.6%/);   // down from the high reads as a minus (task #62)
     const second = within(screen.getByRole("table")).getAllByRole("row")[3].textContent!;
     expect(second).not.toMatch(/0\.0%/);                                               // a company with no figure shows a dash
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Below 52-week high" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Down from 52-week high" }));
     expect(loc()).toMatch(/sort=pct_from_high/);
   });
 

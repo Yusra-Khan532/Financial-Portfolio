@@ -68,6 +68,14 @@ describe("applying filters", () => {
     it1("D", null, 80, { sector: "Auto", market_cap: 120000 }), it1("E", 44, 45, { sector: null, market_cap: 100000 }), it1("F", 78, null, { sector: "Banks", market_cap: 80000 }),
   ];
   it("empty filters keep every company, including ones with no scores", () => { expect(applyFilters(items, emptyFilters())).toHaveLength(6); });
+  it("the 'down from 52-week high' range keeps companies within it and leaves out those with no figure (task #60)", () => {
+    const rows = [{ ...items[0], pct_from_high: 3 }, { ...items[1], pct_from_high: 18 }, { ...items[2], pct_from_high: 45 }, { ...items[3] }] as typeof items;
+    const f = emptyFilters(); f.ranges.dh = { min: null, max: 20 };
+    expect(syms(applyFilters(rows, f))).toEqual(["A", "B"]);
+    f.ranges.dh = { min: 30, max: null };
+    expect(syms(applyFilters(rows, f))).toEqual(["C"]);
+    expect(parseState(serializeState({ filters: f, sort: { key: "overall", dir: -1 }, size: 20, page: 0 } as never), "advanced").filters.ranges.dh).toEqual({ min: 30, max: null });   // both screeners read it
+  });
   it("multi-select sectors is OR within the group", () => {
     const f = emptyFilters(); f.sectors = ["IT", "Auto"];
     expect(syms(applyFilters(items, f))).toEqual(["B", "C", "D"]);

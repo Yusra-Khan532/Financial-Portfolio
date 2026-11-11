@@ -241,6 +241,11 @@ class Table:
         rest = [i for i in idx if col[i] != col[i]]   # unknowns always last
         return sorted(known, key=lambda i: col[i], reverse=desc) + rest
 
+    def ratio(self, num: str, den: str) -> List[float]:
+        """num / den for every company; NaN where either figure is missing or the denominator is zero (never a guess)."""
+        a, b = self.cols[num], self.cols[den]
+        return [(a[i] / b[i]) if (a[i] == a[i] and b[i] == b[i] and b[i] != 0) else float("nan") for i in range(self.n)]
+
     def row(self, i: int, columns: List[str]) -> dict:
         return {"symbol": self.symbols[i], "name": self.name[i], "sector": self.sector[i], "cap": self.cap[i], "band": self.band[i], "full": self.full[i],
                 "v": {k: (None if self.cols[k][i] != self.cols[k][i] else round(self.cols[k][i], 4)) for k in columns}}

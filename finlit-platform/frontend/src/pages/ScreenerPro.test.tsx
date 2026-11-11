@@ -122,15 +122,19 @@ describe("Stock screener columns", () => {
     await waitFor(() => expect(heads()).toEqual(["Company", "Market cap", "P/B Ratio"]));
   });
 
-  it("a range keeps its column even after the chip is unselected", async () => {
+  it("several filters stay chosen at once; a filter is removed only by clicking it again (task #75)", async () => {
     localStorage.setItem("finlit.screener.cols", JSON.stringify(["market_cap"]));
     mount(); await ready();
     fireEvent.click(group(/^Valuation/));
     fireEvent.click(screen.getByRole("button", { name: "P/B Ratio" }));
     fireEvent.change(screen.getByLabelText("P/B Ratio maximum", { exact: true }), { target: { value: "3" } });
-    fireEvent.click(screen.getByRole("button", { name: "P/B Ratio" }));   // close the card
+    fireEvent.click(screen.getByRole("button", { name: "P/E Ratio" }));            // choosing another filter must not drop the first one
+    expect(screen.getByLabelText("P/B Ratio maximum", { exact: true })).toBeTruthy();   // its range box is still there
+    expect(screen.getByRole("button", { name: "P/B Ratio" }).getAttribute("aria-pressed")).toBe("true");
     await waitFor(() => expect(heads()).toContain("P/B Ratio"));
     await waitFor(() => expect(st.bodies.at(-1)!.filters).toEqual({ pb: { max: 3 } }));
+    fireEvent.click(screen.getByRole("button", { name: "P/B Ratio" }));            // only an explicit click on the chosen filter removes it
+    await waitFor(() => expect(st.bodies.at(-1)!.filters).toEqual({}));
   });
 
   it("a saved column choice wins over the defaults, and Reset brings the defaults back", async () => {
