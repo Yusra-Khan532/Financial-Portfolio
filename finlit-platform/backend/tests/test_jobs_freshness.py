@@ -229,3 +229,13 @@ def test_sector_pulse_is_not_called_stale_while_the_founder_has_switched_the_sec
     assert "sectors" not in [d["key"] for d in off["datasets"]]                 # the console shows "switched off by configuration" instead
     on = _ev({"sector_enabled": True, "sector_job_off": None, "sector_board_date": _date(2026, 11, 6)}, now)
     assert [d for d in on["datasets"] if d["key"] == "sectors"][0]["status"] in ("late", "stale")     # switched on and days old: judged as before
+
+
+def test_technical_views_count_a_company_with_no_newer_trading_day_apart():
+    from datetime import date as _date, datetime as _dt, timezone as _tz
+    from finlit.jobs.freshness import judge_technicals
+    now = _dt(2026, 11, 12, 18, 0, tzinfo=_tz.utc)
+    ds = judge_technicals(2217, 10, "2026-11-12", _date(2026, 11, 11), now, no_newer=854)
+    assert ds.status == "fresh" and "854 more have no newer trading day from the price provider" in ds.detail     # 10 of 2217 behind: under the limit
+    bad = judge_technicals(2217, 864, "2026-11-12", _date(2026, 11, 11), now)
+    assert bad.status in ("late", "stale")
