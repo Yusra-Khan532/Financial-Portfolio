@@ -7,8 +7,8 @@ import { pct, stateClass, stateWord, type Breadth } from "../../lib/sectors";
 import "../../styles/sectors.css";
 
 /** The state as a coloured chip; the word is always written, so colour is never the only signal. */
-export function StateChip({ state, big, extra }: { state: string | null | undefined; big?: boolean; extra?: string }) {
-  return <span className={`sx-chip ${stateClass(state)}${big ? " big" : ""}`}>{stateWord(state) ?? "No reading"}{extra ? ` · ${extra}` : ""}</span>;
+export function StateChip({ state, big, extra, word }: { state: string | null | undefined; big?: boolean; extra?: string; word?: string }) {
+  return <span className={`sx-chip ${stateClass(state)}${big ? " big" : ""}`}>{word ?? stateWord(state) ?? "No reading"}{extra ? ` · ${extra}` : ""}</span>;   // `word`: a shorter form for a table cell (the rest is written under the chip)
 }
 
 /** The share of counted stocks above their 9, 20 and 50-day averages: three bars with the figure written beside each. */

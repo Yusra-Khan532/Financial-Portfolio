@@ -19,8 +19,8 @@ export function Glyph({ corner, size = 14 }: { corner: string; size?: number }) 
 }
 
 /** The corner as glyph + name. */
-export function CornerBadge({ corner, name, className = "" }: { corner: string; name?: string; className?: string }) {
-  return <span className={`rt-corner c-${corner} ${className}`}><Glyph corner={corner} /><span>{name ?? CORNER_WORD[corner] ?? corner}</span></span>;
+export function CornerBadge({ corner, name, className = "", size }: { corner: string; name?: string; className?: string; size?: number }) {
+  return <span className={`rt-corner c-${corner} ${className}`}><Glyph corner={corner} size={size} /><span>{name ?? CORNER_WORD[corner] ?? corner}</span></span>;
 }
 
 export function RankMove({ v, className = "" }: { v: number | null | undefined; className?: string }) {

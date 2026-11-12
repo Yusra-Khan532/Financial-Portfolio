@@ -15,6 +15,11 @@ export type Locked = Record<string, PlanName>;
 /** The words people see for an industry's state (9 Nov 2026 pages update): plain names replace Washout, Thrust, Confirmed and Fading. The server's state codes and names are unchanged. */
 export const STATE_WORD: Record<string, string> = { "Thrust C": "Bouncing back", "Thrust CAP": "Bouncing back after a crash", Confirmed: "Rising together", Washout: "Sold off", Fading: "Losing steam", Neutral: "No clear signal" };
 export const stateWord = (s: string | null | undefined): string | null | undefined => (s ? STATE_WORD[s] ?? s : s);
+/** The state word split for a table cell (task #86): the chip carries the main words and, for "Bouncing back after a crash", the rest sits under it, so a chip always fits its column. Same words as `stateWord`. */
+export function stateParts(s: string | null | undefined): { main: string; note?: string } {
+  const w = stateWord(s) ?? "No reading", m = /^(.+?) (after a crash)$/.exec(w);
+  return m ? { main: m[1], note: m[2] } : { main: w };
+}
 
 export const STATES: { name: StateName; code: StateCode }[] = [
   { name: "Thrust C", code: "thrust_c" }, { name: "Thrust CAP", code: "thrust_cap" }, { name: "Confirmed", code: "confirmed" },
