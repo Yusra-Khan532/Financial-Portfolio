@@ -39,12 +39,12 @@ STATE_MEANING = {
     "none": "Too few stocks for a reading",
 }
 STATE_HOW = {
-    "washout": "Most of the industry has been sold. Look for a Thrust next: most stocks turning up together. A "
-               "washout can last weeks, so on its own it says nothing about timing.",
-    "thrust_c": "Most of the industry's stocks turned up together after a washout. See whether it holds and moves "
-                "on to Confirmed, or turns Fading.",
+    "washout": "Most of the industry has been sold. Watch for it to turn: most stocks turning up together. A "
+               "sell-off can last weeks, so on its own it says nothing about timing.",
+    "thrust_c": "Most of the industry's stocks turned up together after a sell-off. See whether it holds and moves "
+                "on to Rising together, or turns to Losing steam.",
     "thrust_cap": "Most of the industry's stocks turned up together after a sell-off in which almost all of them "
-                  "kept falling to the end. See whether it holds and moves on to Confirmed, or turns Fading.",
+                  "kept falling to the end. See whether it holds and moves on to Rising together, or turns to Losing steam.",
     "confirmed": "Most of the industry's stocks are trending up together. This describes a trend already under way.",
     "fading": "A rebound or uptrend has lost its breadth: fewer of the industry's stocks are taking part.",
     "neutral": "None of the other states applies today. The bars show how many stocks are above their averages.",
@@ -60,12 +60,12 @@ CORNER_HOW = {
     "ahead_gaining": "Check breadth: a lead carried by most of the industry's stocks (Broad) is sturdier than one "
                      "carried by a few (Narrow).",
     "ahead_slowing": "Still ahead, but it lagged last month. See whether it turns back up or slips behind.",
-    "behind_slipping": "Behind and still losing ground. Sector Pulse shows whether selling is broad (Washout).",
+    "behind_slipping": "Behind and still losing ground. Sector Pulse shows whether selling is broad (Sold off).",
     "behind_gaining": "Often a short bounce. A second month of gains, with broad breadth, makes it more than that.",
 }
 HOW_TO_USE_PULSE = [
     {"title": "Read the state", "text": "The coloured state shows where an industry is in its cycle: a broad sell-off "
-     "(Washout), a broad rebound (Thrust), an established trend (Confirmed), or breadth breaking down (Fading)."},
+     "(Sold off), a broad rebound (Bouncing back), an established trend (Rising together), or breadth breaking down (Losing steam)."},
     {"title": "Read the three bars", "text": "They show the share of the industry's counted stocks above their 9, 20 "
      "and 50-day averages: the short, medium and longer trend. Long bars mean most stocks are rising together."},
     {"title": "Check the market", "text": "The Nifty 50 against its 200-day average shows the backdrop. Industry "
