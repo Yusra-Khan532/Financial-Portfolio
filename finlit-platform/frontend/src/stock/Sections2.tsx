@@ -142,7 +142,7 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
 export function MethodSection({ s }: { s: Summary }) {
   return (
     <section className="block" style={{ "--sc": "var(--info)" } as React.CSSProperties}>
-      <SectionHead id="method" no="19 · Pros, cons & Prism history" icon="info" title="Pros and cons, and how the Prism score has moved" sub="What is strong and what needs care, overall, then how the Prism score has changed over time." color="--info" />
+      <SectionHead id="method" no="20 · Pros, cons & Prism history" icon="info" title="Pros and cons, and how the Prism score has moved" sub="What is strong and what needs care, overall, then how the Prism score has changed over time." color="--info" />
       <div className="pc-g pc-all">
         <div className="pcb pro"><h4 aria-level={3}><Icon name="check" /> Pros <span className="chip up">{s.strengths.length}</span></h4>{s.strengths.length ? <ul>{s.strengths.map((n) => <li key={n.key}><b>{n.title}</b><small>{n.text}</small></li>)}</ul> : <p className="faint">Nothing stands out as a clear strength.</p>}</div>
         <div className="pcb con"><h4 aria-level={3}><Icon name="alert" /> Cons <span className="chip down">{s.watchouts.length}</span></h4>{s.watchouts.length ? <ul>{s.watchouts.map((n) => <li key={n.key}><b>{n.title}</b><small>{n.text}</small></li>)}</ul> : <p className="faint">No clear weakness stands out.</p>}</div>

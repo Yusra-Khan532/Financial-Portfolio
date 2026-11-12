@@ -83,9 +83,10 @@ describe("Segments section and the report numbering (task #11, renumbered in tas
     expect(insights).not.toContain("SegmentCard");
     expect(insights).toContain('no="16 · Gold insights"');
   });
-  it("the sections after it are numbered 18 and 19, in page order", () => {
+  it("the sections after it are numbered 18, 19 (community) and 20, in page order", () => {
     expect(read("Sections2.tsx")).toContain('no="18 · Dividends & events"');
-    expect(read("Sections2.tsx")).toContain('no="19 · Pros, cons & Prism history"');
+    expect(read("Sections2.tsx")).toContain('no="20 · Pros, cons & Prism history"');
+    expect(read("CommunitySection.tsx")).toContain('no="19 · Community"');   // task #105: the discussions are their own numbered section, not part of 18
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
     expect(at("<InsightsSection")).toBeLessThan(at("<SegmentsSection"));
