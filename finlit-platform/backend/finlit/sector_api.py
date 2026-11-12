@@ -131,6 +131,46 @@ async def sector_state_history(request: Request) -> Response:
     return _reply(request, {**data, "date": board.get("date")}, started)
 
 
+SMALL_LIST_MAX = 15          # NSE's catch-all groups (Services) list only their largest by market cap, with a line saying so
+_SMALL_NORM = __import__("re").compile(r"[^a-z0-9]+")
+
+
+def _same_name(a: Optional[str], b: Optional[str]) -> bool:
+    n = lambda x: _SMALL_NORM.sub(" ", (x or "").lower().replace("&", " and ")).strip()     # noqa: E731
+    return bool(a) and n(a) == n(b)
+
+
+@router.get("/api/sectors/small/{slug}")
+async def small_group(slug: str, request: Request) -> Response:
+    """A group shown as "Too few stocks for a reading": its listed stocks from the screener table (the group has no page of its own), best 6 months first,
+    with size, the 6-month and 1-year returns and how far each is below its 1-year high. Silver, like the ranked stock tables; Basic gets the counts only."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    g = next((x for x in board.get("too_few_stocks", []) if isinstance(x, dict) and x.get("slug") == slug), None)
+    if not g:
+        return _not_found(request, started, "There is no small group with this address. The groups are listed on Sector Pulse under \"Too few stocks for a reading\".")
+    base = {"slug": slug, "name": g.get("name"), "counted": g.get("stocks_counted")}
+    if await _plan(request) == "basic":
+        return _reply(request, {**base, "stocks": None, "listed": None, "locked": "silver"}, started)
+    from .screener.data import get_table
+    t = await get_table(request.app.state.store)
+    idx = [i for i in range(len(t.symbols)) if _same_name(t.industry[i], g.get("name"))] or [i for i in range(len(t.symbols)) if _same_name(t.sector_label[i], g.get("name"))]
+    num = lambda col, i: (lambda v: None if v != v else round(v, 1))(t.cols[col][i]) if col in t.cols else None     # noqa: E731
+    mc = lambda i: t.cols["market_cap"][i] if t.cols["market_cap"][i] == t.cols["market_cap"][i] else -1.0        # noqa: E731
+    listed = len(idx)
+    capped = listed > SMALL_LIST_MAX and str(g.get("name", "")).strip().lower() == "services"
+    if capped:
+        idx = sorted(idx, key=lambda i: -mc(i))[:SMALL_LIST_MAX]
+    rows = [{"symbol": t.symbols[i], "name": t.name[i], "size": t.cap[i] if hasattr(t, "cap") else None, "market_cap_cr": num("market_cap", i),
+             "ret_6m": num("ret_6m", i), "pct_from_high": num("pct_from_high", i), "ret_1y": num("ret_1y", i), "group": t.industry[i] or t.sector_label[i]} for i in idx]
+    rows.sort(key=lambda r: (r["ret_6m"] is None, -(r["ret_6m"] or 0)))           # best 6 months first; a stock with no figure goes last
+    note = f"Services is NSE's catch-all group, so this lists its {SMALL_LIST_MAX} largest of {listed} by market cap." if capped else None
+    return _reply(request, {**base, "listed": listed, "stocks": rows, "note": note}, started)
+
+
 @router.get("/api/sectors/{slug}")
 async def industry(slug: str, request: Request, top: Optional[int] = None) -> Response:
     started = time.perf_counter()

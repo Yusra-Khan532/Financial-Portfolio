@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { CoLogo } from "../components/CoLogo";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { MINUS } from "../lib/format";
@@ -88,7 +89,7 @@ export function SharesTable(p: Props) {
     const name = l.name || (isReady(h) ? h.name : "") || m?.name || "";
     return (
       <tr key={l.symbol} className={indent ? "ind" : ""}>
-        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`}><b>{l.symbol}</b></Link>{long && letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{name}</small></td>
+        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{long && letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{name}</small></td>
         {tab === "overview" && !long && <td><span className="pfx-sec"><i className="pfx-dot" style={{ background: colors[secOf(l.symbol)] }} aria-hidden="true" />{secOf(l.symbol).replace(/ \(not classified\)$/, "")}</span></td>}
         {tab === "overview" && <td>{m ? SIZE_WORD[m.size] : MINUS}</td>}
         {tab === "overview" && <td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}

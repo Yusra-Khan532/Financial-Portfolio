@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { Hideable } from "../components/Hideable";
 import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -164,8 +165,8 @@ export function HoldingsPage() {
                 {page.layout === "short" && <p className="pfx-fine">{SIZES_NOTE}</p>}</section>
               {page.layout === "long" ? <CountTable page={page} meta={meta} symbols={ids} mode={mode} colors={colors} /> : <MixCards lines={scoreLines} model={model} parts={partAvg} />}
             </div>
-            <Together page={page} meta={meta} mode={mode} colors={colors} open={open} onToggle={() => setTogether(!open)}>{page.layout === "long" && <div className="pfx-row"><ScoreMade page={page} /></div>}</Together>
-            <div className="pfx-row"><RiskShare page={page} mode={mode} colors={colors} /><Nifty page={page} mode={mode} /></div>
+            <Hideable id="portfolio.together" title="What moves together"><Together page={page} meta={meta} mode={mode} colors={colors} open={open} onToggle={() => setTogether(!open)}>{page.layout === "long" && <div className="pfx-row"><ScoreMade page={page} /></div>}</Together></Hideable>
+            <div className="pfx-row"><Hideable id="portfolio.risk" title="Share of the amount and share of the risk"><RiskShare page={page} mode={mode} colors={colors} /></Hideable><Hideable id="portfolio.nifty" title="Against the NIFTY 50"><Nifty page={page} mode={mode} /></Hideable></div>
             <Style tilt={data?.styleTilt} />
           </>}
         </>}
