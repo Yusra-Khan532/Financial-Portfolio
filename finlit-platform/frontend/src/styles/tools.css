@@ -386,6 +386,8 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .sp-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: var(--fs-12); color: var(--muted); } .sp-key span { display: inline-flex; align-items: center; cursor: help; }
 .sp-v { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 2px; } .sp-v small { flex-basis: 100%; margin-top: 2px; }
 .pil-grid { align-items: start; gap: 32px; }
+.pil-grid.sp-grid { grid-template-columns: minmax(300px, 460px) minmax(0, 1fr); }   /* the Spider tab: a larger radar so the eight axis names and markers are easy to read */
+@media (max-width: 900px) { .pil-grid.sp-grid { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .st-l.lo { left: 0; } .st-l.hi { right: 0; } }
 
 /* Filter panel (task #76): it sits just under the site header (no empty band above it), the tabs and search stay at the top while the filter groups scroll,

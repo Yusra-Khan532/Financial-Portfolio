@@ -179,7 +179,7 @@ export function Compare() {
 
         {picked.length >= 2 && tab === "spider" && (
           <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Eight measures, against every company<ChartHelp id="cmp-fundamentals" /></h3><span className="s">Each axis: % of all companies beaten</span></div>
-            <div className="pil-grid">
+            <div className="pil-grid sp-grid">
               <div className="sp-chart">
                 <Radar axes={SPIDER.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: SPIDER.map((x) => pc(r, x.key)),
                   tips: SPIDER.map((x) => { const p = pc(r, x.key); return p == null ? null : `${r.name || r.symbol}\n${x.label}: ${fmt(METRICS[x.key], r[x.key])}\nPercentile score: ${p} (beats ${p}% of companies)`; }) }))} />
