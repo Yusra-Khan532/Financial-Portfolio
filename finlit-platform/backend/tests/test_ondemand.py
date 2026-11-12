@@ -409,3 +409,22 @@ async def test_a_report_refused_by_our_own_checks_says_so_and_not_that_the_provi
         await task
     assert r.status_code == 503 and r.json()["status"] == "build_rejected"
     assert "did not pass our own accuracy checks" in r.json()["detail"] and "did not answer" not in r.json()["detail"]
+
+
+async def test_opening_a_chart_built_by_older_code_queues_the_rebuild_once_and_still_serves_the_chart(ingested):
+    """A screener's chart panel reads only the price section: a report stored by older code (before weekly candles and the 9 and 20-day lines) is queued for
+    a rebuild when its chart is opened, at most once in half an hour, and the stored chart is served at once meanwhile."""
+    from finlit.snapshot import SNAPSHOT_VERSION
+    app, tr = await _app(ingested)
+    hit = await ingested.get_section("RELIANCE", "consolidated", "price-1Y")
+    body = orjson.loads(hit[0])
+    body["meta"]["version"] = SNAPSHOT_VERSION - 1
+    await ingested.redis.hset("stock:RELIANCE:consolidated", mapping={"price-1Y": orjson.dumps(body), "price-1Y:etag": b'"old"'})
+    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=tr, base_url="http://test") as http:
+        first = await http.get("/api/stocks/RELIANCE/price?range=1Y")
+        assert first.status_code == 200 and first.json()["series"]["c"]
+        assert await ingested.queue_length() == 1
+        again = await http.get("/api/stocks/RELIANCE/price?range=1Y")
+        assert again.status_code == 200 and await ingested.queue_length() == 1          # not queued twice
+        current = await http.get("/api/stocks/RELIANCE/price?range=6M")                  # built by the current code: nothing is queued
+        assert current.status_code == 200 and await ingested.queue_length() == 1
