@@ -1,7 +1,7 @@
 // The page frame both score screeners share: header, filter sidebar (quick views, size, sector, then the page's own filters), summary tiles, active-filter
 // chips, sector mix, the results table with selection, compare, watchlist and CSV, and the pager. The page supplies the model-specific parts.
 import { titleOf, subOf, codeNote } from "../../lib/companyLabel";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../HScroll";
 import { TableZoom } from "../TableZoom";
@@ -33,8 +33,8 @@ export function GroupRow({ groups }: { groups: { g: string; n: number; label: st
     <tr className="gh tg-row">
       <th colSpan={2} aria-hidden="true" className="tg-none fz1" />
       <th scope="colgroup" data-g="company" className="stick fz3 fz-last">Company</th>
-      <th scope="colgroup" colSpan={3} data-g="price">Price &amp; size</th>
-      {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}>{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</th>)}
+      <th scope="colgroup" colSpan={3} data-g="price"><span className="gh-lab">Price &amp; size</span></th>
+      {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}><span className="gh-lab">{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</span></th>)}
       <th aria-hidden="true" className="tg-none" />
     </tr>
   );
@@ -68,6 +68,15 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
   const { isAdmin } = useAuth();
   const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
+  // where the frozen columns end, so each group heading can stay in view just after them while the table scrolls sideways
+  const tableRef = useRef<HTMLTableElement>(null);
+  useEffect(() => {
+    const t = tableRef.current; if (!t) return;
+    const set = () => { const h = t.querySelector<HTMLElement>("thead .fz3"); if (h) t.style.setProperty("--fz-end", `${h.offsetLeft + h.offsetWidth}px`); };
+    set();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set); ro.observe(t); return () => ro.disconnect();
+  }, [isLoading, isError]);
   const [collapsed, setCollapsed] = useState(false), [want, setWant] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });
   const showPanel = (id: string | null) => { if (narrow()) setDrawer(true); else setCollapsed(false); if (id) setWant((w) => ({ id, n: w.n + 1 })); };
   const kpis: Kpi[] = tiles.slice(0, -1).map(([label, value, why], i) => ({ icon: KPI_ICONS[i] ?? "layers", label, value, why }));
@@ -114,7 +123,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
               </FilterGroup>
-              <FilterGroup id="sector" title="Industry / Sector" defaultOpen active={draft.sectors.length}>
+              <FilterGroup id="sector" title="Sector" defaultOpen active={draft.sectors.length}>
                 <SearchBox value={secQ} onChange={setSecQ} placeholder="Search sector" label="Search sectors" />
                 <ul className="fgx-list" aria-label="Sectors">
                   {facets.sectors.filter(([x]) => x.toLowerCase().includes(secQ.trim().toLowerCase())).map(([x, n]) => (
@@ -148,10 +157,10 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
                     <button type="button" className="btn" disabled={!sel.length} onClick={s.addSelected}><span aria-hidden="true">Add to watchlist ({sel.length})</span><span className="sr">Add to watchlist</span></button>
                     {sel.length > 0 && <button type="button" className="alx-link" onClick={() => s.setPicked([])}>Clear selection</button>}
                   </span>
-                  {sel.length < 2 && <small className="muted sx-bulkhint">Tick the box on 2 to {maxCompare} rows to compare them. Tick any rows to add them to your watchlist.</small>}
+                  {sel.length < 2 && <small className="muted sx-bulkhint">{maxCompare === 2 ? "Tick the box on 2 rows to compare them." : `Tick the box on 2 to ${maxCompare} rows to compare them.`} Tick any rows to add them to your watchlist.</small>}
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
-                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" tall><table className="scr-t ss-t sx-t">
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" tall><table className="scr-t ss-t sx-t" ref={tableRef}>
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>

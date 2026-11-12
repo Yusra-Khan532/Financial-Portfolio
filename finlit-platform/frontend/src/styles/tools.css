@@ -367,7 +367,7 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 }
 
 /* Compare: tidy range strips (task #80), the Spider tab (task #81) */
-.cmpw .mt-h, .cmpw .sp-h { padding: 4px 8px !important; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 6px 14px -10px rgba(0, 0, 0, .55) !important; background: var(--s2) !important; }
+.cmpw .mt-h, .cmpw .sp-h { top: 70px; padding: 4px 8px !important; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 6px 14px -10px rgba(0, 0, 0, .55) !important; background: var(--s2) !important; }
 .cmpw .mt-h > span:not(:first-child), .cmpw .sp-h > span:not(:first-child) { padding: 5px 12px; border-radius: 9px; font-size: var(--fs-13); border-left-width: 4px; }
 .cmpw .sp-h { padding-block: 6px !important; } .cmpw .sp-h small { display: none; }
 .mt-r { gap: 8px 16px; padding: 18px 0 14px; } .mt-c { min-height: 56px; align-content: start; }
@@ -388,7 +388,7 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .pil-grid { align-items: start; gap: 32px; }
 .pil-grid.sp-grid { grid-template-columns: minmax(300px, 460px) minmax(0, 1fr); }   /* the Spider tab: a larger radar so the eight axis names and markers are easy to read */
 @media (max-width: 900px) { .pil-grid.sp-grid { grid-template-columns: 1fr; } }
-@media (max-width: 900px) { .st-l.lo { left: 0; } .st-l.hi { right: 0; } }
+@media (max-width: 900px) { .strip { grid-column: 1 / -1; } .st-l.lo { left: 0; } .st-l.hi { right: 0; } }   /* on a phone the range bar takes the whole row (the line above would keep it in the last column only) */
 
 /* Filter panel (task #76): it sits just under the site header (no empty band above it), the tabs and search stay at the top while the filter groups scroll,
    the "Save as a screen" row stays at the bottom, and nothing leaves a blank gap between groups. */
