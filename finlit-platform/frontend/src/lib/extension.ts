@@ -7,7 +7,7 @@ export const EXTENSION = {
   chromeStoreUrl: "",                  // e.g. https://chromewebstore.google.com/detail/finlit-ventures/<id>
   edgeStoreUrl: "",                    // e.g. https://microsoftedge.microsoft.com/addons/detail/<id>
   zipUrl: "/extension/finlit-extension.zip",
-  version: "1.3.0",                    // the version inside the zip (a test keeps it equal to extension/manifest.json)
+  version: "1.3.1",                    // the version inside the zip (a test keeps it equal to extension/manifest.json)
   page: "/browser-extension",
 } as const;
 
