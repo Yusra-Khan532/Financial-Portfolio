@@ -67,7 +67,12 @@
 .cmp-pil { margin-bottom: 16px; } .pil-grid { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 28px; align-items: center; } .radar { width: 100%; height: auto; display: block; overflow: visible; }
 .rs { --rc: var(--k0); } .rs.k1 { --rc: var(--k1); } .rs.k2 { --rc: var(--k2); } .rs.k3 { --rc: var(--k3); }
 .rs-p { fill: color-mix(in srgb, var(--rc) 7%, transparent); stroke: var(--rc); stroke-width: 2.4; stroke-linejoin: round; } .rs.k2 .rs-p, .rs.k2 .rs-l { stroke-dasharray: 7 4; } .rs.k3 .rs-p, .rs.k3 .rs-l { stroke-dasharray: 2 4; }
-.rs-l { stroke: var(--rc); stroke-width: 2.4; stroke-linecap: round; } .rs-p + .rs-l { stroke-width: 0; } .rs-hit { fill: transparent !important; stroke: none !important; } .rs-x path { stroke: var(--rc); stroke-width: 1.8; fill: none; opacity: .8; } .rs-m:hover * { stroke-width: 2.5; } .rs-m * { fill: var(--rc); stroke: var(--s1); stroke-width: 1.5; }
+.rs-l { stroke: var(--rc); stroke-width: 2.4; stroke-linecap: round; } .rs-p + .rs-l { stroke-width: 0; } .rs-hit { fill: transparent !important; stroke: none !important; } .rs-x path { stroke: var(--rc); stroke-width: 2.2; fill: none; stroke-linecap: round; } .rs-x { cursor: help; } .rs-x:hover path { stroke-width: 3; }
+/* the shapes sit under every marker and never take the pointer, so each marker can be pointed at; the labels are classes so they can grow on a phone */
+.rs-layer, .rs-layer * { pointer-events: none; }
+.radar .rl { font: 600 13px "IBM Plex Sans", sans-serif; fill: var(--muted); }
+.radar .rr { font: 500 11px "IBM Plex Mono", monospace; fill: var(--faint); paint-order: stroke; stroke: var(--s1); stroke-width: 3px; stroke-linejoin: round; }
+.rs-m, .rs-x { outline: none; } .rs-m:focus-visible .rs-hit, .rs-x:focus-visible .rs-hit { stroke: var(--gold) !important; stroke-width: 2; stroke-dasharray: 3 3; } .rs-m:hover * { stroke-width: 2.5; } .rs-m * { fill: var(--rc); stroke: var(--s1); stroke-width: 1.5; }
 .pil-r { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 14px; } .pil-l { font: 600 13px var(--sans); color: var(--muted); } .pil-bars { display: grid; gap: 5px; }
 .pb { position: relative; height: 18px; border-radius: 6px; background: var(--s3); overflow: hidden; --pc: var(--k0); } .pb.k1 { --pc: var(--k1); } .pb.k2 { --pc: var(--k2); } .pb.k3 { --pc: var(--k3); } .pb i { display: block; height: 100%; background: var(--pc); border-radius: 6px; opacity: .8; transform-origin: left; animation: barIn 1s both; } .pb.win i { opacity: 1; box-shadow: 0 0 14px -2px var(--pc); } .pb b { position: absolute; right: 8px; top: 0; font: 700 12px/18px var(--mono); color: var(--text); mix-blend-mode: normal; text-shadow: 0 0 6px var(--s1); }
 .pil-key { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; font-size: 13px; color: var(--muted); } .pil-key span { display: inline-flex; align-items: center; }
@@ -382,10 +387,12 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .st-med { height: 28px; top: 0; background: var(--muted); opacity: .8; }
 .sp-chart { display: grid; gap: 10px; min-width: 0; }
 .sp-axis { margin: 0; font-size: var(--fs-13); color: var(--muted); line-height: 1.5; } .sp-axis b { color: var(--text); font-weight: 600; } .sp-gap { color: var(--faint); }
-.sp-legend { margin-top: 2px; justify-content: center; }
+.sp-legend { margin: -2px 0 0; justify-content: center; gap: 6px 20px; font-size: var(--fs-13); color: var(--text); } .sp-legend span { font-weight: 600; }
+.dt[tabindex], .sp-key span[tabindex] { cursor: help; }
 .sp-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: var(--fs-12); color: var(--muted); } .sp-key span { display: inline-flex; align-items: center; cursor: help; }
 .sp-v { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 2px; } .sp-v small { flex-basis: 100%; margin-top: 2px; }
 .pil-grid { align-items: start; gap: 32px; }
+@media (min-width: 901px) { .pil-grid.sp-grid { grid-template-columns: minmax(300px, 460px) minmax(0, 1fr); } }   /* only where there is room for two columns: on a phone the chart sits above the table */
 @media (max-width: 900px) { .strip { grid-column: 1 / -1; } .st-l.lo { left: 0; } .st-l.hi { right: 0; } }   /* on a phone the range bar takes the whole row (the line above would keep it in the last column only) */
 
 /* Filter panel (task #76): it sits just under the site header (no empty band above it), the tabs and search stay at the top while the filter groups scroll,
@@ -397,3 +404,18 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .scr > .scr-side:not(.sx-side) > .scr-save { position: sticky; bottom: 0; z-index: 3; margin-top: 0; padding: 12px 0 16px; background: var(--s1); }
 .scr-side .scr-groups > :last-child { margin-bottom: 0; }
 @media (max-width: 1000px) { .scr > .scr-side:not(.sx-side) { display: block; padding: 16px; } .scr > .scr-side:not(.sx-side) > .scr-tabs, .scr > .scr-side:not(.sx-side) > .scr-find, .scr > .scr-side:not(.sx-side) > .scr-save { position: static; padding-inline: 0; } }
+
+/* Company headings of the spider table: with three or four companies the marker sits over the name (and the sector line is dropped), so a name is never cut off */
+.sp-t.n3 .sp-h > span:not(:first-child), .sp-t.n4 .sp-h > span:not(:first-child) { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 10px; white-space: normal; overflow-wrap: anywhere; }
+.sp-t.n3 .sp-h > span:not(:first-child) .mk, .sp-t.n4 .sp-h > span:not(:first-child) .mk { margin: 0; grid-row: auto; }
+.sp-t.n3 .sp-h > span:not(:first-child) b, .sp-t.n4 .sp-h > span:not(:first-child) b { font-size: var(--fs-13); line-height: 1.25; }
+.sp-t.n3 .sp-h > span:not(:first-child) small, .sp-t.n4 .sp-h > span:not(:first-child) small { display: none; }
+/* Spider on a phone: bigger axis labels (the chart is scaled down), and company headers that fit their names */
+@media (max-width: 600px) {
+  .radar .rl { font-size: var(--fs-16); } .radar .rr { font-size: var(--fs-14); }
+  .sp-t .sp-r, .sp-h { grid-template-columns: 72px repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+  .sp-t .sp-h > span:not(:first-child) { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 8px; white-space: normal; overflow-wrap: anywhere; }
+  .sp-t .sp-h > span:not(:first-child) .mk { margin: 0; grid-row: auto; } .sp-t .sp-h > span:not(:first-child) b { font-size: var(--fs-12); line-height: 1.25; } .sp-t .sp-h > span:not(:first-child) small { display: none; }
+  .sp-v { font-size: var(--fs-13); } .sp-v .dt { margin-right: 5px; }
+  .sp-t.n4 { overflow-x: auto; } .sp-t.n4 > .sp-h, .sp-t.n4 > .sp-r { min-width: 430px; }   /* four companies do not fit across a phone: the table moves sideways, the chart above it does not */
+}

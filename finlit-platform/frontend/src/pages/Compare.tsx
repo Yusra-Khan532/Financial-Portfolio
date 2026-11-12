@@ -34,6 +34,9 @@ const TABS: TabDef[] = [
 const SPIDER: { label: string; key: NumKey }[] = [{ label: "ROE", key: "roe" }, { label: "ROCE", key: "roce" }, { label: "Margin", key: "operating_margin" }, { label: "Sales growth", key: "sales_cagr" }, { label: "Profit growth", key: "profit_cagr" }, { label: "Low debt", key: "debt_to_equity" }, { label: "Low P/E", key: "pe" }, { label: "Dividend", key: "dividend_yield" }];
 const PILLARS: NumKey[] = ["pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"];
 const LETTER = ["A", "B", "C", "D"];
+const KEY_WHY = { good: "Green: the company beats 67% or more of companies on this measure, so it is among the stronger third. Better means lower for debt and P/E, higher for everything else.",
+  mid: "Amber: the company beats 34 to 66% of companies on this measure, around the middle.", poor: "Red: the company beats 33% or fewer of companies on this measure, so it is among the weaker third." };
+const NO_FIGURE = "No figure (grey): this company has not reported this measure, so it is left out of the chart and not counted as zero.";
 
 function Ring({ v, band }: { v: number | null; band: string | null }) {
   const C = 2 * Math.PI * 34;
@@ -179,17 +182,17 @@ export function Compare() {
 
         {picked.length >= 2 && tab === "spider" && (
           <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Eight measures, against every company<ChartHelp id="cmp-fundamentals" /></h3><span className="s">Each axis: % of all companies beaten</span></div>
-            <div className="pil-grid">
+            <div className="pil-grid sp-grid">
               <div className="sp-chart">
-                <Radar axes={SPIDER.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: SPIDER.map((x) => pc(r, x.key)),
+                <Radar unit="%" scale="Each axis is a percentile score from 0 to 100: the share of companies beaten" axes={SPIDER.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: SPIDER.map((x) => pc(r, x.key)),
                   tips: SPIDER.map((x) => { const p = pc(r, x.key); return p == null ? null : `${r.name || r.symbol}\n${x.label}: ${fmt(METRICS[x.key], r[x.key])}\nPercentile score: ${p} (beats ${p}% of companies)`; }) }))} />
-                <p className="sp-axis" role="note"><b>Every axis is a percentile score, 0 to 100.</b> It is the share of companies this one beats on that measure, not the ratio itself. Hover a marker for the actual figure.</p>
                 <div className="pil-key sp-legend" aria-label="Companies">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
-                {picked.some((r) => SPIDER.some((x) => pc(r, x.key) == null)) && <p className="sp-axis sp-gap" role="note">Where a company has no figure for a measure, its line stops at that axis (a cross marks the gap) instead of dropping to zero: {picked.map((r) => ({ n: r.name || r.symbol, m: SPIDER.filter((x) => pc(r, x.key) == null).map((x) => x.label) })).filter((x) => x.m.length).map((x) => `${x.n}: ${x.m.join(", ")}`).join("; ")}.</p>}
+                <p className="sp-axis" role="note"><b>Every axis is a percentile score from 0 to 100, not the ratio itself.</b> It is the share of companies this one beats on that measure: 100 means it beats every company. Hover or tap a marker for the actual figure.</p>
+                {picked.some((r) => SPIDER.some((x) => pc(r, x.key) == null)) && <p className="sp-axis sp-gap" role="note">Where a company has no figure for a measure, its line stops at that axis (a cross just outside the chart marks the gap) instead of dropping to zero: {picked.map((r) => ({ n: r.name || r.symbol, m: SPIDER.filter((x) => pc(r, x.key) == null).map((x) => x.label) })).filter((x) => x.m.length).map((x) => `${x.n}: ${x.m.join(", ")}`).join("; ")}.</p>}
               </div>
-              <div className="sp-t" style={{ "--n": picked.length } as React.CSSProperties}><div className="sp-h" role="row"><span />{picked.map((r, i) => <span key={r.symbol} title={r.name || r.symbol}><i className={"mk k" + i} /><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span>)}</div>{SPIDER.map((x) => (
-                <div className="sp-r" key={x.key}><span className="pil-l">{x.label}</span>{picked.map((r, i) => { const p = pc(r, x.key); return <span key={r.symbol} className={"sp-v k" + i}>{p == null ? <span className="sp-na" tabIndex={0} title="No figure: this company has not reported this measure, so it is left out of the chart (not counted as zero)."><i className="dt none" />{"—"}</span> : <><i className={"dt " + dot(p)} tabIndex={0} title={dotWhy(p)} aria-label={dotWhy(p)} />{fmt(METRICS[x.key], r[x.key])}<small>{`beats ${p}%`}</small></>}</span>; })}</div>))}
-                <div className="sp-key" aria-label="What the dots mean"><span title={dotWhy(90)}><i className="dt good" />Beats 67% or more</span><span title={dotWhy(50)}><i className="dt mid" />Beats 34 to 66%</span><span title={dotWhy(10)}><i className="dt poor" />Beats 33% or fewer</span><span title="No figure: the company has not reported this measure, so it is left out (not counted as zero)."><i className="dt none" />— No figure</span></div></div>
+              <div className={"sp-t n" + picked.length} style={{ "--n": picked.length } as React.CSSProperties}><div className="sp-h" role="row"><span />{picked.map((r, i) => <span key={r.symbol} title={r.name || r.symbol}><i className={"mk k" + i} /><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span>)}</div>{SPIDER.map((x) => (
+                <div className="sp-r" key={x.key}><span className="pil-l">{x.label}</span>{picked.map((r, i) => { const p = pc(r, x.key); return <span key={r.symbol} className={"sp-v k" + i}>{p == null ? <span className="sp-na" tabIndex={0} aria-label={NO_FIGURE} {...tip.bind(NO_FIGURE)}><i className="dt none" />{"—"}</span> : <><i className={"dt " + dot(p)} tabIndex={0} aria-label={dotWhy(p)} {...tip.bind(dotWhy(p))} />{fmt(METRICS[x.key], r[x.key])}<small>{`beats ${p}%`}</small></>}</span>; })}</div>))}
+                <div className="sp-key" aria-label="What the dots mean"><span tabIndex={0} {...tip.bind(KEY_WHY.good)}><i className="dt good" />Beats 67% or more</span><span tabIndex={0} {...tip.bind(KEY_WHY.mid)}><i className="dt mid" />Beats 34 to 66%</span><span tabIndex={0} {...tip.bind(KEY_WHY.poor)}><i className="dt poor" />Beats 33% or fewer</span><span tabIndex={0} {...tip.bind(NO_FIGURE)}><i className="dt none" />— No figure</span></div></div>
             </div>
             <p className="faint cmp-foot">“Beats 82%” means the company's value is better than 82% of companies in the list, where better is lower for debt and P/E and higher for everything else.</p>
           </div>
