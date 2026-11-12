@@ -11,6 +11,7 @@ import {
   type Direction, type LeadHistory, type LeadLabel, type LeadPeer, type LeadRun, type LeadershipOn, type Reliability,
 } from "../lib/leadership";
 import { ChartZoom } from "../components/ChartZoom";
+import { CoLogo } from "../components/CoLogo";
 
 /** Leader / In line / Laggard. Describes past relative price performance only; never a recommendation. */
 export const LEAD_NOTE = "Describes past performance; not a recommendation.";
@@ -456,7 +457,7 @@ function StripPlot({ self, lead }: { self: string; lead: LeadershipOn }) {
         {sh && <div className="ld-hov" style={{ left: Math.min(Math.max(8, X(sh.rel52 as number) - 70), W - 190), top: 4 }} aria-hidden="true"><b>{sh.name || sh.symbol}</b><span>{ordinal(sh.rank)} · {LABEL_WORD[sh.label]} · {pts(sh.rel52)} pts</span></div>}
       </div>
       <ol className="ld-near" aria-label="This stock and its nearest peers">
-        {near.map((p) => <li key={p.symbol} className={p.symbol === self ? "me" : ""}><span className="n">{p.rank}</span>{p.symbol === self ? <b>{p.name || p.symbol}</b> : <Link to={`/stocks/${p.symbol}`}>{p.name || p.symbol}</Link>}<LeadChip label={p.label} /><Pt v={p.rel52} /></li>)}
+        {near.map((p) => <li key={p.symbol} className={p.symbol === self ? "me" : ""}><span className="n">{p.rank}</span><CoLogo symbol={p.symbol} name={p.name} size={24} inline />{p.symbol === self ? <b>{p.name || p.symbol}</b> : <Link to={`/stocks/${p.symbol}`}>{p.name || p.symbol}</Link>}<LeadChip label={p.label} /><Pt v={p.rel52} /></li>)}
       </ol>
       <div className="ld-foot2"><span className="ld-sm">Each dot is one peer. Dots to the right are further ahead of {lead.benchmarks.sector.name}.</span><ShowTable on={table} set={setTable} /></div>
       {table && <ChartTable caption={concl} head={["Rank", "Company", "Status", "vs sector, 12M"]} rows={lead.peers.map((p) => [p.rank, p.name || p.symbol, LABEL_WORD[p.label], `${pts(p.rel52)} pts`])} />}
