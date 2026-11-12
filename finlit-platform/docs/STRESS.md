@@ -33,3 +33,12 @@ Engine: `backend/finlit_technicals/stress.py` (v2.1.1, vendored; the 2.1.1 patch
 - Three companies are built at the same time (`CONCURRENCY`), because the provider's statements are the slow part. Companies that failed in the last 6 hours go to the back of the queue, so each run first spends its time on companies not tried yet.
 - Each run writes one log line, `stress run: covered N, built N, not covered N, not ready N, failed N, left N ...; reasons {...}`, and the reasons per company are in the table:
   `docker compose exec db psql -U finlit -d finlit -c "select kind, left(reason,90), count(*) from stress_failures group by 1,2 order by 3 desc"`.
+
+## Pages are built on demand too (12 Nov 2026, evening)
+
+The nightly `stress` job waits its turn behind the other bulk jobs, and every deploy restarts the app (which stops a running job), so on a busy day it may not reach every company. The pages no longer depend on it alone:
+
+- **A visit builds the page.** When a company has no stored page, the visit starts a build (or joins the one already running; one build per company) and waits at most `LIVE_BUILD_S`. If that is not enough the reader gets the plain "being prepared" card, but the build is **not cancelled**: it carries on (limit `PER_COMPANY_S`) and stores the page. Before this, a slow data provider meant the build was cancelled at 8 seconds and the page stayed "being prepared" for ever.
+- **The page checks again by itself** every 20 seconds for about five minutes, so it appears without a reload.
+- **The start page warms the largest companies**: while fewer than six quick picks are ready, opening the start page starts background builds for the 12 largest covered companies that have no page (at most three at a time), and the quick picks look again every 30 seconds.
+- Failures still go to `stress_failures` with the reason, and the nightly job still builds every company.

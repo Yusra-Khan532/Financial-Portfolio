@@ -28,6 +28,18 @@ afterEach(() => { cleanup(); st.hang = false; st.draw = false; st.status = 200; 
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/research/stress-lab/ASIANPAINT"]}><Routes><Route path="/research/stress-lab/:symbol" element={<StressLabPage />} /></Routes></MemoryRouter></QueryClientProvider>);
 
 describe("Stress Lab page", () => {
+  it("while the page is being prepared it says it checks again by itself, and shows the page as soon as the server has it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      st.status = 503; st.body = "being built"; open();
+      expect(await screen.findByRole("heading", { name: "Stress Lab for this company is being prepared" })).toBeTruthy();
+      expect(screen.getByText(/checks again by itself every 20 seconds/)).toBeTruthy();
+      st.status = 200;                                                          // the background build has stored the page
+      await vi.advanceTimersByTimeAsync(20_500);
+      await waitFor(() => expect(document.querySelector(".sl-host")?.shadowRoot?.getElementById("head")?.textContent).toMatch(/Asian Paints/));
+      expect(screen.queryByRole("heading", { name: "Stress Lab for this company is being prepared" })).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
   it("draws the model into a shadow root: Today's result and eight scenario chips, from the engine", async () => {
     st.status = 200; open();
     await waitFor(() => expect(document.querySelector(".sl-host")?.shadowRoot?.getElementById("head")?.textContent).toMatch(/Asian Paints’ earnings per share fall 10\.5%, from ₹52\.77 to ₹47\.25/));
