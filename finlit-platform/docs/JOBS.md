@@ -315,3 +315,9 @@ With a 20-minute limit and a slow provider it was killed at the limit every nigh
 **What still cannot be guaranteed:** the data providers (FinEdge, AMFI, Dhan) will sometimes be slow or down; AMFI does not answer from the AWS address range (the fund
 facts job then reports "degraded" with the last good figures kept). A restart of the app (a deploy) ends the jobs in progress ("killed: the supervisor restarted", no
 failure counted) and they start again. The difference is that none of this can now silently turn into "killed at the limit with nothing saved", and a job drifting towards its limit is reported first.
+
+
+## 12 Nov 2026: quotes split its work; sector freshness follows the sector job
+
+- **quotes** timed out every run from 11 Nov (held after 8 timeouts): with about 5,800 reports one run read and rewrote every company's stored summary at once. It now updates 24 companies at a time, stops starting new ones after 7 minutes (inside its 10-minute limit, which is unchanged) and the next run starts with the companies this one did not reach (`quotes:cursor` in Redis). One company failing no longer fails the run.
+- **Sector pulse** is judged by the freshness check only while the sector job is switched on (`SECTORS_JOB`). While the founder's written exception keeps it off, the console shows it once, as "switched off by configuration", instead of also as a red "stale" line.

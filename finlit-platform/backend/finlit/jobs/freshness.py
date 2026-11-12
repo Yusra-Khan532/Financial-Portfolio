@@ -338,6 +338,12 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
     try:
         from .. import sector_data
         f["sector_enabled"] = sector_data.enabled()
+        try:
+            import os as _os
+            from .registry import build_jobs as _jobs, disabled_reason as _off
+            f["sector_job_off"] = next((_off(j, _os.environ) for j in _jobs(_os.environ) if j.name == "sectors"), None)
+        except Exception:   # nosec B110 - judged as before
+            f["sector_job_off"] = None
         f["sector_board_date"] = sector_data.board_date()
     except Exception:    # the sector pages must never break the freshness report
         f["sector_enabled"], f["sector_board_date"] = False, None
@@ -379,7 +385,9 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(judge_session("daily_prices", "Daily price history", ["technicals", "ingest"], f.get("price_ref"), exp, now, 1.0, 14.0, "newest bar of the large reference companies"))
     ds.append(judge_index(f.get("index_t"), now, bool(f.get("visitors"))))
     ds.append(judge_technicals(int(f.get("tech_total") or 0), int(f.get("tech_behind") or 0), f.get("tech_newest_bar"), exp, now))
-    if f.get("sector_enabled"):     # only when the sector job is switched on (SECTORS_ENABLED=1): otherwise there is nothing to be late
+    # only while the sector pages AND the sector job are switched on: with the job switched off by the founder's written exception (SECTORS_JOB), the board keeps the
+    # last published data on purpose, and the console already says so as "switched off by configuration" (not a second, red "stale" line)
+    if f.get("sector_enabled") and not f.get("sector_job_off"):
         ds.append(judge_session("sectors", "Sector pulse", ["sectors"], f.get("sector_board_date"), exp, now, 4.0, 14.0, "board date vs expected session"))
     ds.append(judge_age("prism", "Prism ratings", ["prism"], f.get("prism_newest"), now, 30.0, 60.0))
     ds.append(judge_age("scores", "FinLit IQs", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
