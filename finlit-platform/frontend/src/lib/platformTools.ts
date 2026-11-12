@@ -56,3 +56,6 @@ export const SHORT: Record<string, string> = {
   "sector-pulse": "which industries move", "sector-rotation": "who is pulling ahead", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "headlines and filings", "results-ipo": "who reports, who lists",
   "glossary": "440+ terms", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
 };
+
+/** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder and the Discussion Forum have none yet: their large view uses the card picture. */
+export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "basic-score-screener", "calculators", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "option-chain", "portfolios", "profit-revenue-outlook", "query-builder", "results-ipo", "sector-pulse", "sector-rotation", "stock-screener", "watchlists"]);
