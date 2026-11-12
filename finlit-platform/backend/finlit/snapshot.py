@@ -26,7 +26,7 @@ from .normalize import events, market, ownership, ratios, statements
 from .normalize.common import parse_date
 from .normalize.glossary import describe
 
-SNAPSHOT_VERSION = 5   # 5: FinEdge's own market cap (quote, else profile: one on the whole page), P/E, P/B, P/S and P/FCF are shown as sent; ours only as a labelled fallback. 4: since-listing return, profitability ratios filled on the provider's definitions, discontinued-operations profit kept out of P/E, ROE and margins. 3: profit and equity attributable to shareholders, lender handling, calendar return windows, one EV. Older reports are rebuilt first.
+SNAPSHOT_VERSION = 6   # 6: weekly candles with open, high and low on 3Y, 5Y and MAX, and the 9-day and 20-day average series on every range (task 64, 12 Nov): reports built before are rebuilt when opened and by the nightly refresh. 5: FinEdge's own market cap (quote, else profile: one on the whole page), P/E, P/B, P/S and P/FCF are shown as sent; ours only as a labelled fallback. 4: since-listing return, profitability ratios filled on the provider's definitions, discontinued-operations profit kept out of P/E, ROE and margins. 3: profit and equity attributable to shareholders, lender handling, calendar return windows, one EV. Older reports are rebuilt first.
 SECTIONS = ("summary", "financials", "ratios", "price", "ownership", "events", "segments", "peers", "stats")
 # Chart ranges are cut at ingest time so the API only ever streams stored bytes.
 # Short ranges keep daily candles; long ranges are downsampled to weekly closes.
