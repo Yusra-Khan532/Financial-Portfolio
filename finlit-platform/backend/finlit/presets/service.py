@@ -251,6 +251,7 @@ async def refresh_presets(store, settings=None) -> dict:
     history_note: dict = {}
     try:        # its own guard again: the history of the lists never stops the lists
         history_note = await hist_mod.record(store, fr, kept)
+        history_note.update(await hist_mod.repair_closes(store))
         bench = await hist_mod._bench(store, fr.as_of)
         history_note.update(await hist_mod.gainers(store, fr, bench))
     except Exception as exc:
