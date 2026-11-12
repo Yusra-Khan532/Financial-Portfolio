@@ -52,7 +52,7 @@ export function pageNameFor(pathname: string): string {
   if (exact) return exact.label;
   if (b in EXTRA) return EXTRA[b];
   const dyn: [RegExp, string][] = [[/^\/stocks\/[^/]+$/, "Company report"], [/^\/prism\/[^/]+$/, "Prism report"], [/^\/outlook\/[^/]+$/, "Outlook"], [/^\/funds\/[^/]+$/, "Fund page"],
-    [/^\/etfs\/[^/]+$/, "ETF page"], [/^\/premium\/report\/[^/]+$/, "Premium report"], [/^\/sectors\/[^/]+$/, "Sector page"], [/^\/blog\/[^/]+$/, "Blog article"], [/^\/forum(\/.*)?$/, "Discussion forum"],
+    [/^\/etfs\/[^/]+$/, "ETF page"], [/^\/premium\/report\/[^/]+$/, "Premium report"], [/^\/sectors\/[^/]+$/, "Sector page"], [/^\/blog\/[^/]+$/, "Blog article"], [/^\/forum(\/.*)?$/, "Discussion forums"],
     [/^\/graphs\/advanced\/[^/]+$/, "Correlation charts"], [/^\/account(\/.*)?$/, "Account"], [/^\/legal\/[^/]+$/, "Legal"]];
   for (const [re, name] of dyn) if (re.test(b)) return name;
   const parent = ALL.filter((x) => b.startsWith(x.to + "/")).sort((a, c) => c.to.length - a.to.length)[0];

@@ -42,7 +42,7 @@ export const BUCKETS: Bucket[] = [
   ] },
   { id: "learn", name: "Learn & connect", line: "Learn the terms, ask questions, get help.", cards: [
     { id: "glossary", title: "Glossary & Guides", badge: "FREE", link: "/glossary", what: "Investing terms in plain words, with formulas.", points: ["440+ terms from A to Z: what each means, why it matters, how to use it", "Guides to how sector signals and sector rotation work", "Research notes and explainers"], image: "glossary-light" },
-    { id: "discussion-forum", title: "Discussion Forum", badge: "FREE", link: "/forum", what: "Talk about listed companies with other investors.", points: ["A discussion page for every listed company", "Trending, most discussed and companies you follow", "Moderated; information and opinion only"], image: "discussion-forum-dark", dark: true },
+    { id: "discussion-forum", title: "Discussion Forums", badge: "FREE", link: "/forum", what: "Talk about listed companies with other investors.", points: ["A discussion page for every listed company", "Trending, most discussed and companies you follow", "Moderated; information and opinion only"], image: "discussion-forum-dark", dark: true },
     { id: "finlit-bot", title: "FinLit Bot", badge: "FREE", link: "/", what: "Ask the FinLit assistant about the site or a market term.", points: ["Points you to the right page or tool", "Explains scores, charts and terms in plain words", "Never gives investment advice"], image: "finlit-bot-light" },
   ] },
 ];
