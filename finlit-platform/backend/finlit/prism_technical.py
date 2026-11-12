@@ -55,6 +55,19 @@ CALL_SECONDS = 120.0                     # the site backend's technical call tak
 CANDLE_SECONDS = prism.CANDLE_SECONDS
 MEMBER_WAIT_SECONDS = 90.0               # the job waits this long, in total per company, for members' calculations to finish
 NO_CANDLE_STREAK = 15      # "no candles" in a row before the run stops: Dhan answered, but holds nothing for those companies (delisted, suspended, renamed); only a long run of them means Dhan is not answering
+CANARY_SYMBOLS = ("RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK")   # large companies that always trade: if Dhan gives candles for any of them, Dhan is answering and an empty answer is about that one company
+
+
+async def dhan_answers(app, now: datetime) -> bool:
+    """True when Dhan returns candles for at least one of a few large, always-traded companies: a run of companies with nothing is then about those companies (delisted, suspended, renamed), not an outage."""
+    for symbol in CANARY_SYMBOLS:
+        try:
+            c = await asyncio.wait_for(supplied_candles(app.state, symbol, now), CANDLE_SECONDS)
+        except Exception:
+            continue
+        if c and "stock" in c:
+            return True
+    return False
 FAIL_STREAK = 5
 PAGE_REFRESH_SLOTS = 2                   # page-open refreshes at once, in this process
 _page_tasks: "set[asyncio.Task]" = set()
@@ -281,8 +294,17 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             if time.monotonic() - started > max_minutes * 60:
                 out["status"] = "partial"
                 break
-            if streak >= FAIL_STREAK or blanks >= NO_CANDLE_STREAK:
-                out.update(status="partial", stopped="five failures in a row (Dhan or the site backend is not answering)" if streak >= FAIL_STREAK else f"{NO_CANDLE_STREAK} companies in a row with no candles (Dhan is not answering)")
+            if blanks >= NO_CANDLE_STREAK and streak < FAIL_STREAK:
+                # a long run of "no candles": a probe on large companies tells an outage from a stretch of delisted or suspended ones (12 Nov 2026: 15 of them came first, so every run stopped
+                # after 15 and 937 companies waited; a job never stops for that)
+                if await dhan_answers(app, now):
+                    out["probes_ok"] = out.get("probes_ok", 0) + 1
+                    blanks = 0
+                else:
+                    out.update(status="partial", stopped=f"{NO_CANDLE_STREAK} companies in a row with no candles, and Dhan gave none for the large companies either (Dhan is not answering)")
+                    break
+            if streak >= FAIL_STREAK:
+                out.update(status="partial", stopped="five failures in a row (Dhan or the site backend is not answering)")
                 break
             if await prism._members_busy(redis):         # a member is calculating a report: the machine is theirs for now
                 out["paused_for_members"] += 1

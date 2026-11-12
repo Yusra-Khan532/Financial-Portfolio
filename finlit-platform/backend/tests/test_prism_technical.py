@@ -443,3 +443,22 @@ async def test_a_few_large_companies_with_no_candles_do_not_stop_the_run_for_eve
     assert all([await store.redis.exists(pt.NONEW_PREFIX + f"TQG{i}") for i in range(5)])            # and the five are skipped by the next run
     again = await pt.refresh(store, settings, client=http, now=NOW)
     assert again.get("reasons", {}).get("no_candles", 0) == 0
+
+
+async def test_a_long_stretch_of_companies_with_no_candles_does_not_stop_the_run_while_dhan_answers_for_large_ones(world, monkeypatch):
+    store, settings, site, http, seen = world
+    for i in range(pt.NO_CANDLE_STREAK + 5):
+        await seed(store, f"TQH{i:02d}", cap=1000 - i)          # the largest by market value, first in the queue, all with nothing at Dhan
+    for i in range(3):
+        await seed(store, f"TQI{i}", cap=10 - i)
+    real = pt.supplied_candles
+    async def blank_for_the_stretch(state, symbol, now, price=None):
+        if symbol.startswith("TQH"):
+            return None
+        return await real(state, symbol, now) if price is None else await real(state, symbol, now, price)
+    monkeypatch.setattr(pt, "supplied_candles", blank_for_the_stretch)
+    seen["canary_ok"] = True
+    out = await pt.refresh(store, settings, client=http, now=NOW)
+    assert out["reasons"].get("no_candles") == pt.NO_CANDLE_STREAK + 5 and "stopped" not in out
+    assert out.get("probes_ok", 0) >= 1
+    assert out["updated"] == 3                                  # the companies after the stretch are refreshed in the same run
