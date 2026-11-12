@@ -36,6 +36,13 @@ const RKEY = "finlit.screener.ratios";
 export const loadRatios = (): CustomRatio[] => { try { const v = JSON.parse(localStorage.getItem(RKEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && /^r[0-9]$/.test(x.id) && typeof x.num === "string" && typeof x.den === "string").slice(0, MAX_RATIOS) : []; } catch { return []; } };
 export const saveRatios = (v: CustomRatio[]) => { try { localStorage.setItem(RKEY, JSON.stringify(v)); } catch { /* private window: lasts for this visit */ } };
 
+/** Ratios the member saved by name (task #61, "Save ratio" / "Saved ratios"): kept in this browser, at most 20, each without an id (an id is given when it is added to the screen). */
+export type SavedRatio = Omit<CustomRatio, "id">;
+const SKEY = "finlit.screener.savedRatios";
+export const MAX_SAVED = 20;
+export const loadSavedRatios = (): SavedRatio[] => { try { const v = JSON.parse(localStorage.getItem(SKEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && typeof x.num === "string" && typeof x.den === "string" && ["gt", "lt", "between", "none"].includes(x.op)).slice(0, MAX_SAVED) : []; } catch { return []; } };
+export const storeSavedRatios = (v: SavedRatio[]) => { try { localStorage.setItem(SKEY, JSON.stringify(v.slice(0, MAX_SAVED))); } catch { /* private window: lasts for this visit */ } };
+
 export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
   ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
