@@ -548,6 +548,8 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     read: "A bar is the period in which you can apply. Its colour shows the status: open, upcoming, closed or listed.",
     why: "It shows at a glance which issues are open now and which are coming up, so you do not miss a window.",
   },
+  "rotation-ahead": { title: "Who is ahead, and which way they are moving", what: "How far each industry's return is ahead of or behind the average industry, over six months and over the last month.", x: "Percentage points against the average industry; the centre line is the average.", y: "Industries, the furthest ahead over six months first.", read: "A filled dot is the six-month figure and a ring is the last month. A ring on the other side of the line from the dot, marked ↺, means the direction changed last month.", why: "It shows whether an industry's lead or lag is holding or turning." },
+  "rotation-ranks": { title: "Six months of ranks", what: "Each industry's rank among all the industries at every weekly close of the last 26 weeks.", x: "Weeks, oldest on the left.", y: "Rank: 1 at the top.", read: "A line falling towards the top is an industry moving up the ranking; a line rising is one slipping down.", why: "It shows which ranks have lasted and which are recent." },
   "results-calendar": {
     title: "Results calendar",
     what: "A month calendar showing the days on which companies hold board meetings to announce quarterly results.",

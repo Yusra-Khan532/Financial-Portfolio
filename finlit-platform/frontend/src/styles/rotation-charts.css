@@ -1,0 +1,18 @@
+/* Sector Rotation: "Who is ahead, and which way they are moving" and "Six months of ranks" (components/rotation/RotationCharts.tsx) */
+.rc-card { position: relative; padding-top: 18px; } .rc-card h2 { padding-right: 70px; }
+.rc-ins { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.rc-in { padding: 10px 12px; border: 1px solid var(--border); border-left-width: 4px; border-radius: 12px; background: var(--s1); } .rc-in b { display: block; font: 600 var(--fs-14) var(--sans); } .rc-in b span { font: 700 var(--fs-12) var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-right: 4px; } .rc-in p { margin: 4px 0 0; font-size: var(--fs-14); color: var(--text); }
+.rc-in-good { border-left-color: var(--gain); } .rc-in-insight { border-left-color: var(--gold); } .rc-in-watch { border-left-color: #c27a12; } .rc-in-warning { border-left-color: var(--loss); }
+.rc-key { display: flex; gap: 16px; margin: 4px 0 8px; font-size: var(--fs-12); color: var(--muted); } .rc-key span { display: inline-flex; align-items: center; gap: 6px; }
+.rc-rows { display: grid; } .rc-head, .rc-row { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) 76px 86px; gap: 10px; align-items: center; min-height: 30px; }
+.rc-head { font: 600 var(--fs-12) var(--sans); color: var(--muted); border-bottom: 1px solid var(--border); } .rc-row { border-bottom: 1px solid var(--border); }
+.rc-n { font-size: var(--fs-14); color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rc-n:hover { text-decoration: underline; }
+.rc-v { text-align: right; font: 500 var(--fs-14) var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; } .rc-turn { text-decoration: none; color: #c27a12; font-weight: 700; }
+.rc-track { position: relative; height: 22px; } .rc-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border-strong, var(--border)); }
+.rc-dot { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: var(--muted); box-sizing: border-box; display: inline-block; }
+.rc-key .rc-dot { position: static; margin: 0; } .rc-dot.up { background: var(--gain); } .rc-dot.down { background: var(--loss); }
+.rc-ring { background: var(--s1) !important; border: 2px solid var(--muted); } .rc-ring.up { border-color: var(--gain); } .rc-ring.down { border-color: var(--loss); }
+.rc-rrow { grid-template-columns: minmax(120px, 220px) 140px minmax(70px, 1fr); } .rc-rrow .rc-v { text-align: left; } .rc-spark { color: var(--gold-deep, var(--gold)); }
+.rc-more { margin-top: 12px; } .rc-more > summary { cursor: pointer; font: 600 var(--fs-14) var(--sans); color: var(--text); min-height: 36px; display: flex; align-items: center; } .rc-more > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rc-t { width: 100%; border-collapse: collapse; font-size: var(--fs-14); } .rc-t th { font: 600 var(--fs-12) var(--sans); color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); } .rc-t td { padding: 8px 10px; border-bottom: 1px solid var(--border); } .rc-t .r { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .rc-head, .rc-row { grid-template-columns: minmax(96px, 1fr) minmax(70px, 1fr) 58px 66px; gap: 6px; } .rc-rrow { grid-template-columns: minmax(96px, 1fr) 100px 70px; } .rc-rrow .rc-spark { width: 100px; } .rc-v { font-size: var(--fs-13); } }

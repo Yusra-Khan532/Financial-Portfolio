@@ -28,12 +28,15 @@ export type RotationRow = {
   rank_label?: string; how?: string; corner_since_label?: string; corner_meaning?: string;
 };
 export type RotationMarket = { date: string; nifty50: number | null; nifty50_200d_average: number | null; pct_vs_200d: number | null; above_200d: boolean | null; average_label?: string; note: string | null };
+export type RotationInsight = { kind: "good" | "insight" | "watch" | "warning"; title: string; text: string };
 export type RotationMap = {
   date: string; week_closed: boolean; groups: number; benchmark: string; average_industry: { return_1m: number | null; return_6m: number | null }; market: RotationMarket | null;
   counts: Record<string, number>; corner_meanings: Record<string, string>; rows: RotationRow[];
   moved_this_week: { name: string; slug: string; from: string; to: string }[];
   climbers_4w: { name: string; slug: string; rank: number; change: number }[]; fallers_4w: { name: string; slug: string; rank: number; change: number }[];
   rank_weeks: string[]; rank_weeks_labels?: string[]; disclaimer: string;
+  /** The cards under the two charts (Who is ahead; Six months of ranks), written by the server. */
+  insights?: { ahead: RotationInsight[]; ranks: RotationInsight[] };
   date_label?: string; data_line?: string; groups_ranked?: number; groups_line?: string; how_to_use?: { title: string; text: string }[]; locked?: Locked; plan?: PlanName; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 export type RotationCard = RotationRow & { reading?: boolean; note?: string };
@@ -154,4 +157,16 @@ export function failureText(e: unknown): string {
     return e.message;
   }
   return "The rotation data could not be loaded. Please check your connection and try again.";
+}
+
+/** A group's return against the average industry over six months and over the last month, in percentage points (null when the run had no figure). */
+export const sixMonth = (r: RotationRow): number | null => num(r.vs_average?.["126d"]);
+export const lastMonth = (r: RotationRow): number | null => num(r.vs_average?.["21d"]);
+const num = (x: unknown): number | null => (typeof x === "number" && Number.isFinite(x) ? x : null);
+/** Ahead over six months but behind last month (or the other way round) by at least half a point: marked with a turning arrow on the chart. */
+export const changedDirection = (r: RotationRow): boolean => { const s = sixMonth(r), m = lastMonth(r); return s != null && m != null && ((s > 0 && m <= -0.5) || (s < 0 && m >= 0.5)); };
+/** First and last ranked weeks of a group's history, and the rank four weeks before the last. */
+export function rankSpan(r: RotationRow): { first: number | null; ago4: number | null; now: number | null } {
+  const h = r.rank_history.map((p) => p.rank).filter((x): x is number => x != null);
+  return { first: h.length ? h[0] : null, ago4: h.length > 4 ? h[h.length - 5] : null, now: h.length ? h[h.length - 1] : null };
 }

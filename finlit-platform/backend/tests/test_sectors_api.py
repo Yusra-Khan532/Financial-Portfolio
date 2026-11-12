@@ -196,6 +196,7 @@ async def test_rotation_map_and_cards_are_open_to_every_plan_but_the_leader_flag
     m = r.json()
     assert r.status_code == 200 and m["plan"] == "basic" and len(m["rows"]) == 3 and m["disclaimer"] and "study" not in m and "params" not in m and "method" not in m
     assert all(x["corner"] and x["rank"] and x["tail"] for x in m["rows"]) and all(x["leader_flags"] is None for x in m["rows"]) and m["locked"] == {"leader_flags": "silver"}
+    assert set(m["insights"]) == {"ahead", "ranks"} and all(set(i) == {"kind", "title", "text"} for v in m["insights"].values() for i in v)   # the insight cards under the two Rotation charts, worked out on the server
     assert r.headers["cache-control"].startswith("private") and r.headers["etag"]
     card = await anon.get("/api/rotation/banks")
     c = card.json()
