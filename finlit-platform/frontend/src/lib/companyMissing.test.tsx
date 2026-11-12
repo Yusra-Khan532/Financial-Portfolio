@@ -26,18 +26,18 @@ describe("a filter that hides the company the reader typed", () => {
     expect(h[0].keys).toEqual(["sector"]);
   });
   it("names the market-cap part and companies with no value on file", () => {
-    const h = hiddenMatches(IDX, "nameless", { sector: null, cap: "mega" });
-    expect(h[0].why).toContain("Market cap Mega-cap (this one has no market value on file)");
+    const h = hiddenMatches(IDX, "nameless", { sector: null, cap: "large" });
+    expect(h[0].why).toContain("Market cap Large cap (this one has no market value on file)");
   });
   it("shows nothing hidden while no filter is on, and never lists a company that passes", () => {
     expect(hiddenMatches(IDX, "tata", NO_FILTER)).toEqual([]);
     expect(hiddenMatches(IDX, "hdfc", f)).toEqual([]);
   });
   it("Show it removes only the part that hides the company", () => {
-    const both = { sector: "Financial Services", cap: "mega" as const };
+    const both = { sector: "Financial Services", cap: "large" as const };
     const h = hiddenMatches(IDX, "tcs", both)[0];
     expect(h.keys).toEqual(["sector"]);   // TCS is mega-cap: only the sector hides it
-    expect(relaxed(both, h.keys)).toEqual({ sector: null, cap: "mega" });
+    expect(relaxed(both, h.keys)).toEqual({ sector: null, cap: "large" });
   });
   it("works for screener rows (compare page, watchlist)", () => {
     const rows = [{ symbol: "TCS", name: "Tata Consultancy", sector: "Information Technology", market_cap: 1400000 }];
@@ -48,16 +48,16 @@ describe("a filter that hides the company the reader typed", () => {
 
 describe("the funnel says exactly what is on", () => {
   it("names each active filter and offers Clear filters", () => {
-    expect(filterParts({ sector: "Auto", cap: "large" })).toEqual(["Sector: Auto", "Market cap: Large-cap"]);
+    expect(filterParts({ sector: "Auto", cap: "large" })).toEqual(["Sector: Auto", "Market cap: Large cap"]);
     const h = text(renderToStaticMarkup(<ActiveFilters filter={{ sector: "Auto", cap: "large" }} onChange={() => undefined} />));
-    expect(h).toContain("2 filters on: Sector: Auto · Market cap: Large-cap");
+    expect(h).toContain("2 filters on: Sector: Auto · Market cap: Large cap");
     expect(h).toContain("Clear filters");
   });
   it("renders nothing when no filter is on (the default)", () => {
     expect(renderToStaticMarkup(<ActiveFilters filter={NO_FILTER} onChange={() => undefined} />)).toBe("");
   });
   it("the empty note offers relaxations and shows the greyed hidden row with Show it", () => {
-    const f = { sector: "Financial Services", cap: "mega" as const };
+    const f = { sector: "Financial Services", cap: "large" as const };
     const h = text(renderToStaticMarkup(<FilterNote filter={f} q="tata" onChange={() => undefined} hidden={hiddenMatches(IDX, "tata", f)} />));
     expect(h).toContain("Hidden by your filter");
     expect(h).toContain("Show it");

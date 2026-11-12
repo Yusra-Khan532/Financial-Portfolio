@@ -257,7 +257,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
 
 /* ================= Gold insights ================= */
 const SPEC: Record<string, { stops: string[]; at: (val: string) => number; say: (val: string) => string }> = {
-  Size: { stops: ["Micro", "Small", "Mid", "Large"], at: (x) => (/Large/.test(x) ? 3.5 : /Mid/.test(x) ? 2.5 : /Small/.test(x) ? 1.5 : 0.5), say: (x) => (/Large/.test(x) ? "A big, established company" : /Mid/.test(x) ? "A mid-sized company with room to grow" : "A smaller company; can move faster, with more risk") },
+  Size: { stops: ["Small", "Mid", "Large"], at: (x) => (/Large/.test(x) ? 2.5 : /Mid/.test(x) ? 1.5 : 0.5), say: (x) => (/Large/.test(x) ? "A big, established company" : /Mid/.test(x) ? "A mid-sized company with room to grow" : "A smaller company; can move faster, with more risk") },
   Style: { stops: ["Value", "Blend", "Growth"], at: (x) => (/Premium/.test(x) ? 2.5 : /Value/.test(x) ? 0.5 : 1.5), say: (x) => (/Premium/.test(x) ? "The market pays a high price for its growth" : /Value/.test(x) ? "Priced low against what it earns" : "Neither cheap nor expensive") },
   Income: { stops: ["Low", "Moderate", "High"], at: (x) => (/High/.test(x) ? 2.5 : /Moderate/.test(x) ? 1.5 : 0.5), say: (x) => (/High/.test(x) ? "Pays out a large share as dividends" : /Moderate/.test(x) ? "Pays a steady dividend" : "Pays little; keeps cash for growth") },
   Momentum: { stops: ["Oversold", "Neutral", "Overbought"], at: (x) => (/Oversold/.test(x) ? 0.5 : /Overbought/.test(x) ? 2.5 : 1.5), say: (x) => (/Oversold/.test(x) ? "Sold off heavily lately" : /Overbought/.test(x) ? "Bought heavily lately" : "No extreme in recent price moves") },

@@ -1069,7 +1069,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Why can the size band differ from the screener?",
-    "a": "The size table here uses FinLit's own money bands (Mega-cap above ₹2,00,000 crore, Large-cap ₹50,000–2,00,000 crore, and so on), while elsewhere Large, Mid and Small cap follow SEBI's ranking."
+    "a": "FinLit sizes a company by its market value in three bands: Large cap above ₹50,000 crore, Mid cap ₹10,000–50,000 crore and Small cap below ₹10,000 crore, so a company has the same size on every page. A mutual fund's own label can differ, because funds follow SEBI's ranking."
    },
    {
     "q": "Can I export my list?",
