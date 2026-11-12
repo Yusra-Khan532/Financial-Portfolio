@@ -83,7 +83,7 @@ export type Technical = {
 };
 export type PriceRange = {
   meta: Meta; range: string; grain: "daily" | "weekly"; technical: Technical; complete: boolean; startsAt: string | null; provisionalLastBar: boolean;
-  series: { t: string[]; o?: Series; h?: Series; l?: Series; c: number[]; v: Series; ema50: Series; ema200: Series };
+  series: { t: string[]; o?: Series; h?: Series; l?: Series; c: number[]; v: Series; ema9?: Series; ema20?: Series; ema50: Series; ema200: Series };
 };
 /** Intraday candles from Dhan (1D 1-minute, 5D 5-minute, 1M hourly). Times are ISO with +05:30; `asOf` is when Dhan was asked. */
 export type IntradayRange = "1D" | "5D" | "1M";

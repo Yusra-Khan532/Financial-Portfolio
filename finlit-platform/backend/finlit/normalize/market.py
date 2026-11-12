@@ -125,9 +125,13 @@ def price_history(payload: Any, outlier_threshold: float = 0.35, window: int = 5
 
 
 def weekly(history: dict) -> dict:
-    """Downsample daily arrays to the last trading day of each ISO week (for 3Y/5Y/MAX charts)."""
+    """Downsample daily arrays to weekly candles (for 3Y/5Y/MAX charts), each dated on the last trading day of its ISO week: open is the first
+    day's open, high the highest high, low the lowest low, close the last close and volume the week's total. Open, high and low are sent only when
+    the daily history has them (a close-only history stays close-only, so the chart draws a line, not dots)."""
     t, c, v = history.get("t", []), history.get("c", []), history.get("v", [])
-    out_t, out_c, out_v = [], [], []
+    o, h, lo = history.get("o"), history.get("h"), history.get("l")
+    ohlc = bool(o and h and lo and len(o) == len(h) == len(lo) == len(t))
+    out_t, out_c, out_v, out_o, out_h, out_l = [], [], [], [], [], []
     current_key, volume = None, 0
     for i, day in enumerate(t):
         key = parse_date(day).isocalendar()[:2]
@@ -137,13 +141,27 @@ def weekly(history: dict) -> dict:
         if key != current_key:
             out_t.append(day)
             out_c.append(c[i])
+            if ohlc:
+                out_o.append(o[i] if o[i] is not None else c[i])
+                out_h.append(h[i] if h[i] is not None else c[i])
+                out_l.append(lo[i] if lo[i] is not None else c[i])
             current_key = key
         else:
             out_t[-1], out_c[-1] = day, c[i]
+            if ohlc:
+                if out_o[-1] is None:
+                    out_o[-1] = o[i]
+                if h[i] is not None and (out_h[-1] is None or h[i] > out_h[-1]):
+                    out_h[-1] = h[i]
+                if lo[i] is not None and (out_l[-1] is None or lo[i] < out_l[-1]):
+                    out_l[-1] = lo[i]
         volume += v[i] or 0
     if current_key is not None:
         out_v.append(volume)
-    return {"t": out_t, "c": out_c, "v": out_v}
+    out = {"t": out_t, "c": out_c, "v": out_v}
+    if ohlc:
+        out.update({"o": out_o, "h": out_h, "l": out_l})
+    return out
 
 
 def slice_since(history: dict, start_iso: str) -> dict:

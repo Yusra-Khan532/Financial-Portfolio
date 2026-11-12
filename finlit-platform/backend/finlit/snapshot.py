@@ -246,6 +246,8 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
     # so a 1M chart still shows a true 200-day average.
     ema50 = dict(zip(history["t"], indicators.ema(history["c"], 50))) if history["c"] else {}
     ema200 = dict(zip(history["t"], indicators.ema(history["c"], 200))) if history["c"] else {}
+    ema9 = dict(zip(history["t"], indicators.ema(history["c"], 9))) if history["c"] else {}       # the 9- and 20-day lines of the chart panel (task #64, CH-3)
+    ema20 = dict(zip(history["t"], indicators.ema(history["c"], 20))) if history["c"] else {}
     first_day = parse_date(history["t"][0]) if history["t"] else None
     ranges = {}
     for label, (days, grain) in PRICE_RANGES.items():
@@ -255,6 +257,8 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
         out = {k: series[k] for k in ("t", "o", "h", "l", "c", "v") if k in series}
         out["ema50"] = [_r(ema50.get(t)) for t in series["t"]]
         out["ema200"] = [_r(ema200.get(t)) for t in series["t"]]
+        out["ema9"] = [_r(ema9.get(t)) for t in series["t"]]
+        out["ema20"] = [_r(ema20.get(t)) for t in series["t"]]
         ranges[f"price-{label}"] = {
             "meta": meta, "range": label, "grain": grain, "technical": technical, "series": out,
             # False when history does not reach back to the start of the range (e.g. 5Y on a 2-year listing).

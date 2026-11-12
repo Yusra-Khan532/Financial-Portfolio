@@ -382,7 +382,7 @@ async def test_price_history_equals_the_price_routes(app):  # noqa: F811
         long = await ok(c, "get_price_history", {"symbol": "RELIANCE", "days": 1825, "interval": "daily"})
         five = await site(c, "/api/stocks/RELIANCE/price-5Y")
         assert long["data"]["interval"] == "weekly" and [r["close"] for r in long["data"]["prices"]] == five["series"]["c"][-long["data"]["count"]:]
-        assert all(r["open"] is None for r in long["data"]["prices"]) and any("weekly" in n for n in long["notes"])
+        assert any(r["open"] is not None for r in long["data"]["prices"]) and all(r["high"] is None or r["high"] >= r["low"] for r in long["data"]["prices"]) and any("weekly" in n for n in long["notes"])      # weekly candles carry open, high and low (task 64, 12 Nov)
 
 
 async def test_score_only_where_the_website_shows_it(app):  # noqa: F811
