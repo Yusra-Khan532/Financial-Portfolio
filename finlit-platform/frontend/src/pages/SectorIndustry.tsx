@@ -1,6 +1,7 @@
 // One industry or sector group (/sectors/:slug): where it is in the cycle, a year of breadth, the counted stocks ranked by 6-month return (10 first, then all) and the
 // names of the stocks that are not counted. From GET /api/sectors/{slug}, which sends what the page shows and never how the reading is made.
 // The ranked table and the not-counted list are Silver, the peer label column Gold: a locked part says so and why. Describes; never advises.
+import { Hideable } from "../components/Hideable";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { HScroll } from "../components/HScroll";
@@ -162,9 +163,9 @@ export function SectorIndustryPage() {
           <div className="sx-title"><h1>{p.name}</h1><StateChip state={p.state} big extra={p.since ? `since ${dayMonth(p.since)}` : undefined} /></div>
           <p className="sx-meta">{p.kind === "sector" ? `NSE sector group of ${p.industries.length} small industries (${p.industries.join(", ")}) in the ${p.sector} sector` : `NSE industry in the ${p.sector} sector`} · {countedText(p)}{notCountedN != null ? `, ${notCountedN} not counted` : `, ${Math.max(0, p.stocks_listed - p.stocks_counted)} listed stocks not counted`} · data as of {fullDate(p.date)}</p>
           <MarketStrip m={p.market} />
-          <Happening p={p} />
-          <RotationCard slug={p.slug} groupName={p.name} kindLine={`${p.name} · ${p.kind === "sector" ? `sector group of ${p.industries.length} small NSE industries` : "NSE industry"} · ${countedText(p)}`} />
-          <ChartCard p={p} />
+          <Hideable id="pulse.industry.cycle" title={`Where ${p.name} is in the cycle`}><Happening p={p} /></Hideable>
+          <Hideable id="pulse.industry.rotation" title="Against other industries"><RotationCard slug={p.slug} groupName={p.name} kindLine={`${p.name} · ${p.kind === "sector" ? `sector group of ${p.industries.length} small NSE industries` : "NSE industry"} · ${countedText(p)}`} /></Hideable>
+          <Hideable id="pulse.industry.year" title="Breadth over the past year"><ChartCard p={p} /></Hideable>
           <RankedTable p={p} />
           <NotCounted p={p} />
           <SectorFooter disclaimer={p.disclaimer} />
