@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { CoLogo } from "../components/CoLogo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "../lib/focusTrap";
@@ -40,7 +41,7 @@ function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { statu
   return (
     <article className={"card alx-c is-" + a.status}>
       <div className="alx-ch">
-        <Link className="alx-sym" to={`/stocks/${a.symbol}`}>{a.symbol}</Link>
+        <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{a.symbol}</Link>
         <span className={"alx-st " + tone}><i />{label}</span>
         <span className="alx-grow" />
         <span className="alx-chs" aria-label={"Notifies via " + a.channels.map((c) => CH[c][1]).join(", ")}>{a.channels.map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>

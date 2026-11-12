@@ -1,6 +1,7 @@
 // One industry or sector group (/sectors/:slug): where it is in the cycle, a year of breadth, the counted stocks ranked by 6-month return (10 first, then all) and the
 // names of the stocks that are not counted. From GET /api/sectors/{slug}, which sends what the page shows and never how the reading is made.
 // The ranked table and the not-counted list are Silver, the peer label column Gold: a locked part says so and why. Describes; never advises.
+import { CoLogo } from "../components/CoLogo";
 import { IndustryYearCard } from "../components/sectors/ExtraCharts";
 import { Hideable } from "../components/Hideable";
 import { useState } from "react";
@@ -119,7 +120,7 @@ function RankedTable({ p }: { p: IndustryPage }) {
 function StockRow({ s, peerLocked }: { s: RankedStock; peerLocked: boolean }) {
   return (
     <tr>
-      <td><div className="sx-name"><Link to={`/stocks/${s.symbol}`}>{s.symbol}</Link><small>{s.name}</small></div></td>
+      <td><div className="sx-name"><Link to={`/stocks/${s.symbol}`}><CoLogo symbol={s.symbol} name={s.name} size={20} inline />{s.symbol}</Link><small>{s.name}</small></div></td>
       <td>{s.rank_6m ?? "—"}</td>
       <td className={RET(s.return_6m_pct)}>{signedPct(s.return_6m_pct, 1)}</td>
       <td className="l">{s.quarter_name ?? (s.quarter ? QUARTER[s.quarter] : <span className="sx-na">Not ranked</span>)}</td>
@@ -141,7 +142,7 @@ function NotCounted({ p }: { p: IndustryPage }) {
       <h2 id="sx-nc">Not counted: {nc.count} {p.name} {nc.count === 1 ? "stock" : "stocks"}</h2>
       <p className="sx-sub">{nc.count ? `${nc.count} ${p.name} ${nc.count === 1 ? "stock is" : "stocks are"} not counted: too small, too thinly traded or too recently listed.` : "Every listed stock of this industry is counted."}</p>
       {nc.count > 0 && <details className="sx-notcounted"><summary>Show the {nc.count === 1 ? "stock" : `${nc.count} stocks`}</summary>
-        <ul>{nc.stocks.map((s) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}>{s.symbol}</Link><small>{s.name}</small></li>)}</ul>
+        <ul>{nc.stocks.map((s) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><CoLogo symbol={s.symbol} name={s.name} size={20} inline />{s.symbol}</Link><small>{s.name}</small></li>)}</ul>
         {nc.text && <p className="sx-note">{nc.text}</p>}</details>}
     </section>
   );

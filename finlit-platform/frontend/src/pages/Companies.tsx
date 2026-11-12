@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { CoLogo } from "../components/CoLogo";
 import { Link, Navigate, useParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { useSearchIndex } from "../lib/api";
@@ -44,7 +45,7 @@ export function CompaniesPage() {
         {!one && !idx.isLoading && !idx.isError && (
           <ul className="cx-letters">{KEYS.filter((k) => groups[k].length).map((k) => <li key={k}><Link to={`/companies/${k}`}><b>{k.toUpperCase()}</b><span>{groups[k].length.toLocaleString("en-IN")} companies</span></Link></li>)}</ul>
         )}
-        {one && <ul className="cx-list">{rows.map((r) => <li key={r.symbol}><Link to={`/stocks/${encodeURIComponent(r.symbol)}`}>{r.name} <span className="faint">({r.symbol})</span></Link>{r.sector && <span className="faint"> · {r.sector}</span>}</li>)}</ul>}
+        {one && <ul className="cx-list">{rows.map((r) => <li key={r.symbol}><Link to={`/stocks/${encodeURIComponent(r.symbol)}`}><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{r.name} <span className="faint">({r.symbol})</span></Link>{r.sector && <span className="faint"> · {r.sector}</span>}</li>)}</ul>}
         {one && !rows.length && !idx.isLoading && !idx.isError && <div className="state"><h2>No companies start with {one.toUpperCase()}</h2><p><Link to="/companies">Back to all letters</Link></p></div>}
       </div>
     </>

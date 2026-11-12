@@ -239,7 +239,7 @@ function Flags({ b }: { b: Board }) {
 </div>
       {!b.leader_flags.length ? <p className="sx-note" role="status">No stock is flagged today.</p> :
         <ul className="sx-flags" style={{ listStyle: "none", padding: 0 }}>{list.map((f) => (
-          <li className="sx-flag" key={f.symbol + f.group_slug}><div className="h"><Link to={`/stocks/${f.symbol}`}>{f.symbol}</Link><span className={"tier" + (/full/i.test(f.tier) ? "" : " soft")}>{flagText(f)}</span></div>
+          <li className="sx-flag" key={f.symbol + f.group_slug}><div className="h"><Link to={`/stocks/${f.symbol}`}><CoLogo symbol={f.symbol} size={20} inline />{f.symbol}</Link><span className={"tier" + (/full/i.test(f.tier) ? "" : " soft")}>{flagText(f)}</span></div>
             <span>{f.group}</span><span>{flagAge(f.sessions_ago)}{f.quarter ? ` · 6-month quarter ${f.quarter}` : ""}</span></li>))}</ul>}
       {b.leader_flags.length > 10 && <button type="button" className="btn sx-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show the other ${b.leader_flags.length - 10} standout stocks`}</button>}
     </section>

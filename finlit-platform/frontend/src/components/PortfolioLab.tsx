@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { CoLogo } from "./CoLogo";
 import { Link } from "react-router";
 import type { Row } from "../lib/screener";
 import { saveFile } from "../stock/derive";
@@ -53,7 +54,7 @@ export function PortfolioLab({ lines, universe }: PortfolioLabProps) {
         {gaps.length === 0 ? <p className="muted">No obvious gaps: your list touches the main sector groups and no pillar averages below 50.</p> :
           <ul className="pl-gaps">{gaps.map((g) => (
             <li key={g.id}><div><b>{g.label}</b><small className="muted">{g.reason}</small></div>
-              {g.pick ? <div className="pl-gp"><Link to={`/stocks/${g.pick.symbol}`}><b>{g.pick.symbol}</b></Link><span className={"ssp " + lvl(g.pick.overall)}>{show(g.pick.overall)}</span><small className="muted">top scored here</small></div> : <small className="faint">No scored company available yet</small>}</li>))}</ul>}
+              {g.pick ? <div className="pl-gp"><Link to={`/stocks/${g.pick.symbol}`}><CoLogo symbol={g.pick.symbol} size={20} inline /><b>{g.pick.symbol}</b></Link><span className={"ssp " + lvl(g.pick.overall)}>{show(g.pick.overall)}</span><small className="muted">top scored here</small></div> : <small className="faint">No scored company available yet</small>}</li>))}</ul>}
       </div>
 
       {/* 3. Stress view */}
