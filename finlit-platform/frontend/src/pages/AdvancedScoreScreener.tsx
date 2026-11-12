@@ -73,7 +73,7 @@ function Advanced() {
         {line && cover && (<div className="pzs-cover" role="note"><p>{line} {cover.per_night ? `More are added every night, largest first (about ${nf(cover.per_night, 0)} beyond the companies with a full report).` : "More are added over time, largest first."} Not rated yet? Use Rate now on its row: its Prism page starts the calculation.</p>
           <div className="pzs-bar" aria-hidden="true"><i style={{ width: Math.min(100, (n / cover.total) * 100) + "%" }} /></div></div>)}
       </>}
-      groupHead={<GroupRow groups={[{ g: "prism", n: 5, label: "FinLit Prism", sub: "0–100, higher is better" }, { g: "tech", n: 2, label: "Technical views", sub: "short and long term" },
+      groupHead={<GroupRow groups={[{ g: "prism", n: 5, label: "Prism Fundamental score", sub: "0–100, higher is better" }, { g: "tech", n: 2, label: "Technical views", sub: "short and long term" },
         ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
         <SortTh s={s} k="prism_final" label="Prism Fundamental score" cls="pzs-h" title={EXPLAIN.prism} />

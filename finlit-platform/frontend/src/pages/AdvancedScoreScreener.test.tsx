@@ -81,7 +81,7 @@ describe("Advanced stock screener (Gold)", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
     const h = heads();
     expect(h).toEqual(expect.arrayContaining(["Prism Fundamental score", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
-    expect(h.join("|").replace("Prism Fundamental score", "").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
+    expect(h.join("|").replace(/Prism Fundamental score/g, "").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
     const r = rowOf("AAA").textContent!;
     expect(r).toMatch(/85\s*Strong/); expect(r).toMatch(/Strong uptrend\+55/); expect(r).toMatch(/Uptrend\+30/);
     expect(rowOf("BBB").textContent).toMatch(/Sideways\+5/); expect(rowOf("BBB").textContent).toMatch(/Downtrend−35/);
