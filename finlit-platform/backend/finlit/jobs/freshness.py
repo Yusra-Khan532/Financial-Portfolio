@@ -17,7 +17,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from .resources import disk_percent
-from .schedule import IST, expected_session, fmt_ist, ist, is_weekday, market_open, session_ready_at
+from .schedule import IST, active_elapsed, expected_session, fmt_ist, ist, is_weekday, market_open, session_ready_at
 
 log = logging.getLogger("finlit.jobs.freshness")
 REFERENCE = ("RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "SBIN")     # the large companies that trade every session: the Nifty 50 proxy for "did the market print a bar"
@@ -81,14 +81,15 @@ def judge_session(key: str, label: str, jobs: List[str], actual: Any, expected: 
     return ds
 
 
-def judge_age(key: str, label: str, jobs: List[str], newest: Optional[datetime], now: datetime, fresh_h: float, stale_h: float, detail: str = "") -> Dataset:
-    """A dataset refreshed on a clock: fresh while its newest row is younger than fresh_h hours, stale beyond stale_h."""
+def judge_age(key: str, label: str, jobs: List[str], newest: Optional[datetime], now: datetime, fresh_h: float, stale_h: float, detail: str = "", active: Optional[tuple] = None) -> Dataset:
+    """A dataset refreshed on a clock: fresh while its newest row is younger than fresh_h hours, stale beyond stale_h. `active` (first hour, last hour, IST): the job only runs by
+    day, so only the hours it was due to be running count towards the age (it is not late for the night it is meant to be off)."""
     ds = Dataset(key, label, jobs, expected=f"newer than {fresh_h:g} h", detail=detail)
     if newest is None:
         ds.status, ds.detail = "unknown", detail or "no data found"
         return ds
     n = newest if newest.tzinfo else newest.replace(tzinfo=timezone.utc)
-    age = (now - n).total_seconds() / 3600
+    age = active_elapsed(n, now, active) if active else (now - n).total_seconds() / 3600
     ds.actual, ds.lag, ds.lagUnit = fmt_ist(n), round(age, 1), "hours"
     ds.status = "fresh" if age <= fresh_h else "late" if age <= stale_h else "stale"
     return ds
@@ -216,7 +217,7 @@ def judge_results(waiting: Any, today: date, declared: int, buckets: Optional[Di
 
 
 def judge_calendar(upcoming: int, ran_at: Optional[datetime], now: datetime) -> Dataset:
-    ds = judge_age("results_calendar", "Results calendar", ["calendars"], ran_at, now, 3.0, 12.0)
+    ds = judge_age("results_calendar", "Results calendar", ["calendars"], ran_at, now, 3.0, 12.0, active=(8, 23))      # the calendars job runs 08:00 to 23:59 IST only
     ds.detail = f"{upcoming} upcoming results dates held"
     if upcoming == 0 and ds.status == "fresh":
         ds.status, ds.detail = "late", "no upcoming results dates are held at all"

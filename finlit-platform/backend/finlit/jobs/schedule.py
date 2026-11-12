@@ -94,6 +94,27 @@ def in_active_hours(now: datetime, span: Optional[Tuple[int, int]]) -> bool:
     return span[0] <= ist(now).hour <= span[1]
 
 
+def active_elapsed(start: datetime, end: datetime, span: Optional[Tuple[int, int]] = (8, 23)) -> float:
+    """Hours between start and end that fall inside the daily active hours (IST, first hour to the end of the last hour). A job that only runs by day is not late for the
+    night it is meant to be off: the clock for "how long since it last ran" counts only the hours it was due to be running. span None = every hour counts."""
+    if end <= start:
+        return 0.0
+    if span is None:
+        return (end - start).total_seconds() / 3600.0
+    a, b = ist(start), ist(end)
+    total, day = 0.0, a.date()
+    for _ in range(400):
+        if day > b.date():
+            break
+        w0 = datetime.combine(day, time(span[0], 0), IST)
+        w1 = datetime.combine(day, time(span[1], 59, 59, 999999), IST)
+        lo, hi = max(a, w0), min(b, w1)
+        if hi > lo:
+            total += (hi - lo).total_seconds()
+        day += timedelta(days=1)
+    return total / 3600.0
+
+
 def next_active_start(after: datetime, span: Tuple[int, int]) -> datetime:
     i = ist(after)
     cand = datetime.combine(i.date(), time(span[0], 0), IST)
