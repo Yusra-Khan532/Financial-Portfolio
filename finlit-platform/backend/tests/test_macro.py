@@ -350,3 +350,55 @@ async def test_brent_without_an_eia_key_comes_from_fred(mstore, monkeypatch):
     assert res["steps"]["eia_brent"]["status"] != "skipped"
     async with mstore.pool.acquire() as conn:
         assert await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'brent_d'") == 2
+
+
+# ---- the RBI Reference Rate Archive: fills the monthly USD/INR series up to last month (Stress Lab's base window had a hole)
+def test_the_reference_rate_archive_is_read_row_by_row_and_a_misread_rate_is_left_out():
+    from finlit import macro_sources as S
+    pts = S.parse_rbi_ref_rate_archive(text("rbi_ref_rate_archive_2025_09.html"))
+    assert len(pts) == 21 and pts[D(2025, 9, 30)] == 88.7923 and pts[D(2025, 9, 1)] == 88.2576
+    bad = "<table><tr><td>01/09/2025</td><td>8.8</td></tr><tr><td>02/09/2025</td><td>88.1</td></tr><tr><td>total</td><td>x</td></tr></table>"
+    assert S.parse_rbi_ref_rate_archive(bad) == {D(2025, 9, 2): 88.1}
+
+
+def test_monthly_means_use_complete_months_with_enough_days_only():
+    from finlit import macro_sources as S
+    pts = S.parse_rbi_ref_rate_archive(text("rbi_ref_rate_archive_2025_09.html"))
+    m = S.monthly_means(pts, D(2026, 10, 15))
+    assert list(m) == [D(2025, 9, 30)] and abs(m[D(2025, 9, 30)] - sum(pts.values()) / 21) < 1e-3 and 87 < m[D(2025, 9, 30)] < 89.5
+    assert S.monthly_means(pts, D(2025, 9, 20)) == {}                                       # September is still in progress
+    assert S.monthly_means({k: v for k, v in list(pts.items())[:5]}, D(2026, 10, 15)) == {}   # too few days for an average
+
+
+def archive_site(counter):
+    """rbi.org.in as the step sees it: the archive form (GET) and its answer (POST) for whichever month is asked for."""
+    form = '<form><input type="hidden" name="__VIEWSTATE" value="vs" /><input type="hidden" name="__VIEWSTATEGENERATOR" value="g" /><input type="hidden" name="__EVENTVALIDATION" value="ev" /></form>'
+
+    def handler(req):
+        if "ReferenceRateArchive" not in str(req.url):
+            return httpx.Response(404)
+        if req.method == "GET":
+            return httpx.Response(200, text=form)
+        counter.append(req.content.decode())
+        return httpx.Response(200, text=text("rbi_ref_rate_archive_2025_09.html"))
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.integration
+async def test_the_archive_step_fills_only_the_missing_months_and_says_where_they_came_from(mstore, monkeypatch):
+    monkeypatch.setattr(macro, "PAUSE", 0)
+    asked: list = []
+    res = await macro.refresh(mstore, transport=archive_site(asked), today=D(2026, 10, 23), only=["rbi_fx_archive"])
+    step = res["steps"]["rbi_fx_archive"]
+    assert step["status"] == "ok" and step["months_read"] >= 12 and step["points"] >= 1, res
+    assert all("chkUSD=on" in a and "txtFromDate=" in a and "__VIEWSTATE=vs" in a for a in asked) and len(asked) == step["months_read"]
+    async with mstore.pool.acquire() as conn:
+        n = await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'usdinr_m'")
+    assert n >= 1
+    asked.clear()
+    again = await macro.refresh(mstore, transport=archive_site(asked), today=D(2026, 10, 23), only=["rbi_fx_archive"])
+    assert again["steps"]["rbi_fx_archive"]["months_read"] <= step["months_read"]       # a month already stored is not read again
+    broken = await macro.refresh(mstore, transport=httpx.MockTransport(lambda r: httpx.Response(503)), today=D(2026, 10, 24), only=["rbi_fx_archive"])
+    assert broken["steps"]["rbi_fx_archive"]["status"] == "failed"                        # the last good months stay
+    async with mstore.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM macro_points WHERE series = 'usdinr_m'") == n

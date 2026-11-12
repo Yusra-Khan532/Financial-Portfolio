@@ -152,3 +152,5 @@
 .ol .ol-adj svg { width: 14px; height: 14px; flex: none; }
 .ol .ol-adj:not(.pick) { border-color: var(--gold); background: var(--gold-soft); color: var(--text); }
 .ol .ol-adj.pick { cursor: pointer; } .ol .ol-adj.pick:hover { border-color: var(--gold); color: var(--text); } .ol .ol-adj.pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.olp-wait { font-size: var(--fs-14); }
+.sl-skel { flex-direction: column; align-items: stretch; gap: 14px; } .sl-skel .sl-wait { margin: 0; font-size: var(--fs-14); } .sl-err h2 { margin-top: 0; }

@@ -25,7 +25,13 @@ function Snapshot({ r }: { r: Row }) {
 }
 
 /** `current`: the company open on the page (none on the landing page). */
-export function OutlookPicker({ current, intro, base = "/outlook", introText }: { current?: string; intro?: boolean; base?: string; introText?: ReactNode }) {
+export function OutlookPicker({ current, intro, base = "/outlook", introText, picks, recents = true }: {
+  current?: string; intro?: boolean; base?: string; introText?: ReactNode;
+  /** Quick picks from the caller (Stress Lab: only covered companies that have a stored page); `null` while they load, [] when none is ready. Left out: the Outlook picks. */
+  picks?: { symbol: string; name: string }[] | null;
+  /** "Last searched" is the Outlook page's own list; a page with its own coverage rule (Stress Lab) turns it off. */
+  recents?: boolean;
+}) {
   const to = (s: string) => `${base}/${encodeURIComponent(s)}`;
   const nav = useNavigate();
   const [q, setQ] = useState("");
@@ -33,23 +39,25 @@ export function OutlookPicker({ current, intro, base = "/outlook", introText }: 
   const uni = useUniverse(true);
   const hits = useMemo(() => (q.trim() ? sf.search(q, 8) : []), [sf.search, q]);   // eslint-disable-line react-hooks/exhaustive-deps
   const by = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol.toUpperCase(), r])), [uni.data]);
-  const all = readRecent(), recent = all.filter((s) => s !== current?.toUpperCase());
-  const shown = current ?? all[0] ?? QUICK_PICKS[0].symbol;       // the landing page shows the last company opened, else Reliance, so it is never empty
+  const own = picks !== undefined;                                  // the caller decides the quick picks
+  const list = own ? picks ?? [] : QUICK_PICKS;
+  const all = recents ? readRecent() : [], recent = all.filter((s) => s !== current?.toUpperCase());
+  const shown = current ?? all[0] ?? list[0]?.symbol ?? QUICK_PICKS[0].symbol;       // the landing page shows the last company opened, else Reliance, so it is never empty
   const open = by.get(shown.toUpperCase());
   return (
     <section className="card olp" aria-labelledby="olp-h">
       <h2 id="olp-h">{current ? "Change company" : "Choose a company"}</h2>
       {intro && (introText ? <p className="olp-intro">{introText}</p> : <p className="olp-intro">This simulator estimates a company's <b>revenue and net profit</b> for the next 1, 3 or 5 years from its own reported growth and its sector's. Use <b>our model</b>, or <b>set your own</b> weights and see how the estimate changes. It is a what-if tool built on past results, not a prediction or advice.</p>)}
-      {open && <><p className="olp-cap faint">Snapshot: <b>{open.name || open.symbol}</b></p><Snapshot r={open} /></>}
+      {open && !(own && !current && !list.length) && <><p className="olp-cap faint">Snapshot: <b>{open.name || open.symbol}</b></p><Snapshot r={open} /></>}
       <label className="ol-search"><Icon name="search" /><span className="sr-only">Search a company by name or NSE symbol</span>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by company name or NSE symbol, e.g. Reliance or TCS" autoComplete="off" spellCheck={false} maxLength={60}
           onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); nav(to(hits[0][0])); } }} /></label>
       {hits.length > 0 && <ul className="ol-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><Link to={to(h[0])}><span className="ol-hn"><CoLogo symbol={h[0]} name={h[1]} size={22} inline /><b>{h[1]}</b></span><span className="mono faint">{h[4] || h[0]}</span></Link></li>)}</ul>}
       {q.trim() && sf.idx.data && hits.length === 0 && <p className="faint">No listed company matches “{q.trim()}”.</p>}
       <div className="olp-row"><span className="olp-l" id="olp-qp">Quick picks</span>
-        <ul className="olp-chips" aria-labelledby="olp-qp">{QUICK_PICKS.map((p) => { const r = by.get(p.symbol); return (
+        <ul className="olp-chips" aria-labelledby="olp-qp">{list.map((p) => { const r = by.get(p.symbol); return (
           <li key={p.symbol}><Link to={to(p.symbol)} className={"olp-chip" + (current?.toUpperCase() === p.symbol ? " on" : "")} aria-current={current?.toUpperCase() === p.symbol ? "page" : undefined}>
-            <CoLogo symbol={p.symbol} name={p.name} size={20} inline /><b>{p.name}</b>{r && <small className={"mono" + tone(r.change_pct)}>{pct(r.change_pct)}</small>}</Link></li>); })}</ul></div>
+            <CoLogo symbol={p.symbol} name={p.name} size={20} inline /><b>{p.name}</b>{r && <small className={"mono" + tone(r.change_pct)}>{pct(r.change_pct)}</small>}</Link></li>); })}</ul>{own && picks === null && <span className="faint olp-wait">Loading…</span>}{own && picks && !picks.length && <span className="faint olp-wait">Quick picks appear here once company pages are ready. Search for a company above.</span>}</div>
       {recent.length > 0 && (
         <div className="olp-row"><span className="olp-l" id="olp-rc">Last searched</span>
           <ul className="olp-chips" aria-labelledby="olp-rc">{recent.map((s) => <li key={s}><Link to={to(s)} className="olp-chip"><CoLogo symbol={s} name={by.get(s)?.name} size={20} inline /><b>{by.get(s)?.name ?? s}</b><small className="mono faint">{s}</small></Link></li>)}</ul></div>)}

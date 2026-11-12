@@ -1,27 +1,30 @@
 // @vitest-environment jsdom
 // Stress Lab page: the plan gate, the messages for a company outside the coverage, and the model drawn into the page for a covered one.
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../public/demo/stress-page.json";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
-const st = vi.hoisted(() => ({ gold: true, silver: true, status: 200, body: null as unknown }));
+const st = vi.hoisted(() => ({ gold: true, silver: true, status: 200, body: null as unknown, hang: false, draw: false, picks: [] as { symbol: string; name: string }[] }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => (t === "gold" ? st.gold : st.silver), upgrade: vi.fn(), toast: vi.fn() }), TIER: { gold: { n: "Gold" }, silver: { n: "Silver" } } }));
 vi.mock("../components/Gate", () => ({ Gate: ({ children }: { children: React.ReactNode }) => <>{children}</>, TierChip: () => null }));
-vi.mock("../components/OutlookPicker", () => ({ OutlookPicker: () => <section aria-label="picker" /> }));
+vi.mock("../components/OutlookPicker", () => ({ OutlookPicker: ({ picks, recents }: { picks?: { symbol: string }[] | null; recents?: boolean }) => <ul aria-label="picker" data-recents={String(recents)}>{(picks ?? []).map((p) => <li key={p.symbol}>{p.symbol}</li>)}</ul> }));
+vi.mock("../stress/stressLab", async (orig) => { const m = await orig<typeof import("../stress/stressLab")>(); return { ...m, mountStressLab: (...a: Parameters<typeof m.mountStressLab>) => { if (st.draw) throw new Error("boom"); return m.mountStressLab(...a); } }; });
 vi.mock("../components/PageHeader", () => ({ PageHeader: () => <header /> }));
 vi.mock("../components/SearchFilters", () => ({ useIndexFilter: () => ({ search: () => [] }) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: vi.fn(async (path: string) => {
   const { ApiError } = await orig<typeof import("../lib/api")>();
+  if (st.hang) return new Promise(() => {});
   if (st.status !== 200) throw new ApiError(st.status, { detail: st.body } as never);
+  if (path.endsWith("/quick-picks")) return { picks: st.picks };
   if (path.endsWith("/peer")) return { peer: null, peers: [] };
   return fixture;
 }) }));
-import { StressLabPage } from "./StressLab";
+import { StressLabIndexPage, StressLabPage } from "./StressLab";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); st.hang = false; st.draw = false; st.status = 200; });
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/research/stress-lab/ASIANPAINT"]}><Routes><Route path="/research/stress-lab/:symbol" element={<StressLabPage />} /></Routes></MemoryRouter></QueryClientProvider>);
 
 describe("Stress Lab page", () => {
@@ -38,9 +41,35 @@ describe("Stress Lab page", () => {
     expect(await screen.findByText("Stress Lab does not cover financial companies yet.")).toBeTruthy();
     expect(screen.getByRole("heading", { name: /does not cover this company/ })).toBeTruthy();
   });
-  it("tells the member when the data is still being prepared", async () => {
+  it("tells the member in plain words when the page is being prepared, with a way back, and never prints the server's reason (SL-3, SL-4)", async () => {
     st.status = 503; st.body = "Macro data has not been loaded yet."; open();
-    expect(await screen.findByRole("heading", { name: /getting ready/ })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Stress Lab for this company is being prepared" })).toBeTruthy();
+    expect(screen.getByText("Please check back later.")).toBeTruthy();
+    expect(screen.queryByText(/Macro data/)).toBeNull();
+    expect(screen.getByRole("link", { name: "Company report" }).getAttribute("href")).toBe("/stocks/ASIANPAINT");
+  });
+  it("any other fault is the same plain card, not a blank page and not a technical message", async () => {
+    st.status = 500; st.body = "Traceback: KeyError usdinr="; open();
+    expect(await screen.findByRole("heading", { name: "Stress Lab for this company is being prepared" })).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Traceback|usdinr=|KeyError/);
+  });
+  it("shows a visible loading state while the page is fetched, never an empty body (SL-3)", async () => {
+    st.hang = true; open();
+    expect((await screen.findByRole("status")).textContent).toContain("Loading Stress Lab for ASIANPAINT");
+    expect(document.querySelector(".ol-skel i")).toBeTruthy();
+  });
+  it("a page that cannot be drawn gives the plain card instead of a blank body (SL-3)", async () => {
+    st.draw = true; const err = vi.spyOn(console, "error").mockImplementation(() => {}); open();
+    expect(await screen.findByRole("heading", { name: "Stress Lab for this company is being prepared" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Company report" })).toBeTruthy(); err.mockRestore();
+  });
+  it("the start page offers only the quick picks the server sends, and not the Outlook page's own list (SL-5)", async () => {
+    st.picks = [{ symbol: "RELIANCE", name: "Reliance Industries Ltd" }, { symbol: "TCS", name: "Tata Consultancy Services Ltd" }];
+    render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><StressLabIndexPage /></MemoryRouter></QueryClientProvider>);
+    const list = await screen.findByRole("list", { name: "picker" });
+    await waitFor(() => expect(within(list).getAllByRole("listitem").map((x) => x.textContent)).toEqual(["RELIANCE", "TCS"]));
+    expect(list.getAttribute("data-recents")).toBe("false");
+    expect(document.body.textContent).not.toMatch(/HDFC|ICICI/);
   });
   it("shows the latest-quarter check and the inventory days, and the size once (task 79)", async () => {
     st.status = 200; open();
