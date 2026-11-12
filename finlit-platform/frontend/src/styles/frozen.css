@@ -18,3 +18,8 @@
 .psx-t { --fz-a: 48px; } .psx-t th.psx-n, .psx-t td.psx-n { display: table-cell; gap: 0; width: 48px; min-width: 48px; max-width: 48px; }
 /* the score screener: select box (48), # (56), Company */
 .ss-t { --fz-a: 48px; --fz-b: 104px; }
+/* the banded screens: select box (40), # (44), Company */
+.psx-t.banded { --fz-a: 40px; --fz-b: 84px; }
+.psx-t.banded th.psx-sel, .psx-t.banded td.psx-sel { width: 40px; min-width: 40px; max-width: 40px; padding-left: 12px; padding-right: 4px; text-align: center; }
+.psx-t.banded th.psx-n, .psx-t.banded td.psx-n { width: 44px; min-width: 44px; max-width: 44px; padding-left: 4px; padding-right: 8px; }
+.psx-t.banded th.psx-stock, .psx-t.banded td.psx-stock { min-width: 230px; max-width: 280px; }

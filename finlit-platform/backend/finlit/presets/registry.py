@@ -360,6 +360,17 @@ B_PROF = Col("pillar_profitability", "Profitability", "score")
 B_BAL = Col("pillar_balance", "Balance sheet", "score")
 B_MOM = Col("momentum_score", "Momentum score", "score")
 B_PB = Col("profit_plus_balance", "Profitability + Balance sheet", "score")
+# The standard columns of every list on both pages (the 11 Nov design, file 01 and 02): Company | Price & size | FinLit IQ (Basic) or FinLit Prism (Advanced) | Technical | [Returns, behind a switch].
+# A screen adds only its own "This screen" columns after them. (key, label, format, align, band)
+STD_PRICE = (("price", "LTP (Rs)", "num2", "right", "Price & size"), ("ret_1d", "Day change", "pct", "right", "Price & size"), ("market_cap", "Market cap (Rs Cr)", "cr", "right", "Price & size"))
+STD_BASIC = STD_PRICE + (("overall", "FinLit IQ", "score", "right", "FinLit IQ"), ("pillar_quality", "Quality", "score", "right", "FinLit IQ"), ("pillar_growth", "Growth", "score", "right", "FinLit IQ"),
+                         ("pillar_profitability", "Profitability", "score", "right", "FinLit IQ"), ("pillar_balance", "Balance sheet", "score", "right", "FinLit IQ"), ("pillar_technical", "Technical", "score", "right", "Technical"))
+STD_ADVANCED = STD_PRICE + (("prism_final", "Prism", "score", "right", "FinLit Prism"), ("prism_fundamental", "Growth & Profitability", "score", "right", "FinLit Prism"), ("prism_valuation", "Valuation", "score", "right", "FinLit Prism"),
+                            ("prism_quality", "Quality", "score", "right", "FinLit Prism"), ("prism_risk", "Risk", "score", "right", "FinLit Prism"),
+                            ("prism_st_score", "Short term", "score", "right", "Technical views"), ("prism_lt_score", "Long term", "score", "right", "Technical views"))
+STD_RETURNS = (("ret_3m", "3-month return", "pct", "right", "Returns"), ("ret_6m", "6-month return", "pct", "right", "Returns"), ("ret_1y", "1-year return", "pct", "right", "Returns"),
+               ("pct_from_high", "Down from 52-week high", "pct_down", "right", "Returns"))
+IDENTITY_KEYS = ("rank", "name", "sector")
 B_BASE = (RANK, STOCK, FINLIT, B_TECH)
 B_TAIL = (R3M, R6M, R1Y, W52, SECTOR, MCAP)
 B_RANK_SCORE = (("overall", 1.0),)                                              # fix 13: FinLit IQ itself; it counts each of its five scores once

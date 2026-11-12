@@ -99,7 +99,9 @@ def _history_columns(cols: List[dict], p: Preset, then: bool) -> List[dict]:
         return cols
     extra = [{"key": "added_on", "label": "Added", "format": "date", "align": "left", "band": "On this list"} if not then else None,
              {"key": "since_then_pct" if then else "since_added_pct", "label": "Since then" if then else "Since added", "format": "since", "align": "right", "band": "On this list"}]
-    return cols + [c for c in extra if c]
+    extra = [c for c in extra if c]
+    at = next((n for n, c in enumerate(cols) if c.get("band") == "This screen"), len(cols))          # after the standard columns, before this screen's own
+    return cols[:at] + extra + cols[at:]
 
 
 async def _gainers_body(request: Request, p: Preset) -> dict:

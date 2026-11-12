@@ -210,18 +210,18 @@ describe("Basic stock screener page", () => {
     open("?cap=Large&sector=Metals&sort=name&dir=asc&size=5&page=2");
     expect((sector("Metals") as HTMLInputElement).checked).toBe(true);
     expect(screen.getByRole("button", { name: "Sort by Stock" }).closest("th")!.getAttribute("aria-sort")).toBe("ascending");
-    expect(screen.getByRole("button", { name: "Sort by Overall" }).closest("th")!.getAttribute("aria-sort")).toBe("none");
+    expect(screen.getByRole("button", { name: "Sort by FinLit IQ" }).closest("th")!.getAttribute("aria-sort")).toBe("none");
     expect((screen.getByLabelText("Rows per page") as HTMLSelectElement).value).toBe("5");
     expect(screen.getByRole("button", { name: "Page 2" }).getAttribute("aria-current")).toBe("page");
   });
 
   it("sorting by a heading flips the direction, keeps missing scores last and writes the address", () => {
     open("?size=50");
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Overall" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by FinLit IQ" }));
     expect(loc()).toBe("/score-screener?sort=overall&dir=desc&size=50");
     expect(symbols().slice(0, 3)).toEqual(["AAA", "BBB", "HHH"]);
     expect(symbols().at(-1)).toBe("GGG");
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Overall" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by FinLit IQ" }));
     expect(symbols().at(-1)).toBe("GGG");                                     // still last when ascending
     expect(symbols()[0]).toBe("DDD");
   });
@@ -361,7 +361,7 @@ describe("Basic stock screener: no Prism", () => {
   it("has the FinLit columns only, in order", () => {
     open();
     const heads = within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent?.replace(/[▲▼▾]/g, "").trim());
-    expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["Quality", "Growth", "Profit.", "Balance", "Technical", "Overall"]));
+    expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["FinLit IQ", "Quality", "Growth", "Profit.", "Balance", "Technical"]));
   });
   it("shows its own Basic heading above the table, with a link to the Advanced stock screener (Gold)", () => {
     open();

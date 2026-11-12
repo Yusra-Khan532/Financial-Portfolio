@@ -5,11 +5,12 @@ import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
 import { ChartCards } from "../ChartCards";
 import { NO_BAR, useAsOn, usePresetHistory, usePresetLeft, type BarFilter, type LeftRow, type PresetTab } from "../../../lib/presets";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ApiError } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
 import { cr, dateIN, nf, MINUS } from "../../../lib/format";
 import { useUI } from "../../../lib/ui";
+import { useWatchlist, watch } from "../../../lib/watchlist";
 import { HScroll } from "../../HScroll";
 import { TableZoom } from "../../TableZoom";
 import {
@@ -19,7 +20,7 @@ import {
 import type { PresetRoute } from "./usePresetRoute";
 import "../../../styles/presets.css";
 import { CoLogo } from "../../CoLogo";
-import { INFO, INFO_ASON, INFO_ASON_GAINERS, INFO_LEFT, PsxInfo } from "./PsxInfo";
+import { INFO, INFO_ASON, INFO_ASON_GAINERS, INFO_BAND_LIST, INFO_BAND_SCREEN, INFO_LEFT, INFO_START, PsxInfo } from "./PsxInfo";
 
 const STATE_WORD: Record<Theme["state"], string> = { in_play: "In play", emerging: "Emerging", fading: "Fading", closest: "Closest to qualifying" };
 const signed = (v: number, d = 1) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d);
@@ -27,7 +28,7 @@ const BADGE_TONE: Record<string, string> = { "prism-confirmed": "good", provisio
 export const Badge = ({ text }: { text: string }) => <span className={"psx-b psx-b-" + (BADGE_TONE[text.trim().toLowerCase()] ?? "plain")}>{text}</span>;
 
 /** One table cell in its column's format. A missing value is a dash. */
-export function CellValue({ v, f }: { v: unknown; f: ColFormat }) {
+export function CellValue({ v, f, k }: { v: unknown; f: ColFormat; k?: string }) {
   if (v == null || v === "") return <span className="psx-dash" aria-label="not available" title="not available">{MINUS}</span>;
   if (f === "badge") return <>{(Array.isArray(v) ? v : [v]).map((b) => <Badge key={String(b)} text={String(b)} />)}</>;
   if (f === "date" && typeof v === "string") return <>{dayLabel(v)}</>;
@@ -37,11 +38,16 @@ export function CellValue({ v, f }: { v: unknown; f: ColFormat }) {
   /* A distance below a high is stored as a positive number; it is shown as a minus (the price is that far down). Zero stays 0.0%. */
   if (f === "pct_down") return <>{v === 0 ? "" : MINUS}{nf(Math.abs(v), 1)}%</>;
   if (f === "num1") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 1)}</>;
-  if (f === "score") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(Math.round(v)), 0)}</>;
+  if (f === "score") return <ScorePill v={v} signed={!!k && /_(st|lt)_score$/.test(k)} />;
   if (f === "cr") return <>{cr(v)}</>;
   return <>{String(v)}</>;
 }
 
+/** A score as a High, Middle or Low pill (the design's colours): 78 and above High, 45 up to 78 Middle, under 45 Low. A technical view runs from -100 to +100: +20 or more High, -20 or less Low. */
+export function ScorePill({ v, signed: sg = false }: { v: number; signed?: boolean }) {
+  const cls = sg ? (v >= 20 ? "hi" : v <= -20 ? "lo" : "mid") : v >= 78 ? "hi" : v >= 45 ? "mid" : "lo";
+  return <span className={"sc " + cls} title={cls === "hi" ? "High" : cls === "mid" ? "Middle" : "Low"}>{v < 0 ? MINUS : sg && v > 0 ? "+" : ""}{nf(Math.abs(Math.round(v)), 0)}</span>;
+}
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dayLabel = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}` : iso; };
 
@@ -77,32 +83,78 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
     </div>);
 }
 
+const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and LTP cells, not as columns of their own
+const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" ? null : m > 50000 ? "Large cap" : m >= 10000 ? "Mid cap" : "Small cap"; };
+const BAND_I: Record<string, string> = { "On this list": INFO_BAND_LIST, "This screen": INFO_BAND_SCREEN,
+  "FinLit IQ": "FinLit's basic score and its pillars, each 0 to 100. Higher is better.", "FinLit Prism": "FinLit's advanced rating: one Prism score and its four parts, each 0 to 100. Higher is better.",
+  "Technical": "What the price chart shows. It describes the past trend; it is not a forecast.", "Technical views": "What the price chart shows, short term and long term. It describes the past trend; it is not a forecast.",
+  "Returns": "Price change over 3 months, 6 months and 1 year, and how far the price is below its highest close of the past year." };
+
 function Results({ d, cols, rows, sort, setSort, tab }: { tab: PresetTab; d: PresetDetail; cols: PresetColumn[]; rows: PresetRow[]; sort: SortState; setSort: (k: string, first: 1 | -1) => void }) {
   const first = d.offset ?? 0;
+  const nav = useNavigate();
+  const { has, upgrade, toast } = useUI();
+  useWatchlist();
   const [chart, setChart] = useState<PanelRow | null>(null);
   const [view, setView] = useState<"table" | "charts">("table"), [cards, setCards] = useState(9);
+  const [returns, setReturns] = useState(false), [picked, setPicked] = useState<string[]>([]);
+  const banded = cols.some((c) => c.band);       // every list of both pages has the design's bands; Top gainers and the theme view keep their own layout
+  const shown = useMemo(() => cols.filter((c) => !HIDDEN.has(c.key) && (!banded || returns || c.band !== "Returns")), [cols, banded, returns]);
+  const bands = useMemo(() => shown.reduce<{ name: string; n: number }[]>((acc, c) => { const nm = c.band ?? ""; if (acc.length && acc[acc.length - 1].name === nm) acc[acc.length - 1].n++; else acc.push({ name: nm, n: 1 }); return acc; }, []), [shown]);
+  const maxCompare = has("gold") ? 4 : 2;
+  const symsOnPage = rows.map((r) => r.symbol), allOn = symsOnPage.length > 0 && symsOnPage.every((x) => picked.includes(x));
+  const pick = (x: string) => setPicked((p) => (p.includes(x) ? p.filter((y) => y !== x) : [...p, x]));
+  const addPicked = () => {
+    if (!has("silver")) { upgrade("silver", "Watchlists come with the Silver plan."); return; }
+    const fresh = picked.filter((x) => !watch.has(x)); fresh.forEach((x) => watch.add(x));
+    toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");
+  };
   const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"], screen: d.id, prism: (r.prism_label as string | null | undefined) ?? null });
-  const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol); const n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
+  const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol), n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const head = (key: string, label: string, align: string, first: 1 | -1 = -1, cls = "") => (
     <th scope="col" className={"psx-a-" + align + (cls ? " " + cls : "")} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button>{INFO[key] && <PsxInfo text={INFO[key]} label={label} />}</th>);
+  const span = shown.length + (banded ? 4 : 2);       // select, #, Company, the columns, Chart
+  const cell = (r: PresetRow, c: PresetColumn) => (
+    <td key={c.key} className={"psx-a-" + alignOf(c)}>
+      {c.key === "price" && banded ? <><b>{typeof r.price === "number" ? nf(r.price, 2) : MINUS}</b>{typeof r.ret_1d === "number" && <small className={"psx-chg " + (r.ret_1d >= 0 ? "up" : "dn")}>{signed(r.ret_1d)}%</small>}</>
+        : <CellValue v={r[c.key]} f={c.format} k={c.key} />}
+      {c.key === "added_on" && r.added_baseline === true && <><span className="psx-start"> (start)</span><PsxInfo text={INFO_START} label="11 Nov (start)" /></>}
+      {c.format === "since" && typeof r.bench_since_added_pct === "number" && <small className="psx-bench">NIFTY 500 {signed(r.bench_since_added_pct)}%</small>}</td>);
   return (<>
     <div className="psx-view" role="group" aria-label="Table or charts"><button type="button" className={view === "table" ? "on" : ""} aria-pressed={view === "table"} onClick={() => setView("table")}>Table</button>
       <button type="button" className={view === "charts" ? "on" : ""} aria-pressed={view === "charts"} onClick={() => setView("charts")}>Charts</button></div>
+    {banded && view === "table" && (
+      <div className="psx-bulk" role="toolbar" aria-label="Actions for the table">
+        <span aria-live="polite">{picked.length ? `${nf(picked.length, 0)} selected` : "0 selected"}</span>
+        <button type="button" className="btn" disabled={picked.length < 2 || picked.length > maxCompare} onClick={() => nav(`/compare?c=${picked.join(",")}`)} title={picked.length > maxCompare ? `Your plan compares up to ${maxCompare} companies` : `Select 2 to ${maxCompare} companies`}>Compare</button>
+        <button type="button" className="btn" disabled={!picked.length} onClick={addPicked}>Add to watchlist</button>
+        <label className="psx-sw"><input type="checkbox" checked={returns} onChange={(e) => setReturns(e.target.checked)} /> Returns and 52-week high</label>
+      </div>)}
     {view === "charts" ? <><ChartCards rows={rows.slice(0, cards).map((r) => ({ ...openRow(r), facts: r.facts as PanelRow["facts"] }))} onOpen={(r) => setChart(r)} />{rows.length > cards && <button type="button" className="btn" onClick={() => setCards((n) => n + 9)}>Show 9 more of {rows.length} on this page</button>}</> :
-    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" tall><table className="scr-t psx-t">
+    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" tall><table className={"scr-t psx-t" + (banded ? " banded" : "")}>
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
-      <thead><tr><th scope="col" className="psx-n fz1">#</th>{head("symbol", "Stock", "left", 1, "stick psx-stock fz2 fz-last")}{cols.map((c) => <Head key={c.key} c={c} h={head} />)}</tr></thead>
+      <thead>
+        {banded && <tr className="psx-bh">
+          <th scope="colgroup" colSpan={3} className="fz1 fz-last psx-bc">Company</th>
+          {bands.map((b, k) => <th key={b.name + k} scope="colgroup" colSpan={b.n} className={"psx-bc psx-b-" + b.name.toLowerCase().replace(/[^a-z]+/g, "-")}>{b.name}{BAND_I[b.name] && <PsxInfo text={BAND_I[b.name]} label={b.name} />}</th>)}
+          <th scope="colgroup" className="psx-bc">Chart</th></tr>}
+        <tr>
+          {banded && <th scope="col" className="fz1 psx-sel"><input type="checkbox" checked={allOn} onChange={() => setPicked((p) => (allOn ? p.filter((x) => !symsOnPage.includes(x)) : [...new Set([...p, ...symsOnPage])]))} aria-label="Select all companies on this page" /></th>}
+          <th scope="col" className={"psx-n " + (banded ? "fz2" : "fz1")}>#</th>{head("symbol", "Company", "left", 1, "stick psx-stock " + (banded ? "fz3" : "fz2") + " fz-last")}{shown.map((c) => <Head key={c.key} c={c} h={head} />)}
+          {banded && <th scope="col" className="psx-a-left">Chart</th>}</tr></thead>
       <tbody>{rows.map((r, i) => (
         <Fragment key={r.symbol}>
         {d.topCount ? (r.top === true && (i === 0 || rows[i - 1].top !== true)
-          ? <tr className="psx-band"><td colSpan={cols.length + 2}><span className="psx-bt">Top {d.topCount} · {tab === "basic" ? "the highest FinLit IQs" : "the strongest by this screen's score"}, at most three from one industry</span></td></tr>
-          : r.top !== true && (i === 0 || rows[i - 1].top === true) && <tr className="psx-band"><td colSpan={cols.length + 2}><span className="psx-bt">{nf(Math.max(0, d.count - d.topCount), 0)} more {d.count - d.topCount === 1 ? "company passes" : "companies pass"} · ranked by the same score</span></td></tr>) : null}
+          ? <tr className="psx-band"><td colSpan={span}><span className="psx-bt">Top {d.topCount} · {tab === "basic" ? "the highest FinLit IQs" : "the strongest by this screen's score"}, at most three from one industry</span></td></tr>
+          : r.top !== true && (i === 0 || rows[i - 1].top === true) && <tr className="psx-band"><td colSpan={span}><span className="psx-bt">{nf(Math.max(0, d.count - d.topCount), 0)} more {d.count - d.topCount === 1 ? "company passes" : "companies pass"} · ranked by the same score</span></td></tr>) : null}
         <tr className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(openRow(r)); }}>
-          <td className="psx-n fz1">{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
-          <td className="stick psx-stock fz2 fz-last"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
+          {banded && <td className="fz1 psx-sel"><input type="checkbox" checked={picked.includes(r.symbol)} onChange={() => pick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>}
+          <td className={"psx-n " + (banded ? "fz2" : "fz1")}>{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
+          <td className={"stick psx-stock " + (banded ? "fz3" : "fz2") + " fz-last"}><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{banded && (r.sector || sizeOf(r)) && <small>{[r.sector, sizeOf(r)].filter(Boolean).join(" · ")}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
-          {cols.map((c) => <td key={c.key} className={"psx-a-" + alignOf(c)}><CellValue v={r[c.key]} f={c.format} />{c.format === "since" && typeof r.bench_since_added_pct === "number" && <small className="psx-bench">NIFTY 500 {signed(r.bench_since_added_pct)}%</small>}</td>)}
+          {shown.map((c) => cell(r, c))}
+          {banded && <td className="psx-a-left psx-act"><button type="button" className="psx-ci" aria-label={`Open the ${r.symbol} chart`} onClick={() => setChart(openRow(r))}><Icon name="line" /></button><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="fgx-link">Report</Link></td>}
         </tr></Fragment>))}
       </tbody>
     </table></HScroll></TableZoom>}

@@ -27,11 +27,17 @@ export function AppShell() {
   const held = usePortfolio().holdings.length;
   const { unread } = useNotices();
   const live = useAlerts().alerts.filter((a) => a.status === "active").length;
-  const [collapsed, setCollapsed] = useState(() => loadUi("side-collapsed", 1, isBool, false));
+  // The Find stocks pages (the screeners and the query builder) fold the menu to the icon rail so the table gets the room; every other page keeps the reader's own choice.
+  // The choice made on those pages is remembered on its own, so folding or opening it there never changes the menu elsewhere.
+  const onFind = /^\/(screener|score-screener|advanced-score-screener|query-builder)(\/|$)/.test(pathname);
+  const [collapsedAll, setCollapsedAll] = useState(() => loadUi("side-collapsed", 1, isBool, false));
+  const [collapsedFind, setCollapsedFind] = useState(() => loadUi("side-collapsed-find", 1, isBool, true));
+  const collapsed = onFind ? collapsedFind : collapsedAll, setCollapsed = onFind ? setCollapsedFind : setCollapsedAll;
   const [open, setOpen] = useState(false); // mobile drawer
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => { const o = () => setOpen((v) => !v); addEventListener("finlit:open-side", o); return () => removeEventListener("finlit:open-side", o); }, []);
-  useEffect(() => { saveUi("side-collapsed", 1, collapsed); }, [collapsed]);
+  useEffect(() => { saveUi("side-collapsed", 1, collapsedAll); }, [collapsedAll]);
+  useEffect(() => { saveUi("side-collapsed-find", 1, collapsedFind); }, [collapsedFind]);
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [open]);
   // Each group is a drop-down: a header you click to show or hide its pages. The group holding the current page is always open;
   // what you opened or closed by hand is remembered.
