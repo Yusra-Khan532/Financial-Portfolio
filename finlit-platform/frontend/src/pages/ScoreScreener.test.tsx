@@ -415,7 +415,7 @@ describe("Basic stock screener: no Prism", () => {
 
   it("a group header shows 'n active' for its filters and counts beside options are real", () => {
     open("?sector=IT&sector=Auto&cap=Large");
-    expect(screen.getByRole("button", { name: /^Industry \/ Sector.*2 active/ })).toBeTruthy();
+    expect(within(document.querySelector("aside")!).getByRole("button", { name: /^Sector.*2 active/ })).toBeTruthy();
     expect(within(screen.getByLabelText("Score screener filters")).getByRole("button", { name: /^Market cap.*1 active/ })).toBeTruthy();
     // 22 companies: the draft counts follow the other filters (Large cap + sector are skipped for their own group)
     const large = screen.getByRole("checkbox", { name: /^Large cap/ }).closest("label")!;

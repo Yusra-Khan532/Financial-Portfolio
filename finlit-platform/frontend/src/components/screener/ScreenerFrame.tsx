@@ -123,7 +123,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
               </FilterGroup>
-              <FilterGroup id="sector" title="Industry / Sector" defaultOpen active={draft.sectors.length}>
+              <FilterGroup id="sector" title="Sector" defaultOpen active={draft.sectors.length}>
                 <SearchBox value={secQ} onChange={setSecQ} placeholder="Search sector" label="Search sectors" />
                 <ul className="fgx-list" aria-label="Sectors">
                   {facets.sectors.filter(([x]) => x.toLowerCase().includes(secQ.trim().toLowerCase())).map(([x, n]) => (
