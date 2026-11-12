@@ -3,11 +3,12 @@
 export type AxisUnit = { div: number; label: string; digits: number };
 export const axisUnit = (max: number): AxisUnit => (max >= 1e5 ? { div: 1e5, label: "₹ lakh Cr", digits: 2 } : { div: 1, label: "₹ Cr", digits: 0 });
 
-/** The smallest "round" number (1, 2, 2.5, 5 or 10 times a power of ten) that is not below `x`: the top of an axis. */
+/** The smallest "round" number (1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8 or 10 times a power of ten) that is not below `x`: the top of an axis. */
 export function niceCeil(x: number): number {
   if (!(x > 0) || !Number.isFinite(x)) return 1;
   const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p;
-  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+  const steps = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];      // close steps, so a top of 11.7 is drawn to 12 and not 20
+  return (steps.find((x) => f <= x + 1e-9) ?? 10) * p;
 }
 /** Three ticks from zero to a round top, and the top itself (the domain the bars are drawn against). */
 export function niceTicks(max: number): { top: number; ticks: number[] } { const top = niceCeil(max); return { top, ticks: [0, top / 2, top] }; }

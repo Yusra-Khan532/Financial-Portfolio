@@ -8,7 +8,7 @@ describe("statement chart units and ticks", () => {
     expect(axisUnit(250000)).toEqual({ div: 1e5, label: "₹ lakh Cr", digits: 2 });
   });
   it("tops an axis at a round number and puts the ticks at zero, half and the top", () => {
-    expect(niceCeil(4873)).toBe(5000); expect(niceCeil(3480)).toBe(5000); expect(niceCeil(2300)).toBe(2500); expect(niceCeil(1)).toBe(1); expect(niceCeil(0)).toBe(1); expect(niceCeil(87)).toBe(100);
+    expect(niceCeil(4873)).toBe(5000); expect(niceCeil(3480)).toBe(4000); expect(niceCeil(2300)).toBe(2500); expect(niceCeil(11.66)).toBe(12); expect(niceCeil(1)).toBe(1); expect(niceCeil(0)).toBe(1); expect(niceCeil(87)).toBe(100);
     expect(niceTicks(4873)).toEqual({ top: 5000, ticks: [0, 2500, 5000] });
   });
   it("a two-sided axis covers losses and gains with a round step", () => {
