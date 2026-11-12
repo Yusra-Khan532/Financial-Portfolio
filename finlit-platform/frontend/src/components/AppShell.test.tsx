@@ -17,7 +17,7 @@ const show = (path: string) => render(<MemoryRouter initialEntries={[path]}><Rou
 
 describe("AppShell rail", () => {
   it("renders every group as a button with aria-expanded, controlling a labelled region", () => {
-    const { container } = show("/screener");
+    const { container } = show("/dashboard");
     const heads = [...container.querySelectorAll<HTMLButtonElement>("button.side-gb")];
     expect(heads.length).toBeGreaterThanOrEqual(10);
     for (const h of heads) {
@@ -28,7 +28,7 @@ describe("AppShell rail", () => {
     }
   });
   it("gives each group an icon and no colour of its own, and opens the group of the current page", () => {
-    const { container } = show("/screener");
+    const { container } = show("/dashboard");
     for (const g of container.querySelectorAll<HTMLElement>(".side-g")) {
       const name = g.querySelector(".side-gname")!.textContent!;
       expect(g.querySelector(".side-gbd svg"), name).toBeTruthy();
@@ -38,19 +38,31 @@ describe("AppShell rail", () => {
     expect(screen.getByRole("button", { name: /Charts/ }).getAttribute("aria-expanded")).toBe("false");
   });
   it("toggles a group by click and remembers it", () => {
-    show("/screener");
+    show("/dashboard");
     const b = screen.getByRole("button", { name: /Charts/ });
     fireEvent.click(b);
     expect(b.getAttribute("aria-expanded")).toBe("true");
     expect(JSON.parse(localStorage.getItem("finlit:ui:side-groups")!).data["Charts"]).toBe(true);
   });
   it("keeps the Gold tag on gold tools and the collapse button", () => {
-    show("/screener");
+    show("/dashboard");
     expect(screen.getAllByLabelText("Gold plan").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Collapse the side menu" })).toBeTruthy();
   });
+  it("folds the menu to the icon rail on the Find stocks pages (the table gets the room), and keeps the reader's own choice elsewhere", () => {
+    localStorage.clear();
+    const find = show("/score-screener");
+    expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Expand the side menu" }));
+    expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);
+    cleanup();
+    const other = show("/dashboard");
+    expect(other.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);      // opening it on a screener never changed the menu elsewhere
+    cleanup();
+    expect(show("/advanced-score-screener").container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);   // and the choice made there is remembered there
+  });
   it("filters the pages from the search box, opens the matching groups and says when nothing matches", () => {
-    const { container } = show("/screener");
+    const { container } = show("/dashboard");
     const box = screen.getByRole("searchbox", { name: "Find a page" });
     fireEvent.change(box, { target: { value: "glossary" } });
     expect(container.querySelectorAll(".side-i").length).toBeGreaterThan(0);
@@ -62,7 +74,7 @@ describe("AppShell rail", () => {
     expect(container.querySelectorAll("button.side-gb").length).toBeGreaterThanOrEqual(10);
   });
   it("moves focus with the arrow keys and Ctrl+/ focuses the search box", () => {
-    const { container } = show("/screener");
+    const { container } = show("/dashboard");
     const heads = [...container.querySelectorAll<HTMLButtonElement>("button.side-gb")];
     heads[0].focus();
     fireEvent.keyDown(heads[0], { key: "ArrowUp" });
