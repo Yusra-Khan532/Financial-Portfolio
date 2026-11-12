@@ -49,12 +49,12 @@ export function mountStressLab(root, E, D, opts) {
   function call(c) { return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b><span class="d">' + c.d + '</span></div></div>'; }
   var LCLS = { 'Holds up well': 'g', 'Gains under this shock': 'g', 'Takes a clear hit': 'a', 'Hit hard': 'r', 'Debt cover at risk': 'r', 'Not comparable': 'n' };
   var LICON = { g: ICON.good, a: ICON.watch, r: ICON.warn, n: ICON.ins };
-  var RING = { g: '#0f6b3a', a: '#b7791f', r: '#a8342b', n: '#8d8571' };
+  var RING = { g: 'var(--h0f6b3a)', a: 'var(--hb7791f)', r: 'var(--ha8342b)', n: 'var(--h8d8571)' };
   function labPill(l, big) { var c = LCLS[l] || 'n'; return big ? '<span class="lab ' + c + '">' + svg(LICON[c]) + esc(l) + '</span>' : '<span class="pill ' + c + '">' + esc(l) + '</span>'; }
   function ring(score, l) {
     var c = LCLS[l] || 'n', r = 44, C = 2 * Math.PI * r, f = score === null ? 0 : score / 100;
-    return '<div class="ring" role="img" aria-label="Resilience score ' + (score === null ? 'not available' : score + ' out of 100') + '"><svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="' + r + '" fill="none" stroke="#efe8da" stroke-width="10"/>' +
-      (f > 0.005 ? '<circle cx="52" cy="52" r="' + r + '" fill="none" stroke="' + RING[c] + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + (C * f).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '</svg>' +
+    return '<div class="ring" role="img" aria-label="Resilience score ' + (score === null ? 'not available' : score + ' out of 100') + '"><svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="' + r + '" fill="none" style="stroke:var(--hefe8da)" stroke-width="10"/>' +
+      (f > 0.005 ? '<circle cx="52" cy="52" r="' + r + '" fill="none" style="stroke:' + RING[c] + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + (C * f).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '</svg>' +
       '<div class="n"><b>' + (score === null ? '–' : score) + '</b><small>out of 100</small></div></div>';
   }
 
@@ -485,7 +485,7 @@ export function mountStressLab(root, E, D, opts) {
   var EDITABLE = { pass_through: [0, 100, 1], crude_rm: [0, 95, 1], import_rm: [0, 95, 1], export_rev: [0, 100, 1], demand_beta: [0.2, 2.5, 0.05], floating_debt: [0, 100, 5] };
   function srcText(co, k) {
     var c = co.calibration && co.calibration[k];
-    if (c && c.years_used) return 'Estimated from its own history' + (k === 'pass_through' ? ' of cost shocks' : '') + ' and the ' + (co.sector || 'industry') + ' industry';
+    if (c && c.from_history) return 'Estimated from its own history' + (k === 'pass_through' ? ' of cost shocks' : '') + ' and the ' + (co.sector || 'industry') + ' industry';
     return String(co.field_source[k] || '').replace('FinLit default for all companies', 'Default for all companies');
   }
   function renderAsm() {
@@ -501,11 +501,6 @@ export function mountStressLab(root, E, D, opts) {
       var inp = ed ? '<input class="edit' + (S.edits[k] !== undefined ? ' ch' : '') + '" type="number" inputmode="decimal" data-edit="' + k + '" min="' + ed[0] + '" max="' + ed[1] + '" step="' + ed[2] + '" value="' + (k === 'demand_beta' ? v.toFixed(2) : Math.round(v * 100)) + '" aria-label="Your value for ' + F[0] + (k === 'demand_beta' ? '' : ', in %') + '">' + (k === 'demand_beta' ? '×' : '%') : '';
       return '<tr' + (S.edits[k] !== undefined ? ' class="hl"' : '') + '><td class="l">' + F[0] + ib(F[2], 'lt', 'About ' + F[0]) + '</td><td class="r"><b>' + F[1](v0) + '</b></td><td><small>' + esc(srcText(co, k)) + '</small></td>' + (GOLD ? '<td class="r" style="white-space:nowrap">' + inp + '</td>' : '') + '</tr>';
     }).join('');
-    var cal = D.calibration_years.map(function (y) {
-      var note = y.catch_up_year ? 'Left out: prices catching up on the year before' + (y.two_year_pass_through ? '' : '') : y.pass_through === undefined ? 'Left out: input costs barely moved' : 'Used';
-      return '<tr><td class="l">' + y.year + '</td><td class="r">' + pct(y.input_inflation_pct) + '</td><td class="r">' + pc(y.rm_share_before * 100) + ' → ' + pc(y.rm_share_after * 100) + '</td><td class="r">' + (y.implied_price_rise_pct !== undefined ? pct(y.implied_price_rise_pct) : '–') + '</td><td class="r">' + (y.pass_through !== undefined ? share(y.pass_through) : '–') + '</td><td><small>' + note + '</small></td></tr>';
-    }).join('');
-    var c = co.calibration.pass_through;
     $('asm').innerHTML = '<h2>The assumptions behind it' + ib('Every number the model uses for ' + short(co) + ', and where it came from. You can try your own value for the six settings with a box; everything on the page updates.', 'lt', 'About the assumptions') + '</h2><p class="sub">' + esc(co.name) + ', consolidated, four quarters ' + D.base_window[0] + ' to ' + D.base_window[1] + '. Data to ' + dt(D.as_of) + '.</p>' +
       '<div class="asmgrid" style="margin-top:4px"><div><h3 style="margin-top:12px">The base: the last four quarters</h3><div class="tw"><table class="t"><tbody>' + t1 + '</tbody></table></div></div>' +
       '<div><h3 style="margin-top:12px">How the business is exposed</h3><div class="tw"><table class="t"><thead><tr><th>Setting</th><th class="r">Estimate</th><th>Where it comes from</th>' + (GOLD ? '<th class="r">Your value</th>' : '') + '</tr></thead><tbody>' + t2 + '</tbody></table></div>' +
@@ -564,7 +559,7 @@ export function mountStressLab(root, E, D, opts) {
     return rows.map(function (r) {
       return '<div class="cgroup" tabindex="0" data-tip="' + esc(r[0] + ': ' + short(A) + ' ' + f(r[1]) + ', ' + short(B) + ' ' + f(r[2])) + '"><div class="gn">' + r[0] + '</div>' +
         '<div class="cbar"><span>' + short(A) + '</span>' + b(r[1], 'a') + '<span class="v">' + f(r[1]) + '</span></div><div class="cbar"><span>' + short(B) + '</span>' + b(r[2], 'b') + '<span class="v">' + f(r[2]) + '</span></div></div>';
-    }).join('') + '<div class="legend"><span><i style="background:var(--teal)"></i>' + short(A) + '</span><span><i style="background:#c59b3b"></i>' + short(B) + '</span></div>';
+    }).join('') + '<div class="legend"><span><i style="background:var(--teal)"></i>' + short(A) + '</span><span><i style="background:var(--hc59b3b)"></i>' + short(B) + '</span></div>';
   }
   function renderCompare() {
     var a = coA(), b = coB(), sc = cur(), ra = E.run(a, sc), rb = E.run(b, forB(sc));
@@ -675,6 +670,17 @@ export function mountStressLab(root, E, D, opts) {
       renderAll();
     }
   });
+  // an i button's text opens on hover, focus or tap: keep it inside the screen (on a phone it would run off the right edge)
+  function fitInfo(ev) {
+    var ib = ev.target.closest && ev.target.closest('.ib'); if (!ib) return;
+    var t = ib.querySelector('.tip'); if (!t) return;
+    t.style.translate = '';
+    var r = t.getBoundingClientRect(), vw = document.documentElement.clientWidth, dx = 0;
+    if (r.right > vw - 8) dx = vw - 8 - r.right;
+    if (r.left + dx < 8) dx = 8 - r.left;
+    if (dx) t.style.translate = Math.round(dx) + 'px 0';
+  }
+  listen(root, 'focusin', fitInfo); listen(root, 'mouseover', fitInfo);
   // hover tooltip for bars and rows with data-tip
   var tip = document.createElement('div'); tip.className = 'hovtip'; tip.setAttribute('role', 'status'); HOST.appendChild(tip); OFF.push(function () { tip.remove(); });
   function showTip(el, x, y) { tip.innerHTML = esc(el.getAttribute('data-tip')); tip.style.display = 'block'; var w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, x + 12)) + 'px'; tip.style.top = Math.max(8, y - h - 12) + 'px'; }
