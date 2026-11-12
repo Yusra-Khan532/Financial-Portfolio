@@ -7,7 +7,9 @@ import board from "../lib/__fixtures__/sectors/board.json";
 import ferrous from "../lib/__fixtures__/sectors/ferrous-metals.json";
 import sambhv from "../lib/__fixtures__/sectors/sambhv.json";
 import { ApiError } from "../lib/api";
-import { chartGeometry, filterCounts, inFilter, sortRows, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
+import { chartGeometry, filterCounts, inFilter, sortRows, stateParts, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const st = vi.hoisted(() => ({ board: null as unknown, page: null as unknown, stock: null as unknown }));
 const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: false, isError: true, error: d, refetch: () => {} } : { data: d, isLoading: false, isError: false, error: null, refetch: () => {} });
@@ -94,9 +96,9 @@ describe("Sector Pulse", () => {
   it("sorts by a column header and says which way", () => {
     at(<SectorPulsePage />);
     const head = screen.getByRole("columnheader", { name: /Index vs 52-week high/ });
-    fireEvent.click(within(head).getByRole("button"));
+    fireEvent.click(within(head).getByRole("button", { name: "Index vs 52-week high" }));      // the heading also holds a (?) button: the sort button is the one named by the column
     expect(head.getAttribute("aria-sort")).toBe("ascending");
-    fireEvent.click(within(head).getByRole("button"));
+    fireEvent.click(within(head).getByRole("button", { name: "Index vs 52-week high" }));
     expect(head.getAttribute("aria-sort")).toBe("descending");
   });
   it("explains the three bar colours, the thrust and leader flags, and the table can be enlarged (task #86, #87)", () => {
@@ -105,6 +107,65 @@ describe("Sector Pulse", () => {
     expect(screen.getByRole("button", { name: "Enlarge table: Industries table" })).toBeTruthy();
     expect(document.querySelector(".sx-thr")?.getAttribute("title")).toMatch(/trading session|No broad rebound/);
     expect(screen.getByTestId("groups-table").querySelectorAll("col").length).toBe(8);
+  });
+  it("every column of the table explains itself with a (?) that opens in plain words, CAP and the timing included (task #86)", () => {
+    at(<SectorPulsePage />);
+    const table = screen.getByTestId("groups-table");
+    const labels = within(table).getAllByRole("button", { name: /^About / }).map((b) => b.getAttribute("aria-label"));
+    expect(labels).toEqual(["About “Cycle state”", "About the share above the three averages", "About “Index vs 52-week high”", "About “Last bounce”", "About “Leader flags”", "About the corner column", "About “Rotation rank”"]);
+    fireEvent.click(within(table).getByRole("button", { name: "About “Last bounce”" }));
+    const tip = screen.getByRole("tooltip");
+    expect(tip.textContent).toMatch(/After a crash \(CAP\) means almost every stock had kept falling/);
+    expect(tip.textContent).toMatch(/counts trading sessions, the days the market was open/);
+    fireEvent.click(within(table).getByRole("button", { name: "About “Leader flags”" }));
+    expect(screen.getAllByRole("tooltip").map((t) => t.textContent).join(" ")).toMatch(/closed at a 52-week high while their industry is still well below its own high/);
+    expect(document.body.textContent).not.toMatch(/\b(buy|sell|hold) (now|this)\b|target price|best stock|top pick/i);
+  });
+  it("the state chip is short and never leaves its column; a bounce after a crash writes the rest under the chip (task #86)", () => {
+    expect(stateParts("Thrust CAP")).toEqual({ main: "Bouncing back", note: "after a crash" });
+    expect(stateParts("Thrust C")).toEqual({ main: "Bouncing back" }); expect(stateParts("Washout")).toEqual({ main: "Sold off" });
+    expect(stateParts("Fading")).toEqual({ main: "Losing steam" }); expect(stateParts("Neutral")).toEqual({ main: "No clear signal" }); expect(stateParts(null)).toEqual({ main: "No reading" });
+    st.board = { ...B, rows: B.rows.map((r, i) => (i === 0 ? { ...r, state: "Thrust CAP", state_code: "thrust_cap" } : r)) } as Board;
+    at(<SectorPulsePage />);
+    const cell = within(screen.getByTestId("groups-table")).getAllByRole("row")[1].querySelector(".sx-statec") as HTMLElement;
+    expect(cell.querySelector(".sx-chip")?.textContent).toBe("Bouncing back"); expect(cell.querySelector("small")?.textContent).toBe("after a crash");
+    expect(Array.from(document.querySelectorAll("[data-testid='groups-table'] .sx-chip")).every((c) => !/after a crash/.test(c.textContent || ""))).toBe(true);
+  });
+  it("the headings sit on the same side as their figures, and rank and rank movement share one slot in every row (task #86)", () => {
+    const corners = [["ahead_gaining", "Ahead and gaining"], ["ahead_slowing", "Ahead but slowing"], ["behind_slipping", "Behind and slipping"], ["behind_gaining", "Behind but gaining"], ["middle", "Near the average"]] as const;
+    const steps = [3, -4, 0, null, 12, -1];                                                    // up, down, no change, new, a big climb, a place lost
+    st.board = { ...B, rows: B.rows.map((r, i) => ({ ...r, rotation: { corner: corners[i % 5][0], corner_name: corners[i % 5][1], weeks_in_corner: 3, this_week_reading_name: null, rank: i + 1, ranked: B.rows.length, rank_change_1w: steps[i % 6], rank_change_4w: 0,
+      strength_pts: 1, change_pts: 1, breadth: null, breadth_name: null } })) } as unknown as Board;
+    at(<SectorPulsePage />);
+    const heads = Array.from(document.querySelectorAll("[data-testid='groups-table'] thead th"));
+    expect(heads.map((h) => h.className)).toEqual(["", "l", "l", "r", "l", "c", "l", "r"]);
+    const align = (h: Element) => h.querySelector(".sx-hd")?.className.replace("sx-hd ", "");
+    expect([3, 5, 7].map((i) => align(heads[i]))).toEqual(["r", "c", "r"]);                      // the (?) sits on the side away from the figures' edge
+    const rows = Array.from(document.querySelectorAll("[data-testid='groups-table'] tbody tr"));
+    expect(rows.every((r) => r.children.length === 8)).toBe(true);
+    const ranked = rows.filter((r) => r.querySelector(".sx-rk"));
+    expect(ranked.length).toBeGreaterThan(30);
+    expect(ranked.every((r) => r.querySelectorAll(".sx-rk > b").length === 1 && r.querySelectorAll(".sx-rk > .rt-move").length === 1)).toBe(true);
+    const kinds = new Set(ranked.map((r) => (r.querySelector(".rt-move") as HTMLElement).className.split(" ").filter((c) => ["up", "down", "flat", "new"].includes(c))[0]));
+    expect([...kinds].sort()).toEqual(["down", "flat", "new", "up"]);                            // every kind of move has its own look, in the same slot
+    expect((ranked[0].querySelector(".rt-move") as HTMLElement).textContent).toBe("▲3"); expect((ranked[3].querySelector(".rt-move") as HTMLElement).textContent).toBe("new");
+    expect(rows.every((r) => r.querySelector("td:last-child .rt-move, td:last-child .sx-na"))).toBe(true);
+    expect(screen.getAllByRole("link").filter((a) => a.className.includes("rt-clink") && a.querySelector(".rt-corner.pill")).length).toBeGreaterThan(30);   // the corner is a tinted badge with its square
+  });
+  it("the column widths fit a 1440px screen with the side menu open, and the bar colours come from one set of tokens everywhere (task #86)", () => {
+    const css = readFileSync(join(__dirname, "..", "styles", "sectors.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const widths = [...css.matchAll(/\.sx-pulse col\.c-(name|state|bars|idx|thr|flag|cor|rk) \{ width: (\d+)px; \}/g)].map((m) => Number(m[2]));
+    const min = Number(/\.sx-t\.sx-pulse \{[^}]*min-width: (\d+)px/.exec(css)?.[1]);
+    expect(widths).toHaveLength(8);
+    expect(widths.reduce((a, b) => a + b, 0)).toBe(min);                                         // no sideways scroll at 1118px, the frame of a 1440px screen
+    expect(min).toBeLessThanOrEqual(1116);
+    for (const [n, k] of [["9", "bar-9"], ["20", "bar-20"], ["50", "bar-50"]]) {
+      for (const sel of [`.sx-bars .r.b${n} .tr i`, `.sx-legend2 i.k${n}`, `.sx-mini.m${n} i`, `.sx-chart .l${n}`, `.sxg-bars .b${n}`]) {
+        const rule = css.split("}").find((r) => r.includes(sel));
+        expect(rule, sel).toBeTruthy();
+        expect(rule, sel).toMatch(new RegExp(`var\\(--sx-${k}\\)`));
+      }
+    }
   });
   it("has no higher-low column, no rules and no study; shows the too-few list, the universe totals and the flags", () => {
     at(<SectorPulsePage />);

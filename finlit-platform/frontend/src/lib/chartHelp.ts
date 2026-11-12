@@ -681,6 +681,50 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     read: "A big gap can come from costs, a one-off gain or loss, tax, or a change in how the business earns. It is a prompt to open the company report, not a verdict. You can set an alert to be told when a company you follow shows it.",
     why: "Sales and profit usually move in the same direction. When they do not, the headline number may be hiding something worth understanding.",
   },
+
+  /* ---------------------------------------------------------------- Sector Pulse: the table's columns (task #86) */
+  "sx-col-state": {
+    title: "Cycle state",
+    what: "Where the industry is in its cycle, in one phrase, from how many of its counted stocks are above their 9, 20 and 50-day averages and how that has moved.",
+    read: "The usual order is Sold off, then Bouncing back (after a crash when almost every stock had kept falling to the end), then Rising together, then Losing steam. No clear signal means none of these fit today.",
+    why: "It is the industry's reading in a word. It describes price data only.",
+  },
+  "sx-col-bars": {
+    title: "Above the 9, 20 and 50-day average",
+    what: "The share of the group's counted stocks whose latest close is above their 9-day (short-term), 20-day (medium) and 50-day (longer) average.",
+    read: "A longer bar means more of the stocks are above that average. Purple is the 9-day, blue the 20-day and orange the 50-day average, the same on every Sector Pulse chart. The figure at the right end of each bar is that share.",
+    why: "It shows whether a move is shared by most stocks or by only a few.",
+  },
+  "sx-col-index": {
+    title: "Index vs 52-week high",
+    what: "How far the group's index (its counted stocks averaged with equal weight) is from its highest level in the past 52 weeks.",
+    read: "−10.1% means the index is 10.1% below that high. 0% means it is at the high.",
+    why: "It puts the size of a fall, or of a recovery from it, into one number.",
+  },
+  "sx-col-thrust": {
+    title: "Last bounce",
+    what: "The latest session on which most of the group's stocks turned up together after a sell-off.",
+    read: "After a crash (CAP) means almost every stock had kept falling to the end of that sell-off; a plain bounce means a smaller one. “1 session ago” counts trading sessions, the days the market was open, so a weekend or a holiday does not count.",
+    why: "It shows how recent the last turn was, and how deep the fall before it had been.",
+  },
+  "sx-col-flags": {
+    title: "Leader flags",
+    what: "Stocks that closed at a 52-week high while their industry is still well below its own high.",
+    read: "A full flag means the industry is further down, an early flag less far. The number is how many stocks in the group carry a flag today. Leader flags are part of the Silver plan.",
+    why: "They show stocks holding up inside a weak group. About the share price only.",
+  },
+  "sx-col-corner": {
+    title: "Corner",
+    what: "Where the group sits on Sector Rotation: ahead of or behind the market, and gaining or slowing. The small square in the badge marks the corner.",
+    read: "The top row is gaining, the bottom row slowing or slipping; the left is behind the market, the right ahead of it. Select the badge to open Sector Rotation on that corner.",
+    why: "It shows the group's strength against the market and which way it is moving.",
+  },
+  "sx-col-rotation": {
+    title: "Rotation rank",
+    what: "The group's place in this week's Sector Rotation ranking, 1 being the strongest, and how many places it moved in the past week.",
+    read: "▲3 means up three places and ▼3 down three. A dash means no change. New means its first ranked week.",
+    why: "It orders the groups by strength and shows which are climbing or falling.",
+  },
 };
 
 export const CHART_HELP_IDS = Object.keys(CHART_HELP);

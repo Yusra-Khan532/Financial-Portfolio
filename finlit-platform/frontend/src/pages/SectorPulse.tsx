@@ -1,18 +1,19 @@
 // Sector Pulse (/sectors): is buying spreading through an industry, or drying up? Every NSE industry (or sector group of small ones) with its state, breadth, thrust
 // and leader flags, from GET /api/sectors. Every number is the server's; what the plan does not include arrives null with a reason and is said in words.
 // Describes price and breadth data; never advice. Styles: styles/sectors.css.
+import { ChartHelp } from "../components/ChartHelp";
 import { Hideable } from "../components/Hideable";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../lib/api";
 import { CoLogo } from "../components/CoLogo";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { HScroll } from "../components/HScroll";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import {
-  FILTERS, SORT_LABEL, averageLabel, STATES, count, failureText, filterCounts, flagAge, flagText, fullDate, groupKindText, thrustHelp, FLAGS_HELP, countedText, groupsLine, inFilter, level, plural, signedPct, sortRows, thrustText,
+  FILTERS, SORT_LABEL, averageLabel, STATES, count, stateParts, failureText, filterCounts, flagAge, flagText, fullDate, groupKindText, thrustHelp, FLAGS_HELP, countedText, groupsLine, inFilter, level, plural, signedPct, sortRows, thrustText,
   useSectorBoard, type Board, type FilterKey, type GroupRow, type SortKey,
 } from "../lib/sectors";
 import { CornerBadge, RankMove, SectorTabs } from "../components/rotation/Parts";
@@ -71,11 +72,25 @@ function Cycle() {
   );
 }
 
-function Th({ k, label, sort, dir, onSort, cls = "" }: { k: SortKey; label: string; sort: SortKey | null; dir: "asc" | "desc"; onSort: (k: SortKey) => void; cls?: string }) {
+type Align = "l" | "c" | "r";
+
+/** A heading's words on one or two lines ("\n" is the break). Each line is its own block, so the label is as wide as its longest line and the (?) sits right beside it. */
+function Lbl({ t }: { t: string }) {
+  return <span className="lbl">{t.split("\n").map((x, i) => <Fragment key={i}>{i > 0 && " "}<span className="ln">{x}</span></Fragment>)}</span>;
+}
+
+/** A sortable column heading (task #86). The sort arrow floats beside the label and the (?) sits on the side away from the figures' edge, so the label lines up exactly with the data under it. */
+function Th({ k, label, full, sort, dir, onSort, cls = "", align = "l", help }: { k: SortKey; label: string; full?: string; sort: SortKey | null; dir: "asc" | "desc"; onSort: (k: SortKey) => void; cls?: string; align?: Align; help?: boolean }) {
   const on = sort === k;
+  const tip = help ? <ChartHelp id={`sx-col-${k}`} label={`About “${full ?? label.replace("\n", " ")}”`} /> : null;   // `full`: the whole wording for screen readers when the heading is shortened to fit
   return (
     <th scope="col" className={cls} aria-sort={on ? (dir === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" className={"sx-sortbtn" + (on ? " on" : "")} onClick={() => onSort(k)}>{label}<span className="ar" aria-hidden="true">{on ? (dir === "asc" ? "▲" : "▼") : ""}</span></button>
+      <span className={`sx-hd ${align}`}>
+        {align === "r" && tip}
+        {align === "c" && tip && <span className="sx-hd-sp" aria-hidden="true" />}
+        <button type="button" className={"sx-sortbtn" + (on ? " on" : "")} aria-label={full ?? label.replace("\n", " ")} onClick={() => onSort(k)}><Lbl t={label} /><span className="ar" aria-hidden="true">{on ? (dir === "asc" ? "▲" : "▼") : ""}</span></button>
+        {align !== "r" && tip}
+      </span>
     </th>
   );
 }
@@ -87,7 +102,8 @@ function GroupsTable({ b }: { b: Board }) {
   const counts = useMemo(() => filterCounts(b.rows), [b.rows]);
   const rows = useMemo(() => sortRows(b.rows.filter((r) => inFilter(r, filter)), sort, dir), [b.rows, filter, sort, dir]);
   const flagsLocked = b.rows.some((r) => r.leader_flags == null);
-  const onSort = (k: SortKey) => { if (sort === k) setDir(dir === "asc" ? "desc" : "asc"); else { setSort(k); setDir(k === "name" || k === "state" || k === "thrust" || k === "index" || k === "rotation" ? "asc" : "desc"); } };
+  const firstDir = (k: SortKey): "asc" | "desc" => (k === "name" || k === "state" || k === "thrust" || k === "index" || k === "rotation" ? "asc" : "desc");
+  const onSort = (k: SortKey) => { if (sort === k) setDir(dir === "asc" ? "desc" : "asc"); else { setSort(k); setDir(firstDir(k)); } };
   return (
     <section className="sx-sec" aria-labelledby="sx-all">
       <div className="sx-bar">
@@ -100,11 +116,14 @@ function GroupsTable({ b }: { b: Board }) {
           })}
         </div>
       </div>
-      <div className="sx-sortsel"><label htmlFor="sx-sort">Sort by</label>
-        <select id="sx-sort" value={sort ?? ""} onChange={(e) => { const v = e.target.value as SortKey | ""; if (v) { setSort(v); setDir(v === "name" || v === "state" || v === "thrust" || v === "index" || v === "rotation" ? "asc" : "desc"); } else setSort(null); }}>
-          <option value="">The board's order</option>{(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
-        </select>
-        {sort && <button type="button" className="btn" style={{ height: 38 }} onClick={() => setDir(dir === "asc" ? "desc" : "asc")} aria-label={dir === "asc" ? "Lowest first; switch to highest first" : "Highest first; switch to lowest first"}>{dir === "asc" ? "▲ Low to high" : "▼ High to low"}</button>}
+      <div className="sx-sortrow">
+        <div className="sx-sortsel"><label htmlFor="sx-sort">Sort by</label>
+          <select id="sx-sort" value={sort ?? ""} onChange={(e) => { const v = e.target.value as SortKey | ""; if (v) { setSort(v); setDir(firstDir(v)); } else setSort(null); }}>
+            <option value="">The board's order</option>{(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+          </select>
+          {sort && <button type="button" className="btn" style={{ height: 38 }} onClick={() => setDir(dir === "asc" ? "desc" : "asc")} aria-label={dir === "asc" ? "Lowest first; switch to highest first" : "Highest first; switch to lowest first"}>{dir === "asc" ? "▲ Low to high" : "▼ High to low"}</button>}
+        </div>
+        <p className="sx-showing" role="status">Showing {rows.length === b.rows.length ? `all ${rows.length}` : `${rows.length} of ${b.rows.length}`} {rows.length === 1 ? "group" : "groups"}</p>
       </div>
       <ul className="sx-legend2" aria-label="What the three bar colours mean">
         <li><i className="k9" aria-hidden="true" /><b>9-day</b> average: the short-term trend</li>
@@ -119,14 +138,17 @@ function GroupsTable({ b }: { b: Board }) {
             <colgroup><col className="c-name" /><col className="c-state" /><col className="c-bars" /><col className="c-idx" /><col className="c-thr" /><col className="c-flag" /><col className="c-cor" /><col className="c-rk" /></colgroup>
             <thead><tr>
               <Th k="name" label="Industry" sort={sort} dir={dir} onSort={onSort} />
-              <Th k="state" label="Cycle state" sort={sort} dir={dir} onSort={onSort} cls="l" />
-              <th scope="col" className="l">Above 9 / 20 / 50-day avg<span className="sx-visually"> (sort with the Sort by menu)</span>
-                <span className="sx-minis">{(["above_9", "above_20", "above_50"] as const).map((k) => <button key={k} type="button" className={"sx-sortbtn sx-mini" + (sort === k ? " on" : "")} aria-label={`Sort by the share above the ${k.slice(6)}-day average`} onClick={() => onSort(k)}>{k.slice(6)}{sort === k ? (dir === "asc" ? "▲" : "▼") : ""}</button>)}</span></th>
-              <Th k="index" label="Index vs 52-week high" sort={sort} dir={dir} onSort={onSort} />
-              <Th k="thrust" label="Last bounce" sort={sort} dir={dir} onSort={onSort} cls="l" />
-              <Th k="flags" label="Leader flags" sort={sort} dir={dir} onSort={onSort} cls="c" />
-              <th scope="col" className="l rt-colh">Corner</th>
-              <Th k="rotation" label="Rotation rank" sort={sort} dir={dir} onSort={onSort} cls="rt-colh" />
+              <Th k="state" label="Cycle state" sort={sort} dir={dir} onSort={onSort} cls="l" help />
+              <th scope="col" className="l">
+                <span className="sx-hd l"><Lbl t={"Above 9 / 20 /\n50-day average"} /><ChartHelp id="sx-col-bars" label="About the share above the three averages" /></span>
+                <span className="sx-visually"> (sort with the Sort by menu)</span>
+                <span className="sx-minis" role="group" aria-label="Sort by one average">{(["above_9", "above_20", "above_50"] as const).map((k) => <button key={k} type="button" className={`sx-sortbtn sx-mini m${k.slice(6)}` + (sort === k ? " on" : "")} aria-label={`Sort by the share above the ${k.slice(6)}-day average`} onClick={() => onSort(k)}><i aria-hidden="true" />{k.slice(6)}{sort === k ? (dir === "asc" ? "▲" : "▼") : ""}</button>)}</span>
+              </th>
+              <Th k="index" label={"Index vs\n52-week high"} sort={sort} dir={dir} onSort={onSort} cls="r" align="r" help />
+              <Th k="thrust" label="Last bounce" sort={sort} dir={dir} onSort={onSort} cls="l" help />
+              <Th k="flags" label={"Leader\nflags"} full="Leader flags" sort={sort} dir={dir} onSort={onSort} cls="c" align="c" help />
+              <th scope="col" className="l"><span className="sx-hd l"><Lbl t="Corner" /><ChartHelp id="sx-col-corner" label="About the corner column" /></span></th>
+              <Th k="rotation" label={"Rotation\nrank"} full="Rotation rank" sort={sort} dir={dir} onSort={onSort} cls="r" align="r" help />
             </tr></thead>
             <tbody>
               {rows.map((r) => <Row key={r.slug} r={r} />)}
@@ -141,17 +163,17 @@ function GroupsTable({ b }: { b: Board }) {
 }
 
 function Row({ r }: { r: GroupRow }) {
-  const t = r.last_thrust;
+  const t = r.last_thrust, sp = stateParts(r.state);
   return (
     <tr>
-      <td><div className="sx-name"><Link to={`/sectors/${r.slug}`}>{r.name}</Link><small title={groupKindText(r)}>{r.kind === "sector" ? "Sector group · " : ""}{countedText(r)}</small></div></td>
-      <td className="l"><StateChip state={r.state} /></td>
+      <td><div className="sx-name"><Link to={`/sectors/${r.slug}`} title={r.name}>{r.name}</Link><small title={groupKindText(r)}>{r.kind === "sector" ? "Sector group · " : ""}{countedText(r)}</small></div></td>
+      <td className="l"><div className="sx-statec"><StateChip state={r.state} word={sp.main} />{sp.note && <small>{sp.note}</small>}</div></td>
       <td className="l"><BreadthBars b={r.breadth} name={r.name} /></td>
-      <td className="num">{signedPct(r.index_vs_52w_high, 1)}</td>
+      <td className="num r">{signedPct(r.index_vs_52w_high, 1)}</td>
       <td className="l"><span className="sx-thr" tabIndex={0} title={thrustHelp(t)} aria-label={`${thrustText(t)}. ${thrustHelp(t)}`}>{t ? <><b>{t.type === "CAP" ? "Bounce after a crash" : "Bounce"}</b><small>{t.sessions_ago === 0 ? "today" : `${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago`}</small></> : <small>None in the past year</small>}</span></td>
-      <td className="c sx-flagn">{r.leader_flags == null ? <span className="sx-na" title="Leader flags are part of the Silver plan">Silver</span> : r.leader_flags > 0 ? <span className="sx-flagpill" tabIndex={0} title={FLAGS_HELP} aria-label={`${r.leader_flags} leader ${r.leader_flags === 1 ? "flag" : "flags"}. ${FLAGS_HELP}`}>{r.leader_flags}</span> : <span className="sx-na" aria-label="none">—</span>}</td>
-      <td className="l rt-colc">{r.rotation ? <Link to={`/sectors/rotation?corner=${r.rotation.corner}`} className="rt-clink" title="Open Sector Rotation, filtered to this corner"><CornerBadge corner={r.rotation.corner} name={r.rotation.corner_name} /></Link> : <span className="sx-na" title="Fewer than 8 counted stocks: too few for a rotation reading, or the rotation files are not in this data set yet">No reading</span>}</td>
-      <td className="rt-colc">{r.rotation?.rank != null ? <span className="rt-rk2"><b>{r.rotation.rank}</b><RankMove v={r.rotation.rank_change_1w} /></span> : r.rotation ? <span className="sx-na">Not ranked yet</span> : <span className="sx-na">—</span>}</td>
+      <td className="c sx-flagn">{r.leader_flags == null ? <span className="sx-na sx-lockpill" title="Leader flags are part of the Silver plan"><Icon name="lock" />Silver</span> : r.leader_flags > 0 ? <span className="sx-flagpill" tabIndex={0} title={FLAGS_HELP} aria-label={`${r.leader_flags} leader ${r.leader_flags === 1 ? "flag" : "flags"}. ${FLAGS_HELP}`}>{r.leader_flags}</span> : <span className="sx-na" aria-label="none">—</span>}</td>
+      <td className="l">{r.rotation ? <Link to={`/sectors/rotation?corner=${r.rotation.corner}`} className="rt-clink" title="Open Sector Rotation, filtered to this corner"><CornerBadge corner={r.rotation.corner} name={r.rotation.corner_name} className="pill" size={18} /></Link> : <span className="sx-na" title="Fewer than 8 counted stocks: too few for a rotation reading, or the rotation files are not in this data set yet">No reading</span>}</td>
+      <td className="r">{r.rotation?.rank != null ? <span className="sx-rk"><b>{r.rotation.rank}</b><RankMove v={r.rotation.rank_change_1w} /></span> : r.rotation ? <span className="sx-na">Not ranked yet</span> : <span className="sx-na">—</span>}</td>
     </tr>
   );
 }
