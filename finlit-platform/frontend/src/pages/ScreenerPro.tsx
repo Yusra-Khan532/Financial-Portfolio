@@ -166,6 +166,13 @@ export function ScreenerPro() {
   const fl = find.trim().toLowerCase();
   const clearMetric = (m: MetricInfo, gid: string) => { (m.variants ? Object.values(m.variants) : [m.key]).forEach((k) => setRange(k, {})); setPick((x) => ({ ...x, [gid]: (x[gid] || []).filter((k) => k !== m.key) })); };
 
+  // A filter is "chosen" once its chip is clicked (its card, chart and Min/Max stay until it is clicked again or cleared), and "set" once it has a range. The group headers and the
+  // line above the list count both, so a filter chosen in a closed group is never mistaken for one that was dropped (task #75).
+  const isSet = (m: MetricInfo) => (m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key]);
+  const chosenIn = (g: { id: string; metrics: MetricInfo[] }) => new Set([...(pick[g.id] || []), ...g.metrics.filter((m) => !m.hidden && isSet(m)).map((m) => m.key)]);
+  const nWaiting = (data?.groups || []).reduce((a, g) => a + (pick[g.id] || []).filter((k) => { const m = byKey.get(k); return m && !isSet(m); }).length, 0);
+  const clearAll = () => { setF(norm({})); setPick({}); };
+
   const sortBy = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: key === "name" || byKey.get(key)?.better === "lower" ? "asc" : "desc" }));
   const pickCols = (c: string[] | null) => { setCols(c); storeCols(c); };
   const toggleCol = (k: string) => { if (!base.includes(k) && columns.includes(k)) { toast("This column belongs to a filter you chose. Unselect or remove that filter to hide it."); return; } if (base.includes(k)) pickCols(base.filter((x) => x !== k)); else if (base.length >= MAX_COLS) toast(`Up to ${MAX_COLS} columns at a time.`); else pickCols([...base, k]); };
@@ -269,7 +276,7 @@ export function ScreenerPro() {
             <div className="seg scr-tabs" role="tablist"><button role="tab" aria-selected={tab === "filters"} onClick={() => setTab("filters")}>Filters{nActive ? <i className="dotn">{nActive}</i> : null}</button><button role="tab" aria-selected={tab === "quick"} onClick={() => setTab("quick")}>Quick screens</button></div>
             {tab === "filters" ? (
               <>
-                <div className="fgx-top" style={{ paddingTop: 12 }}><span>{nActive ? `${nActive} active` : "No filters set"}</span>{nActive > 0 && <button type="button" className="fgx-link" onClick={() => setF(norm({}))}>Clear all</button>}</div>
+                <div className="fgx-top" style={{ paddingTop: 12 }}><span>{nActive || nWaiting ? [nActive ? `${nActive} active` : "", nWaiting ? `${nWaiting} chosen, no range yet` : ""].filter(Boolean).join(" · ") : "No filters set"}</span>{(nActive > 0 || nWaiting > 0) && <button type="button" className="fgx-link" onClick={clearAll}>Clear all</button>}</div>
                 <SearchBox value={find} onChange={setFind} placeholder="Search for a filter, e.g. ROE or promoter" label="Search for a filter" />
                 {cat.isLoading && <div className="skeleton" style={{ height: 320, marginTop: 12 }} />}
                 {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
@@ -278,9 +285,9 @@ export function ScreenerPro() {
                   {listed.map((g) => {
                     const isOpen = facetOpen(g.id), model = g.id === "model", allLocked = g.metrics.every((m) => m.locked);
                     const shownMetrics = fl ? (g.label.toLowerCase().includes(fl) ? g.metrics : rankMetrics(g.metrics, find)) : g.metrics;
-                    const n = Object.keys(f.ranges).filter((k) => g.metrics.some((m) => m.key === k)).length;
+                    const n = Object.keys(f.ranges).filter((k) => g.metrics.some((m) => m.key === k)).length, chosen = chosenIn(g).size;
                     return (
-                      <Fragment key={g.id}><FilterGroup id={g.id} title={g.label} active={n} className={model ? "is-model" : ""} open={isOpen || n > 0 && open[g.id] === undefined} onOpenChange={(o) => setOpen((x) => ({ ...x, [g.id]: o }))}
+                      <Fragment key={g.id}><FilterGroup id={g.id} title={g.label} active={chosen} className={model ? "is-model" : ""} open={isOpen || n > 0 && open[g.id] === undefined} onOpenChange={(o) => setOpen((x) => ({ ...x, [g.id]: o }))}
                         meta={<>{model && <span className="tier gold" style={{ marginRight: 8 }}><Icon name="crown" />Gold</span>}{g.metrics.length}</>}>
                         {true && (
                           <>
@@ -296,12 +303,12 @@ export function ScreenerPro() {
                                 // so opening a filter never pushes its chart to the bottom of a long group.
                                 const visible = shownMetrics.filter((m) => !m.hidden), MAIN = visible.length > 8 ? 6 : visible.length;
                                 const chip = (m: MetricInfo) => {
-                                  const active = m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key];
+                                  const active = isSet(m);
                                   const opened = (pick[g.id] || []).includes(m.key);
                                   // a click opens a filter (its range and chart appear under the chips); a click on a chosen filter takes it away again. Other filters stay as they are.
                                   return <button key={m.key} className={"pl-chip" + (active ? " on" : "") + (opened ? " open" : "") + (m.locked ? " is-locked" : "")} aria-pressed={opened || active} onClick={() => { if (opened || active) { clearMetric(m, g.id); return; } setPick((x) => ({ ...x, [g.id]: [...(x[g.id] || []), m.key] })); }} onKeyDown={(e) => { if ((active || opened) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); clearMetric(m, g.id); } }} title={active || opened ? "Click again (or press Delete) to remove this filter" : undefined}>{m.label}{m.locked && <Icon name="lock" />}</button>;
                                 };
-                                const openKeys = [...new Set([...(pick[g.id] || []), ...visible.filter((m) => (m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key])).map((m) => m.key)])];
+                                const openKeys = [...new Set([...(pick[g.id] || []), ...visible.filter(isSet).map((m) => m.key)])];
                                 const pms = openKeys.map((k) => byKey.get(k)).filter((m): m is MetricInfo => !!m && visible.some((v) => v.key === m.key));
                                 const card = pms.map((pm) => <FilterCard key={pm.key} m={pm} byKey={byKey} ranges={f.ranges} setRange={setRange} ask={ask} tab={periodOf(pm)} setTab={(t) => setPeriod((x) => ({ ...x, [pm.key]: t }))} />);
                                 return <>
@@ -360,7 +367,7 @@ export function ScreenerPro() {
               <small id="pl-type-h" className="muted">Short names: pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq. For “or” and brackets use the Query builder.</small>
               {typedErr.map((m) => <small key={m} className="pl-type-e" role="alert">{m}</small>)}
             </form>
-            {chips.length > 0 && <div className="scr-chips">{chips.map((c) => <button key={c.label} className="fchip" onClick={c.clear} onKeyDown={(e) => { if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); c.clear(); } }}>{c.label}<span aria-hidden="true">×</span><span className="sr">remove</span></button>)}<button className="alx-link" onClick={() => setF(norm({}))}>Clear all</button></div>}
+            {chips.length > 0 && <div className="scr-chips">{chips.map((c) => <button key={c.label} className="fchip" onClick={c.clear} onKeyDown={(e) => { if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); c.clear(); } }}>{c.label}<span aria-hidden="true">×</span><span className="sr">remove</span></button>)}<button className="alx-link" onClick={clearAll}>Clear all</button></div>}
             {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
               : res.isError ? <div className="state"><h2>That filter is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
               : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
