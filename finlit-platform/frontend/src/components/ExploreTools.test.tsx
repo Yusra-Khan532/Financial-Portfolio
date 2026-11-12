@@ -91,7 +91,10 @@ describe("<ExploreTools />", () => {
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
-    expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
+    const numbered = Object.entries(SHORT).filter(([, t]) => /\d/.test(t)).map(([id]) => id);                 // task #89: the tools that can carry a figure say it
+    expect(numbered.length).toBeGreaterThanOrEqual(20);
+    for (const id of ["stock-screener", "etfs", "sector-pulse", "glossary", "dcf-calculator", "alerts", "option-chain"]) expect(numbered, id).toContain(id);
+    expect(Object.values(SHORT).every((t) => t.split(" ").length <= 6 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
   it("cards link to their pages and show the plan badge", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));

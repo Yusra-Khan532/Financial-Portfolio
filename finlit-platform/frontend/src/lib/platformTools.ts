@@ -5,7 +5,7 @@ export interface PlatformCard { id: string; title: string; badge: Badge; link: s
 export interface Bucket { id: BucketId; name: string; line: string; cards: PlatformCard[] }
 export const BUCKETS: Bucket[] = [
   { id: "discover", name: "Discover", line: "Find the stocks and funds worth a closer look.", cards: [
-    { id: "stock-screener", title: "Stock Screener", badge: "FREE", link: "/screener", what: "Narrow 5,800+ listed companies down to the few that fit your rules.", points: ["190+ filters across valuation, growth, quarterly results, ownership and red flags", "Quick screens and a 3D view of the matches", "Pick your columns, sort, save the screen and download it"], image: "stock-screener-light" },
+    { id: "stock-screener", title: "Stock Screener", badge: "FREE", link: "/screener", what: "Narrow 5,800+ listed companies down to the few that fit your rules.", points: ["190+ filters across valuation, growth, quarterly results, ownership and red flags", "26 ready-made screens and a 3D view of the matches", "Pick your columns, sort, save the screen and download it"], image: "stock-screener-light" },
     { id: "basic-score-screener", title: "Basic Stock Screener", badge: "SILVER", link: "/score-screener", what: "Rank every listed company by its FinLit IQ, our easy-to-read score.", points: ["Growth & Profitability, its four pillars, Technical and Overall in one table", "Ready-made Top 10s by size, plus momentum, growth and quality screens", "Filter by market cap, sector and score"], image: "basic-score-screener-light" },
     { id: "advanced-score-screener", title: "Advanced Stock Screener", badge: "GOLD", link: "/advanced-score-screener", what: "See the whole market through FinLit Prism, our advanced rating.", points: ["Prism score with Growth & Profitability, Valuation, Quality and Risk", "Short-term and long-term technical views beside each company", "Pre-built screens: highest-rated by size, momentum, emerging tech, sector themes and more"], image: "advanced-score-screener-light" },
     { id: "query-builder", title: "Query Builder", badge: "FREE", link: "/query-builder", what: "Type a rule in plain words and get the companies that match it.", points: ["Write rules like Market cap > 500 AND P/E < 15", "Start from examples: quality compounders, value, high dividend", "Keep a query as a basket and run it again later"], image: "query-builder-light" },
@@ -41,7 +41,7 @@ export const BUCKETS: Bucket[] = [
     { id: "results-ipo", title: "Results & IPO Calendars", badge: "FREE", link: "/results", what: "Know who reports results, and who lists, and when.", points: ["Board-meeting dates for quarterly results", "Latest results, newest first", "IPOs open now, upcoming and recently listed"], image: "results-ipo-light" },
   ] },
   { id: "learn", name: "Learn & connect", line: "Learn the terms, ask questions, get help.", cards: [
-    { id: "glossary", title: "Glossary & Guides", badge: "FREE", link: "/glossary", what: "Investing terms in plain words, with formulas.", points: ["440+ terms from A to Z: what each means, why it matters, how to use it", "Guides to how sector signals and sector rotation work", "Research notes and explainers"], image: "glossary-light" },
+    { id: "glossary", title: "Glossary & Guides", badge: "FREE", link: "/glossary", what: "Investing terms in plain words, with formulas.", points: ["450 terms from A to Z: what each means, why it matters, how to use it", "Guides to how sector signals and sector rotation work", "Research notes and explainers"], image: "glossary-light" },
     { id: "discussion-forum", title: "Discussion Forums", badge: "FREE", link: "/forum", what: "Talk about listed companies with other investors.", points: ["A discussion page for every listed company", "Trending, most discussed and companies you follow", "Moderated; information and opinion only"], image: "discussion-forum-dark", dark: true },
     { id: "finlit-bot", title: "FinLit Bot", badge: "FREE", link: "/", what: "Ask the FinLit assistant about the site or a market term.", points: ["Points you to the right page or tool", "Explains scores, charts and terms in plain words", "Never gives investment advice"], image: "finlit-bot-light" },
   ] },
@@ -49,12 +49,12 @@ export const BUCKETS: Bucket[] = [
 
 /** Two or three words under each tool's name in the compact directory on the landing page (the full card says the rest). */
 export const SHORT: Record<string, string> = {
-  "stock-screener": "190+ filters", "basic-score-screener": "rank by FinLit IQ", "advanced-score-screener": "rank by Prism", "query-builder": "rules in plain words", "mutual-funds": "filter every fund", "etfs": "350+ NSE ETFs", "fund-health-score": "score 1,200+ funds",
-  "company-report": "everything on one page", "finlit-prism": "health in four parts", "company-financials": "statements and ratios", "compare-companies": "side by side", "chart-builder": "build your own charts",
-  "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "calculators": "EPS, P/E and SIP", "option-chain": "OI, IV, max pain",
-  "watchlists": "follow your stocks", "portfolios": "strength and spread", "alerts": "price and filing alerts", "compare-funds": "head to head",
-  "sector-pulse": "which industries move", "sector-rotation": "who is pulling ahead", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "headlines and filings", "results-ipo": "who reports, who lists",
-  "glossary": "440+ terms", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
+  "stock-screener": "190+ filters, 26 screens", "basic-score-screener": "FinLit IQ, 4 pillars", "advanced-score-screener": "4 parts, 2 views", "query-builder": "9 ready examples", "mutual-funds": "1,200+ funds", "etfs": "350+ NSE ETFs", "fund-health-score": "1,200+ funds scored",
+  "company-report": "5 pillars, one page", "finlit-prism": "4 parts, PDF report", "company-financials": "4 statements, 2 periods", "compare-companies": "5 pillars side by side", "chart-builder": "build your own charts",
+  "dcf-calculator": "3 cases", "profit-revenue-outlook": "1, 3, 5-year estimates", "calculators": "2 tools: EPS and SIP", "option-chain": "5 indices + F&O stocks",
+  "watchlists": "follow your stocks", "portfolios": "strength and spread", "alerts": "5 alert types", "compare-funds": "4 return periods",
+  "sector-pulse": "38 groups", "sector-rotation": "4 corners", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "4 filing types", "results-ipo": "who reports, who lists",
+  "glossary": "450 terms, 18 topics", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
 };
 
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder and the Discussion Forum have none yet: their large view uses the card picture. */
