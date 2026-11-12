@@ -71,17 +71,19 @@ function Basic() {
           <div className="pzs-two"><div><b>FinLit IQ</b><p>{EXPLAIN.finlit}</p></div></div>
         </details>
       </>}
-      groupHead={<GroupRow groups={[{ g: "iq", n: 4, label: "FinLit IQ · business scores", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" }, { g: "overall", n: 1, label: "Overall" },
+      groupHead={<GroupRow groups={[{ g: "iq", n: 5, label: "FinLit IQ", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" },
         ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
+        <SortTh s={s} k="overall" label="FinLit IQ" of="FinLit IQ" />
         {PILLARS.map((x) => <SortTh key={x.k} s={s} k={x.col} label={x.short} of="FinLit IQ" cls="ss-ph" title={x.say} />)}
-        <SortTh s={s} k="t" label="Technical" of="FinLit IQ" /><SortTh s={s} k="overall" label="Overall" of="FinLit IQ" />
+        <SortTh s={s} k="t" label="Technical" of="FinLit IQ" />
         {priceCols && <PriceHeads s={s} />}
       </>}
       colSpan={13 + (priceCols ? PRICE_COL_COUNT : 0)}
       cells={(r) => <>
+        <td><Score r={r} k="overall" locked={locked} /></td>
         {PILLARS.map((x) => <td key={x.k} className="ss-pc"><Score r={r} k={x.col} locked={locked} /></td>)}
-        <td><Score r={r} k="t" locked={locked} /></td><td><Score r={r} k="overall" locked={locked} /></td>
+        <td><Score r={r} k="t" locked={locked} /></td>
         {priceCols && <PriceCells r={r} />}
       </>}
       plain="A score screen narrows a long list. It describes financial health and price trend from filings and prices; it is not a recommendation. Open a company's report to see why a score looks the way it does."

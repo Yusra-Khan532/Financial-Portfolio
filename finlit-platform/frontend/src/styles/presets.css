@@ -175,3 +175,11 @@ button.psx-i:hover, button.psx-i[aria-expanded="true"] { color: var(--text); bor
 .psx-gs { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; text-align: left; }
 .psx-gs b { font: 600 13px var(--sans); } .psx-gs small { color: var(--muted); font: 500 12px var(--mono); } .psx-gs:hover { border-color: var(--gold); }
 .psx-gs.is-on { border-color: var(--gold); background: var(--gold-soft); } .psx-gs.is-blocked { opacity: .6; cursor: not-allowed; }
+/* the bands over the columns, the score pills, the actions */
+.psx-bh th { font: 700 var(--fs-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 8px 10px; border-bottom: 1px solid var(--col-line); background: var(--s2); }
+.psx-bh th + th { border-left: 1px solid var(--col-line); } .psx-bh th.psx-b-this-screen { color: var(--gold); } .psx-bh .psx-ib { text-transform: none; }
+.sc { display: inline-flex; justify-content: center; min-width: 36px; padding: 2px 8px; border-radius: 7px; font: 700 var(--fs-13) var(--mono); }
+.sc.hi { background: var(--gain-soft, rgba(79,192,140,.16)); color: var(--gain); } .sc.mid { background: var(--s3); color: var(--text); } .sc.lo { background: var(--loss-soft, rgba(242,135,143,.16)); color: var(--loss); }
+.psx-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; font-size: var(--fs-13); } .psx-sw { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.psx-chg { display: block; font: 500 var(--fs-12) var(--mono); } .psx-chg.up { color: var(--gain); } .psx-chg.dn { color: var(--loss); }
+.psx-act { white-space: nowrap; } .psx-ci { border: 1px solid var(--border-strong, var(--border)); background: transparent; color: var(--text); border-radius: 8px; width: 30px; height: 30px; margin-right: 8px; cursor: pointer; vertical-align: middle; } .psx-ci svg { width: 15px; height: 15px; }

@@ -159,7 +159,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
                     <th scope="col" className="sx-n fz2">#</th>
                     <SortTh s={s} k="name" label="Stock" cls="stick fz3 fz-last" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" /><SortTh s={s} k="sector" label="Sector" cls="ss-sec" />
                     {columnHeads}
-                    <th scope="col">Action</th></tr></thead>
+                    <th scope="col">Chart</th></tr></thead>
                   <tbody>{pg.view.map((r, i) => {
                     const on = sel.includes(r.symbol);
                     return (
