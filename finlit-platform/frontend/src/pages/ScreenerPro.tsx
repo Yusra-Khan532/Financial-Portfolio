@@ -204,7 +204,7 @@ export function ScreenerPro() {
   const groups = ordered.filter((g) => !fl || g.label.toLowerCase().includes(fl) || g.metrics.some((m) => matchesMetric(find, m)));
   const listed = fl || moreGroups ? groups : groups.slice(0, VISIBLE_GROUPS);
   const facetOpen = (id: string) => !!(open[id] || fl);
-  const facetMatch = (label: string) => !fl || label.toLowerCase().includes(fl);
+  const facetMatch = (label: string, also = "") => !fl || label.toLowerCase().includes(fl) || also.includes(fl);
   const [webgl, setWebgl] = useState(false);
   useEffect(() => { if (supports3d()) return whenIdle(() => setWebgl(true)); }, []);
   /** The first three shown columns that hold numbers become the three axes of the 3D view. */
@@ -230,8 +230,14 @@ export function ScreenerPro() {
   // Sector (the industry list, one unified Sector filter, task #74) and Index sit straight after the FinLit model group (or at the top while a search hides it)
   const grp = (id: string, title: string, active: number, meta: number, body: React.ReactNode, defaultOpen = false) => (
     <FilterGroup id={id} title={title} active={active} meta={meta} open={fl ? true : open[id] ?? (active > 0 || defaultOpen)} onOpenChange={(o) => setOpen((x) => ({ ...x, [id]: o }))}>{body}</FilterGroup>);
+  // The one Sector filter is the industry list. A sector picked from an older link (the former separate Sector list) stays part of it: it is listed first, ticked, and unticking it removes it,
+  // so the panel, the chips above the table and the count on the Sector button always agree (task #74).
+  const industryNames = useMemo(() => new Set((data?.industries || []).map((x) => x.name)), [data]);
+  const legacySectors = useMemo(() => f.sectors.filter((s) => !industryNames.has(s)), [f.sectors, industryNames]);
+  const sectorItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })), ...(data?.industries || []).map((x) => ({ key: x.name, label: x.name, n: x.n }))], [legacySectors, data]);
+  const toggleSector = (k: string) => toggle(f.sectors.includes(k) ? "sectors" : "industries", k);
   const facetBlocks = <>
-    {data && facetMatch("Sector") && grp("industry", "Sector", f.industries.length, data.industries.length, <Checks search items={data.industries.map((x) => ({ key: x.name, label: x.name, n: x.n }))} picked={f.industries} toggle={(k) => toggle("industries", k)} />)}
+    {data && facetMatch("Sector", "industry") && grp("industry", "Sector", f.industries.length + f.sectors.length, data.industries.length + legacySectors.length, <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} />)}
     {data && data.indices.length > 0 && facetMatch("Index") && grp("index", "Index", f.indices.length, data.indices.length, <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} />)}
   </>;
 
@@ -247,13 +253,13 @@ export function ScreenerPro() {
         <KpiStrip active={nActive} filtersOpen={!collapsed} onFilters={() => setCollapsed((c) => !c)} items={[
           { icon: "building", label: "Companies found", value: res.data ? nf(total, 0) : "…" },
           { icon: "layers", label: "Listed companies", value: data ? nf(data.total, 0) : "…" },
-          { icon: "map", label: "Sectors", value: data ? nf(data.sectors.length, 0) : "…" },
+          { icon: "map", label: "Sectors", value: data ? nf(data.industries.length, 0) : "…" },   // the same list the Sector filter offers
           { icon: "table", label: "Filters available", value: data ? nf(data.groups.reduce((a, g) => a + g.metrics.length, 0), 0) : "…" } as Kpi]} />
         {isAdmin && data && data.total > 0 && (      // how many companies have a report, and the sector mix: for the team (Console view), not shown to members
           <div className="fgx-two">
             <Donut part={data.withReport} total={data.total} partLabel="Report loaded" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no full report loaded yet.`}
               note="Ratios, growth and statements show a dash until a company's report is loaded." />
-            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.sectors].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))}
+            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))}
               action={<button type="button" className="fgx-link" onClick={() => showPanel("industry")}>View all sectors &rsaquo;</button>} />
           </div>)}
         <Toolbar q={q} setQ={setQ} searchLabel="Search company name, sector or keyword" buttons={[
@@ -367,7 +373,7 @@ export function ScreenerPro() {
               : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
                 <>{!!res.data.funnel?.length && <ol className="pl-funnel" aria-label="What is left after each rule">
                   <li><b>{nf(data?.total ?? 0, 0)}</b><small>listed</small></li>
-                  {res.data.funnel.map((st) => <li key={st.key}><b>{nf(st.after, 0)}</b><small>after {byKey.get(st.key)?.label ?? ({ size: "size", sector: "sector", industry: "industry", index: "index", band: "rating" } as Record<string, string>)[st.key] ?? st.key}{st.missing > 0 ? ` · ${nf(st.missing, 0)} have no figure` : ""}</small></li>)}
+                  {res.data.funnel.map((st) => <li key={st.key}><b>{nf(st.after, 0)}</b><small>after {byKey.get(st.key)?.label ?? ({ size: "size", sector: (res.data.funnel ?? []).some((x) => x.key === "industry") ? "broad sector" : "sector", industry: "sector", index: "index", band: "rating" } as Record<string, string>)[st.key] ?? st.key}{st.missing > 0 ? ` · ${nf(st.missing, 0)} have no figure` : ""}</small></li>)}
                 </ol>}
                   {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}

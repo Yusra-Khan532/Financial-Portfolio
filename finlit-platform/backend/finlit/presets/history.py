@@ -111,11 +111,55 @@ def _bench_at(bench: Dict[str, float], day: str) -> Optional[float]:
     return bench[max(ds)] if ds else None
 
 
+async def day_closes(store, symbols: Sequence[str], section: str = "price-6M") -> Dict[str, Dict[str, float]]:
+    """The real closing price of each session, per company (date -> close), from the company's stored daily prices. This is the price "since added" starts from: the close of the
+    day the company joined, not whatever the quote said when the nightly job happened to run (task 102)."""
+    out: Dict[str, Dict[str, float]] = {}
+    for sym in dict.fromkeys(symbols):
+        try:
+            hit = await store.get_section(sym, "consolidated", section)
+            s = ((json.loads(hit[0]) if hit else None) or {}).get("series") or {}
+            t, c = s.get("t") or [], s.get("c") or []
+            if t and len(t) == len(c):
+                out[sym] = {str(d)[:10]: float(v) for d, v in zip(t, c) if v is not None}
+        except Exception:
+            log.warning("daily closes not read for %s", sym, exc_info=True)
+    return out
+
+
+async def repair_closes(store) -> dict:
+    """Makes every stored 'close when it joined' (and 'close when it left') the real close of that session. Spells written before this fix took the quote of the moment, so Since added
+    was measured from the wrong price (most rows read 0.0% and a few a small wrong figure). Only what differs is rewritten."""
+    cut = date.today() - timedelta(days=KEEP_DAYS)
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT id, symbol, added_on, close_added, left_on, close_left FROM screen_spells WHERE added_on >= $1", cut)
+    if not rows:
+        return {"closesRepaired": 0}
+    closes = await day_closes(store, [r["symbol"] for r in rows])
+    fixed = 0
+    async with store.pool.acquire() as conn:
+        for r in rows:
+            byday = closes.get(r["symbol"]) or {}
+            a = byday.get(_iso(r["added_on"]) or "")
+            l = byday.get(_iso(r["left_on"]) or "") if r["left_on"] else None
+            upd_a = a is not None and (r["close_added"] is None or abs(a / float(r["close_added"]) - 1) > 1e-4)
+            upd_l = l is not None and (r["close_left"] is None or abs(l / float(r["close_left"]) - 1) > 1e-4)
+            if upd_a or upd_l:
+                await conn.execute("UPDATE screen_spells SET close_added = $1, close_left = $2 WHERE id = $3", a if upd_a else r["close_added"], l if upd_l else r["close_left"], r["id"])
+                fixed += 1
+    return {"closesRepaired": fixed}
+
+
 async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> dict:
     """Write tonight's lists and spells for every screen (`results`: preset, active chips, the engine's answer). Returns counts for the job's summary."""
     session = fr.as_of
     sessions_done = spells_opened = spells_closed = 0
     price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
+    real = await day_closes(store, [r["symbol"] for _, _, b in results for r in (b.get("exportRows") or b.get("rows") or [])])
+    for sym, byday in real.items():
+        c = byday.get(session.isoformat())
+        if c:
+            price[sym] = c            # the real close of the session, not the quote of the moment
     for preset, active, body in results:
         rows = body.get("exportRows") or body.get("rows") or []
         if not rows and preset.kind in ("blocked", "quickview"):

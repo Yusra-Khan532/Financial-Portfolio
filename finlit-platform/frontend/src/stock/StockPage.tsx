@@ -17,7 +17,8 @@ import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from ".
 import { QuarterSection, TrendsSection } from "./Sections4";
 import { ChartLab } from "./ChartLab";
 import { PlFlagsLayer } from "./PlFlagsLayer";
-import { CommunitySection } from "./CommunitySection";
+import { CommunitySection, CommunityStrip } from "./CommunitySection";
+import { useStats } from "../lib/forum";
 import { MacroOutlookSection } from "./MacroOutlook";
 import { BusinessSection, DividendsSection, MethodSection, OwnershipSection } from "./Sections2";
 import { CompanyBriefSection } from "./CompanyBrief";
@@ -72,7 +73,8 @@ export function StockPage() {
   const seg = useSection<Segments>(symbol, "segments", ready).data;
   const events = useSection<Events>(symbol, "events", ready).data;
   const lead = useLeadership(symbol, ready).data;
-  const navItems = useMemo(() => navFor(!!(lead && (lead.available || lead.display))), [lead]);   // no pill for a section that is switched off
+  const navItems = useMemo(() => navFor(!!(lead && (lead.available || lead.display))), [lead]);
+  const talk = useStats(symbol).data;      // how many discussions members have started about this company, on the viewer's own board (task #101)   // no pill for a section that is switched off
   const pReality = useProfitReality(symbol, !!s?.dataQuality.isBank);
   const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank, checkItems(earningsIntel(pReality, s.profile.sector, s.profile.industry))) : null), [s, fin, pReality]);   // the red / orange dots on the tabs
   const dotOf = (id: string): "f" | "w" | null => { if (!found) return null; const only = (x: { to: string }[]) => x.filter((i) => i.to === id).length; if (id === "notes") return found.flags.length ? "f" : found.watch.length ? "w" : null; return only(found.flags) ? "f" : only(found.watch) ? "w" : null; };
@@ -141,6 +143,7 @@ export function StockPage() {
     <OpenAccess.Provider value={showcase.includes(symbol)}>
     <>
       <Hero s={s} ratios={ratios} fin={fin} jump={jump} />
+      <CommunityStrip symbol={symbol} name={s.profile.name} jump={jump} />
       <div className={"secnav" + (stuck ? " stuck" : "")} id="secnav">
         <MiniBar s={s} on={stuck} />
         <div className="wrap">
@@ -148,7 +151,7 @@ export function StockPage() {
           <SectionsMenu items={navItems} active={active} onPick={jump} />
           <div className={"snav" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "")}>
           {edge.l && <button type="button" className="snav-arrow" aria-label="Earlier sections" onClick={() => slide(-1)}>‹</button>}
-          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{label}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
+          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{label}{id === "community" && !!talk?.threads && <b className="snav-n" aria-label={`${talk.threads} discussions`}>{talk.threads}</b>}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
           {edge.r && <button type="button" className="snav-arrow" aria-label="More sections" onClick={() => slide(1)}>›</button>}
           </div>
         </div>
