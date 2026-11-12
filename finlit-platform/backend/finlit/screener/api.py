@@ -14,11 +14,15 @@ from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
 from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, HIDDEN, INDEX_LISTS, VARIANTS, allowed
 from .data import get_table
+from .ready import MODEL as MODEL_SCREENS, READY, public as ready_public
 
 router = APIRouter(prefix="/api/screener")
 BASIC_ROWS = 25
 # The table opens with company, market cap and price only; the website adds a column for each filter the visitor adds (and takes it away with the filter).
 DEFAULT_COLUMNS = ["market_cap", "price"]
+# The Stock screener's nine standard columns (task #64, file 04): LTP (with the day's change under it), market cap, P/E, ROE, ROCE, sales growth 3Y, debt to equity,
+# 1-year return and FinLit IQ. A visitor is sent only the ones their plan shows (FinLit IQ is Gold).
+STANDARD_COLUMNS = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_to_equity", "ret_1y", "overall"]
 
 
 class Rng(BaseModel):
@@ -58,6 +62,14 @@ class Query_(BaseModel):
     offset: int = Field(default=0, ge=0, le=10000)
     limit: int = Field(default=50, ge=1, le=100)
     funnel: bool = False
+    model_screen: Optional[str] = Field(default=None, max_length=40)   # a ready-made screen on the FinLit model, applied here by id: its cut-offs never travel
+
+    @field_validator("model_screen")
+    @classmethod
+    def known_model(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in MODEL_SCREENS:
+            raise ValueError("unknown model screen")
+        return v
 
     @field_validator("filters")
     @classmethod
@@ -101,15 +113,46 @@ async def catalog(request: Request):
     body = {
         "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)),
         "groups": groups,
-        "sectors": [{"name": n, "n": c} for n, c in t.sectors],
+        # NSE sectors only: the ones an NSE industry sits under (task #64, file 04, data fix 2); a stray label held by one or two companies is not a sector to filter by
+        "sectors": [{"name": n, "n": c} for n, c in t.sectors if n in {s for _, s, _ in t.industries if s}],
         "industries": [{"name": n, "sector": s, "n": c} for n, s, c in t.industries],
         "indices": [{"code": c, "label": INDEX_LISTS[c][0], "n": len(t.members.get(c, ()))} for c in INDEX_LISTS if t.members.get(c)],
         "caps": [{"name": c, "n": sum(1 for x in t.cap if x == c)} for c in CAPS],
         "bands": [{"key": b, "label": b.title(), "locked": not allowed(plan, "gold")} for b in ("strong", "healthy", "mixed", "watch")],
         "limits": {"rows": BASIC_ROWS if plan == "basic" else None, "export": allowed(plan, "silver")},
         "defaultColumns": DEFAULT_COLUMNS,
+        "standardColumns": [k for k in STANDARD_COLUMNS if allowed(plan, BY_KEY[k].tier)],
     }
     return Response(content=__import__("json").dumps(body, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
+
+
+def _model_rules(mid: Optional[str]) -> Dict[str, Dict[str, Optional[float]]]:
+    """The cut-offs of a model screen, for this server's own use only: they are applied, never sent."""
+    return {k: dict(v) for k, v in MODEL_SCREENS[mid].rules.items()} if mid else {}
+
+
+_ready_counts: Dict[str, object] = {"loaded": None, "counts": {}}
+
+
+def ready_counts(t) -> Dict[str, int]:
+    """How many companies each ready-made screen holds today, worked out once per loaded table."""
+    if _ready_counts["loaded"] != t.loaded:
+        counts = {}
+        for r in READY:
+            cats = {"sector": [], "industry": [], "index": [], "cap": list(r.caps), "band": list(r.bands)}
+            counts[r.id] = len(t.match({k: dict(v) for k, v in r.rules.items()}, cats))
+        _ready_counts.update(loaded=t.loaded, counts=counts)
+    return _ready_counts["counts"]  # type: ignore[return-value]
+
+
+@router.get("/ready")
+async def ready(request: Request):
+    """The ready-made screens of the Stock screener with today's count: a metric screen's rules come along (they load into Your rules);
+    a screen on the FinLit model is words only."""
+    t = await _table(request)
+    counts = ready_counts(t)
+    body = {"asOf": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "total": t.n, "screens": [ready_public(r, counts.get(r.id)) for r in READY]}
+    return Response(content=__import__("json").dumps(body, separators=(",", ":"), ensure_ascii=False), media_type="application/json", headers=NO_STORE)
 
 
 def _run(t, body: Query_, plan: str):
@@ -123,10 +166,11 @@ def _run(t, body: Query_, plan: str):
             raise fail(400, "bad_request", "A ratio needs two numeric figures.")
     need = list(filters) + [c for c in cols] + ([body.sort.key] if body.sort.key in BY_KEY else []) + [k for rt in body.ratios for k in (rt.num, rt.den)]
     locked = _locked(plan, need)
-    if body.cats.band and not allowed(plan, "gold"):
+    if (body.cats.band or body.model_screen) and not allowed(plan, "gold"):
         locked["overall"] = "gold"
     if locked:
         raise _refuse(locked, "Filtering or showing")
+    filters = {**_model_rules(body.model_screen), **filters}
     ids = {rt.id for rt in body.ratios}
     if body.sort.key not in BY_KEY and body.sort.key not in ("name", "symbol") and body.sort.key not in ids:
         raise fail(400, "bad_request", "Unknown sort.")
@@ -168,7 +212,8 @@ async def query(request: Request, body: Query_):
     out = {"total": total, "offset": off, "limit": lim, "capped": capped, "columns": cols, "rows": rows,
            "took": round((time.perf_counter() - started) * 1000, 1)}
     if body.funnel:        # what is left after each rule in turn, and how many companies a rule left out for having no figure (the Stock screener's funnel)
-        out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, body.cats.model_dump())
+        out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, body.cats.model_dump(),
+                                 model=_model_rules(body.model_screen))
     return Response(content=__import__("json").dumps(out, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
