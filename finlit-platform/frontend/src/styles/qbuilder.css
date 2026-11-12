@@ -79,6 +79,8 @@
 
 /* examples */
 .qb-examples .label { margin-bottom: 8px; }
+.qb > .qr-box { margin-bottom: 0; }   /* the page's own gap (18px) is the one space between Rules, Start from an example and Your query */
+
 .qb-ex { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; flex: 1 1 210px; max-width: 100%; position: relative; font: inherit; }
 .qb-ex:hover { border-color: var(--gold); background: var(--gold-soft); } .qb-ex b { font: 600 14px var(--sans); } .qb-ex small { color: var(--muted); font-size: var(--fs-13); line-height: 1.45; } .qb-ex .qb-lk { position: absolute; right: 10px; top: 10px; }
 
@@ -161,3 +163,7 @@
 .qr-title { flex: 1; min-width: 0; font: 400 20px/1.25 var(--serif); overflow-wrap: anywhere; }
 .qr-chev { flex: none; transition: transform .2s; transform: rotate(180deg); } .is-open > .qrl-bar .qr-chev { transform: none; }
 @media (prefers-reduced-motion: reduce) { .qr-chev { transition: none; } }
+@media (max-width: 700px) {   /* a phone: the example cards are one swipeable row, so Your query is not pushed a screen and a half down */
+  .qb-chips { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; margin-inline: -2px; padding-inline: 2px; }
+  .qb-ex { flex: 0 0 78%; scroll-snap-align: start; }
+}
