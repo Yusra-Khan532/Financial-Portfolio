@@ -28,7 +28,7 @@ def test_every_shown_key_has_a_complete_entry():
 
 
 def test_terms_complete_and_unique():
-    assert len(TERMS) == 443          # 439 + the four Sector Rotation terms (glossary version 3)
+    assert len(TERMS) == 450          # 443 + the seven new terms of the 9 Nov 2026 pages update
     for t in TERMS.values():
         assert t["meaning"] and t["why"] and t["how"] and t["topic"], t["term"]
 
@@ -47,3 +47,19 @@ def test_website_copy_in_sync():
 
 def test_describe_unknown_key():
     assert describe("zzz") == {"key": "zzz", "label": "zzz"}
+
+
+def test_the_glossary_does_not_spell_out_how_scores_are_made():
+    """9 Nov 2026 pages update: the model stays on the server. No score weights, label cut-offs, point values or look-back lengths in the public text."""
+    import re
+    bad = re.compile(r"0\.40 / 0\.30|capped at \+|top 30%|bottom 30%|\b(score|pillar|prism|coverage) weights?\b|look-back of|study (shows|found)", re.I)
+    for t in TERMS.values():
+        for f in ("meaning", "why", "how", "formula", "finlit"):
+            assert not bad.search(t.get(f, "")), (t["term"], f)
+
+
+def test_the_renamed_terms_keep_their_old_names_as_search_words():
+    old = {"Company size (Large, Mid, Small)": "Company size bands (mega cap to nano cap)", "Standout (strong and early)": "Leader flag"}
+    for new, was in old.items():
+        t = TERMS[new] if new in TERMS else next(x for x in TERMS.values() if x["term"] == new)
+        assert was in t["aliases"], (new, was)
