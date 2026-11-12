@@ -21,11 +21,15 @@ const BASE = "/research/stress-lab";
 const GATE = ["How a shock to crude, the rupee, inflation, rates or demand moves a company's earnings, with every assumption shown", "Today's conditions and the past shocks of 2022 and 2020", "Gold adds the other scenarios, your own shocks, your own company settings and Compare two"];
 const page = (sym: string) => apiGet<any>(`/api/stress/${encodeURIComponent(sym)}/page`);
 
+const PREPARE_CHECKS = 15;   // about five minutes of checking while a page is being prepared
+
 export function StressLabIndexPage() {
   useDocTitle("Stress Lab", "See how a shock to crude, the rupee, inflation, interest rates or demand would move a company's earnings over the next 12 months.");
   const { has } = useUI();
   // The quick picks are the six largest covered companies that have a stored page, so every one opens (never a bank, never a company outside the launch list).
-  const pq = useQuery<{ picks: { symbol: string; name: string }[] }, ApiError>({ queryKey: ["stress", "quick-picks"], queryFn: () => apiGet("/api/stress/quick-picks"), enabled: has("silver"), retry: false, staleTime: 300_000 });
+  // while fewer than six companies are ready the server is getting the largest ones ready: look again every 30 seconds for a few minutes so they appear here by themselves
+  const pq = useQuery<{ picks: { symbol: string; name: string }[] }, ApiError>({ queryKey: ["stress", "quick-picks"], queryFn: () => apiGet("/api/stress/quick-picks"), enabled: has("silver"), retry: false, staleTime: 300_000,
+    refetchInterval: (query) => ((query.state.data?.picks.length ?? 6) < 6 && query.state.dataUpdateCount < PREPARE_CHECKS ? 30_000 : false) });
   const picks = !has("silver") ? [] : pq.isPending ? null : pq.isError ? [] : pq.data.picks.map((p) => ({ symbol: p.symbol, name: p.name.replace(/\s+(Ltd|Limited)\.?$/i, "") }));
   return (
     <>
@@ -45,7 +49,9 @@ export function StressLabPage() {
   const [sp] = useSearchParams();
   const withSym = (sp.get("with") || "").toUpperCase().replace(/[^A-Z0-9&._-]/g, "").slice(0, 24) || null;   // "Stress test" in Peer Compare opens with the two companies picked there
   const silver = has("silver"), gold = has("gold");
-  const q = useQuery<any, ApiError>({ queryKey: ["stress", sym], queryFn: () => page(sym), enabled: silver && !!sym, retry: false, staleTime: 300_000 });
+  // "Being prepared" (503) means the server is building this company's page right now: check again by itself every 20 seconds for about five minutes, so it appears without a reload
+  const q = useQuery<any, ApiError>({ queryKey: ["stress", sym], queryFn: () => page(sym), enabled: silver && !!sym, retry: false, staleTime: 300_000,
+    refetchInterval: (query) => (query.state.error?.status === 503 && query.state.errorUpdateCount < PREPARE_CHECKS ? 20_000 : false) });
   const [wantPeer, setWantPeer] = useState(() => !!withSym || (typeof location !== "undefined" && location.hash.startsWith("#compare")));
   const [picked, setPicked] = useState<string | null>(withSym);
   const def = useQuery<any, ApiError>({ queryKey: ["stress-peer", sym], queryFn: () => apiGet(`/api/stress/${encodeURIComponent(sym)}/peer`), enabled: gold && wantPeer && !picked && !!q.data, retry: false, staleTime: 300_000 });
@@ -96,6 +102,7 @@ export function StressLabPage() {
             : err || drawFailed ? <section className="card sl-err" role="alert">
               <h2>{err?.status === 404 ? "Stress Lab does not cover this company yet" : "Stress Lab for this company is being prepared"}</h2>
               <p className="muted">{err?.status === 404 ? why : "Please check back later."}</p>
+              {err?.status === 503 && q.errorUpdateCount < PREPARE_CHECKS && <p className="muted sl-recheck" aria-live="polite">This page checks again by itself every 20 seconds, so you can wait here.</p>}
               {err?.status === 404 && <p className="muted">{/financial/i.test(why) ? "Banks and lenders earn from interest, not from selling goods, so a fuel, currency or raw-material shock does not describe them. Stress Lab for banks is being built. Until then these pages describe this company:" : "These pages describe this company in the meantime:"}</p>}
               <p className="sl-nc"><Link className="btn primary" to={`/stocks/${encodeURIComponent(sym)}`}>Company report</Link>{" "}<Link className="btn" to={`/outlook/${encodeURIComponent(sym)}`}>Outlook</Link>{" "}<Link className="btn" to={BASE}>Pick another company</Link></p></section>
             : <div ref={host} className="sl-host" />}
