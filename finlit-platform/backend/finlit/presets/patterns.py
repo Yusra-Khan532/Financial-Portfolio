@@ -10,6 +10,8 @@ import logging
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
+from . import candles as candles_mod
+
 log = logging.getLogger("finlit.patterns")
 LIQUID_FLOOR_CR = 1000.0         # market value: below this the scans are not run at all (thinly traded)
 META_KEY = "patterns"
@@ -110,8 +112,7 @@ async def candle_coverage(store, table, expected_day: date) -> Dict[str, Any]:
         if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
             continue
         try:
-            hit = await store.get_section(sym, "consolidated", "price-1Y")
-            t = (((json.loads(hit[0]) if hit else None) or {}).get("series") or {}).get("t") or []
+            t = (await candles_mod.series(store, sym)).get("t") or []      # the stored one-year prices, or the fresher Dhan candles the technicals job keeps
             if len(t) < 25:
                 continue
             last = date.fromisoformat(str(t[-1])[:10])
@@ -158,9 +159,7 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
         if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
             continue
         try:
-            hit = await store.get_section(sym, "consolidated", "price-1Y")
-            body = json.loads(hit[0]) if hit else None
-            s = (body or {}).get("series") or {}
+            s = await candles_mod.series(store, sym)                         # the same series the coverage gate counted
             t, c = s.get("t") or [], s.get("c") or []
             if len(t) < 25 or len(c) != len(t):
                 continue

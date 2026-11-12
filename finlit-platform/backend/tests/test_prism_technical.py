@@ -406,3 +406,21 @@ def test_the_refresh_waits_for_the_candles_to_be_final():
     assert expected_session(datetime(2026, 10, 23, 18, 30, tzinfo=IST)) == date(2026, 10, 23)
     assert expected_session(datetime(2026, 10, 26, 6, 50, tzinfo=IST)) == date(2026, 10, 23)        # Monday morning: Friday's
     assert expected_session(datetime(2026, 10, 25, 12, 0, tzinfo=IST)) == date(2026, 10, 23)        # Sunday
+
+
+async def test_the_fresh_candles_are_kept_for_the_chart_pattern_scans(world, monkeypatch):
+    """Task #64, C6: the candles fetched for the technical view also feed the pattern scans, so a company is not left out while its full report waits for a rebuild."""
+    from finlit.presets import candles as pc
+    store, settings, site, http, seen = world
+    await store.redis.delete(pc.PREFIX + "TQK")
+    days = [(date(2026, 10, 23) - timedelta(days=i)).isoformat() for i in range(40)][::-1]
+
+    async def long_candles(state, symbol, now=None, quote_price=None):
+        return {"stock": {"provider": "Dhan", "candles": [[d, 1, 2, 1, 1.5, 9] for d in days]}, "indices": {}}
+
+    monkeypatch.setattr(pt, "supplied_candles", long_candles)
+    await seed(store, "TQK", bar="2026-10-16")
+    await pt.refresh(store, settings, client=http, now=NOW, symbols=["TQK"])
+    kept = await pc.load(store.redis, "TQK")
+    assert kept and kept["t"][-1] == "2026-10-23" and len(kept["t"]) == 40 and kept["c"][-1] == 1.5
+    await store.redis.delete(pc.PREFIX + "TQK")

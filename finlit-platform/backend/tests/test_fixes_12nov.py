@@ -76,3 +76,54 @@ def test_the_pattern_job_waits_for_candles_then_gives_up_with_the_last_coverage(
     ends = {f"S{i}": "2026-11-11" for i in range(50)}
     ok = asyncio.run(patterns.wait_for_candles(_Store(ends), _Table(list(ends)), day, sleep=nap))
     assert ok["ratio"] == 1.0 and ok["waited"] == 0
+
+
+class _Redis:
+    def __init__(self):
+        self.kv = {}
+
+    async def set(self, k, v, ex=None):
+        self.kv[k] = v
+
+    async def get(self, k):
+        return self.kv.get(k)
+
+
+class _StoreDhan(_Store):
+    def __init__(self, ends):
+        super().__init__(ends)
+        self.redis = _Redis()
+
+
+def _rows(last_day: str, n: int = 40):
+    from datetime import timedelta
+    end = date.fromisoformat(last_day)
+    days = sorted((end - timedelta(days=i)).isoformat() for i in range(n))
+    return [[d, 100.0 + i, 101.0 + i, 99.0 + i, 100.5 + i, 1000 + i] for i, d in enumerate(days)]
+
+
+def test_the_technicals_candles_are_kept_whole_and_only_when_usable():
+    from finlit.presets import candles
+    raw = candles.pack(_rows("2026-11-11", 400))
+    back = candles.unpack(raw)
+    assert len(back["t"]) == candles.KEEP_SESSIONS and back["t"][-1] == "2026-11-11" and set(back) == {"t", "o", "h", "l", "c", "v"}
+    assert candles.pack(_rows("2026-11-11", 10)) is None                                        # too short to scan
+    assert candles.pack(list(reversed(_rows("2026-11-11", 40)))) is None                       # out of order: never stored
+    st = _StoreDhan({"AAA": "2026-11-09"})
+    assert asyncio.run(candles.save(st.redis, "AAA", _rows("2026-11-11"))) is True
+
+
+def test_the_scans_use_the_fresher_dhan_candles_so_a_lagging_report_is_not_left_out():
+    """Task #64, C6: on the live site three in four scanned companies had stored prices two sessions behind, the 98% gate held every night and the screens kept an
+    old run with 976 companies left out. The technicals job's fresh candles now count."""
+    from finlit.presets import candles
+    day = date(2026, 11, 11)
+    ends = {f"S{i}": "2026-11-09" for i in range(10)}
+    st = _StoreDhan(ends)
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 0.0      # the stored prices alone: all behind
+    for s in ends:
+        asyncio.run(candles.save(st.redis, s, _rows("2026-11-11")))
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 1.0      # the Dhan candles reach the close
+    asyncio.run(candles.save(st.redis, "S0", _rows("2026-11-05")))                              # an older Dhan copy never replaces a newer stored series
+    assert asyncio.run(candles.series(st, "S0"))["t"][-1] == "2026-11-09"
+    assert asyncio.run(candles.series(_Store({"X": "2026-11-11"}), "X"))["t"][-1] == "2026-11-11"   # no Redis at all: the stored prices
