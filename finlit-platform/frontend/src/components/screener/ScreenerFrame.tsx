@@ -31,8 +31,8 @@ export type Tile = [label: string, value: string, why?: string];
 export function GroupRow({ groups }: { groups: { g: string; n: number; label: string; sub?: string }[] }) {
   return (
     <tr className="gh tg-row">
-      <th colSpan={2} aria-hidden="true" className="tg-none" />
-      <th scope="colgroup" data-g="company" className="stick">Company</th>
+      <th colSpan={2} aria-hidden="true" className="tg-none fz1" />
+      <th scope="colgroup" data-g="company" className="stick fz3 fz-last">Company</th>
       <th scope="colgroup" colSpan={3} data-g="price">Price &amp; size</th>
       {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}>{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</th>)}
       <th aria-hidden="true" className="tg-none" />
@@ -50,7 +50,8 @@ export function SortTh({ s, k, label, cls = "", help, title, of }: { s: Screener
 
 type Props = {
   s: Screener; splitKey: string; eyebrow: string; title: string; intro: ReactNode; sideLabel: string;
-  /** Quick views at the top of the sidebar. */ presets: ReactNode;
+  /** The Prism quick views at the top of the sidebar (Advanced page); null when the page has none. */ presets: ReactNode;
+  /** The screens, above the table. */ screens?: ReactNode;
   /** The page's own filters, after Market cap and Sector. */ filters: ReactNode;
   tiles: Tile[]; lead?: ReactNode; beforeTable?: ReactNode; errorTitle: string;
   groupHead: ReactNode; columnHeads: ReactNode; cells: (r: Screener["pg"]["view"][number]) => ReactNode; colSpan: number;
@@ -62,7 +63,7 @@ type Props = {
 };
 const KPI_ICONS: Kpi["icon"][] = ["building", "layers", "gauge", "tech"];
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, filters, tiles, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, head }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, tiles, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, head }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
   const { isAdmin } = useAuth();
   const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
@@ -87,7 +88,8 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
       <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
         <FindStocksTabs />
         <TitleCard tier={tier} title={title} sub={intro} onLearn={() => s.setHow(true)} {...head} />
-        <KpiStrip items={kpis} active={filterCount} filtersOpen={drawer || !collapsed} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />
+        {kpis.length > 0 && <KpiStrip items={kpis} active={filterCount} filtersOpen={drawer || !collapsed} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />}
+        {screens}
         {beforeTable}
         {isAdmin && (      // the "not rated yet" share and the sector mix of the result: for the team, not shown to members
           <div className="fgx-two" style={donut ? undefined : { gridTemplateColumns: "minmax(0, 1fr)" }}>
@@ -108,7 +110,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
             <form onSubmit={(e) => { e.preventDefault(); s.apply(s.draft, true); }} onBlurCapture={(e) => { if ((e.target as HTMLElement).matches?.('input[type="number"]') && dirty && !bad) s.apply(); }} noValidate>
               <FgxFocus.Provider value={want}>
               <div className="fgx-top"><span>Filters{filterCount > 0 ? ` · ${filterCount} active` : ""}</span><span className="fgx-tl"><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> How scores work</button></span></div>
-              <FilterGroup id="quick" title="Quick views" defaultOpen hint={<>Ready-made score combinations. <ChartHelp id="score-filter" /></>}>{presets}</FilterGroup>
+              {presets && <FilterGroup id="quick" title="Quick views" defaultOpen hint={<>Ready-made score combinations. <ChartHelp id="score-filter" /></>}>{presets}</FilterGroup>}
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
               </FilterGroup>
@@ -149,22 +151,22 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
                   {sel.length < 2 && <small className="muted sx-bulkhint">Tick the box on 2 to {maxCompare} rows to compare them. Tick any rows to add them to your watchlist.</small>}
                   {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
                 </div>
-                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" pinHead><table className="scr-t ss-t sx-t">
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" tall><table className="scr-t ss-t sx-t">
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
-                    <th scope="col"><input ref={s.headBox} type="checkbox" checked={s.allOnPage} onChange={s.toggleAll} aria-label="Select all companies on this page" disabled={!pg.view.length} /></th>
-                    <th scope="col" className="sx-n">#</th>
-                    <SortTh s={s} k="name" label="Stock" cls="stick" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" /><SortTh s={s} k="sector" label="Sector" cls="ss-sec" />
+                    <th scope="col" className="fz1"><input ref={s.headBox} type="checkbox" checked={s.allOnPage} onChange={s.toggleAll} aria-label="Select all companies on this page" disabled={!pg.view.length} /></th>
+                    <th scope="col" className="sx-n fz2">#</th>
+                    <SortTh s={s} k="name" label="Stock" cls="stick fz3 fz-last" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" /><SortTh s={s} k="sector" label="Sector" cls="ss-sec" />
                     {columnHeads}
                     <th scope="col">Action</th></tr></thead>
                   <tbody>{pg.view.map((r, i) => {
                     const on = sel.includes(r.symbol);
                     return (
                     <tr key={r.symbol} className={(on ? "sx-sel " : "") + (chart?.symbol === r.symbol ? "cp-row" : "")} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,a,button,select")) setChart(r); }}>
-                      <td><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
-                      <td className="sx-n">{pg.page * size + i + 1}</td>
-                      <td className="stick"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
+                      <td className="fz1"><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
+                      <td className="sx-n fz2">{pg.page * size + i + 1}</td>
+                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
                       <td className="ss-px">{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
                       <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
                       <td className="ss-sec">{r.sector || <Dash why="sector not listed" />}</td>

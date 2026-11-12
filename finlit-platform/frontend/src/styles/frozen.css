@@ -1,0 +1,20 @@
+/* Result tables (task #64, SC-2 and SC-3): the header stays pinned under the site bar and the first columns stay in place while the table scrolls sideways.
+   The sideways-scrolling box is also the box that scrolls down (a header can only stick inside the box that scrolls), so it is as tall as the window. */
+.tw.tw-tall { max-height: calc(100vh - var(--bar-h, 64px) - 24px); overflow: auto; }
+.tw-tall table { border-collapse: separate; border-spacing: 0; }
+.tw-tall thead th { position: sticky; top: 0; z-index: 3; background: var(--s1); }
+.tw-tall thead tr:nth-child(2) th { top: var(--hr1, 0px); }
+.tw-tall thead .gh.tg-row th { background: var(--s1); }
+.tw-tall thead tr:last-child th { box-shadow: 0 1px 0 var(--col-line, var(--border)); }
+/* the frozen columns: select box, then #, then Company, each at the width of the one before; headers above bodies, all opaque */
+.tw-tall table .fz1, .tw-tall table .fz2, .tw-tall table .fz3 { position: sticky; z-index: 2; background: var(--s1); }
+.tw-tall table thead .fz1, .tw-tall table thead .fz2, .tw-tall table thead .fz3 { z-index: 5; }
+.tw-tall table .fz1 { left: 0; } .tw-tall table .fz2 { left: var(--fz-a, 0px); } .tw-tall table .fz3 { left: var(--fz-b, 0px); }
+.tw-tall tbody tr:nth-child(even) td.fz1, .tw-tall tbody tr:nth-child(even) td.fz2, .tw-tall tbody tr:nth-child(even) td.fz3 { background-color: color-mix(in srgb, var(--s2) 45%, var(--s1)); }
+.tw-tall tbody tr:hover td.fz1, .tw-tall tbody tr:hover td.fz2, .tw-tall tbody tr:hover td.fz3 { background-color: var(--s2); }
+.tw-tall tbody tr.sx-sel td.fz1, .tw-tall tbody tr.sx-sel td.fz2, .tw-tall tbody tr.sx-sel td.fz3, .tw-tall tbody tr.cp-row td.fz1, .tw-tall tbody tr.cp-row td.fz2, .tw-tall tbody tr.cp-row td.fz3 { background-color: color-mix(in srgb, var(--gold) 14%, var(--s1)); }
+.tw.is-scrolled .fz-last { box-shadow: 6px 0 8px -4px rgba(0,0,0,.28); }
+/* Basic and Advanced screens: # then Company */
+.psx-t { --fz-a: 48px; } .psx-t th.psx-n, .psx-t td.psx-n { display: table-cell; gap: 0; width: 48px; min-width: 48px; max-width: 48px; }
+/* the score screener: select box (48), # (56), Company */
+.ss-t { --fz-a: 48px; --fz-b: 104px; }

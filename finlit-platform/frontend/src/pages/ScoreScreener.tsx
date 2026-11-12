@@ -2,19 +2,19 @@ import { Link, Navigate, useSearchParams } from "react-router";
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
-import { HighBar } from "../components/screener/HighFilter";
+import { HighFilter, highActive } from "../components/screener/HighFilter";
 import { IQ_SUB, IQ_TITLE, IqScoreRows, iqActive } from "../components/screener/IqScoreFilter";
 import { Donut } from "../components/screener/PageParts";
-import { Score, med } from "../components/screener/cells";
+import { Score } from "../components/screener/cells";
 import { useScreener } from "../components/screener/useScreener";
 import { PRICE_COL_COUNT, PriceCells, PriceColumnsToggle, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
-import { PresetPanel } from "../components/screener/presets/PresetPanel";
+import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
 import { TierChip } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { nf, dateIN, MINUS } from "../lib/format";
+import { nf, dateIN } from "../lib/format";
 import { PILLARS, hasPrismParams } from "../lib/scoreScreen";
 import { EXPLAIN } from "../lib/scorePrism";
 import "../styles/scorescreen.css";
@@ -31,7 +31,7 @@ function Basic() {
   useDocTitle("Basic stock screener", "Every listed company with its FinLit IQ, the basic model: filter, sort and compare by size, sector and score.");
   const s = useScreener("basic");
   const [priceCols, setPriceCols] = usePriceColumns();
-  const { draft, setDraft, locked, upgrade, isLoading, sum, asOf } = s;
+  const { draft, setDraft, locked, upgrade, isLoading, asOf } = s;
   const route = usePresetRoute("basic");   // the prebuilt screen in the address (?preset=...)
   const notScored = s.rows.filter((r) => r.scored === false).length;
   const allStrong = PILLARS.every((x) => draft.bands[x.k].length === 1 && draft.bands[x.k][0] === "high");
@@ -39,37 +39,32 @@ function Basic() {
 
   if (route.id) return <PresetPage route={route} />;
 
-  const tiles: [string, string, string?][] = [
-    ["Companies found", isLoading ? "…" : nf(sum.found, 0)],
-    ["Sectors", isLoading ? "…" : nf(sum.sectors, 0)],
-    ["Median Technical", med(sum.medT) ?? MINUS, sum.medT == null ? (locked ? "Scores are part of the Silver plan" : "No company in this result has a Technical score") : `Middle value of ${nf(sum.nT, 0)} companies with a Technical score`],
-    ["Active filters", nf(s.filterCount, 0)],
-  ];
 
   return (
     <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic stock screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
-      intro={<>Every listed company with its <b>FinLit IQ</b>, the basic model: its four business scores, Technical and Overall. Filter, sort and compare by size, sector and score.</>}
-      head={{ art: "rating", links: ["/screener", { to: "/advanced-score-screener", primary: true }, "/query-builder"], stats: [{ icon: "building", value: !isLoading && s.items.length > 0 ? nf(s.items.length, 0) : null, label: "Companies" }, { icon: "quality", value: !isLoading && s.items.length > 0 ? nf(s.items.length - s.unscored, 0) : null, label: "Scored" }] }}
+      intro={<>Every listed company with its <b>FinLit IQ</b> and the five scores it is made of. Filter, sort and compare by size, sector and score.</>}
+      head={{ art: "rating", links: [], stats: [{ icon: "building", value: !isLoading && s.items.length > 0 ? nf(s.items.length, 0) : null, label: "Companies" }, { icon: "quality", value: !isLoading && s.items.length > 0 ? nf(s.items.length - s.unscored, 0) : null, label: "Scored" }] }}
       tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
       donut={!isLoading && s.rows.length > 0 ? <Donut part={s.rows.length - notScored} total={s.rows.length} partLabel="Scored" restLabel="Not scored" title={notScored > 0 ? `${nf(notScored, 0)} of ${nf(s.rows.length, 0)} companies in this result are not scored yet.` : `All ${nf(s.rows.length, 0)} companies in this result are scored.`} note="Scoring fills in every night, or open a company's report to score it now." /> : undefined}
-      presets={<PresetPanel route={route} />}
-      filters={locked ? (
+      presets={null} screens={<ScreensStrip route={route} />}
+      filters={locked ? (<>
         <FilterGroup id="score" icon="bars" title={IQ_TITLE} defaultOpen hint={IQ_SUB}>
           <div className="scr-lock"><b><Icon name="lock" /> Score filters are part of Silver</b><span>See and filter by the Quality, Growth, Profitability and Balance sheet scores.</span>
             <button type="button" className="btn primary" onClick={() => upgrade("silver", "Score filters come with the Silver plan.")}>Unlock with Silver</button></div>
         </FilterGroup>
-      ) : (<>
+        <FilterGroup id="high" icon="line" title="Down from 52-week high" active={highActive(s)}><HighFilter s={s} /></FilterGroup>
+      </>) : (<>
         <FilterGroup id="score" icon="bars" title={IQ_TITLE} defaultOpen active={iqActive(s)} hint={IQ_SUB}>
           <IqScoreRows s={s} allStrong={allStrong} setAllStrong={setAllStrong} />
         </FilterGroup>
+        <FilterGroup id="high" icon="line" title="Down from 52-week high" active={highActive(s)}><HighFilter s={s} /></FilterGroup>
       </>)}
-      tiles={tiles}
+      tiles={[]}
       lead={<div className="sx-adv sx-here">
         <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic stock screener</b></span>
-        <span className="sx-adv-s">The FinLit IQ: its four business scores, Technical and Overall</span>
+        <span className="sx-adv-s">The FinLit IQ and the five scores it is made of</span>
         <Link to="/advanced-score-screener" className="sx-adv-go">Advanced stock screener (Gold) <Icon name="arrow" /></Link></div>}
       beforeTable={<>
-        <HighBar s={s} />
         <PriceColumnsToggle on={priceCols} set={setPriceCols} />
         <details className="pzs-explain">
           <summary>What the FinLit IQ means</summary>

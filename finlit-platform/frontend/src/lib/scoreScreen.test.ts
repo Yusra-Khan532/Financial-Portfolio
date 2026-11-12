@@ -40,15 +40,15 @@ describe("scores per company", () => {
 });
 
 describe("bands and ranges", () => {
-  it("band edges: 44 is Under 45, 45 is Mixed/Healthy, 77 is 45 to 77, 78 is Strong", () => {
+  it("band edges: 44 is Watch, 45 is Mixed, 61 is Mixed and 62 is Healthy, 77 is Healthy, 78 is Strong", () => {
     expect([44, 45].map((v) => inBands(v, ["low"]))).toEqual([true, false]);
-    expect([44, 45].map((v) => inBands(v, ["mid"]))).toEqual([false, true]);
-    expect([77, 78].map((v) => inBands(v, ["mid"]))).toEqual([true, false]);
+    expect([44, 45, 61.9, 62].map((v) => inBands(v, ["mixed"]))).toEqual([false, true, true, false]);
+    expect([61.9, 62, 77.9, 78].map((v) => inBands(v, ["healthy"]))).toEqual([false, true, true, false]);
     expect([77, 78].map((v) => inBands(v, ["high"]))).toEqual([false, true]);
     expect([0, 100].map((v) => inBands(v, ["low", "high"]))).toEqual([true, true]);
   });
   it("a missing score never passes a band or a range, and no filter keeps everything", () => {
-    expect(inBands(null, ["low", "mid", "high"])).toBe(false);
+    expect(inBands(null, ["low", "mixed", "healthy", "high"])).toBe(false);
     expect(inRange(null, { min: 0, max: 100 })).toBe(false);
     expect(inRange(null, { min: null, max: 40 })).toBe(false);
     expect(inBands(null, [])).toBe(true);
@@ -124,9 +124,9 @@ describe("validation", () => {
 
 describe("chips", () => {
   it("one chip per active filter, each removable", () => {
-    const f = emptyFilters(); f.caps = ["Mid", "Large"]; f.sectors = ["IT", "Auto"]; f.bands.f = ["high", "mid"]; f.ranges.o = { min: 50, max: null };
+    const f = emptyFilters(); f.caps = ["Mid", "Large"]; f.sectors = ["IT", "Auto"]; f.bands.f = ["high", "mixed", "healthy"]; f.ranges.o = { min: 50, max: null };
     const ch = chipsFor(f);
-    expect(ch.map((c) => c.label)).toEqual(["Market cap: Large, Mid", "IT", "Auto", "Growth & Profitability: 45–77, 78+", "Total FinLit IQ: 50 or more"]);
+    expect(ch.map((c) => c.label)).toEqual(["Market cap: Large, Mid", "IT", "Auto", "Growth & Profitability: Mixed, Healthy, Strong", "Total FinLit IQ: 50 or more"]);
     expect(chipsFor(removeChip(f, "sector:IT")).map((c) => c.id)).toEqual(["caps", "sector:Auto", "band:f", "range:o"]);
     expect(chipsFor(removeChip(removeChip(removeChip(f, "caps"), "band:f"), "range:o")).map((c) => c.id)).toEqual(["sector:IT", "sector:Auto"]);
     expect(chipsFor(emptyFilters())).toEqual([]);
@@ -190,7 +190,7 @@ describe("summary", () => {
 
 describe("URL state", () => {
   it("round-trips every control", () => {
-    const f = emptyFilters(); f.caps = ["Large", "Mid"]; f.sectors = ["IT", "Banks, Private"]; f.bands.f = ["mid", "high"]; f.bands.b = ["low"]; f.ranges.t = { min: 40, max: 90.5 }; f.ranges.o = { min: null, max: 80 };
+    const f = emptyFilters(); f.caps = ["Large", "Mid"]; f.sectors = ["IT", "Banks, Private"]; f.bands.f = ["mixed", "healthy", "high"]; f.bands.b = ["low"]; f.ranges.t = { min: 40, max: 90.5 }; f.ranges.o = { min: null, max: 80 };
     const s = { filters: f, sort: { key: "f" as const, dir: 1 as const }, size: 20, page: 2 };
     const qs = serializeState(s).toString();
     expect(parseState(new URLSearchParams(qs))).toEqual(s);
@@ -200,7 +200,7 @@ describe("URL state", () => {
   });
   it("still reads links from the earlier page", () => {
     const s = parseState(new URLSearchParams("cap=Mid&sector=IT&f=high&t=low,mid&q=high"));
-    expect(s.filters).toMatchObject({ caps: ["Mid"], sectors: ["IT"], bands: { f: ["high"], t: ["low", "mid"], q: ["high"] } });
+    expect(s.filters).toMatchObject({ caps: ["Mid"], sectors: ["IT"], bands: { f: ["high"], t: ["low", "mixed", "healthy"], q: ["high"] } });   // an older link's "mid" reads as Mixed and Healthy
   });
   it("ignores junk and clamps", () => {
     const s = parseState(new URLSearchParams("cap=Huge&f=bogus&fmin=abc&tmin=-5&tmax=500&omin=80&omax=20&sort=evil&size=7&page=-4"));
@@ -458,7 +458,7 @@ describe("the two valuation views split at 50 (issue 30.b)", () => {
   });
   it("an exact maximum typed in the boxes stays inclusive", () => expect(inRange(50, { min: null, max: 50 })).toBe(true));
   it("the score bands leave no gap for a fractional score", () => {
-    for (const v of [44, 44.5, 44.99, 45, 77, 77.4, 77.99, 78, 100]) expect(["low", "mid", "high"].filter((b) => inBands(v, [b as "low" | "mid" | "high"]))).toHaveLength(1);
+    for (const v of [44, 44.5, 44.99, 45, 77, 77.4, 77.99, 78, 100]) expect(["low", "mixed", "healthy", "high"].filter((b) => inBands(v, [b as "low" | "mixed" | "healthy" | "high"]))).toHaveLength(1);
   });
 });
 
@@ -471,14 +471,14 @@ describe("Basic FinLit IQ rating chips, Technical and Total rows", () => {
   ] as never[]);
   const syms = (f: ReturnType<typeof emptyFilters>) => applyFilters(rows, f).map((r) => r.symbol).join("");
   it("rating labels have half-open edges, no gaps, and Not rated is a missing score", () => {
-    expect(rows.map((r) => iqLabelOf(r.overall))).toEqual(["strong", "strong", "healthy", "healthy", "average", "average", "weak", "weak", "poor", "notrated"]);
-    for (const [l, want] of [["strong", "AB"], ["healthy", "CD"], ["average", "EF"], ["weak", "GH"], ["poor", "I"], ["notrated", "J"]] as const) { const f = emptyFilters(); f.iqLabels = [l]; expect(syms(f)).toBe(want); }
+    expect(rows.map((r) => iqLabelOf(r.overall))).toEqual(["strong", "strong", "healthy", "healthy", "mixed", "mixed", "watch", "watch", "watch", "notrated"]);
+    for (const [l, want] of [["strong", "AB"], ["healthy", "CD"], ["mixed", "EF"], ["watch", "GHI"], ["notrated", "J"]] as const) { const f = emptyFilters(); f.iqLabels = [l]; expect(syms(f)).toBe(want); }
     const all = emptyFilters(); all.iqLabels = [...IQ_LABELS]; expect(syms(all)).toBe("ABCDEFGHIJ");
     const two = emptyFilters(); two.iqLabels = ["strong", "notrated"]; expect(syms(two)).toBe("ABJ");
   });
   it("Technical band chips and the Total band use the same stored numbers; a missing score never passes", () => {
     const t = emptyFilters(); t.bands.t = ["low"]; expect(syms(t)).toBe("DEGHI");             // F has no Technical: out
-    t.bands.t = ["mid"]; expect(syms(t)).toBe("BCJ"); t.bands.t = ["high"]; expect(syms(t)).toBe("A");
+    t.bands.t = ["mixed", "healthy"]; expect(syms(t)).toBe("BCJ"); t.bands.t = ["high"]; expect(syms(t)).toBe("A");
     const o = emptyFilters(); o.bands.o = ["high"]; expect(syms(o)).toBe("AB");
     const r = emptyFilters(); r.ranges.o = { min: 45, max: 77 }; expect(syms(r)).toBe("DEF");  // C is 77.9: above 77
     const tr = emptyFilters(); tr.ranges.t = { min: 50, max: null }; expect(syms(tr)).toBe("ABJ");
@@ -489,18 +489,18 @@ describe("Basic FinLit IQ rating chips, Technical and Total rows", () => {
     expect(applyFilters(rows, f).every((r) => r.overall != null && r.t != null)).toBe(true);
   });
   it("URL round trip: ?iql=, ?ovr=, ?omin= and the Technical keys; Prism links are not touched", () => {
-    const f = emptyFilters(); f.iqLabels = ["weak", "strong"]; f.bands.o = ["high", "low"]; f.bands.t = ["mid"]; f.ranges.o = { min: 40, max: 90 }; f.ranges.t = { min: 10, max: null };
+    const f = emptyFilters(); f.iqLabels = ["watch", "strong"]; f.bands.o = ["high", "low"]; f.bands.t = ["mixed", "healthy"]; f.ranges.o = { min: 40, max: 90 }; f.ranges.t = { min: 10, max: null };
     const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 });
-    expect(p.get("iql")).toBe("strong,weak"); expect(p.get("ovr")).toBe("low,high"); expect(p.get("t")).toBe("mid"); expect(p.get("omin")).toBe("40"); expect(p.get("tmin")).toBe("10");
+    expect(p.get("iql")).toBe("strong,watch"); expect(p.get("ovr")).toBe("low,high"); expect(p.get("t")).toBe("mixed,healthy"); expect(p.get("omin")).toBe("40"); expect(p.get("tmin")).toBe("10");
     const back = parseState(new URLSearchParams(p.toString()), "basic").filters;
-    expect(back.iqLabels).toEqual(["strong", "weak"]); expect(back.bands.o).toEqual(["low", "high"]); expect(back.ranges.o).toEqual({ min: 40, max: 90 }); expect(filtersKey(back)).toBe(filtersKey(f));
+    expect(back.iqLabels).toEqual(["strong", "watch"]); expect(back.bands.o).toEqual(["low", "high"]); expect(back.ranges.o).toEqual({ min: 40, max: 90 }); expect(filtersKey(back)).toBe(filtersKey(f));
     expect(parseState(new URLSearchParams("iql=strong"), "advanced").filters.iqLabels).toEqual([]);
-    expect(parseState(new URLSearchParams("iql=bogus,poor"), "basic").filters.iqLabels).toEqual(["poor"]);
+    expect(parseState(new URLSearchParams("iql=bogus,poor,weak,average"), "basic").filters.iqLabels).toEqual(["mixed", "watch"]);   // older words read as the four bands
   });
   it("chips are readable and removable", () => {
-    const f = emptyFilters(); f.iqLabels = ["strong", "notrated"]; f.bands.t = ["high"]; f.bands.o = ["mid"];
+    const f = emptyFilters(); f.iqLabels = ["strong", "notrated"]; f.bands.t = ["high"]; f.bands.o = ["mixed", "healthy"];
     const c = chipsFor(f).map((x) => x.label);
-    expect(c).toEqual(["Technical: 78+", "Total FinLit IQ: 45–77", "FinLit IQ rating: Strong, Not rated"]);
+    expect(c).toEqual(["Technical: Strong", "Total FinLit IQ: Mixed, Healthy", "FinLit IQ rating: Strong, Not rated"]);
     expect(removeChip(f, "iqlabels").iqLabels).toEqual([]); expect(removeChip(f, "band:o").bands.o).toEqual([]);
   });
 });
@@ -508,26 +508,27 @@ describe("Basic FinLit IQ rating chips, Technical and Total rows", () => {
 describe("band chips as a Min - Max range (Advanced rows)", () => {
   it("each chip maps to a half-open range with no gaps", () => {
     expect(bandsToRange(["low"])).toEqual({ min: null, max: 45, maxExcl: true });
-    expect(bandsToRange(["mid"])).toEqual({ min: 45, max: 78, maxExcl: true });
+    expect(bandsToRange(["mixed"])).toEqual({ min: 45, max: 62, maxExcl: true });
+    expect(bandsToRange(["healthy"])).toEqual({ min: 62, max: 78, maxExcl: true });
     expect(bandsToRange(["high"])).toEqual({ min: 78, max: null });
-    expect(bandsToRange(["low", "mid"])).toEqual({ min: null, max: 78, maxExcl: true });
-    expect(bandsToRange(["mid", "high"])).toEqual({ min: 45, max: null });
-    for (const v of [44.99, 45, 77.99, 78]) { const hit = (["low", "mid", "high"] as const).filter((b) => inRange(v, bandsToRange([b]))); expect(hit).toHaveLength(1); }
+    expect(bandsToRange(["low", "mixed"])).toEqual({ min: null, max: 62, maxExcl: true });
+    expect(bandsToRange(["mixed", "healthy", "high"])).toEqual({ min: 45, max: null });
+    for (const v of [44.99, 45, 61.99, 62, 77.99, 78]) { const hit = (["low", "mixed", "healthy", "high"] as const).filter((b) => inRange(v, bandsToRange([b]))); expect(hit).toHaveLength(1); }
   });
   it("toggling joins neighbours, restarts otherwise, and a typed range lights no chip", () => {
     const none = { min: null, max: null };
-    const a = toggleRangeBand(none, "low"), b = toggleRangeBand(a, "mid"), c = toggleRangeBand(b, "high");
-    expect(rangeToBands(a)).toEqual(["low"]); expect(rangeToBands(b)).toEqual(["low", "mid"]); expect(c).toEqual({ min: null, max: null });
+    const a = toggleRangeBand(none, "low"), b = toggleRangeBand(a, "mixed"), b2 = toggleRangeBand(b, "healthy"), c = toggleRangeBand(b2, "high");
+    expect(rangeToBands(a)).toEqual(["low"]); expect(rangeToBands(b)).toEqual(["low", "mixed"]); expect(rangeToBands(b2)).toEqual(["low", "mixed", "healthy"]); expect(c).toEqual({ min: null, max: null });
     expect(rangeToBands(toggleRangeBand(a, "high"))).toEqual(["high"]);       // not next to it: starts over
-    expect(toggleRangeBand(b, "mid")).toEqual(bandsToRange(["low"]));
+    expect(toggleRangeBand(b, "mixed")).toEqual(bandsToRange(["low"]));
     expect(toggleRangeBand(a, "low")).toEqual(none);
     expect(rangeToBands({ min: 50, max: 70 })).toEqual([]);
   });
   it("URL round trip of a chip-set range (zvlt / zmin)", () => {
-    const f = emptyFilters(); f.ranges.zv = bandsToRange(["low"]); f.ranges.zq = bandsToRange(["mid", "high"]);
+    const f = emptyFilters(); f.ranges.zv = bandsToRange(["low"]); f.ranges.zq = bandsToRange(["mixed", "healthy", "high"]);
     const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 });
     expect(p.get("zvlt")).toBe("45"); expect(p.get("zqmin")).toBe("45");
     const back = parseState(p, "advanced").filters;
-    expect(rangeToBands(back.ranges.zv)).toEqual(["low"]); expect(rangeToBands(back.ranges.zq)).toEqual(["mid", "high"]);
+    expect(rangeToBands(back.ranges.zv)).toEqual(["low"]); expect(rangeToBands(back.ranges.zq)).toEqual(["mixed", "healthy", "high"]);
   });
 });

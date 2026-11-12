@@ -7,7 +7,8 @@ import type { Screener } from "./useScreener";
 
 export const IQ_TITLE = "FinLit IQ Score";
 export const IQ_SUB = "Filter stocks using our multi-pillar statistical scoring model.";
-const CHIP: Record<Band, string> = { low: "< 45", mid: "45 - 77", high: ">= 78" };
+const CHIP: Record<Band, string> = { low: "Watch", mixed: "Mixed", healthy: "Healthy", high: "Strong" };
+const RANGE: Record<Band, string> = { low: "under 45", mixed: "45 to 61", healthy: "62 to 77", high: "78 and above" };
 const ICON: Record<string, string> = { q: "quality", g: "growth", p: "profit", b: "balance", t: "line", o: "bars" };
 const NAME: Record<string, string> = { q: "Quality Score", g: "Growth Score", p: "Profitability Score", b: "Balance Sheet Score", t: "Technical Score", o: "Total FinLit IQ Score" };
 /** The two rows after the four pillars: the price-trend pillar and the overall FinLit IQ (the average of the pillars that are available, Technical included). */
@@ -16,13 +17,13 @@ const EXTRA: { k: "t" | "o"; say: string }[] = [
   { k: "o", say: "The FinLit IQ shown on the company page: the average of the pillar scores that are available, Technical included." },
 ];
 
-/** The three shortcut chips of a score row. Shared by the Basic and Advanced panels, so both look and behave the same. */
+/** The four band chips (Watch, Mixed, Healthy, Strong) of a score row. Shared by the Basic and Advanced panels, so both look and behave the same. */
 export function BandChips({ id, name, bands, onToggle }: { id?: string; name: string; bands: Band[]; onToggle: (b: Band) => void }) {
   return (
     <div className="iq-chips" id={id}>
       {BAND_ORDER.map((b) => {
         const sel = bands.includes(b);
-        return <button key={b} type="button" className={"iq-chip" + (sel ? " is-on" : "")} aria-pressed={sel} aria-label={`${name} ${b === "low" ? "under 45" : b === "mid" ? "45 to 77" : "78 and above"}`} onClick={() => onToggle(b)}>{CHIP[b]}</button>;
+        return <button key={b} type="button" className={"iq-chip" + (sel ? " is-on" : "")} aria-pressed={sel} aria-label={`${name} ${CHIP[b]}, ${RANGE[b]}`} title={RANGE[b]} onClick={() => onToggle(b)}>{CHIP[b]}</button>;
       })}
     </div>);
 }

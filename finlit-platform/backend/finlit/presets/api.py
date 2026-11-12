@@ -292,6 +292,8 @@ async def detail(request: Request, pid: str):
 @router.get("/{pid}/history")
 async def history_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
+    if p.kind == "gainers":
+        return _json({"id": p.id, "sessions": await history.gainer_sessions(request.app.state.store, p.tab, p.id.rsplit("-", 1)[-1])})
     return _json({"id": p.id, "sessions": await history.sessions(request.app.state.store, p.id, engine.chip_key(active))})
 
 
