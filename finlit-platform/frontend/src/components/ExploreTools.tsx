@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { OPEN_AI } from "./Assistant";
-import { BUCKETS, EXPANDED, SHORT, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
+import { BUCKETS, EXPANDED, FIGURE, SHORT, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
 import { useFocusTrap } from "../lib/focusTrap";
 import "../styles/explore-tools.css";
 
@@ -33,7 +33,7 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
 
 /** One tool in a group card: its name, a few words, a small plan mark for the paid ones and an arrow. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
-  const inner = <><span className="xt-tn"><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span><b>{c.title}</b>{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
+  const inner = <><span className="xt-tn"><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span><b>{c.title}</b>{(c.badge !== "FREE" || FIGURE[c.id]) && <span className="xt-sub">{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}{FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}</span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
 const TOOL_ICON: Record<string, string> = {
