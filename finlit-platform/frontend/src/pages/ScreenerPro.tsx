@@ -9,7 +9,7 @@ import { nf } from "../lib/format";
 import { API_BASE, apiUrl } from "../lib/api";
 import { limitsFor, useAuth } from "../lib/auth";
 import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { READY, UNIT_SUFFIX, loadRatios, saveRatios, ratioLabel, type CustomRatio, activeCount, chipColumn, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
+import { READY, UNIT_SUFFIX, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, chipColumn, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
 import { screens, useSavedScreens } from "../lib/screens";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
@@ -144,6 +144,9 @@ export function ScreenerPro() {
   const pkey = JSON.stringify([dq, dsort, dqq]), page = pg.k === pkey ? pg.p : 0, setPage = (p: number) => setPg({ k: pkey, p });
   // A shared or old link can name a filter or sort the screener does not have: leave those out instead of failing the whole screen.
   const [ratios, setRatiosState] = useState<CustomRatio[]>(() => loadRatios());   // custom ratios (task #61): kept in this browser
+  const [ratioOpen, setRatioOpen] = useState(() => loadRatios().length > 0), [savedRatios, setSavedRatiosState] = useState(() => loadSavedRatios());
+  const setSavedRatios = (v: ReturnType<typeof loadSavedRatios>) => { setSavedRatiosState(v); storeSavedRatios(v); };
+  const openRatio = () => { setRatioOpen(true); window.setTimeout(() => document.getElementById("scr-ratio")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
   const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (sort.key.startsWith("r") && /^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
   const known = (k: string) => !data || byKey.has(k);
   const safe = useMemo(() => ({ ...dq, ranges: Object.fromEntries(Object.entries(dq.ranges).filter(([k]) => known(k))) }), [dq, data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -306,7 +309,9 @@ export function ScreenerPro() {
                       </FilterGroup>{model && facetBlocks}</Fragment>);
                   })}
                   <FilterGroup id="custom" title="Custom ratio" active={ratios.length} open={fl ? true : open.custom ?? ratios.length > 0} onOpenChange={(o) => setOpen((x) => ({ ...x, custom: o }))} meta={<span className="tier" style={{ marginRight: 8 }}>New</span>}>
-                    <CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} />
+                    <div className="crx-side"><p>Build your own ratio from any two figures, set a condition, and the table gets a column for it.</p>
+                      <button type="button" className="btn primary" onClick={openRatio}>{ratioOpen ? "Go to the Custom Ratio Screener" : "Open the Custom Ratio Screener"}</button>
+                      {ratios.length > 0 && <ul className="cr-list" aria-label="Your custom ratios">{ratios.map((r) => <li key={r.id}><span>{ratioSentence(r, byKey)}</span><button type="button" aria-label={`Remove ${ratioLabel(r)}`} onClick={() => setRatios(ratios.filter((x) => x.id !== r.id))}>×</button></li>)}</ul>}</div>
                   </FilterGroup>
                   {!fl && groups.length > VISIBLE_GROUPS && <button className="alx-link" style={{ margin: "10px 0 4px" }} onClick={() => setMoreGroups(!moreGroups)}>{moreGroups ? "Show fewer categories" : `Show ${groups.length - VISIBLE_GROUPS} more categories`}</button>}
                 </div>
@@ -329,6 +334,8 @@ export function ScreenerPro() {
           <SplitDivider width={sideW} set={setSide} />
 
           <section className="scr-main card" aria-label="Results">
+            {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
+              onRun={() => document.querySelector(".scr-main .scr-top")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
             <div className="scr-top">
               <div aria-live="polite"><b className="scr-count">{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> <span className="muted">of {data ? nf(data.total, 0) : "…"} listed stocks{res.data ? ` · ${res.data.took} ms` : ""}</span></div>
               <div className="scr-tools">
