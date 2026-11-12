@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { axisIndexes, bandWord, dotRadius, inForce, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
+import { axisIndexes, bandWord, dotRadius, figureOn, inForce, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
 import type { HistPoint } from "./prismHistory";
 
 const day = (n: number) => new Date(Date.UTC(2026, 7, 1) + n * 86_400_000).toISOString().slice(0, 10);
@@ -51,6 +51,14 @@ describe("every recorded day is readable on the chart", () => {
     expect(inForce(late, "valuation", 0)).toBeNull();
     expect(inForce(sparse, "valuation", -1)).toBeNull(); expect(inForce(sparse, "valuation", 9)).toBeNull();
   });
+  it("figureOn looks back through the whole history, so the first day of a period is never blank", () => {
+    expect(figureOn(sparse, "valuation", day(20))).toEqual({ value: 47, day: day(0), exact: false });     // 20 Nov has no rating: the one from 1 Nov is in force
+    expect(figureOn(sparse, "valuation", day(40))).toEqual({ value: 50, day: day(40), exact: true });
+    expect(figureOn(sparse, "valuation", day(55))).toEqual({ value: 50, day: day(40), exact: false });    // after the last rating the last one still holds
+    expect(figureOn(sparse, "shortTerm", day(20))).toEqual({ value: -15, day: day(20), exact: true });
+    expect(figureOn(sparse.slice(1), "valuation", day(20))).toBeNull();                                  // nothing recorded on or before that day
+    expect(figureOn([], "valuation", day(1))).toBeNull();
+  });
   it("few days: every day is labelled; many days: about six evenly spread, always the first and the last", () => {
     expect(axisIndexes(0)).toEqual([]); expect(axisIndexes(1)).toEqual([0]); expect(axisIndexes(7)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     const many = axisIndexes(250);
@@ -59,7 +67,7 @@ describe("every recorded day is readable on the chart", () => {
     expect(axisIndexes(8)).toHaveLength(6);
   });
   it("the dot is large for a month of days and smaller for a year, but always visible", () => {
-    expect([6, 31, 45].map(dotRadius)).toEqual([3.6, 3.6, 3.6]);
-    expect(dotRadius(90)).toBe(2.6); expect(dotRadius(250)).toBe(1.8); expect(dotRadius(250)).toBeGreaterThanOrEqual(1.5);
+    expect([6, 31, 45].map(dotRadius)).toEqual([4, 4, 4]);
+    expect(dotRadius(90)).toBe(3); expect(dotRadius(250)).toBe(2.3); expect(dotRadius(250)).toBeGreaterThanOrEqual(2);
   });
 });

@@ -12,7 +12,7 @@
 .scm-empty { margin: 8px 0; } .scm-foot { margin: 12px 0 0; font-size: 12px; }
 @media (max-width: 640px) { .scm-sum { font-size: 16px; } .scm-keys { gap: 6px 14px; } }
 /* every recorded day is a dot on its line and a small tick under the chart; the chart can be read with the arrow keys */
-.scm-dot { cursor: crosshair; } .scm-rug { stroke: var(--border-strong); stroke-width: 1; }
+.scm-dot { cursor: crosshair; } .scm-dot.carried { fill-opacity: 1; } .scm-rug { stroke: var(--border-strong); stroke-width: 1; }
 .scm-panel svg:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
 .scm-tip small { color: var(--muted); font-size: 11px; }
 /* on a phone the chart keeps a readable width (it scrolls sideways) so the dots, ticks and dates stay clear, and the day's figures sit under it instead of over it */

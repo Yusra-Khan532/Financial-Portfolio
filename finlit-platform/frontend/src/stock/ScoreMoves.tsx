@@ -7,8 +7,8 @@ import { Icon } from "../lib/icons";
 import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
 import { OpenAccess } from "../components/Gate";
-import { toWeekly, usePrismHistory, valueOf, withValue, type HistPoint, type Series } from "../lib/prismHistory";
-import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, inForce, inPeriod, moveSentence, movesOf, readingNow, reRated, seriesFor, type Period, type Show } from "../lib/scoreMoves";
+import { toWeekly, usePrismHistory, valueOf, type HistPoint, type Series } from "../lib/prismHistory";
+import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, figureOn, inPeriod, moveSentence, movesOf, readingNow, reRated, seriesFor, type Period, type Show } from "../lib/scoreMoves";
 import "../styles/scoremoves.css";
 import { ChartZoom } from "../components/ChartZoom";
 
@@ -16,7 +16,7 @@ const COLOR: Record<Series, string> = { final: "var(--text)", ["fundamental"]: "
 const W = 720, L = 42, R = 16;
 const fmt = (v: number | null, signed = false) => (v == null ? MINUS : (signed && v > 0 ? "+" : "") + String(Math.round(v * 10) / 10).replace("-", MINUS));
 
-function Panel({ points, series, lo, hi, ticks, h, marks, label, signed }: { points: HistPoint[]; series: Series[]; lo: number; hi: number; ticks: number[]; h: number; marks: string[]; label: string; signed: boolean }) {
+function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed }: { points: HistPoint[]; history: HistPoint[]; series: Series[]; lo: number; hi: number; ticks: number[]; h: number; marks: string[]; label: string; signed: boolean }) {
   const T = 10, B = 22, days = points.map((p) => Date.parse(p.day)), t0 = days[0], t1 = days[days.length - 1];
   const x = (d: string) => L + (t1 === t0 ? (W - L - R) / 2 : ((Date.parse(d) - t0) / (t1 - t0)) * (W - L - R));
   const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
@@ -39,15 +39,19 @@ function Panel({ points, series, lo, hi, ticks, h, marks, label, signed }: { poi
         {signed && <rect x={L} width={W - L - R} y={y(20)} height={y(-20) - y(20)} fill="var(--gold)" opacity=".07" />}
         {marks.map((d) => <g key={d}><line x1={x(d)} x2={x(d)} y1={T} y2={h - B} stroke="var(--gold)" strokeDasharray="2 3" /><path d={`M${x(d) - 4},${h - B + 8} l4,-7 l4,7z`} fill="var(--gold-deep, var(--gold))"><title>{`Prism re-rated on ${dateIN(d)}`}</title></path></g>)}
         {points.map((p) => <line key={"r" + p.day} className="scm-rug" x1={x(p.day)} x2={x(p.day)} y1={h - B} y2={h - B + 5} />)}
-        {series.map((s) => { const v = withValue(points, s); if (!v.length) return null; const end = v[v.length - 1];
-          return <g key={s}><path d={v.map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)},${y(valueOf(p, s)!).toFixed(1)}`).join("")} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-            {v.map((p) => <circle key={p.day} className="scm-dot" cx={x(p.day)} cy={y(valueOf(p, s)!)} r={hp && hp.day === p.day ? dr + 2 : dr} fill={COLOR[s]} stroke="var(--bg)" strokeWidth={dr > 2 ? 1.3 : 0.7}><title>{`${NAME[s]} ${fmt(valueOf(p, s), signed)} on ${dateIN(p.day)}`}</title></circle>)}
-            <circle cx={x(end.day)} cy={y(valueOf(end, s)!)} r={dr + 2.4} fill="none" stroke={COLOR[s]} strokeWidth="1.4" /></g>; })}
+        {series.map((s) => {
+          // a dot on EVERY recorded day of every line. The technical views are read every evening, so each dot is a reading. The four business scores change only when
+          // Prism re-rates the company: a day with no new rating shows the rating still in force as a hollow dot, so no date is left without a point.
+          const v = points.map((p) => ({ p, f: signed ? (valueOf(p, s) == null ? null : { value: valueOf(p, s)!, day: p.day, exact: true }) : figureOn(history, s, p.day) })).filter((d) => d.f != null) as { p: HistPoint; f: { value: number; day: string; exact: boolean } }[];
+          if (!v.length) return null; const end = v[v.length - 1];
+          return <g key={s}><path d={v.map((d, i) => `${i ? "L" : "M"}${x(d.p.day).toFixed(1)},${y(d.f.value).toFixed(1)}`).join("")} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+            {v.map((d) => <circle key={d.p.day} className={"scm-dot" + (d.f.exact ? "" : " carried")} cx={x(d.p.day)} cy={y(d.f.value)} r={hp && hp.day === d.p.day ? dr + 2 : dr} fill={d.f.exact ? COLOR[s] : "var(--bg)"} stroke={d.f.exact ? "var(--bg)" : COLOR[s]} strokeWidth={d.f.exact ? 1.3 : 1.8}><title>{`${NAME[s]} ${fmt(d.f.value, signed)} on ${dateIN(d.p.day)}${d.f.exact ? "" : `, the rating from ${dateIN(d.f.day)} still in force`}`}</title></circle>)}
+            <circle cx={x(end.p.day)} cy={y(end.f.value)} r={dr + 2.4} fill="none" stroke={COLOR[s]} strokeWidth="1.4" /></g>; })}
         {axis.map((i, k) => <text key={points[i].day} x={x(points[i].day)} y={h - 5} textAnchor={axis.length > 1 && k === 0 ? "start" : axis.length > 1 && k === last ? "end" : "middle"} className="scm-ax">{dateIN(points[i].day, { day: "numeric", month: "short" })}</text>)}
         {hp && <line x1={x(hp.day)} x2={x(hp.day)} y1={T} y2={h - B} stroke="var(--border-strong)" strokeDasharray="3 3" />}
       </svg>
       {hp && hover != null && <div className="scm-tip" role="status"><b>{dateIN(hp.day)}</b>{series.map((s) => {
-        const f = signed ? (valueOf(hp, s) == null ? null : { value: valueOf(hp, s)!, day: hp.day, exact: true }) : inForce(points, s, hover);   // business scores: the figure in force that day
+        const f = signed ? (valueOf(hp, s) == null ? null : { value: valueOf(hp, s)!, day: hp.day, exact: true }) : figureOn(history, s, hp.day);   // business scores: the figure in force that day
         return <span key={s}><i style={{ background: COLOR[s] }} />{NAME[s]} {f ? fmt(f.value, signed) : "no figure yet"}{f && !f.exact && <small> · rated {dateIN(f.day, { day: "numeric", month: "short" })}</small>}</span>; })}</div>}
     </div>);
 }
@@ -78,9 +82,9 @@ export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
       </div>
       {visible.length === 0 ? <p className="faint scm-empty">No line is selected. Tick a score above to draw it.</p> : base.length < 2 ? <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p> : (
         <>
-          {biz.length > 0 && <Panel points={base} series={biz} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={biz.length && tech.length ? 190 : 240} marks={marks} label="Business scores over time" signed={false} />}
-          {tech.length > 0 && <Panel points={base} series={tech} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={biz.length ? 150 : 230} marks={[]} label="Technical views over time" signed />}
-          <p className="scm-note"><Icon name="info" /><span>Business scores change only when Prism re-rates the company (▲), so they move in steps. Technical views update every trading evening: short term reads the last 5 to 20 sessions, long term the last 6 to 18 months. Valuation: higher means cheaper. Risk: higher means lower risk.</span></p>
+          {biz.length > 0 && <Panel points={base} history={all} series={biz} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={biz.length && tech.length ? 190 : 240} marks={marks} label="Business scores over time" signed={false} />}
+          {tech.length > 0 && <Panel points={base} history={all} series={tech} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={biz.length ? 150 : 230} marks={[]} label="Technical views over time" signed />}
+          <p className="scm-note"><Icon name="info" /><span>Every recorded day has a dot on every line. Business scores change only when Prism re-rates the company (▲), so they move in steps: a solid dot is a day with a new rating, a hollow dot is a day when the earlier rating still holds. Technical views update every trading evening: short term reads the last 5 to 20 sessions, long term the last 6 to 18 months. Valuation: higher means cheaper. Risk: higher means lower risk.</span></p>
           {moves.length > 0 && <div className="tw"><table className="qtt scm-t"><caption>Change since {dateIN(moves[0].fromDay)}</caption>
             <thead><tr><th>Score</th><th className="num">Start</th><th className="num">Now</th><th className="num">Change</th><th>Reading now</th></tr></thead>
             <tbody>{moves.map((m) => <tr key={m.s}><td><i style={{ background: COLOR[m.s] }} />{NAME[m.s]}</td><td className="num">{fmt(m.from, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.to, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.delta, true)}</td><td>{readingNow(m.s, m.to)}</td></tr>)}</tbody></table></div>}
