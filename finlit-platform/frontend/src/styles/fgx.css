@@ -178,3 +178,17 @@ button.fgx-kpi { cursor: pointer; } button.fgx-kpi:hover { border-color: var(--g
 .crx-side { display: grid; gap: 10px; } .crx-side p { margin: 0; color: var(--muted); font-size: var(--fs-13); line-height: 1.5; }
 @media (max-width: 1100px) { .crx-top { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .crx { padding: 14px; } .crx-nd { grid-template-columns: minmax(0, 1fr); } .crx-slash { text-align: center; } .crx-act .btn { flex: 1 1 auto; justify-content: center; } .crx-gap { display: none; } }
+
+/* Custom ratio, task #97: three numbered steps, the condition as one sentence, examples to start from, and the launcher title kept on one line */
+.crx-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); align-items: end; }
+.crx-name small { font-weight: 400; color: var(--faint); }
+.crx-prev b.ok { border-color: var(--gain); color: var(--text); background: color-mix(in srgb, var(--gain) 8%, var(--s2)); }
+.crx-step { margin: 2px 0 -6px; font: 600 var(--fs-13) var(--sans); color: var(--muted); }
+.crx-set { grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(110px, 1fr)); align-items: end; gap: 12px 14px; } .crx-set legend { font: 600 var(--fs-13) var(--sans); color: var(--muted); }
+.crx-mean { grid-column: 1 / -1; margin: 0; font-size: var(--fs-13); color: var(--muted); }
+.crx-ex { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .crx-ex > span { font-size: var(--fs-13); color: var(--muted); }
+.crx-exb { min-height: 34px; padding: 0 12px; border: 1px dashed var(--border-strong); border-radius: 999px; background: transparent; color: var(--text); font: 500 var(--fs-13) var(--sans); cursor: pointer; } .crx-exb:hover { border-style: solid; border-color: var(--gold); } .crx-exb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.fgx-g[data-fgx="custom"] .fgx-t { white-space: nowrap; } .fgx-g[data-fgx="custom"] .fgx-meta .tier { font-size: var(--fs-11); }
+@media (max-width: 1100px) { .crx-top { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .crx-set { grid-template-columns: minmax(0, 1fr); } }
+.crx-prev b.faint { border-color: var(--border); background: var(--s2); color: var(--muted); font-weight: 500; }

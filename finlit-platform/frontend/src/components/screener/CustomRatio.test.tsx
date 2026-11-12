@@ -55,4 +55,17 @@ describe("custom ratio builder", () => {
     expect(body.ratios).toEqual([{ id: "r0", num: "ocf", den: "np", min: 1, max: 2 }]);
     expect(toBody({ ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] }, { key: "market_cap", dir: "desc" }, [], "", 0, 50)).not.toHaveProperty("ratios");
   });
+  it("says in a sentence what the condition means and offers examples only for figures that are there (task #97)", () => {
+    const g: GroupInfo[] = [{ id: "g", label: "Size", tier: "basic", metrics: [m("net_profit", "Net profit"), m("total_assets", "Total assets"), m("revenue", "Sales")] }];
+    render(<CustomRatioBuilder groups={g} byKey={new Map(g[0].metrics.map((x) => [x.key, x]))} ratios={[]} onChange={() => {}} ask={() => {}} />);
+    expect(screen.getByText("Pick the two figures first.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Profit on assets" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Enterprise value vs market cap" })).toBeNull();              // enterprise value is not in this list
+    fireEvent.click(screen.getByRole("button", { name: "Profit on assets" }));
+    expect((screen.getByLabelText("Numerator") as HTMLSelectElement).value).toBe("net_profit");
+    expect((screen.getByLabelText("Denominator") as HTMLSelectElement).value).toBe("total_assets");
+    expect(screen.getByText("Companies whose ratio is above 0.05 pass.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Condition"), { target: { value: "between" } });
+    expect(screen.getByText("Enter both ends of the range.")).toBeTruthy();
+  });
 });

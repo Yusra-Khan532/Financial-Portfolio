@@ -6,6 +6,11 @@ import { useId, useState } from "react";
 import { MAX_RATIOS, MAX_SAVED, ratioLabel, ratioRange, type CustomRatio, type GroupInfo, type MetricInfo, type SavedRatio } from "../../lib/proscreen";
 
 const OPS: { v: CustomRatio["op"]; t: string }[] = [{ v: "gt", t: "Greater than (>)" }, { v: "lt", t: "Less than (<)" }, { v: "between", t: "Between" }, { v: "none", t: "No limit: just show it" }];
+const EXAMPLES: { name: string; num: string; den: string; op: CustomRatio["op"]; a: number; say: string }[] = [
+  { name: "Profit on assets", num: "net_profit", den: "total_assets", op: "gt", a: 0.05, say: "Net profit ÷ Total assets above 0.05: how much profit each rupee of assets earned" },
+  { name: "Operating profit to sales", num: "op_profit", den: "revenue", op: "gt", a: 0.15, say: "Operating profit ÷ Sales above 0.15" },
+  { name: "Enterprise value vs market cap", num: "enterprise_value", den: "market_cap", op: "lt", a: 1.2, say: "Enterprise value ÷ Market cap below 1.2: a small gap between the two" },
+];
 const unitOf = (m?: MetricInfo) => (m ? (m.unit === "Cr" ? "₹ Cr" : m.unit) : "");
 
 export function ratioSentence(r: CustomRatio | SavedRatio, byKey: Map<string, MetricInfo>): string {
@@ -61,6 +66,11 @@ export function CustomRatioBuilder({ groups, byKey, ratios, onChange, ask, saved
   const load = (s: SavedRatio) => { setName(s.name); setNum(s.num); setDen(s.den); setOp(s.op); setA(s.a != null ? String(s.a) : ""); setB(s.b != null ? String(s.b) : ""); setErr(""); setNote(""); setList(false); };
   const options = (skip: string) => groups.map((g) => { const ms = g.metrics.filter(usable); return ms.length ? <optgroup key={g.id} label={g.label}>{ms.map((m) => <option key={m.key} value={m.key} disabled={m.key === skip}>{m.label} ({unitOf(m)}){m.locked ? " · higher plan" : ""}</option>)}</optgroup> : null; });
   const nm = byKey.get(num), dm = byKey.get(den);
+  /** A few ready ratios from figures that exist in the screener, to start from (shown only when both figures are there and the reader's plan has them). */
+  const examples = EXAMPLES.filter((x) => { const n = byKey.get(x.num), d = byKey.get(x.den); return n && d && !n.hidden && !d.hidden && !n.locked && !d.locked; });
+  const useExample = (x: (typeof EXAMPLES)[number]) => { setName(x.name); setNum(x.num); setDen(x.den); setOp(x.op); setA(String(x.a)); setB(""); setErr(""); setNote(""); };
+  const meaning = !num || !den ? "Pick the two figures first." : op === "none" ? "No limit: every company that has both figures is listed, with the ratio as a column." : a.trim() === "" ? "Enter the value to compare with." :
+    op === "gt" ? `Companies whose ratio is above ${a} pass.` : op === "lt" ? `Companies whose ratio is below ${a} pass.` : b.trim() === "" ? "Enter both ends of the range." : `Companies whose ratio is between ${a} and ${b} pass.`;
   return (
     <section className="crx" aria-labelledby={uid + "h"}>
       <header className="crx-h">
@@ -73,20 +83,23 @@ export function CustomRatioBuilder({ groups, byKey, ratios, onChange, ask, saved
       {list && <div className="crx-saved" role="region" aria-label="Saved ratios">{saved.length ? <ul>{saved.map((s) => (
         <li key={s.name}><button type="button" onClick={() => load(s)}><b>{s.name}</b><small>{ratioSentence(s, byKey)}</small></button>
           <button type="button" className="crx-del" aria-label={`Delete saved ratio ${s.name}`} onClick={() => onSaved?.(saved.filter((x) => x.name !== s.name))}>×</button></li>))}</ul> : <p>No saved ratios yet. Build one, give it a name and choose Save ratio.</p>}</div>}
+      {examples.length > 0 && <div className="crx-ex" role="group" aria-label="Examples"><span>Try an example</span>{examples.map((x) => <button type="button" key={x.name} className="crx-exb" title={x.say} onClick={() => useExample(x)}>{x.name}</button>)}</div>}
       <div className="crx-top">
-        <label className="crx-f crx-name"><span>Ratio name</span><input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cash conversion ratio" /></label>
-        <div className="crx-prev" aria-live="polite"><span>Formula preview</span><b className={nm && dm ? "" : "faint"}>{nm && dm ? <>{nm.label} <i>÷</i> {dm.label}</> : "Choose a numerator and a denominator"}</b></div>
-        <fieldset className="crx-set"><legend>Ratio settings</legend>
-          <label className="crx-f"><span>Condition</span><select value={op} onChange={(e) => setOp(e.target.value as CustomRatio["op"])} aria-label="Condition">{OPS.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}</select></label>
-          {op !== "none" && <label className="crx-f"><span>{op === "between" ? "From" : "Value"}</span><input type="number" inputMode="decimal" step="any" value={a} onChange={(e) => setA(e.target.value)} aria-label={op === "between" ? "From" : "Value"} placeholder={op === "between" ? "From" : "e.g. 1.5"} /></label>}
-          {op === "between" && <label className="crx-f"><span>To</span><input type="number" inputMode="decimal" step="any" value={b} onChange={(e) => setB(e.target.value)} aria-label="To" placeholder="To" /></label>}
-        </fieldset>
+        <label className="crx-f crx-name"><span>1. Name your ratio <small>(optional)</small></span><input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cash conversion ratio" /></label>
+        <div className="crx-prev" aria-live="polite"><span>Formula preview</span><b className={nm && dm ? "ok" : "faint"}>{nm && dm ? <>{nm.label} <i>÷</i> {dm.label}</> : "Choose a numerator and a denominator below"}</b></div>
       </div>
+      <p className="crx-step">2. Choose the two figures</p>
       <div className="crx-nd">
         <div className="crx-box"><span className="crx-badge">N</span><label className="crx-f"><span>Numerator</span><select value={num} onChange={(e) => setNum(e.target.value)} aria-label="Numerator"><option value="">Choose a figure…</option>{options(den)}</select></label></div>
         <div className="crx-slash" aria-hidden="true">÷</div>
         <div className="crx-box"><span className="crx-badge d">D</span><label className="crx-f"><span>Denominator</span><select value={den} onChange={(e) => setDen(e.target.value)} aria-label="Denominator"><option value="">Choose a figure…</option>{options(num)}</select></label></div>
       </div>
+      <fieldset className="crx-set"><legend>3. Set the condition</legend>
+        <label className="crx-f crx-cond"><span>Show companies where the ratio is</span><select value={op} onChange={(e) => setOp(e.target.value as CustomRatio["op"])} aria-label="Condition">{OPS.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}</select></label>
+        {op !== "none" && <label className="crx-f crx-val"><span>{op === "between" ? "From" : "Value"}</span><input type="number" inputMode="decimal" step="any" value={a} onChange={(e) => setA(e.target.value)} aria-label={op === "between" ? "From" : "Value"} placeholder={op === "between" ? "From" : "e.g. 1.5"} /></label>}
+        {op === "between" && <label className="crx-f crx-val"><span>To</span><input type="number" inputMode="decimal" step="any" value={b} onChange={(e) => setB(e.target.value)} aria-label="To" placeholder="To" /></label>}
+        <p className="crx-mean" aria-live="polite">{meaning}</p>
+      </fieldset>
       {err && <p className="crx-err" role="alert">{err}</p>}
       {note && !err && <p className="crx-ok" role="status">{note}</p>}
       <div className="crx-act">
