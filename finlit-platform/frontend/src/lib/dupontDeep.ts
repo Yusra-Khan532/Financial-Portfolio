@@ -343,3 +343,10 @@ export function decodeCsv(opts: { symbol: string; years: DeepYear[]; view: View;
   const gaps = gapList(years).map((g) => csvRow([g.labels.join("; "), g.reason.long]));
   return [...head, ...body, "", csvRow(["Why a cell is blank", ""]), ...(gaps.length ? gaps : [csvRow(["None", ""])]), "", csvRow(["Information only, not investment advice."])].join("\n");
 }
+
+/** The verdict shown on the ROE quality score, in the site's one colour rule (lib/scoreBands.ts): green 70 or more (Clean and steady), orange 50 to 69 (Mixed), red under 50 (Uneven). */
+export function roeVerdict(total: number): { band: "hi" | "mid" | "lo"; colour: "Green" | "Orange" | "Red"; word: string; range: string; mark: string } {
+  return total >= 70 ? { band: "hi", colour: "Green", word: "Clean and steady", range: "70 or more", mark: "✓" }
+    : total >= 50 ? { band: "mid", colour: "Orange", word: "Mixed", range: "50 to 69", mark: "!" }
+    : { band: "lo", colour: "Red", word: "Uneven", range: "under 50", mark: "✕" };
+}

@@ -8,11 +8,10 @@ import { Icon } from "../lib/icons";
 import type { Table } from "../lib/api";
 import { DUPONT_LIMITS as LIM } from "../lib/dupontRules";
 import {
-  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, simRoe, simStart, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRoe, simStart, tableRows, thresholdNotes, waterfall,
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
-import { scoreBand } from "../lib/scoreBands";
 import { saveFile } from "./derive";
 
 const sg = (v: number, d: number) => (v < 0 ? MINUS : "") + nf(v, d);
@@ -101,13 +100,24 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
           {drv ? <b className="dp-badge">{drv.name}</b> : <b className="dp-badge off">Not clear</b>}
           <small>{drv && mv ? `${nf(Math.abs(drv.share), 0)}% of the ROE move from ${mv.first.label} to ${mv.last.label}, the largest of the three` : driverWhy}</small>
         </div>
-        <div className="dp-stat">
-          <span className="k">ROE quality score</span>
-          {score.total == null ? <b className="dp-badge off">Not scored</b> : (() => { const b = scoreBand(score.total); const word = b === "hi" ? "Clean and steady" : b === "mid" ? "Mixed" : "Uneven"; return <b className={"dp-badge dp-verdict " + b} title={b === "hi" ? "Green: 70 or more" : b === "mid" ? "Orange: 50 to 69" : "Red: under 50"}>{score.total} / 100<span className="dp-vw"><i aria-hidden="true" />{word}</span></b>; })()}
-          <small>{score.total == null ? score.reason : "A description of how clean and steady the ROE is, not a rating of the company."}</small>
+        {(() => {
+          const total = score.total, v = total == null ? null : roeVerdict(total), b = v ? v.band : "na";
+          return (
+            <div className={"dp-stat dp-qs" + (v ? " " + b : " off")} data-band={b}>
+              <span className="k">ROE quality score</span>
+              {total == null || !v ? <b className="dp-badge off">Not scored</b> : <>
+                <b className="dp-badge dp-qn" aria-label={`ROE quality score ${total} out of 100: ${v.colour.toLowerCase()}, ${v.word}`}>{total}<span className="dp-of"> / 100</span></b>
+                <p className="dp-qv" role="status"><span className="dp-qm" aria-hidden="true">{v.mark}</span><span><b>{v.colour}: {v.word}</b><small>{v.range}</small></span></p>
+                <div className="dp-gauge" role="img" aria-label={`${total} on a scale of 0 to 100. Red under 50, orange 50 to 69, green 70 or more.`}>
+                  <span className="dp-gz lo" /><span className="dp-gz mid" /><span className="dp-gz hi" />
+                  <i className="dp-gp" style={{ left: `${Math.max(0, Math.min(100, total))}%` }} />
+                  <em style={{ left: "50%" }}>50</em><em style={{ left: "70%" }}>70</em>
+                </div></>}
+              <small>{total == null ? score.reason : "A description of how clean and steady the ROE is, not a rating of the company."}</small>
           <ul className="dp-parts" aria-label="How the score was made">{score.parts.map((p) => <li key={p.key} title={p.how}><span>{p.label}</span><b>{p.points == null ? "–" : `${nf(p.points, 1)} of ${p.max}`}</b><small>{p.detail}</small></li>)}</ul>
           {score.scaled && score.total != null && <small>Scored on the two parts that apply and scaled to 100.</small>}
-        </div>
+            </div>);
+        })()}
       </div>
 
       <div className="card dp-card">
