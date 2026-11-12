@@ -5,7 +5,7 @@ import { SECOND } from "../lib/questionBank";
 import { askAssistant } from "../lib/siteApi";
 import { apiGet, type SearchIndex } from "../lib/api";
 import {
-  CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, quarterQuestion, quarterTrendQuestion, related, tabQuestions, writtenAnswer,
+  CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions, writtenAnswer,
   type CategoryId, type Q, type TabId,
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
@@ -51,6 +51,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
   const [menuOpen, setMenuOpen] = useState(true);
+  const [qtr, setQtr] = useState<number | null>(null), [fy, setFy] = useState<string>(() => financialYears()[1]);   // the period chosen in the full window (the latest finished financial year first)
   const [big, setBig] = useState<boolean>(() => { try { const v = localStorage.getItem("finlit-ai-full"); if (v != null) return v === "1"; } catch { /* private window */ } return typeof window !== "undefined" && window.innerWidth >= 1100; });   // the full window: remembered once chosen, and the first choice on a wide screen (task #59)
   const toggleBig = () => setBig((b) => { try { localStorage.setItem("finlit-ai-full", b ? "0" : "1"); } catch { /* private window */ } return !b; });
   const end = useRef<HTMLDivElement>(null);
@@ -201,7 +202,12 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             </>}
 
             {view === "segments" && <>
-              <div className="aif-h"><h2>Explore a company</h2><p>Get insights on financials, performance, risks and more.</p></div>
+              <div className="aif-h"><h2>{big ? "What do you want to understand?" : "Explore a company"}</h2><p>{big ? "FinLit AI answers from a company's reported figures, filings and prices." : "Get insights on financials, performance, risks and more."}</p></div>
+              {big && <ol className="aif-steps" aria-label="How it works">
+                <li className={company ? "done" : ""}><i>1</i><span><b>Pick a company</b><small>Search below for Reliance, TCS or any listed stock</small></span></li>
+                <li><i>2</i><span><b>Choose the period</b><small>Set the quarter and financial year in the company box once a company is chosen</small></span></li>
+                <li><i>3</i><span><b>Pick a question</b><small>Choose from the curated questions, or type your own</small></span></li>
+              </ol>}
               <ul className="aif-segs" aria-label="Choose a segment">
                 {SEGMENTS.map((s) => (
                   <li key={s.id}><button type="button" className={"aif-seg" + (pendingTab === s.id ? " on" : "")} aria-pressed={pendingTab === s.id} onClick={() => { setPendingTab(s.id); if (company) goCompany(company, s.id); }}>
@@ -221,7 +227,34 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
               <ul className="aif-qs" aria-label="Questions you can ask">{categoryQuestions(category).map((q) => row(q))}</ul>
             </>}
 
-            {view === "company" && company && <>
+            {view === "company" && company && big && <div className="aif-ctx">
+              <aside className="aif-cp" aria-label="This company and the period">
+                <div className="aif-cpc"><span className="aif-logo" aria-hidden="true">{company.slice(0, 2)}</span><div><b>{company}</b><small>In context for every question</small></div>
+                  <button type="button" className="aif-change" onClick={() => { setCompany(null); setQtr(null); setView("segments"); }}>Change</button></div>
+                <p className="aif-label">Quarter</p>
+                <div className="aif-qchips" role="group" aria-label="Quarter of the financial year">
+                  {QUARTERS.map((q) => <button key={q.n} type="button" className={qtr === q.n ? "on" : ""} aria-pressed={qtr === q.n} onClick={() => setQtr(qtr === q.n ? null : q.n)}><b>Q{q.n}</b><small>{q.months}</small></button>)}
+                </div>
+                <label className="aif-label" htmlFor="aif-fy">Financial year</label>
+                <select id="aif-fy" value={fy} onChange={(e) => setFy(e.target.value)}>{financialYears().map((y) => <option key={y} value={y}>{y} (Apr {2000 + Number(y.slice(2)) - 1} to Mar {2000 + Number(y.slice(2))})</option>)}</select>
+                <button type="button" className="btn primary aif-askq" disabled={qtr == null || busy} onClick={() => { const q = QUARTERS.find((x) => x.n === qtr); if (q) void ask(quarterQuestion(company, q, fy), "company"); }}>{qtr == null ? "Choose a quarter to ask" : `Ask about Q${qtr} ${fy}`}</button>
+                <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company")}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
+                <p className="aif-note">Answers are general information drawn from the company's reported figures, filings and prices. They are not investment advice.</p>
+              </aside>
+              <div className="aif-cm">
+                <div className="aif-h"><h2>What do you want to understand about {company}?</h2><p>Pick a group, then one of the questions. Or type your own below.</p></div>
+                <ol className="aif-steps" aria-label="How it works">
+                  <li className="done"><i>1</i><span><b>Company</b><small>{company} is chosen</small></span></li>
+                  <li className={qtr != null ? "done" : ""}><i>2</i><span><b>Period (optional)</b><small>Set the quarter and year in the company box</small></span></li>
+                  <li><i>3</i><span><b>Question</b><small>Choose below, or type your own</small></span></li>
+                </ol>
+                <div className="aif-tabs" role="tablist" aria-label="Question groups">
+                  {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}
+                </div>
+                <ul className="aif-qs" role="tabpanel" aria-label={TABS.find((t) => t.id === tab)!.label}>{tabQuestions(tab, company, lender).slice(0, 10).map((q) => row(q))}</ul>
+              </div>
+            </div>}
+            {view === "company" && company && !big && <>
               <div className="aif-co"><span className="aif-logo" aria-hidden="true">{company.slice(0, 2)}</span><div><b>{company}</b><small>Questions about this company</small></div></div>
               <div className="aif-tabs" role="tablist" aria-label="Question groups">
                 {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}
