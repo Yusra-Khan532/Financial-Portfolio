@@ -53,6 +53,14 @@ describe("Basic stock screener page", () => {
     expect(screen.getByText("1–10 of 22")).toBeTruthy();
   });
 
+  it("the compare hint is worded for the plan (Silver compares 2, Gold 2 to 4) and every group heading has a label that stays in view", () => {
+    st.plan = "silver"; open();
+    expect(document.querySelector(".sx-bulkhint")!.textContent).toMatch(/^Tick the box on 2 rows to compare them\./);
+    const labs = [...document.querySelectorAll(".gh.tg-row th[data-g] .gh-lab")].map((e) => e.textContent);
+    expect(labs).toEqual(expect.arrayContaining(["Price & size", "FinLit IQ0–100", "Technical"]));
+    cleanup(); st.plan = "gold"; open();
+    expect(document.querySelector(".sx-bulkhint")!.textContent).toMatch(/^Tick the box on 2 to 4 rows to compare them\./);
+  });
   it("filters apply live: ticking changes rows, every number above the table, chips and address with no button pressed", async () => {
     open();
     fireEvent.click(sector("IT")); fireEvent.click(sector("Auto"));
