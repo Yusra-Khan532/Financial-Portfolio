@@ -219,3 +219,13 @@ def test_sector_pulse_is_judged_against_the_expected_session_only_when_the_job_i
     assert [d for d in rep["datasets"] if d["key"] == "sectors"][0]["status"] == "stale" and "sectors" in rep["stale"]
     f["sector_board_date"] = None
     assert [d for d in fr.evaluate_facts(f, now, [], disk=1.0)["datasets"] if d["key"] == "sectors"][0]["status"] == "unknown"      # enabled but no data yet: unknown, not stale
+
+
+def test_sector_pulse_is_not_called_stale_while_the_founder_has_switched_the_sector_job_off():
+    from datetime import date as _date, datetime as _dt, timezone as _tz
+    from finlit.jobs.freshness import evaluate_facts as _ev
+    now = _dt(2026, 11, 12, 17, 0, tzinfo=_tz.utc)
+    off = _ev({"sector_enabled": True, "sector_job_off": "The sector job is switched off for now (founder, 7 Nov 2026)", "sector_board_date": _date(2026, 11, 6)}, now)
+    assert "sectors" not in [d["key"] for d in off["datasets"]]                 # the console shows "switched off by configuration" instead
+    on = _ev({"sector_enabled": True, "sector_job_off": None, "sector_board_date": _date(2026, 11, 6)}, now)
+    assert [d for d in on["datasets"] if d["key"] == "sectors"][0]["status"] in ("late", "stale")     # switched on and days old: judged as before

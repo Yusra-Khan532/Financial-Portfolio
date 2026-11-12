@@ -300,12 +300,30 @@ async def refresh_universe(client: FinEdgeClient, store: Store) -> int:
     return count
 
 
-async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[List[Tuple[str, str]]] = None, dhan_client=None) -> int:
+QUOTES_AT_ONCE = 24            # companies updated at the same time (a read and a write of each stored summary): never thousands at once
+QUOTES_BUDGET_S = 7 * 60       # a run stops starting new companies after this long, inside the job's 10-minute limit; the next run carries on from there
+QUOTES_CURSOR_KEY = "quotes:cursor"
+
+
+async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[List[Tuple[str, str]]] = None, dhan_client=None,
+                         budget_s: Optional[float] = None) -> int:
     """Patch the live quote into each summary without re-fetching fundamentals.
 
     With Dhan set up, every matched company's quote comes from a few batch calls (1,000 companies each); a company Dhan does not match,
-    does not answer for, or answers implausibly for (previous close more than 25% from the price held) is asked of FinEdge as before."""
+    does not answer for, or answers implausibly for (previous close more than 25% from the price held) is asked of FinEdge as before.
+
+    With `budget_s` (the scheduled job) the work is split so every run finishes inside its time limit: a few companies at a time, starting where the last
+    run stopped, and no new company after `budget_s` seconds; the companies not reached are the first of the next run (the job runs every minute or
+    so), so every company is updated in turn. Before this, one run tried all of them at once and timed out every time once about 5,800 had a report."""
     items = symbols or await store.quote_symbols()
+    started = time.monotonic()
+    start_at = 0
+    if budget_s is not None and items:
+        try:
+            start_at = int(await store.redis.get(QUOTES_CURSOR_KEY) or 0) % len(items)
+        except Exception:
+            start_at = 0
+        items = items[start_at:] + items[:start_at]
     updated = 0
     touched: List[Tuple[str, str]] = []
     live_scores: List[dict] = []
@@ -365,7 +383,28 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
         updated += 1
         touched.append((symbol, statement))
 
-    await asyncio.gather(*(one(s, st) for s, st in items))
+    gate = asyncio.Semaphore(QUOTES_AT_ONCE)
+    reached = 0
+
+    async def guarded(symbol: str, statement: str):
+        nonlocal reached
+        async with gate:
+            if budget_s is not None and time.monotonic() - started > budget_s:
+                return
+            reached += 1
+            try:
+                await one(symbol, statement)
+            except Exception:      # one company never stops the others
+                log.exception("quote update failed for %s", symbol)
+
+    await asyncio.gather(*(guarded(s, st) for s, st in items))
+    if budget_s is not None and items:
+        try:
+            await store.redis.set(QUOTES_CURSOR_KEY, str((start_at + reached) % len(items)), ex=86400)
+        except Exception:
+            pass
+        if reached < len(items):
+            log.info("quotes: reached %d of %d companies in this run; the next run starts with the rest", reached, len(items))
     if live_scores:   # the screener reads the same numbers the stock page now shows
         try:
             await store.update_live_scores(live_scores)
@@ -1505,7 +1544,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:
-                    print(await refresh_quotes(client, store, dhan_client=dc), "quotes updated")
+                    print(await refresh_quotes(client, store, dhan_client=dc, budget_s=QUOTES_BUDGET_S), "quotes updated")
             elif args.cmd == "audit-integrity":
                 from . import integrity
                 from .sysctl import loads_enabled
