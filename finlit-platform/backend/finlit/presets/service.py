@@ -174,6 +174,12 @@ async def get_result(store, preset: Preset, active: List[str]) -> Optional[dict]
             fr = await asyncio.wait_for(build_frame(store), COMPUTE_TIMEOUT)
             body = engine.run(fr, preset, active or [engine.NO_CHIPS])
             await store_result(store, preset, body)
+            # A list built here (no saved one: a new chip set, or the rules changed with a release) is written to the screen history too, so every company it serves has
+            # its "Added" day; before, such a list was served without them until the next night (task #64, C3). Its own guard: the history never stops the list.
+            try:
+                await hist_mod.record(store, fr, [(preset, active or [engine.NO_CHIPS], body)])
+            except Exception:
+                log.exception("screen history not written for the on-demand list %s", preset.id)
             return body
         finally:
             try:
@@ -259,5 +265,12 @@ async def refresh_presets(store, settings=None) -> dict:
         history_note = {"historyError": type(exc).__name__}
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
-    return {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    summary = {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
+    try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
+        async with store.pool.acquire() as conn:
+            await conn.execute("INSERT INTO preset_meta (key, value) VALUES ('last_run', $1::jsonb) ON CONFLICT (key) DO UPDATE SET value=$1::jsonb, updated_at=now()",
+                               json.dumps({**summary, "finishedAt": datetime.now(timezone.utc).isoformat()}, default=str))
+    except Exception:
+        log.warning("preset job summary not saved")
+    return summary

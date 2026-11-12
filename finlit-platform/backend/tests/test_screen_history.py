@@ -125,3 +125,41 @@ def test_repair_rewrites_only_the_closes_that_differ_from_the_real_close():
 
     got = asyncio.run(history.repair_closes(Store()))
     assert got == {"closesRepaired": 1} and updates == [(110.0, None, 1)]
+
+
+def test_the_nifty500_closes_are_put_in_date_order_before_the_last_90_are_kept():
+    """Task #64, C4: the provider's rows are not in date order. Taking the last 90 rows as sent kept the oldest closes, so the day a company joined had no NIFTY 500 close
+    and the NIFTY 500 change was blank on almost every row."""
+    import asyncio
+    import json as _json
+    from datetime import date, timedelta
+    days = [(date(2026, 11, 11) - timedelta(days=i)).isoformat() for i in range(300)]           # newest first, as the provider sends them
+    raw = {"rows": [{"quote_date": d + "T00:00:00", "close_price": 20000 + i} for i, d in enumerate(days)] + [{"quote_date": "", "close_price": 1}, {"quote_date": "2026-13-40", "close_price": 2}]}
+    rows = history.bench_rows(raw)
+    assert rows[0][0] == days[-1] and rows[-1] == ("2026-11-11", 20000.0) and len(rows) == 300     # oldest first; a bad row is left out
+
+    class Redis:
+        async def get(self, key):
+            return _json.dumps({"t": 0, "v": raw}) if key == "idx:px:NIF500" else None
+
+    class Conn:
+        async def fetchval(self, *a):
+            return None
+        async def execute(self, *a):
+            return None
+
+    class Pool:
+        def acquire(self):
+            class Ctx:
+                async def __aenter__(s):
+                    return Conn()
+                async def __aexit__(s, *e):
+                    return False
+            return Ctx()
+
+    class Store:
+        redis, pool = Redis(), Pool()
+
+    bench = asyncio.run(history._bench(Store(), date(2026, 11, 12)))
+    assert "2026-11-11" in bench and "2026-11-10" in bench                                         # the recent closes are there
+    assert history._bench_at(bench, "2026-11-11") == 20000.0 and history._pct(history._bench_at(bench, "2026-11-10"), history._bench_at(bench, "2026-11-12")) is not None
