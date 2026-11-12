@@ -76,7 +76,7 @@ class BoxPrimitive implements ISeriesPrimitive<Time> {
   }
 }
 
-export function ChartPanel({ row, onClose, onStep }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void }) {
+export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void; extra?: React.ReactNode }) {
   const [opt, setOpt] = useState(readOpt);
   const [ind, setInd] = useState(() => readInd(row.screen));
   const [cmp, setCmp] = useState<Cmp>({ nifty: false, peers: [] });
@@ -318,6 +318,7 @@ export function ChartPanel({ row, onClose, onStep }: { row: PanelRow; onClose: (
         {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? "The chart could not be loaded." : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
       </div>
       {!!score?.pillars?.length && <ul className="cp-score" aria-label="FinLit IQ scores">{score.pillars.map((p) => <li key={p.key} className={"b-" + (p.band?.key || "")}><small>{p.label}</small><b>{p.score == null ? "–" : Math.round(p.score)}</b><em>{p.band?.label}</em></li>)}</ul>}
+      {extra}
       <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by TradingView Lightweight Charts™, Copyright (c) 2025 TradingView, Inc.</p>
       <Link className="btn primary cp-r" to={`/stocks/${row.symbol}`}>Open full report</Link>
     </aside>

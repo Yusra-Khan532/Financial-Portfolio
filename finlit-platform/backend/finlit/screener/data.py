@@ -80,9 +80,39 @@ def _tidy_sectors(raw: List[Optional[str]]) -> Tuple[List[Optional[str]], Dict[s
     return [m.get(v, v) if v else v for v in raw], m
 
 
+LOG_SPREAD = 25      # a figure whose 95th percentile is more than this many times its 5th (all positive) is drawn on a log scale
+
+
+def _hist30(xs: List[float]) -> dict:
+    """The Stock screener's rule-card figures (task #64, file 04) for one sorted column: quartiles, and 30 bars between the 5th and 95th percentile with the tails in the end bars.
+    Long-tailed positive figures (market cap, price, P/E, P/B) use a log scale, so the bars show where most companies are instead of one tall first bar."""
+    p5, p95 = _pct(xs, .05), _pct(xs, .95)
+    out = {"p25": _pct(xs, .25), "p75": _pct(xs, .75), "p5": p5, "p95": p95, "scale": "linear", "hist30": []}
+    if p95 <= p5:
+        return out
+    log = p5 > 0 and p95 > LOG_SPREAD * p5
+    a, b = (math.log(p5), math.log(p95)) if log else (p5, p95)
+    bins = [0] * 30
+    for x in xs:
+        v = (math.log(x) if x > 0 else -math.inf) if log else x
+        bins[min(29, max(0, int((v - a) / (b - a) * 30))) if v != -math.inf else 0] += 1
+    out.update(scale="log" if log else "linear", hist30=bins)
+    return out
+
+
+def dedupe(rows: List[dict]) -> List[dict]:
+    """One row per company (task #64, file 04, data fix 5): a company listed under both its NSE symbol and its BSE code keeps the NSE row.
+    A BSE code (all digits) is dropped only when an NSE row carries the very same company name."""
+    def key(r: dict) -> str:
+        return " ".join((r.get("name") or "").lower().replace(".", " ").replace("&", " and ").split())
+    nse = {key(r) for r in rows if not str(r["symbol"]).isdigit() and r.get("name")}
+    return [r for r in rows if not (str(r["symbol"]).isdigit() and r.get("name") and key(r) in nse)]
+
+
 class Table:
     def __init__(self, rows: List[dict], members: Dict[str, List[str]], score_move: Dict[str, float], fno: Optional[Dict[str, bool]] = None):
         self.loaded = time.time()
+        rows = dedupe(rows)
         self.symbols: List[str] = []
         self.name: List[str] = []
         self.sector: List[Optional[str]] = []
@@ -178,7 +208,7 @@ class Table:
                     for x in xs:
                         counts[min(bins - 1, max(0, int((x - lo) / (hi - lo) * bins)))] += 1
                 self.stats[k] = {"min": xs[0], "p10": _pct(xs, .1), "p50": _pct(xs, .5), "p90": _pct(xs, .9), "max": xs[-1], "n": len(xs),
-                                 "lo": lo, "hi": hi, "hist": counts}
+                                 "lo": lo, "hi": hi, "hist": counts, **_hist30(xs)}
 
     def latest_quarter(self, at_least: int = 25) -> Optional[int]:
         """The newest quarter-end (yyyymmdd) that at least `at_least` companies have reported: the quarter now being reported. None when the table cannot tell."""
@@ -231,9 +261,11 @@ class Table:
             idx = [i for i in idx if t in self.symbols[i].lower() or t in self.name[i].lower()]
         return list(idx)
 
-    def funnel(self, filters: Dict[str, Dict[str, Optional[float]]], cats: Dict[str, List[str]], q: str = "") -> List[dict]:
+    def funnel(self, filters: Dict[str, Dict[str, Optional[float]]], cats: Dict[str, List[str]], q: str = "",
+               model: Optional[Dict[str, Dict[str, Optional[float]]]] = None) -> List[dict]:
         """What is left after each rule in turn (the screen's own order): [{key, before, after, missing}], `missing` being the companies of that step that have no figure for the rule.
-        Categories (size, sector, industry, index, rating, search) count as one step each, first."""
+        Categories (size, sector, industry, index, rating, search) count as one step each, first. A ready-made screen on the FinLit model (`model`, its cut-offs) is one
+        step named "model": which figures it uses and where it cuts are never told."""
         steps: List[dict] = []
         have: Dict[str, Dict[str, Optional[float]]] = {}
         stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("industry", {"industry": cats.get("industry") or []}),
@@ -246,6 +278,11 @@ class Table:
             before = len(cur)
             cur = [i for i in cur if i in nxt]
             steps.append({"key": name, "before": before, "after": len(cur), "missing": 0})
+        if model:
+            nxt = set(self.match(model, {}))
+            before = len(cur)
+            cur = [i for i in cur if i in nxt]
+            steps.append({"key": "model", "before": before, "after": len(cur), "missing": 0})
         for key, rg in filters.items():
             have[key] = rg
             col, lo, hi = self.cols[key], rg.get("min"), rg.get("max")

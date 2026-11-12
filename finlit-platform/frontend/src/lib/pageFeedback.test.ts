@@ -13,7 +13,7 @@ describe("pageNameFor", () => {
     expect(pageNameFor("/stocks/RELIANCE/")).toBe("Company report");
     expect(pageNameFor("/prism/TCS")).toBe("Prism report");
     expect(pageNameFor("/funds/119551")).toBe("Fund page");
-    expect(pageNameFor("/forum/c/RELIANCE")).toBe("Discussion forum");
+    expect(pageNameFor("/forum/c/RELIANCE")).toBe("Discussion forums");
     expect(pageNameFor("/no/such/page")).toBe("");
   });
 });

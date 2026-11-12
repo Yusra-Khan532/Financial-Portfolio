@@ -183,3 +183,50 @@ async def test_the_stored_list_is_served_as_stored_even_when_the_table_has_moved
     again = await service.get_result(store, p, [])
     assert again["count"] == -1 and again["snapshot"] == "0:0:0:0:0"      # SC-6: the list stored after the close is what is served (card count, rows and Added agree), never rebuilt from the table of the moment
     assert service.same_snapshot({"count": 1}, "anything")                                  # a list saved before the stamp existed is not rebuilt for that alone
+
+
+async def test_the_selfcheck_runs_the_acceptance_checks_on_the_served_lists_without_a_sign_in(app, anon, store):  # noqa: F811
+    await wipe(store)
+    await store.redis.delete("presets:selfcheck:v2")
+    await service.refresh_presets(store)
+    r = await anon.get("/api/screener/selfcheck")                                      # no account needed: it says pass or fail, never a company
+    body = r.json()
+    assert r.status_code == 200 and body["of"] == 7 and [c["id"] for c in body["checks"]] == [f"C{i}" for i in range(1, 8)]
+    by = {c["id"]: c for c in body["checks"]}
+    assert by["C1"]["ok"] and by["C2"]["ok"], by                                        # every live screen is served, and the card count is the served count
+    assert by["C5"]["ok"] and by["C7"]["ok"], by                                        # one build; no model detail in the texts
+    assert body["screens"] >= 38 and body["passed"] == sum(c["ok"] for c in body["checks"])
+    assert not any(f"S{i:02d}" in r.text for i in range(30))                            # no company of the list leaks out
+    assert (await anon.get("/api/screener/selfcheck")).text == r.text                    # kept five minutes
+
+
+async def test_a_list_built_on_demand_is_written_to_the_history_so_every_row_has_added(app, store):  # noqa: F811
+    """Task #64, C3: a list built when no saved one was there (a new chip set, or the rules changed with a release) was served without "Added" until the next night."""
+    await wipe(store)
+    async with store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE screen_spells, screen_runs, screen_snapshots")
+    from finlit.presets.registry import BY_ID
+    p = BY_ID["emerging-tech"]                                                            # the screen the test table fills (30 companies)
+    active = [c.id for c in p.chips if c.default]
+    body = await service.get_result(store, p, active)                                    # nothing saved: built here
+    syms = [r["symbol"] for r in body.get("exportRows") or body["rows"]]
+    assert syms
+    async with store.pool.acquire() as conn:
+        open_ = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM screen_spells WHERE preset_id=$1 AND left_on IS NULL", p.id)}
+        runs = await conn.fetchval("SELECT count(*) FROM screen_runs WHERE preset_id=$1", p.id)
+    assert set(syms) <= open_ and runs == 1
+    gold = await signed_in(app, "ondemand@example.com", plan="gold")
+    served = (await gold.get(f"/api/screener/presets/{p.id}")).json()
+    assert all(r.get("added_on") for r in served.get("exportRows") or served["rows"])
+
+
+async def test_the_selfcheck_says_why_in_counts_and_dates_and_the_night_keeps_its_summary(app, anon, store):  # noqa: F811
+    await wipe(store)
+    await store.redis.delete("presets:selfcheck:v2")
+    await service.refresh_presets(store)
+    d = (await anon.get("/api/screener/selfcheck")).json()["diagnostics"]
+    assert set(d) == {"nifty500", "patterns", "lastRun"}
+    assert d["lastRun"]["results"] >= 38 and "finishedAt" in d["lastRun"] and "asOf" in d["lastRun"]
+    assert {"asOf", "checked", "leftOut", "candlesEnd"} <= set(d["patterns"]) or "error" in d["patterns"]
+    assert "days" in d["nifty500"]
+    assert not any(f"S{i:02d}" in json.dumps(d) for i in range(30))                          # still never a company

@@ -1,98 +1,55 @@
+// The Stock screener (task #64, handover file 04, 10 Nov; with tasks #73, #74 and #75 of 11 Nov): a short head with the Find stocks tabs, the ready-made
+// screens, then "Your rules" (funnel, size, the one Sector filter, index, FinLit rating, rule cards, + Add a rule, Type rules) beside the results (count,
+// Save screen, Download, the active rules, search, the nine standard columns plus a "Your rules" band, the pager). A click on a row opens the chart panel
+// with the company's figures, your rules first.
 import { HScroll } from "../components/HScroll";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
-import { SplitDivider, useSideWidth } from "../components/SplitDivider";
-import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Plain } from "../components/Plain";
 import { Icon } from "../lib/icons";
 import { nf } from "../lib/format";
 import { API_BASE, apiUrl } from "../lib/api";
 import { limitsFor, useAuth } from "../lib/auth";
 import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { READY, UNIT_SUFFIX, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
-import { screens, useSavedScreens } from "../lib/screens";
+import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
 import { TableZoom } from "../components/TableZoom";
 import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
-import { ChartHelp } from "../components/ChartHelp";
-import { matchesMetric, rankMetrics } from "../lib/metricSearch";
-import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "../components/screener/FilterGroup";
-import { KpiStrip, SectorBars, TitleCard, Toolbar, Donut, type Kpi } from "../components/screener/PageParts";
+import { rankMetrics } from "../lib/metricSearch";
+import { CheckRow, SearchBox } from "../components/screener/FilterGroup";
+import { Donut, SectorBars } from "../components/screener/PageParts";
 import { FindStocksTabs } from "../components/screener/FindStocksTabs";
 import { ChartPanel, type PanelRow } from "../components/screener/ChartPanel";
+import { ReadyScreens } from "../components/screener/ReadyScreens";
+import { RuleCard, startRange } from "../components/screener/RuleCard";
+import { RulePicker } from "../components/screener/RulePicker";
+import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
+import "../styles/stockscreener.css";
 import { CoLogo } from "../components/CoLogo";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
-const TIER_ORDER: Plan[] = ["basic", "silver", "gold"];
-const PAGE = 50;
+export const PAGE = 25;
 const MAX_COLS = 12;
-const VISIBLE_GROUPS = 9;
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-
 const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); useEffect(() => { const t = setTimeout(() => setD(v), ms); return () => clearTimeout(t); }, [v, ms]); return d; };
 
-const TAB_LABEL: Record<string, string> = { now: "Now", "3y": "3Y avg", "5y": "5Y avg", "7y": "7Y avg" };
-const fmtEdge = (v: number, m: MetricInfo) => nf(v, Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 100 ? 1 : m.digits > 1 ? 2 : 1);
+/** Short column names and the unit line under them (file 04 §5). */
+const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", pe: "P/E", pb: "P/B", roe: "ROE", roce: "ROCE", sales_cagr_3y: "Sales growth 3Y", profit_cagr_3y: "Profit growth 3Y",
+  debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
+const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
+const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : m ? UNIT_LINE[m.unit] ?? "" : "");
+const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch" };
+const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Sector", index: "Index", band: "FinLit rating", model: "the FinLit model screen" };
 
-/** A bar chart of where every company sits, with a two-handle slider underneath: drag to set the range, or type it in the boxes. */
-function RangeBox({ m, r, set }: { m: MetricInfo; r: Range; set: (r: Range) => void }) {
-  const st = m.stats;
-  if (!st) return <p className="pl-say">Not enough companies report this yet.</p>;
-  const lo = st.lo ?? st.min, hi = st.hi ?? st.max, span = hi - lo || 1, steps = 200;
-  const toPos = (v: number | undefined, dflt: number) => Math.round(((Math.min(hi, Math.max(lo, v ?? dflt)) - lo) / span) * steps);
-  const a = toPos(r.min, lo), b = toPos(r.max, hi);
-  const at = (pos: number) => lo + (pos / steps) * span;
-  const nice = (v: number) => Number(v.toPrecision(3));
-  const num = (raw: string) => (raw === "" ? undefined : Number.isFinite(Number(raw)) ? Number(raw) : undefined);
-  const bars = st.hist || [], top = Math.max(1, ...bars);
-  const inside = (i: number) => { const c0 = lo + (i / bars.length) * span, c1 = lo + ((i + 1) / bars.length) * span; return (r.min == null || c1 >= r.min) && (r.max == null || c0 <= r.max); };
-  return (
-    <>
-      <div className="pl-hist" role="img" aria-label={`How ${m.label} is spread across ${nf(st.n, 0)} companies`}>{bars.map((c, i) => <i key={i} className={inside(i) ? "in" : ""} style={{ height: `${Math.max(3, (c / top) * 100)}%` }} />)}</div>
-      <div className="pl-slider">
-        <input type="range" min={0} max={steps} value={a} aria-label={`${m.label} minimum slider`} onChange={(e) => { const v = Number(e.target.value); set({ ...r, min: v <= 0 ? undefined : Math.min(nice(at(v)), r.max ?? Infinity) }); }} />
-        <input type="range" min={0} max={steps} value={b} aria-label={`${m.label} maximum slider`} onChange={(e) => { const v = Number(e.target.value); set({ ...r, max: v >= steps ? undefined : Math.max(nice(at(v)), r.min ?? -Infinity) }); }} />
-        <span className="pl-track"><span style={{ left: `${(a / steps) * 100}%`, right: `${100 - (b / steps) * 100}%` }} /></span>
-      </div>
-      <div className="pl-mm">
-        <label><small>MIN</small><input type="number" inputMode="decimal" placeholder={fmtEdge(st.min, m)} value={r.min ?? ""} onChange={(e) => set({ ...r, min: num(e.target.value) })} aria-label={`${m.label} minimum`} /></label>
-        <label><small>MAX</small><input type="number" inputMode="decimal" placeholder={fmtEdge(st.max, m)} value={r.max ?? ""} onChange={(e) => set({ ...r, max: num(e.target.value) })} aria-label={`${m.label} maximum`} /></label>
-      </div>
-      <small className="pl-typ">Most companies: {fmtEdge(st.p10, m)}{UNIT_SUFFIX[m.unit] ?? ""} to {fmtEdge(st.p90, m)}{UNIT_SUFFIX[m.unit] ?? ""} · {nf(st.n, 0)} companies reported</small>
-    </>
-  );
-}
-
-/** The card that opens under a chip: name, what it means, Now / 3Y / 5Y / 7Y tabs where they exist, the range, and Remove. */
-function FilterCard({ m, byKey, ranges, setRange, ask, tab, setTab }: { m: MetricInfo; byKey: Map<string, MetricInfo>; ranges: Record<string, Range>; setRange: (k: string, r: Range) => void; ask: (tier: Plan, why: string) => void; tab: string; setTab: (t: string) => void }) {
-  const [info, setInfo] = useState(false);
-  const tabs = m.variants ? Object.entries(m.variants) : null;
-  const key = tabs ? m.variants![tab] : m.key, cur = byKey.get(key) || m;
-  const r = ranges[key] || {};
-  const locked = cur.locked;
-  const clearAll = () => (tabs ? tabs.forEach(([, k]) => setRange(k, {})) : setRange(m.key, {}));
-  const any = (tabs ? tabs.some(([, k]) => ranges[k]) : !!ranges[m.key]);
-  return (
-    <div className={"pl-card" + (locked ? " is-locked" : "")}>
-      <div className="pl-card-h"><b>{m.label}</b>{!locked && cur.unit !== "flag" && cur.stats && <ChartHelp id={tabs && tab !== "now" ? "screener-avg" : "screener-range"} />}{locked ? <button className="pl-tier" onClick={() => ask(m.tier, `${m.label} is part of the ${TIER[m.tier].n} plan.`)}><Icon name="lock" />{TIER[m.tier].n}</button>
-        : <button className="pl-i" aria-label={`What ${m.label} means`} aria-expanded={info} onClick={() => setInfo(!info)}><Icon name="info" /></button>}
-        {any && <button className="pl-rm" onClick={clearAll}>Remove</button>}</div>
-      {info && <p className="pl-say">{m.say}{m.better !== "none" ? ` ${m.better === "higher" ? "Higher" : "Lower"} is usually better.` : ""}</p>}
-      {tabs && <div className="pm-seg" role="tablist" aria-label={`${m.label} period`}>{tabs.map(([t, k]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{TAB_LABEL[t]}{ranges[k] ? " •" : ""}</button>)}</div>}
-      {cur.unit === "flag" ? (
-        <div className="pm-seg" role="group" aria-label={cur.label}>{(["any", "yes", "no"] as const).map((o) => { const v = r.min === 1 ? "yes" : r.max === 0 ? "no" : "any"; return <button key={o} aria-pressed={v === o} onClick={() => (locked ? ask(cur.tier, `${cur.label} is part of the ${TIER[cur.tier].n} plan.`) : setRange(key, o === "any" ? {} : o === "yes" ? { min: 1 } : { max: 0 }))}>{o === "any" ? "Any" : o === "yes" ? "Yes" : "No"}</button>; })}</div>
-      ) : locked ? <p className="pl-say">Unlock this filter with the {TIER[m.tier].n} plan to set a range.</p> : <RangeBox key={key} m={cur} r={r} set={(nr) => setRange(key, nr)} />}
-    </div>
-  );
-}
-
-function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number; sub?: string | null }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
+function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
   const [q, setQ] = useState(""), [all, setAll] = useState(false);
   const shown = items.filter((i) => !q.trim() || i.label.toLowerCase().includes(q.trim().toLowerCase()));
   const list = all || q ? shown : shown.slice(0, 12);
@@ -106,13 +63,22 @@ function Checks({ items, picked, toggle, search }: { items: { key: string; label
   );
 }
 
+/** A list filter folded behind one line ("All sectors ▾"), so the panel stays short. */
+function Fold({ id, title, summary, open, setOpen, children }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode }) {
+  return (
+    <div className="ssw-fold" data-facet={id}>
+      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} onClick={() => setOpen(!open)}><span className="sr">{title}: </span>{summary}<i aria-hidden="true">▾</i></button>
+      {open && <div id={`ssw-f-${id}`} role="group" aria-label={title}>{children}</div>}
+    </div>
+  );
+}
+
 export function ScreenerPro() {
   const { isAdmin } = useAuth();
-  useDocTitle("Stock screener", "Filter every listed Indian stock with 160+ filters: valuation, profitability, growth, quarterly results, financial health, ownership, red flags and trend. Gold adds FinLit model filters.");
+  useDocTitle("Stock screener", "Filter every listed Indian company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.");
   const { upgrade, toast, plan: uiPlan } = useUI();
-  const [sideW, setSide] = useSideWidth("screener");
   const nav = useNavigate();
-  const cat = useCatalog();
+  const cat = useCatalog(), ready = useReady();
   const [params, setParams] = useSearchParams();
   const init = useRef(decodeState(params.get("s")));
   const [f, setF] = useState<PState>(init.current.state);
@@ -120,283 +86,284 @@ export function ScreenerPro() {
   const [cols, setCols] = useState<string[] | null>(loadCols);
   const [period, setPeriod] = useState<Record<string, string>>({});
   const [q, setQ] = useState(""), [pg, setPg] = useState({ k: "", p: 0 });
-  const [tab, setTab] = useState<"filters" | "quick">("filters");
-  // the filters opened in each group (several at once, task #75): every one keeps its card, range and chart until it is clicked again or cleared
-  const [pick, setPick] = useState<Record<string, string[]>>({});
-  const [find, setFind] = useState(""), [open, setOpen] = useState<Record<string, boolean>>({});
-  const [moreGroups, setMoreGroups] = useState(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState(""), [saveName, setSaveName] = useState("");
+  const [order, setOrder] = useState<string[]>([]);          // the rule cards, in the order they were added (task #75: any number at once)
+  const [hot, setHot] = useState<string | null>(null);
+  const [picker, setPicker] = useState(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false), [saveName, setSaveName] = useState("");
+  const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [rulesOpen, setRulesOpen] = useState(() => !narrow());
   const saved = useSavedScreens();
-  const [collapsed, setCollapsed] = useState(narrow), [want, setWant] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });
-  const showPanel = (id: string) => { setCollapsed(false); setTab("filters"); setWant((w) => ({ id, n: w.n + 1 })); };
   const data = cat.data;
   const plan: Plan = data?.plan ?? "basic";
-  const byKey = useMemo(() => new Map((data?.groups || []).flatMap((g) => g.metrics.map((m) => [m.key, m] as const))), [data]);
-  // Opens with useful columns (market cap, price, P/E, 3Y avg P/E, P/B) without any clicking. A saved choice wins over them. Every filter range and every
-  // chip the visitor picks adds its own column (for the period tab it is on) and takes it away again when the filter or the pick goes.
-  const base = useMemo(() => cols ?? defaultColumns(data), [cols, data]);
-  const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, f.ranges);
-  const chipCols = Object.values(pick).flat().map((k) => (k ? chipColumn(byKey.get(k), periodOf(byKey.get(k)!), byKey) : null));
-  const columns = useMemo(() => tableColumns(base, f.ranges, chipCols, (k) => !data || byKey.has(k)), [base, f.ranges, chipCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const ask = (tier: Plan, why: string) => upgrade(tier, why);
+  const byKey = useMemo(() => new Map((data?.groups || []).flatMap((g) => g.metrics.map((m) => [m.key, m] as const))), [data]);
+  // a Now / 3Y / 5Y / 7Y figure (P/E, P/B, Price / Sales) is one rule: every variant key leads back to the figure it belongs to
+  const baseOf = useMemo(() => { const m = new Map<string, string>(); byKey.forEach((x) => x.variants && Object.values(x.variants).forEach((k) => m.set(k, x.key))); return (k: string) => m.get(k) ?? k; }, [byKey]);
+  const rules = useMemo(() => [...new Set([...order, ...Object.keys(f.ranges).map(baseOf)])].filter((k) => !data || byKey.has(k)), [order, f.ranges, baseOf, data, byKey]);
+  const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, f.ranges);
+  const ruleKey = (m: MetricInfo) => (m.variants ? m.variants[periodOf(m)] ?? m.key : m.key);
 
-  const dq = useDebounced(f, 250), dsort = useDebounced(sort, 0), dqq = useDebounced(q, 250);
-  // The page belongs to the filters it was chosen under: change a filter, the sort or the search and it is page 1 at once (no request with the old offset).
-  const pkey = JSON.stringify([dq, dsort, dqq]), page = pg.k === pkey ? pg.p : 0, setPage = (p: number) => setPg({ k: pkey, p });
-  // A shared or old link can name a filter or sort the screener does not have: leave those out instead of failing the whole screen.
-  const [ratios, setRatiosState] = useState<CustomRatio[]>(() => loadRatios());   // custom ratios (task #61): kept in this browser
+  // columns: the visitor's own choice or the nine standard ones, then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
+  const base = useMemo(() => cols ?? standardColumns(data), [cols, data]);
+  const ruleCols = rules.map((k) => chipColumn(byKey.get(k), byKey.get(k) ? periodOf(byKey.get(k)!) : undefined, byKey));
+  const columns = useMemo(() => tableColumns(base, f.ranges, ruleCols, (k) => !data || byKey.has(k)), [base, f.ranges, ruleCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // LTP carries the day's change under it: ask for it with the price, without a column of its own
+  const asked = useMemo(() => (columns.includes("price") && !columns.includes("ret_1d") && byKey.get("ret_1d") && !byKey.get("ret_1d")!.locked ? [...columns, "ret_1d"] : columns), [columns, byKey]);
+
+  const dq = useDebounced(f, 150), dqq = useDebounced(q, 250);
+  const pkey = JSON.stringify([dq, sort, dqq]), page = pg.k === pkey ? pg.p : 0, setPage = (p: number) => setPg({ k: pkey, p });
+  const [ratios, setRatiosState] = useState<CustomRatio[]>(() => loadRatios());
   const [ratioOpen, setRatioOpen] = useState(() => loadRatios().length > 0), [savedRatios, setSavedRatiosState] = useState(() => loadSavedRatios());
   const setSavedRatios = (v: ReturnType<typeof loadSavedRatios>) => { setSavedRatiosState(v); storeSavedRatios(v); };
   const openRatio = () => { setRatioOpen(true); window.setTimeout(() => document.getElementById("scr-ratio")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
-  const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (sort.key.startsWith("r") && /^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
+  const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (/^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
   const known = (k: string) => !data || byKey.has(k);
   const safe = useMemo(() => ({ ...dq, ranges: Object.fromEntries(Object.entries(dq.ranges).filter(([k]) => known(k))) }), [dq, data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const safeSort = known(dsort.key) || dsort.key === "name" || dsort.key === "symbol" || ratios.some((r) => r.id === dsort.key) ? dsort : { key: "market_cap", dir: "desc" as const };
-  const body = useMemo(() => toBody(safe, safeSort, columns, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, columns, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
-  const res = useScreen(body, !!data && columns.length > 0);
-  const [chart, setChart] = useState<PanelRow | null>(null);
+  const safeSort = known(sort.key) || sort.key === "name" || sort.key === "symbol" || ratios.some((r) => r.id === sort.key) ? sort : { key: "market_cap", dir: "desc" as const };
+  const body = useMemo(() => toBody(safe, safeSort, asked, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, asked, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
+  const res = useScreen(body, !!data && asked.length > 0);
+  const [chart, setChart] = useState<PanelRow | null>(null), [stepTo, setStepTo] = useState<"first" | "last" | null>(null);
   const [typed, setTyped] = useState(""), [typedErr, setTypedErr] = useState<string[]>([]);
   const rows = res.data?.rows || [];
+  const shown = (res.data?.columns || []).filter((k) => columns.includes(k));
   const nActive = activeCount(f) + ratios.filter((r) => r.op !== "none").length;
+  const total = res.data?.total ?? 0;
+  const modelScreen = f.model ? ready.data?.screens.find((s) => s.id === f.model) : undefined;
 
-  // keep the address bar in step so a screen can be shared
-  useEffect(() => { const s = encodeState(dq, dsort.key, dsort.dir); const n = new URLSearchParams(params); s ? n.set("s", s) : n.delete("s"); if (n.toString() !== params.toString()) setParams(n, { replace: true }); }, [dq, dsort]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const s = encodeState(dq, sort.key, sort.dir); const n = new URLSearchParams(params); s ? n.set("s", s) : n.delete("s"); if (n.toString() !== params.toString()) setParams(n, { replace: true }); }, [dq, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r; return { ...s, ranges }; });
   const toggle = (key: "sectors" | "industries" | "indices" | "caps" | "bands", v: string) => setF((s) => ({ ...s, [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] }));
-  const fl = find.trim().toLowerCase();
-  const clearMetric = (m: MetricInfo, gid: string) => { (m.variants ? Object.values(m.variants) : [m.key]).forEach((k) => setRange(k, {})); setPick((x) => ({ ...x, [gid]: (x[gid] || []).filter((k) => k !== m.key) })); };
+  const removeRule = (k: string) => { const m = byKey.get(k); (m?.variants ? Object.values(m.variants) : [k]).forEach((x) => setRange(x, {})); setOrder((o) => o.filter((x) => x !== k)); };
+  const addRule = (m: MetricInfo) => {
+    setOrder((o) => (o.includes(m.key) ? o : [...o, m.key]));
+    const k = m.variants ? m.variants.now ?? m.key : m.key, start = startRange(byKey.get(k) ?? m);
+    if (start.min != null || start.max != null) setRange(k, start);
+    setHot(m.key); window.setTimeout(() => setHot((h) => (h === m.key ? null : h)), 1400);
+    setPicker(false);
+    toast(`Added ${m.label}${start.min != null || start.max != null ? ", starting on its better quarter. Change the range on its card." : ". Set a range on its card."}`);
+  };
+  const clearAll = () => { setF(norm({})); setOrder([]); setFrom(null); };
+  // a rule added but with no range yet is still chosen: it is counted and kept until removed or cleared (task #75)
+  const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => f.ranges[x]); }).length;
 
   const sortBy = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: key === "name" || byKey.get(key)?.better === "lower" ? "asc" : "desc" }));
   const pickCols = (c: string[] | null) => { setCols(c); storeCols(c); };
-  const toggleCol = (k: string) => { if (!base.includes(k) && columns.includes(k)) { toast("This column belongs to a filter you chose. Unselect or remove that filter to hide it."); return; } if (base.includes(k)) pickCols(base.filter((x) => x !== k)); else if (base.length >= MAX_COLS) toast(`Up to ${MAX_COLS} columns at a time.`); else pickCols([...base, k]); };
+  const toggleCol = (k: string) => { if (!base.includes(k) && columns.includes(k)) { toast("This column belongs to one of your rules. Remove the rule to hide it."); return; } if (base.includes(k)) pickCols(base.filter((x) => x !== k)); else if (base.length >= MAX_COLS) toast(`Up to ${MAX_COLS} columns at a time.`); else pickCols([...base, k]); };
 
+  const rangeText = (m: MetricInfo | undefined, k: string, r: Range) => {
+    if (m?.unit === "flag") return `${m.label}: ${r.min === 1 ? "Yes" : "No"}`;
+    const name = SHORT[k] ?? m?.label ?? k, v = (x: number) => (m ? fmtMetric(m, x) : String(x));
+    return r.min != null && r.max != null ? `${name} ${v(r.min)} to ${v(r.max)}` : r.min != null ? `${name} above ${v(r.min)}` : `${name} below ${v(r.max!)}`;
+  };
   const chips: { label: string; clear: () => void }[] = [
-    ...Object.entries(f.ranges).map(([k, r]) => { const m = byKey.get(k); return { label: m?.unit === "flag" ? `${m.label}: ${r.min === 1 ? "Yes" : "No"}` : `${m?.label || k} ${r.min != null ? "≥ " + r.min : ""}${r.min != null && r.max != null ? " and " : ""}${r.max != null ? "≤ " + r.max : ""}`, clear: () => setRange(k, {}) }; }),
+    ...(f.model ? [{ label: `On the FinLit model: ${modelScreen?.label ?? "ready-made screen"}`, clear: () => setF((s) => ({ ...s, model: undefined })) }] : []),
+    ...Object.entries(f.ranges).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}) })),
     ...ratios.map((r) => ({ label: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...f.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
-    ...f.bands.map((s) => ({ label: `FinLit band: ${s}`, clear: () => toggle("bands", s) })),
+    ...f.bands.map((s) => ({ label: `FinLit rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
 
-  const apply = (s: Partial<PState>, label: string) => { const n = norm(s); setF(n); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) setCols(n.cols); setTab("filters"); toast(`Applied: ${label}.`); };
+  const pickReady = (s: ReadyScreen) => {
+    if (s.group === "model" && s.id !== "strong") { setF({ ...norm({}), model: s.id }); setOrder([]); }
+    else { const n = norm(s.state); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); }
+    setFrom(s.label); setPg({ k: "", p: 0 }); toast(`${s.label}: ${s.group === "model" && s.id !== "strong" ? "runs on the FinLit model; add your own rules to narrow it." : "its rules are under Your rules. Change any of them."}`);
+  };
+  const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
   const save = () => {
-    const n = saveName.trim(); if (!n || !nActive) { toast("Add a filter and a name first."); return; }
-    const max = limitsFor(uiPlan).screens; if (saved.length >= max && !saved.some((s) => s.name === n)) { toast(`Your plan keeps up to ${max} screens. Remove one first.`); return; }
-    screens.save(n, { ...f, sort: sort.key, dir: sort.dir, cols: cols ?? undefined } as never, max); setSaveName(""); toast(`Saved “${n}”. You can find it under Quick screens.`);
+    const n = saveName.trim(); if (!n || !nActive) { toast("Add a rule and a name first."); return; }
+    const max = limitsFor(uiPlan).screens; if (saved.length >= max && !saved.some((s) => s.name === n)) { toast(`Your plan keeps up to ${max} screens. Delete one under My screens first.`); return; }
+    screens.save(n, { ...f, sort: sort.key, dir: sort.dir, cols: cols ?? undefined } as never, max); setSaveName(""); setSaveOpen(false); toast(`Saved “${n}”. It is under Ready-made screens, My screens.`);
   };
   const exportCsv = async () => {
     if (!data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
     try {
       const r = await fetch(apiUrl("/api/screener/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv" }, body: JSON.stringify(toBody(safe, safeSort, columns, dqq, 0, 100, ratios)) });
       if (!r.ok) throw new Error(String(r.status));
-      saveFile("FinLit-screen.csv", await r.text(), "text/csv;charset=utf-8"); toast("Saved your results as FinLit-screen.csv.");
+      saveFile("FinLit-screen.csv", await r.text(), "text/csv;charset=utf-8"); toast(`Saved all ${nf(total, 0)} matches as FinLit-screen.csv.`);
     } catch { toast("We could not prepare the download. Please try again."); }
   };
 
-  const ordered = [...(data?.groups || [])].sort((a, b) => Number(b.id === "model") - Number(a.id === "model"));   // the FinLit model group leads: it is what Gold adds
-  const groups = ordered.filter((g) => !fl || g.label.toLowerCase().includes(fl) || g.metrics.some((m) => matchesMetric(find, m)));
-  const listed = fl || moreGroups ? groups : groups.slice(0, VISIBLE_GROUPS);
-  const facetOpen = (id: string) => !!(open[id] || fl);
-  const facetMatch = (label: string, also = "") => !fl || label.toLowerCase().includes(fl) || also.includes(fl);
   const [webgl, setWebgl] = useState(false);
   useEffect(() => { if (supports3d()) return whenIdle(() => setWebgl(true)); }, []);
-  /** The first three shown columns that hold numbers become the three axes of the 3D view. */
   const cloud = useMemo(() => {
-    const cs = (res.data?.columns || []).filter((k) => byKey.get(k)?.unit !== "flag" && rows.filter((r) => typeof r.v[k] === "number").length >= 5).slice(0, 3);
+    const cs = shown.filter((k) => byKey.get(k)?.unit !== "flag" && rows.filter((r) => typeof r.v[k] === "number").length >= 5).slice(0, 3);
     if (cs.length < 3) return null;
     const pts = rows.filter((r) => cs.every((k) => typeof r.v[k] === "number" && isFinite(r.v[k] as number)))
       .map((r) => ({ id: r.symbol, label: `${r.symbol}: ${cs.map((k) => `${byKey.get(k)?.label} ${fmtMetric(byKey.get(k)!, r.v[k])}`).join(" · ")}`, x: r.v[cs[0]] as number, y: r.v[cs[1]] as number, z: r.v[cs[2]] as number }));
     return pts.length >= 5 ? { pts, axes: cs.map((k) => byKey.get(k)?.label || k) as [string, string, string] } : null;
-  }, [rows, res.data?.columns, byKey]);
-  const heat = useMemo(() => {
-    const out: Record<string, [number, number]> = {};
-    for (const k of res.data?.columns || []) { const v = rows.map((r) => r.v[k]).filter((x): x is number => x != null).sort((a, b) => a - b); if (v.length > 6) out[k] = [v[Math.floor(v.length * 0.25)], v[Math.floor(v.length * 0.75)]]; }
-    return out;
-  }, [rows, res.data?.columns]);
+  }, [rows, shown.join(","), byKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // green and red: the best and the weakest quarter of ALL listed companies on that column (file 04 §5), from the catalog's quartiles
+  const heat = useMemo(() => { const out: Record<string, [number, number]> = {}; byKey.forEach((m, k) => { if (m.stats?.p25 != null && m.stats.p75 != null) out[k] = [m.stats.p25, m.stats.p75]; }); return out; }, [byKey]);
   const tone = (k: string, v: number | null) => cellTone(byKey.get(k), heat[k], v);
-  // the colour note shows only while a column beyond the default set is on the table and carries green or red cells (task #73); back on the default columns it is gone
-  const dflt = useMemo(() => defaultColumns(data), [data]);
-  const coloured = useMemo(() => colourColumns(res.data?.columns || [], dflt, byKey, heat, rows), [res.data?.columns, dflt, byKey, heat, rows]);
+  const dflt = useMemo(() => standardColumns(data), [data]);
+  // the colour note shows only while a column beyond the standard set is on the table and carries a green or red cell (task #73)
+  const coloured = useMemo(() => colourColumns(shown, dflt, byKey, heat, rows), [shown.join(","), dflt, byKey, heat, rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const err = res.error as { status?: number; body?: { plan?: string; detail?: string } } | null;
-  const total = res.data?.total ?? 0;
 
-  // Sector (the industry list, one unified Sector filter, task #74) and Index sit straight after the FinLit model group (or at the top while a search hides it)
-  const grp = (id: string, title: string, active: number, meta: number, body: React.ReactNode, defaultOpen = false) => (
-    <FilterGroup id={id} title={title} active={active} meta={meta} open={fl ? true : open[id] ?? (active > 0 || defaultOpen)} onOpenChange={(o) => setOpen((x) => ({ ...x, [id]: o }))}>{body}</FilterGroup>);
-  // The one Sector filter is the industry list. A sector picked from an older link (the former separate Sector list) stays part of it: it is listed first, ticked, and unticking it removes it,
-  // so the panel, the chips above the table and the count on the Sector button always agree (task #74).
+  // the one Sector filter (task #74): the industry list, named Sector; a sector picked from an older link stays part of it
   const industryNames = useMemo(() => new Set((data?.industries || []).map((x) => x.name)), [data]);
   const legacySectors = useMemo(() => f.sectors.filter((s) => !industryNames.has(s)), [f.sectors, industryNames]);
   const sectorItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })), ...(data?.industries || []).map((x) => ({ key: x.name, label: x.name, n: x.n }))], [legacySectors, data]);
   const toggleSector = (k: string) => toggle(f.sectors.includes(k) ? "sectors" : "industries", k);
-  const facetBlocks = <>
-    {data && facetMatch("Sector", "industry") && grp("industry", "Sector", f.industries.length + f.sectors.length, data.industries.length + legacySectors.length, <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} />)}
-    {data && data.indices.length > 0 && facetMatch("Index") && grp("index", "Index", f.indices.length, data.indices.length, <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} />)}
-  </>;
+  const nSector = f.industries.length + f.sectors.length;
 
-  const nFilters = data ? data.groups.reduce((a, g) => a + g.metrics.length, 0) : 0;
+  const funnel = res.data?.funnel ?? [];
+  const stepOf = (k: string) => funnel.find((s) => s.key === k);
+  const tight = funnel.find((s) => s.after === 0);
+  const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
+  const stepName = (k: string) => STEP_NAME[k] ?? byKey.get(k)?.label ?? k;
+
+  const panelRow = (r: (typeof rows)[number]): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null });
+  const step = useCallback((d: 1 | -1) => {
+    if (!chart) return;
+    const i = rows.findIndex((r) => r.symbol === chart.symbol), n = rows[i + d];
+    if (i >= 0 && n) { setChart(panelRow(n)); return; }
+    if (d === 1 && (page + 1) * PAGE < total && !res.data?.capped) { setStepTo("first"); setPage(page + 1); }   // the next page follows
+    else if (d === -1 && page > 0) { setStepTo("last"); setPage(page - 1); }
+  }, [chart, rows, page, total, res.data?.capped]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (stepTo && rows.length && !res.isFetching) { setChart(panelRow(stepTo === "first" ? rows[0] : rows[rows.length - 1])); setStepTo(null); } }, [rows, stepTo, res.isFetching]); // eslint-disable-line react-hooks/exhaustive-deps
+  const closeChart = () => { const s = chart?.symbol; setChart(null); window.setTimeout(() => Array.from(document.querySelectorAll<HTMLElement>(".ssw-t tbody tr[data-sym]")).find((t) => t.dataset.sym === s)?.focus(), 0); };
+
+  const listed = data ? nf(data.total, 0) : "…";
+  const sub = nActive === 0 ? `every listed company, ${sort.key === "market_cap" && sort.dir === "desc" ? "biggest first" : "sorted by " + (SHORT[sort.key] ?? byKey.get(sort.key)?.label ?? "name")} · of ${listed} listed`
+    : `match all ${nActive} ${nActive === 1 ? "rule" : "rules"} · of ${listed} listed${from ? ` · started from ${from}` : ""}`;
+  const stdCount = shown.filter((k) => base.includes(k)).length, ruleCount = shown.length - stdCount;
+
   return (
     <>
-      <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
-        <FindStocksTabs />
-        <TitleCard tier="free" title="Stock screener" onLearn={() => document.getElementById("scr-about")?.scrollIntoView?.({ block: "center" })} learnLabel="Learn more" art="screener"
-          sub={<>Explore and screen {data ? <b>{nf(data.total, 0)}</b> : "every listed"} companies using {data ? <b>{nf(nFilters, 0)}</b> : "160+"} filters across valuation, quarterly results, ownership and financial red flags.{plan !== "gold" && " Gold adds filters built on the FinLit research model."}</>}
-          stats={[{ icon: "building", value: data ? nf(data.total, 0) : null, label: "Companies" }, { icon: "table", value: data ? nf(nFilters, 0) : null, label: "Filters" }]}
-          links={["/score-screener", { to: "/advanced-score-screener", primary: true }, "/query-builder"]} />
-        <KpiStrip active={nActive} filtersOpen={!collapsed} onFilters={() => setCollapsed((c) => !c)} items={[
-          { icon: "building", label: "Companies found", value: res.data ? nf(total, 0) : "…" },
-          { icon: "layers", label: "Listed companies", value: data ? nf(data.total, 0) : "…" },
-          { icon: "map", label: "Sectors", value: data ? nf(data.industries.length, 0) : "…" },   // the same list the Sector filter offers
-          { icon: "table", label: "Filters available", value: data ? nf(data.groups.reduce((a, g) => a + g.metrics.length, 0), 0) : "…" } as Kpi]} />
-        {isAdmin && data && data.total > 0 && (      // how many companies have a report, and the sector mix: for the team (Console view), not shown to members
+      <div className="wrap ssw" style={{ paddingTop: 22 }}>
+        <section className="card ssw-head">
+          <p className="ssw-eyebrow">Find stocks</p>
+          <h1>Stock screener</h1>
+          <p className="ssw-lead">Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.</p>
+          <FindStocksTabs bare />
+        </section>
+
+        <ReadyScreens plan={plan} folded={nActive > 0} started={from} onPick={pickReady} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask} />
+
+        <button type="button" className="btn ssw-rtoggle" aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
+          Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
+
+        <div className="ssw-work">
+          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
+            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}</div>
+            {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
+            {nActive === 0 || !funnel.length
+              ? <p className="ssw-funnel-0">All {listed} companies. Each rule narrows the list; this line then shows how many are left after each one.</p>
+              : <ol className="ssw-funnel" aria-label="What is left after each rule"><li><b>{listed}</b></li>{funnel.map((s) => <li key={s.key} title={`after ${stepName(s.key)}`}><span aria-hidden="true">→</span><b>{nf(s.after, 0)}</b><span className="sr"> after {stepName(s.key)}</span></li>)}</ol>}
+            {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
+            {cat.isLoading && <div className="skeleton" style={{ height: 320 }} />}
+            {data && <>
+              <div className="ssw-sec"><h3>Size</h3>
+                <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={f.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
+                <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
+              <div className="ssw-sec"><h3>Sector and index</h3>
+                <Fold id="industry" title="Sector" summary={nSector ? `Sector: ${nSector} picked` : "All sectors"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
+                  <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
+                {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
+                  <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
+              <div className="ssw-sec"><h3>FinLit rating <span className="ssr-tier gold">GOLD</span></h3>
+                <div className="ssw-chips" role="group" aria-label="FinLit rating">{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={f.bands.includes(b.key)}
+                  onClick={() => (b.locked ? ask("gold", "Filtering by the FinLit rating comes with the Gold plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>
+              <div className="ssw-sec"><h3>Rules on numbers</h3>
+                {f.model && <div className="ssr-rule ssr-model" role="group" aria-label="Screen on the FinLit model"><div className="ssr-rt"><b>{modelScreen?.label ?? "On the FinLit model"}</b><span className="ssr-tier gold">GOLD</span>
+                  <button type="button" className="ssr-x" aria-label="Remove the FinLit model screen" onClick={() => setF((s) => ({ ...s, model: undefined }))}>×</button></div>
+                  <p className="ssr-say">{modelScreen?.says ?? "A screen on the FinLit model."} The model's cut-offs stay on the server.</p>
+                  {stepOf("model") && <p className="ssr-cnt">Keeps <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}</div>}
+                {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
+                  return <RuleCard key={k} m={m} cur={cur} r={f.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
+                    period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
+                <button type="button" className="btn ssw-add" onClick={() => setPicker(true)}>+ Add a rule</button>
+                <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
+                  const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
+                  if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
+                  <label className="sr" htmlFor="ssw-type">Type rules</label>
+                  <input id="ssw-type" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Or type: pe < 20 and roe > 15" aria-describedby="ssw-type-h" autoComplete="off" />
+                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
+                  {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
+                </form>
+                <button type="button" className="lnk ssw-ratio" onClick={openRatio}>{ratios.length ? `Custom ratios (${ratios.length})` : "Build a custom ratio from two figures"}</button>
+              </div>
+            </>}
+          </aside>
+
+          <section className="card ssw-res" aria-label="Results">
+            <div className="ssw-rhd">
+              <div className="ssw-ttl"><h2 aria-live="polite"><b>{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> {total === 1 ? "company" : "companies"}</h2><p className="ssw-sub">{sub}</p></div>
+              <div className="ssw-acts">
+                <span className="ssw-pop"><button type="button" className="btn" aria-expanded={saveOpen} onClick={() => setSaveOpen(!saveOpen)} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="star" />Save screen</button>
+                  {saveOpen && <span className="ssw-popb" role="group" aria-label="Save screen"><input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(false); }} /><button type="button" className="btn primary" onClick={save}>Save</button></span>}</span>
+                <button type="button" className="btn" onClick={exportCsv}><Icon name="download" />Download</button>
+              </div>
+            </div>
+            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className="ssw-a">{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
+            {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
+              onRun={() => document.querySelector(".ssw-res .ssw-tbar")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
+            <div className="ssw-tbar">
+              <input className="ssw-srch" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or symbol" aria-label="Search the results by name or symbol" />
+              <span className="ssw-sp" />
+              {res.data && total > 0 && <span className="ssw-pg">{nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + rows.length), 0)} of {nf(total, 0)}</span>}
+              <span className="scr-cm"><button type="button" className="btn" aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)}><Icon name="table" />Columns · {columns.length} ▾</button>
+                {colMenu && data && <div className="scr-colmenu pl-colmenu" role="menu">
+                  <label className="scr-find sm" style={{ margin: "0 0 8px" }}><Icon name="search" /><input value={colFind} onChange={(e) => setColFind(e.target.value)} placeholder="Find a column" aria-label="Find a column" /></label>
+                  {data.groups.map((g) => { const ms = (colFind.trim() ? rankMetrics(g.metrics, colFind) : g.metrics).filter((m) => !m.hidden || columns.includes(m.key)); return ms.length ? <div key={g.id}><div className="label">{g.label}</div>{ms.map((m) => <label key={m.key} className={m.locked ? "is-locked" : ""}><input type="checkbox" checked={columns.includes(m.key)} disabled={m.locked} onChange={() => toggleCol(m.key)} />{m.label}{m.locked && <Icon name="lock" />}</label>)}</div> : null; })}
+                  <button className="alx-link" onClick={() => pickCols(null)}>Back to the standard set</button></div>}</span>
+            </div>
+            {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
+              : res.isError ? <div className="state"><h2>That rule is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
+              : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
+                <>
+                  {total === 0 && tight && <div className="ssw-zero" role="status"><b>No company passes every rule.</b> {stepName(tight.key)} is the tightest: it leaves none of the {nf(tight.before, 0)} companies before it.
+                    <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
+                    <thead>
+                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
+                      <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
+                        {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+                          <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
+                        {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
+                        <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
+                    <tbody>{rows.map((r) => (
+                      <tr key={r.symbol} data-sym={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(panelRow(r)); }} onKeyDown={(e) => e.key === "Enter" && setChart(panelRow(r))}>
+                        <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={28} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
+                        {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
+                          if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
+                          if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
+                          return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
+                        {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
+                        <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
+                      </tr>))}
+                      {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={clearAll}>clear them all</button>.</td></tr>}
+                    </tbody></table></HScroll></TableZoom>
+                  {res.data.capped ? (
+                    <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match, lets you download them, and unlocks every filter.</span>
+                      <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
+                  ) : total > PAGE && (
+                    <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
+                  {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
+                    label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>}
+                </>)}
+            {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
+            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the FinLit IQ chip is coloured by its rating word.</p>
+          </section>
+        </div>
+        {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}
+        <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
+        {isAdmin && data && data.total > 0 && (
           <div className="fgx-two">
             <Donut part={data.withReport} total={data.total} partLabel="Report loaded" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no full report loaded yet.`}
               note="Ratios, growth and statements show a dash until a company's report is loaded." />
-            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))}
-              action={<button type="button" className="fgx-link" onClick={() => showPanel("industry")}>View all sectors &rsaquo;</button>} />
+            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
           </div>)}
-        <Toolbar q={q} setQ={setQ} searchLabel="Search company name, sector or keyword" buttons={[
-          { id: "size", label: "Market cap", active: f.caps.length, onClick: () => showPanel("size") },
-          { id: "sector", label: "Sector", active: f.sectors.length + f.industries.length, onClick: () => showPanel("industry") },
-          { id: "more", label: "More filters", active: Math.max(0, nActive - (f.caps.length ? 1 : 0) - (f.sectors.length || f.industries.length ? 1 : 0)), onClick: () => showPanel("valuation") }]}
-          sort={<label className="fgx-sort"><span className="sr">Sort by</span><select aria-label="Sort by" value={`${sort.key}:${sort.dir}`} onChange={(e) => { const [k, d] = e.target.value.split(":"); setSort({ key: k, dir: d as "asc" | "desc" }); }}>
-            {[["name", "Company"], ["market_cap", "Market cap"], ...(res.data?.columns || []).map((k) => [k, byKey.get(k)?.label || k])].flatMap(([k, l]) => (k === "name" ? ["asc", "desc"] : byKey.get(k)?.better === "lower" ? ["asc", "desc"] : ["desc", "asc"]).map((d) => ({ k, d, l })))
-              .concat(res.data?.columns.includes(sort.key) || sort.key === "name" ? [] : [{ k: sort.key, d: sort.dir, l: byKey.get(sort.key)?.label || sort.key }]).filter((o, i, a) => a.findIndex((x) => x.k === o.k && x.d === o.d) === i)
-              .map(({ k, d, l }) => <option key={k + d} value={`${k}:${d}`}>Sort by {l} ({d === "asc" ? (k === "name" ? "A to Z" : "low to high") : (k === "name" ? "Z to A" : "high to low")})</option>)}</select></label>} />
-        <div className={"scr" + (collapsed ? " fgx-collapsed" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
-          <aside className="scr-side card" aria-label="Filters" hidden={sideW === 0 || collapsed}>
-            <FgxFocus.Provider value={want}>
-            <div className="seg scr-tabs" role="tablist"><button role="tab" aria-selected={tab === "filters"} onClick={() => setTab("filters")}>Filters{nActive ? <i className="dotn">{nActive}</i> : null}</button><button role="tab" aria-selected={tab === "quick"} onClick={() => setTab("quick")}>Quick screens</button></div>
-            {tab === "filters" ? (
-              <>
-                <div className="fgx-top" style={{ paddingTop: 12 }}><span>{nActive ? `${nActive} active` : "No filters set"}</span>{nActive > 0 && <button type="button" className="fgx-link" onClick={() => setF(norm({}))}>Clear all</button>}</div>
-                <SearchBox value={find} onChange={setFind} placeholder="Search for a filter, e.g. ROE or promoter" label="Search for a filter" />
-                {cat.isLoading && <div className="skeleton" style={{ height: 320, marginTop: 12 }} />}
-                {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
-                <div className="scr-groups">
-                  {!listed.some((g) => g.id === "model") && facetBlocks}
-                  {listed.map((g) => {
-                    const isOpen = facetOpen(g.id), model = g.id === "model", allLocked = g.metrics.every((m) => m.locked);
-                    const shownMetrics = fl ? (g.label.toLowerCase().includes(fl) ? g.metrics : rankMetrics(g.metrics, find)) : g.metrics;
-                    const n = Object.keys(f.ranges).filter((k) => g.metrics.some((m) => m.key === k)).length;
-                    return (
-                      <Fragment key={g.id}><FilterGroup id={g.id} title={g.label} active={n} className={model ? "is-model" : ""} open={isOpen || n > 0 && open[g.id] === undefined} onOpenChange={(o) => setOpen((x) => ({ ...x, [g.id]: o }))}
-                        meta={<>{model && <span className="tier gold" style={{ marginRight: 8 }}><Icon name="crown" />Gold</span>}{g.metrics.length}</>}>
-                        {true && (
-                          <>
-                            {g.id === "size" && data && <div role="group" aria-label="Company size">{data.caps.map((c) => <CheckRow key={c.name} label={`${c.name} cap`} count={c.n} checked={f.caps.includes(c.name)} onChange={() => toggle("caps", c.name)} />)}</div>}
-                            {model && (
-                              allLocked ? <div className="scr-lock"><span className="lk"><Icon name="lock" /></span><b>Filter by the FinLit model</b><p>The FinLit IQ, its band and each of the five pillars (Quality, Growth, Profitability, Balance sheet, Technical), plus how the score has moved.</p>
-                                <button className="btn primary" onClick={() => ask("gold", "FinLit model filters come with the Gold plan.")}>Unlock with Gold</button></div>
-                              : <div className="fgx-chips" role="group" aria-label="FinLit band">{(data?.bands || []).map((b) => <button key={b.key} type="button" className={"fgx-chip" + (f.bands.includes(b.key) ? " is-on" : "")} aria-pressed={f.bands.includes(b.key)} onClick={() => toggle("bands", b.key)}>{f.bands.includes(b.key) && <i aria-hidden="true">&#10003;</i>}{b.label}</button>)}</div>
-                            )}
-                            {!(model && allLocked) && <>
-                              {(() => {
-                                // The main filters of a group come first, the chart of the chosen filter right under them, then the rest,
-                                // so opening a filter never pushes its chart to the bottom of a long group.
-                                const visible = shownMetrics.filter((m) => !m.hidden), MAIN = visible.length > 8 ? 6 : visible.length;
-                                const chip = (m: MetricInfo) => {
-                                  const active = m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key];
-                                  const opened = (pick[g.id] || []).includes(m.key);
-                                  // a click opens a filter (its range and chart appear under the chips); a click on a chosen filter takes it away again. Other filters stay as they are.
-                                  return <button key={m.key} className={"pl-chip" + (active ? " on" : "") + (opened ? " open" : "") + (m.locked ? " is-locked" : "")} aria-pressed={opened || active} onClick={() => { if (opened || active) { clearMetric(m, g.id); return; } setPick((x) => ({ ...x, [g.id]: [...(x[g.id] || []), m.key] })); }} onKeyDown={(e) => { if ((active || opened) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); clearMetric(m, g.id); } }} title={active || opened ? "Click again (or press Delete) to remove this filter" : undefined}>{m.label}{m.locked && <Icon name="lock" />}</button>;
-                                };
-                                const openKeys = [...new Set([...(pick[g.id] || []), ...visible.filter((m) => (m.variants ? Object.values(m.variants).some((k) => f.ranges[k]) : !!f.ranges[m.key])).map((m) => m.key)])];
-                                const pms = openKeys.map((k) => byKey.get(k)).filter((m): m is MetricInfo => !!m && visible.some((v) => v.key === m.key));
-                                const card = pms.map((pm) => <FilterCard key={pm.key} m={pm} byKey={byKey} ranges={f.ranges} setRange={setRange} ask={ask} tab={periodOf(pm)} setTab={(t) => setPeriod((x) => ({ ...x, [pm.key]: t }))} />);
-                                return <>
-                                  <div className="pl-chips" role="group" aria-label={`${g.label} filters`}>{visible.slice(0, MAIN).map(chip)}</div>
-                                  {card}
-                                  {visible.length > MAIN && <div className="pl-chips pl-more" role="group" aria-label={`More ${g.label.toLowerCase()} filters`}>{visible.slice(MAIN).map(chip)}</div>}
-                                </>;
-                              })()}
-                            </>}
-                          </>)}
-                      </FilterGroup>{model && facetBlocks}</Fragment>);
-                  })}
-                  <FilterGroup id="custom" title="Custom ratio" active={ratios.length} open={fl ? true : open.custom ?? ratios.length > 0} onOpenChange={(o) => setOpen((x) => ({ ...x, custom: o }))} meta={<span className="tier" style={{ marginRight: 8 }}>New</span>}>
-                    <div className="crx-side"><p>Build your own ratio from any two figures, set a condition, and the table gets a column for it.</p>
-                      <button type="button" className="btn primary" onClick={openRatio}>{ratioOpen ? "Go to the Custom Ratio Screener" : "Open the Custom Ratio Screener"}</button>
-                      {ratios.length > 0 && <ul className="cr-list" aria-label="Your custom ratios">{ratios.map((r) => <li key={r.id}><span>{ratioSentence(r, byKey)}</span><button type="button" aria-label={`Remove ${ratioLabel(r)}`} onClick={() => setRatios(ratios.filter((x) => x.id !== r.id))}>×</button></li>)}</ul>}</div>
-                  </FilterGroup>
-                  {!fl && groups.length > VISIBLE_GROUPS && <button className="alx-link" style={{ margin: "10px 0 4px" }} onClick={() => setMoreGroups(!moreGroups)}>{moreGroups ? "Show fewer categories" : `Show ${groups.length - VISIBLE_GROUPS} more categories`}</button>}
-                </div>
-                <div className="scr-save"><div className="scr-sh"><span>Save as a screen</span><button className="lnk" onClick={() => { setF(norm({})); toast("Filters cleared."); }}>Reset all</button></div>
-                  <div className="scr-sr"><input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} onKeyDown={(e) => e.key === "Enter" && save()} /><button className="btn" onClick={save}>Save</button></div></div>
-              </>
-            ) : (
-              <div className="scr-quick">
-                {saved.length > 0 && <><div className="label">My screens</div>{saved.map((s) => <div key={s.name} className="qs-row"><button className="qs" onClick={() => apply(s.state as Partial<PState>, s.name)}><b>{s.name}</b><span>{activeCount(norm(s.state as Partial<PState>))} filters</span></button><button className="qs-x" aria-label={`Delete ${s.name}`} onClick={() => screens.remove(s.name)}>×</button></div>)}</>}
-                {TIER_ORDER.map((t) => { const items = READY.filter((s) => s.tier === t); return items.length ? (
-                  <div key={t}><div className="label">{t === "basic" ? "Ready-made screens" : t === "silver" ? "Silver screens" : "Gold screens, built on the FinLit model"}</div>
-                    {items.map((s) => { const lock = !TIER_ORDER.slice(0, TIER_ORDER.indexOf(plan) + 1).includes(s.tier); return (
-                      <button key={s.id} className={"qs" + (lock ? " lock" : "")} onClick={() => lock ? ask(s.tier, `“${s.label}” is part of the ${TIER[s.tier].n} plan.`) : apply(s.state, s.label)}>
-                        <b>{s.tier !== "basic" && <Icon name={lock ? "lock" : s.tier === "gold" ? "crown" : "check"} />}{s.label}</b><span>{s.says}</span></button>); })}
-                  </div>) : null; })}
-              </div>
-            )}
-            </FgxFocus.Provider>
-          </aside>
-          <SplitDivider width={sideW} set={setSide} />
-
-          <section className="scr-main card" aria-label="Results">
-            {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
-              onRun={() => document.querySelector(".scr-main .scr-top")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
-            <div className="scr-top">
-              <div aria-live="polite"><b className="scr-count">{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> <span className="muted">of {data ? nf(data.total, 0) : "…"} listed stocks</span></div>
-              <div className="scr-tools">
-                <div className="scr-cm"><button className="btn" aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)}>Columns · {columns.length}</button>
-                  {colMenu && data && <div className="scr-colmenu pl-colmenu" role="menu">
-                    <label className="scr-find sm" style={{ margin: "0 0 8px" }}><Icon name="search" /><input value={colFind} onChange={(e) => setColFind(e.target.value)} placeholder="Find a column" aria-label="Find a column" /></label>
-                    {data.groups.map((g) => { const ms = colFind.trim() ? rankMetrics(g.metrics, colFind) : g.metrics; return ms.length ? <div key={g.id}><div className="label">{g.label}</div>{ms.map((m) => <label key={m.key} className={m.locked ? "is-locked" : ""}><input type="checkbox" checked={columns.includes(m.key)} disabled={m.locked} onChange={() => toggleCol(m.key)} />{m.label}{m.locked && <Icon name="lock" />}</label>)}</div> : null; })}
-                    <button className="alx-link" onClick={() => pickCols(null)}>Reset columns</button></div>}</div>
-                <button className="btn" onClick={exportCsv}><Icon name="table" />Download</button>
-              </div>
-            </div>
-            <form className="pl-type" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
-              if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setPg({ k: "", p: 0 }); if (!r.errors.length) setTyped(""); } }}>
-              <label><span>Type rules</span><input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="pe < 20 and roe > 15" aria-describedby="pl-type-h" /></label>
-              <button type="submit" className="btn" disabled={!typed.trim()}>Add</button>
-              <small id="pl-type-h" className="muted">Short names: pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq. For “or” and brackets use the Query builder.</small>
-              {typedErr.map((m) => <small key={m} className="pl-type-e" role="alert">{m}</small>)}
-            </form>
-            {chips.length > 0 && <div className="scr-chips">{chips.map((c) => <button key={c.label} className="fchip" onClick={c.clear} onKeyDown={(e) => { if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); c.clear(); } }}>{c.label}<span aria-hidden="true">×</span><span className="sr">remove</span></button>)}<button className="alx-link" onClick={() => setF(norm({}))}>Clear all</button></div>}
-            {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
-              : res.isError ? <div className="state"><h2>That filter is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
-              : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
-                <>{!!res.data.funnel?.length && <ol className="pl-funnel" aria-label="What is left after each rule">
-                  <li><b>{nf(data?.total ?? 0, 0)}</b><small>listed</small></li>
-                  {res.data.funnel.map((st) => <li key={st.key}><b>{nf(st.after, 0)}</b><small>after {byKey.get(st.key)?.label ?? ({ size: "size", sector: (res.data.funnel ?? []).some((x) => x.key === "industry") ? "broad sector" : "sector", industry: "sector", index: "index", band: "rating" } as Record<string, string>)[st.key] ?? st.key}{st.missing > 0 ? ` · ${nf(st.missing, 0)} have no figure` : ""}</small></li>)}
-                </ol>}
-                  {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
-                    label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t">
-                    <thead><tr><th className="stick"><button onClick={() => sortBy("name")}>Company {sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>
-                      {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}
-                      {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} {sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>)}</tr></thead>
-                    <tbody>{rows.map((r) => (
-                      <tr key={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null }); }} onKeyDown={(e) => e.key === "Enter" && setChart({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null })}>
-                        <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
-                        {res.data!.columns.map((k) => { const m = byKey.get(k), v = r.v[k]; return <td key={k} className={tone(k, v)} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
-                        {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
-                      </tr>))}
-                      {!rows.length && <tr><td colSpan={res.data.columns.length + ratios.length + 1} className="empty">No companies match all of these filters. Try loosening one, or <button className="alx-link" onClick={() => setF(norm({}))}>clear them all</button>.</td></tr>}
-                    </tbody></table></HScroll></TableZoom>
-                  {res.data.capped ? (
-                    <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match, lets you download them, and unlocks all {data ? data.groups.reduce((a, g) => a + g.metrics.length, 0) : 160}+ filters.</span>
-                      <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
-                  ) : total > PAGE && (
-                    <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next</button></div>)}
-                </>)}
-            {coloured.length > 0 && <Plain>{colourNote(coloured)}</Plain>}
-            {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); filtering on one of those leaves out the companies that lack it.</p>}
-            <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
-          </section>
-        </div>
       </div>
-      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} onStep={(d) => { const i = rows.findIndex((r) => r.symbol === chart.symbol), n = rows[i + d]; if (i >= 0 && n) setChart({ symbol: n.symbol, name: n.name, sector: n.sector, price: n.v.price ?? null }); }} />}
+      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!f.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} />}
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={f.ranges} byKey={byKey} />} />}
     </>
   );
 }
 
 export type { Catalog };
+export const _TIER = TIER;   // kept for older imports of the plan names from this page

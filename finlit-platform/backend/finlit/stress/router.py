@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from ..auth.entitlements import has
-from ..auth.routes import SYMBOL, Ctx, fail, secure_ctx, user_ctx
+from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
+from ..background import spawn
 from ..screener.data import get_table
 from . import engine, service
 from . import page as P
@@ -124,34 +125,56 @@ async def _covered(request: Request, sym: str):
     return table, service.size_word(mc, table.cap[table.pos[sym]])
 
 
+_building: Dict[str, "asyncio.Task[Any]"] = {}     # one build per company at a time, however many readers open it together
+
+
+async def _build_and_store(app, sym: str, size: str):
+    """Build a company's page and store it. Runs in the background, so a slow data provider finishes the job even after the reader was told the page is being prepared;
+    the reason of a failure goes to stress_failures and the log, never to a reader."""
+    try:
+        payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size), service.PER_COMPANY_S)
+        await service.save_page(app.state.store, sym, payload, pack)
+        return payload, pack
+    except service.NotCovered as exc:
+        await _note_failure(app, sym, "not_covered", str(exc))
+        raise
+    except service.NotReady as exc:
+        log.warning("stress %s not ready: %s", sym, exc)
+        await _note_failure(app, sym, "not_ready", str(exc))
+        raise
+    except asyncio.TimeoutError:
+        log.warning("stress %s: the build took more than %.0fs", sym, service.PER_COMPANY_S)
+        await _note_failure(app, sym, "failed", f"the build took more than {service.PER_COMPANY_S:.0f}s (statements from the data provider)")
+        raise
+    except Exception as exc:     # any other fault: the real one in the log and the table
+        log.warning("stress %s failed: %s: %s", sym, type(exc).__name__, exc)
+        await _note_failure(app, sym, "failed", f"{type(exc).__name__}: {exc}")
+        raise
+    finally:
+        _building.pop(sym, None)
+
+
 async def _stored_or_live(request: Request, sym: str) -> dict:
-    """{payload, pack}: the copy built at night when there is one; otherwise one live build, for at most LIVE_BUILD_S seconds, which is then stored. When that does not finish the reader
-    gets the plain "being prepared" card (status 503); what actually went wrong is in the server log and in stress_failures, never in the answer."""
+    """{payload, pack}: the copy built at night when there is one. Otherwise a build starts (or the one already running is joined) and the reader waits at most LIVE_BUILD_S
+    seconds; when it takes longer the reader gets the plain "being prepared" card (status 503) while the build carries on and stores the page, so the next visit (the page checks
+    again by itself) shows it. A build is never cancelled half way, so a slow provider no longer means "being prepared" for ever."""
     app = request.app
     _, size = await _covered(request, sym)
     rec = await service.load_page(app.state.store, sym)
     if rec:
         return rec
+    task = _building.get(sym)
+    if task is None or task.done():
+        task = spawn(_build_and_store(app, sym, size))
+        _building[sym] = task
     try:
-        payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size), service.LIVE_BUILD_S)
+        payload, pack = await asyncio.wait_for(asyncio.shield(task), service.LIVE_BUILD_S)
     except service.NotCovered as exc:
         raise fail(404, "not_covered", str(exc), covered=False)
-    except service.NotReady as exc:
-        log.warning("stress %s not ready: %s", sym, exc)
-        await _note_failure(app, sym, "not_ready", str(exc))
-        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
     except asyncio.TimeoutError:
-        log.warning("stress %s: no stored page and the live build took more than %.0fs", sym, service.LIVE_BUILD_S)
-        await _note_failure(app, sym, "failed", f"no stored page; the live build took more than {service.LIVE_BUILD_S:.0f}s")
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)     # still building (or it ran out of time; the reason is in stress_failures)
+    except Exception:            # not ready or any other fault: plain words out, the real reason already logged by the build
         raise fail(503, "not_ready", service.PLAIN_NOT_READY)
-    except Exception as exc:     # any other fault: plain words out, the real one in the log
-        log.warning("stress %s failed: %s: %s", sym, type(exc).__name__, exc)
-        await _note_failure(app, sym, "failed", f"{type(exc).__name__}: {exc}")
-        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
-    try:
-        await service.save_page(app.state.store, sym, payload, pack)
-    except Exception:   # nosec B110 - the next request builds it again
-        pass
     return {"payload": payload, "pack": pack}
 
 
@@ -179,7 +202,26 @@ async def quick_picks(request: Request, ctx: Ctx = Depends(silver_ctx)):
             picks.append({"symbol": sym, "name": co.get("name") or sym, "sector": co.get("industry") or co.get("sector") or "", "market_cap_cr": round(mc)})
         if len(picks) == 6:
             break
+    if len(picks) < 6:
+        await _warm(request, have)
     return _json({"picks": picks})
+
+
+WARM_TOP = 12          # the largest covered companies the start page gets ready in the background when they have no stored page yet
+WARM_AT_ONCE = 3       # never more than this many background builds at a time, so the web server stays quick for everyone else
+
+
+async def _warm(request: Request, have: set) -> None:
+    """Start building the largest covered companies that have no stored page yet (a few at a time, one build per company, never one that is already running).
+    The nightly job does every company; this makes the biggest names ready even on a day the job has not reached them, without anyone waiting on it."""
+    app = request.app
+    table = await get_table(app.state.store)
+    for sym, mc in (await service.covered_symbols(app.state.store))[:WARM_TOP]:
+        if sum(1 for t in _building.values() if not t.done()) >= WARM_AT_ONCE:
+            return
+        if sym in have or (sym in _building and not _building[sym].done()):
+            continue
+        _building[sym] = spawn(_build_and_store(app, sym, service.size_word(mc, table.cap[table.pos[sym]])))
 
 
 @router.get("/{symbol}/page")
@@ -263,3 +305,22 @@ async def peer(request: Request, symbol: str, ctx: Ctx = Depends(gold_ctx)):
     table = await get_table(store)
     cov = service.covered_quarters(table, [sym] + peers)
     return _json({"symbol": sym, "peer": P.default_peer(sym, peers, cov), "peers": [p for p in peers if p in cov]})
+
+
+@router.get("/admin/status")
+async def admin_status(request: Request, ctx: Ctx = Depends(admin_ctx)):
+    """For the people who run the site (admin accounts only), in a browser: how many covered companies have a stored page, which are being built right now, and why the
+    others have none yet (the reasons from stress_failures). Readers never see these reasons."""
+    store = request.app.state.store
+    covered = await service.covered_symbols(store)
+    out: Dict[str, Any] = {"covered": len(covered), "building": sorted(k for k, t in _building.items() if not t.done())}
+    async with store.pool.acquire() as conn:
+        out["stored"] = await conn.fetchval("SELECT count(*) FROM stress_pages")
+        out["stored_today"] = await conn.fetchval("SELECT count(*) FROM stress_pages WHERE (built_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date")
+        out["newest_build"] = str(await conn.fetchval("SELECT max(built_at) FROM stress_pages") or "") or None
+        out["reasons"] = [{"kind": r["kind"], "reason": r["reason"], "companies": r["n"]} for r in await conn.fetch(
+            "SELECT kind, left(reason, 160) AS reason, count(*) AS n FROM stress_failures GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 15")]
+        out["latest_failures"] = [{"symbol": r["symbol"], "kind": r["kind"], "reason": r["reason"][:200], "attempts": r["attempts"], "at": str(r["failed_at"])} for r in await conn.fetch(
+            "SELECT symbol, kind, reason, attempts, failed_at FROM stress_failures ORDER BY failed_at DESC LIMIT 20")]
+    out["largest_without_page"] = [s for s, _ in covered if s not in set(await service.stored_symbols(store))][:20]
+    return _json(out)

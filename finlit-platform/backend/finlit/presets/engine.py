@@ -636,7 +636,7 @@ def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -
     out["pageSize"] = PAGE
     out["exportRows"] = rows[:EXPORT_MAX]
     out["newToday"] = sum(1 for r in rows if r["new"])
-    out["leftOut"] = len([1 for s, _ in (run.get("left_out") or []) if s in {x for x in fr.symbols}])      # a count: the companies are in the server log, not sent to the browser
+    out["leftOutCount"] = len([1 for s, _ in (run.get("left_out") or []) if s in {x for x in fr.symbols}])      # a count: the companies are in the server log, not sent to the browser
     out["cardText"] = preset.card_text
     if not run:
         out["emptyText"] = "The nightly chart-pattern run has not been made yet. Check back after the next evening update."

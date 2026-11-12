@@ -294,8 +294,11 @@ async def test_sl2_a_stored_page_is_served_without_building_anything_and_gold_ru
     await gold.aclose()
 
 
-async def test_sl5_quick_picks_are_only_covered_companies_with_a_stored_page(app, store):  # noqa: F811
+async def test_sl5_quick_picks_are_only_covered_companies_with_a_stored_page(app, store, monkeypatch):  # noqa: F811
     await _clean(store)
+    async def not_yet(app_, sym, **kw):
+        raise service.NotReady("not stored yet")
+    monkeypatch.setattr(service, "build_payload_and_pack", not_yet)                     # the warm-up the empty start page starts finds nothing to build here
     pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
     silver = await signed_in(app, "s5@example.com", plan="silver")
     assert (await silver.get("/api/stress/quick-picks")).json() == {"picks": []}            # nothing stored yet: nothing offered
@@ -386,3 +389,87 @@ async def test_sl2_a_few_companies_are_built_at_once_and_all_of_them_are_stored(
     monkeypatch.setattr(service, "build_payload_and_pack", build)
     res = await service.refresh_stress(store, object(), max_minutes=5)
     assert res["built"] == 6 and res["failed"] == 0 and 1 < peak <= service.CONCURRENCY and sorted(await service.stored_symbols(store)) == sorted(syms)
+
+
+async def test_a_slow_build_is_not_cancelled_it_finishes_in_the_background_and_the_next_visit_gets_the_page(app, store, monkeypatch):  # noqa: F811
+    import asyncio
+    await _clean(store)
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    calls = []
+    async def slow(app_, sym, **kw):
+        calls.append(sym)
+        await asyncio.sleep(0.4)                     # longer than the reader waits, much shorter than the build's own limit
+        return _payload(), pack
+    monkeypatch.setattr(service, "build_payload_and_pack", slow)
+    monkeypatch.setattr(service, "LIVE_BUILD_S", 0.05)
+    silver = await signed_in(app, "slow@example.com", plan="silver")
+    first, second = await asyncio.gather(silver.get("/api/stress/ASIANPAINT/page"), silver.get("/api/stress/ASIANPAINT/page"))
+    assert first.status_code == 503 and second.status_code == 503 and service.PLAIN_NOT_READY in first.text
+    assert calls == ["ASIANPAINT"]                   # two readers at once: one build
+    for _ in range(40):                              # the build carries on after the readers were answered, and stores the page
+        if await service.stored_symbols(store) == ["ASIANPAINT"]:
+            break
+        await asyncio.sleep(0.05)
+    assert await service.stored_symbols(store) == ["ASIANPAINT"]
+    r = await silver.get("/api/stress/ASIANPAINT/page")
+    assert r.status_code == 200 and r.json()["company"]["symbol"] == "ASIANPAINT" and calls == ["ASIANPAINT"]     # served stored, not built again
+    await silver.aclose()
+
+
+async def test_the_start_page_gets_the_largest_companies_ready_a_few_at_a_time_and_offers_them_once_stored(app, store, monkeypatch):  # noqa: F811
+    import asyncio
+    from finlit.stress import router as R2
+    await _clean(store)
+    syms = ["AAA", "BBB", "CCC", "DDD", "EEE"]
+    data._table = Table([_row(s, 300000 - i * 1000) for i, s in enumerate(syms)] + [_row("BANKX", 900000, bank=1)], {}, {})
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    built = []
+    gate = asyncio.Event()
+    async def build(app_, sym, **kw):
+        built.append(sym)
+        await gate.wait()
+        return _payload(), pack
+    monkeypatch.setattr(service, "build_payload_and_pack", build)
+    silver = await signed_in(app, "warm@example.com", plan="silver")
+    assert (await silver.get("/api/stress/quick-picks")).json() == {"picks": []}
+    await asyncio.sleep(0.05)
+    assert built == ["AAA", "BBB", "CCC"]                                             # the largest first, three at a time, never the bank
+    await silver.get("/api/stress/quick-picks"); await asyncio.sleep(0.05)
+    assert built == ["AAA", "BBB", "CCC"]                                             # asking again while they run starts nothing more
+    gate.set()
+    for _ in range(40):
+        if len(await service.stored_symbols(store)) >= 3:
+            break
+        await asyncio.sleep(0.05)
+    picks = (await silver.get("/api/stress/quick-picks")).json()["picks"]
+    assert [p["symbol"] for p in picks] == ["AAA", "BBB", "CCC"]                     # stored, so offered
+    await asyncio.sleep(0.1)
+    assert "DDD" in built and "EEE" in built and "BANKX" not in built                # and the next ones are being got ready
+    await silver.aclose()
+    for t in list(R2._building.values()):
+        await t
+
+
+async def test_admins_can_read_why_pages_are_missing_readers_cannot(app, store, monkeypatch):  # noqa: F811
+    from test_earnings_api import admin_client
+    await _clean(store)
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    await service.save_page(store, "ASIANPAINT", _payload(), pack)
+    await service.save_failure(store, "TITAN", "not_ready", "This company's report is not stored yet.")
+    silver = await signed_in(app, "st1@example.com", plan="silver")
+    assert (await silver.get("/api/stress/admin/status")).status_code == 403
+    await silver.aclose()
+    admin = await admin_client(app, "stressadmin@example.com")
+    assert (await admin.get("/api/stress/admin/status")).json()["detail"]["status"] == "mfa_required"     # admin tools need the authenticator step, like every admin page
+    from types import SimpleNamespace
+    from finlit.auth.routes import admin_ctx
+    app.dependency_overrides[admin_ctx] = lambda: SimpleNamespace(role="admin", mfa_ok=True)               # past that step
+    try:
+        r = await admin.get("/api/stress/admin/status")
+    finally:
+        app.dependency_overrides.pop(admin_ctx, None)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["stored"] == 1 and d["stored_today"] == 1 and d["reasons"][0] == {"kind": "not_ready", "reason": "This company's report is not stored yet.", "companies": 1}
+    assert d["latest_failures"][0]["symbol"] == "TITAN" and "ASIANPAINT" not in d["largest_without_page"] and isinstance(d["building"], list)
+    await admin.aclose()
