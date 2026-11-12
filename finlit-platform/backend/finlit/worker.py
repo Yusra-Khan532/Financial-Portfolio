@@ -912,6 +912,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_oi.add_argument("--limit", type=int, default=120, help="premium calls per run")
     p_oi.add_argument("--concurrency", type=int, default=3, help="premium calls at the same time")
     p_oi.add_argument("symbols", nargs="*", help="only these companies")
+    p_st = sub.add_parser("refresh-stress", help="nightly, after the statements and the macro refresh: builds and stores the Stress Lab page and company pack of every covered company (large and mid caps that are not financials), largest first, resumable (docs/STRESS.md)")
+    p_st.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
+    p_st.add_argument("--limit", type=int, default=None, help="at most this many companies in this run")
+    p_st.add_argument("--force", action="store_true", help="rebuild companies already built today")
+    p_st.add_argument("symbols", nargs="*", help="only these companies")
     sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
@@ -1403,6 +1408,12 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0
+        if args.cmd == "refresh-stress":
+            from .stress import service as stress_service
+            res = await stress_service.refresh_stress(store, settings, max_minutes=args.max_minutes, limit=args.limit, force=args.force, symbols=[x.upper() for x in args.symbols] or None)
+            print(json.dumps(res, default=str)[:3000])
+            tried = res["built"] + res["failed"]
+            return 0 if res["failed"] == 0 or res["failed"] <= 0.05 * max(tried, 1) else 1     # a few companies failing for their own reasons is logged and retried tomorrow; many is a fault the supervisor retries
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
             res = await preset_service.refresh_presets(store, settings)

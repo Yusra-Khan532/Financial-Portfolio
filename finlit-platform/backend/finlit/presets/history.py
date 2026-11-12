@@ -244,6 +244,13 @@ async def sessions(store, preset_id: str, chips: str) -> List[dict]:
     return list(reversed(out))
 
 
+async def gainer_sessions(store, page: str, win: str) -> List[dict]:
+    """The closes Top gainers can be shown as of (the last 2 months, latest first), for the As on picker."""
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT session, count(*) AS n FROM gainers WHERE page=$1 AND win=$2 AND session >= CURRENT_DATE - $3::int GROUP BY session ORDER BY session DESC", page, win, SHOW_DAYS)
+    return [{"date": _iso(r["session"]), "count": r["n"], "rulesUpdated": False} for r in rows]
+
+
 async def enrich(store, preset_id: str, chips: str, rows: List[dict], latest: Dict[str, float], bench: Dict[str, float], session: date) -> None:
     """Added and Since added on every row (in place)."""
     if not rows:

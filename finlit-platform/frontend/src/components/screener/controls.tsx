@@ -21,7 +21,7 @@ export function Slider({ s, k, end, label }: { s: Screener; k: RangeKey; end: "m
   return (<label className="pzs-sl">{end === "min" ? "From" : "To"}<input type="range" min={0} max={100} step={1} value={cur ?? dflt} aria-label={`${label} slider, ${end === "min" ? "lowest" : "highest"} score`}
     onChange={(e) => s.setRange(k, end, Number(e.target.value) === dflt ? "" : e.target.value)} /><output>{cur ?? dflt}</output></label>);
 }
-/** Score bands (Under 45, 45 to 77, 78 and above) as checkboxes, with the exact range under them. */
+/** Score bands (Watch under 45, Mixed 45 to 61, Healthy 62 to 77, Strong 78 and above) as checkboxes, with the exact range under them. */
 export function BandBoxes({ s, k, label }: { s: Screener; k: "f" | "t"; label: string }) {
   return (
     <fieldset className="ss-fs"><legend>{label} score</legend>

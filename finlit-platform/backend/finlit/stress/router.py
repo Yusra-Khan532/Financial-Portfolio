@@ -2,7 +2,9 @@
 The value move is a percentage and is never applied to a share price; STRESS_SHOW_VALUE=0 removes it from every answer. Information only, not investment advice."""
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from dataclasses import replace
 from typing import Any, Dict, Optional
 
@@ -17,6 +19,7 @@ from . import engine, service
 from . import page as P
 
 S = engine()
+log = logging.getLogger("finlit.stress")
 router = APIRouter(prefix="/api/stress")
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 SHARES_OK = ("pass_through", "crude_rm", "import_rm", "export_rev", "demand_beta", "floating_debt")   # the six settings a Gold reader may try with their own value
@@ -110,33 +113,73 @@ def with_settings(co: "S.Company", settings: Optional[Dict[str, float]]) -> "S.C
     return replace(co, exposure=e)
 
 
-async def _page(request: Request, sym: str) -> dict:
-    app = request.app
-    table = await get_table(app.state.store)
+async def _covered(request: Request, sym: str):
+    """The launch rule (404 with its plain words when the company is outside it) and the screener row's size word."""
+    store = request.app.state.store
+    table = await get_table(store)
     mc, bank = service.table_row(table, sym)
     reason = service.covered_by_rule(mc, bank)
     if reason:
         raise fail(404, "not_covered", reason, covered=False)
-    key = f"stress:page:{sym}"
+    return table, service.size_word(mc, table.cap[table.pos[sym]])
+
+
+async def _stored_or_live(request: Request, sym: str) -> dict:
+    """{payload, pack}: the copy built at night when there is one; otherwise one live build, for at most LIVE_BUILD_S seconds, which is then stored. When that does not finish the reader
+    gets the plain "being prepared" card (status 503); what actually went wrong is in the server log and in stress_failures, never in the answer."""
+    app = request.app
+    _, size = await _covered(request, sym)
+    rec = await service.load_page(app.state.store, sym)
+    if rec:
+        return rec
     try:
-        hit = await app.state.store.redis.get(key)
-    except Exception:
-        hit = None
-    if hit:
-        return json.loads(hit)
-    i = table.pos[sym]
-    size = service.size_word(mc, table.cap[i])
-    try:
-        payload = await service.build_payload(app, sym, size=size)
+        payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size), service.LIVE_BUILD_S)
     except service.NotCovered as exc:
         raise fail(404, "not_covered", str(exc), covered=False)
     except service.NotReady as exc:
-        raise fail(503, "not_ready", str(exc))
+        log.warning("stress %s not ready: %s", sym, exc)
+        await _note_failure(app, sym, "not_ready", str(exc))
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
+    except asyncio.TimeoutError:
+        log.warning("stress %s: no stored page and the live build took more than %.0fs", sym, service.LIVE_BUILD_S)
+        await _note_failure(app, sym, "failed", f"no stored page; the live build took more than {service.LIVE_BUILD_S:.0f}s")
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
+    except Exception as exc:     # any other fault: plain words out, the real one in the log
+        log.warning("stress %s failed: %s: %s", sym, type(exc).__name__, exc)
+        await _note_failure(app, sym, "failed", f"{type(exc).__name__}: {exc}")
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
     try:
-        await app.state.store.redis.set(key, json.dumps(payload), ex=service.PAGE_TTL)
+        await service.save_page(app.state.store, sym, payload, pack)
     except Exception:   # nosec B110 - the next request builds it again
         pass
-    return payload
+    return {"payload": payload, "pack": pack}
+
+
+async def _note_failure(app, sym: str, kind: str, reason: str) -> None:
+    try:
+        await service.save_failure(app.state.store, sym, kind, reason)
+    except Exception:   # nosec B110 - the log has it
+        pass
+
+
+async def _page(request: Request, sym: str) -> dict:
+    return (await _stored_or_live(request, sym))["payload"]
+
+
+@router.get("/quick-picks")
+async def quick_picks(request: Request, ctx: Ctx = Depends(silver_ctx)):
+    """The start page's quick picks: the six largest covered companies that have a stored page (so each one opens), never a bank or a company outside the launch list."""
+    store = request.app.state.store
+    have = set(await service.stored_symbols(store))
+    picks = []
+    for sym, mc in await service.covered_symbols(store):
+        if sym in have:
+            rec = await service.load_page(store, sym)
+            co = (rec or {}).get("payload", {}).get("company") or {}
+            picks.append({"symbol": sym, "name": co.get("name") or sym, "sector": co.get("industry") or co.get("sector") or "", "market_cap_cr": round(mc)})
+        if len(picks) == 6:
+            break
+    return _json({"picks": picks})
 
 
 @router.get("/{symbol}/page")
@@ -159,8 +202,14 @@ def _result(co, sc) -> dict:
 
 
 async def _company(request: Request, sym: str, settings=None):
-    payload = await _page(request, sym)          # also applies the coverage rule
-    pack, co, today, _, eia = await service.company_and_today(request.app, sym)
+    rec = await _stored_or_live(request, sym)    # also applies the coverage rule; the stored pack means no call to the data provider
+    try:
+        pack, co, today, _, eia = await service.company_and_today(request.app, sym, pack=rec["pack"])
+    except service.NotCovered as exc:
+        raise fail(404, "not_covered", str(exc), covered=False)
+    except service.NotReady as exc:
+        log.warning("stress %s not ready: %s", sym, exc)
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
     return with_settings(co, settings), today, eia
 
 

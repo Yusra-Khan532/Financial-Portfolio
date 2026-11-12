@@ -54,3 +54,27 @@ def test_filter_bar_search_size_sector_and_strong_keep_the_screens_own_order():
     assert [r["symbol"] for r in api._filtered(Req(q=["bet"]), rows)] == ["BBB"]
     f = api._facets(rows)
     assert f["sizes"] == {"Large": 1, "Mid": 1, "Small": 1} and f["sectors"][0] == ("IT", 2) and f["strong"] == 2
+
+
+def test_gainers_as_on_picker_lists_the_stored_closes_latest_first():
+    import asyncio
+    from datetime import date
+    from finlit.presets import history
+
+    class Conn:
+        async def fetch(self, sql, *a):
+            assert "FROM gainers" in sql and a[0] == "basic" and a[1] == "week"
+            return [{"session": date(2026, 11, 11), "n": 20}, {"session": date(2026, 11, 10), "n": 18}]
+
+    class Acq:
+        async def __aenter__(self): return Conn()
+        async def __aexit__(self, *a): return False
+
+    class Pool:
+        def acquire(self): return Acq()
+
+    class Store:
+        pool = Pool()
+
+    got = asyncio.run(history.gainer_sessions(Store(), "basic", "week"))
+    assert got == [{"date": "2026-11-11", "count": 20, "rulesUpdated": False}, {"date": "2026-11-10", "count": 18, "rulesUpdated": False}]

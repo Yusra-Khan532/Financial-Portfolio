@@ -1,6 +1,7 @@
 // The four "Find stocks" pages as tabs (task #64, handover 11 Nov): Stock screener · Basic stock screener (Silver) · Advanced stock screener (Gold) · Query builder.
 // Each page is its own plan, so there is no Basic | Advanced switch on a page: the tabs move between the pages.
 import { Link, useLocation } from "react-router";
+import "../../styles/presets.css";
 
 const TABS: { to: string; label: string; plan?: "SILVER" | "GOLD" }[] = [
   { to: "/screener", label: "Stock screener" },

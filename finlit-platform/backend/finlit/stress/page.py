@@ -80,6 +80,11 @@ def today_eia(today: S.Scenario, eia_brent_next4: Sequence[float]) -> S.Scenario
     return replace(today, name="Today, crude eases", crude=round((avg / today.inputs["brent_base"] - 1) * 100, 2))
 
 
+# The words under the rupee row: the source the numbers really came from (the page must never name one they did not).
+FX_SOURCE_WORDS = {"FinLit usdinr": "FBIL reference rate, published by the RBI",
+                   "usdinr argument": "Monthly averages from x-rates.com for the base window (a stop-gap until FinLit's own FBIL series is filled), then today's FBIL reference rate"}
+
+
 def today_rows(today: S.Scenario, dates: Dict[str, str]) -> List[Dict[str, Any]]:
     """The 'See today's inputs' table, with the source line each series must carry (spec 11.2)."""
     ti = today.inputs
@@ -89,7 +94,7 @@ def today_rows(today: S.Scenario, dates: Dict[str, str]) -> List[Dict[str, Any]]
         row("Brent crude, US$ a barrel", "%.2f" % ti["brent_now"], dates.get("brent", ""), "%.2f" % ti["brent_base"],
             ["pct", today.crude], "U.S. EIA"),
         row("Rupees per US dollar", "%.2f" % ti["usdinr_now"], dates.get("usdinr", ""), "%.2f" % ti["usdinr_base"],
-            ["pct", today.usdinr], "FBIL", "rupee %.1f%% weaker" % abs(today.rupee_value_pct) if today.usdinr > 0 else None),
+            ["pct", today.usdinr], FX_SOURCE_WORDS.get(ti.get("usdinr_source"), "FBIL"), "rupee %.1f%% weaker" % abs(today.rupee_value_pct) if today.usdinr > 0 else None),
         row("Consumer inflation (CPI)", "%.2f%%" % ti["cpi"]["latest"], dates.get("cpi", ""), "%.2f%%" % ti["cpi"]["base_avg"],
             ["pt", today.cpi], "MoSPI"),
         row("Wholesale inflation, manufactured products", "%.2f%%" % ti["wpi_mfg"]["latest"], dates.get("wpi", ""),
@@ -154,7 +159,8 @@ def company_json(co: S.Company, pack: dict, sources: Dict[str, str], **extra) ->
          "base_label": co.base_label, "base_end": co.base_end, "reported_eps": co.reported_eps,
          "exposure": {k: getattr(e, k) for k in sorted(S._EXPOSURE_KEYS - {"excluded"})},
          "exposure_source": e.source, "exposure_notes": e.notes, "notes": co.notes,
-         "calibration": {k: co.calibration[k] for k in ("pass_through", "var_opex", "demand_beta") if k in co.calibration},
+         "calibration": {k: {"from_history": bool((co.calibration[k] or {}).get("years_used"))}
+                        for k in ("pass_through", "var_opex", "demand_beta") if k in co.calibration},
          "field_source": sources}
     prof = pack.get("profile", {}) or {}
     d.update({"sector": prof.get("sector"), "industry": prof.get("industry"), "market_cap_cr": prof.get("marketCapCr"),
@@ -220,7 +226,8 @@ def page_payload(pack: dict, co: S.Company, today: S.Scenario, *, eia_brent_next
         "eia_outlook": ({"brent": list(eia_brent_next4), "avg": round(sum(eia_brent_next4) / len(eia_brent_next4), 2)} if eia_brent_next4 else None),
         "history": history({co.symbol: closes}, nifty),
         "backtest": {"years": bt, "summary": S.backtest_summary(bt), "latest_quarter": latest_quarter},
-        "calibration_years": co.calibration.get("years", []),
+        "calibration_years": [{"year": y.get("year"), "catch_up_year": bool(y.get("catch_up_year"))}
+                              for y in co.calibration.get("years", [])],
     }
 
 

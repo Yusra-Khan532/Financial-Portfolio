@@ -34,7 +34,7 @@ function Group({ id, name, count, open, onToggle, children }: { id: string; name
 }
 
 /** `basics` is the Advanced page's existing list of Prism quick views (the Basic page has none). `route` lets a page that already holds the route state share it. */
-export function PresetPanel({ basics, basicsActive = false, route }: { basics?: ReactNode; basicsActive?: boolean; route?: PresetRoute }) {
+export function PresetPanel({ basics, basicsActive = false, route, hideGroups = false }: { basics?: ReactNode; basicsActive?: boolean; route?: PresetRoute; hideGroups?: boolean }) {
   const own = usePresetRoute(), r = route ?? own;
   const plan = PLAN_OF[r.tab];
   const { upgrade } = useUI();
@@ -45,9 +45,9 @@ export function PresetPanel({ basics, basicsActive = false, route }: { basics?: 
   const pick = (p: Preset) => { if (p.locked) upgrade(plan, `Prebuilt screens on this page are part of ${plan === "gold" ? "Gold" : "Silver"}.`); else r.choose(p.id); };
   return (
     <div className="psx-panel">
-      {r.list.isLoading && <p className="psx-note" role="status">Loading prebuilt screens…</p>}
-      {r.list.isError && <p className="psx-note" role="status">Prebuilt screens are unavailable right now.{basics ? " The Prism quick views below still work." : ""}</p>}
-      {r.groups.filter((g) => g.id !== "prism-basics").map((g) => (
+      {!hideGroups && r.list.isLoading && <p className="psx-note" role="status">Loading prebuilt screens…</p>}
+      {!hideGroups && r.list.isError && <p className="psx-note" role="status">Prebuilt screens are unavailable right now.{basics ? " The Prism quick views below still work." : ""}</p>}
+      {!hideGroups && r.groups.filter((g) => g.id !== "prism-basics").map((g) => (
         <Group key={g.id} id={g.id} name={g.name} count={g.presets.length} open={isOpen(g.id)} onToggle={() => setTouched((t) => ({ ...t, [g.id]: !isOpen(g.id) }))}>
           <div className="psx-cards">{g.presets.map((p) => <Card key={p.id} p={p} on={r.id === p.id} onPick={() => pick(p)} plan={plan === "gold" ? "Gold" : "Silver"} />)}</div>
         </Group>))}

@@ -246,6 +246,35 @@ def parse_rbi_usdinr_monthly(payload) -> Points:
     return out
 
 
+# ---------------------------------------------------------------------------------------------------- RBI reference rate archive
+def parse_rbi_ref_rate_archive(page: str) -> Points:
+    """The US dollar rows of rbi.org.in's Reference Rate Archive (the FBIL reference rate, one a working day): `dd/mm/yyyy | rate`.
+    A rate outside 20..250 rupees is a misread cell and is left out."""
+    out: Points = {}
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", page, flags=re.S):
+        cells = [re.sub(r"\s+", " ", text_of(c)).strip() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, flags=re.S)]
+        if len(cells) < 2:
+            continue
+        m = re.fullmatch(r"(\d{2})/(\d{2})/(\d{4})", cells[0])
+        v = num(cells[1])
+        if m and v and 20 <= v <= 250:
+            out[date(int(m.group(3)), int(m.group(2)), int(m.group(1)))] = v
+    return out
+
+
+def monthly_means(daily: Points, today: date, min_days: int = 10) -> Points:
+    """Monthly average of daily rates for every COMPLETE month with at least `min_days` rates, dated by the month end (the month in progress is left out)."""
+    by: Dict[Tuple[int, int], List[float]] = {}
+    for d, v in daily.items():
+        by.setdefault((d.year, d.month), []).append(v)
+    out: Points = {}
+    for (y, m), vs in by.items():
+        end = month_end(y, m)
+        if end < today and len(vs) >= min_days:
+            out[end] = round(sum(vs) / len(vs), 4)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------------- RBI website
 def text_of(fragment: str) -> str:
     s = re.sub(r"<script.*?</script>|<style.*?</style>", " ", fragment, flags=re.S | re.I)
