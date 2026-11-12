@@ -234,13 +234,13 @@ async def get_price_history(gw: Gateway, a: Dict[str, Any]) -> Out:
     notes = []
     grain = p.get("grain")
     if grain == "weekly" and interval == "daily":
-        notes.append("Beyond about one year the website stores weekly closes only, so daily prices are not available for this span; weekly closes are returned.")
+        notes.append("Beyond about one year the website stores weekly candles only (first open, highest high, lowest low, last close), so daily prices are not available for this span; weekly rows are returned.")
         interval = "weekly"
     elif interval == "weekly" and grain == "daily":
         rows = _weekly(rows)
         notes.append("Weekly rows are worked out from the daily prices: first open, highest high, lowest low, last close, summed volume; dated by the last trading day of the week.")
-    if grain == "weekly":
-        notes.append("open, high and low are null for weekly history: only the closing price and volume are stored.")
+    if grain == "weekly" and any(r["open"] is None or r["high"] is None or r["low"] is None for r in rows):
+        notes.append("open, high and low are null for part of the weekly history: only the closing price and volume are stored for those weeks.")
     if p.get("provisionalLastBar"):
         notes.append("The last row may be provisional (the day's trading is not final).")
     if p.get("complete") is False:
@@ -466,7 +466,7 @@ def build_tools() -> List[Tool]:
               "limit": lim(8, 20, "How many of the latest periods to return")}, get_financials, ["symbol"]),
         Tool("get_ratios", "Financial ratios", "Margins, returns (ROE, ROCE) and the other ratios the FinLit website shows to a visitor, with the period each one is for, plus a short history.", sym, get_ratios, ["symbol"]),
         Tool("get_shareholding", "Shareholding pattern", "Share of promoters, foreign institutions, domestic institutions, government and the public over recent quarters.", sym, get_shareholding, ["symbol"]),
-        Tool("get_price_history", "Price history", "Daily or weekly open, high, low, close and volume. Beyond about one year only weekly closes are stored.",
+        Tool("get_price_history", "Price history", "Daily or weekly open, high, low, close and volume. Beyond about one year only weekly candles are stored.",
              {**sym, "days": {"type": "integer", "minimum": 5, "maximum": 1825, "default": 90, "description": "How many calendar days back, up to 1825"},
               "interval": {"type": "string", "enum": ["daily", "weekly"], "default": "daily", "description": "daily or weekly"}}, get_price_history, ["symbol"]),
         Tool("get_finlit_score", "FinLit IQ", "The FinLit financial-health score (0 to 100) and its five pillars, only where the website shows it to a visitor. Otherwise it says the score is a Silver plan feature.", sym, get_finlit_score, ["symbol"]),
