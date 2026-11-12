@@ -484,6 +484,47 @@ async def test_screen_alert_emails_only_new_matches(app):
     await c.aclose()
 
 
+async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_and_by_email_and_a_quiet_screen_sends_nothing(app):
+    """Task #64, file 04: a screen saved with "Tell me when a company joins" sends the companies that joined or left after each check; one saved with Save screen stays quiet."""
+    from finlit.screens import check_screens, matches, screen_mail
+    pool = app.state.store.pool
+    assert matches({"market_cap": 60000}, {"caps": ["Large"]}) and not matches({"market_cap": 20000}, {"caps": ["Large"]}) and matches({"market_cap": 20000}, {"caps": ["Mid", "Large"]})
+    assert not matches({"market_cap": None}, {"caps": ["Small"]})                      # no market cap: no size, never guessed
+    assert matches({"pillar_quality": 80, "pillar_growth": 70}, {"model": "modelcompound"}) and not matches({"pillar_quality": 80, "pillar_growth": 10}, {"model": "modelcompound"})
+    subj, body = screen_mail("Cheap", [{"symbol": "AAA", "name": "Alpha"}], 3, "http://x/screener", [{"symbol": "BBB", "name": "Beta"}])
+    assert subj == "1 joined and 1 left: your screen “Cheap”" and "Joined since the last check" in body and "Left since the last check" in body and "BBB" in body
+    c = await signed_in(app, "joins@example.com", plan="gold")
+    screens = {"screens": [{"name": "Tell me", "state": {"ranges": {"pe": {"max": 30}}}, "notify": True},
+                           {"name": "Quiet", "state": {"ranges": {"pe": {"max": 31}}}, "notify": False},
+                           {"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]}
+    assert (await c.put("/api/me/screens", json=screens)).status_code == 200
+    back = (await c.get("/api/me/state")).json()["screens"]
+    assert back[2]["state"]["model"] == "modelcompound" and back[0]["notify"] is True and back[1]["notify"] is False   # the model screen and the choice are kept
+    assert (await c.put("/api/me/screens", json={"screens": [{"name": "x", "state": {"model": "nope"}}]})).status_code == 422
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")
+    await check_screens(pool, app.state.mailer, "http://test")                          # the first look only remembers
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE scores SET pe = 20, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '20') WHERE symbol = 'RELIANCE'")
+    assert await check_screens(pool, app.state.mailer, "http://test") == 1              # "Tell me" only: "Quiet" sends nothing
+    mail = await last_mail(app, "joins@example.com")
+    assert "RELIANCE" in mail["body"] and "Joined since the last check" in mail["body"] and "“Tell me”" in mail["subject"]
+    async with pool.acquire() as conn:
+        n = await conn.fetchval("SELECT count(*) FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.email = 'joins@example.com' AND n.kind = 'screen' AND n.title LIKE '%Tell me%'")
+        await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")
+    assert n == 1                                                                       # the same message in the site's inbox
+    assert await check_screens(pool, app.state.mailer, "http://test") == 1              # it left: that is news too
+    assert "Left since the last check" in (await last_mail(app, "joins@example.com"))["body"]
+    silver = await signed_in(app, "joins-s@example.com", plan="silver")
+    await silver.put("/api/me/screens", json={"screens": [{"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]})
+    async with pool.acquire() as conn:
+        uid = await conn.fetchval("SELECT id FROM users WHERE email = 'joins-s@example.com'")
+    await check_screens(pool, app.state.mailer, "http://test")
+    async with pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM screen_state WHERE user_id = $1", uid) == 0   # a model screen is never run for a plan below Gold
+    await c.aclose(); await silver.aclose()
+
+
 async def test_weekly_digest_is_opt_in_and_sent_once_a_week(app):
     from datetime import date, timedelta
     from finlit.digest import send_digests

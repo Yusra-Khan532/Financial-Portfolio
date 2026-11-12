@@ -18,11 +18,27 @@ MODEL = {"overall", "pillar_quality", "pillar_growth", "pillar_profitability", "
 LEGACY_KEYS = {"change_pct": "ret_1d", "return_1m": "ret_1m", "return_1y": "ret_1y", "sales_cagr": "sales_cagr_5y", "profit_cagr": "profit_cagr_5y"}
 
 
+def rules_of(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """The number rules a saved screen applies: its own ranges, plus the cut-offs of a ready-made screen on the FinLit model (kept on the server, file 04)."""
+    from .screener.ready import MODEL
+    out = dict(state.get("ranges") or {})
+    m = MODEL.get(state.get("model") or "")
+    if m:
+        out.update({k: dict(v) for k, v in m.rules.items()})
+    return out
+
+
 def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] = None) -> bool:
     """Does one company (a `scores` row with its metrics) match a saved screen? Same rules as the screener page."""
     raw = row.get("metrics")
     metrics = json.loads(raw) if isinstance(raw, str) else (raw or {})
-    for key, rg in (state.get("ranges") or {}).items():
+    caps = state.get("caps") or []
+    if caps:       # size on the rupee scale, as on the page (Large above 50,000 Cr, Mid 10,000 to 50,000, Small below)
+        from .screener.data import size_of
+        mc = metrics.get("market_cap", row.get("market_cap"))
+        if size_of(float(mc) if mc is not None else None) not in caps:
+            return False
+    for key, rg in rules_of(state).items():
         key = LEGACY_KEYS.get(key, key)
         v = metrics.get(key)
         if v is None:
@@ -47,12 +63,27 @@ def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] 
     return True
 
 
-def screen_mail(name: str, new: List[Dict[str, Any]], total: int, link: str) -> tuple:
-    lines = "\n".join(f"  {r['symbol']:<12} {r.get('name') or ''}" for r in new[:12])
-    more = f"\n  …and {len(new) - 12} more" if len(new) > 12 else ""
-    return (f"{len(new)} new match{'es' if len(new) != 1 else ''} for your screen “{name}”",
-            f"Your saved screen “{name}” now matches {total} companies. New since the last check:\n\n{lines}{more}\n\nOpen the screener: {link}\n\n"
-            "This is a notification about your own filters, not investment advice. Turn these emails off in Account → Appearance.\n\nFinLit Ventures")
+def _lines(rows: List[Dict[str, Any]]) -> str:
+    out = "\n".join(f"  {r['symbol']:<12} {r.get('name') or ''}" for r in rows[:12])
+    return out + (f"\n  …and {len(rows) - 12} more" if len(rows) > 12 else "")
+
+
+def screen_mail(name: str, new: List[Dict[str, Any]], total: int, link: str, gone: List[Dict[str, Any]] = ()) -> tuple:
+    """The message for one saved screen: the companies that joined it and the ones that left it since the last check (file 04: "Tell me when a company joins")."""
+    gone = list(gone)
+    parts = []
+    if new:
+        parts.append(f"{len(new)} joined")
+    if gone:
+        parts.append(f"{len(gone)} left")
+    text = f"Your saved screen “{name}” now matches {total} {'company' if total == 1 else 'companies'}."
+    if new:
+        text += f"\n\nJoined since the last check:\n\n{_lines(new)}"
+    if gone:
+        text += f"\n\nLeft since the last check:\n\n{_lines(gone)}"
+    return (f"{' and '.join(parts)}: your screen “{name}”",
+            f"{text}\n\nOpen the screener: {link}\n\n"
+            "This is a notification about your own filters, not investment advice. Turn these messages off for a screen under My screens, or all of them in Account → Appearance.\n\nFinLit Ventures")
 
 
 async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
@@ -66,7 +97,7 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
         # only the figures the members' screens filter on leave the database (each company carries ~250; a screen uses a handful)
         from .screener.data import LEGACY
         used = sorted({LEGACY_KEYS.get(k, k) for u in users for sc in ((json.loads(u["screens"]) if isinstance(u["screens"], str) else u["screens"]) or [])
-                       for k in ((sc.get("state") or {}).get("ranges") or {})})
+                       for k in rules_of(sc.get("state") or {})} | {"market_cap"})
         cols = ", ".join(sorted(set(LEGACY.values())))   # the flat columns `matches` falls back to
         universe = [dict(r) for r in await conn.fetch(
             f"SELECT DISTINCT ON (symbol) symbol, name, sector, macro_sector, industry, band, {cols}, "  # nosec B608 - fixed column names
@@ -80,21 +111,31 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
             if prefs.get("screenAlerts") is False:
                 continue
             for sc in (json.loads(u["screens"]) if isinstance(u["screens"], str) else u["screens"]) or []:
+                if sc.get("notify") is False:
+                    continue        # saved without "Tell me when a company joins": no messages (a screen saved before the choice existed keeps its emails)
                 state = sc.get("state") or {}
                 # model filters are a Silver feature; never reveal scores to a Basic member through an email
                 gold = u["plan"] == "gold"
                 from .screener.catalog import BY_KEY, allowed
                 keys = {LEGACY_KEYS.get(k, k) for k in (state.get("ranges") or {})}
                 # members only get alerts for filters their plan includes; never reveal locked data through an email
-                if not all(k in BY_KEY and allowed(u["plan"], BY_KEY[k].tier) for k in keys) or (state.get("bands") and not gold):
+                if not all(k in BY_KEY and allowed(u["plan"], BY_KEY[k].tier) for k in keys) or ((state.get("bands") or state.get("model")) and not gold):
                     continue
                 hit = [r for r in universe if matches(r, state, members)]
                 seen = await conn.fetchval("SELECT seen FROM screen_state WHERE user_id = $1 AND screen_name = $2", u["id"], sc["name"])
                 now = [r["symbol"] for r in hit]
                 if seen is not None:
-                    new = [r for r in hit if r["symbol"] not in set(seen)]
-                    if new and len(new) < 100:  # a huge jump means the data changed under the screen, not news
-                        subject, body = screen_mail(sc["name"], new, len(hit), f"{site_url}/screener")
+                    was = set(seen)
+                    new = [r for r in hit if r["symbol"] not in was]
+                    names = {r["symbol"]: r for r in universe}
+                    gone = [names.get(sym, {"symbol": sym}) for sym in seen if sym not in set(now)]
+                    if (new or gone) and len(new) < 100 and len(gone) < 100:  # a huge jump means the data changed under the screen, not news
+                        subject, body = screen_mail(sc["name"], new, len(hit), f"{site_url}/screener", gone)
+                        try:        # the message in the site's inbox too (the bell), then the email
+                            await conn.execute("INSERT INTO notifications (user_id, kind, title, body, link) VALUES ($1, 'screen', $2, $3, '/screener')",
+                                               u["id"], subject, body.split("\n\nOpen the screener")[0])
+                        except Exception:
+                            log.exception("screen notification not stored")
                         try:
                             await mailer.send(u["email"], subject, body)
                             sent += 1
