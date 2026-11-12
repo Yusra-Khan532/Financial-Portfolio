@@ -1405,7 +1405,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             return 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
-            res = await preset_service.refresh_presets(store)
+            res = await preset_service.refresh_presets(store, settings)
             print(json.dumps(res, default=str)[:3000])
             return 0 if not res["failed"] else 1
         if args.cmd in ("rebuild-metrics", "refresh-indices"):

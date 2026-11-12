@@ -47,6 +47,37 @@ def _pct(a: Optional[float], b: Optional[float]) -> Optional[float]:
     return None if not a or not b else round((b / a - 1.0) * 100.0, 2)
 
 
+async def ensure_bench(store, settings) -> bool:
+    """NIFTY 500 levels in the saved index copy the site keeps (`idx:px:NIF500`). That copy is only made while a visitor looks at the index, so the night's job makes it when it is
+    missing; without it the NIFTY 500 columns were blank on every row. True when the copy is there."""
+    try:
+        if await store.redis.get("idx:px:NIF500"):
+            return True
+    except Exception:
+        return False
+    if settings is None:
+        return False
+    try:
+        import time
+        from types import SimpleNamespace
+        from .. import indices
+        app = SimpleNamespace(state=SimpleNamespace(settings=settings))
+        raw = await indices._fetch_levels(app, "NIF500")
+        if raw is None:
+            return False
+        await store.redis.set("idx:px:NIF500", json.dumps({"t": time.time(), "v": raw}), ex=indices.KEEP)
+        return True
+    except Exception:
+        log.warning("NIFTY 500 history could not be fetched for the screen history", exc_info=True)
+        return False
+
+
+async def baseline_session(store) -> Optional[date]:
+    """The first session any screen was stored for (11 Nov 2026): the companies already on a list that day were not seen joining it, so they are marked as the start of the history."""
+    async with store.pool.acquire() as conn:
+        return await conn.fetchval("SELECT min(session) FROM screen_runs")
+
+
 async def _bench(store, as_of: date) -> Dict[str, float]:
     """NIFTY 500 closes kept night by night in preset_meta('bench'), topped up from the saved index history when it is there."""
     try:
@@ -150,7 +181,7 @@ async def _reasons(fr, preset, active, symbols: Sequence[str]) -> Dict[str, str]
 
 async def gainers(store, fr, bench: Dict[str, float]) -> dict:
     """Top gainers for both pages and the three windows at tonight's session, stored in `gainers`."""
-    from .registry import PRESETS
+    from .registry import ALL as PRESETS      # every screen, the Prism basics too
     session = fr.as_of
     price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
     order = {p.id: n for n, p in enumerate(PRESETS)}
@@ -160,6 +191,8 @@ async def gainers(store, fr, bench: Dict[str, float]) -> dict:
         for page in ("basic", "advanced"):
             ids = [p.id for p in PRESETS if p.tab == page and p.kind not in ("blocked", "quickview", "gainers")]
             days = [r["session"] for r in await conn.fetch("SELECT DISTINCT session FROM screen_runs WHERE preset_id = ANY($1::text[]) AND session < $2 ORDER BY session DESC LIMIT 21", ids, session)]
+            base = await conn.fetchval("SELECT min(session) FROM screen_runs")
+            days = [d for d in days if base is None or d > base]          # the baseline session's companies were already on a list: only companies that joined after it count
             for win, k in WINDOWS.items():
                 take = days[:k]
                 await conn.execute("DELETE FROM gainers WHERE page=$1 AND win=$2 AND session=$3", page, win, session)
@@ -215,6 +248,7 @@ async def enrich(store, preset_id: str, chips: str, rows: List[dict], latest: Di
     """Added and Since added on every row (in place)."""
     if not rows:
         return
+    base = await baseline_session(store)
     async with store.pool.acquire() as conn:
         sp = {r["symbol"]: r for r in await conn.fetch("SELECT symbol, added_on, close_added FROM screen_spells WHERE preset_id=$1 AND chips=$2 AND left_on IS NULL", preset_id, chips)}
     b1 = _bench_at(bench, session.isoformat())
@@ -223,6 +257,8 @@ async def enrich(store, preset_id: str, chips: str, rows: List[dict], latest: Di
         if not s:
             continue
         r["added_on"] = _iso(s["added_on"])
+        if base is not None and s["added_on"] == base:
+            r["added_baseline"] = True      # "11 Nov (start)": already on the list when FinLit began storing lists
         r["since_added_pct"] = _pct(s["close_added"], latest.get(r["symbol"]))
         r["bench_since_added_pct"] = _pct(_bench_at(bench, s["added_on"].isoformat()), b1)
 

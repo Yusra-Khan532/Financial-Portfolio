@@ -77,13 +77,7 @@ class Frame:
         lend = sorted(raw[i] for i in range(n) if raw[i] is not None and pool_ok[i] and lender[i])
         out: List[Optional[float]] = list(raw)
         if len(others) >= 20 and len(lend) >= 10:
-            for i in range(n):
-                if raw[i] is not None and lender[i]:
-                    p = _pct_in(lend, raw[i])
-                    pos = p * (len(others) - 1)
-                    lo = int(pos)
-                    hi = min(lo + 1, len(others) - 1)
-                    out[i] = others[lo] + (others[hi] - others[lo]) * (pos - lo)
+            out = [lender_equivalent(others, lend, raw[i]) if raw[i] is not None and lender[i] else raw[i] for i in range(n)]
         cache[field] = out
         return out
 
@@ -346,6 +340,37 @@ def _pct_in(arr: Sequence[float], v: float) -> float:
     return min(1.0, max(0.0, ((lo + hi - 1) / 2.0) / (n - 1)))
 
 
+def lender_cut(others: Sequence[float], lend: Sequence[float], minimum: float) -> float:
+    """The Quality value a lender needs for a minimum: the same pass rate among lenders as the minimum has among the other companies (fix 12). `at or above`: a company
+    exactly on the cut-off passes (AXISBANK, Quality 58 with a lender cut-off of 58, is in)."""
+    share = sum(1 for v in others if v >= minimum) / len(others)
+    if share <= 0:
+        return float("inf")
+    return lend[min(len(lend) - 1, int(len(lend) * (1 - share)))]
+
+
+def lender_equivalent(others: Sequence[float], lend: Sequence[float], v: float) -> float:
+    """A lender's value on the other companies' scale: the highest minimum it passes, so `value >= minimum` gives the same answer as `v >= lender_cut(minimum)` for every minimum."""
+    lo, hi, best = 0, len(others) - 1, others[0]
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if v >= lender_cut(others, lend, others[mid]):
+            best, lo = others[mid], mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+
+def rank_order_note(preset: Preset) -> Optional[str]:
+    """What a list is ordered by, in plain words (no model detail): the Basic Top 10s by FinLit IQ, the Advanced Highest-rated lists by the Prism rating. A screen ordered by something
+    else says nothing here (its own notes and columns carry it)."""
+    if preset.tab == "basic" and preset.top10:
+        return "The 10 highest FinLit IQs first."
+    if preset.id.startswith("highest-rated-"):
+        return "Ordered by the FinLit Prism rating."
+    return None
+
+
 def rank_scores_of(fr: Frame, terms: Sequence[Tuple[str, float]], member: Callable[[int], bool]) -> Dict[int, float]:
     """100 x the weighted sum of each input's percentile among its own size bucket's members. A company missing an input has no score (never a zero).
     A term written "-field" counts the other way round: the lower the figure, the higher its percentile (for example how far below the high)."""
@@ -537,8 +562,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
                 r["badges"] = r["badges"] + ["Industry limit"]
             rows.append(r)
     out = _base(fr, preset, cfg, active, len(idx), rows)
-    if preset.rank_score:
-        out["rankScoreNote"] = "Ranked by a weighted score: each input is the company's percentile among its own size group."
+    note = rank_order_note(preset)
+    if note:
+        out["rankScoreNote"] = note
     notes = view_notes(fr, rules)
     if preset.id == "rating-upgrades":
         notes = notes + [f"The Prism history on file covers {fr.history_days} day{'' if fr.history_days == 1 else 's'}, so changes are measured over that span, up to 30 days." if fr.history_days < 30
@@ -589,7 +615,7 @@ def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -
     out["pageSize"] = PAGE
     out["exportRows"] = rows[:EXPORT_MAX]
     out["newToday"] = sum(1 for r in rows if r["new"])
-    out["leftOut"] = [[s, why] for s, why in (run.get("left_out") or []) if s in {x for x in fr.symbols}][:400]
+    out["leftOut"] = len([1 for s, _ in (run.get("left_out") or []) if s in {x for x in fr.symbols}])      # a count: the companies are in the server log, not sent to the browser
     out["cardText"] = preset.card_text
     if not run:
         out["emptyText"] = "The nightly chart-pattern run has not been made yet. Check back after the next evening update."

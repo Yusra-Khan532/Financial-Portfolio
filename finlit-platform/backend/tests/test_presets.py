@@ -37,7 +37,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live" and p.kind not in ("pattern", "gainers")]       # the eleven Chart patterns screens are checked in their own test
-    assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 3
+    assert len(live) == 19 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -58,7 +58,7 @@ def test_registry_shape_names_and_rules():
     assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades"]
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue"] and "weak valuation" in BY_ID["weakvalue"].card_text
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and "weak valuation" in BY_ID["weakvalue"].card_text
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
             assert not re.search(r"prism_reports|is_psu|one row|flag", p.blocked_reason or "", re.I), p.id
@@ -363,10 +363,20 @@ def test_higher_risk_has_three_ways_in_and_ranks_the_lowest_risk_first():
     assert syms(engine.run(frame(rows, prism), BY_ID["higher-risk-list"])) == ["RISK", "PRISM", "TREND"]
 
 
-def test_blocked_and_quick_views_do_not_run():
-    for pid in ("psu-stocks", "strongsafe"):
-        with pytest.raises(engine.Blocked):
-            engine.run(frame([mrow("A")]), BY_ID[pid])
+def test_blocked_screens_do_not_run():
+    with pytest.raises(engine.Blocked):
+        engine.run(frame([mrow("A")]), BY_ID["psu-stocks"])
+
+
+def test_prism_basics_are_served_like_every_other_screen():
+    """SC-10: the four Prism basics run on the server (so they get history, As on and a place in Top gainers), including "Uptrend on both technical views"."""
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and all(p.kind == "rules" for p in QUICK_VIEWS)
+    rows = [mrow("SAFE"), mrow("UP"), mrow("DOWN"), mrow("CHEAP")]
+    prism = {"SAFE": pz(final=85, risk=70, st=0, lt=0), "UP": pz(final=50, risk=30, st=25, lt=40), "DOWN": pz(final=50, risk=30, st=25, lt=10), "CHEAP": pz(final=50, fund=70, val=40, risk=30, st=0, lt=0)}
+    fr = frame(rows, prism)
+    assert syms(engine.run(fr, BY_ID["strongsafe"])) == ["SAFE"]
+    assert syms(engine.run(fr, BY_ID["bothtech"])) == ["UP"]
+    assert syms(engine.run(fr, BY_ID["weakvalue"])) == ["CHEAP"]
 
 
 # ---------------------------------------------------------------------------------------------------------------- Emerging tech
@@ -470,12 +480,12 @@ def test_theme_screen_in_play_small_groups_leaders_and_never_empty():
     for r in body["rows"]:                                                       # leaders: within 15% of the high, 3-month return above the sector median
         assert r["pct_from_high"] <= 15 and r["vs_industry_3m"] > 0
     rows_back = themes.stored_rows(AS_OF, ev)
-    assert rows_back[0][1] == "*" and any(r[1] == "sector:Hot" and r[8] for r in rows_back) and all(r[4] is None for r in rows_back)
+    assert rows_back[0][1] == "*" and any(r[1] == themes.KEY_PREFIX + "Hot" and r[8] for r in rows_back) and all(r[4] is None for r in rows_back)
 
 
 def test_history_roundtrip_ignores_rows_written_by_the_old_moving_average_breadth():
-    stored = themes.history_from_rows([{"as_of": date(2026, 10, d), "industry": "sector:Hot", "b50": 20, "b200": None, "rs3": 0, "in_play": d == 5} for d in range(1, 6)]
-                                      + [{"as_of": date(2026, 9, 1), "industry": "sector:Hot", "b50": 99, "b200": 70, "rs3": 9, "in_play": True}])
+    stored = themes.history_from_rows([{"as_of": date(2026, 10, d), "industry": themes.KEY_PREFIX + "Hot", "b50": 20, "b200": None, "rs3": 0, "in_play": d == 5} for d in range(1, 6)]
+                                      + [{"as_of": date(2026, 9, 1), "industry": themes.KEY_PREFIX + "Hot", "b50": 99, "b200": 70, "rs3": 9, "in_play": True}])
     assert len(stored) == 5 and stored[-1]["Hot"]["in_play"] is True and all(h["Hot"]["b50"] == 20 for h in stored)
 
 
@@ -788,6 +798,6 @@ def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_s
     body = engine.run(fr, BY_ID["basic-pattern-daily_base"])
     assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
     assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
-    assert body["leftOut"] == [["P4", "candles end 5 Nov, before the 6 Nov close"]]
+    assert body["leftOut"] == 1
     fr.patterns = None
     assert engine.run(fr, BY_ID["basic-pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")
