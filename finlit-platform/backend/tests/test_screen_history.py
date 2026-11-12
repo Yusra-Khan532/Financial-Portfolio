@@ -78,3 +78,50 @@ def test_gainers_as_on_picker_lists_the_stored_closes_latest_first():
 
     got = asyncio.run(history.gainer_sessions(Store(), "basic", "week"))
     assert got == [{"date": "2026-11-11", "count": 20, "rulesUpdated": False}, {"date": "2026-11-10", "count": 18, "rulesUpdated": False}]
+
+
+def test_since_added_starts_from_the_real_close_of_the_day_it_was_added():
+    """Task 102: 'Since added' was measured from the quote of the moment the nightly job ran, so most rows read 0.0%. The close of the added session comes from the daily prices."""
+    import asyncio
+    import json as _json
+    from datetime import date
+    from finlit.presets import history
+
+    class Store:
+        async def get_section(self, sym, basis, section):
+            return (_json.dumps({"series": {"t": ["2026-11-10", "2026-11-11", "2026-11-12"], "c": [100.0, 110.0, 121.0]}}), None) if sym == "AAA" else None
+
+    got = asyncio.run(history.day_closes(Store(), ["AAA", "BBB"]))
+    assert got == {"AAA": {"2026-11-10": 100.0, "2026-11-11": 110.0, "2026-11-12": 121.0}}
+    assert history._pct(got["AAA"]["2026-11-11"], 121.0) == 10.0                  # +10% from the close it was added on to the latest close
+
+
+def test_repair_rewrites_only_the_closes_that_differ_from_the_real_close():
+    import asyncio
+    import json as _json
+    from datetime import date
+    from finlit.presets import history
+
+    updates = []
+
+    class Conn:
+        async def fetch(self, sql, *a):
+            return [{"id": 1, "symbol": "AAA", "added_on": date(2026, 11, 11), "close_added": 121.0, "left_on": None, "close_left": None},     # wrong: the quote of the moment
+                    {"id": 2, "symbol": "AAA", "added_on": date(2026, 11, 11), "close_added": 110.0, "left_on": None, "close_left": None}]     # already right
+        async def execute(self, sql, *a):
+            updates.append(a)
+
+    class Acq:
+        async def __aenter__(self): return Conn()
+        async def __aexit__(self, *a): return False
+
+    class Pool:
+        def acquire(self): return Acq()
+
+    class Store:
+        pool = Pool()
+        async def get_section(self, sym, basis, section):
+            return (_json.dumps({"series": {"t": ["2026-11-11", "2026-11-12"], "c": [110.0, 121.0]}}), None)
+
+    got = asyncio.run(history.repair_closes(Store()))
+    assert got == {"closesRepaired": 1} and updates == [(110.0, None, 1)]
