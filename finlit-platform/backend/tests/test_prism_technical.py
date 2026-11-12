@@ -238,11 +238,14 @@ async def test_a_company_still_without_a_long_term_score_is_asked_once_a_day_not
 
 async def test_no_candles_leaves_the_stored_view_and_says_why_and_five_failures_stop_the_run(world):
     store, settings, site, http, seen = world
-    for i in range(8):
+    for i in range(18):
         await seed(store, f"TQF{i}", cap=100 - i)
-    seen["available"] = None                                  # Dhan answers nothing
+    seen["available"] = None                                  # Dhan answers nothing for anyone
     out = await pt.refresh(store, settings, client=http, now=NOW)
-    assert out["status"] == "partial" and out["failed"] == 5 and out["reasons"] == {"no_candles": 5} and "five failures" in out["stopped"]
+    assert out["status"] == "partial" and out["failed"] == pt.NO_CANDLE_STREAK and out["reasons"] == {"no_candles": pt.NO_CANDLE_STREAK} and "no candles" in out["stopped"]
+    assert await store.redis.exists(pt.NONEW_PREFIX + "TQF0")                     # nothing to fetch for it today: the next run does not start on it again
+    for i in range(18):
+        await store.redis.delete(pt.NONEW_PREFIX + f"TQF{i}")
     assert (await row(store, "TQF0"))[2]["technicalBarDate"] == "2026-10-16"      # unchanged, still labelled with its own date
     seen["available"] = FRIDAY
     site.status = 422
@@ -424,3 +427,19 @@ async def test_the_fresh_candles_are_kept_for_the_chart_pattern_scans(world, mon
     kept = await pc.load(store.redis, "TQK")
     assert kept and kept["t"][-1] == "2026-10-23" and len(kept["t"]) == 40 and kept["c"][-1] == 1.5
     await store.redis.delete(pc.PREFIX + "TQK")
+
+
+
+async def test_a_few_large_companies_with_no_candles_do_not_stop_the_run_for_everyone_else(world, monkeypatch):
+    store, settings, site, http, seen = world
+    for i in range(8):
+        await seed(store, f"TQG{i}", cap=100 - i)
+    real = pt.supplied_candles
+    async def some_blank(state, symbol, now, price):
+        return None if symbol in {f"TQG{i}" for i in range(5)} else await real(state, symbol, now, price)   # the five largest have nothing at Dhan
+    monkeypatch.setattr(pt, "supplied_candles", some_blank)
+    out = await pt.refresh(store, settings, client=http, now=NOW)
+    assert out["reasons"].get("no_candles") == 5 and out["updated"] == 3 and "stopped" not in out      # the other three are refreshed
+    assert all([await store.redis.exists(pt.NONEW_PREFIX + f"TQG{i}") for i in range(5)])            # and the five are skipped by the next run
+    again = await pt.refresh(store, settings, client=http, now=NOW)
+    assert again.get("reasons", {}).get("no_candles", 0) == 0
