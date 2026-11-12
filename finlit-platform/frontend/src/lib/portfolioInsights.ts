@@ -1,6 +1,7 @@
 // Pure engine behind the "Portfolio insights" panel. Holdings are treated as EQUAL-WEIGHT (no quantities are held).
 // Everything here is descriptive and informational; it never recommends buying or selling.
 import type { Row } from "./screener";
+import { capBucket } from "./capBuckets";
 
 export type InsightLine = { symbol: string; name: string; row?: Row };
 export type PillarKey = "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance" | "pillar_technical";
@@ -126,7 +127,7 @@ export function portfolioInsights(lines: InsightLine[]): Insights {
   if (scored >= 2 && top && top.share > 40) flags.push(`${top.sector} makes up ${pctTxt(top.share)} of your holdings, more than 40% in one sector.`);
   if (scored >= 2 && sectorCount < 5) flags.push(`Your holdings cover ${plural(sectorCount, "sector", "sectors")}, fewer than 5.`);
   let large = 0, mid = 0, small = 0, unk = 0;
-  sc.forEach((s) => { if (s.cap == null) unk++; else if (s.cap >= 100000) large++; else if (s.cap >= 30000) mid++; else small++; });
+  sc.forEach((s) => { const b = capBucket(s.cap); if (!b) unk++; else if (b.id === "large") large++; else if (b.id === "mid") mid++; else small++; });
   const capParts = [large && `${pctTxt(share(large, scored))} large`, mid && `${pctTxt(share(mid, scored))} mid`, small && `${pctTxt(share(small, scored))} small`, unk && `${pctTxt(share(unk, scored))} size unknown`].filter(Boolean);
   const caps = { large, mid, small, unknown: unk, line: capParts.length ? `Company size: ${capParts.join(", ")}.` : "Company size is not available." };
   const summary = scored === 1 ? "With one holding, everything rides on a single company, so spread cannot be assessed."

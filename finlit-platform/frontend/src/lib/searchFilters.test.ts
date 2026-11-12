@@ -16,8 +16,8 @@ const idx: SearchIndex = {
 
 describe("size bands", () => {
   it("uses the portfolio checker's bands, edges going to the band whose range ends there", () => {
-    expect(bandOf(200001)?.id).toBe("mega"); expect(bandOf(200000)?.id).toBe("large"); expect(bandOf(50001)?.id).toBe("large"); expect(bandOf(50000)?.id).toBe("mid");
-    expect(bandOf(10000)?.id).toBe("small"); expect(bandOf(2000)?.id).toBe("micro"); expect(bandOf(500)?.id).toBe("nano"); expect(bandOf(1)?.id).toBe("nano");
+    expect(bandOf(200001)?.id).toBe("large"); expect(bandOf(50001)?.id).toBe("large"); expect(bandOf(50000)?.id).toBe("mid");
+    expect(bandOf(10001)?.id).toBe("mid"); expect(bandOf(10000)?.id).toBe("small"); expect(bandOf(500)?.id).toBe("small"); expect(bandOf(1)?.id).toBe("small");
   });
   it("has no band for an unknown value (0, null, undefined), so it is never shown under a wrong one", () => {
     expect(bandOf(0)).toBeNull(); expect(bandOf(null)).toBeNull(); expect(bandOf(undefined)).toBeNull();
@@ -31,7 +31,7 @@ describe("facets come from the data", () => {
     expect(f.total).toBe(9);
   });
   it("counts every band and the companies left out when a filter is on", () => {
-    expect(Object.fromEntries(f.caps.map((c) => [c.id, c.n]))).toEqual({ mega: 2, large: 3, mid: 1, small: 0, micro: 1, nano: 1 });
+    expect(Object.fromEntries(f.caps.map((c) => [c.id, c.n]))).toEqual({ large: 5, mid: 1, small: 2 });
     expect(f.unknown).toEqual({ sector: 1, cap: 1 });
   });
   it("is cached per index and works on plain rows (screener rows)", () => {
@@ -46,28 +46,28 @@ describe("facets come from the data", () => {
 describe("filtering", () => {
   it("passes a company only if every chosen filter matches; unknowns fail only the filter that needs them", () => {
     expect(passesValues(null, null, NO_FILTER)).toBe(true);
-    expect(passesValues(null, 500000, { sector: null, cap: "mega" })).toBe(true);
+    expect(passesValues(null, 500000, { sector: null, cap: "large" })).toBe(true);
     expect(passesValues(null, 500000, { sector: "Power", cap: null })).toBe(false);
-    expect(passesValues("Power", 0, { sector: null, cap: "nano" })).toBe(false);
-    expect(passes(idx, 0, { sector: "Information Technology", cap: "mega" })).toBe(true);
-    expect(passes(idx, 2, { sector: "Information Technology", cap: "mega" })).toBe(false);   // 2,00,000 is Large-cap
+    expect(passesValues("Power", 0, { sector: null, cap: "small" })).toBe(false);
+    expect(passes(idx, 0, { sector: "Information Technology", cap: "large" })).toBe(true);
+    expect(passes(idx, 3, { sector: "Information Technology", cap: "large" })).toBe(false);   // 2,000 is Small cap
   });
   it("sector only: that sector's companies, largest market value first", () => {
     const r = filterStocks(idx, "", { sector: "Information Technology", cap: null }, 40);
     expect(r.rows.map((x) => x[0])).toEqual(["AAA", "CCC", "HHH", "III", "DDD", "GGG"]); expect(r.total).toBe(6);   // GGG: sector known, value unknown, so last
   });
   it("band only", () => {
-    expect(filterStocks(idx, "", { sector: null, cap: "mega" }, 40).rows.map((x) => x[0])).toEqual(["FFF", "AAA"]);
-    expect(filterStocks(idx, "", { sector: null, cap: "nano" }, 40).rows.map((x) => x[0])).toEqual(["EEE"]);
+    expect(filterStocks(idx, "", { sector: null, cap: "large" }, 40).rows.map((x) => x[0])).toEqual(["FFF", "AAA", "CCC", "BBB", "HHH"]);
+    expect(filterStocks(idx, "", { sector: null, cap: "small" }, 40).rows.map((x) => x[0])).toEqual(["DDD", "EEE"]);
   });
   it("sector and band together", () => {
     const r = filterStocks(idx, "", { sector: "Information Technology", cap: "large" }, 40);
-    expect(r.rows.map((x) => x[0])).toEqual(["CCC", "HHH"]);
+    expect(r.rows.map((x) => x[0])).toEqual(["AAA", "CCC", "HHH"]);
   });
   it("never lists a company with unknown sector or size under a chosen sector or band", () => {
     const all = (f: Parameters<typeof filterStocks>[2]) => filterStocks(idx, "", f, 40).rows.map((x) => x[0]);
     expect(all({ sector: "Information Technology", cap: null })).not.toContain("FFF");     // sector unknown
-    expect(all({ sector: null, cap: "mega" })).not.toContain("GGG");                        // market value unknown
+    expect(all({ sector: null, cap: "large" })).not.toContain("GGG");                        // market value unknown
     expect(all({ sector: null, cap: null })).toContain("GGG");                              // but both appear with no filter
   });
   it("with a query: best match first, still inside the filter", () => {
@@ -83,15 +83,15 @@ describe("filtering", () => {
   });
   it("returns the index rows untouched when no filter is on, and never lists index entries", () => {
     expect(filteredRows(idx, NO_FILTER)).toBe(idx.rows);
-    expect(filteredRows(idx, { sector: null, cap: "nano" }).some((r) => r[0].startsWith("^"))).toBe(false);
+    expect(filteredRows(idx, { sector: null, cap: "small" }).some((r) => r[0].startsWith("^"))).toBe(false);
   });
 });
 
 describe("wording", () => {
   it("names the filter", () => {
-    expect(filterPhrase({ sector: "Information Technology", cap: "mega" })).toBe("Mega-cap Information Technology");
-    expect(filterNoun({ sector: "Information Technology", cap: "mega" })).toBe("Mega-cap Information Technology companies");
-    expect(filterNoun({ sector: null, cap: "small" }, 1)).toBe("Small-cap company");
+    expect(filterPhrase({ sector: "Information Technology", cap: "large" })).toBe("Large cap Information Technology");
+    expect(filterNoun({ sector: "Information Technology", cap: "large" })).toBe("Large cap Information Technology companies");
+    expect(filterNoun({ sector: null, cap: "small" }, 1)).toBe("Small cap company");
     expect(filterNoun(NO_FILTER)).toBe("companies");
   });
 });

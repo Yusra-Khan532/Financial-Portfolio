@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { AlertButton } from "../components/AlertComposer";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
+import { capSize } from "../lib/format";
 import { Gate } from "../components/Gate";
 import { Plain } from "../components/Plain";
 import { useUI } from "../lib/ui";
@@ -25,7 +26,7 @@ import { scoreBand } from "../lib/scoreBands";
 type GroupBy = "none" | "sector" | "size" | "band" | "style";
 const GROUPS: { id: GroupBy; label: string; gold?: boolean }[] = [{ id: "none", label: "No grouping" }, { id: "sector", label: "Industry" }, { id: "size", label: "Company size" }, { id: "band", label: "FinLit band", gold: true }, { id: "style", label: "Style", gold: true }];
 const SORTS: { id: NumKey | "name"; label: string }[] = [{ id: "overall", label: "FinLit IQ" }, { id: "change_pct", label: "Today's change" }, { id: "market_cap", label: "Market cap" }, { id: "price", label: "Price" }, { id: "roe", label: "ROE" }, { id: "pe", label: "P/E" }, { id: "dividend_yield", label: "Dividend yield" }, { id: "name", label: "Name" }];
-const size = (c: number | null) => (c == null ? "Unknown" : c >= 100000 ? "Large cap" : c >= 30000 ? "Mid cap" : c >= 5000 ? "Small cap" : "Micro cap");
+const size = (c: number | null) => capSize(c) ?? "Unknown";
 const style = (r: Row) => (r.pe == null ? "Unknown" : r.pe < 15 || (r.pb != null && r.pb < 1.5) ? "Value" : r.pe > 35 ? "Premium growth" : "Blend");
 const keyOf = (g: GroupBy, r: Row) => (g === "sector" ? r.sector || "Other" : g === "size" ? size(r.market_cap) : g === "band" ? (r.band ? BAND_LABEL[r.band] : "Unscored") : g === "style" ? style(r) : "");
 

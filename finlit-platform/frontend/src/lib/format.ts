@@ -1,4 +1,5 @@
 // Indian number formatting used across the site (₹, lakh/crore grouping, true minus sign).
+import { capBucket } from "./capBuckets";
 export const MINUS = "−";
 
 export const nf = (n: number, d = 2) =>
@@ -35,5 +36,5 @@ export const dateIN = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "n
 export const initials = (text: string) =>
   text.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || text.slice(0, 2).toUpperCase();
 
-export const capSize = (crore: number | null | undefined) =>
-  crore == null ? null : crore >= 100000 ? "Large cap" : crore >= 30000 ? "Mid cap" : crore >= 5000 ? "Small cap" : "Micro cap";
+/** The size word of a market value (₹ crore): the site's one three-size scale (capBuckets.ts). */
+export const capSize = (crore: number | null | undefined): string | null => capBucket(crore)?.label ?? null;

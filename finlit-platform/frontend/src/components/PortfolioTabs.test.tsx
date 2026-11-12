@@ -44,7 +44,7 @@ describe("Overview tab", () => {
   });
   it("lists every share with a link to its page, the size word and the remove button", () => {
     const html = table(silver, "finlit", "overview");
-    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Mid cap");
+    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
   });
   it("has the filter chips, search box and Export CSV", () => {
     const t = text(table(silver, "finlit", "overview"));
