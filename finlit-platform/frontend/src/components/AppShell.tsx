@@ -82,7 +82,7 @@ export function AppShell() {
     { title: "Funds", items: mine("funds") },
     { title: "Your workspace", items: mine("myfinlit", [{ to: "/baskets", label: "My baskets", icon: "layers" }]).filter((x) => x.to !== "/dashboard") },
     { title: MORE.groups[0].title!, items: MORE.groups[0].items.map(toItem) },
-    { title: "Learn", items: [{ to: "/glossary", label: "Glossary", icon: "book" }, { to: "/browser-extension", label: "Browser extension", icon: "spark" }, { to: "/blog", label: "Insights & blog", icon: "spark" }, { to: "/documents", label: "Documents", icon: "layers" }, { to: "/forum", label: "Forums", icon: "users" }] },
+    { title: "Learn", items: [{ to: "/glossary", label: "Glossary", icon: "book" }, { to: "/browser-extension", label: "Browser extension", icon: "spark" }, { to: "/blog", label: "Insights & blog", icon: "spark" }, { to: "/documents", label: "Documents", icon: "layers" }, { to: "/forum", label: "Discussion forums", icon: "users" }] },
     ...(user ? [{ title: "Account", items: [
       { to: "/account", label: "Profile & security", icon: "users", end: true },
       { to: "/account/appearance", label: "Appearance", icon: "spark" },

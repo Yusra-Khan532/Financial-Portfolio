@@ -600,7 +600,21 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         hit = await app.state.store.get_section(symbol, statement, name)
         if hit is None:
             return await missing(request, symbol, statement, name)
+        if name.startswith("price-"):
+            await rebuild_if_old(symbol, statement, hit[0])
         return await serve_hit(request, symbol, statement, name, hit, started)
+
+    async def rebuild_if_old(symbol: str, statement: str, body) -> None:
+        """A chart opened from a screener reads only the price section, so a report built by older code (for example before weekly candles and the 9 and 20-day lines)
+        would stay old until somebody opened the full report. Opening the chart now queues the same rebuild the full report does (at most once in half an hour);
+        the stored chart is served at once meanwhile."""
+        try:
+            raw = body if isinstance(body, (bytes, str)) else bytes(body)
+            m = re.search(rb'"version"\s*:\s*(\d+)', raw if isinstance(raw, bytes) else raw.encode())
+            if m and int(m.group(1)) < SNAPSHOT_VERSION and await app.state.store.redis.set(f"repair:{symbol}:{statement}", 1, nx=True, ex=1800):
+                await app.state.store.enqueue(symbol, statement)
+        except Exception:   # nosec B110 - a failed check never stops the chart from being served
+            pass
 
     async def serve_hit(request: Request, symbol: str, statement: str, name: str, hit, started: float) -> Response:
         if not varies_by_plan(name):
@@ -676,6 +690,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(screener_qapi.router)
     app.include_router(__import__("finlit.presets.api", fromlist=["router"]).router)   # /api/screener/presets (Gold)
     app.include_router(__import__("finlit.presets.api", fromlist=["gainers_router"]).gainers_router)   # /api/screener/gainers
+    app.include_router(__import__("finlit.presets.selfcheck", fromlist=["router"]).router)   # /api/screener/selfcheck: the screen checks, pass or fail only
     app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)

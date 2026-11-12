@@ -69,7 +69,7 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
   const up = (qt?.chg ?? 0) >= 0;
   return (
     <section className="fo-cp" aria-label={`${name || symbol} discussions`}>
-      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum" className="fo-crumb-back" aria-label="Back to the discussion forum"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></Link><Link to="/forum">Discussion forum</Link><span aria-hidden="true">›</span><span aria-current="page">{name || symbol}</span></nav>
+      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum" className="fo-crumb-back" aria-label="Back to the discussion forums"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></Link><Link to="/forum">Discussion forums</Link><span aria-hidden="true">›</span><span aria-current="page">{name || symbol}</span></nav>
       <header className="fo-cp-head card">
         <CompanyLogo symbol={symbol} name={name || symbol} logo={qt?.logo} size={64} />
         <div className="fo-cp-id">
@@ -100,7 +100,7 @@ function Home({ symbol }: { symbol?: string }) {
     <div className="wrap fo fo2">
       <div className={"fo2-grid" + (symbol ? " has-company" : "")}>
         <div className="fo2-left">
-          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1">Discussion forum</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
+          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
           {me?.moderator && <div className="seg fo-boards" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => setPick(b)}>{BOARD_NAME[b]}</button>)}</div>}
           {me?.signedIn && <Companies active={symbol} board={board} />}
         </div>
@@ -114,7 +114,7 @@ function Home({ symbol }: { symbol?: string }) {
 }
 
 function Index() {
-  useDocTitle("Discussion forum", "Discuss listed companies: information and opinion only, moderated.");
+  useDocTitle("Discussion forums", "Discuss listed companies: information and opinion only, moderated.");
   return <Home />;
 }
 function Company() {
@@ -129,7 +129,7 @@ function Thread() {
   const t = q.data?.thread;
   return (
     <div className="wrap fo fo-t">
-      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum">Discussion forum</Link>{t && <><span aria-hidden="true">›</span><Link to={`/forum/c/${t.symbol}`}>{t.company}</Link></>}<span aria-hidden="true" className="fo-crumb-last">›</span><span aria-current="page" className="fo-crumb-last">Discussion</span></nav>
+      <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum">Discussion forums</Link>{t && <><span aria-hidden="true">›</span><Link to={`/forum/c/${t.symbol}`}>{t.company}</Link></>}<span aria-hidden="true" className="fo-crumb-last">›</span><span aria-current="page" className="fo-crumb-last">Discussion</span></nav>
       <div className="fo-notes"><BoardNote compact /><Disclaimer compact /></div>
       {tid > 0 ? <ThreadView id={tid} onBack={t ? () => nav(`/forum/c/${t.symbol}`) : undefined} backLabel={t ? `All ${t.company} discussions` : undefined}
         header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b>{th.symbol}</b> {th.company}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
