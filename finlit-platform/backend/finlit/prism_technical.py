@@ -184,6 +184,11 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
             return Outcome.FAILED, "candles_error"
         if not candles or "stock" not in candles:
             return Outcome.FAILED, "no_candles"
+        try:        # the same fresh candles feed the chart-pattern scans, which otherwise wait for a full report rebuild (task #64, C6)
+            from .presets import candles as pattern_candles
+            await pattern_candles.save(store.redis, symbol, candles["stock"].get("candles") or [])
+        except Exception:
+            log.warning("technical refresh: candles of %s not kept for the pattern scans", symbol)
         stored_bar = min((bar_date(_json(r["report"]), r["card"] and _json(r["card"])) or "0000-00-00") for r in rows)
         gap = any(not isinstance(((_json(r["report"]).get("technicalAssessment") or {}).get("longTerm") or {}).get("score"), (int, float)) for r in rows)   # no long-term score stored: recalculate even on the same bar
         if target is not None and not gap and not force and candles["stock"]["candles"][-1][0] <= stored_bar and stored_bar != "0000-00-00":
