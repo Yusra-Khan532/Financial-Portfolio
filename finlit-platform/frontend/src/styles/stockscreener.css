@@ -73,6 +73,11 @@
 .ssw-typed p { margin: 6px 0 0; font-size: var(--fs-12); color: var(--muted); line-height: 1.45; }
 .ssw-err { color: var(--loss) !important; }
 .ssw-ratio { margin-top: 8px; padding-left: 0 !important; }
+/* task #97: the way into the Custom Ratio Screener is a real button in its own small card (it had become an underlined text link) */
+.ssw-rl { display: grid; gap: 6px; margin: 12px 0 4px; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s2); }
+.ssw-rl b { font: 600 14px var(--sans); } .ssw-rl small { color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
+.ssw-rb { width: 100%; justify-content: center; gap: 8px; min-height: 40px; padding-inline: 10px; font-size: var(--fs-13); white-space: nowrap; }
+.ssw-rb .ico { width: 16px; height: 16px; flex: none; }
 
 /* a rule card */
 .ssr-rule { border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); padding: 10px 12px; margin-bottom: 10px; }

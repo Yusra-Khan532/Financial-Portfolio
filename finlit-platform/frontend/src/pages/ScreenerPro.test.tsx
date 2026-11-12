@@ -99,6 +99,16 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     expect(document.querySelector(".fgx-kpi, .kpi")).toBeNull();                 // the stat tiles and the tall hero are gone
   });
 
+  it("the way into the Custom Ratio Screener is a real button (task #97), and pressing it opens the panel", async () => {
+    mount(); await ready();
+    const b = screen.getByRole("button", { name: "Open the Custom Ratio Screener" });
+    expect(b.tagName).toBe("BUTTON");
+    expect(b.className).toMatch(/btn primary/);
+    expect(document.getElementById("scr-ratio")).toBeNull();
+    fireEvent.click(b);
+    expect(document.getElementById("scr-ratio")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Go to the Custom Ratio Screener" })).toBeTruthy();
+  });
   it("a metric screen loads its rules into Your rules as editable cards, and the card folds to one line", async () => {
     mount(); await ready();
     fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
