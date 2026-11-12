@@ -11,7 +11,7 @@ import "../../styles/pulse-charts.css";
 const KIND: Record<PulseInsight["kind"], string> = { good: "Good sign", insight: "Insight", watch: "Watch out", warning: "Warning" };
 const dayLabel = (d: string) => { const x = new Date(d + "T00:00:00"); return x.toLocaleDateString("en-IN", { day: "numeric", month: "short" }); };
 
-function Insights({ items }: { items: PulseInsight[] | undefined }) {
+export function Insights({ items }: { items: PulseInsight[] | undefined }) {
   if (!items?.length) return null;
   return <ul className="pc-ins" aria-label="What this chart says">{items.map((i) => <li key={i.title} className={"pc-in pc-in-" + i.kind}><b><span>{KIND[i.kind]}</span> {i.title}</b><p>{i.text}</p></li>)}</ul>;
 }

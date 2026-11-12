@@ -15,3 +15,15 @@
 .pc-t { width: 100%; border-collapse: collapse; font-size: var(--fs-14); } .pc-t th { font: 600 var(--fs-12) var(--sans); color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); } .pc-t td { padding: 8px 10px; border-bottom: 1px solid var(--border); } .pc-t .r { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .pc-srow { grid-template-columns: minmax(90px, 1fr) minmax(0, 1.4fr) 76px; gap: 6px; } .pc-now { font-size: var(--fs-11, 11px); white-space: normal; } }
 .pc-more > summary { list-style: none; gap: 6px; } .pc-more > summary::-webkit-details-marker { display: none; } .pc-more > summary::after { content: "▾"; font-size: var(--fs-12); color: var(--muted); } .pc-more[open] > summary::after { content: "▴"; }
+/* Industry map and A year of <industry> (9 Nov 2026 pages update) */
+.pc-grid { stroke: var(--border); stroke-width: 1; }
+.pc-band-up { fill: var(--gain); opacity: .08; } .pc-band-dn { fill: var(--loss); opacity: .08; }
+.pc-half { stroke: var(--muted); stroke-dasharray: 4 4; stroke-width: 1; }
+.pc-line { stroke: var(--text); stroke-width: 1.8; stroke-linejoin: round; }
+.pc-dot { stroke: var(--bg); stroke-width: 1.5; }
+.pc-dot.pc-sold_off { fill: var(--sx-washout-fg); } .pc-dot.pc-bouncing { fill: var(--sx-c-fg); } .pc-dot.pc-rising { fill: var(--sx-confirmed-fg); }
+.pc-dot.pc-losing { fill: var(--sx-fading-fg); } .pc-dot.pc-no_signal { fill: var(--sx-neutral-fg); }
+.pc-mo { fill: var(--bg); stroke: var(--text); stroke-width: 1.4; } .pc-mo-t { font: 700 11px var(--sans); fill: var(--text); }
+.pc-how { display: grid; gap: 4px; margin: 6px 0 10px; padding-left: 20px; font-size: 13px; color: var(--muted); }
+.pc-h3 { margin: 14px 0 6px; font: 600 16px var(--sans); color: var(--text); }
+.pc-moments { margin: 0 0 8px; padding-left: 22px; display: grid; gap: 4px; font-size: 14px; color: var(--text); }

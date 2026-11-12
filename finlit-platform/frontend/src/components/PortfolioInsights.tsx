@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { CoLogo } from "./CoLogo";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { BAND_NAME, portfolioInsights, type InsightLine, type ShareNote } from "../lib/portfolioInsights";
@@ -10,7 +11,7 @@ const BAND_C: Record<string, string> = { strong: "var(--v-strong)", healthy: "va
 
 function Names({ items }: { items: ShareNote[] }) {
   return <ul className="pi-list">{items.map((s) => (
-    <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b>{s.symbol}</b></Link><span className={"band-dot " + s.band}>{s.score} · {BAND_NAME[s.band]}</span><small className="muted">{s.note}</small></li>))}</ul>;
+    <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><CoLogo symbol={s.symbol} size={20} inline /><b>{s.symbol}</b></Link><span className={"band-dot " + s.band}>{s.score} · {BAND_NAME[s.band]}</span><small className="muted">{s.note}</small></li>))}</ul>;
 }
 
 export function PortfolioInsights({ lines }: { lines: InsightLine[] }) {
@@ -27,7 +28,7 @@ export function PortfolioInsights({ lines }: { lines: InsightLine[] }) {
           <p className="pi-read">{m.health.reading}</p>
         </div>
         {m.priorities.length > 0 && <div className="pi-blk"><h4>What to look at first</h4>
-          <ol className="pi-first">{m.priorities.map((p) => <li key={p.symbol}><Link to={`/stocks/${p.symbol}`}><b>{p.title}</b></Link><small className="muted">{p.why}</small></li>)}</ol></div>}
+          <ol className="pi-first">{m.priorities.map((p) => <li key={p.symbol}><Link to={`/stocks/${p.symbol}`}><CoLogo symbol={p.symbol} size={20} inline /><b>{p.title}</b></Link><small className="muted">{p.why}</small></li>)}</ol></div>}
         <div className="pi-g">
           {d && <div className="pi-blk"><h4>Diversification</h4>
             <p>{d.summary}</p>

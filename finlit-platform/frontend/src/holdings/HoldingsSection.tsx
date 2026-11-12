@@ -1,5 +1,6 @@
 // "What it invests in": donut of the major holdings, concentration, sector and asset split, month-on-month change, and every small holding in a table.
 // Shared by mutual funds and ETFs. Takes the portfolio JSON of finlit.disclosure.get_portfolio (or its { unavailable } reason). Numbers are shown exactly as published.
+import { CoLogo } from "../components/CoLogo";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { dateIN, nf } from "../lib/format";
@@ -14,7 +15,7 @@ const KIND_TEXT: Record<ChangeKind, string> = { new: "New", exited: "Exited", in
 const PATTERNS = ["", "stripe", "dots", "cross"] as const;
 
 function NameCell({ h }: { h: { name: string; stockSymbol?: string | null } }) {
-  return h.stockSymbol ? <Link to={`/stocks/${encodeURIComponent(h.stockSymbol)}`} title={`Open ${h.stockSymbol} on FinLit`}>{h.name}</Link> : <>{h.name}</>;
+  return h.stockSymbol ? <Link to={`/stocks/${encodeURIComponent(h.stockSymbol)}`} title={`Open ${h.stockSymbol} on FinLit`}><CoLogo symbol={h.stockSymbol} name={h.name} size={20} inline />{h.name}</Link> : <>{h.name}</>;
 }
 
 function Donut({ slices }: { slices: ReturnType<typeof sliceList> }) {

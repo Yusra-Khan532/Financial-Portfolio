@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { CoLogo } from "../components/CoLogo";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { AlertButton } from "../components/AlertComposer";
@@ -147,7 +148,7 @@ export function WatchlistPage() {
               )}
               {gold && attention.length > 0 && (
                 <div className="card acc wl-att" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Worth a second look<ChartHelp id="wl-second" /></h3><span className="s">Based on the FinLit model and your targets</span></div>
-                  <ul>{attention.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`} onClick={(e) => { if (r.sample) { e.preventDefault(); toast("Sample company: the live site opens its report here."); } }}><b title={codeNote(r)}>{titleOf(r)}</b></Link><span>{s.join(" · ")}</span></li>)}</ul></div>
+                  <ul>{attention.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`} onClick={(e) => { if (r.sample) { e.preventDefault(); toast("Sample company: the live site opens its report here."); } }}><CoLogo symbol={r.symbol} name={titleOf(r)} size={20} inline /><b title={codeNote(r)}>{titleOf(r)}</b></Link><span>{s.join(" · ")}</span></li>)}</ul></div>
               )}
               <div className="wl-tw card">
                 <table className="wl-t" aria-label={`${list.name}: your stocks`}>
