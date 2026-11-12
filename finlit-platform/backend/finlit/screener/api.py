@@ -118,7 +118,7 @@ async def catalog(request: Request):
         "industries": [{"name": n, "sector": s, "n": c} for n, s, c in t.industries],
         "indices": [{"code": c, "label": INDEX_LISTS[c][0], "n": len(t.members.get(c, ()))} for c in INDEX_LISTS if t.members.get(c)],
         "caps": [{"name": c, "n": sum(1 for x in t.cap if x == c)} for c in CAPS],
-        "bands": [{"key": b, "label": b.title(), "locked": not allowed(plan, "gold")} for b in ("strong", "healthy", "mixed", "watch")],
+        "bands": [{"key": b, "label": b.title(), "locked": not allowed(plan, "gold"), "n": sum(1 for x in t.band if x == b)} for b in ("strong", "healthy", "mixed", "watch")],
         "limits": {"rows": BASIC_ROWS if plan == "basic" else None, "export": allowed(plan, "silver")},
         "defaultColumns": DEFAULT_COLUMNS,
         "standardColumns": [k for k in STANDARD_COLUMNS if allowed(plan, BY_KEY[k].tier)],
