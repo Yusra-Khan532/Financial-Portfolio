@@ -20,7 +20,7 @@ export function ExtensionBanner() {
     <aside className="ext-banner" aria-label="FinLit browser extension">
       <div className="wrap">
         <span className="ext-b-ic" aria-hidden="true"><Icon name="bars" /></span>
-        <p><b>New: the FinLit browser extension.</b> Select any financial term or company on any web page to see what it means, or see the company's FinLit score.</p>
+        <p title="New: the FinLit browser extension. Select any financial term or company on any web page to see what it means, or see the company's FinLit score."><b>New: the FinLit browser extension.</b> See what any term or company means, on any web page.</p>
         {t.external
           ? <a className="btn primary" href={t.href} target="_blank" rel="noopener noreferrer">{t.label}</a>
           : <Link className="btn primary" to={EXTENSION.page}>{t.label}</Link>}
