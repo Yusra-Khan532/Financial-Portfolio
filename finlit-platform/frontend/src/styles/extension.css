@@ -10,6 +10,13 @@
 .ext-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); background: var(--s2); color: var(--muted); }
 .ext-badge.ok { color: var(--gain); border-color: var(--gain); background: color-mix(in srgb, var(--gain) 12%, var(--s1)); }
 .ext-btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 4px; }
+.ext-hero > .ext-card { justify-content: flex-start; }   /* the first box now holds the four-line list, so it starts at the top like the example card (task #66) */
+.ext-hero > .ext-card > .ext-btns { margin-top: auto; padding-top: 14px; }   /* the button sits at the bottom edge of the box */
+.ext-gets { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 12px; }
+.ext-gets li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; color: var(--muted); font-size: var(--fs-14); line-height: 1.45; }
+.ext-gets b { display: block; color: var(--text); font-size: var(--fs-15, 15px); margin-bottom: 1px; }
+.ext-gi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
+.ext-gi svg { width: 18px; height: 18px; }
 .ext-steps { counter-reset: s; list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
 .ext-steps li { counter-increment: s; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; color: var(--text); }
 .ext-steps li::before { content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); font-weight: 700; display: grid; place-items: center; font-size: 14px; }
