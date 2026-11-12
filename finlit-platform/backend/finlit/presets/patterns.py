@@ -122,7 +122,7 @@ async def candle_coverage(store, table, expected_day: date) -> Dict[str, Any]:
             continue
         universe += 1
         fresh += 1 if last >= expected_day else 0
-    return {"fresh": fresh, "universe": universe, "suspended": suspended, "ratio": (fresh / universe) if universe else 0.0}
+    return {"fresh": fresh, "universe": universe, "suspended": suspended, "ratio": (fresh / universe) if universe else 1.0}      # no company to scan: nothing is thin, the run just finds nothing
 
 
 async def wait_for_candles(store, table, expected_day: date, max_wait_s: int = 1800, step_s: int = 120, sleep=None) -> Dict[str, Any]:

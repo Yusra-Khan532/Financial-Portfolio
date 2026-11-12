@@ -34,7 +34,7 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     r = await anon.get("/api/screener/presets")
     body = r.json()
     cards = [c for g in body["groups"] for c in g["presets"]]
-    assert r.status_code == 200 and len(cards) == 37 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]
+    assert r.status_code == 200 and len(cards) == 38 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]
     assert [g["name"] for g in body["groups"]][0] == "Top rated" and body["groups"][-1]["name"] == "Prism basics"
     assert (await anon.get("/api/screener/presets/emerging-tech")).status_code == 403
     silver = await signed_in(app, "s@example.com", plan="silver")
@@ -172,7 +172,7 @@ async def test_results_page_by_25_with_offset_and_limit_and_export_keeps_every_r
     await gold.aclose()
 
 
-async def test_a_list_built_from_another_table_is_rebuilt_before_it_is_served(store):  # noqa: F811
+async def test_the_stored_list_is_served_as_stored_even_when_the_table_has_moved_on(store):  # noqa: F811
     from finlit.presets.registry import BY_ID
     await wipe(store)
     p = BY_ID["emerging-tech"]
@@ -181,5 +181,5 @@ async def test_a_list_built_from_another_table_is_rebuilt_before_it_is_served(st
     stale = {**first, "snapshot": "0:0:0:0:0", "count": -1}
     await service.store_result(store, p, stale)
     again = await service.get_result(store, p, [])
-    assert again["count"] != -1 and again["snapshot"] == data._table.fingerprint()      # rebuilt from the table now serving
+    assert again["count"] == -1 and again["snapshot"] == "0:0:0:0:0"      # SC-6: the list stored after the close is what is served (card count, rows and Added agree), never rebuilt from the table of the moment
     assert service.same_snapshot({"count": 1}, "anything")                                  # a list saved before the stamp existed is not rebuilt for that alone
