@@ -54,6 +54,7 @@ TARGET_SECONDS = 36 * 3600
 CALL_SECONDS = 120.0                     # the site backend's technical call takes about a second; this is only the upper bound
 CANDLE_SECONDS = prism.CANDLE_SECONDS
 MEMBER_WAIT_SECONDS = 90.0               # the job waits this long, in total per company, for members' calculations to finish
+NO_CANDLE_STREAK = 15      # "no candles" in a row before the run stops: Dhan answered, but holds nothing for those companies (delisted, suspended, renamed); only a long run of them means Dhan is not answering
 FAIL_STREAK = 5
 PAGE_REFRESH_SLOTS = 2                   # page-open refreshes at once, in this process
 _page_tasks: "set[asyncio.Task]" = set()
@@ -183,6 +184,7 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
             log.warning("technical refresh: candles for %s not fetched: %s", symbol, type(exc).__name__)
             return Outcome.FAILED, "candles_error"
         if not candles or "stock" not in candles:
+            await store.redis.set(NONEW_PREFIX + symbol, "no_candles", ex=NONEW_SECONDS)     # nothing to fetch for it today: the next run does not start on it again
             return Outcome.FAILED, "no_candles"
         try:        # the same fresh candles feed the chart-pattern scans, which otherwise wait for a full report rebuild (task #64, C6)
             from .presets import candles as pattern_candles
@@ -274,13 +276,13 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             skip = []
         todo = prism.in_shard(await pending(store, target, limit, [] if force else skip, force=force, symbols=symbols), shard)
         out["queued"] = len(todo)
-        streak = 0
+        streak = blanks = 0
         for symbol in todo:
             if time.monotonic() - started > max_minutes * 60:
                 out["status"] = "partial"
                 break
-            if streak >= FAIL_STREAK:
-                out.update(status="partial", stopped="five failures in a row (Dhan or the site backend is not answering)")
+            if streak >= FAIL_STREAK or blanks >= NO_CANDLE_STREAK:
+                out.update(status="partial", stopped="five failures in a row (Dhan or the site backend is not answering)" if streak >= FAIL_STREAK else f"{NO_CANDLE_STREAK} companies in a row with no candles (Dhan is not answering)")
                 break
             if await prism._members_busy(redis):         # a member is calculating a report: the machine is theirs for now
                 out["paused_for_members"] += 1
@@ -289,7 +291,11 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             out[outcome] += 1
             if outcome != Outcome.UPDATED:
                 out["reasons"][reason] = out["reasons"].get(reason, 0) + 1
-            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("no_candles", "candles_error", "site_backend_0", "site_backend_502", "site_backend_503") else 0
+            # a transport failure (Dhan or the site backend not answering) counts towards the stop after five; "no candles" is Dhan answering that it holds nothing
+            # for that one company, so it only stops the run after a long unbroken run of them (12 Nov 2026: the same five large companies with no candles came first
+            # in every run, so each run stopped after 4 seconds and 679 companies stayed on 9 Nov)
+            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_502", "site_backend_503") else 0
+            blanks = blanks + 1 if outcome == Outcome.FAILED and reason == "no_candles" else 0
             await asyncio.sleep(0.05)
         if out["failed"] and not out["updated"] and out["status"] == "ok":
             out["status"] = "failed"
