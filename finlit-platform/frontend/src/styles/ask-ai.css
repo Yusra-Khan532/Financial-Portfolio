@@ -102,3 +102,23 @@
 .aif.full .aif-cat > *:not(.aif-go) { position: relative; z-index: 1; } .aif.full .aif-cat > .aif-go { position: absolute; z-index: 1; }
 .aif.full > .ai-body { grid-row: 2; } .aif.full > form { grid-row: 3; } .aif.full > .ai-fine { grid-row: 4; } .aif.full > header { grid-row: 1; }
 .aif.full .ai-body { padding-top: 40px; } .aif.full .aif-cat { min-height: 112px; }
+
+/* ---- #59: the full window's company flow follows the stockssena AI: a company and period panel at the left, three steps and the curated questions at the right ---- */
+.aif-steps { list-style: none; margin: 14px 0 18px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.aif-steps li { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--s2); }
+.aif-steps i { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--aif-g); color: #04120c; font: 700 13px var(--sans); font-style: normal; }
+.aif-steps li:not(.done) i { background: transparent; border: 1.5px solid var(--aif-g); color: var(--aif-g); }
+.aif-steps b { display: block; font-size: var(--fs-14); } .aif-steps small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
+.aif-ctx { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+.aif-cp { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--s2); position: sticky; top: 8px; }
+.aif-cpc { display: flex; align-items: center; gap: 10px; } .aif-cpc > div { flex: 1; min-width: 0; } .aif-cpc b { display: block; } .aif-cpc small { color: var(--muted); font-size: var(--fs-12); }
+.aif-cp .aif-label { margin: 8px 0 0; } .aif-cp select { width: 100%; height: 42px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: var(--fs-14) var(--sans); }
+.aif-cp .aif-qchips { grid-template-columns: repeat(4, 1fr); } .aif-cp .aif-qchips button.on { background: var(--aif-g); border-color: var(--aif-g); color: #04120c; } .aif-cp .aif-qchips button.on small { color: inherit; }
+.aif-askq { width: 100%; justify-content: center; margin-top: 6px; } .aif-note { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-12); line-height: 1.5; }
+.aif-cm { min-width: 0; }
+@media (max-width: 1100px) { .aif-ctx { grid-template-columns: minmax(0, 1fr); } .aif-cp { position: static; } .aif-steps { grid-template-columns: minmax(0, 1fr); } }
+.aif-steps li > span { text-align: left; min-width: 0; }
+.aif.full > header.aif-hd .aif-change { display: none; }                     /* the company panel has its own Change button */
+.aif.full > header.aif-hd .aif-back { margin-right: auto; }
+.aif.full > header.aif-hd { justify-content: flex-end; }
+.aif.full > header.aif-hd { padding-left: 24px; padding-right: 24px; }

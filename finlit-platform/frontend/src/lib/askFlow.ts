@@ -34,8 +34,14 @@ export const SEGMENTS: { id: Exclude<TabId, "suggested">; title: string; sub: st
 export const QUARTERS: { n: 1 | 2 | 3 | 4; months: string }[] = [
   { n: 1, months: "Apr–Jun" }, { n: 2, months: "Jul–Sep" }, { n: 3, months: "Oct–Dec" }, { n: 4, months: "Jan–Mar" },
 ];
-export const quarterQuestion = (sym: string, q: { n: number; months: string }): string =>
-  `How did ${sym} do in Q${q.n} (${q.months}) of the latest financial year: revenue, profit and margins against the same quarter a year earlier?`;
+export const quarterQuestion = (sym: string, q: { n: number; months: string }, fy?: string): string =>
+  fy ? `How did ${sym} do in Q${q.n} of ${fy} (${q.months}): revenue, profit and margins against the same quarter a year earlier?`
+    : `How did ${sym} do in Q${q.n} (${q.months}) of the latest financial year: revenue, profit and margins against the same quarter a year earlier?`;
+/** The financial years to pick from (April to March, named by the year they end in): the current one and the three before it. */
+export const financialYears = (today: Date = new Date()): string[] => {
+  const end = today.getMonth() >= 3 ? today.getFullYear() + 1 : today.getFullYear();
+  return [0, 1, 2, 3].map((k) => `FY${String(end - k).slice(2)}`);
+};
 export const quarterTrendQuestion = (sym: string): string => `How have ${sym}'s revenue and profit moved quarter by quarter (Q1 to Q4) over the last two financial years?`;
 
 export type Q = { id: string; text: string; needsSecondCompany?: boolean };
