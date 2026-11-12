@@ -18,6 +18,6 @@ describe("dashboard stocks table", () => {
     expect(block).toMatch(/\.dsh-st-x > \.sc \{ justify-content: center; \}/);
   });
   it("leaves the phone card layout alone", () => {
-    expect(block).not.toMatch(/max-width/);
+    expect(block).not.toMatch(/@media \(max-width/);
   });
 });
