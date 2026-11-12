@@ -18,6 +18,7 @@ import {
 import { CornerBadge, RankMove, SectorTabs } from "../components/rotation/Parts";
 import { HowToGuide } from "../components/sectors/HowTo";
 import { PulseCharts } from "../components/sectors/PulseCharts";
+import { IndustryMapCard } from "../components/sectors/ExtraCharts";
 import { BreadthBars, Blank, LockedBlock, SectorFooter, StateChip } from "../components/sectors/Parts";
 
 const TITLE = "Sector Pulse";
@@ -264,6 +265,7 @@ export function SectorPulsePage() {
           </div>
           <div style={{ marginTop: 16 }}><Hideable id="pulse.cycle" title="The industry cycle"><Cycle /></Hideable></div>
           <PulseCharts part="mood" />
+          <IndustryMapCard />
           <GroupsTable b={b} />
           <PulseCharts part="strip" />
           <TooFew b={b} />

@@ -278,3 +278,33 @@ async def test_a_small_group_opens_to_its_stocks_best_six_months_first_silver_on
     assert d["stocks"][2]["ret_6m"] is None and d["stocks"][0]["pct_from_high"] == 2.0 and d["stocks"][0]["size"] == "Mid" and d["note"] is None
     assert (await silver.get("/api/sectors/small/not-a-group")).status_code == 404
     await silver.aclose()
+
+
+async def test_the_industry_map_and_a_year_of_an_industry_are_open_to_every_plan_and_say_no_cut_off(anon, out):  # noqa: F811
+    m = await anon.get("/api/sector-map")
+    if m.status_code == 200:
+        d = m.json()
+        assert d["rows"] and {"name", "rising", "below_high", "state_word"} <= set(d["rows"][0]) and len(d["insights"]) == 3
+        assert not any(ch in " ".join(i["text"] for i in d["insights"]) for ch in ("70", "30%", "above_20"))         # words, never the cut-offs
+    else:
+        assert m.status_code == 503 and "not loaded" in m.json()["detail"]
+    y = await anon.get("/api/sectors/ferrous-metals/year")
+    assert y.status_code in (200, 503)
+    if y.status_code == 200:
+        d = y.json()
+        assert len(d["dates"]) == len(d["rising"]) == len(d["states"]) and d["moments"] and d["moments"][-1]["text"].split(". ")[1].startswith("Latest close") and len(d["insights"]) == 2
+    assert (await anon.get("/api/sectors/not-a-slug/year")).status_code == 404
+
+
+def test_industry_map_and_year_insights_from_plain_rows():
+    from finlit.sector_extra import industry_map, industry_year
+    rows = [{"name": f"I{i}", "slug": f"i{i}", "state_code": c, "breadth": {"above_20": b}, "index_vs_52w_high": h} for i, (c, b, h) in enumerate(
+        [("confirmed", 80, -5), ("washout", 60, -30), ("fading", 55, -25), ("neutral", 20, -40)])]
+    m = industry_map({"date": "2026-11-06", "rows": rows})
+    assert m["insights"][0]["text"].endswith("I0.") and "I2" in m["insights"][1]["text"] and "I1" in m["insights"][2]["text"]
+    dates = [f"2026-{1 + i // 28:02d}-{1 + i % 28:02d}" for i in range(60)]
+    codes = ["washout"] * 20 + ["thrust_c"] * 10 + ["fading"] * 20 + ["thrust_cap"] * 10
+    rising = [10 + i % 20 for i in range(20)] + [60 + i for i in range(10)] + [40] * 20 + [50 + i for i in range(10)]
+    y = industry_year({"name": "Alpha", "slug": "alpha", "history": {"dates": dates, "above_20": rising, "state_code": codes}})
+    assert y["insights"][0]["text"] == "Alpha was Sold off on 20 of the last 60 trading days." and y["insights"][1]["text"] == "The earlier bounce lasted 10 trading days."
+    assert [x["n"] for x in y["moments"]] == list(range(1, len(y["moments"]) + 1)) and "after a crash" in y["moments"][-2]["text"]

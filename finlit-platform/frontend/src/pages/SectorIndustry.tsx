@@ -1,6 +1,7 @@
 // One industry or sector group (/sectors/:slug): where it is in the cycle, a year of breadth, the counted stocks ranked by 6-month return (10 first, then all) and the
 // names of the stocks that are not counted. From GET /api/sectors/{slug}, which sends what the page shows and never how the reading is made.
 // The ranked table and the not-counted list are Silver, the peer label column Gold: a locked part says so and why. Describes; never advises.
+import { IndustryYearCard } from "../components/sectors/ExtraCharts";
 import { Hideable } from "../components/Hideable";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
@@ -165,7 +166,7 @@ export function SectorIndustryPage() {
           <MarketStrip m={p.market} />
           <Hideable id="pulse.industry.cycle" title={`Where ${p.name} is in the cycle`}><Happening p={p} /></Hideable>
           <Hideable id="pulse.industry.rotation" title="Against other industries"><RotationCard slug={p.slug} groupName={p.name} kindLine={`${p.name} · ${p.kind === "sector" ? `sector group of ${p.industries.length} small NSE industries` : "NSE industry"} · ${countedText(p)}`} /></Hideable>
-          <Hideable id="pulse.industry.year" title="Breadth over the past year"><ChartCard p={p} /></Hideable>
+          <IndustryYearCard slug={p.slug} older={<ChartCard p={p} />} />
           <RankedTable p={p} />
           <NotCounted p={p} />
           <SectorFooter disclaimer={p.disclaimer} />

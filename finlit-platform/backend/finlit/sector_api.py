@@ -24,7 +24,7 @@ import orjson
 from fastapi import APIRouter, Request, Response
 
 from . import sector_data as sd
-from . import sector_history
+from . import sector_extra, sector_history
 from .rotation_insights import rotation_insights
 from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan
 from .auth.service import current
@@ -129,6 +129,40 @@ async def sector_state_history(request: Request) -> Response:
         reason = "The state history is not loaded yet: the current data set has too few sessions of history. It is rebuilt at the next nightly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
     return _reply(request, {**data, "date": board.get("date")}, started)
+
+
+@router.get("/api/sector-map")
+async def sector_map(request: Request) -> Response:
+    """"Industry map" on Sector Pulse: every industry with a reading as a point (stocks rising of 100, how far below its 1-year high), with the insight sentences. Open to every plan, like the states."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    data = sector_extra.industry_map(public_board(board))
+    if not data:
+        reason = "The industry map is not loaded yet: the current data set has too few industries with a reading."
+        return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
+    return _reply(request, data, started)
+
+
+@router.get("/api/sectors/{slug}/year")
+async def industry_year(slug: str, request: Request) -> Response:
+    """"A year of <industry>": how many of every 100 of its stocks were rising each day, its state each day, numbered moments and insights. Open to every plan."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    slug = sd.resolve_slug(slug)
+    if not sd.SLUG.match(slug) or slug not in sd.board_slugs(board):
+        return _not_found(request, started, "There is no industry or sector group with this address. The groups that are read are listed on Sector Pulse.")
+    page = sd.read_json(rel / "sectors" / f"{slug}.json")
+    data = sector_extra.industry_year(page) if isinstance(page, dict) else None
+    if not data:
+        reason = "A year of this industry is not loaded yet: its page has too little history in the current data set."
+        return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
+    return _reply(request, data, started)
 
 
 SMALL_LIST_MAX = 15          # NSE's catch-all groups (Services) list only their largest by market cap, with a line saying so
