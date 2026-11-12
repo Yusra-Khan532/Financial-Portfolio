@@ -1,3 +1,4 @@
+import { Hideable } from "../components/Hideable";
 import { Link } from "react-router";
 import * as W from "../components/diversification/wording";
 import type { StyleTilt } from "../components/diversification/types";
@@ -11,6 +12,7 @@ export function Style({ tilt }: { tilt: StyleTilt | undefined }) {
       <p className="pfx-line">{tilt.reason} <Link to="/plans">See the Gold plan</Link>.</p></section>);
   const rated = tilt.parts.some((p) => p.avgPercentile != null);
   return (
+    <Hideable id="portfolio.style" title="Style tilt">
     <section className="pfx-card pfx-wide" id="pf-style" aria-labelledby="pfx-st">
       <div className="pfx-h"><h2 id="pfx-st">Style tilt</h2><p className="pfx-note">Where the list's average share ranks among the companies Prism rates</p></div>
       <p className="pfx-line">{rated ? tilt.sentence : "None of these shares has a Prism rating yet, so there is no style tilt to show."}</p>
@@ -21,5 +23,6 @@ export function Style({ tilt }: { tilt: StyleTilt | undefined }) {
       {rated && <p className="pfx-fine">The shaded band, 35th to 65th, reads as typical. {TILT_FOOT_EXTRA}</p>}
       {W.notRatedNote(tilt.notRated) && <p className="pfx-fine">{W.notRatedNote(tilt.notRated)}</p>}
     </section>
+    </Hideable>
   );
 }

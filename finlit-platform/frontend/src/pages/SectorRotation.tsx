@@ -1,6 +1,7 @@
 // Sector Rotation (/sectors/rotation): which NSE industry groups are pulling ahead of the average industry, which are falling behind, and how their ranks change, from GET /api/rotation.
 // Every number and group name is the server's. Corners always carry their name and 2x2 glyph; a corner is confirmed after two weekly closes, and a hollow dot / "this week reads" says when
 // the week's reading differs. Describes past prices; never advice. The API sends what the page shows and never how the reading is made. Styles: styles/rotation.css.
+import { Hideable } from "../components/Hideable";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
@@ -112,6 +113,7 @@ function Rail({ m }: { m: RotationMap }) {
         <p className="rt-note">Industries in a new corner this week. {moved.length} of {m.groups}.</p>
         {moved.length ? <ul className="rt-moved">{moved.map((x) => <li key={x.slug}><Link to={`/sectors/${x.slug}`}>{x.name}</Link><span>{x.from} <i aria-hidden="true">→</i> <b>{x.to}</b></span></li>)}</ul> : <p className="rt-note" role="status">No industry changed corner this week.</p>}
       </section>
+      <Hideable id="rotation.moves4w" title="Biggest rank moves, 4 weeks">
       <section className="rt-card">
         <h2>Biggest rank moves, 4 weeks</h2>
         <div className="rt-two">
@@ -120,6 +122,7 @@ function Rail({ m }: { m: RotationMap }) {
         </div>
         <p className="rt-note">Places moved since 4 weekly closes ago, then the rank now.</p>
       </section>
+      </Hideable>
     </aside>
   );
 }
@@ -183,6 +186,7 @@ function RankRow({ r, worst }: { r: RotationRow; worst: number }) {
 function RankGrid({ m }: { m: RotationMap }) {
   const g = useMemo(() => rankGrid(m.rows, 12), [m.rows]);
   return (
+    <Hideable id="rotation.grid12w" title="How the ranking changed">
     <section className="rt-card" aria-labelledby="rt-grid">
       <h2 id="rt-grid">How the ranking changed</h2>
       <p className="rt-note">Each group's rank at the last {g.weeks.length} weekly closes, in today's order. Darker cells are higher ranks.</p>
@@ -194,6 +198,7 @@ function RankGrid({ m }: { m: RotationMap }) {
             {cells.map((c, j) => <td key={j} className={`s${shade(c, row.ranked)}`}>{c ?? "–"}</td>)}</tr>))}</tbody>
       </table></HScroll></div>
     </section>
+    </Hideable>
   );
 }
 

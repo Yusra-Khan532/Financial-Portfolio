@@ -1,6 +1,7 @@
 // "Filter companies by growth" on the Latest results page: a grid of thresholds (Revenue, Operating profit, Net profit by QoQ and YoY), the all / any choice,
 // quick presets, and the three donut charts. The controls only edit a GrowthState (kept in the page address); the SERVER filters and counts, so everything
 // shown here is what it sends back.
+import { Hideable } from "./Hideable";
 import { useEffect, useId, useRef, useState } from "react";
 import { nf } from "../lib/format";
 import { FilterGroup } from "./screener/FilterGroup";
@@ -239,8 +240,12 @@ export function GrowthCharts({ summary, dist, locked }: { summary?: GrowthSummar
         ? <QrDonut title="Companies meeting the growth conditions" parts={growthParts(summary)} centerLabel="with figures" empty="No company has figures for this quarter." />
         : <figure className="card qg-chart"><figcaption><h3>Companies meeting the growth conditions</h3></figcaption>
           <p className="muted qg-none">{locked ? "Growth filters and their counts are part of the Silver plan." : "Fill one or more cells of the growth filter above to see how many companies meet them."}</p></figure>}
-      <QrDonut title="Sector-wise distribution" parts={(dist?.sectors || []).map((s, i) => ({ label: s.name, n: s.n, color: s.name === "Others" ? "var(--qr-c8)" : SECTOR_COLORS[i % 7] }))} centerLabel="companies" empty="No companies in this view." />
-      <QrDonut title="Market cap distribution" parts={(dist?.caps || []).map((c) => ({ label: c.name, n: c.n, color: CAP_COLORS[c.name] || "var(--qr-c8)" }))} centerLabel="companies" empty="No companies in this view." />
+      <Hideable id="results.sectors" title="Sector-wise distribution">
+  <QrDonut title="Sector-wise distribution" parts={(dist?.sectors || []).map((s, i) => ({ label: s.name, n: s.n, color: s.name === "Others" ? "var(--qr-c8)" : SECTOR_COLORS[i % 7] }))} centerLabel="companies" empty="No companies in this view." />
+      </Hideable>
+      <Hideable id="results.caps" title="Market cap distribution">
+  <QrDonut title="Market cap distribution" parts={(dist?.caps || []).map((c) => ({ label: c.name, n: c.n, color: CAP_COLORS[c.name] || "var(--qr-c8)" }))} centerLabel="companies" empty="No companies in this view." />
+      </Hideable>
       <p className="muted qg-foot">Counts cover every matching company, not just the page shown. Market cap groups are the site's own Large, Mid and Small bands; companies without a band are shown as Not classified. Informational only, not a recommendation.</p>
     </section>
   );
