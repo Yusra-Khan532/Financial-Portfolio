@@ -77,7 +77,8 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
   const first = d.offset ?? 0;
   const [chart, setChart] = useState<PanelRow | null>(null);
   const [view, setView] = useState<"table" | "charts">("table"), [cards, setCards] = useState(9);
-  const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"] });
+  const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"], screen: d.id, prism: (r.prism_label as string | null | undefined) ?? null });
+  const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol); const n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const head = (key: string, label: string, align: string, first: 1 | -1 = -1) => (
     <th scope="col" className={"psx-a-" + align} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => setSort(key, first)} aria-label={`Sort by ${label}`}>{label} <span aria-hidden="true">{sort?.key === key ? (sort.dir > 0 ? "▲" : "▼") : "▾"}</span></button></th>);
@@ -93,7 +94,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
         {d.topCount ? (r.top === true && (i === 0 || rows[i - 1].top !== true)
           ? <tr className="psx-band"><td colSpan={cols.length + 2}>Top {d.topCount} · the strongest by this screen's score, at most three from one industry</td></tr>
           : r.top !== true && (i === 0 || rows[i - 1].top === true) && <tr className="psx-band"><td colSpan={cols.length + 2}>{nf(Math.max(0, d.count - d.topCount), 0)} more {d.count - d.topCount === 1 ? "company passes" : "companies pass"} · ranked by the same score</td></tr>) : null}
-        <tr className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"] }); }}>
+        <tr className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(openRow(r)); }}>
           <td className="psx-n">{r.top === true ? <b className="psx-gold">{typeof r.rank === "number" ? r.rank : first + i + 1}</b> : (typeof r.rank === "number" ? r.rank : first + i + 1)}</td>
           <td className="stick psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span className="psx-cn"><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}{exchangeTag(r) && <small className="psx-ex">{exchangeTag(r)}</small>}</span></Link>
             {!!r.badges?.length && <span className="psx-bs">{r.badges.map((b) => <Badge key={b} text={b} />)}</span>}</td>
@@ -101,7 +102,7 @@ function Results({ d, cols, rows, sort, setSort }: { d: PresetDetail; cols: Pres
         </tr></Fragment>))}
       </tbody>
     </table></HScroll></TableZoom>}
-    {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}</>);
+    {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} onStep={step} />}</>);
 }
 const Head = ({ c, h }: { c: PresetColumn; h: (key: string, label: string, align: string, first?: 1 | -1) => ReactNode }) => <>{h(c.key, c.label, alignOf(c), c.format === "text" || c.format === "label" ? 1 : -1)}</>;
 

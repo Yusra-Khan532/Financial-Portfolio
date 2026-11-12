@@ -195,7 +195,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, f
         </div>
       </div>
       {s.how && how}
-      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} onStep={(d) => { const i = pg.view.findIndex((r) => r.symbol === chart.symbol), n = pg.view[i + d]; if (i >= 0 && n) setChart(n); }} />}
     </>
   );
 }

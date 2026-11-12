@@ -388,7 +388,7 @@ export function ScreenerPro() {
           </section>
         </div>
       </div>
-      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} />}
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} onStep={(d) => { const i = rows.findIndex((r) => r.symbol === chart.symbol), n = rows[i + d]; if (i >= 0 && n) setChart({ symbol: n.symbol, name: n.name, sector: n.sector, price: n.v.price ?? null }); }} />}
     </>
   );
 }
