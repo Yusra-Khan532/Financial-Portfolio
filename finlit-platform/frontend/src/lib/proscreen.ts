@@ -153,3 +153,31 @@ export const READY: Ready[] = [
   { id: "improving", label: "Improving scores", says: "FinLit IQ up 5+ points since last quarter", tier: "gold", state: r({ score_change: { min: 5 }, overall: { min: 50 } }) },
   { id: "outfavour", label: "Sound but out of favour", says: "Quality 55+ with the Technical pillar 35 or less", tier: "gold", state: r({ pillar_quality: { min: 55 }, pillar_technical: { max: 35 } }) },
 ];
+
+/** The colour of a result cell: green in the best quarter of the results shown for its column, red in the weakest quarter, where "better" is clear (never for a flag or
+ *  a column with no better direction, and never when the quarter lines are the same number). `h` is the column's [lower quarter line, upper quarter line]. */
+export function cellTone(m: MetricInfo | undefined, h: [number, number] | undefined, v: number | null | undefined): "tone-good" | "tone-bad" | "" {
+  if (v == null || !m || !h || m.better === "none" || m.unit === "flag" || h[0] === h[1]) return "";
+  const good = m.better === "higher" ? v >= h[1] : v <= h[0], bad = m.better === "higher" ? v <= h[0] : v >= h[1];
+  return good ? "tone-good" : bad ? "tone-bad" : "";
+}
+
+/** The columns the colour note explains: shown in the table, NOT one of the default columns, and with at least one green or red cell on screen right now (the same rule
+ *  the cells use). On the default columns, or when no cell is coloured, this is empty and the note is not drawn at all (task #73). */
+export function colourColumns(columns: string[], defaults: string[], byKey: Map<string, MetricInfo>, heat: Record<string, [number, number]>, rows: { v: Record<string, unknown> }[]): MetricInfo[] {
+  const out: MetricInfo[] = [];
+  for (const k of columns) {
+    const m = byKey.get(k);
+    if (!m || defaults.includes(k) || out.includes(m)) continue;
+    if (rows.some((r) => cellTone(m, heat[k], typeof r.v[k] === "number" ? (r.v[k] as number) : null) !== "")) out.push(m);
+  }
+  return out;
+}
+
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
+/** What green and red mean for the columns on screen, in plain words: which direction is better for each (task #73). Names only the columns that are coloured. */
+export function colourNote(cols: { label: string; better: "higher" | "lower" | "none" }[]): string {
+  const lower = cols.filter((m) => m.better === "lower").map((m) => m.label), higher = cols.filter((m) => m.better === "higher").map((m) => m.label);
+  const better = [lower.length ? `Lower is better for ${list(lower)}` : "", higher.length ? `higher is better for ${list(higher)}` : ""].filter(Boolean).join("; ");
+  return `Green cells are in the best quarter of the results shown for that column and red cells in the weakest quarter. ${better.charAt(0).toUpperCase() + better.slice(1)}. Hover a column name for what it means.`;
+}
