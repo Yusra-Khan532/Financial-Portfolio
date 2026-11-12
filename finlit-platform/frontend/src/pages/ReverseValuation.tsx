@@ -13,6 +13,7 @@ import { useDocTitle } from "../lib/title";
 import { apiGet, useSection, type ApiError, type Financials } from "../lib/api";
 import { nf } from "../lib/format";
 import { around, enterpriseValue, expectedValue, fairValue, growthMarginGrid, marketEv, missScenarios, priceOf, scenario, solve, terminalShare, tornado, upsideScenarios, validateInputs, type Miss, type RvInputs, type SolveMode } from "../lib/reverseVal";
+import "../styles/dcf.css";   // the company search bar and its result list are the DCF page's (task #111): this page showed them unstyled when opened first
 import "../styles/reverse.css";
 
 type Company = { symbol: string; name: string | null; sector: string | null; price: number | null; priceAsOf: string | null; marketCap: number | null; shares: { diluted: number | null; implied: number | null }; netDebt: { value: number | null; period: string | null } };
