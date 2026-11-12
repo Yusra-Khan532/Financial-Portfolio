@@ -24,8 +24,8 @@ export type FunnelStep = { key: string; before: number; after: number; missing: 
 export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[] };
 
 export const norm = (s: Partial<PState> | undefined): PState => ({ ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } });
-export const activeCount = (s: PState) => Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length ? 1 : 0)
-  + (s.industries.length ? 1 : 0) + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
+export const activeCount = (s: PState) => Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
+  + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
 /** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
 export type CustomRatio = { id: string; name: string; num: string; den: string; op: "gt" | "lt" | "between" | "none"; a?: number; b?: number };
@@ -64,7 +64,7 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
     const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 60) : []);
     const ranges: Record<string, Range> = {};
     for (const [k, v] of Object.entries((o.r || {}) as Record<string, Range>)) if (/^[a-z0-9_]{2,40}$/.test(k) && v && typeof v === "object") ranges[k] = { min: typeof v.min === "number" ? v.min : undefined, max: typeof v.max === "number" ? v.max : undefined };
-    return { state: { ranges, sectors: arr(o.s), industries: arr(o.sn), indices: arr(o.sx), caps: arr(o.c), bands: arr(o.b) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
+    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
   } catch { return { state: EMPTY }; }
 };
 
