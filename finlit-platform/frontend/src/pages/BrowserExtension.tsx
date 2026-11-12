@@ -10,14 +10,10 @@ const TERMS = ["EBITDA", "Return on equity", "Debt to equity", "Reliance Industr
 /** What the card looks like, with example figures (it is a picture of the extension, not live data). */
 function Preview() {
   return (
-    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit score 82 out of 100, Strong, with Growth and Profitability and Technical scores, FinLit Prism 78 out of 100 with its four parts for Gold, and key figures">
+    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit Prism 78 out of 100, Healthy, with its four parts for Gold, and key figures">
       <div className="eh"><Icon name="bars" />FinLit Ventures</div>
       <div className="eb">
         <h4>Reliance Industries Ltd</h4><small>RELIANCE · Oil &amp; Gas · example</small>
-        <div className="es">
-          <div className="eg"><small>FinLit score</small><div><b>82</b> <small>/100</small></div><i>Strong</i></div>
-          <div className="eb2"><div><span>Growth &amp; Profitability 84/100</span><i><u style={{ width: "84%" }} /></i></div><div><span>Technical score 76/100</span><i><u style={{ width: "76%" }} /></i></div></div>
-        </div>
         <div className="ep">
           <div className="ephd"><b>FinLit Prism</b><span><strong>78</strong> <small>/100</small><i>Healthy</i></span></div>
           <div className="eb2">
@@ -47,7 +43,7 @@ function Steps() {
 }
 
 export function BrowserExtensionPage() {
-  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit score in a small card, without leaving the page. Free.");
+  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit Prism score in a small card, without leaving the page. Free.");
   const installed = useExtensionInstalled();
   const can = canInstallExtension();
   const target = installTarget();
@@ -59,7 +55,7 @@ export function BrowserExtensionPage() {
   return (
     <>
       <PageHeader wrap title="Browser extension" art="report" learn={false} links={["/glossary", "/mcp"]}
-        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit score</b>. Free, and it reads only the words you select.</>} />
+        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit Prism score</b>. Free, and it reads only the words you select.</>} />
       <div className="wrap ext">
         <div className="ext-hero">
           <section className="ext-card" aria-labelledby="ext-get">
@@ -79,7 +75,7 @@ export function BrowserExtensionPage() {
               <>
                 <span className="ext-badge">{store ? "Free · one click" : "Free · store listing coming soon"}</span>
                 <h2 id="ext-get">Add FinLit to your browser</h2>
-                <p>Understand any term and score any company wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
+                <p>Understand any term and see any company's FinLit Prism score wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
                 <div className="ext-btns">{Get}</div>
                 {store && <p className="ext-fine">Prefer a file? <a href={EXTENSION.zipUrl} download>Download the ZIP</a>.</p>}
               </>
@@ -100,13 +96,13 @@ export function BrowserExtensionPage() {
 
         <div className="ext-three">
           <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 450 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
-          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, Growth &amp; Profitability and Technical scores, and (on the Gold plan) its FinLit Prism rating with the four parts, plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
+          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit Prism score (on the Gold plan, with its four parts), plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
           <section className="ext-card"><h3>Private by design</h3><p>It acts only on text you select. It never reads the page or what is around your selection, and the words you select stay in your browser.</p></section>
         </div>
 
         <section className="ext-card ext-faq" aria-labelledby="ext-faq">
           <h2 id="ext-faq">Questions</h2>
-          <details><summary>Is it free?</summary><p>Yes. Company scores follow your FinLit plan, exactly as on the website: sign in to see them. Terms are free for everyone.</p></details>
+          <details><summary>Is it free?</summary><p>Yes. The FinLit Prism score follows your FinLit plan, exactly as on the website (Gold): sign in to see it. Terms are free for everyone.</p></details>
           <details><summary>Why does it ask to run on all websites?</summary><p>So the green button can appear beside text you select on any site. It does nothing until you select something, and it never reads the rest of the page. You can turn it off for one site or everywhere from the toolbar icon.</p></details>
           <details><summary>What does it send to FinLit?</summary><p>Your selected words are never sent. When it recognises a listed company and you open its card, it asks FinLit for that one company by its stock symbol. If you are signed in to FinLit in the same browser, the request carries your session so the card shows what your plan allows.</p></details>
           <details><summary>How do I remove it?</summary><p>Open <span className="ext-code">chrome://extensions</span>, find FinLit Ventures and press Remove.</p></details>

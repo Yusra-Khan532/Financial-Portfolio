@@ -36,10 +36,6 @@
 .ext-demo .eb { padding: 0 14px 12px; }
 .ext-demo h4 { margin: 0; font: 700 18px/1.25 var(--serif); }
 .ext-demo small { color: #56685e; font-size: 12px; }
-.ext-demo .es { display: grid; grid-template-columns: 130px 1fr; gap: 10px; margin: 10px 0; }
-.ext-demo .eg { background: #eaf5ee; border-radius: 12px; padding: 10px 12px; }
-.ext-demo .eg b { font: 700 32px/1.1 var(--serif); }
-.ext-demo .eg i { font-style: normal; display: inline-block; background: #0f6b45; color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
 .ext-demo .eb2 { display: grid; gap: 10px; align-content: center; font-size: 12px; font-weight: 600; }
 .ext-demo .eb2 i { display: block; height: 6px; border-radius: 3px; background: #dbe8e0; margin-top: 4px; overflow: hidden; }
 .ext-demo .eb2 u { display: block; height: 100%; background: #0f6b45; }
@@ -50,7 +46,7 @@
 .ext-demo .eo { display: block; text-align: center; background: #0b4d33; color: #fff; border-radius: 12px; padding: 10px; font-weight: 700; }
 .ext-demo .ex { padding: 8px 14px 10px; border-top: 1px solid #dce8e0; font-size: 11px; color: #56685e; }
 @media (max-width: 960px) { .ext-hero { grid-template-columns: minmax(0, 1fr); } .ext-demo { justify-self: stretch; } .ext-three { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 480px) { .ext-card { padding: 18px; } .ext-demo .es { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .ext-card { padding: 18px; } }
 
 /* the thin banner under the header */
 .ext-banner { background: color-mix(in srgb, var(--gain) 10%, var(--s1)); border-bottom: 1px solid color-mix(in srgb, var(--gain) 28%, var(--border)); }

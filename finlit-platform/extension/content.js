@@ -80,7 +80,7 @@
 .bars{display:grid;gap:10px;align-content:center}.bar .r{display:flex;justify-content:space-between;font-size:12px;font-weight:600}.bar i{display:block;height:6px;border-radius:3px;background:var(--bar);margin-top:4px;overflow:hidden}.bar u{display:block;height:100%;background:var(--g);border-radius:3px}
 .fig{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 0 10px}
 .fig div{padding:8px 4px;text-align:center;border-left:1px solid var(--line)}.fig div:first-child{border-left:0}.fig small{display:block;font-size:11px;color:var(--mut);font-weight:600}.fig b{font-size:13px}
-.take{background:var(--tint2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}.take b{display:block;font-size:13px;margin-bottom:2px}
+
 .what{font-size:12px;color:var(--mut);margin:0 0 10px}
 .btn{display:flex;gap:8px;align-items:center;justify-content:center;width:100%;border:0;border-radius:12px;background:var(--gd);color:#fff;font-weight:700;font-size:14px;padding:11px;text-decoration:none;cursor:pointer}.btn:hover{background:var(--g)}
 .btn.ghost{background:var(--tint);color:var(--g);border:1px solid var(--line);margin-bottom:8px}
@@ -200,7 +200,7 @@
   }
 
   const bandClass = (w) => (w === "Strong" || w === "Healthy" ? "" : w === "Mixed" || w === "Average" ? "mid" : "low");
-  /** FinLit Prism under the FinLit score: its score and label with the four parts for Gold, one line naming it for everyone else, a plain reason when there is no rating. */
+  /** FinLit Prism, the one score on the card: its score and label with the four parts for Gold, one line naming it for everyone else, a plain reason when there is no rating. */
   function prismView(p, site) {
     if (!p) return null;
     const name = p.name || "FinLit Prism";
@@ -230,35 +230,25 @@
     co.append(who, link(site, d.url || `/stocks/${d.symbol}`, "", null));
     co.lastChild.setAttribute("aria-label", "Open on FinLit"); co.lastChild.appendChild(icon("open", 16));
     frag.appendChild(co);
+    // The card shows one score: FinLit Prism (task #98). Gold sees the rating and its four parts; everyone else sees one line naming it, with the way to sign in or see plans.
+    const pz = prismView(d.prism, site);
     if (d.locked) {
-      const l = el("div", "lock"); l.append(icon("lock", 16), el("span", null, d.signedIn
-        ? "The FinLit score is part of the Silver plan."
-        : "Sign in to FinLit in this browser to see the FinLit score."));
-      frag.appendChild(l);
       const parts = [d.price != null ? `Price ₹${d.price.toLocaleString("en-IN")}` : null, d.marketCapCr ? `Market value ${fmtCr(d.marketCapCr)}` : null].filter(Boolean);
       if (parts.length) frag.appendChild(el("p", "hint", parts.join(" · ")));
-      const pzL = prismView(d.prism, site); if (pzL) frag.appendChild(pzL);
+      if (pz) frag.appendChild(pz);
+      else frag.appendChild(el("p", "hint", d.signedIn ? "FinLit Prism is part of the Gold plan." : "Sign in to FinLit in this browser to see FinLit Prism."));
       frag.appendChild(link(site, d.signedIn ? "/plans" : "/login", "btn ghost", d.signedIn ? "See plans" : "Sign in to FinLit"));
-    } else if (d.score != null) {
-      const sc = el("div", "sc"), big = el("div", "big");
-      const lab = el("div", "l", "FinLit score");
-      const n = el("div", "n", String(d.score)); n.appendChild(el("span", null, " /100"));
-      big.append(lab, n, el("span", "chip " + bandClass(d.band), d.band || ""));
-      const bars = el("div", "bars");
-      for (const [label, v] of [["Growth & Profitability", d.fundamental], ["Technical", d.technical]]) {
-        const b = el("div", "bar"), r = el("div", "r"); r.append(el("span", null, label), el("span", null, v == null ? "–" : `${v}/100`));
-        const i = el("i"); const u = el("u"); u.style.width = `${v == null ? 0 : Math.max(0, Math.min(100, v))}%`; i.appendChild(u); b.append(r, i); bars.appendChild(b);
-      }
-      sc.append(big, bars); frag.appendChild(sc);
-      const pz = prismView(d.prism, site); if (pz) frag.appendChild(pz);
-      const f = d.figures || {}, fig = el("div", "fig");
-      for (const [k, v] of [["MCap", d.marketCapCr ? fmtCr(d.marketCapCr) : "–"], ["PE", f.pe == null ? "–" : f.pe.toFixed(1)], ["ROE", f.roe == null ? "–" : `${f.roe.toFixed(1)}%`], ["Debt/Equity", f.debtToEquity == null ? "–" : f.debtToEquity.toFixed(2)]]) {
-        const c = el("div"); c.append(el("small", null, k), el("b", null, v)); fig.appendChild(c);
-      }
-      frag.appendChild(fig);
-      if (d.take) { const t = el("div", "take"); t.append(el("b", null, "Quick take"), el("span", null, d.take)); frag.appendChild(t); }
-      if (d.what) frag.appendChild(el("p", "what", d.what));
-    } else if (d.why) frag.appendChild(el("p", "hint", d.why));
+    } else {
+      if (pz) frag.appendChild(pz);
+      const f = d.figures || {}, has = d.score != null || d.marketCapCr || f.pe != null || f.roe != null || f.debtToEquity != null;
+      if (has) {
+        const fig = el("div", "fig");
+        for (const [k, v] of [["MCap", d.marketCapCr ? fmtCr(d.marketCapCr) : "–"], ["PE", f.pe == null ? "–" : f.pe.toFixed(1)], ["ROE", f.roe == null ? "–" : `${f.roe.toFixed(1)}%`], ["Debt/Equity", f.debtToEquity == null ? "–" : f.debtToEquity.toFixed(2)]]) {
+          const c = el("div"); c.append(el("small", null, k), el("b", null, v)); fig.appendChild(c);
+        }
+        frag.appendChild(fig);
+      } else if (!pz) frag.appendChild(el("p", "hint", "FinLit Prism is not available for this company yet."));
+    }
     if (others && others.length) {
       frag.appendChild(el("p", "hint", "Not this one?"));
       const chips = el("div", "chips");
