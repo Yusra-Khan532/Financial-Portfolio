@@ -72,7 +72,7 @@ def test_calendar_nav_and_weekly_judges():
     now = ist(2026, 10, 30, 12, 0)
     assert fr.judge_calendar(14, now - timedelta(hours=1), now).status == "fresh"
     assert fr.judge_calendar(0, now - timedelta(hours=1), now).status == "late"
-    assert fr.judge_calendar(14, now - timedelta(hours=20), now).status == "stale"
+    assert fr.judge_calendar(14, now - timedelta(hours=26), now).status == "stale"      # 26 h ago is 14 h of the job's day plus 4 h today: 18 active hours
     # NAV: expected is the last business day that has passed 23:30
     assert fr.judge_nav(date(2026, 10, 29), ist(2026, 10, 30, 22, 0)).status == "fresh"            # tonight's file is not out yet
     assert fr.judge_nav(date(2026, 10, 29), ist(2026, 10, 30, 23, 45)).status == "late"            # Friday's is due, one business day behind (could be a holiday)
@@ -239,3 +239,21 @@ def test_technical_views_count_a_company_with_no_newer_trading_day_apart():
     assert ds.status == "fresh" and "854 more have no newer trading day from the price provider" in ds.detail     # 10 of 2217 behind: under the limit
     bad = judge_technicals(2217, 864, "2026-11-12", _date(2026, 11, 11), now)
     assert bad.status in ("late", "stale")
+
+
+def test_the_calendar_is_not_late_for_the_night_its_job_is_off():
+    # the calendars job runs 08:00 to 23:59 IST: last ran at 23:17, it is 04:33 the next morning. Five clock hours, 0.7 active hours: fresh
+    ran = ist(2026, 11, 12, 23, 17)
+    assert fr.judge_calendar(1341, ran, ist(2026, 11, 13, 4, 33)).status == "fresh"
+    # the morning after, at 09:00 it has been due for 1.7 hours: still fresh; at 13:30 (5.7 active hours) it is late; it really is late when the day shift misses it
+    assert fr.judge_calendar(1341, ran, ist(2026, 11, 13, 9, 0)).status == "fresh"
+    assert fr.judge_calendar(1341, ran, ist(2026, 11, 13, 13, 30)).status == "late"
+    assert fr.judge_calendar(1341, ran, ist(2026, 11, 14, 8, 0)).status in ("late", "stale")      # two active days gone by
+
+
+def test_active_elapsed_counts_only_the_hours_a_day_job_is_due_to_run():
+    from finlit.jobs.schedule import active_elapsed
+    assert round(active_elapsed(ist(2026, 11, 12, 23, 17), ist(2026, 11, 13, 4, 33)), 1) == 0.7          # the night does not count
+    assert round(active_elapsed(ist(2026, 11, 12, 10, 0), ist(2026, 11, 12, 12, 30)), 1) == 2.5          # a daytime gap is the plain clock
+    assert active_elapsed(ist(2026, 11, 12, 12, 0), ist(2026, 11, 12, 10, 0)) == 0.0
+    assert round(active_elapsed(ist(2026, 11, 12, 20, 0), ist(2026, 11, 13, 10, 0), None), 1) == 14.0   # span None: every hour counts
