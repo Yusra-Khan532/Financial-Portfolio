@@ -36,3 +36,4 @@ export const INFO_ASON_GAINERS = "Pick any close of the last 2 months to see Top
 export const INFO_LEFT = "Companies that were on this list in the last 2 months and are not on it now: when they joined and left, how many sessions they stayed, the price change while on the list, and the reason in words.";
 export const INFO_BAND_LIST = "When each company joined this list, and how its share price has moved since, with NIFTY 500 over the same days.";
 export const INFO_BAND_SCREEN = "Where each company came from and how far its price has risen since it joined.";
+export const INFO_START = "FinLit began storing lists on 11 Nov 2026; this company was already on the list then.";

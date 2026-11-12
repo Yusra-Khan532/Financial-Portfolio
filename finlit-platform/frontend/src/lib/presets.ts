@@ -17,8 +17,8 @@ export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold",
 export type PresetGroup = { id: string; name: string; presets: Preset[] };
 export type PresetList = { asOf: string | null; groups: PresetGroup[]; tab?: PresetTab };
 
-export type ColFormat = "text" | "num1" | "pct" | "pct_down" | "score" | "cr" | "label" | "badge" | "date" | "since";
-export type PresetColumn = { key: string; label: string; format: ColFormat; align?: "left" | "right" | "center" };
+export type ColFormat = "text" | "num1" | "num2" | "pct" | "pct_down" | "score" | "cr" | "label" | "badge" | "date" | "since";
+export type PresetColumn = { key: string; label: string; format: ColFormat; align?: "left" | "right" | "center"; band?: string };
 export type PresetRow = { symbol: string; name?: string | null; exchange?: string | null; badges?: string[] } & Record<string, unknown>;
 export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 /** `breadth` is the share of the sector's stocks within 15% of their 52-week high; `marketBreadth` the same for the whole market; `reason` says why a "closest" sector is not in play. */

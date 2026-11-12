@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from ..screener.ql import analyze, canonical
 from ..screener.qeval import Evaluator
 from . import derive, expr, themes
-from .registry import DISCLAIMER, REGISTRY_VERSION, Preset, render_card
+from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_BASIC, STD_RETURNS, Preset, render_card
 from .seed import THEME
 
 EXPORT_MAX = 2000        # rows kept per screen for paging (25 at a time) and for the CSV export; a screen that passes more says so
@@ -428,9 +428,25 @@ def _fmt(v: Any, fmt: str) -> Any:
     return v
 
 
+def standard_columns(preset: Preset) -> List[Tuple[str, str, str, str, str]]:
+    """The columns every list carries (key, label, format, align, band), then the returns behind their switch. Themes and Top gainers keep their own layouts."""
+    if preset.kind in ("themes", "gainers"):
+        return []
+    return list(STD_BASIC if preset.tab == "basic" else STD_ADVANCED) + list(STD_RETURNS)
+
+
+def own_columns(preset: Preset) -> list:
+    """The screen's own columns: those that are not identity (#, Stock, Sector) and not already standard."""
+    if preset.kind in ("themes", "gainers"):
+        return list(preset.columns)
+    std = {c[0] for c in standard_columns(preset)}
+    return [c for c in preset.columns if c.key not in std and c.key not in IDENTITY_KEYS]
+
+
 def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ()) -> dict:
     row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos}
-    for c in preset.columns:
+    cols = list(preset.columns) + [Col(k, l, f, a) for k, l, f, a, _ in standard_columns(preset) if k not in {c.key for c in preset.columns}]
+    for c in cols:
         if c.key == "rank":
             row["rank"] = pos
         elif c.key == "name":
@@ -478,7 +494,12 @@ def closest_misses(fr: Frame, rules: List[Rule]) -> List[dict]:
 
 
 def _columns(preset: Preset) -> List[dict]:
-    return [{"key": c.key, "label": c.label, "format": c.format, "align": c.align} for c in preset.columns]
+    if preset.kind in ("themes", "gainers"):
+        return [{"key": c.key, "label": c.label, "format": c.format, "align": c.align} for c in preset.columns]
+    ident = [{"key": c.key, "label": c.label, "format": c.format, "align": c.align, "band": "Company"} for c in preset.columns if c.key in IDENTITY_KEYS]
+    std = [{"key": k, "label": l, "format": f, "align": a, "band": b} for k, l, f, a, b in standard_columns(preset)]
+    own = [{"key": c.key, "label": c.label, "format": c.format, "align": c.align, "band": "This screen"} for c in own_columns(preset)]
+    return ident + std + own
 
 
 def _base(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str], count: int, rows: List[dict]) -> dict:
