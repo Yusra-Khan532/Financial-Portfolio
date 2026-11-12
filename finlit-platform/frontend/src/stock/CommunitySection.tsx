@@ -1,5 +1,5 @@
 // "Community discussions" on a company report (task #43, redesigned in task #101): the company's discussions from the forum, read, answered and started without
-// leaving the report. Everything posted here belongs to this company and shows under the same company in the Discussion forum.
+// leaving the report. Everything posted here belongs to this company and shows under the same company in Discussion forums.
 // Task #101: the section is a panel with a header (what it is, how many discussions and comments, the button to start one), the list beside a "Trending" column,
 // and a one-line strip under the company header (CommunityStrip) so the discussion is seen without scrolling to the end of the report.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -71,7 +71,7 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
     <section className="block fo-rep" ref={top} aria-label="Community discussions" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <SectionHead id="community" no="Community" icon="users" title="Community discussions" color="--gold"
         sub={`What members are saying about ${short}. Opinion only, not advice.`}
-        aside={me?.signedIn ? <Link className="btn" to={`/forum/c/${encodeURIComponent(symbol)}`}>Open in the forum</Link> : undefined} />
+        aside={me?.signedIn ? <Link className="btn" to={`/forum/c/${encodeURIComponent(symbol)}`}>Open in Discussion forums</Link> : undefined} />
       {me && !me.signedIn ? (
         <div className="fo-rep-gate">
           <b>Join the conversation about {short}</b>
@@ -97,7 +97,7 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
                 ? <ThreadView id={open} onBack={() => show(null)} backLabel={`All discussions about ${short}`} />
                 : <ThreadList symbol={symbol} local per={5} onOpen={show} onCount={setN} startLabel={`Start a discussion about ${short}`}
                     linkTo={(t) => `/forum/t/${t.id}`} />}
-              {open == null && n != null && n > 5 && <p className="fo-rep-more"><Link to={`/forum/c/${encodeURIComponent(symbol)}`}>See all {count} in the Discussion forum →</Link></p>}
+              {open == null && n != null && n > 5 && <p className="fo-rep-more"><Link to={`/forum/c/${encodeURIComponent(symbol)}`}>See all {count} in Discussion forums →</Link></p>}
             </div>
             {open == null && n != null && n > 1 && <Trending symbol={symbol} onOpen={show} />}
           </div>
