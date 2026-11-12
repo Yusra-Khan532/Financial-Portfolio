@@ -798,6 +798,6 @@ def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_s
     body = engine.run(fr, BY_ID["basic-pattern-daily_base"])
     assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
     assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
-    assert body["leftOut"] == 1
+    assert body["leftOutCount"] == 1 and "leftOut" not in body
     fr.patterns = None
     assert engine.run(fr, BY_ID["basic-pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")

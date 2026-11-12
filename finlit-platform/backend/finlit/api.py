@@ -676,6 +676,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(screener_qapi.router)
     app.include_router(__import__("finlit.presets.api", fromlist=["router"]).router)   # /api/screener/presets (Gold)
     app.include_router(__import__("finlit.presets.api", fromlist=["gainers_router"]).gainers_router)   # /api/screener/gainers
+    app.include_router(__import__("finlit.presets.selfcheck", fromlist=["router"]).router)   # /api/screener/selfcheck: the screen checks, pass or fail only
     app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
