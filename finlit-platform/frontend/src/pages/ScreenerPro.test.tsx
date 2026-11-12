@@ -259,3 +259,67 @@ describe("colour rule helpers", () => {
     expect(colourNote([pe, roe, M("pb", "P/B Ratio", { better: "lower" })])).toContain("Lower is better for P/E Ratio and P/B Ratio; higher is better for Return on equity.");
   });
 });
+
+describe("Several filters at once (task 75)", () => {
+  const press = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+  const max = (label: string) => screen.queryByLabelText(`${label} maximum`, { exact: true });
+  const header = (re: RegExp) => Array.from(document.querySelectorAll("button.fgx-hb")).find((b) => re.test(b.textContent || "")) as HTMLElement;
+  const lastFilters = () => st.bodies.filter((b) => b.filters).slice(-1)[0]?.filters;
+
+  it("three filters in one category stay chosen together, each with its own range boxes, and none is dropped by choosing the next", async () => {
+    mount(); await ready();
+    fireEvent.click(group(/^Valuation/));
+    press("P/B Ratio"); press("P/E Ratio"); press("Dividend Yield");
+    for (const l of ["P/B Ratio", "P/E Ratio", "Dividend Yield"]) {
+      expect(max(l)).toBeTruthy();                                                              // its Min/Max boxes are there
+      expect(screen.getByRole("button", { name: l }).getAttribute("aria-pressed")).toBe("true");
+    }
+    press("P/E Ratio");                                                                         // only an explicit click on a chosen filter removes it
+    expect(max("P/E Ratio")).toBeNull(); expect(max("P/B Ratio")).toBeTruthy(); expect(max("Dividend Yield")).toBeTruthy();
+  });
+  it("picking another filter never touches the first one's range, and both narrow the result together", async () => {
+    mount(); await ready();
+    fireEvent.click(group(/^Valuation/));
+    press("P/B Ratio"); fireEvent.change(max("P/B Ratio")!, { target: { value: "3" } });
+    press("P/E Ratio"); fireEvent.change(max("P/E Ratio")!, { target: { value: "20" } });
+    expect((max("P/B Ratio") as HTMLInputElement).value).toBe("3");
+    await waitFor(() => expect(lastFilters()).toEqual({ pb: { max: 3 }, pe: { max: 20 } }));
+  });
+  it("filters chosen in different categories stay chosen together, also while one category is closed", async () => {
+    mount(); await ready();
+    fireEvent.click(group(/^Valuation/)); press("P/B Ratio"); fireEvent.change(max("P/B Ratio")!, { target: { value: "3" } });
+    fireEvent.click(group(/^Profitability/)); press("Return on equity"); fireEvent.change(max("Return on equity")!, { target: { value: "40" } });
+    await waitFor(() => expect(lastFilters()).toEqual({ pb: { max: 3 }, roe: { max: 40 } }));
+    expect(max("P/B Ratio")).toBeTruthy(); expect(max("Return on equity")).toBeTruthy();       // both categories open, both cards there
+    fireEvent.click(header(/^Valuation/));                                                      // close Valuation: its choice is still counted on the header
+    expect(header(/^Valuation/).textContent).toMatch(/1 active/); expect(header(/^Profitability/).textContent).toMatch(/1 active/);
+    fireEvent.click(header(/^Valuation/));                                                      // open it again: the card, the range and the Max value are as they were
+    expect((max("P/B Ratio") as HTMLInputElement).value).toBe("3");
+    expect(lastFilters()).toEqual({ pb: { max: 3 }, roe: { max: 40 } });
+  });
+  it("a chosen filter with no range yet is counted, the header says so when its category is closed, and Clear all resets it", async () => {
+    mount(); await ready();
+    expect(document.querySelector(".fgx-top")!.textContent).toMatch(/No filters set/);
+    fireEvent.click(group(/^Valuation/)); press("P/E Ratio"); press("P/B Ratio");
+    expect(document.querySelector(".fgx-top")!.textContent).toMatch(/2 chosen, no range yet/);
+    fireEvent.click(header(/^Valuation/));
+    expect(header(/^Valuation/).textContent).toMatch(/2 active/);                              // closed, but not forgotten
+    fireEvent.click(header(/^Valuation/));
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(max("P/E Ratio")).toBeNull());
+    expect(max("P/B Ratio")).toBeNull(); expect(document.querySelector(".fgx-top")!.textContent).toMatch(/No filters set/);
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+  });
+  it("Clear all also clears the ranges, and a filter that has a range counts once", async () => {
+    mount(); await ready();
+    fireEvent.click(group(/^Valuation/)); press("P/B Ratio"); fireEvent.change(max("P/B Ratio")!, { target: { value: "3" } });
+    await waitFor(() => expect(lastFilters()).toEqual({ pb: { max: 3 } }));
+    expect(header(/^Valuation/).textContent).toMatch(/1 active/); expect(document.querySelector(".fgx-top")!.textContent).toMatch(/1 active/);
+    fireEvent.click(document.querySelector(".scr-chips .alx-link") as HTMLElement);                 // the Clear all next to the chips above the table does the same
+    await waitFor(() => expect(document.querySelector(".scr-chips")).toBeNull());                   // the chip for the range is gone
+    expect(max("P/B Ratio")).toBeNull(); expect(document.querySelector(".fgx-top")!.textContent).toMatch(/No filters set/);
+    press("P/E Ratio"); expect(max("P/E Ratio")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));                              // the panel's one, with only a chosen filter (no range)
+    await waitFor(() => expect(max("P/E Ratio")).toBeNull());
+  });
+});
