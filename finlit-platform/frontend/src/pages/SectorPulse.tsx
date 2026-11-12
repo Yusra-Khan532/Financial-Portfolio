@@ -13,6 +13,7 @@ import {
 } from "../lib/sectors";
 import { CornerBadge, RankMove, SectorTabs } from "../components/rotation/Parts";
 import { HowToGuide } from "../components/sectors/HowTo";
+import { PulseCharts } from "../components/sectors/PulseCharts";
 import { BreadthBars, Blank, LockedBlock, SectorFooter, StateChip } from "../components/sectors/Parts";
 
 const TITLE = "Sector Pulse";
@@ -222,7 +223,9 @@ export function SectorPulsePage() {
             {b.market_note && <section className="sx-warn" role="note" aria-labelledby="sx-wn"><h2 id="sx-wn"><Icon name="alert" /> Breadth is weak almost everywhere</h2><p>{b.market_note}{b.counts ? ` ${plural(b.counts.Washout ?? 0, "group")} ${(b.counts.Washout ?? 0) === 1 ? "is" : "are"} in a Washout; ${b.counts.Confirmed ? plural(b.counts.Confirmed, "group") + " Confirmed" : "none is Confirmed"} and ${(b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0) ? plural((b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0), "group") + " had a thrust today" : "none had a thrust today"}.` : ""}</p></section>}
           </div>
           <div style={{ marginTop: 16 }}><Cycle /></div>
+          <PulseCharts part="mood" />
           <GroupsTable b={b} />
+          <PulseCharts part="strip" />
           <TooFew b={b} />
           <Counted b={b} />
           <Flags b={b} />

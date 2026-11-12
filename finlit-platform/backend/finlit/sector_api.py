@@ -24,6 +24,7 @@ import orjson
 from fastapi import APIRouter, Request, Response
 
 from . import sector_data as sd
+from . import sector_history
 from .rotation_insights import rotation_insights
 from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan
 from .auth.service import current
@@ -105,6 +106,29 @@ async def board(request: Request) -> Response:
     if not data:
         return _not_loaded(request, started)
     return _reply(request, redact_sector_board(public_board(data), await _plan(request)), started)
+
+
+_history_memo: Dict[str, Any] = {}
+
+
+@router.get("/api/sector-history")
+async def sector_state_history(request: Request) -> Response:
+    """Every group's state on each of the last six months of sessions, with the insight cards, for "The market's mood, day by day" and "Six months of every industry". Open to every plan, like the board's states."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    key = rel.name + ":" + str((rel / "sectors" / "_board.json").stat().st_mtime_ns)
+    if _history_memo.get("key") != key:
+        pages = [sd.read_json(rel / "sectors" / f"{r['slug']}.json") for r in board.get("rows", []) if isinstance(r, dict) and sd.SLUG.match(str(r.get("slug", "")))]
+        _history_memo.clear()
+        _history_memo.update(key=key, value=sector_history.build([p for p in pages if isinstance(p, dict)]))
+    data = _history_memo.get("value")
+    if not data:
+        reason = "The state history is not loaded yet: the current data set has too few sessions of history. It is rebuilt at the next nightly run."
+        return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
+    return _reply(request, {**data, "date": board.get("date")}, started)
 
 
 @router.get("/api/sectors/{slug}")

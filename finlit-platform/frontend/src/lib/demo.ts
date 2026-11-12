@@ -21,6 +21,8 @@ async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   }
   if (/^\/api\/stress\/[^/]+\/page$/.test(path)) return file("stress-page.json");   // Stress Lab: Asian Paints on its own figures, whichever company is asked for
   if (/^\/api\/stress\/[^/]+\/peer$/.test(path)) return json({ symbol: path.split("/")[3], peer: null, peers: [] });
+  if (path === "/api/sectors") return file("sectors-board.json");   // Sector Pulse board: the real nightly output of 29 Oct 2026
+  if (path === "/api/sector-history") return file("sector-history.json");   // Sector Pulse state history: the 6 Nov close
   if (path === "/api/rotation") return file("rotation-map.json");   // Sector Rotation: the real nightly output of 29 Oct 2026, with the insight cards the server writes
   if (path === "/api/stocks/search-index") return file("search-index.json");
   if (path === "/api/screener/universe") return file("screener.json");

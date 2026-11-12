@@ -248,3 +248,12 @@ async def test_a_basic_stock_teaser_carries_the_industrys_rotation_line(anon, ro
     doc["rotation"] = {"corner": "ahead_slowing", "corner_name": "Ahead but slowing", "rank": 7, "ranked": 37}
     t = redact_sector_stock(doc, "SAMBHV", "basic")
     assert t["rotation"]["rank"] == 7 and t["locked"] == {"stock": "gold"} and "rank_6m" not in json.dumps(t)
+
+
+async def test_the_state_history_is_open_to_every_plan_and_carries_no_stock_or_rule(anon, out):  # noqa: F811
+    r = await anon.get("/api/sector-history")
+    d = r.json()
+    assert r.status_code == 200 and d["dates"] and len(d["groups"]) == 3 and set(d["insights"]) == {"mood", "strip"} and d["words"]["sold_off"] == "Sold off"
+    assert all(set(g) == {"name", "slug", "kind", "states"} and len(g["states"]) == len(d["dates"]) for g in d["groups"])
+    assert "KIRLFER" not in r.text and "MANAKSTEEL" not in r.text and "washout" not in r.text.lower() and "thrust" not in r.text.lower()
+    assert r.headers["cache-control"].startswith("private")
