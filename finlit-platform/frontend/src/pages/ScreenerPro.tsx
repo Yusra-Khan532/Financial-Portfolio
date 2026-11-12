@@ -9,7 +9,7 @@ import { nf } from "../lib/format";
 import { API_BASE, apiUrl } from "../lib/api";
 import { limitsFor, useAuth } from "../lib/auth";
 import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { READY, UNIT_SUFFIX, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, chipColumn, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
+import { READY, UNIT_SUFFIX, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, defaultColumns, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, storeCols, tableColumns, toBody, useCatalog, useScreen, type Catalog, type MetricInfo, type PState, type Range } from "../lib/proscreen";
 import { screens, useSavedScreens } from "../lib/screens";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
@@ -213,10 +213,10 @@ export function ScreenerPro() {
     for (const k of res.data?.columns || []) { const v = rows.map((r) => r.v[k]).filter((x): x is number => x != null).sort((a, b) => a - b); if (v.length > 6) out[k] = [v[Math.floor(v.length * 0.25)], v[Math.floor(v.length * 0.75)]]; }
     return out;
   }, [rows, res.data?.columns]);
-  const tone = (k: string, v: number | null) => { const m = byKey.get(k), h = heat[k]; if (v == null || !m || !h || m.better === "none" || m.unit === "flag" || h[0] === h[1]) return ""; const good = m.better === "higher" ? v >= h[1] : v <= h[0], bad = m.better === "higher" ? v <= h[0] : v >= h[1]; return good ? "tone-good" : bad ? "tone-bad" : ""; };
+  const tone = (k: string, v: number | null) => cellTone(byKey.get(k), heat[k], v);
   // the colour note shows only while a column beyond the default set is on the table and carries green or red cells (task #73); back on the default columns it is gone
   const dflt = useMemo(() => defaultColumns(data), [data]);
-  const coloured = (res.data?.columns || []).filter((k) => !dflt.includes(k) && heat[k] && byKey.get(k) && byKey.get(k)!.better !== "none" && byKey.get(k)!.unit !== "flag");
+  const coloured = useMemo(() => colourColumns(res.data?.columns || [], dflt, byKey, heat, rows), [res.data?.columns, dflt, byKey, heat, rows]);
   const err = res.error as { status?: number; body?: { plan?: string; detail?: string } } | null;
   const total = res.data?.total ?? 0;
 
@@ -382,7 +382,7 @@ export function ScreenerPro() {
                   ) : total > PAGE && (
                     <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next</button></div>)}
                 </>)}
-            {coloured.length > 0 && <Plain>Green cells are in the best quarter of the results shown for that column, red cells the weakest quarter ({coloured.map((k) => byKey.get(k)?.label || k).join(", ")}). “Best” means lower for P/E, P/B and debt, higher for returns and profitability. Hover a column name for what it means.</Plain>}
+            {coloured.length > 0 && <Plain>{colourNote(coloured)}</Plain>}
             {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); filtering on one of those leaves out the companies that lack it.</p>}
             <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
           </section>

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { Plain } from "../components/Plain";
+import { colourNote } from "../lib/proscreen";
 import { useUI, TIER } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
 import { screens, useSavedScreens } from "../lib/screens";
@@ -68,6 +69,8 @@ export function ScreenerLite() {
     const good = m.better === "higher" ? v >= h[1] : v <= h[0], bad = m.better === "higher" ? v <= h[0] : v >= h[1];
     return good ? "tone-good" : bad ? "tone-bad" : "";
   };
+  // the colour note shows only while a column beyond the default ones is on the table and has a green or red cell on screen (task #73)
+  const coloured = useMemo(() => cols.filter((k) => !DEFAULT_COLS.includes(k) && !(gold && GOLD_COLS.includes(k)) && result.slice(0, shown).some((r) => tone(k, r[k]) !== "")).map((k) => METRICS[k]), [cols, result, shown, heat, gold]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const setRange = (k: NumKey, side: "min" | "max", raw: string) => setF((s) => {
     const cur = { ...(s.ranges[k] || {}) }, n = raw === "" ? undefined : Number(raw);
@@ -175,7 +178,7 @@ export function ScreenerLite() {
                 {result.length > shown && <div className="more"><button className="btn" onClick={() => setShown((s) => s + 40)}>Show more ({result.length - shown} left)</button></div>}
               </HScroll></TableZoom>
             )}
-            <Plain>Green cells are in the best quarter of the results for that column, red cells the weakest quarter. “Best” means lower for P/E, P/B and debt, higher for returns and profitability.</Plain>
+            {coloured.length > 0 && <Plain>{colourNote(coloured)}</Plain>}
             <p className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. {TIER.gold.n} adds model-based filters.</p>
           </section>
         </div>

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chipColumn, defaultColumns, emptyReason, encodeState, norm, tableColumns, type Catalog, type MetricInfo } from "../lib/proscreen";
+import { cellTone, chipColumn, colourColumns, colourNote, defaultColumns, emptyReason, encodeState, norm, tableColumns, type Catalog, type MetricInfo } from "../lib/proscreen";
 
 vi.mock("../lib/ui", () => ({ useUI: () => ({ upgrade: vi.fn(), toast: vi.fn(), plan: "silver" }), TIER: { gold: { n: "Gold" }, silver: { n: "Silver" }, basic: { n: "Basic" } } }));
 const admin = vi.hoisted(() => ({ on: true }));
@@ -27,7 +27,7 @@ const catalog = (lockSilver = false): Catalog => ({
     { id: "size", label: "Size", tier: "basic", metrics: [M("market_cap", "Market cap", { unit: "Cr", better: "higher" }), M("price", "Share price", { unit: "Rs", better: "none" })] },
   ],
 });
-const st = vi.hoisted(() => ({ cat: null as unknown, bodies: [] as { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string } }[] }));
+const st = vi.hoisted(() => ({ many: 0, flat: false, cat: null as unknown, bodies: [] as { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string } }[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const mount = (qs = "") => {
@@ -40,12 +40,14 @@ const group = (label: RegExp) => screen.getByRole("button", { name: label });
 const ready = () => waitFor(() => expect(document.querySelector(".scr-t")).toBeTruthy());
 
 beforeEach(() => {
-  st.cat = catalog(); st.bodies = []; localStorage.clear();
+  st.cat = catalog(); st.bodies = []; st.many = 0; st.flat = false; localStorage.clear();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     if (String(url).includes("/api/screener/catalog")) return new Response(JSON.stringify(st.cat), { status: 200 });
     const body = JSON.parse(String(init?.body || "{}")); st.bodies.push(body);
+    if (st.many) return new Response(JSON.stringify({ total: st.many, offset: 0, limit: 50, capped: false, columns: body.columns, took: 3, rows: Array.from({ length: st.many }, (_, i) => (
+      { symbol: "S" + i, name: "Company " + i, sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, st.flat ? 10 : i + 1])) })) }), { status: 200 });   // ten varied rows: green and red quarters exist
     return new Response(JSON.stringify({ total: 2, offset: 0, limit: 50, capped: false, columns: body.columns, took: 3, rows: [
       { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, 12])) },
       { symbol: "BBB", name: "Beta", sector: null, cap: "Mid", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "pe" ? null : 8])) }] }), { status: 200 });
@@ -194,5 +196,66 @@ describe("column helpers", () => {
     expect(emptyReason("pe", true)).toMatch(/Loss-making/);
     expect(emptyReason("pe_avg_3y", true)).toMatch(/No 3-year history/);
     expect(emptyReason("pe", false)).toMatch(/No financial report/);
+  });
+});
+
+describe("The green and red colour note (task 73)", () => {
+  const note = () => document.querySelector(".plain");
+  const pick = (name: RegExp) => { if (!document.querySelector(".pl-colmenu")) fireEvent.click(screen.getByRole("button", { name: /^Columns/ })); fireEvent.click(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name })); };
+
+  it("is not there on the default columns, even with plenty of rows and a coloured default column", async () => {
+    st.many = 10; mount(); await ready();
+    expect(heads()).toEqual(["Company", "Market cap", "Share price"]);
+    expect(document.querySelector(".scr-t td.tone-good")).toBeTruthy();        // market cap is coloured here (the test catalog says higher is better) but it is a default column
+    expect(note()).toBeNull();
+  });
+  it("appears when a column beyond the defaults is added, names it and what is better, and goes when it is removed", async () => {
+    st.many = 10; mount(); await ready();
+    pick(/^Return on equity$/);
+    await waitFor(() => expect(note()).toBeTruthy());
+    const text = note()!.textContent!;
+    expect(text).toMatch(/Higher is better for Return on equity/); expect(text).not.toMatch(/Lower is better/); expect(text).not.toMatch(/P\/E/);
+    expect(text).toMatch(/best quarter/); expect(text).toMatch(/weakest quarter/);
+    pick(/^Return on equity$/);
+    await waitFor(() => expect(note()).toBeNull());
+    expect(heads()).toEqual(["Company", "Market cap", "Share price"]);
+  });
+  it("explains both directions when columns of both kinds are on the table, and shrinks as they are removed", async () => {
+    st.many = 10; localStorage.setItem("finlit.screener.cols", JSON.stringify(["market_cap", "pe", "roe"]));
+    mount(); await ready();
+    await waitFor(() => expect(note()).toBeTruthy());
+    expect(note()!.textContent).toMatch(/Lower is better for P\/E Ratio; higher is better for Return on equity\./);
+    pick(/^P\/E Ratio$/);
+    await waitFor(() => expect(note()!.textContent).not.toMatch(/P\/E/));
+    expect(note()!.textContent).toMatch(/Higher is better for Return on equity/);
+  });
+  it("is not drawn when no cell is coloured: few rows, or every value the same", async () => {
+    localStorage.setItem("finlit.screener.cols", JSON.stringify(["market_cap", "roe"]));
+    mount(); await ready();                                                     // two rows only: no quarters, no colours
+    expect(document.querySelector(".scr-t td.tone-good, .scr-t td.tone-bad")).toBeNull(); expect(note()).toBeNull();
+    cleanup(); st.many = 10; st.flat = true; mount(); await ready();           // ten rows, all the same value: the quarter lines are equal, so nothing is coloured
+    expect(document.querySelector(".scr-t td.tone-good, .scr-t td.tone-bad")).toBeNull(); expect(note()).toBeNull();
+  });
+});
+
+describe("colour rule helpers", () => {
+  const roe = M("roe", "Return on equity", { unit: "%", better: "higher" }), pe = M("pe", "P/E Ratio", { better: "lower" }), price = M("price", "Share price", { unit: "Rs", better: "none" });
+  const flag = M("f", "A flag", { unit: "flag", better: "higher" });
+  it("a cell is green in the best quarter and red in the weakest, never for a flag, no direction, a gap or equal quarter lines", () => {
+    expect(cellTone(roe, [10, 30], 35)).toBe("tone-good"); expect(cellTone(roe, [10, 30], 5)).toBe("tone-bad"); expect(cellTone(roe, [10, 30], 20)).toBe("");
+    expect(cellTone(pe, [10, 30], 5)).toBe("tone-good"); expect(cellTone(pe, [10, 30], 40)).toBe("tone-bad");
+    expect(cellTone(price, [10, 30], 40)).toBe(""); expect(cellTone(flag, [10, 30], 40)).toBe(""); expect(cellTone(roe, [10, 30], null)).toBe("");
+    expect(cellTone(roe, [10, 10], 40)).toBe(""); expect(cellTone(roe, undefined, 40)).toBe(""); expect(cellTone(undefined, [10, 30], 40)).toBe("");
+  });
+  it("only a non-default column with a coloured cell is explained, each once", () => {
+    const by = new Map([roe, pe, price].map((m) => [m.key, m] as const)), heat = { roe: [10, 30], pe: [10, 30], price: [10, 30] } as Record<string, [number, number]>;
+    const rows = [{ v: { roe: 40, pe: 20, price: 1 } }, { v: { roe: 5, pe: 20, price: 2 } }];
+    expect(colourColumns(["roe", "pe", "price", "roe"], [], by, heat, rows).map((m) => m.key)).toEqual(["roe"]);   // pe has no coloured cell, price has no direction, roe once
+    expect(colourColumns(["roe"], ["roe"], by, heat, rows)).toEqual([]);                                            // a default column is never explained
+    expect(colourColumns(["roe"], [], by, {}, rows)).toEqual([]);                                                   // no quarters yet
+  });
+  it("the note names only the columns it explains and says which direction is better for each", () => {
+    expect(colourNote([roe])).toBe("Green cells are in the best quarter of the results shown for that column and red cells in the weakest quarter. Higher is better for Return on equity. Hover a column name for what it means.");
+    expect(colourNote([pe, roe, M("pb", "P/B Ratio", { better: "lower" })])).toContain("Lower is better for P/E Ratio and P/B Ratio; higher is better for Return on equity.");
   });
 });
