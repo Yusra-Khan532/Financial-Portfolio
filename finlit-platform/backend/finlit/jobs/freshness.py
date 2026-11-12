@@ -111,6 +111,9 @@ def judge_score_lag(lag: Dict[str, Any], now: datetime, visitors: bool) -> Datas
     elif n and worst > 6:
         ds.status = "late"
     ds.detail = f"{n} Prism ratings are behind a filed quarter (oldest wait {worst:.0f} h)" if n else "no Prism rating is behind a filed quarter"
+    wp = int(lag.get("prism_waiting_provider") or 0)
+    if wp:     # their own source has no figures for the new quarter yet: retried when the provider updates, never counted as late
+        ds.detail += f"; {wp} more wait for the data provider's figures for the new quarter"
     live = lag.get("live_newest")
     if market_open(now) and visitors:
         if live is None:
