@@ -512,9 +512,13 @@
 .sx-legend2 i { width: 22px; height: 8px; border-radius: 4px; display: inline-block; }
 .sx-legend2 i.k9 { background: var(--sx-bar-9); } .sx-legend2 i.k20 { background: var(--sx-bar-20); } .sx-legend2 i.k50 { background: var(--sx-bar-50); }
 .sx-legend2-note { flex-basis: 100%; font-size: var(--fs-12); }
-.sx-t.sx-pulse { table-layout: fixed; width: 100%; min-width: 1100px; }
-.sx-pulse col.c-name { width: 210px; } .sx-pulse col.c-state { width: 108px; } .sx-pulse col.c-bars { width: 220px; } .sx-pulse col.c-idx { width: 108px; }
-.sx-pulse col.c-thr { width: 120px; } .sx-pulse col.c-flag { width: 80px; } .sx-pulse col.c-cor { width: 176px; } .sx-pulse col.c-rk { width: 98px; }
+.sx-t.sx-pulse { table-layout: fixed; width: 100%; min-width: 1190px; }
+.sx-pulse col.c-name { width: 210px; } .sx-pulse col.c-state { width: 156px; } .sx-pulse col.c-bars { width: 220px; } .sx-pulse col.c-idx { width: 108px; }
+.sx-pulse col.c-thr { width: 142px; } .sx-pulse col.c-flag { width: 80px; } .sx-pulse col.c-cor { width: 176px; } .sx-pulse col.c-rk { width: 98px; }
+/* task #86: the state badge and the last-bounce text are wider than their columns in some rows ("Bouncing back after a crash"): they wrap inside their own column instead of running over the bars and the flags */
+.sx-pulse td .sx-chip { height: auto; min-height: 24px; padding: 4px 10px; white-space: normal; line-height: 1.25; text-align: left; }
+.sx-pulse td .sx-thr { white-space: normal; }
+.sx-pulse td .sx-thr b, .sx-pulse td .sx-thr small { white-space: normal; display: block; line-height: 1.3; }
 .sx-pulse th, .sx-pulse td { padding: 12px 14px; vertical-align: middle; }
 .sx-pulse tbody td { height: 76px; }
 .sx-pulse thead th { padding-top: 12px; padding-bottom: 12px; vertical-align: middle; line-height: 1.35; }
