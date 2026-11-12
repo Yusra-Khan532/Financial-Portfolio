@@ -328,9 +328,12 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
     expected = expected_session(now)
     target = await current_target(store.redis, now)
     f["tech_target"] = target
+    # count the reports behind the session the judgement shows (the expected one), not behind the technicals job's newest target: while that job is still
+    # working through a new session every report not reached yet counted as "behind" a session that was not due (12 Nov 2026: "expected 11 Nov, 867 behind")
+    tech_cut = effective_expected(now, target)
     async with store.pool.acquire() as conn:
         f["tech_behind"] = int(await _one(conn, "SELECT count(*) FROM (SELECT symbol, min(COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}')) AS bar "
-                                                "FROM prism_reports GROUP BY symbol) t WHERE bar IS NULL OR bar < $1", target.isoformat()) or 0)
+                                                "FROM prism_reports GROUP BY symbol) t WHERE bar IS NULL OR bar < $1", tech_cut.isoformat()) or 0)
         f["tech_newest_bar"] = await _one(conn, "SELECT max(COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}')) FROM prism_reports")
     try:
         from .. import scorelive
