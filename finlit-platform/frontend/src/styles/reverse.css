@@ -1,6 +1,7 @@
 /* Reverse valuation page (task #69). Tokens only: light and dark. */
 .rv { display: grid; gap: 16px; padding-bottom: 48px; }
 .rv-co { display: grid; gap: 10px; } .rv-empty { margin: 0; }
+.rv-co .dcf-search { min-height: 48px; padding-inline: 14px; }   /* a proper full-width search bar, the same as on the DCF page (task #111) */
 .rv-head { display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; align-items: center; padding-top: 6px; border-top: 1px solid var(--border); } .rv-head b { font-size: var(--fs-18); } .rv-head small { display: block; color: var(--muted); } .rv-px { text-align: right; } .rv-px b { font: 600 var(--fs-24) var(--serif); }
 .rv-grid { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .rv-grid > .card { min-width: 0; } .rv-as { grid-row: span 3; position: sticky; top: 90px; } .rv-miss, .rv-gr { grid-column: 1 / -1; }
