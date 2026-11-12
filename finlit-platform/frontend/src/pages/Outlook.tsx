@@ -203,7 +203,7 @@ export function OutlookPage() {
               <p>The weights are the team's starting values and have not yet been validated against later results. Reported figures come from the company's own results.</p></details>
           </div>
 
-          <div className={"ol-top" + (mode === "custom" ? " side" : "")}>
+          <div className={"ol-top" + (mode === "custom" ? " ol-split" : "")}>
           {mode === "custom" && (
             <section className="card ol-assume" aria-labelledby="ol-as-h">
               <div className="ol-assume-h">
