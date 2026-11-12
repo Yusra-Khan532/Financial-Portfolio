@@ -12,9 +12,10 @@ const GROUPS: { id: "everyday" | "silver" | "model" | "mine"; label: string; tie
   { id: "everyday", label: "Everyday", tier: "FREE" }, { id: "silver", label: "Silver screens", tier: "SILVER" }, { id: "model", label: "On the FinLit model", tier: "GOLD" }, { id: "mine", label: "My screens" },
 ];
 
-export function ReadyScreens({ plan, folded, started, onPick, saved, onOpenSaved, onDeleteSaved, ask }: {
+export function ReadyScreens({ plan, folded, started, onPick, saved, onOpenSaved, onDeleteSaved, ask, onNotify }: {
   plan: Plan; folded: boolean; started: string | null; onPick: (s: ReadyScreen) => void; saved: SavedScreen[];
   onOpenSaved: (s: SavedScreen) => void; onDeleteSaved: (name: string) => void; ask: (tier: Plan, why: string) => void;
+  onNotify?: (name: string, on: boolean) => void;   // "Tell me when a company joins" on or off for a saved screen (signed-in members only)
 }) {
   const ready = useReady();
   const [grp, setGrp] = useState<(typeof GROUPS)[number]["id"]>("everyday"), [show, setShow] = useState(false);
@@ -45,6 +46,8 @@ export function ReadyScreens({ plan, folded, started, onPick, saved, onOpenSaved
       {grp === "mine" ? (
         saved.length ? <ul className="ssy-mine">{saved.map((s) => (
           <li key={s.name}><b>{s.name}</b><span>{activeCount(norm(s.state as Partial<PState>))} rules</span>
+            {onNotify && <button type="button" className={"btn ssy-bell" + (s.notify ? " on" : "")} aria-pressed={!!s.notify} onClick={() => onNotify(s.name, !s.notify)}
+              aria-label={`Messages for ${s.name}: ${s.notify ? "on" : "off"}`}>{s.notify ? "Messages on" : "Messages off"}</button>}
             <button type="button" className="btn" onClick={() => onOpenSaved(s)}>Open</button>
             <button type="button" className="btn" onClick={() => onDeleteSaved(s.name)} aria-label={`Delete ${s.name}`}>Delete</button></li>))}</ul>
           : <p className="ssy-empty">No saved screens yet. Set your rules, then use Save screen above the results; it will list here.</p>

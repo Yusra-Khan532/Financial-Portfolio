@@ -215,6 +215,15 @@ class ScreenState(BaseModel):
     sort: Optional[str] = Field(default=None, max_length=40)
     dir: Optional[Literal["asc", "desc"]] = None
     cols: List[str] = Field(default_factory=list, max_length=14)
+    model: Optional[str] = Field(default=None, max_length=40)   # a ready-made screen on the FinLit model, by id (task #64, file 04): its cut-offs stay on the server
+
+    @field_validator("model")
+    @classmethod
+    def model_ok(cls, v: Optional[str]) -> Optional[str]:
+        from ..screener.ready import MODEL
+        if v is not None and v not in MODEL:
+            raise ValueError("unknown model screen")
+        return v
 
     @field_validator("ranges")
     @classmethod
@@ -235,6 +244,7 @@ class ScreenState(BaseModel):
 class Screen(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     state: ScreenState
+    notify: Optional[bool] = None   # "Tell me when a company joins" (file 04): True sends the messages, False keeps the screen quiet; a screen saved before has none and keeps its emails
 
 
 class ScreensIn(BaseModel):

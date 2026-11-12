@@ -11,8 +11,8 @@ import { quickRanges, scaleOf, startRange } from "../components/screener/RuleCar
 
 const ui = vi.hoisted(() => ({ upgrade: vi.fn(), toast: vi.fn() }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ upgrade: ui.upgrade, toast: ui.toast, plan: "silver" }), TIER: { gold: { n: "Gold" }, silver: { n: "Silver" }, basic: { n: "Basic" } } }));
-const admin = vi.hoisted(() => ({ on: true }));
-vi.mock("../lib/auth", () => ({ limitsFor: () => ({ screens: 5 }), useAuth: () => ({ isAdmin: admin.on }) }));
+const admin = vi.hoisted(() => ({ on: true, user: null as null | { id: string } }));
+vi.mock("../lib/auth", () => ({ limitsFor: () => ({ screens: 5 }), useAuth: () => ({ isAdmin: admin.on, user: admin.user }) }));
 vi.mock("../three/support", () => ({ supports3d: () => false, whenIdle: () => () => {} }));
 // the chart itself is tested on its own (ChartPanel.test.tsx): here only what the page hands it
 vi.mock("../components/screener/ChartPanel", () => ({ ChartPanel: ({ row, extra, onClose, onStep }: { row: { symbol: string }; extra?: React.ReactNode; onClose: () => void; onStep?: (d: 1 | -1) => void }) => (
@@ -52,7 +52,7 @@ const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, total: 0, 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const mount = (qs = "") => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><MemoryRouter initialEntries={["/screener" + qs]}><Routes><Route path="/screener" element={<><ScreenerPro /><Where /></>} /></Routes></MemoryRouter></QueryClientProvider>);
+  return render(<QueryClientProvider client={qc}><MemoryRouter initialEntries={["/screener" + qs]}><Routes><Route path="/screener" element={<><ScreenerPro /><Where /></>} /><Route path="/login" element={<Where />} /></Routes></MemoryRouter></QueryClientProvider>);
 };
 const table = () => document.querySelector(".ssw-t") as HTMLElement;
 const heads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th button")).map((b) => (b.getAttribute("aria-label") || b.textContent || "").replace(/^Sort by /, "").replace(/\s*[▲▼▾]$/, "").trim());
@@ -69,6 +69,7 @@ const addRule = async (label: string) => {
 };
 
 beforeEach(() => {
+  admin.user = null;
   st.cat = catalog(); st.bodies = []; st.many = 0; st.total = 0; st.funnel = undefined; localStorage.clear(); ui.upgrade.mockClear(); ui.toast.mockClear();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
@@ -150,6 +151,34 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     expect(screen.getByText(/started from My ROE/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete My ROE" }));                // still open: the visitor opened the card themselves
     expect(screen.queryByText("My ROE")).toBeNull();
+  });
+});
+
+describe("Tell me when a company joins (file 04 §9)", () => {
+  it("a visitor is asked to sign in first and comes back to the same screen", async () => {
+    mount("?s=" + encodeState(norm({ ranges: { roe: { min: 40 } } }), "market_cap", "desc")); await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Tell me when a company joins" }));
+    expect(ui.toast).toHaveBeenCalledWith(expect.stringMatching(/Sign in/));
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toMatch(/^\/login\?next=%2Fscreener%3Fs%3D/));
+  });
+  it("a member saves the screen with messages on; My screens shows it and turns them off; Save screen alone stays quiet", async () => {
+    admin.user = { id: "u1" };
+    mount(); await ready();
+    await addRule("Return on equity");
+    fireEvent.click(screen.getByRole("button", { name: "Tell me when a company joins" }));
+    expect(screen.getByRole("group", { name: "Tell me when a company joins" }).textContent).toMatch(/joined or left/);
+    fireEvent.change(screen.getByLabelText("Screen name"), { target: { value: "Told" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and tell me" }));
+    fireEvent.click(screen.getByRole("button", { name: /Save screen/ }));
+    fireEvent.change(screen.getByLabelText("Screen name"), { target: { value: "Quiet" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const kept = JSON.parse(localStorage.getItem("finlit-saved-screens") || "[]") as { name: string; notify?: boolean }[];
+    expect(kept.find((x) => x.name === "Told")!.notify).toBe(true); expect(kept.find((x) => x.name === "Quiet")!.notify).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Show ready-made screens" }));
+    fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
+    const on = screen.getByRole("button", { name: "Messages for Told: on" });
+    fireEvent.click(on);
+    expect(screen.getByRole("button", { name: "Messages for Told: off" }).getAttribute("aria-pressed")).toBe("false");
   });
 });
 

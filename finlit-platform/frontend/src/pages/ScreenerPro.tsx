@@ -74,7 +74,7 @@ function Fold({ id, title, summary, open, setOpen, children }: { id: string; tit
 }
 
 export function ScreenerPro() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   useDocTitle("Stock screener", "Filter every listed Indian company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.");
   const { upgrade, toast, plan: uiPlan } = useUI();
   const nav = useNavigate();
@@ -89,7 +89,7 @@ export function ScreenerPro() {
   const [order, setOrder] = useState<string[]>([]);          // the rule cards, in the order they were added (task #75: any number at once)
   const [hot, setHot] = useState<string | null>(null);
   const [picker, setPicker] = useState(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
-  const [saveOpen, setSaveOpen] = useState(false), [saveName, setSaveName] = useState("");
+  const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
   const [rulesOpen, setRulesOpen] = useState(() => !narrow());
@@ -172,10 +172,18 @@ export function ScreenerPro() {
     setFrom(s.label); setPg({ k: "", p: 0 }); toast(`${s.label}: ${s.group === "model" && s.id !== "strong" ? "runs on the FinLit model; add your own rules to narrow it." : "its rules are under Your rules. Change any of them."}`);
   };
   const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
+  // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox and e-mail)
+  // naming the companies that joined or left it (file 04 §9). Messages need an account, so a visitor is asked to sign in first.
   const save = () => {
     const n = saveName.trim(); if (!n || !nActive) { toast("Add a rule and a name first."); return; }
     const max = limitsFor(uiPlan).screens; if (saved.length >= max && !saved.some((s) => s.name === n)) { toast(`Your plan keeps up to ${max} screens. Delete one under My screens first.`); return; }
-    screens.save(n, { ...f, sort: sort.key, dir: sort.dir, cols: cols ?? undefined } as never, max); setSaveName(""); setSaveOpen(false); toast(`Saved “${n}”. It is under Ready-made screens, My screens.`);
+    const tell = saveOpen === "tell";
+    screens.save(n, { ...f, sort: sort.key, dir: sort.dir, cols: cols ?? undefined } as never, max, tell); setSaveName(""); setSaveOpen(null);
+    toast(tell ? `Saved “${n}”. After each close we send you a message naming the companies that join or leave it.` : `Saved “${n}”. It is under Ready-made screens, My screens.`);
+  };
+  const openSave = (mode: "save" | "tell") => {
+    if (mode === "tell" && !user) { toast("Sign in to get a message when a company joins your screen."); nav(`/login?next=${encodeURIComponent("/screener" + (params.get("s") ? `?s=${params.get("s")}` : ""))}`); return; }
+    setSaveName((x) => x || from || ""); setSaveOpen(saveOpen === mode ? null : mode);
   };
   const exportCsv = async () => {
     if (!data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
@@ -242,7 +250,8 @@ export function ScreenerPro() {
           <FindStocksTabs bare />
         </section>
 
-        <ReadyScreens plan={plan} folded={nActive > 0} started={from} onPick={pickReady} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask} />
+        <ReadyScreens plan={plan} folded={nActive > 0} started={from} onPick={pickReady} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
+          onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
         <button type="button" className="btn ssw-rtoggle" aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
           Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
@@ -294,8 +303,12 @@ export function ScreenerPro() {
             <div className="ssw-rhd">
               <div className="ssw-ttl"><h2 aria-live="polite"><b>{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> {total === 1 ? "company" : "companies"}</h2><p className="ssw-sub">{sub}</p></div>
               <div className="ssw-acts">
-                <span className="ssw-pop"><button type="button" className="btn" aria-expanded={saveOpen} onClick={() => setSaveOpen(!saveOpen)} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="star" />Save screen</button>
-                  {saveOpen && <span className="ssw-popb" role="group" aria-label="Save screen"><input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(false); }} /><button type="button" className="btn primary" onClick={save}>Save</button></span>}</span>
+                <span className="ssw-pop"><button type="button" className="btn" aria-expanded={saveOpen === "save"} onClick={() => openSave("save")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="star" />Save screen</button>
+                  <button type="button" className="btn" aria-expanded={saveOpen === "tell"} onClick={() => openSave("tell")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="bell" />Tell me when a company joins</button>
+                  {saveOpen && <span className="ssw-popb" role="group" aria-label={saveOpen === "tell" ? "Tell me when a company joins" : "Save screen"}>
+                    {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox and by e-mail naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
+                    <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(null); }} />
+                    <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
                 <button type="button" className="btn" onClick={exportCsv}><Icon name="download" />Download</button>
               </div>
             </div>
