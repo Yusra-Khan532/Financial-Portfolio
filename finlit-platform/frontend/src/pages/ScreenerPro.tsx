@@ -294,7 +294,11 @@ export function ScreenerPro() {
                   <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
                   {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
                 </form>
-                <button type="button" className="lnk ssw-ratio" onClick={openRatio}>{ratios.length ? `Custom ratios (${ratios.length})` : "Build a custom ratio from two figures"}</button>
+                <div className="ssw-rl" role="group" aria-label="Custom ratio">
+                  <b>Custom ratio</b>
+                  <small>Divide any one figure by another and filter on the result.</small>
+                  <button type="button" className="btn primary ssw-rb" onClick={openRatio} aria-expanded={ratioOpen}><Icon name="percent" />{ratios.length ? `Custom ratios (${ratios.length})` : ratioOpen ? "Go to the Custom Ratio Screener" : "Open the Custom Ratio Screener"}</button>
+                </div>
               </div>
             </>}
           </aside>
