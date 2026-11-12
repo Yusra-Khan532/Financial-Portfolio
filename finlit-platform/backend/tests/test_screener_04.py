@@ -76,6 +76,7 @@ async def test_catalog_lists_nse_sectors_and_the_standard_columns_each_plan_may_
     assert (await silver.get("/api/screener/catalog")).json()["standardColumns"] == [k for k in STANDARD_COLUMNS if k != "overall"]
     m = next(x for g in cat["groups"] for x in g["metrics"] if x["key"] == "market_cap")
     assert {"p25", "p75", "p5", "p95", "scale", "hist30"} <= set(m["stats"]) and len(m["stats"]["hist30"]) == 30
+    assert {x["key"]: x["n"] for x in cat["bands"]} == {"strong": 4, "healthy": 0, "mixed": 21, "watch": 0}   # how many companies carry each rating word
     gold = await signed_in(app, "g04@example.com", plan="gold")
     assert (await gold.get("/api/screener/catalog")).json()["standardColumns"] == STANDARD_COLUMNS
 

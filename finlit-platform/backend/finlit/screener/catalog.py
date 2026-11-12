@@ -22,10 +22,10 @@ class Metric(NamedTuple):
 
 
 GROUPS = [
-    ("size", "Size & Price"), ("returns", "Returns"), ("valuation", "Valuation"), ("profitability", "Profitability"), ("growth", "Growth"),
-    ("quarterly", "Quarterly Results"), ("health", "Financial Health"), ("liquidity", "Liquidity"), ("solvency", "Solvency"), ("efficiency", "Efficiency"),
-    ("ownership", "Ownership"), ("events", "Company Events"), ("flags", "Red Flags"), ("banks", "Banks & Lenders"), ("trading", "Volume, Range & Trend"),
-    ("model", "FinLit Model"),
+    ("size", "Size & price"), ("returns", "Returns"), ("valuation", "Valuation"), ("profitability", "Profitability"), ("growth", "Growth"),
+    ("quarterly", "Quarterly results"), ("health", "Financial health"), ("liquidity", "Liquidity"), ("solvency", "Solvency"), ("efficiency", "Efficiency"),
+    ("ownership", "Ownership"), ("events", "Company events"), ("flags", "Red flags"), ("banks", "Banks & lenders"), ("trading", "Volume, range & trend"),
+    ("model", "FinLit model"),
 ]
 GROUP_LABEL = dict(GROUPS)
 GROUP_TIER = {"model": "gold"}
@@ -52,14 +52,14 @@ CATALOG: List[Metric] = [
     M("ret_5y", "5-year return", "returns", "%", "higher", "silver", "Price change over five years.", 1),
     M("ret_1y_total", "1-year total return", "returns", "%", "higher", "silver", "Price change plus dividends received over a year.", 1),
     # ---- Valuation
-    M("pe", "P/E Ratio", "valuation", "x", "lower", _B, "Rupees you pay for each rupee of yearly profit.", 1),
-    M("pb", "P/B Ratio", "valuation", "x", "lower", "silver", "Price compared with what the books say the company owns.", 2),
+    M("pe", "P/E", "valuation", "x", "lower", _B, "Rupees you pay for each rupee of yearly profit.", 1),
+    M("pb", "P/B", "valuation", "x", "lower", "silver", "Price compared with what the books say the company owns.", 2),
     M("ev_ebitda", "EV / EBITDA", "valuation", "x", "lower", "silver", "Enterprise value for each rupee of operating earnings.", 1),
-    M("dividend_yield", "Dividend Yield", "valuation", "%", "higher", _B, "Yearly cash dividend for every ₹100 invested.", 2),
-    M("peg", "PEG Ratio", "valuation", "x", "lower", "silver", "P/E divided by yearly profit growth. Under 1 can mean growth is cheap.", 2),
-    M("earnings_yield", "Earnings Yield", "valuation", "%", "higher", "silver", "Yearly profit for every ₹100 of market value (the inverse of P/E).", 1),
-    M("graham_value", "Graham Fair Value", "valuation", "Rs", "none", "silver", "Benjamin Graham's rule of thumb: the square root of 22.5 × earnings per share × book value per share.", 0),
-    M("graham_upside", "Upside to Graham Value", "valuation", "%", "higher", "silver", "How far the share price is below (+) or above (−) the Graham fair value.", 0),
+    M("dividend_yield", "Dividend yield", "valuation", "%", "higher", _B, "Yearly cash dividend for every ₹100 invested.", 2),
+    M("peg", "PEG", "valuation", "x", "lower", "silver", "P/E divided by yearly profit growth. Under 1 can mean growth is cheap.", 2),
+    M("earnings_yield", "Earnings yield", "valuation", "%", "higher", "silver", "Yearly profit for every ₹100 of market value (the inverse of P/E).", 1),
+    M("graham_value", "Graham value", "valuation", "Rs", "none", "silver", "Benjamin Graham's rule of thumb: the square root of 22.5 × earnings per share × book value per share.", 0),
+    M("graham_upside", "Gap to Graham value", "valuation", "%", "higher", "silver", "How far the share price is below (+) or above (−) the Graham fair value.", 0),
     M("ev_cfo", "EV / CFO", "valuation", "x", "lower", "silver", "Enterprise value for each rupee of operating cash flow.", 1),
     M("ev_sales", "EV / Sales", "valuation", "x", "lower", "silver", "Enterprise value for each rupee of sales.", 2),
     M("ps", "Price / Sales", "valuation", "x", "lower", "silver", "Rupees you pay for each rupee of yearly sales.", 2),

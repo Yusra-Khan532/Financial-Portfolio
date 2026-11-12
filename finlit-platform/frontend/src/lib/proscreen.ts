@@ -5,18 +5,22 @@ import { MINUS, cr, nf } from "./format";
 import type { Plan } from "./ui";
 
 export type MetricInfo = { key: string; label: string; unit: string; better: "higher" | "lower" | "none"; tier: Plan; say: string; digits: number; locked: boolean;
-  stats: { min: number; p10: number; p50: number; p90: number; max: number; n: number; lo?: number; hi?: number; hist?: number[] } | null;
+  stats: { min: number; p10: number; p50: number; p90: number; max: number; n: number; lo?: number; hi?: number; hist?: number[];
+    // the Stock screener's rule cards (task #64, file 04): quartiles, and 30 bars from the 5th to the 95th percentile, on a log scale for long-tailed figures
+    p5?: number; p25?: number; p75?: number; p95?: number; scale?: "log" | "linear"; hist30?: number[] } | null;
   hidden?: boolean; variants?: Record<string, string> | null };
 export type GroupInfo = { id: string; label: string; tier: Plan; metrics: MetricInfo[] };
 export type Catalog = {
   plan: Plan; total: number; withReport: number; updatedAt: string; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; n: number }[];
-  indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean }[];
+  indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
+  standardColumns?: string[];   // the Stock screener's nine standard columns, only those the visitor's plan shows (file 04)
 };
 export type Range = { min?: number; max?: number };
 export type PState = {
   ranges: Record<string, Range>; sectors: string[]; industries: string[]; indices: string[]; caps: string[]; bands: string[];
   sort?: string; dir?: "asc" | "desc"; cols?: string[];
+  model?: string;   // a ready-made screen on the FinLit model, by id: the server applies its cut-offs, the page never sees them
 };
 export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] };
 export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
@@ -24,7 +28,7 @@ export type FunnelStep = { key: string; before: number; after: number; missing: 
 export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[] };
 
 export const norm = (s: Partial<PState> | undefined): PState => ({ ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } });
-export const activeCount = (s: PState) => Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
+export const activeCount = (s: PState) => (s.model ? 1 : 0) + Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
   + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
 /** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
@@ -47,6 +51,7 @@ export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, co
   ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
   cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
+  ...(s.model ? { model_screen: s.model } : {}),
 });
 
 /** Shareable link: the whole screen packed into one `s=` parameter. */
@@ -54,6 +59,7 @@ export const encodeState = (s: PState, sort: string, dir: string): string => {
   const o: Record<string, unknown> = {};
   if (Object.keys(s.ranges).length) o.r = s.ranges;
   (["sectors", "industries", "indices", "caps", "bands"] as const).forEach((k) => s[k].length && (o[k[0] + (k === "industries" ? "n" : k === "indices" ? "x" : "")] = s[k]));
+  if (s.model) o.m = s.model;
   if (sort !== "market_cap" || dir !== "desc") o.o = [sort, dir];
   return Object.keys(o).length ? btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : "";
 };
@@ -64,9 +70,16 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
     const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 60) : []);
     const ranges: Record<string, Range> = {};
     for (const [k, v] of Object.entries((o.r || {}) as Record<string, Range>)) if (/^[a-z0-9_]{2,40}$/.test(k) && v && typeof v === "object") ranges[k] = { min: typeof v.min === "number" ? v.min : undefined, max: typeof v.max === "number" ? v.max : undefined };
-    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
+    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { model: o.m } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
   } catch { return { state: EMPTY }; }
 };
+
+/** One ready-made screen of the Stock screener (task #64, file 04), as the server sends it: a metric screen's rules come in `state`; a screen on the FinLit model has none. */
+export type ReadyScreen = { id: string; label: string; says: string; tier: Plan; group: "everyday" | "silver" | "model"; count: number | null; state?: Partial<PState> };
+export const useReady = () => useQuery<{ asOf: string; total: number; screens: ReadyScreen[] }, ApiError>({ queryKey: ["screener-ready"], queryFn: () => apiGet("/api/screener/ready"), staleTime: 300_000, retry: 1 });
+/** The nine standard columns (file 04) the visitor's plan shows, else the older default set. */
+export const standardColumns = (cat: Pick<Catalog, "defaultColumns" | "groups" | "standardColumns"> | undefined): string[] =>
+  !cat ? [] : cat.standardColumns?.length ? defaultColumns({ ...cat, defaultColumns: cat.standardColumns }) : defaultColumns(cat);
 
 export const useCatalog = () => useQuery<Catalog, ApiError>({ queryKey: ["screener-catalog"], queryFn: () => apiGet<Catalog>("/api/screener/catalog"), staleTime: 300_000, retry: 1 });
 export const useScreen = (body: ReturnType<typeof toBody>, enabled: boolean) => useQuery<Result, ApiError>({
@@ -176,8 +189,8 @@ export function colourColumns(columns: string[], defaults: string[], byKey: Map<
 
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
 /** What green and red mean for the columns on screen, in plain words: which direction is better for each (task #73). Names only the columns that are coloured. */
-export function colourNote(cols: { label: string; better: "higher" | "lower" | "none" }[]): string {
+export function colourNote(cols: { label: string; better: "higher" | "lower" | "none" }[], scope: "shown" | "all" = "shown"): string {
   const lower = cols.filter((m) => m.better === "lower").map((m) => m.label), higher = cols.filter((m) => m.better === "higher").map((m) => m.label);
   const better = [lower.length ? `Lower is better for ${list(lower)}` : "", higher.length ? `higher is better for ${list(higher)}` : ""].filter(Boolean).join("; ");
-  return `Green cells are in the best quarter of the results shown for that column and red cells in the weakest quarter. ${better.charAt(0).toUpperCase() + better.slice(1)}. Hover a column name for what it means.`;
+  return `Green cells are in the best quarter of ${scope === "all" ? "all listed companies on" : "the results shown for"} that column and red cells in the weakest quarter. ${better.charAt(0).toUpperCase() + better.slice(1)}. Hover a column name for what it means.`;
 }
