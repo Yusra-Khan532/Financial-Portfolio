@@ -195,3 +195,23 @@ async def test_the_status_page_and_the_job_count_the_same_companies(store):
         assert "BHC1|consolidated" in await scorelive.behind_members(store, 500)
     finally:
         await _clean(store, "BHC1")
+
+
+@pytest.mark.asyncio
+async def test_a_rating_waiting_for_the_providers_quarter_is_counted_apart_never_as_late(store):
+    from finlit.jobs.freshness import judge_score_lag
+    await _clean(store, "BHW1", "BHW2")
+    try:
+        await _rate_behind(store, "BHW1", "2026-06-30", "20260930", hours_old=50)
+        await _rate_behind(store, "BHW2", "2026-06-30", "20260930", hours_old=50)
+        await store.redis.set("prism:pre:fail:consolidated:BHW2", "quarter-not-available", ex=600)     # its own source has no figures for the new quarter yet
+        f = await scorelive.facts(store)
+        assert f["prism_waiting_provider"] >= 1
+        members = await scorelive.behind_members(store, 500)
+        assert "BHW1|consolidated" in members and "BHW2|consolidated" not in members     # the job and the count agree: BHW2 is not asked again
+        now = datetime.now(timezone.utc)
+        ds = judge_score_lag({"prism_behind": 0, "prism_waiting_provider": 2, "queue": 0}, now, False)
+        assert ds.status == "fresh" and "2 more wait for the data provider" in ds.detail
+    finally:
+        await store.redis.delete("prism:pre:fail:consolidated:BHW2")
+        await _clean(store, "BHW1", "BHW2")
