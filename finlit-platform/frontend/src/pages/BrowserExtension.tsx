@@ -7,6 +7,17 @@ import "../styles/extension.css";
 
 const TERMS = ["EBITDA", "Return on equity", "Debt to equity", "Reliance Industries", "HDFC Bank"];
 
+/** What the extension does, in four short lines: fills the first box of the page beside the example card. */
+function WhatYouGet() {
+  const rows: [string, string, string][] = [
+    ["book", "Any term, in plain words", "Meaning, formula and why it matters, for 450 terms."],
+    ["bars", "A company's score at a glance", "Prism score (Gold), market value, PE, ROE, Debt/Equity."],
+    ["search", "One click, any page", "Green button by your selection, right-click, or Alt+Shift+F."],
+    ["lock", "Only what you select", "It never reads the rest of the page."],
+  ];
+  return <ul className="ext-gets" aria-label="What the extension does">{rows.map(([i, t, d]) => <li key={t}><span className="ext-gi" aria-hidden="true"><Icon name={i} /></span><span><b>{t}</b>{d}</span></li>)}</ul>;
+}
+
 /** What the card looks like, with example figures (it is a picture of the extension, not live data). */
 function Preview() {
   return (
@@ -64,18 +75,21 @@ export function BrowserExtensionPage() {
                 <span className="ext-badge ok"><Icon name="check" /> Installed · version {installed}</span>
                 <h2 id="ext-get">You're all set</h2>
                 <p>Select a word or a company name below, or on any page you read, then press the small green FinLit button that appears beside your selection. You can also right-click and choose <b>Look up on FinLit</b>, or press <b>Alt+Shift+F</b>.</p>
+                <WhatYouGet />
               </>
             ) : !can ? (
               <>
                 <span className="ext-badge">Chrome, Edge, Brave and other Chromium browsers</span>
                 <h2 id="ext-get">Open this page in Chrome or Edge on a computer</h2>
                 <p>The FinLit extension runs in desktop Chromium browsers. Phones and Firefox or Safari cannot install it yet.</p>
+                <WhatYouGet />
               </>
             ) : (
               <>
                 <span className="ext-badge">{store ? "Free · one click" : "Free · store listing coming soon"}</span>
                 <h2 id="ext-get">Add FinLit to your browser</h2>
                 <p>Understand any term and see any company's FinLit Prism score wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
+                <WhatYouGet />
                 <div className="ext-btns">{Get}</div>
                 {store && <p className="ext-fine">Prefer a file? <a href={EXTENSION.zipUrl} download>Download the ZIP</a>.</p>}
               </>
