@@ -9,6 +9,7 @@ const st = vi.hoisted(() => ({ saved: [] as { name: string; text: string; type: 
 vi.mock("./derive", () => ({ saveFile: (name: string, text: string, type: string) => st.saved.push({ name, text, type }) }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useSection: () => ({ data: st.fin }) }));
+import { roeVerdict } from "../lib/dupontDeep";
 import { DecodeRoe } from "./DecodeRoe";
 import { DuPont } from "./DuPont";
 
@@ -173,5 +174,23 @@ describe("compliance wording on screen", () => {
       const sr = [...document.querySelectorAll("[aria-label],[title]")].map((e) => (e.getAttribute("aria-label") || "") + (e.getAttribute("title") || "")).join(" "); expect(sr).not.toMatch(BAD);
       cleanup();
     }
+  });
+});
+
+describe("ROE quality score verdict (task #96)", () => {
+  it("is green from 70, orange from 50 to 69 and red under 50, with a word and a mark that do not rely on colour", () => {
+    expect([49.9, 50, 69.9, 70, 100, 0].map((v) => roeVerdict(v).band)).toEqual(["lo", "mid", "mid", "hi", "hi", "lo"]);
+    expect(roeVerdict(78)).toMatchObject({ colour: "Green", word: "Clean and steady", range: "70 or more", mark: "✓" });
+    expect(roeVerdict(55)).toMatchObject({ colour: "Orange", word: "Mixed", range: "50 to 69", mark: "!" });
+    expect(roeVerdict(30)).toMatchObject({ colour: "Red", word: "Uneven", range: "under 50", mark: "✕" });
+  });
+  it("the card carries the verdict: its band, a verdict line with the word and the range, and a 0 to 100 gauge", () => {
+    show();
+    const card = document.querySelector(".dp-qs") as HTMLElement;
+    expect(card).toBeTruthy();
+    expect(["hi", "mid", "lo"]).toContain(card.getAttribute("data-band"));
+    expect(within(card).getByRole("status").textContent).toMatch(/(Green: Clean and steady|Orange: Mixed|Red: Uneven)/);
+    expect(within(card).getByRole("img", { name: /on a scale of 0 to 100/ })).toBeTruthy();
+    expect(card.textContent).toContain("/ 100");
   });
 });

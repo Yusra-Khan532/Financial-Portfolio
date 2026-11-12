@@ -98,3 +98,16 @@
 .dp-verdict .dp-vw i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
 .dp-verdict.hi { color: var(--band-hi-ink, var(--gain)); } .dp-verdict.mid { color: var(--band-mid-ink, #c27a12); } .dp-verdict.lo { color: var(--band-lo-ink, var(--loss)); }
 .dp-verdict.hi .dp-vw { background: color-mix(in srgb, var(--band-hi, var(--gain)) 14%, transparent); } .dp-verdict.mid .dp-vw { background: color-mix(in srgb, var(--band-mid, #e0a21a) 16%, transparent); } .dp-verdict.lo .dp-vw { background: color-mix(in srgb, var(--band-lo, var(--loss)) 14%, transparent); }
+
+/* The ROE quality score, task #96 (second pass): the whole card carries the verdict, in the site's one colour rule: green 70 or more, orange 50 to 69, red under 50 */
+.dp-qs { border-left-width: 6px; } .dp-qs.hi { border-color: var(--band-hi); background: color-mix(in srgb, var(--band-hi) 9%, var(--s1)); } .dp-qs.mid { border-color: var(--band-mid); background: color-mix(in srgb, var(--band-mid) 11%, var(--s1)); } .dp-qs.lo { border-color: var(--band-lo); background: color-mix(in srgb, var(--band-lo) 9%, var(--s1)); }
+.dp-qs .dp-qn { font: 700 var(--fs-32) var(--serif); line-height: 1.1; } .dp-qs .dp-of { font: 500 var(--fs-16) var(--sans); color: var(--muted); }
+.dp-qs.hi .dp-qn { color: var(--band-hi-ink); } .dp-qs.mid .dp-qn { color: var(--band-mid-ink); } .dp-qs.lo .dp-qn { color: var(--band-lo-ink); }
+.dp-qv { margin: 2px 0 6px; display: flex; align-items: center; gap: 10px; } .dp-qv b { display: block; font: 700 var(--fs-16) var(--sans); } .dp-qv small { display: block; }
+.dp-qm { flex: none; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 700 var(--fs-14) var(--sans); color: #fff; }
+.dp-qs.hi .dp-qm { background: var(--band-hi); color: var(--on-band-hi, #fff); } .dp-qs.mid .dp-qm { background: var(--band-mid); color: var(--on-band-mid, #1a1405); } .dp-qs.lo .dp-qm { background: var(--band-lo); color: var(--on-band-lo, #fff); }
+.dp-qs.hi .dp-qv b { color: var(--band-hi-ink); } .dp-qs.mid .dp-qv b { color: var(--band-mid-ink); } .dp-qs.lo .dp-qv b { color: var(--band-lo-ink); }
+.dp-gauge { position: relative; height: 10px; border-radius: 999px; display: flex; overflow: visible; margin: 6px 0 22px; }
+.dp-gz { height: 100%; } .dp-gz.lo { width: 50%; background: var(--band-lo); border-radius: 999px 0 0 999px; opacity: .55; } .dp-gz.mid { width: 20%; background: var(--band-mid); opacity: .55; } .dp-gz.hi { width: 30%; background: var(--band-hi); border-radius: 0 999px 999px 0; opacity: .55; }
+.dp-gp { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--s1); }
+.dp-gauge em { position: absolute; top: 14px; transform: translateX(-50%); font: 500 var(--fs-11) var(--mono); font-style: normal; color: var(--muted); }
