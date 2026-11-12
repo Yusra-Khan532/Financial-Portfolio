@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router";
 import { ExploreTools } from "./ExploreTools";
 import { BUCKETS, SHORT } from "../lib/platformTools";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.style.overflow = ""; });
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 
 describe("platform data", () => {
@@ -25,23 +25,62 @@ describe("platform data", () => {
 });
 
 describe("<ExploreTools />", () => {
-  it("starts closed, and the button opens it and closes it again", () => {
+  it("starts with the directory shown; the button hides it and brings it back", () => {
     view();
-    const go = screen.getByRole("button", { name: /explore the platform/i });
-    expect(go.getAttribute("aria-expanded")).toBe("false");
-    expect(document.getElementById(go.getAttribute("aria-controls")!)?.hasAttribute("hidden")).toBe(true);
+    expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /hide the platform tools/i }));
+    expect(screen.queryByRole("list", { name: /six groups and their tools/i })).toBeNull();
+    const go = screen.getByRole("button", { name: /explore the platform/i }); expect(go.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(go);
-    expect(screen.getByRole("button", { name: /hide the platform tools/i }).getAttribute("aria-expanded")).toBe("true");
-    expect(document.getElementById(go.getAttribute("aria-controls")!)?.hasAttribute("hidden")).toBe(false);
+    expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
   });
-  it("shows the Discover tools first and switches group from a tab or the arrow keys", () => {
-    view(); fireEvent.click(screen.getByRole("button", { name: /explore the platform/i }));
-    const tabs = screen.getAllByRole("tab"); expect(tabs).toHaveLength(6);
-    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
-    const first = screen.getByRole("tabpanel"); expect(within(first).getAllByRole("heading", { level: 4 })).toHaveLength(7);
-    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
-    expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
-    expect(within(screen.getByRole("tabpanel")).getAllByRole("heading", { level: 4 })).toHaveLength(5);
+  it("a group button replaces the directory in the same place with that group's cards, a bar of six chips and a bottom bar", () => {
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
+    expect(screen.queryByRole("list", { name: /six groups and their tools/i })).toBeNull();
+    const bar = screen.getByRole("group", { name: /tool groups/i });
+    const chips = within(bar).getAllByRole("button").filter((b) => b.classList.contains("fl-gchip"));
+    expect(chips).toHaveLength(6); expect(chips[0].getAttribute("aria-pressed")).toBe("true"); expect(chips[1].getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(7);
+    expect(location.hash).toBe("#tools-discover");
+    fireEvent.click(chips[1]);
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5); expect(location.hash).toBe("#tools-company-360");
+    const foot = screen.getByRole("navigation", { name: /between groups/i });
+    expect(within(foot).getByText("Previous group").parentElement!.textContent).toMatch(/Discover/); expect(within(foot).getByText("Next group").parentElement!.textContent).toMatch(/Quant Lab/);
+    fireEvent.click(within(foot).getByRole("button", { name: /All six groups/ }));
+    expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
+  });
+  it("Next from Learn & connect goes to Discover and Previous from Discover goes to Learn & connect", () => {
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 3 Learn & connect cards/ }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: /between groups/i })).getByRole("button", { name: /Next group/ }));
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(7);
+    fireEvent.click(within(screen.getByRole("navigation", { name: /between groups/i })).getByRole("button", { name: /Previous group/ }));
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(3); expect(screen.getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
+  });
+  it("the address opens the group, so a shared link or Back works", () => {
+    history.replaceState(null, "", "#tools-quant-lab"); view();
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(4);
+    history.replaceState(null, "", "#");
+  });
+  it("Expand opens a real dialog with the tool, runs through all 29 tools, locks the page scroll and closes with Esc", () => {
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
+    fireEvent.click(document.querySelector('[data-exp="stock-screener"]')!);
+    const dlg = screen.getByRole("dialog"); expect(dlg.getAttribute("aria-modal")).toBe("true");
+    expect(dlg.textContent).toMatch(/DISCOVER · 1 OF 7/); expect(within(dlg).getByRole("heading", { name: "Stock Screener" })).toBeTruthy();
+    expect(dlg.querySelector("img")!.getAttribute("src")).toMatch(/landing\/expanded\/stock-screener\.webp$/);
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.click(within(dlg).getByRole("button", { name: /Next: Basic Stock Screener/ }));
+    expect(screen.getByRole("dialog").textContent).toMatch(/DISCOVER · 2 OF 7/);
+    for (let i = 0; i < 6; i++) fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^Next:/ }));
+    expect(screen.getByRole("dialog").textContent).toMatch(/COMPANY 360 · 1 OF 5/);   // moving into another group's tool switches the group view behind it
+    expect(location.hash).toBe("#tools-company-360");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull(); expect(document.body.style.overflow).not.toBe("hidden");
+  });
+  it("a tool with no tall picture uses its card picture in the large view", () => {
+    history.replaceState(null, "", "#tools-company-360"); view();
+    fireEvent.click(document.querySelector('[data-exp="chart-builder"]')!);
+    expect(screen.getByRole("dialog").querySelector("img")!.getAttribute("src")).toMatch(/landing\/tools\/chart-builder/);
+    history.replaceState(null, "", "#");
   });
   it("the directory has one row per group naming every tool in a few words, each linking to its page", () => {
     view();
@@ -54,13 +93,8 @@ describe("<ExploreTools />", () => {
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
-  it("a group name opens the section on that group", () => {
-    view(); fireEvent.click(screen.getByRole("button", { name: /See the 3 Learn & connect cards/ }));
-    expect(screen.getAllByRole("tab")[5].getAttribute("aria-selected")).toBe("true");
-    expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
-  });
   it("cards link to their pages and show the plan badge", () => {
-    view(); fireEvent.click(screen.getByRole("button", { name: /explore the platform/i }));
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
     expect(screen.getByRole("link", { name: /open stock screener/i }).getAttribute("href")).toBe("/screener");
     expect(screen.getByRole("link", { name: /open advanced stock screener/i }).getAttribute("href")).toBe("/advanced-score-screener");
   });
