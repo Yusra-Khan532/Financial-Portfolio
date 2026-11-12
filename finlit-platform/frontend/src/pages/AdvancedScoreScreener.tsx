@@ -10,6 +10,7 @@ import { AdvancedUpgrade } from "../components/screener/AdvancedUpgrade";
 import { useScreener } from "../components/screener/useScreener";
 import { PRICE_COL_COUNT, PriceCells, PriceColumnsToggle, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
 import { PresetPanel } from "../components/screener/presets/PresetPanel";
+import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
 import { useDocTitle } from "../lib/title";
@@ -53,10 +54,10 @@ function Advanced() {
   return (
     <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced stock screener" title="Every listed company, rated by FinLit Prism." sideLabel="Advanced stock screener filters" errorTitle="The advanced stock screener is unavailable right now"
       intro={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth & Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>}
-      head={{ art: "rating", links: ["/score-screener", "/screener", "/query-builder"], stats: [{ icon: "building", value: cover && cover.total > 0 ? nf(cover.total, 0) : null, label: "Companies" }, { icon: "layers", value: cover && cover.total > 0 ? nf(cover.rated + cover.provisional, 0) : null, label: "Rated by Prism" }] }}
+      head={{ art: "rating", links: [], stats: [{ icon: "building", value: cover && cover.total > 0 ? nf(cover.total, 0) : null, label: "Companies" }, { icon: "layers", value: cover && cover.total > 0 ? nf(cover.rated + cover.provisional, 0) : null, label: "Rated by Prism" }] }}
       tier="gold" sortChoices={[{ key: "prism_final", label: "Prism Fundamental score" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short-term technical" }, { key: "prism_lt_score", label: "Long-term technical" }]}
       donut={!isLoading && sum.found > 0 ? <Donut part={sum.nZ} total={sum.found} partLabel="Rated" restLabel="Not rated yet" title={`${nf(sum.found - sum.nZ, 0)} of ${nf(sum.found, 0)} companies in this result are not rated yet.`} note="More are added every night, largest first." /> : undefined}
-      presets={<PresetPanel route={route} basics={basics} basicsActive={!!prismPreset} />}
+      presets={<PresetPanel route={route} hideGroups basics={basics} basicsActive={!!prismPreset} />} screens={<ScreensStrip route={route} />}
       filters={<>
         <FilterGroup id="score" icon="bars" title={PRISM_TITLE} defaultOpen active={prismActive(s)} hint={PRISM_SUB}>
           <PrismScoreRows s={s} />

@@ -7,7 +7,7 @@ import { BANDS as TREND_EDGES, ratingWord, scoreBand as trendTone } from "./pris
 import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, isLabel, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
 
 export type Cap = "Large" | "Mid" | "Small";
-export type Band = "low" | "mid" | "high";
+export type Band = "low" | "mixed" | "healthy" | "high";   // Watch, Mixed, Healthy, Strong (an older link or saved screen may say "mid": Mixed and Healthy together)
 export type Pillar = "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance";
 /** `ret_3m`, `ret_6m` and `pct_from_high` feed the optional 52-week and return columns: read from the stored screener numbers, blank without enough price history. */
 export type Item = Row & { cap: Cap | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
@@ -41,22 +41,22 @@ export const BAND_KEYS: BandKey[] = ["f", "t", "o", "q", "g", "p", "b"];
 export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", ...PRISM_RANGE_KEYS];
 /** "dh": how far the price is down from its 52-week high, in percent (0 = at the high). Shared by both screeners, since it is about the price, not a model (task #60). */
 export const SHARED_RANGES: RangeKey[] = ["dh"];
-/** The three score bands. They follow the FinLit model: Strong 78 and above, Watch under 45; "mid" joins its Healthy (62+) and Mixed (45+) bands. */
-export const BANDS: Record<Band, { label: string; short: string; min: number; max: number }> = {
-  low: { label: "Under 45 (Watch)", short: "<45", min: 0, max: 44 },
-  mid: { label: "45 to 77 (Mixed, Healthy)", short: "45–77", min: 45, max: 77 },
-  high: { label: "78 and above (Strong)", short: "78+", min: 78, max: 100 },
+/** The four score bands, as the FinLit model and the whole site name them: Watch under 45, Mixed 45 to 61, Healthy 62 to 77, Strong 78 and above. */
+export const BANDS: Record<Band, { label: string; short: string; word: string; min: number; max: number }> = {
+  low: { label: "Under 45 (Watch)", short: "<45", word: "Watch", min: 0, max: 44 },
+  mixed: { label: "45 to 61 (Mixed)", short: "45–61", word: "Mixed", min: 45, max: 61 },
+  healthy: { label: "62 to 77 (Healthy)", short: "62–77", word: "Healthy", min: 62, max: 77 },
+  high: { label: "78 and above (Strong)", short: "78+", word: "Strong", min: 78, max: 100 },
 };
-export const BAND_ORDER: Band[] = ["low", "mid", "high"];
+export const BAND_ORDER: Band[] = ["low", "mixed", "healthy", "high"];
 
-/** The six rating chips of the Basic screener, on the overall FinLit IQ. The edges are the FinLit IQ model's own (Strong 78, Healthy 62, the "Mixed" 45 band shown here as
- *  Average), with its "Watch" band (under 45) split in two at 35, the edge the site's rating words use everywhere. Every edge is half-open, so no score falls between two chips.
- *  "Not rated" is a company with no FinLit IQ; it never passes a score range. */
-export type IqLabel = "strong" | "healthy" | "average" | "weak" | "poor" | "notrated";
-export const IQ_LABELS: IqLabel[] = ["strong", "healthy", "average", "weak", "poor", "notrated"];
-export const IQ_LABEL_WORD: Record<IqLabel, string> = { strong: "Strong", healthy: "Healthy", average: "Average", weak: "Weak", poor: "Poor", notrated: "Not rated" };
-export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "FinLit IQ 78 and above", healthy: "FinLit IQ 62 up to 78", average: "FinLit IQ 45 up to 62", weak: "FinLit IQ 35 up to 45", poor: "FinLit IQ under 35", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
-export const iqLabelOf = (v: number | null | undefined): IqLabel => (v == null || !Number.isFinite(v) ? "notrated" : v >= 78 ? "strong" : v >= 62 ? "healthy" : v >= 45 ? "average" : v >= 35 ? "weak" : "poor");
+/** The rating chips of the Basic screener, on the overall FinLit IQ, in the four bands the whole site uses: Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45. Every edge is half-open, so no score falls
+ *  between two chips. "Not rated" is a company with no FinLit IQ; it never passes a score range. An older link may say average, weak or poor: they read as Mixed and Watch. */
+export type IqLabel = "strong" | "healthy" | "mixed" | "watch" | "notrated";
+export const IQ_LABELS: IqLabel[] = ["strong", "healthy", "mixed", "watch", "notrated"];
+export const IQ_LABEL_WORD: Record<IqLabel, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", notrated: "Not rated" };
+export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "FinLit IQ 78 and above", healthy: "FinLit IQ 62 up to 78", mixed: "FinLit IQ 45 up to 62", watch: "FinLit IQ under 45", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
+export const iqLabelOf = (v: number | null | undefined): IqLabel => (v == null || !Number.isFinite(v) ? "notrated" : v >= 78 ? "strong" : v >= 62 ? "healthy" : v >= 45 ? "mixed" : "watch");
 export const FUNDAMENTAL = ["pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance"] as const;
 export const PILLARS: { k: "q" | "g" | "p" | "b"; col: Pillar; label: string; short: string; say: string }[] = [
   { k: "q", col: "pillar_quality", label: "Quality", short: "Quality", say: "Steady earnings, clean accounts, cash that matches profit." },
@@ -116,20 +116,20 @@ export const inBands = (v: number | null, bands: Band[]) => !bands.length || (v 
   const next = BAND_ORDER[BAND_ORDER.indexOf(b) + 1];
   return v >= BANDS[b].min && (next ? v < BANDS[next].min : v <= BANDS[b].max);
 }));
-/** The three band chips as a Min - Max range (the Advanced panel's pillar rows hold one range each): below 45, 45 up to below 78, 78 and above. Half-open, so no score falls between two chips.
+/** The four band chips as a Min - Max range (the Advanced panel's pillar rows hold one range each): below 45, 45 up to below 62, 62 up to below 78, 78 and above. Half-open, so no score falls between two chips.
  *  Chips next to each other join into one range (< 45 and 45 - 77 = below 78); a chip that is not next to the selection starts a new selection, since one range cannot skip a band. */
-const EDGE = [null, BANDS.mid.min, BANDS.high.min] as const;
+const EDGE = [null, BANDS.mixed.min, BANDS.healthy.min, BANDS.high.min] as const;
 export function bandsToRange(bands: Band[]): Range {
   const idx = BAND_ORDER.map((b, i) => (bands.includes(b) ? i : -1)).filter((i) => i >= 0);
   if (!idx.length) return { min: null, max: null };
   const lo = idx[0], hi = idx[idx.length - 1];
-  const min = lo === 0 ? null : (EDGE[lo] as number), max = hi === 2 ? null : (EDGE[hi + 1] as number);
+  const min = lo === 0 ? null : (EDGE[lo] as number), max = hi === BAND_ORDER.length - 1 ? null : (EDGE[hi + 1] as number);
   return max == null ? { min, max } : { min, max, maxExcl: true };
 }
 /** The chips that light up for a range: those whose joined range is exactly this one; a typed custom range lights none. */
 export function rangeToBands(r: Range): Band[] {
   if (r.min == null && r.max == null) return [];
-  for (let lo = 0; lo < 3; lo++) for (let hi = lo; hi < 3; hi++) {
+  for (let lo = 0; lo < BAND_ORDER.length; lo++) for (let hi = lo; hi < BAND_ORDER.length; hi++) {
     const bands = BAND_ORDER.slice(lo, hi + 1), w = bandsToRange(bands);
     if (w.min === r.min && w.max === r.max && !!w.maxExcl === !!r.maxExcl) return bands;
   }
@@ -229,7 +229,7 @@ export function chipsFor(f: Filters): Chip[] {
   const out: Chip[] = [];
   if (f.caps.length) out.push({ id: "caps", label: `Market cap: ${CAPS.filter((c) => f.caps.includes(c)).join(", ")}` });
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
-  BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].short).join(", ")}` }); });
+  BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].word).join(", ")}` }); });
   RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) out.push({ id: "range:" + k, label: `${NAMES[k]}: ${rangeText(r)}${k === "dh" ? "%" : ""}` }); });
   if (f.iqLabels.length) out.push({ id: "iqlabels", label: `FinLit IQ rating: ${IQ_LABELS.filter((l) => f.iqLabels.includes(l)).map((l) => IQ_LABEL_WORD[l]).join(", ")}` });
   if (f.labels.length) out.push({ id: "labels", label: `Prism rating: ${PRISM_LABELS.filter((l) => f.labels.includes(l)).map((l) => LABEL_WORD[l]).join(", ")}` });
@@ -318,8 +318,8 @@ const num = (s: string | null) => { if (s == null || s.trim() === "") return nul
 export const BAND_PARAM: Record<BandKey, string> = { f: "f", t: "t", o: "ovr", q: "qual", g: "g", p: "p", b: "b" };
 /** The address key of the FinLit IQ rating chips (the Prism ratings use ?pl=). */
 export const IQ_LABEL_PARAM = "iql";
-export const isBandList = (s: string | null) => !!s && s.split(",").every((x) => (BAND_ORDER as string[]).includes(x));
-const parseBands = (s: string | null): Band[] => BAND_ORDER.filter((b) => (s || "").split(",").includes(b));
+export const isBandList = (s: string | null) => !!s && s.split(",").every((x) => (BAND_ORDER as string[]).includes(x) || x === "mid");
+const parseBands = (s: string | null): Band[] => { const w = (s || "").split(",").flatMap((x) => (x === "mid" ? ["mixed", "healthy"] : [x])); return BAND_ORDER.filter((b) => w.includes(b)); };
 const parseTech = (s: string | null): TechBand[] => TECH_BAND_ORDER.filter((b) => (s || "").split(",").includes(b));
 /** Which page reads the address: the Basic stock screener (FinLit IQ only), the Advanced one (Prism only), or both (the pure logic and its tests). */
 export type Scope = "all" | "basic" | "advanced";
@@ -350,7 +350,7 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
     f.rated = p.get("rated") === "1";
     f.tech = { st: parseTech(p.get("st")), lt: parseTech(p.get("lt")) };
   }
-  if (finlit) f.iqLabels = (p.get(IQ_LABEL_PARAM) || "").split(",").filter((x): x is IqLabel => (IQ_LABELS as string[]).includes(x)).sort((a, b) => IQ_LABELS.indexOf(a) - IQ_LABELS.indexOf(b));
+  if (finlit) f.iqLabels = Array.from(new Set((p.get(IQ_LABEL_PARAM) || "").split(",").map((x) => (x === "average" ? "mixed" : x === "weak" || x === "poor" ? "watch" : x)))).filter((x): x is IqLabel => (IQ_LABELS as string[]).includes(x)).sort((a, b) => IQ_LABELS.indexOf(a) - IQ_LABELS.indexOf(b));
   if (finlit && Number(p.get("top")) === TOP_N) f.top = TOP_N;
   const key = SORT_KEYS.find((k) => k === p.get("sort") && !(scope === "basic" && PRISM_SORT.includes(k)) && !(scope === "advanced" && FINLIT_SORT.includes(k)));
   const sort: Sort = key ? { key, dir: p.get("dir") === "asc" ? 1 : p.get("dir") === "desc" ? -1 : firstDir(key) } : DEFAULT_SORT;
