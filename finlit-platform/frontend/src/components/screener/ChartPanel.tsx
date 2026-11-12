@@ -13,6 +13,16 @@ import "../../styles/chartpanel.css";
  *  (EMA 9/20/50/200, SMA 10/20/50, volume average, highest volume in 3 months, strength against NIFTY 500, events, the pattern), Compare, Measure and a reset.
  *  Drawn with TradingView Lightweight Charts 5.0.9 (Apache 2.0; the licence is in public/licenses). It sits beside the table, not over it: the list stays usable and Esc or × closes it. */
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y"] as const;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** The time axis: a tick that falls on a day of the month reads "3 Nov", not a bare "3" (years and months keep the chart's own labels). */
+const dayTick = (time: unknown, type: number): string | null => {
+  if (type !== 2) return null;
+  let m = 0, d = 0;
+  if (typeof time === "number") { const t = new Date(time * 1000); m = t.getUTCMonth() + 1; d = t.getUTCDate(); }
+  else if (typeof time === "string") { const [, mm, dd] = time.split("-").map(Number); m = mm; d = dd; }
+  else if (time && typeof time === "object") { const b = time as { month: number; day: number }; m = b.month; d = b.day; }
+  return m >= 1 && m <= 12 && d ? `${d} ${MONTHS[m - 1]}` : null;
+};
 type Range = (typeof RANGES)[number];
 type Mode = "candles" | "bars" | "line";
 type Ind = { ema9: boolean; ema20: boolean; ema50: boolean; ema200: boolean; sma10: boolean; sma20: boolean; sma50: boolean; volAvg: boolean; hiVol: boolean; rs: boolean; events: boolean; draw: boolean };
@@ -130,10 +140,10 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
     const pal = palette();
     const c = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: pal.text, attributionLogo: true, panes: { enableResize: true, separatorColor: pal.line, separatorHoverColor: pal.strong } },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: pal.text, attributionLogo: false, panes: { enableResize: true, separatorColor: pal.line, separatorHoverColor: pal.strong } },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } }, crosshair: { mode: CrosshairMode.Normal, vertLine: { color: pal.strong, labelBackgroundColor: pal.strong }, horzLine: { color: pal.strong, labelBackgroundColor: pal.strong } },
       rightPriceScale: { borderColor: pal.line, mode: compareOn ? PriceScaleMode.Percentage : log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
-      timeScale: { borderColor: pal.line, rightOffset: 4, minimumHeight: 28, fixLeftEdge: false },
+      timeScale: { borderColor: pal.line, rightOffset: 4, minimumHeight: 28, fixLeftEdge: false, tickMarkFormatter: dayTick },
     });
     chart.current = c;
     const T = (t: string) => t as Time;
@@ -276,7 +286,7 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
       </header>
       <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>
         {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
-        {chg != null && <span className="cp-rng">{opt.range}: {pct(chg)}</span>}
+        {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
         {overall != null ? <span className={"cp-badge b-" + (score?.band?.key || "")} title={`FinLit IQ: ${score?.band?.label || ""}`}>FinLit IQ {Math.round(overall)}</span> : null}
         {row.prism ? <span className="cp-badge cp-prism" title="FinLit Prism">Prism {row.prism}</span> : null}</div>
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>What the chart shows</b>
@@ -319,7 +329,7 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
       </div>
       {!!score?.pillars?.length && <ul className="cp-score" aria-label="FinLit IQ scores">{score.pillars.map((p) => <li key={p.key} className={"b-" + (p.band?.key || "")}><small>{p.label}</small><b>{p.score == null ? "–" : Math.round(p.score)}</b><em>{p.band?.label}</em></li>)}</ul>}
       {extra}
-      <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by TradingView Lightweight Charts™, Copyright (c) 2025 TradingView, Inc.</p>
+      <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>, Copyright (c) 2025 TradingView, Inc.</p>
       <Link className="btn primary cp-r" to={`/stocks/${row.symbol}`}>Open full report</Link>
     </aside>
   );

@@ -46,7 +46,8 @@ describe("ChartPanel", () => {
     expect(screen.getByRole("button", { name: "1Y" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Close chart" }));
     expect(onClose).toHaveBeenCalled();
-    expect(screen.getByText(/Charts by TradingView/)).toBeTruthy();
+    expect(document.querySelector(".cp-f")!.textContent).toMatch(/Charts by TradingView Lightweight Charts/);   // credited in the footer, with a link to tradingview.com
+    expect((document.querySelector(".cp-f a") as HTMLAnchorElement).href).toBe("https://www.tradingview.com/");
   });
   it("never draws a grid, and shows the score badge and the score tiles", () => {
     show();
