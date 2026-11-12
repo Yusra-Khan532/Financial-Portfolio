@@ -98,7 +98,7 @@ GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"),
 # ------------------------------------------------------------------------------------------------------------------------------ columns
 RANK = Col("rank", "#", "text", "right")
 STOCK = Col("name", "Stock", "text", "left")
-PRISM = Col("prism_final", "Prism score", "score")
+PRISM = Col("prism_final", "Prism Fundamental score", "score")
 PLABEL = Col("prism_label", "Prism rating", "label", "left")
 PSTATUS = Col("prism_status", "Rating status", "badge", "left")
 FUND = Col("prism_fundamental", "Growth & Profitability", "score")
