@@ -544,3 +544,14 @@
 .dsh-line2.f > .hd b { min-width: 0; overflow-wrap: anywhere; } .dsh-line2.f > .hd em { margin-left: auto; white-space: nowrap; }
 .dsh-line2.f > .hd .dsh-tag { flex: none; }
 .dsh-line2.f > .tx { padding-left: 30px; text-align: left; align-self: stretch; }
+
+/* Your stocks today (task #107): each column has its own width, a consistent alignment (numbers right, the FinLit IQ chip centred) and a thin line between columns, so no two columns run together
+   and none floats far from its neighbours. Phones keep their own card layout (max-width 759px). */
+@media (min-width: 760px) {
+  .dsh-st-h, .dsh-st-r { grid-template-columns: minmax(170px, 1.7fr) minmax(92px, .9fr) minmax(82px, .8fr) minmax(112px, 1fr) minmax(98px, .95fr) minmax(98px, .95fr) minmax(94px, .9fr); gap: 0; }
+  .dsh-st-h > span:not(:first-child), .dsh-st-r > .dsh-pr, .dsh-st-r > .ch, .dsh-st-x > * { border-left: 1px solid var(--d-line3); padding: 0 14px; align-self: stretch; display: flex; align-items: center; min-width: 0; }
+  .dsh-st-h > span:not(:first-child) { justify-content: flex-end; } .dsh-st-h > span:nth-child(4) { justify-content: center; }
+  .dsh-st .r { justify-content: flex-end; text-align: right; } .dsh-st-x > .sc { justify-content: center; }
+  .dsh-st-h > span:first-child, .dsh-st-r > .nm { padding-right: 14px; }
+  .dsh-st-r { min-height: 64px; padding-block: 8px; }
+}
