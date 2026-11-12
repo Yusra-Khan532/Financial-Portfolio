@@ -78,6 +78,18 @@ export function inForce(points: HistPoint[], s: Series, i: number): { value: num
   return null;
 }
 
+/** The figure of a series on `day`, looking back through the WHOLE recorded history (not only the period on screen, so the first day of a period is never blank):
+ *  its own figure when that day has one (exact), else the latest earlier one, which is the figure still in force (the four business scores change only when Prism
+ *  re-rates the company). Null when nothing was recorded on or before that day. `history` is oldest first. */
+export function figureOn(history: HistPoint[], s: Series, day: string): { value: number; day: string; exact: boolean } | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].day > day) continue;
+    const v = valueOf(history[i], s);
+    if (v != null) return { value: v, day: history[i].day, exact: history[i].day === day };
+  }
+  return null;
+}
+
 /** Which recorded days get a date under the chart: every one when there are few, else about `max` evenly spread, always the first and the last. */
 export function axisIndexes(n: number, max = 6): number[] {
   if (n <= 0) return [];
@@ -88,4 +100,4 @@ export function axisIndexes(n: number, max = 6): number[] {
 }
 
 /** The size of the dot drawn on every recorded day: large while the chart has few days, smaller as they crowd, never so small it cannot be seen. */
-export const dotRadius = (n: number): number => (n <= 45 ? 3.6 : n <= 120 ? 2.6 : 1.8);
+export const dotRadius = (n: number): number => (n <= 45 ? 4 : n <= 120 ? 3 : 2.3);

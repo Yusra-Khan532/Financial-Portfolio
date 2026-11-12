@@ -114,11 +114,15 @@ export function installDemo() {
 
 /** Sample Prism history for the demo build only: 14 weekly points with one model-version change, so the chart can be seen. Not real figures. */
 function sampleHistory(symbol: string, statement: string) {
-  const days = Array.from({ length: 14 }, (_, i) => new Date(Date.UTC(2026, 6, 6 + i * 7)).toISOString().slice(0, 10));
+  // The shape of the live record: the technical views on every trading day, the four business scores only on the days Prism re-rated the company.
+  const days: string[] = [];
+  for (let n = 0, d = Date.UTC(2026, 8, 14); days.length < 40; n++, d += 86_400_000) { const dow = new Date(d).getUTCDay(); if (dow !== 0 && dow !== 6) days.push(new Date(d).toISOString().slice(0, 10)); }
+  const rated = new Set([0, 9, 17, 31, 39]);
   const points = days.map((day, i) => {
-    const w = (a: number, b: number) => Math.round((a + Math.sin(i / 2 + b) * 4 + i * 0.3) * 10) / 10;
-    return { day, modelVersion: i < 9 ? "3.6.10" : "3.6.11", final: w(58, 0), label: "AVERAGE", status: "RATED",
-      parts: { fundamental: w(55, 1), valuation: w(42, 2), quality: w(79, 3), risk: w(88, 4) }, shortTerm: Math.round(Math.sin(i / 1.7) * 38), longTerm: Math.round(-20 + i * 3) };
+    const w = (a: number, b: number) => Math.round((a + Math.sin(i / 6 + b) * 4 + i * 0.1) * 10) / 10;
+    return { day, modelVersion: i < 31 ? "3.6.10" : "3.6.11", final: rated.has(i) ? w(58, 0) : null, label: "AVERAGE", status: "RATED",
+      parts: rated.has(i) ? { fundamental: w(55, 1), valuation: w(42, 2), quality: w(79, 3), risk: w(88, 4) } : { fundamental: null, valuation: null, quality: null, risk: null },
+      shortTerm: Math.round(Math.sin(i / 2.7) * 38), longTerm: Math.round(-20 + i * 1.2) };
   });
   return { symbol, statement, points, firstDay: days[0], note: "Sample data for the demo." };
 }

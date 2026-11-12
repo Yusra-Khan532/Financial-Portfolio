@@ -17,14 +17,22 @@ const pts: HistPoint[] = Array.from({ length: 6 }, (_, i) => ({ day: day(i), mod
 const open = () => render(<ScoreMoves points={pts} />);
 
 describe("ScoreMoves chart", () => {
-  it("draws a dot for every recorded value on every line, and a tick for every recorded day", () => {
+  it("draws a dot on every recorded day of every line (a rating in force shows as a hollow dot), and a tick for every recorded day", () => {
     const { container } = open();
     const panels = container.querySelectorAll(".scm-panel");
     expect(panels).toHaveLength(2);
-    expect(panels[0].querySelectorAll(".scm-dot")).toHaveLength(3 * 4);          // four business scores x three rating days
+    expect(panels[0].querySelectorAll(".scm-dot")).toHaveLength(6 * 4);          // four business scores x all six days
+    expect(panels[0].querySelectorAll(".scm-dot.carried")).toHaveLength(3 * 4);  // three of those days have no new rating: hollow, the rating still in force
+    expect(panels[0].querySelectorAll(".scm-dot:not(.carried)")).toHaveLength(3 * 4);
     expect(panels[1].querySelectorAll(".scm-dot")).toHaveLength(6 * 2);          // two technical views x six days
     expect(panels[0].querySelectorAll(".scm-rug")).toHaveLength(6); expect(panels[1].querySelectorAll(".scm-rug")).toHaveLength(6);
     expect(panels[1].querySelector(".scm-dot title")?.textContent).toMatch(/view \+?\d+(\.\d)? on \d+ \w+ 2026/);
+  });
+  it("a hollow dot says which rating it shows, and a period that starts after a rating still shows it", () => {
+    const { container } = open();
+    const titles = [...container.querySelectorAll(".scm-panel")[0].querySelectorAll(".scm-dot.carried title")].map((t) => t.textContent ?? "");
+    expect(titles[0]).toMatch(/on 2 Nov 2026, the rating from 1 Nov 2026 still in force/);
+    expect(container.querySelector(".scm-note")?.textContent).toMatch(/solid dot.*hollow dot/);
   });
   it("labels every day under a short chart", () => {
     const { container } = open();
