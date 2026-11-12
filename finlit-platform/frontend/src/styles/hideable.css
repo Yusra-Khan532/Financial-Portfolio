@@ -1,0 +1,9 @@
+/* Hide / Show on optional panels (components/Hideable.tsx) */
+.hz { position: relative; min-width: 0; }
+.hz-btn { min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); color: var(--muted); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.hz-btn:hover { color: var(--text); border-color: var(--text); } .hz-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hz-on { position: absolute; top: 12px; right: 12px; z-index: 2; }
+.hz-off { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); }
+.hz-t { font: 600 var(--fs-16) var(--sans); color: var(--text); margin-right: auto; }
+.hz-tag { padding: 3px 10px; border-radius: 999px; background: var(--s2, var(--s1)); color: var(--muted); font: 600 var(--fs-12) var(--sans); }
+@media (max-width: 560px) { .hz-t { font-size: var(--fs-14); } }
