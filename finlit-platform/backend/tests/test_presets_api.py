@@ -183,3 +183,18 @@ async def test_the_stored_list_is_served_as_stored_even_when_the_table_has_moved
     again = await service.get_result(store, p, [])
     assert again["count"] == -1 and again["snapshot"] == "0:0:0:0:0"      # SC-6: the list stored after the close is what is served (card count, rows and Added agree), never rebuilt from the table of the moment
     assert service.same_snapshot({"count": 1}, "anything")                                  # a list saved before the stamp existed is not rebuilt for that alone
+
+
+async def test_the_selfcheck_runs_the_acceptance_checks_on_the_served_lists_without_a_sign_in(app, anon, store):  # noqa: F811
+    await wipe(store)
+    await store.redis.delete("presets:selfcheck:v1")
+    await service.refresh_presets(store)
+    r = await anon.get("/api/screener/selfcheck")                                      # no account needed: it says pass or fail, never a company
+    body = r.json()
+    assert r.status_code == 200 and body["of"] == 7 and [c["id"] for c in body["checks"]] == [f"C{i}" for i in range(1, 8)]
+    by = {c["id"]: c for c in body["checks"]}
+    assert by["C1"]["ok"] and by["C2"]["ok"], by                                        # every live screen is served, and the card count is the served count
+    assert by["C5"]["ok"] and by["C7"]["ok"], by                                        # one build; no model detail in the texts
+    assert body["screens"] >= 38 and body["passed"] == sum(c["ok"] for c in body["checks"])
+    assert not any(f"S{i:02d}" in r.text for i in range(30))                            # no company of the list leaks out
+    assert (await anon.get("/api/screener/selfcheck")).text == r.text                    # kept five minutes
