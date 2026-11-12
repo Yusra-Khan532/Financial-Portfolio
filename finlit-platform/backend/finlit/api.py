@@ -600,7 +600,21 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         hit = await app.state.store.get_section(symbol, statement, name)
         if hit is None:
             return await missing(request, symbol, statement, name)
+        if name.startswith("price-"):
+            await rebuild_if_old(symbol, statement, hit[0])
         return await serve_hit(request, symbol, statement, name, hit, started)
+
+    async def rebuild_if_old(symbol: str, statement: str, body) -> None:
+        """A chart opened from a screener reads only the price section, so a report built by older code (for example before weekly candles and the 9 and 20-day lines)
+        would stay old until somebody opened the full report. Opening the chart now queues the same rebuild the full report does (at most once in half an hour);
+        the stored chart is served at once meanwhile."""
+        try:
+            raw = body if isinstance(body, (bytes, str)) else bytes(body)
+            m = re.search(rb'"version"\s*:\s*(\d+)', raw if isinstance(raw, bytes) else raw.encode())
+            if m and int(m.group(1)) < SNAPSHOT_VERSION and await app.state.store.redis.set(f"repair:{symbol}:{statement}", 1, nx=True, ex=1800):
+                await app.state.store.enqueue(symbol, statement)
+        except Exception:   # nosec B110 - a failed check never stops the chart from being served
+            pass
 
     async def serve_hit(request: Request, symbol: str, statement: str, name: str, hit, started: float) -> Response:
         if not varies_by_plan(name):
