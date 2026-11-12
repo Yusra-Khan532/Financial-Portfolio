@@ -12,7 +12,7 @@ Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the re
 | The person must select something | Nothing happens until text is selected. A small green button appears beside a selection of 2 to 80 characters (up to 8 words). The card opens only when that button is pressed (or via right-click "Look up on FinLit", or `Alt+Shift+F`). |
 | Only the selected words are used | The page script reads `window.getSelection()` and the selection's on-screen position, nothing else: no page text, no article, no images, no forms. Selections inside text boxes are ignored. |
 | The selected words never leave the browser | They are matched on lists kept inside the extension. Only the symbol of a *recognised company* is ever requested, and only when its card is opened. |
-| Glossary = no request | The 443-term glossary is bundled (`data/glossary.json`, built from the site glossary by `build.py`). |
+| Glossary = no request | The 450-term glossary is bundled (`data/glossary.json`, built from the site glossary by `build.py`). |
 | Company list = one cached download | The site's public search list is fetched at most once a day (with `If-None-Match`, so a repeat costs a 304), only when a lookup is asked for, and kept in extension storage. |
 | Company card = one tiny request | `GET /api/ext/company/SYMBOL`: two indexed row reads, kept in Redis five minutes, no report build, no view counting. The extension also keeps a card ten minutes. |
 | Plan rules stay on the server | The score and key figures are Silver (as on the site); Basic and signed-out visitors get name, sector, price, market value and a note with a link, never the score. The free showcase company stays open. |

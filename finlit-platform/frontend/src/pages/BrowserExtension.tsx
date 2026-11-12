@@ -99,7 +99,7 @@ export function BrowserExtensionPage() {
         </section>
 
         <div className="ext-three">
-          <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 443 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
+          <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 450 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
           <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, Growth &amp; Profitability and Technical scores, and (on the Gold plan) its FinLit Prism rating with the four parts, plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
           <section className="ext-card"><h3>Private by design</h3><p>It acts only on text you select. It never reads the page or what is around your selection, and the words you select stay in your browser.</p></section>
         </div>

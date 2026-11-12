@@ -14,7 +14,7 @@ FinLit covers listed Indian stocks, mutual funds and ETFs, sectors, macro indica
 - [Macro indicators](https://finlitventures.com/macro): inflation, growth, rates and reserves from official releases
 - [FII and DII activity](https://finlitventures.com/fii-dii): daily institutional flows
 - [SIP calculator](https://finlitventures.com/sip-calculator), [EPS calculator](https://finlitventures.com/eps-calculator), [DCF calculator](https://finlitventures.com/dcf)
-- [Glossary](https://finlitventures.com/glossary): 443 investing terms in plain English, each on its own page
+- [Glossary](https://finlitventures.com/glossary): 450 investing terms in plain English, each on its own page
 - [Plans](https://finlitventures.com/plans): what is free, Silver and Gold
 - [About](https://finlitventures.com/about) and [Research disclosures](https://finlitventures.com/legal/disclosures): who we are and how the scores are made
 

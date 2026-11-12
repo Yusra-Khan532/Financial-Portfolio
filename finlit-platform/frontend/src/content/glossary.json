@@ -1,5 +1,5 @@
 {
- "version": 6,
+ "version": 7,
  "source": "FinLit Glossary, November 2026",
  "topics": [
   "Banks and lenders",
@@ -359,7 +359,7 @@
    "formula": "True range = Largest of (High − Low, |High − Previous close|, |Low − Previous close|); ATR = Average of true range",
    "id": "average-true-range-atr",
    "letter": "A",
-   "finlit": "FinLit's short-term technical view treats a close 3 ATR or more above EMA 20 as stretched.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "ATR",
     "Average true range",
@@ -424,7 +424,7 @@
    "formula": "",
    "id": "base-and-breakout",
    "letter": "B",
-   "finlit": "FinLit's long-term technical view counts +1 when 2 or 3 of the last 3 sessions had heavy volume within 10 sessions of a base breakout, and −0.5 when none did.",
+   "finlit": "One of the inputs to FinLit's long-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Breakout",
     "Base breakout",
@@ -634,16 +634,17 @@
    ]
   },
   {
-   "term": "Breadth thrust (C and CAP)",
+   "term": "Bouncing back (and Bouncing back after a crash)",
    "topic": "FinLit words",
-   "meaning": "A sudden, broad rebound in an industry after a washout: in a few sessions most of its stocks turn up together. A CAP thrust is one that comes after a capitulation, a sell-off in which almost every stock kept falling to the end.",
+   "meaning": "A sudden, broad rebound in an industry after a fall: within a few days most of its stocks turn up together. When it follows a crash, in which almost every stock hit a new low, FinLit calls it Bouncing back after a crash.",
    "why": "It marks the point when selling gave way to buying across most of an industry at once.",
-   "how": "The industry chart marks each thrust of the past year and, where it happened, when it turned Fading. Many thrusts fade, so read one with the market backdrop and with what follows.",
+   "how": "Sector Pulse marks the last bounce on each industry's chart (▲) and shows how many days ago it happened. Many bounces fade, so read one with the market backdrop and with what follows.",
    "formula": "",
    "id": "breadth-thrust-c-and-cap",
    "letter": "B",
    "finlit": "",
    "aliases": [
+    "Breadth thrust (C and CAP)",
     "Thrust",
     "Thrust C",
     "Thrust CAP",
@@ -858,7 +859,7 @@
    "formula": "",
    "id": "candlestick-patterns",
    "letter": "C",
-   "finlit": "FinLit's short-term technical view counts patterns near EMA 9: a hammer or bullish engulfing candle +1, a strong bullish bar +0.75, a climax run −1, and an upper-wick rejection or wide bearish bar −1.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Candlestick pattern",
     "Hammer",
@@ -949,7 +950,7 @@
    ]
   },
   {
-   "term": "Capitulation and higher-low share",
+   "term": "Crash (capitulation)",
    "topic": "FinLit words",
    "meaning": "A capitulation is a sell-off in which almost every stock of an industry kept making new lows right up to the industry's low, instead of turning up one by one before it.",
    "why": "It shows whether a fall was ending stock by stock before the industry turned, or all at once.",
@@ -959,6 +960,7 @@
    "letter": "C",
    "finlit": "",
    "aliases": [
+    "Capitulation and higher-low share",
     "Capitulation",
     "Higher-low share",
     "Higher low",
@@ -1082,7 +1084,7 @@
    "formula": "",
    "id": "category-median-and-rank-in-category",
    "letter": "C",
-   "finlit": "FinLit compares each fund with the active Growth schemes of the same category and plan, leaving the fund itself out, and needs at least 8 of them; index funds and ETFs are compared with funds tracking the same index.",
+   "finlit": "FinLit compares each fund with the active Growth schemes of the same category and plan, leaving the fund itself out, and only when there are enough of them for a fair comparison. Index funds and ETFs are compared with funds tracking the same index.",
    "aliases": [
     "Category median",
     "Against category median",
@@ -1160,16 +1162,17 @@
    ]
   },
   {
-   "term": "Company size bands (mega cap to nano cap)",
+   "term": "Company size (Large, Mid, Small)",
    "topic": "Market basics",
-   "meaning": "Size groups based on a company's market value, from the very largest (mega cap) to the very smallest (micro and nano cap).",
-   "why": "Size affects how much a price swings and how easy the shares are to trade.",
-   "how": "The smallest companies often trade thinly, so their prices can move a lot on small orders.",
+   "meaning": "FinLit sorts every listed company into three sizes by its market value: Large above ₹50,000 crore, Mid from ₹10,000 crore to ₹50,000 crore, and Small below ₹10,000 crore.",
+   "why": "Size affects how much a price swings and how easy the shares are to buy and sell.",
+   "how": "Compare companies of the same size. Small companies often trade thinly, so their prices can move a lot on small orders.",
    "formula": "",
    "id": "company-size-bands-mega-cap-to-nano-cap",
    "letter": "C",
-   "finlit": "FinLit's company size filter uses rupee bands: Mega-cap above ₹2,00,000 crore, Large-cap ₹50,000–2,00,000 crore, Mid-cap ₹10,000–50,000 crore, Small-cap ₹2,000–10,000 crore, Micro-cap ₹500–2,000 crore and Nano-cap below ₹500 crore. Sector pages use AMFI's ranked list instead.",
+   "finlit": "The same three sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. FinLit no longer uses mega, micro or nano labels.",
    "aliases": [
+    "Company size bands (mega cap to nano cap)",
     "Mega-cap",
     "Micro-cap",
     "Nano-cap",
@@ -1331,7 +1334,7 @@
    "topic": "FinLit words",
    "meaning": "How much of the information a FinLit Prism rating needs was actually found in the company's filings and prices, from 0% to 100%. A short sales and profit record counts only in part.",
    "why": "Where an input is missing, Prism uses a standard estimate for the company's industry group instead, so lower coverage means more of the rating rests on estimates.",
-   "how": "Read coverage as completeness of the data, not as the chance that the rating is right or a guide to what the share price will do. Below 80% the rating is provisional; below 50% the company is not rated.",
+   "how": "Read coverage as how complete the data is, not as the chance that the rating is right or a guide to the share price. When coverage is low the rating is marked Provisional; when too little is found the company is Not rated.",
    "formula": "Coverage = 0.40 × Growth & Profitability coverage + 0.30 × Valuation coverage + 0.20 × Quality coverage + 0.10 × Risk coverage",
    "id": "coverage-prism",
    "letter": "C",
@@ -1952,7 +1955,7 @@
    "formula": "",
    "id": "earnings-quality",
    "letter": "E",
-   "finlit": "FinLit's Profit Reality Check scores three parts: clean earnings (full points when one-offs are 0% of pre-tax profit, none at 50% or more), margin stability (the net margin's coefficient of variation) and leverage level (full points at an equity multiplier of 2× or lower, none at 6× or higher; not scored for banks and lenders).",
+   "finlit": "FinLit's Profit Reality Check reads three parts: clean earnings (how much of profit came from one-off items), margin stability (how steady the net margin has been) and leverage (how much the return on equity leans on borrowing; not read for banks and lenders).",
    "aliases": [
     "Clean earnings",
     "Margin stability",
@@ -2363,7 +2366,7 @@
    "formula": "EMA today = Price × k + EMA yesterday × (1 − k), where k = 2 ÷ (n + 1)",
    "id": "exponential-moving-average-ema",
    "letter": "E",
-   "finlit": "FinLit's short-term technical view uses EMA 9, 20 and 50 on daily prices; the long-term view uses EMA 50, 100 and 200.",
+   "finlit": "FinLit's technical views compare the price with several EMAs, shorter ones for the short-term view and longer ones for the long-term view.",
    "aliases": [
     "EMA",
     "EMA 9",
@@ -2482,13 +2485,13 @@
   {
    "term": "FinLit IQ",
    "topic": "FinLit words",
-   "meaning": "FinLit's 0–100 summary of a company's health: the average of five pillar scores, each built from ratios scored against fixed thresholds.",
+   "meaning": "FinLit's 0–100 summary of a company's health, built from five pillar scores: Quality, Growth, Profitability, Balance sheet and Technical.",
    "why": "It turns dozens of numbers into one readable starting point.",
    "how": "Use it to shortlist and to spot changes, then read the report behind it. It is not a buy or sell call.",
    "formula": "",
    "id": "finlit-score",
    "letter": "F",
-   "finlit": "The overall score averages all five pillars including Technical; the screener's Growth & Profitability score averages the four business pillars.",
+   "finlit": "The overall score uses all five pillars, including Technical; the screener's Growth & Profitability score uses only the four business pillars.",
    "aliases": [
     "Score change since last quarter",
     "overall",
@@ -2521,13 +2524,13 @@
   {
    "term": "FinLit Prism",
    "topic": "FinLit words",
-   "meaning": "FinLit's advanced financial-health rating of a listed company, part of the Gold plan. It scores four parts from the company's filings and prices (Growth & Profitability, Valuation, Quality and Risk) and combines them into a score out of 100 with a label: Strong (80 and above), Healthy (65 to 79), Average (50 to 64), Weak (35 to 49) or Poor (below 35).",
+   "meaning": "FinLit's advanced financial-health rating of a listed company, part of the Gold plan. It scores four parts from the company's filings and prices (Growth & Profitability, Valuation, Quality and Risk) and combines them into a score out of 100 with a label: Strong, Healthy, Average, Weak or Poor.",
    "why": "Each company is read against one of eight industry groups, so a bank, an insurer, a lender, a property developer, a utility, a heavy industry, a light business and a manufacturer are each judged on the measures that fit them.",
    "how": "Read the four parts and the coverage before the score, and check the date of the report. Prism describes the company's financial health from its filings and prices; it is not a recommendation.",
    "formula": "Prism score = 0.40 × Growth & Profitability + 0.30 × Valuation + 0.20 × Quality + 0.10 × Risk",
    "id": "finlit-prism",
    "letter": "F",
-   "finlit": "Prism is separate from the FinLit IQ: the FinLit IQ averages five pillars scored against fixed thresholds, while Prism weighs many factors by industry group and applies rules for losses and weak businesses. Every Prism report can be saved as a PDF.",
+   "finlit": "Prism is separate from the FinLit IQ and the two can disagree. Each part is weighed by industry group, with rules for losses and weak businesses; the weights stay inside the model. Every Prism report can be saved as a PDF.",
    "aliases": [
     "Prism",
     "Prism rating",
@@ -2786,11 +2789,11 @@
    "topic": "FinLit words",
    "meaning": "The fundamental score uses only the business's statements; the technical score uses only the price chart. FinLit never blends the two without showing both.",
    "why": "A great business can have a weak price trend, and the reverse.",
-   "how": "Long-term investors lean on the fundamental score; the technical score helps with timing.",
+   "how": "Long-term investors lean on the fundamental score; the technical score describes the price trend. Neither is a buy or sell call.",
    "formula": "",
    "id": "fundamental-score-and-technical-score",
    "letter": "F",
-   "finlit": "The overall FinLit IQ averages all five pillars including Technical; the Growth & Profitability score averages only the four business pillars.",
+   "finlit": "The overall FinLit IQ uses all five pillars, including Technical; the Growth & Profitability score uses only the four business pillars.",
    "aliases": [
     "Fundamental score",
     "fundamental score",
@@ -3484,6 +3487,31 @@
    "aliases": []
   },
   {
+   "term": "Industry states (Sold off, Bouncing back, Rising together, Losing steam, No clear signal)",
+   "topic": "FinLit words",
+   "meaning": "FinLit's plain labels for where an NSE industry stands: Sold off (most stocks have fallen and not turned up together yet), Bouncing back (most stocks turned up together after a fall), Rising together (most stocks are above their short, medium and longer-term price levels), Losing steam (fewer stocks are still going up) and No clear signal.",
+   "why": "They show whether a move in an industry is broad or narrow, and how it has developed.",
+   "how": "Read them with the market as a whole. A state describes where an industry stands today, not what comes next: many bounces fade.",
+   "formula": "",
+   "id": "sector-signal-states-washout-thrust-confirmed-fading",
+   "letter": "I",
+   "finlit": "Earlier versions of FinLit called these Washout, Thrust, Confirmed and Fading.",
+   "aliases": [
+    "Sector signal states (Washout, Thrust, Confirmed, Fading)",
+    "Washout",
+    "Confirmed",
+    "Fading",
+    "Sector states",
+    "Sector signals",
+    "Sector signal",
+    "Breadth cycle",
+    "Industry cycle",
+    "1 · Washout",
+    "3 · Confirmed",
+    "How sector signals work"
+   ]
+  },
+  {
    "term": "Joint venture",
    "topic": "Economy and business",
    "meaning": "A business set up by two or more partners who share control, costs and profits while staying separate companies.",
@@ -3567,13 +3595,13 @@
   {
    "term": "Large cap, mid cap and small cap",
    "topic": "Market basics",
-   "meaning": "Size groups based on market value. In India, the 100 largest listed companies are large caps, the next 150 mid caps, and the rest small caps; the smallest are often called micro caps.",
+   "meaning": "The usual names for company size. On FinLit, large cap means a market value above ₹50,000 crore, mid cap ₹10,000 crore to ₹50,000 crore, and small cap below ₹10,000 crore.",
    "why": "Smaller companies can grow faster but their prices swing more and their shares can be harder to sell.",
    "how": "Check the size group before comparing returns or valuations; a small cap and a large cap are different kinds of bet.",
    "formula": "",
    "id": "large-cap-mid-cap-and-small-cap",
    "letter": "L",
-   "finlit": "FinLit's sector pages use AMFI's list for the last half-year: the top 100 companies by average market cap are large caps, the next 150 mid caps. The company size filter uses rupee bands instead (see Company size bands).",
+   "finlit": "Mutual fund categories follow SEBI's own rule, which ranks companies instead: the 100 largest are large cap and the next 150 mid cap. So a fund's \"mid cap\" label and a company's FinLit size can differ. See Company size.",
    "aliases": [
     "Large cap, mid cap",
     "small cap",
@@ -3619,30 +3647,15 @@
    ]
   },
   {
-   "term": "Leader flag",
-   "topic": "FinLit words",
-   "meaning": "A FinLit flag for a stock that closes at a 52-week high while its industry is still well below its own high. A full flag means the industry is further down; an early flag, less far.",
-   "why": "A stock making new highs while its group is still down has held up better than its peers.",
-   "how": "Read it with the business scores: price and breadth flags say nothing about whether a business is sound.",
-   "formula": "",
-   "id": "leader-flag",
-   "letter": "L",
-   "finlit": "",
-   "aliases": [
-    "Leader flags",
-    "With leader flags"
-   ]
-  },
-  {
    "term": "Leader label (Leader, In line, Laggard)",
    "topic": "FinLit words",
    "meaning": "FinLit's plain description of how a share's last 12 months compare with its closest peers, measured against the peer group's sector index: Leader, In line or Laggard.",
    "why": "Within a sector the best and worst shares are often far apart, so where a share sits in its group adds to how the sector did.",
-   "how": "The label describes the past. FinLit's test on weekly prices back to 2005 found only a small, sector-dependent tendency for leaders to stay ahead, and leaders fell as hard as others in 2008 and 2020.",
+   "how": "The label describes the past, not what comes next. Leaders can fall as hard as everyone else in a market-wide sell-off.",
    "formula": "",
    "id": "leader-label-leader-in-line-laggard",
    "letter": "L",
-   "finlit": "Leader means the top 30% of peers and ahead of the sector index over 12 months; Laggard the bottom 30% and behind it; everything else is In line. 'Gaining' or 'weakening' marks a 3-month relative return of +5 points or more, or −5 or less. Labels refresh weekly after Friday's close and must come out the same two weeks running.",
+   "finlit": "FinLit compares the share's return with its closest peers and with their sector index. \"Gaining\" or \"weakening\" shows the recent direction. Labels refresh weekly after Friday's close.",
    "aliases": [
     "Leader",
     "Laggard",
@@ -3824,6 +3837,18 @@
    ]
   },
   {
+   "term": "Last bounce",
+   "topic": "FinLit words",
+   "meaning": "How many trading days ago most of an industry's stocks last turned up together, and whether it came after an ordinary sell-off or after a crash.",
+   "why": "It dates the start of the latest recovery attempt.",
+   "how": "Sector Pulse marks it with ▲ on each industry's chart. A recent bounce is an early sign only: many bounces fade.",
+   "formula": "",
+   "id": "last-bounce",
+   "letter": "L",
+   "finlit": "",
+   "aliases": []
+  },
+  {
    "term": "MACD (moving average convergence divergence)",
    "topic": "Price and technicals",
    "meaning": "The gap between the 12-day and the 26-day EMA of the price. Its own 9-day EMA is the signal line, and the histogram is MACD minus the signal line.",
@@ -3832,7 +3857,7 @@
    "formula": "MACD = EMA 12 − EMA 26; Signal line = EMA 9 of MACD; Histogram = MACD − Signal line",
    "id": "macd-moving-average-convergence-divergence",
    "letter": "M",
-   "finlit": "FinLit's short-term technical view uses the daily MACD against its signal line and whether the histogram is rising; the long-term view uses the weekly MACD against its signal line and against zero.",
+   "finlit": "FinLit's short-term view uses the daily MACD and the long-term view the weekly MACD. How much it counts stays inside the model.",
    "aliases": [
     "MACD",
     "Moving average convergence divergence",
@@ -4018,7 +4043,7 @@
    "formula": "MAD = Median of |Value − Median|",
    "id": "median-absolute-deviation-mad",
    "letter": "M",
-   "finlit": "In FinLit's ratio tables an 'unusual year' sits far from the row's other years by this measure, and by more than 15% of the median.",
+   "finlit": "In FinLit's ratio tables an \"unusual year\" sits far from the row's other years by this measure.",
    "aliases": [
     "MAD",
     "Median absolute deviation",
@@ -4134,7 +4159,7 @@
    "formula": "Score combines Performance, Risk, Cost and Quality",
    "id": "mutual-fund-health-score",
    "letter": "M",
-   "finlit": "Each measure earns more points the nearer it sits to the good end of its range. Direct and Regular plans are scored separately. A fund with 12 to 35 months of NAV history is provisional and its label stops at Healthy; under 12 months it is not rated.",
+   "finlit": "Each measure earns more points the nearer it sits to the good end of its range. Direct and Regular plans are scored separately. A fund with a short NAV history is provisional and its label stops at Healthy; a very new fund is not rated.",
    "aliases": [
     "Health score",
     "MF health score",
@@ -4144,6 +4169,30 @@
     "The four parts",
     "Fund score screener"
    ]
+  },
+  {
+   "term": "Moves like (independent bets)",
+   "topic": "Returns and risk",
+   "meaning": "On FinLit's portfolio pages: how many separate, independent bets your list of shares really behaves like. Shares that rise and fall together count as one bet.",
+   "why": "Fourteen shares that move in packs spread risk less than the count suggests.",
+   "how": "A number well below the count of shares means many of them move together. Adding shares from industries that behave differently raises it.",
+   "formula": "",
+   "id": "moves-like-independent-bets",
+   "letter": "M",
+   "finlit": "",
+   "aliases": []
+  },
+  {
+   "term": "Moves with the rest",
+   "topic": "Returns and risk",
+   "meaning": "A share's average correlation with the other shares in your list: 0 means unrelated, 1 means they move as one.",
+   "why": "It shows which holdings add spread to a portfolio and which mostly repeat the others.",
+   "how": "A low reading means the share adds more spread. It describes the past year of prices and can change.",
+   "formula": "",
+   "id": "moves-with-the-rest",
+   "letter": "M",
+   "finlit": "",
+   "aliases": []
   },
   {
    "term": "NBFC (non-banking financial company)",
@@ -4364,7 +4413,7 @@
    "formula": "OCF margin % = Operating cash flow ÷ Revenue × 100",
    "id": "ocf-margin-operating-cash-flow-margin",
    "letter": "O",
-   "finlit": "FinLit's earnings and cash checks treat an OCF margin below 5% as weak, or below 3% for project and EPC businesses.",
+   "finlit": "FinLit's earnings and cash checks flag a low OCF margin as weak, with a lower bar for project and EPC businesses.",
    "aliases": [
     "OCF margin",
     "Operating cash flow margin",
@@ -4397,7 +4446,7 @@
    "formula": "OBV today = OBV yesterday + Volume (on an up close) or − Volume (on a down close)",
    "id": "on-balance-volume-obv",
    "letter": "O",
-   "finlit": "FinLit's 'Volume flow' row scores +1 when OBV is above its 20-day EMA in the short-term view, and when the 50-day EMA of OBV is above its 150-day EMA in the long-term view.",
+   "finlit": "One of the inputs to both of FinLit's technical views, shown as the \"Volume flow\" row. How much it counts stays inside the model.",
    "aliases": [
     "OBV",
     "On-balance volume",
@@ -4849,7 +4898,7 @@
    "formula": "",
    "id": "price-gap-breakaway-and-exhaustion-gaps",
    "letter": "P",
-   "finlit": "In FinLit's short-term technical view a breakaway gap up counts +1, an exhaustion gap up −1 and a gap down that closes lower −0.5.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Gap up",
     "Gap down",
@@ -5095,9 +5144,9 @@
   {
    "term": "Provisional rating",
    "topic": "FinLit words",
-   "meaning": "A FinLit Prism rating given on less evidence than a full one: coverage is between 50% and 80%, or there are fewer than six comparable quarters to judge the sales and profit record. A provisional rating is never higher than Healthy.",
+   "meaning": "A FinLit Prism rating given on less evidence than a full one, because some inputs are missing or the sales and profit record is short. A provisional rating is never higher than Healthy.",
    "why": "It still shows the score, while making clear that it rests on incomplete data.",
-   "how": "Read it as a first view and look at what is missing. When coverage is below 50%, the income history is too short or the industry group cannot be identified, Prism says Not rated and gives no score.",
+   "how": "Read it as a first view and look at what is missing. When too little is found, or the industry group cannot be identified, Prism says Not rated and gives no score.",
    "formula": "",
    "id": "provisional-rating",
    "letter": "P",
@@ -5116,7 +5165,7 @@
    "formula": "",
    "id": "pullback",
    "letter": "P",
-   "finlit": "FinLit's short-term technical view looks for an uptrend (close above EMA 50, with EMA 9 above 20 above 50) and a close within 2% above EMA 9.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Pullbacks",
     "Dip",
@@ -5157,6 +5206,18 @@
     "Statistically significant",
     "Curvature test p"
    ]
+  },
+  {
+   "term": "Portfolio score and diversification score",
+   "topic": "FinLit words",
+   "meaning": "The portfolio score is one number from 0 to 100 for your whole list of shares: how healthy its companies are, how spread out it is, how risky it is against the market, and its price trend. The diversification score shows how well the list is spread across industries, company sizes and price behaviour.",
+   "why": "They sum up a list of holdings the way the FinLit IQ sums up one company.",
+   "how": "Add quantities to get a score weighted by what you actually hold. A score describes the list today; it is not advice to buy or sell.",
+   "formula": "",
+   "id": "portfolio-score-and-diversification-score",
+   "letter": "P",
+   "finlit": "",
+   "aliases": []
   },
   {
    "term": "QIB (qualified institutional buyer)",
@@ -5208,7 +5269,7 @@
    "topic": "FinLit words",
    "meaning": "Where a stock's 6-month return ranks among the counted stocks of its industry: top quarter, 2nd, 3rd or bottom quarter.",
    "why": "It places a stock's recent price move against its industry peers.",
-   "how": "It describes the past. In FinLit's study, the median stock in every quarter still trailed the industry index after a C thrust.",
+   "how": "It describes the past, not what comes next. Read it with the industry's state: a top-quarter stock in a falling industry is still falling.",
    "formula": "",
    "id": "quarter-in-the-industry-6-month-rank",
    "letter": "Q",
@@ -5488,7 +5549,7 @@
    "formula": "Relative return = Share's return − Index return",
    "id": "relative-strength-against-an-index",
    "letter": "R",
-   "finlit": "FinLit's technical views rank the share's beta-adjusted return above the index over 21 and 63 days (short term) and 63 to 252 days (long term); the Leader label uses 3, 6 and 12-month returns against the sector index.",
+   "finlit": "FinLit's technical views compare the share's return with the index over shorter and longer periods; the Leader label compares it with the sector index.",
    "aliases": [
     "Relative strength",
     "Relative return",
@@ -5855,7 +5916,7 @@
   {
    "term": "Rotation corners (Ahead and gaining, Ahead but slowing, Behind and slipping, Behind but gaining)",
    "topic": "FinLit words",
-   "meaning": "Where an industry sits on two numbers measured against the average industry: its 6-month return (ahead or behind) and its last month's return (gaining or slowing).",
+   "meaning": "Where an industry sits on two readings, each measured against the average industry: its longer-run return (ahead or behind) and its recent return (gaining or slowing).",
    "why": "Together they show the size of a lead and its direction.",
    "how": "Corners change slowly, so one noisy week does not move an industry. Behind but gaining is often a short bounce rather than a turn.",
    "formula": "",
@@ -5875,7 +5936,7 @@
    "topic": "FinLit words",
    "meaning": "A weekly ranking of NSE industry groups by how far they have run ahead of the average industry, over several periods, with breadth added.",
    "why": "It puts every group on one list, and its weekly moves show which groups are climbing or falling.",
-   "how": "A rank describes past returns. The arrows show the places a group moved in 1 week and in 4 weeks. A new group gets a rank once it has a full year of readings.",
+   "how": "A rank describes past returns. The arrows show the places a group moved in 1 week and in 4 weeks. A new group gets a rank once it has enough history.",
    "formula": "",
    "id": "rotation-rank",
    "letter": "R",
@@ -5919,6 +5980,34 @@
     "Share of variation explained",
     "Share of variation explained (R²)",
     "Coefficient of determination"
+   ]
+  },
+  {
+   "term": "Result verdict (Strong, Good, Weak, Poor)",
+   "topic": "Company statements",
+   "meaning": "FinLit's plain reading of a quarterly result. Revenue growth, profit growth and the change in margin on a year ago are each compared with the typical company in the same NSE industry. Above on most of them: Strong or Good. Below on most: Weak or Poor.",
+   "why": "A 20% profit rise means little if the whole industry grew 40%. The verdict compares like with like.",
+   "how": "The results pages show the share of companies that beat their industry. Company size does not change the yardstick; use the size filter to compare similar companies.",
+   "formula": "",
+   "id": "result-verdict-strong-good-weak-poor",
+   "letter": "R",
+   "finlit": "",
+   "aliases": []
+  },
+  {
+   "term": "Standout (strong and early)",
+   "topic": "FinLit words",
+   "meaning": "A FinLit flag for a stock at a 1-year high while its industry is still well below its own high. Strong standout: the industry is far below its high. Early standout: the industry is somewhat below it.",
+   "why": "A stock making new highs while its group is still down has held up better than its peers.",
+   "how": "Read it with the business scores: price and breadth flags say nothing about whether a business is sound.",
+   "formula": "",
+   "id": "leader-flag",
+   "letter": "S",
+   "finlit": "",
+   "aliases": [
+    "Leader flag",
+    "Leader flags",
+    "With leader flags"
    ]
   },
   {
@@ -5994,7 +6083,7 @@
   {
    "term": "Score bands (Strong, Healthy, Mixed, Watch)",
    "topic": "FinLit words",
-   "meaning": "FinLit's labels for score ranges: Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch below 45.",
+   "meaning": "FinLit's four labels for FinLit IQ scores, from strongest to weakest: Strong, Healthy, Mixed and Watch. The label is always shown next to the number.",
    "why": "Bands make scores easier to read at a glance.",
    "how": "A move from one band to another is a reason to look again, not an instruction.",
    "formula": "",
@@ -6091,30 +6180,6 @@
     "Industry rotation",
     "Rotation map",
     "Rotation tab"
-   ]
-  },
-  {
-   "term": "Sector signal states (Washout, Thrust, Confirmed, Fading)",
-   "topic": "FinLit words",
-   "meaning": "FinLit's labels for where an NSE industry stands in its breadth cycle: Washout (broad selling), Thrust (a broad rebound), Confirmed (most stocks trending up together) and Fading (breadth breaking down).",
-   "why": "They show whether a move in an industry is broad or narrow, and how it has developed.",
-   "how": "Read them with the market: is the Nifty 50 above or below its 200-day average? Many thrusts fade, so a state describes where an industry stands, not what comes next.",
-   "formula": "",
-   "id": "sector-signal-states-washout-thrust-confirmed-fading",
-   "letter": "S",
-   "finlit": "",
-   "aliases": [
-    "Washout",
-    "Confirmed",
-    "Fading",
-    "Sector states",
-    "Sector signals",
-    "Sector signal",
-    "Breadth cycle",
-    "Industry cycle",
-    "1 · Washout",
-    "3 · Confirmed",
-    "How sector signals work"
    ]
   },
   {
@@ -6399,7 +6464,7 @@
    "formula": "",
    "id": "stage-analysis-stage-1-to-stage-4",
    "letter": "S",
-   "finlit": "FinLit reads the stage from the slope of the 150-day average (flat within ±1.5%) and the close against it. Stage 2 counts +1 when fresh and +0.5 when established; in Stage 3 or 4 the long-term score is capped at +19.",
+   "finlit": "On FinLit's pages the four stages are called Accumulation, Advancing, Distribution and Declining (see Stock stages). The stage is one of the inputs to the long-term technical view.",
    "aliases": [
     "Stage analysis",
     "Stage 1",
@@ -6575,7 +6640,7 @@
    "formula": "",
    "id": "swing-failure",
    "letter": "S",
-   "finlit": "FinLit's short-term technical view counts an active bullish swing failure +0.75 (+1 once confirmed) and a bearish one −0.75 (−1 once confirmed); the long-term view uses 15-session swings.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Swing high",
     "Swing low",
@@ -6599,6 +6664,30 @@
     "Symbol and BSE code",
     "ticker"
    ]
+  },
+  {
+   "term": "Stock stages (Accumulation, Advancing, Distribution, Declining)",
+   "topic": "FinLit words",
+   "meaning": "FinLit's plain names for the four stages of a share's price cycle: Accumulation (moving sideways after a fall), Advancing (above a rising long-term average), Distribution (moving sideways after a rise) and Declining (below a falling long-term average).",
+   "why": "The dashboard's market snapshot counts how many stocks sit in each stage, a quick read of the market's mood.",
+   "how": "A stage describes where a share is today, not where it goes next. Shares can move back and forth between stages, and stages are clearer in hindsight.",
+   "formula": "",
+   "id": "stock-stages-accumulation-advancing-distribution-declining",
+   "letter": "S",
+   "finlit": "",
+   "aliases": []
+  },
+  {
+   "term": "Stocks rising (industry breadth)",
+   "topic": "FinLit words",
+   "meaning": "Out of every 100 counted stocks in an industry, how many are trading above their medium-term average price. Sector Pulse shows it as a number and draws it as a line over the last 6 months.",
+   "why": "It shows whether a move is broad, with most stocks taking part, or carried by a few names.",
+   "how": "Above 50 means most of the industry's stocks are going up. Read the direction of the line as well as its level, and read it with the industry's state.",
+   "formula": "",
+   "id": "stocks-rising-industry-breadth",
+   "letter": "S",
+   "finlit": "",
+   "aliases": []
   },
   {
    "term": "T+3 listing timeline",
@@ -6676,7 +6765,7 @@
    "formula": "",
    "id": "technical-views-and-trend-alignment",
    "letter": "T",
-   "finlit": "Each score counts as up at +20 or more, down at −20 or less and sideways in between, and the nine combinations give the labels. The short-term view uses daily EMAs, MACD, RSI, volume and price patterns; the long-term view uses the 200-day trend, weekly RSI and MACD, relative strength and the stage.",
+   "finlit": "Each view is read as up, down or sideways, and the nine combinations give the labels, such as \"Bounce in a downtrend\". The short-term view uses daily trends, momentum, volume and price patterns; the long-term view uses the long trend, weekly momentum, relative strength and the stage.",
    "aliases": [
     "Technical views",
     "Technical view",
@@ -7074,7 +7163,7 @@
    "formula": "",
    "id": "volatility-squeeze",
    "letter": "V",
-   "finlit": "In FinLit's short-term technical view a breakout from a squeeze counts +1, a squeeze with positive momentum +0.5, any other squeeze −0.25 and unusually wide volatility −0.5.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Squeeze",
     "Breakout from a squeeze",
@@ -7104,7 +7193,7 @@
    "formula": "",
    "id": "volume-profile-value-area-and-point-of-control",
    "letter": "V",
-   "finlit": "FinLit's short-term technical view compares this swing's value area with the previous swing's: entirely higher +1, centre higher +0.5, centre lower −0.5, entirely lower −1.",
+   "finlit": "One of the inputs to FinLit's short-term technical view. How much it counts stays inside the model.",
    "aliases": [
     "Volume profile",
     "Value area",
