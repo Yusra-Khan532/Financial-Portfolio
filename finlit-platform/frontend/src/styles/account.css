@@ -74,8 +74,8 @@
 .heat { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin-top: 8px; }
 .hc { padding: 10px; border-radius: 10px; background: var(--s2); display: grid; gap: 2px; border: 1px solid var(--border); } .hc b { font-size: var(--fs-13); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .hc span { font: 700 13px var(--mono); }
 .hc.up { background: color-mix(in srgb, var(--gain) calc(var(--k) * 28%), var(--s2)); } .hc.down { background: color-mix(in srgb, var(--loss) calc(var(--k) * 28%), var(--s2)); }
-.dv { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; } .dv li { display: grid; grid-template-columns: minmax(90px, 1fr) 1.4fr 62px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.dv a { text-decoration: none; color: var(--text); display: grid; } .dv a small { color: var(--faint); font-size: var(--fs-12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dv a:hover b { color: var(--gold); }
+ul.dv { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; } ul.dv li { display: grid; grid-template-columns: minmax(90px, 1fr) 1.4fr 62px; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+ul.dv a { text-decoration: none; color: var(--text); display: grid; } ul.dv a small { color: var(--faint); font-size: var(--fs-12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } ul.dv a:hover b { color: var(--gold); }
 .dvbar { position: relative; height: 10px; background: var(--s2); border-radius: 99px; } .dvbar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border-strong); } .dvbar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; } .dvbar i.up { background: var(--gain); } .dvbar i.down { background: var(--loss); }
 .dvv { font: 700 13px var(--mono); text-align: right; }
 .rcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
