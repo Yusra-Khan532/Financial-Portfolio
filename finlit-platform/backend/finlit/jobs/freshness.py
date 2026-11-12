@@ -153,7 +153,7 @@ def judge_quotes(newest: Optional[datetime], now: datetime, found_target: Option
     return ds
 
 
-def judge_technicals(total: int, behind: int, newest_bar: Any, expected: date, now: datetime) -> Dataset:
+def judge_technicals(total: int, behind: int, newest_bar: Any, expected: date, now: datetime, no_newer: int = 0) -> Dataset:
     """Technical views: the share of Prism reports whose bar date is older than the expected session."""
     a = _d(newest_bar)
     ds = Dataset("technicals", "Technical views", ["technicals"], expected=expected.isoformat(), actual=a.isoformat() if a else None)
@@ -162,7 +162,7 @@ def judge_technicals(total: int, behind: int, newest_bar: Any, expected: date, n
         return ds
     share = behind / total
     ds.lag, ds.lagUnit = behind, "reports"
-    ds.detail = f"{behind} of {total} reports ({share:.0%}) are behind the expected session"
+    ds.detail = f"{behind} of {total} reports ({share:.0%}) are behind the expected session" + (f"; {no_newer} more have no newer trading day from the price provider (not traded or suspended)" if no_newer else "")
     if share <= 0.02:
         return ds
     over = (now - (session_ready_at(expected) + timedelta(hours=1))).total_seconds() / 3600
@@ -332,8 +332,23 @@ async def gather(store: Any, now: datetime) -> Dict[str, Any]:
     # working through a new session every report not reached yet counted as "behind" a session that was not due (12 Nov 2026: "expected 11 Nov, 867 behind")
     tech_cut = effective_expected(now, target)
     async with store.pool.acquire() as conn:
-        f["tech_behind"] = int(await _one(conn, "SELECT count(*) FROM (SELECT symbol, min(COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}')) AS bar "
-                                                "FROM prism_reports GROUP BY symbol) t WHERE bar IS NULL OR bar < $1", tech_cut.isoformat()) or 0)
+        behind_rows = await conn.fetch("SELECT symbol FROM (SELECT symbol, min(COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}')) AS bar "
+                                       "FROM prism_reports GROUP BY symbol) t WHERE bar IS NULL OR bar < $1", tech_cut.isoformat())
+    # A company the price provider has no newer daily bar for (not traded that session, or suspended) was checked by the technicals job, which keeps it until the
+    # next day (prism_technical NONEW marker): there is nothing newer to show, so it is counted apart, never as "behind" (12 Nov 2026: 864 of 2217 "behind").
+    no_newer = 0
+    try:
+        from ..prism_technical import NONEW_PREFIX
+        syms = [r["symbol"] for r in behind_rows]
+        for i in range(0, len(syms), 500):
+            async with store.redis.pipeline(transaction=False) as pipe:
+                for s_ in syms[i:i + 500]:
+                    pipe.exists(NONEW_PREFIX + s_)
+                no_newer += sum(1 for x in await pipe.execute() if x)
+    except Exception:   # nosec B110 - all counted as behind, as before
+        no_newer = 0
+    f["tech_behind"], f["tech_no_newer"] = len(behind_rows) - no_newer, no_newer
+    async with store.pool.acquire() as conn:
         f["tech_newest_bar"] = await _one(conn, "SELECT max(COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}')) FROM prism_reports")
     try:
         from .. import scorelive
@@ -390,7 +405,7 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     ds.append(judge_quotes(f.get("listing_newest"), now, f.get("found_target"), exp))
     ds.append(judge_session("daily_prices", "Daily price history", ["technicals", "ingest"], f.get("price_ref"), exp, now, 1.0, 14.0, "newest bar of the large reference companies"))
     ds.append(judge_index(f.get("index_t"), now, bool(f.get("visitors"))))
-    ds.append(judge_technicals(int(f.get("tech_total") or 0), int(f.get("tech_behind") or 0), f.get("tech_newest_bar"), exp, now))
+    ds.append(judge_technicals(int(f.get("tech_total") or 0), int(f.get("tech_behind") or 0), f.get("tech_newest_bar"), exp, now, int(f.get("tech_no_newer") or 0)))
     # only while the sector pages AND the sector job are switched on: with the job switched off by the founder's written exception (SECTORS_JOB), the board keeps the
     # last published data on purpose, and the console already says so as "switched off by configuration" (not a second, red "stale" line)
     if f.get("sector_enabled") and not f.get("sector_job_off"):
