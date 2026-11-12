@@ -99,13 +99,14 @@
 .olp-snap dt { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
 .olp-snap dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
 .olp .up { color: var(--gain); } .olp .dn { color: var(--loss); }
-.olp-row { display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; }
-.olp-l { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 92px; }
+.olp-row { display: grid; gap: 8px; align-items: start; }   /* the heading above its chips, for Quick picks and Last searched alike (task #109) */
+.olp-row + .olp-row { margin-top: 10px; }
+.olp-l { font: 700 13px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--text); }
 .olp-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .olp-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); text-decoration: none; font-size: var(--fs-14); }
 .olp-chip small { font-size: 12px; } .olp-chip:hover { border-color: var(--gold); } .olp-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .olp-chip.on { background: var(--gold-soft); border-color: var(--gold); }
-@media (max-width: 760px) { .olp-snap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .olp-l { min-width: 0; width: 100%; } }
+@media (max-width: 760px) { .olp-snap { grid-template-columns: repeat(2, minmax(0, 1fr)); }  }
 
 /* ---- the two model cards */
 .ol-models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; min-width: 0; }
