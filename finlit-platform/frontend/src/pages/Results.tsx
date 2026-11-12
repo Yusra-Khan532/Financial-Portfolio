@@ -8,6 +8,9 @@ import { dayLabel, staleResultsNote, useFeed, useResultsStatus, type FeedItem, w
 import { addDays, todayIST } from "../lib/qresults";
 import { useWatchlist } from "../lib/watchlist";
 import { ChartHelp } from "../components/ChartHelp";
+import { CoLogo } from "../components/CoLogo";
+
+const SHOWN = 18;   // the first rows stay in view; the rest open in place (9 Nov 2026 pages update)
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -34,7 +37,7 @@ export function ResultsPage() {
   const cells = Array.from({ length: Math.ceil((pad + days) / 7) * 7 }, (_, i) => (i < pad || i >= pad + days ? null : new Date(month.getFullYear(), month.getMonth(), i - pad + 1)));
   // Next results date per company, soonest first; meetings that are not about results (e.g. analyst meets) stay off this list.
   const upcoming = useMemo(() => { const seen = new Set<string>(); return soon.filter((x) => /result/i.test(`${x.category || ""} ${x.title || ""}`) && !seen.has(who(x)) && !!seen.add(who(x))).slice(0, 40); }, [soon]);
-  const declared = done.slice(0, 30);
+  const declared = done.slice(0, 60);
   const sel = pick ? byDay.get(pick) || [] : [];
   return (
     <div className="wrap ipo">
@@ -56,13 +59,14 @@ export function ResultsPage() {
                   {d && <><b>{d.getDate()}</b>{its.slice(0, 3).map((x) => <span key={x.id} className={x.date < today ? "done" : ""}>{who(x)}</span>)}{its.length > 3 && <em>+{its.length - 3} more</em>}</>}
                 </button>); })}
             </div>)}
-          {sel.length > 0 && <div className="rcal-sel"><h4>{dayLabel(pick!)}</h4><ul>{sel.map((x) => <li key={x.id}><Link to={x.symbol ? `/stocks/${x.symbol}` : "#"}><b>{x.symbol}</b> {x.company}</Link><span>{x.period || x.category}</span>{x.link && <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a>}</li>)}</ul></div>}
+          {sel.length > 0 && <div className="rcal-sel"><h4>{dayLabel(pick!)}</h4><ul>{sel.map((x) => <li key={x.id}><Link to={x.symbol ? `/stocks/${x.symbol}` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b> {x.company}</Link><span>{x.period || x.category}</span>{x.link && <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a>}</li>)}</ul></div>}
         </section>
         <aside className="rc-side">
           <section className="card"><div className="card-h"><h3><span className="ci"><Icon name="bell" /></span>Coming up</h3></div>
             {upcoming.length ? <ul className="feed-l">{upcoming.map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><b>{who(x)}</b> {x.period ? `· ${x.period}` : ""} <small>{x.category}</small></span></li>)}</ul> : <p className="muted">{isLoading ? "Loading…" : onlyMine && !mine.length ? "Add stocks to your watchlist to see their dates here." : "No upcoming dates have been added yet. The FinLit team adds them as companies announce."}</p>}</section>
           <section className="card"><div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>Recently reported</h3></div>
-            {declared.length ? <ul className="feed-l">{declared.map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><Link to={x.symbol ? `/stocks/${x.symbol}#quarter` : "#"}><b>{x.symbol}</b></Link> <small>{x.title}</small>{x.link && <> <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a></>}</span></li>)}</ul> : <p className="muted">{isLoading ? "Loading…" : "Nothing reported recently."}</p>}
+            {declared.length ? <><ul className="feed-l">{declared.slice(0, SHOWN).map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><Link to={x.symbol ? `/stocks/${x.symbol}#quarter` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b></Link> <small>{x.title}</small>{x.link && <> <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a></>}</span></li>)}</ul>
+              {declared.length > SHOWN && <details className="rc-more"><summary>Show the other {declared.length - SHOWN} {declared.length - SHOWN === 1 ? "company" : "companies"}</summary><ul className="feed-l">{declared.slice(SHOWN).map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><Link to={x.symbol ? `/stocks/${x.symbol}#quarter` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b></Link> <small>{x.title}</small>{x.link && <> <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a></>}</span></li>)}</ul></details>}</> : <p className="muted">{isLoading ? "Loading…" : "Nothing reported recently."}</p>}
             <p className="rcs-all"><Link to="/results/quarter">See every company's quarter results <Icon name="arrow" /></Link></p></section>
         </aside>
       </div>

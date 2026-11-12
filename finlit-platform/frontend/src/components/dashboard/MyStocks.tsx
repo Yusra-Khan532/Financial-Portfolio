@@ -2,6 +2,7 @@
 // the portfolio). Five rows, then "Show N more". Each row: price and today's move from the quotes call for the rows shown, FinLit IQ, latest quarter against the same
 // quarter a year earlier, and any alert. Descriptive only; a blank carries its reason.
 import { useMemo, useState } from "react";
+import { CoLogo } from "../CoLogo";
 import { Link } from "react-router";
 import { useQueries } from "@tanstack/react-query";
 import { apiGet, useQuotesFor, type Financials } from "../../lib/api";
@@ -73,7 +74,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
             const reasonNp = fin.isError ? "Results not available for this company yet" : np?.reason ?? undefined;
             return (
               <div className="dsh-st-r" role="row" key={f.symbol}>
-                <div className="nm" role="cell"><span className="dsh-ys-sym"><Link to={`/stocks/${f.symbol}`}>{/^\d+$/.test(f.symbol) && f.name ? f.name : f.symbol}</Link>{tab !== "portfolio" && held.has(f.symbol) && <span className="dsh-held" title="In your Equity portfolio">Held</span>}</span><small>{f.name || ""}</small></div>
+                <div className="nm" role="cell"><span className="dsh-ys-sym"><CoLogo symbol={f.symbol} name={f.name} size={22} inline /><Link to={`/stocks/${f.symbol}`}>{/^\d+$/.test(f.symbol) && f.name ? f.name : f.symbol}</Link>{tab !== "portfolio" && held.has(f.symbol) && <span className="dsh-held" title="In your Equity portfolio">Held</span>}</span><small>{f.name || ""}</small></div>
                 <div className="dsh-pr r" role="cell">{quotes.isLoading ? <i className="skeleton sk-n" /> : q?.price != null ? "₹" + nf(q.price) : <span title="No traded price held yet">—</span>}</div>
                 <div className={"ch r " + tone(q?.chg)} role="cell">{quotes.isLoading ? <i className="skeleton sk-n" /> : pct(q?.chg, 2)}</div>
                 <div className="dsh-st-x"><div className="sc" role="cell">{quotes.isLoading ? <i className="skeleton sk-p" /> : <Pill score={q?.score ?? null} band={q?.band ?? null} />}</div>

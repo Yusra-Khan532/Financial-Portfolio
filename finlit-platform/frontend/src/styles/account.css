@@ -409,3 +409,8 @@ table.sr-only { display: block; max-width: 1px; max-height: 1px; contain: strict
 .fslim { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 32px; padding: 28px 0 20px; border-bottom: 1px solid var(--border); }
 .fslim h2 { margin: 10px 0 0; font: 400 clamp(22px, 2.6vw, 30px)/1.2 var(--serif); } .fslim .lg-mark { height: 48px; }
 .fslim nav { display: flex; flex-wrap: wrap; gap: 8px 22px; } .fslim nav a { color: var(--muted); text-decoration: none; font-size: 14px; } .fslim nav a:hover { color: var(--text); text-decoration: underline; }
+
+/* "Show the other N companies": the first rows stay in view, the rest open in place (9 Nov 2026 pages update) */
+.rc-more { margin-top: 8px; } .rc-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); }
+.rc-more > summary::-webkit-details-marker { display: none; } .rc-more > summary::after { content: "▾"; font-size: var(--fs-12); color: var(--muted); } .rc-more[open] > summary::after { content: "▴"; }
+.rc-more > summary:hover { border-color: var(--text); } .rc-more > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; } .rc-more > .feed-l { margin-top: 8px; }
