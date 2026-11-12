@@ -90,8 +90,8 @@
 
 /* a tool: icon on the left, name beside it, the plan mark under the name */
 .xt-tn { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 8px; row-gap: 3px; align-items: center; width: 100%; }
-.xt-tn .xt-ti { grid-column: 1; grid-row: 1; margin: 0; } .xt-tn b { grid-column: 2; grid-row: 1; } .xt-tn .xt-badge { grid-column: 2; grid-row: 2; justify-self: start; margin: 0; }
-@media (max-width: 700px) { .xt-tn { grid-template-columns: 22px auto 1fr; } .xt-tn b { grid-column: 2; } .xt-tn .xt-badge { grid-column: 3; grid-row: 1; margin-left: 6px; } }
+.xt-tn .xt-ti { grid-column: 1; grid-row: 1; margin: 0; } .xt-tn b { grid-column: 2; grid-row: 1; } .xt-tn .xt-sub { grid-column: 2; grid-row: 2; justify-self: start; margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 3px 8px; min-width: 0; } .xt-sub .xt-badge { margin: 0 !important; }
+@media (max-width: 700px) { .xt-tn { grid-template-columns: 22px auto 1fr; } .xt-tn b { grid-column: 2; } .xt-tn .xt-sub { grid-column: 3; grid-row: 1; margin-left: 6px; } }
 
 /* The in-place group view, the sticky group bar, the bottom bar and Expand (task 58, landing pack of 9 Nov) */
 .fl-gv { max-width: 1180px; margin: 8px auto 0; --ac: var(--gold); }
@@ -135,3 +135,5 @@
   .fl-gfoot { grid-template-columns: 1fr; justify-items: stretch; } .fl-gnav, .fl-gnav.fl-gnext { justify-self: stretch; } .fl-gnav.fl-gnext { text-align: left; }
   .fl-modal-wrap { padding: 0; } .fl-modal { width: 100%; height: 100%; border-radius: 0; } .fl-modal-cols { grid-template-columns: minmax(0, 1fr); } .fl-modal-pic { max-height: none; }
 }
+/* task #89: the figure under each tool's name (190+ filters, 4 Prism parts, ...), in the group's accent colour */
+.xt-fig { font: 500 var(--fs-12)/1.3 var(--mono); color: var(--muted); white-space: nowrap; } .xt-fig strong { color: var(--ac); font-weight: 700; }

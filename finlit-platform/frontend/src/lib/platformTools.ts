@@ -57,5 +57,16 @@ export const SHORT: Record<string, string> = {
   "glossary": "440+ terms", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
 };
 
+/** One number per tool where the product has one (task #89): shown under the tool's name in the platform directory. Every figure is a count the product itself states or can be counted from it
+ *  (the 215 screener filters and Query-builder ratios, the 450-term glossary, the 4 Prism parts, the 5 IQ scores, ...), written as a floor ("190+") where the data grows. A tool with no honest count has none. */
+export const FIGURE: Record<string, [string, string]> = {
+  "stock-screener": ["190+", "filters"], "basic-score-screener": ["5", "scores per company"], "advanced-score-screener": ["4", "Prism parts"], "query-builder": ["190+", "ratios"],
+  "mutual-funds": ["1,200+", "funds"], "etfs": ["350+", "ETFs"], "fund-health-score": ["1,200+", "funds scored"],
+  "company-report": ["5", "IQ pillars"], "finlit-prism": ["4", "parts + 2 tech views"], "company-financials": ["3", "statements + ratios"], "compare-companies": ["2–4", "companies at once"],
+  "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
+  "sector-pulse": ["35+", "industry groups"], "sector-rotation": ["4", "corners"], "market-events": ["3", "calendars"],
+  "glossary": ["440+", "terms"], "discussion-forum": ["5,800+", "company pages"],
+};
+
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder and the Discussion Forum have none yet: their large view uses the card picture. */
 export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "basic-score-screener", "calculators", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "option-chain", "portfolios", "profit-revenue-outlook", "query-builder", "results-ipo", "sector-pulse", "sector-rotation", "stock-screener", "watchlists"]);
