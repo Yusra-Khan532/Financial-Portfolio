@@ -7,6 +7,8 @@
 .cp-p { display: flex; align-items: baseline; gap: 10px; font-size: 24px; }
 .cp-p span { font-size: 14px; }
 .cp-p .up { color: var(--gain, #16a34a); } .cp-p .dn { color: var(--loss, #dc2626); }
+.cp-p > span { white-space: nowrap; }   /* "6M -1.82%" never breaks across two lines (task #100) */
+.cp-f a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .cp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cp-bar button { border: 1px solid var(--border, #e5e7eb); background: transparent; color: inherit; border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; min-height: 32px; }
 .cp-bar button.on, .cp-seg button.on { background: var(--gold, #b8892b); border-color: var(--gold, #b8892b); color: var(--on-gold, #1a1405); }
