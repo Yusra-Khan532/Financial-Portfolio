@@ -42,4 +42,13 @@ describe("Stress Lab page", () => {
     st.status = 503; st.body = "Macro data has not been loaded yet."; open();
     expect(await screen.findByRole("heading", { name: /getting ready/ })).toBeTruthy();
   });
+  it("shows the latest-quarter check and the inventory days, and the size once (task 79)", async () => {
+    st.status = 200; open();
+    await waitFor(() => expect(document.querySelector(".sl-host")?.shadowRoot?.getElementById("head")?.textContent).toMatch(/earnings per share/));
+    const root = document.querySelector(".sl-host")!.shadowRoot!;
+    expect(root.textContent).toMatch(/In the latest quarter the model put the margin at 13\.9% and Asian Paints reported 15\.6% \(from 17\.6%\)/);
+    expect(root.textContent).toMatch(/about 120 days of inventory/);
+    expect(root.querySelector(".costrip small")?.textContent).toBe("ASIANPAINT · Paints · Large cap");
+    expect(root.querySelector(".costrip .logo")?.textContent).toBe("A");   // no logo on file: the initial shows
+  });
 });

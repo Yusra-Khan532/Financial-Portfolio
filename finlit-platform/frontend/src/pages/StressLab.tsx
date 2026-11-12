@@ -8,6 +8,7 @@ import { PageHeader } from "../components/PageHeader";
 import { OutlookPicker } from "../components/OutlookPicker";
 import { Gate } from "../components/Gate";
 import { useIndexFilter } from "../components/SearchFilters";
+import { useLogoMap } from "../components/CoLogo";
 import { ApiError, apiGet } from "../lib/api";
 import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
@@ -49,6 +50,7 @@ export function StressLabPage() {
   const peerQ = useQuery<any, ApiError>({ queryKey: ["stress", peerSym], queryFn: () => page(peerSym as string), enabled: gold && !!peerSym, retry: false, staleTime: 300_000 });
   const sf = useIndexFilter(true);
   const search = useRef(sf.search); search.current = sf.search;
+  const logos = useLogoMap(), logoRef = useRef(logos); logoRef.current = logos;   // company logos from the site's shared list; a company without one shows its initials
   const host = useRef<HTMLDivElement>(null);
   const data = q.data, peerData = peerQ.data;
 
@@ -62,11 +64,11 @@ export function StressLabPage() {
     const peer = peerData && gold ? { company: JSON.parse(JSON.stringify(peerData.company)), scenarios: peerData.scenarios, history: peerData.history, same_quarter: peerData.company.base_end === data.company.base_end, picked: !picked } : null;
     if (peer) d.history = d.history.map((r: any, i: number) => ({ ...r, ...(peerData.history?.[i]?.[peer.company.symbol] !== undefined ? { [peer.company.symbol]: peerData.history[i][peer.company.symbol] } : {}) }));
     const h = mountStressLab(root, StressEngine, d, {
-      view: peer && wantPeer ? "compare" : "single", peer, logoUrl: () => "",
+      view: peer && wantPeer ? "compare" : "single", peer, logoUrl: (s: string) => logoRef.current?.get(String(s).toUpperCase()) ?? "",
       search: (t: string) => search.current(t, 6, [sym]), onCompany: (s: string) => nav(`${BASE}/${s}`), onPeer: (s: string) => { setPicked(s); setWantPeer(true); }, requestPeer: () => setWantPeer(true),
     });
     return () => { h.destroy(); root.innerHTML = ""; };
-  }, [data, peerData, wantPeer, picked, gold, sym, nav]);
+  }, [data, peerData, wantPeer, picked, gold, sym, nav, !!logos]);
 
   const err = q.error, why = (err?.body?.detail as string) || "";
   return (

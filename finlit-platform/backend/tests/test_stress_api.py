@@ -173,3 +173,18 @@ def test_the_router_runs_the_same_numbers_as_the_engine_and_strips_the_value_whe
     assert out["label"] and out["explain"] and "assumptions" not in out and out["value_other_persistence"] is not None
     assert out["change_pct"]["eps"] == S.run(co, S.PRESETS["2022"])["change_pct"]["eps"]
     assert "value" not in R.strip_value(out) and "change_pct" in R.strip_value(out)
+
+
+# ---------------------------------------------------------------------------------------------------------------- the latest-quarter check and inventory days (task 79)
+def test_latest_quarter_check_gives_the_margin_the_model_put_and_the_one_reported():
+    import json as _json
+    from pathlib import Path
+    fx = Path(__file__).resolve().parent.parent / "finlit_technicals" / "tests" / "fixtures"
+    pack, macro = _json.loads((fx / "ASIANPAINT.json").read_text()), _json.loads((fx / "macro_2026-11-04.json").read_text())
+    co = S.company_from_pack(pack)
+    lq = P.latest_quarter_check(pack, co, macro["series"], macro["brent_quarterly"], macro["usdinr_monthly"])
+    assert lq == {"from": "Jul to Sep 2025", "to": "Jul to Sep 2026", "margin_before": 17.6, "predicted": 13.9, "reported": 15.6}
+    # no price in the windows: a blank, never a guess
+    assert P.latest_quarter_check(pack, co, macro["series"], [], macro["usdinr_monthly"]) is None
+    short = {**pack, "quarterly": {**pack["quarterly"], "periods": pack["quarterly"]["periods"][:4]}}
+    assert P.latest_quarter_check(short, co, macro["series"], macro["brent_quarterly"], macro["usdinr_monthly"]) is None
