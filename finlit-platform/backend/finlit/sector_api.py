@@ -25,6 +25,7 @@ from fastapi import APIRouter, Request, Response
 
 from . import sector_data as sd
 from . import sector_history
+from .rotation_insights import rotation_insights
 from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan
 from .auth.service import current
 from .background import etag_matches
@@ -182,7 +183,10 @@ async def rotation_map(request: Request) -> Response:
     data = sd.read_json(rel / "rotation" / "_map.json") if rel else None
     if not data:
         return _rotation_missing(request, started)
-    return _reply(request, redact_rotation_map(public_rotation(data), await _plan(request)), started)
+    payload = redact_rotation_map(public_rotation(data), await _plan(request))
+    if isinstance(payload, dict) and payload.get("rows"):                    # the insight cards under the Rotation charts, worked out here from the rows this plan may see
+        payload = {**payload, "insights": rotation_insights(payload["rows"])}
+    return _reply(request, payload, started)
 
 
 @router.get("/api/rotation/{slug}")

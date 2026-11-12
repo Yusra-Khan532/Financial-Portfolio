@@ -10,6 +10,7 @@ import { HowToGuide } from "../components/sectors/HowTo";
 import { Blank, StateChip } from "../components/sectors/Parts";
 import { CornerBadge, RankMove, SectorTabs, Spark } from "../components/rotation/Parts";
 import { RotationMapChart } from "../components/rotation/RotationMap";
+import { AheadChart, RankSixMonths } from "../components/rotation/RotationCharts";
 import { useDocTitle } from "../lib/title";
 import { level } from "../lib/sectors";
 import {
@@ -228,8 +229,10 @@ export function SectorRotationPage() {
           <Tiles m={m} filter={filter} setFilter={setFilter} />
           <MarketStrip m={m} />
           <div className="rt-main"><Stands m={m} filter={filter} onOpen={open} /><Rail m={m} /></div>
+          <AheadChart m={m} />
           <Ranking m={m} filter={filter} setFilter={setFilter} />
           <RankGrid m={m} />
+          <RankSixMonths m={m} />
           <footer className="sx-footer"><p>{m.disclaimer}</p><p>Sources: NSE daily files and industry classification; AMFI market caps. <Link className="sx-link" to="/learn/sector-rotation">How to use Sector Rotation</Link></p></footer>
         </div>
       )}
