@@ -90,7 +90,7 @@
   ]
  },
  {
-  "declared": 8,
+  "declared": 7,
   "id": "basic-score-screener",
   "title": "Basic stock screener",
   "section": "Find stocks",
@@ -101,11 +101,7 @@
   "items": [
    {
     "q": "What is the FinLit IQ?",
-    "a": "A score from 0 to 100 worked out from a company's filed statements and prices. It is the average of five pillars: Quality, Growth, Profitability, Balance sheet and Technical. It is free on each company's own page; this full table is part of Silver."
-   },
-   {
-    "q": "What is the difference between Growth & Profitability, Technical and Overall?",
-    "a": "Growth & Profitability is the average of the four business pillars and needs at least three of them. Technical reads the price trend against the 50-day and 200-day averages, and its momentum. Overall is the average of all the pillar scores that are available, the same number shown on the company's page."
+    "a": "A score from 0 to 100 built from a company's filed statements and prices, across Quality, Growth, Profitability, Balance sheet and Technical. It is free on each company's own page; this full table is part of Silver."
    },
    {
     "q": "What do Strong, Healthy, Mixed and Watch mean?",

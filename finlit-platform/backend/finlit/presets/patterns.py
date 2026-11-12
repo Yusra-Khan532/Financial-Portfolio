@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 log = logging.getLogger("finlit.patterns")
 LIQUID_FLOOR_CR = 1000.0         # market value: below this the scans are not run at all (thinly traded)
 META_KEY = "patterns"
+MIN_COVERAGE = 0.98             # the share of the scanned companies whose candles reach the close: below it the run stops instead of publishing thin lists
+SUSPENDED_DAYS = 45             # candles that end this many days before the close belong to a suspended or delisted company: it leaves the scan universe
 
 SCAN_IDS = ["daily_base", "weekly_base", "near_pivot", "vcp", "tight_range", "flag", "ema50_pullback", "rs_before_price", "ipo_base", "big_reversal", "shakeout"]
 NAMES = {"daily_base": "Daily base", "weekly_base": "Weekly base", "near_pivot": "Near pivot", "vcp": "Volatility contraction (VCP)", "tight_range": "Tight range", "flag": "Flag",
@@ -99,6 +101,45 @@ def _bench(raw: Any):
     return pd.Series({a: b for a, b in sorted(pts)}) if len(pts) > 60 else None
 
 
+async def candle_coverage(store, table, expected_day: date) -> Dict[str, Any]:
+    """How many of the companies the scans cover already have the close's candle. Suspended and delisted companies (candles ending long before) are not counted: they have left the
+    universe. {"fresh", "universe", "suspended", "ratio"}."""
+    mc = table.cols["market_cap"]
+    fresh = universe = suspended = 0
+    for i, sym in enumerate(table.symbols):
+        if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
+            continue
+        try:
+            hit = await store.get_section(sym, "consolidated", "price-1Y")
+            t = (((json.loads(hit[0]) if hit else None) or {}).get("series") or {}).get("t") or []
+            if len(t) < 25:
+                continue
+            last = date.fromisoformat(str(t[-1])[:10])
+        except Exception:
+            continue
+        if (expected_day - last).days > SUSPENDED_DAYS:
+            suspended += 1
+            continue
+        universe += 1
+        fresh += 1 if last >= expected_day else 0
+    return {"fresh": fresh, "universe": universe, "suspended": suspended, "ratio": (fresh / universe) if universe else 1.0}      # no company to scan: nothing is thin, the run just finds nothing
+
+
+async def wait_for_candles(store, table, expected_day: date, max_wait_s: int = 1800, step_s: int = 120, sleep=None) -> Dict[str, Any]:
+    """The pattern run waits for the candle refresh of the whole universe: it looks again every `step_s` seconds, up to `max_wait_s`, until at least 98% of the companies have the close's
+    candle. Returns the last coverage seen (the caller stops and alerts when it is still below 98%)."""
+    import asyncio
+    sleep = sleep or asyncio.sleep
+    waited = 0
+    while True:
+        cov = await candle_coverage(store, table, expected_day)
+        if cov["ratio"] >= MIN_COVERAGE or waited >= max_wait_s:
+            return {**cov, "waited": waited}
+        log.info("pattern scans waiting for candles: %s of %s have the %s close", cov["fresh"], cov["universe"], expected_day)
+        await sleep(step_s)
+        waited += step_s
+
+
 async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
     """Run the scans for every company of Rs 1,000 Cr or more that has a stored report. Returns {as_of, scans: {scan: {symbol: hit}}, left_out: {scan: [[symbol, reason]]}, checked}."""
     import pandas as pd
@@ -112,7 +153,7 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
         log.warning("NIFTY 500 history not read: the relative-strength scan is skipped tonight", exc_info=True)
     scans: Dict[str, Dict[str, Any]] = {k: {} for k in SCAN_IDS}
     stale: List[List[str]] = []
-    checked = 0
+    checked = suspended = 0
     for i, sym in enumerate(table.symbols):
         if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
             continue
@@ -128,6 +169,9 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
             if len(df) < 25:
                 continue
             last = df["date"].iloc[-1].date()
+            if (expected_day - last).days > SUSPENDED_DAYS:
+                suspended += 1                  # suspended or delisted: out of the scan universe, not "left out"
+                continue
             if last < expected_day:
                 stale.append([sym, f"candles end {last.strftime('%d %b').lstrip('0')}, before the {expected_day.strftime('%d %b').lstrip('0')} close"])
                 continue
@@ -140,7 +184,9 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
                 scans[hit_.scan][sym] = rec
         except Exception:
             log.warning("pattern scan skipped for %s", sym, exc_info=True)
-    return {"as_of": expected_day.isoformat(), "scans": scans, "left_out": stale, "checked": checked, "bench": bench is not None}
+    if stale:
+        log.info("pattern scans: %d companies left out (candles behind the close): %s", len(stale), stale[:50])      # the list stays in the log; the page gets a count
+    return {"as_of": expected_day.isoformat(), "scans": scans, "left_out": stale, "checked": checked, "suspended": suspended, "bench": bench is not None}
 
 
 async def save(store, result: Dict[str, Any], previous: Optional[Dict[str, Any]]) -> None:

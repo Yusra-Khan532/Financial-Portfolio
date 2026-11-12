@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 13      # 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 14      # 14: Prism basics served, Sector themes on the NSE industries, plain order notes, lender cut-off at or above; 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
@@ -127,14 +127,14 @@ VIEWS = (STS, LTS)
 
 PROVISIONAL = Chip("include-provisional", "Include provisional", "Also lists companies with a Provisional Prism rating (a rating built on limited history), each with its badge.", False,
                    _m(prism_set={"status": None}), ("Provisional ratings are included, with a Provisional badge.",))
-TURNING_UP = Chip("turning-up", "Turning up", "Keeps only names whose short-term technical view is 0 or more: the price has stopped falling.", False,
+TURNING_UP = Chip("turning-up", "Turning up", "Keeps only names where the short-term technical view is no longer negative: the price has stopped falling.", False,
                   _m(derived_add=(("prism_st_score >= 0", "Short-term technical view 0 or more"),)), ("Turning up: the short-term technical view must be 0 or more.",))
 ALL_CAPS = Chip("all-caps", "All caps", "Also lists small caps (the default is large and mid caps).", False, _m(derived_drop=("is_large_mid = 1",)), ("All caps: small caps are included.",))
-FAST_G = Chip("fast-growers", "Fast growers", "Raises the Growth & Profitability cut-off from 75 to 85.", False, _m(prism_set={"zfmin": 85}), ("Fast growers: Prism Growth & Profitability 85 or more.",))
+FAST_G = Chip("fast-growers", "Fast growers", "Asks for stronger growth and profitability.", False, _m(prism_set={"zfmin": 85}), ("Fast growers: Prism Growth & Profitability 85 or more.",))
 SHOW_ALL_THEME = Chip("show-all-theme", "Show all theme members", "Drops the Growth & Profitability and Risk gates: every theme member of Rs 1,000 Cr or more is listed.", False,
                       _m(derived_drop=("has_prism = 0 or (prism_fundamental >= 50 and prism_risk >= 40)",)), ("Every theme member of Rs 1,000 Cr or more is listed, whatever its Growth & Profitability and Risk.",))
-SMALL_GROUPS = Chip("small-groups", "Include small groups", "Also lists sectors with 5 to 7 companies, which are too few to call a theme with the same confidence.", False,
-                    _m(small_groups=True), ("Small groups (5 to 7 companies) are included.",))
+SMALL_GROUPS = Chip("small-groups", "Include small groups", "Also lists smaller groups, which are too few to call a theme with the same confidence.", False,
+                    _m(small_groups=True), ("Smaller groups are included.",))
 SUB_CHIPS = tuple(Chip(slug(sub), sub, f"Only companies in {sub}. Pick several to see any of them.", False, _m(sub=sub), (f"Sub-theme: {sub}.",)) for sub in THEME_SUBS)
 
 TOP_RANK = (("prism_final", 0.55), ("prism_lt_score", 0.40), ("prism_st_score", 0.05))      # fix 9: each input once (the Prism score already holds Valuation and Risk)
@@ -338,11 +338,14 @@ PATTERNS_ADV: List[Preset] = [
     for k in _SCANS]
 PRESETS = PRESETS[:-2] + SETUPS_ADV + PATTERNS_ADV + PRESETS[-2:]
 
-# the page's existing four quick views (frontend/src/lib/scoreScreen.ts, PRISM_PRESETS): listed under "Prism basics", handled by the page itself
+# the Prism basics (the page's own quick views, frontend/src/lib/scoreScreen.ts PRISM_PRESETS): served like every other screen, so each has history, As on and a place in Top gainers (task 64, SC-10)
+_BASICS_COLS = with_status((RANK, STOCK, SECTOR, PRISM, PLABEL, FUND, VAL, QUAL, RISK, STS, LTS, MCAP))
+_BASICS_ORDER = (("prism_final", "desc"), ("market_cap", "desc"))
 QUICK_VIEWS: List[Preset] = [
-    Preset("strongsafe", "Prism strong and lower risk", "prism-basics", "A Prism score of 80 or more (Strong) and Prism Risk 65 or more (a higher Risk score means lower risk).", "quickview", _m(zmin=80, zrmin=65, rated=1)),
-    Preset("fairvalue", "Strong Growth & Profitability at a fair valuation", "prism-basics", "Prism Growth & Profitability 65 or more and Prism Valuation 50 or more.", "quickview", _m(zfmin=65, zvmin=50, rated=1)),
-    Preset("weakvalue", "Growth & Profitability strong but valuation weak", "prism-basics", "Prism Growth & Profitability 65 or more but Prism Valuation below 50.", "quickview", _m(zfmin=65, zvbelow=50, rated=1)),
+    Preset("strongsafe", "Prism strong and lower risk", "prism-basics", "A Prism score of 80 or more (Strong) and Prism Risk 65 or more (a higher Risk score means lower risk).", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("fairvalue", "Strong Growth & Profitability at a fair valuation", "prism-basics", "Prism Growth & Profitability 65 or more and Prism Valuation 50 or more.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("bothtech", "Uptrend on both technical views", "prism-basics", "Prism's short-term and long-term technical views are both in an uptrend (+20 or more).", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("weakvalue", "Growth & Profitability strong but valuation weak", "prism-basics", "Prism Growth & Profitability 65 or more but Prism Valuation below 50.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
 ]
 
 

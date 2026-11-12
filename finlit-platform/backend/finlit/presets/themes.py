@@ -3,7 +3,7 @@
 Breadth is now the share of a sector's stocks within 15% of their 52-week high (fields the score tabs may use); the moving-average breadth of the first version is gone.
 It is stored in the `b50` column (`b200` stays empty), and history written by the old definition is ignored, so Emerging and Fading start again from a clean 20 sessions.
 
-Universe: stocks with a market cap of Rs 1,000 Cr or more, grouped by the Sector LABEL (the merged `sector` label of the company, never its Industry and never the broad macro sector). Generic labels are left out of theme status; groups with fewer than
+Universe: stocks with a market cap of Rs 1,000 Cr or more, grouped by the NSE industry (one level each, 58 names; see `by_nse_industry`). Generic labels are left out of theme status; groups with fewer than
 8 companies are "small groups" (shown only behind the small-groups chip: spec p11 lists four of them with the label "Small group").
 Per sector label and for the whole universe, per night:
     B    breadth: share of members within 15 % of the 52-week high (stored in the `b50` column)
@@ -30,7 +30,7 @@ LOOKBACK = 20           # sessions
 KEEP_SESSIONS = 60
 NEAR_HIGH = 15.0        # within 15 % of the 52-week high
 MARKET = "*"
-KEY_PREFIX = "sector:"      # stored rows are keyed "sector:<label>": rows written when themes were grouped by Industry carry no prefix and are ignored, so no history of another grouping is mixed in
+KEY_PREFIX = "nse:"      # stored rows are keyed "nse:<NSE industry>": rows written when themes were grouped by Sector label ("sector:") or by the old Industry carry another prefix and are ignored, so no history of another grouping is mixed in
 NEVER_EMPTY = 3
 
 IN_PLAY_FLOOR = 40.0
@@ -100,6 +100,11 @@ class ThemeEval:
     industries: Dict[str, dict] = field(default_factory=dict)   # industry -> {members,b50,b200,r3,nh,rs3,in_play,state,small,idx}
     in_play: List[str] = field(default_factory=list)
     closest: List[str] = field(default_factory=list)
+
+
+def by_nse_industry(table, industry: Dict[str, str]) -> Callable[[int], Optional[str]]:
+    """The grouping the theme screens use (fix 6, task 64): the company's NSE industry, one level, the 58 names Sector Pulse uses. A company with none stays out of theme status."""
+    return lambda i: industry.get(table.symbols[i])
 
 
 def by_sector_label(table) -> Callable[[int], Optional[str]]:

@@ -14,7 +14,7 @@ from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
 from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, theme_map, themes
-from .registry import PRESETS, REGISTRY_VERSION, Preset
+from .registry import ALL, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
 REDIS_TTL = 36 * 3600
@@ -53,7 +53,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     industry = {s: nse[s] for s in table.symbols if s in nse}      # NSE industry, one level (task 64, fix 6); the site's own cleaned label is still stored in industry_clean
     tags = theme_map.tags_for(table.symbols, table.sector_label)      # found from the Sector LABEL (not the broad macro sector) and the research team's named lists, shown as a column
     pos = table.pos
-    ev = themes.evaluate(table, themes.by_sector_label(table), themes.history_from_rows(hist_rows))      # grouped by the Sector label, not the Industry
+    ev = themes.evaluate(table, themes.by_nse_industry(table, industry), themes.history_from_rows(hist_rows))      # grouped by the 58 NSE industries (fix 6)
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
     fr.history_days = history_days
     fr.patterns = await pat_mod.load(store)          # the nightly chart-pattern run (None until the first one has been made)
@@ -160,10 +160,9 @@ async def get_result(store, preset: Preset, active: List[str]) -> Optional[dict]
     """The cached answer; on a miss compute it once (a Redis lock keeps concurrent first requests to one computation, bounded by COMPUTE_TIMEOUT).
     None when another worker is computing and did not finish within WAIT_S (the API answers 503 'computing')."""
     ckey = engine.chip_key(active)
-    snap = (await get_table(store)).fingerprint()
     body = await read_cached(store, preset.id, ckey)
-    if body is not None and same_snapshot(body, snap):
-        return body
+    if body is not None:
+        return body           # the list built after the close and written to the screen history: served as stored, so the card count, the rows and Added always agree
     lock = f"presets:lock:{preset.id}:{ckey}"
     got = False
     try:
@@ -184,7 +183,7 @@ async def get_result(store, preset: Preset, active: List[str]) -> Optional[dict]
     for _ in range(WAIT_S * 2):
         await asyncio.sleep(0.5)
         body = await read_cached(store, preset.id, ckey)
-        if body is not None and same_snapshot(body, snap):
+        if body is not None:
             return body
     return None
 
@@ -210,23 +209,32 @@ async def log_usage(store, preset_id: str, event: str, plan: str = "gold") -> No
 
 
 def live_presets() -> List[Preset]:
-    return [p for p in PRESETS if p.status == "live"]
+    return [p for p in ALL if p.status == "live"]
 
 
-async def refresh_presets(store) -> dict:
+async def refresh_presets(store, settings=None) -> dict:
     """The nightly job: seed top-up, derived tables, every live screen for its common chip sets into the cache."""
     fr = await build_frame(store, persist=True)
+    bench_ready = await hist_mod.ensure_bench(store, settings)
     pattern_note: dict = {}
+    pattern_failed = ""
     try:       # its own guard: a scan problem never stops the screens below (the founder's rule: one step stopping never stops another)
         previous = fr.patterns
-        found = await pat_mod.scan_all(store, fr.t, fr.as_of)
-        await pat_mod.save(store, found, previous)
-        fr.patterns = found
-        pattern_note = {"patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"])}
+        cov = await pat_mod.wait_for_candles(store, fr.t, fr.as_of)
+        if cov["ratio"] < pat_mod.MIN_COVERAGE:       # thin candles would publish thin lists: stop, keep the last saved run, and raise the alarm (the job reports failed)
+            log.error("chart-pattern scans NOT published: only %s of %s companies have the %s candle (%.1f%%, needs 98%%)", cov["fresh"], cov["universe"], fr.as_of, 100 * cov["ratio"])
+            pattern_failed = f"patterns:candles {cov['fresh']}/{cov['universe']} below 98%"
+            pattern_note = {"patternsHeld": True, "patternCoverage": round(cov["ratio"], 4), "patternsSuspended": cov["suspended"]}
+        else:
+            found = await pat_mod.scan_all(store, fr.t, fr.as_of)
+            await pat_mod.save(store, found, previous)
+            fr.patterns = found
+            pattern_note = {"patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
+                            "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4)}
     except Exception as exc:
         log.exception("chart-pattern scans failed; the last saved run stays in use")
         pattern_note = {"patternsError": type(exc).__name__}
-    done, failed = 0, []
+    done, failed = 0, ([pattern_failed] if pattern_failed else [])
     kept: list = []
     for p in live_presets():
         if p.kind == "gainers":
@@ -251,4 +259,4 @@ async def refresh_presets(store) -> dict:
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
     return {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
-            "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
+            "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
