@@ -32,8 +32,10 @@ export function useScreener(mode: Mode) {
   const [how, setHow] = useState(false), [drawer, setDrawer] = useState(false);
   const silver = has("silver"), locked = !silver, gold = has("gold"), maxCompare = gold ? 4 : 2;
   const appliedKey = filtersKey(applied);
-  const mine = useRef<string | null>(null), wait = useRef(0);   // mine: the filters this page itself just applied; wait: how long to hold before applying the next draft change (0 for ticks, 400 ms for typed numbers)
-  useEffect(() => {  if (mine.current === appliedKey) { mine.current = null; return; } setDraft(cloneFilters(applied)); }, [appliedKey]);   // eslint-disable-line react-hooks/exhaustive-deps -- back/forward or a pasted link refreshes the sidebar (our own applies already match the draft)
+  // mine: every filter set this page applied that the address has not echoed back yet (a Set, not one slot: two quick changes, say removing a chip and then
+  // ticking another filter, used to let the late echo of the first one reset the sidebar and bring the removed filter back); wait: see below
+  const mine = useRef<Set<string>>(new Set()), wait = useRef(0);   // mine: the filters this page itself just applied; wait: how long to hold before applying the next draft change (0 for ticks, 400 ms for typed numbers)
+  useEffect(() => {  if (mine.current.has(appliedKey)) { mine.current.delete(appliedKey); return; } mine.current.clear(); setDraft(cloneFilters(applied)); }, [appliedKey]);   // eslint-disable-line react-hooks/exhaustive-deps -- back/forward or a pasted link refreshes the sidebar (our own applies already match the draft)
 
   const items = useMemo(() => withScores(data?.rows || []), [data]);
   const unscored = useMemo(() => items.filter((r) => r.scored === false).length, [items]);
@@ -66,7 +68,7 @@ export function useScreener(mode: Mode) {
     }, { replace: true }), 300);
     return () => clearTimeout(t);
   }, [q]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const apply = (f: Filters = draft, close = false, withSort?: Sort) => { if (Object.keys(validate(f)).length) return; if (filtersKey(f) !== appliedKey) mine.current = filtersKey(f); setDraft(cloneFilters(f)); if (withSort) wantSort.current = withSort; go({ filters: f, page: 0 }); if (close) setDrawer(false); };
+  const apply = (f: Filters = draft, close = false, withSort?: Sort) => { if (Object.keys(validate(f)).length) return; if (filtersKey(f) !== appliedKey) { mine.current.add(filtersKey(f)); if (mine.current.size > 20) mine.current.delete(mine.current.values().next().value as string); } setDraft(cloneFilters(f)); if (withSort) wantSort.current = withSort; go({ filters: f, page: 0 }); if (close) setDrawer(false); };
   const clear = () => { wait.current = 0; apply(emptyFilters()); };
   const drop = (id: string) => apply(removeChip(applied, id));
   // Filters apply live: a tick, chip or quick view applies at once; typed numbers apply 400 ms after the last key (or on Enter / leaving the box).
