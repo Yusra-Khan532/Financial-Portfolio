@@ -2,6 +2,11 @@
 .skip { position: absolute; left: -999px; top: 8px; z-index: 100; background: var(--gold); color: var(--on-gold); padding: 8px 14px; border-radius: 8px; font-weight: 600; }
 .skip:focus { left: 8px; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+/* A slider shows its focus as a glow round the thumb, not a box round the whole bar (task #110): the page-wide outline above made a rectangle appear round a slider whenever it was used.
+   The glow is a filter, so it follows the round thumb (a box-shadow on the native thumb is square). */
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
+input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
 .grow { flex: 1; }
 .hide-sm { }
 @media (max-width: 760px) { .hide-sm { display: none !important; } }
