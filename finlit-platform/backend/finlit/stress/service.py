@@ -251,49 +251,85 @@ async def stored_symbols(store) -> List[str]:
         return []
 
 
+CONCURRENCY = 3            # companies built at the same time: the slow part is the data provider's statements, so a few at once cuts the wall time several times over
+RECENT_FAIL_H = 6          # a company that failed in the last few hours goes to the back of the queue: every run first spends its time on companies not tried yet
+
+
 async def refresh_stress(store, settings, *, max_minutes: float = 40.0, limit: Optional[int] = None, force: bool = False, symbols: Optional[List[str]] = None,
                          per_company_s: float = PER_COMPANY_S) -> dict:
     """The nightly run (`refresh-stress`): builds the page payload and the pack of every covered company that has no copy from today yet, largest first, and stores them.
-    Resumable: a company already built today is skipped, so a second run only does what is left. A company that fails is recorded with the reason (table and log) and tried
-    again next run; one failing never stops the others."""
+    Resumable: a company already built today is skipped, so a second run only does what is left. A company that cannot be built right now (its report or statements are not
+    stored yet, the data provider is slow) is recorded with the reason (table and log) and tried again next run: that is waiting, not a fault of the job. One company never
+    stops the others, and the run reports a fault only when nothing at all could be built."""
     from types import SimpleNamespace
     table = await get_table(store)
     app = SimpleNamespace(state=SimpleNamespace(store=store, settings=settings))
     wanted = [(s, mc) for s, mc in await covered_symbols(store) if not symbols or s in symbols]
     today = datetime.now(IST).date()
     done_today: set = set()
+    recent_fail: set = set()
     if not force:
         async with store.pool.acquire() as conn:
             done_today = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM stress_pages WHERE (built_at AT TIME ZONE 'Asia/Kolkata')::date = $1", today)}
+            try:
+                recent_fail = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM stress_failures WHERE kind <> 'not_covered' AND failed_at > now() - make_interval(hours => $1)", RECENT_FAIL_H)}
+            except Exception:   # nosec B110 - before the migration has run
+                recent_fail = set()
     todo = [(s, mc) for s, mc in wanted if s not in done_today]
+    todo = [x for x in todo if x[0] not in recent_fail] + [x for x in todo if x[0] in recent_fail]       # untried first, recent failures last (each group largest first)
     if limit:
         todo = todo[:limit]
     started = time.monotonic()
-    built = failed = not_covered = 0
+    out = {"built": 0, "failed": 0, "not_covered": 0, "not_ready": 0, "tried": 0}
     failures: List[Dict[str, str]] = []
-    for sym, mc in todo:
-        if time.monotonic() - started > max_minutes * 60:
-            break
+    queue: asyncio.Queue = asyncio.Queue()
+    for item in todo:
+        queue.put_nowait(item)
+
+    async def one(sym: str, mc: float) -> None:
         size = size_word(mc, table.cap[table.pos[sym]])
+        out["tried"] += 1
         try:
             payload, pack = await asyncio.wait_for(build_payload_and_pack(app, sym, size=size), per_company_s)
             await save_page(store, sym, payload, pack)
-            built += 1
+            out["built"] += 1
         except NotCovered as exc:
-            not_covered += 1
+            out["not_covered"] += 1
             await save_failure(store, sym, "not_covered", str(exc))
+        except NotReady as exc:        # the report or the statements are not stored yet, or today's inputs are not complete: wait and try again next run
+            out["not_ready"] += 1
+            log.info("stress %s not ready: %s", sym, exc)
+            failures.append({"symbol": sym, "reason": "not ready: " + str(exc)[:160]})
+            await save_failure(store, sym, "not_ready", str(exc))
         except asyncio.TimeoutError:
-            failed += 1
+            out["failed"] += 1
             reason = f"timed out after {per_company_s:.0f}s (statements from the data provider)"
             log.warning("stress %s: %s", sym, reason)
             failures.append({"symbol": sym, "reason": reason})
             await save_failure(store, sym, "failed", reason)
         except Exception as exc:      # one company failing never stops the others
-            failed += 1
+            out["failed"] += 1
             reason = f"{type(exc).__name__}: {exc}"
             log.warning("stress %s failed: %s", sym, reason)
             failures.append({"symbol": sym, "reason": reason[:200]})
             await save_failure(store, sym, "failed", reason)
-    left = len(todo) - built - failed - not_covered
-    return {"covered": len(wanted), "built": built, "skipped_built_today": len(wanted) - len(todo) if not limit else len(done_today & {s for s, _ in wanted}), "failed": failed,
-            "not_covered": not_covered, "left": max(0, left), "failures": failures[:25], "seconds": round(time.monotonic() - started, 1)}
+
+    async def worker() -> None:
+        while time.monotonic() - started <= max_minutes * 60:
+            try:
+                sym, mc = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            await one(sym, mc)
+
+    await asyncio.gather(*(worker() for _ in range(CONCURRENCY)))
+    left = queue.qsize() + out["not_ready"] + out["failed"]
+    reasons: Dict[str, int] = {}
+    for f in failures:
+        k = f["reason"].split(":")[0][:60]
+        reasons[k] = reasons.get(k, 0) + 1
+    log.info("stress run: covered %d, built %d, not covered %d, not ready %d, failed %d, left %d, in %.0fs; reasons %s", len(wanted), out["built"], out["not_covered"],
+             out["not_ready"], out["failed"], left, time.monotonic() - started, reasons or "none")
+    return {"covered": len(wanted), "built": out["built"], "skipped_built_today": len(wanted) - len(todo) if not limit else len(done_today & {s for s, _ in wanted}),
+            "failed": out["failed"], "not_ready": out["not_ready"], "not_covered": out["not_covered"], "left": max(0, left), "tried": out["tried"], "reasons": reasons,
+            "failures": failures[:25], "seconds": round(time.monotonic() - started, 1)}

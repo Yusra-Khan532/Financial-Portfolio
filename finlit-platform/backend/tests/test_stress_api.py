@@ -207,6 +207,11 @@ async def _clean(store):
         await conn.execute("DELETE FROM stress_failures")
 
 
+async def _clean_pages(store):
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM stress_pages")
+
+
 def _macro_today(m):
     async def fake(store):
         return {"as_of": "2026-11-04", "series": m["series"], "brent": [list(p) for p in m["brent_quarterly"]], "usdinr_monthly": service.stopgap_usdinr()}, None
@@ -342,3 +347,42 @@ async def test_sl2_a_slow_company_times_out_alone_and_the_others_are_still_built
     monkeypatch.setattr(service, "build_payload_and_pack", build)
     res = await service.refresh_stress(store, object(), max_minutes=5, per_company_s=0.05)
     assert res["built"] == 1 and res["failed"] == 1 and "timed out" in res["failures"][0]["reason"]
+
+
+async def test_sl2_a_company_that_is_not_ready_is_waiting_not_a_failure_and_recent_failures_go_last(store, monkeypatch):  # noqa: F811
+    await _clean(store)
+    data._table = Table([_row("ASIANPAINT", 233000), _row("TITAN", 300000), _row("HINDUNILVR", 280000)], {}, {})
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    calls = []
+    async def build(app_, sym, size, statement="consolidated"):
+        calls.append(sym)
+        if sym == "TITAN":
+            raise service.NotReady("This company's report is not stored yet.")
+        return _payload(), pack
+    monkeypatch.setattr(service, "build_payload_and_pack", build)
+    res = await service.refresh_stress(store, object(), max_minutes=5)
+    assert res["built"] == 2 and res["not_ready"] == 1 and res["failed"] == 0 and res["left"] == 1       # waiting for its report: not a fault of the run
+    async with store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT kind FROM stress_failures WHERE symbol = 'TITAN'") == "not_ready"
+    await _clean_pages(store)
+    calls.clear()
+    await service.refresh_stress(store, object(), max_minutes=5)
+    assert calls == ["HINDUNILVR", "ASIANPAINT", "TITAN"]                 # TITAN failed a moment ago: the others are tried first, then it again
+
+
+async def test_sl2_a_few_companies_are_built_at_once_and_all_of_them_are_stored(store, monkeypatch):  # noqa: F811
+    import asyncio
+    await _clean(store)
+    syms = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
+    data._table = Table([_row(s, 200000 + i) for i, s in enumerate(syms)], {}, {})
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    running = peak = 0
+    async def build(app_, sym, size, statement="consolidated"):
+        nonlocal running, peak
+        running += 1; peak = max(peak, running)
+        await asyncio.sleep(0.02)
+        running -= 1
+        return _payload(), pack
+    monkeypatch.setattr(service, "build_payload_and_pack", build)
+    res = await service.refresh_stress(store, object(), max_minutes=5)
+    assert res["built"] == 6 and res["failed"] == 0 and 1 < peak <= service.CONCURRENCY and sorted(await service.stored_symbols(store)) == sorted(syms)

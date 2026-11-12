@@ -1412,8 +1412,9 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .stress import service as stress_service
             res = await stress_service.refresh_stress(store, settings, max_minutes=args.max_minutes, limit=args.limit, force=args.force, symbols=[x.upper() for x in args.symbols] or None)
             print(json.dumps(res, default=str)[:3000])
-            tried = res["built"] + res["failed"]
-            return 0 if res["failed"] == 0 or res["failed"] <= 0.05 * max(tried, 1) else 1     # a few companies failing for their own reasons is logged and retried tomorrow; many is a fault the supervisor retries
+            # Companies that are not ready yet, or that the data provider answered slowly, are waiting, not a fault: they are tried again next run. Only a run in which nothing at all
+            # could be built (the provider or the macro inputs are down) is a fault the supervisor retries with its back-off.
+            return 1 if res["tried"] >= 10 and res["built"] == 0 and res["not_covered"] == 0 else 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
             res = await preset_service.refresh_presets(store, settings)
