@@ -153,6 +153,12 @@ async def build_payload(app, sym: str, *, size: str, statement: str = "consolida
     dates = {k: ((today_in["series"].get(k) or {}).get("points") or [[""]])[-1][0] for k in ("cpi", "gdp", "repo", "usdinr", "wpi_mfg")}
     dates["wpi"] = dates.pop("wpi_mfg")
     dates["brent"] = today_in["brent"][-1][0] if today_in["brent"] else ""
+    ratios = await store.get_section(sym, statement, "ratios")
+    try:
+        inv = ((json.loads(ratios[0]).get("latest") or {}).get("inventory_days") or {}).get("value") if ratios else None
+    except (ValueError, TypeError, AttributeError):
+        inv = None
+    lq = P.latest_quarter_check(pack, co, today_in["series"], today_in["brent"])
     return P.page_payload(pack, co, today, eia_brent_next4=eia, today_dates=dates, base_window=(start[0], start[1]), closes=closes, nifty=nifty,
                           as_of=today_in.get("as_of") or date.today().isoformat(), size=size,
-                          price_as_of=str((pack.get("quote") or {}).get("asOf") or (pack.get("quote") or {}).get("date") or "")[:10], inventory_days=None, latest_quarter=None)
+                          price_as_of=str((pack.get("quote") or {}).get("asOf") or (pack.get("quote") or {}).get("date") or "")[:10], inventory_days=round(inv) if isinstance(inv, (int, float)) and inv > 0 else None, latest_quarter=lq)

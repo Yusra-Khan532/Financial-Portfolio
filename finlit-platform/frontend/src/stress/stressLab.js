@@ -555,7 +555,8 @@ export function mountStressLab(root, E, D, opts) {
         return '<tr><td class="l">' + x[0] + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + (Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up') + '">' + x[3] + '</td></tr>';
       }).join('') + '</tbody></table></div></div>';
   }
-  function logoHtml(co) { var u = opts.logoUrl ? opts.logoUrl(co.symbol) : ''; return u ? '<span class="logo"><img src="' + esc(u) + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'ph\');this.remove()"></span>' : '<span class="logo ph" aria-hidden="true">' + esc(co.symbol.slice(0, 1)) + '</span>'; }
+  function sizeText(z) { z = String(z || ''); return /cap$/i.test(z) ? z : z + ' cap'; }   // the server already says "Large cap"
+  function logoHtml(co) { var u = opts.logoUrl ? opts.logoUrl(co.symbol) : ''; return u ? '<span class="logo" data-i="' + esc(co.symbol.slice(0, 1)) + '"><img src="' + esc(u) + '" alt="" loading="lazy" onerror="var p=this.parentNode;p.classList.add(\'ph\');p.textContent=p.getAttribute(\'data-i\')"></span>' : '<span class="logo ph" aria-hidden="true">' + esc(co.symbol.slice(0, 1)) + '</span>'; }
   function groupedHtml(rows, f) {
     var sc = axisOf(rows.reduce(function (a, r) { return a.concat([r[1], r[2]]); }, [])), lo = sc[0], hi = sc[1];
     var X = function (v) { return (v - lo) / (hi - lo) * 100; };
@@ -597,7 +598,7 @@ export function mountStressLab(root, E, D, opts) {
   function renderStrip() {
     var a = A, fact = function (l, v, t) { return '<span class="fact"><span class="l">' + l + (t ? ib(t, 'lt', 'About ' + l) : '') + '</span><span class="v">' + v + '</span></span>'; };
     var baseTip = 'Every shock is applied to the company’s last four reported quarters, ' + D.base_window[0] + ' to ' + D.base_window[1] + '. A shock of zero gives back those quarters exactly.';
-    var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + a.symbol + ' · ' + a.sector + ' · ' + a.size + ' cap</small></div></div>';
+    var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + a.symbol + ' · ' + a.sector + ' · ' + sizeText(a.size) + '</small></div></div>';
     if (VIEW === 'compare') {
       $('costrip').innerHTML = coA_ + '<span class="vs">vs</span><div class="co">' + logoHtml(B) + '<div><b>' + esc(B.name) + '</b><small>' + B.symbol + ' · ' + esc(B.sector || '') + ' · ' + esc(B.size || '') + (SAMEQ ? '' : ' · four quarters to ' + my(B.base_end)) + '</small></div></div>' +
         '<div class="facts" style="margin-left:auto">' + fact('Base', 'Four quarters to ' + my(A.base_end), baseTip) + fact('Data to', dt(D.as_of)) + '</div>' +

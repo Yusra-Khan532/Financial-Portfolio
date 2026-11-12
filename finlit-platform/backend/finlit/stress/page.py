@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import date
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import engine
@@ -160,6 +161,45 @@ def company_json(co: S.Company, pack: dict, sources: Dict[str, str], **extra) ->
               "price": (pack.get("quote") or {}).get("price"), "statement": (pack.get("dataQuality") or {}).get("statement")})
     d.update(extra)
     return d
+
+
+def latest_quarter_check(pack: dict, co: S.Company, series: dict, brent: Sequence, usdinr: Optional[Sequence] = None) -> Optional[dict]:
+    """The model's check on the latest reported quarter: the same quarter a year earlier is the base, the crude, rupee,
+    inflation and volume moves between the two quarters are the scenario, and the margin the model gives is set beside
+    the margin the company reported. None (a blank on the page) when a quarter, a price or an inflation figure is missing."""
+    q = pack.get("quarterly") or {}
+    per = [str(p) for p in q.get("periods", [])]               # newest first
+    if len(per) < 5:
+        return None
+    rev, op = S._row(q, "revenue"), S._row(q, "operating_profit")
+    if not (rev[0] and rev[4]) or op[0] is None or op[4] is None:
+        return None
+    end_b, end_a = S._quarter_end(per[0]), S._quarter_end(per[4])
+    if not end_b or not end_a:
+        return None
+    sb, sa = S._shift_month_end(end_b, -3), S._shift_month_end(end_a, -3)
+    prices = S._points(brent)
+    crude_b, crude_a = S._mean(S._window(prices, sb, end_b)), S._mean(S._window(prices, sa, end_a))
+    fx_b = fx_a = None
+    for pts in ([(d, v) for d, v in S._points(series.get("usdinr", [])) if len(d) == 10], S._points(usdinr or [])):
+        fx_b, fx_a = S._mean(S._window(pts, sb, end_b)), S._mean(S._window(pts, sa, end_a))
+        if fx_b and fx_a:
+            break
+    level = lambda key: S._mean(S._window(S._points(series.get(key, [])), sb, end_b))   # noqa: E731 - inflation rates, as in the yearly back-test
+    cpi, wpi, agri = level("cpi"), level("wpi_mfg"), level("wpi_primary")
+    if not (crude_b and crude_a and fx_b and fx_a) or cpi is None or wpi is None:
+        return None
+    base = S.company_from_pack(pack, base=f"q:{per[4]}", calibrate_history=False)
+    base.exposure = replace(co.exposure, notes=[], source=[])
+    volume = ((rev[0] / rev[4]) / (1 + wpi / 100) - 1) * 100
+    sc = S.Scenario(name="Latest quarter as it happened", crude=(crude_b / crude_a - 1) * 100, usdinr=(fx_b / fx_a - 1) * 100, cpi=cpi, wpi=wpi,
+                    agri=agri if agri is not None else wpi, demand=volume / base.exposure.demand_beta if base.exposure.demand_beta else 0.0)
+    x = S._engine(base, sc)
+    def span(end: str) -> str:   # "Jul to Sep 2025"
+        first = S._shift_month_end(end, -2)
+        return f"{date.fromisoformat(first).strftime('%b')} to {date.fromisoformat(end).strftime('%b %Y')}"
+    return {"from": span(end_a), "to": span(end_b), "margin_before": round(base.ebitda / base.revenue * 100, 1),
+            "predicted": round(x["E1"] / x["R1"] * 100, 1), "reported": round(op[0] / rev[0] * 100, 1)}
 
 
 def page_payload(pack: dict, co: S.Company, today: S.Scenario, *, eia_brent_next4: Optional[Sequence[float]],
