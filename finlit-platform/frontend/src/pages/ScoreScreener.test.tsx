@@ -44,24 +44,22 @@ beforeEach(() => { admin.on = true; st.plan = "gold"; st.rows = DATA; st.cover =
 afterEach(cleanup);
 
 describe("Basic stock screener page", () => {
-  it("lists the universe sorted by market cap, with 10 rows a page and the stat tiles over the whole set", () => {
+  it("lists the universe sorted by market cap, with 10 rows a page, the count over the whole set and no summary boxes", () => {
     open();
     expect(symbols()).toEqual(["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "HHH", "ZZ00", "ZZ01", "ZZ02"]);
-    const tiles = screen.getByLabelText("Summary");
-    expect(within(tiles).getByText("Companies found").previousSibling?.textContent).toBe("22");
-    expect(within(tiles).getByText("Sectors").previousSibling?.textContent).toBe("5");           // no-sector company is not a sector
-    expect(within(tiles).getByText("Active filters").previousSibling?.textContent).toBe("0");
+    expect(screen.queryByLabelText("Summary")).toBeNull();                       // the design has no Companies found, Sectors, Median Technical or Active filters boxes
+    expect(screen.getByText("22 companies in this result")).toBeTruthy();
+    expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
     expect(screen.getByText("1–10 of 22")).toBeTruthy();
   });
 
   it("filters apply live: ticking changes rows, every number above the table, chips and address with no button pressed", async () => {
     open();
-    const kpi = (l: string) => within(screen.getByLabelText("Summary")).getByText(l).previousSibling?.textContent;
     fireEvent.click(sector("IT")); fireEvent.click(sector("Auto"));
     expect(hint().textContent).toMatch(/Updating/);                            // never a silent gap between what is ticked and what is shown
     await waitFor(() => expect(loc()).toBe("/score-screener?sector=IT&sector=Auto"));
     expect(symbols()).toEqual(["CCC", "DDD", "EEE", "GGG"]);
-    expect(kpi("Companies found")).toBe("4"); expect(kpi("Sectors")).toBe("2"); expect(kpi("Active filters")).toBe("2");
+    expect(document.querySelector(".fgx-top")!.textContent).toMatch(/2 active/);
     expect(screen.getByText("4 companies in this result")).toBeTruthy();
     expect(screen.getByText("1–4 of 4")).toBeTruthy();
     expect(screen.getByText("1 of 4 companies in this result are not scored yet.")).toBeTruthy();   // the donut follows the result too
@@ -110,19 +108,17 @@ describe("Basic stock screener page", () => {
     expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("14");
     fireEvent.click(screen.getByRole("checkbox", { name: /^Large cap/ }));      // Large caps: the 100 largest, here all 22 are Large
     await waitFor(() => expect(loc()).toContain("cap=Large"));
-    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score 78 and above" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
     await waitFor(() => expect(loc()).toContain("qual=high"));
     await waitFor(() => { expect(symbols()).toEqual(["AAA", "BBB", "HHH"]); expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("0"); expect(count("IT")).toBe("0"); expect(count("Pharma")).toBe("1"); });   // the table follows the address a moment later (a deferred update), most visibly on a busy machine
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
-    await waitFor(() => { expect(count("Metals")).toBe("14"); expect(within(screen.getByLabelText("Summary")).getByText("Companies found").previousSibling?.textContent).toBe("22"); expect(within(screen.getByLabelText("Summary")).getByText("Active filters").previousSibling?.textContent).toBe("0"); });
+    await waitFor(() => { expect(count("Metals")).toBe("14"); expect(screen.getByText("22 companies in this result")).toBeTruthy(); expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/); });
   });
 
   it("filters that match nothing show zeros above, and an empty state with removable chips", async () => {
     open("?sector=Banks&qual=low");
     expect(symbols()).toEqual([]);
-    const kpi = (l: string) => within(screen.getByLabelText("Summary")).getByText(l).previousSibling?.textContent;
-    expect(kpi("Companies found")).toBe("0"); expect(kpi("Sectors")).toBe("0");
     expect(screen.getByText("0 companies in this result")).toBeTruthy();
     expect(document.querySelector(".fgx-empty")!.textContent).toMatch(/No companies match all of these filters/);
     fireEvent.click(within(document.querySelector(".fgx-empty") as HTMLElement).getByRole("button", { name: /^Banks/ }));
@@ -132,14 +128,14 @@ describe("Basic stock screener page", () => {
   it("score bands and min-max are exact, and missing scores never pass", () => {
     open();
     const quality = screen.getByRole("group", { name: "Quality Score" }), growth = screen.getByRole("group", { name: "Growth Score" });
-    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score 78 and above" }));
+    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);                        // 78 is in, 77 (EEE) is out, GGG has no score
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score under 45" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual([]);                                           // both pillars must pass
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score under 45" }));
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score 78 and above" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Strong, 78 and above" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);
     fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("checkbox", { name: "Quality Score" }));   // ticking enables Min and Max
@@ -158,12 +154,12 @@ describe("Basic stock screener page", () => {
     expect(screen.getByText("Filter stocks using our multi-pillar statistical scoring model.")).toBeTruthy();
     expect(screen.queryByText("Score bands")).toBeNull();
     expect(screen.queryByText("Growth & Profitability score by pillar")).toBeNull();
-    expect(within(screen.getByRole("group", { name: "FinLit IQ rating" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Strong", "Healthy", "Average", "Weak", "Poor", "Not rated"]);
+    expect(within(screen.getByRole("group", { name: "FinLit IQ rating" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Strong", "Healthy", "Mixed", "Watch", "Not rated"]);
     const order = [...document.querySelectorAll(".iq-rating, .iq-row")].map((e) => e.getAttribute("aria-label"));
     expect(order).toEqual(["FinLit IQ rating", "Quality Score", "Growth Score", "Profitability Score", "Balance Sheet Score", "Technical Score", "Total FinLit IQ Score"]);
     for (const n of ["Quality Score", "Growth Score", "Profitability Score", "Balance Sheet Score", "Technical Score", "Total FinLit IQ Score"]) {
       const row = within(screen.getByRole("group", { name: n }));
-      expect(row.getAllByRole("button").map((b) => b.textContent)).toEqual(["< 45", "45 - 77", ">= 78"]);
+      expect(row.getAllByRole("button").map((b) => b.textContent)).toEqual(["Watch", "Mixed", "Healthy", "Strong"]);
       expect(row.getByLabelText("Min")).toBeTruthy(); expect(row.getByLabelText("Max")).toBeTruthy();
     }
   });
@@ -185,7 +181,7 @@ describe("Basic stock screener page", () => {
   });
   it("a shared link with the new keys opens with the rows ticked", () => {
     open("?iql=poor,weak&ovr=low&tmin=40");
-    expect(screen.getByRole("button", { name: "Weak" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Watch" }).getAttribute("aria-pressed")).toBe("true");
     expect(symbols()).toEqual(["DDD"]);
   });
   it("the Quality band is written as ?qual= so it never collides with the toolbar search ?q=, and an old ?q=high link still reads", () => {
@@ -193,14 +189,14 @@ describe("Basic stock screener page", () => {
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);
     expect((screen.getByLabelText("Search company name, sector or keyword") as HTMLInputElement).value).toBe("");
     cleanup();
-    open("?qual=mid&q=AAA");
+    open("?qual=mid&q=AAA");   // an older link's "mid" reads as Mixed and Healthy
     expect(symbols()).toEqual([]);                                           // AAA is 90, not 45 to 77: the search and the band are separate
   });
 
   it("a removed chip, and Clear all, update the table and address at once", () => {
     open("?sector=IT&sector=Auto&qual=mid");
     expect(symbols()).toEqual(["CCC", "EEE"]);                                // IT or Auto, Fundamental 45 to 77: 50 and 77 (DDD is 44)
-    fireEvent.click(screen.getByRole("button", { name: "Remove filter Quality: 45–77" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove filter Quality: Mixed, Healthy" }));
     expect(symbols()).toEqual(["CCC", "DDD", "EEE", "GGG"]);
     expect(loc()).toBe("/score-screener?sector=IT&sector=Auto");
     fireEvent.click(screen.getByRole("button", { name: "Remove filter IT" }));
@@ -360,7 +356,7 @@ describe("Basic stock screener: no Prism", () => {
     expect(document.querySelector(".pzs-cover")).toBeNull();
     // the only mention is the link to the advanced page
     expect([...(page.match(/Prism/g) || [])].length).toBeLessThanOrEqual(4);
-    expect(within(screen.getByLabelText("Summary")).queryByText(/Prism/)).toBeNull();
+    expect(screen.queryByLabelText("Summary")).toBeNull();
   });
   it("has the FinLit columns only, in order", () => {
     open();
@@ -371,7 +367,7 @@ describe("Basic stock screener: no Prism", () => {
     open();
     const head = document.querySelector(".sx-here")!;
     expect(head.textContent).toMatch(/Silver/); expect(head.textContent).toMatch(/Basic stock screener/);
-    expect(head.textContent).toMatch(/The FinLit IQ: its four business scores, Technical and Overall/);
+    expect(head.textContent).toMatch(/The FinLit IQ and the five scores it is made of/);
     expect(head.textContent).not.toMatch(/4 financial-health parts/);
     const a = screen.getByRole("link", { name: /Advanced stock screener \(Gold\)/ });
     expect(a.getAttribute("href")).toBe("/advanced-score-screener");

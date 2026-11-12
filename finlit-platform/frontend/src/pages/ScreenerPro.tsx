@@ -337,7 +337,7 @@ export function ScreenerPro() {
             {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
               onRun={() => document.querySelector(".scr-main .scr-top")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
             <div className="scr-top">
-              <div aria-live="polite"><b className="scr-count">{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> <span className="muted">of {data ? nf(data.total, 0) : "…"} listed stocks{res.data ? ` · ${res.data.took} ms` : ""}</span></div>
+              <div aria-live="polite"><b className="scr-count">{res.isLoading || !res.data ? "…" : nf(total, 0)}</b> <span className="muted">of {data ? nf(data.total, 0) : "…"} listed stocks</span></div>
               <div className="scr-tools">
                 <div className="scr-cm"><button className="btn" aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)}>Columns · {columns.length}</button>
                   {colMenu && data && <div className="scr-colmenu pl-colmenu" role="menu">
@@ -364,7 +364,7 @@ export function ScreenerPro() {
                 </ol>}
                   {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table below lists the same numbers.`} /></Suspense></Safe3D>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table" pinHead><table className="scr-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t">
                     <thead><tr><th className="stick"><button onClick={() => sortBy("name")}>Company {sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>
                       {res.data.columns.map((k) => { const m = byKey.get(k); return <th key={k}><button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{m?.label} {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>; })}
                       {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} {sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</button></th>)}</tr></thead>

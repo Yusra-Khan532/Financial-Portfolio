@@ -62,3 +62,5 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 /* the alert pop-ups stack above the feedback button instead of covering it */
 :root .alx-toasts { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 900px) { :root .alx-toasts { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); } }
+/* Screener pages on a phone (task #64, SC-23): the floating buttons covered the As on picker and the table's last column. The feedback block at the foot of the page stays. */
+@media (max-width: 700px) { body:has(.scr-wrap, .psx-screen) .pf-dock { display: none; } }

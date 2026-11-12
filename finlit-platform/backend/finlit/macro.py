@@ -36,6 +36,8 @@ router = APIRouter(prefix="/api/macro")
 
 MOSPI = "https://api.mospi.gov.in"
 RBI_HOME = "https://www.rbi.org.in/"
+RBI_ARCHIVE = "https://www.rbi.org.in/scripts/ReferenceRateArchive.aspx"
+FX_BACKFILL_DAYS = 430                      # the Stress Lab base window (12 months) plus a margin: the monthly rupee series must have no hole inside it
 RBI_RSS = "https://rbi.org.in/pressreleases_rss.xml"
 EIA_URL = "https://api.eia.gov/v2/petroleum/pri/spt/data/"   # U.S. Energy Information Administration open data, series RBRTE (public domain)
 EIA_NO_KEY = "Brent: source key not set"
@@ -171,6 +173,22 @@ class Sources:
         for p in range(2, min(total, 60) + 1):
             out += S.rows(await self.get_json(path, limit=limit, page=p, **params))
         return out
+
+    async def rbi_reference_rates(self, start: date, end: date) -> S.Points:
+        """US dollar reference rates (FBIL, published by the RBI) for `start..end`, from the Reference Rate Archive form: one GET for its hidden fields, one POST with the dates."""
+        import html as _html
+        import re as _re
+        url = RBI_ARCHIVE
+        page = await self.get_text(url)
+        fields = {m.group(1): _html.unescape(m.group(2)) for m in _re.finditer(r'<input[^>]*name="(__VIEWSTATE|__VIEWSTATEGENERATOR|__EVENTVALIDATION)"[^>]*value="([^"]*)"', page)}
+        if "__VIEWSTATE" not in fields:
+            raise RuntimeError("the Reference Rate Archive form was not found on rbi.org.in")
+        self.calls += 1
+        r = await self.web.post(url, data={**fields, "chkUSD": "on", "txtFromDate": start.strftime("%d/%m/%Y"), "txtToDate": end.strftime("%d/%m/%Y"), "btnSubmit": "Submit"},
+                                headers={"Referer": url})
+        if r.status_code != 200:
+            raise RuntimeError(f"{url} answered {r.status_code}")
+        return S.parse_rbi_ref_rate_archive(r.text)
 
     async def get_text(self, url: str) -> str:
         self.calls += 1
@@ -345,6 +363,26 @@ async def _fred_brent(src: Sources, full: bool) -> "S.Points":
     return parse_fred_brent(r.text) if r.status_code == 200 else {}
 
 
+async def step_rbi_fx_archive(src: Sources, conn, today: date, full: bool) -> dict:
+    """Keeps the monthly USD/INR series filled up to last month. The RBI's monthly tables (RBI tables step) arrive months late, which left a hole of a year in the series
+    (Stress Lab's base window). Each completed month with no point yet is read from the RBI's Reference Rate Archive (the FBIL reference rate, every working day) and saved as the
+    month's average. A month the tables later publish replaces it (same key). Only missing months are fetched, so a normal night is one or two requests."""
+    have = (await load_points(conn, "usdinr_m")).get("usdinr_m", {})
+    first = date(today.year, today.month, 1) - timedelta(days=FX_BACKFILL_DAYS)
+    first = date(first.year, first.month, 1)
+    months, cur = [], first
+    while cur < date(today.year, today.month, 1):
+        end = S.month_end(cur.year, cur.month)
+        if full or end not in have:
+            months.append((cur, end))
+        cur = date(cur.year + (cur.month == 12), cur.month % 12 + 1, 1)
+    saved = 0
+    for start, end in months:
+        daily = await src.rbi_reference_rates(start, end)
+        saved += await save_points(conn, "usdinr_m", S.monthly_means(daily, today))
+    return {"points": saved, "months_read": len(months)} if months else {"skipped": "no month is missing"}
+
+
 async def step_eia_brent(src: Sources, conn, today: date, full: bool) -> dict:
     """Brent crude (EIA series RBRTE, US$ a barrel, daily). Needs the free EIA key in EIA_API_KEY; without it nothing is loaded and the page says the key is not set
     (a price is never filled in). The first run loads about 5 years, later runs the last 60 days."""
@@ -498,7 +536,7 @@ async def step_rbi_wss(src: Sources, conn, today: date, full: bool) -> dict:
 
 
 STEPS: List[Tuple[str, Callable]] = [("cpi", step_cpi), ("wpi", step_wpi), ("gdp", step_gdp), ("iip", step_iip), ("plfs", step_plfs),
-                                    ("rbi_tables", step_rbi_tables), ("rbi_home", step_rbi_home), ("rbi_wss", step_rbi_wss), ("eia_brent", step_eia_brent), ("eia_steo", step_eia_steo), ("worldbank", step_worldbank)]
+                                    ("rbi_tables", step_rbi_tables), ("rbi_fx_archive", step_rbi_fx_archive), ("rbi_home", step_rbi_home), ("rbi_wss", step_rbi_wss), ("eia_brent", step_eia_brent), ("eia_steo", step_eia_steo), ("worldbank", step_worldbank)]
 
 
 def load_decisions() -> List[S.Decision]:
@@ -604,8 +642,8 @@ def derive(raw: Dict[str, S.Points], decisions: List[S.Decision], today: date) -
                             "earlier, from which those two weeks are added.")
     out["usdinr"] = {**raw.get("usdinr_m", {}), **raw.get("usdinr_d", {})}
     out["usdinr_d"] = dict(raw.get("usdinr_d", {}))
-    notes["usdinr"] = ("Monthly average of the reference rate (RBI tables, as republished by MoSPI), then the daily FBIL reference rate shown on "
-                       "rbi.org.in from the day it was first read.")
+    notes["usdinr"] = ("Monthly average of the reference rate (RBI tables, as republished by MoSPI; months they have not published yet are the average of the FBIL "
+                       "reference rates in the RBI's Reference Rate Archive), then the daily FBIL reference rate shown on rbi.org.in from the day it was first read.")
     out["brent_d"] = dict(raw.get("brent_d", {}))
     notes["brent_d"] = "U.S. Energy Information Administration, Europe Brent spot price FOB (series RBRTE), daily, US dollars a barrel; public-domain data."
     for key in ("copper_m", "aluminium_m", "natgas_m"):

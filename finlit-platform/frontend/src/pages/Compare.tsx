@@ -1,7 +1,7 @@
 import { PageHeader } from "../components/PageHeader";
 import { titleOf, subOf, codeNote, isBseCode } from "../lib/companyLabel";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { Plain } from "../components/Plain";
 import { Gate } from "../components/Gate";
@@ -28,6 +28,7 @@ const TABS: TabDef[] = [
   { id: "quality", label: "Quality & Risk", model: true, blurb: "How well the business earns, and how much debt it carries.", groups: [{ title: "Returns on money", keys: ["roe", "roce"] }, { title: "Safety", keys: ["debt_to_equity", "pillar_balance"] }, { title: "FinLit quality", keys: ["pillar_quality"] }] },
   { id: "growth", label: "Growth", model: true, blurb: "How fast sales and profit have grown.", groups: [{ title: "Business growth", keys: ["sales_cagr", "profit_cagr", "pillar_growth"] }, { title: "The market's verdict", keys: ["return_1y"] }] },
   { id: "technical", label: "Technical", model: true, blurb: "How the share price has been behaving.", groups: [{ title: "Price moves", keys: ["change_pct", "return_1m", "return_1y"] }, { title: "FinLit technical", keys: ["pillar_technical"] }] },
+  { id: "stress", label: "Stress test", blurb: "How a shock to crude, the rupee, rates or demand would move both companies' earnings, side by side (Gold).", groups: [] },
   { id: "custom", label: "Build your own", blurb: "Pick from every measure the screener offers, save your sets and share the link.", groups: [] },
 ];
 const SPIDER: { label: string; key: NumKey }[] = [{ label: "ROE", key: "roe" }, { label: "ROCE", key: "roce" }, { label: "Margin", key: "operating_margin" }, { label: "Sales growth", key: "sales_cagr" }, { label: "Profit growth", key: "profit_cagr" }, { label: "Low debt", key: "debt_to_equity" }, { label: "Low P/E", key: "pe" }, { label: "Dividend", key: "dividend_yield" }];
@@ -43,6 +44,7 @@ export function Compare() {
   useDocTitle("Compare companies", "Put companies side by side on size, valuation, quality, growth and price behaviour. Choose exactly which measures to compare.");
   const { has, upgrade, toast } = useUI();
   const tip = useHoverTip();
+  const nav = useNavigate();
   const { data, isLoading, isError } = useUniverse();
   const [sp, setSp] = useSearchParams();
   const [tab, setTab] = useState(() => (sp.has("m") ? "custom" : "overview"));
@@ -75,6 +77,13 @@ export function Compare() {
   const customKeys = useMemo(() => (sp.has("m") ? decodeKeys(sp.get("m")) : null), [sp]);   // no link parameter = the default set; an empty one = the member cleared it
   const setCustomKeys = (k: string[]) => setSp((p) => { const q = new URLSearchParams(p); if (k.length) q.set("m", encodeKeys(k)); else q.set("m", ""); return q; }, { replace: true });
   const T = TABS.find((t) => t.id === tab)!;
+  /** "Stress test" is the Gold compare view of Stress Lab for the two companies picked here: Gold go straight there, everyone else is told what Gold adds. The other tabs stay on this page. */
+  const pickTab = (id: string) => {
+    if (id !== "stress") { setTab(id); return; }
+    if (picked.length < 2) { setTab("stress"); return; }                                  // the panel below says to pick two companies first
+    if (!gold) { setTab("stress"); upgrade("gold", "Comparing two companies under a stress is part of the Gold plan."); return; }
+    nav(`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`);
+  };
   const locked = T.model && !has("silver");
   const dists = useMemo(() => { const m = new Map<NumKey, Dist | null>(); (Object.keys(METRICS) as NumKey[]).forEach((k) => m.set(k, distOf(rows, k))); return m; }, [rows]);
   const off0 = off[tab] || [];
@@ -112,8 +121,7 @@ export function Compare() {
             </>)}
         </div>
 
-        <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}{t.model && !has("silver") && <Icon name="lock" />}</button>)}</div>
-        {picked.length >= 2 && !data?.sample && <p className="cmp-stress"><Link to={`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`}><Icon name="gauge" /> Stress test: see how a shock to crude, the rupee or rates would move {picked[0].symbol} and {picked[1].symbol} {has("gold") ? "side by side" : "(Gold)"}</Link></p>}
+        <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => pickTab(t.id)}>{t.label}{(t.model && !has("silver") || t.id === "stress" && !gold) && <Icon name="lock" />}</button>)}</div>
         <p className="cmp-blurb">{T.blurb}</p>
 
         {picked.length >= 2 && !locked && tab !== "overview" && tab !== "custom" && scored > 0 && (
@@ -189,7 +197,12 @@ export function Compare() {
         {picked.length >= 2 && tab === "custom" && (
           <div className="card cmp-t"><CompareCustom companies={picked.map((r) => ({ symbol: r.symbol, name: r.name || r.symbol }))} keysParam={customKeys} onKeys={setCustomKeys} /></div>
         )}
-        {picked.length >= 2 && !["overview", "spider", "custom"].includes(tab) && (
+        {tab === "stress" && (picked.length < 2
+          ? null
+          : <Gate tier="gold" title="Unlock Stress test" points={["How a shock to crude, the rupee, rates or demand moves both companies' earnings", "Both companies side by side, each against its own last four quarters", "Every assumption shown, information only"]}>
+            <div className="card cmp-t"><p><Link className="btn primary" to={`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`}><Icon name="gauge" /> Open the Stress test for {picked[0].symbol} and {picked[1].symbol}</Link></p></div>
+          </Gate>)}
+        {picked.length >= 2 && !["overview", "spider", "custom", "stress"].includes(tab) && (
           <Gate tier="silver" title={`Unlock ${T.label}`} points={["Model-based pillar scores", "Quality, growth and price behaviour side by side"]}>
             <div className="card cmp-t">
               <div className="cmp-pick"><span className="label">Compare on</span>{pool.map((k) => <button key={k} className={"mchip" + (keys.includes(k) ? " on" : "")} aria-pressed={keys.includes(k)} onClick={() => toggleKey(k)}>{METRICS[k].short}</button>)}</div>

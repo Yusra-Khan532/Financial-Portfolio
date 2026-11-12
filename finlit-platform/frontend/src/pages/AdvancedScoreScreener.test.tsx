@@ -134,22 +134,24 @@ describe("Advanced stock screener (Gold)", () => {
     expect(screen.getByRole("group", { name: "Total Fundamental Score, exact range" })).toBeTruthy();
   });
 
-  it("every pillar row and the Total row has the < 45 / 45 - 77 / >= 78 chips that set its Min and Max; typing a custom range clears the highlight", { timeout: 30000 }, async () => {
+  it("every pillar row and the Total row has the Watch / Mixed / Healthy / Strong chips that set its Min and Max; typing a custom range clears the highlight", { timeout: 30000 }, async () => {
     open();
     for (const n of ["Growth & Profitability score", "Valuation score", "Quality score", "Risk score", "Total Fundamental Score"]) {
       const g = within(screen.getByRole("group", { name: `${n}, exact range` }).closest(".fgx-rr") as HTMLElement);
-      expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["< 45", "45 - 77", ">= 78"]);
+      expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["Watch", "Mixed", "Healthy", "Strong"]);
     }
     const q = () => within(screen.getByRole("group", { name: "Quality score, exact range" }));
-    fireEvent.click(q().getByRole("button", { name: "Quality 78 and above" }));
+    fireEvent.click(q().getByRole("button", { name: "Quality Strong, 78 and above" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=78"));
     expect((q().getByLabelText("Min") as HTMLInputElement).value).toBe("78");
-    expect(q().getByRole("button", { name: "Quality 78 and above" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(q().getByRole("button", { name: "Quality 45 to 77" }));
+    expect(q().getByRole("button", { name: "Quality Strong, 78 and above" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(q().getByRole("button", { name: "Quality Healthy, 62 to 77" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=62"));
+    fireEvent.click(q().getByRole("button", { name: "Quality Mixed, 45 to 61" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=45"));
-    fireEvent.click(q().getByRole("button", { name: "Quality under 45" }));   // joins 45 - 77 and >= 78: all three = no limit
+    fireEvent.click(q().getByRole("button", { name: "Quality Watch, under 45" }));   // joins Mixed, Healthy and Strong: all four = no limit
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener"));
-    fireEvent.click(q().getByRole("button", { name: "Quality under 45" }));
+    fireEvent.click(q().getByRole("button", { name: "Quality Watch, under 45" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqlt=45"));
     fireEvent.change(q().getByLabelText("Below (the score must be under this number)"), { target: { value: "60" } });
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmax=60"));
