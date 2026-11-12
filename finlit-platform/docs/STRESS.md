@@ -25,3 +25,11 @@ Engine: `backend/finlit_technicals/stress.py` (v2.1.1, vendored; the 2.1.1 patch
 - **Look (SL-8).** The page has a dark palette (`stresslab.css`, switched by `data-theme` on the host); i buttons open on hover, focus or tap and stay inside the screen; the public payload no longer carries calibration weights or the year-by-year working.
 - **Still the owner's:** the EIA key (`EIA_API_KEY` in `/opt/finlit/.env.aws`) and the 50 company rows (`docs/stress/company-rows-first-50.csv`, loader `scripts/stress_company_rows.py`).
 - **After every deploy:** run the team's `live_check.py --only stress`; S1, S2 and S3 must pass, and S4 shows `FinLit usdinr` once the archive step has filled the months.
+
+## How the nightly run behaves (12 Nov 2026 fix)
+
+- A company whose report or statements are not stored yet, or whose statements the data provider answers slowly, is **waiting**, not a fault: it is recorded in `stress_failures` (kind `not_ready` or `failed`, with the reason) and tried again on the next run. These never fail the job.
+- The run exits with an error only when it tried at least 10 companies and built none (the provider or the macro inputs are down); the supervisor then retries with its back-off. Every other run exits cleanly and the next run continues where this one stopped, so the job never stops after a few failed attempts.
+- Three companies are built at the same time (`CONCURRENCY`), because the provider's statements are the slow part. Companies that failed in the last 6 hours go to the back of the queue, so each run first spends its time on companies not tried yet.
+- Each run writes one log line, `stress run: covered N, built N, not covered N, not ready N, failed N, left N ...; reasons {...}`, and the reasons per company are in the table:
+  `docker compose exec db psql -U finlit -d finlit -c "select kind, left(reason,90), count(*) from stress_failures group by 1,2 order by 3 desc"`.
