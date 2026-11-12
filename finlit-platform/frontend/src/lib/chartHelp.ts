@@ -548,6 +548,8 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     read: "A bar is the period in which you can apply. Its colour shows the status: open, upcoming, closed or listed.",
     why: "It shows at a glance which issues are open now and which are coming up, so you do not miss a window.",
   },
+  "pulse-mood": { title: "The market's mood, day by day", what: "How many NSE industries were in each state on each trading day of the last six months.", x: "Trading days, oldest on the left.", y: "The share of industries, stacked by state.", read: "A wide band of one colour means many industries were in the same state at once. Sold off means most of an industry's stocks have fallen, Bouncing back means most turned up together, Rising together means most are moving up together.", why: "It shows whether the market is moving as a whole or industry by industry." },
+  "pulse-strip": { title: "Six months of every industry", what: "Each industry's state on every trading day of the last six months, one strip per industry.", x: "Trading days, oldest on the left.", y: "One strip for each industry.", read: "Each coloured block is the state on that day. A change of colour is a change of state.", why: "It shows how long an industry has stayed in a state and which ones changed lately." },
   "results-calendar": {
     title: "Results calendar",
     what: "A month calendar showing the days on which companies hold board meetings to announce quarterly results.",
