@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cellTone, chipColumn, colourColumns, colourNote, defaultColumns, emptyReason, encodeState, norm, tableColumns, type Catalog, type MetricInfo } from "../lib/proscreen";
+import { cellTone, chipColumn, colourColumns, colourNote, decodeState, defaultColumns, emptyReason, encodeState, norm, tableColumns, type Catalog, type MetricInfo } from "../lib/proscreen";
 
 vi.mock("../lib/ui", () => ({ useUI: () => ({ upgrade: vi.fn(), toast: vi.fn(), plan: "silver" }), TIER: { gold: { n: "Gold" }, silver: { n: "Silver" }, basic: { n: "Basic" } } }));
 const admin = vi.hoisted(() => ({ on: true }));
@@ -27,7 +27,7 @@ const catalog = (lockSilver = false): Catalog => ({
     { id: "size", label: "Size", tier: "basic", metrics: [M("market_cap", "Market cap", { unit: "Cr", better: "higher" }), M("price", "Share price", { unit: "Rs", better: "none" })] },
   ],
 });
-const st = vi.hoisted(() => ({ many: 0, flat: false, cat: null as unknown, bodies: [] as { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string } }[] }));
+const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, flat: false, cat: null as unknown, bodies: [] as { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]> }[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const mount = (qs = "") => {
@@ -40,7 +40,7 @@ const group = (label: RegExp) => screen.getByRole("button", { name: label });
 const ready = () => waitFor(() => expect(document.querySelector(".scr-t")).toBeTruthy());
 
 beforeEach(() => {
-  st.cat = catalog(); st.bodies = []; st.many = 0; st.flat = false; localStorage.clear();
+  st.cat = catalog(); st.bodies = []; st.many = 0; st.flat = false; st.funnel = undefined; localStorage.clear();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -48,7 +48,7 @@ beforeEach(() => {
     const body = JSON.parse(String(init?.body || "{}")); st.bodies.push(body);
     if (st.many) return new Response(JSON.stringify({ total: st.many, offset: 0, limit: 50, capped: false, columns: body.columns, took: 3, rows: Array.from({ length: st.many }, (_, i) => (
       { symbol: "S" + i, name: "Company " + i, sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, st.flat ? 10 : i + 1])) })) }), { status: 200 });   // ten varied rows: green and red quarters exist
-    return new Response(JSON.stringify({ total: 2, offset: 0, limit: 50, capped: false, columns: body.columns, took: 3, rows: [
+    return new Response(JSON.stringify({ total: 2, offset: 0, limit: 50, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: [
       { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, 12])) },
       { symbol: "BBB", name: "Beta", sector: null, cap: "Mid", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "pe" ? null : 8])) }] }), { status: 200 });
   }));
@@ -257,5 +257,81 @@ describe("colour rule helpers", () => {
   it("the note names only the columns it explains and says which direction is better for each", () => {
     expect(colourNote([roe])).toBe("Green cells are in the best quarter of the results shown for that column and red cells in the weakest quarter. Higher is better for Return on equity. Hover a column name for what it means.");
     expect(colourNote([pe, roe, M("pb", "P/B Ratio", { better: "lower" })])).toContain("Lower is better for P/E Ratio and P/B Ratio; higher is better for Return on equity.");
+  });
+});
+
+describe("One Sector filter (task 74)", () => {
+  // the former Sector list (broad, 3 here) and the Industry list (finer, 4 here): the unified Sector filter is the second one
+  const withSectors = () => { st.cat = { ...catalog(), sectors: [{ name: "Auto Ancillaries", n: 1 }, { name: "Capital Goods", n: 5 }, { name: "Chemicals", n: 7 }],
+    industries: [{ name: "Auto Components", sector: "X", n: 3 }, { name: "Chemicals", sector: "Y", n: 2 }, { name: "Software", sector: "Z", n: 9 }, { name: "Cement", sector: "W", n: 4 }] }; };
+  const titles = () => Array.from(document.querySelectorAll("button.fgx-hb")).map((b) => (b.textContent || "").replace(/\d+.*$/, "").trim());
+  const tool = () => Array.from(document.querySelectorAll(".fgx-tool button")).map((b) => (b.textContent || "").trim());
+  const lastCats = () => st.bodies.filter((b) => b.cats).slice(-1)[0]?.cats;
+  const sectorHead = () => Array.from(document.querySelectorAll("button.fgx-hb")).find((b) => /^Sector/.test(b.textContent || "")) as HTMLElement;
+
+  it("the panel has one Sector section and no Industry section, listing the former industry options with their counts", async () => {
+    withSectors(); mount(); await ready();
+    const t = titles();
+    expect(t.filter((x) => x === "Sector")).toHaveLength(1); expect(t.some((x) => /industry/i.test(x))).toBe(false);
+    fireEvent.click(sectorHead());
+    const items = Array.from(document.querySelectorAll(".fgx-list li")).map((li) => (li.textContent || "").trim());
+    expect(items).toHaveLength(4); expect(items.join("|")).toMatch(/Auto Components.*3/); expect(items.join("|")).toMatch(/Software.*9/);
+    expect(items.join("|")).not.toMatch(/Capital Goods/);                      // the old broad list is gone
+  });
+  it("ticking a Sector option filters by it, shows a chip, counts on the toolbar Sector button and is in the address", async () => {
+    withSectors(); mount(); await ready();
+    fireEvent.click(sectorHead());
+    fireEvent.click(within(document.querySelector(".fgx-list") as HTMLElement).getByRole("checkbox", { name: /^Software/ }));
+    await waitFor(() => expect(lastCats()?.industry).toEqual(["Software"]));
+    expect(lastCats()?.sector).toEqual([]);
+    expect(tool().some((x) => /^Sector\s*1$/.test(x))).toBe(true);
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("?s="));
+    const packed = new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s");
+    expect(JSON.parse(atob((packed || "").replace(/-/g, "+").replace(/_/g, "/"))).in).toEqual(["Software"]);          // saved as the industries it holds
+  });
+  it("the stat strip counts the same list the filter offers", async () => {
+    withSectors(); mount(); await ready();
+    const kpi = Array.from(document.querySelectorAll(".fgx-kpi, [class*=kpi]")).map((e) => e.textContent || "").join(" ");
+    expect(kpi).toMatch(/\b4\s*Sectors/); expect(kpi).not.toMatch(/\b3\s*Sectors/);
+  });
+  it("a sector from an older link stays part of the one filter: listed ticked, counted, and unticking it removes it", async () => {
+    withSectors();
+    const legacy = encodeState({ ...norm({}), sectors: ["Auto Ancillaries", "Capital Goods"] }, "market_cap", "desc");
+    mount("?s=" + legacy); await ready();
+    await waitFor(() => expect(lastCats()?.sector).toEqual(["Auto Ancillaries", "Capital Goods"]));    // the filter still applies
+    expect(tool().some((x) => /^Sector\s*2$/.test(x))).toBe(true);
+    expect(sectorHead().getAttribute("aria-expanded")).toBe("true");                          // opens by itself: something is picked
+    const boxes = within(document.querySelector(".fgx-list") as HTMLElement).getAllByRole("checkbox") as HTMLInputElement[];
+    expect(boxes.filter((b) => b.checked).map((b) => b.getAttribute("aria-label") || b.closest("label")?.textContent || "").join("|")).toMatch(/Auto Ancillaries.*Capital Goods|Capital Goods.*Auto Ancillaries/);
+    fireEvent.click(within(document.querySelector(".fgx-list") as HTMLElement).getByRole("checkbox", { name: /^Auto Ancillaries/ }));
+    await waitFor(() => expect(lastCats()?.sector).toEqual(["Capital Goods"]));
+    expect(tool().some((x) => /^Sector\s*1$/.test(x))).toBe(true);
+  });
+  it("the line of what is left after each rule says sector, not industry", async () => {
+    withSectors(); st.funnel = [{ key: "industry", before: 5813, after: 9, missing: 0 }];
+    localStorage.clear(); mount("?s=" + encodeState({ ...norm({}), industries: ["Software"] }, "market_cap", "desc")); await ready();
+    await waitFor(() => expect(document.querySelector(".pl-funnel")).toBeTruthy());
+    expect(document.querySelector(".pl-funnel")!.textContent).toMatch(/after sector/); expect(document.querySelector(".pl-funnel")!.textContent).not.toMatch(/industry/i);
+  });
+  it("typing industry or sector in the filter search finds the Sector section", async () => {
+    withSectors(); mount(); await ready();
+    const box = screen.getByRole("searchbox", { name: /Search for a filter/i });
+    fireEvent.change(box, { target: { value: "industry" } });
+    await waitFor(() => expect(titles()).toContain("Sector"));
+    fireEvent.change(box, { target: { value: "sector" } });
+    await waitFor(() => expect(titles()).toContain("Sector"));
+  });
+});
+
+describe("the address holds every filter (task 74)", () => {
+  it("what is picked in Sector, Index, Market cap and Rating comes back from the address, so a reload or a shared link keeps it", () => {
+    const state = { ...norm({ ranges: { roe: { min: 15 } } }), sectors: ["Capital Goods"], industries: ["Software", "Auto Components"], indices: ["NIFTY 50"], caps: ["Large"], bands: ["Strong"] };
+    const back = decodeState(encodeState(state, "market_cap", "desc")).state;
+    expect(back).toEqual(state);
+  });
+  it("a link made by an older reader (sn and sx keys) still opens with its picks", () => {
+    const raw = btoa(JSON.stringify({ sn: ["Software"], sx: ["NIFTY 50"] })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const st = decodeState(raw).state;
+    expect(st.industries).toEqual(["Software"]); expect(st.indices).toEqual(["NIFTY 50"]);
   });
 });
