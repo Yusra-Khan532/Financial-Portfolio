@@ -56,11 +56,11 @@ function Cycle() {
     <section className="sx-card" aria-labelledby="sx-cyc">
       <h2 id="sx-cyc">The industry cycle</h2>
       <div className="sx-cycle">
-        <div className="sx-stage st-washout"><b>Washout</b>Heavily sold; no broad rebound yet</div><span className="arrow" aria-hidden="true">→</span>
-        <div className="sx-stage st-thrust"><b>Thrust C / CAP</b>Most stocks turn up together</div><span className="arrow" aria-hidden="true">→</span>
-        <div className="sx-stage st-confirmed"><b>Confirmed</b>Most stocks trending up together</div>
+        <div className="sx-stage st-washout"><b>Sold off</b>Heavily sold; no broad rebound yet</div><span className="arrow" aria-hidden="true">→</span>
+        <div className="sx-stage st-thrust"><b>Bouncing back</b>Most stocks turn up together</div><span className="arrow" aria-hidden="true">→</span>
+        <div className="sx-stage st-confirmed"><b>Rising together</b>Most stocks trending up together</div>
       </div>
-      <div className="sx-cycle-fade"><span className="arrow" aria-hidden="true">↓</span><div className="sx-stage st-fading"><b>Fading</b>A rebound or trend lost its breadth. Industries that match none of these are Neutral.</div></div>
+      <div className="sx-cycle-fade"><span className="arrow" aria-hidden="true">↓</span><div className="sx-stage st-fading"><b>Losing steam</b>A rebound or trend lost its breadth. Industries that match none of these are Neutral.</div></div>
     </section>
   );
 }
@@ -85,7 +85,7 @@ function GroupsTable({ b }: { b: Board }) {
   return (
     <section className="sx-sec" aria-labelledby="sx-all">
       <div className="sx-bar">
-        <div><h2 id="sx-all">All industries and sector groups</h2><p className="sx-sub" style={{ margin: 0 }}>Fresh thrusts first, then Washout, then Fading. Select a name to open it.</p></div>
+        <div><h2 id="sx-all">All industries and sector groups</h2><p className="sx-sub" style={{ margin: 0 }}>Bouncing back first, then Sold off, then Losing steam. Select a name to open it.</p></div>
         <div className="sx-filters" role="group" aria-label="Show">
           {FILTERS.map((f) => {
             const n = counts[f.key];
@@ -109,7 +109,7 @@ function GroupsTable({ b }: { b: Board }) {
       <div className="sx-tablebox" style={{ marginTop: 10 }}>
         <HScroll label="industries table" className="sx-scroll">
           <table className="sx-t sx-pulse" data-testid="groups-table">
-            <caption className="sx-visually">Every industry and sector group with a reading: state, breadth, index against its 52-week high, last thrust and leader flags</caption>
+            <caption className="sx-visually">Every industry and sector group with a reading: state, breadth, index against its 52-week high, last bounce and leader flags</caption>
             <colgroup><col className="c-name" /><col className="c-state" /><col className="c-bars" /><col className="c-idx" /><col className="c-thr" /><col className="c-flag" /><col className="c-cor" /><col className="c-rk" /></colgroup>
             <thead><tr>
               <Th k="name" label="Industry" sort={sort} dir={dir} onSort={onSort} />
@@ -117,19 +117,19 @@ function GroupsTable({ b }: { b: Board }) {
               <th scope="col" className="l">Above 9 / 20 / 50-day avg<span className="sx-visually"> (sort with the Sort by menu)</span>
                 <span className="sx-minis">{(["above_9", "above_20", "above_50"] as const).map((k) => <button key={k} type="button" className={"sx-sortbtn sx-mini" + (sort === k ? " on" : "")} aria-label={`Sort by the share above the ${k.slice(6)}-day average`} onClick={() => onSort(k)}>{k.slice(6)}{sort === k ? (dir === "asc" ? "▲" : "▼") : ""}</button>)}</span></th>
               <Th k="index" label="Index vs 52-week high" sort={sort} dir={dir} onSort={onSort} />
-              <Th k="thrust" label="Last thrust" sort={sort} dir={dir} onSort={onSort} cls="l" />
+              <Th k="thrust" label="Last bounce" sort={sort} dir={dir} onSort={onSort} cls="l" />
               <Th k="flags" label="Leader flags" sort={sort} dir={dir} onSort={onSort} cls="c" />
               <th scope="col" className="l rt-colh">Corner</th>
               <Th k="rotation" label="Rotation rank" sort={sort} dir={dir} onSort={onSort} cls="rt-colh" />
             </tr></thead>
             <tbody>
               {rows.map((r) => <Row key={r.slug} r={r} />)}
-              {!rows.length && <tr><td colSpan={8} className="l" style={{ whiteSpace: "normal", textAlign: "left" }}>{filter === "thrust" ? "No group is in a fresh thrust today." : "No group matches this filter today."}</td></tr>}
+              {!rows.length && <tr><td colSpan={8} className="l" style={{ whiteSpace: "normal", textAlign: "left" }}>{filter === "thrust" ? "No group is bouncing back today." : "No group matches this filter today."}</td></tr>}
             </tbody>
           </table>
         </HScroll>
       </div>
-      <p className="sx-note sx-foot">Index: the counted stocks averaged with equal weight. Thrust ages are in trading sessions.{flagsLocked && <> Leader-flag counts are part of the Silver plan.</>}</p>
+      <p className="sx-note sx-foot">Index: the counted stocks averaged with equal weight. Bounce ages are in trading sessions.{flagsLocked && <> Leader-flag counts are part of the Silver plan.</>}</p>
     </section>
   );
 }
@@ -142,7 +142,7 @@ function Row({ r }: { r: GroupRow }) {
       <td className="l"><StateChip state={r.state} /></td>
       <td className="l"><BreadthBars b={r.breadth} name={r.name} /></td>
       <td className="num">{signedPct(r.index_vs_52w_high, 1)}</td>
-      <td className="l"><span className="sx-thr" tabIndex={0} title={thrustHelp(t)} aria-label={`${thrustText(t)}. ${thrustHelp(t)}`}>{t ? <><b>Thrust {t.type}</b><small>{t.sessions_ago === 0 ? "today" : `${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago`}</small></> : <small>None in the past year</small>}</span></td>
+      <td className="l"><span className="sx-thr" tabIndex={0} title={thrustHelp(t)} aria-label={`${thrustText(t)}. ${thrustHelp(t)}`}>{t ? <><b>{t.type === "CAP" ? "Bounce after a crash" : "Bounce"}</b><small>{t.sessions_ago === 0 ? "today" : `${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago`}</small></> : <small>None in the past year</small>}</span></td>
       <td className="c sx-flagn">{r.leader_flags == null ? <span className="sx-na" title="Leader flags are part of the Silver plan">Silver</span> : r.leader_flags > 0 ? <span className="sx-flagpill" tabIndex={0} title={FLAGS_HELP} aria-label={`${r.leader_flags} leader ${r.leader_flags === 1 ? "flag" : "flags"}. ${FLAGS_HELP}`}>{r.leader_flags}</span> : <span className="sx-na" aria-label="none">—</span>}</td>
       <td className="l rt-colc">{r.rotation ? <Link to={`/sectors/rotation?corner=${r.rotation.corner}`} className="rt-clink" title="Open Sector Rotation, filtered to this corner"><CornerBadge corner={r.rotation.corner} name={r.rotation.corner_name} /></Link> : <span className="sx-na" title="Fewer than 8 counted stocks: too few for a rotation reading, or the rotation files are not in this data set yet">No reading</span>}</td>
       <td className="rt-colc">{r.rotation?.rank != null ? <span className="rt-rk2"><b>{r.rotation.rank}</b><RankMove v={r.rotation.rank_change_1w} /></span> : r.rotation ? <span className="sx-na">Not ranked yet</span> : <span className="sx-na">—</span>}</td>

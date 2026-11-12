@@ -81,10 +81,10 @@ describe("Sector Pulse", () => {
     at(<SectorPulsePage />);
     const rows = () => within(screen.getByTestId("groups-table")).getAllByRole("row").length - 1;
     expect(rows()).toBe(37);
-    fireEvent.click(screen.getByRole("button", { name: /^Fading/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Losing steam/ }));
     expect(rows()).toBe(22);
-    fireEvent.click(screen.getByRole("button", { name: /^Fresh thrusts/ }));
-    expect(screen.getByText("No group is in a fresh thrust today.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Bouncing back/ }));
+    expect(screen.getByText("No group is bouncing back today.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^All/ }));
     expect(screen.getByRole("link", { name: "Ferrous Metals" }).getAttribute("href")).toBe("/sectors/ferrous-metals");
     expect(screen.getByLabelText(/Ferrous Metals: share of counted stocks above their 9-day average 29%/)).toBeTruthy();
@@ -139,12 +139,12 @@ describe("industry page", () => {
   it("shows the state chip, the meta line, the market strip and the summary", () => {
     open();
     expect(screen.getByRole("heading", { level: 1, name: "Ferrous Metals" })).toBeTruthy();
-    expect(document.body.textContent).toContain("Washout · since 21 Sept");
+    expect(document.body.textContent).toContain("Sold off · since 21 Sept");
     expect(document.body.textContent).toContain("14 stocks counted, 8 not counted");
     expect(document.body.textContent).toContain("Nifty 50 22,936.75, 4.1% below its 200-day average");
     expect(screen.getByText(/Ferrous Metals stocks have been sold broadly/)).toBeTruthy();
-    expect(document.querySelector(".sx-cyc4 .here")?.textContent).toContain("1 · Washout");
-    expect(document.body.textContent).toContain("2 · Thrust");
+    expect(document.querySelector(".sx-cyc4 .here")?.textContent).toContain("1 · Sold off");
+    expect(document.body.textContent).toContain("2 · Bouncing back");
   });
   it("draws the chart with its words, markers and a keyboard cursor", () => {
     open();
@@ -164,7 +164,7 @@ describe("industry page", () => {
     open();
     const t = document.body.textContent ?? "";
     expect(t).not.toContain("The numbers behind the state"); expect(t).not.toMatch(/2017.2026|study/i);
-    expect(t).not.toContain("Higher-low share"); expect(t).toContain("1 · Washout"); expect(t).toContain("Heavily sold; no broad rebound yet");
+    expect(t).not.toContain("Higher-low share"); expect(t).toContain("1 · Sold off"); expect(t).toContain("Heavily sold; no broad rebound yet");
   });
   it("Gold: ranked table with peer labels, notes and the not-counted chips with their reasons", () => {
     open();
@@ -221,7 +221,7 @@ describe("stock page section", () => {
     st.stock = { symbol: "SAMBHV", name: "Sambhv Steel Tubes Limited", group: { ...S.group!, summary: undefined }, in_group: null, locked: { stock: "gold" } };
     render(<MemoryRouter><SectorPeersSection symbol="SAMBHV" name="Sambhv" /></MemoryRouter>);
     const t = screen.getByTestId("sector-peers").textContent ?? "";
-    expect(t).toContain("The Sector & peers cards are part of the Gold plan"); expect(t).toContain("Washout"); expect(t).not.toContain("20th of");
+    expect(t).toContain("The Sector & peers cards are part of the Gold plan"); expect(t).toContain("Sold off"); expect(t).not.toContain("20th of");
   });
   it("not counted, unclassified and unavailable each say why", () => {
     st.stock = { ...S, in_group: false, note: "Not counted: traded value under Rs 1 crore a day.", not_counted_because: ["median traded value under Rs 1 crore a day"] };
@@ -244,7 +244,7 @@ describe("Learn page", () => {
     expect(screen.getByRole("heading", { level: 1, name: "How to use Sector Pulse" })).toBeTruthy();
     for (const h of ["What Sector Pulse shows", "The four things to read", "On an industry page", "Good habits"]) expect(screen.getByRole("heading", { name: h })).toBeTruthy();
     const t = document.body.textContent ?? "";
-    expect(t).toContain("Washout"); expect(t).toContain("Thrust CAP"); expect(t).toMatch(/not a recommendation/i);
+    expect(t).toContain("Sold off"); expect(t).toContain("Bouncing back after a crash"); expect(t).not.toMatch(/Washout|Thrust|Fading/); expect(t).toMatch(/not a recommendation/i);
     expect(t).not.toMatch(/\b(study|threshold|40%|70%|126-session|252-session)\b/i);
   });
 });

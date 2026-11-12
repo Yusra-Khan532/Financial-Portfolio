@@ -3,7 +3,7 @@
 // move a marker session by session (Home / End / PageUp / PageDown jump) with the values read out below, bands carry patterns as well as colours, events are letters, and
 // the same numbers are available as a table.
 import { useId, useMemo, useRef, useState } from "react";
-import { EVENT_WORD, chartGeometry, chartSummary, fullDate, pct, type IndustryPage } from "../../lib/sectors";
+import { EVENT_WORD, stateWord, chartGeometry, chartSummary, fullDate, pct, type IndustryPage } from "../../lib/sectors";
 import { HScroll } from "../HScroll";
 import { ChartZoom } from "../../components/ChartZoom";
 
@@ -66,11 +66,11 @@ export function BreadthChart({ page }: { page: IndustryPage }) {
         {([["e9", h.above_9[last], "9"], ["e20", h.above_20[last], "20"], ["e50", h.above_50[last], "50"]] as const).map(([c, v, t]) => v != null && <text key={c} className={`endl ${c}`} x={W - R + 5} y={g.y(v) + 4}>{t}</text>)}
       </svg>
       <p className="sx-readout" aria-live="polite" data-testid="chart-readout">
-        <b>{fullDate(h.dates[i])}</b> · {stateName}{ev ? ` · ${EVENT_WORD[ev.kind]}` : ""} · 9-day {pct(h.above_9[i])} · 20-day {pct(h.above_20[i])} · 50-day {pct(h.above_50[i])} · {h.stocks_counted[i]} stocks counted
+        <b>{fullDate(h.dates[i])}</b> · {stateWord(stateName)}{ev ? ` · ${EVENT_WORD[ev.kind]}` : ""} · 9-day {pct(h.above_9[i])} · 20-day {pct(h.above_20[i])} · 50-day {pct(h.above_50[i])} · {h.stocks_counted[i]} stocks counted
       </p>
       <ul className="sx-legend" aria-label="Chart key">
-        <li><span className="sw st-washout" />Washout</li><li><span className="sw st-thrust" />Thrust window</li><li><span className="sw st-confirmed" />Confirmed</li><li><span className="sw st-fading" />Fading</li><li><span className="sw st-neutral" />Neutral</li>
-        <li><span className="ev">C</span><span className="ev">CAP</span> Thrust day</li><li><span className="xx" aria-hidden="true">×</span> Turned Fading</li>
+        <li><span className="sw st-washout" />Sold off</li><li><span className="sw st-thrust" />Bouncing back</li><li><span className="sw st-confirmed" />Rising together</li><li><span className="sw st-fading" />Losing steam</li><li><span className="sw st-neutral" />No clear signal</li>
+        <li><span className="ev">C</span><span className="ev">CAP</span> Day most stocks turned up</li><li><span className="xx" aria-hidden="true">×</span> Turned Losing steam</li>
         <li><span className="ln l9" />9-day</li><li><span className="ln l20" />20-day</li><li><span className="ln l50" />50-day</li>
       </ul>
       <details className="sx-chartdata"><summary>Show the chart as a table ({n} sessions)</summary>

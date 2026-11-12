@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { TIER, useUI, type Plan } from "../../lib/ui";
-import { pct, stateClass, type Breadth } from "../../lib/sectors";
+import { pct, stateClass, stateWord, type Breadth } from "../../lib/sectors";
 import "../../styles/sectors.css";
 
 /** The state as a coloured chip; the word is always written, so colour is never the only signal. */
 export function StateChip({ state, big, extra }: { state: string | null | undefined; big?: boolean; extra?: string }) {
-  return <span className={`sx-chip ${stateClass(state)}${big ? " big" : ""}`}>{state ?? "No reading"}{extra ? ` · ${extra}` : ""}</span>;
+  return <span className={`sx-chip ${stateClass(state)}${big ? " big" : ""}`}>{stateWord(state) ?? "No reading"}{extra ? ` · ${extra}` : ""}</span>;
 }
 
 /** The share of counted stocks above their 9, 20 and 50-day averages: three bars with the figure written beside each. */

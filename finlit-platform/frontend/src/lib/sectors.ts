@@ -12,6 +12,10 @@ export type PlanName = "basic" | "silver" | "gold";
 /** What this plan may not see yet: field -> the plan that opens it. Empty when nothing is locked. */
 export type Locked = Record<string, PlanName>;
 
+/** The words people see for an industry's state (9 Nov 2026 pages update): plain names replace Washout, Thrust, Confirmed and Fading. The server's state codes and names are unchanged. */
+export const STATE_WORD: Record<string, string> = { "Thrust C": "Bouncing back", "Thrust CAP": "Bouncing back after a crash", Confirmed: "Rising together", Washout: "Sold off", Fading: "Losing steam", Neutral: "No clear signal" };
+export const stateWord = (s: string | null | undefined): string | null | undefined => (s ? STATE_WORD[s] ?? s : s);
+
 export const STATES: { name: StateName; code: StateCode }[] = [
   { name: "Thrust C", code: "thrust_c" }, { name: "Thrust CAP", code: "thrust_cap" }, { name: "Confirmed", code: "confirmed" },
   { name: "Washout", code: "washout" }, { name: "Fading", code: "fading" }, { name: "Neutral", code: "neutral" },
@@ -119,11 +123,11 @@ export const plural = (n: number, one: string, many = one + "s") => `${count(n)}
 export const ordinal = (n: number): string => `${n}${n % 100 >= 10 && n % 100 <= 20 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] || "th"}`;
 export const stateClass = (s: string | null | undefined): string => (s ? "st-" + s.toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "") : "st-na");
 
-export const thrustText = (t: Thrust): string => (t ? `${t.type} · ${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago` : "None in the past year");
-/** What "CAP" and "1 session ago" mean, for the tooltip on the Last thrust cell (task #86). */
+export const thrustText = (t: Thrust): string => (t ? `${/cap/i.test(t.type) ? "After a crash" : "Bounce"} · ${t.sessions_ago} ${t.sessions_ago === 1 ? "session" : "sessions"} ago` : "None in the past year");
+/** What "CAP" and "1 session ago" mean, for the tooltip on the Last bounce cell (task #86). */
 export const thrustHelp = (t: Thrust): string => t
-  ? `${/cap/i.test(t.type) ? "CAP: a broad rebound after a capitulation, a sell-off in which almost every stock kept falling to the end. " : "C: a broad rebound, most stocks turning up together after a washout. "}${t.sessions_ago === 0 ? "It happened on the latest trading session." : `It happened ${t.sessions_ago} trading ${t.sessions_ago === 1 ? "session" : "sessions"} ago (days the market was open, not calendar days).`}${t.date ? ` Date: ${fullDate(t.date)}.` : ""}`
-  : "No broad rebound (thrust) in the past year.";
+  ? `${/cap/i.test(t.type) ? "After a crash: most stocks turned up together after a sell-off in which almost every stock kept falling to the end. " : "Bounce: most stocks turned up together after a sell-off. "}${t.sessions_ago === 0 ? "It happened on the latest trading session." : `It happened ${t.sessions_ago} trading ${t.sessions_ago === 1 ? "session" : "sessions"} ago (days the market was open, not calendar days).`}${t.date ? ` Date: ${fullDate(t.date)}.` : ""}`
+  : "No bounce in the past year.";
 /** What the leader-flag number counts, for its tooltip. */
 export const FLAGS_HELP = "Leader flags: stocks that closed at a 52-week high while their industry is still well below its own high. A full flag means the industry is further down, an early flag less far. About the share price only.";
 export const thrustLong = (t: Thrust): string => (t ? `${t.type} · ${fullDate(t.date)}` : "None");
@@ -141,7 +145,7 @@ export const signedPct = (v: number | null | undefined, d = 1): string => pct(v,
 /** Filter buttons above the table. */
 export type FilterKey = "all" | "thrust" | "washout" | "fading" | "flags";
 export const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: "all", label: "All" }, { key: "thrust", label: "Fresh thrusts" }, { key: "washout", label: "Washout" }, { key: "fading", label: "Fading" }, { key: "flags", label: "With leader flags" },
+  { key: "all", label: "All" }, { key: "thrust", label: "Bouncing back" }, { key: "washout", label: "Sold off" }, { key: "fading", label: "Losing steam" }, { key: "flags", label: "With leader flags" },
 ];
 export const inFilter = (r: GroupRow, f: FilterKey): boolean =>
   f === "all" ? true : f === "thrust" ? r.state_code === "thrust_c" || r.state_code === "thrust_cap" : f === "washout" ? r.state_code === "washout" : f === "fading" ? r.state_code === "fading" : (r.leader_flags ?? 0) > 0;
@@ -150,10 +154,10 @@ export const filterCounts = (rows: GroupRow[]): Record<FilterKey, number | null>
   flags: rows.some((r) => r.leader_flags == null) ? null : rows.filter((r) => inFilter(r, "flags")).length,
 });
 
-/** The order the board arrives in: fresh thrusts first, then Washout, then Fading ("Neutral" and "Confirmed" between). */
+/** The order the board arrives in: Bouncing back first, then Sold off, then Losing steam ("No clear signal" and "Rising together" between). */
 const STATE_ORDER: Record<string, number> = { thrust_cap: 0, thrust_c: 1, confirmed: 2, washout: 3, fading: 4, neutral: 5 };
 export type SortKey = "name" | "state" | "above_9" | "above_20" | "above_50" | "index" | "thrust" | "flags" | "counted" | "rotation";
-export const SORT_LABEL: Record<SortKey, string> = { name: "Industry", state: "State", above_9: "9-day", above_20: "20-day", above_50: "50-day", index: "Index vs 52-week high", thrust: "Last thrust", flags: "Leader flags", counted: "Stocks counted", rotation: "Rotation rank" };
+export const SORT_LABEL: Record<SortKey, string> = { name: "Industry", state: "State", above_9: "9-day", above_20: "20-day", above_50: "50-day", index: "Index vs 52-week high", thrust: "Last bounce", flags: "Leader flags", counted: "Stocks counted", rotation: "Rotation rank" };
 const num = (r: GroupRow, k: SortKey): number | string | null =>
   k === "name" ? r.name.toLowerCase() : k === "state" ? STATE_ORDER[r.state_code] ?? 9 : k === "above_9" ? r.breadth.above_9 : k === "above_20" ? r.breadth.above_20 : k === "above_50" ? r.breadth.above_50
   : k === "index" ? r.index_vs_52w_high : k === "thrust" ? (r.last_thrust ? r.last_thrust.sessions_ago : null) : k === "flags" ? r.leader_flags : k === "rotation" ? r.rotation?.rank ?? null : r.stocks_counted;

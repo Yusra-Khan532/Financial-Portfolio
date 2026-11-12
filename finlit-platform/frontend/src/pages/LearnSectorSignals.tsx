@@ -10,9 +10,9 @@ const TITLE = "How to use Sector Pulse";
 const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";
 const STATES: [string, string][] = [
   ["Washout", "The industry has been sold broadly. No broad rebound yet."],
-  ["Thrust C", "A broad rebound: most stocks turned up together after a washout."],
-  ["Thrust CAP", "The same, after a capitulation: a sell-off in which almost every stock kept falling to the end."],
-  ["Confirmed", "Most stocks are trending up together."],
+  ["Thrust C", "Most stocks turned up together after a sell-off."],
+  ["Thrust CAP", "The same, after a crash: a sell-off in which almost every stock kept falling to the end."],
+  ["Confirmed", "Most stocks are above their short, medium and longer-term price levels together."],
   ["Fading", "A rebound or an uptrend has lost its breadth: fewer stocks are taking part."],
   ["Neutral", "None of the above."],
 ];
@@ -53,7 +53,7 @@ export function LearnSectorSignalsPage() {
           <ul>
             <li>A state describes where an industry stands today. It does not say what comes next.</li>
             <li>A washout can last weeks. On its own it says nothing about timing.</li>
-            <li>Many rebounds fade. Watch whether a Thrust moves on to Confirmed or turns Fading.</li>
+            <li>Many rebounds fade. Watch whether a bounce moves on to Rising together or turns to Losing steam.</li>
             <li>Sector Pulse reads share prices only. It says nothing about whether the businesses are sound.</li>
           </ul>
           <p style={{ marginTop: 14 }}><Link className="btn primary" to="/sectors">Open Sector Pulse</Link></p>

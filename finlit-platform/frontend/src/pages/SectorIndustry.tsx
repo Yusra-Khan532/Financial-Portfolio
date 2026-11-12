@@ -11,6 +11,7 @@ import { Blank, LockedBlock, SectorFooter, StateChip } from "../components/secto
 import { useDocTitle } from "../lib/title";
 import {
   QUARTER, averageLabel, countedText, dayMonth, failureText, flagAge, flagText, fullDate, level, plural, signedPct, stateClass, useSectorPage, type IndustryPage, type MarketNow, type RankedStock,
+  stateWord,
 } from "../lib/sectors";
 
 /** Which of the four cycle stages is the current one (null for Neutral, which is none of them). */
@@ -28,7 +29,7 @@ function MarketStrip({ m }: { m: MarketNow | null }) {
   );
 }
 
-/** Sessions from a thrust to the next "turned Fading" event, by the history's own session list. */
+/** Sessions from a bounce to the next "turned to Losing steam" event, by the history's own session list. */
 export function fadeAfter(p: Pick<IndustryPage, "events" | "history">, thrustDate: string): { date: string; sessions: number } | null {
   const next = p.events.find((e) => e.kind === "turned_fading" && e.date > thrustDate);
   if (!next) return null;
@@ -39,10 +40,10 @@ export function fadeAfter(p: Pick<IndustryPage, "events" | "history">, thrustDat
 function Happening({ p }: { p: IndustryPage }) {
   const here = HERE[p.state_code] ?? null;
   const stages = [
-    { k: "washout", name: "1 · Washout", text: "Heavily sold; no broad rebound yet" },
-    { k: "thrust", name: "2 · Thrust", text: "Most stocks turn up together" },
-    { k: "confirmed", name: "3 · Confirmed", text: "Most stocks trending up together" },
-    { k: "fading", name: "Fading", text: "A rebound or trend lost its breadth" },
+    { k: "washout", name: "1 · Sold off", text: "Heavily sold; no broad rebound yet" },
+    { k: "thrust", name: "2 · Bouncing back", text: "Most stocks turn up together" },
+    { k: "confirmed", name: "3 · Rising together", text: "Most stocks trending up together" },
+    { k: "fading", name: "Losing steam", text: "A rebound or trend lost its breadth" },
   ];
   return (
     <section className="sx-card sx-happen sx-sec" aria-labelledby="sx-hap">
@@ -73,8 +74,8 @@ function ChartCard({ p }: { p: IndustryPage }) {
       <p className="sx-sub" style={{ marginBottom: 0 }}>Share of counted {p.name} stocks above their own averages, each session{first && last ? ` from ${fullDate(first)} to ${fullDate(last)}` : ""}.</p>
       <BreadthChart page={p} />
             <p className="sx-sub" style={{ marginTop: 12, marginBottom: 0 }} data-testid="chart-story">
-        {thrusts.length ? `${p.name} had ${thrusts.length === 1 ? "one thrust" : plural(thrusts.length, "thrust")} in the past year: ${listed}.${fades.length ? ` ${quick} of the ${plural(fades.length, "thrust")} that turned Fading did so within 5 sessions.` : ""}` : `${p.name} had no thrust in the past year.`}
-        {p.since ? ` Since ${dayMonth(p.since)} the industry has been ${p.state === "Neutral" ? "Neutral" : "in " + (/^[AEIOU]/.test(p.state) ? "an " : "a ") + p.state}.` : ""}
+        {thrusts.length ? `${p.name} had ${thrusts.length === 1 ? "one bounce" : plural(thrusts.length, "bounce")} in the past year: ${listed}.${fades.length ? ` ${quick} of the ${plural(fades.length, "bounce")} that turned to Losing steam did so within 5 sessions.` : ""}` : `${p.name} had no bounce in the past year.`}
+        {p.since ? ` Since ${dayMonth(p.since)} the industry has been ${p.state === "Neutral" ? "showing no clear signal" : "in the state " + stateWord(p.state)}.` : ""}
       </p>
     </section>
   );

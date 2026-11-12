@@ -75,8 +75,8 @@ export function Sectors({ rows, loading }: { rows: Row[]; loading: boolean }) {
           {bottom.map(row)}
         </div>
         {pulse && (pulse.locked
-          ? <p className="dsh-callout dsh-pulse"><b>Sector Pulse</b> shows which NSE industries are in a washout, a rebound or fading. <Link to="/plans">See plans →</Link></p>
-          : <p className="dsh-callout dsh-pulse"><b>Sector Pulse, {dateIN(pulse.date, { day: "numeric", month: "short" })}:</b> {pulse.thrust} {pulse.thrust === 1 ? "industry" : "industries"} in a thrust · {pulse.confirmed} confirmed · {pulse.fading} fading · {pulse.washout} in a washout. <Link to="/sectors">Open Sector Pulse →</Link></p>)}
+          ? <p className="dsh-callout dsh-pulse"><b>Sector Pulse</b> shows which NSE industries are sold off, bouncing back or losing steam. <Link to="/plans">See plans →</Link></p>
+          : <p className="dsh-callout dsh-pulse"><b>Sector Pulse, {dateIN(pulse.date, { day: "numeric", month: "short" })}:</b> {pulse.thrust} {pulse.thrust === 1 ? "industry" : "industries"} bouncing back · {pulse.confirmed} rising together · {pulse.fading} losing steam · {pulse.washout} sold off. <Link to="/sectors">Open Sector Pulse →</Link></p>)}
       </>}
     </Card>
   );
