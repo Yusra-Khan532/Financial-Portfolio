@@ -448,3 +448,28 @@ async def test_the_start_page_gets_the_largest_companies_ready_a_few_at_a_time_a
     await silver.aclose()
     for t in list(R2._building.values()):
         await t
+
+
+async def test_admins_can_read_why_pages_are_missing_readers_cannot(app, store, monkeypatch):  # noqa: F811
+    from test_earnings_api import admin_client
+    await _clean(store)
+    pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
+    await service.save_page(store, "ASIANPAINT", _payload(), pack)
+    await service.save_failure(store, "TITAN", "not_ready", "This company's report is not stored yet.")
+    silver = await signed_in(app, "st1@example.com", plan="silver")
+    assert (await silver.get("/api/stress/admin/status")).status_code == 403
+    await silver.aclose()
+    admin = await admin_client(app, "stressadmin@example.com")
+    assert (await admin.get("/api/stress/admin/status")).json()["detail"]["status"] == "mfa_required"     # admin tools need the authenticator step, like every admin page
+    from types import SimpleNamespace
+    from finlit.auth.routes import admin_ctx
+    app.dependency_overrides[admin_ctx] = lambda: SimpleNamespace(role="admin", mfa_ok=True)               # past that step
+    try:
+        r = await admin.get("/api/stress/admin/status")
+    finally:
+        app.dependency_overrides.pop(admin_ctx, None)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["stored"] == 1 and d["stored_today"] == 1 and d["reasons"][0] == {"kind": "not_ready", "reason": "This company's report is not stored yet.", "companies": 1}
+    assert d["latest_failures"][0]["symbol"] == "TITAN" and "ASIANPAINT" not in d["largest_without_page"] and isinstance(d["building"], list)
+    await admin.aclose()

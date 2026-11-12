@@ -104,7 +104,7 @@ def test_every_documented_code_exists_in_the_parser_source():
 
 def test_golden_rules_are_true():
     # 1 + 2: lines are joined with AND, at the lowest precedence
-    assert ql.canonical(ql.analyze("ROE > 15 OR P/E < 10\nROCE > 5").root) == "Return on equity > 15 OR P/E Ratio < 10\nReturn on capital employed > 5"
+    assert ql.canonical(ql.analyze("ROE > 15 OR P/E < 10\nROCE > 5").root) == "Return on equity > 15 OR P/E < 10\nReturn on capital employed > 5"
     a = ql.analyze("ROE > 15 OR P/E < 10\nROCE > 5")
     assert a.root.kind == "and" and a.root.lines and a.root.items[0].kind == "or"
     # 3: AND before OR, && and ||, a line starting with AND / OR continues the one above

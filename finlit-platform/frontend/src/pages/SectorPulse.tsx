@@ -1,7 +1,11 @@
 // Sector Pulse (/sectors): is buying spreading through an industry, or drying up? Every NSE industry (or sector group of small ones) with its state, breadth, thrust
 // and leader flags, from GET /api/sectors. Every number is the server's; what the plan does not include arrives null with a reason and is said in words.
 // Describes price and breadth data; never advice. Styles: styles/sectors.css.
-import { useMemo, useState } from "react";
+import { Hideable } from "../components/Hideable";
+import { useQuery } from "@tanstack/react-query";
+import { ApiError, apiGet } from "../lib/api";
+import { CoLogo } from "../components/CoLogo";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { HScroll } from "../components/HScroll";
@@ -151,14 +155,49 @@ function Row({ r }: { r: GroupRow }) {
   );
 }
 
+type SmallGroup = { slug: string; name: string; counted: number; listed: number | null; locked?: string; note?: string | null;
+  stocks: { symbol: string; name: string; size: string | null; market_cap_cr: number | null; ret_6m: number | null; pct_from_high: number | null; ret_1y: number | null; group: string | null }[] | null };
+const pctTxt = (v: number | null, signed = true) => (v == null ? "–" : `${signed && v > 0 ? "+" : ""}${v.toFixed(1).replace("-", "−")}%`);
+
+/** One small group as a row that opens to its listed stocks (the group has no page of its own: the list comes from the screener table on the server).
+ *  The list is fetched only once the row is opened. */
+function SmallRow({ g }: { g: { name: string; slug: string; stocks_counted: number } }) {
+  const [open, setOpen] = useState(false), [listed, setListed] = useState<number | null>(null);
+  return (
+    <details className="sx-small" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary><span className="sx-small-n">{g.name}</span><small>{g.stocks_counted} counted{listed != null ? ` · ${listed} listed` : ""}</small></summary>
+      {open && <SmallList g={g} onListed={setListed} />}
+    </details>);
+}
+
+function SmallList({ g, onListed }: { g: { name: string; slug: string }; onListed: (n: number | null) => void }) {
+  const q = useQuery<SmallGroup, ApiError>({ queryKey: ["sector-small", g.slug], queryFn: () => apiGet<SmallGroup>(`/api/sectors/small/${encodeURIComponent(g.slug)}`), staleTime: 300_000, retry: false });
+  const d = q.data;
+  useEffect(() => { onListed(d?.listed ?? null); }, [d?.listed]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (q.isLoading) return <div className="sx-skel" style={{ height: 80 }} role="status" aria-label={`Loading the stocks of ${g.name}`} />;
+  if (q.isError) return <p className="sx-note" role="status">The stocks of this group are not available right now. Please try again in a moment.</p>;
+  if (d?.locked) return <LockedBlock plan="silver" title="The stocks of each group are part of the Silver plan">The group's name and how many stocks it counts are open to everyone. Silver lists its stocks with their 6-month and 1-year moves.</LockedBlock>;
+  if (!d?.stocks?.length) return <p className="sx-note" role="status">No listed stock carries this group's name in the screener today.</p>;
+  return (
+    <>
+      <HScroll><table className="sx-t sx-small-t"><thead><tr><th className="num">#</th><th>Stock</th><th>Size</th><th className="num">6 months</th><th className="num">Below its 1-year high</th><th className="num">1 year</th><th>NSE group</th></tr></thead>
+        <tbody>{d.stocks.map((s, i) => <tr key={s.symbol}><td className="num">{i + 1}</td>
+          <td><Link to={`/stocks/${encodeURIComponent(s.symbol)}`} className="sx-small-co"><CoLogo symbol={s.symbol} name={s.name} size={22} /><span><b>{s.symbol}</b><small title={s.name}>{s.name}</small></span></Link></td>
+          <td>{s.size ?? "–"}</td><td className={"num" + (s.ret_6m == null ? "" : s.ret_6m >= 0 ? " up" : " down")}>{pctTxt(s.ret_6m)}</td>
+          <td className="num">{s.pct_from_high == null ? "–" : `${s.pct_from_high.toFixed(1)}%`}</td><td className={"num" + (s.ret_1y == null ? "" : s.ret_1y >= 0 ? " up" : " down")}>{pctTxt(s.ret_1y)}</td>
+          <td className="sx-small-g" title={s.group ?? ""}>{s.group ?? "–"}</td></tr>)}</tbody></table></HScroll>
+      {d.note && <p className="sx-note" style={{ marginTop: 8 }}>{d.note}</p>}
+    </>);
+}
+
 function TooFew({ b }: { b: Board }) {
   if (!b.too_few_stocks?.length) return null;
   const total = b.too_few_stocks.reduce((s, x) => s + x.stocks_counted, 0);
   return (
     <section className="sx-card sx-sec" aria-labelledby="sx-few">
       <h2 id="sx-few">Too few stocks for a reading</h2>
-      <p className="sx-sub">These groups have too few counted stocks for a steady reading, so they are shown without a state until they grow. The {b.too_few_stocks.length} groups hold {count(total)} counted stocks between them.</p>
-      <ul className="sx-chips" style={{ listStyle: "none", padding: 0 }}>{b.too_few_stocks.map((g) => <li key={g.slug} className="sx-pill">{g.name} <small>· {g.stocks_counted} counted</small></li>)}</ul>
+      <p className="sx-sub">These groups have too few counted stocks for a steady reading, so they are shown without a state until they grow. The {b.too_few_stocks.length} groups hold {count(total)} counted stocks between them. Open a group to see its stocks, best 6 months first.</p>
+      <div className="sx-small-list">{b.too_few_stocks.map((g) => <SmallRow key={g.slug} g={g} />)}</div>
     </section>
   );
 }
@@ -196,11 +235,12 @@ function Flags({ b }: { b: Board }) {
     <section className="sx-card sx-sec" aria-labelledby="sx-flags">
       <div className="sx-bar" style={{ marginBottom: 0 }}><div><h2 id="sx-flags">Leader flags: 52-week highs inside weak industries</h2>
         <p className="sx-sub">{b.leader_flag_text} {b.leader_flags.length} flags are live in {groups} groups: {full} full flags and {b.leader_flags.length - full} in the softer tier.</p></div>
-        {b.leader_flags.length > 10 && <button type="button" className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${b.leader_flags.length}`}</button>}</div>
+</div>
       {!b.leader_flags.length ? <p className="sx-note" role="status">No stock is flagged today.</p> :
         <ul className="sx-flags" style={{ listStyle: "none", padding: 0 }}>{list.map((f) => (
           <li className="sx-flag" key={f.symbol + f.group_slug}><div className="h"><Link to={`/stocks/${f.symbol}`}>{f.symbol}</Link><span className={"tier" + (/full/i.test(f.tier) ? "" : " soft")}>{flagText(f)}</span></div>
             <span>{f.group}</span><span>{flagAge(f.sessions_ago)}{f.quarter ? ` · 6-month quarter ${f.quarter}` : ""}</span></li>))}</ul>}
+      {b.leader_flags.length > 10 && <button type="button" className="btn sx-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show the other ${b.leader_flags.length - 10} standout stocks`}</button>}
     </section>
   );
 }
@@ -222,7 +262,7 @@ export function SectorPulsePage() {
             <Market b={b} />
             {b.market_note && <section className="sx-warn" role="note" aria-labelledby="sx-wn"><h2 id="sx-wn"><Icon name="alert" /> Breadth is weak almost everywhere</h2><p>{b.market_note}{b.counts ? ` ${plural(b.counts.Washout ?? 0, "group")} ${(b.counts.Washout ?? 0) === 1 ? "is" : "are"} in a Washout; ${b.counts.Confirmed ? plural(b.counts.Confirmed, "group") + " Confirmed" : "none is Confirmed"} and ${(b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0) ? plural((b.counts["Thrust C"] ?? 0) + (b.counts["Thrust CAP"] ?? 0), "group") + " had a thrust today" : "none had a thrust today"}.` : ""}</p></section>}
           </div>
-          <div style={{ marginTop: 16 }}><Cycle /></div>
+          <div style={{ marginTop: 16 }}><Hideable id="pulse.cycle" title="The industry cycle"><Cycle /></Hideable></div>
           <PulseCharts part="mood" />
           <GroupsTable b={b} />
           <PulseCharts part="strip" />

@@ -421,8 +421,22 @@ async def facts(store: Any, now: Optional[datetime] = None) -> Dict[str, Any]:
     out: Dict[str, Any] = {"prism_behind": 0, "prism_behind_since": None, "live_newest": None, "queue": await queue_depth(store.redis)}
     try:
         async with store.pool.acquire() as conn:
-            row = await conn.fetchrow(f"SELECT count(*) AS n, min(s.updated_at) AS since {BEHIND_FROM_WHERE}", QUARTER_SLACK_DAYS)  # nosec B608 - fixed SQL
-            out["prism_behind"], out["prism_behind_since"] = int(row["n"] or 0), row["since"]
+            rows = await conn.fetch(f"SELECT s.symbol, s.statement, s.updated_at {BEHIND_FROM_WHERE}", QUARTER_SLACK_DAYS)  # nosec B608 - fixed SQL
+        # A rating whose own source does not hold the new quarter yet (the provider's quarterly figures: prism:pre:fail = quarter-not-available) is waiting for the
+        # provider, not for us: it is counted apart, so the console does not call that "stale" while retrying could not help (12 Nov 2026: 67 "behind", oldest 190 h).
+        ours, waiting = [], 0
+        for r in rows:
+            why = None
+            try:
+                why = await store.redis.get(f"prism:pre:fail:{r['statement']}:{r['symbol']}")
+            except Exception:   # nosec B110 - counted as ours
+                why = None
+            if (why.decode() if isinstance(why, bytes) else why) == "quarter-not-available":
+                waiting += 1
+            else:
+                ours.append(r["updated_at"])
+        out["prism_behind"], out["prism_behind_since"], out["prism_waiting_provider"] = len(ours), (min(ours) if ours else None), waiting
+        async with store.pool.acquire() as conn:
             out["live_newest"] = await conn.fetchval("SELECT max(live_at) FROM scores")
     except Exception as exc:
         log.warning("score-lag facts failed: %s", type(exc).__name__)

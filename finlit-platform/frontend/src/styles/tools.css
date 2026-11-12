@@ -169,7 +169,7 @@ main#main { min-height: 90vh; }
 .hs-bar { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
 .hs-btn { flex: none; width: 34px; height: 30px; border-radius: 9px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font-size: 12px; cursor: pointer; }
 .hs-btn:disabled { opacity: .35; cursor: default; } .hs-btn:not(:disabled):hover { border-color: var(--gold); }
-.hs-range { flex: 1; min-width: 0; accent-color: var(--gold); height: 6px; cursor: ew-resize; }
+.hs-range { flex: 1; min-width: 0; width: 0; accent-color: var(--gold); height: 6px; cursor: ew-resize; }
 /* on a phone the row keeps its buttons, slider and percent inside the screen: the "First column / Last column" words go (12 Nov 2026: the right button sat 10 px past the edge, so /screener and /funds scrolled sideways) */
 @media (max-width: 560px) { .hs-end { display: none; } .hs-bar { gap: 8px; min-width: 0; } }
 /* and a visible, grabbable scrollbar on every wide table */

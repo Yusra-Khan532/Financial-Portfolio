@@ -578,3 +578,20 @@
 .sxg-full b { font: 600 var(--fs-16) var(--sans); } .sxg-full p { margin: 4px 0 0; color: var(--text); font-size: var(--fs-14); line-height: 1.55; max-width: 90ch; }
 @media (max-width: 1100px) { .sxg-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } .sxg-steps li::after { display: none; } }
 @media (max-width: 640px) { .sxg { padding: 14px 12px; } .sxg-head { flex-wrap: wrap; } .sxg-more { flex-basis: 100%; justify-content: center; } .sxg-steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* "Too few stocks for a reading": each group is a row that opens to its stocks (9 Nov 2026 pages update) */
+.sx-small-list { display: grid; gap: 8px; margin-top: 12px; }
+.sx-small { border: 1px solid var(--border); border-radius: 12px; background: var(--s1, var(--card)); }
+.sx-small > summary { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; cursor: pointer; list-style: none; font-size: 14px; color: var(--text); }
+.sx-small > summary::-webkit-details-marker { display: none; }
+.sx-small > summary::before { content: "▸"; color: var(--muted); }
+.sx-small[open] > summary::before { content: "▾"; }
+.sx-small > summary small { color: var(--muted); font-size: 12px; margin-left: auto; }
+.sx-small > :not(summary) { margin: 0 14px 12px; }
+.sx-small-t td, .sx-small-t th { white-space: nowrap; }
+.sx-small-co { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+.sx-small-co span { display: grid; } .sx-small-co small { color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.sx-small-g { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.sx-small-t td.up { color: var(--gain); } .sx-small-t td.down { color: var(--loss); }
+.sx-small-t th:nth-child(2), .sx-small-t td:nth-child(2), .sx-small-t th:nth-child(3), .sx-small-t td:nth-child(3), .sx-small-t th:last-child, .sx-small-t td:last-child { text-align: left; }
+.sx-small-t { min-width: 760px; }

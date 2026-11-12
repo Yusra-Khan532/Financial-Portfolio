@@ -113,7 +113,8 @@ describe("Sector Pulse", () => {
     expect(screen.getByText(/too few counted stocks for a steady reading/)).toBeTruthy();
     expect(screen.getByText(/Construction Materials/)).toBeTruthy();
     expect(screen.getByText("2,591")).toBeTruthy(); expect(screen.getByText("1,198")).toBeTruthy();
-    expect(screen.getByText(/Show all 58/)).toBeTruthy();
+    expect(screen.getByText(/Show the other 48 standout stocks/)).toBeTruthy();                // the first 10 show; the rest open in place (9 Nov pages update)
+    expect(document.querySelectorAll("details.sx-small")).toHaveLength(9);                    // each small group is a row that opens to its stocks
     expect(screen.getByText("KRISHANA")).toBeTruthy();
     expect(screen.getAllByText("Full flag").length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain("Not a recommendation");

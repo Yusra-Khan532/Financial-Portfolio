@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from ..auth.entitlements import has
-from ..auth.routes import SYMBOL, Ctx, fail, secure_ctx, user_ctx
+from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
 from ..background import spawn
 from ..screener.data import get_table
 from . import engine, service
@@ -305,3 +305,22 @@ async def peer(request: Request, symbol: str, ctx: Ctx = Depends(gold_ctx)):
     table = await get_table(store)
     cov = service.covered_quarters(table, [sym] + peers)
     return _json({"symbol": sym, "peer": P.default_peer(sym, peers, cov), "peers": [p for p in peers if p in cov]})
+
+
+@router.get("/admin/status")
+async def admin_status(request: Request, ctx: Ctx = Depends(admin_ctx)):
+    """For the people who run the site (admin accounts only), in a browser: how many covered companies have a stored page, which are being built right now, and why the
+    others have none yet (the reasons from stress_failures). Readers never see these reasons."""
+    store = request.app.state.store
+    covered = await service.covered_symbols(store)
+    out: Dict[str, Any] = {"covered": len(covered), "building": sorted(k for k, t in _building.items() if not t.done())}
+    async with store.pool.acquire() as conn:
+        out["stored"] = await conn.fetchval("SELECT count(*) FROM stress_pages")
+        out["stored_today"] = await conn.fetchval("SELECT count(*) FROM stress_pages WHERE (built_at AT TIME ZONE 'Asia/Kolkata')::date = (now() AT TIME ZONE 'Asia/Kolkata')::date")
+        out["newest_build"] = str(await conn.fetchval("SELECT max(built_at) FROM stress_pages") or "") or None
+        out["reasons"] = [{"kind": r["kind"], "reason": r["reason"], "companies": r["n"]} for r in await conn.fetch(
+            "SELECT kind, left(reason, 160) AS reason, count(*) AS n FROM stress_failures GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 15")]
+        out["latest_failures"] = [{"symbol": r["symbol"], "kind": r["kind"], "reason": r["reason"][:200], "attempts": r["attempts"], "at": str(r["failed_at"])} for r in await conn.fetch(
+            "SELECT symbol, kind, reason, attempts, failed_at FROM stress_failures ORDER BY failed_at DESC LIMIT 20")]
+    out["largest_without_page"] = [s for s, _ in covered if s not in set(await service.stored_symbols(store))][:20]
+    return _json(out)

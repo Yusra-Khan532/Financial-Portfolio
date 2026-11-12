@@ -257,3 +257,24 @@ async def test_the_state_history_is_open_to_every_plan_and_carries_no_stock_or_r
     assert all(set(g) == {"name", "slug", "kind", "states"} and len(g["states"]) == len(d["dates"]) for g in d["groups"])
     assert "KIRLFER" not in r.text and "MANAKSTEEL" not in r.text and "washout" not in r.text.lower() and "thrust" not in r.text.lower()
     assert r.headers["cache-control"].startswith("private")
+
+
+async def test_a_small_group_opens_to_its_stocks_best_six_months_first_silver_only(app, anon, out, monkeypatch):  # noqa: F811
+    from types import SimpleNamespace
+    from finlit.screener import data as scr
+    nan = float("nan")
+    syms = ["AAA", "BBB", "CCC", "DDD"]
+    fake = SimpleNamespace(symbols=syms, name=["Alpha", "Beta", "Gamma", "Delta"], industry=["Diversified", "Diversified", "Diversified", "Cement"], sector_label=[None] * 4,
+                           cap=["Small", "Mid", "Small", "Large"],
+                           cols={"market_cap": [900.0, 20000.0, 500.0, 90000.0], "ret_6m": [5.0, 12.5, nan, 3.0], "pct_from_high": [10.0, 2.0, 30.0, 1.0], "ret_1y": [8.0, 20.0, -4.0, 9.0]})
+    async def table(store_):
+        return fake
+    monkeypatch.setattr(scr, "get_table", table)
+    r = await anon.get("/api/sectors/small/diversified")
+    assert r.status_code == 200 and r.json()["stocks"] is None and r.json()["locked"] == "silver" and r.json()["counted"] == 5      # Basic: the counts, not the list
+    silver = await signed_in(app, "small@example.com", plan="silver")
+    d = (await silver.get("/api/sectors/small/diversified")).json()
+    assert d["listed"] == 3 and [s["symbol"] for s in d["stocks"]] == ["BBB", "AAA", "CCC"]                # best 6 months first, no figure last, only this group
+    assert d["stocks"][2]["ret_6m"] is None and d["stocks"][0]["pct_from_high"] == 2.0 and d["stocks"][0]["size"] == "Mid" and d["note"] is None
+    assert (await silver.get("/api/sectors/small/not-a-group")).status_code == 404
+    await silver.aclose()

@@ -88,11 +88,10 @@ async def _bench(store, as_of: date) -> Dict[str, float]:
         have = {}
     try:
         raw = await store.redis.get("idx:px:NIF500")
-        rows = (((json.loads(raw)["v"] if raw else None) or {}).get("rows")) or []
-        for r in rows[-90:]:
-            d, c = str((r or {}).get("quote_date") or "")[:10], (r or {}).get("close_price")
-            if len(d) == 10 and c not in (None, ""):
-                have[d] = float(c)
+        # The provider's rows are not in date order (the index page sorts them too, indices.shape_levels): sort first, then keep the last 90 sessions. Taking the last 90
+        # rows as sent kept the OLDEST closes, so no NIFTY 500 close reached the day a company joined and the NIFTY 500 change was blank on almost every row (task #64, C4).
+        for r in bench_rows((json.loads(raw)["v"] if raw else None) or {})[-90:]:
+            have[r[0]] = r[1]
     except Exception:
         log.warning("NIFTY 500 history not read for the screen history", exc_info=True)
     cut = (as_of - timedelta(days=KEEP_DAYS)).isoformat()
@@ -103,6 +102,20 @@ async def _bench(store, as_of: date) -> Dict[str, float]:
     except Exception:
         pass
     return have
+
+
+def bench_rows(raw: Any) -> List[Tuple[str, float]]:
+    """(day, close) of the saved NIFTY 500 history, oldest first, whatever order the provider sent; rows without a day or a close are left out."""
+    rows = raw.get("rows") if isinstance(raw, dict) else raw
+    out: Dict[str, float] = {}
+    for r in rows or []:
+        d, c = str((r or {}).get("quote_date") or "")[:10], (r or {}).get("close_price")
+        try:
+            if len(d) == 10 and c not in (None, "") and date.fromisoformat(d):
+                out[d] = float(c)
+        except (TypeError, ValueError):
+            continue
+    return sorted(out.items())
 
 
 def _bench_at(bench: Dict[str, float], day: str) -> Optional[float]:

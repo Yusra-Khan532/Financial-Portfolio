@@ -1,4 +1,6 @@
 import { Link } from "react-router";
+import { CoLogo } from "../components/CoLogo";
+import { Hideable } from "../components/Hideable";
 import type { MfSpread, MfTrend, TrendRead } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
 
@@ -93,6 +95,7 @@ export function SpreadSection({ d }: { d: MfSpread }) {
       </div>
 
       <div className="x-row">
+        <Hideable id="mf.overlap" title="Overlap between funds">
         <section className="card" aria-label="Overlap between funds">
           <div className="card-h"><h3>Overlap between funds</h3></div>
           {withShares.length > 1 ? <>
@@ -106,7 +109,9 @@ export function SpreadSection({ d }: { d: MfSpread }) {
             <p className="x-fine">Share of money two funds keep in the same stocks: for each stock in both, the smaller of the two weights, added up.</p>
           </> : <p className="faint">Needs the share holdings of at least two funds. {missing.length ? `Not loaded yet: ${list(missing.map(n))}.` : ""}</p>}
         </section>
+        </Hideable>
 
+        <Hideable id="mf.together" title="Funds that move together">
         <section className="card" aria-label="Funds that move together">
           <div className="card-h"><h3>Funds that move together</h3></div>
           {stockFunds.length > 1 ? <>
@@ -116,6 +121,7 @@ export function SpreadSection({ d }: { d: MfSpread }) {
             <p className="x-fine">Weekly NAV changes of each fund's Growth option, {d.together.weeks} weeks{d.together.from && d.together.to ? ` (${dateIN(d.together.from)} to ${dateIN(d.together.to)})` : ""}. 1.00 means the two rise and fall in step. Liquid and overnight funds are left out: their weekly change is noise.</p>
           </> : <p className="faint">Needs a year of NAV history for at least two equity-type funds.</p>}
         </section>
+        </Hideable>
       </div>
 
 
@@ -125,7 +131,7 @@ export function SpreadSection({ d }: { d: MfSpread }) {
         <div className="card-h"><h3>Largest stocks underneath</h3><span className="s">{d.topStocks.length} of {r.underneath.stocks}</span></div>
         <table className="x-st"><thead><tr><th scope="col">Stock</th><th scope="col">Sector</th><th scope="col" className="r">Share of your list</th>{d.trend && <><th scope="col" className="c">Prism</th><th scope="col" className="c">Short term</th><th scope="col" className="c">Long term</th></>}<th scope="col">Held by</th></tr></thead>
           <tbody>{d.topStocks.map((s) => <tr key={s.name}>
-            <td className="l">{s.symbol ? <Link to={`/stocks/${s.symbol}`}><b>{s.name}</b></Link> : <b>{s.name}</b>}</td>
+            <td className="l">{s.symbol ? <Link to={`/stocks/${s.symbol}`} className="pfx-co"><CoLogo symbol={s.symbol} name={s.name} size={22} inline /><b>{s.name}</b></Link> : <b>{s.name}</b>}</td>
             <td>{s.sector || "–"}</td>
             <td className="r"><b>{(s.w / (d.knownShares || 1) * 100).toFixed(1)}%</b></td>
             {d.trend && <><td className="c">{s.prism?.score != null ? <span className={"x-ps " + (s.prism.score >= 70 ? "hi" : s.prism.score >= 50 ? "mid" : "lo")}>{Math.round(s.prism.score)}</span> : <span className="x-ps na">Not rated</span>}</td><td className="c"><Tr w={s.prism?.st} /></td><td className="c"><Tr w={s.prism?.lt} /></td></>}

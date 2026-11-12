@@ -39,7 +39,7 @@ async def test_validate_reports_every_problem_with_positions(app, anon):  # noqa
     assert e["text"] == "Piotroski score" and e["line"] == 1 and e["col"] == 22 and e["seeAll"] and e["suggestions"] and e["fixes"]
     assert [m["key"] for m in body["metrics"]] == ["market_cap", "roe"]
     ok = (await post(anon, "ql/validate", query="Market cap > 500 Cr\nPE < 15")).json()
-    assert ok["ok"] and ok["conditions"] == 2 and ok["canonical"] == "Market cap > 500 Cr\nP/E Ratio < 15" and ok["reading"]["type"] == "and"
+    assert ok["ok"] and ok["conditions"] == 2 and ok["canonical"] == "Market cap > 500 Cr\nP/E < 15" and ok["reading"]["type"] == "and"
     assert (await post(anon, "ql/validate", query="x" * 2001)).json()["errors"][0]["code"] == "too_long"
     assert (await post(anon, "ql/validate", query="Market cap > 500000")).json()["warnings"][0]["code"] == "crore_units"
 
@@ -103,7 +103,7 @@ async def test_ratios_lists_every_metric_with_names_and_examples(app, anon):  # 
     body = (await anon.get("/api/screener/ql/ratios")).json()
     assert len(body["ratios"]) == len(CATALOG) and body["aliases"] > 1000 and body["plan"] == "basic"
     by = {r["key"]: r for r in body["ratios"]}
-    assert by["pe"]["names"][0] == "P/E Ratio" and "P/E" in by["pe"]["names"] and by["pe"]["unitLabel"] == "times" and by["pe"]["definition"].startswith("The share price")
+    assert by["pe"]["names"][0] == "P/E" and "P/E" in by["pe"]["names"] and by["pe"]["unitLabel"] == "times" and by["pe"]["definition"].startswith("The share price")
     assert by["pb"]["locked"] and by["pb"]["tier"] == "silver" and not by["pe"]["locked"]
     for r in body["ratios"]:       # every example written for a ratio is itself a valid query
         assert analyze(r["example"], "gold").ok, (r["key"], r["example"])

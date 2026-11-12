@@ -63,7 +63,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What can I filter on?",
-    "a": "Every listed company, with close to 200 filters grouped as FinLit Model (Gold), Sector, Industry, Index, Size & Price, Returns, Valuation, Profitability, Growth, Quarterly Results, Financial Health, Liquidity, Solvency, Efficiency, Ownership, Company Events, Red Flags, Banks & Lenders and Volume, Range & Trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
+    "a": "Every listed company, with close to 200 filters grouped as FinLit model (Gold), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
    },
    {
     "q": "What are Quick screens?",
@@ -79,7 +79,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What do the green and red cells mean?",
-    "a": "Green cells are in the best quarter of the results shown for that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
+    "a": "Green cells are in the best quarter of all listed companies on that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
    },
    {
     "q": "How do I add columns, save or download my results?",

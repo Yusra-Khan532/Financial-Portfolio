@@ -5,16 +5,18 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
+from datetime import date
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Request, Response
 
 from ..auth.routes import NO_STORE
-from . import engine, service
+from . import engine, history as hist_mod, patterns as pat_mod, service
 from .registry import ALL
 
 router = APIRouter(prefix="/api/screener/selfcheck")
-KEY = "presets:selfcheck:v1"
+KEY = "presets:selfcheck:v2"
 TTL = 300
 # the same words live_check.py treats as model detail in a screen's texts
 LEAK = re.compile(r"cut-?off|percentile|weighted|\bfrom \d+ to \d+\b|view is -?\d+ or more|\b\d+ or more\b(?! ?(Cr|crore|%|companies|years|quarters|sessions|days))", re.I)
@@ -77,7 +79,41 @@ async def run(request: Request) -> Dict[str, Any]:
         _check("C6", "Pattern scans covered the whole market (left out under 2%)", leftout),
         _check("C7", "No model detail in screen texts", leaks),
     ]
-    return {"screens": len(served), "asOf": sorted(a for a in asofs if a), "checks": checks, "passed": sum(1 for c in checks if c["ok"]), "of": len(checks)}
+    return {"screens": len(served), "asOf": sorted(a for a in asofs if a), "checks": checks, "passed": sum(1 for c in checks if c["ok"]), "of": len(checks),
+            "diagnostics": await diagnostics(store)}
+
+
+LAST_RUN_KEYS = ("asOf", "finishedAt", "results", "benchReady", "patternsHeld", "patternCoverage", "patternsChecked", "patternsLeftOut", "patternsSuspended", "patternsError",
+                 "historyScreens", "spellsOpened", "spellsClosed", "historyError", "closesRepaired")
+
+
+async def diagnostics(store) -> Dict[str, Any]:
+    """Why a check fails, in counts and dates only: the NIFTY 500 closes on hand (C4), the saved pattern run and how old the left-out companies' candles are (C6),
+    and the last nightly run's own summary. Each part has its own guard."""
+    out: Dict[str, Any] = {}
+    try:
+        bench = await hist_mod._bench(store, date.today())
+        out["nifty500"] = {"days": len(bench), "first": min(bench) if bench else None, "last": max(bench) if bench else None}
+    except Exception as exc:
+        out["nifty500"] = {"error": type(exc).__name__}
+    try:
+        run = await pat_mod.load(store) or {}
+        lo = run.get("left_out") or []
+        ends = Counter((re.search(r"candles end (\d+ \w+)", str(r[1] if isinstance(r, (list, tuple)) and len(r) > 1 else r)) or [None, "?"])[1] for r in lo)
+        out["patterns"] = {"asOf": run.get("as_of"), "checked": run.get("checked"), "leftOut": len(lo), "suspended": run.get("suspended"),
+                           "candlesEnd": dict(ends.most_common(8))}
+    except Exception as exc:
+        out["patterns"] = {"error": type(exc).__name__}
+    try:
+        async with store.pool.acquire() as conn:
+            v = await conn.fetchval("SELECT value FROM preset_meta WHERE key = 'last_run'")
+        last = (json.loads(v) if isinstance(v, str) else v) or {}
+        out["lastRun"] = {k: last[k] for k in LAST_RUN_KEYS if k in last} or None
+        if last.get("failed"):
+            out["lastRun"]["failed"] = len(last["failed"])
+    except Exception as exc:
+        out["lastRun"] = {"error": type(exc).__name__}
+    return out
 
 
 @router.get("")
