@@ -1,3 +1,4 @@
+import { axisUnit, niceRange, niceTicks } from "../lib/chartUnits";
 import { useRef } from "react";
 import { css, drawIn, el, vgrad } from "../lib/svg";
 import { MINUS, cr, nf, num } from "../lib/format";
@@ -9,11 +10,7 @@ const get = (t: Table, k: string): Series => t.rows[k] || [];
 const v0 = (x: number | null | undefined) => (x == null ? 0 : x);
 
 export type FinKind = "pl" | "bs" | "cf" | "q";
-
-/** The unit an axis is drawn in, chosen from its largest value so a small company never shows 0.0 and 0.03 (task #63): lakh crore from ₹1 lakh crore up, thousand crore from ₹1,000 Cr, otherwise plain crore. */
-export function axisUnit(max: number): { div: number; label: string; digits: number } {
-  return max >= 1e5 ? { div: 1e5, label: "₹ L Cr", digits: 2 } : max >= 1000 ? { div: 1000, label: "₹ '000 Cr", digits: 1 } : { div: 1, label: "₹ Cr", digits: 0 };
-}
+export { axisUnit };
 
 /** Statement charts: P&L (revenue bars, profit bars, margin line), balance-sheet funding stack, cash-flow groups. */
 export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; bs: Table; cf: Table; ql: Table }) {
@@ -43,9 +40,9 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       const margins = rev.map((r, i) => (r && Number.isFinite(np[i] / r) ? (np[i] / r) * 100 : 0));
       const H = small ? 320 : 360; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 46, step = (W - pl_ - pr) / n, bw = Math.min(54, step * 0.52), topH = H * 0.44, botT = topH + 40, botH = H - botT - 28;
-      const rmx = Math.max(...rev) * 1.1 || 1, nmx = Math.max(...np.map(Math.abs), 1) * 1.15, mmx = Math.max(...margins.map(Math.abs), 1) * 1.2;
+      const rmx = niceTicks(Math.max(...rev, 1)).top, nmx = niceTicks(Math.max(...np.map(Math.abs), 1)).top, mmx = Math.max(...margins.map(Math.abs), 1) * 1.2;
       const gRev = vgrad(s, css("--c2"), 0.9, 0.35), gGold = vgrad(s, css("--c1"), 1, 0.55), gNp = vgrad(s, css("--c3"), 0.9, 0.35), gLoss = vgrad(s, css("--loss"), 0.9, 0.4);
-      const ru = axisUnit(rmx), nu = axisUnit(nmx);
+      const ru = axisUnit(Math.max(rmx, nmx)), nu = ru;   // round tops (5,000 not 4,873); one unit for both panels, rupees crore until a lakh crore
       axisText(0, 10, `REVENUE · ${ru.label}`, "start", css("--muted"), 600); axisText(0, botT - 10, `NET PROFIT · ${nu.label}`, "start", css("--muted"), 600); axisText(W, botT - 10, "NET MARGIN %", "end", css("--c4"), 600);
       [0, 0.5, 1].forEach((f) => { const yy = 20 + (1 - f) * (topH - 20); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((rmx * f) / ru.div, ru.digits), "end"); });
       [0, 0.5, 1].forEach((f) => { const yy = botT + (1 - f) * botH; el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((nmx * f) / nu.div, nu.digits), "end"); });
@@ -67,23 +64,25 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       const labels = bs.periods, n = labels.length, H = 320; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 16, pt = 22, pb = 28, step = (W - pl_ - pr) / n, bw = Math.min(64, step * 0.56);
       const eq = get(bs, "total_equity").map(v0), bo = get(bs, "borrowings").map(v0), ta = get(bs, "total_assets").map(v0);
-      const oth = ta.map((a, i) => Math.max(0, a - eq[i] - bo[i])), mx = Math.max(...ta) * 1.1 || 1;
+      const oth = ta.map((a, i) => Math.max(0, a - eq[i] - bo[i])), mx = niceTicks(Math.max(...ta, 1)).top, bu = axisUnit(mx);
       const parts: [string, number[], string][] = [["Equity + reserves", eq, "--c1"], ["Borrowings", bo, "--c2"], ["Other liabilities", oth, "--c4"]];
       const fills = parts.map(([, , c]) => vgrad(s, css(c), 0.95, 0.6));
-      [0, 0.5, 1].forEach((f) => { const yy = pt + (1 - f) * (H - pt - pb); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((mx * f) / 1e5, 1) + "L", "end"); });
+      [0, 0.5, 1].forEach((f) => { const yy = pt + (1 - f) * (H - pt - pb); el("line", { x1: pl_, x2: W - pr, y1: yy, y2: yy, stroke: css("--border"), "stroke-dasharray": "3 5" }, s); axisText(pl_ - 8, yy + 4, nf((mx * f) / bu.div, bu.digits), "end"); });
+      axisText(0, 10, `TOTAL FUNDING · ${bu.label}`, "start", css("--muted"), 600);
       labels.forEach((lab, i) => {
         const cx = pl_ + step * (i + 0.5); let base = H - pb;
         parts.forEach(([, arr], k) => { const h = (arr[i] / mx) * (H - pt - pb); el("rect", { x: cx - bw / 2, y: base - h, width: bw, height: Math.max(0, h - 2), rx: k === 2 ? 6 : 3, fill: fills[k] }, s); base -= h; });
-        axisText(cx, base - 8, nf(ta[i] / 1e5, 2) + "L", "middle", i === n - 1 ? css("--gold") : css("--muted"), 600); axisText(cx, H - 6, lab, "middle");
+        axisText(cx, base - 8, nf(ta[i] / bu.div, bu.digits), "middle", i === n - 1 ? css("--gold") : css("--muted"), 600); axisText(cx, H - 6, lab, "middle");
       });
       hoverBands(n, pl_, step, H, (i, d) => { line(d, `${labels[i]} · funded by`, "faint"); line(d, `₹${cr(ta[i])} Cr`, "", "b"); parts.forEach(([nm, arr]) => line(d, `${nm} ₹${cr(arr[i])} Cr`, "muted", "div")); });
     } else {
       const labels = cf.periods, n = labels.length, H = 320; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 16, pt = 22, pb = 28, step = (W - pl_ - pr) / n, bw = Math.min(24, step * 0.2);
       const op = get(cf, "operating").map(v0), inv = get(cf, "investing").map(v0), fin = get(cf, "financing").map(v0), fcf = get(cf, "free_cash_flow").map(v0);
-      const all = [...op, ...inv, ...fin, ...fcf], mx = Math.max(...all, 1) * 1.1, mn = Math.min(...all, 0) * 1.1;
+      const all = [...op, ...inv, ...fin, ...fcf], { lo: mn, hi: mx } = niceRange(Math.min(...all, 0), Math.max(...all, 1)), cu = axisUnit(Math.max(Math.abs(mn), mx));
       const y = (v: number) => pt + ((mx - v) / (mx - mn)) * (H - pt - pb);
-      [mn, 0, mx].forEach((v) => { el("line", { x1: pl_, x2: W - pr, y1: y(v), y2: y(v), stroke: css("--border"), "stroke-dasharray": v === 0 ? "" : "3 5" }, s); axisText(pl_ - 8, y(v) + 4, (v < 0 ? MINUS : "") + nf(Math.abs(v) / 1000, 0) + "k", "end"); });
+      axisText(0, 10, `CASH FLOW · ${cu.label}`, "start", css("--muted"), 600);
+      [mn, 0, mx].forEach((v) => { el("line", { x1: pl_, x2: W - pr, y1: y(v), y2: y(v), stroke: css("--border"), "stroke-dasharray": v === 0 ? "" : "3 5" }, s); axisText(pl_ - 8, y(v) + 4, (v < 0 ? MINUS : "") + nf(Math.abs(v) / cu.div, cu.digits), "end"); });
       const keys: [string, number[], string][] = [["Operating", op, "--c3"], ["Investing", inv, "--c2"], ["Financing", fin, "--c4"]];
       let fl = "";
       labels.forEach((lab, i) => {
