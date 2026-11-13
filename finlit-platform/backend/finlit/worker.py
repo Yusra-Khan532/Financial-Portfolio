@@ -37,6 +37,7 @@ log = logging.getLogger("finlit.worker")
 
 ONDEMAND_LANES = int(os.getenv("ONDEMAND_LANES") or 2)      # reports visitors wait for are built this many at a time (its own cap, apart from the bulk jobs)
 ONDEMAND_EXTRAS = int(os.getenv("ONDEMAND_EXTRAS") or 2)    # and the rest of those reports (parts not needed for the first paint) this many at a time
+FIRST_PAINT_TIMEOUT_S = float(os.getenv("FIRST_PAINT_TIMEOUT_S") or 150)   # a visitor's report never holds a lane longer than this: the page says "try again"
 
 
 class DataRejected(Exception):
@@ -475,7 +476,14 @@ async def serve_one(client: FinEdgeClient, store: Store, symbol: str, statement:
     are stored) and the rest follows in the background; a refresh of a good report is a plain full load."""
     if await _usable_report(store, symbol, statement):
         return await ingest_one(client, store, symbol, statement)
-    result, bundle = await ingest_essential(client, store, symbol, statement)
+    try:
+        result, bundle = await asyncio.wait_for(ingest_essential(client, store, symbol, statement), FIRST_PAINT_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        # The provider kept answering "too many requests": the lane is freed for the next visitor and this page is told at once, not left waiting.
+        log.warning("ingest %s %s first paint: no answer within %.0f s", symbol, statement, FIRST_PAINT_TIMEOUT_S)
+        await _after_load(store, symbol, statement)
+        await _record_failure(store, symbol, statement, "failed", {})
+        return {"symbol": symbol, "status": "failed", "errors": {"error": f"timed out after {FIRST_PAINT_TIMEOUT_S:.0f} s"}, "retry": False}
     if bundle is not None:
         async def rest():
             async with extras:
@@ -510,11 +518,18 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
         except Exception:
             log.exception("on-demand load of %s failed", sym)
 
+    serving: set = set()      # the visitor lanes now running (not the pre-warm one): while any runs, the bulk jobs' flag is kept up
+    flag_at = [0.0]
+
     def start(items, low: bool = False):
         for sym, st in items:
             task = asyncio.create_task(lane_low(sym, st) if low else lane(sym, st))
             active.add(task)
             task.add_done_callback(active.discard)
+            if not low:
+                serving.add(task)
+                task.add_done_callback(serving.discard)
+                flag_at[0] = time.monotonic()
 
     async def lane_low(sym: str, st: str):
         try:
@@ -566,8 +581,14 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
                     if low:
                         start(low, low=True)
                         continue
+            if serving and time.monotonic() - flag_at[0] > 30:   # a build can outlast the flag's 120 s: renewed while a visitor still waits
+                flag_at[0] = time.monotonic()
+                try:
+                    await store.redis.set(store.READER_FLAG, 1, ex=120)
+                except Exception:   # nosec B110
+                    pass
             if active:
-                await asyncio.wait(set(active), timeout=idle_seconds if loop else None, return_when=asyncio.FIRST_COMPLETED)
+                await asyncio.wait(set(active), timeout=(idle_seconds if loop else (30.0 if serving else None)), return_when=asyncio.FIRST_COMPLETED)
                 continue
             if not loop:
                 if background:
@@ -1503,6 +1524,8 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 print(await jobs.refresh_indices(store))
             return 0
         async with FinEdgeClient(settings) as client:
+            if args.cmd != "drain-queue":   # every bulk job lets a visitor's report go first on the shared provider limit
+                client.yield_to = lambda: store.redis.exists(store.READER_FLAG)
             if args.cmd == "refresh-universe":
                 print(await refresh_universe(client, store), "companies")
             elif args.cmd == "history-probe":

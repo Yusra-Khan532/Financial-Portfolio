@@ -33,6 +33,7 @@ OPTIONAL = object()  # marker: endpoint failure should not fail the bundle
 THROTTLE_STATUS = {429, 503}      # "too many requests" / "busy": the provider is asking us to slow down, which is not a failure of the data
 MAX_RETRY_AFTER = 120.0           # never wait longer than this on one provider instruction
 PACE_STEP, PACE_MAX, PACE_DECAY = 0.5, 8.0, 0.7
+YIELD_MAX_S, YIELD_WINDOW_S, YIELD_POLL_S = 12.0, 30.0, 0.5   # a bulk job holds back for at most 12 s of every 30 s while a visitor waits (FinEdgeClient.yield_to)
 PACE_MAX_BOUNDED = 2.0            # the pace cap of a time-bounded job: a full rebuild fans out ~20 calls, and at 8 s each the queue alone is minutes   # adaptive pace: seconds between calls; doubles on a throttle, recovers on success
 
 
@@ -221,6 +222,29 @@ class FinEdgeClient:
         self.throttled = 0              # how many 429/503 answers this client has seen
         self._next_at = 0.0             # loop time before which the next call must not start
         self._clock = time.monotonic
+        # Set on the clients of the bulk jobs (not on the visitor lane): an async callable that is true while a visitor waits on a report. Every provider
+        # account has one request limit, so while it is true each bulk call holds back (at most YIELD_MAX_S, so no job is stopped or pushed past its own
+        # time limit) and the visitor's calls get the provider's answers first instead of "too many requests".
+        self.yield_to = None
+        self._yield_window = float("-inf")   # start of the current 30 s window; holding is allowed only in its first YIELD_MAX_S
+
+    async def _yield_to_visitor(self) -> None:
+        """Wall-clock bound shared by every call of this client: however many calls wait together, the job is held back at most YIELD_MAX_S in every
+        YIELD_WINDOW_S, so it always keeps working (at least 60 % of the time) and finishes inside its own time limit."""
+        if self.yield_to is None:
+            return
+        while True:
+            now = self._clock()
+            if now - self._yield_window >= YIELD_WINDOW_S:
+                self._yield_window = now
+            if now - self._yield_window >= YIELD_MAX_S:
+                return
+            try:
+                if not await self.yield_to():
+                    return
+            except Exception:
+                return
+            await asyncio.sleep(YIELD_POLL_S)
 
     def _slow_down(self, retry_after: Optional[float]) -> None:
         self.throttled += 1
@@ -257,6 +281,7 @@ class FinEdgeClient:
         """`max_wait` (seconds) bounds every wait this call makes between tries: a Retry-After longer than it is not waited for, the throttled error is
         raised at once instead (the caller skips the company and asks again on its next run); a backoff sleep is cut to it."""
         query = {**(params or {}), "token": self.settings.finedge_api_key}
+        await self._yield_to_visitor()
         for attempt in range(retries + 1):
             await self._wait_turn()
             async with (self._low if low else _NoLock()), self._sem:
