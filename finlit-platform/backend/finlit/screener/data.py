@@ -279,7 +279,7 @@ class Table:
         return list(idx)
 
     def funnel(self, filters: Dict[str, Dict[str, Optional[float]]], cats: Dict[str, List[str]], q: str = "",
-               model: Optional[Dict[str, Dict[str, Optional[float]]]] = None) -> List[dict]:
+               model: Optional[Dict[str, Dict[str, Optional[float]]]] = None, ratios: Optional[List[Tuple[str, List[float], Optional[float], Optional[float]]]] = None) -> List[dict]:
         """What is left after each rule in turn (the screen's own order): [{key, before, after, missing}], `missing` being the companies of that step that have no figure for the rule.
         Categories (size, sector, industry, index, rating, search) count as one step each, first. A ready-made screen on the FinLit model (`model`, its cut-offs) is one
         step named "model": which figures it uses and where it cuts are never told."""
@@ -307,6 +307,13 @@ class Table:
             miss = sum(1 for i in cur if col[i] != col[i])
             cur = [i for i in cur if col[i] == col[i] and (lo is None or col[i] >= lo) and (hi is None or col[i] <= hi)]
             steps.append({"key": key, "before": before, "after": len(cur), "missing": miss})
+        for rid, col, lo, hi in ratios or []:      # a custom ratio with a condition is a step too (task #64, CR-6): "-> 412 after Cash to market cap"
+            if lo is None and hi is None:
+                continue
+            before = len(cur)
+            miss = sum(1 for i in cur if col[i] != col[i])
+            cur = [i for i in cur if col[i] == col[i] and (lo is None or col[i] >= lo) and (hi is None or col[i] <= hi)]
+            steps.append({"key": rid, "before": before, "after": len(cur), "missing": miss})
         return steps
 
     def sort(self, idx: List[int], key: str, desc: bool) -> List[int]:
@@ -319,10 +326,11 @@ class Table:
         rest = [i for i in idx if col[i] != col[i]]   # unknowns always last
         return sorted(known, key=lambda i: col[i], reverse=desc) + rest
 
-    def ratio(self, num: str, den: str) -> List[float]:
-        """num / den for every company; NaN where either figure is missing or the denominator is zero (never a guess)."""
-        a, b = self.cols[num], self.cols[den]
-        return [(a[i] / b[i]) if (a[i] == a[i] and b[i] == b[i] and b[i] != 0) else float("nan") for i in range(self.n)]
+    def ratio(self, num: str, den: str, show: str = "times") -> List[float]:
+        """num / den for every company (x 100 when shown as a percentage); NaN where either figure is missing or the bottom figure is zero or below
+        (negative equity or working capital would flip the sign and pass or fail a company for the wrong reason: task #64, CR-4). Never a guess."""
+        a, b, k = self.cols[num], self.cols[den], 100.0 if show == "pct" else 1.0
+        return [(a[i] / b[i] * k) if (a[i] == a[i] and b[i] == b[i] and b[i] > 0) else float("nan") for i in range(self.n)]
 
     def row(self, i: int, columns: List[str]) -> dict:
         return {"symbol": self.symbols[i], "name": self.name[i], "sector": self.sector[i], "cap": self.cap[i], "band": self.band[i], "pband": self.pband[i], "full": self.full[i],

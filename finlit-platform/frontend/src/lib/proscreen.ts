@@ -5,6 +5,7 @@ import { MINUS, cr, nf } from "./format";
 import type { Plan } from "./ui";
 
 export type MetricInfo = { key: string; label: string; unit: string; better: "higher" | "lower" | "none"; tier: Plan; say: string; digits: number; locked: boolean;
+  /** Custom ratio (task #64, CR-2): whether the figure may be divided, and its unit family. */ ratioable?: boolean; family?: "cr" | "per_share" | "shares" | "people" | null;
   stats: { min: number; p10: number; p50: number; p90: number; max: number; n: number; lo?: number; hi?: number; hist?: number[];
     // the Stock screener's rule cards (task #64, file 04): quartiles, and 30 bars from the 5th to the 95th percentile, on a log scale for long-tailed figures
     p5?: number; p25?: number; p75?: number; p95?: number; scale?: "log" | "linear"; hist30?: number[] } | null;
@@ -39,13 +40,26 @@ export const activeCount = (s: PState) => (s.on?.length ?? 0) + (s.model ? 1 : 0
   + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
 /** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
-export type CustomRatio = { id: string; name: string; num: string; den: string; op: "gt" | "lt" | "between" | "none"; a?: number; b?: number };
+export type CustomRatio = { id: string; name: string; num: string; den: string; op: "gt" | "lt" | "between" | "none"; a?: number; b?: number;
+  /** Shown as a percentage (the value x 100, a range in percent) or as times (task #64, CR-3). An older ratio without it is times. */ show?: "pct" | "times" };
 export const MAX_RATIOS = 3;
 export const ratioRange = (r: CustomRatio): Range => (r.op === "gt" && r.a != null ? { min: r.a } : r.op === "lt" && r.a != null ? { max: r.a } : r.op === "between" && r.a != null && r.b != null ? { min: Math.min(r.a, r.b), max: Math.max(r.a, r.b) } : {});
 export const ratioLabel = (r: CustomRatio): string => r.name.trim() || "Custom ratio";
 const RKEY = "finlit.screener.ratios";
 export const loadRatios = (): CustomRatio[] => { try { const v = JSON.parse(localStorage.getItem(RKEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && /^r[0-9]$/.test(x.id) && typeof x.num === "string" && typeof x.den === "string").slice(0, MAX_RATIOS) : []; } catch { return []; } };
 export const saveRatios = (v: CustomRatio[]) => { try { localStorage.setItem(RKEY, JSON.stringify(v)); } catch { /* private window: lasts for this visit */ } };
+
+/** The ratios in the page address (`cr`): a compact JSON list. Null when absent or unreadable (the page then uses the ones kept in this browser). */
+export const encodeRatios = (v: CustomRatio[]): string => JSON.stringify(v.map((r) => [r.id, r.num, r.den, r.show ?? "times", r.op, r.a ?? null, r.b ?? null, r.name]));
+export function decodeRatios(s: string | null): CustomRatio[] | null {
+  if (!s) return null;
+  try {
+    const v = JSON.parse(s);
+    if (!Array.isArray(v)) return null;
+    return v.filter((x) => Array.isArray(x) && /^r[0-9]$/.test(x[0]) && typeof x[1] === "string" && typeof x[2] === "string" && ["gt", "lt", "between", "none"].includes(x[4])).slice(0, MAX_RATIOS)
+      .map((x) => ({ id: x[0], num: x[1], den: x[2], show: x[3] === "pct" ? "pct" : "times", op: x[4], ...(typeof x[5] === "number" ? { a: x[5] } : {}), ...(typeof x[6] === "number" ? { b: x[6] } : {}), name: String(x[7] ?? "").slice(0, 40) }));
+  } catch { return null; }
+}
 
 /** Ratios the member saved by name (task #61, "Save ratio" / "Saved ratios"): kept in this browser, at most 20, each without an id (an id is given when it is added to the screen). */
 export type SavedRatio = Omit<CustomRatio, "id">;
@@ -55,7 +69,7 @@ export const loadSavedRatios = (): SavedRatio[] => { try { const v = JSON.parse(
 export const storeSavedRatios = (v: SavedRatio[]) => { try { localStorage.setItem(SKEY, JSON.stringify(v.slice(0, MAX_SAVED))); } catch { /* private window: lasts for this visit */ } };
 
 export const toBody = (s: PState & { models?: string[] }, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
-  ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
+  ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, show: r.show ?? "times", name: r.name.slice(0, 40), ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
   cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
   ...(s.models?.length ? { model_screens: s.models } : s.model ? { model_screens: [s.model] } : {}),

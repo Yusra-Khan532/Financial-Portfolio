@@ -10,8 +10,11 @@ import { Plain } from "../components/Plain";
 import { Icon } from "../lib/icons";
 import { nf } from "../lib/format";
 import { limitsFor, useAuth } from "../lib/auth";
-import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { ratioSentence } from "../components/screener/CustomRatio";
+import { RatioDrawer, type Draft } from "../components/screener/RatioDrawer";
+import { EXAMPLES as RATIO_EXAMPLES, valueText } from "../lib/customRatio";
+import { apiSend } from "../lib/api";
+import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
@@ -117,17 +120,32 @@ export function ScreenerPro() {
 
   const dq = useDebounced(f, 150), dqq = useDebounced(q, 250);
   const pkey = JSON.stringify([dq, sort, dqq]), page = pg.k === pkey ? pg.p : 0, setPage = (p: number) => setPg({ k: pkey, p });
-  const [ratios, setRatiosState] = useState<CustomRatio[]>(() => loadRatios());
-  const [ratioOpen, setRatioOpen] = useState(() => loadRatios().length > 0), [savedRatios, setSavedRatiosState] = useState(() => loadSavedRatios());
+  // Custom ratios (task #64, Part 3): kept in the page address (`cr`, so a shared link and a saved screen carry them) and in this browser
+  const [ratios, setRatiosState] = useState<CustomRatio[]>(() => decodeRatios(params.get("cr")) ?? loadRatios());
+  const [rd, setRd] = useState<null | { start?: Draft | null }>(null), [savedRatios, setSavedRatiosState] = useState(() => loadSavedRatios());
   const setSavedRatios = (v: ReturnType<typeof loadSavedRatios>) => { setSavedRatiosState(v); storeSavedRatios(v); };
-  const openRatio = () => { setRatioOpen(true); window.setTimeout(() => document.getElementById("scr-ratio")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
+  const openRatio = (start?: Draft | null) => setRd({ start: start ?? null });
   const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (/^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
+  useEffect(() => { const n = new URLSearchParams(params); ratios.length ? n.set("cr", encodeRatios(ratios)) : n.delete("cr"); if (n.toString() !== params.toString()) setParams(n, { replace: true }); }, [ratios]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addRatio = (d: Draft) => {
+    const id = d.id ?? (["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"].find((x) => !ratios.some((r) => r.id === x)) as string);
+    const r: CustomRatio = { ...d, id };
+    setRatios(d.id ? ratios.map((x) => (x.id === d.id ? r : x)) : [...ratios, r]);
+    setRd(null);
+    toast(d.id ? `Changed “${r.name}”.` : `Added “${r.name}”.`);
+  };
+  const saveRatio = (d: Draft) => { const { id: _drop, ...rest } = d; void _drop; setSavedRatios([rest, ...savedRatios.filter((x) => x.name !== rest.name)]); toast(`Saved “${rest.name}” to My ratios.`); };
   const known = (k: string) => !data || byKey.has(k);
   const dF = useMemo(() => stack(dq, ready.data?.screens), [dq, ready.data]);
   const safe = useMemo(() => ({ ...dF, ranges: Object.fromEntries(Object.entries(dF.ranges).filter(([k]) => known(k))) }), [dF, data]); // eslint-disable-line react-hooks/exhaustive-deps
   const safeSort = known(sort.key) || sort.key === "name" || sort.key === "symbol" || ratios.some((r) => r.id === sort.key) ? sort : { key: "market_cap", dir: "desc" as const };
   const body = useMemo(() => toBody(safe, safeSort, asked, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, asked, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
   const res = useScreen(body, !!data && asked.length > 0);
+  const countWith = async (d: Draft): Promise<number> => {      // the drawer's live count: the companies the other rules leave that pass this ratio as well
+    const others = ratios.filter((x) => x.id !== d.id), probe: CustomRatio = { ...d, id: ["r1", "r2", "r3", "r4"].find((x) => !others.some((r) => r.id === x)) as string };
+    const r = await apiSend<{ total: number }>("POST", "/api/screener/query", { ...toBody(safe, { key: "market_cap", dir: "desc" }, ["market_cap"], dqq, 0, 1, [...others, probe]), funnel: false });
+    return r.total;
+  };
   const [chart, setChart] = useState<PanelRow | null>(null), [stepTo, setStepTo] = useState<"first" | "last" | null>(null);
   const [typed, setTyped] = useState(""), [typedErr, setTypedErr] = useState<string[]>([]);
   const rows = res.data?.rows || [];
@@ -168,7 +186,7 @@ export function ScreenerPro() {
     ...onScreens.map((x) => ({ label: `Screen: ${x.label}`, clear: () => toggleScreen(x) })),
     ...Object.entries(F.ranges as Record<string, Range>).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}),
       title: F.setBy[k] ? `Set by ${F.setBy[k].join(" and ")}${F.setBy[k].length > 1 || f.ranges[k] ? " (the stricter range)" : ""}. Change it and it becomes your own.` : undefined })),
-    ...ratios.map((r) => ({ label: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
+    ...ratios.map((r) => ({ label: r.op === "none" || valueText(r) === "Column" ? `${r.name} (column)` : `${r.name} ${valueText(r)}`, title: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
     ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
@@ -227,7 +245,7 @@ export function ScreenerPro() {
   const stepOf = (k: string) => funnel.find((s) => s.key === k);
   const tight = funnel.find((s) => s.after === 0);
   const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
-  const stepName = (k: string) => STEP_NAME[k] ?? byKey.get(k)?.label ?? k;
+  const stepName = (k: string) => STEP_NAME[k] ?? ratios.find((r) => r.id === k)?.name ?? byKey.get(k)?.label ?? k;
 
   const panelRow = (r: (typeof rows)[number]): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null });
   const step = useCallback((d: 1 | -1) => {
@@ -293,7 +311,7 @@ export function ScreenerPro() {
                   <ul className="ssw-groups">{numGroups.map((g) => { const on = g.metrics.filter((m) => rules.includes(m.key) || F.ranges[m.key]).length;
                     return <li key={g.id}><button type="button" onClick={() => setPicker({ group: g.id })} aria-label={`${g.label}: ${g.n} filters${on ? `, ${on} on` : ""}`}>
                       <span>{g.label}{g.tier !== "basic" && <span className={"ssr-tier " + g.tier}>{g.tier.toUpperCase()}</span>}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
-                    <li><button type="button" onClick={openRatio}><span>Custom ratio</span><small>{ratios.length ? `${ratios.length} on` : "build"}</small></button></li></ul>
+                    <li><button type="button" onClick={() => openRatio()}><span>Custom ratio</span><small>{ratios.length ? `${ratios.length} on` : "build"}</small></button></li></ul>
                 </div>
                 {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b><span className={"ssr-tier " + x.tier}>{x.tier.toUpperCase()}</span>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
@@ -302,6 +320,10 @@ export function ScreenerPro() {
                 {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
                   return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
+                {ratios.map((r) => <div key={r.id} className="ssr-rule ssr-ratio" role="group" aria-label={`Custom ratio: ${r.name}`}><div className="ssr-rt"><b>{r.name}</b>
+                  <button type="button" className="lnk" onClick={() => openRatio(r)}>Change</button><button type="button" className="ssr-x" aria-label={`Remove ${r.name}`} onClick={() => setRatios(ratios.filter((x) => x.id !== r.id))}>×</button></div>
+                  <p className="ssr-say">{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den} · {valueText(r)}</p>
+                  {stepOf(r.id) && <p className="ssr-cnt">keeps <b>{nf(stepOf(r.id)!.after, 0)}</b> of {nf(stepOf(r.id)!.before, 0)}</p>}</div>)}
                 <button type="button" className="btn ssw-add" onClick={() => setPicker({})}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
                   const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
@@ -313,8 +335,12 @@ export function ScreenerPro() {
                 </form>
                 <div className="ssw-rl" role="group" aria-label="Custom ratio">
                   <b>Custom ratio</b>
-                  <small>Divide any one figure by another and filter on the result.</small>
-                  <button type="button" className="btn primary ssw-rb" onClick={openRatio} aria-expanded={ratioOpen}><Icon name="percent" />{ratios.length ? `Custom ratios (${ratios.length})` : ratioOpen ? "Go to the Custom Ratio Screener" : "Open the Custom Ratio Screener"}</button>
+                  <small>Divide one figure by another and filter on the result.</small>
+                  {ratios.length > 0 && <ul className="ssw-rlon">{ratios.map((r) => <li key={r.id}><button type="button" onClick={() => openRatio(r)} aria-label={`Change ${r.name}`}><span><b>{r.name}</b><small>{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den}</small></span><em>{valueText(r)}</em></button></li>)}</ul>}
+                  <button type="button" className="btn primary ssw-rb" onClick={() => openRatio()} disabled={ratios.length >= 3} title={ratios.length >= 3 ? "You have 3 ratios on, the most at one time. Remove one to add another." : undefined}><Icon name="percent" />+ Build a ratio</button>
+                  {ratios.length === 0 && <div className="ssw-rlex"><small>Examples</small>{RATIO_EXAMPLES.filter((x) => byKey.has(x.num) && byKey.has(x.den)).map((x) => <button key={x.name} type="button" className="lnk" onClick={() => openRatio({ name: x.name, num: x.num, den: x.den, show: x.show, op: "gt" })}>{x.name}</button>)}</div>}
+                  <div className="ssw-rlex"><small>My ratios ({savedRatios.length})</small>{savedRatios.length === 0 ? <span className="muted">None saved yet. Save one from the drawer.</span>
+                    : savedRatios.map((x) => <span key={x.name} className="ssw-rlmy">{x.name} <button type="button" className="lnk" onClick={() => openRatio(x)}>Use</button><button type="button" className="ssr-x" aria-label={`Delete ${x.name} from My ratios`} onClick={() => setSavedRatios(savedRatios.filter((y) => y.name !== x.name))}>×</button></span>)}</div>
                 </div>
               </div>
             </>}
@@ -333,8 +359,6 @@ export function ScreenerPro() {
               </div>
             </div>
             {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
-            {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
-              onRun={() => document.querySelector(".ssw-res .ssw-tbar")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
             <div className="ssw-tbar">
               <input className="ssw-srch" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or symbol" aria-label="Search the results by name or symbol" />
               <span className="ssw-sp" />
@@ -357,7 +381,7 @@ export function ScreenerPro() {
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
-                        {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
+                        {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
                     <tbody>{rows.map((r) => (
                       <tr key={r.symbol} data-sym={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(panelRow(r)); }} onKeyDown={(e) => e.key === "Enter" && setChart(panelRow(r))}>
@@ -367,7 +391,7 @@ export function ScreenerPro() {
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
-                        {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
+                        {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}
                       {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={clearAll}>clear them all</button>.</td></tr>}
@@ -393,6 +417,8 @@ export function ScreenerPro() {
             <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
           </div>)}
       </div>
+      {rd && data && <RatioDrawer groups={data.groups} byKey={byKey} start={rd.start} ratiosOn={ratios.length} firstSymbols={rows.map((r) => r.symbol)} countWith={countWith} currentTotal={res.data ? total : null}
+        onAdd={addRatio} onSave={saveRatio} onClose={() => setRd(null)} onUseFilter={(m) => { setRd(null); addRule(m); }} />}
       {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} startGroup={picker.group} startQuery={picker.q} />}
       {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={F.ranges} byKey={byKey} />} />}
     </>

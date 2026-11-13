@@ -254,3 +254,11 @@
 .ssw-groups small { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Task #64 S-5: no slider; the frozen Company column casts a soft shadow while there is more to the right */
 .tw.has-more .ssw-t .stick, .tw.is-scrolled .ssw-t .stick { box-shadow: 6px 0 8px -4px rgba(0,0,0,.22); }
+/* Task #64 CR-7: the Custom ratio section of the panel; CR-6: a ratio's rule card */
+.ssw-rlon { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.ssw-rlon button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--s1); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ssw-rlon button > span { flex: 1; display: grid; } .ssw-rlon small { color: var(--muted); font-size: 12px; } .ssw-rlon em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--gold); }
+.ssw-rlex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 8px; font-size: 14px; }
+.ssw-rlex > small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.ssw-rlmy { display: inline-flex; align-items: center; gap: 6px; }
+.ssr-ratio .ssr-rt .lnk { margin-left: auto; font-size: 13px; }
