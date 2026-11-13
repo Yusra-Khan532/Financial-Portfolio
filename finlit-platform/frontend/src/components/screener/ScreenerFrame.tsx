@@ -108,7 +108,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
   const sortOpts = choices.flatMap((c) => (c.key === "name" || c.key === "sector" ? [[c.key, 1, `${c.label}, ${c.asc}`], [c.key, -1, `${c.label}, ${c.desc}`]] : [[c.key, -1, `${c.label}, ${c.desc}`], [c.key, 1, `${c.label}, ${c.asc}`]]) as [SortKey, 1 | -1, string][]);
   return (
     <>
-      <div className="wrap scr-wrap" style={{ paddingTop: 22 }} ref={wrapRef}>
+      <div className="wrap scr-wrap sx-root" style={{ paddingTop: 22 }} ref={wrapRef}>
         <FindStocksTabs />
         <section className="card sx-head" aria-labelledby="sx-h1">
           <div className="sx-h1row"><h1 id="sx-h1" title={typeof intro === "string" ? intro : undefined}>{title}</h1><TierChip tier={tier} />{dateLine && <span className="sx-asof">{dateLine}</span>}
