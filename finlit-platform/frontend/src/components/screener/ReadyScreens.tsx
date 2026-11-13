@@ -10,7 +10,7 @@ import { TIER, type Plan } from "../../lib/ui";
 
 const ORDER: Plan[] = ["basic", "silver", "gold"];
 const GROUPS: { id: "everyday" | "silver" | "model" | "mine"; label: string; tier?: string }[] = [
-  { id: "everyday", label: "Everyday", tier: "FREE" }, { id: "silver", label: "Silver screens", tier: "SILVER" }, { id: "model", label: "On the FinLit model", tier: "GOLD" }, { id: "mine", label: "My screens" },
+  { id: "everyday", label: "Everyday" }, { id: "silver", label: "Silver screens", tier: "SILVER" }, { id: "model", label: "On the FinLit model", tier: "GOLD" }, { id: "mine", label: "My screens" },
 ];
 
 export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOff, saved, onOpenSaved, onDeleteSaved, ask, onNotify }: {
@@ -60,7 +60,7 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
                 aria-label={`${s.label}: ${s.says}${s.count != null ? `, ${s.count} companies today` : ""}${lock ? `, part of ${TIER[s.tier].n}` : isOn ? ", on" : ""}`}
                 onClick={() => (lock ? ask(s.tier, `“${s.label}” is part of the ${TIER[s.tier].n} plan.`) : onToggle(s))}>
                 <b>{isOn && <i className="ssy-tick" aria-hidden="true">✓</i>}{s.label}</b><span className="ssy-d">{s.says}</span>
-                <span className="ssy-f"><span className={"ssr-tier " + (s.tier === "basic" ? "free" : s.tier)}>{s.tier === "basic" ? "FREE" : TIER[s.tier].n.toUpperCase()}</span>
+                <span className="ssy-f">{s.tier !== "basic" ? <span className={"ssr-tier " + s.tier}>{TIER[s.tier].n.toUpperCase()}</span> : <span />}
                   <span className="ssy-cnt">{s.count == null ? "–" : `${nf(s.count, 0)} ${s.count === 1 ? "company" : "companies"}`}</span></span>
               </button>);
           })}</div>)}

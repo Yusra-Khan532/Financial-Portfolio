@@ -5,11 +5,11 @@ import { offeredTo } from "../../lib/nav";
 import { useIsGold } from "../../lib/planGate";
 import "../../styles/presets.css";
 
-const TABS: { to: string; label: string; plan?: "SILVER" | "GOLD" | "FREE" }[] = [
+const TABS: { to: string; label: string; plan?: "SILVER" | "GOLD" }[] = [   // free is the default: only Silver and Gold are marked
   { to: "/screener", label: "Stock screener" },
   { to: "/score-screener", label: "Basic stock screener", plan: "SILVER" },
   { to: "/advanced-score-screener", label: "Advanced stock screener", plan: "GOLD" },
-  { to: "/query-builder", label: "Query builder", plan: "FREE" },
+  { to: "/query-builder", label: "Query builder" },
 ];
 
 /** `bare`: no "Find stocks" label of its own, for a page whose head already says it (the Stock screener, file 04). */

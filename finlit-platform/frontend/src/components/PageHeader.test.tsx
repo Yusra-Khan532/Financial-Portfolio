@@ -19,8 +19,8 @@ describe("PageHeader", () => {
     expect(region.querySelector(".ph-plan")?.textContent).toBe("Gold");
     expect(region.querySelector(".ph-desc b")?.textContent).toBe("5,816");
   });
-  it("names every plan, and shows no badge when the page has none", () => {
-    const names: [Parameters<typeof PageHeader>[0]["plan"], string][] = [["free", "Free"], ["basic", "Free"], ["silver", "Silver"], ["gold", "Gold"]];
+  it("names Silver and Gold; free is the default and has no badge (founder, 13 Nov 2026), nor has a page with no plan", () => {
+    const names: [Parameters<typeof PageHeader>[0]["plan"], string | undefined][] = [["free", undefined], ["basic", undefined], ["silver", "Silver"], ["gold", "Gold"]];
     for (const [plan, text] of names) { const { container, unmount } = wrap(<PageHeader plan={plan} title="T" />); expect(container.querySelector(".ph-plan")?.textContent).toBe(text); unmount(); }
     const { container } = wrap(<PageHeader title="T" />);
     expect(container.querySelector(".ph-plan")).toBeNull();

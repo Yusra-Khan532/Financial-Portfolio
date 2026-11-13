@@ -95,7 +95,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     mount(); await ready();
     expect(screen.getByRole("heading", { level: 1, name: "Stock screener" })).toBeTruthy();
     const tabs = screen.getByRole("navigation", { name: "Find stocks" });
-    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screenerSILVER", "Advanced stock screenerGOLD", "Query builderFREE"]);
+    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screenerSILVER", "Advanced stock screenerGOLD", "Query builder"]);      // free is the default: no FREE badge
     const card = await screen.findByRole("button", { name: /^Large, established companies: Market cap above ₹1,00,000 Cr, 123 companies today/ });
     expect(card.textContent).toMatch(/123 companies/);
     expect(document.querySelector(".fgx-kpi, .kpi")).toBeNull();                 // the stat tiles and the tall hero are gone

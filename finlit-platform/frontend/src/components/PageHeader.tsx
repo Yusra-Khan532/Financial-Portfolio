@@ -51,7 +51,7 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
   const hasFaq = learn === true && !!faqForPath(pathname);
   const lo: PhLearn | null = learn === true ? (hasFaq ? {} : null) : learn ? learn : null;
   const label = lo?.label ?? "Learn more";
-  const p = plan ? PLAN[plan] : undefined;
+  const p = plan && plan !== "free" && plan !== "basic" ? PLAN[plan] : undefined;   // free is the default: only Silver and Gold are marked (founder, 13 Nov 2026)
   const sided = false;
   const learnEl = !lo ? null : lo.to
     ? <HLink className="ph-learn" to={lo.to}><Icon name="info" />{label}</HLink>
