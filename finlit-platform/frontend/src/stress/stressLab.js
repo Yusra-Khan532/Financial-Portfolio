@@ -151,7 +151,7 @@ export function mountStressLab(root, E, D, opts) {
       return '<button type="button" class="chip' + (id === 'custom' ? ' cust' : '') + '" aria-pressed="' + (S.scen === id) + '" data-scen="' + id + '">' + nm + '</button>';
     }).join('');
     var s = cur();
-    var based = s.id === 'custom' ? 'Your own mix of shocks, starting from ' + esc(S.customFrom || 'Today') + '. Move any slider; everything below updates at once.' : esc(s.based_on);
+    var based = s.id === 'custom' ? 'Your own mix of shocks, starting from ' + esc(S.customFrom || 'Today') + '. Move any slider; everything below updates at once.' : esc(String(s.based_on || '').replace(/(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/g, function (_, a, b) { return winWords([a, b]); }));   // pages stored before the server said it in months
     var todaySeg = S.scen === 'today' && SC.today_eia ? '<div class="seg sm" role="group" aria-label="Crude in the Today scenario"><button type="button" data-tc="level" aria-pressed="' + (S.todayCrude === 'level') + '">Crude stays at today’s level</button><button type="button" data-tc="eia" aria-pressed="' + (S.todayCrude === 'eia') + '">Crude eases (EIA outlook)</button></div>' : '';
     $('based').innerHTML = '<div><p>' + based + '</p><div class="shocks">' + shockPills(s, co) + '</div></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + todaySeg +
