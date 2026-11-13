@@ -33,6 +33,7 @@ async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   if (presetId && ["basic-top-small", "sector-themes", "basic-sector-themes"].includes(presetId)) return file(`preset-${presetId}.json`);
   if (/^\/api\/screener\/presets\/for\//.test(path)) return json({ symbol: path.split("/").pop(), screens: [{ id: "emerging-tech", name: "Emerging tech", group: "themes", asOf: "2026-10-30" }, { id: "highest-rated-large", name: "Highest-rated large caps", group: "top-rated", asOf: "2026-10-30" }], ready: true, asOf: "2026-10-30" });
   if (/^\/api\/stocks\/[^/]+\/leadership$/.test(path)) return json(sampleLeadership());
+  if (path === "/api/leadership/list") return json({ available: false, reason: "pending" });   // the demo holds no weekly peer check for a whole list: the Watchlists page says so
   if (path === "/api/prism/history") return json(sampleHistory(url.searchParams.get("symbol") || "RELIANCE", url.searchParams.get("statement") || "consolidated"));
   if (/^\/api\/(stocks|companies)\/[^/]+\/macro-outlook$/.test(path) || path === "/api/macro/sector-impact" || path === "/api/macro/methodology" || /^\/api\/macro\/sectors\/[a-z_]+\/history$/.test(path)) {
     // Macro & Sector Outlook: real responses of the engine on the recorded fixtures (public/demo/macro). ?macro=insufficient | stale picks the state shown.

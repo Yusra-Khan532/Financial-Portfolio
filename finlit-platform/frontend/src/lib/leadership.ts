@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
+import type { ListLeadFeed } from "./watchlistPack";
 
 /** The Leader / In line / Laggard label of a stock. Everything shown on the site (the line under the name, the Peers table, the bottom section)
  *  reads this one object, so the copy cannot disagree between them. It describes past price performance only. */
@@ -34,6 +35,22 @@ export const useLeadership = (symbol: string, enabled = true) =>
   useQuery<Leadership, ApiError>({ queryKey: ["leadership", symbol], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(symbol)}/leadership`), staleTime: 15 * 60_000, retry, enabled: enabled && !!symbol });
 export const useLeadershipHistory = (symbol: string, enabled = true) =>
   useQuery<LeadHistory, ApiError>({ queryKey: ["leadership-history", symbol], queryFn: () => apiGet<LeadHistory>(`/api/stocks/${encodeURIComponent(symbol)}/leadership-history`), staleTime: 15 * 60_000, retry, enabled: enabled && !!symbol });
+
+/** The peer label of every stock on a watchlist (/api/leadership/list), asked in pieces of 300 symbols and merged into one answer. */
+export const useLeadershipList = (symbols: string[], enabled = true) => {
+  const key = [...new Set(symbols)].sort();
+  return useQuery<ListLeadFeed, ApiError>({
+    queryKey: ["leadership-list", key.join(",")], staleTime: 15 * 60_000, retry, enabled: enabled && key.length > 0,
+    queryFn: async () => {
+      const parts: string[][] = [];
+      for (let i = 0; i < key.length; i += 300) parts.push(key.slice(i, i + 300));
+      const got = await Promise.all(parts.map((p) => apiGet<ListLeadFeed>(`/api/leadership/list?symbols=${encodeURIComponent(p.join(","))}`)));
+      const off = got.find((g) => !g.available);
+      if (off) return off;
+      return { available: true, asOf: (got[0] as Extract<ListLeadFeed, { available: true }>).asOf, rows: Object.assign({}, ...got.map((g) => (g as Extract<ListLeadFeed, { available: true }>).rows)) };
+    },
+  });
+};
 
 export const LABEL_WORD: Record<LeadLabel, string> = { leader: "Leader", in_line: "In line", laggard: "Laggard" };
 const MINUS = "−";

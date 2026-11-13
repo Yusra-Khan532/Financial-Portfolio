@@ -34,7 +34,7 @@
   .etf-pop, .evi-pop, .mf-pick-pop, .mf-cols-pop, .sf-fp, .sf-panel, .pm-sug, .cb-menu, .pk-m, .scr-colmenu, .qb-colmenu, .qb-drawer,
   .mk-dd-m, .oc-hits, .plf-note, .qr-card.qr-zoomed,
   .ld-tip, .chh-p, .tip, .adv-tip, .gx-tip, .ld-hov, .mk-htip, .h2h-tip, .ol-tip, .lc-tip, .ob-tip, .mb-tip, .pzr-tip, .etf-tip, .fl-tip, .mc-tip, .mk-tip,
-  .etf-tray, .mf-tray, .wl-dock, .planseg, .prep-toast, .evi-sticky, .pzr-tools, .mtabs, .cz-modal, .pf-modal, .fl-modal) {
+  .etf-tray, .mf-tray, .wp-dock, .planseg, .prep-toast, .evi-sticky, .pzr-tools, .mtabs, .cz-modal, .pf-modal, .fl-modal) {
   --s1: var(--ov-surface); --s2: var(--ov-surface-2); --s3: var(--ov-surface-2);
   --text: var(--ov-text); --muted: var(--ov-muted); --faint: var(--ov-faint); --border-strong: var(--ov-border);
   background: var(--ov-surface); background-image: none; color: var(--ov-text); border-color: var(--ov-border);
@@ -61,7 +61,7 @@
 :root:root :is(.ai, .qb-drawer) { z-index: var(--z-drawer); }
 :root:root :is(.pop, .chh-p) { z-index: var(--z-popover); }
 :root:root :is(.toast, .alx-toasts, .prep-toast) { z-index: var(--z-toast); }
-:root:root :is(.etf-tray, .mf-tray, .wl-dock, .planseg, .ai-fab, .shell-fab, .mtabs) { z-index: var(--z-tray); }
+:root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .shell-fab, .mtabs) { z-index: var(--z-tray); }
 :root:root .gs { z-index: calc(var(--z-backdrop) + 40); }
 @media (max-width: 1000px) { :root:root .sx.sx-open .sx-side { z-index: var(--z-drawer); background: var(--ov-surface); } }
 @media (max-width: 960px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }

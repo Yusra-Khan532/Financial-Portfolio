@@ -60,7 +60,7 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard"]);
+const OWN_PLACE = new Set(["/dashboard", "/watchlist"]);
 export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
   const faq = OWN_PLACE.has(pathname) && !inline ? undefined : faqForPath(pathname);

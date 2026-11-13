@@ -1007,23 +1007,23 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Can I have more than one list?",
-    "a": "Yes. Select + New list and switch between your lists at the top."
+    "a": "Yes. Select + New list and switch between your lists at the top. Rename or delete the list you are on with the links under them."
    },
    {
     "q": "How do I group and sort my stocks?",
-    "a": "Bucket by industry, company size, FinLit band or style, and sort by FinLit IQ, today's change, market cap, P/E, dividend yield or name."
+    "a": "Group by Against peers, Industry or Size with the buttons over the table, and select a column name (Company, Price, P/E, ROE, Size, the score or Against peers) to sort by it. Select it again to reverse the order."
    },
    {
     "q": "What are targets and notes for?",
     "a": "Your own reminders: set a target price and a note on why you are watching. Targets are not predictions, and FinLit does not tell you when to buy or sell."
    },
    {
-    "q": "What does “Need a second look” count?",
-    "a": "Stocks in the list with a flag worth checking, such as a weak FinLit band, a weak balance sheet, a big fall in a month, a high P/E or a price near your target."
+    "q": "What does \"Need a second look\" count?",
+    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer tag yet. They describe the figures; they are not advice."
    },
    {
     "q": "Can I set an alert from here?",
-    "a": "Yes. Select Alert on a stock to create one. Remove takes it off the list."
+    "a": "Yes. Select the bell on a stock to create an alert, or use “Tell me when a label changes” to hear when a stock on the list becomes a Leader, In line or a Laggard after the weekly check. The bin takes a stock off the list."
    },
    {
     "q": "Where are my lists saved?",
