@@ -16,6 +16,18 @@ export type AlertRow = {
   lastCheckedAt: string | null; lastFiredAt: string | null; firedCount: number; createdAt: string;
 };
 export type Notice = { id: number; alertId: string | null; symbol: string | null; kind: string; title: string; body: string; link: string | null; push: boolean; read: boolean; createdAt: string };
+/** What a pop-up card or browser notification says for a notice: its heading and the label of its button (null: no button). A stock alert says
+ * "Alert triggered / View stock"; a fund alert "View fund"; a saved-screen update "Open screener"; a data-job notice for admins "Job alert" or
+ * "Resolved" with "Open console". Never "View stock" on something that is not a stock. */
+export function noticeLabels(n: Pick<Notice, "kind" | "title" | "link">): { head: string; action: string | null; text?: string } {
+  const link = n.link || "";
+  if (n.kind === "system") return /^Resolved:\s*/.test(n.title) ? { head: "Resolved", action: link ? "Open console" : null, text: n.title.replace(/^Resolved:\s*/, "") } : { head: "Job alert", action: link ? "Open console" : null };
+  if (n.kind === "screen") return { head: "Screen update", action: link ? "Open screener" : null };
+  if (!link) return { head: n.kind === "alert" ? "Alert triggered" : "Notification", action: null };
+  if (/^\/(funds|etfs)\//.test(link)) return { head: "Alert triggered", action: link.startsWith("/etfs/") ? "View ETF" : "View fund" };
+  if (/^\/stocks\//.test(link)) return { head: "Alert triggered", action: "View stock" };
+  return { head: n.kind === "alert" ? "Alert triggered" : "Notification", action: "Open" };
+}
 export type NewAlert = { symbol: string; metric: string; op: Op; value: number | null; keyword?: string; channels: Channel[]; repeat: "once" | "every"; note?: string };
 export type Created = AlertRow & { alreadyMet?: boolean; current?: number | null };
 
@@ -204,7 +216,7 @@ export function useBrowserNotify(items: Notice[]) {
     for (const n of items) {
       if (n.read || !n.push || shown.current.has(n.id)) continue;
       shown.current.add(n.id);
-      try { const x = new Notification("FinLit alert", { body: n.title, tag: "finlit-" + n.id, icon: "/icon-192.png" }); x.onclick = () => { window.focus(); if (n.link) location.assign(n.link); }; } catch { /* some browsers only allow this from a service worker */ }
+      try { const x = new Notification(`FinLit ${noticeLabels(n).head.toLowerCase()}`, { body: n.title, tag: "finlit-" + n.id, icon: "/icon-192.png" }); x.onclick = () => { window.focus(); if (n.link) location.assign(n.link); }; } catch { /* some browsers only allow this from a service worker */ }
     }
     try { sessionStorage.setItem("finlit-notified", JSON.stringify([...shown.current].slice(-200))); } catch { /* private mode */ }
   }, [items]);
