@@ -602,9 +602,12 @@ async def admin_stock_fundamentals(
     query: str = Query(..., min_length=2, max_length=80),
     statement_type: Literal["consolidated", "standalone"] = "consolidated",
     period: Literal["yearly", "quarterly"] = "yearly",
+    lean: bool = False,
     _admin=Depends(require_admin),
 ):
-    data = await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period)
+    # lean=true: the statements, ratios, quote and prices a model needs, without the dashboard's extras (segments, shareholding, actions, dividends, a quote for every competitor).
+    # The Stress Lab asks for it: the full view took longer than the caller waits when the data provider was busy.
+    data = await asyncio.to_thread(_fetch_stock_fundamentals, query, statement_type, period, None, True if lean else None)
     return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
 

@@ -473,3 +473,65 @@ async def test_admins_can_read_why_pages_are_missing_readers_cannot(app, store, 
     assert d["stored"] == 1 and d["stored_today"] == 1 and d["reasons"][0] == {"kind": "not_ready", "reason": "This company's report is not stored yet.", "companies": 1}
     assert d["latest_failures"][0]["symbol"] == "TITAN" and "ASIANPAINT" not in d["largest_without_page"] and isinstance(d["building"], list)
     await admin.aclose()
+
+
+# ---------------------------------------------------------------------------------------------------------------- the statements the page is built from
+class _FakeRedis:
+    def __init__(self, held=None):
+        self.held = held or {}
+
+    async def get(self, key):
+        return self.held.get(key)
+
+
+def _fake_app(held=None):
+    from types import SimpleNamespace
+    return SimpleNamespace(state=SimpleNamespace(store=SimpleNamespace(redis=_FakeRedis(held))))
+
+
+async def test_the_statements_are_asked_for_lean_and_twice_before_a_company_is_not_ready(monkeypatch):
+    from finlit import premium
+    calls = []
+
+    async def refresh(app, key, path, params, fresh):
+        calls.append(dict(params))
+        return None if len(calls) == 1 else b'{"periods": ["Mar 2026"], "rows": {}}'
+    monkeypatch.setattr(premium, "_refresh", refresh)
+    monkeypatch.setattr(service, "PREMIUM_RETRY_S", 0.0)
+    got = await service.premium_json(_fake_app(), "TCS", "consolidated", "yearly")
+    assert got == {"periods": ["Mar 2026"], "rows": {}}
+    assert len(calls) == 2 and all(c.get("lean") == "true" and c["query"] == "TCS" for c in calls)      # the lean view, and the second try after a failure
+
+    async def never(app, key, path, params, fresh):
+        return None
+    monkeypatch.setattr(premium, "_refresh", never)
+    with pytest.raises(service.NotReady):
+        await service.premium_json(_fake_app(), "TCS", "consolidated", "yearly")
+
+
+async def test_a_copy_the_company_financials_page_already_holds_is_used_without_asking_the_provider(monkeypatch):
+    from finlit import premium
+    path, params = "/api/stocks/admin/fundamentals", {"query": "TCS", "statement_type": "consolidated", "period": "yearly"}
+    held = {premium._key(path, params): json.dumps({"t": 0, "f": 900, "b": '{"periods": ["Mar 2025"], "rows": {}}'})}
+
+    async def boom(*a, **k):
+        raise AssertionError("the provider must not be asked")
+    monkeypatch.setattr(premium, "_refresh", boom)
+    assert (await service.premium_json(_fake_app(held), "TCS", "consolidated", "yearly"))["periods"] == ["Mar 2025"]
+
+
+async def test_yearly_and_quarterly_statements_are_fetched_at_the_same_time(monkeypatch):
+    import asyncio
+    live = {"now": 0, "peak": 0}
+
+    async def slow(app, sym, statement, period):
+        live["now"] += 1
+        live["peak"] = max(live["peak"], live["now"])
+        await asyncio.sleep(0.05)
+        live["now"] -= 1
+        return {"periods": [], "rows": {}}
+    monkeypatch.setattr(service, "premium_json", slow)
+    a, b = await asyncio.gather(service.premium_json(None, "X", "consolidated", "yearly"), service.premium_json(None, "X", "consolidated", "quarterly"))
+    assert a == b and live["peak"] == 2
+    import inspect
+    assert "asyncio.gather(premium_json(app, sym, statement, \"yearly\"), premium_json(app, sym, statement, \"quarterly\"))" in inspect.getsource(service.build_pack)
