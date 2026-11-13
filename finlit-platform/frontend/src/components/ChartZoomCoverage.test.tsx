@@ -21,7 +21,7 @@ const ZOOM = [
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
-  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/sectors/BreadthChart.tsx", "components/sectors/ExtraCharts.tsx", "components/rotation/RotationCard.tsx",
+  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
@@ -45,6 +45,7 @@ const EXEMPT: Record<string, string> = {
   "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
   "components/rotation/pack/RotationSimple.tsx": "Sector Rotation as the final pages pack draws it (08): the map has box toggles, rings and paths and scrolls sideways on a phone; its bars and rank lines sit in rows; no enlarge arrow in the pack",
   "components/rotation/pack/RotationTable.tsx": "the Full table view as the final pages pack draws it (09): rank lines inside table rows and Six months of ranks, which scrolls sideways on a phone; no enlarge arrow in the pack",
+  "components/sectors/pack/IndustryPack.tsx": "an industry page as the final pages pack draws it (07): A year of <industry> scrolls sideways on a phone and has Hide, its numbers are in the story and a dropdown table, and the rank line is small; no enlarge arrow in the pack",
   "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",

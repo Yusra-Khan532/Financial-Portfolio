@@ -1,5 +1,4 @@
 // Small pieces of the Rotation pages: the corner glyph and badge (name + 2x2 glyph, never colour alone), the rank move, the rank sparkline, the tab pills. Styles: styles/rotation.css (rt-).
-import { Link } from "react-router";
 import { CORNER_POS, CORNER_WORD, rankMove, sparkPath, type RankPoint } from "../../lib/rotation";
 import "../../styles/rotation.css";
 
@@ -35,12 +34,3 @@ export function Spark({ hist, worst, w = 120, h = 30 }: { hist: RankPoint[]; wor
   return <svg className="rt-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" focusable="false"><path d={d} fill="none" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />{last && <circle cx={w - 2} cy={y} r="2.4" />}</svg>;
 }
 
-/** The two tabs at the top of both Sector pages. */
-export function SectorTabs({ active }: { active: "pulse" | "rotation" }) {
-  return (
-    <nav className="rt-tabs" aria-label="Sector pages">
-      <Link to="/sectors" aria-current={active === "pulse" ? "page" : undefined} className={active === "pulse" ? "on" : ""}>Sector Pulse</Link>
-      <Link to="/sectors/rotation" aria-current={active === "rotation" ? "page" : undefined} className={active === "rotation" ? "on" : ""}>Rotation</Link>
-    </nav>
-  );
-}
