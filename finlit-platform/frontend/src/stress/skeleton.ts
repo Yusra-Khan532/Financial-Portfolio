@@ -33,6 +33,8 @@ const HOW = (fx: string, basis: string) => `<details class="fold" style="border-
 <p>Company figures: reported quarterly and annual results, ${esc(basis)}. Brent crude: U.S. Energy Information Administration. Inflation and GDP: MoSPI and the Office of the Economic Adviser. Repo rate: RBI. Rupee: ${esc(fx)}. Share prices in past shocks: NSE.</p>
 </div></details>`;
 
+/** "2026-11-13" -> "13 Nov 2026" (anything that is not an ISO date is kept as it is). */
+const sayDate = (iso: string): string => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? `${+m[3]} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+m[2] - 1]} ${m[1]}` : String(iso || ""); };
 export function skeleton(plan: "silver" | "gold", disclaimer: string, model: string, asOf: string, more: { fxSource?: string | null; statement?: string | null } = {}): string {
   const gold = plan === "gold";
   const compare = gold ? `<button type="button" data-view="compare" aria-pressed="false">Compare two</button>`
@@ -59,6 +61,6 @@ export function skeleton(plan: "silver" | "gold", disclaimer: string, model: str
 <section class="card" data-v="single"><div id="bt"></div></section>
 <section class="card" data-v="single"><div id="asm"></div></section>
 <section class="card" data-v="both">${HOW(fxSourceWords(more.fxSource), String(more.statement || "consolidated").toLowerCase())}</section>
-<section class="disc" data-v="both" role="note"><span aria-hidden="true" style="flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--muted);color:var(--card);font:italic 700 14px/1 Georgia,serif">i</span><div><b>${esc(disclaimer)}</b> Stress Lab describes what happens to the numbers under the assumptions shown; it does not say what to do with any security.<div class="src">Model ${esc(model)} · data to ${esc(asOf)} · Brent: U.S. Energy Information Administration</div></div></section>
+<section class="disc" data-v="both" role="note"><span aria-hidden="true" style="flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--muted);color:var(--card);font:italic 700 14px/1 Georgia,serif">i</span><div><b>${esc(disclaimer)}</b> Stress Lab describes what happens to the numbers under the assumptions shown; it does not say what to do with any security.<div class="src">Model ${esc(model)} · data to ${esc(sayDate(asOf))} · Brent: U.S. Energy Information Administration</div></div></section>
 </main></div>`;
 }

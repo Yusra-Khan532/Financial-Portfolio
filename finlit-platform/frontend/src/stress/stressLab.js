@@ -339,6 +339,12 @@ export function mountStressLab(root, E, D, opts) {
         lqs = ' In the latest quarter the model put the margin at ' + pc(lq.predicted) + ' and ' + short(A) + ' reported ' + pc(lq.reported) + ' (from ' + pc(lq.margin_before) + '): ' + (right ? 'the right direction' + (Math.abs(dp) > Math.abs(dr) ? ', with the move over-stated' : Math.abs(dp) < Math.abs(dr) ? ', with the move under-stated' : '') : 'the wrong direction') + '.';
       }
       care = '<div class="care"><b>Read with care.</b> Costs reach the income statement with a delay set by how much stock a company holds' + inv + ', and prices follow later still, so a hit like this tends to show over several quarters.' + lqs + '</div>';
+      // a large move that rests on industry-wide settings only (no row of its own from the company's reports): say so, in words, next to the result
+      var fsrc = A.field_source || {}, ownRow = Object.keys(fsrc).some(function (k) { return /^This company/.test(String(fsrc[k])); });
+      if (r.change_pct.eps !== null && Math.abs(r.change_pct.eps) >= 40 && !ownRow) {
+        var from = ['crude_rm', 'pass_through', 'crude_beta', 'crude_rev'].map(function (k) { return String(fsrc[k] || ''); }).filter(function (v) { return v && !/^Default/.test(v); })[0] || 'industry';
+        care += '<div class="care"><b>This result is large.</b> ' + esc(short(A)) + '’s settings come from the ' + esc(from) + (/industry$|sector$/.test(from) ? '' : ' industry') + ' average, not from its own reports, and a company with several businesses can react differently. Open “The assumptions behind it” to see each setting and where it comes from.</div>';
+      }
     }
     $('ana').innerHTML = '<div class="p">' + P.map(function (p) { return '<p>' + p + '</p>'; }).join('') + care + '</div><div>' + walkHtml(r) + '</div>';
   }
@@ -561,7 +567,8 @@ export function mountStressLab(root, E, D, opts) {
   }
   function cmpInsights(ra, rb, a, b) {
     var out = [], both = ALL_IDS.map(function (id) { var s = scenOf(id); return [E.run(a, s).change_pct.eps, E.run(b, forB(s)).change_pct.eps]; }).filter(function (x) { return x[0] !== null && x[1] !== null; });
-    var n = both.length, bWorse = both.filter(function (x) { return x[1] < x[0]; }).length;
+    var n = both.length, GAP = 3;   // the same 3 points as 'about equally' above and 'More exposed' in the table: a smaller gap is not a bigger hit
+    var bWorse = both.filter(function (x) { return x[1] < x[0] - GAP; }).length, aWorse = both.filter(function (x) { return x[0] < x[1] - GAP; }).length;
     [[ra, a], [rb, b]].forEach(function (x) {
       var r = x[0], c = x[1];
       if (r.label === 'Debt cover at risk') out.push({ k: 'warn', p: 0, t: short(c) + ': interest cover falls to ' + xx(r.stressed.interest_cover), d: 'From ' + xx(r.base.interest_cover) + '. Under 1.5× the label reads Debt cover at risk, whatever happens to EPS.' });
@@ -578,7 +585,8 @@ export function mountStressLab(root, E, D, opts) {
     if ((nda < 0) !== (ndb < 0)) { var nc = nda < 0 ? a : b, nd = nda < 0 ? b : a; out.push({ k: 'ins', p: 4, t: 'Debt sets them apart when rates move', d: short(nc) + ' has more cash than debt; ' + short(nd) + ' has net debt of ' + cr(Math.abs(nd.debt - nd.cash)) + ', ' + share(nd.exposure.floating_debt) + ' of it at floating rates. ' + (function () { var x = E.sensitivities(nc)[3].eps_pct, y = E.sensitivities(nd)[3].eps_pct; return x !== null && y !== null ? 'Rates 100 bp higher move their EPS ' + pct(x) + ' and ' + pct(y) + '.' : 'Rates 100 bp higher reach their profit in opposite directions.'; })() }); }
     var pa = a.exposure.pass_through, pb = b.exposure.pass_through;
     if (Math.abs(pa - pb) >= 0.05) out.push({ k: 'ins', p: 4, t: 'Pricing power differs', d: short(a) + ' passes on about ' + share(pa) + ' of cost rises, ' + short(b) + ' about ' + share(pb) + '. The higher the share, the less a cost shock reaches profit.' });
-    if (n) out.push({ k: bWorse >= n * 0.75 || bWorse <= n * 0.25 ? 'ins' : 'watch', p: 5, t: bWorse >= n * 0.75 ? short(b) + ' takes the bigger hit in ' + bWorse + ' of ' + n + ' scenarios' : bWorse <= n * 0.25 ? short(a) + ' takes the bigger hit in ' + (n - bWorse) + ' of ' + n + ' scenarios' : 'Which one is hit harder depends on the shock', d: 'Across ' + (n === ALL_IDS.length ? (SC.today_eia ? 'Today, Crude eases and the six presets' : 'Today and the six presets') : 'the ' + n + ' scenarios where both have an EPS change') + ', with today’s settings.' });
+    if (n) { var bigB = bWorse >= n * 0.75, bigA = aWorse >= n * 0.75;
+      out.push({ k: bigA || bigB ? 'ins' : 'watch', p: 5, t: bigB ? short(b) + ' takes the bigger hit in ' + bWorse + ' of ' + n + ' scenarios' : bigA ? short(a) + ' takes the bigger hit in ' + aWorse + ' of ' + n + ' scenarios' : aWorse + bWorse === 0 ? 'The two are hit about equally in every scenario' : 'Which one is hit harder depends on the shock', d: 'Across ' + (n === ALL_IDS.length ? (SC.today_eia ? 'Today, Crude eases and the six presets' : 'Today and the six presets') : 'the ' + n + ' scenarios where both have an EPS change') + ', with today’s settings. A hit counts as bigger when the gap is 3 points of EPS or more.' }); }
     out.sort(function (x, y) { return x.p - y.p; });
     return out.slice(0, 4);
   }
