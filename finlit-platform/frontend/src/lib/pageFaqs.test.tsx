@@ -69,7 +69,7 @@ describe("route matching", () => {
 });
 
 describe("<PageFaqs />", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs /></MemoryRouter>);
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("renders nothing on a page without a set", () => { const { container } = at("/glossary"); expect(container.innerHTML).toBe(""); cleanup(); });
   it("shows title, count, plan, note and the All FAQs link", () => {
     at("/prism/TCS");
@@ -104,7 +104,7 @@ describe("<PageFaqs />", () => {
 });
 
 describe("FAQ upgrades", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs /></MemoryRouter>);
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("Expand all / Collapse all toggles every answer", () => {
     at("/dashboard");
     const qs = () => screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"));

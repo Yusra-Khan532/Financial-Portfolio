@@ -154,7 +154,7 @@
 .dsh-edit .dsh-seg button { height: 36px; min-width: 52px; padding: 0 10px; }
 
 /* tablets: halves and thirds widen */
-@media (max-width: 1100px) { .dsh-cell.third { grid-column: span 3; } .dsh-st-h, .dsh-st-r { grid-template-columns: minmax(130px, 2fr) 1fr 1fr 1.5fr 1fr 1fr 1fr; } }
+@media (max-width: 1100px) { .dsh-cell.third { grid-column: span 3; } }
 @media (max-width: 899px) { .dsh-cell, .dsh-cell.third, .dsh-cell.half { grid-column: span 6; } .dsh-edit li { grid-template-columns: 24px minmax(0, 1fr) auto auto; } .dsh-edit li small { grid-column: 2 / -1; grid-row: 2; } }
 
 /* phones */
@@ -545,13 +545,60 @@
 .dsh-line2.f > .hd .dsh-tag { flex: none; }
 .dsh-line2.f > .tx { padding-left: 30px; text-align: left; align-self: stretch; }
 
-/* Your stocks today (task #107): each column has its own width, a consistent alignment (numbers right, the FinLit IQ chip centred) and a thin line between columns, so no two columns run together
-   and none floats far from its neighbours. Phones keep their own card layout (max-width 759px). */
+/* Your stocks today as the final pages pack draws it (04): nine columns (stock, size, price, the day's move, FinLit IQ or Prism, vs its peers, revenue and profit
+   against a year earlier, alert), a tinted header row with an (i) on each column, no lines between columns. Phones keep their own card layout (max-width 759px). */
 @media (min-width: 760px) {
-  .dsh-st-h, .dsh-st-r { grid-template-columns: minmax(170px, 1.7fr) minmax(92px, .9fr) minmax(82px, .8fr) minmax(112px, 1fr) minmax(98px, .95fr) minmax(98px, .95fr) minmax(94px, .9fr); gap: 0; }
-  .dsh-st-h > span:not(:first-child), .dsh-st-r > .dsh-pr, .dsh-st-r > .ch, .dsh-st-x > * { border-left: 1px solid var(--d-line3); padding: 0 14px; align-self: stretch; display: flex; align-items: center; min-width: 0; }
-  .dsh-st-h > span:not(:first-child) { justify-content: flex-end; } .dsh-st-h > span:nth-child(4) { justify-content: center; }
-  .dsh-st .r { justify-content: flex-end; text-align: right; } .dsh-st-x > .sc { justify-content: center; }
-  .dsh-st-h > span:first-child, .dsh-st-r > .nm { padding-right: 14px; }
-  .dsh-st-r { min-height: 64px; padding-block: 8px; }
+  .dsh-st-h, .dsh-st-r { grid-template-columns: minmax(180px, 2fr) minmax(56px, .55fr) minmax(86px, .85fr) minmax(76px, .75fr) minmax(108px, 1fr) minmax(104px, 1fr) minmax(88px, .85fr) minmax(88px, .85fr) minmax(76px, .7fr); gap: 0 10px; }
+  .dsh-st-h { padding: 9px 10px; border: 0; border-radius: 10px 10px 0 0; background: var(--d-tile); text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
+  .dsh-st-h > span { display: flex; align-items: center; gap: 4px; white-space: nowrap; letter-spacing: .03em; } .dsh-st-h > span.r { justify-content: flex-end; }
+  .dsh-st-r { min-height: 58px; padding: 8px 10px; } .dsh-st .r { text-align: right; }
+  .dsh-st-r .szm { display: none; }
 }
+.dsh-st .sz { font-size: 14px; color: var(--d-ink); }
+.dsh-held.wl { background: color-mix(in srgb, #2F5A9E 14%, transparent); color: #2F5A9E; } :root[data-theme="dark"] .dsh-held.wl { color: #9DB8E6; }
+.dsh-peer { display: grid; gap: 2px; justify-items: start; } .dsh-peer small { font-size: 12px; color: var(--d-mut); }
+.dsh-pl { padding: 2px 8px; border-radius: 6px; font: 700 12px var(--sans); } .dsh-pl.leader { background: #E1F2E7; color: #0F6B3A; } .dsh-pl.laggard { background: #FCEFD2; color: #8A5200; } .dsh-pl.in_line { background: var(--d-tile); color: var(--d-ink); }
+:root[data-theme="dark"] .dsh-pl.leader { background: rgba(46, 125, 87, .2); color: #7FD8A6; } :root[data-theme="dark"] .dsh-pl.laggard { background: rgba(233, 185, 73, .16); color: #E9C46A; }
+.dsh-na { font-size: 13px; color: var(--d-mut); }
+.dsh .sp.dsh-cards { padding: 0; margin: 0 0 14px; }
+@media (max-width: 759px) { .dsh-st-r .sz { display: none; } .dsh-st-r .szm { padding: 3px 10px; border-radius: 999px; background: var(--d-tile); font-size: 13px; } }
+
+/* Market today (final pages pack 04): the chart and the prices-and-rates column side by side; the rates two to a row. */
+.dsh-mt-split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 16px; }
+.dsh-mt-split .dsh-rates { margin-top: 0; } .dsh-mt-split .dsh-rates-g { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dsh-mt-split .dsh-cards { margin: 10px 0 6px; }
+@media (max-width: 1100px) { .dsh-mt-split { grid-template-columns: minmax(0, 1fr); } .dsh-mt-split .dsh-rates-g { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+.dsh .sp.dsh-cards-after { margin: 14px 0 0; }
+.dsh-sec-more { margin-top: 10px; }
+
+/* The market: what it adds up to (final pages pack 04) */
+.dsh-mr-lead { margin: 4px 0 4px; font: 400 24px/1.4 var(--serif); color: var(--d-ink); } .dsh-mr-lead b { font-weight: 600; }
+.dsh-mr-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 16px 0 12px; }
+.dsh-mr-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--d-line2); border-radius: 12px; background: var(--d-card, transparent); color: var(--d-ink); text-align: left; cursor: pointer; }
+.dsh-mr-tabs button b { font: 700 16px var(--sans); } .dsh-mr-tabs button small { font-size: 13px; color: var(--d-mut); }
+.dsh-mr-tabs button[aria-selected="true"] { background: #0E6471; border-color: #0E6471; color: #fff; } .dsh-mr-tabs button[aria-selected="true"] small { color: rgba(255, 255, 255, .85); }
+.dsh-mr-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.dsh-mr-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dsh-rd { padding: 14px; border: 1px solid var(--d-line2); border-top: 3px solid; border-radius: 12px; } .dsh-rd.good { border-top-color: #0F6B3A; } .dsh-rd.mixed { border-top-color: #B7791F; } .dsh-rd.warning { border-top-color: #A12E26; }
+.dsh-rd-h { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--d-mut); }
+.dsh-rd-h em { padding: 2px 8px; border-radius: 999px; font-style: normal; letter-spacing: 0; text-transform: none; font-size: 12px; }
+.dsh-rd.good em { background: #E1F2E7; color: #0F6B3A; } .dsh-rd.mixed em { background: #FCEFD2; color: #8A5200; } .dsh-rd.warning em { background: #FBE4E4; color: #A12E26; }
+.dsh-rd-v { display: block; font: 400 24px/1.2 var(--serif); color: var(--d-ink); } .dsh-rd-x { margin: 6px 0 8px; font-size: 14px; line-height: 1.45; } .dsh-rd-b { margin: 0; font-size: 12px; color: var(--d-mut); }
+.dsh-mr-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 14px 16px; border-radius: 12px; background: #17262E; color: #fff; }
+.dsh-mr-sum > span { padding: 2px 10px; border-radius: 999px; font: 700 13px var(--sans); } .dsh-mr-sum .good { background: #2E7D57; } .dsh-mr-sum .mixed { background: #8A6A12; } .dsh-mr-sum .warning { background: #A12E26; }
+.dsh-mr-sum p { flex-basis: 100%; margin: 4px 0 0; font-size: 14px; }
+.dsh-mr-t { width: 100%; margin: 14px 0 4px; border-collapse: collapse; font-size: 14px; } .dsh-mr-t caption { text-align: left; font-weight: 700; padding-bottom: 6px; }
+.dsh-mr-t th, .dsh-mr-t td { padding: 7px 8px; border-bottom: 1px solid var(--d-line3); text-align: left; white-space: nowrap; } .dsh-mr-t .r { text-align: right; } .dsh-mr-t thead th { font-size: 12px; color: var(--d-mut); font-weight: 600; }
+:root[data-theme="dark"] .dsh-rd.good em { background: rgba(46, 125, 87, .2); color: #7FD8A6; } :root[data-theme="dark"] .dsh-rd.mixed em { background: rgba(233, 185, 73, .16); color: #E9C46A; } :root[data-theme="dark"] .dsh-rd.warning em { background: rgba(217, 114, 124, .16); color: #F2A0A6; }
+:root[data-theme="dark"] .dsh-mr-sum { background: #0B1418; }
+@media (max-width: 1100px) { .dsh-mr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .dsh-mr-grid, .dsh-mr-tabs { grid-template-columns: minmax(0, 1fr); } .dsh-mr-lead { font-size: 18px; } .dsh-mr-t { display: block; overflow-x: auto; } }
+
+/* FII / DII (final pages pack 04): one chart, FII blue and DII gold side by side */
+.dsh-pbars { margin-top: 12px; } .dsh-pbars svg { display: block; width: 100%; height: auto; } .dsh-pbars .z { stroke: var(--d-line); stroke-width: 1; }
+.dsh-pbars .fii, .dsh-plg i.fii { fill: #3A5BA0; background: #3A5BA0; } .dsh-pbars .dii, .dsh-plg i.dii { fill: #C89B2A; background: #C89B2A; }
+.dsh-pbars .dsh-fbars-x { display: flex; justify-content: space-between; font-size: 12px; color: var(--d-mut); }
+.dsh-plg { display: flex; gap: 14px; margin: 4px 0 0; font-size: 12px; color: var(--d-mut); } .dsh-plg span { display: inline-flex; align-items: center; gap: 6px; } .dsh-plg i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* Your portfolio at a glance (final pages pack 04): the average score in a ring */
+.dsh-pg-ring { --c: #B7791F; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(closest-side, var(--d-card, #FBF8F1) 74%, transparent 75% 100%), conic-gradient(var(--c) calc(var(--v) * 1%), var(--d-tile) 0); }
+.dsh-pg-ring.g { --c: #2E7D57; } .dsh-pg-ring.r { --c: #A12E26; } .dsh-pg-ring b { font: 400 28px var(--serif); color: var(--d-ink); }

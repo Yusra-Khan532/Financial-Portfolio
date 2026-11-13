@@ -20,9 +20,10 @@ export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" |
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", tab: "market" },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", tab: "market" },
   { id: "sectors", label: "Sectors today", blurb: "Every sector's move today, ranked.", min: "basic", size: "half", tab: "market" },
+  { id: "marketread", label: "The market: what it adds up to", blurb: "Six readings of the day (breadth, big moves, which sizes lead, short and bigger trends, industries) and what they add up to.", min: "basic", size: "full", tab: "market" },
   { id: "flows", label: "FII / DII flows", blurb: "Net buying and selling by foreign and domestic institutions.", min: "basic", size: "half", tab: "market" },
   { id: "portfolio", label: "Your portfolio at a glance", blurb: "Average FinLit Prism score, score colours, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", tab: "stocks" },
-  { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks" },
+  { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks", off: true },
   { id: "heatmap", label: "Index heatmap", blurb: "Stocks of an index as a map or a list, coloured by today's move.", min: "basic", size: "full", tab: "market" },
   { id: "resultstoday", label: "Results today", blurb: "Companies that have filed, or are due to report, results.", min: "basic", size: "half", tab: "news" },
   { id: "filings", label: "Filings and news", blurb: "The latest exchange filings, tagged and shortened to one line.", min: "basic", size: "half", tab: "news" },
@@ -44,6 +45,8 @@ const KEY = "finlit-prefs-v1";
 export function normaliseLayout(saved: WidgetPref[] | undefined | null): WidgetPref[] {
   const known = new Map(WIDGETS.map((w) => [w.id, w]));
   if (!(saved ?? []).some((w) => w?.id === "mystocks")) return defaultLayout();
+  // A layout saved before the final pages pack (13 Nov 2026) has no "marketread": the pack's dashboard has no Stress Lab block, so it is switched off once (it stays in Customise).
+  if (!(saved ?? []).some((w) => w?.id === "marketread")) saved = (saved ?? []).map((w) => (w?.id === "stress" ? { ...w, on: false } : w));
   const seen = new Set<string>();
   const dash: WidgetPref[] = [];
   for (const w of saved ?? []) if (w && known.has(w.id) && !seen.has(w.id)) { seen.add(w.id); dash.push({ id: w.id, on: !!w.on, size: w.size === "full" ? "full" : w.size === "third" ? "third" : "half" }); }

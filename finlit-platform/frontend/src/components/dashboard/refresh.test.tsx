@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { stockLists } from "./MyStocks";
-import { amfiSizes, glance } from "./Portfolio";
+import { finlitSizes, glance } from "./Portfolio";
 import { pulseLine } from "./Snapshot";
-import { FlowsBars } from "./Flows";
+import { PairBars } from "./Flows";
 import { Stress } from "./Stress";
 import { ShowMoreButton } from "./parts";
 import type { Row } from "../../lib/screener";
@@ -15,10 +15,10 @@ import type { Board } from "../../lib/sectors";
 const row = (symbol: string, o: Partial<Row> = {}) => ({ symbol, name: symbol, sector: "IT", market_cap: 1000, ...o }) as Row;
 
 describe("Your stocks today", () => {
-  it("splits what is followed into watchlist and portfolio; a share can be in both", () => {
+  it("splits what is followed into watchlist and portfolio; a share can be in both; All lists the shares held first (final pages pack)", () => {
     const f = ["A", "B", "C", "D"].map((symbol) => ({ symbol, name: null }));
     const l = stockLists(f, new Set(["A", "B"]), new Set(["B", "C"]));
-    expect(l.all.map((x) => x.symbol)).toEqual(["A", "B", "C", "D"]);
+    expect(l.all.map((x) => x.symbol)).toEqual(["B", "C", "A", "D"]);
     expect(l.watchlist.map((x) => x.symbol)).toEqual(["A", "B"]);
     expect(l.portfolio.map((x) => x.symbol)).toEqual(["B", "C"]);
   });
@@ -34,10 +34,10 @@ describe("Show more", () => {
 });
 
 describe("Your portfolio at a glance", () => {
-  it("sizes companies by AMFI rank: 100 large, 150 mid, the rest small", () => {
-    const rows = Array.from({ length: 300 }, (_, i) => row(`S${i}`, { market_cap: 10000 - i }));
-    const s = amfiSizes(rows);
-    expect([s.get("S0"), s.get("S99"), s.get("S100"), s.get("S249"), s.get("S250")]).toEqual(["Large", "Large", "Mid", "Mid", "Small"]);
+  it("sizes companies by FinLit's rule: Large above ₹50,000 Cr, Mid above ₹10,000 Cr, Small below (as every page of the final pages pack)", () => {
+    const rows = [row("L", { market_cap: 60000 }), row("M", { market_cap: 50000 }), row("N", { market_cap: 10001 }), row("S", { market_cap: 10000 }), row("Z", { market_cap: null })];
+    const s = finlitSizes(rows);
+    expect([s.get("L"), s.get("M"), s.get("N"), s.get("S"), s.get("Z")]).toEqual(["Large", "Mid", "Mid", "Small", undefined]);
   });
   it("averages the Prism score and parts of the shares held, counts colours, sectors and sizes", () => {
     const rows = [row("A", { prism_final: 80, prism_fundamental: 90, prism_valuation: 40, prism_quality: 70, prism_risk: 80, market_cap: 3 }),
@@ -48,7 +48,7 @@ describe("Your portfolio at a glance", () => {
     expect(g.colours).toEqual({ g: 1, o: 1, r: 0, n: 2 });                 // C has no score, X is not a listed company we hold
     expect(g.parts.map((p) => p.value)).toEqual([70, 50, 65, 75]);
     expect(g.sectors).toBe(2); expect(g.largest).toEqual({ name: "IT", count: 2 });
-    expect(g.sizes).toEqual([{ label: "Large", count: 3 }]);
+    expect(g.sizes).toEqual([{ label: "Small", count: 3 }]);                 // market values of 1 to 3 crore
   });
 });
 
@@ -62,12 +62,12 @@ describe("Sector Pulse line", () => {
 });
 
 describe("FII / DII bars and the one-line Stress Lab", () => {
-  it("draws one bar per session, buying above the line and selling below, with a spoken summary", () => {
+  it("draws an FII bar and a DII bar for each of the last 30 sessions, buying above the line and selling below, with a spoken summary (final pages pack)", () => {
     const days = Array.from({ length: 40 }, (_, i) => ({ d: `2026-10-${String((i % 28) + 1).padStart(2, "0")}-${i}`, fii: { buy: null, sell: null, net: i % 2 ? 500 : -1000 }, dii: { buy: null, sell: null, net: 200 } }));
-    const html = renderToStaticMarkup(<FlowsBars days={days} />);
-    expect(html).toContain("Last 30 sessions");
-    expect((html.match(/class="b"/g) || []).length).toBe(60);                // 30 FII + 30 DII
-    expect(html).toMatch(/aria-label="FII net, last 30 sessions: lowest/);
+    const html = renderToStaticMarkup(<PairBars days={days} />);
+    expect((html.match(/class="fii"/g) || []).length).toBe(30 + 1);            // 30 bars and the legend swatch
+    expect((html.match(/class="dii"/g) || []).length).toBe(30 + 1);
+    expect(html).toMatch(/aria-label="FII and DII net flows, last 30 sessions from/);
   });
   it("Stress Lab is one line while the nightly run covers none of the stocks", () => {
     const html = renderToStaticMarkup(<MemoryRouter><Stress followed={[{ symbol: "A", name: null }, { symbol: "B", name: null }]} loading={false} /></MemoryRouter>);

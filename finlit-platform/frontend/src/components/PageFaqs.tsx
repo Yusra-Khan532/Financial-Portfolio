@@ -59,9 +59,11 @@ export function FaqAccordion({ faq, openFirst = false, level = 3, only, force = 
 export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={"pfq-plan " + plan.split(/[ ,]/)[0].toLowerCase()}>Plan: {plan}</span> : null;
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
-export function PageFaqs() {
+/** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
+const OWN_PLACE = new Set(["/dashboard"]);
+export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
-  const faq = faqForPath(pathname);
+  const faq = OWN_PLACE.has(pathname) && !inline ? undefined : faqForPath(pathname);
   useEffect(() => { if (faq && hash === "#faq") setTimeout(() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" }), 150); }, [faq, hash]);
   if (!faq) return null;
   // first question open on a wide screen, all closed on a phone
@@ -82,7 +84,7 @@ export function PageFaqs() {
   // The dashboard keeps its questions folded away: one line with the question count, opened on request (or by a #faq link).
   if (pathname === "/dashboard") return (
     <section className="pfq pm-noprint pzr-noprint" id="faq" aria-label="Questions about this page" key={faq.id}>
-      <details className="pfq-fold" open={hash === "#faq"}><summary><b>Questions about this page</b> <small>{faq.items.length} questions</small></summary>{inner}</details>
+      <details className="pfq-fold pfq-card" open={hash === "#faq"}><summary><span><b>Questions about this page</b><small>{faq.title} · {faq.items.length} questions</small></span><span className="pfq-show" aria-hidden="true" /></summary>{inner}</details>
     </section>
   );
   return (
