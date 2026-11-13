@@ -172,3 +172,39 @@ async def test_catalog_names_when_the_newest_price_and_score_were_written(app, t
     async with new_client(app) as anon:
         cat = (await anon.get("/api/screener/catalog")).json()
     assert cat["pricesAt"] == "2026-11-12T10:05:00+00:00" and cat["scoresAt"] == "2026-11-12T23:00:00+00:00"
+
+
+# ---- task #64 Part 3: Custom ratio --------------------------------------------------------------------------------------------------
+
+def test_ratioable_and_family_on_every_measure():
+    from finlit.screener.catalog import CATALOG, family, ratioable
+    by = {m.key: m for m in CATALOG}
+    assert family(by["cash"]) == "cr" and family(by["market_cap"]) == "cr" and family(by["price"]) == "per_share" and family(by["eps"]) == "per_share"
+    assert family(by["volume"]) == "shares" and family(by["employees"]) == "people" and family(by["pe"]) is None and family(by["roe"]) is None
+    assert family(by["sales_per_employee"]) is None                                                   # Rs Cr per person is not an amount
+    assert not any(ratioable(m) for m in CATALOG if m.group in ("model", "prism") or m.unit == "flag")  # never a FinLit score, never a yes-or-no filter
+    assert ratioable(by["cash"]) and ratioable(by["pe"])
+
+
+def test_a_zero_or_negative_bottom_figure_gives_a_dash_and_pct_is_times_100(table):
+    v = table.ratio("market_cap", "ret_1y", "times")                 # ret_1y is i - 5: rows 0..5 are negative or zero
+    assert all(x != x for x in v[:6]) and v[6] == 7000 / 1
+    p = table.ratio("market_cap", "ret_1y", "pct")
+    assert p[6] == 700000
+
+
+@pytest.mark.asyncio
+async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_spread(app, table):  # noqa: F811
+    silver = await signed_in(app, "s04r@example.com", plan="silver")
+    base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5, "funnel": True}
+    bad = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "pe", "den": "pe"}]})
+    assert bad.status_code in (400, 422)
+    score = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "overall", "den": "pe"}]})
+    assert score.status_code == 400                                                                    # a FinLit score is never part of a ratio
+    r = (await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "ret_1y", "show": "times", "min": 1000}]})).json()
+    step = next(s for s in r["funnel"] if s["key"] == "r1")
+    assert step["missing"] == 7 and step["after"] == r["total"] > 0          # 6 with a bottom of zero or below, and STRAY with no figure: left out
+    st = (await silver.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price", "show": "times", "first": "NOPE,S03,S04"})).json()
+    assert st["have"] == 24 and st["total"] == 25 and len(st["hist30"]) == 30 and st["values"] == sorted(st["values"])
+    assert st["example"]["symbol"] == "S03" and st["example"]["value"] == round(4000 / 103, 4)
+    assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400

@@ -6,11 +6,11 @@ import time
 from typing import Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Query, Request, Response
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
-from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, VARIANTS, allowed, offered
+from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, VARIANTS, allowed, family, offered, ratioable
 from .data import get_table
 from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
@@ -54,12 +54,23 @@ class Sort(BaseModel):
 
 
 class Ratio(BaseModel):
-    """A ratio the member builds: one catalogue figure divided by another, with an optional range on the result (task #61)."""
+    """A ratio the member builds: one catalogue figure divided by another, with an optional range on the result (task #61; task #64 CR-8).
+    `show` "pct" works the value out x 100 (a range is then in percent); a bottom figure of zero or below gives no value (a dash), never a flipped sign."""
     id: str = Field(pattern=r"^r[0-9]$")
     num: str = Field(max_length=40)
     den: str = Field(max_length=40)
+    show: Literal["pct", "times"] = "times"
     min: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
     max: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
+    name: str = Field(default="", max_length=40)
+
+    @model_validator(mode="after")
+    def _ok(self):
+        if self.num == self.den:
+            raise ValueError("A ratio needs two different figures.")
+        if self.min is not None and self.max is not None and self.min > self.max:
+            raise ValueError("The lower value is above the upper one.")
+        return self
 
 
 class Query_(BaseModel):
@@ -130,7 +141,8 @@ async def catalog(request: Request):
         ms = [m for m in CATALOG if m.group == gid]
         groups.append({"id": gid, "label": label, "tier": GROUP_TIER.get(gid, "basic"), "metrics": [
             {"key": m.key, "label": m.label, "unit": m.unit, "better": m.better, "tier": m.tier, "say": m.say, "digits": m.digits,
-             "locked": not allowed(plan, m.tier), "stats": t.stats.get(m.key), "hidden": m.key in HIDDEN, "variants": VARIANTS.get(m.key)} for m in ms]})
+             "locked": not allowed(plan, m.tier), "stats": t.stats.get(m.key), "hidden": m.key in HIDDEN, "variants": VARIANTS.get(m.key),
+             "ratioable": ratioable(m), "family": family(m)} for m in ms]})
     body = {
         "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "pricesAt": (t.sig or {}).get("lat"), "scoresAt": (t.sig or {}).get("at"),
         "groups": groups,
@@ -147,6 +159,72 @@ async def catalog(request: Request):
         "defaultColumns": DEFAULT_COLUMNS,
         "standardColumns": standard_columns(plan),
     }
+    return Response(content=__import__("json").dumps(body, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
+
+
+_ratio_stats: Dict[tuple, dict] = {}
+
+
+def _pct_of(sorted_vals: List[float], p: float) -> Optional[float]:
+    if not sorted_vals:
+        return None
+    k = (len(sorted_vals) - 1) * p
+    lo = int(k)
+    hi = min(lo + 1, len(sorted_vals) - 1)
+    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (k - lo)
+
+
+def ratio_stats(t, num: str, den: str, show: str) -> dict:
+    """The spread of one ratio over every company (task #64, CR-4 and CR-8): how many have it, the percentiles, 30 bars (log scale when the spread is wide)
+    and every value, sorted, so the drawer counts the companies that pass a condition as it is typed. Kept per pair until the table is rebuilt."""
+    key = (num, den, show, t.loaded if hasattr(t, "loaded") else 0)
+    if key in _ratio_stats:
+        return _ratio_stats[key]
+    v = sorted(x for x in t.ratio(num, den, show) if x == x)
+    out: Dict[str, object] = {"have": len(v), "total": t.n}
+    for name, p in (("p2", .02), ("p5", .05), ("p25", .25), ("p50", .5), ("p75", .75), ("p95", .95), ("p98", .98)):
+        q = _pct_of(v, p)
+        out[name] = None if q is None else round(q, 6)
+    lo, hi = out["p2"], out["p98"]
+    scale, bars = "linear", [0] * 30
+    if v and lo is not None and hi is not None and hi > lo:
+        if lo > 0 and hi / lo >= 50:          # a wide, positive spread reads better on a log scale
+            import math
+            scale, a, b = "log", math.log(lo), math.log(hi)
+            for x in v:
+                if lo <= x <= hi:
+                    bars[min(29, int((math.log(x) - a) / (b - a) * 30))] += 1
+        else:
+            for x in v:
+                if lo <= x <= hi:
+                    bars[min(29, int((x - lo) / (hi - lo) * 30))] += 1
+    out.update(hist30=bars, scale=scale, values=[round(x, 6) for x in v])
+    if len(_ratio_stats) > 200:
+        _ratio_stats.clear()
+    _ratio_stats[key] = out
+    return out
+
+
+@router.get("/ratio-stats")
+async def ratio_stats_api(request: Request, num: str, den: str, show: Literal["pct", "times"] = "times", first: str = ""):
+    """The spread of a custom ratio for the drawer, and the worked example: the first company of `first` (the reader's current list, comma separated) that has both figures."""
+    plan = _plan(await current(request))
+    if num == den or num not in BY_KEY or den not in BY_KEY or not ratioable(BY_KEY[num]) or not ratioable(BY_KEY[den]):
+        raise fail(400, "bad_request", "A ratio needs two different figures that can be divided: no FinLit score and no yes-or-no filter.")
+    if _locked(plan, [num, den]):
+        raise fail(403, "plan_locked", "One of these figures is part of a higher plan.")
+    t = await _table(request)
+    body = dict(ratio_stats(t, num, den, show))
+    example = None
+    for sym in [x.strip().upper() for x in first.split(",") if x.strip()][:50]:
+        i = t.pos.get(sym)
+        if i is None:
+            continue
+        a, b = t.cols[num][i], t.cols[den][i]
+        if a == a and b == b and b > 0:
+            example = {"symbol": sym, "name": t.name[i], "num": round(a, 4), "den": round(b, 4), "value": round(a / b * (100 if show == "pct" else 1), 4)}
+            break
+    body["example"] = example
     return Response(content=__import__("json").dumps(body, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
@@ -218,8 +296,8 @@ def _run(t, body: Query_, plan: str):
     if bad:
         raise fail(400, "bad_request", "Unknown column.")
     for rt in body.ratios:
-        if rt.num not in BY_KEY or rt.den not in BY_KEY or BY_KEY[rt.num].unit == "flag" or BY_KEY[rt.den].unit == "flag":
-            raise fail(400, "bad_request", "A ratio needs two numeric figures.")
+        if rt.num not in BY_KEY or rt.den not in BY_KEY or not ratioable(BY_KEY[rt.num]) or not ratioable(BY_KEY[rt.den]):
+            raise fail(400, "bad_request", "A ratio needs two figures that can be divided: no FinLit score and no yes-or-no filter.")
     need = list(filters) + [c for c in cols] + ([body.sort.key] if body.sort.key in BY_KEY else []) + [k for rt in body.ratios for k in (rt.num, rt.den)]
     locked = _locked(plan, need)
     off_plan = [k for k in need if k in BY_KEY and not offered(plan, BY_KEY[k].group)]
@@ -240,7 +318,7 @@ def _run(t, body: Query_, plan: str):
     if body.sort.key not in BY_KEY and body.sort.key not in ("name", "symbol") and body.sort.key not in ids:
         raise fail(400, "bad_request", "Unknown sort.")
     idx = t.match(filters, cats_for(body, plan), body.q)
-    vals = {rt.id: t.ratio(rt.num, rt.den) for rt in body.ratios}
+    vals = {rt.id: t.ratio(rt.num, rt.den, rt.show) for rt in body.ratios}
     for rt in body.ratios:                      # a ratio with a range keeps only companies where both figures exist and the result is inside it
         if rt.min is not None or rt.max is not None:
             v = vals[rt.id]
@@ -278,5 +356,5 @@ async def query(request: Request, body: Query_):
            "took": round((time.perf_counter() - started) * 1000, 1)}
     if body.funnel:        # what is left after each rule in turn, and how many companies a rule left out for having no figure (the Stock screener's funnel)
         out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, cats_for(body, plan),
-                                 model=_model_rules(screens_of(body)))
+                                 model=_model_rules(screens_of(body)), ratios=[(rt.id, rv[rt.id], rt.min, rt.max) for rt in body.ratios])
     return Response(content=__import__("json").dumps(out, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})

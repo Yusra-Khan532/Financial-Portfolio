@@ -316,3 +316,30 @@ def tier_of(key: str) -> str:
 
 def allowed(plan: str, tier: str) -> bool:
     return RANK.get(plan, 0) >= RANK[tier]
+
+
+# ---- Custom ratio (task #64, CR-2): which figures make a sensible ratio, and in what unit ----
+NOT_RATIOABLE_GROUPS = ("model", "prism")        # a FinLit score divided by another has no meaning, on any plan
+SHARE_COUNTS = ("volume", "avg_volume_20d")
+PEOPLE = ("employees",)
+PER_PERSON = ("sales_per_employee", "profit_per_employee")
+
+
+def ratioable(m: "Metric") -> bool:
+    """False for the FinLit model and Prism groups and for yes-or-no filters."""
+    return m.group not in NOT_RATIOABLE_GROUPS and m.unit != "flag"
+
+
+def family(m: "Metric"):
+    """The unit family a ratio checks: "cr" (amounts in Rs Cr), "per_share" (Rs a share), "shares", "people", or None (ratios, percentages, days, points, other counts)."""
+    if not ratioable(m):
+        return None
+    if m.key in SHARE_COUNTS:
+        return "shares"
+    if m.key in PEOPLE:
+        return "people"
+    if m.unit == "Cr" and m.key not in PER_PERSON:
+        return "cr"
+    if m.unit == "Rs":
+        return "per_share"
+    return None

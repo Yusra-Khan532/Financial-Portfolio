@@ -46,7 +46,7 @@ const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "strong", label: "FinLit IQ Strong", says: "Companies the FinLit IQ rates Strong", tier: "silver", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
   { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
 ] };
-type Body = { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
+type Body = { ratios?: { num: string; den: string; show: string }[]; columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
 const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
@@ -54,6 +54,7 @@ const mount = (qs = "") => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={qc}><MemoryRouter initialEntries={["/screener" + qs]}><Routes><Route path="/screener" element={<><ScreenerPro /><Where /></>} /><Route path="/login" element={<Where />} /></Routes></MemoryRouter></QueryClientProvider>);
 };
+const loc = () => screen.getByTestId("loc").textContent || "";
 const table = () => document.querySelector(".ssw-t") as HTMLElement;
 const heads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th button")).map((b) => (b.getAttribute("aria-label") || b.textContent || "").replace(/^Sort by /, "").replace(/\s*[▲▼▾]$/, "").trim());
 const ruleHeads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th.rb button")).map((b) => (b.getAttribute("aria-label") || "").replace(/^Sort by /, ""));
@@ -76,6 +77,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     if (String(url).includes("/api/screener/catalog")) return new Response(JSON.stringify(st.cat), { status: 200 });
     if (String(url).includes("/api/screener/ready")) return new Response(JSON.stringify(READY), { status: 200 });
+    if (String(url).includes("/api/screener/ratio-stats")) return new Response(JSON.stringify({ have: 4, total: 5, p2: 1, p5: 1, p25: 2, p50: 3, p75: 4, p95: 5, p98: 5, hist30: Array(30).fill(1), scale: "linear", values: [1, 2, 3, 4], example: null }), { status: 200 });
     if (!String(url).includes("/api/screener/query")) return new Response("{}", { status: 404 });
     const body = JSON.parse(String(init?.body || "{}")) as Body; st.bodies.push(body);
     if (st.many) return new Response(JSON.stringify({ total: st.total || st.many, offset: body.offset ?? 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: Array.from({ length: st.many }, (_, i) => (
@@ -99,15 +101,26 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     expect(document.querySelector(".fgx-kpi, .kpi")).toBeNull();                 // the stat tiles and the tall hero are gone
   });
 
-  it("the way into the Custom Ratio Screener is a real button (task #97), and pressing it opens the panel", async () => {
+  it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
     mount(); await ready();
-    const b = screen.getByRole("button", { name: "Open the Custom Ratio Screener" });
-    expect(b.tagName).toBe("BUTTON");
-    expect(b.className).toMatch(/btn primary/);
+    const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
+    expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
     expect(document.getElementById("scr-ratio")).toBeNull();
     fireEvent.click(b);
-    expect(document.getElementById("scr-ratio")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Go to the Custom Ratio Screener" })).toBeTruthy();
+    const dlg = screen.getByRole("dialog", { name: "Build a custom ratio" });
+    expect(document.getElementById("scr-ratio")).toBeNull();                                         // a drawer, not a section that pushes the table down
+    expect(within(dlg).queryByRole("button", { name: /^P\/E/ })).toBeNull();                         // P/E is behind the tick box (a ratio already)
+    fireEvent.click(within(dlg).getByRole("checkbox", { name: /Also show ratios, percentages and counts/ }));
+    fireEvent.click(within(dlg).getByRole("button", { name: /^P\/E/ }));
+    fireEvent.click(within(dlg).getByRole("button", { name: /^Return on equity/ }));
+    fireEvent.click(await within(dlg).findByRole("radio", { name: "No condition, just the column" }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "Add the column" }));
+    expect(screen.queryByRole("dialog", { name: "Build a custom ratio" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Custom ratio: P/E to return on equity" })).toBeTruthy();
+    expect(screen.getByText("P/E to return on equity (column)")).toBeTruthy();
+    await waitFor(() => expect(loc()).toContain("cr="));
+    await waitFor(() => expect(st.bodies.at(-1)!.ratios?.[0]).toMatchObject({ num: "pe", den: "roe", show: "times" }));
+    expect(screen.queryByRole("button", { name: /Run screener/ })).toBeNull();
   });
   it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
