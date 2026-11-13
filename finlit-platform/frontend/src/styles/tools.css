@@ -429,3 +429,31 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
   .cmpw .mt-h > span:first-child { display: none; }
   .cmpw .mt-h > span:not(:first-child) { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; font-size: var(--fs-12); line-height: 1.25; padding: 5px 8px; }
 }
+
+/* Task #116 (13 Nov 2026): the compact Peer Comparison header. It sticks under the site bar while the metrics scroll, and the column-aligned names row of each
+   tab (task #81, kept by the founder) sticks right under it (--cmp-peer, measured in Compare.tsx). Premium deep green in the dark theme, a light green wash in
+   the light theme; the first company's mark is green and the second's blue (the founder: on these chips only), C and D keep the page's own marks. */
+.cmpw { --peer-bg: linear-gradient(180deg, #E9F4EC, #E1EFE6); --peer-line: rgba(31, 107, 73, .22); --peer-ic: #1F6B49; --peer-chip: #FFFFFF; --peer-a: #1F8A55; --peer-b: #2F6FEB; }
+:root[data-theme="dark"] .cmpw { --peer-bg: linear-gradient(180deg, #0F2A1E, #0B2117); --peer-line: rgba(127, 216, 166, .22); --peer-ic: #7FD8A6; --peer-chip: rgba(255, 255, 255, .03); --peer-a: #7FD8A6; --peer-b: #4A93F0; }
+.cmpw .cmp-peer { position: sticky; top: var(--cmp-top, 62px); z-index: 6; display: flex; align-items: center; gap: 10px 18px; margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--peer-line); background: var(--peer-bg); box-shadow: 0 0 0 8px var(--bg), 0 8px 20px -14px rgba(0, 0, 0, .6); }
+.cmpw .cmp-peer-t { display: flex; align-items: center; gap: 12px; padding-right: 18px; border-right: 1px solid var(--peer-line); min-width: 0; flex: none; }
+.cmpw .cmp-peer-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; color: var(--peer-ic); background: color-mix(in srgb, var(--peer-ic) 12%, transparent); border: 1px solid var(--peer-line); }
+.cmpw .cmp-peer-ic svg { width: 20px; height: 20px; }
+.cmpw .cmp-peer-t b { display: block; font: 600 16px/1.25 var(--sans); color: var(--text); }
+.cmpw .cmp-peer-t small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--muted); }
+.cmpw .cmp-peer-cos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.cmpw .cmp-chip { --cc: var(--k2); display: inline-flex; align-items: center; gap: 9px; min-width: 0; max-width: 100%; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--cc) 45%, var(--peer-line)); background: var(--peer-chip); }
+.cmpw .cmp-chip.c0 { --cc: var(--peer-a); } .cmpw .cmp-chip.c1 { --cc: var(--peer-b); } .cmpw .cmp-chip.c3 { --cc: #8B6FE8; }   /* D: violet, so no two chips share a colour (the page's own D green is too close to A's); its triangle still matches D's mark below */
+.cmpw .cmp-chip .mk { flex: none; width: 12px; height: 12px; margin: 0; background: var(--cc); }
+.cmpw .cmp-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--text); }
+.cmpw .cmp-chip button { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; border: 0; background: none; color: var(--muted); cursor: pointer; font: 400 18px/1 var(--sans); }
+.cmpw .cmp-chip button:hover { color: var(--text); background: color-mix(in srgb, var(--cc) 14%, transparent); }
+.cmpw .cmp-chip button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 1px; }
+.cmpw .mt-h, .cmpw .sp-h { top: calc(var(--cmp-top, 62px) + var(--cmp-peer, 0px) + 8px); }
+@media (max-width: 760px) {
+  .cmpw .cmp-peer { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
+  .cmpw .cmp-peer-t { padding-right: 0; border-right: 0; gap: 10px; }
+  .cmpw .cmp-peer-ic { width: 32px; height: 32px; } .cmpw .cmp-peer-t small { display: none; }     /* compact on phones: the heading and the chips */
+  .cmpw .cmp-peer-cos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .cmpw .cmp-chip { padding: 4px 4px 4px 10px; } .cmpw .cmp-chip span { font-size: 13px; }
+}
