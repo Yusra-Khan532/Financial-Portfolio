@@ -4,7 +4,7 @@
    finlit_technicals/stress.py). Every number on the page is computed by the engine from the data; nothing is typed in. */
 export function mountStressLab(root, E, D, opts) {
   'use strict';
-  /* root: the ShadowRoot the page is drawn in. opts: { view, peer, logoUrl(symbol), search(q), onCompany(symbol), onPeer(symbol), requestPeer(), upgradeUrl }. */
+  /* root: the ShadowRoot the page is drawn in. opts: { view, peer, logoUrl(symbol), search(q), onCompany(symbol), onPeer(symbol), requestPeer(), peerStatus, onUpgrade(), upgradeUrl }. */
   var VIEW = opts.view || 'single', HOST = root.querySelector('.sl-root'), OFF = [];
   function listen(t, ty, fn, o) { t.addEventListener(ty, fn, o); OFF.push(function () { t.removeEventListener(ty, fn, o); }); }
   /* Plan: Silver gets Today (and Crude eases) plus the 2022 and 2020 presets, read-only; Gold gets everything.
@@ -19,24 +19,28 @@ export function mountStressLab(root, E, D, opts) {
   var M = '−';
 
   /* ------------------------------------------------------------------ formatting */
-  function sgn(v, d) { if (v === null || v === undefined || isNaN(v)) return '–'; d = d === undefined ? 1 : d; var t = Math.abs(v).toFixed(d); if (+t === 0) return (0).toFixed(d); return (v > 0 ? '+' : M) + t; }
-  function pct(v, d) { return v === null || v === undefined ? '–' : sgn(v, d) + '%'; }
-  function pt(v, d) { return v === null || v === undefined ? '–' : sgn(v, d) + ' pt'; }
-  function bps(v) { return sgn(v, 0) + ' bp'; }
-  function cr(v) { if (v === null || v === undefined) return '–'; var r = Math.round(Math.abs(v)); return (v < 0 && r > 0 ? M : '') + '₹' + r.toLocaleString('en-IN') + ' Cr'; }
-  function crn(v) { var r = Math.round(Math.abs(v)); return (v < 0 && r > 0 ? M : '') + r.toLocaleString('en-IN'); }
-  function rs(v) { return (v < 0 ? M : '') + '₹' + Math.abs(v).toFixed(2); }
-  function xx(v) { if (v === null || v === undefined) return 'no interest'; return (v < 1.5 && v.toFixed(1) === '1.5' ? v.toFixed(2) : v.toFixed(1)) + '×'; }
+  /* Every formatter answers '–' for a figure that is not there (null from the server, NaN or Infinity from a division by zero): never NaN, null or Infinity on the page. */
+  function fin(v) { return typeof v === 'number' && isFinite(v); }
+  function sgn(v, d) { if (!fin(v)) return '–'; d = d === undefined ? 1 : d; var t = Math.abs(v).toFixed(d); if (+t === 0) return (0).toFixed(d); return (v > 0 ? '+' : M) + t; }
+  function pct(v, d) { return !fin(v) ? '–' : sgn(v, d) + '%'; }
+  function pt(v, d) { return !fin(v) ? '–' : sgn(v, d) + ' pt'; }
+  function bps(v) { return !fin(v) ? '–' : sgn(v, 0) + ' bp'; }
+  /** % change from a to b, only when a is a positive base (from zero or from a loss a percentage says nothing). */
+  function chg(a, b) { return fin(a) && fin(b) && a > 0 ? (b / a - 1) * 100 : null; }
+  function cr(v) { if (!fin(v)) return '–'; var r = Math.round(Math.abs(v)); return (v < 0 && r > 0 ? M : '') + '₹' + r.toLocaleString('en-IN') + ' Cr'; }
+  function crn(v) { if (!fin(v)) return '–'; var r = Math.round(Math.abs(v)); return (v < 0 && r > 0 ? M : '') + r.toLocaleString('en-IN'); }
+  function rs(v) { if (!fin(v)) return '–'; return (v < 0 ? M : '') + '₹' + Math.abs(v).toFixed(2); }
+  function xx(v) { if (v === null || v === undefined) return 'no interest'; if (!fin(v)) return '–'; return (v < 1.5 && v.toFixed(1) === '1.5' ? v.toFixed(2) : v.toFixed(1)) + '×'; }
   var PHR = { demand: 'volumes', crude: 'crude oil', rupee: 'the rupee', inflation: 'wages and general inflation', commodities: 'metals and farm prices', interest: 'interest rates' };
   var PLURAL = { demand: 1, inflation: 1, commodities: 1, interest: 1 };
   function verb(k, one, many) { return PLURAL[k] ? many : one; }
-  function pc(v, d) { return v.toFixed(d === undefined ? 1 : d) + '%'; }
-  function share(v) { return Math.round(v * 100) + '%'; }
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function short(co) { return co.short || co.name.replace(/ Ltd\.?$/, ''); }
+  function pc(v, d) { if (!fin(v)) return '–'; return v.toFixed(d === undefined ? 1 : d) + '%'; }
+  function share(v) { if (!fin(v)) return '–'; return Math.round(v * 100) + '%'; }
+  function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function short(co) { return co.short || String(co.name || co.symbol).replace(/ Ltd\.?$/, ''); }
   function poss(co) { var n = typeof co === 'string' ? co : short(co); return n + (/s$/.test(n) ? '’' : '’s'); }
   function dt(iso) { if (!iso) return ''; var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; var p = iso.split('-'); return (+p[2]) + ' ' + m[+p[1] - 1] + ' ' + p[0]; }
-  function ib(text, pos, label) { return '<span class="ib" tabindex="0" role="button" aria-label="' + esc(label || 'About this') + '"><span class="ibi" aria-hidden="true">i</span><span class="tip ' + (pos || '') + '" role="tooltip">' + text + '</span></span>'; }
+  function ib(text, pos, label) { return '<span class="ib" tabindex="0" role="button" aria-expanded="false" aria-label="' + esc(label || 'About this') + '"><span class="ibi" aria-hidden="true">i</span><span class="tip ' + (pos || '') + '" role="tooltip">' + text + '</span></span>'; }
 
   var ICON = {
     ins: '<path d="M10 2.5a5 5 0 0 0-3 9v2.2h6v-2.2a5 5 0 0 0-3-9z"/><path d="M8 16.5h4"/>',
@@ -62,11 +66,17 @@ export function mountStressLab(root, E, D, opts) {
   var S = { scen: 'today', todayCrude: 'level', custom: null, persistence: 'one_year', edits: {}, open: false, unit: 'eps' };
   var SC = {}; D.scenarios.forEach(function (s) { SC[s.id] = s; });
   var A = D.company, B = opts.peer ? opts.peer.company : null, PEER_SC = {};
+  /* The model needs revenue and a share count: without them there is no EPS to stress, so the page says so instead of drawing NaN. */
+  function usable(co) { return !!co && fin(co.revenue) && co.revenue > 0 && fin(co.shares) && co.shares > 0 && !!co.exposure; }
+  var A_BAD = !usable(A), PEER_BAD = B && !usable(B) ? B : null;
+  if (PEER_BAD) B = null;
+  /* Gold, no second company yet: why not ('loading' | 'none' | 'preparing' | 'error'), so the page can say it at the top next to the "Compare with" box. */
+  var PEER_STATUS = PEER_BAD ? 'unusable' : B ? '' : (opts.peerStatus || '');
   if (opts.peer) opts.peer.scenarios.forEach(function (s) { PEER_SC[s.id] = s; });
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   function my(iso) { if (!iso) return ''; var p = String(iso).split('-'); return MON[+p[1] - 1] + ' ' + p[0]; }
   var SAMEQ = !!(opts.peer && opts.peer.same_quarter);
-  function shortName(co) { return co.name.replace(/ (Ltd|Limited)\.?$/i, ''); }
+  function shortName(co) { co.name = co.name || co.symbol; return co.name.replace(/ (Ltd|Limited)\.?$/i, ''); }
   A.short = shortName(A); if (B) B.short = shortName(B);
   var CHIPS = ['today', '2022', '2020', 'oil', 'rupee', 'rates', 'slowdown', 'custom'];
   var LOCKED = {}; (D.locked_scenarios || []).forEach(function (x) { LOCKED[x.id] = x.name; }); if (!GOLD) LOCKED.custom = 'Custom';
@@ -112,18 +122,19 @@ export function mountStressLab(root, E, D, opts) {
       ['Wholesale inflation', pt(s.wpi === null ? s.cpi : s.wpi), s.wpi === null ? s.cpi : s.wpi]
     ];
     if (s.agri !== null && s.agri !== undefined) items.push(['Farm prices', pt(s.agri), s.agri]);
-    items.push(['Interest rates', bps(s.rate_bp), s.rate_bp], ['Demand', pct(s.demand), s.demand], ['Investor caution', bps(s.erp_bp), s.erp_bp]);
+    items.push(['Interest rates', bps(s.rate_bp), s.rate_bp], ['Demand', pct(s.demand), s.demand]);
+    if (SHOWV) items.push(['Investor caution', bps(s.erp_bp), s.erp_bp]);   // it moves only the value move: hidden with it
     return items.map(function (i) { return '<span class="shock' + (Math.abs(i[2]) < 0.005 ? ' z' : '') + '">' + i[0] + ' <b>' + i[1] + '</b></span>'; }).join('');
   }
   function todayTable() {
-    var rows = D.today_rows.map(function (r) {
-      var sh = r.shock[0] === 'pct' ? pct(r.shock[1]) : r.shock[0] === 'pt' ? pt(r.shock[1]) : bps(r.shock[1]);
-      return '<tr><td class="l">' + r.driver + '</td><td class="r">' + r.now + (r.now_date ? ' <small>' + r.now_date + '</small>' : '') + '</td><td class="r">' + r.base + '</td><td class="r"><b>' + sh + '</b>' + (r.extra ? '<br><small>' + r.extra + '</small>' : '') + '</td><td><small>' + r.source + '</small></td></tr>';
+    var rows = (D.today_rows || []).filter(function (r) { return SHOWV || !/risk premium/i.test(r.driver || ''); }).map(function (r) {
+      var k = (r.shock || [])[0], v = (r.shock || [])[1], sh = k === 'pct' ? pct(v) : k === 'pt' ? pt(v) : bps(v);
+      return '<tr><td class="l">' + esc(r.driver) + '</td><td class="r">' + esc(r.now == null ? '–' : r.now) + (r.now_date ? ' <small>' + esc(r.now_date) + '</small>' : '') + '</td><td class="r">' + esc(r.base == null ? '–' : r.base) + '</td><td class="r"><b>' + sh + '</b>' + (r.extra ? '<br><small>' + esc(r.extra) + '</small>' : '') + '</td><td><small>' + esc(r.source) + '</small></td></tr>';
     }).join('');
     var eo = D.eia_outlook;
     return '<details class="fold"><summary>See today’s inputs: now against the base window</summary>' +
       '<div class="tw"><table class="t"><thead><tr><th>Driver</th><th class="r">Now</th><th class="r">Average, ' + D.base_window[0] + ' to ' + D.base_window[1] + '</th><th class="r">Shock</th><th>Source</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. ' + (eo && eo.brent ? '<b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return b.toFixed(2); }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. ' : '') + 'Data to ' + dt(D.as_of) + '.</p></details>';
+      '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. ' + (eo && eo.brent && eo.brent.length && fin(eo.avg) && SC.today_eia ? '<b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return fin(b) ? b.toFixed(2) : '–'; }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. ' : '') + 'Data to ' + dt(D.as_of) + '.</p></details>';
   }
   function renderScen() {
     var co = coA();
@@ -140,7 +151,7 @@ export function mountStressLab(root, E, D, opts) {
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + todaySeg +
       (GOLD ? '<button type="button" class="btn" id="adj" aria-expanded="' + (S.open || S.scen === 'custom') + '" aria-controls="sliders">' + svg('<path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2"/><circle cx="13" cy="14" r="2"/>', 14) + (S.open || S.scen === 'custom' ? 'Hide the sliders' : 'Adjust these shocks') + '</button>'
              : '<button type="button" class="btn lock" data-locked="sliders" aria-disabled="true" aria-describedby="upnote">' + svg('<path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2"/><circle cx="13" cy="14" r="2"/>', 14) + 'Adjust these shocks' + gtag() + '</button>') + '</div>';
-    var up = $('upnote'); if (up) { up.hidden = GOLD; if (!GOLD) up.innerHTML = '<span>' + svg(ICON.ins) + '<span><b>Silver shows Today and two past shocks.</b> Gold adds the oil, rupee, rates and demand scenarios, your own shocks with the sliders, your own company settings, and Compare two.</span></span><a class="btn" href="#">See what Gold adds</a>'; }
+    var up = $('upnote'); if (up) { up.hidden = GOLD; if (!GOLD) up.innerHTML = '<span>' + svg(ICON.ins) + '<span><b>Silver shows Today and two past shocks.</b> Gold adds the oil, rupee, rates and demand scenarios, your own shocks with the sliders, your own company settings, and Compare two.</span></span><a class="btn" href="' + esc(opts.upgradeUrl || '/plans') + '" data-upgrade="1">See what Gold adds</a>'; }
     $('todayinputs').innerHTML = S.scen === 'today' ? todayTable() : '';
     var show = S.open || S.scen === 'custom';
     var sl = $('sliders'); sl.hidden = !show;
@@ -215,11 +226,11 @@ export function mountStressLab(root, E, D, opts) {
       '<p class="why">' + esc(r.label_reason) + '.</p><p class="why" style="margin-top:2px">Resilience score' + ib('A score out of 100 for how well earnings withstand this shock: near 100 when earnings barely move, lower the more they fall. It is held low when operating profit would barely cover interest.', 'lt', 'About the resilience score') + '</p></div></div>' +
       '<p class="sentence">Under ' + scName(sc) + ', ' + poss(co) + ' earnings per share ' + moveWord(r) + ' over the next 12 months.</p></div>' +
       '<div><div class="kpis' + (SHOWV ? '' : ' k4') + '">' +
-      kpi('EPS', pct(cp.eps), cp.eps, rs(b.eps) + ' → ' + rs(s.eps), 'Earnings per share. Model EPS on the last four quarters: ' + rs(b.eps) + '. Reported EPS for the same quarters is ' + rs(co.reported_eps || b.eps) + '; the model leaves out exceptional items and minority interests.') +
+      kpi('EPS', pct(cp.eps), cp.eps, rs(b.eps) + ' → ' + rs(s.eps), 'Earnings per share. Model EPS on the last four quarters: ' + rs(b.eps) + '. ' + (fin(co.reported_eps) ? 'Reported EPS for the same quarters is ' + rs(co.reported_eps) + '; the model leaves out exceptional items and minority interests.' : 'The company’s reported EPS for these quarters is not on file.')) +
       kpi('EBITDA', pct(cp.ebitda), cp.ebitda, cr(b.ebitda) + ' → ' + cr(s.ebitda), 'Operating profit before depreciation, interest and tax.') +
       kpi('EBITDA margin', pc(s.ebitda_margin_pct), cp.margin_pts, 'from ' + pc(b.ebitda_margin_pct) + ' · ' + pt(cp.margin_pts), 'EBITDA as a share of revenue. Revenue rises when prices go up to recover costs, so the margin can fall even when revenue grows.') +
       kpi('Interest cover', xx(s.interest_cover), s.interest_cover !== null && s.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(b.interest_cover), 'How many times operating profit (EBITDA plus other income, less depreciation) covers interest. Under 1.5× is labelled <b>Debt cover at risk</b>.') +
-      (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, other ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(other.move_pct) : '', valTip, 'rt') : '') +
+      (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && other ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(other.move_pct) : r.value ? '' : 'not worked out: loss in the base period', valTip, 'rt') : '') +
       '</div>' + sureHtml(co, sc, r) + editedHtml() + '</div></div>';
   }
   function kpi(l, v, sign, s, tip, pos) {
@@ -281,12 +292,13 @@ export function mountStressLab(root, E, D, opts) {
     if (w.cost_increase_total_rs_cr > 1) out.push({ k: 'ins', p: 4, t: 'Prices recover ' + share(w.share_recovered) + ' of the cost rise', d: 'Input costs rise ' + cr(w.cost_increase_total_rs_cr) + '; about ' + cr(w.recovered_through_prices_rs_cr) + ' comes back through higher prices within the year and ' + cr(w.cost_increase_total_rs_cr - w.recovered_through_prices_rs_cr) + ' is absorbed.' });
     else if (w.cost_increase_total_rs_cr < -1) out.push({ k: 'good', p: 4, t: 'Costs fall by ' + cr(-w.cost_increase_total_rs_cr), d: 'About ' + share(w.share_recovered) + ' of the saving is passed on to customers as lower prices; the rest stays in profit.' });
     var netCash = co.cash - co.debt;
-    if (!hasDebt || (cov !== null && cov >= 8)) out.push({ k: 'good', p: 5, t: 'Debt is not a pressure point', d: (netCash > 0 ? 'Cash and investments exceed debt by ' + cr(netCash) + ', and o' : 'O') + 'perating profit covers interest ' + xx(cov) + ' after the shock.' });
+    if (!hasDebt || (cov !== null && cov >= 8)) out.push({ k: 'good', p: 5, t: 'Debt is not a pressure point', d: !hasDebt ? (co.debt > 0 ? 'It reports no interest cost on its debt of ' + cr(co.debt) + (netCash > 0 ? ', and cash and investments exceed that debt by ' + cr(netCash) : '') + '.' : 'It has no borrowings, so there is no interest to cover' + (co.cash > 0 ? ', and its cash and investments come to ' + cr(co.cash) : '') + '.')
+      : (netCash > 0 ? 'Cash and investments exceed debt by ' + cr(netCash) + ', and o' : 'O') + 'perating profit covers interest ' + xx(cov) + ' after the shock.' });
     else if (hasDebt && cov !== null && cov >= 1.5 && cov < 3) out.push({ k: 'watch', p: 2, t: 'Interest cover gets thin: ' + xx(cov), d: 'Operating profit would cover interest ' + xx(cov) + ', from ' + xx(r.base.interest_cover) + '. Under 1.5× it would read <b>Debt cover at risk</b>.' });
     if (poss.length) out.push({ k: 'good', p: 6, t: cap(PHR[poss[0].key]) + verb(poss[0].key, ' helps', ' help'), d: sgn(poss[0].eps_pct) + ' points of EPS' + (poss[0].key === 'interest' && netCash > 0 ? ': with more cash than debt, higher rates add more to interest earned than to interest paid.' : poss[0].key === 'demand' ? ' from higher volumes.' : '.') });
     var o = r.value_other_persistence;
     if (SHOWV && r.value && o && Math.abs(o.move_pct - r.value.move_pct) >= 5 && S.persistence === 'one_year') out.push({ k: 'watch', p: 7, t: 'If the hit lasts, value moves ' + pct(o.move_pct), d: 'The value move of ' + pct(r.value.move_pct) + ' assumes earnings get back on their path after a year. If the lower earnings last, it is ' + pct(o.move_pct) + '.' });
-    if (SHOWV && r.value && sc.rate_bp >= 100 && Math.abs(e) < 3 && r.value.move_pct < -5) out.push({ k: 'ins', p: 3, t: 'Earnings barely move; value falls', d: 'Higher rates barely touch earnings here, but they raise the return investors ask for, so the value move is ' + pct(r.value.move_pct) + '.' });
+    if (SHOWV && r.value && e !== null && sc.rate_bp >= 100 && Math.abs(e) < 3 && r.value.move_pct < -5) out.push({ k: 'ins', p: 3, t: 'Earnings barely move; value falls', d: 'Higher rates barely touch earnings here, but they raise the return investors ask for, so the value move is ' + pct(r.value.move_pct) + '.' });
     out.sort(function (a, b) { return a.p - b.p; });
     var g = 0; out = out.filter(function (c) { return c.k !== 'good' || ++g <= (e !== null && e <= -10 ? 1 : 2); });
     return out.slice(0, 4);
@@ -299,7 +311,7 @@ export function mountStressLab(root, E, D, opts) {
     if (Math.abs(cp.revenue) >= 0.05 || Math.abs(cp.ebitda || 0) >= 0.05) {
       var why = w.volume_change_pct <= -0.5 ? 'volumes fall ' + Math.abs(w.volume_change_pct).toFixed(1) + '%' : w.volume_change_pct >= 0.5 ? 'volumes rise ' + w.volume_change_pct.toFixed(1) + '%' : '';
       var pr = w.recovered_through_prices_rs_cr > 1 ? short(co) + ' raises prices to recover part of higher costs' : w.recovered_through_prices_rs_cr < -1 ? 'it passes part of lower costs on as lower prices' : '';
-      P.push('<b>What changes.</b> Revenue moves ' + pct(cp.revenue) + (why || pr ? ' as ' + [why, pr].filter(Boolean).join(' and ') : '') + '. EBITDA moves ' + pct(cp.ebitda) + ', so the margin goes from ' + pc(b.ebitda_margin_pct) + ' to ' + pc(s.ebitda_margin_pct) + ' (' + pt(cp.margin_pts) + '). After depreciation, interest and tax, earnings per share move ' + pct(cp.eps) + '.');
+      P.push('<b>What changes.</b> Revenue moves ' + pct(cp.revenue) + (why || pr ? ' as ' + [why, pr].filter(Boolean).join(' and ') : '') + '. EBITDA ' + (cp.ebitda !== null ? 'moves ' + pct(cp.ebitda) : 'goes from ' + cr(b.ebitda) + ' to ' + cr(s.ebitda)) + ', so the margin goes from ' + pc(b.ebitda_margin_pct) + ' to ' + pc(s.ebitda_margin_pct) + ' (' + pt(cp.margin_pts) + '). After depreciation, interest and tax, earnings per share ' + (cp.eps !== null ? 'move ' + pct(cp.eps) : 'go from ' + rs(b.eps) + ' to ' + rs(s.eps) + ' (no percentage: the base period was a loss)') + '.');
     } else P.push('<b>What changes.</b> Revenue and operating profit do not move under this shock; only interest and the value step do.');
     if (Math.abs(costs) > 1) {
       var parts = ['crude', 'inflation', 'rupee', 'commodities'].map(function (k) { return [k, w.cost_increase_rs_cr[k]]; }).filter(function (x) { return Math.abs(x[1]) >= 1; }).sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); });
@@ -349,15 +361,15 @@ export function mountStressLab(root, E, D, opts) {
       ['Revenue', cr(b.revenue), cr(s.revenue), pct(cp.revenue), cp.revenue, ''],
       ['EBITDA', cr(b.ebitda), cr(s.ebitda), pct(cp.ebitda), cp.ebitda, ''],
       ['EBITDA margin', pc(b.ebitda_margin_pct), pc(s.ebitda_margin_pct), pt(cp.margin_pts), cp.margin_pts, ''],
-      ['Other income', cr(b.other_income), cr(s.other_income), pct((s.other_income / b.other_income - 1) * 100), s.other_income - b.other_income, 'Interest and dividends on cash and investments, which earn more when rates rise.'],
+      ['Other income', cr(b.other_income), cr(s.other_income), pct(chg(b.other_income, s.other_income)), s.other_income - b.other_income, 'Interest and dividends on cash and investments, which earn more when rates rise.' + (b.other_income > 0 ? '' : ' There was no other income in the base period, so the change has no percentage.')],
       ['Depreciation', cr(b.depreciation), cr(s.depreciation), '0.0%', 0, 'Held at the base level for the year.'],
-      ['Interest', cr(b.interest), cr(s.interest), b.interest > 0 ? pct((s.interest / b.interest - 1) * 100) : '–', -(s.interest - b.interest), share(co.exposure.floating_debt) + ' of debt is assumed to reset to the new rate within the year.'],
-      ['Profit before tax', cr(b.pbt), cr(s.pbt), pct((s.pbt / b.pbt - 1) * 100), s.pbt - b.pbt, ''],
-      ['Earnings per share', rs(b.eps), rs(s.eps), pct(cp.eps), cp.eps, 'After tax at ' + pc(co.tax_rate * 100) + ', the rate the company paid over the last four quarters, on ' + co.shares.toFixed(2) + ' Cr shares.'],
+      ['Interest', cr(b.interest), cr(s.interest), pct(chg(b.interest, s.interest)), -(s.interest - b.interest), co.debt > 0 ? share(co.exposure.floating_debt) + ' of debt is assumed to reset to the new rate within the year.' : 'No borrowings on the latest balance sheet.'],
+      ['Profit before tax', cr(b.pbt), cr(s.pbt), pct(chg(b.pbt, s.pbt)), s.pbt - b.pbt, b.pbt > 0 ? '' : 'A loss before tax in the base period, so the change has no percentage.'],
+      ['Earnings per share', rs(b.eps), rs(s.eps), pct(cp.eps), cp.eps, 'After tax at ' + pc(co.tax_rate * 100) + ', the rate the company paid over the last four quarters, on ' + (fin(co.shares) ? co.shares.toFixed(2) : '–') + ' Cr shares.'],
       ['Interest cover', xx(b.interest_cover), xx(s.interest_cover), s.interest_cover !== null && b.interest_cover !== null ? sgn(s.interest_cover - b.interest_cover) + '×' : '–', (s.interest_cover || 0) - (b.interest_cover || 0), '']
     ];
     var body = rows.map(function (x, i) {
-      var cls = Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up';
+      var cls = !fin(x[4]) || Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up';
       return '<tr' + (i === 7 ? ' class="hl"' : '') + '><td class="l">' + x[0] + (x[5] ? ib(x[5], 'lt', 'About ' + x[0]) : '') + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + cls + '">' + x[3] + '</td></tr>';
     }).join('');
     var v = SHOWV && r.value ? '<tr><td class="l">Value move under these assumptions' + ib('An earnings-based value, not a price estimate, and never applied to the share price. ' + (S.persistence === 'one_year' ? 'Assumes earnings get back on their path after a year.' : 'Assumes the lower earnings last.'), 'lt', 'About the value move') + '</td><td class="r">–</td><td class="r">–</td><td class="r' + (r.value.move_pct < -0.05 ? ' dn' : r.value.move_pct > 0.05 ? ' up' : '') + '">' + pct(r.value.move_pct) + '</td></tr>' : '';
@@ -390,31 +402,36 @@ export function mountStressLab(root, E, D, opts) {
     return [lo, hi, fl, fh];
   }
   function renderDrivers(r, co) {
-    var eps = S.unit === 'eps';
+    var noEps = r.change_pct.eps === null, eps = S.unit === 'eps' && !noEps;   // a loss in the base period: EPS points say nothing, the bars are in ₹ Cr
     var items = r.drivers.map(function (d) {
       var v = eps ? d.eps_pct : d.rs_cr; d = Object.assign({}, d, { name: d.key === 'demand' ? 'Volumes' : d.name });
       var c = r.working.cost_increase_rs_cr[d.key];
-      return { n: d.name, v: v, f: eps ? sgn(v) + ' pt' : cr(v), tip: d.name + ': ' + sgn(d.eps_pct) + ' points of EPS, ' + cr(d.rs_cr) + ' of profit before tax' + (c && Math.abs(c) >= 1 ? '. Costs change ' + cr(c) + ' before price rises.' : '.') };
+      return { n: d.name, v: v, f: eps ? sgn(v) + ' pt' : cr(v), tip: d.name + ': ' + (d.eps_pct === null ? '' : sgn(d.eps_pct) + ' points of EPS, ') + cr(d.rs_cr) + ' of profit before tax' + (c && Math.abs(c) >= 1 ? '. Costs change ' + cr(c) + ' before price rises.' : '.') };
     });
     var tot = eps ? r.change_pct.eps : r.stressed.pbt - r.base.pbt;
     $('drv').innerHTML = '<div class="ptop" style="align-items:center"><div><h2>What drives it' + ib('Each bar is one driver’s effect, after any cost it recovers through prices. In <b>EPS points</b> they add up to the change in earnings per share; in <b>₹ Cr</b> to the change in profit before tax.', 'lt', 'About what drives it') + '</h2><p class="sub">Sorted from the biggest drag</p></div>' +
-      '<span class="seg sm" role="group" aria-label="Units"><button type="button" data-unit="eps" aria-pressed="' + eps + '">EPS points</button><button type="button" data-unit="cr" aria-pressed="' + !eps + '">₹ Cr</button></span></div>' +
+      '<span class="seg sm" role="group" aria-label="Units"><button type="button" data-unit="eps" aria-pressed="' + eps + '"' + (noEps ? ' disabled title="EPS points need a profit in the base period"' : '') + '>EPS points</button><button type="button" data-unit="cr" aria-pressed="' + !eps + '">₹ Cr</button></span></div>' +
       barsHtml(items, eps ? 'pt' : 'cr', { total: tot, totalName: eps ? 'Change in EPS' : 'Change in profit before tax', totalF: eps ? pct(tot) : cr(tot), totalTip: 'Total: ' + (eps ? pct(tot) + ' change in EPS' : cr(tot) + ' change in profit before tax') }) +
-      '<div class="legend"><span><i style="background:var(--dn)"></i>Lowers earnings</span><span><i style="background:var(--up)"></i>Adds to earnings</span></div>';
+      '<div class="legend"><span><i style="background:var(--dn)"></i>Lowers earnings</span><span><i style="background:var(--up)"></i>Adds to earnings</span></div>' +
+      (noEps ? '<p class="note">Shown in ₹ Cr: the base period was a loss, so points of EPS cannot be worked out.</p>' : '');
   }
   function renderSens(co) {
     var sv = E.sensitivities(co).slice().sort(function (a, b) { return Math.abs(b.eps_pct) - Math.abs(a.eps_pct); });
-    var bp = E.breakingPoints(co), baseBrent = D.today_inputs.brent_base;
+    var bp = E.breakingPoints(co), baseBrent = (D.today_inputs || {}).brent_base;
+    if (sv.every(function (d) { return d.eps_pct === null; })) {   // a loss in the base period: no EPS change to measure and no EPS to halve
+      $('sens').innerHTML = '<h2>What moves ' + esc(short(co)) + ' most</h2><p class="sub">' + esc(short(co)) + ' made a loss over the last four quarters, so the EPS change for each driver and the breaking points cannot be worked out. The bars under What drives it show each driver in ₹ Cr.</p>';
+      return;
+    }
     var items = sv.map(function (d) { return { n: d.name, v: d.eps_pct, f: pct(d.eps_pct), tip: d.name + ', on its own: EPS ' + pct(d.eps_pct) }; });
     var top = sv[0], crude = sv.filter(function (x) { return x.key === 'crude'; })[0];
     var tile = function (l, v, s) { return '<div class="bp"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>'; };
     var netCash = co.cash > co.debt;
     $('sens').innerHTML = '<h2>What moves ' + short(co) + ' most' + ib('Each driver moved by one step on its own, with every other shock at zero, from the last four quarters. Shows which shocks this business is most sensitive to.', 'lt', 'About this chart') + '</h2><p class="sub">EPS change for one step in each driver, alone</p>' +
       barsHtml(items, 'pct') +
-      (top.key !== 'crude' && crude ? '<p class="note"><b>' + top.name + '</b> cuts EPS ' + Math.abs(top.eps_pct).toFixed(1) + '%, more than crude oil 10% higher (' + pct(crude.eps_pct) + ').</p>' : '') +
+      (top.key !== 'crude' && crude && top.eps_pct < 0 && fin(crude.eps_pct) ? '<p class="note"><b>' + top.name + '</b> cuts EPS ' + Math.abs(top.eps_pct).toFixed(1) + '%, more than crude oil 10% higher (' + pct(crude.eps_pct) + ').</p>' : '') +
       '<h3 style="margin-top:18px">Breaking points' + ib('The size of one shock, on its own, that would halve earnings per share or take interest cover below 1.5×.', 'lt', 'About breaking points') + '</h3>' +
       '<div class="bps">' +
-      tile('Crude rise that halves EPS', bp.crude_pct === null ? 'None found' : pct(bp.crude_pct, 0), bp.crude_pct === null ? 'within the range tested' : 'Brent at about US$' + Math.round(baseBrent * (1 + bp.crude_pct / 100)) + ', from US$' + baseBrent.toFixed(2)) +
+      tile(bp.crude_pct !== null && bp.crude_pct < 0 ? 'Crude fall that halves EPS' : 'Crude rise that halves EPS', bp.crude_pct === null ? 'None found' : pct(bp.crude_pct, 0), bp.crude_pct === null ? 'within the range tested' : fin(baseBrent) ? 'Brent at about US$' + Math.round(baseBrent * (1 + bp.crude_pct / 100)) + ', from US$' + baseBrent.toFixed(2) : 'against the base-window Brent price') +
       tile('Volume fall that halves EPS', bp.demand_pct === null ? 'None found' : pct(bp.demand_pct, 0), bp.demand_pct === null ? 'within the range tested' : 'for ' + short(co) + ', on its own') +
       tile('Rate rise that takes cover under 1.5×', bp.rate_bp === null ? 'None' : '+' + Math.round(bp.rate_bp).toLocaleString('en-IN') + ' bp', bp.rate_bp === null ? (netCash ? 'more cash than debt' : 'within the range tested') : 'from ' + xx(E.run(co, { crude: 0 }).base.interest_cover) + ' today') +
       '</div>';
@@ -428,42 +445,59 @@ export function mountStressLab(root, E, D, opts) {
     }).join('') + Object.keys(LOCKED).filter(function (id) { return id !== 'custom'; }).map(function (id) {
       return '<tr class="lockrow"><td class="l">' + esc(LOCKED[id]) + '</td><td colspan="' + (SHOWV ? 6 : 5) + '">' + gtag() + ' <small>Included with Gold</small></td></tr>';
     }).join('');
-    var worst = ids.map(function (id) { var sc = id === 'custom' ? S.custom : scenOf(id); return [id, E.run(co, sc).change_pct.eps]; }).sort(function (a, b) { return a[1] - b[1]; })[0];
-    $('every').innerHTML = '<h2>Every scenario at a glance' + ib('The same company under each scenario, with today’s settings. Pick a row to see it in full.', 'lt', 'About this table') + '</h2><p class="sub">Pick a row to open it. The hardest for ' + short(co) + ' is ' + (worst[0] === 'custom' ? 'your custom shock' : '‘' + SC[worst[0]].name + '’') + ' (EPS ' + pct(worst[1]) + ').</p>' +
+    var worst = ids.map(function (id) { var sc = id === 'custom' ? S.custom : scenOf(id); return [id, E.run(co, sc).change_pct.eps]; }).filter(function (x) { return x[1] !== null; }).sort(function (a, b) { return a[1] - b[1]; })[0];
+    $('every').innerHTML = '<h2>Every scenario at a glance' + ib('The same company under each scenario, with today’s settings. Pick a row to see it in full.', 'lt', 'About this table') + '</h2><p class="sub">Pick a row to open it.' + (worst ? ' The hardest for ' + esc(short(co)) + ' is ' + (worst[0] === 'custom' ? 'your custom shock' : '‘' + esc(SC[worst[0]].name) + '’') + ' (EPS ' + pct(worst[1]) + ').' : '') + '</p>' +
       '<div class="tw"><table class="t"><thead><tr><th>Scenario</th><th class="r">EPS change</th><th class="r">EBITDA margin after</th><th class="r">Interest cover after</th>' + (SHOWV ? '<th class="r">Value move</th>' : '') + '<th class="r">Score</th><th>Label</th></tr></thead><tbody>' + body + '</tbody></table></div>';
   }
   function renderHist(cos) {
-    var H = D.history, last = D.as_of || '2026-10-29', NO = { fall_pct: null, back: null };
-    var rows = H.map(function (h) {
+    var H = D.history || [], last = D.as_of || '2026-10-29', NO = { fall_pct: null, back: null };
+    var head = '<h2>What happened in real shocks' + ib('Share prices, not earnings. For each episode: the largest fall from a closing high to a later closing low inside the window, and the first close back at that high. From weekly closes; the 2026 row runs to the latest close.', 'lt', 'About this table') + '</h2>';
+    var priced = function (c) { return H.some(function (h) { return h[c.symbol]; }); };
+    if (!H.length || (!H.some(function (h) { return h.nifty; }) && !cos.some(priced))) {   // a fresh server: no share prices stored yet
+      $('hist').innerHTML = head + '<p class="sub">The weekly share prices for these episodes are not on file yet, so the falls cannot be shown.</p>'; return;
+    }
+    // a company with prices from a later date was listed later; one with no prices at all has none on file
+    var firstWith = function (c) { for (var i = 0; i < H.length; i++) if (H[i][c.symbol]) return i; return -1; };
+    var back = function (x) { return !fin(x.fall_pct) ? '–' : x.fall_pct === 0 ? 'No fall' : x.back ? dt(x.back) : 'Not yet, by ' + dt(last); };
+    var rows = H.map(function (h, i) {
       var so = h.to > last, nf = h.nifty || NO, rng = dt(h.from).replace(/ \d{4}$/, '') + ' to ' + (so ? dt(last) : dt(h.to));
-      var back = function (x) { return x.fall_pct === null ? '–' : x.back ? dt(x.back) : 'Not yet, by ' + dt(last); };
       var cells = cos.map(function (c) {
-        var x = h[c.symbol];
-        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x) + '</small></td>' : '<td class="r" colspan="2"><small>' + 'Listed later' + '</small></td>';
+        var x = h[c.symbol], f = firstWith(c);
+        return x ? '<td class="r' + (x.fall_pct < 0 ? ' dn' : '') + '">' + pct(x.fall_pct) + '</td><td class="r"><small>' + back(x) + '</small></td>' : '<td class="r" colspan="2"><small>' + (f > i ? 'Listed later' : 'No prices on file') + '</small></td>';
       }).join('');
-      return '<tr><td class="l">' + esc(h.episode.replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf) + '</small></td>' + cells + '</tr>';
+      return '<tr><td class="l">' + esc(String(h.episode || '').replace('2026 so far', '2026 oil spike, so far')) + '<br><small>' + rng + '</small></td><td class="r">' + pct(nf.fall_pct) + '</td><td class="r"><small>' + back(nf) + '</small></td>' + cells + '</tr>';
     }).join('');
     var a = cos[0], less = [], more = [], faster = 0, both = 0;
-    H.forEach(function (h) { var x = h[a.symbol]; if (!x || !h.nifty || h.nifty.fall_pct === null) return; var y = h.episode.slice(0, 4); (x.fall_pct > h.nifty.fall_pct ? less : more).push(y); if (x.back && h.nifty.back) { both++; if (x.back < h.nifty.back) faster++; } });
-    var line = short(a) + ' fell less than the Nifty 50 in ' + (less.length ? less.join(' and ') : 'none of these episodes') + (more.length ? ' and more in ' + more.join(', ').replace(/, (\d+)$/, ' and $1') : '') + '.' + (both && faster === both ? ' Each time both recovered, it was back at its high first.' : '');
-    $('hist').innerHTML = '<h2>What happened in real shocks' + ib('Share prices, not earnings. For each episode: the largest fall from a closing high to a later closing low inside the window, and the first close back at that high. From weekly closes; the 2026 row runs to the latest close.', 'lt', 'About this table') + '</h2><p class="sub">Largest fall from a closing high inside each episode, and when the price first closed back at that high</p>' +
+    H.forEach(function (h) { var x = h[a.symbol]; if (!x || !fin(x.fall_pct) || !h.nifty || !fin(h.nifty.fall_pct)) return; var y = String(h.episode).slice(0, 4); (x.fall_pct > h.nifty.fall_pct ? less : more).push(y); if (x.back && h.nifty.back) { both++; if (x.back < h.nifty.back) faster++; } });
+    var n = less.length + more.length;
+    var line = esc(short(a)) + ' fell less than the Nifty 50 in ' + (less.length ? less.join(' and ') : 'none of these episodes') + (more.length ? ' and more in ' + more.join(', ').replace(/, (\d+)$/, ' and $1') : '') + '.' + (both && faster === both ? ' Each time both recovered, it was back at its high first.' : '');
+    $('hist').innerHTML = head + '<p class="sub">Largest fall from a closing high inside each episode, and when the price first closed back at that high</p>' +
       '<div class="tw"><table class="t"><thead><tr><th>Episode</th><th class="r">Nifty 50</th><th class="r">Back at its high</th>' + cos.map(function (c) { return '<th class="r">' + esc(short(c)) + '</th><th class="r">Back at its high</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'ins', t: (more.length >= less.length ? 'Fell more than the Nifty 50 in ' + more.length : 'Fell less than the Nifty 50 in ' + less.length) + ' of ' + (more.length + less.length) + ' episodes', d: line + ' Past falls show how the shares behaved, not what happens next.' }) + '</div>';
+      (n ? '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'ins', t: (more.length >= less.length ? 'Fell more than the Nifty 50 in ' + more.length : 'Fell less than the Nifty 50 in ' + less.length) + ' of ' + n + ' episode' + (n > 1 ? 's' : ''), d: line + ' Past falls show how the shares behaved, not what happens next.' }) + '</div>'
+         : '<p class="note">' + esc(short(a)) + ' and the Nifty 50 cannot be set side by side here: one of the two has no prices on file for these episodes.</p>');
   }
   function renderBT() {
-    var bt = D.backtest, sm = bt.summary && bt.summary.all_years, lq = bt.latest_quarter;
-    if (!bt.years || !bt.years.length || !sm) { $('bt').innerHTML = '<h2>How the model did on ' + poss(A) + ' past years</h2><p class="sub">There are not enough past years of results to test the model on this company yet.</p>'; return; }
+    var bt = D.backtest || {}, sm = bt.summary && bt.summary.all_years, lq = bt.latest_quarter;
+    if (!bt.years || !bt.years.length || !sm || !sm.years) { $('bt').innerHTML = '<h2>How the model did on ' + poss(A) + ' past years</h2><p class="sub">There are not enough past years of results to test the model on this company yet.</p>'; return; }
     var rows = bt.years.map(function (y) {
       var right = (y.change_predicted_pts >= 0) === (y.change_reported_pts >= 0);
       return '<tr><td class="l">' + y.from + ' to ' + y.to + '</td><td class="r">' + pct(y.input_inflation_pct) + '</td><td class="r">' + pc(y.margin_before) + '</td><td class="r">' + pt(y.change_predicted_pts) + '</td><td class="r">' + pt(y.change_reported_pts) + '</td><td class="r">' + sgn(y.error_pts) + '</td><td>' + (right ? '<span class="pill g">Right direction</span>' : '<span class="pill a">Wrong direction</span>') + '</td></tr>';
     }).join('');
     var miss = bt.years.slice().sort(function (a, b) { return Math.abs(b.error_pts) - Math.abs(a.error_pts); })[0];
+    var span = bt.years[0].from + ' to ' + bt.years[bt.years.length - 1].to;   // the years this company has, not a fixed range
+    // the big shock year, FY22: said only from this company's own FY22 row
+    var y22 = bt.years.filter(function (y) { return y.to === 'FY22'; })[0], fy22 = '';
+    if (y22 && y22 !== miss && fin(y22.change_predicted_pts) && fin(y22.change_reported_pts)) {
+      var r22 = (y22.change_predicted_pts >= 0) === (y22.change_reported_pts >= 0), p22 = Math.abs(y22.change_predicted_pts), a22 = Math.abs(y22.change_reported_pts);
+      fy22 = ' The big shock year, FY22, is called in the ' + (r22 ? 'right direction' + (p22 < a22 - 0.05 ? ' but under-stated' : p22 > a22 + 0.05 ? ' but over-stated' : '') : 'wrong direction') + '.';
+    }
+    var lqOk = lq && fin(lq.predicted) && fin(lq.reported);
     var cy = (D.calibration_years || []).filter(function (y) { return y.year === miss.to; })[0];
     var tile = function (l, v, s) { return '<div class="bp"><span class="l">' + l + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>'; };
-    $('bt').innerHTML = '<h2>How the model did on ' + poss(A) + ' past years' + ib('Each year starts from the figures as reported and applies what actually happened to crude, the rupee and prices over the next year. It uses the ' + (A.industry || 'industry') + ' pass-through, not ' + poss(A) + ' own estimate, so the test is not tuned to the company.', 'lt', 'About the back-test') + '</h2><p class="sub">Predicted against reported change in the EBITDA margin, FY19 to FY26</p>' +
-      '<div class="sumt">' + tile('Direction right', sm.direction_right + ' of ' + sm.years + ' years', 'whether the margin rose or fell') + tile('Average gap', sm.mean_abs_error_pts.toFixed(1) + ' pt', 'against an average move of ' + sm.mean_abs_change_reported_pts.toFixed(1) + ' pt') +
-      (lq && lq.predicted != null ? tile('Latest quarter, not used to build it', pc(lq.predicted) + ' vs ' + pc(lq.reported), 'margin predicted vs reported, ' + lq.to + ', from ' + pc(lq.margin_before)) : '') + '</div>' +
-      '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'watch', t: miss.to + ' is the biggest miss: ' + sgn(miss.error_pts) + ' pt', d: (cy && cy.catch_up_year ? 'Prices kept rising after input costs had stopped, as ' + short(A) + ' caught up on the year before. A 12-month model with no memory of last year cannot see that. ' : 'The model’s 12-month view missed the size of this move. ') + 'The big shock year, FY22, is called in the right direction but under-stated.' }) + '</div>' +
+    $('bt').innerHTML = '<h2>How the model did on ' + poss(A) + ' past years' + ib('Each year starts from the figures as reported and applies what actually happened to crude, the rupee and prices over the next year. It uses the ' + (A.industry || 'industry') + ' pass-through, not ' + poss(A) + ' own estimate, so the test is not tuned to the company.', 'lt', 'About the back-test') + '</h2><p class="sub">Predicted against reported change in the EBITDA margin, ' + esc(span) + '</p>' +
+      '<div class="sumt">' + tile('Direction right', sm.direction_right + ' of ' + sm.years + ' years', 'whether the margin rose or fell') + tile('Average gap', (fin(sm.mean_abs_error_pts) ? sm.mean_abs_error_pts.toFixed(1) : '–') + ' pt', 'against an average move of ' + (fin(sm.mean_abs_change_reported_pts) ? sm.mean_abs_change_reported_pts.toFixed(1) : '–') + ' pt') +
+      (lqOk ? tile('Latest quarter, not used to build it', pc(lq.predicted) + ' vs ' + pc(lq.reported), 'margin predicted vs reported' + (lq.to ? ', ' + esc(lq.to) : '') + (fin(lq.margin_before) ? ', from ' + pc(lq.margin_before) : '')) : '') + '</div>' +
+      '<div class="calls" style="margin-top:12px;grid-template-columns:1fr">' + call({ k: 'watch', t: miss.to + ' is the biggest miss: ' + sgn(miss.error_pts) + ' pt', d: (cy && cy.catch_up_year ? 'Prices kept rising after input costs had stopped, as ' + esc(short(A)) + ' caught up on the year before. A 12-month model with no memory of last year cannot see that.' : 'The model’s 12-month view missed the size of this move.') + fy22 }) + '</div>' +
       '<details class="fold"><summary>See every year</summary><div class="tw"><table class="t"><thead><tr><th>Year</th><th class="r">Input cost inflation</th><th class="r">Margin before</th><th class="r">Predicted change</th><th class="r">Reported change</th><th class="r">Gap, pt</th><th>Direction</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
   }
   var FIELD = {
@@ -485,27 +519,30 @@ export function mountStressLab(root, E, D, opts) {
   var EDITABLE = { pass_through: [0, 100, 1], crude_rm: [0, 95, 1], import_rm: [0, 95, 1], export_rev: [0, 100, 1], demand_beta: [0.2, 2.5, 0.05], floating_debt: [0, 100, 5] };
   function srcText(co, k) {
     var c = co.calibration && co.calibration[k];
-    if (c && c.from_history) return 'Estimated from its own history' + (k === 'pass_through' ? ' of cost shocks' : '') + ' and the ' + (co.sector || 'industry') + ' industry';
-    return String(co.field_source[k] || '').replace('FinLit default for all companies', 'Default for all companies');
+    if (c && c.from_history) return 'Estimated from its own history' + (k === 'pass_through' ? ' of cost shocks' : '') + ' and ' + (co.sector ? 'the ' + co.sector + ' industry' : 'its industry');
+    return String((co.field_source || {})[k] || 'Default for all companies').replace('FinLit default for all companies', 'Default for all companies');
   }
   function renderAsm() {
     var co = A, base = co, eb = E.ebitda(co);
     var line = function (l, v, s) { return '<tr><td class="l">' + l + '</td><td class="r">' + v + '</td><td><small>' + (s || '') + '</small></td></tr>'; };
     var t1 = line('Revenue', cr(co.revenue)) + line('Raw materials', cr(co.rm), pc(co.rm / co.revenue * 100) + ' of revenue') + line('Employee costs', cr(co.emp), pc(co.emp / co.revenue * 100)) + line('Other expenses', cr(co.opex), pc(co.opex / co.revenue * 100)) +
       line('EBITDA', cr(eb), pc(eb / co.revenue * 100) + ' margin') + line('Other income', cr(co.other_income)) + line('Depreciation', cr(co.dep)) + line('Interest', cr(co.interest)) +
-      line('Tax rate', pc(co.tax_rate * 100), 'tax paid over the four quarters') + line('Shares', co.shares.toFixed(2) + ' Cr') + line('Debt', cr(co.debt), 'latest balance sheet') + line('Cash and investments', cr(co.cash), 'latest balance sheet') +
-      line('EPS, model', rs(E.eps(co)), 'what the model starts from') + line('EPS, reported', rs(co.reported_eps), 'the model leaves out exceptional items and minority interests');
+      line('Tax rate', pc(co.tax_rate * 100), 'tax paid over the four quarters') + line('Shares', fin(co.shares) ? co.shares.toFixed(2) + ' Cr' : '–', fin(co.shares) ? '' : 'not on file') + line('Debt', cr(co.debt), 'latest balance sheet') + line('Cash and investments', cr(co.cash), 'latest balance sheet') +
+      line('EPS, model', rs(E.eps(co)), 'what the model starts from') + line('EPS, reported', rs(co.reported_eps), fin(co.reported_eps) ? 'the model leaves out exceptional items and minority interests' : 'not on file for these quarters');
     var keys = ['pass_through', 'crude_rm', 'crude_beta', 'import_rm', 'metal_rm', 'agri_rm', 'energy_opex', 'energy_beta', 'var_opex', 'export_rev', 'crude_rev', 'demand_beta', 'floating_debt'];
     var t2 = keys.map(function (k) {
       var F = FIELD[k], v0 = co.exposure[k], v = S.edits[k] !== undefined ? S.edits[k] : v0, ed = EDITABLE[k];
+      if (!fin(v0)) return '<tr><td class="l">' + F[0] + ib(F[2], 'lt', 'About ' + F[0]) + '</td><td class="r"><b>–</b></td><td><small>not on file</small></td>' + (GOLD ? '<td></td>' : '') + '</tr>';
       var inp = ed ? '<input class="edit' + (S.edits[k] !== undefined ? ' ch' : '') + '" type="number" inputmode="decimal" data-edit="' + k + '" min="' + ed[0] + '" max="' + ed[1] + '" step="' + ed[2] + '" value="' + (k === 'demand_beta' ? v.toFixed(2) : Math.round(v * 100)) + '" aria-label="Your value for ' + F[0] + (k === 'demand_beta' ? '' : ', in %') + '">' + (k === 'demand_beta' ? '×' : '%') : '';
       return '<tr' + (S.edits[k] !== undefined ? ' class="hl"' : '') + '><td class="l">' + F[0] + ib(F[2], 'lt', 'About ' + F[0]) + '</td><td class="r"><b>' + F[1](v0) + '</b></td><td><small>' + esc(srcText(co, k)) + '</small></td>' + (GOLD ? '<td class="r" style="white-space:nowrap">' + inp + '</td>' : '') + '</tr>';
     }).join('');
-    $('asm').innerHTML = '<h2>The assumptions behind it' + ib('Every number the model uses for ' + short(co) + ', and where it came from. You can try your own value for the six settings with a box; everything on the page updates.', 'lt', 'About the assumptions') + '</h2><p class="sub">' + esc(co.name) + ', consolidated, four quarters ' + D.base_window[0] + ' to ' + D.base_window[1] + '. Data to ' + dt(D.as_of) + '.</p>' +
+    $('asm').innerHTML = '<h2>The assumptions behind it' + ib('Every number the model uses for ' + short(co) + ', and where it came from. You can try your own value for the six settings with a box; everything on the page updates.', 'lt', 'About the assumptions') + '</h2><p class="sub">' + esc(co.name) + ', ' + basis().toLowerCase() + ', four quarters ' + D.base_window[0] + ' to ' + D.base_window[1] + '. Data to ' + dt(D.as_of) + '.</p>' +
       '<div class="asmgrid" style="margin-top:4px"><div><h3 style="margin-top:12px">The base: the last four quarters</h3><div class="tw"><table class="t"><tbody>' + t1 + '</tbody></table></div></div>' +
       '<div><h3 style="margin-top:12px">How the business is exposed</h3><div class="tw"><table class="t"><thead><tr><th>Setting</th><th class="r">Estimate</th><th>Where it comes from</th>' + (GOLD ? '<th class="r">Your value</th>' : '') + '</tr></thead><tbody>' + t2 + '</tbody></table></div>' +
       (SHOWV ? '<p class="note">The value move also uses the company’s sensitivity to the market (the market average until a measured one is available) and its long-run growth.</p>' : '') + (GOLD ? '' : '<p class="note">' + LOCKI + ' With Gold you can try your own value for six of these settings.</p>') + '</div></div>' +
-      '<p class="note">The pass-through is estimated from the years when ' + poss(co) + ' input costs moved most, and pulled towards the ' + (co.sector || '') + ' industry’s value because there are only a few such years.</p>';
+      '<p class="note">' + (co.calibration && co.calibration.pass_through && co.calibration.pass_through.from_history
+        ? 'The pass-through is estimated from the years when ' + esc(poss(co)) + ' input costs moved most, and pulled towards ' + (co.sector ? 'the ' + esc(co.sector) + ' industry’s' : 'its industry’s') + ' value because there are only a few such years.'
+        : esc(poss(co)) + ' own results have too few years with a large move in input costs to estimate its pass-through, so the value shown comes from the source in the table.') + '</p>';
   }
 
   /* ------------------------------------------------------------------ compare view */
@@ -516,9 +553,9 @@ export function mountStressLab(root, E, D, opts) {
     var lo = ea < eb ? [ra, a, ea] : [rb, b, eb], hi = ea < eb ? [rb, b, eb] : [ra, a, ea];
     return short(lo[1]) + ' is more exposed to this shock: EPS ' + pct(lo[2]) + ' against ' + pct(hi[2]) + ' for ' + short(hi[1]) + ', mainly through ' + PHR[lo[0].drivers[0].key] + '.';
   }
-  function cmpInsights(ra, rb, a, b, sc) {
-    var out = [], ids = ALL_IDS.slice(), n = ids.length;
-    var bWorse = ids.filter(function (id) { var s = scenOf(id); return E.run(b, s).change_pct.eps < E.run(a, s).change_pct.eps; }).length;
+  function cmpInsights(ra, rb, a, b) {
+    var out = [], both = ALL_IDS.map(function (id) { var s = scenOf(id); return [E.run(a, s).change_pct.eps, E.run(b, forB(s)).change_pct.eps]; }).filter(function (x) { return x[0] !== null && x[1] !== null; });
+    var n = both.length, bWorse = both.filter(function (x) { return x[1] < x[0]; }).length;
     [[ra, a], [rb, b]].forEach(function (x) {
       var r = x[0], c = x[1];
       if (r.label === 'Debt cover at risk') out.push({ k: 'warn', p: 0, t: short(c) + ': interest cover falls to ' + xx(r.stressed.interest_cover), d: 'From ' + xx(r.base.interest_cover) + '. Under 1.5× the label reads Debt cover at risk, whatever happens to EPS.' });
@@ -532,25 +569,27 @@ export function mountStressLab(root, E, D, opts) {
       out.push({ k: 'ins', p: 3, t: 'The gap comes mostly from ' + PHR[gaps[0][0]], d: cap(PHR[gaps[0][0]]) + verb(gaps[0][0], ' takes ', ' take ') + Math.abs(gaps[0][1]).toFixed(1) + ' points more off ' + poss(lo[1]) + ' EPS than off ' + poss(hi[1]) + (gaps[1] && gaps[1][1] < -1 ? ', and ' + PHR[gaps[1][0]] + ' ' + Math.abs(gaps[1][1]).toFixed(1) + ' more.' : '.') });
     }
     var nda = a.debt - a.cash, ndb = b.debt - b.cash;
-    if ((nda < 0) !== (ndb < 0)) { var nc = nda < 0 ? a : b, nd = nda < 0 ? b : a; out.push({ k: 'ins', p: 4, t: 'Debt sets them apart when rates move', d: short(nc) + ' has more cash than debt; ' + short(nd) + ' has net debt of ' + cr(Math.abs(nd.debt - nd.cash)) + ', ' + share(nd.exposure.floating_debt) + ' of it at floating rates. Rates 100 bp higher move their EPS ' + pct(E.sensitivities(nc)[3].eps_pct) + ' and ' + pct(E.sensitivities(nd)[3].eps_pct) + '.' }); }
+    if ((nda < 0) !== (ndb < 0)) { var nc = nda < 0 ? a : b, nd = nda < 0 ? b : a; out.push({ k: 'ins', p: 4, t: 'Debt sets them apart when rates move', d: short(nc) + ' has more cash than debt; ' + short(nd) + ' has net debt of ' + cr(Math.abs(nd.debt - nd.cash)) + ', ' + share(nd.exposure.floating_debt) + ' of it at floating rates. ' + (function () { var x = E.sensitivities(nc)[3].eps_pct, y = E.sensitivities(nd)[3].eps_pct; return x !== null && y !== null ? 'Rates 100 bp higher move their EPS ' + pct(x) + ' and ' + pct(y) + '.' : 'Rates 100 bp higher reach their profit in opposite directions.'; })() }); }
     var pa = a.exposure.pass_through, pb = b.exposure.pass_through;
     if (Math.abs(pa - pb) >= 0.05) out.push({ k: 'ins', p: 4, t: 'Pricing power differs', d: short(a) + ' passes on about ' + share(pa) + ' of cost rises, ' + short(b) + ' about ' + share(pb) + '. The higher the share, the less a cost shock reaches profit.' });
-    out.push({ k: bWorse >= n * 0.75 || bWorse <= n * 0.25 ? 'ins' : 'watch', p: 5, t: bWorse >= n * 0.75 ? short(b) + ' takes the bigger hit in ' + bWorse + ' of ' + n + ' scenarios' : bWorse <= n * 0.25 ? short(a) + ' takes the bigger hit in ' + (n - bWorse) + ' of ' + n + ' scenarios' : 'Which one is hit harder depends on the shock', d: 'Across ' + (SC.today_eia ? 'Today, Crude eases and the six presets' : 'Today and the six presets') + ', with today’s settings.' });
+    if (n) out.push({ k: bWorse >= n * 0.75 || bWorse <= n * 0.25 ? 'ins' : 'watch', p: 5, t: bWorse >= n * 0.75 ? short(b) + ' takes the bigger hit in ' + bWorse + ' of ' + n + ' scenarios' : bWorse <= n * 0.25 ? short(a) + ' takes the bigger hit in ' + (n - bWorse) + ' of ' + n + ' scenarios' : 'Which one is hit harder depends on the shock', d: 'Across ' + (n === ALL_IDS.length ? (SC.today_eia ? 'Today, Crude eases and the six presets' : 'Today and the six presets') : 'the ' + n + ' scenarios where both have an EPS change') + ', with today’s settings.' });
     out.sort(function (x, y) { return x.p - y.p; });
     return out.slice(0, 4);
   }
   function colHtml(r, co) {
     var cp = r.change_pct;
-    return '<div class="card cmphead"><div class="co">' + logoHtml(co) + '<div><b>' + esc(co.name) + '</b><small>' + co.symbol + ' · ' + esc(co.sector || '') + ' · ' + esc(co.size || '') + '</small></div></div>' +
+    return '<div class="card cmphead"><div class="co">' + logoHtml(co) + '<div><b>' + esc(co.name) + '</b><small>' + idLine(co) + '</small></div></div>' +
       '<div class="verdict">' + ring(r.score, r.label) + '<div>' + labPill(r.label, true) + '<p class="why">' + esc(r.label_reason) + '.</p></div></div>' +
       '<div class="kpis">' + kpi('EPS', pct(cp.eps), cp.eps, rs(r.base.eps) + ' → ' + rs(r.stressed.eps), 'Model EPS on the last four quarters, and after the shock.') + kpi('EBITDA margin', pc(r.stressed.ebitda_margin_pct), cp.margin_pts, 'from ' + pc(r.base.ebitda_margin_pct) + ' · ' + pt(cp.margin_pts), 'EBITDA as a share of revenue.') +
-      kpi('Interest cover', xx(r.stressed.interest_cover), r.stressed.interest_cover !== null && r.stressed.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(r.base.interest_cover), 'How many times operating profit covers interest. Under 1.5× reads Debt cover at risk.') + (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value_other_persistence ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(r.value_other_persistence.move_pct) : '', 'An earnings-based value under these assumptions, not a price estimate, and never applied to the share price.', 'rt') : '') + '</div>' +
+      kpi('Interest cover', xx(r.stressed.interest_cover), r.stressed.interest_cover !== null && r.stressed.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(r.base.interest_cover), 'How many times operating profit covers interest. Under 1.5× reads Debt cover at risk.') + (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && r.value_other_persistence ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(r.value_other_persistence.move_pct) : r.value ? '' : 'not worked out: loss in the base period', 'An earnings-based value under these assumptions, not a price estimate, and never applied to the share price.', 'rt') : '') + '</div>' +
       '<div class="tw" style="margin-top:4px"><table class="t"><thead><tr><th>Line</th><th class="r">Last four quarters</th><th class="r">After</th><th class="r">Change</th></tr></thead><tbody>' +
-      [['Revenue', cr(r.base.revenue), cr(r.stressed.revenue), pct(cp.revenue), cp.revenue], ['EBITDA', cr(r.base.ebitda), cr(r.stressed.ebitda), pct(cp.ebitda), cp.ebitda], ['Interest', cr(r.base.interest), cr(r.stressed.interest), r.base.interest > 0 ? pct((r.stressed.interest / r.base.interest - 1) * 100) : '–', r.base.interest - r.stressed.interest], ['Profit before tax', cr(r.base.pbt), cr(r.stressed.pbt), pct((r.stressed.pbt / r.base.pbt - 1) * 100), r.stressed.pbt - r.base.pbt]].map(function (x) {
-        return '<tr><td class="l">' + x[0] + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + (Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up') + '">' + x[3] + '</td></tr>';
+      [['Revenue', cr(r.base.revenue), cr(r.stressed.revenue), pct(cp.revenue), cp.revenue], ['EBITDA', cr(r.base.ebitda), cr(r.stressed.ebitda), pct(cp.ebitda), cp.ebitda], ['Interest', cr(r.base.interest), cr(r.stressed.interest), pct(chg(r.base.interest, r.stressed.interest)), r.base.interest - r.stressed.interest], ['Profit before tax', cr(r.base.pbt), cr(r.stressed.pbt), pct(chg(r.base.pbt, r.stressed.pbt)), r.stressed.pbt - r.base.pbt]].map(function (x) {
+        return '<tr><td class="l">' + x[0] + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + (!fin(x[4]) || Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up') + '">' + x[3] + '</td></tr>';
       }).join('') + '</tbody></table></div></div>';
   }
-  function sizeText(z) { z = String(z || ''); return /cap$/i.test(z) ? z : z + ' cap'; }   // the server already says "Large cap"
+  function sizeText(z) { z = String(z || ''); return !z || /cap$/i.test(z) ? z : z + ' cap'; }
+  function idLine(co) { return [co.symbol, co.sector, sizeText(co.size)].filter(Boolean).map(esc).join(' · '); }   // a missing sector or size is left out, never "null"
+  function basis() { var st = String(A.statement || 'consolidated'); return st.charAt(0).toUpperCase() + st.slice(1).toLowerCase(); }   // the server already says "Large cap"
   function logoHtml(co) { var u = opts.logoUrl ? opts.logoUrl(co.symbol) : ''; return u ? '<span class="logo" data-i="' + esc(co.symbol.slice(0, 1)) + '"><img src="' + esc(u) + '" alt="" loading="lazy" onerror="var p=this.parentNode;p.classList.add(\'ph\');p.textContent=p.getAttribute(\'data-i\')"></span>' : '<span class="logo ph" aria-hidden="true">' + esc(co.symbol.slice(0, 1)) + '</span>'; }
   function groupedHtml(rows, f) {
     var sc = axisOf(rows.reduce(function (a, r) { return a.concat([r[1], r[2]]); }, [])), lo = sc[0], hi = sc[1];
@@ -564,23 +603,23 @@ export function mountStressLab(root, E, D, opts) {
   function renderCompare() {
     var a = coA(), b = coB(), sc = cur(), ra = E.run(a, sc), rb = E.run(b, forB(sc));
     $('cmpsum').innerHTML = '<h2>Side by side under ' + scName(sc) + ib('The same shock for both companies, each measured against its own last four quarters. ' + (SAMEQ ? 'Both report to ' + my(A.base_end) + ', so ‘Today’ is the same shock for both here.' : 'The two companies report to different quarters, so each ‘Today’ is measured against its own last four quarters.') + '', 'lt', 'About the comparison') + '</h2><p class="sentence" style="margin-top:8px">' + compareSummary(ra, rb, a, b) + '</p>';
-    var c = cmpInsights(ra, rb, a, b, sc); $('calls').innerHTML = c.map(call).join('');
+    var c = cmpInsights(ra, rb, a, b); $('calls').innerHTML = c.map(call).join('');
     $('cols').innerHTML = colHtml(ra, a) + colHtml(rb, b);
     var drows = ra.drivers.map(function (d) { var o = rb.drivers.filter(function (x) { return x.key === d.key; })[0]; return [d.key === 'demand' ? 'Volumes' : d.name, d.eps_pct, o.eps_pct]; });
     drows.push(['Change in EPS', ra.change_pct.eps, rb.change_pct.eps]);
-    $('drv').innerHTML = '<h2>What drives it, side by side' + ib('Each driver’s effect in points of EPS, for both companies on one scale. The last pair is the total.', 'lt', 'About this chart') + '</h2><p class="sub">Points of EPS change</p><div style="margin-top:12px">' + groupedHtml(drows, function (v) { return sgn(v) + ' pt'; }) + '</div>';
+    $('drv').innerHTML = '<h2>What drives it, side by side' + ib('Each driver’s effect in points of EPS, for both companies on one scale. The last pair is the total.', 'lt', 'About this chart') + '</h2><p class="sub">Points of EPS change</p><div style="margin-top:12px">' + groupedHtml(drows, function (v) { return fin(v) ? sgn(v) + ' pt' : '–'; }) + '</div>';
     var sa = E.sensitivities(a), sb = E.sensitivities(b);
     var srows = sa.map(function (d, i) { return [d.name, d.eps_pct, sb[i].eps_pct]; });
     var ba = E.breakingPoints(a), bb = E.breakingPoints(b);
-    var bpv = function (x, k) { return x[k] === null ? 'None found' : k === 'rate_bp' ? '+' + Math.round(x[k]).toLocaleString('en-IN') + ' bp' : pct(x[k], 0); };
+    var bpv = function (x, k) { return x.note ? 'Not worked out (loss)' : x[k] === null ? 'None found' : k === 'rate_bp' ? '+' + Math.round(x[k]).toLocaleString('en-IN') + ' bp' : pct(x[k], 0); };
     $('sens').innerHTML = '<h2>What moves each most' + ib('One step in each driver on its own, every other shock at zero.', 'lt', 'About this chart') + '</h2><p class="sub">EPS change for one step in each driver, alone</p><div style="margin-top:12px">' + groupedHtml(srows, function (v) { return pct(v); }) + '</div>' +
-      '<h3 style="margin-top:18px">Breaking points' + ib('One shock on its own that halves EPS, or takes interest cover below 1.5×.', 'lt', 'About breaking points') + '</h3><div class="tw"><table class="t"><thead><tr><th>Shock, on its own</th><th class="r">' + short(A) + '</th><th class="r">Sample B</th></tr></thead><tbody>' +
-      '<tr><td class="l">Crude rise that halves EPS</td><td class="r">' + bpv(ba, 'crude_pct') + '</td><td class="r">' + bpv(bb, 'crude_pct') + '</td></tr><tr><td class="l">Volume fall that halves EPS</td><td class="r">' + bpv(ba, 'demand_pct') + '</td><td class="r">' + bpv(bb, 'demand_pct') + '</td></tr><tr><td class="l">Rate rise that takes cover under 1.5×</td><td class="r">' + bpv(ba, 'rate_bp') + '</td><td class="r">' + bpv(bb, 'rate_bp') + '</td></tr></tbody></table></div>';
+      '<h3 style="margin-top:18px">Breaking points' + ib('One shock on its own that halves EPS, or takes interest cover below 1.5×.', 'lt', 'About breaking points') + '</h3><div class="tw"><table class="t"><thead><tr><th>Shock, on its own</th><th class="r">' + esc(short(A)) + '</th><th class="r">' + esc(short(B)) + '</th></tr></thead><tbody>' +
+      '<tr><td class="l">' + (ba.crude_pct < 0 || bb.crude_pct < 0 ? 'Crude move that halves EPS' : 'Crude rise that halves EPS') + '</td><td class="r">' + bpv(ba, 'crude_pct') + '</td><td class="r">' + bpv(bb, 'crude_pct') + '</td></tr><tr><td class="l">Volume fall that halves EPS</td><td class="r">' + bpv(ba, 'demand_pct') + '</td><td class="r">' + bpv(bb, 'demand_pct') + '</td></tr><tr><td class="l">Rate rise that takes cover under 1.5×</td><td class="r">' + bpv(ba, 'rate_bp') + '</td><td class="r">' + bpv(bb, 'rate_bp') + '</td></tr></tbody></table></div>';
     var ids = ALL_IDS.concat(S.scen === 'custom' ? ['custom'] : []);
     var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
     $('every').innerHTML = '<h2>Every scenario at a glance' + ib('Both companies under each scenario. Pick a row to open it.', 'lt', 'About this table') + '</h2><div class="tw"><table class="t"><thead><tr><th>Scenario</th><th class="r">' + short(A) + ', EPS</th><th>Label</th><th class="r">' + short(B) + ', EPS</th><th>Label</th><th>More exposed</th></tr></thead><tbody>' + ids.map(function (id) {
       var s = id === 'custom' ? Object.assign({}, S.custom, { persistence: S.persistence }) : scenOf(id), x = E.run(a, s), y = E.run(b, forB(s)), d = x.change_pct.eps - y.change_pct.eps;
-      return '<tr class="click' + (id === curId ? ' on' : '') + '" data-pick="' + id + '" tabindex="0"><td class="l">' + (id === 'custom' ? 'Custom' : esc(SC[id].name)) + '</td><td class="r' + (x.change_pct.eps < -0.05 ? ' dn' : '') + '">' + pct(x.change_pct.eps) + '</td><td>' + labPill(x.label) + '</td><td class="r' + (y.change_pct.eps < -0.05 ? ' dn' : '') + '">' + pct(y.change_pct.eps) + '</td><td>' + labPill(y.label) + '</td><td>' + (Math.abs(d) < 3 ? '<small>About equal</small>' : d < 0 ? short(A) : short(B)) + '</td></tr>';
+      return '<tr class="click' + (id === curId ? ' on' : '') + '" data-pick="' + id + '" tabindex="0"><td class="l">' + (id === 'custom' ? 'Custom' : esc(SC[id].name)) + '</td><td class="r' + (x.change_pct.eps < -0.05 ? ' dn' : '') + '">' + pct(x.change_pct.eps) + '</td><td>' + labPill(x.label) + '</td><td class="r' + (y.change_pct.eps < -0.05 ? ' dn' : '') + '">' + pct(y.change_pct.eps) + '</td><td>' + labPill(y.label) + '</td><td>' + (x.change_pct.eps === null || y.change_pct.eps === null ? '<small>Not comparable</small>' : Math.abs(d) < 3 ? '<small>About equal</small>' : esc(d < 0 ? short(A) : short(B))) + '</td></tr>';
     }).join('') + '</tbody></table></div>';
   }
 
@@ -593,16 +632,37 @@ export function mountStressLab(root, E, D, opts) {
   function renderStrip() {
     var a = A, fact = function (l, v, t) { return '<span class="fact"><span class="l">' + l + (t ? ib(t, 'lt', 'About ' + l) : '') + '</span><span class="v">' + v + '</span></span>'; };
     var baseTip = 'Every shock is applied to the company’s last four reported quarters, ' + D.base_window[0] + ' to ' + D.base_window[1] + '. A shock of zero gives back those quarters exactly.';
-    var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + a.symbol + ' · ' + a.sector + ' · ' + sizeText(a.size) + '</small></div></div>';
+    var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + idLine(a) + '</small></div></div>';
     if (VIEW === 'compare') {
-      $('costrip').innerHTML = coA_ + '<span class="vs">vs</span><div class="co">' + logoHtml(B) + '<div><b>' + esc(B.name) + '</b><small>' + B.symbol + ' · ' + esc(B.sector || '') + ' · ' + esc(B.size || '') + (SAMEQ ? '' : ' · four quarters to ' + my(B.base_end)) + '</small></div></div>' +
+      $('costrip').innerHTML = coA_ + '<span class="vs">vs</span><div class="co">' + logoHtml(B) + '<div><b>' + esc(B.name) + '</b><small>' + idLine(B) + (SAMEQ ? '' : ' · four quarters to ' + my(B.base_end)) + '</small></div></div>' +
         '<div class="facts" style="margin-left:auto">' + fact('Base', 'Four quarters to ' + my(A.base_end), baseTip) + fact('Data to', dt(D.as_of)) + '</div>' +
         '<div class="pickrow" data-find="peer"><label class="find">' + svg('<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>', 16) + '<input type="search" placeholder="Compare with another company" aria-label="Compare with another company"></label>' +
-        '<span class="note" style="margin:0">' + (opts.peer.picked ? 'Picked for you: the first peer Stress Lab covers that has results to the same quarter (' + my(A.base_end) + ')' : 'You picked ' + esc(B.name)) + ib('So both companies face the same Today shock. If no peer has results to that quarter yet, the first covered peer is used and each company’s window is shown under its name.', 'lt', 'About how the second company is picked') + '</span></div>';
+        '<span class="note" style="margin:0">' + (opts.peer.picked ? (SAMEQ ? 'Picked for you: the first peer Stress Lab covers that has results to the same quarter (' + my(A.base_end) + ')' : 'Picked for you: the first peer Stress Lab covers. No covered peer has results to ' + my(A.base_end) + ' yet, so each company is measured against its own four quarters') : 'You picked ' + esc(B.name)) + ib('So both companies face the same Today shock. If no peer has results to that quarter yet, the first covered peer is used and each company’s window is shown under its name.', 'lt', 'About how the second company is picked') + '</span></div>';
     } else {
       $('costrip').innerHTML = coA_ + '<div class="facts">' + fact('Market cap', cr(a.market_cap_cr)) + fact('Share price', (a.price == null ? '–' : '₹' + a.price.toLocaleString('en-IN')) + ' <small style="font-weight:400;color:var(--muted)">' + dt(a.price_as_of).replace(/ \d{4}$/, '') + '</small>') +
-        fact('Base', 'Four quarters, ' + D.base_window[0] + ' to ' + D.base_window[1], baseTip) + fact('Accounts', 'Consolidated') + fact('Data to', dt(D.as_of)) + '</div>';
+        fact('Base', 'Four quarters, ' + D.base_window[0] + ' to ' + D.base_window[1], baseTip) + fact('Accounts', basis()) + fact('Data to', dt(D.as_of)) + '</div>' + peerBox();
     }
+  }
+  var PEER_WORDS = {
+    loading: 'Finding a company to compare with…',
+    none: 'No peer of this company is covered by Stress Lab yet. Search for a company to compare with.',
+    preparing: 'Stress Lab for the second company is being prepared. This page checks again by itself every 20 seconds, or search for another company.',
+    error: 'The second company could not be loaded. Search for another company to compare with.'
+  };
+  /** Gold, Compare two asked for, no second company: the reason in words and the search box, at the top where the reader is looking. */
+  function peerBox() {
+    if (!GOLD || B || !PEER_STATUS) return '';
+    var why = PEER_STATUS === 'unusable' ? esc(PEER_BAD.name || PEER_BAD.symbol) + ' cannot be compared: its share count or revenue is not on file. Search for another company to compare with.' : PEER_WORDS[PEER_STATUS] || PEER_WORDS.error;
+    return '<div class="pickrow" data-find="peer" id="peerbox"><label class="find">' + svg('<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>', 16) + '<input type="search" placeholder="Compare with another company" aria-label="Compare with another company"></label>' +
+      '<span class="note" style="margin:0" role="status" aria-live="polite">' + why + '</span></div>';
+  }
+  /** The model cannot run on this company: the strip, then the reason, and nothing that would show NaN. */
+  function renderUnavailable() {
+    VIEW = 'single'; renderStrip();
+    var miss = !(fin(A.shares) && A.shares > 0) ? 'its share count is not on file' : !(fin(A.revenue) && A.revenue > 0) ? 'its revenue for the last four quarters is not on file' : 'its company settings are not on file';
+    root.querySelectorAll('.sl-root main > section, .sl-root main > div').forEach(function (el) { el.hidden = !(el.querySelector('#costrip,#head,.find') || el.classList.contains('disc')); });
+    root.querySelectorAll('[data-view]').forEach(function (b) { b.hidden = true; });
+    $('head').innerHTML = '<p class="sentence">Stress Lab cannot work out earnings per share for ' + esc(short(A)) + ': ' + miss + '.</p><p class="note">The model starts from revenue, costs and the number of shares over the last four quarters. The Company report shows the results that are on file.</p>';
   }
   function setView(v) {
     if (!GOLD && v === 'compare') v = 'single';
@@ -632,13 +692,21 @@ export function mountStressLab(root, E, D, opts) {
     box.hidden = !hits.length;
     box.innerHTML = hits.map(function (h) { return '<button type="button" role="option" data-go="' + esc(h[0]) + '"' + (forPeer ? ' data-for="peer"' : '') + '><b>' + esc(h[1]) + '</b><small>' + esc(h[4] || h[0]) + '</small></button>'; }).join('');
   }
+  function closeTips(except) { root.querySelectorAll('.ib.open').forEach(function (x) { if (x !== except) { x.classList.remove('open'); x.setAttribute('aria-expanded', 'false'); } }); }
+  function toggleTip(x) { var on = !x.classList.contains('open'); closeTips(x); x.classList.toggle('open', on); x.setAttribute('aria-expanded', String(on)); if (on) fitInfo({ target: x }); }
+  listen(document, 'click', function (ev) { var path = ev.composedPath ? ev.composedPath() : []; if (!path.some(function (n) { return n.classList && n.classList.contains('ib'); })) closeTips(null); });
+  listen(document, 'keydown', function (ev) { if (ev.key === 'Escape') closeTips(null); });
   listen(root, 'click', function (ev) {
+    var ibx = ev.target.closest('.ib');
+    if (ibx) { ev.preventDefault(); toggleTip(ibx); return; }   // inside a label or a summary it must not also move focus or open the fold
+    var upg = ev.target.closest('[data-upgrade]');
+    if (upg && opts.onUpgrade) { ev.preventDefault(); opts.onUpgrade(); return; }   // the site's own upgrade flow (sign in first, then the plan page)
     var go = ev.target.closest('[data-go]');
     if (go) { var sym = go.getAttribute('data-go'); if (go.getAttribute('data-for') === 'peer') { if (opts.onPeer) opts.onPeer(sym); } else if (opts.onCompany) opts.onCompany(sym); return; }
     var lk = ev.target.closest('[data-locked]');
     if (lk) { var up = $('upnote'); if (up) { up.classList.remove('pulse'); void up.offsetWidth; up.classList.add('pulse'); up.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; }
     var t = ev.target.closest('[data-scen],[data-tc],[data-pers],[data-reset],[data-sure],[data-unit],[data-pick],[data-resetedits],#adj,[data-view]');
-    if (!t) return;
+    if (!t || A_BAD) return;
     if (t.hasAttribute('data-scen')) pick(t.getAttribute('data-scen'));
     else if (t.hasAttribute('data-tc')) { S.todayCrude = t.getAttribute('data-tc'); renderAll(); }
     else if (t.hasAttribute('data-pers')) { S.persistence = t.getAttribute('data-pers'); renderAll(); }
@@ -650,11 +718,11 @@ export function mountStressLab(root, E, D, opts) {
     else if (t.hasAttribute('data-view')) { setView(t.getAttribute('data-view')); try { history.replaceState(null, '', t.getAttribute('data-view') === 'compare' ? '#compare' : '#one'); } catch (e) {} }
     else if (t.id === 'adj') { S.open = !(S.open || S.scen === 'custom'); if (!S.open && S.scen === 'custom') { S.scen = 'today'; } renderScen(); if (!S.open) renderResults(); }
   });
-  listen(root, 'keydown', function (ev) { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pick(ev.target.getAttribute('data-pick')); } });
+  listen(root, 'keydown', function (ev) { var x = ev.target.closest && ev.target.closest('.ib'); if (x && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggleTip(x); return; } if (A_BAD) return; if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.hasAttribute && ev.target.hasAttribute('data-pick')) { ev.preventDefault(); pick(ev.target.getAttribute('data-pick')); } });
   listen(root, 'input', function (ev) {
     var t = ev.target;
     if (t.matches('.find input')) { findResults(t); return; }
-    if (t.matches('input[type=range][data-k]')) onSlide(t.getAttribute('data-k'), t.value);
+    if (!A_BAD && t.matches('input[type=range][data-k]')) onSlide(t.getAttribute('data-k'), t.value);
   });
   listen(root, 'change', function (ev) {
     var t = ev.target;
@@ -689,6 +757,6 @@ export function mountStressLab(root, E, D, opts) {
   listen(window, 'scroll', function () { tip.style.display = 'none'; }, { passive: true });
 
   if (!SHOWV) root.querySelectorAll('.vmove').forEach(function (el) { el.remove(); });
-  setView(VIEW);
+  if (A_BAD) renderUnavailable(); else setView(VIEW);
   return { destroy: function () { OFF.forEach(function (f) { f(); }); OFF.length = 0; }, state: S, render: renderAll, pick: pick, setView: setView };
 }

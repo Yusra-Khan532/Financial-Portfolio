@@ -205,13 +205,13 @@ details.fold[open]>summary::before{transform:rotate(45deg)}
 /* i buttons (same as the site's) */
 .ib{position:relative;display:inline-flex;vertical-align:middle;margin-left:6px;cursor:help;outline:none}
 .ibi{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--h8d8571);color:var(--h4d4a42);font:italic 700 11px/1 Georgia,serif;background:var(--hffffff)}
-.ib:hover .ibi,.ib:focus .ibi{background:var(--teal);border-color:var(--teal);color:var(--hffffff)}
+.ib:hover .ibi,.ib:focus .ibi,.ib.open .ibi{background:var(--teal);border-color:var(--teal);color:var(--hffffff)}
 .tip{display:none;position:absolute;z-index:90;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:290px;max-width:calc(100vw - 16px);padding:11px 13px;border-radius:12px;background:var(--h17262e);color:var(--hf4f1ea);font:400 13px/1.5 Inter,system-ui,sans-serif;text-align:left;letter-spacing:0;text-transform:none;white-space:normal;box-shadow:0 12px 30px rgba(10,20,25,.28)}
 .tip b{color:var(--hffffff)}
 .tip.dn{bottom:auto;top:calc(100% + 9px)}
 .tip.lt{left:-8px;transform:none}
 .tip.rt{left:auto;right:-8px;transform:none}
-.ib:hover .tip,.ib:focus .tip,.ib:focus-within .tip{display:block}
+.ib:hover .tip,.ib:focus .tip,.ib:focus-within .tip,.ib.open .tip{display:block}
 .hovtip{position:fixed;z-index:95;pointer-events:none;max-width:280px;padding:9px 12px;border-radius:11px;background:var(--h17262e);color:var(--hf4f1ea);font-size:13px;line-height:1.45;box-shadow:0 11px 24px rgba(10,20,25,.25);display:none}
 .hovtip b{color:var(--hffffff)}
 /* reference page: developer notes */
