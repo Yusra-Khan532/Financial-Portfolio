@@ -155,7 +155,7 @@
 .xt-head h2 { font-size: clamp(30px, 4.2vw, 52px); line-height: 1.08; margin: 0 0 14px; }
 .xt-head h2 em { display: block; font-style: italic; color: var(--hh-g); }
 .xt-head > p { margin: 0 auto; max-width: 70ch; }
-.xt-panel { grid-template-columns: minmax(0, .85fr) auto minmax(0, 1.6fr); gap: 20px 0; padding: 22px 24px; border: 1px solid var(--hh-hero-line, var(--border)); border-radius: 22px;
+.xt-panel { grid-template-columns: max-content auto minmax(0, 1fr); gap: 20px 0; padding: 22px 24px; border: 1px solid var(--hh-hero-line, var(--border)); border-radius: 22px;
   background: linear-gradient(180deg, var(--hh-g-soft), transparent 140%), var(--s1); box-shadow: 0 24px 50px -36px var(--hh-glow); }
 .xt-panel > * { padding: 0 22px; } .xt-panel > * + * { border-left: 1px solid var(--hh-hero-line, var(--border)); }
 .xt-panel .xt-checks { border-left: 0; padding-left: 0; gap: 10px; }
@@ -166,7 +166,7 @@
 :root .xt .btn.xt-tour:not(.primary) { background: transparent; border: 1px solid var(--hh-g); color: var(--text); }
 .xt-panel .xt-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-left: 1px solid var(--hh-hero-line, var(--border)); }
 .xt-panel .xt-stats > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 14px; }
-.xt-panel .xt-stats dt { white-space: nowrap; }
+@media (min-width: 1280px) { .xt-panel .xt-checks li { white-space: nowrap; } } .xt-panel .xt-stats dd { white-space: nowrap; } .xt-panel .xt-stats dt { overflow-wrap: normal; line-height: 1.3; }   /* a label may take two lines; it never runs into the next figure */
 .xt-panel .xt-stats > div + div { border-left: 1px solid var(--hh-hero-line, var(--border)); }
 .xt-panel .xt-stats svg { width: 24px; height: 24px; margin-bottom: 4px; }
 .xt-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 28px; } .xt-foot .xt-fine { margin: 0; }
@@ -184,4 +184,8 @@
   .xt-panel .xt-stats > div:nth-child(3) { border-left: 0; }
   .xt-pill::before, .xt-pill::after { flex-basis: 40px; }
   .xt-rn, .fl-exp, .fl-modal-x { min-height: 44px; }
+}
+/* the four figures need about 440px beside the ticks and the buttons: below 1280px they take their own row (the labels never run into each other) */
+@media (min-width: 1101px) and (max-width: 1279px) {
+  .xt-panel { grid-template-columns: max-content auto; } .xt-panel .xt-stats { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hh-hero-line, var(--border)); padding: 18px 0 0; }
 }
