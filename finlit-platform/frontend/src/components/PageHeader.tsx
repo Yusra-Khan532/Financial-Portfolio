@@ -12,6 +12,8 @@
 import { useId, type ReactNode } from "react";
 import { Link, useInRouterContext, useLocation } from "react-router";
 import { Icon } from "../lib/icons";
+import { offeredTo } from "../lib/nav";
+import { useIsGold } from "../lib/planGate";
 import { faqForPath } from "../lib/pageFaqs";
 import { realValue, resolveLinks, type PhLink } from "../lib/pageHeader";
 import { PageArt, type PhArtKind } from "./PageHeaderArt";
@@ -44,7 +46,8 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
   // the figure tiles and the line illustration are no longer drawn (they said nothing the page does not already say); the props stay so no page has to change
   const tiles: PhStat[] = [];
   void stats; void art; void realValue;
-  const btns = resolveLinks(links, 4);
+  const gold = useIsGold();
+  const btns = resolveLinks(links?.filter((l) => offeredTo(gold)({ to: typeof l === "string" ? l : l.to })), 4);   // task #100: no Basic stock screener for Gold
   const hasFaq = learn === true && !!faqForPath(pathname);
   const lo: PhLearn | null = learn === true ? (hasFaq ? {} : null) : learn ? learn : null;
   const label = lo?.label ?? "Learn more";

@@ -8,6 +8,11 @@ export type NavSection = { id: string; label: string; wide?: boolean; groups: Na
 
 const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boolean; end?: boolean; not?: string } = {}): NavItem => ({ to, label, sub, icon, ...o });
 
+/** Pages a Gold member does not get (founder, 13 Nov 2026, task #100): Gold screens with FinLit Prism only, so the Basic stock screener (built on the FinLit IQ)
+ *  is not offered to Gold. Menus, the left rail, page links and tool cards leave it out for Gold, and its address opens the Advanced stock screener. */
+export const NOT_FOR_GOLD = new Set(["/score-screener"]);
+export const offeredTo = (gold: boolean) => (n: { to: string }) => !(gold && NOT_FOR_GOLD.has(n.to.split(/[?#]/)[0]));
+
 /** The five main headings, in the order people use them. */
 export const SECTIONS: NavSection[] = [
   { id: "myfinlit", label: "Workspace", groups: [{ items: [

@@ -9,9 +9,9 @@ const R = (symbol: string, name: string, sector: string, overall: number, band: 
   symbol, name, sector, overall, band, price: 100, market_cap: 50000, pe: 20, pb: 3, roe: 15, roce: 18, dividend_yield: 1, debt_to_equity: 0.2, sales_cagr: 8, profit_cagr: 9, operating_margin: 20,
   change_pct: change, return_1m: 1, return_1y: 10, pillar_quality: 60, pillar_growth: 60, pillar_profitability: 60, pillar_balance: 60, pillar_technical: 60, ...over,
 } as unknown as Row);
-const st = vi.hoisted(() => ({ rows: [] as unknown[], toast: vi.fn() }));
+const st = vi.hoisted(() => ({ rows: [] as unknown[], toast: vi.fn(), gold: true }));
 vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: st.rows, sample: false }, isLoading: false, isError: false, refetch: () => undefined }) }));
-vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: () => true, toast: st.toast, upgrade: vi.fn(), plan: "gold" }) }));
+vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: (t: string) => t !== "gold" || st.gold, toast: st.toast, upgrade: vi.fn(), plan: st.gold ? "gold" : "silver" }) }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" } }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }) }));
@@ -22,7 +22,10 @@ import { watch } from "../lib/watchlist";
 
 beforeEach(() => {
   localStorage.clear();
-  st.rows = [R("TCS", "Tata Consultancy Services Ltd", "IT Services", 76, "healthy", 0.5), R("RCOM", "Reliance Communications Ltd", "Telecom", 26, "watch", -2, { pe: null, roe: -5 }), R("ITC", "ITC Ltd", "FMCG", 55, "mixed", 1)];
+  st.gold = true;
+  st.rows = [R("TCS", "Tata Consultancy Services Ltd", "IT Services", 76, "healthy", 0.5, { prism_final: 81.2, prism_label: "STRONG", prism_status: "RATED" } as Partial<Row>),
+    R("RCOM", "Reliance Communications Ltd", "Telecom", 26, "watch", -2, { pe: null, roe: -5, prism_final: 31, prism_label: "POOR", prism_status: "RATED" } as Partial<Row>),
+    R("ITC", "ITC Ltd", "FMCG", 55, "mixed", 1, { prism_final: 58, prism_label: "AVERAGE", prism_status: "RATED" } as Partial<Row>)];
   st.toast.mockClear();
 });
 afterEach(cleanup);
@@ -32,12 +35,22 @@ describe("Watchlist as a table", () => {
   it("shows one row per stock with the columns of the design", () => {
     open();
     const table = screen.getByRole("table", { name: /your stocks/i });
-    for (const h of ["Company", "Industry", "Price", "P/E", "ROE", "Mkt cap", "FinLit IQ", "Status", "Target", "Your note", "Actions"]) expect(within(table).getByRole("columnheader", { name: new RegExp(h, "i") })).toBeTruthy();
+    for (const h of ["Company", "Industry", "Price", "P/E", "ROE", "Mkt cap", "FinLit Prism", "Status", "Target", "Your note", "Actions"]) expect(within(table).getByRole("columnheader", { name: new RegExp(h, "i") })).toBeTruthy();
+    expect(within(table).queryByRole("columnheader", { name: /FinLit IQ/i })).toBeNull();      // task #100: Gold sees FinLit Prism, never the FinLit IQ
     expect(within(table).getAllByRole("row").length).toBe(1 + 3);
     const tcs = within(table).getByText("Tata Consultancy Services Ltd").closest("tr") as HTMLElement;
-    expect(within(tcs).getByText("76")).toBeTruthy(); expect(within(tcs).getByText("Healthy")).toBeTruthy(); expect(within(tcs).getByText("IT Services")).toBeTruthy();
+    expect(within(tcs).getByText("81")).toBeTruthy(); expect(within(tcs).getByText("Strong")).toBeTruthy(); expect(within(tcs).getByText("IT Services")).toBeTruthy();
+    expect(screen.getByText("Average FinLit Prism")).toBeTruthy();
   });
-  it("sorts by FinLit IQ, highest first, and a header click changes the order", () => {
+  it("Silver sees the FinLit IQ in the same places, and nothing of Prism", () => {
+    st.gold = false; open();
+    const table = screen.getByRole("table", { name: /your stocks/i });
+    expect(within(table).getByRole("columnheader", { name: /FinLit IQ/i })).toBeTruthy();
+    expect(within(table).queryByRole("columnheader", { name: /Prism/i })).toBeNull();
+    const tcs = within(table).getByText("Tata Consultancy Services Ltd").closest("tr") as HTMLElement;
+    expect(within(tcs).getByText("76")).toBeTruthy(); expect(within(tcs).getByText("Healthy")).toBeTruthy();
+  });
+  it("sorts by the plan's score (Prism for Gold), highest first, and a header click changes the order", () => {
     open();
     const names = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => (within(r).getAllByRole("link")[0].textContent || ""));
     expect(names()[0]).toBe("TCS");

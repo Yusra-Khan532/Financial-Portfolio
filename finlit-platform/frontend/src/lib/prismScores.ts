@@ -1,7 +1,8 @@
 // Gold only: the stored FinLit Prism scores of the companies the search shows (GET /api/prism/scores). Nothing is calculated here; a company
 // with no stored rating is "not rated yet". Technical scores are signed (-100..+100) and read exactly as on the Prism card.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { QueryClientContext } from "@tanstack/react-query";
+import { useContext } from "react";
 import { apiGet } from "./api";
 import { fmtScore, scoreBand, type TrendTone } from "./prismTechnical";
 import { bandVar, scoreBand as band100 } from "./scoreBands";
@@ -44,12 +45,12 @@ export const finalColor = (v: number | null | undefined) => bandVar(band100(v));
 
 /** Fetches the stored scores of the given (visible) symbols, once each, batched, after a pause so scrolling and typing do not storm the server. */
 export function usePrismScores(symbols: readonly string[], enabled: boolean, waitMs = 250): PrismScoreMap {
-  const qc = useQueryClient();
+  const qc = useContext(QueryClientContext);   // none where a component is rendered alone (a test): nothing is asked then
   const [known, setKnown] = useState<PrismScoreMap>({});
   const key = useMemo(() => [...new Set(symbols)].sort().join(","), [symbols]);
   const asked = useRef(new Set<string>());      // asked already (answered or on the way): never asked twice
   useEffect(() => {
-    if (!enabled || !key) return;
+    if (!enabled || !key || !qc) return;
     const t = window.setTimeout(() => {
       for (const chunk of missingChunks(key.split(","), Object.fromEntries([...asked.current].map((x) => [x, null])))) {
         chunk.forEach((x) => asked.current.add(x));

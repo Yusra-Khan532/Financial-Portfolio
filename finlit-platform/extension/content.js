@@ -200,14 +200,15 @@
   }
 
   const bandClass = (w) => (w === "Strong" || w === "Healthy" ? "" : w === "Mixed" || w === "Average" ? "mid" : "low");
-  /** FinLit Prism, the one score on the card: its score and label with the four parts for Gold, one line naming it for everyone else, a plain reason when there is no rating. */
-  function prismView(p, site) {
+  /** The card shows one score, the one the person's plan has (tasks #100 and #112): Silver the FinLit IQ, Gold FinLit Prism. */
+  function bar(label, score) {
+    const b = el("div", "bar"), r = el("div", "r"); r.append(el("span", null, label), el("span", null, score == null ? "–" : `${score}/100`));
+    const i = el("i"); const u = el("u"); u.style.width = `${score == null ? 0 : Math.max(0, Math.min(100, score))}%`; i.appendChild(u); b.append(r, i); return b;
+  }
+  /** FinLit Prism (Gold): its score and label with the four parts, or the plain reason there is no rating. */
+  function prismView(p) {
     if (!p) return null;
     const name = p.name || "FinLit Prism";
-    if (p.locked) {
-      const o = el("div", "pz off"); o.append(icon("lock", 16), el("span", null, `${name} is part of the Gold plan.`), link(site, "/plans", "", "See plans"));
-      return o;
-    }
     const box = el("div", "pz"), h = el("div", "h"), t = el("b", null, name);
     h.appendChild(t);
     if (p.rated) {
@@ -215,12 +216,21 @@
       const right = el("div", "pv"); right.append(v, el("span", "chip " + bandClass(p.label), (p.label || "") + (p.provisional ? " · provisional" : "")));
       h.appendChild(right); box.appendChild(h);
       const bars = el("div", "bars");
-      for (const part of p.parts || []) {
-        const b = el("div", "bar"), r = el("div", "r"); r.append(el("span", null, part.label), el("span", null, part.score == null ? "–" : `${part.score}/100`));
-        const i = el("i"); const u = el("u"); u.style.width = `${part.score == null ? 0 : Math.max(0, Math.min(100, part.score))}%`; i.appendChild(u); b.append(r, i); bars.appendChild(b);
-      }
+      for (const part of p.parts || []) bars.appendChild(bar(part.label, part.score));
       box.appendChild(bars);
     } else { box.append(h, el("p", "hint", p.why || `${name} has no rating for this company yet.`)); }
+    return box;
+  }
+  /** The FinLit IQ (Silver): the score and its rating word, its two parts, and one sentence that describes them. */
+  function iqView(d) {
+    const box = el("div", "pz"), h = el("div", "h");
+    h.appendChild(el("b", null, "FinLit IQ"));
+    if (d.score == null) { box.append(h, el("p", "hint", d.why || "This company has no FinLit IQ yet.")); return box; }
+    const v = el("div", "v", String(d.score)); v.appendChild(el("span", null, " /100"));
+    const right = el("div", "pv"); right.append(v); if (d.band) right.appendChild(el("span", "chip " + bandClass(d.band), d.band));
+    h.appendChild(right); box.appendChild(h);
+    const bars = el("div", "bars"); bars.append(bar("Growth & Profitability", d.fundamental), bar("Technical", d.technical)); box.appendChild(bars);
+    if (d.take) box.appendChild(el("p", "what", d.take));
     return box;
   }
   function companyView(body, d, site, others, swap) {
@@ -230,24 +240,23 @@
     co.append(who, link(site, d.url || `/stocks/${d.symbol}`, "", null));
     co.lastChild.setAttribute("aria-label", "Open on FinLit"); co.lastChild.appendChild(icon("open", 16));
     frag.appendChild(co);
-    // The card shows one score: FinLit Prism (task #98). Gold sees the rating and its four parts; everyone else sees one line naming it, with the way to sign in or see plans.
-    const pz = prismView(d.prism, site);
+    // One score, the plan's own (tasks #100 and #112): Silver the FinLit IQ, Gold FinLit Prism. Below Silver: what each plan shows, and the way to sign in or see plans.
     if (d.locked) {
       const parts = [d.price != null ? `Price ₹${d.price.toLocaleString("en-IN")}` : null, d.marketCapCr ? `Market value ${fmtCr(d.marketCapCr)}` : null].filter(Boolean);
       if (parts.length) frag.appendChild(el("p", "hint", parts.join(" · ")));
-      if (pz) frag.appendChild(pz);
-      else frag.appendChild(el("p", "hint", d.signedIn ? "FinLit Prism is part of the Gold plan." : "Sign in to FinLit in this browser to see FinLit Prism."));
+      const o = el("div", "pz off"); o.append(icon("lock", 16), el("span", null, d.lockedWhy || "The FinLit IQ comes with the Silver plan and FinLit Prism with Gold."));
+      frag.appendChild(o);
       frag.appendChild(link(site, d.signedIn ? "/plans" : "/login", "btn ghost", d.signedIn ? "See plans" : "Sign in to FinLit"));
     } else {
-      if (pz) frag.appendChild(pz);
-      const f = d.figures || {}, has = d.score != null || d.marketCapCr || f.pe != null || f.roe != null || f.debtToEquity != null;
-      if (has) {
-        const fig = el("div", "fig");
-        for (const [k, v] of [["MCap", d.marketCapCr ? fmtCr(d.marketCapCr) : "–"], ["PE", f.pe == null ? "–" : f.pe.toFixed(1)], ["ROE", f.roe == null ? "–" : `${f.roe.toFixed(1)}%`], ["Debt/Equity", f.debtToEquity == null ? "–" : f.debtToEquity.toFixed(2)]]) {
+      frag.appendChild(d.model === "prism" ? prismView(d.prism) || el("p", "hint", "FinLit Prism is not available for this company yet.") : iqView(d));
+      const f = d.figures;
+      if (f || d.marketCapCr) {
+        const g = f || {}, fig = el("div", "fig");
+        for (const [k, v] of [["MCap", d.marketCapCr ? fmtCr(d.marketCapCr) : "–"], ["PE", g.pe == null ? "–" : g.pe.toFixed(1)], ["ROE", g.roe == null ? "–" : `${g.roe.toFixed(1)}%`], ["Debt/Equity", g.debtToEquity == null ? "–" : g.debtToEquity.toFixed(2)]]) {
           const c = el("div"); c.append(el("small", null, k), el("b", null, v)); fig.appendChild(c);
         }
         frag.appendChild(fig);
-      } else if (!pz) frag.appendChild(el("p", "hint", "FinLit Prism is not available for this company yet."));
+      }
     }
     if (others && others.length) {
       frag.appendChild(el("p", "hint", "Not this one?"));

@@ -1,6 +1,6 @@
 # FinLit browser extension (task #54)
 
-Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit Prism score** (on the Gold plan, with its four parts; everyone else sees that it is part of Gold)
+Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score, the one your plan has**: the FinLit IQ with its two parts on Silver, FinLit Prism with its four parts on Gold (below Silver, the card says what each plan shows)
 (with market value, PE, ROE and Debt/Equity), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
@@ -39,11 +39,11 @@ For a local server, save `apiBase` (only `http://localhost:PORT` is honoured) in
 
 1. `python extension/build.py --zip`, upload `extension/dist/finlit-extension-<version>.zip` in the Developer Dashboard (one-time registration fee applies).
 2. The full step-by-step for the owner, with the listing text, screenshots and promo tile, is `store/LISTING.md`. Privacy policy URL: `https://finlitventures.com/browser-extension#privacy` (same text as `PRIVACY.md`).
-3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit Prism score, for text the user selects."
+3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit score (FinLit IQ or FinLit Prism, by plan), for text the user selects."
 4. Permission justifications: `storage` (settings and cached company list), `contextMenus` (right-click lookup), `activeTab` (read the current site name for the per-site switch), host access to finlitventures.com (the company card), content script on all sites (shows the button next to text the user selects).
 5. Raise `version` in `manifest.json` for every update; rerun `build.py` whenever the site glossary changes (a test fails until you do).
 
-Listing: **FinLit Ventures: select to understand.** Select any financial term or listed company on a web page and see its meaning or FinLit Prism score in a small card, without leaving the page. Reads only the words you select; they stay in your browser.
+Listing: **FinLit Ventures: select to understand.** Select any financial term or listed company on a web page and see its meaning or FinLit score in a small card, without leaving the page. Reads only the words you select; they stay in your browser.
 
 ## Not in version 1 (suggestions)
 

@@ -13,7 +13,7 @@ vi.mock("lightweight-charts", () => {
     createChart: (_el: unknown, o: Record<string, unknown>) => { opts.push(o); return { addSeries: (k: string, so?: { color?: string }) => { added.push(k); if (so?.color) lines.push(so.color); return mk(); }, panes: () => [{ setStretchFactor: vi.fn() }, { setStretchFactor: vi.fn() }], priceScale: () => ({ applyOptions: vi.fn() }), timeScale: () => ({ fitContent: vi.fn(), setVisibleLogicalRange: vi.fn(), timeToCoordinate: vi.fn() }), subscribeCrosshairMove: vi.fn(), subscribeClick: vi.fn(), applyOptions: vi.fn(), remove: vi.fn() }; },
   };
 });
-vi.mock("../../lib/ui", () => ({ useThemeKey: () => "light" }));
+vi.mock("../../lib/ui", () => ({ useThemeKey: () => "light", useUI: () => ({ has: (t: string) => t === "silver" }) }));   // Silver: the FinLit IQ (task #100)
 vi.mock("../../lib/api", () => ({
   apiGet: () => Promise.reject(new Error("offline")),
   useSummary: () => sumRes,
@@ -52,7 +52,7 @@ describe("ChartPanel", () => {
   it("never draws a grid, and shows the score badge and the score tiles", () => {
     show();
     expect(opts[0].grid).toEqual({ vertLines: { visible: false }, horzLines: { visible: false } });
-    expect(screen.getByText("FinLit IQ 71")).toBeTruthy();
+    expect(document.querySelector(".plan-chip")?.textContent).toMatch(/^FinLit IQ 71/);
     expect(screen.getByLabelText("FinLit IQ scores").textContent).toContain("Quality");
   });
   it("opens with the 9-day line for the 9 EMA screen and the 20-day line for the pulled-back breakout, remembering the reader's choice", () => {

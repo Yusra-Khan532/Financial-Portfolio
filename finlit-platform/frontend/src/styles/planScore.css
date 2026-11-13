@@ -1,0 +1,14 @@
+/* The one score chip of the plan (lib/planScore.tsx, task #100): "Prism 78 · Healthy" for Gold, "FinLit IQ 71 · Healthy" for Silver. Colour follows the site's
+   one rule (green 70+, orange 50-69, red under 50, grey when missing); the number and word carry the meaning. Fallbacks for pages that do not load dash-shared.css. */
+.plan-chip { display: inline-flex; align-items: baseline; gap: 6px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; padding: 2px 10px; font-weight: 600; font-size: 13px; color: var(--text); background: var(--s2, transparent); white-space: nowrap; }
+.plan-chip b { font: 700 14px var(--mono); }
+.plan-chip small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.plan-chip.b-hi { border-color: var(--band-hi, var(--gain)); } .plan-chip.b-hi b { color: var(--band-hi-ink, var(--gain)); }
+.plan-chip.b-mid { border-color: var(--band-mid, var(--warn, #c27a12)); } .plan-chip.b-mid b { color: var(--band-mid-ink, var(--warn, #c27a12)); }
+.plan-chip.b-lo { border-color: var(--band-lo, var(--loss)); } .plan-chip.b-lo b { color: var(--band-lo-ink, var(--loss)); }
+.plan-chip.b-na { color: var(--muted); font-weight: 500; }
+:root[data-theme="light"] .plan-chip.b-hi b { color: var(--gain); } :root[data-theme="light"] .plan-chip.b-mid b { color: #a8650a; } :root[data-theme="light"] .plan-chip.b-lo b { color: var(--loss); }
+/* the six Prism cards under a chart (Gold): four parts, two technical views */
+.cp-pz .pb-hi b { color: var(--band-hi-ink, var(--gain)); } .cp-pz .pb-mid b { color: var(--band-mid-ink, var(--warn, #c27a12)); } .cp-pz .pb-lo b { color: var(--band-lo-ink, var(--loss)); } .cp-pz .pb-na b { color: var(--faint, var(--muted)); }
+:root[data-theme="light"] .cp-pz .pb-hi b { color: var(--gain); } :root[data-theme="light"] .cp-pz .pb-mid b { color: #a8650a; } :root[data-theme="light"] .cp-pz .pb-lo b { color: var(--loss); }
+.cp-pz em { font-style: normal; font-size: 11px; color: var(--muted); }

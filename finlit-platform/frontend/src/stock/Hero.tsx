@@ -30,7 +30,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
   const { toast } = useUI();
   const [dashOpen, setDashOpen] = useDashOpen();
   const [dl, setDl] = useState(false);
-  const { open: open_, two, isAdmin, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
+  const { two, isAdmin, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
   const q = s.quote, p = s.profile, good = (q.change ?? 0) >= 0, cov = s.dataQuality.coverage;
   const asOf = q.asOf ? new Date(q.asOf) : null;
   const download = (kind: "pdf" | "html" | "csv") => {
@@ -90,17 +90,18 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
         </div>
         <TradingFacts s={s} />
 
+        {/* One model per plan (founder, 13 Nov 2026, task #100): Gold (and the open example company) sees FinLit Prism only, full width; Silver sees the FinLit IQ
+            beside a locked Prism example; Basic sees both locked. */}
         <div className="pz-pair dk-pair" data-open={dashOpen}>
-        <Gate tier="silver" title="Unlock the FinLit IQ" points={["Overall score from our proprietary model", "Five-pillar scorecard on every stock page", "See how each parameter drives the score"]}>
-          <ScoreCard s={s} ratios={ratios} jump={jump} two={two} expanded={dashOpen} />
-        </Gate>
+        {!two && <Gate tier="silver" title="Unlock the FinLit IQ" points={["Overall score from our proprietary model", "Five-pillar scorecard on every stock page", "See how each parameter drives the score"]}>
+          <ScoreCard s={s} ratios={ratios} jump={jump} two={false} expanded={dashOpen} />
+        </Gate>}
         <PrismCompare symbol={s.profile.symbol} name={p.name} statement={s.meta.statement} />
         </div>
-        {two && <p className="faint hs-two">FinLit IQ and FinLit Prism are two different models, built differently on purpose. They can disagree; the reason is in the report.</p>}
         <DashToggle open={dashOpen} onToggle={setDashOpen} controls="dk-full" />
         <div id="dk-full" className="dk-full" hidden={!dashOpen}>
           {dashOpen && <>
-            {(has("silver") || open_) && <ScoreDetail s={s} ratios={ratios} />}
+            {!two && has("silver") && <ScoreDetail s={s} ratios={ratios} />}
             {two && <PrismDetail symbol={s.profile.symbol} statement={s.meta.statement} />}
           </>}
         </div>

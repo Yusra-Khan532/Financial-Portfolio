@@ -109,7 +109,7 @@ function Results({ d, cols, rows, sort, setSort, tab }: { tab: PresetTab; d: Pre
     const fresh = picked.filter((x) => !watch.has(x)); fresh.forEach((x) => watch.add(x));
     toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");
   };
-  const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"], screen: d.id, prism: (r.prism_label as string | null | undefined) ?? null });
+  const openRow = (r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"], screen: d.id });
   const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol), n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const head = (key: string, label: string, align: string, first: 1 | -1 = -1, cls = "") => (
     <th scope="col" className={"psx-a-" + align + (cls ? " " + cls : "")} aria-sort={sort?.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>

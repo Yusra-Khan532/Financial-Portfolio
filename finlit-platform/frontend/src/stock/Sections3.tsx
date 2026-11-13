@@ -1,4 +1,5 @@
 import { HScroll } from "../components/HScroll";
+import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -204,9 +205,14 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   const [hv, setHv] = useState<string | null>(null);
   const items = (p?.items || p?.symbols.map((x) => ({ symbol: x, name: null })) || []) as NonNullable<Peers["items"]>;
   const peers = items.filter((i) => i.symbol !== self);
+  // task #100: the score column is the plan's model: FinLit Prism for Gold, the FinLit IQ for Silver
+  const model = usePlanModel();
+  const pm = usePlanPrism(useMemo(() => [self, ...items.map((i) => i.symbol)], [self, items]), model);
+  const sc = (sym: string, iq: number | null | undefined) => { if (model !== "prism") return iq ?? null; const v = scoreView("prism", { score: null }, pm[sym]); return v.score; };
+  const scName = model === "prism" ? "Prism" : "FinLit IQ";
   if (!p || !peers.length) return null;
-  const me = { score: s.score.overall, mcap: s.profile.marketCapCr, pe: metric(s, "pe")?.value ?? null, roe: metric(s, "roe")?.value ?? null };
-  const hasData = peers.some((i) => i.overall != null || i.market_cap != null || i.pe != null);
+  const me = { score: sc(self, s.score.overall), mcap: s.profile.marketCapCr, pe: metric(s, "pe")?.value ?? null, roe: metric(s, "roe")?.value ?? null };
+  const hasData = peers.some((i) => sc(i.symbol, i.overall) != null || i.market_cap != null || i.pe != null);
   const maxCap = Math.max(me.mcap || 0, ...peers.map((i) => i.market_cap || 0), 1);
   const rad = (cap: number | null | undefined) => (cap ? 20 + 18 * Math.sqrt(cap / maxCap) : 26);
   const go = (sym: string) => nav(`/stocks/${sym}`);
@@ -241,12 +247,12 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
         </div>
         <div className="pr-list">
           <div className="pr-row me"><CoLogo symbol={s.profile.symbol} name={s.profile.name} size={32} /><span className="pr-nm"><b>{s.profile.name}</b><span className="tk">{self} · this company</span></span>
-            <span className="pr-st"><span>Score</span><b>{me.score ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{me.pe != null ? nf(me.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{me.roe != null ? nf(me.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{me.mcap ? "₹" + cr(me.mcap) : "—"}</b></span></div>
+            <span className="pr-st"><span>{scName}</span><b>{me.score ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{me.pe != null ? nf(me.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{me.roe != null ? nf(me.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{me.mcap ? "₹" + cr(me.mcap) : "—"}</b></span></div>
           {peers.map((i) => { const c = hue(i.symbol); return (
             <a key={i.symbol} className={"pr-row" + (hv === i.symbol ? " hot" : "")} href={`/stocks/${i.symbol}`} style={{ "--pc": c } as React.CSSProperties} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onClick={(e) => { e.preventDefault(); go(i.symbol); }}>
               <CoLogo symbol={i.symbol} name={i.name} size={32} />
               <span className="pr-nm"><b>{i.name || i.symbol}</b><span className="tk">{i.symbol}</span></span>
-              {hasData ? <><span className="pr-st"><span>Score</span><b>{i.overall ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{i.pe != null ? nf(i.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{i.roe != null ? nf(i.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{i.market_cap ? "₹" + cr(i.market_cap) : "—"}</b></span></> : <span className="pr-go">Open report <Icon name="arrow" /></span>}
+              {hasData ? <><span className="pr-st"><span>{scName}</span><b>{sc(i.symbol, i.overall) ?? "—"}</b></span><span className="pr-st"><span>P/E</span><b>{i.pe != null ? nf(i.pe, 1) + "×" : "—"}</b></span><span className="pr-st"><span>ROE</span><b>{i.roe != null ? nf(i.roe, 1) + "%" : "—"}</b></span><span className="pr-st"><span>Cap</span><b>{i.market_cap ? "₹" + cr(i.market_cap) : "—"}</b></span></> : <span className="pr-go">Open report <Icon name="arrow" /></span>}
             </a>); })}
         </div>
       </div>
