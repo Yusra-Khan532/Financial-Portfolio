@@ -10,6 +10,8 @@ The founder (Pranshu) sends 4-5 issues at a time. Solve them one at a time, with
 4. **Test.** Prove it works: run the tests, look at UI changes in a real browser (desktop and phone width, light and dark), and confirm that the problem and the predicted nearby problems are all solved.
 5. **Upgrade.** Once it works, improve it further where it clearly helps, and say what was added.
 
+**Every task follows `docs/TASK-PROMPT.md` (the founder said so on 13 Nov 2026).** In short: copy every line of the task and of the team's notes into a numbered checklist, word for word; reproduce each point on the live site first; prove each point with a test or an after-screenshot (desktop and phone, light and dark, Silver and Gold where it applies); push only after every test passes; check the live page after the deploy; a point without evidence is not done. Report with the checklist table.
+
 Report each issue in one message: cause, what changed, test results, what is still open. Give server or browser steps ONE at a time, say exactly where each runs (PowerShell on the PC, Git Bash on the PC, or the server window whose prompt starts `ubuntu@ip-`), and ask for a screenshot. For older issues the founder was not satisfied with, ask what looked wrong (a screenshot) before deciding the fix.
 
 ## Project facts
