@@ -126,7 +126,12 @@ async def candle_coverage(store, table, expected_day: date) -> Dict[str, Any]:
     return {"fresh": fresh, "universe": universe, "suspended": suspended, "ratio": (fresh / universe) if universe else 1.0}      # no company to scan: nothing is thin, the run just finds nothing
 
 
-async def wait_for_candles(store, table, expected_day: date, max_wait_s: int = 1800, step_s: int = 120, sleep=None) -> Dict[str, Any]:
+# How long the pattern run waits for the candle refresh. It must stay well inside the presets job's time limit (registry.py): on 13 Nov 2026 a 30-minute wait
+# inside a 20-minute job made every run time out before a single list was stored. After this wait the screens are built anyway and the last pattern run stays.
+CANDLE_WAIT_S = 600
+
+
+async def wait_for_candles(store, table, expected_day: date, max_wait_s: int = CANDLE_WAIT_S, step_s: int = 120, sleep=None) -> Dict[str, Any]:
     """The pattern run waits for the candle refresh of the whole universe: it looks again every `step_s` seconds, up to `max_wait_s`, until at least 98% of the companies have the close's
     candle. Returns the last coverage seen (the caller stops and alerts when it is still below 98%)."""
     import asyncio
