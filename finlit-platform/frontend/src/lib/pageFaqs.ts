@@ -1,9 +1,10 @@
 import { PAGE_FAQS, type PageFaq } from "../content/pageFaqs";
 import { MF_PORTFOLIO_FAQ } from "../content/mfPortfolioFaqs";
 import { MY_PORTFOLIO_FAQ } from "../content/myPortfolioFaqs";
+import { GLOSSARY_FAQ } from "../content/glossaryFaqs";
 
 /** Sets written by hand after the PDF (the PDF-built list in content/pageFaqs.ts is generated and not edited). */
-const EXTRA_FAQS: PageFaq[] = [MF_PORTFOLIO_FAQ, MY_PORTFOLIO_FAQ];   // listed first below: a hand-written set wins over the PDF-built one for the same route
+const EXTRA_FAQS: PageFaq[] = [MF_PORTFOLIO_FAQ, MY_PORTFOLIO_FAQ, GLOSSARY_FAQ];   // listed first below: a hand-written set wins over the PDF-built one for the same route
 
 /** Route patterns use react-router's ":param" segments. Query string, hash, a trailing slash and letter case are ignored. */
 const clean = (p: string) => p.split(/[?#]/)[0].replace(/\/+$/, "").toLowerCase() || "/";

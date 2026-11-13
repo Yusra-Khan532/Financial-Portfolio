@@ -365,7 +365,8 @@
     "Average true range",
     "True range",
     "Stretched"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Average volume and volume spike",
@@ -430,7 +431,8 @@
     "Base breakout",
     "Breakout volume",
     "Heavy-volume sessions"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Base effect",
@@ -654,7 +656,8 @@
     "Fresh thrusts",
     "Last thrust",
     "Thrust window"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Break-even point",
@@ -869,7 +872,8 @@
     "Climax run",
     "Small-bodied candle",
     "Wide bearish bar"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Capex intensity (capex to sales, capex to operating cash)",
@@ -966,7 +970,8 @@
     "Higher low",
     "Bottomed before the industry",
     "Sessions since low"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "CAS (Consolidated Account Statement)",
@@ -1095,7 +1100,8 @@
     "Category average",
     "Fund minus category average",
     "Peer median"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Circuit limit",
@@ -1180,7 +1186,8 @@
     "Size band",
     "Very small",
     "Very large"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Compound interest",
@@ -1335,14 +1342,15 @@
    "meaning": "How much of the information a FinLit Prism rating needs was actually found in the company's filings and prices, from 0% to 100%. A short sales and profit record counts only in part.",
    "why": "Where an input is missing, Prism uses a standard estimate for the company's industry group instead, so lower coverage means more of the rating rests on estimates.",
    "how": "Read coverage as how complete the data is, not as the chance that the rating is right or a guide to the share price. When coverage is low the rating is marked Provisional; when too little is found the company is Not rated.",
-   "formula": "Coverage = 0.40 × Growth & Profitability coverage + 0.30 × Valuation coverage + 0.20 × Quality coverage + 0.10 × Risk coverage",
+   "formula": "",
    "id": "coverage-prism",
    "letter": "C",
    "finlit": "",
    "aliases": [
     "Prism coverage",
     "Inputs available"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "CPI and WPI (consumer and wholesale price indices)",
@@ -1963,7 +1971,8 @@
     "Earnings sustainability",
     "Quality of earnings",
     "Low-quality earnings"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Earnings yield",
@@ -2376,7 +2385,8 @@
     "EMA 200",
     "Exponential moving average",
     "EMA 9 against EMA 20"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Face value",
@@ -2497,7 +2507,8 @@
     "overall",
     "score change",
     "FinLit health score"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "FinLit Outlook (revenue and profit estimates)",
@@ -2527,7 +2538,7 @@
    "meaning": "FinLit's advanced financial-health rating of a listed company, part of the Gold plan. It scores four parts from the company's filings and prices (Growth & Profitability, Valuation, Quality and Risk) and combines them into a score out of 100 with a label: Strong, Healthy, Average, Weak or Poor.",
    "why": "Each company is read against one of eight industry groups, so a bank, an insurer, a lender, a property developer, a utility, a heavy industry, a light business and a manufacturer are each judged on the measures that fit them.",
    "how": "Read the four parts and the coverage before the score, and check the date of the report. Prism describes the company's financial health from its filings and prices; it is not a recommendation.",
-   "formula": "Prism score = 0.40 × Growth & Profitability + 0.30 × Valuation + 0.20 × Quality + 0.10 × Risk",
+   "formula": "",
    "id": "finlit-prism",
    "letter": "F",
    "finlit": "Prism is separate from the FinLit IQ and the two can disagree. Each part is weighed by industry group, with rules for losses and weak businesses; the weights stay inside the model. Every Prism report can be saved as a PDF.",
@@ -2537,7 +2548,8 @@
     "Prism score",
     "Rated by Prism",
     "Prism basics"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Fiscal year (FY)",
@@ -2798,7 +2810,8 @@
     "Fundamental score",
     "fundamental score",
     "technical score"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Futures contract",
@@ -3509,7 +3522,8 @@
     "1 · Washout",
     "3 · Confirmed",
     "How sector signals work"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Joint venture",
@@ -3608,7 +3622,8 @@
     "Large cap",
     "Mid cap",
     "Size (AMFI)"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Last traded price (LTP) and closing price",
@@ -3667,7 +3682,8 @@
     "Weakening",
     "Peer label",
     "Has leadership held here?"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Leverage",
@@ -3846,7 +3862,8 @@
    "id": "last-bounce",
    "letter": "L",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "MACD (moving average convergence divergence)",
@@ -3865,7 +3882,8 @@
     "MACD histogram",
     "Signal line",
     "Weekly MACD"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Mainboard IPO",
@@ -4049,7 +4067,8 @@
     "Median absolute deviation",
     "Unusual year",
     "Unusual year: far from this row's other years"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Minimum investment",
@@ -4156,10 +4175,10 @@
    "meaning": "FinLit's 0 to 100 score of a mutual fund against funds of the same kind, built from four parts: Performance, Risk, Cost and Quality (age, size and how the portfolio is built). How much each part counts depends on the fund group and stays with the model.",
    "why": "Return is only one part of a fund; how bumpy and deep its falls were and what it costs count too.",
    "how": "Read the group, the rank inside it and the risk-o-meter next to the score: a 75 for a small-cap fund and a 75 for a liquid fund do not mean the same thing. It is not a forecast or advice.",
-   "formula": "Score combines Performance, Risk, Cost and Quality",
+   "formula": "",
    "id": "mutual-fund-health-score",
    "letter": "M",
-   "finlit": "Each measure earns more points the nearer it sits to the good end of its range. Direct and Regular plans are scored separately. A fund with a short NAV history is provisional and its label stops at Healthy; a very new fund is not rated.",
+   "finlit": "Each measure is read against the other funds of the same kind, and the details of the scoring stay inside the model. Direct and Regular plans are scored separately. A fund with a short NAV history is marked provisional; a very new fund is not rated.",
    "aliases": [
     "Health score",
     "MF health score",
@@ -4168,7 +4187,8 @@
     "FinLit Mutual Fund Health Score",
     "The four parts",
     "Fund score screener"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Moves like (independent bets)",
@@ -4180,7 +4200,8 @@
    "id": "moves-like-independent-bets",
    "letter": "M",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "Moves with the rest",
@@ -4192,7 +4213,8 @@
    "id": "moves-with-the-rest",
    "letter": "M",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "NBFC (non-banking financial company)",
@@ -4420,7 +4442,8 @@
     "CFO margin",
     "Cash margin",
     "Weak OCF margin"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Offer for sale (OFS)",
@@ -4452,7 +4475,8 @@
     "On-balance volume",
     "Volume flow",
     "Volume flow (on-balance volume)"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Open interest (OI)",
@@ -4905,7 +4929,8 @@
     "Breakaway gap",
     "Exhaustion gap",
     "Price gap"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Price return",
@@ -5154,7 +5179,8 @@
    "aliases": [
     "Provisional",
     "Not rated"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Pullback",
@@ -5171,7 +5197,8 @@
     "Dip",
     "Pullback match",
     "Dry-volume pullback"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Put-call ratio (PCR)",
@@ -5217,7 +5244,8 @@
    "id": "portfolio-score-and-diversification-score",
    "letter": "P",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "QIB (qualified institutional buyer)",
@@ -5279,7 +5307,8 @@
     "6-month quarter",
     "Top quarter",
     "Bottom quarter"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Quarterly results",
@@ -5559,7 +5588,8 @@
     "Outperformance",
     "Underperformance",
     "Strength against the index"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Relative valuation (versus history and sector)",
@@ -5929,7 +5959,8 @@
     "Ahead but slowing",
     "Behind and slipping",
     "Behind but gaining"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Rotation rank",
@@ -5946,7 +5977,8 @@
     "Rank change",
     "Places moved",
     "Climbers and fallers"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "RSI (Relative Strength Index)",
@@ -5992,7 +6024,8 @@
    "id": "result-verdict-strong-good-weak-poor",
    "letter": "R",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "Standout (strong and early)",
@@ -6008,7 +6041,8 @@
     "Leader flag",
     "Leader flags",
     "With leader flags"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Sales and profit per employee",
@@ -6099,7 +6133,8 @@
     "Watch",
     "FinLit band",
     "Watchlist by band"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Screener and filters",
@@ -6473,7 +6508,8 @@
     "Stage 4",
     "Weinstein stage",
     "Stage 2 fresh advance"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Standard deviation",
@@ -6646,7 +6682,8 @@
     "Swing low",
     "Bullish swing failure",
     "Bearish swing failure"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Symbol (ticker) and BSE code",
@@ -6675,7 +6712,8 @@
    "id": "stock-stages-accumulation-advancing-distribution-declining",
    "letter": "S",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "Stocks rising (industry breadth)",
@@ -6687,7 +6725,8 @@
    "id": "stocks-rising-industry-breadth",
    "letter": "S",
    "finlit": "",
-   "aliases": []
+   "aliases": [],
+   "change": "new"
   },
   {
    "term": "T+3 listing timeline",
@@ -6785,7 +6824,8 @@
     "Falling on both",
     "Uptrend on both technical views",
     "Technical views over time"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Terminal value",
@@ -7168,7 +7208,8 @@
     "Squeeze",
     "Breakout from a squeeze",
     "Price squeeze"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "Volume",
@@ -7201,7 +7242,8 @@
     "POC",
     "Value area high",
     "Value area low"
-   ]
+   ],
+   "change": "updated"
   },
   {
    "term": "WACC (weighted average cost of capital)",

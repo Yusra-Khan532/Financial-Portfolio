@@ -60,10 +60,11 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard", "/watchlist"]);
+const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary"]);
 export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
-  const faq = OWN_PLACE.has(pathname) && !inline ? undefined : faqForPath(pathname);
+  const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/"));   // /glossary/<term> is placed by its page too
+  const faq = own && !inline ? undefined : faqForPath(pathname);
   useEffect(() => { if (faq && hash === "#faq") setTimeout(() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" }), 150); }, [faq, hash]);
   if (!faq) return null;
   // first question open on a wide screen, all closed on a phone
