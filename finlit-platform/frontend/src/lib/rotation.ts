@@ -101,23 +101,39 @@ export function mapGeometry(rows: RotationRow[], w: number, h: number, weeks: nu
   return { w, h, x, y, xTicks: ticks(xl, xh, stepOf(xh - xl)), yTicks: ticks(yl, yh, stepOf(yh - yl)), x0: x(0), y0: y(0), dots, left, right, top, bottom };
 }
 
+/** Short names for the final pages pack's map labels (the same as lib/pulsePack's SHORT; written here so this file needs nothing from that one). */
+const SHORT_NAME: Record<string, string> = {
+  "Agricultural Commercial & Construction Vehicles": "Agri & Construction Vehicles", "Agricultural Food & other Products": "Agri Food Products", "Cement & Cement Products": "Cement",
+  "Chemicals & Petrochemicals": "Chemicals", "Commercial Services & Supplies": "Commercial Services", "Fast Moving Consumer Goods": "FMCG", "Fertilizers & Agrochemicals": "Fertilizers & Agrochem",
+  "Industrial Manufacturing": "Industrial Mfg", "Media Entertainment & Publication": "Media & Entertainment", "Oil Gas & Consumable Fuels": "Oil, Gas & Fuels", "Pharmaceuticals & Biotechnology": "Pharma & Biotech",
+};
 /** Places for the labels so that they do not stack on one another: right of the dot if that spot is free, else left, above or below (greedy, best rank first). */
-export function placeLabels(dots: MapDot[], charW = 6.6, lineH = 14, w = 0): Record<string, { x: number; y: number; anchor: "start" | "end" }> {
+/** `drop`: leave a dot unlabelled when no spot is free, instead of overlapping, keep labels off every dot and a ring's width away (the final pages pack's map). */
+export function placeLabels(dots: MapDot[], charW = 6.6, lineH = 14, w = 0, drop = false, first: Set<string> = new Set()): Record<string, { x: number; y: number; anchor: "start" | "end" }> {
   const taken: { x1: number; x2: number; y1: number; y2: number }[] = [];
   const out: Record<string, { x: number; y: number; anchor: "start" | "end" }> = {};
   const hit = (b: { x1: number; x2: number; y1: number; y2: number }) => taken.some((t) => b.x1 < t.x2 && b.x2 > t.x1 && b.y1 < t.y2 && b.y2 > t.y1);
-  for (const d of [...dots].filter((q) => q.label).sort((a, b) => (a.row.rank ?? 99) - (b.row.rank ?? 99))) {
-    const wd = shortName(d.name).length * charW;
+  if (drop) for (const d of dots) taken.push({ x1: d.x - 6, x2: d.x + 6, y1: d.y - 6, y2: d.y + 6 });
+  const o = drop ? 12 : 9, name = drop ? (n: string) => SHORT_NAME[n] ?? n : shortName;
+  for (const d of [...dots].filter((q) => q.label).sort((a, b) => Number(first.has(b.slug)) - Number(first.has(a.slug)) || (a.row.rank ?? 99) - (b.row.rank ?? 99))) {   // `first` (your industries) are labelled before the rest
+    const wd = name(d.name).length * charW;
     const tries: { x: number; y: number; anchor: "start" | "end" }[] = [
-      { x: d.x + 9, y: d.y + 4, anchor: "start" }, { x: d.x - 9, y: d.y + 4, anchor: "end" }, { x: d.x + 9, y: d.y - 9, anchor: "start" }, { x: d.x + 9, y: d.y + 16, anchor: "start" },
-      { x: d.x - 9, y: d.y - 9, anchor: "end" }, { x: d.x - 9, y: d.y + 16, anchor: "end" },
+      { x: d.x + o, y: d.y + 4, anchor: "start" }, { x: d.x - o, y: d.y + 4, anchor: "end" }, { x: d.x + o, y: d.y - 9, anchor: "start" }, { x: d.x + o, y: d.y + 16, anchor: "start" },
+      { x: d.x - o, y: d.y - 9, anchor: "end" }, { x: d.x - o, y: d.y + 16, anchor: "end" },
+      ...(drop ? [{ x: d.x + 4, y: d.y - 14, anchor: "start" as const }, { x: d.x - 4, y: d.y - 14, anchor: "end" as const }, { x: d.x + 4, y: d.y + 22, anchor: "start" as const }, { x: d.x - 4, y: d.y + 22, anchor: "end" as const }] : []),   // crowded spots: just above or below
+      ...(drop && first.has(d.slug) ? [-30, 34, -44, 48].flatMap((dy) => [{ x: d.x + 6, y: d.y + dy, anchor: "start" as const }, { x: d.x - 6, y: d.y + dy, anchor: "end" as const }]) : []),   // your industries: further out before giving up
     ];
-    let pick = tries[0];
+    let pick: (typeof tries)[number] | null = drop ? null : tries[0];
     for (const t of tries) {
       const x1 = t.anchor === "start" ? t.x : t.x - wd;
       const b = { x1, x2: x1 + wd, y1: t.y - lineH + 3, y2: t.y + 3 };
       if (!hit(b) && (!w || (b.x1 >= 0 && b.x2 <= w))) { pick = t; break; }
     }
+    if (!pick && first.has(d.slug)) {   // your industry and no free spot: the spot that overlaps the fewest things
+      const n = (t: (typeof tries)[number]) => { const x1 = t.anchor === "start" ? t.x : t.x - wd; const b = { x1, x2: x1 + wd, y1: t.y - lineH + 3, y2: t.y + 3 }; return (w && (b.x1 < 0 || b.x2 > w)) ? 1e9 : taken.filter((q) => b.x1 < q.x2 && b.x2 > q.x1 && b.y1 < q.y2 && b.y2 > q.y1).length; };
+      pick = [...tries].sort((a, b) => n(a) - n(b))[0];
+    }
+    if (!pick) continue;
     const x1 = pick.anchor === "start" ? pick.x : pick.x - wd;
     taken.push({ x1, x2: x1 + wd, y1: pick.y - lineH + 3, y2: pick.y + 3 });
     out[d.slug] = pick;

@@ -35,7 +35,7 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
     <>
       <Cards items={tableCards(b.rows, week)} />
       <section className="sp-sec" aria-labelledby="sp-every">
-        <div className="sp-sec-h"><div><h2 id="sp-every">Every industry, every number</h2><p className="sp-sub">Grouped by state. Click any industry to see the stocks inside it, best 6-month performers first.</p></div>
+        <div className="sp-sec-h"><div><h2 id="sp-every">Every industry, every number</h2><p className="sp-sub">Grouped by state. Click any industry to see the stocks inside it, strongest 6 months first.</p></div>
           <button type="button" className="sp-dl" onClick={() => download(b.rows, b.date)}>Download CSV</button></div>
         <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
         <div className="sp-ckey"><span><b>How to read the 6-month chart:</b> the <b>line</b> is the share of its stocks rising each day (dashed = half); the <b>shading</b> is its state that day; ▲ marks its last bounce.</span>
@@ -116,7 +116,7 @@ export function StandoutsFull({ b }: { b: Board }) {
         <div className="sp-sumc sp-good-bg"><b>Strong · {c.strong}</b><Tip text="Strong standout. The stock is at a 1-year high while its industry is still far below its own high. It stands out the most." /><p>Industry far below its high, so the stock stands out the most.</p></div>
         <div className="sp-sumc sp-watch-bg"><b>Early · {c.early}</b><Tip text="Early standout. The stock is at a 1-year high while its industry is somewhat below its own high." /><p>Industry somewhat below its high.</p></div>
       </div>
-      <p className="sp-why"><b>Why it matters</b> These are the stocks holding up best inside weak industries: a research list, not a recommendation.</p>
+      <p className="sp-why"><b>Why it matters</b> These are the stocks holding up most strongly inside weak industries: a research list, not a recommendation.</p>
       <ul className="sp-standlist">{shown.map((x) => { const s = howStrong(x); return <li key={x.symbol + x.group_slug}><Link to={`/stocks/${x.symbol}`}><b>{x.symbol}</b></Link> <span>{short(x.group)}</span><span className={"sp-q " + (s === "Strong" ? "sp-standout" : "sp-early-q")}>{s}</span></li>; })}</ul>
       {f.length > 24 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f.length - 24} ▾`}</button>}
     </section>
@@ -172,10 +172,10 @@ function Opened({ r, rising }: { r: GroupRow; rising: (number | null)[] }) {
       <div className="sp-cards" style={{ ["--cols" as string]: second ? 2 : 1 }}><InsightCard c={first} />{second && <InsightCard c={second} />}</div>
       <p className="sp-open-line"><b>Stocks rising (medium trend), last 6 months</b><Spark values={rising} label={`${nm}: stocks rising over 6 months`} w={260} h={34} /><small>dashed line = half the stocks</small><Link to={`/sectors/${r.slug}`} className="sp-link">Open the {nm} page →</Link></p>
       {q.isLoading ? <div className="sx-skel" style={{ height: 80 }} role="status" aria-label={`Loading the stocks of ${nm}`} />
-        : q.data?.stocks == null ? <LockedBlock plan="silver" title="The stocks of each industry are part of the Silver plan">The states and the stocks rising are open to everyone. Silver lists every counted stock, best 6 months first, with where it falls inside its industry.</LockedBlock>
+        : q.data?.stocks == null ? <LockedBlock plan="silver" title="The stocks of each industry are part of the Silver plan">The states and the stocks rising are open to everyone. Silver lists every counted stock, strongest 6 months first, with where it falls inside its industry.</LockedBlock>
         : <div className="sp-stocks"><table className="sp-tb">
-          <thead><tr><th scope="col">Rank<Tip text="Its place among the industry's counted stocks by 6-month return, best first." /></th><th scope="col">Stock</th><th scope="col">Size<Tip text="FinLit's size scale: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr." /></th>
-            <th scope="col" className="r">6 months<Tip text="The share price change over the last 6 months." /></th><th scope="col">In its industry<Tip text="Inside its industry. Where the stock's 6-month return falls among the industry's counted stocks. Top quarter: the best 25%. Bottom quarter: the weakest 25%." /></th>
+          <thead><tr><th scope="col">Rank<Tip text="Its place among the industry's counted stocks by 6-month return, highest first." /></th><th scope="col">Stock</th><th scope="col">Size<Tip text="FinLit's size scale: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr." /></th>
+            <th scope="col" className="r">6 months<Tip text="The share price change over the last 6 months." /></th><th scope="col">In its industry<Tip text="Inside its industry. Where the stock's 6-month return falls among the industry's counted stocks. Top quarter: the strongest 25%. Bottom quarter: the weakest 25%." /></th>
             <th scope="col">Vs peers<Tip text="Leader, In line, Laggard. Each share's price over the last 12 months is compared with similar companies and with its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future. A dash means the stock is not in a FinLit peer group." /></th>
             <th scope="col">Standout<Tip text="At a new 1-year high while its industry is still well below its own high." /></th></tr></thead>
           <tbody>{shown.map((s, i) => s == null ? <tr key="mid" className="sp-mid-row"><td colSpan={7}>… {stocks.length - 15} more in the middle: open the industry page to see all {stocks.length} …</td></tr> : (
