@@ -254,7 +254,7 @@ async def test_the_state_history_is_open_to_every_plan_and_carries_no_stock_or_r
     r = await anon.get("/api/sector-history")
     d = r.json()
     assert r.status_code == 200 and d["dates"] and len(d["groups"]) == 3 and set(d["insights"]) == {"mood", "strip"} and d["words"]["sold_off"] == "Sold off"
-    assert all(set(g) == {"name", "slug", "kind", "states"} and len(g["states"]) == len(d["dates"]) for g in d["groups"])
+    assert all(set(g) == {"name", "slug", "kind", "states", "rising"} and len(g["states"]) == len(d["dates"]) for g in d["groups"])
     assert "KIRLFER" not in r.text and "MANAKSTEEL" not in r.text and "washout" not in r.text.lower() and "thrust" not in r.text.lower()
     assert r.headers["cache-control"].startswith("private")
 
@@ -308,3 +308,22 @@ def test_industry_map_and_year_insights_from_plain_rows():
     y = industry_year({"name": "Alpha", "slug": "alpha", "history": {"dates": dates, "above_20": rising, "state_code": codes}})
     assert y["insights"][0]["text"] == "Alpha was Sold off on 20 of the last 60 trading days." and y["insights"][1]["text"] == "The earlier bounce lasted 10 trading days."
     assert [x["n"] for x in y["moments"]] == list(range(1, len(y["moments"]) + 1)) and "after a crash" in y["moments"][-2]["text"]
+
+
+# ------------------------------------------------------------------------------------------------ the final pages pack (13 Nov 2026)
+async def test_membership_names_the_group_of_each_share_for_every_plan(anon, out):  # noqa: F811
+    r = await anon.get("/api/sectors/membership?symbols=ankitmetal,HDFCBANK,BHARTIARTL,NOTASTOCK,../x")
+    assert r.status_code == 200
+    g = r.json()["groups"]
+    assert g["ANKITMETAL"] == {"slug": "ferrous-metals", "name": "Ferrous Metals"} and g["HDFCBANK"]["slug"] == "banks"
+    assert "BHARTIARTL" not in g                                              # its group has no reading in this data set: left out, never guessed
+    assert "NOTASTOCK" not in g and "../X" not in g and len(g) == 2
+    assert (await anon.get("/api/sectors/membership")).json()["groups"] == {}
+
+
+async def test_the_state_history_carries_the_daily_share_of_stocks_rising_for_each_group(anon, out):  # noqa: F811
+    d = (await anon.get("/api/sector-history")).json()
+    for g in d["groups"]:
+        assert len(g["rising"]) == len(d["dates"]) == len(g["states"])
+        assert all(v is None or 0 <= v <= 100 for v in g["rising"])
+    assert any(v is not None for g in d["groups"] for v in g["rising"])

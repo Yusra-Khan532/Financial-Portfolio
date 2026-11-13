@@ -78,6 +78,7 @@ def industry_year(page: dict, days: int = YEAR) -> Optional[dict]:
         return None
     dates, rising, codes = dates[-n:][-days:], rising[-n:][-days:], codes[-n:][-days:]
     keys = [key_of(c) for c in codes]
+    runk = ["bouncing" if k == "crash" else k for k in keys]       # a bounce after a crash is a bounce for the runs and the moments; `keys` keeps it apart for the shading
     vals = [None if not isinstance(v, (int, float)) else round(float(v), 1) for v in rising]
     name = page.get("name") or "This industry"
     moments = []
@@ -85,7 +86,7 @@ def industry_year(page: dict, days: int = YEAR) -> Optional[dict]:
         i = min((j for j in range(a, b + 1) if vals[j] is not None), key=lambda j: vals[j], default=None)
         if i is not None:
             moments.append((i, f"{_day(dates[i])}. Sold off: {vals[i]:.0f} in 100 stocks were rising, the lowest of that run."))
-    for a, b in _runs(keys, "bouncing"):
+    for a, b in _runs(runk, "bouncing"):
         i = max((j for j in range(a, b + 1) if vals[j] is not None), key=lambda j: vals[j], default=None)
         if i is not None:
             crash = any(codes[j] == "thrust_cap" for j in range(a, b + 1))
@@ -95,11 +96,11 @@ def industry_year(page: dict, days: int = YEAR) -> Optional[dict]:
     if vals[last] is not None:
         moments.append((last, f"{_day(dates[last])}. Latest close: {vals[last]:.0f} in 100 rising, {WORD.get(keys[last] or '', 'no clear signal').lower()}."))
     days_in = {k: sum(1 for x in keys if x == k) for k in WORD}
-    bounces = [{"from": dates[a], "to": dates[b], "days": b - a + 1} for a, b in _runs(keys, "bouncing")]
+    bounces = [{"from": dates[a], "to": dates[b], "days": b - a + 1} for a, b in _runs(runk, "bouncing")]
     sold = days_in.get("sold_off", 0)
     ins = [{"kind": "watch" if sold else "good", "title": "Days sold off",
             "text": f"{name} was Sold off on {sold} of the last {len(dates)} trading days." if sold else f"{name} was not Sold off on any of the last {len(dates)} trading days."}]
-    done = [x["days"] for x in bounces[:-1]] if bounces and keys[-1] == "bouncing" else [x["days"] for x in bounces]
+    done = [x["days"] for x in bounces[:-1]] if bounces and runk[-1] == "bouncing" else [x["days"] for x in bounces]
     if done:
         last4 = [str(d) for d in done[-4:]]
         ins.append({"kind": "insight", "title": "How long bounces lasted",

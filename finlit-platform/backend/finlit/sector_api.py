@@ -131,6 +131,51 @@ async def sector_state_history(request: Request) -> Response:
     return _reply(request, {**data, "date": board.get("date")}, started)
 
 
+_NSE_FULL: Dict[str, Any] = {}
+
+
+def _nse_classes() -> Dict[str, Any]:
+    """symbol -> (NSE industry, NSE sector), from finlit_technicals/data/nse_industries.json (the classification Sector Pulse groups by)."""
+    if not _NSE_FULL:
+        import json as _json
+        from pathlib import Path
+        raw = _json.loads((Path(__file__).resolve().parents[1] / "finlit_technicals" / "data" / "nse_industries.json").read_text(encoding="utf-8")).get("stocks") or {}
+        _NSE_FULL.update({str(k).upper(): (v[0], v[1] if len(v) > 1 else None) for k, v in raw.items() if isinstance(v, list) and v and v[0]})
+    return _NSE_FULL
+
+
+@router.get("/api/sectors/membership")
+async def sector_membership(request: Request, symbols: str = "") -> Response:
+    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
+    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+    by_ind: Dict[str, Dict[str, str]] = {}
+    by_sec: Dict[str, Dict[str, str]] = {}
+    for r in board.get("rows", []):
+        if not isinstance(r, dict) or not r.get("slug"):
+            continue
+        ref = {"slug": r["slug"], "name": r.get("name") or r["slug"]}
+        if r.get("kind") == "sector":
+            by_sec[str(r.get("name") or "")] = ref
+        for ind in r.get("industries") or []:
+            by_ind[str(ind)] = ref
+    cls = _nse_classes()
+    out: Dict[str, Dict[str, str]] = {}
+    for sym in want:
+        if not sd.SYMBOL.match(sym) or sym not in cls:
+            continue
+        ind, sec = cls[sym]
+        hit = by_ind.get(ind) or (by_sec.get(sec) if sec else None)
+        if hit:
+            out[sym] = hit
+    return _reply(request, {"date": board.get("date"), "groups": out}, started)
+
+
 @router.get("/api/sector-map")
 async def sector_map(request: Request) -> Response:
     """"Industry map" on Sector Pulse: every industry with a reading as a point (stocks rising of 100, how far below its 1-year high), with the insight sentences. Open to every plan, like the states."""
