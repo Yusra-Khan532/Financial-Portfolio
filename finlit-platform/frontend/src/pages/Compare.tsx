@@ -102,15 +102,20 @@ export function Compare() {
 
   // task #81: the company-name row of every tab sticks right under the site bar (its height changes with the screen width), so no row of the table
   // shows in a gap above it
-  const wrapRef = useRef<HTMLDivElement>(null);
+  // task #116: the Peer Comparison header sticks under the site bar too, and the names row sticks under it (--cmp-peer, its measured height; 0 without it)
+  const wrapRef = useRef<HTMLDivElement>(null), peerRef = useRef<HTMLDivElement>(null);
+  const showPeer = picked.length >= 2;
   useEffect(() => {
-    const bar = document.querySelector<HTMLElement>(".top"), w = wrapRef.current;
+    const bar = document.querySelector<HTMLElement>(".top"), w = wrapRef.current, peer = peerRef.current;
     if (!w) return;
-    const set = () => w.style.setProperty("--cmp-top", `${bar ? Math.round(bar.getBoundingClientRect().height) : 0}px`);
+    const set = () => {
+      w.style.setProperty("--cmp-top", `${bar ? Math.round(bar.getBoundingClientRect().height) : 0}px`);
+      w.style.setProperty("--cmp-peer", `${peer ? Math.round(peer.getBoundingClientRect().height) : 0}px`);
+    };
     set();
-    if (!bar || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(set); ro.observe(bar); return () => ro.disconnect();
-  }, [isError]);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set); if (bar) ro.observe(bar); if (peer) ro.observe(peer); return () => ro.disconnect();
+  }, [isError, showPeer]);
 
   if (isError) return <div className="wrap state"><h2>Comparison is unavailable right now</h2><p>Please try again in a moment.</p></div>;
   return (
@@ -130,6 +135,20 @@ export function Compare() {
             </>)}
         </div>
 
+        {showPeer && (
+          <div className="cmp-peer" ref={peerRef} role="region" aria-label="Companies being compared">
+            <div className="cmp-peer-t">
+              <span className="cmp-peer-ic" aria-hidden="true"><Icon name="bars" /></span>
+              <div><b>Peer Comparison</b><small>Compare key financial &amp; valuation metrics across companies</small></div>
+            </div>
+            <ul className="cmp-peer-cos">{picked.map((r, i) => (
+              <li key={r.symbol} className={"cmp-chip c" + i}>
+                <i className={"mk k" + i} aria-hidden="true" /><span title={r.name || r.symbol}>{r.name || r.symbol}</span>
+                <button type="button" aria-label={`Remove ${r.name || r.symbol} from the comparison`} title="Remove" onClick={() => setIds(ids.filter((x) => x !== r.symbol))}>×</button>
+              </li>))}
+            </ul>
+          </div>
+        )}
         <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => pickTab(t.id)}>{t.label}{(t.model && !has("silver") || t.id === "stress" && !gold) && <Icon name="lock" />}</button>)}</div>
         <p className="cmp-blurb">{T.blurb}</p>
 
