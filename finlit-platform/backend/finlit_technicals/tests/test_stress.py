@@ -159,6 +159,20 @@ def test_today_scenario_against_the_ttm_window():
     assert sc.inputs["base_window"] == ["2025-09-30", "2026-09-30"]
 
 
+def test_today_counts_months_not_points_when_daily_rates_follow_the_monthly_averages():
+    m = macro()
+    s = dict(m["series"])
+    days = [f"2026-{mo:02d}-{d:02d}" for mo in (10, 11, 12) for d in range(1, 29) if __import__("datetime").date(2026, mo, d).weekday() < 5]
+    s["usdinr"] = {"points": [["2025-08-31", 87.5]] + [[d, 94.0] for d in days]}       # monthly to Aug 2025, then ~60 daily rates
+    s["usdinr_d"] = {"points": [[d, 94.0] for d in days]}
+    try:
+        S.today_scenario({"series": s}, brent=m["brent_quarterly"], base_end="2026-12-31")
+        raise AssertionError("60 daily rates were taken for 12 months")
+    except ValueError as e:
+        assert "3 of 12 months" in str(e)
+    assert [d for d, _ in S.monthly_averages(s["usdinr"], s["usdinr_d"])] == ["2025-08-31", "2026-10-31", "2026-11-30", "2026-12-31"]
+
+
 def test_calibration_recovers_a_known_pass_through():
     e = S.Exposure(crude_rm=0.5, crude_beta=0.4, import_rm=0.2, pass_through=0.6)
     mf = S.load_macro_fy()

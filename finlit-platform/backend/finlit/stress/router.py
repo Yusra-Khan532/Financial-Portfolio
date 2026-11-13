@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from dataclasses import replace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import orjson
 from fastapi import APIRouter, Depends, Request, Response
@@ -118,35 +119,54 @@ async def _covered(request: Request, sym: str):
     """The launch rule (404 with its plain words when the company is outside it) and the screener row's size word."""
     store = request.app.state.store
     table = await get_table(store)
-    mc, bank = service.table_row(table, sym)
-    reason = service.covered_by_rule(mc, bank)
+    reason = service.coverage_reason(table, sym)
     if reason:
         raise fail(404, "not_covered", reason, covered=False)
-    return table, service.size_word(mc, table.cap[table.pos[sym]])
+    return table, service.size_word(service.table_row(table, sym)[0], table.cap[table.pos[sym]])
 
 
 _building: Dict[str, "asyncio.Task[Any]"] = {}     # one build per company at a time, however many readers open it together
+_failed_at: Dict[str, Tuple[float, BaseException]] = {}   # a company's last failed build (monotonic time, the fault): the next one waits RETRY_AFTER_S, however often the page asks
+RETRY_AFTER_S = 120.0
+
+
+def _start_build(app, sym: str, size: str) -> Optional["asyncio.Task[Any]"]:
+    """The running build of this company, or a new one. None when its last build failed less than RETRY_AFTER_S ago (a failed build is tried again on a later
+    visit, never on every poll of the page)."""
+    task = _building.get(sym)
+    if task is not None and not task.done():
+        return task
+    if time.monotonic() - _failed_at.get(sym, (-1e9, None))[0] < RETRY_AFTER_S:
+        return None
+    task = spawn(_build_and_store(app, sym, size))
+    _building[sym] = task
+    return task
 
 
 async def _build_and_store(app, sym: str, size: str):
     """Build a company's page and store it. Runs in the background, so a slow data provider finishes the job even after the reader was told the page is being prepared;
-    the reason of a failure goes to stress_failures and the log, never to a reader."""
+    the reason of a failure goes to stress_failures and the log, never to a reader, and the next try waits RETRY_AFTER_S (_start_build)."""
     try:
         payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size), service.PER_COMPANY_S)
         await service.save_page(app.state.store, sym, payload, pack)
+        _failed_at.pop(sym, None)
         return payload, pack
     except service.NotCovered as exc:
+        _failed_at[sym] = (time.monotonic(), exc)
         await _note_failure(app, sym, "not_covered", str(exc))
         raise
     except service.NotReady as exc:
+        _failed_at[sym] = (time.monotonic(), exc)
         log.warning("stress %s not ready: %s", sym, exc)
         await _note_failure(app, sym, "not_ready", str(exc))
         raise
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
+        _failed_at[sym] = (time.monotonic(), exc)
         log.warning("stress %s: the build took more than %.0fs", sym, service.PER_COMPANY_S)
         await _note_failure(app, sym, "failed", f"the build took more than {service.PER_COMPANY_S:.0f}s (statements from the data provider)")
         raise
     except Exception as exc:     # any other fault: the real one in the log and the table
+        _failed_at[sym] = (time.monotonic(), exc)
         log.warning("stress %s failed: %s: %s", sym, type(exc).__name__, exc)
         await _note_failure(app, sym, "failed", f"{type(exc).__name__}: {exc}")
         raise
@@ -159,14 +179,18 @@ async def _stored_or_live(request: Request, sym: str) -> dict:
     seconds; when it takes longer the reader gets the plain "being prepared" card (status 503) while the build carries on and stores the page, so the next visit (the page checks
     again by itself) shows it. A build is never cancelled half way, so a slow provider no longer means "being prepared" for ever."""
     app = request.app
-    _, size = await _covered(request, sym)
+    table, size = await _covered(request, sym)
     rec = await service.load_page(app.state.store, sym)
     if rec:
+        if service.page_is_stale(rec, service.covered_quarters(table, [sym]).get(sym)):
+            _start_build(app, sym, size)          # the stored copy is served now; a fresh one (new results, or a day old) is built behind it
         return rec
-    task = _building.get(sym)
-    if task is None or task.done():
-        task = spawn(_build_and_store(app, sym, size))
-        _building[sym] = task
+    task = _start_build(app, sym, size)
+    if task is None:                          # the last build of this company failed a moment ago: no new provider call yet, the same answer at once
+        last = _failed_at.get(sym, (0.0, None))[1]
+        if isinstance(last, service.NotCovered):
+            raise fail(404, "not_covered", str(last), covered=False)
+        raise fail(503, "not_ready", service.PLAIN_NOT_READY)
     try:
         payload, pack = await asyncio.wait_for(asyncio.shield(task), service.LIVE_BUILD_S)
     except service.NotCovered as exc:
@@ -221,7 +245,16 @@ async def _warm(request: Request, have: set) -> None:
             return
         if sym in have or (sym in _building and not _building[sym].done()):
             continue
-        _building[sym] = spawn(_build_and_store(app, sym, service.size_word(mc, table.cap[table.pos[sym]])))
+        _kick(app, table, sym)
+
+
+def _kick(app, table, sym: str) -> bool:
+    """Start a background build of one covered company unless WARM_AT_ONCE builds are running already (one build per company, and none within RETRY_AFTER_S of
+    a failed one). True when a build is running for it afterwards."""
+    if not (sym in _building and not _building[sym].done()) and sum(1 for t in _building.values() if not t.done()) >= WARM_AT_ONCE:
+        return False
+    mc = service.table_row(table, sym)[0]
+    return _start_build(app, sym, service.size_word(mc, table.cap[table.pos[sym]])) is not None
 
 
 @router.get("/{symbol}/page")
@@ -235,12 +268,20 @@ async def page(request: Request, symbol: str, ctx: Ctx = Depends(silver_ctx)):
     return _json(out)
 
 
+def _public(r: dict) -> dict:
+    """One company's engine result as a reader may see it: the model's workings stay on the server (the company's assumptions with beta, growth and the calibration
+    weights; the value step's cost of equity and growth). The value move is a percentage only."""
+    r = {k: v for k, v in r.items() if k != "assumptions"}
+    if isinstance(r.get("value"), dict):
+        r["value"] = {"move_pct": r["value"].get("move_pct")}
+    return r
+
+
 def _result(co, sc) -> dict:
     r = S.run(co, sc)
     r["explain"] = S.explain(r)
-    r.pop("assumptions", None)
     r["value_other_persistence"] = (S.run(co, replace(sc, persistence="permanent" if sc.persistence == "one_year" else "one_year")).get("value") or {}).get("move_pct")
-    return r
+    return _public(r)
 
 
 async def _company(request: Request, sym: str, settings=None):
@@ -287,6 +328,7 @@ async def compare(request: Request, body: CompareIn, ctx: Ctx = Depends(gold_ctx
     base = _base(body, today, eia)
     sc = scenario_from(body, base) if any(getattr(body, k) is not None for k in list(RANGES) + ["persistence"]) else (base or S.Scenario())
     out = S.compare(ca, cb, sc)
+    out = {**out, "a": _public(out["a"]), "b": _public(out["b"])}
     return _json(out if request.app.state.settings.stress_show_value else strip_value(out))
 
 
@@ -304,7 +346,12 @@ async def peer(request: Request, symbol: str, ctx: Ctx = Depends(gold_ctx)):
             peers = []
     table = await get_table(store)
     cov = service.covered_quarters(table, [sym] + peers)
-    return _json({"symbol": sym, "peer": P.default_peer(sym, peers, cov), "peers": [p for p in peers if p in cov]})
+    have = set(await service.stored_symbols(store))
+    peer = P.default_peer(sym, peers, cov, stored=have)
+    if peer and not peer["stored"]:
+        _kick(request.app, table, peer["symbol"])           # no stored page yet: start building it, so the page's own polling finds it
+    return _json({"symbol": sym, "peer": peer, "peers": [p for p in peers if p in cov],
+                  "peer_details": [{"symbol": p, "base_end": cov[p], "stored": p in have} for p in peers if p in cov]})
 
 
 @router.get("/admin/status")
