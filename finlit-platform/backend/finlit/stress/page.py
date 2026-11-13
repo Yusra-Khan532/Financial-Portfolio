@@ -67,11 +67,25 @@ def field_sources(co: S.Company, table: Optional[S.ExposureTable] = None, *, sym
     return out  # calibrated settings are worded on the page from company.calibration
 
 
+def window_words(window: Tuple[str, str]) -> Tuple[str, str]:
+    """The base window as readers say it: ("2025-09-30", "2026-09-30") -> ("Oct 2025", "Sep 2026"). The first date is the end of the quarter before the
+    four quarters, so the window starts the month after it. Anything that is not an ISO date is kept as it is."""
+    def month(iso: str, after: bool) -> str:
+        try:
+            d = date.fromisoformat(str(iso)[:10])
+        except ValueError:
+            return str(iso)
+        if after:
+            d = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+        return d.strftime("%b %Y")
+    return month(window[0], True), month(window[1], False)
+
+
 def scenario_json(key: str, sc: S.Scenario, window: Tuple[str, str]) -> Dict[str, Any]:
     return {"id": key, "name": SHORT.get(key, sc.name), "crude": sc.crude, "usdinr": sc.usdinr, "cpi": sc.cpi,
             "wpi": sc.wpi, "rate_bp": sc.rate_bp, "demand": sc.demand, "erp_bp": sc.erp_bp, "metals": sc.metals,
             "agri": sc.agri, "persistence": sc.persistence,
-            "based_on": BASED_ON.get(key, sc.description).format(w0=window[0], w1=window[1])}
+            "based_on": BASED_ON.get(key, sc.description).format(w0=window_words(window)[0], w1=window_words(window)[1])}
 
 
 def today_eia(today: S.Scenario, eia_brent_next4: Sequence[float]) -> S.Scenario:

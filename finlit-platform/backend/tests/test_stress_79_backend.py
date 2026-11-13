@@ -382,3 +382,10 @@ async def test_a_chosen_peer_without_a_page_starts_being_built(app, store, monke
     for t in list(R._building.values()):
         await t
     await gold.aclose()
+
+
+def test_the_base_window_is_said_in_months_from_the_month_after_the_first_quarter_end():
+    from finlit.stress import page as P
+    assert P.window_words(("2025-09-30", "2026-09-30")) == ("Oct 2025", "Sep 2026")
+    assert P.window_words(("2025-12-31", "2026-12-31")) == ("Jan 2026", "Dec 2026")
+    assert P.window_words(("Oct 2025", "Sep 2026")) == ("Oct 2025", "Sep 2026")      # already words: kept

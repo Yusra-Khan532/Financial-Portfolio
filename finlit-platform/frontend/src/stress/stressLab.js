@@ -40,6 +40,12 @@ export function mountStressLab(root, E, D, opts) {
   function short(co) { return co.short || String(co.name || co.symbol).replace(/ Ltd\.?$/, ''); }
   function poss(co) { var n = typeof co === 'string' ? co : short(co); return n + (/s$/.test(n) ? '’' : '’s'); }
   function dt(iso) { if (!iso) return ''; var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; var p = iso.split('-'); return (+p[2]) + ' ' + m[+p[1] - 1] + ' ' + p[0]; }
+  /** The base window as readers say it, "Oct 2025 to Sep 2026" (the first date is the end of the quarter before the four quarters); text that is not an ISO date is kept. */
+  function winWords(w) {
+    var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var one = function (iso, after) { var p = /^(\d{4})-(\d{2})/.exec(String(iso || '')); if (!p) return String(iso || ''); var y = +p[1], mo = +p[2] - 1; if (after) { mo += 1; if (mo > 11) { mo = 0; y += 1; } } return m[mo] + ' ' + y; };
+    return w && w.length === 2 ? one(w[0], true) + ' to ' + one(w[1], false) : '';
+  }
   function ib(text, pos, label) { return '<span class="ib" tabindex="0" role="button" aria-expanded="false" aria-label="' + esc(label || 'About this') + '"><span class="ibi" aria-hidden="true">i</span><span class="tip ' + (pos || '') + '" role="tooltip">' + text + '</span></span>'; }
 
   var ICON = {
@@ -133,7 +139,7 @@ export function mountStressLab(root, E, D, opts) {
     }).join('');
     var eo = D.eia_outlook;
     return '<details class="fold"><summary>See today’s inputs: now against the base window</summary>' +
-      '<div class="tw"><table class="t"><thead><tr><th>Driver</th><th class="r">Now</th><th class="r">Average, ' + D.base_window[0] + ' to ' + D.base_window[1] + '</th><th class="r">Shock</th><th>Source</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="tw"><table class="t"><thead><tr><th>Driver</th><th class="r">Now</th><th class="r">Average, ' + winWords(D.base_window) + '</th><th class="r">Shock</th><th>Source</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. ' + (eo && eo.brent && eo.brent.length && fin(eo.avg) && SC.today_eia ? '<b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return fin(b) ? b.toFixed(2) : '–'; }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. ' : '') + 'Data to ' + dt(D.as_of) + '.</p></details>';
   }
   function renderScen() {
@@ -348,7 +354,7 @@ export function mountStressLab(root, E, D, opts) {
     if (Math.abs(intr) >= 1) rows.push(['Interest paid and earned', intr]);
     var tot = rows.reduce(function (a, x) { return a + x[1]; }, 0);
     var mx = Math.max.apply(null, rows.map(function (x) { return Math.abs(x[1]); }).concat([Math.abs(tot), 1]));
-    var bar = function (v) { var wd = Math.abs(v) / mx * 50; return '<i style="left:' + (v < 0 ? 50 - wd : 50) + '%;width:' + wd.toFixed(2) + '%;background:' + (v < 0 ? 'var(--dn)' : 'var(--up)') + '"></i><i style="left:50%;width:1px;top:0;height:22px;background:#b4a788"></i>'; };
+    var bar = function (v) { var wd = Math.abs(v) / mx * 50; return '<i style="left:' + (v < 0 ? 50 - wd : 50) + '%;width:' + wd.toFixed(2) + '%;background:' + (v < 0 ? 'var(--dn)' : 'var(--up)') + '"></i><i style="left:50%;width:1px;top:0;height:22px;background:var(--hb4a788)"></i>'; };
     return '<h3>From costs to profit, before tax' + ib('How the shock reaches profit before tax, in ₹ Cr over the next 12 months. Red lowers profit, green adds to it. The last line equals the change in profit before tax in the table below.', 'rt', 'About this chart') + '</h3><div class="walk" style="margin-top:10px">' +
       rows.map(function (x) { return '<div class="row" data-tip="' + esc(x[0] + ': ' + cr(x[1])) + '" tabindex="0"><div class="lbl"><span>' + x[0] + '</span><span class="val">' + cr(x[1]) + '</span></div><div class="bw">' + bar(x[1]) + '</div></div>'; }).join('') +
       '<div class="row tot"><div class="lbl"><span><b>Change in profit before tax</b></span><span class="val">' + cr(tot) + '</span></div><div class="bw">' + bar(tot) + '</div></div></div>';
@@ -373,7 +379,7 @@ export function mountStressLab(root, E, D, opts) {
       return '<tr' + (i === 7 ? ' class="hl"' : '') + '><td class="l">' + x[0] + (x[5] ? ib(x[5], 'lt', 'About ' + x[0]) : '') + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + cls + '">' + x[3] + '</td></tr>';
     }).join('');
     var v = SHOWV && r.value ? '<tr><td class="l">Value move under these assumptions' + ib('An earnings-based value, not a price estimate, and never applied to the share price. ' + (S.persistence === 'one_year' ? 'Assumes earnings get back on their path after a year.' : 'Assumes the lower earnings last.'), 'lt', 'About the value move') + '</td><td class="r">–</td><td class="r">–</td><td class="r' + (r.value.move_pct < -0.05 ? ' dn' : r.value.move_pct > 0.05 ? ' up' : '') + '">' + pct(r.value.move_pct) + '</td></tr>' : '';
-    $('tbl').innerHTML = '<h2>The numbers, before and after' + ib('The last four quarters as reported (' + D.base_window[0] + ' to ' + D.base_window[1] + '), and the same 12 months with the shock applied. ₹ Cr unless shown.', 'lt', 'About this table') + '</h2>' +
+    $('tbl').innerHTML = '<h2>The numbers, before and after' + ib('The last four quarters as reported (' + winWords(D.base_window) + '), and the same 12 months with the shock applied. ₹ Cr unless shown.', 'lt', 'About this table') + '</h2>' +
       '<p class="sub">Last four quarters against the next 12 months under ' + scName(cur()) + '</p>' +
       '<div class="tw"><table class="t"><thead><tr><th>Line</th><th class="r">Last four quarters</th><th class="r">After the shock</th><th class="r">Change</th></tr></thead><tbody>' + body + v + '</tbody></table></div>';
   }
@@ -536,7 +542,7 @@ export function mountStressLab(root, E, D, opts) {
       var inp = ed ? '<input class="edit' + (S.edits[k] !== undefined ? ' ch' : '') + '" type="number" inputmode="decimal" data-edit="' + k + '" min="' + ed[0] + '" max="' + ed[1] + '" step="' + ed[2] + '" value="' + (k === 'demand_beta' ? v.toFixed(2) : Math.round(v * 100)) + '" aria-label="Your value for ' + F[0] + (k === 'demand_beta' ? '' : ', in %') + '">' + (k === 'demand_beta' ? '×' : '%') : '';
       return '<tr' + (S.edits[k] !== undefined ? ' class="hl"' : '') + '><td class="l">' + F[0] + ib(F[2], 'lt', 'About ' + F[0]) + '</td><td class="r"><b>' + F[1](v0) + '</b></td><td><small>' + esc(srcText(co, k)) + '</small></td>' + (GOLD ? '<td class="r" style="white-space:nowrap">' + inp + '</td>' : '') + '</tr>';
     }).join('');
-    $('asm').innerHTML = '<h2>The assumptions behind it' + ib('Every number the model uses for ' + short(co) + ', and where it came from. You can try your own value for the six settings with a box; everything on the page updates.', 'lt', 'About the assumptions') + '</h2><p class="sub">' + esc(co.name) + ', ' + basis().toLowerCase() + ', four quarters ' + D.base_window[0] + ' to ' + D.base_window[1] + '. Data to ' + dt(D.as_of) + '.</p>' +
+    $('asm').innerHTML = '<h2>The assumptions behind it' + ib('Every number the model uses for ' + short(co) + ', and where it came from. You can try your own value for the six settings with a box; everything on the page updates.', 'lt', 'About the assumptions') + '</h2><p class="sub">' + esc(co.name) + ', ' + basis().toLowerCase() + ', four quarters ' + winWords(D.base_window) + '. Data to ' + dt(D.as_of) + '.</p>' +
       '<div class="asmgrid" style="margin-top:4px"><div><h3 style="margin-top:12px">The base: the last four quarters</h3><div class="tw"><table class="t"><tbody>' + t1 + '</tbody></table></div></div>' +
       '<div><h3 style="margin-top:12px">How the business is exposed</h3><div class="tw"><table class="t"><thead><tr><th>Setting</th><th class="r">Estimate</th><th>Where it comes from</th>' + (GOLD ? '<th class="r">Your value</th>' : '') + '</tr></thead><tbody>' + t2 + '</tbody></table></div>' +
       (SHOWV ? '<p class="note">The value move also uses the company’s sensitivity to the market (the market average until a measured one is available) and its long-run growth.</p>' : '') + (GOLD ? '' : '<p class="note">' + LOCKI + ' With Gold you can try your own value for six of these settings.</p>') + '</div></div>' +
@@ -631,7 +637,7 @@ export function mountStressLab(root, E, D, opts) {
   }
   function renderStrip() {
     var a = A, fact = function (l, v, t) { return '<span class="fact"><span class="l">' + l + (t ? ib(t, 'lt', 'About ' + l) : '') + '</span><span class="v">' + v + '</span></span>'; };
-    var baseTip = 'Every shock is applied to the company’s last four reported quarters, ' + D.base_window[0] + ' to ' + D.base_window[1] + '. A shock of zero gives back those quarters exactly.';
+    var baseTip = 'Every shock is applied to the company’s last four reported quarters, ' + winWords(D.base_window) + '. A shock of zero gives back those quarters exactly.';
     var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + idLine(a) + '</small></div></div>';
     if (VIEW === 'compare') {
       $('costrip').innerHTML = coA_ + '<span class="vs">vs</span><div class="co">' + logoHtml(B) + '<div><b>' + esc(B.name) + '</b><small>' + idLine(B) + (SAMEQ ? '' : ' · four quarters to ' + my(B.base_end)) + '</small></div></div>' +
@@ -640,7 +646,7 @@ export function mountStressLab(root, E, D, opts) {
         '<span class="note" style="margin:0">' + (opts.peer.picked ? (SAMEQ ? 'Picked for you: the first peer Stress Lab covers that has results to the same quarter (' + my(A.base_end) + ')' : 'Picked for you: the first peer Stress Lab covers. No covered peer has results to ' + my(A.base_end) + ' yet, so each company is measured against its own four quarters') : 'You picked ' + esc(B.name)) + ib('So both companies face the same Today shock. If no peer has results to that quarter yet, the first covered peer is used and each company’s window is shown under its name.', 'lt', 'About how the second company is picked') + '</span></div>';
     } else {
       $('costrip').innerHTML = coA_ + '<div class="facts">' + fact('Market cap', cr(a.market_cap_cr)) + fact('Share price', (a.price == null ? '–' : '₹' + a.price.toLocaleString('en-IN')) + ' <small style="font-weight:400;color:var(--muted)">' + dt(a.price_as_of).replace(/ \d{4}$/, '') + '</small>') +
-        fact('Base', 'Four quarters, ' + D.base_window[0] + ' to ' + D.base_window[1], baseTip) + fact('Accounts', basis()) + fact('Data to', dt(D.as_of)) + '</div>' + peerBox();
+        fact('Base', 'Four quarters, ' + winWords(D.base_window), baseTip) + fact('Accounts', basis()) + fact('Data to', dt(D.as_of)) + '</div>' + peerBox();
     }
   }
   var PEER_WORDS = {
@@ -696,7 +702,7 @@ export function mountStressLab(root, E, D, opts) {
   function closeTips(except) { root.querySelectorAll('.ib.open').forEach(function (x) { if (x !== except) { x.classList.remove('open'); x.setAttribute('aria-expanded', 'false'); } }); }
   function toggleTip(x) { var on = !x.classList.contains('open'); closeTips(x); x.classList.toggle('open', on); x.setAttribute('aria-expanded', String(on)); if (on) fitInfo({ target: x }); }
   listen(document, 'click', function (ev) { var path = ev.composedPath ? ev.composedPath() : []; if (!path.some(function (n) { return n.classList && n.classList.contains('ib'); })) closeTips(null); });
-  listen(document, 'keydown', function (ev) { if (ev.key === 'Escape') closeTips(null); });
+  listen(document, 'keydown', function (ev) { if (ev.key === 'Escape') { closeTips(null); var f = root.activeElement; if (f && f.closest && f.closest('.ib')) f.blur(); } });
   listen(root, 'click', function (ev) {
     var ibx = ev.target.closest('.ib');
     if (ibx) { ev.preventDefault(); toggleTip(ibx); return; }   // inside a label or a summary it must not also move focus or open the fold

@@ -2,6 +2,8 @@
 // Task 79: every page the server can send draws, and every control on it works, with no NaN, undefined, null or Infinity on the page and no words that are wrong for
 // the company. The variants are the ones backend/finlit/stress/page.py, router.py (strip_value) and service.py really produce: a company without debt or other
 // income, a loss, no share count, no sector or price, no share prices stored yet, few past years, a partial latest-quarter check, the value move switched off.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../public/demo/stress-page.json";
 import StressEngine from "./engine";
@@ -243,5 +245,35 @@ describe("controls (task 79)", () => {
     b.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, composed: true })); expect(b.classList.contains("open")).toBe(true);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); expect(b.classList.contains("open")).toBe(false);
     b.click(); document.body.click(); expect(b.classList.contains("open")).toBe(false);
+  });
+});
+
+describe("design check fixes (task 79, SL-8)", () => {
+  const css = () => readFileSync(join(__dirname, "stresslab.css"), "utf8");
+  it("says the base window in months, the month after the first quarter end to the last (never ISO dates)", () => {
+    const p = base(); p.base_window = ["2025-09-30", "2026-09-30"];
+    const { root } = draw(p);
+    expect(root.textContent).toMatch(/Four quarters, Oct 2025 to Sep 2026/);
+    expect(root.textContent).not.toMatch(/2025-09-30 to 2026-09-30/);
+  });
+  it("keeps a window the server already wrote in words", () => {
+    const p = base(); p.base_window = ["Oct 2025", "Sep 2026"];
+    expect(draw(p).root.textContent).toMatch(/Four quarters, Oct 2025 to Sep 2026/);
+  });
+  it("Escape closes an explanation opened by a tap and takes the focus off it", () => {
+    const { root } = draw(base());
+    const b = root.querySelector<HTMLElement>(".ib")!;
+    b.focus(); b.click();
+    expect(b.classList.contains("open")).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(b.classList.contains("open")).toBe(false);
+    expect(root.activeElement).not.toBe(b);
+  });
+  it("an explanation shows on hover, keyboard focus or an open tap, never on a plain focus left by a tap", () => {
+    expect(css()).toMatch(/\.ib:hover \.tip,\.ib:focus-visible \.tip,\.ib\.open \.tip\{display:block\}/);
+    expect(css()).not.toMatch(/\.ib:focus \.tip/);
+  });
+  it("'What moves the company most' spans the page on one company, and a column in Compare two", () => {
+    expect(css()).toMatch(/\.senscard\{grid-column:1\/-1\}\.sl-root\.v-compare \.senscard\{grid-column:auto\}/);
   });
 });
