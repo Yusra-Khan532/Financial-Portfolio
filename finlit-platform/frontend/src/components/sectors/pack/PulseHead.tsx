@@ -8,9 +8,9 @@ import { Tip } from "./Common";
 
 export type View = "simple" | "full";
 
-export function PackHead({ page, title, desc, meta, side, view, onView, industries }: {
+export function PackHead({ page, title, desc, meta, side, view, onView, industries, findHint }: {
   page: "pulse" | "rotation"; title: string; desc: string; meta: ReactNode; side: ReactNode; view: View; onView: (v: View) => void;
-  industries: { name: string; slug: string }[];
+  industries: { name: string; slug: string }[]; findHint?: string;
 }) {
   return (
     <header className="sp-head">
@@ -31,14 +31,14 @@ export function PackHead({ page, title, desc, meta, side, view, onView, industri
         <div className="sp-view" role="group" aria-label="View"><span>View</span>
           {(["simple", "full"] as const).map((v) => <button key={v} type="button" className={"sp-vbtn" + (view === v ? " on" : "")} aria-pressed={view === v} onClick={() => onView(v)}>{v === "simple" ? "Simple" : "Full table"}</button>)}
         </div>
-        <Find industries={industries} />
+        <Find industries={industries} hint={findHint} />
       </div>
     </header>
   );
 }
 
 /** Find: type an industry or a stock; Enter (or picking a suggestion) opens it. */
-function Find({ industries }: { industries: { name: string; slug: string }[] }) {
+function Find({ industries, hint = "An industry or a stock, e.g. INFY" }: { industries: { name: string; slug: string }[]; hint?: string }) {
   const [q, setQ] = useState(""), [open, setOpen] = useState(false);
   const nav = useNavigate();
   const idx = useSearchIndex(q.trim().length >= 2);
@@ -55,7 +55,7 @@ function Find({ industries }: { industries: { name: string; slug: string }[] }) 
     <div className="sp-find">
       <label htmlFor="sp-find-in">Find</label>
       <div className="sp-find-box">
-        <input id="sp-find-in" type="search" value={q} placeholder="An industry or a stock, e.g. INFY" autoComplete="off" role="combobox" aria-expanded={open && hits.length > 0} aria-controls="sp-find-list"
+        <input id="sp-find-in" type="search" value={q} placeholder={hint} autoComplete="off" role="combobox" aria-expanded={open && hits.length > 0} aria-controls="sp-find-list"
           onChange={(e) => { setQ(e.target.value); setOpen(true); }} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); go(hits[0].to); } if (e.key === "Escape") setOpen(false); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)} />
         {open && hits.length > 0 && <ul id="sp-find-list" role="listbox" className="sp-find-list">{hits.map((h) => <li key={h.key} role="option" aria-selected={false}><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(h.to)}><b>{h.label}</b><small>{h.note}</small></button></li>)}</ul>}

@@ -366,11 +366,11 @@ const WORDS: [string, string][] = [
   ["Box (Sector Rotation)", "Each week every industry is compared with the average industry over the last few months and over recent weeks. The two answers put it in one of four boxes: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping."],
   ["Market backdrop", "Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend."],
 ];
-export function Words() {
+export function Words({ items = WORDS }: { items?: [string, string][] }) {
   return (
     <details className="sp-sec sp-fold">
       <summary><span><b className="sp-ft">Words on this page, in plain English</b></span><span className="sp-show">Show ▾</span></summary>
-      <dl className="sp-words">{WORDS.map(([t, d]) => <div key={t}><dt>{t}.</dt><dd>{d}</dd></div>)}</dl>
+      <dl className="sp-words">{items.map(([t, d]) => <div key={t}><dt>{t}.</dt><dd>{d}</dd></div>)}</dl>
     </details>
   );
 }
