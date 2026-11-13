@@ -168,6 +168,9 @@ class Supervisor:
                 return f"waiting for {p} to finish first"
             if plan.verdicts[p].due and self._waits_for_due(job, p, plan, now):
                 return f"waiting for {p} to finish first"
+        for name in [r.job.name for r in self.running.values()] + [j.name for j in plan.start]:
+            if job.name in self.jobs[name].prerequisites:
+                return f"waiting for {name} to finish first (it reads this job's output)"
         if plan.deploy_hold and job.cls in LONG_CLASSES:
             return plan.deploy_hold           # the running long job finishes, the deploy goes in the gap, then this one starts on the new version
         if job.cls == "bulk" or job.group == "funds":
@@ -249,7 +252,11 @@ class Supervisor:
         # still inside its promise goes to the back of the queue, so a long or repeating job (ingest, portfolios, prism) never holds up the jobs that
         # are already late (founder, 7 Nov 2026: "jisske karan job ruke usko last me kardo, baki job continue rakho").
         last = {n: self._goes_last(j, states.get(n), now) for n, j in self.jobs.items()}
-        for job in sorted(self.order, key=lambda j: (last[j.name], j.priority, self._due_since.get(j.name, 0.0), j.name)):
+        # A prerequisite that already delivered fresh input to a due dependent lets that dependent go first: prism repeats every 10 minutes and has the
+        # better priority, so the night of 12 Nov 2026 it took every slot and presets (the screen lists and their history) never ran (task #64, D-1).
+        yields = {p for n, j in self.jobs.items() if verdicts[n].due for p in j.prerequisites
+                  if p in self.jobs and verdicts[p].due and not self._waits_for_due(j, p, plan, now)}
+        for job in sorted(self.order, key=lambda j: (last[j.name], j.name in yields, j.priority, self._due_since.get(j.name, 0.0), j.name)):
             if not verdicts[job.name].due:
                 continue
             why = self._blocker(job, plan, snap.free_mb, snap.load_per_cpu, reserved, now)
