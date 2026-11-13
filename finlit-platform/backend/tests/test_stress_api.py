@@ -99,8 +99,10 @@ def test_eia_outlook_is_the_average_of_the_next_four_full_quarters():
 @pytest.fixture(autouse=True)
 def fake_table():
     data._table = Table([_row("ASIANPAINT", 233000), _row("BANKX", 90000, bank=1), _row("SMALLCO", 500)], {}, {})
+    R._failed_at.clear()                 # each test starts with no failed build waiting out its retry gap
     yield
     data.reset()
+    R._failed_at.clear()
 
 
 pytestmark = pytest.mark.integration

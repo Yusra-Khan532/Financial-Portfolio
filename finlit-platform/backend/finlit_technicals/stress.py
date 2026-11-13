@@ -551,6 +551,44 @@ def _months(start: str, end: str) -> int:
     return (b.year - a.year) * 12 + b.month - a.month
 
 
+def _month_end(y: int, m: int) -> str:
+    return date.fromordinal(date(y + (m == 12), m % 12 + 1, 1).toordinal() - 1).isoformat()
+
+
+FX_MIN_DAYS = 10     # daily rates a month needs before their average stands for the month (as finlit.macro_sources.monthly_means)
+
+
+def monthly_averages(series: Any, daily: Any = None, *, min_days: int = FX_MIN_DAYS) -> List[Tuple[str, float]]:
+    """[(month end, average)] from a series that holds monthly averages and then daily rates (FinLit's usdinr: RBI/FBIL
+    monthly averages, then the daily FBIL reference rate from the day it was first read). Each month counts once:
+    its monthly average when the series has one, else the average of its daily rates when there are at least
+    min_days of them (a month with a few days only is left out, never stood in for by those days).
+    daily = the daily points on their own (FinLit's usdinr_d) when known: a point on one of those dates is a daily
+    rate. Without it, a month with one point holds a monthly average, and in a month with several points a point on the
+    calendar month end that falls on a weekend is the monthly average (no reference rate is set on a weekend)."""
+    pts = _points(series)
+    days = {d for d, _ in _points(daily)} if daily is not None else None
+    by: Dict[Tuple[int, int], List[Tuple[str, float]]] = {}
+    for d, v in pts:
+        by.setdefault((int(d[:4]), int(d[5:7])), []).append((d, v))
+    out: List[Tuple[str, float]] = []
+    for (y, m), xs in sorted(by.items()):
+        end = _month_end(y, m)
+        if days is not None:
+            monthly = [v for d, v in xs if d not in days]
+            dailies = [v for d, v in xs if d in days]
+        elif len(xs) == 1:
+            monthly, dailies = [xs[0][1]], []
+        else:
+            monthly = [v for d, v in xs if d == end and date.fromisoformat(d).weekday() >= 5]
+            dailies = [v for d, v in xs if not (d == end and monthly)]
+        if monthly:
+            out.append((end, monthly[-1]))
+        elif len(dailies) >= min_days:
+            out.append((end, sum(dailies) / len(dailies)))
+    return out
+
+
 def today_scenario(macro: dict, *, brent: Sequence, base_end: str, brent_now: Optional[float] = None,
                    usdinr_now: Optional[float] = None, usdinr: Optional[Sequence] = None, as_of: Optional[str] = None,
                    months: int = 12, name: str = "Today") -> Scenario:
@@ -571,18 +609,28 @@ def today_scenario(macro: dict, *, brent: Sequence, base_end: str, brent_now: Op
     if b_base is None or b_now is None:
         raise ValueError("no Brent prices in the base window")
     fx_site = [(d, v) for d, v in _points(s.get("usdinr", [])) if len(d) == 10]
-    fx_site_m = [(d, v) for d, v in fx_site if start < d <= end]
-    fx_src = "FinLit usdinr"
-    fx_pts = fx_site
-    if len(fx_site_m) < months - 2:
-        warn.append(f"FinLit's USD/INR series has {len(fx_site_m)} of {months} months in the base window")
-        if usdinr is None:
-            raise ValueError(warn[-1] + "; pass usdinr= monthly averages from another source")
-        fx_pts, fx_src = _points(usdinr), "usdinr argument"
-    fx_base = _mean(_window(fx_pts, start, end))
-    fx_now = usdinr_now if usdinr_now is not None else (fx_site[-1][1] if fx_site else fx_pts[-1][1])
+    # One value per month: FinLit's monthly averages, its daily rates averaged into months, and only for a month still
+    # missing, the usdinr= argument's monthly average (the source then says so, with the count of each).
+    site_m = {d[:7]: v for d, v in monthly_averages(fx_site, s.get("usdinr_d")) if start < d <= end}
+    arg_m = {d[:7]: v for d, v in monthly_averages(usdinr) if start < d <= end} if usdinr is not None else {}
+    fill = {k: v for k, v in arg_m.items() if k not in site_m}
+    fx_months = {**fill, **site_m}
+    if len(site_m) < months - 2:
+        warn.append(f"FinLit's USD/INR series has {len(site_m)} of {months} months in the base window")
+    if len(fx_months) < months - 2:
+        raise ValueError(warn[-1] + (f"; with the usdinr= monthly averages {len(fx_months)} of {months}" if usdinr is not None
+                                     else "; pass usdinr= monthly averages from another source"))
+    if not fill:
+        fx_src = "FinLit usdinr"
+    elif not site_m:
+        fx_src = "usdinr argument"
+    else:
+        fx_src = "FinLit usdinr + usdinr argument"
+    fx_base = _mean(list(fx_months.values()))
+    arg_pts = _points(usdinr) if usdinr is not None else []
+    fx_now = usdinr_now if usdinr_now is not None else (fx_site[-1][1] if fx_site else arg_pts[-1][1])
     inputs.update(brent_now=b_now, brent_base=_r(b_base), usdinr_now=fx_now, usdinr_base=_r(fx_base, 4),
-                  usdinr_source=fx_src)
+                  usdinr_source=fx_src, usdinr_months={"finlit": len(site_m), "argument": len(fill), "argument_months": sorted(fill)})
 
     def gap(key: str, label: str) -> Optional[float]:
         pts = _points(s.get(key, []))

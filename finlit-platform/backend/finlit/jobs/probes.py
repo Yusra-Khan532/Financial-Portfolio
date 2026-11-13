@@ -34,4 +34,8 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         from ..macro_outlook import store as mo
         return await mo.has_new_data(store)
 
-    return {"macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "scores-live": scores_live}
+    async def stress() -> Optional[bool]:
+        from ..stress import service as stress_service      # the last run stopped at its time cap with covered companies it never reached
+        return await stress_service.has_work(store)
+
+    return {"macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "scores-live": scores_live, "stress": stress}
