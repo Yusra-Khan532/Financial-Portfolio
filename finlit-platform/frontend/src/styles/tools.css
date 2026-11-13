@@ -419,3 +419,13 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
   .sp-v { font-size: var(--fs-13); } .sp-v .dt { margin-right: 5px; }
   .sp-t.n4 { overflow-x: auto; } .sp-t.n4 > .sp-h, .sp-t.n4 > .sp-r { min-width: 430px; }   /* four companies do not fit across a phone: the table moves sideways, the chart above it does not */
 }
+
+/* Task #81: the company-name row of every Compare tab. It sticks flush under the site bar (--cmp-top, measured), and an 8 px ring in the card's colour
+   fills round its rounded corners, so no row of the table shows above or behind the names while the page scrolls. On a phone or tablet the row shows too
+   (it was hidden, so the columns had no names): names wrap, there is no empty first column. */
+.cmpw .mt-h, .cmpw .sp-h { top: var(--cmp-top, 62px); box-shadow: 0 0 0 8px var(--s1), 0 6px 14px -10px rgba(0, 0, 0, .55) !important; }
+@media (max-width: 900px) {
+  .cmpw .mt-h { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+  .cmpw .mt-h > span:first-child { display: none; }
+  .cmpw .mt-h > span:not(:first-child) { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; font-size: var(--fs-12); line-height: 1.25; padding: 5px 8px; }
+}
