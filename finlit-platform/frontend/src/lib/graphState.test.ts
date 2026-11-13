@@ -58,7 +58,7 @@ describe("view state", () => {
   it("round-trips through the URL and clamps to the plan", () => {
     const v = defaultView(); expect(decodeView(encodeView(v), "gold")).toEqual(sanitize(v, "gold"));
     const big = { layout: "3x3", cells: [{ chart: "heatmap", series: ["A", "B", "C"].map((s) => ({ s, m: "price" })) }] };
-    const s = sanitize(big, "basic"); expect(s.layout).toBe("2x2"); expect(s.cells[0].chart).toBe("line"); expect(s.cells[0].series.length).toBe(2);
+    const s = sanitize(big, "basic"); expect(s.layout).toBe("g9"); expect(s.cells[0].chart).toBe("line"); expect(s.cells[0].series.length).toBe(2);   // 20 charts on every plan (task #114)
     expect(decodeView("%%%not-base64", "gold")).toBeNull();
     expect(sanitize({ cells: [{ chart: "line", series: [{ s: "../x", m: "price" }, { s: "TCS", m: "nope" }] }] }, "gold").cells[0].series).toEqual([]);
   });
@@ -96,9 +96,9 @@ describe("indices in a view", () => {
 
 describe("adding and removing charts", () => {
   const view = (layout: string, n: number): View => ({ v: 1, layout, basis: "annual", range: "5Y", cells: Array.from({ length: n }, (_, i) => ({ chart: "line" as const, series: [{ s: "S" + i, m: "price" }] })) });
-  it("the layouts step 1, 2, 3, 4, 5, 6 charts, and + goes up one step, never past six (there is no 3 by 3)", () => {
+  it("the layouts step 1, 2, 3, 4, 5, 6 charts, and + goes up one step, then three a row up to 20 (task #114)", () => {
     expect(["1x1", "1x2", "1x3", "2x2", "2x3-5", "2x3"].map(cellCount)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(layoutAbove("1x1")).toBe("1x2"); expect(layoutAbove("2x2")).toBe("2x3-5"); expect(layoutAbove("2x3-5")).toBe("2x3"); expect(layoutAbove("2x3")).toBeNull();
+    expect(layoutAbove("1x1")).toBe("1x2"); expect(layoutAbove("2x2")).toBe("2x3-5"); expect(layoutAbove("2x3-5")).toBe("2x3"); expect(layoutAbove("2x3")).toBe("g7"); expect(layoutAbove("g20")).toBeNull();
     expect(layoutBelow("2x2")).toBe("1x3"); expect(layoutBelow("2x3")).toBe("2x3-5"); expect(layoutBelow("2x3-5")).toBe("2x2");
   });
   it("× moves the later charts up and steps the layout down when one with one chart fewer exists", () => {
@@ -122,14 +122,29 @@ describe("adding and removing charts", () => {
     const v = view("1x3", 3);
     expect(decodeView(encodeView(v), "gold")?.layout).toBe("1x3");
     expect(decodeView(encodeView(v), "basic")?.layout).toBe("1x3");          // Basic holds four charts, so three is fine
-    expect(decodeView(encodeView(view("2x3", 6)), "basic")?.layout).toBe("2x2");   // six is more than Basic holds: the nearest layout it may use
+    expect(decodeView(encodeView(view("2x3", 6)), "basic")?.layout).toBe("2x3");   // every plan holds 20 charts now (task #114)
   });
 });
 
 describe("the removed 3 by 3 grid", () => {
-  it("an old link with nine charts opens as the 2 by 3 grid with its first six", () => {
-    const cells = Array.from({ length: 9 }, (_, i) => ({ chart: "line", series: [{ s: "S" + i, m: "price" }] }));
+  it("an old link with nine charts keeps all nine, three a row (task #114)", () => {
+    const cells = Array.from({ length: 9 }, (_, i) => ({ chart: "line", series: [{ s: "S" + (i % 3), m: "price" }] }));   // three companies: within the plan's company limit
     const s = sanitize({ layout: "3x3", cells }, "gold");
-    expect(s.layout).toBe("2x3"); expect(s.cells.map((c) => c.series[0].s)).toEqual(["S0", "S1", "S2", "S3", "S4", "S5"]);
+    expect(s.layout).toBe("g9"); expect(s.cells.map((c) => c.series[0].s)).toEqual(["S0", "S1", "S2", "S0", "S1", "S2", "S0", "S1", "S2"]);
+  });
+});
+
+// task #114 / #117: up to 20 charts; a new measure gets its own chart
+import { LAYOUT_LADDER as LADDER_114, MAX_CHARTS as MAX_114, cellCount as cc114, nextFreeCell as free114 } from "./graphState";
+describe("up to 20 charts, a chart per new measure (task #114)", () => {
+  it("the layouts climb one chart at a time from 1 to 20, three a row past 6", () => {
+    expect(MAX_114).toBe(20);
+    expect(LADDER_114.map(cc114)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+  });
+  it("the first empty chart is used, else one more chart, and none past 20", () => {
+    const filled = (n: number) => Array.from({ length: n }, () => ({ chart: "line" as const, series: [{ s: "TCS", m: "pe" }] }));
+    expect(free114({ v: 1, layout: "2x2", basis: "annual", range: "5Y", cells: [...filled(2), { chart: "line", series: [] }] }, 20)).toEqual({ index: 2, layout: "2x2" });
+    expect(free114({ v: 1, layout: "2x3", basis: "annual", range: "5Y", cells: filled(6) }, 20)).toEqual({ index: 6, layout: "g7" });
+    expect(free114({ v: 1, layout: "g20", basis: "annual", range: "5Y", cells: filled(20) }, 20)).toBeNull();
   });
 });

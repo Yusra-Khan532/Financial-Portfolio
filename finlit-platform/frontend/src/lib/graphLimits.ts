@@ -6,9 +6,9 @@ export type ChartKind = "line" | "area" | "column" | "bar" | "combo" | "pie" | "
 export type GraphLimits = { cells: number; companies: number; series: number; views: number; charts: ChartKind[] };
 
 export const GRAPH_LIMITS: Record<Plan, GraphLimits> = {
-  basic: { cells: 4, companies: 2, series: 3, views: 2, charts: ["line", "area", "column", "bar", "combo", "pie"] },
-  silver: { cells: 6, companies: 3, series: 4, views: 10, charts: ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter"] },
-  gold: { cells: 9, companies: 6, series: 6, views: 50, charts: ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter", "heatmap"] },
+  basic: { cells: 20, companies: 2, series: 3, views: 2, charts: ["line", "area", "column", "bar", "combo", "pie"] },
+  silver: { cells: 20, companies: 3, series: 4, views: 10, charts: ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter"] },
+  gold: { cells: 20, companies: 6, series: 6, views: 50, charts: ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter", "heatmap"] },
 };
 export const graphLimits = (plan: Plan): GraphLimits => GRAPH_LIMITS[plan] ?? GRAPH_LIMITS.basic;
 /** The cheapest plan that includes a chart type. */
