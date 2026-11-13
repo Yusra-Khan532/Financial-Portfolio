@@ -67,12 +67,13 @@ def _key(path: str, params: Dict[str, str]) -> str:
     return "prem:" + hashlib.sha1(raw.encode()).hexdigest()  # nosec B324 - cache key, not security
 
 
-async def _upstream(app, path: str, params: Dict[str, str]) -> Tuple[int, bytes]:
+async def _upstream(app, path: str, params: Dict[str, str], timeout: Optional[float] = None) -> Tuple[int, bytes]:
     settings = app.state.settings
     if not settings.site_api_url or len(settings.cms_jwt_secret.encode()) < 32:
         return 503, json.dumps({"detail": "This tool is not connected yet."}).encode()
     try:
-        r = await _client(app).get(path, params=params, headers={"Authorization": "Bearer " + gateway_token(settings.cms_jwt_secret)})
+        extra = {} if timeout is None else {"timeout": httpx.Timeout(timeout, connect=10.0)}      # a background build (Stress Lab) may wait longer than a member does
+        r = await _client(app).get(path, params=params, headers={"Authorization": "Bearer " + gateway_token(settings.cms_jwt_secret)}, **extra)
     except httpx.HTTPError as exc:
         log.warning("premium upstream unreachable: %s", type(exc).__name__)
         return 502, json.dumps({"detail": "The data provider is not answering. Please try again in a moment."}).encode()
@@ -81,23 +82,30 @@ async def _upstream(app, path: str, params: Dict[str, str]) -> Tuple[int, bytes]
     return r.status_code, r.content
 
 
-async def _refresh(app, key: str, path: str, params: Dict[str, str], fresh: int) -> Optional[bytes]:
-    """Fetch once even when many members ask together, and store the answer."""
+ERR_SECONDS = 900
+
+
+async def _refresh(app, key: str, path: str, params: Dict[str, str], fresh: int, timeout: Optional[float] = None) -> Optional[bytes]:
+    """Fetch once even when many members ask together, and store the answer. `timeout` (seconds) lets a background caller wait longer than the usual 45; when the provider
+    does not answer with 200, what it said is kept under key + ":err" for a quarter of an hour, so the caller can say why."""
     redis = app.state.store.redis
     lock = key + ":lock"
-    got = await redis.set(lock, "1", nx=True, ex=50)
+    got = await redis.set(lock, "1", nx=True, ex=int(max(50, (timeout or 45) + 10)))
     if not got:
-        for _ in range(100):  # someone else is fetching: wait for their answer instead of a second slow call
+        for _ in range(100 if timeout is None else int(timeout / 0.3) + 10):  # someone else is fetching: wait for their answer instead of a second slow call
             await asyncio.sleep(0.3)
             cached = await redis.get(key)
             if cached:
                 return json.loads(cached)["b"].encode()
             if not await redis.exists(lock):
                 break
-    status, body = await _upstream(app, path, params)
+    status, body = await _upstream(app, path, params, timeout)
     try:
         if status == 200:
             await redis.set(key, json.dumps({"t": time.time(), "f": fresh, "b": body.decode()}), ex=STALE_SECONDS)
+            await redis.delete(key + ":err")
+        else:
+            await redis.set(key + ":err", f"provider answered {status}: " + body[:160].decode("utf-8", "replace"), ex=ERR_SECONDS)
         await redis.delete(lock)
     except Exception:
         pass

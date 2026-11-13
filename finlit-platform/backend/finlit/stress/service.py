@@ -70,6 +70,7 @@ def covered_quarters(table, symbols: Sequence[str]) -> Dict[str, Optional[str]]:
 
 # ---------------------------------------------------------------------------------------------------- inputs
 PREMIUM_TRIES, PREMIUM_RETRY_S = 2, 3.0      # the provider is asked twice before a company is called "not ready"
+STATEMENTS_WAIT_S = 110.0                    # a background build waits this long for one statement (a member's page waits 45): the provider is slow while the night jobs run
 
 
 async def _cached_premium(app, key: str) -> Optional[bytes]:
@@ -93,11 +94,18 @@ async def premium_json(app, sym: str, statement: str, period: str) -> dict:
         for attempt in range(PREMIUM_TRIES):
             if raw is not None:
                 break
-            raw = await premium._refresh(app, key, path, lean, premium.FRESH_SECONDS["fundamentals"])
+            raw = await premium._refresh(app, key, path, lean, premium.FRESH_SECONDS["fundamentals"], timeout=STATEMENTS_WAIT_S)
             if raw is None and attempt + 1 < PREMIUM_TRIES:
                 await asyncio.sleep(PREMIUM_RETRY_S)
     if raw is None:
-        raise NotReady("The statements for this company are not available right now. Please try again in a moment.")
+        why = None
+        try:
+            err = await app.state.store.redis.get(key + ":err")
+            why = err.decode() if isinstance(err, bytes) else err
+        except Exception:  # nosec B110 - the reason is a courtesy
+            why = None
+        # the reader gets PLAIN_NOT_READY; this text goes to the log and to stress_failures, where the admin status page shows it
+        raise NotReady("The statements for this company are not available right now. Please try again in a moment." + (f" [{period}: {why}]" if why else f" [{period}: the provider did not answer in {STATEMENTS_WAIT_S:.0f}s]"))
     return json.loads(raw)
 
 

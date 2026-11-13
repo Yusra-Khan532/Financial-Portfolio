@@ -493,16 +493,17 @@ async def test_the_statements_are_asked_for_lean_and_twice_before_a_company_is_n
     from finlit import premium
     calls = []
 
-    async def refresh(app, key, path, params, fresh):
-        calls.append(dict(params))
+    async def refresh(app, key, path, params, fresh, timeout=None):
+        calls.append({**params, "_timeout": timeout})
         return None if len(calls) == 1 else b'{"periods": ["Mar 2026"], "rows": {}}'
     monkeypatch.setattr(premium, "_refresh", refresh)
     monkeypatch.setattr(service, "PREMIUM_RETRY_S", 0.0)
     got = await service.premium_json(_fake_app(), "TCS", "consolidated", "yearly")
     assert got == {"periods": ["Mar 2026"], "rows": {}}
     assert len(calls) == 2 and all(c.get("lean") == "true" and c["query"] == "TCS" for c in calls)      # the lean view, and the second try after a failure
+    assert all(c["_timeout"] == service.STATEMENTS_WAIT_S for c in calls)                                # and a background build waits longer than a member
 
-    async def never(app, key, path, params, fresh):
+    async def never(app, key, path, params, fresh, timeout=None):
         return None
     monkeypatch.setattr(premium, "_refresh", never)
     with pytest.raises(service.NotReady):
@@ -535,3 +536,49 @@ async def test_yearly_and_quarterly_statements_are_fetched_at_the_same_time(monk
     assert a == b and live["peak"] == 2
     import inspect
     assert "asyncio.gather(premium_json(app, sym, statement, \"yearly\"), premium_json(app, sym, statement, \"quarterly\"))" in inspect.getsource(service.build_pack)
+
+
+async def test_a_failed_statement_fetch_says_what_the_provider_answered_in_the_log_text_only(monkeypatch):
+    from finlit import premium
+    path, lean = "/api/stocks/admin/fundamentals", {"query": "TCS", "statement_type": "consolidated", "period": "yearly", "lean": "true"}
+    held = {premium._key(path, lean) + ":err": b"provider answered 429: FinEdge is temporarily unavailable after bounded retries. Please retry."}
+
+    async def never(app, key, path, params, fresh, timeout=None):
+        return None
+    monkeypatch.setattr(premium, "_refresh", never)
+    monkeypatch.setattr(service, "PREMIUM_RETRY_S", 0.0)
+    with pytest.raises(service.NotReady) as e:
+        await service.premium_json(_fake_app(held), "TCS", "consolidated", "yearly")
+    assert "provider answered 429" in str(e.value) and str(e.value).startswith("The statements for this company are not available right now.")
+    assert "429" not in service.PLAIN_NOT_READY                         # what a reader sees never carries it
+
+
+async def test_the_provider_answer_is_kept_for_the_next_look_when_it_is_not_200(monkeypatch):
+    from finlit import premium
+
+    class R(_FakeRedis):
+        def __init__(self):
+            super().__init__()
+            self.writes = {}
+
+        async def set(self, key, value, nx=False, ex=None):
+            self.writes[key] = (value, ex)
+            return True
+
+        async def exists(self, key):
+            return 0
+
+        async def delete(self, *keys):
+            for k in keys:
+                self.writes.pop(k, None)
+
+    r = R()
+    from types import SimpleNamespace
+    app = SimpleNamespace(state=SimpleNamespace(store=SimpleNamespace(redis=r)))
+
+    async def upstream(app, path, params, timeout=None):
+        return 502, b'{"detail":"FinEdge is temporarily unavailable"}'
+    monkeypatch.setattr(premium, "_upstream", upstream)
+    assert await premium._refresh(app, "k", "/p", {}, 900, timeout=110.0) is None
+    note, ttl = r.writes["k:err"]
+    assert note.startswith("provider answered 502:") and ttl == premium.ERR_SECONDS
