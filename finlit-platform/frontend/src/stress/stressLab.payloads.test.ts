@@ -214,6 +214,12 @@ describe("the compare view (task 79)", () => {
       expect(box.querySelector("input[type=search]")).toBeTruthy();
     });
   }
+  it("a second company Stress Lab does not cover: the server's own plain reason, escaped, with the 'Compare with' box", () => {
+    const { root } = draw(base(), "compare", null, { peerStatus: "notcovered", peerReason: "Stress Lab does not cover financial companies yet. <b>x</b>" } as never);
+    const box = root.getElementById("costrip")!.querySelector("#peerbox")!;
+    expect(box.textContent).toBe("Stress Lab does not cover financial companies yet. <b>x</b> Search for another company to compare with.");
+    expect(box.querySelector("b")).toBeNull();
+  });
   it("Silver never gets the 'Compare with' box", () => {
     const { root } = draw(silver(base()), "single", null, { peerStatus: "none" });
     expect(root.getElementById("peerbox")).toBeNull();

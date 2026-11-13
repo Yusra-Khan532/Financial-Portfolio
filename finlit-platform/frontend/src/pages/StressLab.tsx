@@ -69,7 +69,8 @@ export function StressLabPage() {
   const data = q.data, peerData = peerQ.data;
   const [drawFailed, setDrawFailed] = useState(false);
   // Gold asked for Compare two and there is no second company yet: why, in words the page shows next to its "Compare with" box (a failed /peer is the same as no peer)
-  const peerErr = peerQ.error ? (peerQ.error.status === 503 ? "preparing" : "error") : null;
+  const peerErr = peerQ.error ? (peerQ.error.status === 503 ? "preparing" : peerQ.error.status === 404 ? "notcovered" : "error") : null;
+  const peerReason = peerQ.error?.status === 404 ? String(peerQ.error.body?.detail || "") : "";   // the server's plain words for a company it does not cover
   const peerStatus = !gold || !wantPeer || peerData ? "" : picked ? (peerErr ?? "loading")
     : def.isError || (def.data && !def.data.peer) ? "none" : (peerErr ?? "loading");
   const pickPeer = (s: string) => {
@@ -94,7 +95,7 @@ export function StressLabPage() {
         d.history = d.history.map((r: any) => (byEp.get(r.episode)?.[ps] !== undefined ? { ...r, [ps]: byEp.get(r.episode)[ps] } : r));
       }
       h = mountStressLab(root, StressEngine, d, {
-        view: peer && wantPeer ? "compare" : "single", peer, peerStatus, logoUrl: (s: string) => logoRef.current?.get(String(s).toUpperCase()) ?? "",
+        view: peer && wantPeer ? "compare" : "single", peer, peerStatus, peerReason, logoUrl: (s: string) => logoRef.current?.get(String(s).toUpperCase()) ?? "",
         search: (t: string) => search.current(t, 6, [sym, ...(peerSym ? [peerSym] : [])]), onCompany: (s: string) => nav(`${BASE}/${s}`), onPeer: (s: string) => pickRef.current(s), requestPeer: () => setWantPeer(true),
         onUpgrade: () => upgradeRef.current("gold", "Stress Lab's other scenarios, your own shocks and Compare two are part of Gold."), upgradeUrl: "/plans",
       });
@@ -106,7 +107,7 @@ export function StressLabPage() {
       return;
     }
     return () => { h?.destroy(); root.innerHTML = ""; };
-  }, [data, peerData, wantPeer, picked, gold, sym, nav, !!logos, peerStatus, peerSym]);
+  }, [data, peerData, wantPeer, picked, gold, sym, nav, !!logos, peerStatus, peerReason, peerSym]);
 
   // What the reader sees comes only from the status and fixed words: a not-covered company says why in the server's own plain words; every other server fault is "being prepared"
   // (the real reason is in the server log, never on the page). A page whose data arrived but could not be drawn says exactly that, with a reload: the body is never blank.

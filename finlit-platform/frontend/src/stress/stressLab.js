@@ -4,7 +4,7 @@
    finlit_technicals/stress.py). Every number on the page is computed by the engine from the data; nothing is typed in. */
 export function mountStressLab(root, E, D, opts) {
   'use strict';
-  /* root: the ShadowRoot the page is drawn in. opts: { view, peer, logoUrl(symbol), search(q), onCompany(symbol), onPeer(symbol), requestPeer(), peerStatus, onUpgrade(), upgradeUrl }. */
+  /* root: the ShadowRoot the page is drawn in. opts: { view, peer, logoUrl(symbol), search(q), onCompany(symbol), onPeer(symbol), requestPeer(), peerStatus, peerReason, onUpgrade(), upgradeUrl }. */
   var VIEW = opts.view || 'single', HOST = root.querySelector('.sl-root'), OFF = [];
   function listen(t, ty, fn, o) { t.addEventListener(ty, fn, o); OFF.push(function () { t.removeEventListener(ty, fn, o); }); }
   /* Plan: Silver gets Today (and Crude eases) plus the 2022 and 2020 presets, read-only; Gold gets everything.
@@ -647,12 +647,13 @@ export function mountStressLab(root, E, D, opts) {
     loading: 'Finding a company to compare with…',
     none: 'No peer of this company is covered by Stress Lab yet. Search for a company to compare with.',
     preparing: 'Stress Lab for the second company is being prepared. This page checks again by itself every 20 seconds, or search for another company.',
-    error: 'The second company could not be loaded. Search for another company to compare with.'
+    error: 'The second company could not be loaded. Search for another company to compare with.',
+    notcovered: 'Stress Lab does not cover that company. Search for another company to compare with.'
   };
   /** Gold, Compare two asked for, no second company: the reason in words and the search box, at the top where the reader is looking. */
   function peerBox() {
     if (!GOLD || B || !PEER_STATUS) return '';
-    var why = PEER_STATUS === 'unusable' ? esc(PEER_BAD.name || PEER_BAD.symbol) + ' cannot be compared: its share count or revenue is not on file. Search for another company to compare with.' : PEER_WORDS[PEER_STATUS] || PEER_WORDS.error;
+    var why = PEER_STATUS === 'unusable' ? esc(PEER_BAD.name || PEER_BAD.symbol) + ' cannot be compared: its share count or revenue is not on file. Search for another company to compare with.' : PEER_STATUS === 'notcovered' && opts.peerReason ? esc(opts.peerReason) + ' Search for another company to compare with.' : PEER_WORDS[PEER_STATUS] || PEER_WORDS.error;   // a company outside the coverage: the server's own plain words
     return '<div class="pickrow" data-find="peer" id="peerbox"><label class="find">' + svg('<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>', 16) + '<input type="search" placeholder="Compare with another company" aria-label="Compare with another company"></label>' +
       '<span class="note" style="margin:0" role="status" aria-live="polite">' + why + '</span></div>';
   }
