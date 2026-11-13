@@ -146,11 +146,19 @@ def test_the_morning_window_is_a_catch_up_for_what_the_night_missed():
 
 def test_outside_a_window_a_breached_sla_runs_on_an_idle_box_and_waits_for_a_quiet_moment_when_visitors_are_on():
     j, noon = JOBS["score"], at(*FRI, 12, 0)
-    breached = state("score", noon, 30)                                                # 26 h SLA, 4 h late
+    breached = state("score", noon, 27)                                                # 26 h SLA, 1 h late
     assert evaluate(j, breached, ctx(noon, visitor_active=False)).due
     v = evaluate(j, breached, ctx(noon, visitor_active=True))
     assert v.state == "waiting" and not v.due and "quiet moment" in v.reason           # not starved: it is waiting with a reason, never skipped silently
-    assert evaluate(j, state("score", noon, 60), ctx(noon, visitor_active=True)).due   # beyond twice the SLA it runs whatever the visitors do
+    assert evaluate(j, state("score", noon, 30), ctx(noon, visitor_active=True)).due   # more than 2 h late it runs whatever the visitors do
+
+
+def test_a_late_job_waits_for_a_quiet_moment_two_hours_at_most():
+    # 13 Nov 2026: presets (30 h promise) waited a whole day behind visitors, so the 12 Nov lists were never stored. The wait is bounded.
+    j, noon = JOBS["presets"], at(*FRI, 12, 0)
+    assert not evaluate(j, state("presets", noon, 31.5), ctx(noon, visitor_active=True)).due    # 1.5 h late: still waits
+    v = evaluate(j, state("presets", noon, 32.5), ctx(noon, visitor_active=True))
+    assert v.due and "quiet moment" not in v.reason                                          # 2.5 h late: runs, visitors or not
 
 
 def test_a_weekly_job_runs_on_its_day_only_but_the_sla_still_catches_a_missed_week():

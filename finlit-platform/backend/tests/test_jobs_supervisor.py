@@ -175,8 +175,11 @@ async def test_a_dependent_past_its_promise_stops_waiting_for_a_due_prerequisite
 async def test_a_running_prerequisite_always_blocks():
     sup, clock = make([bulk("prism", 40, interval_min=10), bulk("presets", 42, prerequisites=("prism",), interval_min=60, catchup=False)], cfg=config(bulk_concurrency=2))
     await sup.state.save(JobState(job="prism", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(hours=1)))
-    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(days=3)))
+    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(minutes=30)))
     await sup.step()
+    assert sup.runner.started == ["prism"]
+    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(days=3)))
+    await settle(sup, clock, 61)
     assert sup.runner.started == ["prism"] and "waiting for prism" in (await sup.state.load_all())["presets"].state_reason
 
 
@@ -631,3 +634,30 @@ async def test_the_audit_lane_is_a_config_value():
     sup, _ = make([audit("cov", 60), audit("integ", 61)], cfg=config(audit_cap=2))
     await sup.step()
     assert set(sup.runner.started) == {"cov", "integ"}
+
+
+async def test_a_repeating_prerequisite_that_already_delivered_lets_its_dependent_go_first():
+    # 12 Nov 2026: prism (priority 40, every 10 minutes) took every bulk slot of the night shift and presets (42) never ran, so the screen lists of
+    # that close were never stored. Both inside their promise, prism already finished after presets' last run: presets goes first.
+    sup, _ = make([bulk("prism", 40, interval_min=10, sla=Sla("hours", 26)), bulk("presets", 42, prerequisites=("prism",), interval_min=60, sla=Sla("hours", 30), catchup=False)])
+    await sup.state.save(JobState(job="prism", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(minutes=30)))
+    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(hours=20)))
+    plan = await sup.plan()
+    assert [j.name for j in plan.start] == ["presets"] and "waiting for presets" in plan.blocked["prism"]
+
+
+async def test_a_prerequisite_with_nothing_new_still_goes_before_its_dependent():
+    sup, _ = make([bulk("prism", 40, interval_min=10, sla=Sla("hours", 26)), bulk("presets", 42, prerequisites=("prism",), interval_min=60, sla=Sla("hours", 30), catchup=False)])
+    await sup.state.save(JobState(job="prism", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(hours=22)))
+    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(hours=2)))
+    plan = await sup.plan()
+    assert [j.name for j in plan.start] == ["prism"]
+
+
+async def test_a_prerequisite_waits_while_its_dependent_reads_its_output():
+    sup, _ = make([bulk("prism", 40, interval_min=10, sla=Sla("hours", 26)), bulk("presets", 42, prerequisites=("prism",), interval_min=60, sla=Sla("hours", 30), catchup=False)],
+                  cfg=config(bulk_concurrency=2))
+    await sup.state.save(JobState(job="prism", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(minutes=30)))
+    await sup.state.save(JobState(job="presets", first_seen_at=NOON - timedelta(days=5), last_success_at=NOON - timedelta(hours=20)))
+    await sup.step()
+    assert sup.runner.started == ["presets"] and "presets" in (await sup.state.load_all())["prism"].state_reason

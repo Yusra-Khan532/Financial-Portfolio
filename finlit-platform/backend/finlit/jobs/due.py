@@ -188,6 +188,11 @@ def _window_hit(job: Job, st: JobState, ctx: Ctx) -> Optional[str]:
     return None
 
 
+# A late job waits for a quiet moment (no visitors) at most this long, then runs anyway: the screens job waited a whole day behind visitors on 13 Nov 2026,
+# so the 12 Nov lists were never stored (task #64, D-1). Jobs never stop: a wait is bounded.
+SOFT_WAIT_MAX_H = 2.0
+
+
 def need(job: Job, st: JobState, ctx: Ctx) -> Tuple[bool, str, bool]:
     """(needed, why, soft): soft = a SLA breach that waits for a quiet moment instead of starting now."""
     now = ctx.now
@@ -216,7 +221,7 @@ def need(job: Job, st: JobState, ctx: Ctx) -> Tuple[bool, str, bool]:
             return True, f"daily run from {job.daily_at[0]:02d}:{job.daily_at[1]:02d} IST has not succeeded yet", False
     sla = sla_status(job, st, now)
     if sla.breached:
-        if open_windows(now) or not ctx.visitor_active or sla.lateness_hours > job.sla.hours:
+        if open_windows(now) or not ctx.visitor_active or sla.lateness_hours > min(job.sla.hours, SOFT_WAIT_MAX_H):
             return True, f"SLA breached by {sla.lateness_hours:.1f} h", False
         return True, f"SLA breached by {sla.lateness_hours:.1f} h; waiting for a quiet moment (visitors are on the site)", True
     return False, "", False
