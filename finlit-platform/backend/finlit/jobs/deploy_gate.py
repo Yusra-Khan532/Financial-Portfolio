@@ -10,7 +10,8 @@ restarting the container under a long job:
   3. While the flag is there the supervisor starts no NEW long job, so the running one finishes and a gap opens. Light jobs (results, quotes, calendars,
      alerts) keep running as normal: they are short, and they are retried a minute after any restart.
   4. At the next check (every few minutes) nothing long is running: "go", the deploy runs, and every commit merged meanwhile goes out in that one deploy.
-  5. After the deploy, `deploy-gate release` removes the flag, and the queue carries on where it was.
+  5. On "go" the flag stays, marked `deploying`, while the new version builds and starts (13 Nov 2026: the flag used to be removed at "go", the build
+     took minutes, the supervisor started prism in that gap and the restart killed it). After the deploy, `deploy-gate release` removes it.
 
 Two safety valves keep the rule "jobs never stop" true even if something goes wrong here:
   * the flag lives only HOLD_TTL_S (15 minutes) unless auto-deploy refreshes it on its next check, so a stopped auto-deploy can never hold the jobs;
@@ -28,6 +29,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 HOLD_KEY = "jobs:deploy_hold"
 HOLD_TTL_S = 15 * 60
+DEPLOYING_TTL_S = 30 * 60   # while the new version builds and starts (a build takes minutes): no new long job may start in that gap
 LONG_CLASSES = ("bulk", "audit")
 
 
@@ -48,14 +50,15 @@ class Decision:
 def decide(long_running: Iterable[str], held: Optional[Dict[str, Any]], sha: str, now: float, max_min: float, supervisor_alive: bool = True) -> Decision:
     """Pure: whether a deploy of `sha` may go now, given the long jobs running and the flag already held (its `since` is when the wait began)."""
     names = [n for n in long_running if n]
+    going = {"sha": sha, "since": now, "deploying": True, "waitingFor": [], "maxMinutes": max_min}   # kept until release: no long job starts during the build
     if not supervisor_alive:
         return Decision(True, "the job supervisor is not answering: deploying (the deploy restarts it)", None)
     if not names:
-        return Decision(True, "no long job is running", None)
-    since = float(held.get("since")) if held and held.get("since") else now
+        return Decision(True, "no long job is running", going)
+    since = float(held.get("since")) if held and held.get("since") and not held.get("deploying") else now
     waited = (now - since) / 60.0
     if waited >= max_min:
-        return Decision(True, f"held {waited:.0f} min, the most a deploy waits: deploying now; {', '.join(names)} resumes where it left off after the restart", None)
+        return Decision(True, f"held {waited:.0f} min, the most a deploy waits: deploying now; {', '.join(names)} resumes where it left off after the restart", going)
     hold = {"sha": sha, "since": since, "waitingFor": names, "maxMinutes": max_min}
     return Decision(False, f"waiting for {', '.join(names)} to finish (held {waited:.0f} of {max_min:.0f} min; no new long job starts meanwhile)", hold)
 
@@ -86,7 +89,7 @@ async def check(store: Any, sha: str, env: Optional[Mapping[str, str]] = None, n
     d = decide(long_running, await read_hold(redis), sha, now, hold_max_min(env), alive)
     try:
         if d.hold:
-            await redis.set(HOLD_KEY, json.dumps(d.hold), ex=HOLD_TTL_S)
+            await redis.set(HOLD_KEY, json.dumps(d.hold), ex=DEPLOYING_TTL_S if d.hold.get("deploying") else HOLD_TTL_S)
         else:
             await redis.delete(HOLD_KEY)
     except Exception:   # nosec B110 - without Redis there is no hold, and the deploy decision above still stands
@@ -105,6 +108,8 @@ def hold_reason(hold: Optional[Dict[str, Any]], now: float) -> Optional[str]:
     """The supervisor's reason for not starting a new long job while a deploy waits (None when there is no hold)."""
     if not hold:
         return None
+    if hold.get("deploying"):
+        return "waiting for a deploy: a new version is going out now; the queue carries on as soon as it is running"
     waiting: List[str] = hold.get("waitingFor") or []
     mins = (now - float(hold.get("since") or now)) / 60.0
     return (f"waiting for a deploy: a new version waits for {', '.join(waiting) or 'the running job'} to finish, so no new long job starts "
