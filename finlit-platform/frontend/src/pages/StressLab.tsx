@@ -1,7 +1,7 @@
 // Stress Lab (Silver and Gold): how a shock to crude, the rupee, inflation, rates or demand would move one company's earnings over the next 12 months, and two companies side by side (Gold).
 // The page is the design team's reference page, drawn in a shadow root (so its own light "paper" styles cannot leak and the site's cannot reach in); the model runs in the browser
 // (stress/engine.js, a port of finlit_technicals/stress.py) so the sliders answer at once. The server decides what each plan receives. Information only, never advice (docs/STRESS.md).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../components/PageHeader";
@@ -63,7 +63,15 @@ export function StressLabPage() {
   const peerQ = useQuery<any, ApiError>({ queryKey: ["stress", peerSym], queryFn: () => page(peerSym as string), enabled: gold && !!peerSym, retry: false, staleTime: 300_000,
     refetchInterval: (query) => (query.state.error?.status === 503 && query.state.errorUpdateCount < PREPARE_CHECKS ? 20_000 : false) });
   const sf = useIndexFilter(true);
+  // the search boxes offer only companies Stress Lab covers (never a bank, an insurer or a company under the size rule): the server's list, kept for the visit; until it has arrived, or if it cannot be had, they offer everything and the page says why for the one that is not covered
+  const cov = useQuery<{ symbols: string[] }, ApiError>({ queryKey: ["stress", "covered"], queryFn: () => apiGet("/api/stress/covered"), enabled: silver, retry: false, staleTime: 3_600_000 });
+  const coveredSet = useMemo(() => (Array.isArray(cov.data?.symbols) ? new Set(cov.data!.symbols.map((x) => x.toUpperCase())) : null), [cov.data]);
+  const covRef = useRef(coveredSet); covRef.current = coveredSet;
   const search = useRef(sf.search); search.current = sf.search;
+  const searchCovered = (t: string, skip: readonly string[]) => {
+    const set = covRef.current;
+    return set ? search.current(t, 40, skip).filter((r: any) => set.has(String(r[0]).toUpperCase())).slice(0, 6) : search.current(t, 6, skip);
+  };
   const logos = useLogoMap(), logoRef = useRef(logos); logoRef.current = logos;   // company logos from the site's shared list; a company without one shows its initials
   const host = useRef<HTMLDivElement>(null);
   const data = q.data, peerData = peerQ.data;
@@ -96,7 +104,7 @@ export function StressLabPage() {
       }
       h = mountStressLab(root, StressEngine, d, {
         view: peer && wantPeer ? "compare" : "single", peer, peerStatus, peerReason, logoUrl: (s: string) => logoRef.current?.get(String(s).toUpperCase()) ?? "",
-        search: (t: string) => search.current(t, 6, [sym, ...(peerSym ? [peerSym] : [])]), onCompany: (s: string) => nav(`${BASE}/${s}`), onPeer: (s: string) => pickRef.current(s), requestPeer: () => setWantPeer(true),
+        search: (t: string) => searchCovered(t, [sym, ...(peerSym ? [peerSym] : [])]), onCompany: (s: string) => nav(`${BASE}/${s}`), onPeer: (s: string) => pickRef.current(s), requestPeer: () => setWantPeer(true),
         onUpgrade: () => upgradeRef.current("gold", "Stress Lab's other scenarios, your own shocks and Compare two are part of Gold."), upgradeUrl: "/plans",
       });
     } catch (e) {   // the data arrived but the page could not be drawn from it: say so in words (never "being prepared", never a blank body) and log it
@@ -112,6 +120,7 @@ export function StressLabPage() {
   // What the reader sees comes only from the status and fixed words: a not-covered company says why in the server's own plain words; every other server fault is "being prepared"
   // (the real reason is in the server log, never on the page). A page whose data arrived but could not be drawn says exactly that, with a reload: the body is never blank.
   const err = q.error, why = err?.status === 404 ? ((err.body?.detail as string) || "") : "";
+  const unknown = err?.status === 404 && err.body?.status === "unknown_symbol";   // not a listed company at all: no report or Outlook to point to
   const waiting = silver && (q.isPending || q.isLoading) && !q.isError;
   return (
     <>
@@ -125,11 +134,12 @@ export function StressLabPage() {
               <p className="muted">The figures for {data?.company?.name || sym} arrived, but the page could not be drawn from them. The fault has been logged. Reloading the page usually helps.</p>
               <p className="sl-nc"><button type="button" className="btn primary" onClick={() => location.reload()}>Reload the page</button>{" "}<Link className="btn" to={`/stocks/${encodeURIComponent(sym)}`}>Company report</Link>{" "}<Link className="btn" to={`/outlook/${encodeURIComponent(sym)}`}>Outlook</Link>{" "}<Link className="btn" to={BASE}>Pick another company</Link></p></section>
             : err ? <section className="card sl-err" role="alert">
-              <h2>{err?.status === 404 ? "Stress Lab does not cover this company yet" : "Stress Lab for this company is being prepared"}</h2>
+              <h2>{unknown ? "We could not find that company" : err?.status === 404 ? "Stress Lab does not cover this company yet" : "Stress Lab for this company is being prepared"}</h2>
               <p className="muted">{err?.status === 404 ? why : "Please check back later."}</p>
               {err?.status === 503 && q.errorUpdateCount < PREPARE_CHECKS && <p className="muted sl-recheck" aria-live="polite">This page checks again by itself every 20 seconds, so you can wait here.</p>}
-              {err?.status === 404 && <p className="muted">{/financial/i.test(why) ? "Banks and lenders earn from interest, not from selling goods, so a fuel, currency or raw-material shock does not describe them. Stress Lab for banks is being built. Until then these pages describe this company:" : "These pages describe this company in the meantime:"}</p>}
-              <p className="sl-nc"><Link className="btn primary" to={`/stocks/${encodeURIComponent(sym)}`}>Company report</Link>{" "}<Link className="btn" to={`/outlook/${encodeURIComponent(sym)}`}>Outlook</Link>{" "}<Link className="btn" to={BASE}>Pick another company</Link></p></section>
+              {err?.status === 404 && !unknown && <p className="muted">{/financial/i.test(why) ? "Banks and lenders earn from interest, not from selling goods, so a fuel, currency or raw-material shock does not describe them. Stress Lab for banks is being built. Until then these pages describe this company:" : "These pages describe this company in the meantime:"}</p>}
+              {unknown ? <p className="sl-nc"><Link className="btn primary" to={BASE}>Pick a company</Link></p>
+                : <p className="sl-nc"><Link className="btn primary" to={`/stocks/${encodeURIComponent(sym)}`}>Company report</Link>{" "}<Link className="btn" to={`/outlook/${encodeURIComponent(sym)}`}>Outlook</Link>{" "}<Link className="btn" to={BASE}>Pick another company</Link></p>}</section>
             : <div ref={host} className="sl-host" />}
         </Gate>
       </div>

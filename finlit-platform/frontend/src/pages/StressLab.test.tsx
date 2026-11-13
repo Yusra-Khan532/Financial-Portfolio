@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../public/demo/stress-page.json";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
-const st = vi.hoisted(() => ({ gold: true, silver: true, status: 200, body: null as unknown, hang: false, draw: false, picks: [] as { symbol: string; name: string }[], peerStatus: 200, hits: [] as string[][], plan: "" }));
+const st = vi.hoisted(() => ({ gold: true, silver: true, status: 200, body: null as unknown, hang: false, draw: false, picks: [] as { symbol: string; name: string }[], peerStatus: 200, hits: [] as string[][], plan: "", covered: null as string[] | null, bodyStatus: "" }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => (t === "gold" ? st.gold : st.silver), upgrade: vi.fn(), toast: vi.fn() }), TIER: { gold: { n: "Gold" }, silver: { n: "Silver" } } }));
 vi.mock("../components/Gate", () => ({ Gate: ({ children }: { children: React.ReactNode }) => <>{children}</>, TierChip: () => null }));
 vi.mock("../components/OutlookPicker", () => ({ OutlookPicker: ({ picks, recents }: { picks?: { symbol: string }[] | null; recents?: boolean }) => <ul aria-label="picker" data-recents={String(recents)}>{(picks ?? []).map((p) => <li key={p.symbol}>{p.symbol}</li>)}</ul> }));
@@ -17,7 +17,8 @@ vi.mock("../components/SearchFilters", () => ({ useIndexFilter: () => ({ search:
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: vi.fn(async (path: string) => {
   const { ApiError } = await orig<typeof import("../lib/api")>();
   if (st.hang) return new Promise(() => {});
-  if (st.status !== 200) throw new ApiError(st.status, { detail: st.body } as never);
+  if (path.endsWith("/covered")) { if (!st.covered) throw new ApiError(500, {}); return { symbols: st.covered }; }
+  if (st.status !== 200) throw new ApiError(st.status, { detail: st.body, ...(st.bodyStatus ? { status: st.bodyStatus } : {}) } as never);
   if (path.endsWith("/quick-picks")) return { picks: st.picks };
   if (path.endsWith("/peer")) return { peer: null, peers: [] };
   const other = path.match(/\/api\/stress\/([^/]+)\/page/)?.[1];
@@ -31,7 +32,7 @@ vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/ap
 }) }));
 import { StressLabIndexPage, StressLabPage } from "./StressLab";
 
-afterEach(() => { cleanup(); st.hang = false; st.draw = false; st.status = 200; st.peerStatus = 200; st.hits = []; location.hash = ""; });
+afterEach(() => { cleanup(); st.hang = false; st.draw = false; st.status = 200; st.peerStatus = 200; st.hits = []; st.covered = null; st.bodyStatus = ""; location.hash = ""; });
 const Loc = () => <output data-testid="loc">{useLocation().search}</output>;
 const openAt = (url: string) => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[url]}><Routes><Route path="/research/stress-lab/:symbol" element={<><StressLabPage /><Loc /></>} /></Routes></MemoryRouter></QueryClientProvider>);
 const shadow = () => document.querySelector(".sl-host")?.shadowRoot ?? null;
@@ -137,6 +138,28 @@ describe("Stress Lab page", () => {
     shadow()!.querySelector<HTMLElement>("#peerbox [data-go=PEERX]")!.click();
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toBe("?with=PEERX"));
     await waitFor(() => expect(shadow()?.getElementById("costrip")?.textContent).toMatch(/Peer X Ltd/));
+  });
+  it("the search boxes offer only companies Stress Lab covers: a bank is not listed, and a covered company is (A4.7)", async () => {
+    location.hash = "#compare"; st.covered = ["PIDILITIND", "BERGEPAINT"];
+    st.hits = [["HDFCBANK", "HDFC Bank Ltd", "", "", "HDFCBANK"], ["IDFCFIRSTB", "IDFC First Bank Ltd", "", "", "IDFCFIRSTB"], ["PIDILITIND", "Pidilite Industries Ltd", "", "", "PIDILITIND"]];
+    openAt("/research/stress-lab/ASIANPAINT");
+    await waitFor(() => expect(shadow()?.getElementById("peerbox")).toBeTruthy());
+    const input = shadow()!.querySelector<HTMLInputElement>("#peerbox input[type=search]")!;
+    // until the list of covered companies has arrived the box offers everything: keep typing until it has filtered
+    await waitFor(() => {
+      input.value = "bank"; input.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(shadow()!.querySelector("#peerbox [data-go=PIDILITIND]")).toBeTruthy();
+      expect(shadow()!.querySelector("#peerbox [data-go=HDFCBANK]")).toBeNull();
+      expect(shadow()!.querySelector("#peerbox [data-go=IDFCFIRSTB]")).toBeNull();
+    });
+  });
+  it("a symbol that is not a company says so, with one way on (A6)", async () => {
+    st.status = 404; st.bodyStatus = "unknown_symbol"; st.body = "We could not find a listed company with that symbol."; open();
+    expect(await screen.findByRole("heading", { name: "We could not find that company" })).toBeTruthy();
+    expect(screen.getByText("We could not find a listed company with that symbol.")).toBeTruthy();
+    expect(screen.queryByText("Company report")).toBeNull(); expect(screen.queryByText("Outlook")).toBeNull();
+    expect(screen.getByRole("link", { name: "Pick a company" })).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/describe this company in the meantime/);
   });
   it("a second company being prepared says so at the top and appears by itself when it is ready (task 79)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

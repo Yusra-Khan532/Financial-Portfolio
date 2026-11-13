@@ -119,6 +119,8 @@ async def _covered(request: Request, sym: str):
     """The launch rule (404 with its plain words when the company is outside it) and the screener row's size word."""
     store = request.app.state.store
     table = await get_table(store)
+    if sym not in table.pos:      # not a listed company at all: say so, not that it is under the size rule
+        raise fail(404, "unknown_symbol", service.UNKNOWN_SYMBOL, covered=False)
     reason = service.coverage_reason(table, sym)
     if reason:
         raise fail(404, "not_covered", reason, covered=False)
@@ -211,6 +213,14 @@ async def _note_failure(app, sym: str, kind: str, reason: str) -> None:
 
 async def _page(request: Request, sym: str) -> dict:
     return (await _stored_or_live(request, sym))["payload"]
+
+
+@router.get("/covered")
+async def covered(request: Request, ctx: Ctx = Depends(silver_ctx)):
+    """Every company Stress Lab covers (the launch rule: no bank, NBFC, insurer or other financial company, a market value of Rs 10,000 Cr or more), so the page's search
+    boxes offer only those. Symbols only: a short list the browser keeps for the visit."""
+    syms = sorted(sym for sym, _ in await service.covered_symbols(request.app.state.store))
+    return _json({"symbols": syms})
 
 
 @router.get("/quick-picks")

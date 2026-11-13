@@ -197,15 +197,23 @@ describe("the compare view (task 79)", () => {
     expect(root.getElementById("costrip")!.textContent).toMatch(/No covered peer has results to Sep 2026 yet/);
     expect(root.getElementById("costrip")!.textContent).not.toMatch(/has results to the same quarter/);
   });
+  it("never says 'about equally' and 'takes the bigger hit in 8 of 8 scenarios' for the same pair (a gap under 3 points is not a bigger hit)", () => {
+    const b = peerOf(base());                                   // the same company and settings: no gap anywhere
+    const { root } = draw(base(), "compare", b);
+    const words = root.getElementById("calls")!.textContent || "";
+    expect(words).not.toMatch(/takes the bigger hit/);
+    expect(words).toMatch(/hit about equally in every scenario/);
+  });
   it("counts who takes the bigger hit with each company's own Today, as the table does", () => {
     const b = peerOf(base());
     const today = b.scenarios.find((s: any) => s.id === "today"); today.crude = 250; today.demand = -40;   // B's own Today is far harsher
     const { root } = draw(base(), "compare", b);
     const rows = [...root.querySelectorAll("#every tbody tr")];
-    const bigger = rows.filter((r) => /Peer Co/.test(r.querySelectorAll("td")[5]?.textContent || "")).length;
+    const bigger = rows.filter((r) => /Peer Co/.test(r.querySelectorAll("td")[5]?.textContent || "")).length;       // the table's 'More exposed' column: a gap of 3 points or more
+    const biggerA = rows.filter((r) => /Asian Paints/.test(r.querySelectorAll("td")[5]?.textContent || "")).length;
     const words = root.getElementById("calls")!.textContent || "";
     const m = words.match(/(Asian Paints|Peer Co) takes the bigger hit in (\d+) of (\d+) scenarios/);
-    if (m) expect(m[1] === "Peer Co" ? +m[2] : +m[3] - +m[2]).toBeGreaterThanOrEqual(bigger);
+    if (m) expect(+m[2]).toBe(m[1] === "Peer Co" ? bigger : biggerA);          // the sentence and the table count the same way
     expect(StressEngine.run(b.company, today).change_pct.eps!).toBeLessThan(StressEngine.run(base().company, base().scenarios[0]).change_pct.eps!);
   });
   for (const [status, words] of [["none", /No peer of this company is covered/], ["preparing", /being prepared\. This page checks again by itself every 20 seconds/], ["error", /could not be loaded/], ["loading", /Finding a company/]] as const) {
@@ -275,5 +283,23 @@ describe("design check fixes (task 79, SL-8)", () => {
   });
   it("'What moves the company most' spans the page on one company, and a column in Compare two", () => {
     expect(css()).toMatch(/\.senscard\{grid-column:1\/-1\}\.sl-root\.v-compare \.senscard\{grid-column:auto\}/);
+  });
+});
+
+describe("a large result that rests on industry settings only says so (task 79, Reliance +67.8%)", () => {
+  const huge = (): Payload => { const p = base(); const t = p.scenarios.find((x: any) => x.id === "today"); t.crude = 400; return p; };
+  const text = (p: Payload) => draw(p).root.getElementById("ana")!.textContent || "";
+  it("shows the caution with the industry the settings come from, in words that describe and never advise", () => {
+    const t = text(huge());
+    expect(t).toMatch(/This result is large\. Asian Paints’s settings come from the Paints industry average, not from its own reports, and a company with several businesses can react differently\./);
+    expect(t).toMatch(/Open “The assumptions behind it”/);
+    expect(t).not.toMatch(/\b(buy|sell|hold|avoid|target)\b/i);
+  });
+  it("is left out when any setting comes from the company's own reports", () => {
+    const p = huge(); p.company.field_source.crude_rm = "This company (from its reports)";
+    expect(text(p)).not.toMatch(/This result is large/);
+  });
+  it("is left out for an ordinary move", () => {
+    expect(text(base())).not.toMatch(/This result is large/);
   });
 });
