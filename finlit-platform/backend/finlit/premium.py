@@ -76,6 +76,8 @@ async def _upstream(app, path: str, params: Dict[str, str]) -> Tuple[int, bytes]
     except httpx.HTTPError as exc:
         log.warning("premium upstream unreachable: %s", type(exc).__name__)
         return 502, json.dumps({"detail": "The data provider is not answering. Please try again in a moment."}).encode()
+    if r.status_code != 200:
+        log.warning("premium upstream %s for %s answered %s", path, params.get("query") or params.get("symbol") or "", r.status_code)      # the reason a company is "not ready" has to be findable
     return r.status_code, r.content
 
 

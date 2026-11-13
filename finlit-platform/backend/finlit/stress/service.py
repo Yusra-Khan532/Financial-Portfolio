@@ -69,18 +69,33 @@ def covered_quarters(table, symbols: Sequence[str]) -> Dict[str, Optional[str]]:
 
 
 # ---------------------------------------------------------------------------------------------------- inputs
-async def premium_json(app, sym: str, statement: str, period: str) -> dict:
-    """The premium statements (the data-provider copy the site keeps in Redis), fetched once when no copy is held."""
-    path, params = "/api/stocks/admin/fundamentals", {"query": sym, "statement_type": statement, "period": period}
-    key = premium._key(path, params)
-    raw = None
+PREMIUM_TRIES, PREMIUM_RETRY_S = 2, 3.0      # the provider is asked twice before a company is called "not ready"
+
+
+async def _cached_premium(app, key: str) -> Optional[bytes]:
     try:
         hit = await app.state.store.redis.get(key)
-        raw = json.loads(hit)["b"].encode() if hit else None
+        return json.loads(hit)["b"].encode() if hit else None
     except Exception:  # nosec B110 - Redis busy: fetch instead
-        raw = None
+        return None
+
+
+async def premium_json(app, sym: str, statement: str, period: str) -> dict:
+    """The premium statements (the data-provider copy the site keeps in Redis). A copy the Company financials page already holds is used as it is; otherwise the LEAN view is
+    fetched (statements, ratios, quote and prices without the dashboard extras: the full view took longer than the 45 s the call waits, so every company was "not ready"
+    on 12 Nov 2026, 38 in the night run alone), twice at most."""
+    path, params = "/api/stocks/admin/fundamentals", {"query": sym, "statement_type": statement, "period": period}
+    raw = await _cached_premium(app, premium._key(path, params))
     if raw is None:
-        raw = await premium._refresh(app, key, path, params, premium.FRESH_SECONDS["fundamentals"])
+        lean = {**params, "lean": "true"}
+        key = premium._key(path, lean)
+        raw = await _cached_premium(app, key)
+        for attempt in range(PREMIUM_TRIES):
+            if raw is not None:
+                break
+            raw = await premium._refresh(app, key, path, lean, premium.FRESH_SECONDS["fundamentals"])
+            if raw is None and attempt + 1 < PREMIUM_TRIES:
+                await asyncio.sleep(PREMIUM_RETRY_S)
     if raw is None:
         raise NotReady("The statements for this company are not available right now. Please try again in a moment.")
     return json.loads(raw)
@@ -94,7 +109,7 @@ async def build_pack(app, sym: str, statement: str = "consolidated") -> dict:
     stock, fin = json.loads(got["summary"][0]), json.loads(got["financials"][0])
     if (stock.get("dataQuality") or {}).get("isBank"):
         raise NotCovered(FINANCIAL)
-    py, pq = await premium_json(app, sym, statement, "yearly"), await premium_json(app, sym, statement, "quarterly")
+    py, pq = await asyncio.gather(premium_json(app, sym, statement, "yearly"), premium_json(app, sym, statement, "quarterly"))      # both at once: half the waiting
     try:
         pack = S.pack_from_site(stock, fin, py, pq)
     except (ValueError, KeyError, IndexError) as exc:
