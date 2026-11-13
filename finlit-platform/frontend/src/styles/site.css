@@ -7,6 +7,9 @@
    all of them here at once, for mouse and keyboard, so a new page-wide focus rule cannot bring the box back.
    The glow is a filter, so it follows the round thumb (a box-shadow on the native thumb is square). */
 input[type="range"]:focus, input[type="range"]:focus-visible { outline: none !important; box-shadow: none !important; }
+/* task #110: a slider has no background of its own. Without this the browser's default field colour (#3b3b3b in dark, white in light) showed as a box round a
+   slider while it was in use (Chrome on Windows). A slider that draws its own track (SIP, DCF, the price filter) sets its own background and keeps it. */
+input[type="range"] { background-color: transparent; }
 input[type="range"]:focus-visible::-webkit-slider-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
 input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
 .grow { flex: 1; }
