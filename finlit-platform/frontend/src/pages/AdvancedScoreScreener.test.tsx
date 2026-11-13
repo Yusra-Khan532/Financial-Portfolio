@@ -141,17 +141,17 @@ describe("Advanced stock screener (Gold)", () => {
       expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["Watch", "Mixed", "Healthy", "Strong"]);
     }
     const q = () => within(screen.getByRole("group", { name: "Quality score, exact range" }));
-    fireEvent.click(q().getByRole("button", { name: "Quality Strong, 78 and above" }));
+    fireEvent.click(q().getByRole("button", { name: "Quality Strong, the highest rating word" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=78"));
     expect((q().getByLabelText("Min") as HTMLInputElement).value).toBe("78");
-    expect(q().getByRole("button", { name: "Quality Strong, 78 and above" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(q().getByRole("button", { name: "Quality Healthy, 62 to 77" }));
+    expect(q().getByRole("button", { name: "Quality Strong, the highest rating word" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(q().getByRole("button", { name: "Quality Healthy, the second rating word" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=62"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Mixed, 45 to 61" }));
+    fireEvent.click(q().getByRole("button", { name: "Quality Mixed, the third rating word" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=45"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Watch, under 45" }));   // joins Mixed, Healthy and Strong: all four = no limit
+    fireEvent.click(q().getByRole("button", { name: "Quality Watch, the lowest rating word" }));   // joins Mixed, Healthy and Strong: all four = no limit
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Watch, under 45" }));
+    fireEvent.click(q().getByRole("button", { name: "Quality Watch, the lowest rating word" }));
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqlt=45"));
     fireEvent.change(q().getByLabelText("Below (the score must be under this number)"), { target: { value: "60" } });
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmax=60"));

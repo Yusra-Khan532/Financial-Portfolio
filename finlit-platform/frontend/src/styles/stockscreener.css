@@ -228,3 +228,10 @@
   .ssw-popb { position: static; flex-basis: 100%; max-width: none; box-shadow: none; }
   .ssw-popb input { flex: 1; width: auto; }
 }
+/* ready-made screens stack (task #64 P-4): a card that is on has a tick and a gold border; one line says how many are on and how many companies pass all of them */
+.ssy-c.is-on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; background: color-mix(in srgb, var(--gold) 8%, var(--s1)); }
+.ssy-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font-style: normal; font-size: 11px; vertical-align: 1px; }
+.ssy-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; font-size: 14px; color: var(--muted); } .ssy-on b { color: var(--text); }
+.ssy-on .lnk { margin-left: auto; }
+.ssy-n.is-on { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text); }
+.ssw-a.is-screen { border-color: var(--gold); }

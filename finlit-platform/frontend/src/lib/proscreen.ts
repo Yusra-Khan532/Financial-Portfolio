@@ -14,21 +14,28 @@ export type Catalog = {
   plan: Plan; total: number; withReport: number; updatedAt: string; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; n: number }[];
   indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
+  bandModel?: "prism" | "iq";   // which score the rating chips are on: FinLit Prism for Gold, the FinLit IQ below (tasks #64, #100)
   standardColumns?: string[];   // the Stock screener's nine standard columns, only those the visitor's plan shows (file 04)
 };
 export type Range = { min?: number; max?: number };
 export type PState = {
   ranges: Record<string, Range>; sectors: string[]; industries: string[]; indices: string[]; caps: string[]; bands: string[];
   sort?: string; dir?: "asc" | "desc"; cols?: string[];
-  model?: string;   // a ready-made screen on the FinLit model, by id: the server applies its cut-offs, the page never sees them
+  model?: string;   // (older links) one ready-made screen on the plan's score (FinLit IQ or FinLit Prism): read as `on: [model]`
+  on?: string[];    // the ready-made screens that are on (task #64 P-4): they stack, each adding its rules to the reader's; a company must pass all of them
+  mine?: string[];  // filters a screen set that the reader then changed: they are the reader's own, and no screen touches them any more
 };
 export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] };
-export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
+export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; pband?: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
 export type FunnelStep = { key: string; before: number; after: number; missing: number };
 export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[] };
 
-export const norm = (s: Partial<PState> | undefined): PState => ({ ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } });
-export const activeCount = (s: PState) => (s.model ? 1 : 0) + Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
+export const norm = (s: Partial<PState> | undefined): PState => {
+  const out: PState = { ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } };
+  if (out.model) { out.on = [...new Set([...(out.on ?? []), out.model])]; delete out.model; }
+  return out;
+};
+export const activeCount = (s: PState) => (s.on?.length ?? 0) + (s.model ? 1 : 0) + Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
   + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
 /** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
@@ -47,19 +54,45 @@ export const MAX_SAVED = 20;
 export const loadSavedRatios = (): SavedRatio[] => { try { const v = JSON.parse(localStorage.getItem(SKEY) || "[]"); return Array.isArray(v) ? v.filter((x) => x && typeof x.num === "string" && typeof x.den === "string" && ["gt", "lt", "between", "none"].includes(x.op)).slice(0, MAX_SAVED) : []; } catch { return []; } };
 export const storeSavedRatios = (v: SavedRatio[]) => { try { localStorage.setItem(SKEY, JSON.stringify(v.slice(0, MAX_SAVED))); } catch { /* private window: lasts for this visit */ } };
 
-export const toBody = (s: PState, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
+export const toBody = (s: PState & { models?: string[] }, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
   ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
   cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
-  ...(s.model ? { model_screen: s.model } : {}),
+  ...(s.models?.length ? { model_screens: s.models } : s.model ? { model_screens: [s.model] } : {}),
 });
+
+/** The screen that runs: the reader's own rules with every ready-made screen that is on stacked on top (task #64 P-4). Where two set the same filter, the
+ *  stricter range applies (the overlap); a screen never loosens a reader's rule; a filter the reader took over (`mine`) is left to the reader. Sizes and rating
+ *  words narrow the same way (a company must pass all). Screens on the plan's score go to the server by id, their cut-offs never reach the page. */
+export type Stacked = PState & { models: string[]; setBy: Record<string, string[]> };
+export function stack(s: PState, screens: ReadyScreen[] | undefined): Stacked {
+  const on = (s.on ?? []).map((id) => screens?.find((x) => x.id === id)).filter((x): x is ReadyScreen => !!x);
+  const ranges: Record<string, Range> = { ...s.ranges }, setBy: Record<string, string[]> = {}, mine = new Set(s.mine ?? []);
+  let caps = s.caps, bands = s.bands;
+  const models: string[] = [];
+  const meet = (a: string[], b: string[]) => (!a.length ? b : !b.length ? a : a.filter((x) => b.includes(x)));
+  for (const sc of on) {
+    if (!sc.state) { models.push(sc.id); continue; }
+    for (const [k, r] of Object.entries(sc.state.ranges ?? {})) {
+      if (mine.has(k)) continue;
+      const cur = ranges[k];
+      const lo = [cur?.min, r.min].filter((x): x is number => x != null), hi = [cur?.max, r.max].filter((x): x is number => x != null);
+      ranges[k] = { ...(lo.length ? { min: Math.max(...lo) } : {}), ...(hi.length ? { max: Math.min(...hi) } : {}) };
+      (setBy[k] ??= []).push(sc.label);
+    }
+    if (sc.state.caps?.length) caps = meet(caps, sc.state.caps);
+    if (sc.state.bands?.length) bands = meet(bands, sc.state.bands);
+  }
+  return { ...s, ranges, caps, bands, models, setBy };
+}
 
 /** Shareable link: the whole screen packed into one `s=` parameter. */
 export const encodeState = (s: PState, sort: string, dir: string): string => {
   const o: Record<string, unknown> = {};
   if (Object.keys(s.ranges).length) o.r = s.ranges;
   (["sectors", "industries", "indices", "caps", "bands"] as const).forEach((k) => s[k].length && (o[k[0] + (k === "industries" ? "n" : k === "indices" ? "x" : "")] = s[k]));
-  if (s.model) o.m = s.model;
+  if (s.on?.length) o.on = s.on;
+  if (s.mine?.length) o.mn = s.mine;
   if (sort !== "market_cap" || dir !== "desc") o.o = [sort, dir];
   return Object.keys(o).length ? btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : "";
 };
@@ -70,7 +103,7 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
     const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 60) : []);
     const ranges: Record<string, Range> = {};
     for (const [k, v] of Object.entries((o.r || {}) as Record<string, Range>)) if (/^[a-z0-9_]{2,40}$/.test(k) && v && typeof v === "object") ranges[k] = { min: typeof v.min === "number" ? v.min : undefined, max: typeof v.max === "number" ? v.max : undefined };
-    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { model: o.m } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
+    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { on: [o.m] } : {}), ...(Array.isArray(o.on) ? { on: arr(o.on).filter((x) => /^[a-z_]{2,40}$/.test(x)) } : {}), ...(Array.isArray(o.mn) ? { mine: arr(o.mn) } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
   } catch { return { state: EMPTY }; }
 };
 

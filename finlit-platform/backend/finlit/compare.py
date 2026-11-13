@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 from .auth.entitlements import LIMITS
 from .auth.routes import NO_STORE, SYMBOL, fail, need_plan, secure_ctx, user_ctx
 from .auth.service import Ctx, current
-from .screener.catalog import BY_KEY, GROUP_LABEL, allowed
+from .screener.catalog import BY_KEY, GROUP_LABEL, allowed, offered
 from .screener.compute import MULTIPLES
 from .screener.data import get_table
 
@@ -84,6 +84,8 @@ async def metrics(request: Request, body: MetricsIn):
     cap = LIMITS.get(plan, LIMITS["basic"])["compare"]
     if len(body.symbols) > cap:
         raise fail(403, "plan_limit", f"Your plan compares up to {cap} companies at once.", plan="gold")
+    if any(BY_KEY[k].group == "model" and not offered(plan, "model") for k in body.keys):   # one score per plan (task #100): Gold uses FinLit Prism
+        raise fail(400, "bad_request", "Gold compares on FinLit Prism, not the FinLit IQ.")
     locked = [k for k in body.keys if not allowed(plan, BY_KEY[k].tier)]
     if locked:
         tier = "gold" if any(BY_KEY[k].tier == "gold" for k in locked) else "silver"

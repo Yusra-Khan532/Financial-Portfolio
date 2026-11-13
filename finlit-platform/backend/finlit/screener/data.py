@@ -28,8 +28,10 @@ from .catalog import BY_KEY, CAPS, CATALOG, INDEX_LISTS
 from .compute import METRICS_VERSION, MULTIPLES
 from .listing import metrics_of
 from ..presets.industry import sector_map
+from .. import prism_screen
 
 NAN = float("nan")
+PRISM_KEYS = ("prism_final", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk", "prism_st_score", "prism_lt_score")
 # advanced-chart figures (advanced/derive.py), plus the stored amounts behind them that index aggregates are summed from
 AX_COLS = sorted({m.col for m in AX_METRICS if m.col.startswith("ax_")} | {f"ax_c_{c}" for c in COMPONENTS}
                  | {f"ax_{p}_{g}" for g in AGG_GROWTH for p in ("gc", "gp")})
@@ -43,7 +45,7 @@ FULL_EVERY = 7 * 86400   # every row again from Postgres (tens of MB): only a sa
 MARGIN = 120             # seconds of overlap on "changed since", for a transaction that committed after a later one
 CACHE_KEY = "screener:rows"
 CACHE_TTL = 7 * 86400
-FORMAT = 1
+FORMAT = 2   # 2: the FinLit Prism ratings ride along (task #64)
 IST = timezone(timedelta(hours=5, minutes=30))
 # Columns kept on the old scores table before metrics existed: used until a company's metrics are rebuilt.
 LEGACY = {"market_cap": "market_cap", "price": "price", "pe": "pe", "pb": "pb", "roe": "roe", "roce": "roce", "dividend_yield": "dividend_yield",
@@ -110,7 +112,8 @@ def dedupe(rows: List[dict]) -> List[dict]:
 
 
 class Table:
-    def __init__(self, rows: List[dict], members: Dict[str, List[str]], score_move: Dict[str, float], fno: Optional[Dict[str, bool]] = None):
+    def __init__(self, rows: List[dict], members: Dict[str, List[str]], score_move: Dict[str, float], fno: Optional[Dict[str, bool]] = None,
+                 prism: Optional[Dict[str, dict]] = None):
         self.loaded = time.time()
         rows = dedupe(rows)
         self.symbols: List[str] = []
@@ -182,6 +185,17 @@ class Table:
         for sym, d in score_move.items():
             if sym in self.pos:
                 self.cols["score_change"][self.pos[sym]] = d
+        # FinLit Prism (Gold): the stored rating of each company (prism_screen.shape fields); its band is the Prism word (strong, healthy, average, weak, poor)
+        self.pband: List[Optional[str]] = [None] * n
+        for sym, p in (prism or {}).items():
+            i = self.pos.get(sym)
+            if i is None:
+                continue
+            for k in PRISM_KEYS:
+                v = p.get(k)
+                self.cols[k][i] = NAN if v is None else _num(v)
+            lab, st = p.get("prism_label"), p.get("prism_status")
+            self.pband[i] = lab.lower() if isinstance(lab, str) and p.get("prism_final") is not None and st != "NOT RATED" else None
         for sym, on in (fno or {}).items():   # companies Dhan's file does not match stay unknown, never "no"
             if sym in self.pos:
                 self.cols["fno"][self.pos[sym]] = 1.0 if on else 0.0
@@ -253,6 +267,8 @@ class Table:
             want = set(cats["cap"]); idx = [i for i in idx if self.cap[i] in want]
         if cats.get("band"):
             want = set(cats["band"]); idx = [i for i in idx if self.band[i] in want]
+        if cats.get("pband"):    # the FinLit Prism rating word (Gold)
+            want = set(cats["pband"]); idx = [i for i in idx if self.pband[i] in want]
         if cats.get("index"):
             allowed = set().union(*(self.members.get(c, set()) for c in cats["index"]))
             idx = [i for i in idx if self.symbols[i] in allowed]
@@ -269,12 +285,12 @@ class Table:
         steps: List[dict] = []
         have: Dict[str, Dict[str, Optional[float]]] = {}
         stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("industry", {"industry": cats.get("industry") or []}),
-                  ("index", {"index": cats.get("index") or []}), ("band", {"band": cats.get("band") or []})]
+                  ("index", {"index": cats.get("index") or []}), ("band", {"band": cats.get("band") or []}), ("band", {"pband": cats.get("pband") or []})]
         cur = list(range(self.n))
         for name, c in stages:
             if not any(c.values()):
                 continue
-            nxt = set(self.match({}, {**{k: [] for k in ("sector", "industry", "cap", "band", "index")}, **c}))
+            nxt = set(self.match({}, {**{k: [] for k in ("sector", "industry", "cap", "band", "pband", "index")}, **c}))
             before = len(cur)
             cur = [i for i in cur if i in nxt]
             steps.append({"key": name, "before": before, "after": len(cur), "missing": 0})
@@ -308,7 +324,7 @@ class Table:
         return [(a[i] / b[i]) if (a[i] == a[i] and b[i] == b[i] and b[i] != 0) else float("nan") for i in range(self.n)]
 
     def row(self, i: int, columns: List[str]) -> dict:
-        return {"symbol": self.symbols[i], "name": self.name[i], "sector": self.sector[i], "cap": self.cap[i], "band": self.band[i], "full": self.full[i],
+        return {"symbol": self.symbols[i], "name": self.name[i], "sector": self.sector[i], "cap": self.cap[i], "band": self.band[i], "pband": self.pband[i], "full": self.full[i],
                 "v": {k: (None if self.cols[k][i] != self.cols[k][i] else round(self.cols[k][i], 4)) for k in columns}}
 
 
@@ -402,6 +418,10 @@ async def _extras(store, state: dict) -> None:
                 "WHERE h.model = 'v1' AND h.day <= current_date - 80 AND h.overall IS NOT NULL AND s.overall IS NOT NULL ORDER BY h.symbol, h.day DESC"):
             move[r["symbol"]] = float(r["d"])
     state["mem"], state["move"] = mem, move
+    try:        # FinLit Prism (Gold): the newest stored rating of every company, the small card only (prism_screen); refreshed with the other day-at-a-time rows
+        state["prism"] = prism_screen.cards(await store.prism_cards(None))
+    except Exception:   # nosec B110 - no Prism ratings yet (or the table is missing): the Prism columns stay empty, every other figure is unaffected
+        state.setdefault("prism", {})
     await _listing(store, state)
 
 
@@ -488,7 +508,7 @@ def _build(state: dict) -> Table:
         if m and any(m.get(k) is None and q.get(k) is not None for k in ("price", "market_cap")):
             rows[i] = {**r, "metrics": {**m, **{k: float(q[k]) for k in ("price", "market_cap") if m.get(k) is None and q.get(k) is not None}}}
     light = [with_listing({**r, **{k: lq.get(r["symbol"], {}).get(k) for k in QUOTE_COLS}}) for r in state["light"].values()]
-    return Table(rows + light, state["mem"], state["move"], state["fno"])
+    return Table(rows + light, state["mem"], state["move"], state["fno"], state.get("prism"))
 
 
 async def _load(store) -> Table:

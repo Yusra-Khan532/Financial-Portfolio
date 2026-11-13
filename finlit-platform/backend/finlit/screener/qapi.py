@@ -26,7 +26,7 @@ from ..auth.routes import NO_STORE, Ctx, fail, secure_ctx
 from ..auth.service import current
 from ..auth.routes import limits_for
 from .api import BASIC_ROWS, DEFAULT_COLUMNS
-from .catalog import BY_KEY, CATALOG, GROUP_LABEL, allowed
+from .catalog import BY_KEY, CATALOG, GROUP_LABEL, allowed, offered
 from .data import Table, get_table
 from .qaliases import ALIAS, definition, display_names
 from .ql import MAX_CHARS, MAX_CONDITIONS, TIER_NAME, Analysis, Problem, analyze, canonical, count_conditions, fmt_in, metrics_in, reading
@@ -125,6 +125,8 @@ def _prepare(t: Table, body: RunIn, plan: str):
     for k in body.columns:
         if k not in BY_KEY:
             errors.append(_problem("unknown_column", f"We don't have a column called '{k}'."))
+        elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # one score per plan (task #100): Gold shows FinLit Prism, never the FinLit IQ
+            errors.append(_problem("plan_score", f"The column {BY_KEY[k].label} is not part of your plan's score. Use FinLit Prism instead."))
         elif not allowed(plan, BY_KEY[k].tier):
             tier = TIER_NAME[BY_KEY[k].tier]
             errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of the {tier} plan."), "plan": BY_KEY[k].tier})
@@ -133,6 +135,8 @@ def _prepare(t: Table, body: RunIn, plan: str):
     sort = body.sort or Sort()
     if sort.key not in ("name", "symbol") and sort.key not in BY_KEY:
         errors.append(_problem("unknown_sort", "We can't sort by that."))
+    elif sort.key in BY_KEY and BY_KEY[sort.key].group == "model" and not offered(plan, "model"):
+        errors.append(_problem("plan_score", f"Sorting by {BY_KEY[sort.key].label} is not part of your plan's score. Use FinLit Prism instead."))
     elif sort.key in BY_KEY and not allowed(plan, BY_KEY[sort.key].tier):
         errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of the {TIER_NAME[BY_KEY[sort.key].tier]} plan."), "plan": BY_KEY[sort.key].tier})
     if body.recent and t.latest_quarter() is None:

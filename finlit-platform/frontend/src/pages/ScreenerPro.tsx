@@ -2,7 +2,6 @@
 // screens, then "Your rules" (funnel, size, the one Sector filter, index, FinLit rating, rule cards, + Add a rule, Type rules) beside the results (count,
 // Save screen, Download, the active rules, search, the nine standard columns plus a "Your rules" band, the pager). A click on a row opens the chart panel
 // with the company's figures, your rules first.
-import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { HScroll } from "../components/HScroll";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,12 +9,10 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { Plain } from "../components/Plain";
 import { Icon } from "../lib/icons";
 import { nf } from "../lib/format";
-import { API_BASE, apiUrl } from "../lib/api";
 import { limitsFor, useAuth } from "../lib/auth";
 import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
-import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
 import { TableZoom } from "../components/TableZoom";
@@ -47,8 +44,10 @@ const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", 
   debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
 const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : m ? UNIT_LINE[m.unit] ?? "" : "");
-const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch" };
-const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Sector", index: "Index", band: "FinLit rating", model: "the FinLit model screen" };
+const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
+/** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
+const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
+const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Sector", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
 
 function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
   const [q, setQ] = useState(""), [all, setAll] = useState(false);
@@ -95,24 +94,24 @@ export function ScreenerPro() {
   const [folds, setFolds] = useState<Record<string, boolean>>({});
   const [rulesOpen, setRulesOpen] = useState(() => !narrow());
   const saved = useSavedScreens();
-  // task #100: one score per plan. Gold sees FinLit Prism, never the FinLit IQ: the FinLit model figures (IQ and its pillars) leave the columns and the rule picker,
-  // a Prism column takes the IQ's place, and the FinLit rating chips point to the Advanced stock screener, which filters by Prism.
-  const model = usePlanModel();
-  const prismOnly = model === "prism";
-  const data = useMemo(() => (prismOnly && cat.data ? { ...cat.data, groups: cat.data.groups.filter((g) => g.id !== "model"), standardColumns: cat.data.standardColumns?.filter((k) => k !== "overall") } : cat.data), [cat.data, prismOnly]);
+  // One score per plan (tasks #64 P-1 and #100): the server sends Gold the FinLit Prism group, columns and rating words, and every other plan the FinLit IQ's.
+  const data = cat.data;
+  const prismOnly = data?.bandModel === "prism";
   const plan: Plan = data?.plan ?? "basic";
   const ask = (tier: Plan, why: string) => upgrade(tier, why);
   const byKey = useMemo(() => new Map((data?.groups || []).flatMap((g) => g.metrics.map((m) => [m.key, m] as const))), [data]);
   // a Now / 3Y / 5Y / 7Y figure (P/E, P/B, Price / Sales) is one rule: every variant key leads back to the figure it belongs to
   const baseOf = useMemo(() => { const m = new Map<string, string>(); byKey.forEach((x) => x.variants && Object.values(x.variants).forEach((k) => m.set(k, x.key))); return (k: string) => m.get(k) ?? k; }, [byKey]);
-  const rules = useMemo(() => [...new Set([...order, ...Object.keys(f.ranges).map(baseOf)])].filter((k) => !data || byKey.has(k)), [order, f.ranges, baseOf, data, byKey]);
-  const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, f.ranges);
+  // Ready-made screens stack (task #64 P-4): F is the screen that runs, the reader's own rules with every screen that is on added (the stricter range wins)
+  const F = useMemo(() => stack(f, ready.data?.screens), [f, ready.data]);
+  const rules = useMemo(() => [...new Set([...order, ...Object.keys(F.ranges).map(baseOf)])].filter((k) => !data || byKey.has(k)), [order, F.ranges, baseOf, data, byKey]);
+  const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, F.ranges);
   const ruleKey = (m: MetricInfo) => (m.variants ? m.variants[periodOf(m)] ?? m.key : m.key);
 
   // columns: the visitor's own choice or the nine standard ones, then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
   const base = useMemo(() => cols ?? standardColumns(data), [cols, data]);
   const ruleCols = rules.map((k) => chipColumn(byKey.get(k), byKey.get(k) ? periodOf(byKey.get(k)!) : undefined, byKey));
-  const columns = useMemo(() => tableColumns(base, f.ranges, ruleCols, (k) => !data || byKey.has(k)), [base, f.ranges, ruleCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const columns = useMemo(() => tableColumns(base, F.ranges, ruleCols, (k) => !data || byKey.has(k)), [base, F.ranges, ruleCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // LTP carries the day's change under it: ask for it with the price, without a column of its own
   const asked = useMemo(() => (columns.includes("price") && !columns.includes("ret_1d") && byKey.get("ret_1d") && !byKey.get("ret_1d")!.locked ? [...columns, "ret_1d"] : columns), [columns, byKey]);
 
@@ -124,22 +123,24 @@ export function ScreenerPro() {
   const openRatio = () => { setRatioOpen(true); window.setTimeout(() => document.getElementById("scr-ratio")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
   const setRatios = (v: CustomRatio[]) => { setRatiosState(v); saveRatios(v); setPage(0); if (/^r[0-9]$/.test(sort.key) && !v.some((r) => r.id === sort.key)) setSort({ key: "market_cap", dir: "desc" }); };
   const known = (k: string) => !data || byKey.has(k);
-  const safe = useMemo(() => ({ ...dq, ranges: Object.fromEntries(Object.entries(dq.ranges).filter(([k]) => known(k))) }), [dq, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dF = useMemo(() => stack(dq, ready.data?.screens), [dq, ready.data]);
+  const safe = useMemo(() => ({ ...dF, ranges: Object.fromEntries(Object.entries(dF.ranges).filter(([k]) => known(k))) }), [dF, data]); // eslint-disable-line react-hooks/exhaustive-deps
   const safeSort = known(sort.key) || sort.key === "name" || sort.key === "symbol" || ratios.some((r) => r.id === sort.key) ? sort : { key: "market_cap", dir: "desc" as const };
   const body = useMemo(() => toBody(safe, safeSort, asked, dqq, page * PAGE, PAGE, ratios), [safe, safeSort.key, safeSort.dir, asked, dqq, page, ratios]); // eslint-disable-line react-hooks/exhaustive-deps
   const res = useScreen(body, !!data && asked.length > 0);
   const [chart, setChart] = useState<PanelRow | null>(null), [stepTo, setStepTo] = useState<"first" | "last" | null>(null);
   const [typed, setTyped] = useState(""), [typedErr, setTypedErr] = useState<string[]>([]);
   const rows = res.data?.rows || [];
-  const pm = usePlanPrism(useMemo(() => rows.map((r) => r.symbol), [rows]), model);
   const shown = (res.data?.columns || []).filter((k) => columns.includes(k));
-  const nActive = activeCount(f) + ratios.filter((r) => r.op !== "none").length;
+  const nActive = activeCount({ ...F, on: F.models }) + ratios.filter((r) => r.op !== "none").length;   // every rule that runs: the reader's, each screen's, the custom ratios
   const total = res.data?.total ?? 0;
-  const modelScreen = f.model ? ready.data?.screens.find((s) => s.id === f.model) : undefined;
+  const onScreens = (f.on ?? []).map((id) => ready.data?.screens.find((x) => x.id === id)).filter((x): x is ReadyScreen => !!x);
 
   useEffect(() => { const s = encodeState(dq, sort.key, sort.dir); const n = new URLSearchParams(params); s ? n.set("s", s) : n.delete("s"); if (n.toString() !== params.toString()) setParams(n, { replace: true }); }, [dq, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r; return { ...s, ranges }; });
+  // changing a filter a screen set makes it the reader's own: it stays when the screen is turned off, and no screen touches it any more
+  const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r;
+    const took = F.setBy[k] && !(s.mine ?? []).includes(k); return { ...s, ranges, ...(took ? { mine: [...(s.mine ?? []), k] } : {}) }; });
   const toggle = (key: "sectors" | "industries" | "indices" | "caps" | "bands", v: string) => setF((s) => ({ ...s, [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] }));
   const removeRule = (k: string) => { const m = byKey.get(k); (m?.variants ? Object.values(m.variants) : [k]).forEach((x) => setRange(x, {})); setOrder((o) => o.filter((x) => x !== k)); };
   const addRule = (m: MetricInfo) => {
@@ -150,9 +151,9 @@ export function ScreenerPro() {
     setPicker(false);
     toast(`Added ${m.label}${start.min != null || start.max != null ? ", starting on its better quarter. Change the range on its card." : ". Set a range on its card."}`);
   };
-  const clearAll = () => { setF(norm({})); setOrder([]); setFrom(null); };
+  const clearAll = () => { setF(norm({})); setOrder([]); setFrom(null); };   // the screens that are on go too
   // a rule added but with no range yet is still chosen: it is counted and kept until removed or cleared (task #75)
-  const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => f.ranges[x]); }).length;
+  const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => F.ranges[x]); }).length;
 
   const sortBy = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: key === "name" || byKey.get(key)?.better === "lower" ? "asc" : "desc" }));
   const pickCols = (c: string[] | null) => { setCols(c); storeCols(c); };
@@ -163,20 +164,26 @@ export function ScreenerPro() {
     const name = SHORT[k] ?? m?.label ?? k, v = (x: number) => (m ? fmtMetric(m, x) : String(x));
     return r.min != null && r.max != null ? `${name} ${v(r.min)} to ${v(r.max)}` : r.min != null ? `${name} above ${v(r.min)}` : `${name} below ${v(r.max!)}`;
   };
-  const chips: { label: string; clear: () => void }[] = [
-    ...(f.model ? [{ label: `On the FinLit model: ${modelScreen?.label ?? "ready-made screen"}`, clear: () => setF((s) => ({ ...s, model: undefined })) }] : []),
-    ...Object.entries(f.ranges).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}) })),
+  const chips: { label: string; clear: () => void; title?: string }[] = [
+    ...onScreens.map((x) => ({ label: `Screen: ${x.label}`, clear: () => toggleScreen(x) })),
+    ...Object.entries(F.ranges as Record<string, Range>).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}),
+      title: F.setBy[k] ? `Set by ${F.setBy[k].join(" and ")}${F.setBy[k].length > 1 || f.ranges[k] ? " (the stricter range)" : ""}. Change it and it becomes your own.` : undefined })),
     ...ratios.map((r) => ({ label: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
-    ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...f.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
-    ...f.bands.map((s) => ({ label: `FinLit rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
+    ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
+    ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
 
-  const pickReady = (s: ReadyScreen) => {
-    if (s.group === "model" && s.id !== "strong") { setF({ ...norm({}), model: s.id }); setOrder([]); }
-    else { const n = norm(s.state); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); }
-    setFrom(s.label); setPg({ k: "", p: 0 }); toast(`${s.label}: ${s.group === "model" && s.id !== "strong" ? "runs on the FinLit model; add your own rules to narrow it." : "its rules are under Your rules. Change any of them."}`);
+  // a ready-made screen turns on or off; several can be on, and each adds its filters to the reader's and to the other screens' (task #64 P-4)
+  const toggleScreen = (s: ReadyScreen) => {
+    const was = (f.on ?? []).includes(s.id);
+    setF((x) => ({ ...x, on: was ? (x.on ?? []).filter((id) => id !== s.id) : [...(x.on ?? []), s.id] }));
+    if (!was && s.state?.ranges) setOrder((o) => [...o, ...Object.keys(s.state!.ranges!).map(baseOf).filter((k) => !o.includes(k))]);
+    setPg({ k: "", p: 0 });
+    const n = (f.on ?? []).length + (was ? -1 : 1);
+    toast(was ? `${s.label} turned off: only its own filters went.` : n > 1 || nActive ? `${s.label} added its filters to yours (${n} ${n === 1 ? "screen" : "screens"} on). Turn it off to take away only its own.` : `${s.label} is on. Its filters are under Your rules; add your own on top.`);
   };
+  const allOff = () => { setF((x) => ({ ...x, on: [] })); setPg({ k: "", p: 0 }); toast("All ready-made screens are off. Your own rules stay."); };
   const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
   // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox and e-mail)
   // naming the companies that joined or left it (file 04 §9). Messages need an account, so a visitor is asked to sign in first.
@@ -190,14 +197,6 @@ export function ScreenerPro() {
   const openSave = (mode: "save" | "tell") => {
     if (mode === "tell" && !user) { toast("Sign in to get a message when a company joins your screen."); nav(`/login?next=${encodeURIComponent("/screener" + (params.get("s") ? `?s=${params.get("s")}` : ""))}`); return; }
     setSaveName((x) => x || from || ""); setSaveOpen(saveOpen === mode ? null : mode);
-  };
-  const exportCsv = async () => {
-    if (!data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
-    try {
-      const r = await fetch(apiUrl("/api/screener/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv" }, body: JSON.stringify(toBody(safe, safeSort, columns, dqq, 0, 100, ratios)) });
-      if (!r.ok) throw new Error(String(r.status));
-      saveFile("FinLit-screen.csv", await r.text(), "text/csv;charset=utf-8"); toast(`Saved all ${nf(total, 0)} matches as FinLit-screen.csv.`);
-    } catch { toast("We could not prepare the download. Please try again."); }
   };
 
   const [webgl, setWebgl] = useState(false);
@@ -243,7 +242,7 @@ export function ScreenerPro() {
 
   const listed = data ? nf(data.total, 0) : "…";
   const sub = nActive === 0 ? `every listed company, ${sort.key === "market_cap" && sort.dir === "desc" ? "biggest first" : "sorted by " + (SHORT[sort.key] ?? byKey.get(sort.key)?.label ?? "name")} · of ${listed} listed`
-    : `match all ${nActive} ${nActive === 1 ? "rule" : "rules"} · of ${listed} listed${from ? ` · started from ${from}` : ""}`;
+    : `match all ${nActive} ${nActive === 1 ? "rule" : "rules"} · of ${listed} listed${onScreens.length ? ` · ${onScreens.length} ready-made ${onScreens.length === 1 ? "screen" : "screens"} on` : ""}${from ? ` · started from ${from}` : ""}`;
   const stdCount = shown.filter((k) => base.includes(k)).length, ruleCount = shown.length - stdCount;
 
   return (
@@ -256,7 +255,7 @@ export function ScreenerPro() {
           <FindStocksTabs bare />
         </section>
 
-        <ReadyScreens plan={plan} folded={nActive > 0} started={from} onPick={pickReady} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
+        <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
           onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
         <button type="button" className="btn ssw-rtoggle" aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
@@ -273,23 +272,23 @@ export function ScreenerPro() {
             {cat.isLoading && <div className="skeleton" style={{ height: 320 }} />}
             {data && <>
               <div className="ssw-sec"><h3>Size</h3>
-                <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={f.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
+                <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
                 <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
               <div className="ssw-sec"><h3>Sector and index</h3>
                 <Fold id="industry" title="Sector" summary={nSector ? `Sector: ${nSector} picked` : "All sectors"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
                   <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
-              {prismOnly ? <div className="ssw-sec"><h3>Prism rating</h3><p className="ssw-note">Filter by the Prism score, its four parts and the two technical views in the <Link to="/advanced-score-screener">Advanced stock screener</Link>.</p></div> : <div className="ssw-sec"><h3>FinLit rating <span className="ssr-tier gold">GOLD</span></h3>
-                <div className="ssw-chips" role="group" aria-label="FinLit rating">{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={f.bands.includes(b.key)}
-                  onClick={() => (b.locked ? ask("gold", "Filtering by the FinLit rating comes with the Gold plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>}
+              <div className="ssw-sec"><h3>{prismOnly ? "FinLit Prism" : "FinLit IQ"} rating {!prismOnly && <span className="ssr-tier silver">SILVER</span>}</h3>
+                <div className="ssw-chips" role="group" aria-label={prismOnly ? "FinLit Prism rating" : "FinLit IQ rating"}>{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={F.bands.includes(b.key)}
+                  onClick={() => (b.locked ? ask("silver", "Filtering by the FinLit IQ rating comes with the Silver plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>
               <div className="ssw-sec"><h3>Rules on numbers</h3>
-                {f.model && <div className="ssr-rule ssr-model" role="group" aria-label="Screen on the FinLit model"><div className="ssr-rt"><b>{modelScreen?.label ?? "On the FinLit model"}</b><span className="ssr-tier gold">GOLD</span>
-                  <button type="button" className="ssr-x" aria-label="Remove the FinLit model screen" onClick={() => setF((s) => ({ ...s, model: undefined }))}>×</button></div>
-                  <p className="ssr-say">{modelScreen?.says ?? "A screen on the FinLit model."} The model's cut-offs stay on the server.</p>
-                  {stepOf("model") && <p className="ssr-cnt">Keeps <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}</div>}
+                {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b><span className={"ssr-tier " + x.tier}>{x.tier.toUpperCase()}</span>
+                  <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
+                  <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
+                {stepOf("model") && <p className="ssr-cnt">The screens on the {prismOnly ? "FinLit Prism" : "FinLit IQ"} keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
                 {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
-                  return <RuleCard key={k} m={m} cur={cur} r={f.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
+                  return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
                 <button type="button" className="btn ssw-add" onClick={() => setPicker(true)}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
@@ -297,7 +296,7 @@ export function ScreenerPro() {
                   if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
                   <label className="sr" htmlFor="ssw-type">Type rules</label>
                   <input id="ssw-type" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Or type: pe < 20 and roe > 15" aria-describedby="ssw-type-h" autoComplete="off" />
-                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, iq) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
+                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, {prismOnly ? "prism" : "iq"}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
                   {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
                 </form>
                 <div className="ssw-rl" role="group" aria-label="Custom ratio">
@@ -319,10 +318,9 @@ export function ScreenerPro() {
                     {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox and by e-mail naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
                     <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(null); }} />
                     <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
-                <button type="button" className="btn" onClick={exportCsv}><Icon name="download" />Download</button>
               </div>
             </div>
-            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className="ssw-a">{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
+            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
             {ratioOpen && <div id="scr-ratio"><CustomRatioBuilder groups={data?.groups || []} byKey={byKey} ratios={ratios} onChange={setRatios} ask={(why) => ask("silver", why)} saved={savedRatios} onSaved={setSavedRatios}
               onRun={() => document.querySelector(".ssw-res .ssw-tbar")?.scrollIntoView?.({ behavior: "smooth", block: "start" })} onClose={() => setRatioOpen(false)} /></div>}
             <div className="ssw-tbar">
@@ -343,28 +341,27 @@ export function ScreenerPro() {
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
                     <thead>
-                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}{prismOnly && <th>FinLit Prism</th>}<th aria-label="Report" /></tr>
+                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
-                        {prismOnly && <th className="ssw-iq" title="The stored FinLit Prism score, 0 to 100, higher is better. Sort and filter by it in the Advanced stock screener."><span>Prism</span><small>0–100</small></th>}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
                     <tbody>{rows.map((r) => (
                       <tr key={r.symbol} data-sym={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(panelRow(r)); }} onKeyDown={(e) => e.key === "Enter" && setChart(panelRow(r))}>
                         <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={28} /><span><b title={codeNote(r)}>{titleOf(r)}</b><small>{[subOf(r), r.cap].filter(Boolean).join(" · ")}</small></span></span></td>
                         {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
+                          if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
-                        {prismOnly && (() => { const v = scoreView("prism", { score: null }, pm[r.symbol]); return <td className="ssw-iq" title={v.why ?? undefined}>{v.pending ? "…" : v.score == null ? "–" : <><span className={"ssw-sc " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")}>{v.score}</span>{v.word && <small>{v.word}</small>}</>}</td>; })()}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}
                       {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={clearAll}>clear them all</button>.</td></tr>}
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
-                    <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match, lets you download them, and unlocks every filter.</span>
+                    <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>
                       <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
@@ -372,7 +369,7 @@ export function ScreenerPro() {
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>}
                 </>)}
             {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
-            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word.</p>
+            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
           </section>
         </div>
         {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}
@@ -384,8 +381,8 @@ export function ScreenerPro() {
             <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
           </div>)}
       </div>
-      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!f.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} />}
-      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={f.ranges} byKey={byKey} />} />}
+      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} />}
+      {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={F.ranges} byKey={byKey} />} />}
     </>
   );
 }

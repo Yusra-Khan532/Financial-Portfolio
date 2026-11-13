@@ -94,9 +94,9 @@ function Basic() {
       how={<HowDialog onClose={() => s.setHow(false)}>
         <p>Every score runs from 0 to 100 and is worked out from a company's filed statements and its prices. Nothing on this page is computed differently from the company's own report page.</p>
         <dl>
-          <dt>Technical</dt><dd>The technical pillar: how the price is trending against its 50 and 200 day averages, and its momentum.</dd>
-          <dt>Overall</dt><dd>The FinLit IQ shown on every company page: the average of the pillar scores that are available, rounded to a whole number.</dd>
-          <dt>Bands</dt><dd>Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45. The filter groups Healthy and Mixed together as 45 to 77. Bands use whole numbers: 44 is Watch, 45 is Mixed, 77 is Healthy, 78 is Strong.</dd>
+          <dt>Technical</dt><dd>The Technical part of the FinLit IQ, 0 to 100: the price trend.</dd>
+          <dt>Overall</dt><dd>The FinLit IQ shown on every company page, 0 to 100, from its filed statements and prices.</dd>
+          <dt>Bands</dt><dd>Four rating words, from the highest: Strong, Healthy, Mixed and Watch. The model's cut-offs stay with the model; the filter sends the words and the server applies them.</dd>
           <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Missing data</dt><dd>A dash or a lock means the figure is not available (not scored yet, not enough data, or not in your plan). It never counts as a pass and is never treated as zero.</dd>
           <dt>Data date</dt><dd>{asOf ? <>Newest scores were computed on {dateIN(asOf)}. </> : <>The score date is not available right now. </>}Scores refresh every night; prices come from the latest market refresh.</dd>

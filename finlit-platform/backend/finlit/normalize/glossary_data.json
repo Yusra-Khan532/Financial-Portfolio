@@ -10382,6 +10382,83 @@
    "read": "A larger number means the stock changes hands more easily.",
    "why": "It shows how much money trades in the stock on a usual day.",
    "formula": "Mean of (close × volume) over the last 20 sessions ÷ 1 crore."
+  },
+  "prism_final": {
+   "label": "Prism score",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "finlit-prism",
+   "what": "FinLit Prism's rating of the company, 0 to 100, with its rating word (Strong, Healthy, Average, Weak or Poor).",
+   "read": "Higher is better. Read its four parts to see where the rating comes from. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "One number for the company's financial health, built differently from the FinLit IQ.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_fundamental": {
+   "label": "Prism Growth & Profitability",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "finlit-prism",
+   "what": "Prism's Growth & Profitability part, 0 to 100: how steadily sales and profit grow.",
+   "read": "Higher is better. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "Steady growth in sales and profit is the base of a company's health.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_valuation": {
+   "label": "Prism Valuation",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "finlit-prism",
+   "what": "Prism's Valuation part, 0 to 100: the share price against earnings, book value and the company's own history.",
+   "read": "Higher means a more modest price for what the company earns. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "The same business can be priced modestly or richly; this part shows which.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_quality": {
+   "label": "Prism Quality",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "finlit-prism",
+   "what": "Prism's Quality part, 0 to 100: borrowing, interest cover, returns and the cash behind profit.",
+   "read": "Higher is better. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "Financial strength decides how a company weathers a bad year.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_risk": {
+   "label": "Prism Risk",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "finlit-prism",
+   "what": "Prism's Risk part, 0 to 100: price swings, the largest fall, trading activity and pledged shares.",
+   "read": "A higher Risk score means lower risk. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "Two companies with the same business can carry very different market risk.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_st_score": {
+   "label": "Prism short-term view",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "technical-views-and-trend-alignment",
+   "what": "Prism's short-term price trend, from -100 to +100, over weeks.",
+   "read": "Above zero the trend is up, below zero down. It describes past prices only. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "It shows how the price has behaved lately, beside the financial picture.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
+  },
+  "prism_lt_score": {
+   "label": "Prism long-term view",
+   "unit": "pts",
+   "better": "higher",
+   "group": "prism",
+   "term": "technical-views-and-trend-alignment",
+   "what": "Prism's long-term price trend, from -100 to +100, over months.",
+   "read": "Above zero the trend is up, below zero down. It describes past prices only. It describes the company; it is not advice to buy, sell or hold.",
+   "why": "It shows the price's longer direction, beside the financial picture.",
+   "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
   }
  }
 }

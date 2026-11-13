@@ -43,10 +43,10 @@ export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", 
 export const SHARED_RANGES: RangeKey[] = ["dh"];
 /** The four score bands, as the FinLit model and the whole site name them: Watch under 45, Mixed 45 to 61, Healthy 62 to 77, Strong 78 and above. */
 export const BANDS: Record<Band, { label: string; short: string; word: string; min: number; max: number }> = {
-  low: { label: "Under 45 (Watch)", short: "<45", word: "Watch", min: 0, max: 44 },
-  mixed: { label: "45 to 61 (Mixed)", short: "45–61", word: "Mixed", min: 45, max: 61 },
-  healthy: { label: "62 to 77 (Healthy)", short: "62–77", word: "Healthy", min: 62, max: 77 },
-  high: { label: "78 and above (Strong)", short: "78+", word: "Strong", min: 78, max: 100 },
+  low: { label: "Watch", short: "Watch", word: "Watch", min: 0, max: 44 },
+  mixed: { label: "Mixed", short: "Mixed", word: "Mixed", min: 45, max: 61 },
+  healthy: { label: "Healthy", short: "Healthy", word: "Healthy", min: 62, max: 77 },
+  high: { label: "Strong", short: "Strong", word: "Strong", min: 78, max: 100 },
 };
 export const BAND_ORDER: Band[] = ["low", "mixed", "healthy", "high"];
 
@@ -55,7 +55,7 @@ export const BAND_ORDER: Band[] = ["low", "mixed", "healthy", "high"];
 export type IqLabel = "strong" | "healthy" | "mixed" | "watch" | "notrated";
 export const IQ_LABELS: IqLabel[] = ["strong", "healthy", "mixed", "watch", "notrated"];
 export const IQ_LABEL_WORD: Record<IqLabel, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", notrated: "Not rated" };
-export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "FinLit IQ 78 and above", healthy: "FinLit IQ 62 up to 78", mixed: "FinLit IQ 45 up to 62", watch: "FinLit IQ under 45", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
+export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "The FinLit IQ's highest rating word", healthy: "The FinLit IQ's second rating word", mixed: "The FinLit IQ's third rating word", watch: "The FinLit IQ's lowest rating word", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
 export const iqLabelOf = (v: number | null | undefined): IqLabel => (v == null || !Number.isFinite(v) ? "notrated" : v >= 78 ? "strong" : v >= 62 ? "healthy" : v >= 45 ? "mixed" : "watch");
 export const FUNDAMENTAL = ["pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance"] as const;
 export const PILLARS: { k: "q" | "g" | "p" | "b"; col: Pillar; label: string; short: string; say: string }[] = [

@@ -411,8 +411,6 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     pill = {p.get("key"): _n(p.get("score")) for p in score.get("pillars") or [] if isinstance(p, dict)}
     for k in ("quality", "growth", "profitability", "balance", "technical"):
         out[f"pillar_{k}"] = pill.get(k)
-    four = [pill.get(k) for k in ("quality", "growth", "profitability", "balance") if pill.get(k) is not None]
-    out["fundamental_score"] = int(sum(four) / len(four) + 0.5) if len(four) >= 3 else None   # half up, like the website
     out["strengths_count"], out["watchouts_count"] = float(len(summary.get("strengths") or [])), float(len(summary.get("watchouts") or []))
     out["score_change"] = None  # filled in from score history when the screener data is loaded
 
