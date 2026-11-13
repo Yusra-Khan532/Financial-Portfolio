@@ -54,7 +54,8 @@ async def test_plan_locks_in_validate_and_run(app, anon):  # noqa: F811
     assert (await post(anon, "ql/run", query="ROE > 3", sort={"key": "pb", "dir": "asc"})).json()["errors"][0]["code"] == "plan_locked"
     silver = await signed_in(app, "s@example.com", plan="silver")
     assert (await post(silver, "ql/run", query=q)).json()["ok"] is True
-    assert (await post(silver, "ql/run", query="FinLit IQ > 3")).json()["errors"][0]["plan"] == "gold"
+    assert (await post(silver, "ql/run", query="FinLit IQ > 3")).json()["ok"] is True                      # the FinLit IQ is Silver's (task #64)
+    assert (await post(silver, "ql/run", query="Prism score > 3")).json()["errors"][0]["plan"] == "gold"     # FinLit Prism is Gold's
     await silver.aclose()
 
 
@@ -106,7 +107,7 @@ async def test_ratios_lists_every_metric_with_names_and_examples(app, anon):  # 
     assert by["pe"]["names"][0] == "P/E" and "P/E" in by["pe"]["names"] and by["pe"]["unitLabel"] == "times" and by["pe"]["definition"].startswith("The share price")
     assert by["pb"]["locked"] and by["pb"]["tier"] == "silver" and not by["pe"]["locked"]
     for r in body["ratios"]:       # every example written for a ratio is itself a valid query
-        assert analyze(r["example"], "gold").ok, (r["key"], r["example"])
+        assert analyze(r["example"], "silver" if r["key"] in {m.key for m in CATALOG if m.group == "model"} else "gold").ok, (r["key"], r["example"])   # each on the plan that has it
     assert {e["id"]: e["locked"] for e in body["examples"]}["value"] is True and {e["id"]: e["locked"] for e in body["examples"]}["quality"] is False
     assert body["limits"]["chars"] == 2000 and body["limits"]["conditions"] == 30 and body["limits"]["rows"] == 25
 
@@ -158,9 +159,9 @@ async def test_basket_rejects_bad_queries_names_and_locked_ratios(app):  # noqa:
     assert r.status_code == 422 and r.json()["detail"]["status"] == "invalid_query" and [e["code"] for e in r.json()["detail"]["errors"]] == ["unknown_metric", "missing_value"]
     assert (await c.post("/api/screener/baskets", json=b("   ", "ROE > 1"))).status_code == 422
     assert (await c.post("/api/screener/baskets", json=b("x" * 81, "ROE > 1"))).status_code == 422
-    assert (await c.post("/api/screener/baskets", json=b("L", "FinLit IQ > 50"))).json()["detail"]["plan"] == "gold"
+    assert (await c.post("/api/screener/baskets", json=b("L", "Prism score > 50"))).json()["detail"]["plan"] == "gold"
     assert (await c.post("/api/screener/baskets", json=b("C", "ROE > 1", columns=["nonsense"]))).status_code == 422
-    assert (await c.post("/api/screener/baskets", json=b("C", "ROE > 1", columns=["overall"]))).status_code == 403
+    assert (await c.post("/api/screener/baskets", json=b("C", "ROE > 1", columns=["prism_final"]))).status_code == 403
     assert (await c.get("/api/screener/baskets/not-a-uuid")).status_code == 404
     assert (await c.get("/api/screener/baskets")).json()["baskets"] == []
     await c.aclose()

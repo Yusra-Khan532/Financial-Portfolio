@@ -348,6 +348,10 @@
    "rule": "Each ratio belongs to a plan, and a query can use the ratios of the member's own plan.",
    "fix": "Pick another ratio, or open the plan that includes it."
   },
+  "plan_score": {
+   "rule": "Each plan has one score: Gold and up use FinLit Prism, Silver the FinLit IQ. A Gold query never uses the FinLit IQ.",
+   "fix": "Use the plan's own score: Prism score and its parts on Gold, FinLit IQ and its parts on Silver."
+  },
   "unexpected": {
    "rule": "After a condition comes a new line, AND, OR or the end of the query. A comma is not a joiner.",
    "fix": "Replace the comma or stray word with AND, OR or a new line.",

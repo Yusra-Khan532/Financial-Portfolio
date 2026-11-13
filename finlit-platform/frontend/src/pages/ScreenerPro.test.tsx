@@ -43,10 +43,10 @@ const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "large", label: "Large, established companies", says: "Market cap above ₹1,00,000 Cr", tier: "basic", group: "everyday", count: 123, state: { ranges: { market_cap: { min: 100000 } } } },
   { id: "lowdebt", label: "Low debt", says: "Debt to equity below 0.5×", tier: "basic", group: "everyday", count: 3552, state: { ranges: { debt_to_equity: { max: 0.5 } } } },
   { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", tier: "silver", group: "silver", count: 1265, state: { ranges: { pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } } } },
-  { id: "strong", label: "FinLit Strong", says: "Companies the FinLit model rates Strong", tier: "gold", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
-  { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit model rates high on both quality and growth", tier: "gold", group: "model", count: 300 },
+  { id: "strong", label: "FinLit IQ Strong", says: "Companies the FinLit IQ rates Strong", tier: "silver", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
+  { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
 ] };
-type Body = { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; q?: string; offset?: number };
+type Body = { columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
 const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
@@ -82,7 +82,7 @@ beforeEach(() => {
       { symbol: "S" + ((body.offset ?? 0) + i), name: "Company " + i, sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, i + 1])) })) }), { status: 200 });
     const total = st.funnel && (st.funnel as { after: number }[]).some((s) => s.after === 0) ? 0 : 2;
     return new Response(JSON.stringify({ total, offset: 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: total === 0 ? [] : [
-      { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: "strong", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "ret_1d" ? 1.5 : 12])) },
+      { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: "strong", pband: "healthy", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "ret_1d" ? 1.5 : 12])) },
       { symbol: "BBB", name: "Beta", sector: null, cap: "Mid", band: "watch", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "pe" ? null : c === "ret_1d" ? -0.4 : 8])) }] }), { status: 200 });
   }));
 });
@@ -109,7 +109,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     expect(document.getElementById("scr-ratio")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Go to the Custom Ratio Screener" })).toBeTruthy();
   });
-  it("a metric screen loads its rules into Your rules as editable cards, and the card folds to one line", async () => {
+  it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
     fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));
@@ -117,31 +117,51 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     const panel = rulesPanel();
     expect(within(panel).getByRole("group", { name: "P/E" })).toBeTruthy();
     expect((within(panel).getByLabelText("P/E to") as HTMLInputElement).value).toBe("15");
-    expect(screen.getByText(/Started from/).textContent).toMatch(/Started from Value picks/);
-    expect(screen.getByText(/match all 2 rules · of 5,813 listed · started from Value picks/)).toBeTruthy();
-    fireEvent.change(within(panel).getByLabelText("P/E to"), { target: { value: "12" } });     // the visitor can change it
-    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 12 }, pb: { min: 0.1, max: 2 } }));
+    expect(screen.getByRole("button", { name: /^Value picks:.*, on$/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Screen: Value picks")).toBeTruthy();
+    expect(screen.getByText(/match all 2 rules · of 5,813 listed · 1 ready-made screen on/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Value picks:/ }));                   // its card again: only its own rules go
+    await waitFor(() => expect(screen.queryByText("Screen: Value picks")).toBeNull());
+    expect((within(rulesPanel()).getByLabelText("P/E to") as HTMLInputElement).value).toBe("");   // (an earlier answer for no rules is served from the cache)
   });
 
-  it("a screen on the FinLit model sends only its id: no cut-off is on the page or in the request", async () => {
-    st.cat = catalog(false, "gold"); mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit model/ }));
+  it("screens stack: each adds its rules to the reader's, the stricter range wins, and turning one off takes away only its own (task #64 P-4)", async () => {
+    mount(); await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));              // P/E 0.1 to 15
+    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
+    fireEvent.change(within(rulesPanel()).getByLabelText("P/E to"), { target: { value: "10" } });   // the reader tightens it: it becomes the reader's own
+    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 } }));
+    fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Low debt:/ }));                  // a second screen on top: both apply
+    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 }, debt_to_equity: { max: 0.5 } }));
+    expect(screen.getByText("2 on")).toBeTruthy();
+    expect(screen.getByText(/· 2 ready-made screens on/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Screen: Value picks" }));         // off from its chip: P/B goes; the reader's own P/E and Low debt stay
+    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, debt_to_equity: { max: 0.5 } }));
+    fireEvent.click(screen.getByRole("button", { name: "Turn all off" }));
+    await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 } }));
+  });
+
+  it("a screen on the plan's score sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
+    mount(); await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Quality compounders \(model\):/ }));
-    await waitFor(() => expect(last().model_screen).toBe("modelcompound"));
+    await waitFor(() => expect(last().model_screens).toEqual(["modelcompound"]));
     expect(last().filters).toEqual({});
-    expect(within(rulesPanel()).getByRole("group", { name: "Screen on the FinLit model" }).textContent).toMatch(/cut-offs stay on the server/);
+    expect(within(rulesPanel()).getByRole("group", { name: /Screen on the FinLit IQ: Quality compounders/ }).textContent).toMatch(/cut-offs stay on the server/);
     expect(document.body.textContent).not.toMatch(/70\+|Quality 70|78 or more/);
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Remove the FinLit model screen" }));
-    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: "Screen on the FinLit model" })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Turn off Quality compounders (model)" }));
+    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: /Screen on the FinLit IQ/ })).toBeNull());
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeNull());   // nothing of it is left in the address
   });
 
-  it("FinLit Strong is the rating word, and a screen above the plan asks for the upgrade instead of running", async () => {
-    mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit model/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /^FinLit Strong:.*part of Gold/ }));
-    expect(ui.upgrade).toHaveBeenCalledWith("gold", expect.stringMatching(/FinLit Strong/));
+  it("the rating-word screen and a screen above the plan: Basic is asked to upgrade instead of running", async () => {
+    st.cat = catalog(true); mount(); await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^FinLit IQ Strong:.*part of Silver/ }));
+    expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/FinLit IQ Strong/));
     expect(st.bodies.some((b) => b.cats?.band?.length)).toBe(false);
   });
 
@@ -151,7 +171,6 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save screen/ }));
     fireEvent.change(screen.getByLabelText("Screen name"), { target: { value: "My ROE" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show ready-made screens" }));
     fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     expect(screen.getByText("My ROE")).toBeTruthy();
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
@@ -184,7 +203,6 @@ describe("Tell me when a company joins (file 04 §9)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const kept = JSON.parse(localStorage.getItem("finlit-saved-screens") || "[]") as { name: string; notify?: boolean }[];
     expect(kept.find((x) => x.name === "Told")!.notify).toBe(true); expect(kept.find((x) => x.name === "Quiet")!.notify).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Show ready-made screens" }));
     fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     const on = screen.getByRole("button", { name: "Messages for Told: on" });
     fireEvent.click(on);
@@ -202,12 +220,19 @@ describe("the table (file 04 §5)", () => {
     expect(table().querySelector("tbody tr td:nth-child(2)")!.textContent).toMatch(/\+1\.5%/);
   });
 
-  it("Gold sees a Prism column, never the FinLit IQ, and is pointed to the Advanced screener for the rating filter (task #100)", async () => {
-    st.cat = { ...catalog(false, "gold"), standardColumns: [...STD, "overall"] }; mount(); await ready();
-    await waitFor(() => expect(table().querySelector("thead tr.ssw-hd th.ssw-iq")?.textContent).toMatch(/^Prism/));
-    expect(heads()).not.toContain("FinLit IQ");
-    expect(st.bodies[st.bodies.length - 1].columns).not.toContain("overall");
-    expect(screen.getByRole("link", { name: "Advanced stock screener" })).toBeTruthy();
+  it("Gold sees FinLit Prism (column, rating chips, rule group), never the FinLit IQ (tasks #64 P-1, #100)", async () => {
+    const g = catalog(false, "gold");
+    st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final"],
+      bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })),
+      groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [M("prism_final", "Prism score", { unit: "pts", better: "higher", tier: "gold" })] }] };
+    mount(); await ready();
+    await waitFor(() => expect(heads()).toContain("Prism score"));
+    const cell = table().querySelector("tbody td.ssw-iq")!;
+    expect(cell.querySelector(".ssw-sc.healthy")!.textContent).toBe("12"); expect(cell.textContent).toMatch(/Healthy/);   // the Prism word, from the row's pband
+    expect(within(rulesPanel()).getByRole("group", { name: "FinLit Prism rating" }).textContent).toMatch(/Average/);
+    for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
+    expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
+    expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {
@@ -521,14 +546,15 @@ describe("colour rule helpers", () => {
 
 describe("the address holds the whole screen", () => {
   it("Sector, Index, size, rating, rules and a model screen come back from the address", () => {
-    const state = { ...norm({ ranges: { roe: { min: 15 } } }), sectors: ["Capital Goods"], industries: ["Software", "Auto Components"], indices: ["NIFTY 50"], caps: ["Large"], bands: ["Strong"], model: "safe" };
-    expect(decodeState(encodeState(state, "market_cap", "desc")).state).toEqual(state);
-    expect(toBody(state, { key: "market_cap", dir: "desc" }, [], "", 0, 25).model_screen).toBe("safe");
-    expect("model_screen" in toBody(norm({}), { key: "market_cap", dir: "desc" }, [], "", 0, 25)).toBe(false);
+    const state = { ...norm({ ranges: { roe: { min: 15 } } }), sectors: ["Capital Goods"], industries: ["Software", "Auto Components"], indices: ["NIFTY 50"], caps: ["Large"], bands: ["Strong"], on: ["safe", "value"], mine: ["roe"] };
+    expect(decodeState(encodeState(state, "market_cap", "desc")).state).toEqual(state);      // the screens that are on and the reader's own rules are kept apart (A-10)
+    expect(toBody({ ...state, models: ["safe"] }, { key: "market_cap", dir: "desc" }, [], "", 0, 25).model_screens).toEqual(["safe"]);
+    expect("model_screens" in toBody(norm({}), { key: "market_cap", dir: "desc" }, [], "", 0, 25)).toBe(false);
+    expect(norm({ model: "safe" }).on).toEqual(["safe"]);                                      // an older link with one model screen still opens it
   });
   it("a link made by an older reader (sn and sx keys) still opens with its picks; a bad model id is dropped", () => {
     const raw = btoa(JSON.stringify({ sn: ["Software"], sx: ["NIFTY 50"], m: "<script>" })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     const s = decodeState(raw).state;
-    expect(s.industries).toEqual(["Software"]); expect(s.indices).toEqual(["NIFTY 50"]); expect(s.model).toBeUndefined();
+    expect(s.industries).toEqual(["Software"]); expect(s.indices).toEqual(["NIFTY 50"]); expect(s.model).toBeUndefined(); expect(s.on).toBeUndefined();
   });
 });

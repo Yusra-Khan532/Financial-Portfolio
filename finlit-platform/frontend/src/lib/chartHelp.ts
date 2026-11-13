@@ -627,7 +627,7 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   },
   "score-filter": {
     title: "Pillar score bands",
-    what: "Buttons that filter the screener by each pillar's score band: below 45, 45 to 77, or 78 and above.",
+    what: "Buttons that filter the screener by each part's rating word (Watch, Mixed, Healthy, Strong).",
     x: "The three score bands for each pillar: quality, growth, profitability and balance sheet.",
     y: "The four pillars, one row each.",
     read: "Select a band on one or more rows to keep only companies whose score sits there. 'Strong on all four' picks 78 or above on every pillar.",

@@ -23,7 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .catalog import BY_KEY, GROUP_LABEL, allowed
+from .catalog import BY_KEY, GROUP_LABEL, allowed, offered
 from .qaliases import ALIAS, ALIAS_TEXT, PREFIXES, UNIT_WORDS, norm
 
 MAX_CHARS = 2000
@@ -869,7 +869,9 @@ def plan_problems(root: Node, plan: str) -> List[Problem]:
     for n in walk(root):
         if isinstance(n, Met):
             m = BY_KEY[n.key]
-            if not allowed(plan, m.tier):
+            if m.group == "model" and not offered(plan, m.group):   # one score per plan (task #100): Gold uses FinLit Prism, never the FinLit IQ
+                out.append(Problem("plan_score", f"{m.label} is not part of your plan's score. Use FinLit Prism instead.", n.start, n.end, "error", [], {"key": n.key}))
+            elif not allowed(plan, m.tier):
                 tier = TIER_NAME[m.tier]
                 out.append(Problem("plan_locked", f"{m.label} is part of the {tier} plan. Upgrade to {tier} to use it, or pick another ratio.", n.start, n.end, "error", [],
                                    {"plan": m.tier, "key": n.key}))

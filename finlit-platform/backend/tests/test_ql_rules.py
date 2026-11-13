@@ -88,6 +88,7 @@ def test_codes_without_a_sample_are_checked_here():
     assert not errors("\n".join(["ROE > 15"] * 30))
     locked = next(m for m in CATALOG if m.tier == "gold")
     assert "plan_locked" in errors(f"{locked.label} > 1", "basic") and "plan_locked" not in errors(f"{locked.label} > 1", "gold")
+    assert errors("FinLit IQ > 1", "gold") == ["plan_score"] and not errors("FinLit IQ > 1", "silver")       # one score per plan (task #100)
     assert "crore_units" in codes("Market cap > 5000000000") and ql.analyze("Market cap > 5000000000", "basic").ok       # a warning: it still runs
     assert "contradiction" in codes("ROE > 50 AND ROE < 10") and ql.analyze("ROE > 50 AND ROE < 10", "basic").ok
 

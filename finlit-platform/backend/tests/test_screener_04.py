@@ -43,11 +43,14 @@ def test_rule_card_figures_quartiles_and_a_log_scale_for_long_tails():
 
 
 def test_every_ready_made_screen_uses_real_filters_and_the_groups_follow_the_plans():
-    assert len(READY) == 26 and len({r.id for r in READY}) == 26
-    assert [r.group for r in READY].count("everyday") == 4 and [r.group for r in READY].count("model") == 5
+    assert len(READY) == 31 and len({r.id for r in READY}) == 31
+    assert [r.group for r in READY].count("everyday") == 4 and [r.group for r in READY].count("model") == 10
     for r in READY:
         assert all(k in BY_KEY for k in r.rules), r.id
-        assert (r.group == "everyday") == (r.tier == "basic") and (r.group == "model") == (r.tier == "gold")
+        assert (r.group == "everyday") == (r.tier == "basic")
+        if r.group == "model":   # five on the FinLit IQ for Silver, five on FinLit Prism for Gold, each on its own score only
+            assert (r.score, r.tier) in (("iq", "silver"), ("prism", "gold")), r.id
+            assert all(BY_KEY[k].group == ("prism" if r.score == "prism" else "model") for k in r.rules), r.id
     for r in MODEL.values():                                               # model screens say it in words: no figure, no "or more"
         assert not any(ch.isdigit() for ch in r.says), r.says
     assert set(STANDARD_COLUMNS) <= set(BY_KEY) and len(STANDARD_COLUMNS) == 9
@@ -71,14 +74,23 @@ async def test_catalog_lists_nse_sectors_and_the_standard_columns_each_plan_may_
     async with new_client(app) as anon:
         cat = (await anon.get("/api/screener/catalog")).json()
     assert [s["name"] for s in cat["sectors"]] == ["Energy", "Information Technology"]                # no stray one-company label
-    assert cat["standardColumns"] == [k for k in STANDARD_COLUMNS if k not in ("overall", "sales_cagr_3y")]   # FinLit IQ is Gold, 3-year sales growth Silver
+    assert cat["standardColumns"] == [k for k in STANDARD_COLUMNS if k not in ("overall", "sales_cagr_3y")]   # FinLit IQ and 3-year sales growth are Silver
     silver = await signed_in(app, "s04c@example.com", plan="silver")
-    assert (await silver.get("/api/screener/catalog")).json()["standardColumns"] == [k for k in STANDARD_COLUMNS if k != "overall"]
+    scat = (await silver.get("/api/screener/catalog")).json()
+    assert scat["standardColumns"] == STANDARD_COLUMNS and scat["bandModel"] == "iq"                         # Silver: the FinLit IQ
+    assert "prism" not in {g["id"] for g in scat["groups"]} and "model" in {g["id"] for g in scat["groups"]}
+    assert scat["limits"]["export"] is False                                                                  # no downloads on any plan
     m = next(x for g in cat["groups"] for x in g["metrics"] if x["key"] == "market_cap")
     assert {"p25", "p75", "p5", "p95", "scale", "hist30"} <= set(m["stats"]) and len(m["stats"]["hist30"]) == 30
     assert {x["key"]: x["n"] for x in cat["bands"]} == {"strong": 4, "healthy": 0, "mixed": 21, "watch": 0}   # how many companies carry each rating word
     gold = await signed_in(app, "g04@example.com", plan="gold")
-    assert (await gold.get("/api/screener/catalog")).json()["standardColumns"] == STANDARD_COLUMNS
+    g = await gold.get("/api/screener/catalog")
+    gcat = g.json()
+    assert gcat["standardColumns"] == [("prism_final" if k == "overall" else k) for k in STANDARD_COLUMNS]   # Gold: FinLit Prism in the IQ's place
+    assert "model" not in {x["id"] for x in gcat["groups"]} and "prism" in {x["id"] for x in gcat["groups"]}
+    assert gcat["bandModel"] == "prism" and [b["key"] for b in gcat["bands"]] == ["strong", "healthy", "average", "weak", "poor"]
+    for word in ("FinLit IQ", "pillar", "Mixed", "Watch"):                                                     # task #64 P-1: nothing of the FinLit IQ for Gold
+        assert word not in g.text, word
 
 
 @pytest.mark.integration
@@ -93,6 +105,9 @@ async def test_ready_made_screens_come_with_todays_count_and_model_screens_carry
     assert by["strong"]["state"] == {"ranges": {}, "bands": ["strong"]} and by["strong"]["count"] == 4  # the rating word, never "IQ of 78"
     text = r.text
     for mid, m in MODEL.items():
+        if m.score == "prism":
+            assert mid not in by                                                                     # below Gold: no Prism screen
+            continue
         assert "state" not in by[mid] and by[mid]["count"] is not None
         for k in m.rules:
             assert k not in text                                                                     # no model figure name, let alone its cut-off
@@ -100,19 +115,48 @@ async def test_ready_made_screens_come_with_todays_count_and_model_screens_carry
 
 
 @pytest.mark.integration
-async def test_a_model_screen_runs_on_the_server_for_gold_only_and_its_funnel_is_one_step(app, table):  # noqa: F811
+async def test_a_model_screen_runs_on_the_server_for_its_plan_only_and_its_funnel_is_one_step(app, table):  # noqa: F811
     gold = await signed_in(app, "g04m@example.com", plan="gold")
     silver = await signed_in(app, "s04m@example.com", plan="silver")
     q = {"model_screen": "modelcompound", "funnel": True, "columns": ["market_cap"], "limit": 50}
-    r = await gold.post("/api/screener/query", json=q)
+    assert (await gold.post("/api/screener/query", json=q)).status_code == 400           # Gold never runs a screen on the FinLit IQ
+    r = await silver.post("/api/screener/query", json=q)
     d = r.json()
     want = sum(1 for i in range(24) if 50 + 2 * i >= 70 and 40 + 2 * i >= 60)
     assert r.status_code == 200 and d["total"] == want
     assert d["funnel"] == [{"key": "model", "before": 25, "after": want, "missing": 0}]
     assert "pillar" not in r.text and "70" not in json.dumps(d["funnel"])
-    assert (await silver.post("/api/screener/query", json=q)).status_code == 403
-    assert (await gold.post("/api/screener/query", json={**q, "model_screen": "nope"})).status_code == 422
-    both = (await gold.post("/api/screener/query", json={**q, "filters": {"roe": {"min": 30}}})).json()   # the visitor's own rules narrow it further
+    assert (await silver.post("/api/screener/query", json={**q, "model_screen": "nope"})).status_code == 422
+    both = (await silver.post("/api/screener/query", json={**q, "filters": {"roe": {"min": 30}}})).json()   # the visitor's own rules narrow it further
     assert both["total"] == sum(1 for i in range(24) if 50 + 2 * i >= 70 and 40 + 2 * i >= 60 and 10 + i >= 30)
     assert [s["key"] for s in both["funnel"]] == ["model", "roe"]
     assert math.isfinite(both["took"])
+
+
+@pytest.mark.integration
+async def test_gold_screens_on_finlit_prism_its_bands_columns_and_screens(app):  # noqa: F811
+    """Task #64 P-1 / #100: Gold filters, sorts and screens on FinLit Prism; the Prism ratings ride along with the screener table."""
+    rows = [_row(f"P{i:02d}", macro="Energy", industry="Oil", band="mixed", market_cap=1000 * (i + 1), price=100 + i, overall=50) for i in range(10)]
+    prism = {f"P{i:02d}": {"prism_final": 40 + 5 * i, "prism_label": "STRONG" if i >= 8 else "AVERAGE", "prism_status": "RATED", "prism_quality": 50 + 3 * i,
+                           "prism_fundamental": 50 + 2 * i, "prism_valuation": 60, "prism_risk": 70, "prism_st_score": 10, "prism_lt_score": -30 if i % 2 else 25} for i in range(10)}
+    data._table = Table(rows, {}, {}, None, prism)
+    try:
+        gold = await signed_in(app, "g04p@example.com", plan="gold")
+        r = (await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["strong"]}, "limit": 50})).json()
+        assert {x["symbol"] for x in r["rows"]} == {"P08", "P09"} and all(x["pband"] == "strong" for x in r["rows"])   # the rating chip reads Prism's word for Gold
+        s = (await gold.post("/api/screener/query", json={"columns": ["prism_final"], "sort": {"key": "prism_final", "dir": "desc"}, "limit": 3})).json()
+        assert [x["v"]["prism_final"] for x in s["rows"]] == [85, 80, 75]
+        m = (await gold.post("/api/screener/query", json={"model_screen": "pz_outfavour", "columns": ["market_cap"], "funnel": True, "limit": 50})).json()
+        assert m["total"] == sum(1 for i in range(10) if 50 + 3 * i >= 55 and i % 2) and "prism_quality" not in json.dumps(m)
+        both = (await gold.post("/api/screener/query", json={"model_screens": ["pz_outfavour", "pz_compound"], "columns": ["market_cap"], "funnel": True, "limit": 50})).json()
+        assert both["total"] == sum(1 for i in range(10) if i % 2 and 50 + 3 * i >= 70 and 50 + 2 * i >= 60)       # screens stack: a company must pass all (task #64 P-4)
+        mixed = (await gold.post("/api/screener/query", json={"model_screens": ["pz_strong", "pz_outfavour"], "columns": ["market_cap"], "limit": 50})).json()
+        assert {x["symbol"] for x in mixed["rows"]} == {"P09"}                                                       # the rating word and the cut-offs both hold
+        assert (await gold.post("/api/screener/query", json={"model_screens": ["modelcompound"], "columns": ["market_cap"]})).status_code == 400
+        cat = (await gold.get("/api/screener/catalog")).json()
+        assert {b["key"]: b["n"] for b in cat["bands"]}["strong"] == 2
+        ready = (await gold.get("/api/screener/ready")).json()
+        ids = {x["id"] for x in ready["screens"]}
+        assert {"pz_strong", "pz_compound"} <= ids and not ids & {"strong", "modelcompound", "improving"}
+    finally:
+        data.reset()

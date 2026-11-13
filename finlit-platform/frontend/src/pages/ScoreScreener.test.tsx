@@ -119,7 +119,7 @@ describe("Basic stock screener page", () => {
     expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("14");
     fireEvent.click(screen.getByRole("checkbox", { name: /^Large cap/ }));      // Large caps: the 100 largest, here all 22 are Large
     await waitFor(() => expect(loc()).toContain("cap=Large"));
-    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score Strong, the highest rating word" }));
     await waitFor(() => expect(loc()).toContain("qual=high"));
     await waitFor(() => { expect(symbols()).toEqual(["AAA", "BBB", "HHH"]); expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("0"); expect(count("IT")).toBe("0"); expect(count("Pharma")).toBe("1"); });   // the table follows the address a moment later (a deferred update), most visibly on a busy machine
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
@@ -139,14 +139,14 @@ describe("Basic stock screener page", () => {
   it("score bands and min-max are exact, and missing scores never pass", () => {
     open();
     const quality = screen.getByRole("group", { name: "Quality Score" }), growth = screen.getByRole("group", { name: "Growth Score" });
-    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
+    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score Strong, the highest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);                        // 78 is in, 77 (EEE) is out, GGG has no score
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, the lowest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual([]);                                           // both pillars must pass
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Strong, 78 and above" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, the lowest rating word" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Strong, the highest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);
     fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("checkbox", { name: "Quality Score" }));   // ticking enables Min and Max
@@ -185,7 +185,7 @@ describe("Basic stock screener page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove filter FinLit IQ rating: Strong, Not rated" }));
     await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Remove filter FinLit IQ rating/ })).toBeNull());   // the chip is gone before the next filter is set: on a slow machine the two raced
-    fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /78 and above/ }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /Strong, the highest rating word/ }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]), { timeout: 10000 });
     fireEvent.change(within(screen.getByRole("group", { name: "Total FinLit IQ Score" })).getByLabelText("Min"), { target: { value: "80" } });
     await waitFor(() => { expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/score-screener?t=high&omin=80"); });
@@ -337,7 +337,8 @@ describe("Basic stock screener page", () => {
     open();
     fireEvent.click(screen.getAllByRole("button", { name: /How scores work/ })[0]);
     const d = screen.getByRole("dialog", { name: "How scores work" });
-    expect(d.textContent).toMatch(/Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45/);
+    expect(d.textContent).toMatch(/Strong, Healthy, Mixed and Watch/);
+    expect(d.textContent).not.toMatch(/78|62 to 77|45 to 61|under 45|average of/);              // the model's cut-offs and formula never show (task #64)
     expect(d.textContent).toMatch(/Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr/);
     expect(d.textContent).toMatch(/26 Oct 2026/);
     expect(d.textContent?.toLowerCase()).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target)\b/);

@@ -29,7 +29,9 @@ export function CustomRatioBuilder({ groups, byKey, ratios, onChange, ask, saved
   const uid = useId();
   const [name, setName] = useState(""), [num, setNum] = useState(""), [den, setDen] = useState(""), [op, setOp] = useState<CustomRatio["op"]>("gt"), [a, setA] = useState(""), [b, setB] = useState("");
   const [err, setErr] = useState(""), [list, setList] = useState(false), [note, setNote] = useState("");
+  // no FinLit score on any plan (dividing one score by another means nothing; task #64 P-1 and CR-2), and no yes-or-no filter
   const usable = (m: MetricInfo) => !m.hidden && m.unit !== "flag";
+  groups = groups.filter((g) => g.id !== "model" && g.id !== "prism");
   const reset = () => { setName(""); setNum(""); setDen(""); setA(""); setB(""); setOp("gt"); setErr(""); setNote(""); };
   /** The ratio in the form, or an error in words. */
   const build = (): { r: Omit<CustomRatio, "id"> } | { error: string } => {

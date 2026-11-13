@@ -59,7 +59,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which screener should I use?",
-    "a": "Use this Stock screener when you want to combine many rules. The Basic stock screener (Silver) filters by the FinLit IQ, the Advanced stock screener (Gold) by the FinLit Prism rating, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
+    "a": "Use this Stock screener when you want to combine many rules. The score screener of your plan lists every company with your plan's score and its parts, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    },
    {
     "q": "What can I filter on?",
@@ -82,8 +82,8 @@ export const PAGE_FAQS: PageFaq[] = [
     "a": "Green cells are in the best quarter of all listed companies on that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
    },
    {
-    "q": "How do I add columns, save or download my results?",
-    "a": "Use Columns to choose what the table shows. Name your filters under Save as a screen to keep them; saved screens appear on your dashboard with the number of companies that match. Download exports the table."
+    "q": "How do I add columns or save my results?",
+    "a": "Use Columns to choose what the table shows. Name your filters under Save screen to keep them; saved screens appear under Ready-made screens, My screens, with the number of companies that match."
    },
    {
     "q": "Does a screen tell me what to buy?",
@@ -106,7 +106,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What do Strong, Healthy, Mixed and Watch mean?",
-    "a": "Strong is 78 and above, Healthy 62 to 77, Mixed 45 to 61 and Watch under 45. In the filters, Healthy and Mixed are grouped together as 45 to 77."
+    "a": "They are the FinLit IQ's four rating words, from the highest: Strong, Healthy, Mixed and Watch. They describe the company's financial health from its filings and prices; they are not advice."
    },
    {
     "q": "What do the Quick views do?",
