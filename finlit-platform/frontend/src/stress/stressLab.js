@@ -123,7 +123,7 @@ export function mountStressLab(root, E, D, opts) {
     var eo = D.eia_outlook;
     return '<details class="fold"><summary>See today’s inputs: now against the base window</summary>' +
       '<div class="tw"><table class="t"><thead><tr><th>Driver</th><th class="r">Now</th><th class="r">Average, ' + D.base_window[0] + ' to ' + D.base_window[1] + '</th><th class="r">Shock</th><th>Source</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. <b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return b.toFixed(2); }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. Data to ' + dt(D.as_of) + '.</p></details>';
+      '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. ' + (eo && eo.brent ? '<b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return b.toFixed(2); }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. ' : '') + 'Data to ' + dt(D.as_of) + '.</p></details>';
   }
   function renderScen() {
     var co = coA();
@@ -135,7 +135,7 @@ export function mountStressLab(root, E, D, opts) {
     }).join('');
     var s = cur();
     var based = s.id === 'custom' ? 'Your own mix of shocks, starting from ' + esc(S.customFrom || 'Today') + '. Move any slider; everything below updates at once.' : esc(s.based_on);
-    var todaySeg = S.scen === 'today' ? '<div class="seg sm" role="group" aria-label="Crude in the Today scenario"><button type="button" data-tc="level" aria-pressed="' + (S.todayCrude === 'level') + '">Crude stays at today’s level</button><button type="button" data-tc="eia" aria-pressed="' + (S.todayCrude === 'eia') + '">Crude eases (EIA outlook)</button></div>' : '';
+    var todaySeg = S.scen === 'today' && SC.today_eia ? '<div class="seg sm" role="group" aria-label="Crude in the Today scenario"><button type="button" data-tc="level" aria-pressed="' + (S.todayCrude === 'level') + '">Crude stays at today’s level</button><button type="button" data-tc="eia" aria-pressed="' + (S.todayCrude === 'eia') + '">Crude eases (EIA outlook)</button></div>' : '';
     $('based').innerHTML = '<div><p>' + based + '</p><div class="shocks">' + shockPills(s, co) + '</div></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + todaySeg +
       (GOLD ? '<button type="button" class="btn" id="adj" aria-expanded="' + (S.open || S.scen === 'custom') + '" aria-controls="sliders">' + svg('<path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2"/><circle cx="13" cy="14" r="2"/>', 14) + (S.open || S.scen === 'custom' ? 'Hide the sliders' : 'Adjust these shocks') + '</button>'
@@ -517,7 +517,7 @@ export function mountStressLab(root, E, D, opts) {
     return short(lo[1]) + ' is more exposed to this shock: EPS ' + pct(lo[2]) + ' against ' + pct(hi[2]) + ' for ' + short(hi[1]) + ', mainly through ' + PHR[lo[0].drivers[0].key] + '.';
   }
   function cmpInsights(ra, rb, a, b, sc) {
-    var out = [], ids = ['today', 'today_eia', '2022', '2020', 'oil', 'rupee', 'rates', 'slowdown'];
+    var out = [], ids = ALL_IDS.slice(), n = ids.length;
     var bWorse = ids.filter(function (id) { var s = scenOf(id); return E.run(b, s).change_pct.eps < E.run(a, s).change_pct.eps; }).length;
     [[ra, a], [rb, b]].forEach(function (x) {
       var r = x[0], c = x[1];
@@ -535,7 +535,7 @@ export function mountStressLab(root, E, D, opts) {
     if ((nda < 0) !== (ndb < 0)) { var nc = nda < 0 ? a : b, nd = nda < 0 ? b : a; out.push({ k: 'ins', p: 4, t: 'Debt sets them apart when rates move', d: short(nc) + ' has more cash than debt; ' + short(nd) + ' has net debt of ' + cr(Math.abs(nd.debt - nd.cash)) + ', ' + share(nd.exposure.floating_debt) + ' of it at floating rates. Rates 100 bp higher move their EPS ' + pct(E.sensitivities(nc)[3].eps_pct) + ' and ' + pct(E.sensitivities(nd)[3].eps_pct) + '.' }); }
     var pa = a.exposure.pass_through, pb = b.exposure.pass_through;
     if (Math.abs(pa - pb) >= 0.05) out.push({ k: 'ins', p: 4, t: 'Pricing power differs', d: short(a) + ' passes on about ' + share(pa) + ' of cost rises, ' + short(b) + ' about ' + share(pb) + '. The higher the share, the less a cost shock reaches profit.' });
-    out.push({ k: bWorse >= 6 || bWorse <= 2 ? 'ins' : 'watch', p: 5, t: bWorse >= 6 ? short(b) + ' takes the bigger hit in ' + bWorse + ' of 8 scenarios' : bWorse <= 2 ? short(a) + ' takes the bigger hit in ' + (8 - bWorse) + ' of 8 scenarios' : 'Which one is hit harder depends on the shock', d: 'Across Today, Crude eases and the six presets, with today’s settings.' });
+    out.push({ k: bWorse >= n * 0.75 || bWorse <= n * 0.25 ? 'ins' : 'watch', p: 5, t: bWorse >= n * 0.75 ? short(b) + ' takes the bigger hit in ' + bWorse + ' of ' + n + ' scenarios' : bWorse <= n * 0.25 ? short(a) + ' takes the bigger hit in ' + (n - bWorse) + ' of ' + n + ' scenarios' : 'Which one is hit harder depends on the shock', d: 'Across ' + (SC.today_eia ? 'Today, Crude eases and the six presets' : 'Today and the six presets') + ', with today’s settings.' });
     out.sort(function (x, y) { return x.p - y.p; });
     return out.slice(0, 4);
   }
@@ -576,7 +576,7 @@ export function mountStressLab(root, E, D, opts) {
     $('sens').innerHTML = '<h2>What moves each most' + ib('One step in each driver on its own, every other shock at zero.', 'lt', 'About this chart') + '</h2><p class="sub">EPS change for one step in each driver, alone</p><div style="margin-top:12px">' + groupedHtml(srows, function (v) { return pct(v); }) + '</div>' +
       '<h3 style="margin-top:18px">Breaking points' + ib('One shock on its own that halves EPS, or takes interest cover below 1.5×.', 'lt', 'About breaking points') + '</h3><div class="tw"><table class="t"><thead><tr><th>Shock, on its own</th><th class="r">' + short(A) + '</th><th class="r">Sample B</th></tr></thead><tbody>' +
       '<tr><td class="l">Crude rise that halves EPS</td><td class="r">' + bpv(ba, 'crude_pct') + '</td><td class="r">' + bpv(bb, 'crude_pct') + '</td></tr><tr><td class="l">Volume fall that halves EPS</td><td class="r">' + bpv(ba, 'demand_pct') + '</td><td class="r">' + bpv(bb, 'demand_pct') + '</td></tr><tr><td class="l">Rate rise that takes cover under 1.5×</td><td class="r">' + bpv(ba, 'rate_bp') + '</td><td class="r">' + bpv(bb, 'rate_bp') + '</td></tr></tbody></table></div>';
-    var ids = ['today', 'today_eia', '2022', '2020', 'oil', 'rupee', 'rates', 'slowdown'].concat(S.scen === 'custom' ? ['custom'] : []);
+    var ids = ALL_IDS.concat(S.scen === 'custom' ? ['custom'] : []);
     var curId = S.scen === 'today' ? (S.todayCrude === 'eia' ? 'today_eia' : 'today') : S.scen;
     $('every').innerHTML = '<h2>Every scenario at a glance' + ib('Both companies under each scenario. Pick a row to open it.', 'lt', 'About this table') + '</h2><div class="tw"><table class="t"><thead><tr><th>Scenario</th><th class="r">' + short(A) + ', EPS</th><th>Label</th><th class="r">' + short(B) + ', EPS</th><th>Label</th><th>More exposed</th></tr></thead><tbody>' + ids.map(function (id) {
       var s = id === 'custom' ? Object.assign({}, S.custom, { persistence: S.persistence }) : scenOf(id), x = E.run(a, s), y = E.run(b, forB(s)), d = x.change_pct.eps - y.change_pct.eps;
