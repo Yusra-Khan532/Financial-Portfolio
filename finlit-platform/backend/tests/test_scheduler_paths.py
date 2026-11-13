@@ -47,3 +47,17 @@ def test_swap_is_created_only_when_missing_and_jobs_are_the_first_oom_victims():
     assert compose.count("oom_score_adj: -300") == 3 and "mem_limit: 1200m" in compose                         # db, redis, caddy protected; app limit unchanged
     runner = (ROOT / "backend/finlit/jobs/runner.py").read_text()
     assert "/proc/self/oom_score_adj" in runner and "oom_adj: int = 500" in runner and "start_new_session=True" in runner
+
+
+def test_a_deploy_never_shows_visitors_a_502():
+    """While deploy.sh replaces the app container, Caddy holds each request and retries until the new app answers; past that, a page that reloads
+    itself (and JSON for the API), never the browser's raw "HTTP ERROR 502"."""
+    caddy = (ROOT / "deploy/aws/Caddyfile").read_text()
+    proxy = caddy[caddy.index("reverse_proxy app:8000 {"):]
+    proxy = proxy[:proxy.index("}") + 1]
+    assert "lb_try_duration 90s" in proxy and "lb_try_interval 1s" in proxy
+    assert "header_up X-Forwarded-For {remote_host}" in proxy                       # the visitor's real address still reaches the app
+    errors = caddy[caddy.index("handle_errors 502 503 504 {"):]
+    assert "@api path /api/*" in errors and '"status":"updating"' in errors
+    assert 'http-equiv="refresh"' in errors and 'Cache-Control "no-store"' in errors
+    assert caddy.index("handle_errors") < caddy.index("import /etc/caddy/extra/*.caddy")   # inside the FinLit site, not the extra sites
