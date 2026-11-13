@@ -597,7 +597,7 @@ def strip_figures(r: dict) -> dict:
     return out
 
 
-def select(rows: List[dict], *, q: str = "", sector: str = "", cap: str = "", index: str = "", symbols: Optional[set] = None, flagged: bool = False, status: str = "",
+def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "", cap: str = "", index: str = "", symbols: Optional[set] = None, flagged: bool = False, status: str = "",
            sort: str = "date", desc: bool = True, today: str = "9999-12-31", date_from: str = "", date_to: str = "") -> List[dict]:
     out = rows
     if date_from or date_to:   # the announcement date, as ISO text (which sorts like a date)
@@ -607,6 +607,8 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", cap: str = "", in
         out = [r for r in out if t in r["symbol"].lower() or t in (r["name"] or "").lower()]
     if sector:
         out = [r for r in out if r["sector"] == sector]
+    if industry:   # the Sector Pulse group the verdicts compare with (finlit/result_verdicts.py)
+        out = [r for r in out if r.get("industry") == industry]
     if cap:
         out = [r for r in out if r["cap"] == cap]
     if index:
@@ -928,7 +930,7 @@ def date_facts(decls: Dict[str, Dict[str, Decl]], rng: Tuple[date, date], qkey: 
 
 
 async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str, index: str, scope: str, flagged: bool, status: str, sort: str, dir_: str,
-                  on: str = "", frm: str = "", to: str = "", growth: Optional[GrowthSpec] = None, price: Optional[PriceSpec] = None):
+                  on: str = "", frm: str = "", to: str = "", growth: Optional[GrowthSpec] = None, price: Optional[PriceSpec] = None, industry: str = ""):
     ctx = await current(request)
     plan = ctx.plan if ctx.authed else "basic"
     silver = has(plan, "silver")
@@ -961,7 +963,7 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
         raise fail(400, "bad_request", "Quarter must look like 2026-09 (a quarter-end month: 03, 06, 09 or 12).")
     entry = await get_entry(store, qkey)
     syms = await _symbols_of(request, ctx, scope)
-    rows = select(entry.rows, q=q, sector=sector, cap=cap, index=index, symbols=syms, flagged=flagged, status=status, sort=sort, desc=dir_ == "desc", today=today.isoformat(),
+    rows = select(entry.rows, q=q, sector=sector, industry=industry, cap=cap, index=index, symbols=syms, flagged=flagged, status=status, sort=sort, desc=dir_ == "desc", today=today.isoformat(),
                   date_from=rng[0].isoformat() if rng else "", date_to=rng[1].isoformat() if rng else "")
     # The two cards combine with AND. Each summary describes its own card over the same companies; `combined` is how many pass both.
     g_rows, gsum = growth_filter(rows, growth or GrowthSpec())
@@ -980,7 +982,7 @@ def _dump(body: dict) -> Response:
 
 
 @router.get("/quarter")
-async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80),
+async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
                           cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                           status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
@@ -991,7 +993,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
     started = time.perf_counter()
-    ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price)
+    ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     gsum, psum = sums or (None, None)
     silver = has(plan, "silver")
     if entry is None:
@@ -1018,7 +1020,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
 
 
 @router.get("/quarter/export")
-async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80),
+async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
                          cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                          scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
@@ -1030,7 +1032,7 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
     ctx = await current(request)
     if not has(ctx.plan if ctx.authed else "basic", "silver"):
         raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
-    _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price)
+    _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
 
 

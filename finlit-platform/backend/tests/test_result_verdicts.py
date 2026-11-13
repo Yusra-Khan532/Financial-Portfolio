@@ -51,7 +51,9 @@ def test_too_few_in_the_industry_falls_back_to_its_broad_group_and_the_industry_
     s1 = next(r for r in rows if r["symbol"] == "S1")
     assert s1["industry"] == "Small Ind" and s1["verdict"] == "Strong"          # judged against the broad group (the six at +10%)
     ind = {x["name"]: x for x in rv.industries(rows)}
-    assert ind["Small Ind"] == {"name": "Small Ind", "companies": 2, "declared": 1, "withNumbers": 1, "medianRevenueYoY": 30.0, "medianProfitYoY": 30.0, "beat": 1, "judged": 1}
+    small = ind["Small Ind"]
+    assert (small["companies"], small["declared"], small["withNumbers"], small["medianRevenueYoY"], small["beat"], small["judged"]) == (2, 1, 1, 30.0, 1, 1)
+    assert small["vsMarket"] is None                                              # one result is too few to compare with the market
     assert ind["Big Ind"]["withNumbers"] == 6 and ind["Big Ind"]["judged"] == 6 and ind["Big Ind"]["beat"] == 0
     assert rv.verdict_counts(rows)["Strong"] == 1 and rv.verdict_counts(rows)["In line"] == 6
 
@@ -69,3 +71,13 @@ def test_small_nse_industries_are_read_as_their_sector_pulse_group(monkeypatch):
     assert rv.industry_of("GILLETTE", "FMCG")[0] == "Fast Moving Consumer Goods"
     assert rv.industry_of("INFY", "Information Technology")[0] == "IT - Software"
     assert rv.industry_of("526433", "Information Technology")[0] == "Information Technology (broad group)"
+
+
+def test_an_industry_is_ahead_of_or_behind_the_typical_listed_company(monkeypatch):
+    monkeypatch.setattr(rv, "_classes", lambda: {**{f"A{i}": ("Fast", "X") for i in range(6)}, **{f"B{i}": ("Slow", "X") for i in range(6)}, **{f"C{i}": ("Mid", "X") for i in range(6)}})
+    rows = peers("A", "X", rev=30, profit=40, margin=1) + peers("B", "X", rev=0, profit=-20, margin=-1) + peers("C", "X", rev=12, profit=8, margin=0)
+    rv.add_verdicts(rows)
+    ind = {x["name"]: x for x in rv.industries(rows)}
+    assert ind["Fast"]["market"] == {"medianRevenueYoY": 12.0, "medianProfitYoY": 8.0, "medianNpmChange": 0.0}
+    assert (ind["Fast"]["vsMarket"], ind["Slow"]["vsMarket"], ind["Mid"]["vsMarket"]) == ("Ahead", "Behind", "In line")
+    assert ind["Fast"]["revenueUpShare"] == 100.0 and ind["Slow"]["profitUpShare"] == 0.0 and ind["Fast"]["marginUpShare"] == 100.0

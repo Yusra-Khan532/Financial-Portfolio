@@ -56,7 +56,7 @@ export type QDates = {
   nearest: { date: string; n: number }[]; coverage: { earliest: string | null; latest: string | null };
 };
 export type QParams = {
-  quarter?: string; q?: string; sector?: string; cap?: string; index?: string; scope?: "all" | "watchlist" | "portfolio"; flagged?: boolean; status?: string;
+  quarter?: string; q?: string; sector?: string; industry?: string; cap?: string; index?: string; scope?: "all" | "watchlist" | "portfolio"; flagged?: boolean; status?: string;
   sort?: string; dir?: "asc" | "desc"; offset?: number; limit?: number;
   date?: string; from?: string; to?: string;   // the announcement date (one day) or a from-to range, India dates as YYYY-MM-DD
 } & Partial<Record<`${CellKey}Op` | `${CellKey}Value` | "join" | PriceQueryKey, string>>;

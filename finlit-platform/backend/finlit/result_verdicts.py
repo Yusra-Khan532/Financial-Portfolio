@@ -120,8 +120,22 @@ def add_verdicts(rows: List[dict]) -> None:
         r.pop("_group", None)
 
 
+_MARKET_BAND = 2.0   # percentage points: an industry within this of the typical listed company is "In line" on that figure
+
+
+def _share(xs: List[float], ok) -> Optional[float]:
+    return round(sum(1 for x in xs if ok(x)) / len(xs) * 100, 1) if xs else None
+
+
 def industries(rows: List[dict]) -> List[Dict[str, Any]]:
-    """Each NSE industry this quarter: companies, how many have declared with figures, the typical revenue and profit growth so far, and how many beat it (Strong or Good)."""
+    """Each Sector Pulse group this quarter: companies, how many have declared, and for those with figures the typical revenue growth, profit growth and margin change, the
+    shares that grew revenue and profit and improved their margin, how many beat their industry (Strong or Good), and how the typical company compares with the typical listed
+    company (`vsMarket`: Ahead when its revenue and profit both grew faster than the typical listed company's, Behind when both grew slower, else In line). `market` is the same for every listed company."""
+    withnum_all = [r for r in rows if r.get("hasNumbers")]
+    def med(rs: List[dict], f: str) -> Optional[float]:
+        xs = [r[f] for r in rs if r.get(f) is not None]
+        return round(median(xs), 1) if xs else None
+    mkt = {"medianRevenueYoY": med(withnum_all, "revenueYoY"), "medianProfitYoY": med(withnum_all, "profitYoY"), "medianNpmChange": med(withnum_all, "npmChange")}
     by: Dict[str, List[dict]] = {}
     for r in rows:
         if r.get("industry") and not str(r["industry"]).endswith("(broad group)"):
@@ -129,12 +143,18 @@ def industries(rows: List[dict]) -> List[Dict[str, Any]]:
     out = []
     for name, rs in by.items():
         withnum = [r for r in rs if r.get("hasNumbers")]
-        ry = [r["revenueYoY"] for r in withnum if r.get("revenueYoY") is not None]
-        py = [r["profitYoY"] for r in withnum if r.get("profitYoY") is not None]
         v = [r["verdict"] for r in withnum if r.get("verdict")]
-        out.append({"name": name, "companies": len(rs), "declared": sum(1 for r in rs if r["status"] != "due"), "withNumbers": len(withnum),
-                    "medianRevenueYoY": round(median(ry), 1) if ry else None, "medianProfitYoY": round(median(py), 1) if py else None,
-                    "beat": sum(1 for x in v if x in ("Strong", "Good")), "judged": len(v)})
+        x = {"name": name, "companies": len(rs), "declared": sum(1 for r in rs if r["status"] != "due"), "withNumbers": len(withnum),
+             "medianRevenueYoY": med(withnum, "revenueYoY"), "medianProfitYoY": med(withnum, "profitYoY"), "medianNpmChange": med(withnum, "npmChange"),
+             "revenueUpShare": _share([r["revenueYoY"] for r in withnum if r.get("revenueYoY") is not None], lambda y: y > 0),
+             "profitUpShare": _share([r["profitYoY"] for r in withnum if r.get("profitYoY") is not None], lambda y: y > 0),
+             "marginUpShare": _share([r["npmChange"] for r in withnum if r.get("npmChange") is not None], lambda y: y > 0),
+             "beat": sum(1 for y in v if y in ("Strong", "Good")), "judged": len(v), "beatShare": _share(v, lambda y: y in ("Strong", "Good")), "vsMarket": None, "market": mkt}
+        if len(withnum) >= MIN_PEERS and None not in (x["medianRevenueYoY"], x["medianProfitYoY"], mkt["medianRevenueYoY"], mkt["medianProfitYoY"]):
+            dr, dp = x["medianRevenueYoY"] - mkt["medianRevenueYoY"], x["medianProfitYoY"] - mkt["medianProfitYoY"]
+            x["vsMarket"] = ("Ahead" if dr > 0 and dp > 0 and max(dr, dp) >= _MARKET_BAND else
+                             "Behind" if dr < 0 and dp < 0 and min(dr, dp) <= -_MARKET_BAND else "In line")
+        out.append(x)
     return sorted(out, key=lambda x: (-x["withNumbers"], x["name"]))
 
 
