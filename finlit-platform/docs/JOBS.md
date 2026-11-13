@@ -106,7 +106,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | canary | light | 7 | 30 h | MORNING; AFTER_CLOSE from 19:00 |
 | alerts-flag / alerts-daily / screens / digest | light | 8-9 | none / 80 h / 80 h / 8 d | each window / weekdays 19:10 / MORNING weekdays / Sunday 19:10 |
 | prune | bulk | 5 | 30 h | NIGHT |
-| **technicals** (`refresh-technicals`) | bulk | 10 | session, 12 h | AFTER_CLOSE and MORNING until the session is processed; probe re-runs every 30 min |
+| **technicals** (`refresh-technicals`) | bulk | 10 | session, 12 h | AFTER_CLOSE and MORNING until the session is processed; probe re-runs every 30 min; a company Dhan holds no usable candles for (suspended, delisted, too few or too old sessions) is counted `unavailable` with its reason and keeps its stored view and date; it is not a job failure. A run where every company came back unavailable checks five large companies: if Dhan gives none for them either, the run is `failed` (an outage) |
 | **sectors** (`refresh-sectors`, always on; docs/SECTORS.md) | bulk | 12 | session, 14 h | weekdays from 19:00 IST (AFTER_CLOSE), the NIGHT shift and MORNING until the session is processed; after technicals; weight 450 MB (staged, peak 364 MB); 90 min per run, **resumable** (the full build takes about 2.5 h on the server: each run continues the build the last one stopped; docs/SECTORS.md section 13) |
 | ingest-flagship / **ingest** (`ingest-all`) | bulk | 15 / 20 | 26 h | NIGHT (18 h), MORNING (14 h); 90 min per run, resumable |
 | **score** (`score-all`) | bulk | 30 | 26 h | NIGHT, MORNING; after ingest |
