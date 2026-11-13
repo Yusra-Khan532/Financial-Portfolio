@@ -52,16 +52,9 @@ export function Compare() {
   const [sp, setSp] = useSearchParams();
   const [tab, setTab] = useState(() => (sp.has("m") ? "custom" : "overview"));
   const [off, setOff] = useState<Record<string, NumKey[]>>({});
-  // Which scoring model(s) the Overview shows: FinLit IQ (Silver and Gold) and FinLit Prism (Gold only). Each can be on or off on its own; one always stays on.
+  // One score per plan (founder, 13 Nov 2026, task #100): the Overview shows FinLit Prism for Gold and the FinLit IQ for Silver, never both.
   const gold = has("gold");
-  const [models, setModels] = useState<{ iq: boolean; prism: boolean }>(() => { const m = (sp.get("sm") || "iq").split(","); return { iq: m.includes("iq") || !m.includes("prism"), prism: m.includes("prism") }; });
-  const showIq = models.iq || !gold, showPrism = gold && models.prism;
-  const toggleModel = (k: "iq" | "prism") => {
-    const next = { ...models, [k]: !models[k] };
-    if (!next.iq && !next.prism) return;                      // never an empty Overview
-    setModels(next);
-    setSp((p) => { const q = new URLSearchParams(p); const v = [next.iq ? "iq" : "", next.prism ? "prism" : ""].filter(Boolean).join(","); if (v === "iq") q.delete("sm"); else q.set("sm", v); return q; }, { replace: true });
-  };
+  const showIq = !gold, showPrism = gold;
   const rows = data?.rows || [];
   const max = has("gold") ? 4 : 2;
   const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
@@ -71,7 +64,7 @@ export function Compare() {
   useEffect(() => {
     if (!rows.length || sp.has("c")) return;   // only when the page is opened with nothing chosen; a member who clears or removes keeps their choice
     const a = bySym.get(ids[0] || "RELIANCE") || rows[0];
-    const b = [...rows].filter((r) => r.symbol !== a.symbol && r.sector === a.sector).sort((x, y) => (y.overall ?? 0) - (x.overall ?? 0))[0] || rows.find((r) => r.symbol !== a.symbol);
+    const b = [...rows].filter((r) => r.symbol !== a.symbol && r.sector === a.sector).sort((x, y) => ((gold ? y.prism_final : y.overall) ?? 0) - ((gold ? x.prism_final : x.overall) ?? 0))[0] || rows.find((r) => r.symbol !== a.symbol);
     if (b) setSp((p) => { const n = new URLSearchParams(p); n.set("c", [a.symbol, b.symbol].join(",")); return n; }, { replace: true });
   }, [rows, sp, bySym, setSp]);
 
@@ -90,9 +83,10 @@ export function Compare() {
   const locked = T.model && !has("silver");
   const dists = useMemo(() => { const m = new Map<NumKey, Dist | null>(); (Object.keys(METRICS) as NumKey[]).forEach((k) => m.set(k, distOf(rows, k))); return m; }, [rows]);
   const off0 = off[tab] || [];
-  const groups = T.groups.map((g) => ({ ...g, keys: g.keys.filter((k) => !off0.includes(k)) })).filter((g) => g.keys.length);
+  const iqOnly = (k: NumKey) => gold && (k === "overall" || String(k).startsWith("pillar_"));   // task #100: no FinLit IQ figure for Gold
+  const groups = T.groups.map((g) => ({ ...g, keys: g.keys.filter((k) => !off0.includes(k) && !iqOnly(k)) })).filter((g) => g.keys.length);
   const keys: NumKey[] = groups.flatMap((g) => g.keys);
-  const pool: NumKey[] = T.groups.flatMap((g) => g.keys);
+  const pool: NumKey[] = T.groups.flatMap((g) => g.keys).filter((k) => !iqOnly(k));
   const toggleKey = (k: NumKey) => setOff((o) => ({ ...o, [tab]: (o[tab] || []).includes(k) ? (o[tab] || []).filter((x) => x !== k) : [...(o[tab] || []), k] }));
   const win = (k: NumKey): string | null => {
     const m = METRICS[k]; if (m.better === "none") return null;
@@ -134,14 +128,6 @@ export function Compare() {
         {picked.length < 2 && !isLoading && <div className="pm-empty" style={{ margin: "18px 0" }}><b>Pick at least two companies to compare.</b><p>Use the search box above: open it to browse every company, or try a popular comparison.</p></div>}
         {picked.length >= 2 && tab === "overview" && (
           <>
-            {gold && (
-              <div className="cmp-models" role="group" aria-label="Scoring model">
-                <span className="label">Score</span>
-                <button type="button" className={"mchip" + (models.iq ? " on" : "")} aria-pressed={models.iq} onClick={() => toggleModel("iq")}>FinLit IQ</button>
-                <button type="button" className={"mchip" + (models.prism ? " on" : "")} aria-pressed={models.prism} onClick={() => toggleModel("prism")}>FinLit Prism</button>
-                <small>Show either one, or both side by side.</small>
-              </div>
-            )}
             <div className={"cmp-cards n" + picked.length}>{picked.map((r, i) => (
               <div className="cc" key={r.symbol}>
                 <div className="cc-h"><CoLogo symbol={r.symbol} name={r.name} size={44} /><div><span className="tk">Company {LETTER[i]}{isBseCode(r.symbol) ? "" : ` · ${r.symbol}`}</span><b>{r.name || r.symbol}</b><small>{r.sector}</small></div></div>

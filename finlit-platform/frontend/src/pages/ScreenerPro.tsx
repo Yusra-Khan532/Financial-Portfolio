@@ -2,6 +2,7 @@
 // screens, then "Your rules" (funnel, size, the one Sector filter, index, FinLit rating, rule cards, + Add a rule, Type rules) beside the results (count,
 // Save screen, Download, the active rules, search, the nine standard columns plus a "Your rules" band, the pager). A click on a row opens the chart panel
 // with the company's figures, your rules first.
+import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { HScroll } from "../components/HScroll";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -94,7 +95,11 @@ export function ScreenerPro() {
   const [folds, setFolds] = useState<Record<string, boolean>>({});
   const [rulesOpen, setRulesOpen] = useState(() => !narrow());
   const saved = useSavedScreens();
-  const data = cat.data;
+  // task #100: one score per plan. Gold sees FinLit Prism, never the FinLit IQ: the FinLit model figures (IQ and its pillars) leave the columns and the rule picker,
+  // a Prism column takes the IQ's place, and the FinLit rating chips point to the Advanced stock screener, which filters by Prism.
+  const model = usePlanModel();
+  const prismOnly = model === "prism";
+  const data = useMemo(() => (prismOnly && cat.data ? { ...cat.data, groups: cat.data.groups.filter((g) => g.id !== "model"), standardColumns: cat.data.standardColumns?.filter((k) => k !== "overall") } : cat.data), [cat.data, prismOnly]);
   const plan: Plan = data?.plan ?? "basic";
   const ask = (tier: Plan, why: string) => upgrade(tier, why);
   const byKey = useMemo(() => new Map((data?.groups || []).flatMap((g) => g.metrics.map((m) => [m.key, m] as const))), [data]);
@@ -126,6 +131,7 @@ export function ScreenerPro() {
   const [chart, setChart] = useState<PanelRow | null>(null), [stepTo, setStepTo] = useState<"first" | "last" | null>(null);
   const [typed, setTyped] = useState(""), [typedErr, setTypedErr] = useState<string[]>([]);
   const rows = res.data?.rows || [];
+  const pm = usePlanPrism(useMemo(() => rows.map((r) => r.symbol), [rows]), model);
   const shown = (res.data?.columns || []).filter((k) => columns.includes(k));
   const nActive = activeCount(f) + ratios.filter((r) => r.op !== "none").length;
   const total = res.data?.total ?? 0;
@@ -274,9 +280,9 @@ export function ScreenerPro() {
                   <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
-              <div className="ssw-sec"><h3>FinLit rating <span className="ssr-tier gold">GOLD</span></h3>
+              {prismOnly ? <div className="ssw-sec"><h3>Prism rating</h3><p className="ssw-note">Filter by the Prism score, its four parts and the two technical views in the <Link to="/advanced-score-screener">Advanced stock screener</Link>.</p></div> : <div className="ssw-sec"><h3>FinLit rating <span className="ssr-tier gold">GOLD</span></h3>
                 <div className="ssw-chips" role="group" aria-label="FinLit rating">{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={f.bands.includes(b.key)}
-                  onClick={() => (b.locked ? ask("gold", "Filtering by the FinLit rating comes with the Gold plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>
+                  onClick={() => (b.locked ? ask("gold", "Filtering by the FinLit rating comes with the Gold plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>}
               <div className="ssw-sec"><h3>Rules on numbers</h3>
                 {f.model && <div className="ssr-rule ssr-model" role="group" aria-label="Screen on the FinLit model"><div className="ssr-rt"><b>{modelScreen?.label ?? "On the FinLit model"}</b><span className="ssr-tier gold">GOLD</span>
                   <button type="button" className="ssr-x" aria-label="Remove the FinLit model screen" onClick={() => setF((s) => ({ ...s, model: undefined }))}>×</button></div>
@@ -337,11 +343,12 @@ export function ScreenerPro() {
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
                     <thead>
-                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
+                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}{prismOnly && <th>FinLit Prism</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={ratioSentence(r, byKey)} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
+                        {prismOnly && <th className="ssw-iq" title="The stored FinLit Prism score, 0 to 100, higher is better. Sort and filter by it in the Advanced stock screener."><span>Prism</span><small>0–100</small></th>}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
                     <tbody>{rows.map((r) => (
                       <tr key={r.symbol} data-sym={r.symbol} tabIndex={0} className={chart?.symbol === r.symbol ? "cp-row" : ""} onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,select")) setChart(panelRow(r)); }} onKeyDown={(e) => e.key === "Enter" && setChart(panelRow(r))}>
@@ -351,6 +358,7 @@ export function ScreenerPro() {
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing or the denominator is zero" : undefined}>{v == null ? "–" : nf(v, Math.abs(v) >= 100 ? 1 : 2)}</td>; })}
+                        {prismOnly && (() => { const v = scoreView("prism", { score: null }, pm[r.symbol]); return <td className="ssw-iq" title={v.why ?? undefined}>{v.pending ? "…" : v.score == null ? "–" : <><span className={"ssw-sc " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")}>{v.score}</span>{v.word && <small>{v.word}</small>}</>}</td>; })()}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}
                       {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={clearAll}>clear them all</button>.</td></tr>}
@@ -364,7 +372,7 @@ export function ScreenerPro() {
                     label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>}
                 </>)}
             {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
-            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the FinLit IQ chip is coloured by its rating word.</p>
+            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word.</p>
           </section>
         </div>
         {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}
