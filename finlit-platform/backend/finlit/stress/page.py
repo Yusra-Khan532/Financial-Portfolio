@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from datetime import date
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import engine
 
@@ -67,11 +67,25 @@ def field_sources(co: S.Company, table: Optional[S.ExposureTable] = None, *, sym
     return out  # calibrated settings are worded on the page from company.calibration
 
 
+def window_words(window: Tuple[str, str]) -> Tuple[str, str]:
+    """The base window as readers say it: ("2025-09-30", "2026-09-30") -> ("Oct 2025", "Sep 2026"). The first date is the end of the quarter before the
+    four quarters, so the window starts the month after it. Anything that is not an ISO date is kept as it is."""
+    def month(iso: str, after: bool) -> str:
+        try:
+            d = date.fromisoformat(str(iso)[:10])
+        except ValueError:
+            return str(iso)
+        if after:
+            d = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+        return d.strftime("%b %Y")
+    return month(window[0], True), month(window[1], False)
+
+
 def scenario_json(key: str, sc: S.Scenario, window: Tuple[str, str]) -> Dict[str, Any]:
     return {"id": key, "name": SHORT.get(key, sc.name), "crude": sc.crude, "usdinr": sc.usdinr, "cpi": sc.cpi,
             "wpi": sc.wpi, "rate_bp": sc.rate_bp, "demand": sc.demand, "erp_bp": sc.erp_bp, "metals": sc.metals,
             "agri": sc.agri, "persistence": sc.persistence,
-            "based_on": BASED_ON.get(key, sc.description).format(w0=window[0], w1=window[1])}
+            "based_on": BASED_ON.get(key, sc.description).format(w0=window_words(window)[0], w1=window_words(window)[1])}
 
 
 def today_eia(today: S.Scenario, eia_brent_next4: Sequence[float]) -> S.Scenario:
@@ -82,7 +96,25 @@ def today_eia(today: S.Scenario, eia_brent_next4: Sequence[float]) -> S.Scenario
 
 # The words under the rupee row: the source the numbers really came from (the page must never name one they did not).
 FX_SOURCE_WORDS = {"FinLit usdinr": "FBIL reference rate, published by the RBI",
-                   "usdinr argument": "Monthly averages from x-rates.com for the base window (a stop-gap until FinLit's own FBIL series is filled), then today's FBIL reference rate"}
+                   "usdinr argument": "Monthly averages from x-rates.com for the base window (a stop-gap until FinLit's own FBIL series is filled), then today's FBIL reference rate",
+                   "FinLit usdinr + usdinr argument": "FBIL reference rate, published by the RBI; {n} of the base window's {m} months from x-rates.com monthly averages (a stop-gap until FinLit's own FBIL series has them)"}
+
+
+def fx_source_words(ti: Dict[str, Any]) -> str:
+    """The rupee row's source line, naming every source the base average really came from (and how many months each gave)."""
+    src = ti.get("usdinr_source")
+    got = ti.get("usdinr_months") or {}
+    n = int(got.get("argument") or 0)
+    return FX_SOURCE_WORDS.get(src, "FBIL").format(n=n, m=n + int(got.get("finlit") or 0))
+
+
+def _level(ti: Dict[str, Any], key: str, which: str) -> str:
+    v = (ti.get(key) or {}).get(which)
+    return "–" if v is None else "%.2f%%" % v
+
+
+def _src(ti: Dict[str, Any], key: str, words: str) -> str:
+    return words if ti.get(key) else words + " (no reading in the base window)"
 
 
 def today_rows(today: S.Scenario, dates: Dict[str, str]) -> List[Dict[str, Any]]:
@@ -94,17 +126,17 @@ def today_rows(today: S.Scenario, dates: Dict[str, str]) -> List[Dict[str, Any]]
         row("Brent crude, US$ a barrel", "%.2f" % ti["brent_now"], dates.get("brent", ""), "%.2f" % ti["brent_base"],
             ["pct", today.crude], "U.S. EIA"),
         row("Rupees per US dollar", "%.2f" % ti["usdinr_now"], dates.get("usdinr", ""), "%.2f" % ti["usdinr_base"],
-            ["pct", today.usdinr], FX_SOURCE_WORDS.get(ti.get("usdinr_source"), "FBIL"), "rupee %.1f%% weaker" % abs(today.rupee_value_pct) if today.usdinr > 0 else None),
-        row("Consumer inflation (CPI)", "%.2f%%" % ti["cpi"]["latest"], dates.get("cpi", ""), "%.2f%%" % ti["cpi"]["base_avg"],
-            ["pt", today.cpi], "MoSPI"),
-        row("Wholesale inflation, manufactured products", "%.2f%%" % ti["wpi_mfg"]["latest"], dates.get("wpi", ""),
-            "%.2f%%" % ti["wpi_mfg"]["base_avg"], ["pt", today.wpi], "Office of the Economic Adviser"),
-        row("Wholesale inflation, farm and primary goods", "%.2f%%" % ti["wpi_primary"]["latest"], dates.get("wpi", ""),
-            "%.2f%%" % ti["wpi_primary"]["base_avg"], ["pt", today.agri], "Office of the Economic Adviser"),
-        row("Repo rate", "%.2f%%" % ti["repo"]["latest"], dates.get("repo", ""), "%.2f%%" % ti["repo"]["base_avg"],
-            ["bp", today.rate_bp], "RBI"),
-        row("Real GDP growth (for demand)", "%.2f%%" % ti["gdp"]["latest"], dates.get("gdp", ""), "%.2f%%" % ti["gdp"]["base_avg"],
-            ["pct", today.demand], "NSO, MoSPI"),
+            ["pct", today.usdinr], fx_source_words(ti), "rupee %.1f%% weaker" % abs(today.rupee_value_pct) if today.usdinr > 0 else None),
+        row("Consumer inflation (CPI)", _level(ti, "cpi", "latest"), dates.get("cpi", ""), _level(ti, "cpi", "base_avg"),
+            ["pt", today.cpi if ti.get("cpi") else None], _src(ti, "cpi", "MoSPI")),
+        row("Wholesale inflation, manufactured products", _level(ti, "wpi_mfg", "latest"), dates.get("wpi", ""),
+            _level(ti, "wpi_mfg", "base_avg"), ["pt", today.wpi], _src(ti, "wpi_mfg", "Office of the Economic Adviser")),
+        row("Wholesale inflation, farm and primary goods", _level(ti, "wpi_primary", "latest"), dates.get("wpi", ""),
+            _level(ti, "wpi_primary", "base_avg"), ["pt", today.agri], _src(ti, "wpi_primary", "Office of the Economic Adviser")),
+        row("Repo rate", _level(ti, "repo", "latest"), dates.get("repo", ""), _level(ti, "repo", "base_avg"),
+            ["bp", today.rate_bp], _src(ti, "repo", "RBI")),
+        row("Real GDP growth (for demand)", _level(ti, "gdp", "latest"), dates.get("gdp", ""), _level(ti, "gdp", "base_avg"),
+            ["pct", today.demand if ti.get("gdp") else None], _src(ti, "gdp", "NSO, MoSPI")),
         row("Equity risk premium", "–", "", "–", ["bp", 0], "No market series yet: held at zero"),
     ]
 
@@ -187,7 +219,7 @@ def latest_quarter_check(pack: dict, co: S.Company, series: dict, brent: Sequenc
     prices = S._points(brent)
     crude_b, crude_a = S._mean(S._window(prices, sb, end_b)), S._mean(S._window(prices, sa, end_a))
     fx_b = fx_a = None
-    for pts in ([(d, v) for d, v in S._points(series.get("usdinr", [])) if len(d) == 10], S._points(usdinr or [])):
+    for pts in (S.monthly_averages(series.get("usdinr", []), series.get("usdinr_d")), S.monthly_averages(usdinr or [])):   # one value a month (daily rates averaged), as for Today
         fx_b, fx_a = S._mean(S._window(pts, sb, end_b)), S._mean(S._window(pts, sa, end_a))
         if fx_b and fx_a:
             break
@@ -208,6 +240,12 @@ def latest_quarter_check(pack: dict, co: S.Company, series: dict, brent: Sequenc
             "predicted": round(x["E1"] / x["R1"] * 100, 1), "reported": round(op[0] / rev[0] * 100, 1)}
 
 
+def public_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    """Today's inputs as the page receives them. The engine's own warnings ("FinLit's USD/INR series has N of 12 months ...") are for the people who run the
+    site: the builder logs them, the reader never gets them (every blank on the page already carries its own plain reason in today_rows)."""
+    return {k: v for k, v in inputs.items() if k != "warnings"}
+
+
 def page_payload(pack: dict, co: S.Company, today: S.Scenario, *, eia_brent_next4: Optional[Sequence[float]],
                  today_dates: Dict[str, str], base_window: Tuple[str, str], closes: Dict[str, float],
                  nifty: Dict[str, float], as_of: str, size: str, price_as_of: str, inventory_days: Optional[int],
@@ -222,7 +260,7 @@ def page_payload(pack: dict, co: S.Company, today: S.Scenario, *, eia_brent_next
         "as_of": as_of, "model": S.MODEL_VERSION, "disclaimer": S.DISCLAIMER,
         "company": company_json(co, pack, src, size=size, price_as_of=price_as_of, inventory_days_fy26=inventory_days),
         "scenarios": [scenario_json(k, sc, base_window) for k, sc in scs.items()],
-        "today_inputs": today.inputs, "today_rows": today_rows(today, today_dates), "base_window": list(base_window),
+        "today_inputs": public_inputs(today.inputs), "today_rows": today_rows(today, today_dates), "base_window": list(base_window),
         "eia_outlook": ({"brent": list(eia_brent_next4), "avg": round(sum(eia_brent_next4) / len(eia_brent_next4), 2)} if eia_brent_next4 else None),
         "history": history({co.symbol: closes}, nifty),
         "backtest": {"years": bt, "summary": S.backtest_summary(bt), "latest_quarter": latest_quarter},
@@ -248,14 +286,22 @@ def plan_payload(payload: Dict[str, Any], plan: str) -> Dict[str, Any]:
                                  if s["id"] not in SILVER_SCENARIOS]}
 
 
-def default_peer(symbol: str, peers: Sequence[str], covered: Dict[str, Optional[str]]) -> Optional[Dict[str, Any]]:
-    """The compare view's second company: the first peer (in /api/stocks/SYM/peers order) that Stress Lab covers and that
-    has results to the same quarter as `symbol`, so both face the same Today shock; failing that, the first covered peer
-    (the page then shows each company's window under its name). covered = {symbol: base_end} for every company with a
-    built Stress Lab page (banks, NBFCs, insurers and companies with under three years of results are not in it)."""
+def default_peer(symbol: str, peers: Sequence[str], covered: Dict[str, Optional[str]], stored: Optional[Iterable[str]] = None) -> Optional[Dict[str, Any]]:
+    """The compare view's second company, from the peers (in /api/stocks/SYM/peers order) that Stress Lab covers by the launch rule.
+    covered = {symbol: latest quarter end} for those companies (banks, NBFCs, insurers and other financial companies, and companies under the size floor, are
+    not in it); stored = the companies with a stored page, when known. Order: a peer with a stored page and results to the same quarter as `symbol` (both face the
+    same Today shock and it opens at once), then any peer on the same quarter, then any peer with a stored page, then the first covered peer (the page then shows
+    each company's window under its name). {symbol, same_quarter, stored}; None when no peer is covered. Without `stored` the order is the same quarter, then the
+    first covered peer, and `stored` is left out."""
     own = covered.get(symbol)
     cands = [p for p in peers if p != symbol and p in covered]
-    for p in cands:
-        if own and covered[p] == own:
-            return {"symbol": p, "same_quarter": True}
-    return {"symbol": cands[0], "same_quarter": False} if cands else None
+    if not cands:
+        return None
+    have = set(stored) if stored is not None else None
+    same = lambda p: bool(own) and covered[p] == own                                                  # noqa: E731
+    tiers = ([lambda p: p in have and same(p), same, lambda p: p in have] if have is not None else [same]) + [lambda p: True]
+    pick = next(p for t in tiers for p in cands if t(p))
+    out: Dict[str, Any] = {"symbol": pick, "same_quarter": same(pick)}
+    if have is not None:
+        out["stored"] = pick in have
+    return out

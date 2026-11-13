@@ -280,9 +280,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             prerequisites=("prism",), catchup=False,
             what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         Job("stress", ("refresh-stress", "--max-minutes", "40"), cls="bulk", priority=43, max_runtime_min=50, weight_mb=300, stall_min=20, windows=(W("NIGHT", 20), W("MORNING", 14)),
-            sla=Sla("hours", 30), resumable=True, prerequisites=("ingest", "macro"), catchup=True, max_attempts=5,
-            what="Stress Lab: builds and stores the page and the company pack of every covered company (large and mid caps that are not banks, NBFCs or insurers), largest first; resumable, "
-                 "so a second run only does what is left; a company that fails is logged with the reason and tried again (docs/STRESS.md)"),
+            sla=Sla("hours", 30), resumable=True, prerequisites=("ingest", "macro"), catchup=True, max_attempts=5, probe="stress", min_gap_min=5,
+            what="Stress Lab: builds and stores the page and the company pack of every covered company (large and mid caps that are not banks, NBFCs or insurers), companies with no "
+                 "page first, then the oldest; resumable: a run that reaches its time cap with companies left is run again a few minutes later (probe), so every company is "
+                 "built every day; a company that fails is logged with the reason and tried again (docs/STRESS.md)"),
         Job("earnings-calls", ("refresh-earnings-calls",), cls="bulk", priority=44, max_runtime_min=60, weight_mb=250, stall_min=40, windows=(W("NIGHT", 20), W("MORNING", 14)),
             sla=Sla("hours", 48), resumable=True, catchup=False, max_attempts=3,
             gate=Gate("GEMINI_API_KEY", "Earnings-call summaries are off: GEMINI_API_KEY is empty (docs/EARNINGS-CALLS.md)", kind="set"),

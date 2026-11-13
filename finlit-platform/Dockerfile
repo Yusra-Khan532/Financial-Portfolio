@@ -8,6 +8,8 @@ ARG GIT_COMMIT=unknown
 # The type check (tsc) runs in CI on every change; the server only bundles. Running both in one process, on a small server, ran Node out of
 # memory (exit code 134) and stopped every deploy since 12 Nov. The heap ceiling below is a limit, not a reservation.
 RUN NODE_OPTIONS=--max-old-space-size=2048 VITE_BASE=/ APP_VERSION=$GIT_COMMIT npx vite build
+# Source maps stay on the build machine: they carry the unminified code and its comments (task #79: the Stress Lab engine was readable through them).
+RUN find dist -name '*.map' -delete && ! find dist -name '*.map' | grep -q .
 
 FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1

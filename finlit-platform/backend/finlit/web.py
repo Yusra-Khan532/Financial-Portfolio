@@ -147,6 +147,8 @@ def mount_frontend(app: FastAPI, dist: Path) -> bool:
     async def website(path: str, request: Request):
         if path == "api" or path.startswith("api/"):
             return JSONResponse({"status": "not_found"}, status_code=404, headers={"Cache-Control": "no-store"})
+        if path.endswith(".map"):           # source maps are never served, even if a build leaves one behind: they carry the unminified code (task #79)
+            return Response("not found", status_code=404, media_type="text/plain", headers={"Cache-Control": "no-store"})
         target = (root / path).resolve()
         if path and target.is_file() and root in target.parents:
             rel = target.relative_to(root).as_posix()

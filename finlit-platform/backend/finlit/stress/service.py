@@ -39,9 +39,32 @@ class NotReady(Exception):
 
 
 # ---------------------------------------------------------------------------------------------------- coverage
-def covered_by_rule(market_cap: Optional[float], is_bank: Optional[float]) -> Optional[str]:
+FINANCIAL_SECTOR = "financial services"         # NSE's sector of banks, NBFCs, insurers, capital-market firms (exchanges, AMCs, brokers) and fintech
+FINANCIAL_WORDS = ("financial services", "financials", "financial", "banks", "banking", "bank", "insurance", "finance", "capital markets", "nbfc",
+                   "financial technology (fintech)")
+
+
+def is_financial(symbol: str = "", sector: Optional[str] = None, industry: Optional[str] = None) -> bool:
+    """A financial company by its labels: NSE's own sector for the symbol, the sector of its industry, or the site's sector or industry name. The screener's is_bank
+    flag catches banks and NBFCs only; insurers, AMCs and exchanges used to pass the launch rule and failed only when their page was built (527 against the 471 of the
+    launch list)."""
+    nse = S._TABLE.get("stocks_sector")
+    if nse is None:
+        try:
+            raw = json.loads((S.DATA / "nse_industries.json").read_text(encoding="utf-8")).get("stocks", {})
+        except (OSError, ValueError):
+            raw = {}
+        nse = S._TABLE["stocks_sector"] = {k.upper(): str(v[1]) for k, v in raw.items() if isinstance(v, list) and len(v) >= 2}
+    if (nse.get((symbol or "").upper()) or "").lower() == FINANCIAL_SECTOR:
+        return True
+    if industry and (S.nse_sector_of(industry) or "").lower() == FINANCIAL_SECTOR:
+        return True
+    return any((x or "").strip().lower() in FINANCIAL_WORDS for x in (sector, industry))
+
+
+def covered_by_rule(market_cap: Optional[float], is_bank: Optional[float], financial: bool = False) -> Optional[str]:
     """None when the screener row passes the launch rule, else the reason in words."""
-    if is_bank == 1.0:
+    if is_bank == 1.0 or financial:
         return FINANCIAL
     if market_cap is None or market_cap < LAUNCH_FLOOR_CR:
         return NOT_SIZE
@@ -56,12 +79,25 @@ def table_row(table, sym: str) -> Tuple[Optional[float], Optional[float]]:
     return g("market_cap"), g("is_bank")
 
 
+def table_financial(table, sym: str) -> bool:
+    i = table.pos.get(sym) if table is not None else None
+    if i is None:
+        return is_financial(sym)
+    pick = lambda name: (getattr(table, name, None) or [None] * (i + 1))[i]   # noqa: E731
+    return is_financial(sym, pick("sector"), pick("industry")) or is_financial(sym, pick("sector_label"))
+
+
+def coverage_reason(table, sym: str) -> Optional[str]:
+    """The launch rule for one screener row: None when covered, else the reason in words."""
+    mc, bank = table_row(table, sym)
+    return covered_by_rule(mc, bank, table_financial(table, sym))
+
+
 def covered_quarters(table, symbols: Sequence[str]) -> Dict[str, Optional[str]]:
     """{symbol: latest reported quarter end} for the companies that pass the launch rule: what default_peer() needs (no packs are built to answer it)."""
     out: Dict[str, Optional[str]] = {}
     for s in symbols:
-        mc, bank = table_row(table, s)
-        if covered_by_rule(mc, bank) is None:
+        if coverage_reason(table, s) is None:
             i = table.pos[s]
             q = table.q_end[i]
             out[s] = None if q != q else f"{int(q) // 10000:04d}-{int(q) // 100 % 100:02d}-{int(q) % 100:02d}"   # the table holds yyyymmdd
@@ -109,6 +145,19 @@ async def premium_json(app, sym: str, statement: str, period: str) -> dict:
     return json.loads(raw)
 
 
+async def forget_premium(app, sym: str, statement: str) -> None:
+    """Remove the cached statements of a company (both views, both periods), so an unusable answer is never served again from Redis."""
+    path = "/api/stocks/admin/fundamentals"
+    keys = []
+    for period in ("yearly", "quarterly"):
+        params = {"query": sym, "statement_type": statement, "period": period}
+        keys += [premium._key(path, params), premium._key(path, {**params, "lean": "true"})]
+    try:
+        await app.state.store.redis.delete(*keys)
+    except Exception:  # nosec B110 - Redis busy: the copies expire within a day anyway
+        pass
+
+
 async def build_pack(app, sym: str, statement: str = "consolidated") -> dict:
     store = app.state.store
     got = {n: await store.get_section(sym, statement, n) for n in ("summary", "financials")}
@@ -120,8 +169,11 @@ async def build_pack(app, sym: str, statement: str = "consolidated") -> dict:
     py, pq = await asyncio.gather(premium_json(app, sym, statement, "yearly"), premium_json(app, sym, statement, "quarterly"))      # both at once: half the waiting
     try:
         pack = S.pack_from_site(stock, fin, py, pq)
-    except (ValueError, KeyError, IndexError) as exc:
-        raise NotCovered(SHORT_HISTORY) from exc
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+        # The provider answered without the income statement (an error body or a half answer). That is the provider's fault, not the company's: it used to be called
+        # "not covered" (with the stored page deleted) for a whole day, because the answer stayed in Redis. Drop the cached copies so the next try asks again.
+        await forget_premium(app, sym, statement)
+        raise NotReady("The statements for this company are not available right now. Please try again in a moment.") from exc
     pack["symbol"] = sym
     return pack
 
@@ -150,7 +202,7 @@ async def macro_today(store) -> Tuple[dict, Optional[List[float]]]:
     series = payload.get("series") or {}
     today = {"as_of": payload.get("today"), "series": series, "brent": [[d.isoformat(), v] for d, v in sorted(pts.items())]}
     stop = stopgap_usdinr()
-    if stop:                                  # the engine reads it only when the site's own USD/INR series has no month inside a company's base window, and says so (usdinr_source)
+    if stop:                                  # the engine reads it only for a month of a company's base window that the site's own USD/INR series lacks, and says so (usdinr_source)
         today["usdinr_monthly"] = stop
     nxt = (steo or {}).get("next4")
     return today, ([float(x) for x in nxt] if isinstance(nxt, list) and len(nxt) == 4 else None)
@@ -193,6 +245,8 @@ async def company_and_today(app, sym: str, statement: str = "consolidated", pack
         today = S.load_today(today_in, co.base_end, as_of=today_in.get("as_of"))
     except ValueError as exc:
         raise NotReady("Today's inputs are not complete yet: " + str(exc)) from exc       # the router logs this text and sends PLAIN_NOT_READY
+    for w in today.inputs.get("warnings") or []:
+        log.info("stress %s today's inputs: %s", sym, w)          # for the people who run the site; the page payload leaves them out (page.public_inputs)
     return pack, co, today, today_in, eia
 
 
@@ -210,7 +264,7 @@ async def build_payload_and_pack(app, sym: str, *, size: str, statement: str = "
         inv = ((json.loads(ratios[0]).get("latest") or {}).get("inventory_days") or {}).get("value") if ratios else None
     except (ValueError, TypeError, AttributeError):
         inv = None
-    lq = P.latest_quarter_check(pack, co, today_in["series"], today_in["brent"])
+    lq = P.latest_quarter_check(pack, co, today_in["series"], today_in["brent"], today_in.get("usdinr_monthly"))
     payload = P.page_payload(pack, co, today, eia_brent_next4=eia, today_dates=dates, base_window=(start[0], start[1]), closes=closes, nifty=nifty,
                           as_of=today_in.get("as_of") or date.today().isoformat(), size=size,
                           price_as_of=str((pack.get("quote") or {}).get("asOf") or (pack.get("quote") or {}).get("date") or "")[:10], inventory_days=round(inv) if isinstance(inv, (int, float)) and inv > 0 else None, latest_quarter=lq)
@@ -244,6 +298,20 @@ async def load_page(store, sym: str) -> Optional[dict]:
     return {"payload": json.loads(payload) if isinstance(payload, str) else payload, "pack": json.loads(pack) if isinstance(pack, str) else pack, "built_at": row["built_at"]}
 
 
+PAGE_MAX_AGE_H = 30        # a stored page older than this (the nightly job's promise) is rebuilt behind the reader
+
+
+def page_is_stale(rec: dict, latest_quarter: Optional[str], now: Optional[datetime] = None) -> bool:
+    """A stored page to rebuild in the background (the stored copy is still served): more than PAGE_MAX_AGE_H old, or the company has reported a quarter newer
+    than the page's base and the page was built more than RECENT_FAIL_H ago (so a company whose base stays on its latest full year is not rebuilt on every visit)."""
+    at = rec.get("built_at")
+    if not isinstance(at, datetime):
+        return False
+    age_h = ((now or datetime.now(timezone.utc)) - at).total_seconds() / 3600
+    base_end = ((rec.get("payload") or {}).get("company") or {}).get("base_end")
+    return age_h > PAGE_MAX_AGE_H or bool(latest_quarter and base_end and latest_quarter > base_end and age_h > RECENT_FAIL_H)
+
+
 async def save_failure(store, sym: str, kind: str, reason: str) -> None:
     """Why a company has no stored page: for the people who run the site, in the table and the log; never sent to a reader."""
     async with store.pool.acquire() as conn:
@@ -260,9 +328,8 @@ async def covered_symbols(store) -> List[Tuple[str, float]]:
     table = await get_table(store)
     out = []
     for sym in table.pos:
-        mc, bank = table_row(table, sym)
-        if covered_by_rule(mc, bank) is None:
-            out.append((sym, float(mc)))
+        if coverage_reason(table, sym) is None:
+            out.append((sym, float(table_row(table, sym)[0])))
     return sorted(out, key=lambda x: -x[1])
 
 
@@ -274,14 +341,35 @@ async def stored_symbols(store) -> List[str]:
         return []
 
 
+RUN_KEY = "stress:last_run"     # the last nightly run's counts, for the job supervisor's "is there work waiting" probe
+
+
+async def note_run(store, rec: dict) -> None:
+    try:
+        await store.redis.set(RUN_KEY, json.dumps(rec), ex=3 * 86400)
+    except Exception:   # nosec B110 - the probe then answers "unknown" and the job follows its clock
+        pass
+
+
+async def has_work(store) -> Optional[bool]:
+    """For the job supervisor: True when the last run stopped at its time cap with covered companies it never reached (the job then continues soon instead of
+    waiting for the next night, so every company gets its page every day); False when it reached them all; None when no run is on record."""
+    raw = await store.redis.get(RUN_KEY)
+    if not raw:
+        return None
+    return int(json.loads(raw).get("unreached") or 0) > 0
+
+
 CONCURRENCY = 3            # companies built at the same time: the slow part is the data provider's statements, so a few at once cuts the wall time several times over
 RECENT_FAIL_H = 6          # a company that failed in the last few hours goes to the back of the queue: every run first spends its time on companies not tried yet
 
 
 async def refresh_stress(store, settings, *, max_minutes: float = 40.0, limit: Optional[int] = None, force: bool = False, symbols: Optional[List[str]] = None,
                          per_company_s: float = PER_COMPANY_S) -> dict:
-    """The nightly run (`refresh-stress`): builds the page payload and the pack of every covered company that has no copy from today yet, largest first, and stores them.
-    Resumable: a company already built today is skipped, so a second run only does what is left. A company that cannot be built right now (its report or statements are not
+    """The nightly run (`refresh-stress`): builds the page payload and the pack of every covered company that has no copy from today yet, and stores them: companies with
+    no page first (largest first), then pages whose company has reported a newer quarter, then the oldest pages. Resumable: a company already built today is skipped, so a
+    second run only does what is left, and a run that stops at its time cap with companies it never reached says so (has_work), so the supervisor runs it again soon.
+    A company that cannot be built right now (its report or statements are not
     stored yet, the data provider is slow) is recorded with the reason (table and log) and tried again next run: that is waiting, not a fault of the job. One company never
     stops the others, and the run reports a fault only when nothing at all could be built."""
     from types import SimpleNamespace
@@ -289,17 +377,46 @@ async def refresh_stress(store, settings, *, max_minutes: float = 40.0, limit: O
     app = SimpleNamespace(state=SimpleNamespace(store=store, settings=settings))
     wanted = [(s, mc) for s, mc in await covered_symbols(store) if not symbols or s in symbols]
     today = datetime.now(IST).date()
-    done_today: set = set()
+    stored: Dict[str, Tuple[Any, Optional[str]]] = {}       # symbol: (built_at, base_end of the stored page)
     recent_fail: set = set()
     if not force:
         async with store.pool.acquire() as conn:
-            done_today = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM stress_pages WHERE (built_at AT TIME ZONE 'Asia/Kolkata')::date = $1", today)}
+            try:
+                stored = {r["symbol"]: (r["built_at"], r["base_end"]) for r in await conn.fetch(
+                    "SELECT symbol, built_at, payload #>> '{company,base_end}' AS base_end FROM stress_pages")}
+            except Exception:   # nosec B110 - before the migration has run
+                stored = {}
             try:
                 recent_fail = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM stress_failures WHERE kind <> 'not_covered' AND failed_at > now() - make_interval(hours => $1)", RECENT_FAIL_H)}
             except Exception:   # nosec B110 - before the migration has run
                 recent_fail = set()
+    quarters = covered_quarters(table, [s for s, _ in wanted])
+
+    def new_results(sym: str) -> bool:
+        """The screener table has a quarter newer than the one the stored page was built on (results came out since)."""
+        q, have = quarters.get(sym), (stored.get(sym) or (None, None))[1]
+        return bool(q and have and q > have)
+
+    def built_today(sym: str) -> bool:
+        at = (stored.get(sym) or (None, None))[0]
+        return at is not None and at.astimezone(IST).date() == today
+
+    def fresh(sym: str) -> bool:      # built in the last few hours: never rebuilt again in the same day, even when its base quarter still trails the table's
+        at = (stored.get(sym) or (None, None))[0]
+        return at is not None and (datetime.now(timezone.utc) - at).total_seconds() < RECENT_FAIL_H * 3600
+
+    done_today = {s for s, _ in wanted if built_today(s) and (not new_results(s) or fresh(s))}
     todo = [(s, mc) for s, mc in wanted if s not in done_today]
-    todo = [x for x in todo if x[0] not in recent_fail] + [x for x in todo if x[0] in recent_fail]       # untried first, recent failures last (each group largest first)
+
+    def order(item: Tuple[str, float]):
+        """Companies with no page first, then pages behind new results, then the oldest pages; a company that failed in the last few hours goes after all of them.
+        (Each run used to start again from the largest company, so the same few dozen were rebuilt every day and the rest never got a page.)"""
+        sym, mc = item
+        at = (stored.get(sym) or (None, None))[0]
+        group = 0 if sym not in stored else 1 if new_results(sym) else 2
+        return (sym in recent_fail, group, at.timestamp() if group == 2 and at is not None else 0.0, -mc)
+
+    todo.sort(key=order)
     if limit:
         todo = todo[:limit]
     started = time.monotonic()
@@ -346,13 +463,15 @@ async def refresh_stress(store, settings, *, max_minutes: float = 40.0, limit: O
             await one(sym, mc)
 
     await asyncio.gather(*(worker() for _ in range(CONCURRENCY)))
-    left = queue.qsize() + out["not_ready"] + out["failed"]
+    unreached = queue.qsize()
+    left = unreached + out["not_ready"] + out["failed"]
+    await note_run(store, {"at": datetime.now(timezone.utc).isoformat(), "unreached": unreached, "left": left, "built": out["built"], "tried": out["tried"]})
     reasons: Dict[str, int] = {}
     for f in failures:
         k = f["reason"].split(":")[0][:60]
         reasons[k] = reasons.get(k, 0) + 1
     log.info("stress run: covered %d, built %d, not covered %d, not ready %d, failed %d, left %d, in %.0fs; reasons %s", len(wanted), out["built"], out["not_covered"],
              out["not_ready"], out["failed"], left, time.monotonic() - started, reasons or "none")
-    return {"covered": len(wanted), "built": out["built"], "skipped_built_today": len(wanted) - len(todo) if not limit else len(done_today & {s for s, _ in wanted}),
+    return {"covered": len(wanted), "built": out["built"], "skipped_built_today": len(done_today), "unreached": unreached,
             "failed": out["failed"], "not_ready": out["not_ready"], "not_covered": out["not_covered"], "left": max(0, left), "tried": out["tried"], "reasons": reasons,
             "failures": failures[:25], "seconds": round(time.monotonic() - started, 1)}
