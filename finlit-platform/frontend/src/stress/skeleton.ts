@@ -1,9 +1,15 @@
 // The page's markup: the sections the script fills by id (reference: the design team's stress-lab handover, build_page.py). The title, breadcrumb and plan tag come from the site's page header.
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
+const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
 const ib = (text: string, pos = "lt", label = "About this") =>
-  `<span class="ib" tabindex="0" role="button" aria-label="${esc(label)}"><span class="ibi" aria-hidden="true">i</span><span class="tip ${pos}" role="tooltip">${text}</span></span>`;
+  `<span class="ib" tabindex="0" role="button" aria-expanded="false" aria-label="${esc(label)}"><span class="ibi" aria-hidden="true">i</span><span class="tip ${pos}" role="tooltip">${text}</span></span>`;
 
-const HOW = `<details class="fold" style="border-top:0;margin-top:0;padding-top:0"><summary style="font:600 20px/1.3 'Source Serif 4',Georgia,serif;color:var(--ink)">How the model works, and what it leaves out</summary>
+/** The rupee source the numbers really came from (backend page.py FX_SOURCE_WORDS): never one they did not. */
+export function fxSourceWords(src?: string | null): string {
+  if (src === "usdinr argument") return "monthly averages from x-rates.com for the base window (until FinLit's own FBIL series is filled), then the FBIL reference rate";
+  return "FBIL reference rate, published by the RBI";
+}
+
+const HOW = (fx: string, basis: string) => `<details class="fold" style="border-top:0;margin-top:0;padding-top:0"><summary style="font:600 20px/1.3 'Source Serif 4',Georgia,serif;color:var(--ink)">How the model works, and what it leaves out</summary>
 <div class="how" style="margin-top:12px">
 <h3>What it does</h3>
 <p>Stress Lab starts from the company's last four reported quarters. It applies one shock, held for 12 months, and works through what it does to volumes, costs, prices, interest and tax, then to earnings per share, interest cover and an earnings-based value.</p>
@@ -24,17 +30,17 @@ const HOW = `<details class="fold" style="border-top:0;margin-top:0;padding-top:
 <li>Not covered yet: banks, NBFCs and insurers, and companies with fewer than three years of results. Loss-making companies get a score from EBITDA only.</li>
 </ul>
 <h3>Sources</h3>
-<p>Company figures: reported quarterly and annual results, consolidated. Brent crude: U.S. Energy Information Administration. Inflation and GDP: MoSPI and the Office of the Economic Adviser. Repo rate: RBI. Rupee: FBIL. Share prices in past shocks: NSE.</p>
+<p>Company figures: reported quarterly and annual results, ${esc(basis)}. Brent crude: U.S. Energy Information Administration. Inflation and GDP: MoSPI and the Office of the Economic Adviser. Repo rate: RBI. Rupee: ${esc(fx)}. Share prices in past shocks: NSE.</p>
 </div></details>`;
 
-export function skeleton(plan: "silver" | "gold", disclaimer: string, model: string, asOf: string): string {
+export function skeleton(plan: "silver" | "gold", disclaimer: string, model: string, asOf: string, more: { fxSource?: string | null; statement?: string | null } = {}): string {
   const gold = plan === "gold";
   const compare = gold ? `<button type="button" data-view="compare" aria-pressed="false">Compare two</button>`
-    : `<button type="button" data-locked="compare" aria-disabled="true" aria-describedby="upnote" style="color:#6b665a">Compare two<span class="gtag">GOLD</span></button>`;
+    : `<button type="button" data-locked="compare" aria-disabled="true" aria-describedby="upnote" style="color:var(--muted)">Compare two<span class="gtag">GOLD</span></button>`;
   return `<div class="sl-root"><main class="wrap" id="main">
 <section class="ptop" data-v="both"><p class="lead" style="margin:0">See how a shock to crude, the rupee, inflation, interest rates or demand would move a company's earnings over the next 12 months, under assumptions you can see${gold ? " and change" : ""}.</p>
 <div class="r" data-find="company"><span class="seg" role="group" aria-label="View"><button type="button" data-view="single" aria-pressed="true">One company</button>${compare}</span>
-<label class="find"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#6b665a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><input type="search" placeholder="Search another company" aria-label="Find a company"></label></div></section>
+<label class="find"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><input type="search" placeholder="Search another company" aria-label="Find a company"></label></div></section>
 <section class="card" data-v="both"><div class="costrip" id="costrip"></div></section>
 <section class="card" data-v="both" aria-labelledby="scen-h"><h2 id="scen-h">Choose a shock${ib("Today measures how far conditions now are from those in which the company earned its last four quarters. The presets replay past shocks or test one driver at a time. Custom lets you set your own.", "lt", "About the scenarios")}</h2>
 <div class="chips" id="chips" role="group" aria-label="Scenario"></div><div class="based" id="based"></div><div id="todayinputs"></div><div class="sliders" id="sliders" hidden></div><div class="upnote" id="upnote" role="note" hidden></div></section>
@@ -52,7 +58,7 @@ export function skeleton(plan: "silver" | "gold", disclaimer: string, model: str
 <section class="card" data-v="both"><div id="hist"></div></section>
 <section class="card" data-v="single"><div id="bt"></div></section>
 <section class="card" data-v="single"><div id="asm"></div></section>
-<section class="card" data-v="both">${HOW}</section>
-<section class="disc" data-v="both" role="note"><span aria-hidden="true" style="flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#6b665a;color:#fff;font:italic 700 14px/1 Georgia,serif">i</span><div><b>${esc(disclaimer)}</b> Stress Lab describes what happens to the numbers under the assumptions shown; it does not say what to do with any security.<div class="src">Model ${esc(model)} · data to ${esc(asOf)} · Brent: U.S. Energy Information Administration</div></div></section>
+<section class="card" data-v="both">${HOW(fxSourceWords(more.fxSource), String(more.statement || "consolidated").toLowerCase())}</section>
+<section class="disc" data-v="both" role="note"><span aria-hidden="true" style="flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--muted);color:var(--card);font:italic 700 14px/1 Georgia,serif">i</span><div><b>${esc(disclaimer)}</b> Stress Lab describes what happens to the numbers under the assumptions shown; it does not say what to do with any security.<div class="src">Model ${esc(model)} · data to ${esc(asOf)} · Brent: U.S. Energy Information Administration</div></div></section>
 </main></div>`;
 }
