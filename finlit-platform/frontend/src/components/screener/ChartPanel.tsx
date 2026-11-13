@@ -7,6 +7,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useFocusTrap } from "../../lib/focusTrap";
 import { useThemeKey } from "../../lib/ui";
 import { CoLogo } from "../CoLogo";
+import { ScoreChip, prismParts, scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
 import "../../styles/chartpanel.css";
 
 /** The chart that opens from a row of the stock screeners, built to the 11 Nov design: candles, bars or a line, daily or weekly, volume in its own pane, an Indicators menu
@@ -52,7 +53,7 @@ const palette = () => ({ up: css("--gain", "#16a34a"), down: css("--loss", "#dc2
 /** What a chart-pattern scan found, as the server words it: facts ([label, value]) and the drawing (level, box, pole, swings, bar, dates already worked out). The page never sees a rule. */
 export type Draw = { level?: number; from?: string | null; box?: { from: string | null; to: string | null; low: number; high: number }; pole?: { from: string | null; low: number; to: string | null; high: number };
   swings?: { date: string | null; price: number; kind: string }[]; bar?: string | null; ema?: number };
-export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string; prism?: string | null };
+export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string };
 type Bar = { t: string; o: number | null; h: number | null; l: number | null; c: number; v: number | null; e: Record<string, number | null> };
 
 /** Weekly candles from daily bars: first open, highest high, lowest low, last close, the week's volume, dated on the last trading day. */
@@ -93,6 +94,8 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
   const [menu, setMenu] = useState<null | "ind" | "cmp">(null);
   const [measure, setMeasure] = useState<{ on: boolean; a: { t: string; p: number } | null; out: string | null }>({ on: false, a: null, out: null });
   const [log, setLog] = useState(opt.log);
+  const model = usePlanModel();                                  // task #100: Gold sees FinLit Prism, Silver the FinLit IQ, in every screener
+  const prismMap = usePlanPrism(useMemo(() => [row.symbol], [row.symbol]), model);
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ ...opt, log })); } catch { /* private window */ } }, [opt, log]);
   const touch = (n: Ind) => { setInd(n); try { sessionStorage.setItem(IND_KEY, JSON.stringify(n)); } catch { /* private window */ } };
   const theme = useThemeKey();
@@ -287,8 +290,7 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
       <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>
         {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
         {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
-        {overall != null ? <span className={"cp-badge b-" + (score?.band?.key || "")} title={`FinLit IQ: ${score?.band?.label || ""}`}>FinLit IQ {Math.round(overall)}</span> : null}
-        {row.prism ? <span className="cp-badge cp-prism" title="FinLit Prism">Prism {row.prism}</span> : null}</div>
+        {model && <ScoreChip className="cp-badge" v={scoreView(model, { score: overall == null ? null : Math.round(overall), word: score?.band?.label }, prismMap[row.symbol])} />}</div>
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>What the chart shows</b>
         <dl className="cp-facts">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></div>}
       <div className="cp-bar" role="group" aria-label="Chart range and tools">
@@ -327,7 +329,8 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
         {q.isLoading && <p className="cp-m">Loading the chart…</p>}
         {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? "The chart could not be loaded." : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
       </div>
-      {!!score?.pillars?.length && <ul className="cp-score" aria-label="FinLit IQ scores">{score.pillars.map((p) => <li key={p.key} className={"b-" + (p.band?.key || "")}><small>{p.label}</small><b>{p.score == null ? "–" : Math.round(p.score)}</b><em>{p.band?.label}</em></li>)}</ul>}
+      {model === "iq" && !!score?.pillars?.length && <ul className="cp-score" aria-label="FinLit IQ scores">{score.pillars.map((p) => <li key={p.key} className={"b-" + (p.band?.key || "")}><small>{p.label}</small><b>{p.score == null ? "–" : Math.round(p.score)}</b><em>{p.band?.label}</em></li>)}</ul>}
+      {model === "prism" && prismParts(prismMap[row.symbol]).length > 0 && <ul className="cp-score cp-pz" aria-label="FinLit Prism scores">{prismParts(prismMap[row.symbol]).map((p) => <li key={p.key} className={"pb-" + p.band}><small>{p.label}</small><b>{p.text}</b><em>{p.word ?? (p.value == null ? "Not available" : p.key === "risk" ? "Higher means lower risk" : "Higher is better")}</em></li>)}</ul>}
       {extra}
       <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>, Copyright (c) 2025 TradingView, Inc.</p>
       <Link className="btn primary cp-r" to={`/stocks/${row.symbol}`}>Open full report</Link>

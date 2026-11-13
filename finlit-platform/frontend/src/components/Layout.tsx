@@ -1,5 +1,5 @@
 import { ExtensionBanner } from "./ExtensionBanner";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { initDepth } from "../lib/depth";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
@@ -17,7 +17,8 @@ import { EnquiryProvider, useEnquiry } from "./Enquiry";
 import { InfoProvider } from "./Info";
 import { DEMO } from "../lib/demo";
 import { useAuth } from "../lib/auth";
-import { MORE, PRICING, SECTIONS, isHere, sectionHere, type NavSection } from "../lib/nav";
+import { MORE, PRICING, SECTIONS, isHere, offeredTo, sectionHere, type NavSection } from "../lib/nav";
+import { useIsGold } from "../lib/planGate";
 import { versionLine } from "../lib/version";
 import { PageFeedbackDock } from "./PageFeedback";
 import "../styles/ai-top.css";
@@ -42,6 +43,8 @@ function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpe
 
 function Header({ onSearch }: { onSearch: () => void }) {
   const { theme, toggleTheme, plan, setPlan } = useUI();
+  const gold = useIsGold();
+  const sections = useMemo(() => forPlan(SECTIONS, gold), [gold]);   // task #100: no Basic stock screener for Gold
   const { user, ready, isAdmin, signOut } = useAuth();
   const nav = useNavigate();
   const [acct, setAcct] = useState(false);
@@ -58,7 +61,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
       <div className="wrap">
         <Link className="logo" to="/" aria-label="FinLit home"><span className="lg-mark" role="img" aria-label="FinLit" /></Link>
         <nav className="topnav" aria-label="Site">
-          {SECTIONS.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
+          {sections.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
           <NavLink to={PRICING.to} className={({ isActive }) => (isActive ? "hl" : "")}>{PRICING.label}</NavLink>
           <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} />
         </nav>
@@ -105,7 +108,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
       {menu && (
         <nav className="mnav" aria-label="Mobile">
           {user && <div className="mg mg-first"><NavLink to="/dashboard" className="mdash">Dashboard</NavLink></div>}
-          {[...SECTIONS, MORE].map((m) => <div key={m.id} className="mg"><span className="mt">{m.label}</span>
+          {[...sections, MORE].map((m) => <div key={m.id} className="mg"><span className="mt">{m.label}</span>
             {m.groups.map((g, gi) => <Fragment key={gi}>{g.title && m.id !== "more" && <span className="mt2">{g.title}</span>}{g.title && m.id === "more" && <span className="mt2">{g.title}</span>}
               {g.items.map((it) => <NavLink key={it.to} to={it.to} end={it.end}>{it.label}{it.gold && <em className="gtag">Gold</em>}</NavLink>)}</Fragment>)}</div>)}
           <div className="mg"><NavLink to={PRICING.to}>{PRICING.label}</NavLink>{user ? <><NavLink to="/dashboard">Dashboard</NavLink><NavLink to="/account">Account</NavLink></> : <><Link to="/login">Sign in</Link><Link to="/login?mode=signup" className="gold">Create free account</Link></>}</div>
@@ -115,6 +118,8 @@ function Header({ onSearch }: { onSearch: () => void }) {
   );
 }
 
+/** The site map without the pages this plan does not get (lib/nav.ts NOT_FOR_GOLD). */
+const forPlan = (list: NavSection[], gold: boolean): NavSection[] => gold ? list.map((x) => ({ ...x, groups: x.groups.map((g) => ({ ...g, items: g.items.filter(offeredTo(true)) })) })) : list;
 const pick = (id: string) => SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items);
 /** Each link once, in order (a page in two menu sections is listed in the first column only once). */
 const once = (items: { to: string; label: string }[]) => items.filter((it, i) => items.findIndex((x) => x.to === it.to) === i);
@@ -142,6 +147,7 @@ function SlimFooter() {
 function Footer() {
   const enquire = useEnquiry();
   const { user } = useAuth();
+  const gold = useIsGold();
   if (useLocation().pathname === "/") return <SlimFooter />;
   return (
     <footer className="band">
@@ -153,7 +159,7 @@ function Footer() {
         <div className="fcols fcols5">
           <div className="fbrand"><b>{COMPANY.name}</b><p>Research and tools for Indian stocks and funds.</p>
             <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></div>
-          {FOOT.map((col) => <div key={col.title}><b>{col.title}</b>{col.items.map((it) => <Link key={it.to} to={it.to}>{it.label}</Link>)}</div>)}
+          {FOOT.map((col) => <div key={col.title}><b>{col.title}</b>{col.items.filter(offeredTo(gold)).map((it) => <Link key={it.to} to={it.to}>{it.label}</Link>)}</div>)}
           <div><b>Company</b><Link to="/about">About</Link><Link to="/why-we-exist">Why we exist</Link><Link to="/browser-extension">Browser extension</Link><Link to="/services">Services</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/forum">Discussion forums</Link><Link to="/companies">All companies</Link><Link to="/glossary">Glossary</Link><Link to="/faq">FAQs</Link><Link to="/mcp">Connect AI</Link><Link to="/contact">Contact</Link>
             <Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Research disclosures</Link>{!user && <Link to="/login">Sign in</Link>}</div>
         </div>

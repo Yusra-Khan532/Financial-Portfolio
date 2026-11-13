@@ -8,7 +8,8 @@ import { useWatchlist } from "../lib/watchlist";
 import { usePortfolio } from "../lib/portfolio";
 import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
-import { MORE, SECTIONS, type NavItem } from "../lib/nav";
+import { MORE, SECTIONS, offeredTo, type NavItem } from "../lib/nav";
+import { useIsGold } from "../lib/planGate";
 import { badgeFor } from "../lib/sideGroups";
 import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
 
@@ -22,6 +23,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const { user, isAdmin } = useAuth();
   const { plan } = useUI();
+  const gold = useIsGold();
   const wl = useWatchlist();
   const saved = useSavedScreens();
   const held = usePortfolio().holdings.length;
@@ -74,7 +76,7 @@ export function AppShell() {
   };
   const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to] });
   const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];
-  const groups: Group[] = [
+  const groups: Group[] = ([
     { title: "Overview", items: [{ to: "/dashboard", label: "Dashboard", icon: "home" }] },
     ...RESEARCH.groups.map((g) => ({ title: g.title || RESEARCH.label, items: g.items.map(toItem) })),
     { title: "Markets", items: mine("markets") },
@@ -89,7 +91,7 @@ export function AppShell() {
       ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown" }]),
       ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock" }] : []),
     ] }] : []),
-  ];
+  ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: no Basic stock screener for Gold
 
   const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks

@@ -17,12 +17,16 @@ import { useDocTitle } from "../lib/title";
 import { nf, dateIN } from "../lib/format";
 import { PILLARS, hasPrismParams } from "../lib/scoreScreen";
 import { EXPLAIN } from "../lib/scorePrism";
+import { useIsGold } from "../lib/planGate";
 import "../styles/scorescreen.css";
 
 /** Basic stock screener (Silver): the whole company universe with the FinLit IQ, the basic model. Informational; not a recommendation.
- *  The FinLit Prism rating has its own page, the Advanced stock screener (Gold). Old shared links that carry Prism filters go there. */
+ *  The FinLit Prism rating has its own page, the Advanced stock screener (Gold). Old shared links that carry Prism filters go there, and so does a Gold member:
+ *  Gold screens with FinLit Prism only (founder, 13 Nov 2026, task #100). */
 export function ScoreScreener() {
   const [params] = useSearchParams();
+  const gold = useIsGold();
+  if (gold) return <Navigate to="/advanced-score-screener" replace />;
   if (hasPrismParams(params)) return <Navigate to={"/advanced-score-screener" + (params.toString() ? "?" + params.toString() : "")} replace />;
   return <Basic />;
 }
