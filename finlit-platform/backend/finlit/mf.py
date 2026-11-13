@@ -799,7 +799,11 @@ def merge_points(*parts: Tuple[Sequence[int], Sequence[float]]) -> Tuple[List[in
 
 # ====================================================================================== the nightly refresh
 
-HIST_WANTED = "active AND option_class = 'Growth' AND nav IS NOT NULL"
+HIST_WANTED = "active AND option_class = 'Growth' AND nav IS NOT NULL"   # the schemes whose returns are worked out (Growth options only)
+# The schemes whose daily NAV series is KEPT: every active scheme, every plan and option (founder, 13 Nov 2026: five years of daily NAVs for all ~8,300
+# active schemes, about 50 MB packed; it was the 100 hot schemes only while the database was a small free one). IDCW and other options keep their series for
+# the NAV chart, but no return, SIP or drawdown is worked out from it (a payout lowers the NAV, so those numbers would mislead).
+HIST_KEEP = "active AND nav IS NOT NULL"
 
 
 def verdict(parsed: Parsed, stored: int, stored_newest: Optional[date], stored_active: int) -> Optional[str]:
@@ -851,19 +855,31 @@ MONTHLY_UPSERT = """INSERT INTO mf_monthly (code, days, navs, updated_at) VALUES
     ON CONFLICT (code) DO UPDATE SET days = EXCLUDED.days, navs = EXCLUDED.navs, updated_at = now()"""
 
 
+PREV_ONLY_UPDATE = """UPDATE mf_schemes SET prev_nav = CASE WHEN nav_date = $2 AND $3::float8 IS NOT NULL THEN $3 ELSE prev_nav END,
+    prev_date = CASE WHEN nav_date = $2 AND $3::float8 IS NOT NULL THEN $4 ELSE prev_date END WHERE code = $1"""
+
+
 async def _write_series(conn, items: List[Tuple[int, List[int], List[float], bool]]) -> None:
-    """Store packed series and their worked-out numbers for (code, days, NAVs, complete) items; their month-end NAVs go to mf_monthly too, so the SIP
-    figures stay right when a scheme later leaves the hot set and its daily series is dropped."""
-    hist, mets, months = [], [], {}
+    """Store packed series and their worked-out numbers for (code, days, NAVs, complete) items; their month-end NAVs go to mf_monthly too.
+    Only Growth options get returns, SIP figures and drawdown from their series; any other option (IDCW, bonus...) stores its series and its previous NAV
+    (for the day change) and nothing else, because a payout lowers the NAV and a return worked out from it would be wrong."""
+    hist, mets, months, prevs = [], [], {}, []
+    growth = {r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes WHERE code = ANY($1::int[]) AND option_class = 'Growth'", [i[0] for i in items])}
     for code, days, navs, complete in items:
         days, navs = trim(days, navs)
         hist.append((code, len(days), date.fromordinal(days[0]), date.fromordinal(days[-1]), pack_series(days, navs), complete, "amfi"))
         prev = (navs[-2], date.fromordinal(days[-2])) if len(days) > 1 else (None, None)   # the NAV before the last one gives the day change
+        if code not in growth:
+            prevs.append((code, date.fromordinal(days[-1]), *prev))
+            continue
         m = metrics_for(days, navs, complete)
         mets.append((code, *metric_columns(m), date.fromordinal(days[-1]), *prev, *m["dash"]))
         months[code] = month_ends(days, navs)
     await conn.executemany(HIST_UPSERT, hist)
-    await conn.executemany(METRICS_UPDATE, mets)
+    if mets:
+        await conn.executemany(METRICS_UPDATE, mets)
+    if prevs:
+        await conn.executemany(PREV_ONLY_UPDATE, prevs)
     if months:
         old = {r["code"]: ([d.toordinal() for d in r["days"]], list(r["navs"]))
                for r in await conn.fetch("SELECT code, days, navs FROM mf_monthly WHERE code = ANY($1::int[])", list(months))}
@@ -977,10 +993,10 @@ async def apply_navall(store, parsed: Parsed, newest: date) -> dict:
         prev_meta = await _meta(conn, "refresh") or {}
         await conn.execute(UPSERT, *[list(c) for c in cols])
         await conn.execute("UPDATE mf_schemes SET active = (nav_date IS NOT NULL AND nav_date >= $1::date - $2::int)", newest, ACTIVE_DAYS)
-        # Schemes whose newest NAV is later than the last stored day of their history (only the hot ones have a history): append it. A scheme with no
-        # stored history gets its 1 and 5 year figures from refresh_anchors instead.
+        # Schemes whose newest NAV is later than the last stored day of their history (every active scheme once the backfill has run): append it.
+        # A scheme with no stored history yet gets its 1 and 5 year figures from refresh_anchors instead.
         rows = await conn.fetch("""SELECT s.code, s.amc, s.nav, s.nav_date, h.blob, h.d0, h.d1, h.complete FROM mf_schemes s JOIN mf_history h USING (code)
-                                   WHERE s.active AND s.option_class = 'Growth' AND s.nav IS NOT NULL AND s.nav_date > h.d1""")
+                                   WHERE s.active AND s.nav IS NOT NULL AND s.nav_date > h.d1""")
         items = []
         for r in rows:
             nd = r["nav_date"].toordinal()
@@ -1017,7 +1033,7 @@ async def _repair_gaps(store, client, since: Optional[date], newest: date) -> in
         return 0
     start, covered = since + timedelta(days=1), 0
     async with store.pool.acquire() as conn:
-        wanted = {r["code"] for r in await conn.fetch(f"SELECT code FROM mf_schemes WHERE {HIST_WANTED} AND code IN (SELECT code FROM mf_history)")}  # nosec B608 - fixed column list and constant filter, no input
+        wanted = {r["code"] for r in await conn.fetch(f"SELECT code FROM mf_schemes WHERE {HIST_KEEP} AND code IN (SELECT code FROM mf_history)")}  # nosec B608 - fixed column list and constant filter, no input
     pieces: Dict[int, List[Tuple[array.array, array.array]]] = {}
     while start <= newest and covered < 120:
         end = min(newest, start + timedelta(days=19))
@@ -1470,7 +1486,7 @@ async def choose_hot(store, n: int = HOT_SIZE) -> Tuple[str, List[int]]:
 
 async def refresh_hot(store, client: Optional[httpx.AsyncClient] = None) -> dict:
     """Nightly: choose the hot set, make sure each hot scheme has its series stored (from the checked mirror when it is missing), drop the stored series of
-    everything else (their 1 and 5 year figures stay in mf_schemes), rebuild the hot pages and copy them to Redis."""
+    schemes that are no longer active (every active scheme keeps its series: HIST_KEEP), rebuild the hot pages and copy them to Redis."""
     from types import SimpleNamespace
     basis, codes = await choose_hot(store)
     app = SimpleNamespace(state=SimpleNamespace(store=store, mf_client=client))
@@ -1489,10 +1505,14 @@ async def refresh_hot(store, client: Optional[httpx.AsyncClient] = None) -> dict
                 await _write_series(conn, items)
             fetched = len(items)
     async with store.pool.acquire() as conn, conn.transaction():
-        dropped = await conn.fetchval("WITH d AS (DELETE FROM mf_history WHERE code <> ALL($1::int[]) RETURNING 1) SELECT count(*) FROM d", codes)
-        # the 3 year return (refresh_anchors), the SIP figures and the month-end fall (refresh_monthly) are kept current for every scheme: they stay
-        await conn.execute("""UPDATE mf_schemes SET r1m = NULL, r6m = NULL, vol1y = NULL, vol3y = NULL, mdd = NULL
-                              WHERE code <> ALL($1::int[]) AND (r1m IS NOT NULL OR r6m IS NOT NULL OR vol1y IS NOT NULL OR vol3y IS NOT NULL OR mdd IS NOT NULL)""", codes)
+        # only the series of schemes that left HIST_KEEP (stopped publishing, or lost their NAV) go; every active scheme keeps its own
+        dropped = await conn.fetchval("""WITH d AS (DELETE FROM mf_history h WHERE code <> ALL($1::int[])
+                                             AND NOT EXISTS (SELECT 1 FROM mf_schemes s WHERE s.code = h.code AND s.active AND s.nav IS NOT NULL)
+                                             RETURNING 1) SELECT count(*) FROM d""", codes)
+        # a scheme without a stored series keeps 1Y, 3Y, 5Y (refresh_anchors) and the SIP figures (refresh_monthly); figures only a series gives go
+        await conn.execute("""UPDATE mf_schemes s SET r1m = NULL, r6m = NULL, vol1y = NULL, vol3y = NULL, mdd = NULL
+                              WHERE NOT EXISTS (SELECT 1 FROM mf_history h WHERE h.code = s.code)
+                                AND (r1m IS NOT NULL OR r6m IS NOT NULL OR vol1y IS NOT NULL OR vol3y IS NOT NULL OR mdd IS NOT NULL)""")
     built = []
     for rank, code in enumerate(codes, 1):
         async with store.pool.acquire() as conn:
@@ -1531,6 +1551,16 @@ async def publish_hot(store, basis: str, built, facts: dict) -> None:
 
 # ====================================================================================== history backfill (separate, resumable)
 
+def featured_rank(amc: str) -> int:
+    """Where a fund house comes in the 'best known first' order: its place in config.MF_FEATURED_AMCS (matched as the start of the lower-case name),
+    or after all of them."""
+    low = (amc or "").lower()
+    for i, stem in enumerate(MF_FEATURED_AMCS):
+        if low.startswith(stem):
+            return i
+    return len(MF_FEATURED_AMCS)
+
+
 async def _history_wiped(conn) -> bool:
     """True when the 'house done' markers outlived the figures they stand for: many active Growth schemes, and under 5% of them with a 1-year return.
     That happens after the scheme table is rebuilt (every scheme is new again) while mf_backfill is kept; without this the load skips every house forever."""
@@ -1540,7 +1570,8 @@ async def _history_wiped(conn) -> bool:
 
 async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: Optional[httpx.AsyncClient] = None, force: bool = False,
                    log_fn=print, settle: bool = True) -> dict:
-    """Load five years of NAV history from AMFI for the active Growth schemes, ONE FUND HOUSE AT A TIME (AMFI cannot filter below a fund house).
+    """Load five years of NAV history from AMFI for every active scheme (HIST_KEEP), ONE FUND HOUSE AT A TIME (AMFI cannot filter below a fund house).
+    The best-known houses go first (config.MF_FEATURED_AMCS, in that order), then the rest by number of schemes.
     `amc` is an AMC id, part of a name, or 'all' (every house not done yet; `force` redoes them). A house is written only when all its yearly downloads
     succeeded, then recorded in mf_backfill, so an interrupted run simply continues. Cost for the whole industry: see the figures logged per house."""
     own = client is None
@@ -1549,7 +1580,7 @@ async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: 
     try:
         async with store.pool.acquire() as conn:
             newest = await conn.fetchval("SELECT max(nav_date) FROM mf_schemes")
-            rows = await conn.fetch(f"SELECT code, amc, nav, nav_date FROM mf_schemes WHERE {HIST_WANTED}")  # nosec B608 - fixed column list and constant filter, no input
+            rows = await conn.fetch(f"SELECT code, amc, nav, nav_date FROM mf_schemes WHERE {HIST_KEEP}")  # nosec B608 - fixed column list and constant filter, no input
             done = {r["amc_key"] for r in await conn.fetch("SELECT amc_key FROM mf_backfill")}
             if done and not force and await _history_wiped(conn):
                 await conn.execute("DELETE FROM mf_backfill")
@@ -1567,7 +1598,7 @@ async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: 
             names[k] = r["amc"]
         want = (amc or "all").strip()
         picks = []
-        for k, nm in sorted(names.items(), key=lambda kv: -len(by_amc[kv[0]])):
+        for k, nm in sorted(names.items(), key=lambda kv: (featured_rank(kv[1]), -len(by_amc[kv[0]]), kv[1])):
             ident = AMC_BY_KEY.get(k)
             if want.lower() != "all" and not (want.isdigit() and ident == int(want)) and want.lower() not in nm.lower():
                 continue

@@ -88,21 +88,31 @@ async def test_api_never_returns_an_unlisted_house(api):  # noqa: F811
 # ---------------------------------------------------------------------------------------------- hot and cold
 
 @pytest.mark.integration
-async def test_hot_set_keeps_series_only_for_hot_schemes_and_cold_ones_keep_their_1y_5y(loaded, monkeypatch):  # noqa: F811
+async def test_every_active_scheme_keeps_its_series_and_only_stopped_ones_are_dropped(loaded, monkeypatch):  # noqa: F811
+    """Founder, 13 Nov 2026: five years of daily NAVs for every active scheme, not only the hot ones. The nightly hot rebuild drops nothing that is active;
+    a scheme that stopped publishing loses its series (and the figures only a series gives) but keeps 1Y/3Y/5Y and its SIP figures."""
     monkeypatch.setattr(mf, "HOT_SIZE", 2)
     async with loaded.pool.acquire() as conn:
         n_before = await conn.fetchval("SELECT count(*) FROM mf_history")
+        active_with = {r["code"] for r in await conn.fetch("SELECT h.code FROM mf_history h JOIN mf_schemes s USING (code) WHERE s.active AND s.nav IS NOT NULL")}
     async with amfi_client() as c:
         out = await mf.refresh_hot(loaded, c)
-    assert n_before == 4 and out["hot"] == 2 and out["basis"] == "fallback" and out["historyDropped"] == 2
+    assert n_before == 4 and out["hot"] == 2 and out["basis"] == "fallback" and out["historyDropped"] == 0
     async with loaded.pool.acquire() as conn:
         hot = [r["code"] for r in await conn.fetch("SELECT code FROM mf_hot ORDER BY rank")]
         kept = {r["code"] for r in await conn.fetch("SELECT code FROM mf_history")}
-        cold = await conn.fetchrow("SELECT r1y, r5y, r3y, vol1y, mdd, has_hist, sip3y FROM mf_schemes WHERE code = ANY($1::int[]) AND code <> ALL($2::int[]) AND option_class = 'Growth' AND r1y IS NOT NULL LIMIT 1",
-                                   [LARGE, LIQUID, 151368, 152805], hot)
-    assert len(hot) == 2 and kept == set(hot)
-    # a cold row keeps 1Y, 3Y and 5Y (kept current nightly by refresh_anchors), the SIP figures (refresh_monthly) and the previous NAV; volatility and drawdown go
-    assert cold["r1y"] is not None and cold["vol1y"] is None and cold["mdd"] is None
+    assert len(hot) == 2 and kept >= active_with | set(hot) and len(kept) == 4      # nothing active was dropped
+    # a scheme stops publishing: its series goes at the next rebuild, its 1Y stays, the series-only figures go
+    gone = next(c for c in sorted(kept) if c not in hot)
+    async with loaded.pool.acquire() as conn:
+        await conn.execute("UPDATE mf_schemes SET active = false WHERE code = $1", gone)
+    async with amfi_client() as c:
+        again = await mf.refresh_hot(loaded, c)
+    async with loaded.pool.acquire() as conn:
+        cold = await conn.fetchrow("SELECT r1y, vol1y, mdd, option_class FROM mf_schemes WHERE code = $1", gone)
+        assert await conn.fetchval("SELECT count(*) FROM mf_history WHERE code = $1", gone) == 0
+    assert again["historyDropped"] == 1 and cold["vol1y"] is None and cold["mdd"] is None
+    assert cold["option_class"] != "Growth" or cold["r1y"] is not None
     body = await loaded.redis.get("mf:hot:list")
     assert body and b"NOT a ranking by size" in body
 

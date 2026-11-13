@@ -404,10 +404,14 @@ async def test_backfill_is_resumable_and_skips_houses_already_done(loaded):
     async with amfi_client(calls=calls) as c:
         res = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
         again = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
-    # Axis was done by the fixture; Bank of India (the sample's other active Growth scheme) is asked for, AMFI answers with its web form, and that is recorded
-    assert [d["amc"] for d in res["done"]] == ["Bank of India Mutual Fund"] and res["done"][0]["schemes"] == 0 and res["skipped"] == ["Axis Mutual Fund"]
-    assert calls and all("mf=46" in u for u in calls if "History" in u)
-    assert again["done"] == [] and sorted(again["skipped"]) == ["Axis Mutual Fund", "Bank of India Mutual Fund"]
+    # Axis was done by the fixture. Every active scheme keeps its series now (IDCW included), so Aditya Birla (an active IDCW scheme in the sample) is loaded
+    # too, and first: the best-known houses go first (config.MF_FEATURED_AMCS), Bank of India is not on that list. AMFI answers both with its web form.
+    assert [d["amc"] for d in res["done"]] == ["Aditya Birla Sun Life Mutual Fund", "Bank of India Mutual Fund"] and all(d["schemes"] == 0 for d in res["done"])
+    assert res["skipped"] == ["Axis Mutual Fund"]
+    hist = [u for u in calls if "History" in u]
+    assert hist and all("mf=3&" in u or u.endswith("mf=3") or "mf=46" in u for u in hist)
+    assert hist.index(next(u for u in hist if "mf=46" in u)) > hist.index(next(u for u in hist if "mf=3" in u))   # the famous house was asked first
+    assert again["done"] == [] and sorted(again["skipped"]) == ["Aditya Birla Sun Life Mutual Fund", "Axis Mutual Fund", "Bank of India Mutual Fund"]
     async with loaded.pool.acquire() as conn:
         assert "no history rows" in await conn.fetchval("SELECT note FROM mf_backfill WHERE amc_key = 'bankofindia'")
 
@@ -435,7 +439,7 @@ async def test_backfill_loads_every_house_again_when_the_done_markers_outlived_t
     monkeypatch.setattr(mf, "_history_wiped", wiped)
     async with amfi_client() as c:
         res = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
-    assert sorted(d["amc"] for d in res["done"]) == ["Axis Mutual Fund", "Bank of India Mutual Fund"] and res["skipped"] == []   # nothing skipped: Axis was marked done by the fixture
+    assert [d["amc"] for d in res["done"]] == ["Aditya Birla Sun Life Mutual Fund", "Axis Mutual Fund", "Bank of India Mutual Fund"] and res["skipped"] == []   # nothing skipped (Axis was marked done by the fixture); best-known first
 
 
 @needs_db
@@ -647,3 +651,25 @@ def test_a_future_dated_nav_is_not_stored_and_cannot_block_later_files():
     p = mf.parse_navall("\n".join(lines), today=today)
     assert p.newest == today and p.skipped.get("NAV dated in the future") == 1
     assert mf.latest_allowed(_d(2026, 10, 23)) == _d(2026, 10, 24)
+
+
+def test_best_known_fund_houses_come_first():
+    names = ["Bank of India Mutual Fund", "Axis Mutual Fund", "SBI Mutual Fund", "HDFC Mutual Fund", "Zeta Mutual Fund"]
+    assert sorted(names, key=lambda n: (mf.featured_rank(n), n)) == ["SBI Mutual Fund", "HDFC Mutual Fund", "Axis Mutual Fund", "Bank of India Mutual Fund", "Zeta Mutual Fund"]
+
+
+@needs_db
+async def test_an_idcw_series_is_stored_but_no_return_is_worked_out_from_it(loaded):
+    """Every active scheme keeps its series (HIST_KEEP), but a payout lowers an IDCW NAV: no return, SIP or drawdown may come from it."""
+    async with loaded.pool.acquire() as conn:
+        code = await conn.fetchval("SELECT code FROM mf_schemes WHERE active AND nav IS NOT NULL AND option_class <> 'Growth' ORDER BY code LIMIT 1")
+        nav_date = await conn.fetchval("SELECT nav_date FROM mf_schemes WHERE code = $1", code)
+        assert code is not None
+        days = [nav_date.toordinal() - 400 + i for i in range(401)]
+        navs = [10.0 + i * 0.01 for i in range(401)]
+        async with conn.transaction():
+            await mf._write_series(conn, [(code, days, navs, True)])
+        row = await conn.fetchrow("SELECT r1y, r5y, sip3y, mdd, prev_nav, prev_date FROM mf_schemes WHERE code = $1", code)
+        assert await conn.fetchval("SELECT n FROM mf_history WHERE code = $1", code) == 401
+    assert row["r1y"] is None and row["r5y"] is None and row["sip3y"] is None and row["mdd"] is None
+    assert row["prev_nav"] == pytest.approx(navs[-2]) and row["prev_date"] == date.fromordinal(days[-2])   # the day change still works
