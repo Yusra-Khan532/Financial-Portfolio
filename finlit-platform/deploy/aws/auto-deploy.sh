@@ -8,6 +8,12 @@
 #   auto-deploy.sh now        the same, immediately, printing what it does
 #   auto-deploy.sh status     what is deployed, what failed last, the timer, the last log lines
 #   auto-deploy.sh pause      stop deploying (nothing else changes);  auto-deploy.sh resume
+#   auto-deploy.sh force      deploy the new commit now even while a long job runs (an urgent fix; the job resumes after the restart)
+#
+# Jobs come first (founder, 13 Nov 2026): a deploy restarts the app and every job in it, so while a long job (ingest, score, prism, ...) is running a new
+# commit WAITS. The running app is asked first (python -m finlit.worker deploy-gate check SHA, see backend/finlit/jobs/deploy_gate.py): while a long job
+# runs it answers "wait" and no new long job starts, so the running one finishes, the deploy goes in the gap, and every commit merged meanwhile goes out in
+# that one deploy. A deploy waits at most DEPLOY_HOLD_MAX_MIN (150 minutes by default, longer than any job's own time cap). To deploy at once: force.
 #
 # Configuration: $FINLIT_HOME/auto-deploy.conf, lines NAME=value (read, never executed): REPO_URL, REPO_BRANCH, REPO_SUBDIR.
 # A private repository: put a read-only token alone in $FINLIT_HOME/git-token (chmod 600); it is handed to git for this run only, never printed.
@@ -40,11 +46,12 @@ case "${1:-check}" in
     echo "paused:         $([ -e "$STATE/auto_paused" ] && echo yes || echo no)"
     echo "deployed sha:   $(cat "$STATE/auto_deployed_sha" 2>/dev/null || echo none)   (the running image: $(cat "$STATE/current_commit" 2>/dev/null || echo unknown))"
     echo "failed sha:     $(cat "$STATE/auto_failed_sha" 2>/dev/null || echo none)"
+    echo "held:           $(cat "$STATE/deploy_wait_note" 2>/dev/null || echo no)"
     command -v systemctl >/dev/null && systemctl list-timers finlit-auto-deploy.timer --no-pager 2>/dev/null | head -3
     echo "--- last log lines"; tail -n 12 "$LOG" 2>/dev/null
     exit 0 ;;
-  check|now) ;;
-  *) echo "usage: auto-deploy.sh [now|status|pause|resume]" >&2; exit 2 ;;
+  check|now|force) ;;
+  *) echo "usage: auto-deploy.sh [now|force|status|pause|resume]" >&2; exit 2 ;;
 esac
 
 exec 8>"$STATE/auto_deploy.lock"
@@ -101,6 +108,28 @@ if [ "$remote" = "$deployed" ] || [ "$remote" = "$failed" ]; then
 fi
 [ -x "$DEPLOY_SH" ] || [ -f "$DEPLOY_SH" ] || { log "cannot deploy $remote: $DEPLOY_SH not found (a first deploy by hand is needed)"; exit 0; }
 
+# --- jobs first: ask the running app whether a long job is running (see the header); an app that cannot answer (down, or an older build) means go
+gate() { if [ -n "${DEPLOY_GATE_CMD:-}" ]; then sh -c "$DEPLOY_GATE_CMD $*" 2>/dev/null; else timeout 90 bash "$DEPLOY_SH" compose exec -T app python -m finlit.worker deploy-gate "$@" 2>/dev/null; fi; }   # a hung app counts as no answer
+same_note() { [ "$(printf '%s' "$1" | tr -d '0-9')" = "$(tr -d '0-9' < "$STATE/deploy_wait_note" 2>/dev/null)" ]; }   # the same wait, whatever the minutes say
+forced=""
+[ "${1:-check}" = force ] && forced="auto-deploy.sh force"
+[ -e "$STATE/deploy_now" ] && forced="$STATE/deploy_now"
+if [ -z "$forced" ]; then
+  verdict="$(gate check "$remote" | tail -n 1)"
+  case "$verdict" in
+    wait:*)
+      same_note "$verdict" || log "new commit $remote held: ${verdict#wait: }"
+      printf '%s\n' "$verdict" > "$STATE/deploy_wait_note"
+      [ "${1:-check}" = now ] && echo "held: ${verdict#wait: }  (to deploy at once: auto-deploy.sh force)"
+      exit 0 ;;
+    go:*) [ -s "$STATE/deploy_wait_note" ] && log "the hold ends: ${verdict#go: }" ;;
+    *) log "the deploy gate did not answer (${verdict:-no reply}): deploying" ;;
+  esac
+else
+  log "deploying at once, whatever runs ($forced)"
+fi
+rm -f "$STATE/deploy_wait_note" "$STATE/deploy_now"
+
 log "new commit $remote on $REPO_BRANCH (deployed: ${deployed:-none}): deploying"
 export REPO_URL REPO_BRANCH REPO_SUBDIR FINLIT_HOME
 log "backup before the deploy"
@@ -116,6 +145,7 @@ if [ "$rc" = 0 ]; then
   if [ -f "$new" ] && [ -d "$FINLIT_HOME/bin" ] && ! cmp -s "$new" "$FINLIT_HOME/bin/auto-deploy.sh"; then
     cp "$new" "$FINLIT_HOME/bin/auto-deploy.sh.new" && chmod 755 "$FINLIT_HOME/bin/auto-deploy.sh.new" && mv -f "$FINLIT_HOME/bin/auto-deploy.sh.new" "$FINLIT_HOME/bin/auto-deploy.sh"
   fi
+  gate release >/dev/null 2>&1 || true                 # the new app: long jobs may start again (the flag also expires by itself)
   log "DEPLOYED $remote"
   exit 0
 fi
@@ -127,5 +157,6 @@ if [ -n "$after" ] && [ "$after" != "$before" ]; then
 else
   log "the running build was not touched (the deploy stopped before replacing it)"
 fi
+gate release >/dev/null 2>&1 || true                   # whatever runs now, long jobs may start again
 log "$remote will not be tried again; the next new commit will be"
 exit 1

@@ -1050,6 +1050,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_sv.add_argument("--dry-run", action="store_true", help="only print what is due and why; start nothing, write nothing")
     p_sv.add_argument("--no-wait", action="store_true", help="with --once: do not wait for the started jobs")
     sub.add_parser("jobs-status", help="print the same JSON as GET /api/jobs/status")
+    p_dg = sub.add_parser("deploy-gate", help="asked by auto-deploy.sh before a deploy: 'go' (exit 0) when no long job runs, or 'wait' (exit 3) while one does, holding new long jobs so the gap comes soon (finlit/jobs/deploy_gate.py); 'release' after the deploy")
+    p_dg.add_argument("action", choices=["check", "release"])
+    p_dg.add_argument("sha", nargs="?", default="")
     p_ad = sub.add_parser("audit-data", help="read-only data audit of the whole site: what is missing, stale or the wrong kind of data, per feature; prints a table and writes JSON (docs/DATA-AUDIT.md); not scheduled; exit code 0 always")
     p_ad.add_argument("--only", nargs="+", metavar="FEATURE", help="check only these feature groups: stocks screeners funds etfs indices commodities macro flows news logos dhan jobs keys")
     p_ad.add_argument("--quick", action="store_true", help="smaller samples and no heavy checks (about half the time)")
@@ -1075,6 +1078,19 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     if args.cmd == "audit-data":   # read-only, own connection, no migration, nothing written to the database; never fails (exit 0)
         from .dataaudit import run_cli
         return await run_cli(settings, args.only, args.quick, args.json)
+    if args.cmd == "deploy-gate":   # quick and quiet: one line on stdout; no migration
+        from .jobs import deploy_gate
+        store = await Store.connect(settings, migrate=False)
+        try:
+            if args.action == "release":
+                await deploy_gate.release(store)
+                print("released")
+                return 0
+            d = await deploy_gate.check(store, args.sha)
+            print(("go: " if d.go else "wait: ") + d.reason)
+            return 0 if d.go else 3
+        finally:
+            await store.close()
     if args.cmd == "jobs-status":
         store = await Store.connect(settings, migrate=False)
         try:
