@@ -39,6 +39,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
+  "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
   "charts/Dial.tsx": "score dial: one figure, drawn as a ring",

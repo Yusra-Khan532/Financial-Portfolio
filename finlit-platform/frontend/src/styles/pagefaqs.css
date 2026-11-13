@@ -1,9 +1,9 @@
 /* "Questions about this page" panel at the bottom of each page, and the All FAQs hub */
 /* The panel lines up with the page's content column: the same left and right edges as a .wrap (max 1260 with a 20px gutter, 14px on a phone), centred.
-   On a page with the workspace sidebar the column starts after the sidebar (280px, 76px when it is collapsed), exactly like the page's own content. */
+   On a page with the workspace sidebar the column starts after the sidebar (280px, 96px when it is collapsed), exactly like the page's own content. */
 .pfq { margin: 40px auto 64px; padding: 0; max-width: 1640px; box-sizing: border-box; }   /* clear space below: the panel never touches the footer */
 main:has(.shell:not(.is-collapsed)) > .pfq { padding-left: 280px; }
-main:has(.shell.is-collapsed) > .pfq { padding-left: 76px; }
+main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
 .pfq-in { width: min(1220px, calc(100% - 40px)); margin: 0 auto; box-sizing: border-box; padding: 26px 28px 20px; border: 1.5px solid var(--frame); border-radius: 20px; background: var(--s1);
   box-shadow: inset 0 3px 0 var(--gold), var(--lift); }   /* clearer boundary: a thin gold top edge and a soft lift */
 .pfq-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }

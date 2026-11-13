@@ -92,21 +92,29 @@
 .side-tip { position: fixed; z-index: var(--z-tip, 260); transform: translateY(-50%); padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 500 13px/1.2 var(--sans); white-space: nowrap; pointer-events: none; animation: side-tip-in .12s ease-out; }
 @keyframes side-tip-in { from { opacity: 0; transform: translate(-4px, -50%); } }
 
-/* ---- folded rail (desktop): icons only, groups separated by a hairline ---- */
+/* ---- folded rail (desktop), as in the "FinLit final pages" pack (13 Nov 2026): one entry per group, its short name under a 20px icon, the current group on a
+   cream tile in bold; the expand button on top. Markup: components/SideRail.tsx. The full menu's own markup is hidden while the rail shows. ---- */
+.side-rail, .side-fly { display: none; }
 @media (min-width: 961px) {
-  .is-collapsed .side-top { grid-template-columns: 1fr; justify-items: center; padding: 16px 8px 8px; }
-  .is-collapsed .side-t, .is-collapsed .side-find, .is-collapsed .side-gb, .is-collapsed .side-l, .is-collapsed .side-b { display: none; }
-  .is-collapsed .side-body { padding: 8px; }
-  .is-collapsed .side nav { gap: 0; }
-  .is-collapsed .side-g + .side-g { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-  .is-collapsed .side-gi { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition: none; }
-  .is-collapsed .side-gin { margin: 0; padding: 0; border: 0; justify-items: center; }
-  .is-collapsed .side-i, .is-collapsed .side-i.sub { width: 40px; margin: 0; padding: 0; justify-content: center; }
-  .is-collapsed .side-i:hover .side-ic { transform: none; }
-  .is-collapsed .side-i.on::before { left: -8px; top: 10px; bottom: 10px; }
-  .is-collapsed .side-foot { margin-top: 8px; }
-  .is-collapsed .side-plan { padding: 8px; justify-items: center; background: transparent; }
-  .is-collapsed .side-plan p, .is-collapsed .side-plan .btn { display: none; }
+  .is-collapsed .side { width: 76px; overflow: visible; }
+  .is-collapsed .side-top, .is-collapsed .side-body { display: none; }
+  .is-collapsed .side-rail { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+  .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); cursor: pointer; }
+  :root[data-theme="light"] .side-rail-x { background: #fff; }
+  .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
+  .side-rail-x svg { width: 16px; height: 16px; }
+  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 11px/1.15 var(--sans); text-align: center; }
+  .side-rail-g svg { width: 20px; height: 20px; flex: none; }
+  .side-rail-g:hover, .side-rail-g[aria-expanded="true"] { background: color-mix(in srgb, var(--s2) 70%, transparent); }
+  .side-rail-g.on { background: #EFE8D7; font-weight: 700; }
+  :root[data-theme="dark"] .side-rail-g.on { background: color-mix(in srgb, var(--gold) 16%, var(--s2)); }
+  .side-rail-g:focus-visible, .side-rail-x:focus-visible, .side-fly-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .side-fly { display: grid; gap: 2px; position: fixed; z-index: var(--z-tip, 260); width: 260px; max-height: calc(100dvh - 100px); overflow: auto; padding: 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .35); }
+  .side-fly-t { margin: 2px 6px 6px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .side-fly-i { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 10px; color: var(--text); text-decoration: none; font: 500 14px/1.25 var(--sans); }
+  .side-fly-i svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+  .side-fly-i:hover { background: var(--s2); } .side-fly-i.on { background: var(--s2); font-weight: 600; } .side-fly-i.on svg { color: var(--gold); }
+  .side-fly-i .gtag { margin-left: auto; }
 }
 
 /* ---- phone / tablet drawer ---- */
