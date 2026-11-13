@@ -1,12 +1,12 @@
 /* Sector Pulse and Sector Rotation as the "FinLit final pages" pack draws them (founder, 13 Nov 2026; docs/design/finlit-final-pages/05-09). Every class is sp- and lives under
    .sp, so nothing here reaches another page. Colours, radii and type are the pack's own (read from the pack's HTML); the dark theme keeps the same hues on dark surfaces. */
-.sp { --sp-good: #0F6B3A; --sp-good-bg: #E1F2E7; --sp-good-bd: rgba(15, 107, 58, .2);
+.sp, .dsh { --sp-good: #0F6B3A; --sp-good-bg: #E1F2E7; --sp-good-bd: rgba(15, 107, 58, .2);
   --sp-watch: #8A5200; --sp-watch-bg: #FCEFD2; --sp-watch-bd: rgba(138, 82, 0, .2);
   --sp-info: #0E6471; --sp-info-bg: #E2F0F2; --sp-info-bd: rgba(14, 100, 113, .2);
   --sp-bad: #A12E26; --sp-bad-bg: #FBE4E4; --sp-bad-bd: rgba(161, 46, 38, .2);
-  --sp-panel: var(--s1); --sp-line: var(--border); --sp-ink: var(--text); --sp-mute: var(--muted); --sp-faint: var(--faint);
-  padding-bottom: 32px; }
-:root[data-theme="dark"] .sp { --sp-good: #7FD8A6; --sp-good-bg: rgba(46, 125, 87, .18); --sp-good-bd: rgba(127, 216, 166, .3);
+  --sp-panel: var(--s1); --sp-line: var(--border); --sp-ink: var(--text); --sp-mute: var(--muted); --sp-faint: var(--faint); }
+.sp { padding-bottom: 32px; }
+:root[data-theme="dark"] .sp, :root[data-theme="dark"] .dsh { --sp-good: #7FD8A6; --sp-good-bg: rgba(46, 125, 87, .18); --sp-good-bd: rgba(127, 216, 166, .3);
   --sp-watch: #E9C46A; --sp-watch-bg: rgba(233, 185, 73, .14); --sp-watch-bd: rgba(233, 196, 106, .3);
   --sp-info: #7CC7D2; --sp-info-bg: rgba(14, 100, 113, .22); --sp-info-bd: rgba(124, 199, 210, .3);
   --sp-bad: #F2A0A6; --sp-bad-bg: rgba(217, 114, 124, .16); --sp-bad-bd: rgba(242, 160, 166, .3); }

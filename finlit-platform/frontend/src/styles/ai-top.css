@@ -9,3 +9,11 @@
 .pfq-fold > summary::-webkit-details-marker { display: none; }
 .pfq-fold > summary::before { content: "▸"; color: var(--text-muted); } .pfq-fold[open] > summary::before { content: "▾"; }
 .pfq-fold > summary small { font-size: 13px; color: var(--text-muted); }
+
+/* The dashboard's questions as the final pages pack draws them (04): a card with the serif title, "Dashboard · 9 questions" under it and Show / Hide on the right. */
+.pfq-card { margin: 16px 0 8px; padding: 0 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); }
+.pfq-card > summary { justify-content: space-between; align-items: center; padding: 14px 0; } .pfq-card > summary::before { content: none; }
+.pfq-card > summary > span:first-child { display: grid; gap: 2px; } .pfq-card > summary b { font: 400 20px/1.25 var(--serif); color: var(--text); } .pfq-card > summary small { font-size: 13px; color: var(--text-muted); }
+.pfq-card .pfq-show::after { content: "Show ▾"; font: 700 14px var(--sans); color: #0E6471; } .pfq-card[open] .pfq-show::after { content: "Hide ▴"; }
+:root[data-theme="dark"] .pfq-card .pfq-show::after { color: #7CC7D2; }
+.dsh .pfq { margin: 0; padding: 0; } .dsh .pfq-card .pfq-in { padding-bottom: 14px; }

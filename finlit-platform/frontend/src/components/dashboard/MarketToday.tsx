@@ -1,9 +1,12 @@
-// Block 2, Market today: seven index cards, the daily Nifty 50 / Sensex chart, and the prices-and-rates strip (Brent, USD/INR, repo, CPI, WPI, 10-year G-sec).
+// Block 2, Market today, as the final pages pack draws it (04): seven index cards; then the daily Nifty 50 / Sensex chart beside the prices and rates that move company
+// profits (Brent, USD/INR, repo, CPI, WPI, 10-year G-sec) with a card on inflation.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useIndices } from "../../lib/indices";
 import { useMacro } from "../../lib/macro";
 import { rateTiles } from "../../lib/dashMacro";
+import { inflationCard } from "../../lib/dashPack";
+import { Cards } from "../sectors/pack/Common";
 import { dayMonth, monthYear, pickIndices } from "../../lib/dashboard";
 import { MINUS, dateIN, nf } from "../../lib/format";
 import { niceTicks } from "../../lib/etf";
@@ -68,6 +71,9 @@ export function MarketToday() {
   const idx = useIndices(), macro = useMacro(), gold = useGold();
   const d = idx.data, cards = useMemo(() => pickIndices(d?.items ?? []), [d]);
   const tiles = useMemo(() => rateTiles(macro.data), [macro.data]);
+  const infl = useMemo(() => { const m = macro.data, pt = (k: string) => { const p = m?.series?.[k]?.points; return p && p.length ? p[p.length - 1][1] : null; };
+    const dec = m?.decisions?.length ? [...m.decisions].sort((a, c) => a.date.localeCompare(c.date)).pop()! : null;
+    return inflationCard(pt("cpi"), pt("wpi"), dec ? { date: dec.date, bp: dec.bp } : null); }, [macro.data]);
   const status = d ? <><span className={"dsh-dot" + (d.marketOpen ? " on" : "")} />{d.marketOpen ? "Open" : "Closed"} · {d.marketOpen ? "live" : "last close"}{d.asOf ? ` · ${dateIN(d.asOf)}` : ""}</> : undefined;
   const vix = cards[6], main = cards.slice(0, 6);
   const tile = (c: (typeof cards)[number]) => {
@@ -81,12 +87,15 @@ export function MarketToday() {
       {!d ? <div className="dsh-ixs">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: 92, borderRadius: 12 }} />)}</div> : idx.isError ? <p className="dsh-note">Index levels are not available right now.</p> : <>
         <div className="dsh-ixs" aria-label="Index levels">{main.map(tile)}
           {vix.row ? <div className="dsh-ix vix"><div className="n">India VIX</div><div className="v">{nf(vix.row.close as number)}</div><div className={"c " + tone(vix.row.changePct)}>{vix.row.changePct == null ? MINUS : (vix.row.changePct > 0 ? "▲ " : "▼ ") + sgn(vix.row.changePct)}<span className="p">{pts(vix.row.points)}</span></div><div className="pe">Volatility</div></div> : tile(vix)}</div>
-        <div className="dsh-hide-phone"><IndexChart items={d.items} /></div>
       </>}
-      <div className="dsh-rates"><div className="dsh-rates-h">Prices and rates that move company profits</div>
-        {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 12 }} />)}</div> :
-          <div className="dsh-rates-g">{tiles.map((t) => <div key={t.key} className="dsh-rate"><div className="n">{t.name}</div><div className="v">{t.value ?? "—"}</div><div className={"nt " + (t.tone ?? "")}>{t.note}</div></div>)}</div>}
-        <p className="dsh-foot">Sources: U.S. EIA (Brent), FBIL (USD/INR), RBI (repo), MoSPI (CPI, WPI). Brent is compared with its average over the last four finished quarters, the period behind companies' latest results.</p></div>
+      <div className="dsh-mt-split">
+        {d && !idx.isError ? <div className="dsh-hide-phone"><IndexChart items={d.items} /></div> : <div />}
+        <div className="dsh-rates"><div className="dsh-rates-h">Prices and rates that move company profits</div>
+          {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 12 }} />)}</div> :
+            <div className="dsh-rates-g">{tiles.map((t) => <div key={t.key} className="dsh-rate"><div className="n">{t.name}</div><div className="v">{t.value ?? "—"}</div><div className={"nt " + (t.tone ?? "")}>{t.note}</div></div>)}</div>}
+          {infl && <div className="sp dsh-cards"><Cards items={[infl]} /></div>}
+          <p className="dsh-foot">Sources: U.S. EIA (Brent), FBIL (USD/INR), RBI (repo), MoSPI (CPI, WPI). Brent is compared with its average over the last four finished quarters, the period behind companies' latest results.</p></div>
+      </div>
     </Card>
   );
 }

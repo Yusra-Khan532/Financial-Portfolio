@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 /** The one card every block uses: serif title, 13px subtitle, optional right-hand control. Placeholders (not "no data" text) belong in `children` while a call is pending. */
 /** Panels that are a helpful extra rather than the page's main job: they get Hide / Show (the user's own shares, alerts and the main lists never do). The choice is kept per panel in this browser. */
-export const HIDEABLE = new Set(["sectors", "snapshot", "flows", "heatmap", "stress"]);
+export const HIDEABLE = new Set(["sectors", "flows", "heatmap"]);   // as the final pages pack marks them (04)
 const hideKey = (id: string) => `finlit.hide.dashboard.${id}`;
 function useHidden(id: string): [boolean, (v: boolean) => void] {
   const [hidden, set] = useState<boolean>(() => { try { return localStorage.getItem(hideKey(id)) === "1"; } catch { return false; } });
