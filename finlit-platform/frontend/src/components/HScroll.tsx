@@ -4,7 +4,9 @@ import "../styles/frozen.css";
 
 /** A wide table's scroll box with its own controls: ◀ ▶ buttons and a slider, shown only when the table is wider than the space,
  *  so it can be moved sideways without a mouse wheel or trackpad. The slider and the table stay in step both ways. */
-export function HScroll({ children, className = "", label = "table", tall = false }: { children: ReactNode; className?: string; label?: string; tall?: boolean }) {
+/** `controls={false}`: no ◀ ▶ buttons and no slider (the Stock screener, task #64 S-5): the box scrolls with the trackpad or its own scrollbar, and the frozen
+ *  first column gets a soft shadow on its edge while there is more to the right (`has-more`). */
+export function HScroll({ children, className = "", label = "table", tall = false, controls = true }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [max, setMax] = useState(0), [pos, setPos] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -28,7 +30,7 @@ export function HScroll({ children, className = "", label = "table", tall = fals
   const step = () => Math.max(160, (box.current?.clientWidth || 600) * 0.6);
   return (
     <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>
-      {max > 4 && (
+      {controls && max > 4 && (
         <div className="hs-bar" role="group" aria-label={`Scroll the ${label} sideways`}>
           <button type="button" className="hs-btn" aria-label="Scroll left" disabled={pos <= 1} onClick={() => go(pos - step())}>◀</button>
           <span className="hs-end" aria-hidden="true">First column</span>
@@ -39,7 +41,7 @@ export function HScroll({ children, className = "", label = "table", tall = fals
           <button type="button" className="hs-btn" aria-label="Scroll right" disabled={pos >= max - 1} onClick={() => go(pos + step())}>▶</button>
         </div>
       )}
-      <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (scrolled ? " is-scrolled" : "")}>{children}</div>
+      <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (scrolled ? " is-scrolled" : "") + (max > 4 && pos < max - 1 ? " has-more" : "")}>{children}</div>
     </TableZoom>
   );
 }

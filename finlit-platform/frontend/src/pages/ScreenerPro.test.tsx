@@ -135,7 +135,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Low debt:/ }));                  // a second screen on top: both apply
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 }, debt_to_equity: { max: 0.5 } }));
-    expect(screen.getByText("2 on")).toBeTruthy();
+    expect(screen.getByText("2 on", { selector: ".ssy-on b" })).toBeTruthy();
     expect(screen.getByText(/· 2 ready-made screens on/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove Screen: Value picks" }));         // off from its chip: P/B goes; the reader's own P/E and Low debt stay
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, debt_to_equity: { max: 0.5 } }));
@@ -180,6 +180,33 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     expect(screen.getByText(/started from My ROE/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete My ROE" }));                // still open: the visitor opened the card themselves
     expect(screen.queryByText("My ROE")).toBeNull();
+  });
+});
+
+describe("task #64 Part 4: the panel and the header", () => {
+  it("S-1: without a click the panel shows how many filters there are and every group with its count; a group row opens the picker on that group", async () => {
+    mount(); await ready();
+    const box = screen.getByRole("group", { name: "Every filter, by group" });
+    expect(box.querySelector(".ssw-size-n")?.textContent).toBe("12 filters in 7 groups");          // hidden period variants are not counted
+    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model", "Custom ratio"]);
+    fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
+    const dlg = await screen.findByRole("dialog");
+    expect(within(dlg).getByRole("button", { name: /Profitability/, pressed: true })).toBeTruthy();
+  });
+  it("S-1: a group with rules set says how many are on", async () => {
+    mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
+    expect(within(screen.getByRole("group", { name: "Every filter, by group" })).getByRole("button", { name: "Profitability: 2 filters, 1 on" })).toBeTruthy();
+  });
+  it("S-9: the header is one line with the data date in India time", async () => {
+    st.cat = { ...catalog(), pricesAt: "2026-11-12T10:05:00Z", scoresAt: "2026-11-12T23:00:00Z" };
+    mount(); await ready();
+    expect(document.querySelector(".ssw-h1row")?.textContent).toBe("Stock screenerPrices: 12 Nov close · scores: 13 Nov");
+    expect(document.querySelector(".ssw-lead, .ssw-eyebrow")).toBeNull();
+  });
+  it("S-5: the results table has no First column / Last column slider", async () => {
+    mount(); await ready();
+    expect(screen.queryByText("First column")).toBeNull();
+    expect(document.querySelector(".ssw-res .hs-range")).toBeNull();
   });
 });
 

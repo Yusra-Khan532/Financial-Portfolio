@@ -132,7 +132,7 @@ async def catalog(request: Request):
             {"key": m.key, "label": m.label, "unit": m.unit, "better": m.better, "tier": m.tier, "say": m.say, "digits": m.digits,
              "locked": not allowed(plan, m.tier), "stats": t.stats.get(m.key), "hidden": m.key in HIDDEN, "variants": VARIANTS.get(m.key)} for m in ms]})
     body = {
-        "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)),
+        "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "pricesAt": (t.sig or {}).get("lat"), "scoresAt": (t.sig or {}).get("at"),
         "groups": groups,
         # NSE sectors only: the ones an NSE industry sits under (task #64, file 04, data fix 2); a stray label held by one or two companies is not a sector to filter by
         "sectors": [{"name": n, "n": c} for n, c in t.sectors if n in {s for _, s, _ in t.industries if s}],

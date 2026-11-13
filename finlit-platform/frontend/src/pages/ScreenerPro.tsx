@@ -11,7 +11,7 @@ import { Icon } from "../lib/icons";
 import { nf } from "../lib/format";
 import { limitsFor, useAuth } from "../lib/auth";
 import { CustomRatioBuilder, ratioSentence } from "../components/screener/CustomRatio";
-import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
@@ -88,7 +88,7 @@ export function ScreenerPro() {
   const [q, setQ] = useState(""), [pg, setPg] = useState({ k: "", p: 0 });
   const [order, setOrder] = useState<string[]>([]);          // the rule cards, in the order they were added (task #75: any number at once)
   const [hot, setHot] = useState<string | null>(null);
-  const [picker, setPicker] = useState(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
+  const [picker, setPicker] = useState<false | { group?: string; q?: string }>(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
@@ -241,6 +241,10 @@ export function ScreenerPro() {
   const closeChart = () => { const s = chart?.symbol; setChart(null); window.setTimeout(() => Array.from(document.querySelectorAll<HTMLElement>(".ssw-t tbody tr[data-sym]")).find((t) => t.dataset.sym === s)?.focus(), 0); };
 
   const listed = data ? nf(data.total, 0) : "…";
+  // Every group of filters with its count, up front (task #64, S-1): readers see how much they can filter without a click
+  const numGroups = (data?.groups ?? []).map((g) => ({ ...g, n: g.metrics.filter((m) => !m.hidden).length })).filter((g) => g.n > 0);
+  const nFilters = numGroups.reduce((a, g) => a + g.n, 0);
+  const asOfLine = dataLine(data?.pricesAt, data?.scoresAt);
   const sub = nActive === 0 ? `every listed company, ${sort.key === "market_cap" && sort.dir === "desc" ? "biggest first" : "sorted by " + (SHORT[sort.key] ?? byKey.get(sort.key)?.label ?? "name")} · of ${listed} listed`
     : `match all ${nActive} ${nActive === 1 ? "rule" : "rules"} · of ${listed} listed${onScreens.length ? ` · ${onScreens.length} ready-made ${onScreens.length === 1 ? "screen" : "screens"} on` : ""}${from ? ` · started from ${from}` : ""}`;
   const stdCount = shown.filter((k) => base.includes(k)).length, ruleCount = shown.length - stdCount;
@@ -249,9 +253,8 @@ export function ScreenerPro() {
     <>
       <div className="wrap ssw" style={{ paddingTop: 22 }}>
         <section className="card ssw-head">
-          <p className="ssw-eyebrow">Find stocks</p>
-          <h1>Stock screener</h1>
-          <p className="ssw-lead">Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.</p>
+          <div className="ssw-h1row"><h1 title="Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.">Stock screener</h1>
+            {asOfLine && <span className="ssw-asof">{asOfLine}</span>}</div>
           <FindStocksTabs bare />
         </section>
 
@@ -283,6 +286,15 @@ export function ScreenerPro() {
                 <div className="ssw-chips" role="group" aria-label={prismOnly ? "FinLit Prism rating" : "FinLit IQ rating"}>{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={F.bands.includes(b.key)}
                   onClick={() => (b.locked ? ask("silver", "Filtering by the FinLit IQ rating comes with the Silver plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>
               <div className="ssw-sec"><h3>Rules on numbers</h3>
+                <div className="ssw-size" role="group" aria-label="Every filter, by group">
+                  <p className="ssw-size-n"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
+                  <label className="ssw-size-q"><Icon name="search" /><span className="sr">Search the filters</span><input type="search" placeholder="Search filters, e.g. debt, ROE, promoter" value=""
+                    onChange={(e) => setPicker({ q: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setPicker({}); } }} /></label>
+                  <ul className="ssw-groups">{numGroups.map((g) => { const on = g.metrics.filter((m) => rules.includes(m.key) || F.ranges[m.key]).length;
+                    return <li key={g.id}><button type="button" onClick={() => setPicker({ group: g.id })} aria-label={`${g.label}: ${g.n} filters${on ? `, ${on} on` : ""}`}>
+                      <span>{g.label}{g.tier !== "basic" && <span className={"ssr-tier " + g.tier}>{g.tier.toUpperCase()}</span>}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
+                    <li><button type="button" onClick={openRatio}><span>Custom ratio</span><small>{ratios.length ? `${ratios.length} on` : "build"}</small></button></li></ul>
+                </div>
                 {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b><span className={"ssr-tier " + x.tier}>{x.tier.toUpperCase()}</span>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
                   <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
@@ -290,7 +302,7 @@ export function ScreenerPro() {
                 {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
                   return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
-                <button type="button" className="btn ssw-add" onClick={() => setPicker(true)}>+ Add a rule</button>
+                <button type="button" className="btn ssw-add" onClick={() => setPicker({})}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
                   const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
                   if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
@@ -339,7 +351,7 @@ export function ScreenerPro() {
                 <>
                   {total === 0 && tight && <div className="ssw-zero" role="status"><b>No company passes every rule.</b> {stepName(tight.key)} is the tightest: it leaves none of the {nf(tight.before, 0)} companies before it.
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
                     <thead>
                       <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
@@ -381,7 +393,7 @@ export function ScreenerPro() {
             <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
           </div>)}
       </div>
-      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} />}
+      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} startGroup={picker.group} startQuery={picker.q} />}
       {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={F.ranges} byKey={byKey} />} />}
     </>
   );

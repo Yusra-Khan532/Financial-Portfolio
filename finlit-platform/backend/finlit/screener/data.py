@@ -115,6 +115,7 @@ class Table:
     def __init__(self, rows: List[dict], members: Dict[str, List[str]], score_move: Dict[str, float], fno: Optional[Dict[str, bool]] = None,
                  prism: Optional[Dict[str, dict]] = None):
         self.loaded = time.time()
+        self.sig: Dict[str, Any] = {}
         rows = dedupe(rows)
         self.symbols: List[str] = []
         self.name: List[str] = []
@@ -508,7 +509,9 @@ def _build(state: dict) -> Table:
         if m and any(m.get(k) is None and q.get(k) is not None for k in ("price", "market_cap")):
             rows[i] = {**r, "metrics": {**m, **{k: float(q[k]) for k in ("price", "market_cap") if m.get(k) is None and q.get(k) is not None}}}
     light = [with_listing({**r, **{k: lq.get(r["symbol"], {}).get(k) for k in QUOTE_COLS}}) for r in state["light"].values()]
-    return Table(rows + light, state["mem"], state["move"], state["fno"], state.get("prism"))
+    t = Table(rows + light, state["mem"], state["move"], state["fno"], state.get("prism"))
+    t.sig = state.get("sig") or {}      # when the newest quote and the newest score were written: the page header names them (task #64, S-9)
+    return t
 
 
 async def _load(store) -> Table:
@@ -556,6 +559,7 @@ async def _sync(store, force: bool = False) -> None:
         _table = await asyncio.to_thread(_build, state)
     else:
         _table.loaded = now   # nothing moved: the table in memory is as current as a new one would be
+        _table.sig = state.get("sig") or _table.sig
     if changed:
         _blob = await asyncio.to_thread(_pack, state)
         if persist:
