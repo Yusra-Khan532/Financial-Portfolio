@@ -2,9 +2,10 @@
 FinLit button (the glossary and the company list live inside the extension, so no other request is made).
 
 Cheap on purpose: two indexed single-row reads, no on-demand report build, no view counting, no side effects, and the answer is kept in Redis for five minutes per
-symbol and access level. Plan rules are the site's own (as in /api/search/quotes): the score, its two parts and the key figures are Silver; an admin counts as Silver; a Basic or signed-out
-visitor gets name, sector, price and market value, and `locked: true` (the free showcase company stays open). FinLit Prism (the Gold plan's rating) comes with `prism` for Gold and
-administrators: the stored report's score, label and four parts, one more single-row read; everyone else gets `prism: {locked: true}` so the card can name it. The wording describes; it never advises.
+symbol and access level. One score per plan, as on the site (founder, 13 Nov 2026, tasks #100 and #112): Silver gets the FinLit IQ (score, rating word, its two parts) and the key
+figures; Gold and administrators get FinLit Prism instead (the stored report's score, label and four parts, one more single-row read) with the key figures, and never the FinLit IQ.
+`model` says which one the card shows ("iq", "prism", or null when locked). A Basic or signed-out visitor gets name, sector, price and market value and `locked: true` (the free
+showcase company stays open). The wording describes; it never advises.
 Information only, not investment advice.
 """
 
@@ -28,7 +29,7 @@ router = APIRouter(prefix="/api/ext")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 TTL = 300
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
-WHAT_IT_IS = ("The FinLit score runs from 0 to 100 and describes a company's financial health from its filings and prices. The Growth & Profitability score reads the business "
+WHAT_IT_IS = ("The FinLit IQ runs from 0 to 100 and describes a company's financial health from its filings and prices. The Growth & Profitability score reads the business "
               "(quality, growth, profitability and balance sheet); the Technical score reads the price trend.")
 DETAIL_SQL = """SELECT name, sector, market_cap, pe, roe, debt_to_equity, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical
                 FROM scores WHERE symbol = $1 AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1"""
@@ -90,18 +91,22 @@ async def build(request: Request, sym: str, level: str) -> Optional[Dict[str, An
     out: Dict[str, Any] = {"symbol": sym, "name": (d and d["name"]) or base["name"], "sector": (d and d["sector"]) or base["sector"], "url": f"/stocks/{sym}",
                            "price": price, "changePct": change, "priceDate": when, "marketCapCr": _n(d["market_cap"], 0) if d else None, "locked": locked,
                            "disclaimer": DISCLAIMER}
+    out["model"] = None if locked else "prism" if gold else "iq"
     if locked:
-        out["lockedWhy"] = "The FinLit score is part of the Silver plan. Sign in or see plans on FinLit."
-    elif score is not None and d is not None:
+        out["lockedWhy"] = "The FinLit IQ comes with the Silver plan and FinLit Prism with Gold. Sign in or see plans on FinLit."
+        return out
+    if d is not None:
+        out["figures"] = {"pe": _n(d["pe"]), "roe": _n(d["roe"]), "debtToEquity": _n(d["debt_to_equity"], 2)}
+    if gold:                                   # Gold: FinLit Prism only, never the FinLit IQ
+        out["prism"] = prism_block(pz)
+    elif score is not None and d is not None:  # Silver: the FinLit IQ
         pillars = [d[k] for k in ("pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance") if d[k] is not None]
         fund = sum(float(p) for p in pillars) / len(pillars) if pillars else None
         tech = _n(d["pillar_technical"])
         bw = BAND_WORD.get(band or "")
-        out.update(score=_n(score, 0), band=bw, bandKey=band, fundamental=_n(fund, 0), technical=None if tech is None else round(tech),
-                   figures={"pe": _n(d["pe"]), "roe": _n(d["roe"]), "debtToEquity": _n(d["debt_to_equity"], 2)}, take=take(fund, tech, bw), what=WHAT_IT_IS)
-    elif not locked:
-        out["why"] = "This company has no FinLit score yet."
-    out["prism"] = prism_block(pz) if gold else {"locked": True, "plan": "gold", "name": PRISM_NAME}
+        out.update(score=_n(score, 0), band=bw, bandKey=band, fundamental=_n(fund, 0), technical=None if tech is None else round(tech), take=take(fund, tech, bw), what=WHAT_IT_IS)
+    else:
+        out["why"] = "This company has no FinLit IQ yet."
     return out
 
 

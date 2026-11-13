@@ -17,29 +17,17 @@ const view = () => render(<MemoryRouter initialEntries={["/compare?c=AAA,BBB"]}>
 beforeEach(() => { st.rows = [row("AAA", 71), row("BBB", null), row("CCC", 55)]; });
 afterEach(cleanup);
 
-describe("Compare: FinLit IQ and FinLit Prism (task #13)", () => {
-  it("Gold sees both models as separate toggles; IQ alone is on at first, so the existing layout is unchanged", () => {
+describe("Compare: one score per plan (tasks #13, #100)", () => {
+  it("Gold sees FinLit Prism only: no model toggle, no FinLit IQ card and no pillar card (task #100)", () => {
     st.plan = "gold"; const { container } = view();
-    const iq = screen.getByRole("button", { name: "FinLit IQ" }), pr = screen.getByRole("button", { name: "FinLit Prism" });
-    expect(iq.getAttribute("aria-pressed")).toBe("true"); expect(pr.getAttribute("aria-pressed")).toBe("false");
-    expect(container.querySelectorAll(".cc-prism")).toHaveLength(0);
-    expect(container.querySelectorAll(".cc-s")).toHaveLength(2);
-  });
-  it("turning Prism on adds its score and parts card; both can be on, either can be off, and one always stays on", () => {
-    st.plan = "gold"; const { container } = view();
-    fireEvent.click(screen.getByRole("button", { name: "FinLit Prism" }));
+    expect(screen.queryByRole("button", { name: "FinLit IQ" })).toBeNull();
     expect(container.querySelectorAll(".cc-prism")).toHaveLength(2);
-    expect(container.textContent).toContain("The FinLit Prism parts");
-    expect(container.textContent).toContain("The five FinLit pillars");                   // IQ is still on
-    fireEvent.click(screen.getByRole("button", { name: "FinLit IQ" }));                    // IQ off: Prism only
-    expect(container.textContent).not.toContain("The five FinLit pillars");
     expect(container.querySelectorAll(".cc-s:not(.cc-prism)")).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: "FinLit Prism" }));                 // the last one cannot be switched off
-    expect(screen.getByRole("button", { name: "FinLit Prism" }).getAttribute("aria-pressed")).toBe("true");
+    expect(container.textContent).toContain("The FinLit Prism parts");
+    expect(container.textContent).not.toContain("The five FinLit pillars");
   });
   it("a company with no stored Prism rating says so instead of a number", () => {
     st.plan = "gold"; const { container } = view();
-    fireEvent.click(screen.getByRole("button", { name: "FinLit Prism" }));
     const cards = [...container.querySelectorAll(".cc-prism")].map((c) => c.textContent);
     expect(cards[0]).toContain("71"); expect(cards[1]).toContain("Not rated yet");
   });

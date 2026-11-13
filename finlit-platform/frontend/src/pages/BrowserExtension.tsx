@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
+import { useUI } from "../lib/ui";
 import { EXTENSION, canInstallExtension, installTarget, useExtensionInstalled } from "../lib/extension";
 import "../styles/extension.css";
 
@@ -11,31 +12,51 @@ const TERMS = ["EBITDA", "Return on equity", "Debt to equity", "Reliance Industr
 function WhatYouGet() {
   const rows: [string, string, string][] = [
     ["book", "Any term, in plain words", "Meaning, formula and why it matters, for 450 terms."],
-    ["bars", "A company's score at a glance", "Prism score (Gold), market value, PE, ROE, Debt/Equity."],
+    ["bars", "A company's score at a glance", "Your plan's score (FinLit IQ on Silver, FinLit Prism on Gold), market value, PE, ROE, Debt/Equity."],
     ["search", "One click, any page", "Green button by your selection, right-click, or Alt+Shift+F."],
     ["lock", "Only what you select", "It never reads the rest of the page."],
   ];
   return <ul className="ext-gets" aria-label="What the extension does">{rows.map(([i, t, d]) => <li key={t}><span className="ext-gi" aria-hidden="true"><Icon name={i} /></span><span><b>{t}</b>{d}</span></li>)}</ul>;
 }
 
-/** What the card looks like, with example figures (it is a picture of the extension, not live data). */
+/** What the card looks like, with example figures (it is a picture of the extension, not live data). The card shows the score of the reader's plan (tasks #100 and #112):
+ *  the FinLit IQ on Silver, FinLit Prism on Gold. The example opens on the reader's own plan and can be switched to see the other. */
 function Preview() {
+  const { has } = useUI();
+  const [gold, setGold] = useState(has("gold"));
+  const label = gold ? "FinLit Prism 78 out of 100, Healthy, with its four parts (Gold)" : "FinLit IQ 72 out of 100, Healthy, with its two parts (Silver)";
   return (
-    <div className="ext-demo" role="img" aria-label="Example of the FinLit card: Reliance Industries, FinLit Prism 78 out of 100, Healthy, with its four parts for Gold, and key figures">
-      <div className="eh"><Icon name="bars" />FinLit Ventures</div>
-      <div className="eb">
-        <h4>Reliance Industries Ltd</h4><small>RELIANCE · Oil &amp; Gas · example</small>
-        <div className="ep">
-          <div className="ephd"><b>FinLit Prism</b><span><strong>78</strong> <small>/100</small><i>Healthy</i></span></div>
-          <div className="eb2">
-            {([["Growth & Profitability", 84], ["Valuation", 61], ["Quality", 79], ["Risk", 72]] as const).map(([k, v]) => <div key={k}><span>{k} {v}/100</span><i><u style={{ width: `${v}%` }} /></i></div>)}
-          </div>
-          <small className="epn">Gold plan: the Prism rating and its four parts show on the card. Others see that it is part of Gold.</small>
-        </div>
-        <div className="ef"><div><small>MCap</small><b>₹19.6 L Cr</b></div><div><small>PE</small><b>26.4</b></div><div><small>ROE</small><b>9.8%</b></div><div><small>Debt/Equity</small><b>0.41</b></div></div>
-        <span className="eo">Open full analysis on FinLit</span>
+    <div className="ext-pv">
+      <div className="ext-pv-sw" role="group" aria-label="See the card for a plan">
+        <button type="button" aria-pressed={!gold} onClick={() => setGold(false)}>Silver: FinLit IQ</button>
+        <button type="button" aria-pressed={gold} onClick={() => setGold(true)}>Gold: FinLit Prism</button>
       </div>
-      <div className="ex">Describes; not a recommendation. Information only, not investment advice.</div>
+      <div className="ext-demo" role="img" aria-label={`Example of the FinLit card: Reliance Industries, ${label}, and key figures`}>
+        <div className="eh"><Icon name="bars" />FinLit Ventures</div>
+        <div className="eb">
+          <h4>Reliance Industries Ltd</h4><small>RELIANCE · Oil &amp; Gas · example</small>
+          {gold ? (
+            <div className="ep">
+              <div className="ephd"><b>FinLit Prism</b><span><strong>78</strong> <small>/100</small><i>Healthy</i></span></div>
+              <div className="eb2">
+                {([["Growth & Profitability", 84], ["Valuation", 61], ["Quality", 79], ["Risk", 72]] as const).map(([k, v]) => <div key={k}><span>{k} {v}/100</span><i><u style={{ width: `${v}%` }} /></i></div>)}
+              </div>
+              <small className="epn">Gold plan: the card shows FinLit Prism and its four parts.</small>
+            </div>
+          ) : (
+            <div className="ep">
+              <div className="ephd"><b>FinLit IQ</b><span><strong>72</strong> <small>/100</small><i>Healthy</i></span></div>
+              <div className="eb2">
+                {([["Growth & Profitability", 81], ["Technical", 63]] as const).map(([k, v]) => <div key={k}><span>{k} {v}/100</span><i><u style={{ width: `${v}%` }} /></i></div>)}
+              </div>
+              <small className="epn">Silver plan: the card shows the FinLit IQ and its two parts.</small>
+            </div>
+          )}
+          <div className="ef"><div><small>MCap</small><b>₹19.6 L Cr</b></div><div><small>PE</small><b>26.4</b></div><div><small>ROE</small><b>9.8%</b></div><div><small>Debt/Equity</small><b>0.41</b></div></div>
+          <span className="eo">Open full analysis on FinLit</span>
+        </div>
+        <div className="ex">Describes; not a recommendation. Information only, not investment advice.</div>
+      </div>
     </div>
   );
 }
@@ -54,7 +75,7 @@ function Steps() {
 }
 
 export function BrowserExtensionPage() {
-  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit Prism score in a small card, without leaving the page. Free.");
+  useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or FinLit score (FinLit IQ on Silver, FinLit Prism on Gold) in a small card, without leaving the page. Free.");
   const installed = useExtensionInstalled();
   const can = canInstallExtension();
   const target = installTarget();
@@ -66,7 +87,7 @@ export function BrowserExtensionPage() {
   return (
     <>
       <PageHeader wrap title="Browser extension" art="report" learn={false} links={["/glossary", "/mcp"]}
-        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit Prism score</b>. Free, and it reads only the words you select.</>} />
+        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit score</b>: the <b>FinLit IQ</b> on Silver, <b>FinLit Prism</b> on Gold. Free, and it reads only the words you select.</>} />
       <div className="wrap ext">
         <div className="ext-hero">
           <section className="ext-card" aria-labelledby="ext-get">
@@ -88,7 +109,7 @@ export function BrowserExtensionPage() {
               <>
                 <span className="ext-badge">{store ? "Free · one click" : "Free · store listing coming soon"}</span>
                 <h2 id="ext-get">Add FinLit to your browser</h2>
-                <p>Understand any term and see any company's FinLit Prism score wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
+                <p>Understand any term and see any company's FinLit score wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
                 <WhatYouGet />
                 <div className="ext-btns">{Get}</div>
                 {store && <p className="ext-fine">Prefer a file? <a href={EXTENSION.zipUrl} download>Download the ZIP</a>.</p>}
@@ -110,13 +131,13 @@ export function BrowserExtensionPage() {
 
         <div className="ext-three">
           <section className="ext-card"><h3>Terms in plain words</h3><p>Select any of 450 investing terms and see what it means, the formula and why it matters, from the FinLit glossary. No internet request is made for this.</p></section>
-          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit Prism score (on the Gold plan, with its four parts), plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
+          <section className="ext-card"><h3>A company's score at a glance</h3><p>Select a listed company's name or ticker to see its FinLit score, the one your plan has: the FinLit IQ with its two parts on Silver, FinLit Prism with its four parts on Gold. Plus market value, PE, ROE and debt to equity, then open the full analysis on FinLit.</p></section>
           <section className="ext-card"><h3>Private by design</h3><p>It acts only on text you select. It never reads the page or what is around your selection, and the words you select stay in your browser.</p></section>
         </div>
 
         <section className="ext-card ext-faq" aria-labelledby="ext-faq">
           <h2 id="ext-faq">Questions</h2>
-          <details><summary>Is it free?</summary><p>Yes. The FinLit Prism score follows your FinLit plan, exactly as on the website (Gold): sign in to see it. Terms are free for everyone.</p></details>
+          <details><summary>Is it free?</summary><p>Yes. The company score follows your FinLit plan, exactly as on the website: the FinLit IQ on Silver, FinLit Prism on Gold. Sign in to FinLit in the same browser to see it. Terms are free for everyone.</p></details>
           <details><summary>Why does it ask to run on all websites?</summary><p>So the green button can appear beside text you select on any site. It does nothing until you select something, and it never reads the rest of the page. You can turn it off for one site or everywhere from the toolbar icon.</p></details>
           <details><summary>What does it send to FinLit?</summary><p>Your selected words are never sent. When it recognises a listed company and you open its card, it asks FinLit for that one company by its stock symbol. If you are signed in to FinLit in the same browser, the request carries your session so the card shows what your plan allows.</p></details>
           <details><summary>How do I remove it?</summary><p>Open <span className="ext-code">chrome://extensions</span>, find FinLit Ventures and press Remove.</p></details>

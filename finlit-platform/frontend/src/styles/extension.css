@@ -72,3 +72,9 @@
 .ext-demo .ephd span { display: inline-flex; align-items: center; gap: 6px; } .ext-demo .ephd strong { font: 700 20px/1 var(--serif); }
 .ext-demo .ephd i { font-style: normal; background: #0f6b45; color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
 .ext-demo .ep .eb2 { gap: 8px; } .ext-demo .epn { display: block; margin-top: 8px; }
+/* the example card's plan switch (tasks #100, #112): the card shows the FinLit IQ on Silver and FinLit Prism on Gold */
+.ext-pv { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ext-pv-sw { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); }
+.ext-pv-sw button { border: 0; background: none; color: var(--muted); font: 600 13px var(--sans); padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 32px; }
+.ext-pv-sw button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); }
+.ext-pv > .ext-demo { flex: 1; }

@@ -38,9 +38,11 @@ class FakeStore:
 
 # ---- the pure decision -------------------------------------------------------------------------------------------------------------
 
-def test_no_long_job_means_go():
+def test_no_long_job_means_go_and_the_flag_stays_while_the_new_version_builds():
     d = dg.decide([], None, "abc", T0, 150)
-    assert d.go and d.hold is None and "no long job" in d.reason
+    assert d.go and "no long job" in d.reason
+    assert d.hold["deploying"] is True and d.hold["sha"] == "abc"          # no long job may start in the build gap (13 Nov: prism started there and was killed)
+    assert dg.hold_reason(d.hold, T0).startswith("waiting for a deploy: a new version is going out now")
 
 
 def test_a_running_long_job_holds_the_deploy_and_names_it():
@@ -58,7 +60,7 @@ def test_the_wait_keeps_its_start_time_across_checks():
 
 def test_a_deploy_never_waits_longer_than_the_cap():
     d = dg.decide(["ingest"], {"since": T0}, "abc", T0 + 150 * 60, 150)
-    assert d.go and d.hold is None and "resumes where it left off" in d.reason
+    assert d.go and d.hold["deploying"] and "resumes where it left off" in d.reason
 
 
 def test_a_dead_supervisor_never_holds_a_deploy():
@@ -94,17 +96,19 @@ async def test_check_writes_a_flag_that_expires_by_itself_while_a_bulk_job_runs(
 
 
 @pytest.mark.asyncio
-async def test_check_ignores_light_jobs_and_removes_the_flag():
+async def test_check_ignores_light_jobs_and_keeps_a_deploying_flag_until_release():
     r = FakeRedis({**beat(["results_light"]), dg.HOLD_KEY: json.dumps({"since": T0})})
     d = await dg.check(FakeStore(r), "abc", env={}, now=T0 + 5)
-    assert d.go and dg.HOLD_KEY not in r.data
+    assert d.go and json.loads(r.data[dg.HOLD_KEY])["deploying"] is True and r.ttl[dg.HOLD_KEY] == dg.DEPLOYING_TTL_S
+    await dg.release(FakeStore(r))
+    assert dg.HOLD_KEY not in r.data
 
 
 @pytest.mark.asyncio
 async def test_check_goes_when_the_heartbeat_is_stale():
     r = FakeRedis(beat(["ingest"], at=T0 - 3600))
     d = await dg.check(FakeStore(r), "abc", env={}, now=T0)
-    assert d.go and dg.HOLD_KEY not in r.data
+    assert d.go and dg.HOLD_KEY not in r.data                              # a dead supervisor: nothing to hold, the deploy restarts it
 
 
 @pytest.mark.asyncio

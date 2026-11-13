@@ -40,7 +40,7 @@ const symbols = () => within(screen.getByRole("table")).getAllByRole("row").slic
 const hint = () => document.querySelector(".sx-hint")!;
 const sector = (name: string) => screen.getByRole("checkbox", { name: new RegExp("^" + name) });
 
-beforeEach(() => { admin.on = true; st.plan = "gold"; st.rows = DATA; st.cover = null; localStorage.clear(); watch.reset(); st.upgrade.mockReset(); st.toast.mockReset(); });
+beforeEach(() => { admin.on = true; st.plan = "silver"; st.rows = DATA; st.cover = null; localStorage.clear(); watch.reset(); st.upgrade.mockReset(); st.toast.mockReset(); });
 afterEach(cleanup);
 
 describe("Basic stock screener page", () => {
@@ -53,13 +53,16 @@ describe("Basic stock screener page", () => {
     expect(screen.getByText("1–10 of 22")).toBeTruthy();
   });
 
-  it("the compare hint is worded for the plan (Silver compares 2, Gold 2 to 4) and every group heading has a label that stays in view", () => {
+  it("the compare hint is worded for Silver (compares 2) and every group heading has a label that stays in view", () => {
     st.plan = "silver"; open();
     expect(document.querySelector(".sx-bulkhint")!.textContent).toMatch(/^Tick the box on 2 rows to compare them\./);
     const labs = [...document.querySelectorAll(".gh.tg-row th[data-g] .gh-lab")].map((e) => e.textContent);
     expect(labs).toEqual(expect.arrayContaining(["Price & size", "FinLit IQ0–100", "Technical"]));
-    cleanup(); st.plan = "gold"; open();
-    expect(document.querySelector(".sx-bulkhint")!.textContent).toMatch(/^Tick the box on 2 to 4 rows to compare them\./);
+  });
+  it("a Gold member never gets the Basic stock screener: its address opens the Advanced one (task #100)", () => {
+    st.plan = "gold"; open();
+    expect(document.querySelector(".sx-bulkhint")).toBeNull();
+    expect(screen.queryByText(/22 companies in this result/)).toBeNull();
   });
   it("filters apply live: ticking changes rows, every number above the table, chips and address with no button pressed", async () => {
     open();

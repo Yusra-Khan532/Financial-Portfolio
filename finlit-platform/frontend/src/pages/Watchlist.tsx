@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { rowScore, rowView, usePlanModel, type ScoreModel } from "../lib/planScore";
 import { CoLogo } from "../components/CoLogo";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -25,15 +26,17 @@ import { quoteMap } from "../lib/globalSearch";
 import { scoreBand } from "../lib/scoreBands";
 
 type GroupBy = "none" | "sector" | "size" | "band" | "style";
-const GROUPS: { id: GroupBy; label: string; gold?: boolean }[] = [{ id: "none", label: "No grouping" }, { id: "sector", label: "Industry" }, { id: "size", label: "Company size" }, { id: "band", label: "FinLit band", gold: true }, { id: "style", label: "Style", gold: true }];
+const GROUPS: { id: GroupBy; label: string; gold?: boolean }[] = [{ id: "none", label: "No grouping" }, { id: "sector", label: "Industry" }, { id: "size", label: "Company size" }, { id: "band", label: "Prism rating", gold: true }, { id: "style", label: "Style", gold: true }];
 const SORTS: { id: NumKey | "name"; label: string }[] = [{ id: "overall", label: "FinLit IQ" }, { id: "change_pct", label: "Today's change" }, { id: "market_cap", label: "Market cap" }, { id: "price", label: "Price" }, { id: "roe", label: "ROE" }, { id: "pe", label: "P/E" }, { id: "dividend_yield", label: "Dividend yield" }, { id: "name", label: "Name" }];
 const size = (c: number | null) => capSize(c) ?? "Unknown";
 const style = (r: Row) => (r.pe == null ? "Unknown" : r.pe < 15 || (r.pb != null && r.pb < 1.5) ? "Value" : r.pe > 35 ? "Premium growth" : "Blend");
-const keyOf = (g: GroupBy, r: Row) => (g === "sector" ? r.sector || "Other" : g === "size" ? size(r.market_cap) : g === "band" ? (r.band ? BAND_LABEL[r.band] : "Unscored") : g === "style" ? style(r) : "");
+// task #100: the score of the plan everywhere on this page: FinLit Prism for Gold (also the "band" bucket: the Prism rating word), the FinLit IQ for Silver
+const keyOf = (g: GroupBy, r: Row, model: ScoreModel = "iq") => (g === "sector" ? r.sector || "Other" : g === "size" ? size(r.market_cap) : g === "band" ? (model === "prism" ? rowView("prism", r).word ?? "Not rated yet" : r.band ? BAND_LABEL[r.band] : "Unscored") : g === "style" ? style(r) : "");
 
-export function signals(r: Row, target?: number): string[] {
+export function signals(r: Row, target?: number, model: ScoreModel = "iq"): string[] {
   const out: string[] = [];
-  if (r.band === "watch") out.push(`FinLit IQ is ${r.overall}, in the Watch band`);
+  if (model === "prism") { const v = rowView("prism", r); if (v.band === "lo" && v.score != null) out.push(`FinLit Prism is ${v.score}, ${v.word ?? "below 50"}`); }
+  else if (r.band === "watch") out.push(`FinLit IQ is ${r.overall}, in the Watch band`);
   if ((r.pillar_balance ?? 100) <= 35) out.push(`Weak balance sheet (${r.pillar_balance}/100)`);
   if ((r.return_1m ?? 0) <= -10) out.push(`Fell ${nf(Math.abs(r.return_1m!), 1)}% in a month`);
   if ((r.pe ?? 0) >= 60) out.push(`Expensive at ${nf(r.pe!, 0)}× earnings`);
@@ -75,6 +78,7 @@ export function WatchlistPage() {
   const [lid, setLid] = useState(st.lists[0].id), [group, setGroup] = useState<GroupBy>("none"), [sort, setSort] = useState<NumKey | "name">("overall");
   const [sel, setSel] = useState<string[]>([]), [naming, setNaming] = useState(false), [name, setName] = useState(""), [edit, setEdit] = useState<string | null>(null);
   const gold = has("gold"), silver = has("silver");
+  const model = usePlanModel() ?? "iq", scName = model === "prism" ? "FinLit Prism" : "FinLit IQ";
   const list = st.lists.find((l) => l.id === lid) || st.lists[0];
   useEffect(() => { if (!st.lists.some((l) => l.id === lid)) setLid(st.lists[0].id); }, [st.lists, lid]);
   useEffect(() => { if (DEMO && !st.seeded && rows.length) wl.seed([...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 9).map((r) => r.symbol)); }, [rows, st.seeded]);
@@ -82,21 +86,21 @@ export function WatchlistPage() {
 
   const items = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).sort((a, b) => {
     if (sort === "name") return (a.name || "").localeCompare(b.name || "");
-    const A = a[sort] as number | null, B = b[sort] as number | null; if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1;
+    const A = sort === "overall" ? rowScore(model, a) : a[sort] as number | null, B = sort === "overall" ? rowScore(model, b) : b[sort] as number | null; if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1;
     return sort === "pe" ? A - B : B - A;
-  }), [list, bySym, sort]);
-  const buckets = useMemo(() => { if (group === "none") return [["", items] as [string, Row[]]]; const m = new Map<string, Row[]>(); items.forEach((r) => { const k = keyOf(group, r); m.set(k, [...(m.get(k) || []), r]); }); return [...m.entries()].sort((a, b) => b[1].length - a[1].length); }, [items, group]);
+  }), [list, bySym, sort, model]);
+  const buckets = useMemo(() => { if (group === "none") return [["", items] as [string, Row[]]]; const m = new Map<string, Row[]>(); items.forEach((r) => { const k = keyOf(group, r, model); m.set(k, [...(m.get(k) || []), r]); }); return [...m.entries()].sort((a, b) => b[1].length - a[1].length); }, [items, group]);
   const logos = quoteMap(useQuotesFor(list.symbols).data);
   const adv = items.filter((r) => (r.change_pct ?? 0) > 0).length, dec = items.filter((r) => (r.change_pct ?? 0) < 0).length;
-  const scored = items.filter((r) => r.overall != null), avg = scored.length ? scored.reduce((a, r) => a + (r.overall as number), 0) / scored.length : null;
-  const attention = items.map((r) => ({ r, s: signals(r, st.meta[r.symbol]?.target) })).filter((x) => x.s.length);
+  const scored = items.filter((r) => rowScore(model, r) != null), avg = scored.length ? scored.reduce((a, r) => a + (rowScore(model, r) as number), 0) / scored.length : null;
+  const attention = items.map((r) => ({ r, s: signals(r, st.meta[r.symbol]?.target, model) })).filter((x) => x.s.length);
   const secMix = useMemo(() => { const m = new Map<string, number>(); items.forEach((r) => m.set(r.sector || "Other", (m.get(r.sector || "Other") || 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1]); }, [items]);
   const topShare = items.length ? (secMix[0]?.[1] || 0) / items.length : 0;
   const lim = limitsFor(plan), MAXL = lim.watchlist_lists;
 
   const addStock = (r: Row) => { if (wl.total() >= lim.watchlist_symbols && !wl.has(r.symbol)) { if (gold) toast(`Your watchlist is full (${lim.watchlist_symbols} stocks).`); else upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(r.symbol, list.id); toast(`${r.symbol} added to ${list.name}.`); };
   const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", "Silver includes 3 lists; Gold has up to 50."); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
-  const exportCsv = () => { if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; } const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`; const ks: NumKey[] = ["price", "change_pct", "market_cap", "pe", "roe", "dividend_yield", "overall"]; saveFile("FinLit-watchlist.csv", [["Symbol", "Company", "Sector", ...ks.map((k) => METRICS[k].label), "Target", "Note"].map(esc).join(","), ...items.map((r) => [r.symbol, r.name || "", r.sector || "", ...ks.map((k) => r[k] ?? ""), st.meta[r.symbol]?.target ?? "", st.meta[r.symbol]?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","))].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv."); };
+  const exportCsv = () => { if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; } const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`; const ks: NumKey[] = ["price", "change_pct", "market_cap", "pe", "roe", "dividend_yield"]; saveFile("FinLit-watchlist.csv", [["Symbol", "Company", "Sector", ...ks.map((k) => METRICS[k].label), scName, "Target", "Note"].map(esc).join(","), ...items.map((r) => [r.symbol, r.name || "", r.sector || "", ...ks.map((k) => r[k] ?? ""), rowView(model, r).score ?? "", st.meta[r.symbol]?.target ?? "", st.meta[r.symbol]?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","))].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv."); };
   const toggleSel = (s: string) => setSel((x) => (x.includes(s) ? x.filter((y) => y !== s) : x.length >= (gold ? 4 : 2) ? (toast(gold ? "Compare up to 4 companies." : "Silver compares 2 companies. Gold compares up to 4."), x) : [...x, s]));
 
   return (
@@ -121,14 +125,14 @@ export function WatchlistPage() {
             <div className="wk"><b>{items.length}</b><span>Stocks in this list</span></div>
             <div className="wk up"><b>{adv}</b><span>Rising today</span></div>
             <div className="wk down"><b>{dec}</b><span>Falling today</span></div>
-            <div className="wk"><b>{avg == null ? "—" : nf(avg, 0)}</b><span>Average FinLit IQ</span></div>
+            <div className="wk"><b>{avg == null ? "—" : nf(avg, 0)}</b><span>Average {scName}</span></div>
             <div className={"wk" + (attention.length ? " warn" : "")}><b>{gold ? attention.length : "—"}</b><span>{gold ? "Need a second look" : "Needs attention · Gold"}</span></div>
           </div>
 
           <div className="wl-bar">
             <Add rows={rows} taken={list.symbols} onAdd={addStock} />
-            <label className="wl-sel"><span>Bucket by</span><select value={group} onChange={(e) => { const g = e.target.value as GroupBy; if (GROUPS.find((x) => x.id === g)?.gold && !gold) { upgrade("gold", "Bucketing by FinLit band and style comes with Gold."); } setGroup(g); }} aria-label="Bucket by">{GROUPS.map((g) => <option key={g.id} value={g.id}>{g.label}{g.gold && !gold ? " (Gold)" : ""}</option>)}</select></label>
-            <label className="wl-sel"><span>Sort by</span><select value={sort} onChange={(e) => setSort(e.target.value as NumKey | "name")} aria-label="Sort by">{SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label>
+            <label className="wl-sel"><span>Bucket by</span><select value={group} onChange={(e) => { const g = e.target.value as GroupBy; if (GROUPS.find((x) => x.id === g)?.gold && !gold) { upgrade("gold", "Bucketing by Prism rating and style comes with Gold."); } setGroup(g); }} aria-label="Bucket by">{GROUPS.map((g) => <option key={g.id} value={g.id}>{g.id === "band" && !gold ? "FinLit band" : g.label}{g.gold && !gold ? " (Gold)" : ""}</option>)}</select></label>
+            <label className="wl-sel"><span>Sort by</span><select value={sort} onChange={(e) => setSort(e.target.value as NumKey | "name")} aria-label="Sort by">{SORTS.map((s) => <option key={s.id} value={s.id}>{s.id === "overall" ? scName : s.label}</option>)}</select></label>
             <button className="btn" onClick={exportCsv}>Download</button>
           </div>
 
@@ -161,7 +165,7 @@ export function WatchlistPage() {
                       <Th id="pe" label="P/E" sort={sort} on={setSort} r />
                       <Th id="roe" label="ROE" sort={sort} on={setSort} r />
                       <Th id="market_cap" label="Mkt cap" sort={sort} on={setSort} r />
-                      <Th id="overall" label="FinLit IQ" sort={sort} on={setSort} c />
+                      <Th id="overall" label={scName} sort={sort} on={setSort} c />
                       <th scope="col">Status</th>
                       <th scope="col">Target</th>
                       <th scope="col">Your note</th>
@@ -170,13 +174,13 @@ export function WatchlistPage() {
                   </thead>
                   <tbody>
                     {buckets.map(([k, rs]) => {
-                      const ch = rs.filter((r) => r.change_pct != null), a = ch.reduce((x, r) => x + (r.change_pct as number), 0) / Math.max(1, ch.length), sc = rs.filter((r) => r.overall != null);
+                      const ch = rs.filter((r) => r.change_pct != null), a = ch.reduce((x, r) => x + (r.change_pct as number), 0) / Math.max(1, ch.length), sc = rs.filter((r) => rowScore(model, r) != null);
                       return (
                         <Fragment key={k || "all"}>
                           {k && (
                             <tr className="wl-grow"><th colSpan={12} scope="colgroup">
                               <b>{k}</b><span>{rs.length} stock{rs.length === 1 ? "" : "s"}</span><span className={a >= 0 ? "pos" : "neg"}>{a >= 0 ? "▲ +" : "▼ −"}{nf(Math.abs(a), 2)}% today on average</span>
-                              {sc.length > 0 && <span>Avg score {nf(sc.reduce((x, r) => x + (r.overall as number), 0) / sc.length, 0)}</span>}
+                              {sc.length > 0 && <span>Avg {model === "prism" ? "Prism" : "FinLit IQ"} {nf(sc.reduce((x, r) => x + (rowScore(model, r) as number), 0) / sc.length, 0)}</span>}
                             </th></tr>
                           )}
                           {rs.map((r) => {
@@ -193,8 +197,11 @@ export function WatchlistPage() {
                                 <td className="r" data-l="P/E">{fmt(METRICS.pe, r.pe)}</td>
                                 <td className="r" data-l="ROE">{fmt(METRICS.roe, r.roe)}</td>
                                 <td className="r" data-l="Mkt cap">{cr(r.market_cap)}</td>
-                                <td className="c" data-l="FinLit IQ">{r.overall != null ? <span className={"wl-iq " + scoreBand(r.overall)}>{Math.round(r.overall)}</span> : <span className="faint" title="Not scored yet">—</span>}</td>
-                                <td data-l="Status">{r.overall != null && r.band ? <span className={"wl-st " + r.band}><i aria-hidden="true" />{BAND_LABEL[r.band]}</span> : <span className="faint">Not scored</span>}</td>
+                                {(() => { const v = rowView(model, r); return model === "prism" ? <>
+                                  <td className="c" data-l={scName}>{v.score != null ? <span className={"wl-iq " + v.band}>{v.score}</span> : <span className="faint" title={v.why ?? "Not rated yet"}>—</span>}</td>
+                                  <td data-l="Status">{v.score != null ? <span className={"wl-st " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")}><i aria-hidden="true" />{v.word}</span> : <span className="faint">{v.word === "Not rated" ? "Not rated" : "Not rated yet"}</span>}</td></> : <>
+                                  <td className="c" data-l={scName}>{r.overall != null ? <span className={"wl-iq " + scoreBand(r.overall)}>{Math.round(r.overall)}</span> : <span className="faint" title="Not scored yet">—</span>}</td>
+                                  <td data-l="Status">{r.overall != null && r.band ? <span className={"wl-st " + r.band}><i aria-hidden="true" />{BAND_LABEL[r.band]}</span> : <span className="faint">Not scored</span>}</td></>; })()}
                                 <td data-l="Target">
                                   <input className="wl-tg" type="number" inputMode="decimal" min={0} value={m.target ?? ""} placeholder="Set" onChange={(e) => wl.setMeta(r.symbol, { target: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} aria-label={`${r.symbol} target price in rupees`} />
                                   {d != null && <em className={d >= 0 ? "pos" : "neg"}>{d >= 0 ? "▲ " : "▼ "}{nf(Math.abs(d), 1)}% to target</em>}

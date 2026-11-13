@@ -1,4 +1,5 @@
-"""GET /api/ext/company/{symbol}: the browser extension's one lookup. Plan rules (the score is Silver), the showcase company stays open, no side effects, strict symbol check."""
+"""GET /api/ext/company/{symbol}: the browser extension's one lookup. One score per plan (tasks #100 and #112): Silver the FinLit IQ, Gold FinLit Prism and never the FinLit IQ;
+the showcase company stays open, no side effects, strict symbol check."""
 import pytest
 
 from test_auth import app, make_admin, new_client, signed_in  # noqa: F401
@@ -30,7 +31,8 @@ async def test_a_silver_member_gets_the_score_two_parts_and_four_figures(app):  
     r = await silver.get(f"/api/ext/company/{SYM.lower()}")
     assert r.status_code == 200 and r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     j = r.json()
-    assert j["locked"] is False and j["score"] == 82 and j["band"] == "Strong"
+    assert j["locked"] is False and j["model"] == "iq" and j["score"] == 82 and j["band"] == "Strong"
+    assert "prism" not in j                                                # Silver sees the FinLit IQ only, nothing of Prism
     assert j["fundamental"] == 84 and j["technical"] == 76            # the four pillars' average, and the technical pillar
     assert j["figures"] == {"pe": 26.4, "roe": 9.8, "debtToEquity": 0.41} and j["marketCapCr"] == 19600
     assert j["url"] == f"/stocks/{SYM}" and "not a recommendation" in j["disclaimer"].lower()
@@ -42,8 +44,9 @@ async def test_a_silver_member_gets_the_score_two_parts_and_four_figures(app):  
 async def test_a_basic_or_signed_out_visitor_gets_the_name_and_price_but_no_score(app):  # noqa: F811
     for who in (await signed_in(app, "eb@example.com", plan="basic"), new_client(app)):
         j = (await who.get(f"/api/ext/company/{SYM}")).json()
-        assert j["locked"] is True and j["name"] == "Ext Test Industries Ltd" and j["marketCapCr"] == 19600 and j["lockedWhy"]
-        for k in ("score", "band", "fundamental", "technical", "figures", "take"):
+        assert j["locked"] is True and j["model"] is None and j["name"] == "Ext Test Industries Ltd" and j["marketCapCr"] == 19600 and j["lockedWhy"]
+        assert "FinLit IQ" in j["lockedWhy"] and "FinLit Prism" in j["lockedWhy"]      # the card names what each plan shows
+        for k in ("score", "band", "fundamental", "technical", "figures", "take", "prism"):
             assert k not in j, k
 
 
@@ -64,10 +67,10 @@ async def test_the_card_says_whether_the_person_is_signed_in_so_it_can_say_sign_
     assert j["signedIn"] is True and j["locked"] is False and j["score"] == 82
 
 
-async def test_an_admin_sees_the_score(app):  # noqa: F811
+async def test_an_admin_sees_what_gold_sees(app):  # noqa: F811
     admin = await make_admin(app, "ead@example.com")
     j = (await admin.get(f"/api/ext/company/{SYM}")).json()
-    assert j["locked"] is False and j["score"] == 82
+    assert j["locked"] is False and j["model"] == "prism" and "score" not in j and j["figures"]["pe"] == 26.4
 
 
 async def _prism(app, final=78.4, label="HEALTHY", status="RATED", parts=None):
@@ -84,7 +87,10 @@ async def test_a_gold_member_sees_finlit_prism_with_its_four_parts(app):  # noqa
     await _prism(app)
     gold = await signed_in(app, "eg@example.com", plan="gold")
     j = (await gold.get(f"/api/ext/company/{SYM}")).json()
-    assert j["locked"] is False and j["score"] == 82                                    # the FinLit score is still there
+    assert j["locked"] is False and j["model"] == "prism"
+    for k in ("score", "band", "fundamental", "technical", "take", "what"):          # Gold sees FinLit Prism only, never the FinLit IQ
+        assert k not in j, k
+    assert j["figures"] == {"pe": 26.4, "roe": 9.8, "debtToEquity": 0.41}           # the key figures stay
     p = j["prism"]
     assert p["rated"] is True and p["name"] == "FinLit Prism" and p["score"] == 78 and p["label"] == "Healthy" and p["provisional"] is False
     assert [(x["label"], x["score"]) for x in p["parts"]] == [("Growth & Profitability", 84), ("Valuation", 61), ("Quality", 79), ("Risk", 72)]
@@ -96,12 +102,11 @@ async def test_an_admin_counts_as_gold_for_prism(app):  # noqa: F811
     assert (await admin.get(f"/api/ext/company/{SYM}")).json()["prism"]["rated"] is True
 
 
-async def test_everyone_below_gold_only_sees_that_finlit_prism_is_part_of_gold_and_never_its_numbers(app):  # noqa: F811
+async def test_nobody_below_gold_gets_any_prism_number(app):  # noqa: F811
     await _prism(app)
     for who in (await signed_in(app, "esp@example.com", plan="silver"), await signed_in(app, "ebp@example.com", plan="basic"), new_client(app)):
         r = await who.get(f"/api/ext/company/{SYM}")
-        assert r.json()["prism"] == {"locked": True, "plan": "gold", "name": "FinLit Prism"}
-        assert "78" not in str(r.json()["prism"]) and "parts" not in r.json()["prism"]
+        assert "prism" not in r.json() and "78" not in r.text and "Valuation" not in r.text
 
 
 async def test_prism_says_why_when_there_is_no_rating(app):  # noqa: F811
@@ -114,7 +119,8 @@ async def test_prism_says_why_when_there_is_no_rating(app):  # noqa: F811
     assert (await gold.get(f"/api/ext/company/{SYM}")).json()["prism"]["provisional"] is True
 
 
-async def test_the_card_never_uses_the_old_name(app):  # noqa: F811
+async def test_gold_never_sees_the_finlit_iq_and_silver_sees_it_by_name(app):  # noqa: F811
     gold = await signed_in(app, "eold@example.com", plan="gold")
     assert "FinLit IQ" not in (await gold.get(f"/api/ext/company/{SYM}")).text
-    assert "FinLit IQ" not in (await new_client(app).get(f"/api/ext/company/{SYM}")).text
+    silver = await signed_in(app, "esold@example.com", plan="silver")
+    assert "FinLit IQ" in (await silver.get(f"/api/ext/company/{SYM}")).json()["what"]

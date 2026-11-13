@@ -21,6 +21,12 @@ Report each issue in one message: cause, what changed, test results, what is sti
 - Background jobs: `docs/JOBS.md` (job supervisor; jobs NEVER stop, see the rule below). Status: `/api/jobs/status`.
 - Handover and open items: `docs/HANDOVER-PROMPT.md`.
 
+## Zero mistakes, nothing missed (the founder said so on 13 Nov 2026)
+
+- The founder wants **no single mistake** and **nothing missed**. Every point of a task, a design pack or a team note is done in full, word for word, or said plainly as not done with the reason. Never guess, never skip, never call something done before it is proven on the live page.
+- **"FinLit final pages" design pack (board pictures and the page list in docs/design/finlit-final-pages/; the full HTML from the founder) is the final design** for the pages it shows: dashboard, glossary, Sector Pulse (Simple, Full table, every industry page), Sector Rotation (Simple, Full table), results (calendar, latest results), equity portfolio (Portfolio, Diversification, Risk analytics), MF portfolio, watchlists, the company report and the collapsed icon rail of the side menu. Every page, section, option, label, dropdown and chart in it is applied exactly as shown; the old version of each page is replaced, not kept beside it. Only exception, decided by the founder on 13 Nov 2026: the landing page keeps tasks #118-#120 (green hero, logo colours only), not the pack's 9 Nov landing.
+- Work order for the pack (founder's choice: one page at a time, each its own PR): icon rail, Sector Pulse, Sector Rotation, industry page (Finance), dashboard, results, equity portfolio, MF portfolio, watchlists, glossary, company report. Each page: compare the pack board and the page side by side (desktop and phone, light and dark), list every difference, build, test, PR, live check.
+
 ## Rules that never change
 
 - **Background jobs NEVER stop (the founder said so on 7 Nov 2026).** Every scheduled job runs every day and completes every day. Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished. If a job cannot complete, find and fix the cause the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job (now: the sector job, off since 7 Nov 2026 until `SECTORS_JOB=on`).

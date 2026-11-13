@@ -2,6 +2,7 @@
 // closest peers (card 3, the Leader / In line / Laggard label already on the page), what its own chart says (card 4, the technical readings already on the page) and the
 // business behind it (card 5, the FinLit IQ). Cards 1 and 2 come from GET /api/technicals/{symbol}/sector, a Gold feature: below Gold the section shows the industry's state (which
 // every plan sees on Sector Pulse) and says what Gold adds. Describes price and breadth data; never advice.
+import { useMemo } from "react";
 import { Link } from "react-router";
 import { SectionHead } from "./Sections";
 import { LeadChip } from "./Leadership";
@@ -11,6 +12,7 @@ import type { Summary, Technical } from "../lib/api";
 import { CornerBadge, RankMove } from "../components/rotation/Parts";
 import { ptsWord, weeksText } from "../lib/rotation";
 import { count, failureText, fullDate, ordinal, pct, signedPct, useStockSector, type StockSector } from "../lib/sectors";
+import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import "../styles/sectors.css";
 
 const NOTE = "This section describes price, breadth and peer data. It is not a recommendation to buy, sell or hold any security.";
@@ -28,6 +30,10 @@ export function oneLine(symbol: string, s: StockSector): string | null {
 }
 
 function Cards({ symbol, s, tech, score, jump }: { symbol: string; s: StockSector; tech?: Technical; score?: Summary["score"]; jump?: (id: string) => void }) {
+  // card 5 shows the plan's model (task #100): FinLit Prism for Gold, the FinLit IQ for Silver
+  const model = usePlanModel() ?? "iq";
+  const pm = usePlanPrism(useMemo(() => [symbol], [symbol]), model);
+  const health = scoreView(model, { score: score?.overall ?? null, word: score?.band?.label }, pm[symbol]);
   const g = s.group, lead = useLeadership(symbol).data;
   const l = lead && lead.available ? lead : null;
   const counted = s.in_group !== false && g;
@@ -98,7 +104,7 @@ function Cards({ symbol, s, tech, score, jump }: { symbol: string; s: StockSecto
         <article className="sx-c5" aria-labelledby={`sxc5-${symbol}`}>
           <header><h3 id={`sxc5-${symbol}`}>5 · Is the business sound?</h3></header>
           <p>Price strength says nothing about the balance sheet. A stock rising out of a weak industry can still carry debt, pledged shares or weak cash flow.</p>
-          <div className="sx-mini2"><div><small>FinLit IQ</small><b>{score?.overall ?? "—"}</b></div><div><small>Band</small><b>{score?.overall == null ? "Not scored yet" : score?.band?.label ?? "—"}</b></div></div>
+          <div className="sx-mini2"><div><small>{model === "prism" ? "FinLit Prism" : "FinLit IQ"}</small><b>{health.pending ? "…" : health.score ?? "—"}</b></div><div><small>{model === "prism" ? "Rating" : "Band"}</small><b>{health.pending ? "…" : health.score == null ? (model === "prism" ? "Not rated yet" : "Not scored yet") : health.word ?? "—"}</b></div></div>
           <button type="button" className="more" onClick={() => jump?.("notes")}>Open the health score</button>
         </article>
       </div>

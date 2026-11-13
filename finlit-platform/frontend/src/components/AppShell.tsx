@@ -8,9 +8,11 @@ import { useWatchlist } from "../lib/watchlist";
 import { usePortfolio } from "../lib/portfolio";
 import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
-import { MORE, SECTIONS, type NavItem } from "../lib/nav";
+import { MORE, SECTIONS, offeredTo, type NavItem } from "../lib/nav";
+import { useIsGold } from "../lib/planGate";
 import { badgeFor } from "../lib/sideGroups";
 import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
+import { SideRail } from "./SideRail";
 
 const RESEARCH = SECTIONS.find((x) => x.id === "research")!;   // by id: the header order changes (Workspace comes first)
 
@@ -22,6 +24,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const { user, isAdmin } = useAuth();
   const { plan } = useUI();
+  const gold = useIsGold();
   const wl = useWatchlist();
   const saved = useSavedScreens();
   const held = usePortfolio().holdings.length;
@@ -30,10 +33,15 @@ export function AppShell() {
   // The Find stocks pages (the screeners and the query builder) fold the menu to the icon rail so the table gets the room; every other page keeps the reader's own choice.
   // The choice made on those pages is remembered on its own, so folding or opening it there never changes the menu elsewhere.
   const onFind = /^\/(screener|score-screener|advanced-score-screener|query-builder)(\/|$)/.test(pathname);
-  const [collapsedAll, setCollapsedAll] = useState(() => loadUi("side-collapsed", 1, isBool, false));
+  // Folded to the icon rail by default on every page (the "FinLit final pages" design pack, 13 Nov 2026); the reader's own choice is remembered.
+  const [collapsedAll, setCollapsedAll] = useState(() => loadUi("side-collapsed", 1, isBool, true));
   const [collapsedFind, setCollapsedFind] = useState(() => loadUi("side-collapsed-find", 1, isBool, true));
   const collapsed = onFind ? collapsedFind : collapsedAll, setCollapsed = onFind ? setCollapsedFind : setCollapsedAll;
   const [open, setOpen] = useState(false); // mobile drawer
+  // The rail is a desktop view: a phone or a narrow window always gets the full menu in its drawer. Only one of the two is ever in the page.
+  const wide = () => (typeof matchMedia === "undefined" ? true : matchMedia("(min-width: 961px)").matches);
+  const [desktop, setDesktop] = useState(wide);
+  useEffect(() => { if (typeof matchMedia === "undefined") return; const m = matchMedia("(min-width: 961px)"), f = () => setDesktop(m.matches); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f); }, []);
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => { const o = () => setOpen((v) => !v); addEventListener("finlit:open-side", o); return () => removeEventListener("finlit:open-side", o); }, []);
   useEffect(() => { saveUi("side-collapsed", 1, collapsedAll); }, [collapsedAll]);
@@ -74,7 +82,7 @@ export function AppShell() {
   };
   const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to] });
   const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];
-  const groups: Group[] = [
+  const groups: Group[] = ([
     { title: "Overview", items: [{ to: "/dashboard", label: "Dashboard", icon: "home" }] },
     ...RESEARCH.groups.map((g) => ({ title: g.title || RESEARCH.label, items: g.items.map(toItem) })),
     { title: "Markets", items: mine("markets") },
@@ -89,7 +97,7 @@ export function AppShell() {
       ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown" }]),
       ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock" }] : []),
     ] }] : []),
-  ];
+  ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: no Basic stock screener for Gold
 
   const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
@@ -112,6 +120,7 @@ export function AppShell() {
       <button className="shell-fab" onClick={() => setOpen(true)} aria-label="Open the product menu" aria-expanded={open}><Icon name="panel" /><span>Menu</span></button>
       {open && <div className="shell-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
       <aside className="side" aria-label="Product navigation">
+        {collapsed && desktop ? <SideRail groups={groups} here={here} onExpand={() => setCollapsed(false)} /> : <>
         <div className={"side-top" + (scrolled ? " is-scrolled" : "")}>
           <span className="side-t"><span className="side-tb" aria-hidden="true"><Icon name="grid" /></span><span className="side-tt">Workspace</span></span>
           <button className="side-toggle hide-sm" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand the side menu" : "Collapse the side menu"} aria-pressed={collapsed} title={collapsed ? "Expand" : "Collapse"}><Icon name="panel" /></button>
@@ -159,6 +168,7 @@ export function AppShell() {
           </div>
         </div>
         </div>
+        </>}
       </aside>
       {tip && <div className="side-tip" role="presentation" style={{ top: tip.top, left: tip.left }}>{tip.label}</div>}
       <div className="shell-main"><Outlet /></div>

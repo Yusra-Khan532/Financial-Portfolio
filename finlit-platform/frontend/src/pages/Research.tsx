@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { rowScore, rowView, usePlanModel } from "../lib/planScore";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { Link } from "react-router";
 import { useMemo, useState } from "react";
@@ -27,18 +28,20 @@ export function Research({ onSearch }: { onSearch: () => void }) {
   const { data, isLoading } = useUniverse();
   const { has, upgrade } = useUI();
   const rows = data?.rows || [];
-  const scored = rows.some((r) => r.overall != null);
+  const model = usePlanModel() ?? "iq";   // task #100: Gold ranks and reads by FinLit Prism, Silver by the FinLit IQ
+  const scored = rows.some((r) => rowScore(model, r) != null);
   const [tab, setTab] = useState<(typeof TABS)[number][0]>("size");
   const traded = useMemo(() => rows.filter((r) => r.price != null && (r.market_cap ?? 0) >= 100), [rows]);
   const list = useMemo(() => {
-    const by = (k: "market_cap" | "change_pct" | "overall", dir: 1 | -1) => [...traded].filter((r) => r[k] != null).sort((x, y) => dir * ((y[k] as number) - (x[k] as number)));
+    const val = (r: Row, k: "market_cap" | "change_pct" | "overall") => (k === "overall" ? rowScore(model, r) : r[k]);
+    const by = (k: "market_cap" | "change_pct" | "overall", dir: 1 | -1) => [...traded].filter((r) => val(r, k) != null).sort((x, y) => dir * ((val(y, k) as number) - (val(x, k) as number)));
     return (tab === "score" ? by("overall", 1) : tab === "up" ? by("change_pct", 1) : tab === "down" ? by("change_pct", -1) : by("market_cap", 1)).slice(0, 12);
-  }, [traded, tab]);
+  }, [traded, tab, model]);
   return (
     <>
       <PageHeader wrap plan="free" title="Company report" art="report" links={["/screener", "/compare", "/prism"]}
         description={<>A research score, five-pillar scorecard, statements, ratios, ownership and peers for {rows.length > 0 ? <b>{nf(rows.length, 0)}</b> : "every"} listed Indian companies, loaded in a blink.</>}
-        stats={[{ icon: "building", value: rows.length > 0 ? nf(rows.length, 0) : null, label: "Companies" }, { icon: "quality", value: scored ? nf(rows.filter((r) => r.overall != null).length, 0) : null, label: "With a score" }]}>
+        stats={[{ icon: "building", value: rows.length > 0 ? nf(rows.length, 0) : null, label: "Companies" }, { icon: "quality", value: scored ? nf(rows.filter((r) => rowScore(model, r) != null).length, 0) : null, label: model === "prism" ? "Rated by Prism" : "With a score" }]}>
         <button className="bigsearch" onClick={onSearch}><Icon name="table" /><span>Search any company or ticker</span><span className="kbd">Ctrl K</span></button>
       </PageHeader>
       <MarketLink />
@@ -54,7 +57,8 @@ export function Research({ onSearch }: { onSearch: () => void }) {
           {(rows.length ? list : FEATURED.map((s) => ({ symbol: s, name: s, band: null, overall: null, price: null, sector: null, change_pct: null, market_cap: null } as unknown as Row))).map((r) => (
             <Link className="scard" key={r.symbol} to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={24} inline />{titleOf(r)}</b><span>{subOf(r) && subOf(r) !== r.symbol ? subOf(r) : r.sector || "Open the report"}</span>
               <span style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                {r.overall != null && <span className={"vd " + (r.band === "strong" ? "strong" : r.band === "healthy" ? "healthy" : r.band === "mixed" ? "mixed" : "weak")}>{r.band ? BAND_LABEL[r.band] : ""} {r.overall}</span>}
+                {model === "prism" ? (() => { const v = rowView("prism", r); return v.score != null && <span className={"vd " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "weak")} title={`FinLit Prism ${v.score} out of 100`}>Prism {v.word} {v.score}</span>; })()
+                  : r.overall != null && <span className={"vd " + (r.band === "strong" ? "strong" : r.band === "healthy" ? "healthy" : r.band === "mixed" ? "mixed" : "weak")}>{r.band ? BAND_LABEL[r.band] : ""} {r.overall}</span>}
                 {r.price != null && <span className="mono">₹{nf(r.price)}</span>}
                 {r.change_pct != null && <span className={"mono " + (r.change_pct >= 0 ? "up" : "down")}>{(r.change_pct >= 0 ? "▲ +" : "▼ −") + nf(Math.abs(r.change_pct), 2)}%</span>}
               </span></Link>

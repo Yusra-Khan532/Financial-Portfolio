@@ -202,11 +202,12 @@ describe("the table (file 04 §5)", () => {
     expect(table().querySelector("tbody tr td:nth-child(2)")!.textContent).toMatch(/\+1\.5%/);
   });
 
-  it("Gold sees FinLit IQ as a chip with the rating word", async () => {
+  it("Gold sees a Prism column, never the FinLit IQ, and is pointed to the Advanced screener for the rating filter (task #100)", async () => {
     st.cat = { ...catalog(false, "gold"), standardColumns: [...STD, "overall"] }; mount(); await ready();
-    await waitFor(() => expect(heads()).toContain("FinLit IQ"));
-    const iq = table().querySelector("tbody td.ssw-iq")!;
-    expect(iq.querySelector(".ssw-sc.strong")!.textContent).toBe("12"); expect(iq.textContent).toMatch(/Strong/);
+    await waitFor(() => expect(table().querySelector("thead tr.ssw-hd th.ssw-iq")?.textContent).toMatch(/^Prism/));
+    expect(heads()).not.toContain("FinLit IQ");
+    expect(st.bodies[st.bodies.length - 1].columns).not.toContain("overall");
+    expect(screen.getByRole("link", { name: "Advanced stock screener" })).toBeTruthy();
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {

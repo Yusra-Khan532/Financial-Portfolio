@@ -134,7 +134,7 @@ div.dn { display: grid; grid-template-columns: 170px 1fr; gap: 18px; align-items
 
 /* ---- product shell: left navigation ---- */
 .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: start; max-width: 1640px; margin: 0 auto; transition: grid-template-columns .2s; }
-.shell.is-collapsed { grid-template-columns: 76px minmax(0, 1fr); }
+.shell.is-collapsed { grid-template-columns: 96px minmax(0, 1fr); }
 .shell-main { min-width: 0; }
 .shell-fab, .shell-scrim { display: none; }
 @media (max-width: 960px) {
