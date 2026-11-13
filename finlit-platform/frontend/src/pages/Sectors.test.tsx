@@ -7,20 +7,17 @@ import board from "../lib/__fixtures__/sectors/board.json";
 import ferrous from "../lib/__fixtures__/sectors/ferrous-metals.json";
 import sambhv from "../lib/__fixtures__/sectors/sambhv.json";
 import { ApiError } from "../lib/api";
-import { chartGeometry, filterCounts, inFilter, sortRows, stateParts, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { chartGeometry, filterCounts, inFilter, sortRows, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
 
 const st = vi.hoisted(() => ({ board: null as unknown, page: null as unknown, stock: null as unknown }));
 const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: false, isError: true, error: d, refetch: () => {} } : { data: d, isLoading: false, isError: false, error: null, refetch: () => {} });
 vi.mock("../lib/sectors", async (orig) => ({ ...(await orig<typeof import("../lib/sectors")>()), useSectorBoard: () => q(st.board), useSectorPage: () => q(st.page), useStockSector: () => q(st.stock) }));
 vi.mock("../lib/sectorExtra", async (orig) => ({ ...(await orig<typeof import("../lib/sectorExtra")>()), useIndustryMap: () => ({ data: undefined }), useIndustryYear: () => ({ data: undefined }) }));   // the map and the year are tested in ExtraCharts.test.tsx
-vi.mock("../lib/sectorHistory", async (orig) => ({ ...(await orig<typeof import("../lib/sectorHistory")>()), useSectorHistory: () => ({ data: undefined }) }));   // the two state-history charts have their own tests (PulseCharts.test.tsx)
+vi.mock("../lib/sectorHistory", async (orig) => ({ ...(await orig<typeof import("../lib/sectorHistory")>()), useSectorHistory: () => ({ data: undefined }) }));
 vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("../lib/leadership")>()), useLeadership: () => ({ data: undefined }) }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "basic", upgrade: vi.fn(), has: () => true }), TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
 vi.mock("../lib/rotation", async (orig) => ({ ...(await orig<typeof import("../lib/rotation")>()), useRotationMap: () => ({ data: undefined, isLoading: false, isError: false }), useRotationCard: () => ({ data: undefined, isLoading: false, isError: false }) }));   // the rotation card has its own tests (Rotation.test.tsx)
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
-import { SectorPulsePage } from "./SectorPulse";
 import { SectorIndustryPage } from "./SectorIndustry";
 import { LearnSectorSignalsPage } from "./LearnSectorSignals";
 import { SectorPeersSection, oneLine } from "../stock/SectorPeers";
@@ -59,144 +56,7 @@ describe("helpers", () => {
   });
 });
 
-describe("Sector Pulse", () => {
-  it("shows the date line, six tiles with zero counts, the market block and the breadth warning from the data", () => {
-    at(<SectorPulsePage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Sector Pulse" })).toBeTruthy();
-    expect(document.body.textContent).toContain("1,198 stocks counted");
-    expect(document.body.textContent).toContain("37 groups with a reading (31 NSE industries and 6 sector groups)");
-    const tiles = screen.getByLabelText("How many groups are in each state");
-    expect(within(tiles).getAllByRole("listitem")).toHaveLength(6);
-    expect(tiles.querySelectorAll(".zero").length).toBe(4);
-    expect(document.body.textContent).toContain("22,936.75"); expect(document.body.textContent).toContain("−4.1%");
-    expect(screen.getByRole("heading", { name: "How to read this page" })).toBeTruthy();
-    expect(document.querySelectorAll(".sxg-steps li").length).toBe(4);
-    // a step opens its full explanation under the row, and closes again (task #85)
-    const first = document.querySelector(".sxg-card") as HTMLElement;
-    expect(first.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(first);
-    expect(first.getAttribute("aria-expanded")).toBe("true");
-    expect(document.querySelector(".sxg-full p")?.textContent?.length).toBeGreaterThan(40);
-    fireEvent.click(first);
-    expect(document.querySelector(".sxg-full")?.hasAttribute("hidden")).toBe(true);
-    expect(document.body.textContent).toContain("29 Oct 2026");
-  });
-  it("lists every group in a table whose rows open the industry page, and the filter buttons narrow it", () => {
-    at(<SectorPulsePage />);
-    const rows = () => within(screen.getByTestId("groups-table")).getAllByRole("row").length - 1;
-    expect(rows()).toBe(37);
-    fireEvent.click(screen.getByRole("button", { name: /^Losing steam/ }));
-    expect(rows()).toBe(22);
-    fireEvent.click(screen.getByRole("button", { name: /^Bouncing back/ }));
-    expect(screen.getByText("No group is bouncing back today.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
-    expect(screen.getByRole("link", { name: "Ferrous Metals" }).getAttribute("href")).toBe("/sectors/ferrous-metals");
-    expect(screen.getByLabelText(/Ferrous Metals: share of counted stocks above their 9-day average 29%/)).toBeTruthy();
-  });
-  it("sorts by a column header and says which way", () => {
-    at(<SectorPulsePage />);
-    const head = screen.getByRole("columnheader", { name: /Index vs 52-week high/ });
-    fireEvent.click(within(head).getByRole("button", { name: "Index vs 52-week high" }));      // the heading also holds a (?) button: the sort button is the one named by the column
-    expect(head.getAttribute("aria-sort")).toBe("ascending");
-    fireEvent.click(within(head).getByRole("button", { name: "Index vs 52-week high" }));
-    expect(head.getAttribute("aria-sort")).toBe("descending");
-  });
-  it("explains the three bar colours, the thrust and leader flags, and the table can be enlarged (task #86, #87)", () => {
-    at(<SectorPulsePage />);
-    expect(screen.getByLabelText("What the three bar colours mean")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Enlarge table: Industries table" })).toBeTruthy();
-    expect(document.querySelector(".sx-thr")?.getAttribute("title")).toMatch(/trading session|No broad rebound/);
-    expect(screen.getByTestId("groups-table").querySelectorAll("col").length).toBe(8);
-  });
-  it("every column of the table explains itself with a (?) that opens in plain words, CAP and the timing included (task #86)", () => {
-    at(<SectorPulsePage />);
-    const table = screen.getByTestId("groups-table");
-    const labels = within(table).getAllByRole("button", { name: /^About / }).map((b) => b.getAttribute("aria-label"));
-    expect(labels).toEqual(["About “Cycle state”", "About the share above the three averages", "About “Index vs 52-week high”", "About “Last bounce”", "About “Leader flags”", "About the corner column", "About “Rotation rank”"]);
-    fireEvent.click(within(table).getByRole("button", { name: "About “Last bounce”" }));
-    const tip = screen.getByRole("tooltip");
-    expect(tip.textContent).toMatch(/After a crash \(CAP\) means almost every stock had kept falling/);
-    expect(tip.textContent).toMatch(/counts trading sessions, the days the market was open/);
-    fireEvent.click(within(table).getByRole("button", { name: "About “Leader flags”" }));
-    expect(screen.getAllByRole("tooltip").map((t) => t.textContent).join(" ")).toMatch(/closed at a 52-week high while their industry is still well below its own high/);
-    expect(document.body.textContent).not.toMatch(/\b(buy|sell|hold) (now|this)\b|target price|best stock|top pick/i);
-  });
-  it("the state chip is short and never leaves its column; a bounce after a crash writes the rest under the chip (task #86)", () => {
-    expect(stateParts("Thrust CAP")).toEqual({ main: "Bouncing back", note: "after a crash" });
-    expect(stateParts("Thrust C")).toEqual({ main: "Bouncing back" }); expect(stateParts("Washout")).toEqual({ main: "Sold off" });
-    expect(stateParts("Fading")).toEqual({ main: "Losing steam" }); expect(stateParts("Neutral")).toEqual({ main: "No clear signal" }); expect(stateParts(null)).toEqual({ main: "No reading" });
-    st.board = { ...B, rows: B.rows.map((r, i) => (i === 0 ? { ...r, state: "Thrust CAP", state_code: "thrust_cap" } : r)) } as Board;
-    at(<SectorPulsePage />);
-    const cell = within(screen.getByTestId("groups-table")).getAllByRole("row")[1].querySelector(".sx-statec") as HTMLElement;
-    expect(cell.querySelector(".sx-chip")?.textContent).toBe("Bouncing back"); expect(cell.querySelector("small")?.textContent).toBe("after a crash");
-    expect(Array.from(document.querySelectorAll("[data-testid='groups-table'] .sx-chip")).every((c) => !/after a crash/.test(c.textContent || ""))).toBe(true);
-  });
-  it("the headings sit on the same side as their figures, and rank and rank movement share one slot in every row (task #86)", () => {
-    const corners = [["ahead_gaining", "Ahead and gaining"], ["ahead_slowing", "Ahead but slowing"], ["behind_slipping", "Behind and slipping"], ["behind_gaining", "Behind but gaining"], ["middle", "Near the average"]] as const;
-    const steps = [3, -4, 0, null, 12, -1];                                                    // up, down, no change, new, a big climb, a place lost
-    st.board = { ...B, rows: B.rows.map((r, i) => ({ ...r, rotation: { corner: corners[i % 5][0], corner_name: corners[i % 5][1], weeks_in_corner: 3, this_week_reading_name: null, rank: i + 1, ranked: B.rows.length, rank_change_1w: steps[i % 6], rank_change_4w: 0,
-      strength_pts: 1, change_pts: 1, breadth: null, breadth_name: null } })) } as unknown as Board;
-    at(<SectorPulsePage />);
-    const heads = Array.from(document.querySelectorAll("[data-testid='groups-table'] thead th"));
-    expect(heads.map((h) => h.className)).toEqual(["", "l", "l", "r", "l", "c", "l", "r"]);
-    const align = (h: Element) => h.querySelector(".sx-hd")?.className.replace("sx-hd ", "");
-    expect([3, 5, 7].map((i) => align(heads[i]))).toEqual(["r", "c", "r"]);                      // the (?) sits on the side away from the figures' edge
-    const rows = Array.from(document.querySelectorAll("[data-testid='groups-table'] tbody tr"));
-    expect(rows.every((r) => r.children.length === 8)).toBe(true);
-    const ranked = rows.filter((r) => r.querySelector(".sx-rk"));
-    expect(ranked.length).toBeGreaterThan(30);
-    expect(ranked.every((r) => r.querySelectorAll(".sx-rk > b").length === 1 && r.querySelectorAll(".sx-rk > .rt-move").length === 1)).toBe(true);
-    const kinds = new Set(ranked.map((r) => (r.querySelector(".rt-move") as HTMLElement).className.split(" ").filter((c) => ["up", "down", "flat", "new"].includes(c))[0]));
-    expect([...kinds].sort()).toEqual(["down", "flat", "new", "up"]);                            // every kind of move has its own look, in the same slot
-    expect((ranked[0].querySelector(".rt-move") as HTMLElement).textContent).toBe("▲3"); expect((ranked[3].querySelector(".rt-move") as HTMLElement).textContent).toBe("new");
-    expect(rows.every((r) => r.querySelector("td:last-child .rt-move, td:last-child .sx-na"))).toBe(true);
-    expect(screen.getAllByRole("link").filter((a) => a.className.includes("rt-clink") && a.querySelector(".rt-corner.pill")).length).toBeGreaterThan(30);   // the corner is a tinted badge with its square
-  });
-  it("the column widths fit a 1440px screen with the side menu open, and the bar colours come from one set of tokens everywhere (task #86)", () => {
-    const css = readFileSync(join(__dirname, "..", "styles", "sectors.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const widths = [...css.matchAll(/\.sx-pulse col\.c-(name|state|bars|idx|thr|flag|cor|rk) \{ width: (\d+)px; \}/g)].map((m) => Number(m[2]));
-    const min = Number(/\.sx-t\.sx-pulse \{[^}]*min-width: (\d+)px/.exec(css)?.[1]);
-    expect(widths).toHaveLength(8);
-    expect(widths.reduce((a, b) => a + b, 0)).toBe(min);                                         // no sideways scroll at 1118px, the frame of a 1440px screen
-    expect(min).toBeLessThanOrEqual(1116);
-    for (const [n, k] of [["9", "bar-9"], ["20", "bar-20"], ["50", "bar-50"]]) {
-      for (const sel of [`.sx-bars .r.b${n} .tr i`, `.sx-legend2 i.k${n}`, `.sx-mini.m${n} i`, `.sx-chart .l${n}`, `.sxg-bars .b${n}`]) {
-        const rule = css.split("}").find((r) => r.includes(sel));
-        expect(rule, sel).toBeTruthy();
-        expect(rule, sel).toMatch(new RegExp(`var\\(--sx-${k}\\)`));
-      }
-    }
-  });
-  it("has no higher-low column, no rules and no study; shows the too-few list, the universe totals and the flags", () => {
-    at(<SectorPulsePage />);
-    expect(screen.queryByText(/Higher-low share/i)).toBeNull();
-    expect(document.body.textContent).not.toMatch(/study|capitulation\)|Rs 2 crore|65 sessions/i);
-    expect(screen.getByText("Too few stocks for a reading")).toBeTruthy();
-    expect(screen.getByText(/too few counted stocks for a steady reading/)).toBeTruthy();
-    expect(screen.getByText(/Construction Materials/)).toBeTruthy();
-    expect(screen.getByText("2,591")).toBeTruthy(); expect(screen.getByText("1,198")).toBeTruthy();
-    expect(screen.getByText(/Show the other 48 standout stocks/)).toBeTruthy();                // the first 10 show; the rest open in place (9 Nov pages update)
-    expect(document.querySelectorAll("details.sx-small")).toHaveLength(9);                    // each small group is a row that opens to its stocks
-    expect(screen.getByText("KRISHANA")).toBeTruthy();
-    expect(screen.getAllByText("Full flag").length).toBeGreaterThan(0);
-    expect(document.body.textContent).toContain("Not a recommendation");
-    expect(document.body.textContent).not.toMatch(/\b(buy now|sell now|target price|accumulate)\b/i);
-  });
-  it("for Basic: leader flags are locked in words, the filter is disabled, nothing is an empty cell", () => {
-    st.board = basicBoard();
-    at(<SectorPulsePage />);
-    expect((screen.getByRole("button", { name: /With leader flags/ }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/The list of leader flags is part of the Silver plan/)).toBeTruthy();
-    expect(screen.getAllByText("Silver").length).toBeGreaterThan(30);
-    expect(screen.queryByText("KRISHANA")).toBeNull();
-  });
-  it("when the data is not loaded it says why, with the server's sentence", () => {
-    st.board = notLoaded();
-    at(<SectorPulsePage />);
-    expect(screen.getByText(/Sector data is not loaded yet: the nightly sector job is switched off/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
-  });
-});
+// Sector Pulse itself (the final pages pack) is tested in SectorPulse.test.tsx.
 
 describe("industry page", () => {
   const open = () => at(<SectorIndustryPage />, "/sectors/ferrous-metals");

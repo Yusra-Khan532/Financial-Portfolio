@@ -20,9 +20,11 @@ def page(name, codes, ds):
     return {"name": name, "slug": name.lower().replace(" ", "-"), "kind": "industry", "history": {"dates": ds, "state_code": codes}}
 
 
-def test_state_codes_become_five_plain_states_and_both_bounce_kinds_are_one():
-    assert [H.key_of(c) for c in ("washout", "thrust_c", "thrust_cap", "confirmed", "fading", "neutral", "none", None)] == ["sold_off", "bouncing", "bouncing", "rising", "losing", "no_signal", None, None]
-    assert H.WORD == {"sold_off": "Sold off", "bouncing": "Bouncing back", "rising": "Rising together", "losing": "Losing steam", "no_signal": "No clear signal"}
+def test_state_codes_become_six_plain_states_with_the_bounce_after_a_crash_apart():
+    # the "FinLit final pages" pack (13 Nov 2026) shows "Bouncing back after a crash" as its own colour; sentences still count both bounces
+    assert [H.key_of(c) for c in ("washout", "thrust_c", "thrust_cap", "confirmed", "fading", "neutral", "none", None)] == ["sold_off", "bouncing", "crash", "rising", "losing", "no_signal", None, None]
+    assert H.WORD["crash"] == "Bouncing back after a crash" and set(H.BOUNCE) == {"bouncing", "crash"}
+    assert H.WORD == {"sold_off": "Sold off", "crash": "Bouncing back after a crash", "bouncing": "Bouncing back", "rising": "Rising together", "losing": "Losing steam", "no_signal": "No clear signal"}
 
 
 def test_week_ends_are_the_last_trading_day_of_each_week():
@@ -60,3 +62,13 @@ def test_the_changed_this_week_list_and_not_enough_history():
     r = H.build([page("Beta", ["washout"] * 125 + ["thrust_c"] * 5, ds), page("Alpha", ["washout"] * 130, ds)])
     assert r["changed_this_week"] == [{"name": "Beta", "slug": "beta", "last": "Sold off", "now": "Bouncing back"}]
     assert H.build([]) is None and H.build([page("A", ["washout"] * 10, days(10))]) is None
+
+
+def test_a_bounce_after_a_crash_counts_as_bouncing_back_in_the_sentences_and_has_its_own_count():
+    dates = [f"2026-10-{d:02d}" for d in range(1, 31) if __import__("datetime").date(2026, 10, d).weekday() < 5]
+    def page(name, codes):
+        return {"name": name, "slug": name.lower(), "history": {"dates": dates, "state_code": codes}}
+    pages = [page("A", ["washout"] * (len(dates) - 1) + ["thrust_cap"]), page("B", ["washout"] * (len(dates) - 1) + ["thrust_c"]), page("C", ["washout"] * len(dates))]
+    out = H.build(pages)
+    assert out["counts"]["crash"][-1] == 1 and out["counts"]["bouncing"][-1] == 1 and out["counts"]["sold_off"][-1] == 1
+    assert out["insights"]["mood"][0]["text"].startswith("2 industries are bouncing back today")

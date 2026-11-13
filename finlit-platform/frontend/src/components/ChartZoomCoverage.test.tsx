@@ -21,7 +21,7 @@ const ZOOM = [
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
-  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/sectors/BreadthChart.tsx", "components/sectors/PulseCharts.tsx", "components/sectors/ExtraCharts.tsx", "components/rotation/RotationMap.tsx", "components/rotation/RotationCard.tsx", "components/rotation/RotationCharts.tsx",
+  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/sectors/BreadthChart.tsx", "components/sectors/ExtraCharts.tsx", "components/rotation/RotationMap.tsx", "components/rotation/RotationCard.tsx", "components/rotation/RotationCharts.tsx",
   // funds, MF, ETFs
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
@@ -40,6 +40,10 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 const EXEMPT: Record<string, string> = {
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
+  "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
+  "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
+  "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
+  "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
   "charts/Dial.tsx": "score dial: one figure, drawn as a ring",
