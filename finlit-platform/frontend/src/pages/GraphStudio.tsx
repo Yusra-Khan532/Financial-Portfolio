@@ -22,7 +22,7 @@ import { ZoomGlyph } from "../components/ChartZoom";
 import { alignSeries, changes, corrMatrix, csvRow, pearson, rebase, RANGES, strength, windowPts } from "../lib/graphData";
 import { BY_ID, extract, GROUPS, IDX, indexCode, isIndexSym, metricFor, metricsIn, unsupportedWhy, UNITS, type Bundle, type Extracted, type Metric, type UnitId } from "../lib/graphMetrics";
 import { graphLimits, chartTier, type ChartKind } from "../lib/graphLimits";
-import { CHART_LABEL, LAYOUTS, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
+import { CHART_LABEL, LAYOUTS, LAYOUT_BUTTONS, MAX_CHARTS, nextFreeCell, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
 import "../styles/graphs.css";
 
 const CHARTS = Object.keys(CHART_LABEL) as ChartKind[];
@@ -198,17 +198,29 @@ export function GraphStudio() {
   const set = (n: View) => setView(n);
   const setCell = (i: number, c: CellSpec) => { const cells = [...view.cells]; while (cells.length <= i) cells.push({ chart: "line", series: [] }); cells[i] = c; set({ ...view, cells }); };
   const cellOf = (i: number): CellSpec => view.cells[i] ?? { chart: "line", series: [] };
-  const addTo = (i: number, mid: string, only?: string) => {
-    const mt = BY_ID[mid], cell = cellOf(i); if (!mt) return;
+  const addTo = (i: number, mid: string, only?: string, base: View = view) => {
+    const mt = BY_ID[mid], cell = base.cells[i] ?? { chart: "line" as const, series: [] }; if (!mt) return;
     const syms = only ? [only] : companies.length ? companies : ["RELIANCE"];
     const isComp = mt.grain === "composition", hasComp = cell.series.some((s) => BY_ID[s.m]?.grain === "composition");
     if ((isComp && cell.series.length && !hasComp) || (!isComp && hasComp)) { toast("A breakdown (pie) can't share a chart with time series. Use another chart."); return; }
     let series = isComp ? [] : [...cell.series], added = 0;
     for (const s of isComp ? syms.slice(0, 1) : syms) { const why = unsupportedWhy(s, mt); if (why) { toast(`${mt.label} for ${isIndexSym(s) ? name(rows, s) : s}: ${why}`); continue; } if (isComp && isIndexSym(s)) { toast("Breakdowns are for companies."); continue; } if (series.some((x) => x.s === s && x.m === mid)) continue; if (series.length >= lim.series) { toast(`Your plan allows ${lim.series} series per chart.`); break; } series.push({ s, m: mid }); added++; }
     if (!added && !isComp) return;
-    setCell(i, { ...cell, series, chart: isComp ? "pie" : cell.chart === "pie" ? "line" : cell.chart, x: undefined, y: undefined });
+    const cells = [...base.cells]; while (cells.length <= i) cells.push({ chart: "line", series: [] });
+    cells[i] = { ...cell, series, chart: isComp ? "pie" : cell.chart === "pie" ? "line" : cell.chart, x: undefined, y: undefined };
+    set({ ...base, cells });
+    return true;
   };
-  const toggle = (mid: string) => { const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid); if (has) setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); else addTo(active, mid); };
+  /** Picking a measure (task #114): unticking removes it from the chart picked; a new one goes on that chart only when it is empty, otherwise it gets a
+   *  chart of its own (the first empty one, or one more), so measures in different units never share a chart and the charts already drawn stay as they are. */
+  const toggle = (mid: string) => {
+    const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid);
+    if (has) { setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); return; }
+    if (!cell.series.length) { addTo(active, mid); return; }
+    const free = nextFreeCell(view, Math.min(MAX_CHARTS, lim.cells));
+    if (!free) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
+    if (addTo(free.index, mid, undefined, { ...view, layout: free.layout })) setActive(free.index);
+  };
   const nCo = (l: string[]) => l.filter((x) => !isIndexSym(x)).length;
   const addCompany = (s: string) => { if (companies.includes(s)) return; if (!isIndexSym(s) && nCo(companies) >= lim.companies) { upgrade(plan === "basic" ? "silver" : "gold", `Comparing more than ${lim.companies} companies`); return; } setCompanies([...companies, s]); setCq("");
     // the new company joins every chart: each measure already drawn gets a line for it (breakdown charts stay with one company; the plan's series limit and unsupported measures are respected)
@@ -237,7 +249,7 @@ export function GraphStudio() {
   /** "+ Add chart" steps to the next larger layout (plan limits and the upgrade prompt apply as for the layout buttons) and selects the new chart. */
   const addChart = () => {
     const n = cellCount(view.layout), next = layoutAbove(view.layout);
-    if (!next) { toast("Six charts is the most a view can hold."); return; }
+    if (!next || n >= MAX_CHARTS) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
     if (cellCount(next) > lim.cells) { upgrade(plan === "basic" ? "silver" : "gold", `Layouts with ${cellCount(next)} charts`); return; }
     set({ ...view, layout: next });
     setActive(n);
@@ -318,8 +330,10 @@ export function GraphStudio() {
             <div className="gx-seg" role="group" aria-label="Time range">{RANGES.map((r) => <button key={r.id} aria-pressed={!view.from && view.range === r.id} onClick={() => set({ ...view, range: r.id, from: undefined })}>{r.label}</button>)}</div>
             <label className="gx-yr">From year <select value={view.from ?? ""} onChange={(e) => set({ ...view, from: e.target.value ? Number(e.target.value) : undefined })}><option value="">Any</option>{Array.from({ length: new Date().getFullYear() - 2009 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}</select></label>
             <div className="gx-seg" role="group" aria-label="Annual or quarterly">{(["annual", "quarterly"] as const).map((b) => <button key={b} aria-pressed={view.basis === b} onClick={() => set({ ...view, basis: b })}>{b === "annual" ? "Annual" : "Quarterly"}</button>)}</div>
-            <div className="gx-seg" role="group" aria-label="Layout">{Object.keys(LAYOUTS).filter((l) => l !== "2x3-5").map((l) => <button key={l} aria-pressed={view.layout === l || (l === "2x3" && view.layout === "2x3-5")} aria-label={`Layout ${l.replace("x", " by ")}`} onClick={() => setLayout(l)}>{l.replace("x", "×")}{cellCount(l) > lim.cells && <Icon name="lock" />}</button>)}</div>
-            <button className="btn ghost gx-addchart" aria-label="Add a chart" title="Add a chart" onClick={addChart}><span aria-hidden="true">+</span> Add chart</button>
+            <div className="gx-seg" role="group" aria-label="Layout">{LAYOUT_BUTTONS.map((l) => <button key={l} aria-pressed={view.layout === l || (l === "2x3" && view.layout === "2x3-5")} aria-label={`Layout ${l.replace("x", " by ")}`} onClick={() => setLayout(l)}>{l.replace("x", "×")}{cellCount(l) > lim.cells && <Icon name="lock" />}</button>)}</div>
+            <button className="btn ghost gx-addchart" aria-label="Add a chart" title={count >= MAX_CHARTS ? `${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.` : "Add a chart"} onClick={addChart} disabled={count >= MAX_CHARTS}><span aria-hidden="true">+</span> Add chart</button>
+            <span className="gx-count" aria-live="polite" title="Charts in this view">{count}/{MAX_CHARTS}</span>
+            {count >= MAX_CHARTS && <span className="gx-max" role="status">You have reached the most charts a view can hold ({MAX_CHARTS}). Remove one to add another.</span>}
             <button className="btn ghost" onClick={copy}><Icon name="spark" />Copy link</button>
             <button className="btn ghost" onClick={exportPng}>PNG</button><button className="btn ghost" onClick={exportCsv}>CSV</button>
           </div>
