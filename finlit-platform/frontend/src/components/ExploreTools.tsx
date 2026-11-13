@@ -3,13 +3,12 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { OPEN_AI } from "./Assistant";
-import { BUCKETS, EXPANDED, FIGURE, SHORT, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
+import { BUCKETS, EXPANDED, FIGURE, SHORT, STATS, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
 import { useFocusTrap } from "../lib/focusTrap";
 import "../styles/explore-tools.css";
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const TOTAL = BUCKETS.reduce((n, b) => n + b.cards.length, 0);
-/** Fired by the hero button, so "Explore the platform" opens the groups even when the address already ends in #platform. */
+/** Fired to open the groups from elsewhere on the page, even when the address already ends in #platform (the hero now links to the screener). */
 export const OPEN_EXPLORE = "finlit:open-explore";
 const BADGE_LABEL = { FREE: "Free", SILVER: "Silver", GOLD: "Gold" } as const;
 
@@ -132,23 +131,23 @@ export function ExploreTools() {
   const expand = (id: string) => open(ALL.findIndex((x) => x.c.id === id));
   const goExp = (n: number) => { setExp(n); const g = ALL[n].b.id; if (g !== mode && mode !== "off" && mode !== "dir") show(g); };
   const closeExp = () => { setExp(null); setTimeout(() => expBtn.current?.focus?.(), 0); };
+  const explore = () => { if (mode === "off") show("dir"); requestAnimationFrame(() => document.getElementById(panel)?.scrollIntoView?.({ block: "start", behavior: "smooth" })); };
   const prev = group ? BUCKETS[(gi + BUCKETS.length - 1) % BUCKETS.length] : null, next = group ? BUCKETS[(gi + 1) % BUCKETS.length] : null;
   return (
     <section className="sec hh-sec xt" id="platform" aria-labelledby="xt-title"><div className="wrap">
-      <div className="xt-hero">
-        <ul className="xt-checks" aria-label="What the platform is for">{["Screen & discover opportunities", "Analyse companies in depth", "Value with proven models", "Track your portfolio & market", "Learn, discuss & stay informed"].map((t) => <li key={t}><Icon name="check" />{t}</li>)}</ul>
-        <div className="xt-head">
-          <div className="hh-kicker">The platform</div>
-          <h2 id="xt-title">Everything you need. <em>Nothing you don't.</em></h2>
-          <p>{TOTAL} tools in six groups, from finding a stock to valuing it, tracking it and following its sector.</p>
-          <div className="xt-cta">
-            <button type="button" className="btn primary lg xt-go" aria-expanded={mode !== "off"} aria-controls={panel} onClick={() => show(mode === "off" ? "dir" : "off", mode === "off")}>{mode === "off" ? "Explore the platform" : "Hide the platform tools"} <Icon name="arrow" /></button>
-            <a className="btn lg xt-tour" href="#tour"><Icon name="play" /> Watch the tour</a>
-          </div>
+      <div className="xt-head">
+        <p className="xt-pill"><span>The platform</span></p>
+        <h2 id="xt-title">Everything you need. <em>Nothing you don't.</em></h2>
+        <p>A complete toolkit to explore companies, run quantitative models, track your portfolio and stay informed across sectors.</p>
+      </div>
+      <div className="xt-hero xt-panel">
+        <ul className="xt-checks" aria-label="What the platform is for">{["Screen & discover opportunities", "Analyse companies in depth", "Value with proven models"].map((t) => <li key={t}><Icon name="check" />{t}</li>)}</ul>
+        <div className="xt-cta">
+          <button type="button" className="btn lg xt-go" aria-expanded={mode !== "off"} aria-controls={panel} onClick={explore}>Explore the platform <Icon name="arrow" /></button>
+          <a className="btn lg xt-tour" href="#tour"><Icon name="play" /> Watch the tour</a>
         </div>
         <dl className="xt-stats" aria-label="The platform in numbers">
-          <div><Icon name="building" /><dd>5,800+</dd><dt>Listed companies</dt></div><div><Icon name="pie" /><dd>1,200+</dd><dt>Mutual funds</dt></div>
-          <div><Icon name="grid" /><dd>{TOTAL}</dd><dt>Tools</dt></div><div><Icon name="layers" /><dd>{BUCKETS.length}</dd><dt>Groups</dt></div>
+          {STATS.map((x) => <div key={x.label} title={x.source}><Icon name={x.icon} /><dd>{x.value}</dd><dt>{x.label}</dt></div>)}
         </dl>
       </div>
       <div id={panel}>
@@ -168,7 +167,8 @@ export function ExploreTools() {
               <button type="button" className="fl-gnav fl-gnext" onClick={() => show(next.id)}><span><small>Next group</small><b>{next.name}</b></span><Icon name="arrow" /></button>
             </nav>
           </div>)}
-        {mode !== "off" && <p className="xt-fine">Tools are for information and education only. They are never investment advice.</p>}
+        {mode !== "off" && <div className="xt-foot"><p className="xt-fine">Tools are for information and education only. They are never investment advice.</p>
+          <button type="button" className="xt-hide" aria-controls={panel} onClick={() => show("off")}>Hide the platform tools</button></div>}
       </div>
       {exp != null && <Expanded at={exp} go={goExp} close={closeExp} />}
     </div></section>

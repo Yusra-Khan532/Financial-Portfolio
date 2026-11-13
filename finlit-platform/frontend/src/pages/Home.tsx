@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { PlansBand } from "./Plans";
-import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
+import { ExploreTools } from "../components/ExploreTools";
 import { TOUR_CHOICE_KEY, asChoice, tourLook, type Choice, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
@@ -65,23 +65,31 @@ function PrismPanel() {
 }
 
 export function Home() {
-  useDocTitle("Research deeper. Invest with clarity.", "Explore every listed Indian company, see what drives its scores and make better-informed decisions in one workspace. Start free. Information only, not investment advice.");
+  useDocTitle("Research with clarity.", "Explore company financials, quantitative models and sector-level analytics for every listed Indian company. Build custom models, compare businesses and uncover insights through data. Start free. Information only, not investment advice.");
   return (
     <div className="hh">
-      <section className="hh-top"><div className="wrap hh-top-cols">
-        <div>
-          <p className="hh-pill"><Icon name="spark" />Equity research for every listed Indian company</p>
-          <h1>Research deeper.<br /><em>Invest with clarity.</em></h1>
-          <p className="hh-lede">Explore every listed company, see what drives its scores, and make better-informed decisions, all in one workspace.</p>
-          <div className="cta-row">
-            <a className="btn primary lg" href="#platform" onClick={() => dispatchEvent(new Event(OPEN_EXPLORE))}>Explore the platform <Icon name="arrow" /></a>
-            <Link className="btn lg" to="/stocks/RELIANCE"><Icon name="building" />See a sample company report</Link>
+      <section className="hh-top" aria-labelledby="hh-title"><div className="wrap">
+        <p className="hh-strip"><span>Quantify the market</span><i aria-hidden="true">×</i><span>Research deeper</span><i aria-hidden="true">×</i><em>Track what matters.</em></p>
+        <div className="hh-top-cols">
+          <div>
+            <h1 id="hh-title">Research with <em>clarity.<svg className="hh-swoosh" viewBox="0 0 200 16" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M3 12 C 60 3, 140 1, 197 7" pathLength={1} /></svg></em></h1>
+            <p className="hh-lede">Explore company financials, quantitative models and sector-level analytics. Build custom models, compare businesses and uncover insights through data.</p>
+            <div className="cta-row">
+              <Link className="btn lg hh-go" to="/screener">Explore every listed company <Icon name="arrow" /></Link>
+              <Link className="btn lg hh-ghost" to="/stocks/RELIANCE"><Icon name="notes" />See a sample company report</Link>
+            </div>
+            <ul className="hh-feats" aria-label="What you can do here">
+              <li><span className="hh-fi" aria-hidden="true"><Icon name="bars" /></span><span className="hh-lbl">Quantitative models</span></li>
+              <li><span className="hh-fi" aria-hidden="true"><Icon name="layers" /></span><span className="hh-lbl">Custom models</span></li>
+              <li><span className="hh-fi" aria-hidden="true"><Icon name="pie" /></span><span className="hh-lbl">Sector-level analytics</span></li>
+            </ul>
+            <p className="hh-fine">Information only. Not investment advice.</p>
           </div>
-          <ul className="hh-trust" aria-label="Why start here"><li><Icon name="check" />Free to start, no card</li><li><Icon name="check" />Every listed company</li><li><Icon name="check" />Scores that show their working</li></ul>
-          <p className="hh-fine">Information only. Not investment advice.</p>
+          <Tour />
         </div>
-        <Tour />
-      </div></section>
+      </div>
+        <svg className="hh-curve" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M0 110 C 360 40, 1080 40, 1440 110" /></svg>
+      </section>
 
       <ExploreTools />
       <PrismPanel />
