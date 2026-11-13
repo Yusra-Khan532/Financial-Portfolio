@@ -24,6 +24,7 @@ NOT_SIZE = "Stress Lab covers large and mid caps for now (a market value of Rs 1
 PAGE_TTL = 3600
 LIVE_BUILD_S = 8.0                  # a page with no stored copy yet is built live for at most this long; after that the reader gets the plain "being prepared" card
 PER_COMPANY_S = 150.0               # the nightly job's own time limit for one company (the statements come from the data provider)
+UNKNOWN_SYMBOL = "We could not find a listed company with that symbol."
 PLAIN_NOT_READY = "Stress Lab for this company is being prepared. Please check back later."
 NOT_COVERED_PLAIN = "Stress Lab does not cover this company yet."
 log = logging.getLogger("finlit.stress")

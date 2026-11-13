@@ -137,6 +137,18 @@ async def test_a_bank_and_a_small_company_say_why_they_are_not_covered(app):  # 
     await silver.aclose()
 
 
+async def test_a_symbol_that_is_not_a_company_says_so_and_the_covered_list_leaves_out_banks_and_small_companies(app, anon):  # noqa: F811
+    silver = await signed_in(app, "su@example.com", plan="silver")
+    r = await silver.get("/api/stress/NOSUCHCOMPANY/page")
+    d = r.json()["detail"]
+    assert r.status_code == 404 and d["status"] == "unknown_symbol" and d["detail"] == service.UNKNOWN_SYMBOL
+    assert "10,000" not in json.dumps(d)                        # not the size rule: it is not a company at all
+    got = (await silver.get("/api/stress/covered")).json()["symbols"]
+    assert "BANKX" not in got and "SMALLCO" not in got and got == sorted(got)
+    assert (await anon.get("/api/stress/covered")).status_code == 401      # the Silver and Gold plans only, like the rest
+    await silver.aclose()
+
+
 # ---------------------------------------------------------------------------------------------------------------- the whole payload, on Asian Paints' own figures
 FIX = __import__("pathlib").Path(__file__).parent.parent / "finlit_technicals" / "tests" / "fixtures"
 
