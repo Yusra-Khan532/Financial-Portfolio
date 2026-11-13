@@ -57,13 +57,13 @@
 :root:not([data-theme="light"]) .cmp tbody tr:nth-child(even):not(.grp) td { background-image: linear-gradient(var(--zebra), var(--zebra)); }
 :root:not([data-theme="light"]) .cmp tbody tr:hover td { background-color: var(--rep-a); background-image: linear-gradient(var(--row-hover), var(--row-hover)); }
 
-/* inputs: raised well, clear border, gold focus ring */
+/* inputs: raised well, clear border, gold focus ring (never on a slider: the ring drew a box round the whole bar while it was dragged, task #110; a slider glows on its thumb, site.css) */
 :root:not([data-theme="light"]) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 :root:not([data-theme="light"]) select,
 :root:not([data-theme="light"]) textarea { background-color: var(--s2); border-color: var(--border-strong); color: var(--text); }
 :root:not([data-theme="light"]) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
 :root:not([data-theme="light"]) select:hover, :root:not([data-theme="light"]) textarea:hover { border-color: color-mix(in srgb, var(--border-strong) 60%, var(--faint)); }
-:root:not([data-theme="light"]) input:focus, :root:not([data-theme="light"]) select:focus, :root:not([data-theme="light"]) textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); outline: none; }
+:root:not([data-theme="light"]) input:not([type="range"]):focus, :root:not([data-theme="light"]) select:focus, :root:not([data-theme="light"]) textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); outline: none; }
 :root:not([data-theme="light"]) input:disabled, :root:not([data-theme="light"]) select:disabled { opacity: .55; }
 :root:not([data-theme="light"]) .search, :root:not([data-theme="light"]) .icon-btn, :root:not([data-theme="light"]) .seg { background: var(--s1); border-color: var(--border-strong); }
 :root:not([data-theme="light"]) .search:hover, :root:not([data-theme="light"]) .icon-btn:hover { border-color: var(--gold); }
