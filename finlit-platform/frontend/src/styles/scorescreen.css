@@ -240,3 +240,17 @@
 .sx-how-q { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 14px; }
 .sx-count { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
 .pzs-i { display: inline-flex; margin-left: 4px; color: var(--faint); vertical-align: -2px; } .pzs-i svg { width: 13px; height: 13px; }
+
+/* Task #64 B-7 / V-10 (follow-up): one control style on the Basic and Advanced screeners. Five kinds in all: a control (14 px, 8 px corners, 600),
+   a chip (13 px, round, 600), a round icon (12 px, 600), a text link and a column heading. Scoped to these two pages (sx-root). */
+.sx-root.sx-root :is(.btn, .psx-gtab, .psx-gs, .psx-gb, .cz-btn, select) { font-size: 14px; font-weight: 600; border-radius: 8px; }
+.sx-root.sx-root :is(.iq-chip) { font-size: 13px; font-weight: 600; border-radius: 999px; }
+.sx-root.sx-root :is(.chh-b, .scr-split-btn) { font-size: 12px; font-weight: 600; border-radius: 50%; }
+.sx-root.sx-root thead th button { font-size: 12px; font-weight: 600; border-radius: 0; }
+/* B-4 / V-4 (follow-up): the first row within 650 px: tighter header, bar and count line */
+.sx-root .sx-head { padding: 8px 18px !important; margin-bottom: 8px; }
+.sx-root .sx-stick { padding-top: 4px; }
+.sx-root .sx-count { margin: 0 0 4px; font-size: 13px; }
+.sx-root.sx-root .pzf-sh > button { font-size: 14px; font-weight: 600; border-radius: 8px; }
+:root:root .sx-root .ss-actions .btn.primary { border-radius: 8px; font-weight: 600; }
+@media (min-width: 761px) { .sx-root.sx-root .ss-foot select { font-size: 14px; } }   /* a phone keeps 16 px, so the select does not zoom the page */
