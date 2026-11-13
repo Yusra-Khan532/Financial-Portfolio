@@ -44,5 +44,18 @@ async def test_cannot_read_files_outside_the_site_folder(site):
         assert "do not serve" not in r.text
 
 
+async def test_source_maps_are_never_served(site, tmp_path):
+    (tmp_path / "assets" / "app-abc123.js.map").write_text('{"sourcesContent":["const ERP = 6.0"]}')
+    r = await site.get("/assets/app-abc123.js.map")
+    assert r.status_code == 404 and "ERP" not in r.text
+    assert (await site.get("/assets/app-abc123.js")).status_code == 200      # the bundle itself still loads
+
+
+def test_the_server_build_deletes_source_maps():
+    from pathlib import Path
+    docker = (Path(__file__).resolve().parents[2] / "Dockerfile").read_text()
+    assert "find dist -name '*.map' -delete" in docker
+
+
 def test_no_build_means_no_website(tmp_path):
     assert mount_frontend(FastAPI(), tmp_path) is False
