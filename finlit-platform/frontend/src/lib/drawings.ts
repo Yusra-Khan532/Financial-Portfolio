@@ -110,6 +110,9 @@ export function saveShapes(id: string, shapes: readonly Shape[]): void {
 }
 
 /** A short stable id for a chart view built from any text (series, range, filters...), so each view keeps its own drawings. */
+/** Forget the drawings of one chart (it was removed, or a measure left it): task #117. */
+export function clearShapes(id: string): void { saveShapes(id, []); }
+
 export function viewId(text: string): string {
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
