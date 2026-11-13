@@ -80,7 +80,7 @@ async def test_score_all_is_capped_and_scores_slim(store, monkeypatch):
         await worker.refresh_universe(client, store)
         seen = []
 
-        async def fake(_client, _store, items, parallel=2, yield_to_readers=False, slim=False):
+        async def fake(_client, _store, items, parallel=2, yield_to_readers=False, slim=False, **_kw):
             items = list(items)
             seen.append((len(items), slim))
             return [{"symbol": s, "status": "ok", "ms": 1, "errors": {}} for s, _ in items]
