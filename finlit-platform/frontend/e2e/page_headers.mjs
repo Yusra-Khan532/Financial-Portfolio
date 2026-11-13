@@ -31,7 +31,7 @@ const PAGES = [
   ["/eps-calculator", "Free", "demo"], ["/dcf", "Gold", "demo"], ["/sip-calculator", "Free", "demo"], ["/graphs", "Free", "demo"], ["/graphs/advanced/valuation", "Free", "demo"],
   ["/fii-dii", "Free", "demo"], ["/macro", "Free", "demo"], ["/commodities", "Free", "demo"], ["/results", "Free", "demo"], ["/results/quarter", "Free", "demo"], ["/ipo", "Free", "demo"], ["/news", "Free", "demo"],
   ["/funds", "Free", "demo"], ["/funds/compare", "Free", "demo"], ["/funds/insights", "Free", "demo"], ["/etfs", "Free", "demo"], ["/etfs/compare", "Free", "demo"], ["/etfs/compare-index-funds", "Free", "demo"],
-  ["/watchlist", "Silver", "demo"], ["/holdings", "Silver", "demo"], ["/mf-portfolio", "Silver", "demo"], ["/alerts", "Free", "demo"], ["/baskets", "Free", "demo"],
+  ["/holdings", "Silver", "demo"], ["/mf-portfolio", "Silver", "demo"], ["/alerts", "Free", "demo"], ["/baskets", "Free", "demo"],
   ["/documents", "Free", "demo"], ["/glossary", null, "demo"], ["/methodology/mf-score", null, "demo"],
 ];
 

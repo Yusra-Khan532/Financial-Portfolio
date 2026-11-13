@@ -159,6 +159,7 @@ class WList(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
     name: str = Field(min_length=1, max_length=28)
     symbols: List[str] = Field(max_length=1000)
+    labelAlert: Optional[Literal["any", "laggard", "leader"]] = None   # the Watchlists page's "Tell me when a label changes" (finlit/labelalerts.py)
 
     @field_validator("symbols")
     @classmethod
@@ -680,7 +681,7 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_list")
     meta = {k: v.model_dump() for k, v in body.meta.items() if SYMBOL.match(k)}
-    await save_state(request, ctx, "watchlist", {"lists": [lst.model_dump() for lst in body.lists], "meta": meta})
+    await save_state(request, ctx, "watchlist", {"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta})
     if any(m.get("target") for m in meta.values()):
         await wake.set_alerts_flag(request.app.state.store.redis, True)   # a price target now exists: the market-hours check must run (the next DB window corrects a false alarm)
     return {"status": "saved"}
