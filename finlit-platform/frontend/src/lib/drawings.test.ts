@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { FIB_LEVELS, distToSegment, fibLines, hit, sanitize, thin, topHit, type Shape } from "./drawings";
 
@@ -36,5 +37,16 @@ describe("saved drawings", () => {
     expect(out.map((s) => s.id)).toEqual(["1", "2", "3"]);
     expect((out[0] as { b: number[] }).b).toEqual([1, 0]); expect((out[1] as { pts: number[][] }).pts).toHaveLength(2); expect(out[2].c).toBe("red");
     expect(sanitize("nope")).toEqual([]); expect(sanitize(Array.from({ length: 500 }, (_, i) => ({ id: String(i), k: "hline", c: "red", w: 2, a: [0, 0.5] })))).toHaveLength(200);
+  });
+});
+
+// task #117: a removed chart, or a measure taken off it, takes its drawings with it
+import { clearShapes as clear117, loadShapes as load117, saveShapes as save117 } from "./drawings";
+describe("clearShapes (task #117)", () => {
+  it("forgets the drawings of one chart and leaves the others", () => {
+    const s = [{ id: "a", c: "red" as const, w: 3, k: "hline" as const, a: [0.5, 0.5] as [number, number] }];
+    save117("gx:one", s); save117("gx:two", s);
+    clear117("gx:one");
+    expect(load117("gx:one")).toEqual([]); expect(load117("gx:two")).toHaveLength(1);
   });
 });

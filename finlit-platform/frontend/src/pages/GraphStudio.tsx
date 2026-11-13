@@ -5,7 +5,7 @@ import { ChartReading } from "../components/ChartReading";
 import { topicOfChart } from "../lib/chartSays";
 import { readBars, readBreakdown, readCandles, readCorrelationMatrix, readTimeSeries } from "../lib/chartReading";
 import { chartInference, pFromR } from "../lib/chartInference";
-import { viewId } from "../lib/drawings";
+import { clearShapes, viewId } from "../lib/drawings";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
@@ -142,6 +142,17 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
     : k0 === "heatmap" ? ((cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === "corr" && align && ok.length > 1 ? (() => { const m = corrMatrix(tfCols); return readCorrelationMatrix(ok.map((r) => r.label), m.r, m.n); })() : null)
     : ps.length ? readTimeSeries(ps.map((p) => ({ label: p.label, unit: p.unit, pts: p.pts })), view.basis, { change: tf === "change" }) : null;
 
+  // Drawings are kept per what the chart shows (so a saved view finds them again). Task #117: when a measure leaves the chart, or the chart is removed, its
+  // drawing goes with it; before, ticking the same measure again brought the old drawing back. A change of range or chart type keeps them.
+  const drawId = "gx:" + viewId(JSON.stringify([cell.chart, tf, cell.x, cell.y, cell.mode, view.range, view.from, view.basis, cell.series.map((x) => [x.s, x.m, x.as])]));
+  const seriesKeys = cell.series.map((x) => `${x.s}|${x.m}|${x.as ?? ""}`);
+  const prevDraw = useRef({ id: drawId, keys: seriesKeys });
+  useEffect(() => {
+    const p = prevDraw.current;
+    if (p.id !== drawId && p.keys.some((k) => !seriesKeys.includes(k))) clearShapes(p.id);   // a series was taken off this chart
+    prevDraw.current = { id: drawId, keys: seriesKeys };
+  }, [drawId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <section className={"gx-cell" + (active ? " on" : "") + (zoomed ? " gx-zoomed" : "")} onClick={onActive} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const m = e.dataTransfer.getData("text/plain"); if (BY_ID[m]) onDrop(m); }} aria-label={`Chart ${i + 1}: ${title}`}>
       <header><h3 title={title}>{title}</h3>
@@ -149,7 +160,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
           {CHARTS.map((k) => { const r = chartCheck(k, facts, plan); return <option key={k} value={k} disabled={!r.ok && k !== cell.chart && !!r.why && r.why !== "Not in your plan"}>{CHART_LABEL[k]}{!r.ok && r.why ? ` — ${r.why}` : ""}</option>; })}
         </select>
         <button className="gx-x gx-zoom" aria-label={zoomed ? `Restore chart ${i + 1}` : `Enlarge chart ${i + 1}`} aria-pressed={zoomed} title={zoomed ? "Back to the grid (Esc)" : "Enlarge this chart"} onClick={(e) => { e.stopPropagation(); onZoom(); }}><ZoomGlyph zoomed={zoomed} /></button>
-        <button className="gx-x" aria-label={`Remove chart ${i + 1}`} title="Remove this chart" onClick={(e) => { e.stopPropagation(); onRemove(); }}>×</button></header>
+        <button className="gx-x" aria-label={`Remove chart ${i + 1}`} title="Remove this chart" onClick={(e) => { e.stopPropagation(); clearShapes(drawId); onRemove(); }}>×</button></header>
       <div className="gx-legend">{rs.map((r, n) => <span key={r.sp.s + r.sp.m} className="gx-chip"><i style={{ background: r.color }} />{r.label} <small>{UNITS[r.mt.unit].label}</small>
         {cell.chart === "combo" && r.mt.grain !== "price" && <button className="gx-mini" title="Switch between bars and line" onClick={() => onChange({ ...cell, series: cell.series.map((s, m) => (m === n ? { ...s, as: (s.as ?? (n === 0 ? "bar" : "line")) === "bar" ? "line" : "bar" } : s)) })}>{(r.sp.as ?? (n === 0 ? "bar" : "line")) === "bar" ? "bars" : "line"}</button>}
         {r.ex.status !== "ok" && <em title={r.ex.status}>{r.ex.status === "loading" ? "loading" : r.ex.status === "locked" ? "plan" : r.ex.status === "noperiod" ? "annual only" : r.ex.status === "unsupported" ? "n/a" : "no data"}</em>}
@@ -157,7 +168,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
       {cell.chart === "scatter" && ok.length >= 2 && <div className="gx-xy"><label>X <select value={Math.min(cell.x ?? 0, ok.length - 1)} onChange={(e) => asSet({ x: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label><label>Y <select value={Math.min(cell.y ?? 1, ok.length - 1)} onChange={(e) => asSet({ y: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label></div>}
       {cell.chart === "heatmap" && ok.length >= 1 && <div className="gx-seg" role="group" aria-label="Heatmap kind">{(["corr", "grid"] as const).map((m) => <button key={m} aria-pressed={(cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === m} onClick={() => asSet({ mode: m })}>{m === "corr" ? "Correlation" : "Period × measure"}</button>)}</div>}
       {ok.length > 0 && !comp && !["candlestick", "bar"].includes(cell.chart) && <div className="gx-seg" role="group" aria-label="Values or changes">{([["values", "Values"], ["change", "Period change"], ["index", "Index to 100"]] as const).map(([v, l]) => <button key={v} aria-pressed={tf === v} disabled={v === "index" && (facts.ratioUnits || ["scatter", "heatmap"].includes(cell.chart))} onClick={() => asSet({ tf: v })}>{l}</button>)}</div>}
-      <div ref={ref} className="gx-body"><DrawLayer id={"gx:" + viewId(JSON.stringify([cell.chart, tf, cell.x, cell.y, cell.mode, view.range, view.from, view.basis, cell.series.map((x) => [x.s, x.m, x.as])]))} enabled={w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar")}>{body}</DrawLayer></div>
+      <div ref={ref} className="gx-body"><DrawLayer id={drawId} enabled={w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar")}>{body}</DrawLayer></div>
       {dualNote && <p className="gx-r">Two units, so two axes: {[...new Set(ps.map((p) => p.unit))].map((u, n) => `${n ? "right" : "left"} ${UNITS[u].label}`).join(", ")}. Compare shapes, not heights.</p>}
       {csvOnly && ps.some((p) => p.pts.filter((x) => x.v != null).length < 3) && !["scatter", "heatmap"].includes(cell.chart) && <p className="gx-r faint">Few points in this window; widen the range or switch to Quarterly.</p>}
       <ChartReading id={"gx-rd-" + i} reading={reading} topic={topicOfChart(cell.chart, { matrix: (cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === "corr" })} />
