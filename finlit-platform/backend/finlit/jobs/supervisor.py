@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional
 
+from .deploy_gate import LONG_CLASSES, hold_reason, read_hold
 from .due import DEGRADED_RETRY_MIN, HELD_RETRY_MIN, YIELD_RETRY_MIN, Ctx, JobState, Verdict, evaluate, retry_delay_min, sla_status
 from .reasons import PARTIAL_EXIT, explain, failed_steps
 from .registry import Job, JobsConfig, disabled_reason
@@ -60,6 +61,7 @@ class Plan:
     verdicts: Dict[str, Verdict]
     start: List[Job] = field(default_factory=list)
     blocked: Dict[str, str] = field(default_factory=dict)
+    deploy_hold: Optional[str] = None      # a new version waits for the running long job: no new long job starts (deploy_gate.py)
 
 
 class Supervisor:
@@ -166,6 +168,8 @@ class Supervisor:
                 return f"waiting for {p} to finish first"
             if plan.verdicts[p].due and self._waits_for_due(job, p, plan, now):
                 return f"waiting for {p} to finish first"
+        if plan.deploy_hold and job.cls in LONG_CLASSES:
+            return plan.deploy_hold           # the running long job finishes, the deploy goes in the gap, then this one starts on the new version
         if job.cls == "bulk" or job.group == "funds":
             since = (now - self.started_at).total_seconds()
             if since < self.cfg.boot_delay_s:
@@ -213,6 +217,16 @@ class Supervisor:
             return False          # past its promise: run on what is there rather than wait for ever
         return True
 
+    async def _deploy_hold(self, now: datetime) -> Optional[str]:
+        """The reason to start no new long job while a deploy waits, or None. Any error here means no hold: the jobs never wait on a broken flag."""
+        redis = getattr(self.signals, "redis", None)
+        if redis is None:
+            return None
+        try:
+            return hold_reason(await read_hold(redis), now.timestamp())
+        except Exception:
+            return None
+
     async def plan(self) -> Plan:
         now = self.clock.now()
         await self.state.ensure(self.jobs, now)
@@ -222,6 +236,7 @@ class Supervisor:
         ctx = await self.make_ctx(now)
         verdicts = {n: evaluate(j, states.get(n) or JobState(job=n, first_seen_at=now), ctx) for n, j in self.jobs.items()}
         plan = Plan(ctx=ctx, states=states, verdicts=verdicts)
+        plan.deploy_hold = await self._deploy_hold(now)
         snap = self.resources.snapshot()
         reserved = {"mb": 0.0}
         for n, v in verdicts.items():
