@@ -160,3 +160,11 @@ def test_the_sector_job_runs_on_weekday_evenings_from_seven_and_catches_up_in_th
     assert not _sec_due(ist(*SAT, 19, 30), 23.8).due                         # Friday's run (19:40) is the latest session's: no evening run on a Saturday
     assert not _sec_due(ist(*SUN, 19, 30), 47.8).due and not _sec_due(ist(2026, 11, 2, 6, 0), 58).due        # nor on Sunday, nor on Monday morning before Monday's session
     assert _sec_due(ist(2026, 11, 2, 19, 5), 72).due                         # Monday evening: due again
+
+
+def test_the_presets_job_always_has_time_to_finish_after_waiting_for_candles():
+    # 13 Nov 2026: the pattern scan waited up to 30 minutes for candles inside a 20-minute job, so every run timed out and no list was stored
+    from finlit.jobs.registry import build_jobs
+    from finlit.presets.patterns import CANDLE_WAIT_S
+    presets = next(j for j in build_jobs({}) if j.name == "presets")
+    assert presets.max_runtime_min * 60 >= CANDLE_WAIT_S + 20 * 60          # the wait, plus 20 minutes for the screens, their history and Top gainers
