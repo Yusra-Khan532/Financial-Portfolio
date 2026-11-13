@@ -1,6 +1,5 @@
 // Small pieces the Sector Pulse pages share: the state chip, a locked block and a blank that says why. Styles: styles/sectors.css (sx-).
 import type { ReactNode } from "react";
-import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { TIER, useUI, type Plan } from "../../lib/ui";
 import { stateClass, stateWord } from "../../lib/sectors";
@@ -35,12 +34,3 @@ export function Blank({ title, reason, children }: { title: string; reason: stri
   );
 }
 
-/** The footer every sector page carries: one disclaimer and the sources. */
-export function SectorFooter({ disclaimer }: { disclaimer?: string | null }) {
-  return (
-    <footer className="sx-footer">
-      <p>{disclaimer || "Describes price and breadth data for NSE industries. Not a recommendation to buy, sell or hold any security."}</p>
-      <p>Sources: NSE daily files and industry classification; AMFI market caps. Prices are adjusted for splits, bonuses and rights. <Link className="sx-link" to="/learn/sector-signals">How to use Sector Pulse</Link></p>
-    </footer>
-  );
-}

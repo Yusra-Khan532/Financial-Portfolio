@@ -15,10 +15,10 @@ import time
 import re
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from typing import Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
 from .. import wake
 from ..config import Settings
@@ -268,6 +268,8 @@ class PrefsIn(BaseModel):
     rotationRank: bool = False
     digest: bool = False
     dashboard: List[Widget] = Field(default_factory=list, max_length=30)
+    # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
+    sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
 
 
 # ------------------------------------------------------------------ helpers

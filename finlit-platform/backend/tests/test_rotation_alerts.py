@@ -91,3 +91,25 @@ async def test_alerts_go_to_silver_watchlists_once_per_week_and_follow_the_prefe
         await conn.execute("DELETE FROM auto_alert_sent WHERE kind LIKE 'rotation_%'")
     assert await ra.auto_rotation_alerts(pool, app.state.mailer, "http://test") == 0
     await on.aclose(); await basic.aclose(); await off.aclose()
+
+
+async def test_an_industry_watched_from_its_page_gets_its_alert_once(app, release):  # noqa: F811
+    """"Add to watch" on an industry page (final pages pack 07) saves the industry in prefs.sectorWatch; its weekly alert comes even with no stock of it on a
+    watchlist, links to the industry's page, and is not sent twice when a watchlist stock is in the same industry."""
+    slug = next(r["slug"] for r in json.loads((release / "rotation" / "_map.json").read_text())["rows"] if r["name"] == "Industrial Products")
+    only = await signed_in(app, "rotw1@example.com", plan="silver")
+    both = await signed_in(app, "rotw2@example.com", plan="gold")
+    for m in (only, both):
+        assert (await m.put("/api/me/prefs", json={"palette": "gold", "sectorWatch": [slug]})).status_code == 200
+    assert (await both.put("/api/me/watchlist", json={"lists": [{"id": "main", "name": "Main", "symbols": ["SAMBHV"]}], "meta": {}})).status_code == 200
+    assert (await only.put("/api/me/prefs", json={"palette": "gold", "sectorWatch": ["Not A Slug"]})).status_code == 422
+    pool = app.state.store.pool
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM auto_alert_sent WHERE kind LIKE 'rotation_%'")
+    assert await ra.auto_rotation_alerts(pool, app.state.mailer, "http://test") == 2
+    a = (await only.get("/api/notifications")).json()["notifications"]
+    assert len(a) == 1 and a[0]["title"].startswith("Industrial Products, an industry you watch, moved from") and a[0]["link"] == f"/sectors/{slug}"
+    b = (await both.get("/api/notifications")).json()["notifications"]
+    assert len(b) == 1 and b[0]["title"].startswith("SAMBHV")                                   # one alert, through the watchlist stock
+    assert await ra.auto_rotation_alerts(pool, app.state.mailer, "http://test") == 0           # once per industry, kind and week
+    await only.aclose(); await both.aclose()

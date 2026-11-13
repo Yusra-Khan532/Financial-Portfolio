@@ -1,0 +1,46 @@
+/* An industry page as the "FinLit final pages" pack draws it (docs/design/finlit-final-pages/07). Builds on styles/sectors-pack.css (sp-); every class here is ip-
+   and lives under .ip. Colours are the pack's own: the green and red bands, the dark line, the brown numbered markers. */
+.ip { --ip-mk: #7A4A12; --ip-line: #17262E; }
+:root[data-theme="dark"] .ip { --ip-mk: #E9C46A; --ip-line: #E8E2D2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ip { --ip-mk: #E9C46A; --ip-line: #E8E2D2; } }
+
+.ip-crumbs { margin: 0 0 8px; font-size: 13px; color: var(--sp-mute); } .ip-crumbs a { color: var(--sp-mute); text-decoration: none; } .ip-crumbs a:hover { text-decoration: underline; } .ip-crumbs b { color: var(--sp-ink); }
+.ip-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.ip-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; } .ip-since { font-size: 14px; color: var(--sp-mute); margin-right: 6px; }
+.ip-acts { display: flex; gap: 10px; } .ip-acts .sp-dl { display: inline-flex; align-items: center; text-decoration: none; color: var(--sp-ink); cursor: pointer; background: transparent; font: 600 16px var(--sans); }
+.ip-acts .sp-dl[aria-pressed="true"] { border-color: var(--sp-good); color: var(--sp-good); background: var(--sp-good-bg); }
+
+.ip-tiles, .ip-rtiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0 14px; }
+.ip-rtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ip-tile { padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); }
+.ip-tile .sp-cap { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; } .ip-tile b { display: block; font: 400 28px/1.1 var(--serif); color: var(--sp-ink); } .ip-tile small { display: block; margin-top: 4px; font-size: 13px; color: var(--sp-mute); }
+
+.ip-cycle { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.ip-cycle li { display: grid; gap: 8px; align-content: start; padding: 12px; border: 1px solid var(--sp-line); border-radius: 12px; font-size: 14px; }
+.ip-cycle li.on { border: 2px solid var(--sp-good); background: var(--sp-good-bg); } .ip-cycle li.on b { color: var(--sp-good); font-weight: 800; text-transform: uppercase; letter-spacing: .02em; }
+
+.ip-abc { list-style: none; counter-reset: abc; margin: 10px 0 12px; padding: 12px 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-radius: 12px; background: var(--s2); font-size: 14px; line-height: 1.45; }
+.ip-abc li { counter-increment: abc; position: relative; padding-left: 30px; } .ip-abc li::before { content: counter(abc, upper-alpha); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #0E6471; color: #fff; font: 700 12px var(--sans); }
+.ip-year { display: block; width: 100%; height: auto; min-width: 640px; }
+.ip-band-up { fill: var(--sp-good-bg); } .ip-band-dn { fill: var(--sp-bad-bg); } .ip-half { stroke: var(--sp-mute); stroke-dasharray: 4 4; }
+.ip-tk { font: 12px var(--sans); fill: var(--sp-mute); } .ip-tk.ip-up { fill: var(--sp-good); font-weight: 700; } .ip-tk.ip-dn { fill: var(--sp-bad); font-weight: 700; }
+.ip-line { stroke: var(--ip-line); stroke-width: 1.6; } .ip-l9 { stroke: #2E7D57; stroke-width: 1.2; opacity: .8; } .ip-l50 { stroke: #B7791F; stroke-width: 1.2; opacity: .8; }
+.ip-dot { fill: var(--ip-line); } .ip-now { font: 700 13px var(--sans); fill: var(--sp-ink); }
+.ip-mk circle { fill: var(--ip-mk); stroke: #fff; stroke-width: 1.5; } .ip-mk text { font: 700 11px var(--sans); fill: #fff; } :root[data-theme="dark"] .ip-mk text { fill: #17262E; }
+.ip-lg { display: inline-block; width: 16px; height: 2px; vertical-align: middle; } .ip-lg9 { background: #2E7D57; } .ip-lg50 { background: #B7791F; }
+.ip-story { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; margin: 14px 0; }
+.ip-moments { list-style: none; margin: 6px 0 0; padding: 0; } .ip-moments li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--sp-line); }
+.ip-moments p { margin: 0; font-size: 14px; line-height: 1.45; } .ip-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ip-mk); color: #fff; font: 700 12px var(--sans); }
+:root[data-theme="dark"] .ip-n { color: #17262E; }
+.ip-storycards .sp-cards { grid-template-columns: minmax(0, 1fr) !important; }
+.ip-nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 10px; } .ip-nums caption { text-align: left; font-weight: 700; padding-bottom: 6px; }
+
+.ip-rank { margin: 6px 0 12px; } .ip-rankc { display: block; width: 100%; max-width: 420px; height: auto; } .ip-rank small { font-size: 12px; color: var(--sp-mute); }
+.ip-rank-a { fill: color-mix(in srgb, var(--sp-mute) 15%, transparent); } .ip-rank-l { stroke: #2F5A9E; stroke-width: 1.6; } .ip-rank-d { fill: #2F5A9E; }
+:root[data-theme="dark"] .ip-rank-l { stroke: #9DB8E6; } :root[data-theme="dark"] .ip-rank-d { fill: #9DB8E6; }
+
+.ip-st td { vertical-align: middle; } .ip-sym { display: inline-flex; align-items: center; gap: 8px; color: var(--sp-ink); text-decoration: none; } .ip-sym span { display: grid; line-height: 1.2; } .ip-sym small { font-size: 12px; color: var(--sp-mute); }
+.ip-nc { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; font-size: 14px; } .ip-nc a { color: var(--sp-ink); text-decoration: none; }
+
+@media (max-width: 1100px) { .ip-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ip-story { grid-template-columns: minmax(0, 1fr); } .ip-abc { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .ip-cycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ip-rtiles, .ip-nums { grid-template-columns: minmax(0, 1fr); } .ip-tile b { font-size: 24px; } }

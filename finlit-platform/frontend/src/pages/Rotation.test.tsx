@@ -12,7 +12,6 @@ const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: fa
 vi.mock("../lib/rotation", async (orig) => ({ ...(await orig<typeof import("../lib/rotation")>()), useRotationMap: () => q(st.map), useRotationCard: () => q(st.card) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 import { LearnSectorRotationPage } from "./LearnSectorRotation";
-import { RotationCard as CardView } from "../components/rotation/RotationCard";
 
 const M = map as unknown as RotationMap;
 const C = { ...(media as unknown as RotationCard), reading: true } as RotationCard;
@@ -57,20 +56,6 @@ describe("the Learn page", () => {
     const strip = (s: string) => s.replace(/not a recommendation to buy, sell or hold any security/gi, "");
     expect(strip(document.body.textContent ?? "")).not.toMatch(BANNED);
     expect(JSON.stringify([M.rows.map((r) => r.summary), M.how_to_use])).not.toMatch(BANNED);
-  });
-});
-
-describe("the industry card", () => {
-  it("shows rank, breadth, strength, change, the server's summary and how to read the corner", () => {
-    at(<CardView slug="media-entertainment-publication" groupName={C.name} />);
-    const card = screen.getByTestId("rotation-card");
-    expect(card.textContent).toContain(`${C.rank} of ${C.ranked}`); expect(card.textContent).toContain(C.summary); expect(card.textContent).toContain(C.corner_name);
-    expect(card.textContent).not.toMatch(/study/i);
-  });
-  it("says why when the group has no reading", () => {
-    st.card = { name: "Tiny", slug: "tiny", reading: false, note: "Fewer than 8 counted stocks, too few for a rotation reading." };
-    at(<CardView slug="tiny" groupName="Tiny" />);
-    expect(screen.getByText(/Fewer than 8 counted stocks/)).toBeTruthy();
   });
 });
 

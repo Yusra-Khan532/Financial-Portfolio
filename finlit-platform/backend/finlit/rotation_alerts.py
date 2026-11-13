@@ -1,4 +1,5 @@
-"""Built-in Sector Rotation alerts for the industries of the stocks on a member's watchlist (docs/SECTORS.md, "Sector Rotation").
+"""Built-in Sector Rotation alerts for the industries of the stocks on a member's watchlist, and for the industries the member watches from an industry page
+("Add to watch", prefs.sectorWatch; deduped against "@<slug>") (docs/SECTORS.md, "Sector Rotation").
 
     corner  "My stock's industry moved corner": the industry's confirmed corner changed at the week's close (after two weekly closes in the new one)
     rank    "Industry climbed or fell 5+ places in 4 weeks": the 4-week rank change reached 5 places this week, having been under 5 the week before
@@ -48,14 +49,16 @@ def events_for(row: Dict[str, Any], week_closed: bool = True) -> List[Dict[str, 
 
 
 def message(symbol: str, row: Dict[str, Any], ev: Dict[str, Any]) -> tuple:
+    """`symbol` is a watchlist stock, or "@<slug>" for an industry the member watches itself."""
     where = f"rank {row['rank']} of {row['ranked']}" if row.get("rank") and row.get("ranked") else "no rank this week"
+    who = f"{row['name']}, an industry you watch," if symbol.startswith("@") else f"{symbol} – its industry, {row['name']},"
     if ev["kind"] == "corner":
-        title = f"{symbol} – its industry, {row['name']}, moved from {ev['from']} to {ev['to']}"
+        title = f"{who} moved from {ev['from']} to {ev['to']}"
         body = (f"{row['name']} was {ev['from']} and has been {ev['to']} since this week's close, after two weekly closes there ({where}). "
                 f"Over 6 months it is {abs(row['strength_pts']):.1f} points {'ahead of' if row['strength_pts'] >= 0 else 'behind'} the average industry. {FOOTER}")
     else:
         n = abs(ev["change"])
-        title = f"{symbol} – its industry, {row['name']}, {'climbed' if ev['change'] > 0 else 'fell'} {n} places in 4 weeks"
+        title = f"{who} {'climbed' if ev['change'] > 0 else 'fell'} {n} places in 4 weeks"
         body = f"{row['name']} {'climbed' if ev['change'] > 0 else 'fell'} {n} places in the rotation ranking over the last 4 weekly closes and is now {where}. {FOOTER}"
     return title, body
 
@@ -83,24 +86,32 @@ async def auto_rotation_alerts(pool, mailer: Mailer, site_url: str, release=None
             if not wanted:
                 continue
             n = 0
+            told = set()   # (industry, kind) already sent to this member in this run, so a watched industry is not announced twice
+            pairs = []
             for sym in watchlist_symbols(u["watchlist"]):
                 if not sd.SYMBOL.match(sym):
                     continue
                 if sym not in group_of:
                     doc = sd.read_json(rel / f"{sym}.json")
                     group_of[sym] = (((doc or {}).get("sector") or {}).get("group") or {}).get("slug") if isinstance(doc, dict) else None
-                slug = group_of[sym]
+                pairs.append((sym, group_of[sym]))
+            watched = prefs.get("sectorWatch") if isinstance(prefs.get("sectorWatch"), list) else []
+            pairs += [("@" + s, s) for s in watched[:60] if isinstance(s, str) and s in by_slug]
+            for sym, slug in pairs:
                 for ev in events.get(slug or "", []):
+                    if sym.startswith("@") and (slug, ev["kind"]) in told:
+                        continue
                     if ev["kind"] not in wanted or n >= PER_RUN:
                         continue
                     try:
                         new = await conn.fetchval("INSERT INTO auto_alert_sent (user_id, symbol, kind, period) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING 1",
                                                   u["id"], sym, KINDS[ev["kind"]], ev["period"])
+                        told.add((slug, ev["kind"]))   # sent now or in an earlier run: either way this member has heard about this industry this week
                         if not new:
                             continue
                         title, body = message(sym, by_slug[slug], ev)
                         await deliver(conn, mailer, site_url, {"id": u["id"], "email": u["email"], "prefs": u["prefs"]},
-                                      {"id": None, "symbol": sym, "channels": ["app", "browser"]}, title, body, "/sectors/rotation")
+                                      {"id": None, "symbol": sym, "channels": ["app", "browser"]}, title, body, f"/sectors/{slug}" if sym.startswith("@") else "/sectors/rotation")
                         n += 1
                         sent += 1
                     except Exception:   # one member's trouble must not stop the rest
