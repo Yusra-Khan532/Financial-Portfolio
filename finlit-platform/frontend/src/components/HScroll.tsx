@@ -6,7 +6,9 @@ import "../styles/frozen.css";
  *  so it can be moved sideways without a mouse wheel or trackpad. The slider and the table stay in step both ways. */
 /** `controls={false}`: no ◀ ▶ buttons and no slider (the Stock screener, task #64 S-5): the box scrolls with the trackpad or its own scrollbar, and the frozen
  *  first column gets a soft shadow on its edge while there is more to the right (`has-more`). */
-export function HScroll({ children, className = "", label = "table", tall = false, controls = true }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean }) {
+/** `pinBelow`: a CSS selector of a sticky bar; the column names stay under it while the page scrolls past the table (task #64, B-1 / V-1). A header inside a
+ *  sideways-scrolling box cannot use position: sticky against the page, so it is moved with a transform; the box keeps no inner vertical scroll. */
+export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [max, setMax] = useState(0), [pos, setPos] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -26,6 +28,25 @@ export function HScroll({ children, className = "", label = "table", tall = fals
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => { ro.disconnect(); el.removeEventListener("scroll", onScroll); };
   }, []);
+  useEffect(() => {
+    if (!pinBelow) return;
+    let raf = 0;
+    const place = () => {
+      raf = 0;
+      const el = box.current, head = el?.querySelector("table")?.tHead;
+      if (!el || !head) return;
+      const bar = document.querySelector(pinBelow);
+      const top = bar ? bar.getBoundingClientRect().bottom : 0;
+      const r = el.getBoundingClientRect(), hh = head.getBoundingClientRect().height;
+      const d = Math.max(0, Math.min(top - r.top, r.height - hh));
+      head.style.transform = d > 0 ? `translateY(${d}px)` : "";
+      head.classList.toggle("is-pinned", d > 0);
+    };
+    const ask = () => { if (!raf) raf = requestAnimationFrame(place); };
+    window.addEventListener("scroll", ask, { passive: true }); window.addEventListener("resize", ask);
+    place();
+    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); if (raf) cancelAnimationFrame(raf); };
+  }, [pinBelow]);
   const go = (to: number) => box.current?.scrollTo({ left: Math.max(0, Math.min(max, to)), behavior: "smooth" });
   const step = () => Math.max(160, (box.current?.clientWidth || 600) * 0.6);
   return (
@@ -41,7 +62,7 @@ export function HScroll({ children, className = "", label = "table", tall = fals
           <button type="button" className="hs-btn" aria-label="Scroll right" disabled={pos >= max - 1} onClick={() => go(pos + step())}>▶</button>
         </div>
       )}
-      <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (scrolled ? " is-scrolled" : "") + (max > 4 && pos < max - 1 ? " has-more" : "")}>{children}</div>
+      <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (pinBelow ? " tw-pin" : "") + (scrolled ? " is-scrolled" : "") + (max > 4 && pos < max - 1 ? " has-more" : "")}>{children}</div>
     </TableZoom>
   );
 }

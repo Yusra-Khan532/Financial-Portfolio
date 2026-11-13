@@ -52,18 +52,17 @@ afterEach(cleanup);
 describe("Advanced stock screener (Gold)", () => {
   it("ticking a filter updates the rows and every number above the table by itself, and Clear all restores them", async () => {
     open();
-    const kpi = (l: string) => within(screen.getByLabelText("Summary")).getByText(l).previousSibling?.textContent;
-    expect(kpi("Companies found")).toBe("6"); expect(kpi("Rated by Prism")).toBe("4");
+    expect(screen.queryByLabelText("Summary")).toBeNull();                         // the five stat boxes are gone (task #64, V-2)
+    expect(screen.getByText("6 companies in this result")).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: "Banks 2" }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
-    expect(kpi("Companies found")).toBe("2"); expect(kpi("Sectors")).toBe("1"); expect(kpi("Rated by Prism")).toBe("2"); expect(kpi("Active filters")).toBe("1");
-    expect(kpi("Median Prism")).toBe("75.5");
+    expect(document.querySelector(".fgx-top")!.textContent).toMatch(/1 active/);
     expect(screen.getByText("2 companies in this result")).toBeTruthy();
     expect(screen.getByText("0 of 2 companies in this result are not rated yet.")).toBeTruthy();
     expect(screen.getByLabelText("Sector mix of the result").textContent).toMatch(/Banks/);
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
-    await waitFor(() => expect(kpi("Companies found")).toBe("6"));
-    expect(kpi("Active filters")).toBe("0");
+    await waitFor(() => expect(screen.getByText("6 companies in this result")).toBeTruthy());
+    expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
   });
 
   it("the results table has the enlarge arrow (task #44), and the enlarged dialog holds the same table", async () => {
@@ -78,22 +77,24 @@ describe("Advanced stock screener (Gold)", () => {
 
   it("shows the Prism score with its word, the four parts and the two technical views in the site's words, and nothing of the FinLit IQ", () => {
     open();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/FinLit Prism/);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Advanced stock screener");
     const h = heads();
-    expect(h).toEqual(expect.arrayContaining(["Prism Fundamental score", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short-term technical", "Long-term technical"]));
-    expect(h.join("|").replace(/Prism Fundamental score/g, "").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental\b(?!s)|^Technical$/);
+    expect(h).toEqual(expect.arrayContaining(["Prism score", "Growth & Profitability", "Valuation", "Quality", "Risk", "Short term", "Long term"]));   // task #64, V-7
+    expect(h.join("|").replace("Growth & Profitability", "")).not.toMatch(/Overall|Growth|Profit|Balance|Fundamental|^Technical$|Sector/);
     const r = rowOf("AAA").textContent!;
-    expect(r).toMatch(/85\s*Strong/); expect(r).toMatch(/Strong uptrend\+55/); expect(r).toMatch(/Uptrend\+30/);
-    expect(rowOf("BBB").textContent).toMatch(/Sideways\+5/); expect(rowOf("BBB").textContent).toMatch(/Downtrend−35/);
+    expect(r).toMatch(/85\s*Strong/); expect(r).toMatch(/\+55\s*Strong uptrend/); expect(r).toMatch(/\+30\s*Uptrend/);       // signed number first, then the word (V-6)
+    expect(rowOf("BBB").textContent).toMatch(/\+5\s*Sideways/); expect(rowOf("BBB").textContent).toMatch(/−35\s*Downtrend/);
     expect(rowOf("FFF").textContent).toMatch(/30\s*PoorProvisional/);
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);   // the model's own "Buy" / "Hold" never reach the screen
     expect(screen.queryByRole("group", { name: "Growth & Profitability score" })).toBeNull();
   });
 
-  it("says Prism has rated X of Y with a progress bar, and a company without a rating says why, with a Rate now link", () => {
+  it("no coverage note or bar above the table (V-2): How FinLit Prism works says how many are rated; a company without a rating says why, with a Rate now link", () => {
     open();
-    expect(document.querySelector(".pzs-cover")!.textContent).toMatch(/Prism has rated 4 of 6 companies \(67%\)/);
-    expect(document.querySelector(".pzs-bar i")).toBeTruthy();
+    expect(document.querySelector(".pzs-cover, .pzs-bar")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /How FinLit Prism works/ })[0]);
+    expect(screen.getByRole("dialog", { name: "How FinLit Prism works" }).textContent).toMatch(/Prism has rated 4 of 6 companies \(67%\)/);
+    fireEvent.keyDown(document, { key: "Escape" });
     const e = rowOf("EEE");
     expect(e.textContent).toMatch(/Not rated yet/);
     expect(within(e).getByRole("link", { name: "Rate EEE with Prism now" }).getAttribute("href")).toBe("/prism/EEE");
@@ -201,11 +202,11 @@ describe("Advanced stock screener (Gold)", () => {
 
   it("sorts on the Prism score, each part and each technical view, companies without a value last", () => {
     open("?size=50");
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism Fundamental score" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism score" }));
     expect(symbols()).toEqual(["AAA", "BBB", "CCC", "FFF", "DDD", "EEE"]);
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism Fundamental score" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Prism score" }));
     expect(symbols()).toEqual(["FFF", "CCC", "BBB", "AAA", "DDD", "EEE"]);
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Long-term technical" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Long term" }));
     expect(loc()).toContain("sort=prism_lt_score"); expect(symbols().slice(-2)).toEqual(["DDD", "EEE"]);
     fireEvent.click(screen.getByRole("button", { name: "Sort by Risk" }));
     expect(loc()).toContain("sort=prism_risk");
@@ -214,7 +215,7 @@ describe("Advanced stock screener (Gold)", () => {
   it("ignores FinLit-score parameters in the address", () => {
     open("?f=high&omin=90&sort=overall");
     expect(symbols()).toHaveLength(6);
-    expect(within(screen.getByLabelText("Summary")).getByText("Active filters").previousSibling?.textContent).toBe("0");
+    expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
   });
 
   it("selects, compares up to 4 and adds to the watchlist", () => {
@@ -236,10 +237,10 @@ describe("Advanced stock screener (Gold)", () => {
     expect(screen.queryByRole("button", { name: /Export/ })).toBeNull();
   });
 
-  it("opens the How scores work dialog with the Prism definitions and the technical bands", () => {
+  it("opens the How FinLit Prism works dialog with the Prism definitions and the technical bands", () => {
     open();
-    fireEvent.click(screen.getAllByRole("button", { name: /How scores work/ })[0]);
-    const d = screen.getByRole("dialog", { name: "How scores work" });
+    fireEvent.click(screen.getAllByRole("button", { name: /How FinLit Prism works/ })[0]);
+    const d = screen.getByRole("dialog", { name: "How FinLit Prism works" });
     expect(d.textContent).toMatch(/Strong 80 and above, Healthy 65 to 79/);
     expect(d.textContent).toMatch(/Uptrend \(\+20 and above\)/);
     expect(d.textContent?.toLowerCase()).not.toMatch(forbidden);
@@ -273,5 +274,28 @@ describe("Advanced stock screener: every plan below Gold gets the upgrade page",
   it("a Silver response (rows with no Prism values) still renders nothing of Prism", () => {
     st.plan = "silver"; st.rows = DATA.map((r) => ({ ...r, ...Object.fromEntries(Object.keys(r).filter((k) => k.startsWith("prism_")).map((k) => [k, null])) }));
     open(); nothing();
+  });
+
+  it("V-3: the 52-week high is a filter in the panel, not an open card above the table", () => {
+    open();
+    expect(document.querySelector(".sx-hibar")).toBeNull();
+    expect(within(document.querySelector("aside")!).getByRole("button", { name: /Down from 52-week high/ })).toBeTruthy();
+  });
+
+  it("V-5: Leader / In line / Laggard after the company name, only where the list carries one", () => {
+    st.rows = DATA.map((r, i) => (i === 0 ? { ...r, lead: "leader", lead_line: "1 of 9 Banks peers" } : i === 1 ? { ...r, lead: "laggard" } : r));
+    open();
+    const tag = rowOf("AAA").querySelector(".sxl-tag")!;
+    expect(tag.textContent).toBe("Leader"); expect(tag.getAttribute("title")).toMatch(/1 of 9 Banks peers.*past price performance only/);
+    expect(rowOf("BBB").querySelector(".sxl-tag")!.textContent).toBe("Laggard");
+    expect(rowOf("CCC").querySelector(".sxl-tag")).toBeNull();
+  });
+
+  it("V-6: a technical cell leads with the signed number in a pill and a bar from the centre", () => {
+    open();
+    const cell = rowOf("BBB").querySelectorAll(".pzs-tv")[1]!;
+    expect(cell.querySelector(".pzs-tp")!.textContent).toBe("−35");
+    const bar = cell.querySelector<HTMLElement>(".pzs-tb i")!;
+    expect(bar.style.left).toBe("32.5%"); expect(bar.style.width).toBe("17.5%");     // −35: from 32.5% up to the centre
   });
 });

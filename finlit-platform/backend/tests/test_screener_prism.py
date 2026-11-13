@@ -220,3 +220,30 @@ async def test_widening_comes_after_the_companies_that_have_a_full_report(wide, 
     await wide.store.pool.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ('WIDED', 'consolidated', 'summary', '{}', 'x', now())")
     out = await wide.run()
     assert asked(wide) == ["WIDED", "WIDEA"] and out["calculated"] == 1 and out["widened"] == 1
+
+
+async def test_the_gold_universe_carries_the_peer_label_only_while_it_is_switched_on(app):
+    # task #64, V-5: Leader / In line / Laggard after the name on the Advanced screener, from the weekly ranking; never while the label is off, never below Gold
+    from finlit import leadership_api
+    from finlit.api import create_app  # noqa: F401
+    store = app.state.store
+    await store.pool.execute("DELETE FROM leadership")
+    await store.pool.execute("INSERT INTO leadership (symbol, as_of, group_short, ranked, rank, label) VALUES ('RELIANCE', '2026-11-06', 'Energy', 9, 2, 'leader')")
+
+    async def rows_for(plan, email):
+        await store.redis.delete(f"universe:{plan}")
+        leadership_api._flag["at"] = 0.0
+        c = await signed_in(app, email, plan=plan)
+        return {r["symbol"]: r for r in (await c.get("/api/screener/universe")).json()["rows"]}
+
+    try:
+        await store.pool.execute("UPDATE feature_flags SET enabled = false WHERE name = 'leadership'")
+        assert "lead" not in (await rows_for("gold", "g1@example.com"))["RELIANCE"]           # switched off: no label anywhere
+        await store.pool.execute("UPDATE feature_flags SET enabled = true WHERE name = 'leadership'")
+        rel = (await rows_for("gold", "g2@example.com"))["RELIANCE"]
+        assert rel["lead"] == "leader" and rel["lead_line"] == "2 of 9 Energy peers"
+        assert "lead" not in (await rows_for("silver", "s1@example.com"))["RELIANCE"]         # the Advanced screener is Gold only
+    finally:
+        await store.pool.execute("UPDATE feature_flags SET enabled = false WHERE name = 'leadership'")
+        await store.pool.execute("DELETE FROM leadership")
+        leadership_api._flag["at"] = 0.0

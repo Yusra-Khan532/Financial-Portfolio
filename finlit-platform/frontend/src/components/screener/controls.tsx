@@ -1,6 +1,7 @@
 // Filter controls shared by the two score screeners. Each takes the screener state (`s`) from useScreener.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
+import { RaiseQueryButton } from "../PageFeedback";
 import { BANDS, BAND_ORDER, type RangeKey } from "../../lib/scoreScreen";
 import { useFocusTrap } from "../../lib/focusTrap";
 import type { Screener } from "./useScreener";
@@ -31,7 +32,7 @@ export function BandBoxes({ s, k, label }: { s: Screener; k: "f" | "t"; label: s
 }
 
 /** The "How scores work" dialog frame: focus trap, Escape to close; the page supplies the definitions. */
-export function HowDialog({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+export function HowDialog({ onClose, children, title = "How scores work" }: { onClose: () => void; children: ReactNode; title?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useFocusTrap(ref, true);
   useEffect(() => { ref.current?.scrollTo?.(0, 0); }, []);   // focus lands on the last link; keep the title in view
@@ -40,9 +41,10 @@ export function HowDialog({ onClose, children }: { onClose: () => void; children
     <div className="scrim" onClick={onClose} />
     <div className="modal sx-how" role="dialog" aria-modal="true" aria-labelledby="sx-how-t" ref={ref}>
       <button className="modal-x" aria-label="Close" onClick={onClose}>×</button>
-      <h3 id="sx-how-t">How scores work</h3>
+      <h3 id="sx-how-t">{title}</h3>
       {children}
       <p className="muted">This describes financial health and price trend from filings and prices. It is information, not a recommendation. <Link to="/glossary">See the glossary</Link>.</p>
+      <div className="sx-how-q"><span>A question about a score or a company?</span><RaiseQueryButton /></div>
     </div>
   </>);
 }
