@@ -2,9 +2,11 @@
 .skip { position: absolute; left: -999px; top: 8px; z-index: 100; background: var(--gold); color: var(--on-gold); padding: 8px 14px; border-radius: 8px; font-weight: 600; }
 .skip:focus { left: 8px; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
-/* A slider shows its focus as a glow round the thumb, not a box round the whole bar (task #110): the page-wide outline above made a rectangle appear round a slider whenever it was used.
+/* A slider shows its focus as a glow round the thumb, never a box round the whole bar (task #110). Several page-wide focus rules draw a box on any focused control:
+   the outline above, the dark theme's gold ring on input:focus and its dark halo on :focus-visible (theme.css), the halo in premium.css. A slider is excluded from
+   all of them here at once, for mouse and keyboard, so a new page-wide focus rule cannot bring the box back.
    The glow is a filter, so it follows the round thumb (a box-shadow on the native thumb is square). */
-input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus, input[type="range"]:focus-visible { outline: none !important; box-shadow: none !important; }
 input[type="range"]:focus-visible::-webkit-slider-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
 input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 5px var(--gold)); }
 .grow { flex: 1; }
@@ -135,7 +137,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2p
 /* forms */
 .form label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; }
 .form input, .form textarea, .form select, .modal input, .modal textarea { display: block; width: 100%; margin-top: 6px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 16px var(--sans); }
-.form input:focus, .form textarea:focus, .modal input:focus, .modal textarea:focus, .form select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.form input:not([type="range"]):focus, .form textarea:focus, .modal input:not([type="range"]):focus, .modal textarea:focus, .form select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
 .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; } .fgrid .span2 { grid-column: span 2; }
 @media (max-width: 560px) { .fgrid { grid-template-columns: 1fr; } .fgrid .span2 { grid-column: auto; } }
 .formerr { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--loss-soft); color: var(--loss); font-size: 14px; }
