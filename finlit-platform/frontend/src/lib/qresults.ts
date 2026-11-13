@@ -40,6 +40,8 @@ export type QResp = {
   price?: PriceSummary | null;
   /** Counts over the companies in the table (Silver): how many sit within 5% of each high and how many have no such high. */
   priceStrip?: { companies: number; have52: number; near52: number; haveAth: number; nearAth: number } | null;
+  /** Each NSE industry this quarter (final pages pack): companies and declared for every plan; the typical growth and how many beat it for Silver. */
+  industries?: { name: string; companies: number; declared: number; withNumbers?: number; medianRevenueYoY?: number | null; medianProfitYoY?: number | null; beat?: number; judged?: number }[];
 };
 export type PriceCondSummary = { key: PriceKey; band: number | null; min: number; max: number | null; met: number; missing: number };
 export type PriceSummary = { join: "and" | "or"; k: number; companies: number; withFigures: number; matching: number; combined?: number; conditions: PriceCondSummary[] };

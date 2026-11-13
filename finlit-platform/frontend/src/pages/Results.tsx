@@ -1,75 +1,66 @@
-import { PageHeader } from "../components/PageHeader";
+// The Results calendar (/results) as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/10): the header with the Calendar /
+// Industries / Companies switch, six KPI tiles for the quarter, the month calendar with each day's declared or due count, one day's declared results biggest first with
+// each company's verdict against its industry, and the week ahead with each company's industry so far. Figures and verdicts are the server's. Never advice.
 import { useMemo, useState } from "react";
-import { Link } from "react-router";
-import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { resultsDelayedNote, useJobsStatus } from "../lib/jobsStatus";
-import { dayLabel, staleResultsNote, useFeed, useResultsStatus, type FeedItem, who } from "../lib/feed";
-import { addDays, todayIST } from "../lib/qresults";
+import { staleResultsNote, useFeed, useResultsStatus, who, type FeedItem } from "../lib/feed";
+import { addDays, todayIST, useQuarterResults } from "../lib/qresults";
 import { useWatchlist } from "../lib/watchlist";
-import { ChartHelp } from "../components/ChartHelp";
-import { CoLogo } from "../components/CoLogo";
-
-const SHOWN = 18;   // the first rows stay in view; the rest open in place (9 Nov 2026 pages update)
+import { usePortfolio } from "../lib/portfolio";
+import { ComingUp, DayResults, KpiTiles, MonthCalendar, ResultsHead, type CalDay } from "../components/results/pack/ResultsPack";
+import "../styles/sectors.css";
+import "../styles/sectors-pack.css";
+import "../styles/industry-pack.css";
+import "../styles/rotation-pack.css";
+import "../styles/results-pack.css";
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const DISCLAIMER = "Reported figures from company filings to NSE; verdicts compare each company with its industry this quarter. Not a recommendation to buy, sell or hold any security.";
 
 export function ResultsPage() {
-  useDocTitle("Results calendar", "When companies report quarterly results: a month calendar of board-meeting dates and recently declared results, with the filings.");
-  const wl = useWatchlist();
-  const mine = useMemo(() => [...new Set(wl.lists.flatMap((l) => l.symbols))], [wl]);
+  useDocTitle("Results calendar", "Who has reported, how good the results were against similar companies, and who reports next.");
+  const wl = useWatchlist(), pf = usePortfolio();
+  const watched = useMemo(() => [...new Set(wl.lists.flatMap((l) => l.symbols))], [wl]);
+  const held = useMemo(() => [...new Set(pf.holdings.map((h) => h.symbol.toUpperCase()))], [pf.holdings]);
+  const mine = useMemo(() => new Set([...watched, ...held]), [watched, held]);
   const [onlyMine, setOnlyMine] = useState(false);
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const [pick, setPick] = useState<string | null>(null);
-  // the month on screen (plus the days of the neighbouring months shown in its grid), and separately the next dates coming up
+  const today = todayIST();
   const winFrom = ymd(new Date(month.getFullYear(), month.getMonth(), 1)), winTo = ymd(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-  const monthQ = useFeed("result", { limit: 3000, from: winFrom, to: winTo }), soonQ = useFeed("result", { upcoming: true, limit: 60 }), doneQ = useFeed("result", { before: addDays(todayIST(), 1), limit: 30 });   // before tomorrow = up to and including today (IST): what was declared today belongs here
+  const monthQ = useFeed("result", { limit: 3000, from: winFrom, to: winTo });
   const st = useResultsStatus(), staleNote = staleResultsNote(st.data), delayedNote = resultsDelayedNote(useJobsStatus().data);
-  const runAt = [st.data?.lastRun.calendars?.at, st.data?.lastRun.results?.at].filter(Boolean).sort().pop();
-  const { isLoading, isError } = monthQ;
-  const keep = (list?: FeedItem[]) => (list || []).filter((i) => !onlyMine || (i.symbol && mine.includes(i.symbol)));
-  const items = useMemo(() => keep(monthQ.data), [monthQ.data, onlyMine, mine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const done = useMemo(() => keep(doneQ.data), [doneQ.data, onlyMine, mine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const soon = useMemo(() => keep(soonQ.data), [soonQ.data, onlyMine, mine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const byDay = useMemo(() => { const m = new Map<string, FeedItem[]>(); items.forEach((i) => m.set(i.date, [...(m.get(i.date) || []), i])); return m; }, [items]);
-  const today = ymd(new Date());
-  const first = new Date(month.getFullYear(), month.getMonth(), 1), pad = (first.getDay() + 6) % 7, days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  const cells = Array.from({ length: Math.ceil((pad + days) / 7) * 7 }, (_, i) => (i < pad || i >= pad + days ? null : new Date(month.getFullYear(), month.getMonth(), i - pad + 1)));
-  // Next results date per company, soonest first; meetings that are not about results (e.g. analyst meets) stay off this list.
-  const upcoming = useMemo(() => { const seen = new Set<string>(); return soon.filter((x) => /result/i.test(`${x.category || ""} ${x.title || ""}`) && !seen.has(who(x)) && !!seen.add(who(x))).slice(0, 40); }, [soon]);
-  const declared = done.slice(0, 60);
-  const sel = pick ? byDay.get(pick) || [] : [];
+  const days = useMemo(() => {
+    const m = new Map<string, CalDay>(), seen = new Set<string>();
+    for (const x of (monthQ.data ?? []) as FeedItem[]) {
+      if (onlyMine && !(x.symbol && watched.includes(x.symbol))) continue;
+      const key = `${x.date}|${who(x)}`; if (seen.has(key)) continue; seen.add(key);
+      const c = m.get(x.date) ?? { date: x.date, n: 0, names: [] }; c.n += 1; if (c.names.length < 3) c.names.push(who(x)); m.set(x.date, c);
+    }
+    return m;
+  }, [monthQ.data, onlyMine, watched]);
+  const lastDeclared = useMemo(() => [...days.keys()].filter((d) => d <= today).sort().pop() ?? null, [days, today]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const day = picked ?? lastDeclared;
+  const kpi = useQuarterResults({ limit: 1 });
+  const dayQ = useQuarterResults({ date: day ?? undefined, sort: "marketCap", dir: "desc", limit: 100 });
+  const tomorrow = addDays(today, 1), weekEnd = addDays(today, 7);
+  const weekQ = useQuarterResults({ from: tomorrow, to: weekEnd, status: "due", sort: "marketCap", dir: "desc", limit: 14 });
+  const weekP = useQuarterResults({ from: tomorrow, to: weekEnd, status: "due", scope: "portfolio", limit: 100 }), weekW = useQuarterResults({ from: tomorrow, to: weekEnd, status: "due", scope: "watchlist", limit: 100 });
+  const dueMine = new Set([...(weekP.data?.rows ?? []), ...(weekW.data?.rows ?? [])].map((r) => r.symbol)).size;
+  const weekDays = useMemo(() => (weekQ.data?.days ?? []).map((d) => ({ date: d.date, n: d.n })), [weekQ.data]);
   return (
-    <div className="wrap ipo">
-      <PageHeader plan="free" title="Results calendar" art="calendar" links={[{ to: "/results/quarter", primary: true, label: "All quarter results" }, "/news", "/ipo"]} actions={<label className="sw"><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /><span aria-hidden="true" /><b>Only my watchlist{mine.length ? ` (${mine.length})` : ""}</b></label>}
-        description={<>Board-meeting dates for <b>quarterly results</b>, and the filings once they are out. Dates are as announced to the exchanges.</>} />
+    <div className="wrap sx sp rs" data-testid="results-calendar">
+      <ResultsHead title="Results calendar" desc="Who has reported, how good the results were against similar companies, and who reports next. Dates are as announced to the exchanges."
+        links={[["/results/quarter", "All quarter results"], ["/news", "News & filings"], ["/ipo", "IPO calendar"]]} view="calendar" />
       {staleNote && <div className="rc-stale" role="status">{staleNote}</div>}
       {delayedNote && !staleNote && <div className="rc-stale" role="status" data-testid="results-delayed">{delayedNote}</div>}
-      <p className="muted rc-upd">{runAt ? `Updated ${new Date(runAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })} IST` : st.data ? "Update time not recorded yet" : ""}{st.data?.newestResultInDb ? ` · newest result held: ${dayLabel(st.data.newestResultInDb)}` : ""}</p>
-      {isError && <div className="formerr">The calendar could not be loaded. Please try again shortly.</div>}
-      <div className="rc-grid">
-        <section className="card">
-          <div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>{month.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}<ChartHelp id="results-calendar" /></h3>
-            <span className="row"><button className="btn" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>←</button><button className="btn" onClick={() => { const d = new Date(); setMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Today</button><button className="btn" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>→</button></span></div>
-          {isLoading ? <div className="skeleton" style={{ height: 320 }} /> : (
-            <div className="rcal" role="grid" aria-label="Results calendar">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="rcal-h" role="columnheader">{d}</div>)}
-              {cells.map((d, i) => { const k = d ? ymd(d) : ""; const its = d ? byDay.get(k) || [] : []; return (
-                !d ? <div key={i} className="rcal-c off" role="gridcell" aria-hidden="true" /> : <button key={i} role="gridcell" disabled={!its.length} className={"rcal-c" + (!d ? " off" : "") + (k === today ? " today" : "") + (pick === k ? " on" : "") + (its.length ? " has" : "")} onClick={() => setPick(pick === k ? null : k)} aria-label={d ? `${d.toDateString()}: ${its.length} results` : undefined}>
-                  {d && <><b>{d.getDate()}</b>{its.slice(0, 3).map((x) => <span key={x.id} className={x.date < today ? "done" : ""}>{who(x)}</span>)}{its.length > 3 && <em>+{its.length - 3} more</em>}</>}
-                </button>); })}
-            </div>)}
-          {sel.length > 0 && <div className="rcal-sel"><h4>{dayLabel(pick!)}</h4><ul>{sel.map((x) => <li key={x.id}><Link to={x.symbol ? `/stocks/${x.symbol}` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b> {x.company}</Link><span>{x.period || x.category}</span>{x.link && <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a>}</li>)}</ul></div>}
-        </section>
-        <aside className="rc-side">
-          <section className="card"><div className="card-h"><h3><span className="ci"><Icon name="bell" /></span>Coming up</h3></div>
-            {upcoming.length ? <ul className="feed-l">{upcoming.map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><b>{who(x)}</b> {x.period ? `· ${x.period}` : ""} <small>{x.category}</small></span></li>)}</ul> : <p className="muted">{isLoading ? "Loading…" : onlyMine && !mine.length ? "Add stocks to your watchlist to see their dates here." : "No upcoming dates have been added yet. The FinLit team adds them as companies announce."}</p>}</section>
-          <section className="card"><div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>Recently reported</h3></div>
-            {declared.length ? <><ul className="feed-l">{declared.slice(0, SHOWN).map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><Link to={x.symbol ? `/stocks/${x.symbol}#quarter` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b></Link> <small>{x.title}</small>{x.link && <> <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a></>}</span></li>)}</ul>
-              {declared.length > SHOWN && <details className="rc-more"><summary>Show the other {declared.length - SHOWN} {declared.length - SHOWN === 1 ? "company" : "companies"}</summary><ul className="feed-l">{declared.slice(SHOWN).map((x) => <li key={x.id}><span className="feed-d">{dayLabel(x.date)}</span><span className="feed-t"><Link to={x.symbol ? `/stocks/${x.symbol}#quarter` : "#"}>{x.symbol && <CoLogo symbol={x.symbol} name={x.company} size={22} inline />}<b>{x.symbol}</b></Link> <small>{x.title}</small>{x.link && <> <a href={x.link} target="_blank" rel="noopener noreferrer">Filing ↗</a></>}</span></li>)}</ul></details>}</> : <p className="muted">{isLoading ? "Loading…" : "Nothing reported recently."}</p>}
-            <p className="rcs-all"><Link to="/results/quarter">See every company's quarter results <Icon name="arrow" /></Link></p></section>
-        </aside>
-      </div>
+      <KpiTiles r={kpi.data} />
+      {monthQ.isError && <p className="formerr">The calendar could not be loaded. Please try again shortly.</p>}
+      <MonthCalendar month={month} setMonth={(d) => { setMonth(d); setPicked(null); }} days={days} today={today} pick={day} onPick={setPicked} onlyMine={onlyMine} setOnlyMine={setOnlyMine} mineCount={watched.length} />
+      {day && <DayResults day={day} resp={dayQ.data} week={weekDays} locked={!!dayQ.data?.locked} mine={mine} />}
+      <ComingUp resp={weekQ.data} inds={kpi.data?.industries ?? []} dueMine={dueMine} followed={{ held: held.length, watched: watched.filter((s) => !held.includes(s)).length }} mine={mine} />
+      <p className="sp-disclaimer">{DISCLAIMER}</p>
     </div>
   );
 }
