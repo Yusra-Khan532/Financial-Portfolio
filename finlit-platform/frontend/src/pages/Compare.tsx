@@ -1,6 +1,6 @@
 import { PageHeader } from "../components/PageHeader";
 import { titleOf, subOf, codeNote, isBseCode } from "../lib/companyLabel";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { Plain } from "../components/Plain";
@@ -100,13 +100,25 @@ export function Compare() {
   const dotWhy = (p: number): string => (p >= 67 ? `Green: better than ${p}% of companies, so among the stronger third.` : p <= 33 ? `Red: better than only ${p}% of companies, so among the weaker third.` : `Amber: better than ${p}% of companies, around the middle.`);
   const dot = (p: number | null) => (p == null ? "" : p >= 67 ? "good" : p <= 33 ? "poor" : "mid");
 
+  // task #81: the company-name row of every tab sticks right under the site bar (its height changes with the screen width), so no row of the table
+  // shows in a gap above it
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".top"), w = wrapRef.current;
+    if (!w) return;
+    const set = () => w.style.setProperty("--cmp-top", `${bar ? Math.round(bar.getBoundingClientRect().height) : 0}px`);
+    set();
+    if (!bar || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set); ro.observe(bar); return () => ro.disconnect();
+  }, [isError]);
+
   if (isError) return <div className="wrap state"><h2>Comparison is unavailable right now</h2><p>Please try again in a moment.</p></div>;
   return (
     <>
       <PageHeader wrap plan="free" title="Compare companies" art="compare" links={["/research", "/prism", "/screener"]}
         description={<>Compare <b>size, valuation, quality, growth</b> and price behaviour across listed Indian companies, and choose exactly what to compare.</>}
         stats={[{ icon: "compare", value: max > 0 ? max : null, label: "Companies at once" }]} />
-      <div className="wrap cmpw">
+      <div className="wrap cmpw" ref={wrapRef}>
         {data?.sample && <div className="sample-note" role="note"><Icon name="info" /><span><b>Sample data.</b> Reliance is a real report; the other companies in this demo are fictional (symbols start with SMP-). The live site compares any listed companies.</span></div>}
         <div className="card cmp-setup">
           <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>Choose companies</h3>
