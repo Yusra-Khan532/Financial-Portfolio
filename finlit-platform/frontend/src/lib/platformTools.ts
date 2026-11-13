@@ -70,3 +70,15 @@ export const FIGURE: Record<string, [string, string]> = {
 
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder and the Discussion Forum have none yet: their large view uses the card picture. */
 export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "basic-score-screener", "calculators", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "option-chain", "portfolios", "profit-revenue-outlook", "query-builder", "results-ipo", "sector-pulse", "sector-rotation", "stock-screener", "watchlists"]);
+
+/** The four figures in the platform panel (task #119). Each is true on the date given, with its source (shown as the figure's tooltip):
+ *  - companies: 5,839 rows in /api/stocks/search-index on 13 Nov 2026 (every listed company the site has a page for);
+ *  - mutual funds: the 1,200+ funds the Fund Health Score covers (the same figure as the Mutual Funds and Fund Health Score tools above);
+ *  - sectors: the 22 sectors of NSE's own classification (backend/finlit_technicals/data/nse_industries.json; a test checks the count). The design said 29;
+ *  - indices: 228 market indices plus India VIX in /api/indices on 13 Nov 2026 (the design said 6, the key ones in the top strip). */
+export const STATS: { value: string; label: string; icon: string; source: string }[] = [
+  { value: "5,800+", label: "Listed companies", icon: "notes", source: "Every listed Indian company with a FinLit page (5,839 on 13 Nov 2026)" },
+  { value: "1,200+", label: "Mutual funds", icon: "coins", source: "Funds with a Fund Health Score" },
+  { value: "22", label: "Sectors", icon: "grid", source: "NSE's sector classification" },
+  { value: "220+", label: "Indices", icon: "layers", source: "NSE and BSE indices on the Markets pages (228, plus India VIX, on 13 Nov 2026)" },
+];

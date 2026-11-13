@@ -25,14 +25,25 @@ describe("platform data", () => {
 });
 
 describe("<ExploreTools />", () => {
-  it("starts with the directory shown; the button hides it and brings it back", () => {
+  it("starts with the directory shown; the main button always reads Explore the platform, a quiet button under the tools hides them, Explore brings them back", () => {
     view();
     expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
+    const go = screen.getByRole("button", { name: /explore the platform/i }); expect(go.getAttribute("aria-expanded")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: /hide the platform tools/i }));
     expect(screen.queryByRole("list", { name: /six groups and their tools/i })).toBeNull();
-    const go = screen.getByRole("button", { name: /explore the platform/i }); expect(go.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(go);
+    expect(screen.getByRole("button", { name: /explore the platform/i }).getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: /explore the platform/i }));
     expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
+  });
+  it("the platform header is the team's design (#119): THE PLATFORM pill, the two-line heading, its line, one panel with three ticks, two buttons and four figures", () => {
+    view();
+    expect(screen.getByText("The platform").closest(".xt-pill")).toBeTruthy();
+    const h = screen.getByRole("heading", { level: 2 }); expect(h.textContent).toBe("Everything you need. Nothing you don't."); expect(h.querySelector("em")!.textContent).toBe("Nothing you don't.");
+    expect(screen.getByText("A complete toolkit to explore companies, run quantitative models, track your portfolio and stay informed across sectors.")).toBeTruthy();
+    const panel = document.querySelector(".xt-panel")!;
+    expect([...within(panel as HTMLElement).getByRole("list", { name: /what the platform is for/i }).querySelectorAll("li")].map((l) => l.textContent)).toEqual(["Screen & discover opportunities", "Analyse companies in depth", "Value with proven models"]);
+    expect(within(panel as HTMLElement).getByRole("button", { name: /explore the platform/i })).toBeTruthy(); expect(within(panel as HTMLElement).getByRole("link", { name: /watch the tour/i }).getAttribute("href")).toBe("#tour");
+    expect([...panel.querySelectorAll(".xt-stats > div")].map((d) => `${d.querySelector("dd")!.textContent} ${d.querySelector("dt")!.textContent}`)).toEqual(["5,800+ Listed companies", "1,200+ Mutual funds", "22 Sectors", "220+ Indices"]);
   });
   it("a group button replaces the directory in the same place with that group's cards, a bar of six chips and a bottom bar", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
