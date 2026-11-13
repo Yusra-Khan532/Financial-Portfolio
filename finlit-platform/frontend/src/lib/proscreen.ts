@@ -11,7 +11,7 @@ export type MetricInfo = { key: string; label: string; unit: string; better: "hi
   hidden?: boolean; variants?: Record<string, string> | null };
 export type GroupInfo = { id: string; label: string; tier: Plan; metrics: MetricInfo[] };
 export type Catalog = {
-  plan: Plan; total: number; withReport: number; updatedAt: string; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; n: number }[];
+  plan: Plan; total: number; withReport: number; updatedAt: string; pricesAt?: string | null; scoresAt?: string | null; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; n: number }[];
   indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
   bandModel?: "prism" | "iq";   // which score the rating chips are on: FinLit Prism for Gold, the FinLit IQ below (tasks #64, #100)
@@ -226,4 +226,19 @@ export function colourNote(cols: { label: string; better: "higher" | "lower" | "
   const lower = cols.filter((m) => m.better === "lower").map((m) => m.label), higher = cols.filter((m) => m.better === "higher").map((m) => m.label);
   const better = [lower.length ? `Lower is better for ${list(lower)}` : "", higher.length ? `higher is better for ${list(higher)}` : ""].filter(Boolean).join("; ");
   return `Green cells are in the best quarter of ${scope === "all" ? "all listed companies on" : "the results shown for"} that column and red cells in the weakest quarter. ${better.charAt(0).toUpperCase() + better.slice(1)}. Hover a column name for what it means.`;
+}
+
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const istParts = (iso: string) => { const d = new Date(new Date(iso).getTime() + 330 * 60_000); return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate(), mins: d.getUTCHours() * 60 + d.getUTCMinutes(), h: d.getUTCHours(), mi: d.getUTCMinutes() }; };
+/** The header's data line (task #64, S-9): when the newest price and the newest score were written, in India time. A price written after the
+ *  15:30 close, or on an earlier day, is that day's close; one written during the session shows its time. Null when neither is known. */
+export function dataLine(pricesAt?: string | null, scoresAt?: string | null, now: Date = new Date()): string | null {
+  const day = (p: ReturnType<typeof istParts>) => `${p.d} ${MON[p.m]}`;
+  const p = pricesAt && !Number.isNaN(Date.parse(pricesAt)) ? istParts(pricesAt) : null, s = scoresAt && !Number.isNaN(Date.parse(scoresAt)) ? istParts(scoresAt) : null;
+  if (!p && !s) return null;
+  const today = istParts(now.toISOString());
+  const closed = p && (p.mins >= 15 * 60 + 30 || p.y !== today.y || p.m !== today.m || p.d !== today.d);
+  const price = p ? (closed ? `${day(p)} close` : `${day(p)}, ${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")} IST`) : null;
+  if (p && s && closed && s.y === p.y && s.m === p.m && s.d === p.d) return `Prices and scores: ${price}`;
+  return [price && `Prices: ${price}`, s && `scores: ${day(s)}`].filter(Boolean).join(" · ").replace(/^scores/, "Scores");
 }

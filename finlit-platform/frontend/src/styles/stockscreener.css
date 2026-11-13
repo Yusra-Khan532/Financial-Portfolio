@@ -235,3 +235,22 @@
 .ssy-on .lnk { margin-left: auto; }
 .ssy-n.is-on { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text); }
 .ssw-a.is-screen { border-color: var(--gold); }
+
+/* Task #64 S-9: the header on one line, with the data date */
+.ssw-h1row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; }
+.ssw-asof { font-size: var(--fs-14, 14px); color: var(--muted); }
+/* Task #64 S-1: the groups of filters, up front */
+.ssw-size { margin: 4px 0 12px; }
+.ssw-size-n { margin: 0 0 8px; font-size: var(--fs-14, 14px); color: var(--muted); }
+.ssw-size-n b { color: var(--text); }
+.ssw-size-q { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; background: var(--surface, var(--card)); margin-bottom: 8px; }
+.ssw-size-q input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 8px 0; outline: none; }
+.ssw-size-q:focus-within { border-color: var(--accent, var(--brand)); }
+.ssw-groups { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ssw-groups button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-14, 14px); text-align: left; cursor: pointer; }
+.ssw-groups button:hover, .ssw-groups button:focus-visible { background: var(--soft, rgba(127,127,127,.1)); }
+.ssw-groups button > span { flex: 1; display: flex; align-items: center; gap: 6px; }
+.ssw-groups em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--accent, var(--brand)); }
+.ssw-groups small { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Task #64 S-5: no slider; the frozen Company column casts a soft shadow while there is more to the right */
+.tw.has-more .ssw-t .stick, .tw.is-scrolled .ssw-t .stick { box-shadow: 6px 0 8px -4px rgba(0,0,0,.22); }

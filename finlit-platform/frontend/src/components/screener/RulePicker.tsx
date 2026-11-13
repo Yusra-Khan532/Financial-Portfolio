@@ -8,10 +8,11 @@ import { TIER, type Plan } from "../../lib/ui";
 
 export const POPULAR = ["pe", "roe", "roce", "debt_to_equity", "sales_cagr_3y", "profit_cagr_3y", "dividend_yield", "ret_1y", "pct_from_high", "own_promoters", "vs_ema200"];
 
-export function RulePicker({ groups, byKey, has, add, ask, onClose }: {
+export function RulePicker({ groups, byKey, has, add, ask, onClose, startGroup = "popular", startQuery = "" }: {
   groups: GroupInfo[]; byKey: Map<string, MetricInfo>; has: (k: string) => boolean; add: (m: MetricInfo) => void; ask: (tier: Plan, why: string) => void; onClose: () => void;
+  /** Opened from a group row or the search box of the panel (task #64, S-1): that group, or that search. */ startGroup?: string; startQuery?: string;
 }) {
-  const [q, setQ] = useState(""), [grp, setGrp] = useState("popular");
+  const [q, setQ] = useState(startQuery), [grp, setGrp] = useState(startGroup);
   const box = useRef<HTMLDivElement>(null), find = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const back = document.activeElement as HTMLElement | null;

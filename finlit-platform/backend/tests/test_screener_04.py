@@ -160,3 +160,15 @@ async def test_gold_screens_on_finlit_prism_its_bands_columns_and_screens(app): 
         assert {"pz_strong", "pz_compound"} <= ids and not ids & {"strong", "modelcompound", "improving"}
     finally:
         data.reset()
+
+
+@pytest.mark.asyncio
+async def test_catalog_names_when_the_newest_price_and_score_were_written(app, table):  # noqa: F811
+    # task #64 S-9: the page header says "Prices and scores: 12 Nov close" from these, never from a guessed date
+    async with new_client(app) as anon:
+        cat = (await anon.get("/api/screener/catalog")).json()
+    assert cat["pricesAt"] is None and cat["scoresAt"] is None            # nothing known: nothing claimed
+    table.sig = {"at": "2026-11-12T23:00:00+00:00", "lat": "2026-11-12T10:05:00+00:00"}
+    async with new_client(app) as anon:
+        cat = (await anon.get("/api/screener/catalog")).json()
+    assert cat["pricesAt"] == "2026-11-12T10:05:00+00:00" and cat["scoresAt"] == "2026-11-12T23:00:00+00:00"
