@@ -280,15 +280,25 @@ async def _step_aside(store: Store, patience: float = 240.0) -> None:
 
 
 async def ingest_many(client: FinEdgeClient, store: Store, items: Iterable[Tuple[str, str]], parallel: int = 2, yield_to_readers: bool = False,
-                      slim: bool = False) -> List[dict]:
+                      slim: bool = False, deadline: Optional[float] = None, company_timeout_s: Optional[float] = None) -> List[dict]:
     # Each stock already fans out ~21 requests; a couple of stocks at a time keeps us inside rate limits.
+    # With `deadline` (time.monotonic()) no new company starts after it ("skipped", taken by the next run); with `company_timeout_s` one slow company
+    # never holds the run longer than that ("failed", tried again next run). Together they keep a capped run inside its job's time limit.
     sem = asyncio.Semaphore(parallel)
 
     async def run(symbol, statement):
         async with sem:
+            if deadline is not None and time.monotonic() > deadline:
+                return {"symbol": symbol, "status": "skipped"}
             if yield_to_readers:
                 await _step_aside(store)
-            return await ingest_one(client, store, symbol, statement, slim=slim)
+            if company_timeout_s is None:
+                return await ingest_one(client, store, symbol, statement, slim=slim)
+            try:
+                return await asyncio.wait_for(ingest_one(client, store, symbol, statement, slim=slim), company_timeout_s)
+            except asyncio.TimeoutError:
+                log.warning("%s: no answer within %.0f s, tried again next run", symbol, company_timeout_s)
+                return {"symbol": symbol, "status": "failed", "error": f"timed out after {company_timeout_s:.0f} s"}
 
     return await asyncio.gather(*(run(s, st) for s, st in items))
 
@@ -585,10 +595,15 @@ async def ingest_all(client: FinEdgeClient, store: Store, statement: str = "cons
     return done
 
 
+SCORE_COMPANY_TIMEOUT_S = 150.0   # one company (~21 provider calls) never holds score-all longer than this (as results_run.COMPANY_TIMEOUT_S)
+
+
 async def score_all(client: FinEdgeClient, store: Store, limit: int = 1500, days: int = 7, parallel: int = 2, chunk: int = 30, max_minutes: float = 90.0) -> dict:
     """Give every listed company a score: those with none first, biggest first, then the oldest. Only the small score row is kept (see ingest_one slim),
     so all ~5,800 companies fit in the free database. A run is capped (`limit` companies, `max_minutes`) and resumable: the next run takes whatever is
-    still missing, so the whole market is covered within a few nights and refreshed about weekly after that."""
+    still missing, so the whole market is covered within a few nights and refreshed about weekly after that. The time cap is looked at before every
+    company (not only between chunks) and each company is capped at SCORE_COMPANY_TIMEOUT_S, so a run with a slow provider ends near `max_minutes`
+    instead of overrunning to the job's hard limit and being killed (13 Nov 2026: a 70-minute run was still going at 86 minutes)."""
     pending = await store.slim_pending(days, limit)
     log.info("score-all: %d companies to score", len(pending))
     done = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0}
@@ -599,9 +614,14 @@ async def score_all(client: FinEdgeClient, store: Store, limit: int = 1500, days
             log.info("score-all: time budget used, the rest waits for the next run")
             break
         batch = pending[i:i + chunk]
-        for r in await ingest_many(client, store, [(s, "consolidated") for s in batch], parallel=parallel, yield_to_readers=True, slim=True):
+        skipped = 0
+        for r in await ingest_many(client, store, [(s, "consolidated") for s in batch], parallel=parallel, yield_to_readers=True, slim=True,
+                                   deadline=deadline, company_timeout_s=SCORE_COMPANY_TIMEOUT_S):
+            if r["status"] == "skipped":
+                skipped += 1
+                continue
             done[r["status"]] = done.get(r["status"], 0) + 1
-        tried += len(batch)
+        tried += len(batch) - skipped
         log.info("score-all: %d / %d  %s  (%d upstream calls)", tried, len(pending), done, client.calls)
     try:
         await store.invalidate_search()
