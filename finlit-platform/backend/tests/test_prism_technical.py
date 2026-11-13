@@ -242,7 +242,7 @@ async def test_no_candles_leaves_the_stored_view_and_says_why_and_five_failures_
         await seed(store, f"TQF{i}", cap=100 - i)
     seen["available"] = None                                  # Dhan answers nothing for anyone
     out = await pt.refresh(store, settings, client=http, now=NOW)
-    assert out["status"] == "partial" and out["failed"] == pt.NO_CANDLE_STREAK and out["reasons"] == {"no_candles": pt.NO_CANDLE_STREAK} and "no candles" in out["stopped"]
+    assert out["status"] == "partial" and out["unavailable"] == pt.NO_CANDLE_STREAK and out["failed"] == 0 and out["reasons"] == {"no_candles": pt.NO_CANDLE_STREAK} and "no candles" in out["stopped"]
     assert await store.redis.exists(pt.NONEW_PREFIX + "TQF0")                     # nothing to fetch for it today: the next run does not start on it again
     for i in range(18):
         await store.redis.delete(pt.NONEW_PREFIX + f"TQF{i}")
@@ -462,3 +462,28 @@ async def test_a_long_stretch_of_companies_with_no_candles_does_not_stop_the_run
     assert out["reasons"].get("no_candles") == pt.NO_CANDLE_STREAK + 5 and "stopped" not in out
     assert out.get("probes_ok", 0) >= 1
     assert out["updated"] == 3                                  # the companies after the stretch are refreshed in the same run
+
+
+async def test_a_run_left_with_only_companies_dhan_has_no_candles_for_is_not_a_failure(world):
+    # 13 Nov 2026, the founder's log: after the morning run only 20 suspended or rarely traded companies were left; Dhan answered "too few sessions or the last
+    # session is too old" for each, so every retry ended "failed" with nothing it could do and the job alert never closed
+    store, settings, site, http, seen = world
+    for i in range(20):
+        await seed(store, f"TQU{i:02d}", cap=50 - i)
+    seen["available"] = None                                   # nothing usable for these companies ...
+    seen["has"] = {"RELIANCE": FRIDAY}                         # ... while Dhan answers for a large, always-traded one
+    out = await pt.refresh(store, settings, client=http, now=NOW)
+    assert out["status"] == "ok" and out["failed"] == 0 and out["unavailable"] == 20 and out["reasons"] == {"no_candles": 20}
+    assert out.get("probes_ok", 0) >= 1                        # it made sure Dhan itself was answering
+    assert (await row(store, "TQU00"))[2]["technicalBarDate"] == "2026-10-16"   # the stored view stays, labelled with its own date
+    assert await store.redis.exists(pt.NONEW_PREFIX + "TQU00")                  # and the next run does not start on it again today
+
+
+async def test_no_candles_for_anyone_including_the_large_companies_is_still_a_failure(world):
+    store, settings, site, http, seen = world
+    for i in range(3):
+        await seed(store, f"TQV{i}", cap=10 - i)
+    seen["available"] = None
+    seen["has"] = {}                                           # Dhan gives nothing, not even for the large companies: an outage
+    out = await pt.refresh(store, settings, client=http, now=NOW)
+    assert out["status"] == "failed" and "Dhan is not answering" in out["stopped"] and out["unavailable"] == 3

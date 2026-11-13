@@ -138,7 +138,10 @@ async def _shares_cr(conn, symbol: str, rows: List[Any]) -> Tuple[Optional[float
 
 # ------------------------------------------------------------------------------------------------ one company
 class Outcome:
-    UPDATED, SKIPPED, FAILED, WITHHELD = "updated", "skipped", "failed", "withheld"
+    # UNAVAILABLE: Dhan answered but holds no usable candles for the company (suspended, delisted, too few or too old sessions). That is a fact about the
+    # company, shown with its reason, not a failure of the job (13 Nov 2026: 20 such companies were all that was left after the morning run, so every retry
+    # ended "failed" with nothing it could do, and the job alert stayed open).
+    UPDATED, SKIPPED, FAILED, WITHHELD, UNAVAILABLE = "updated", "skipped", "failed", "withheld", "unavailable"
 
 
 def withheld_reason(assessment: Dict[str, Any]) -> str:
@@ -198,7 +201,7 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
             return Outcome.FAILED, "candles_error"
         if not candles or "stock" not in candles:
             await store.redis.set(NONEW_PREFIX + symbol, "no_candles", ex=NONEW_SECONDS)     # nothing to fetch for it today: the next run does not start on it again
-            return Outcome.FAILED, "no_candles"
+            return Outcome.UNAVAILABLE, "no_candles"
         try:        # the same fresh candles feed the chart-pattern scans, which otherwise wait for a full report rebuild (task #64, C6)
             from .presets import candles as pattern_candles
             await pattern_candles.save(store.redis, symbol, candles["stock"].get("candles") or [])
@@ -268,7 +271,7 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
     redis = store.redis
     started, now = time.monotonic(), now or datetime.now(IST)
     expected = expected_session(now)
-    out: Dict[str, Any] = {"status": "ok", "expectedSession": expected.isoformat(), "updated": 0, "skipped": 0, "failed": 0, "withheld": 0,
+    out: Dict[str, Any] = {"status": "ok", "expectedSession": expected.isoformat(), "updated": 0, "skipped": 0, "failed": 0, "withheld": 0, "unavailable": 0,
                            "reasons": {}, "paused_for_members": 0}
     try:
         newest = await reference_session(app.state, now)
@@ -317,8 +320,14 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             # for that one company, so it only stops the run after a long unbroken run of them (12 Nov 2026: the same five large companies with no candles came first
             # in every run, so each run stopped after 4 seconds and 679 companies stayed on 9 Nov)
             streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_502", "site_backend_503") else 0
-            blanks = blanks + 1 if outcome == Outcome.FAILED and reason == "no_candles" else 0
+            blanks = blanks + 1 if outcome == Outcome.UNAVAILABLE else 0
             await asyncio.sleep(0.05)
+        if out["unavailable"] and not out["updated"] and not out["failed"] and out["status"] == "ok" and "probes_ok" not in out:
+            # every company it tried had no candles: make sure that is about those companies and not Dhan being down (an outage is never reported as ok)
+            if await dhan_answers(app, now):
+                out["probes_ok"] = 1
+            else:
+                out.update(status="failed", stopped="no candles for any company, and Dhan gave none for the large companies either (Dhan is not answering)")
         if out["failed"] and not out["updated"] and out["status"] == "ok":
             out["status"] = "failed"
         elif out["failed"] and out["status"] == "ok":
