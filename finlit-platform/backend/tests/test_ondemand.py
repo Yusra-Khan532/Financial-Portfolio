@@ -459,3 +459,14 @@ def test_every_bulk_job_lets_visitors_go_first_on_the_provider():
     import inspect
     src = inspect.getsource(worker)
     assert 'if args.cmd != "drain-queue":' in src and "client.yield_to = lambda: store.redis.exists(store.READER_FLAG)" in src
+
+
+async def test_queue_serves_the_newest_request_first_and_a_repeat_moves_to_the_front(store):  # noqa: F811
+    async with store.pool.acquire() as c:
+        await c.execute("DELETE FROM ingest_queue")
+        await c.execute("INSERT INTO ingest_queue(symbol, statement, requested_at) VALUES ('OLDA','consolidated', now() - interval '1 day'),"
+                        " ('OLDB','consolidated', now() - interval '20 hours')")
+    await store.enqueue("AVANTEL", "consolidated")
+    assert await store.claim(1) == [("AVANTEL", "consolidated")]           # the visitor's company, not yesterday's
+    await store.enqueue("OLDA", "consolidated")                            # opened again: to the front
+    assert await store.claim(2) == [("OLDA", "consolidated"), ("OLDB", "consolidated")]
