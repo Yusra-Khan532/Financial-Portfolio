@@ -222,7 +222,7 @@ def _same_name(a: Optional[str], b: Optional[str]) -> bool:
 @router.get("/api/sectors/small/{slug}")
 async def small_group(slug: str, request: Request) -> Response:
     """A group shown as "Too few stocks for a reading": its listed stocks from the screener table (the group has no page of its own), best 6 months first,
-    with size, the 6-month and 1-year returns and how far each is below its 1-year high. Silver, like the ranked stock tables; Basic gets the counts only."""
+    with size, the 6-month and 1-year returns and how far each is below its 1-year high. Silver, like the ranked stock tables; Basic gets the counts only (counted and listed)."""
     started = time.perf_counter()
     rel = sd.live_release()
     board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
@@ -232,11 +232,11 @@ async def small_group(slug: str, request: Request) -> Response:
     if not g:
         return _not_found(request, started, "There is no small group with this address. The groups are listed on Sector Pulse under \"Too few stocks for a reading\".")
     base = {"slug": slug, "name": g.get("name"), "counted": g.get("stocks_counted")}
-    if await _plan(request) == "basic":
-        return _reply(request, {**base, "stocks": None, "listed": None, "locked": "silver"}, started)
     from .screener.data import get_table
     t = await get_table(request.app.state.store)
     idx = [i for i in range(len(t.symbols)) if _same_name(t.industry[i], g.get("name"))] or [i for i in range(len(t.symbols)) if _same_name(t.sector_label[i], g.get("name"))]
+    if await _plan(request) == "basic":                                              # the count of listed stocks is open to all (pack 06: "5 counted · 18 listed"); the names are Silver
+        return _reply(request, {**base, "stocks": None, "listed": len(idx), "locked": "silver"}, started)
     num = lambda col, i: (lambda v: None if v != v else round(v, 1))(t.cols[col][i]) if col in t.cols else None     # noqa: E731
     mc = lambda i: t.cols["market_cap"][i] if t.cols["market_cap"][i] == t.cols["market_cap"][i] else -1.0        # noqa: E731
     listed = len(idx)

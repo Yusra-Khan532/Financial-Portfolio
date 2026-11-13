@@ -23,6 +23,8 @@ export function Hideable({ id, title, children, className = "" }: { id: string; 
   return (
     <div className={"hz " + className}>
       {children}
-      <button type="button" className="hz-btn hz-on" aria-expanded="true" aria-label={`Hide: ${title}`} onClick={() => setHidden(true)}>Hide</button>
+      <button type="button" className="hz-btn hz-on" aria-expanded="true" aria-label={`Hide: ${title}`} onClick={() => setHidden(true)}>
+        {/* the eye with a line through it, as the "FinLit final pages" pack draws Hide on every page (13 Nov 2026) */}
+        <svg className="hz-ic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 3l14 14M8.6 5.2A8 8 0 0 1 10 5c4 0 6.8 3.2 7.8 5-.4.8-1.2 1.9-2.3 2.9M12.8 12.9A4 4 0 0 1 7.1 7.2M5.2 6.6C3.9 7.6 3 8.9 2.2 10c1 1.8 3.8 5 7.8 5 1 0 1.9-.2 2.7-.5" /></svg>Hide</button>
     </div>);
 }

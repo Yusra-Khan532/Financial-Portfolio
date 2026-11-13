@@ -271,7 +271,7 @@ async def test_a_small_group_opens_to_its_stocks_best_six_months_first_silver_on
         return fake
     monkeypatch.setattr(scr, "get_table", table)
     r = await anon.get("/api/sectors/small/diversified")
-    assert r.status_code == 200 and r.json()["stocks"] is None and r.json()["locked"] == "silver" and r.json()["counted"] == 5      # Basic: the counts, not the list
+    assert r.status_code == 200 and r.json()["stocks"] is None and r.json()["locked"] == "silver" and r.json()["counted"] == 5 and r.json()["listed"] == 3      # Basic: the counts (counted and listed), not the list
     silver = await signed_in(app, "small@example.com", plan="silver")
     d = (await silver.get("/api/sectors/small/diversified")).json()
     assert d["listed"] == 3 and [s["symbol"] for s in d["stocks"]] == ["BBB", "AAA", "CCC"]                # best 6 months first, no figure last, only this group
