@@ -1,5 +1,5 @@
 // Page parts both screeners share: title card, KPI strip (the last card opens the filters), donut + sector bars, and the search / filter-button / sort toolbar.
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import { PageHeader, type PageHeaderProps, type PhPlan } from "../PageHeader";
 import { nf } from "../../lib/format";
@@ -54,5 +54,26 @@ export function Toolbar({ q, setQ, searchLabel, buttons, sort }: { q: string; se
       <SearchBox value={q} onChange={setQ} placeholder={searchLabel} label={searchLabel} />
       {buttons.map((b) => <button key={b.id} type="button" className="fgx-pb" onClick={b.onClick} aria-label={b.active > 0 ? `${b.label}, ${b.active} active` : b.label}>{b.label}{b.active > 0 && <span className="fgx-badge">{b.active}</span>}</button>)}
       {sort}
+    </div>);
+}
+
+
+/** The Sort button and its menu (task #64, B-5 / V-8): one control in the toolbar's style instead of a wide native select. */
+export function SortMenu({ value, options, onPick }: { value: string; options: { v: string; label: string }[]; onPick: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const out = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); box.current?.querySelector<HTMLButtonElement>("button")?.focus(); } };
+    document.addEventListener("mousedown", out); document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", out); document.removeEventListener("keydown", key); };
+  }, [open]);
+  const cur = options.find((o) => o.v === value)?.label ?? "the column picked in the table";
+  return (
+    <div className="fgx-sortm" ref={box}>
+      <button type="button" className="fgx-pb" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} aria-label={`Sort: ${cur}`}>Sort<span className="fgx-sortv">: {cur}</span> <span aria-hidden="true">▾</span></button>
+      {open && <div className="fgx-sortl" role="menu" aria-label="Sort by">{options.map((o) => (
+        <button key={o.v} type="button" role="menuitemradio" aria-checked={o.v === value} onClick={() => { onPick(o.v); setOpen(false); }}>{o.v === value && <i aria-hidden="true">&#10003;</i>}{o.label}</button>))}</div>}
     </div>);
 }

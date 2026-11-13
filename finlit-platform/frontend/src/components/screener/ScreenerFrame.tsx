@@ -15,7 +15,8 @@ import { CAPS, PAGE_SIZES, pageList, type SortKey } from "../../lib/scoreScreen"
 import type { Plan } from "../../lib/ui";
 import { useAuth } from "../../lib/auth";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
-import { KpiStrip, SectorBars, TitleCard, Toolbar, type Kpi } from "./PageParts";
+import { SectorBars, SortMenu, Toolbar } from "./PageParts";
+import { TierChip } from "../Gate";
 import "../../styles/fgx.css";
 import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
@@ -60,10 +61,13 @@ type Props = {
   /** Columns offered in the "Sort by" list (beside Stock name and Market cap). */ sortChoices: { key: SortKey; label: string }[];
   /** The header's key figures, quick links and illustration (real data only). */ head?: Pick<PageHeaderProps, "stats" | "links" | "art" | "meta">;
   /** A card drawn beside the sector bars (the donut), only when its numbers are real. */ donut?: ReactNode;
+  /** The header line (task #64, B-4 / V-4): the data date in words, the name of the "How … works" dialog and a link to the other screener. */
+  dateLine?: string | null; howTitle?: string; headLink?: ReactNode;
+  /** The Columns menu in the toolbar (the 52-week and return columns). */ columnsMenu?: ReactNode;
+  /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
 };
-const KPI_ICONS: Kpi["icon"][] = ["building", "layers", "gauge", "tech"];
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, tiles, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, head }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, dateLine, howTitle = "How scores work", headLink, columnsMenu, leadTag }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
   const { isAdmin } = useAuth();
   const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
@@ -77,9 +81,18 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(set); ro.observe(t); return () => ro.disconnect();
   }, [isLoading, isError]);
+  // the toolbar sticks just under the site bar, whatever that bar's height (it changes with the screen width)
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".top"), w = wrapRef.current;
+    if (!w) return;
+    const set = () => w.style.setProperty("--sx-top", `${bar ? Math.round(bar.getBoundingClientRect().height) : 0}px`);
+    set();
+    if (!bar || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set); ro.observe(bar); return () => ro.disconnect();
+  }, []);
   const [collapsed, setCollapsed] = useState(false), [want, setWant] = useState<{ id: string | null; n: number }>({ id: null, n: 0 });
   const showPanel = (id: string | null) => { if (narrow()) setDrawer(true); else setCollapsed(false); if (id) setWant((w) => ({ id, n: w.n + 1 })); };
-  const kpis: Kpi[] = tiles.slice(0, -1).map(([label, value, why], i) => ({ icon: KPI_ICONS[i] ?? "layers", label, value, why }));
   useEffect(() => {   // Escape closes the filter drawer on narrow screens
     if (!drawer) return;
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); };
@@ -89,15 +102,19 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
   const sortVal = `${sort.key}:${sort.dir}`;
   const choices: { key: SortKey; label: string; asc: string; desc: string }[] = [
     { key: "name", label: "Stock name", asc: "A to Z", desc: "Z to A" }, { key: "market_cap", label: "Market cap", asc: "low to high", desc: "high to low" },
+    { key: "sector", label: "Sector", asc: "A to Z", desc: "Z to A" },
     ...sortChoices.map((c) => ({ ...c, asc: "low to high", desc: "high to low" })),
   ];
-  const sortOpts = choices.flatMap((c) => (c.key === "name" ? [[c.key, 1, `${c.label} (${c.asc})`], [c.key, -1, `${c.label} (${c.desc})`]] : [[c.key, -1, `${c.label} (${c.desc})`], [c.key, 1, `${c.label} (${c.asc})`]]) as [SortKey, 1 | -1, string][]);
+  const sortOpts = choices.flatMap((c) => (c.key === "name" || c.key === "sector" ? [[c.key, 1, `${c.label}, ${c.asc}`], [c.key, -1, `${c.label}, ${c.desc}`]] : [[c.key, -1, `${c.label}, ${c.desc}`], [c.key, 1, `${c.label}, ${c.asc}`]]) as [SortKey, 1 | -1, string][]);
   return (
     <>
-      <div className="wrap scr-wrap" style={{ paddingTop: 22 }}>
+      <div className="wrap scr-wrap" style={{ paddingTop: 22 }} ref={wrapRef}>
         <FindStocksTabs />
-        <TitleCard tier={tier} title={title} sub={intro} onLearn={() => s.setHow(true)} {...head} />
-        {kpis.length > 0 && <KpiStrip items={kpis} active={filterCount} filtersOpen={drawer || !collapsed} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />}
+        <section className="card sx-head" aria-labelledby="sx-h1">
+          <div className="sx-h1row"><h1 id="sx-h1" title={typeof intro === "string" ? intro : undefined}>{title}</h1><TierChip tier={tier} />{dateLine && <span className="sx-asof">{dateLine}</span>}
+            <span className="sx-hsp" /><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> {howTitle}</button>{headLink}</div>
+          <p className="sr">{intro}</p>
+        </section>
         {screens}
         {beforeTable}
         {isAdmin && (      // the "not rated yet" share and the sector mix of the result: for the team, not shown to members
@@ -105,20 +122,19 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
             {donut}
             <SectorBars title="Results by sector (Top 5)" rows={mix} action={<button type="button" className="fgx-link" onClick={() => showPanel("sector")}>View all sectors &rsaquo;</button>} />
           </div>)}
-        <Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
+        <div className="sx-stick"><Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "cap", label: "Market cap", active: draft.caps.length, onClick: () => showPanel("cap") },
           { id: "sector", label: "Sector", active: draft.sectors.length, onClick: () => showPanel("sector") },
           { id: "score", label: "Score filters", active: Math.max(0, filterCount - draft.caps.length - draft.sectors.length), onClick: () => showPanel("score") }]}
-          sort={<label className="fgx-sort"><span className="sr">Sort by</span><select aria-label="Sort by" value={sortVal} onChange={(e) => { const [k, d] = e.target.value.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }}>
-            {!sortOpts.some(([k, d]) => `${k}:${d}` === sortVal) && <option value={sortVal}>Sorted by column</option>}
-            {sortOpts.map(([k, d, l]) => <option key={k + d} value={`${k}:${d}`}>Sort by {l}</option>)}</select></label>} />
+          sort={<>{columnsMenu}<SortMenu value={sortVal} options={sortOpts.map(([k, d, l]) => ({ v: `${k}:${d}`, label: l }))}
+            onPick={(v) => { const [k, d] = v.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }} /></>} /></div>
         <div className={"scr sx" + (drawer ? " sx-open" : "") + (collapsed ? " fgx-collapsed" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
           {drawer && <div className="sx-back" onClick={() => setDrawer(false)} aria-hidden="true" />}
           <aside className="scr-side card sx-side" aria-label={sideLabel} hidden={sideW === 0 || (collapsed && !drawer)}>
             <button type="button" className="sx-close btn" onClick={() => setDrawer(false)}>Close filters</button>
             <form onSubmit={(e) => { e.preventDefault(); s.apply(s.draft, true); }} onBlurCapture={(e) => { if ((e.target as HTMLElement).matches?.('input[type="number"]') && dirty && !bad) s.apply(); }} noValidate>
               <FgxFocus.Provider value={want}>
-              <div className="fgx-top"><span>Filters{filterCount > 0 ? ` · ${filterCount} active` : ""}</span><span className="fgx-tl"><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> How scores work</button></span></div>
+              <div className="fgx-top"><span>Filters{filterCount > 0 ? ` · ${filterCount} active` : ""}</span><span className="fgx-tl"><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> {howTitle}</button></span></div>
               {presets && <FilterGroup id="quick" title="Quick views" defaultOpen hint={<>Ready-made score combinations. <ChartHelp id="score-filter" /></>}>{presets}</FilterGroup>}
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
@@ -149,24 +165,14 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
             <p className="sr" role="status" aria-live="polite" aria-atomic="true">{isLoading || isError ? "" : `${nf(rows.length, 0)} ${rows.length === 1 ? "company matches" : "companies match"}${filterCount || qTrim ? " the current filters" : ""}.`}</p>
             {isError ? <div className="state"><h2>{errorTitle}</h2><p>Please try again in a moment.</p></div> : isLoading ? <div className="skeleton" style={{ height: 380 }} /> : (
               <>
-                <div className="sx-bulk" role="toolbar" aria-label="Actions for the table">
-                  <span aria-live="polite">{sel.length ? `${nf(sel.length, 0)} selected` : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"} in this result`}</span>
-                  <span className="sx-bulkb">
-                    <button type="button" className="btn primary" disabled={sel.length < 2 || sel.length > maxCompare} onClick={() => s.nav(`/compare?c=${sel.join(",")}`)}
-                      title={sel.length > maxCompare ? `Your plan compares up to ${maxCompare} companies` : "Select 2 to " + maxCompare + " companies"}><span aria-hidden="true">Compare ({sel.length})</span><span className="sr">{sel.length >= 2 && sel.length <= maxCompare ? `Compare ${sel.length}` : "Compare"}</span></button>
-                    <button type="button" className="btn" disabled={!sel.length} onClick={s.addSelected}><span aria-hidden="true">Add to watchlist ({sel.length})</span><span className="sr">Add to watchlist</span></button>
-                    {sel.length > 0 && <button type="button" className="alx-link" onClick={() => s.setPicked([])}>Clear selection</button>}
-                  </span>
-                  {sel.length < 2 && <small className="muted sx-bulkhint">{maxCompare === 2 ? "Tick the box on 2 rows to compare them." : `Tick the box on 2 to ${maxCompare} rows to compare them.`} Tick any rows to add them to your watchlist.</small>}
-                  {sel.length > maxCompare && <small className="muted">{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
-                </div>
-                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" tall><table className="scr-t ss-t sx-t" ref={tableRef}>
+                <p className="sx-count" aria-live="polite">{sel.length ? `${nf(sel.length, 0)} selected` : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"} in this result`}</p>
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" controls={false} pinBelow=".sx-stick"><table className="scr-t ss-t sx-t" ref={tableRef}>
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
                     <th scope="col" className="fz1"><input ref={s.headBox} type="checkbox" checked={s.allOnPage} onChange={s.toggleAll} aria-label="Select all companies on this page" disabled={!pg.view.length} /></th>
                     <th scope="col" className="sx-n fz2">#</th>
-                    <SortTh s={s} k="name" label="Stock" cls="stick fz3 fz-last" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" /><SortTh s={s} k="sector" label="Sector" cls="ss-sec" />
+                    <SortTh s={s} k="name" label="Stock" cls="stick fz3 fz-last" /><SortTh s={s} k="price" label="LTP (₹)" cls="ss-px" /><SortTh s={s} k="market_cap" label="Market cap" cls="ss-mc" />
                     {columnHeads}
                     <th scope="col">Chart</th></tr></thead>
                   <tbody>{pg.view.map((r, i) => {
@@ -175,10 +181,9 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
                     <tr key={r.symbol} className={(on ? "sx-sel " : "") + (chart?.symbol === r.symbol ? "cp-row" : "")} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,a,button,select")) setChart(r); }}>
                       <td className="fz1"><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n fz2">{pg.page * size + i + 1}</td>
-                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></Link></td>
+                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{leadTag?.(r)}{subOf(r) && <small>{subOf(r)}</small>}<small className="sx-secn">{r.sector || "Sector not listed"}</small></span></Link></td>
                       <td className="ss-px">{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
                       <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
-                      <td className="ss-sec">{r.sector || <Dash why="sector not listed" />}</td>
                       {cells(r)}
                       <td className="ss-act"><button type="button" className="btn" onClick={() => setChart(r)} aria-label={`Open ${r.symbol} chart`}>Chart</button>
                         <Link className="btn" to={`/stocks/${r.symbol}`} aria-label={`Open ${r.symbol} report`}>Report</Link>
@@ -205,6 +210,16 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
           </section>
         </div>
       </div>
+      {sel.length > 0 && (
+        <div className="sx-cbar" role="region" aria-label="Selected companies">
+          <b aria-live="polite">{nf(sel.length, 0)} selected</b>
+          <button type="button" className="btn primary" disabled={sel.length < 2 || sel.length > maxCompare} onClick={() => s.nav(`/compare?c=${sel.join(",")}`)}
+            aria-label={sel.length >= 2 && sel.length <= maxCompare ? `Compare ${sel.length}` : "Compare"}>Compare {sel.length}</button>
+          <button type="button" className="btn" onClick={s.addSelected}>Add to watchlist</button>
+          <button type="button" className="alx-link" onClick={() => s.setPicked([])}>Clear</button>
+          {sel.length < 2 && <small>Tick one more company to compare.</small>}
+          {sel.length > maxCompare && <small>{s.has("gold") ? "Compare takes up to 4 companies." : "Your plan compares up to 2 companies; Gold compares 4."}</small>}
+        </div>)}
       {s.how && how}
       {chart && <ChartPanel key={chart.symbol} row={chart} onClose={() => setChart(null)} onStep={(d) => { const i = pg.view.findIndex((r) => r.symbol === chart.symbol), n = pg.view[i + d]; if (i >= 0 && n) setChart(n); }} />}
     </>

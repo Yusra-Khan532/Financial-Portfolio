@@ -21,7 +21,7 @@ export const PrismScore = ({ r, gold }: { r: Item; gold: boolean }) => {
   }
   const why = prismReason(r, gold), cell = prismCell(r, gold);
   if (cell === "locked") return <span className="ssp na" title={why}><Icon name="lock" /><span className="sr">Not available: {why}</span></span>;
-  return (<span className="pzs-no" title={why}>{cell === "not-yet" ? "Not rated yet" : "Not rated"}<span className="sr">: {why}</span>
+  return (<span className="pzs-no" title={why}>{cell === "not-yet" ? "Not rated yet" : "Not rated"}<span className="pzs-i" aria-hidden="true"><Icon name="info" /></span><span className="sr">: {why}</span>
     {cell === "not-yet" && <Link to={`/prism/${encodeURIComponent(r.symbol)}`} className="pzs-go" aria-label={`Rate ${r.symbol} with Prism now`}>Rate now</Link>}</span>);
 };
 export const PrismPart = ({ r, v, gold }: { r: Item; v: number | null | undefined; gold: boolean }) => {
@@ -30,10 +30,17 @@ export const PrismPart = ({ r, v, gold }: { r: Item; v: number | null | undefine
   const showWhy = hasPrism(r) && prismCell(r, gold) !== "locked";   // an unrated row already says so in its Prism cell
   return <span className="ssp na" title={why}>{prismCell(r, gold) === "locked" ? <Icon name="lock" /> : <>{MINUS}{showWhy && <small className="ss-why">Not scored</small>}</>}<span className="sr">Not available: {why}</span></span>;
 };
-/** A technical view: the site's descriptive word for the score (never the model's own word) and the signed score, -100 to +100. */
+/** A technical view (task #64, V-6): the signed score, -100 to +100, in a coloured pill, a bar from the centre, and the site's word for it under them
+ *  (never the model's own word). The pill's colour follows the same word, so the two never disagree. */
 export const PrismTrend = ({ r, score, gold, col }: { r: Item; score: number | null | undefined; gold: boolean; col: "st" | "lt" }) => {
   const word = trendWord(score);
-  if (word && score != null) { const sg = score > 0 ? "+" : score < 0 ? MINUS : ""; return <span className="pzs-w" title={`${word} (${sg}${nf(Math.abs(score), 0)} on a scale of ${MINUS}100 to +100)${r.prism_tech_at ? `, as of ${asOfText(r.prism_tech_at)}` : ""}`}><b>{word}</b><small>{sg}{nf(Math.abs(score), 0)}</small></span>; }
+  if (word && score != null) {
+    const sg = score > 0 ? "+" : score < 0 ? MINUS : "", v = Math.max(-100, Math.min(100, score)), tone = scoreBand(score);
+    return (<span className="pzs-tv" title={`${word} (${sg}${nf(Math.abs(score), 0)} on a scale of ${MINUS}100 to +100)${r.prism_tech_at ? `, as of ${asOfText(r.prism_tech_at)}` : ""}`}>
+      <span className={"pzs-tp " + tone}>{sg}{nf(Math.abs(score), 0)}</span>
+      <span className="pzs-tb" aria-hidden="true"><i className={tone} style={{ left: `${v < 0 ? 50 + v / 2 : 50}%`, width: `${Math.abs(v) / 2}%` }} /></span>
+      <small>{word}</small></span>);
+  }
   const why = prismReason(r, gold, col);
   return <span className="ssp na" title={why}>{prismCell(r, gold) === "locked" ? <Icon name="lock" /> : <>{MINUS}<small className="ss-why">Not calculated</small></>}<span className="sr">Not available: {why}</span></span>;
 };

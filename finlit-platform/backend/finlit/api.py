@@ -208,10 +208,22 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         except Exception:
             logging.getLogger("finlit.api").exception("screener universe: Prism ratings not read")
             stored, cover = {}, None
+        lead: dict = {}
+        if level == "gold":    # Leader / In line / Laggard after the name on the Advanced screener (task #64, V-5), only while the label is switched on for everyone
+            try:
+                if await leadership_api.public_now(app.state.store):
+                    async with app.state.store.pool.acquire() as conn:
+                        lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+            except Exception:
+                logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
         out = []
         for r in rows:
             r = {k: v for k, v in r.items() if k not in ("statement", "model", "updated_at")}
             r.update(stored.get(r["symbol"]) or prism_screen.blank())
+            ld = lead.get(r["symbol"])
+            if ld:
+                r["lead"] = ld["label"]
+                r["lead_line"] = f"{ld['rank']} of {ld['ranked']} {ld['group_short'] or ''} peers".replace("  ", " ") if ld["rank"] and ld["ranked"] else None
             r["scored"] = r["symbol"] in scored        # decided before a plan's redaction removes the score, so the page can say how many are scored
             for k, v in list(r.items()):
                 if hasattr(v, "isoformat"):

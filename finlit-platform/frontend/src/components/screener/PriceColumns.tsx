@@ -1,5 +1,5 @@
 // The optional 52-week and return columns of both score screeners: 3-month, 6-month and 1-year return, and how far down from the 52-week high. Off by default; the choice is kept in this browser.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MINUS, nf } from "../../lib/format";
 import type { Item, SortKey } from "../../lib/scoreScreen";
 import { Dash } from "./cells";
@@ -13,6 +13,23 @@ export const PRICE_SORT: SortKey[] = ["ret_3m", "ret_6m", "return_1y", "pct_from
 export function usePriceColumns(): [boolean, (on: boolean) => void] {
   const [on, set] = useState<boolean>(() => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } });
   return [on, (v) => { set(v); try { localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* a private window: the choice lasts for this visit */ } }];
+}
+
+/** The Columns menu of the score screeners' toolbar (task #64, B-4): the 52-week and return columns as an option, not a row of its own above the table. */
+export function ColumnsMenu({ on, set }: { on: boolean; set: (on: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const out = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", out); document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", out); document.removeEventListener("keydown", key); };
+  }, [open]);
+  return (<div className="fgx-sortm" ref={box}>
+    <button type="button" className="fgx-pb" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen(!open)}>Columns{on && <span className="fgx-badge">+4</span>} <span aria-hidden="true">▾</span></button>
+    {open && <div className="fgx-sortl fgx-colsl" role="group" aria-label="Columns"><label><input type="checkbox" checked={on} onChange={() => set(!on)} /> <span>52-week high and returns<small>3-month, 6-month and 1-year return, and how far down from the 52-week high.</small></span></label></div>}
+  </div>);
 }
 
 export function PriceColumnsToggle({ on, set }: { on: boolean; set: (on: boolean) => void }) {
