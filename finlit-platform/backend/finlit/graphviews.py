@@ -19,11 +19,12 @@ from .auth.routes import NO_STORE, SYMBOL, Ctx, fail, secure_ctx
 router = APIRouter(prefix="/api")
 
 CHARTS = ("line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter", "heatmap")
-LAYOUTS = {"1x1": 1, "1x2": 2, "2x2": 4, "2x3": 6, "3x3": 9}
+LAYOUTS = {"1x1": 1, "1x2": 2, "1x3": 3, "2x2": 4, "2x3-5": 5, "2x3": 6, "3x3": 9,
+           **{f"g{n}": n for n in range(7, 21)}}   # the Chart builder's layouts (lib/graphState.ts): up to 20 charts, three a row past six (task #114)
 GRAPH_LIMITS: Dict[str, Dict[str, Any]] = {
-    "basic": {"cells": 4, "companies": 2, "series": 3, "views": 2, "charts": ["line", "area", "column", "bar", "combo", "pie"]},
-    "silver": {"cells": 6, "companies": 3, "series": 4, "views": 10, "charts": ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter"]},
-    "gold": {"cells": 9, "companies": 6, "series": 6, "views": 50, "charts": list(CHARTS)},
+    "basic": {"cells": 20, "companies": 2, "series": 3, "views": 2, "charts": ["line", "area", "column", "bar", "combo", "pie"]},
+    "silver": {"cells": 20, "companies": 3, "series": 4, "views": 10, "charts": ["line", "area", "column", "bar", "combo", "pie", "candlestick", "scatter"]},
+    "gold": {"cells": 20, "companies": 6, "series": 6, "views": 50, "charts": list(CHARTS)},
 }
 ID = r"^[a-z0-9_]{1,40}$"
 INDEX_SYM = re.compile(r"^IDX:[A-Z0-9]{2,24}$")
@@ -60,10 +61,10 @@ class CellIn(BaseModel):
 
 class ConfigIn(BaseModel):
     v: Literal[1] = 1
-    layout: Literal["1x1", "1x2", "2x2", "2x3", "3x3"]
+    layout: str = Field(pattern=r"^(1x1|1x2|1x3|2x2|2x3-5|2x3|3x3|g(?:[7-9]|1[0-9]|20))$")
     basis: Literal["annual", "quarterly"] = "annual"
     range: Literal["1Y", "3Y", "5Y", "MAX"] = "5Y"
-    cells: List[CellIn] = Field(max_length=9)
+    cells: List[CellIn] = Field(max_length=20)
 
 
 class ViewIn(BaseModel):
