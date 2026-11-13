@@ -209,23 +209,44 @@ async def macro_today(store) -> Tuple[dict, Optional[List[float]]]:
     return today, ([float(x) for x in nxt] if isinstance(nxt, list) and len(nxt) == 4 else None)
 
 
+NIFTY_YEARS = 12     # the 2018 episode starts about 8.2 years back; the site's own chart keeps five
+
+
 async def weekly_closes(store, sym: str) -> Dict[str, float]:
+    """The company's closes for the past shocks: the long weekly history (price_history_long) when stored, else the weekly closes of the
+    price-MAX section the chart already holds. Nothing is invented: a company with neither gets {} and the page says so."""
     async with store.pool.acquire() as conn:
         row = await conn.fetchrow("SELECT dates, closes FROM price_history_long WHERE symbol = $1", sym)
-    if not row:
+        out = {d.isoformat(): float(c) for d, c in zip(row["dates"] or [], row["closes"] or []) if c} if row else {}
+        if out:
+            return out
+        try:
+            body = await conn.fetchval("SELECT body FROM snapshots WHERE symbol = $1 AND section = 'price-MAX' ORDER BY (statement = 'consolidated') DESC LIMIT 1", sym)
+        except Exception as exc:   # the page still builds, without prices
+            log.warning("stress %s: stored price section unreadable: %s", sym, type(exc).__name__)
+            return {}
+    try:
+        series = (json.loads(body) if isinstance(body, (str, bytes)) else body or {}).get("series") or {}
+        return {str(d)[:10]: float(c) for d, c in zip(series.get("t") or [], series.get("c") or []) if c}
+    except (ValueError, TypeError, AttributeError):
         return {}
-    return {d.isoformat(): float(c) for d, c in zip(row["dates"], row["closes"]) if c}
 
 
 async def nifty_closes(app) -> Dict[str, float]:
-    """Nifty 50's daily closes for the past shocks (what the index history route holds; older episodes are simply not in it and the page says so)."""
+    """Nifty 50's daily closes for the past shocks: NIFTY_YEARS back (the 2018 and 2020 episodes need more than the five years of the chart route);
+    when that long fetch fails, the five years the site already holds, so the later episodes still show. {} (logged) when neither is there."""
     from .. import indices
-    try:
-        raw = await indices._cached(app, "idx:px:NIF50", 3600, lambda: indices._fetch_levels(app, "NIF50"))
-        rows = indices.shape_levels(raw, indices.HISTORY_YEARS)["rows"]
-    except Exception:   # nosec B110 - the page leaves the Nifty column blank
-        return {}
-    return {r["d"]: r["c"] for r in rows}
+    for key, years in (("idx:px:NIF50:long", NIFTY_YEARS), ("idx:px:NIF50", indices.HISTORY_YEARS)):
+        try:
+            raw = await indices._cached(app, key, 3600, lambda y=years: indices._fetch_levels(app, "NIF50", y))
+            rows = indices.shape_levels(raw, years)["rows"]
+        except Exception as exc:   # the page leaves the Nifty column blank; the reason is in the log
+            log.warning("stress: Nifty 50 history (%s years) unavailable: %s: %s", years, type(exc).__name__, exc)
+            continue
+        if rows:
+            return {r["d"]: r["c"] for r in rows}
+        log.warning("stress: Nifty 50 history (%s years) came back empty", years)
+    return {}
 
 
 def size_word(market_cap: Optional[float], rank_bucket: Optional[str]) -> str:
@@ -310,7 +331,9 @@ def page_is_stale(rec: dict, latest_quarter: Optional[str], now: Optional[dateti
         return False
     age_h = ((now or datetime.now(timezone.utc)) - at).total_seconds() / 3600
     base_end = ((rec.get("payload") or {}).get("company") or {}).get("base_end")
-    return age_h > PAGE_MAX_AGE_H or bool(latest_quarter and base_end and latest_quarter > base_end and age_h > RECENT_FAIL_H)
+    payload = rec.get("payload") or {}
+    no_history = "history" in payload and not any(v for row in payload["history"] or [] for k, v in row.items() if k not in ("episode", "from", "to", "nifty"))
+    return age_h > PAGE_MAX_AGE_H or (age_h > RECENT_FAIL_H and (no_history or bool(latest_quarter and base_end and latest_quarter > base_end)))
 
 
 async def save_failure(store, sym: str, kind: str, reason: str) -> None:

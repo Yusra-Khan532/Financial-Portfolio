@@ -389,3 +389,52 @@ def test_the_base_window_is_said_in_months_from_the_month_after_the_first_quarte
     assert P.window_words(("2025-09-30", "2026-09-30")) == ("Oct 2025", "Sep 2026")
     assert P.window_words(("2025-12-31", "2026-12-31")) == ("Jan 2026", "Dec 2026")
     assert P.window_words(("Oct 2025", "Sep 2026")) == ("Oct 2025", "Sep 2026")      # already words: kept
+
+
+# ---------------------------------------------------------------------------------------------------------------- past shocks need prices (task 79)
+async def test_weekly_closes_use_the_long_history_else_the_stored_chart_series(store):  # noqa: F811
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM price_history_long WHERE symbol IN ('ZZLONG', 'ZZCHART')")
+        await conn.execute("DELETE FROM snapshots WHERE symbol IN ('ZZLONG', 'ZZCHART', 'ZZNONE')")
+        await conn.execute("INSERT INTO price_history_long (symbol, dates, closes, first_date) VALUES ('ZZLONG', $1, $2, $3)",
+                           [date(2018, 9, 7), date(2018, 9, 14)], [100.0, 90.0], date(2018, 9, 7))
+        await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ('ZZCHART', 'consolidated', 'price-MAX', $1, 'e', now())",
+                           json.dumps({"series": {"t": ["2022-02-04", "2022-02-11"], "c": [50.0, 45.5]}}))
+    assert await service.weekly_closes(store, "ZZLONG") == {"2018-09-07": 100.0, "2018-09-14": 90.0}
+    assert await service.weekly_closes(store, "ZZCHART") == {"2022-02-04": 50.0, "2022-02-11": 45.5}     # the chart's own stored closes
+    assert await service.weekly_closes(store, "ZZNONE") == {}                                              # nothing stored: nothing invented
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM price_history_long WHERE symbol = 'ZZLONG'")
+        await conn.execute("DELETE FROM snapshots WHERE symbol = 'ZZCHART'")
+
+
+async def test_nifty_closes_reach_back_far_enough_and_fall_back_to_the_five_years_and_log(monkeypatch, caplog):
+    from finlit import indices
+    asked = []
+
+    async def cached(app_, key, fresh, fetch):
+        asked.append(key)
+        if key.endswith(":long"):
+            raise RuntimeError("provider said no")
+        return {"rows": [{"quote_date": "2022-03-01", "close_price": 17000.0}]}
+    monkeypatch.setattr(indices, "_cached", cached)
+    with caplog.at_level("WARNING", logger="finlit.stress"):
+        got = await service.nifty_closes(SimpleNamespace())
+    assert got == {"2022-03-01": 17000.0} and asked == ["idx:px:NIF50:long", "idx:px:NIF50"]
+    assert any("RuntimeError" in r.getMessage() for r in caplog.records)
+    assert service.NIFTY_YEARS >= 9                                                                       # 2018-08 is about 8.2 years back
+
+    async def none(app_, key, fresh, fetch):
+        return None
+    monkeypatch.setattr(indices, "_cached", none)
+    assert await service.nifty_closes(SimpleNamespace()) == {}
+
+
+def test_a_stored_page_without_any_company_prices_is_rebuilt_once_it_is_a_few_hours_old():
+    now = datetime(2026, 11, 13, 12, tzinfo=timezone.utc)
+    empty = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": None}]
+    filled = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": {"fall_pct": -10.0}}]
+    rec = lambda h, hist: {"built_at": now - timedelta(hours=h), "payload": {"company": {"base_end": "2026-09-30"}, "history": hist}}   # noqa: E731
+    assert not service.page_is_stale(rec(1, empty), "2026-09-30", now)          # not on every visit
+    assert service.page_is_stale(rec(8, empty), "2026-09-30", now)
+    assert not service.page_is_stale(rec(8, filled), "2026-09-30", now)
