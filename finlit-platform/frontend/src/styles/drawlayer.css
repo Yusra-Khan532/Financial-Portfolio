@@ -7,16 +7,57 @@
 .dl-toggle:hover, .dl-toggle.on { color: var(--text); border-color: var(--gold); } .dl-toggle.on { background: color-mix(in srgb, var(--gold) 16%, var(--s1)); }
 .dl-n { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--gold); color: #fff; font: 700 11px var(--sans); }
 .dl-outer { min-width: 0; }
-.dl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; background: var(--s2); border: 1px solid var(--border-strong); border-radius: 14px; padding: 6px 8px; margin-bottom: 8px; }
-.dl-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.dl-row button { min-width: 34px; height: 34px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 600 13px var(--sans); }
-.dl-row button:hover:not(:disabled) { background: var(--s2); color: var(--text); } .dl-row button.on { background: var(--s3); color: var(--text); border-color: var(--border-strong); }
-.dl-row button:disabled { opacity: .35; cursor: not-allowed; }
-.dl-row button:focus-visible, .dl-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.dl-sw i { width: 18px; height: 18px; border-radius: 50%; display: block; border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--border-strong); } .dl-sw.on i { box-shadow: 0 0 0 2px var(--gold); }
-.dl-wd i { width: 18px; border-radius: 3px; background: var(--text); display: block; }
-.dl-sep { width: 1px; height: 22px; background: var(--border-strong); margin: 0 4px; display: inline-block; }
-.dl-done { color: var(--text) !important; background: var(--s1) !important; border-color: var(--border-strong) !important; }
-.dl-hint { margin: 0; flex: 1 1 100%; min-height: 2.8em; padding: 2px 4px 0; font-size: 12px; line-height: 1.4; color: var(--faint); }
+/* Task #115 (13 Nov 2026): the annotation panel as in the team's picture: a header with the close button top-right, four labelled groups (Draw on chart, Add text,
+   Color, Stroke), every tool an icon over its label, then Undo, Redo, Erase and Clear all together at the bottom with the hint and a prominent Done. */
+.dl-tools { position: relative; display: grid; gap: 12px; background: var(--s2); border: 1px solid color-mix(in srgb, var(--gain) 45%, var(--border-strong)); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+.dl-head { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-strong); color: var(--text); }
+.dl-head > svg { width: 20px; height: 20px; }
+.dl-head b { font: 600 16px var(--sans); }
+.dl-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
+.dl-icon:hover { color: var(--text); background: var(--s1); } .dl-icon[aria-expanded="true"] { color: var(--text); }
+.dl-x { margin-left: auto; border-color: var(--border-strong); }
+.dl-help { margin: 0; padding: 10px 12px 10px 28px; border-radius: 12px; background: var(--s1); border: 1px solid var(--border-strong); display: grid; gap: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.dl-help b { color: var(--text); font-weight: 600; }
+.dl-groups { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 0; }
+.dl-grp { display: grid; gap: 8px; padding: 0 16px; min-width: 0; }
+.dl-grp:first-child { padding-left: 0; } .dl-grp + .dl-grp { border-left: 1px solid var(--border-strong); }
+.dl-grp > p { margin: 0; font: 600 14px var(--sans); color: var(--text); }
+.dl-tools { container-type: inline-size; }
+.dl-grp-draw { flex: 1 1 100%; padding-right: 0; }                     /* nine tools: their own row, the other three groups side by side below */
+.dl-grp-draw + .dl-grp { border-left: 0; padding-left: 0; }
+@container (min-width: 1280px) { .dl-grp-draw { flex: 0 1 auto; padding-right: 16px; } .dl-grp-draw + .dl-grp { border-left: 1px solid var(--border-strong); padding-left: 16px; } }
+.dl-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); }
+.dl-tool { min-width: 64px; min-height: 58px; padding: 6px 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 500 12px/1.15 var(--sans); text-align: center; }
+.dl-tool svg { width: 20px; height: 20px; }
+.dl-tool span { max-width: 9ch; }
+.dl-tool:hover { color: var(--text); background: var(--s2); }
+.dl-tool.on { background: var(--gain-soft); color: var(--text); border-color: var(--gain); }
+.dl-sw, .dl-wd { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; border: 1px solid transparent; background: none; cursor: pointer; }
+.dl-sw i { width: 22px; height: 22px; border-radius: 50%; display: block; border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--border-strong); }
+.dl-sw.on { border-color: var(--gain); background: var(--gain-soft); } .dl-sw.on i { box-shadow: 0 0 0 1px var(--gain); }
+.dl-wd { width: 52px; border-radius: 10px; } .dl-wd i { width: 26px; border-radius: 3px; background: var(--text); display: block; }
+.dl-wd.on { border-color: var(--gain); background: var(--gain-soft); }
+.dl-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-top: 12px; border-top: 1px solid var(--border-strong); }
+.dl-edit { display: flex; flex-wrap: wrap; gap: 8px; padding-right: 14px; border-right: 1px solid var(--border-strong); }
+.dl-edit button { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; font: 600 14px var(--sans); }
+.dl-edit button svg { width: 17px; height: 17px; }
+.dl-edit button:hover:not(:disabled) { border-color: var(--gain); } .dl-edit button.on { background: var(--gain-soft); border-color: var(--gain); }
+.dl-edit button:disabled { opacity: .45; cursor: not-allowed; }
+.dl-hint { flex: 1 1 260px; margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.dl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* the chosen tool, read out by screen readers; the hint line itself never changes, so picking a tool never moves the chart */
+.dl-hint svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.dl-done { margin-left: auto; min-height: 42px; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; border: 0; background: var(--gain); color: var(--bg); cursor: pointer; font: 700 16px var(--sans); box-shadow: 0 8px 20px -12px var(--gain); }
+.dl-done svg { width: 18px; height: 18px; } .dl-done:hover { filter: brightness(1.06); }
+.dl-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--loss); background: var(--loss-soft); font-size: 14px; color: var(--text); }
+.dl-confirm span { flex: 1 1 220px; }
+.dl-confirm button { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; font: 600 14px var(--sans); }
+.dl-confirm .dl-danger { border-color: var(--loss); background: var(--loss); color: var(--bg); }
+.dl-tools button:focus-visible, .dl-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .dl-groups { display: grid; gap: 12px; }
+  .dl-grp { padding: 0; } .dl-grp + .dl-grp { border-left: 0; }
+  .dl-grp-draw .dl-box { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+  .dl-edit { padding-right: 0; border-right: 0; width: 100%; } .dl-edit button { flex: 1 1 auto; justify-content: center; }
+  .dl-done { width: 100%; justify-content: center; margin-left: 0; min-height: 46px; }
+}
 .dl-text { position: absolute; z-index: 7; transform: translateY(-85%); min-width: 150px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--gold); background: var(--s1); font: 600 14px var(--sans); box-shadow: var(--shadow); }
-@media (max-width: 560px) { .dl-sep { display: none; } .dl-row button { min-width: 38px; height: 38px; } }

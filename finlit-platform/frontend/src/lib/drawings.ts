@@ -1,19 +1,25 @@
 // Chart drawings (the pencil tools traders use to mark up a chart): the shapes, their hit-testing, saving and checking. No React here, so it is tested on its own.
 // Points are stored as fractions (0 to 1) of the chart's width and height, so a drawing keeps its place when the chart is resized.
 export type Pt = [number, number];
-export type ToolId = "pen" | "line" | "arrow" | "hline" | "vline" | "rect" | "ellipse" | "fib" | "text" | "eraser";
-export const TOOLS: { id: ToolId; label: string; hint: string }[] = [
-  { id: "pen", label: "Pencil", hint: "Draw freehand" },
-  { id: "line", label: "Trend line", hint: "Drag from one point to another" },
-  { id: "arrow", label: "Arrow", hint: "Drag to point at something" },
-  { id: "hline", label: "Horizontal line", hint: "Click to mark a price or value level" },
-  { id: "vline", label: "Vertical line", hint: "Click to mark a date or period" },
-  { id: "rect", label: "Rectangle", hint: "Drag to box an area" },
-  { id: "ellipse", label: "Circle", hint: "Drag to circle an area" },
-  { id: "fib", label: "Fibonacci retracement", hint: "Drag from a low to a high (or the reverse)" },
-  { id: "text", label: "Text note", hint: "Click, then type" },
-  { id: "eraser", label: "Eraser", hint: "Click a drawing to remove it" },
+export type ToolId = "pen" | "line" | "arrow" | "darrow" | "hline" | "vline" | "rect" | "ellipse" | "fib" | "text" | "hl" | "eraser";
+/** The tools, in the order and groups of the annotation panel (task #115): "draw" = Draw on chart, "text" = Add text, "erase" = the Erase button in the bottom row.
+ * Horizontal line, Vertical line and Fibonacci are not in the team's picture; the founder kept them (13 Nov 2026), after Circle. */
+export const TOOLS: { id: ToolId; label: string; hint: string; group: "draw" | "text" | "erase" }[] = [
+  { id: "pen", label: "Pen", hint: "Draw freehand", group: "draw" },
+  { id: "line", label: "Line", hint: "Drag from one point to another", group: "draw" },
+  { id: "arrow", label: "Arrow", hint: "Drag to point at something", group: "draw" },
+  { id: "darrow", label: "Double arrow", hint: "Drag to mark a span between two points", group: "draw" },
+  { id: "rect", label: "Rectangle", hint: "Drag to box an area", group: "draw" },
+  { id: "ellipse", label: "Circle", hint: "Drag to circle an area", group: "draw" },
+  { id: "hline", label: "Horizontal line", hint: "Click to mark a price or value level", group: "draw" },
+  { id: "vline", label: "Vertical line", hint: "Click to mark a date or period", group: "draw" },
+  { id: "fib", label: "Fibonacci", hint: "Drag from a low to a high (or the reverse) for the retracement levels", group: "draw" },
+  { id: "text", label: "Text", hint: "Click, then type", group: "text" },
+  { id: "hl", label: "Highlight", hint: "Drag over the part of the chart to highlight", group: "text" },
+  { id: "eraser", label: "Erase", hint: "Click or drag over an annotation to remove it", group: "erase" },
 ];
+/** A highlight stroke's width, from the chosen thickness: a broad, see-through marker. */
+export const hlWidth = (w: number) => Math.max(10, w * 4);
 
 /** The colours on offer. "ink" follows the page's text colour, so it is readable on both themes. */
 export const COLOURS = { red: "#E5484D", green: "#17A05D", blue: "#2F6FEB", amber: "#E8A317", violet: "#8B5CF6", ink: "currentColor" } as const;
@@ -22,8 +28,8 @@ export const WIDTHS = [1.5, 3, 5] as const;
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
 
 export type Shape = { id: string; c: ColourId; w: number } & (
-  | { k: "pen"; pts: Pt[] }
-  | { k: "line" | "arrow" | "rect" | "ellipse" | "fib"; a: Pt; b: Pt }
+  | { k: "pen" | "hl"; pts: Pt[] }
+  | { k: "line" | "arrow" | "darrow" | "rect" | "ellipse" | "fib"; a: Pt; b: Pt }
   | { k: "hline" | "vline"; a: Pt }
   | { k: "text"; a: Pt; t: string }
 );
@@ -60,8 +66,9 @@ export function fibLines(a: Pt, b: Pt): { level: number; y: number }[] {
 export function hit(s: Shape, x: number, y: number, w: number, h: number, tol = 8): boolean {
   const X = (p: Pt) => p[0] * w, Y = (p: Pt) => p[1] * h;
   switch (s.k) {
-    case "pen": for (let i = 1; i < s.pts.length; i++) if (distToSegment(x, y, X(s.pts[i - 1]), Y(s.pts[i - 1]), X(s.pts[i]), Y(s.pts[i])) <= tol + s.w) return true; return s.pts.length === 1 && Math.hypot(x - X(s.pts[0]), y - Y(s.pts[0])) <= tol;
-    case "line": case "arrow": return distToSegment(x, y, X(s.a), Y(s.a), X(s.b), Y(s.b)) <= tol + s.w / 2;
+    case "pen": case "hl": { const reach = tol + (s.k === "hl" ? hlWidth(s.w) / 2 : s.w);
+      for (let i = 1; i < s.pts.length; i++) if (distToSegment(x, y, X(s.pts[i - 1]), Y(s.pts[i - 1]), X(s.pts[i]), Y(s.pts[i])) <= reach) return true; return s.pts.length === 1 && Math.hypot(x - X(s.pts[0]), y - Y(s.pts[0])) <= reach; }
+    case "line": case "arrow": case "darrow": return distToSegment(x, y, X(s.a), Y(s.a), X(s.b), Y(s.b)) <= tol + s.w / 2;
     case "hline": return Math.abs(y - Y(s.a)) <= tol + s.w / 2;
     case "vline": return Math.abs(x - X(s.a)) <= tol + s.w / 2;
     case "rect": { const x0 = Math.min(X(s.a), X(s.b)) - tol, x1 = Math.max(X(s.a), X(s.b)) + tol, y0 = Math.min(Y(s.a), Y(s.b)) - tol, y1 = Math.max(Y(s.a), Y(s.b)) + tol; return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
@@ -69,6 +76,13 @@ export function hit(s: Shape, x: number, y: number, w: number, h: number, tol = 
     case "fib": { const x0 = Math.min(X(s.a), X(s.b)) - tol; if (x < x0) return false; return fibLines(s.a, s.b).some((l) => Math.abs(y - l.y * h) <= tol); }
     case "text": { const tw = s.t.length * 7.5 + 8; return x >= X(s.a) - tol && x <= X(s.a) + tw + tol && y >= Y(s.a) - 18 - tol && y <= Y(s.a) + tol; }
   }
+}
+
+/** The ids of every shape an eraser stroke passes over (task #115: "click or drag over a specific annotation to remove it"). */
+export function hitsAlong(shapes: readonly Shape[], path: readonly Pt[], w: number, h: number, tol = 8): Set<string> {
+  const out = new Set<string>();
+  for (const p of path) for (const s of shapes) if (!out.has(s.id) && hit(s, p[0] * w, p[1] * h, w, h, tol)) out.add(s.id);
+  return out;
 }
 
 /** The topmost (latest) shape under the click, or null. */
@@ -91,8 +105,8 @@ export function sanitize(raw: unknown): Shape[] {
     const o = r as Record<string, unknown>;
     const c = typeof o.c === "string" && o.c in COLOURS ? (o.c as ColourId) : "red", w = finite(o.w) ? Math.min(8, Math.max(1, o.w)) : 3, id = typeof o.id === "string" && o.id ? o.id.slice(0, 24) : newId();
     const base = { id, c, w };
-    if (o.k === "pen" && Array.isArray(o.pts)) { const pts = o.pts.slice(0, MAX_PEN_POINTS).map(pt).filter((p): p is Pt => !!p); if (pts.length) out.push({ ...base, k: "pen", pts }); }
-    else if ((o.k === "line" || o.k === "arrow" || o.k === "rect" || o.k === "ellipse" || o.k === "fib") && pt(o.a) && pt(o.b)) out.push({ ...base, k: o.k, a: pt(o.a)!, b: pt(o.b)! });
+    if ((o.k === "pen" || o.k === "hl") && Array.isArray(o.pts)) { const pts = o.pts.slice(0, MAX_PEN_POINTS).map(pt).filter((p): p is Pt => !!p); if (pts.length) out.push({ ...base, k: o.k, pts }); }
+    else if ((o.k === "line" || o.k === "arrow" || o.k === "darrow" || o.k === "rect" || o.k === "ellipse" || o.k === "fib") && pt(o.a) && pt(o.b)) out.push({ ...base, k: o.k, a: pt(o.a)!, b: pt(o.b)! });
     else if ((o.k === "hline" || o.k === "vline") && pt(o.a)) out.push({ ...base, k: o.k, a: pt(o.a)! });
     else if (o.k === "text" && pt(o.a) && typeof o.t === "string" && o.t.trim()) out.push({ ...base, k: "text", a: pt(o.a)!, t: o.t.slice(0, MAX_TEXT) });
   }
