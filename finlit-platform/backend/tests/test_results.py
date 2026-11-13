@@ -276,6 +276,9 @@ def test_date_range_is_validated_in_india_time():
             R.parse_range(*args, t)
         assert ex.value.detail["status"] == code, args
     assert "India time" in _raises(lambda: R.parse_range("2026-10-22", "", "", t)).detail["detail"]
+    # the companies still due may be looked up ahead ("who reports next week", the final pages pack's Results calendar); a bad range is still refused
+    assert R.parse_range("", "2026-10-22", "2026-10-28", t, future=True) == (D(2026, 10, 22), D(2026, 10, 28))
+    assert _raises(lambda: R.parse_range("", "2026-10-28", "2026-10-22", t, future=True)).detail["status"] == "bad_request"
 
 
 def _raises(fn):
