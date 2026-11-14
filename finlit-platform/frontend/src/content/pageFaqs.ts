@@ -431,7 +431,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What are Bear, Base and Bull?",
-    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 2; Bear and Bull are yours to set."
+    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 3; Bear and Bull are yours to set."
    },
    {
     "q": "How do I read the sensitivity table?",
@@ -439,11 +439,11 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What is PEG here?",
-    "a": "P/E ÷ the growth rate you assumed. It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
+    "a": "P/E ÷ the 5-year EPS growth rate you assumed (section 2). It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
    },
    {
-    "q": "Can I work backwards from a target price?",
-    "a": "Yes. Enter a target price and the calculator shows the EPS growth needed each year, using your target P/E and period."
+    "q": "What do the two scenario tables show?",
+    "a": "EPS growth and PEG: the EPS in 5 years and the PEG at 5%, 10%, 15%, 20% and 25% growth plus your own rate, with the P/E held at today's. P/E and implied price: today's EPS × 15x to 35x and today's P/E, with the difference from today's price. Both are arithmetic on your inputs, not forecasts."
    },
    {
     "q": "Can I save or share my numbers?",
