@@ -30,9 +30,12 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
   );
 }
 
-/** One tool in a group card: its name, a few words, a small plan mark for the paid ones and an arrow. The assistant opens its panel; every other tool opens its page. */
+/** One tool in a group card (task #151, the team's picture of 14 Nov): one row each, the tool's icon and name with a small plan mark for the paid ones on the left and its figure
+ *  in a pill on the right. The few words on what it does stay for screen readers and the tooltip. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
-  const inner = <><span className="xt-tn"><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span><b>{c.title}</b>{(c.badge !== "FREE" || FIGURE[c.id]) && <span className="xt-sub">{c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}{FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}</span>}</span><small>{SHORT[c.id]}</small><Icon name="arrow" /></>;
+  const inner = <><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span><b>{c.title}</b>
+    {c.badge !== "FREE" && <span className={`xt-badge xt-${c.badge.toLowerCase()} xt-mini`}>{BADGE_LABEL[c.badge]}<span className="sr-only"> plan</span></span>}
+    {FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}<small>{SHORT[c.id]}</small></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
 const TOOL_ICON: Record<string, string> = {
