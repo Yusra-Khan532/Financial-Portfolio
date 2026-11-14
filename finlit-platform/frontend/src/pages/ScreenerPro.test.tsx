@@ -287,7 +287,6 @@ describe("the table (file 04 §5)", () => {
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
-<<<<<<< HEAD
   it("Gold opens with the market cap and the two technical views; Fundamental Prism score is one click away in the Columns menu (tasks #145, #141)", async () => {
     const g = catalog(false, "gold");
     st.cat = { ...g, bandModel: "prism", standardColumns: ["market_cap", "prism_st_score", "prism_lt_score"],
@@ -312,7 +311,8 @@ describe("the table (file 04 §5)", () => {
       expect([...panel.querySelectorAll(".ssw-sec h3")].map((h) => h.textContent)).not.toContainEqual(expect.stringMatching(/rating/i));
       v.unmount();
     }
-=======
+  });
+
   it("task #144: Gold's Prism total is 'Fundamental Prism score'; once added, 'Added · Edit' takes you to its card, whose boxes keep 0 to 100", async () => {
     const g = catalog(false, "gold");
     st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final"],
@@ -352,7 +352,6 @@ describe("the table (file 04 §5)", () => {
     await waitFor(() => expect((last().filters.prism_st_score as { min?: number } | undefined)?.min).toBe(-100));
     await addRule("Dividend yield");
     expect((await screen.findByRole("spinbutton", { name: "Dividend yield from" })).hasAttribute("max")).toBe(false);
->>>>>>> 9afbde9 (Task #144: 'Prism Fundamental score'; 'Added · Edit' opens the rule; score boxes keep their 0 to 100 scale)
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {
