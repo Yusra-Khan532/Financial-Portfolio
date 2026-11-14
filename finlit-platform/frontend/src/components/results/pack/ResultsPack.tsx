@@ -38,7 +38,7 @@ export function KpiTiles({ r }: { r: QResp | undefined }) {
   const upd = r.updatedAt ? new Date(r.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
   return (
     <section className="rs-kpis" aria-label="The quarter so far">
-      <div className="rs-tiles">{kpiTiles(t).map((x) => <div key={x.k} className="ip-tile"><p className="sp-cap">{x.k}{x.help && <Tip text={x.help} label={`About “${x.k}”`} />}</p><b>{x.v}</b><small>{x.sub}</small></div>)}</div>
+      <div className="rs-tiles">{kpiTiles(t, !!r.locked).map((x) => <div key={x.k} className="ip-tile"><p className="sp-cap">{x.k}{x.help && <Tip text={x.help} label={`About “${x.k}”`} />}</p><b>{x.v}</b><small>{x.sub}</small></div>)}</div>
       {r.locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
       <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
     </section>
@@ -148,7 +148,7 @@ export function DayResults({ day, resp, week, locked, mine }: { day: string; res
 export function ComingUp({ resp, inds, dueMine, followed, mine }: { resp: QResp | undefined; inds: IndustrySoFar[]; dueMine: number; followed: { held: number; watched: number }; mine: Set<string> }) {
   const rows = (resp?.rows ?? []) as VRow[], days = useMemo(() => { const m = new Map<string, number>(); for (const d of resp?.days ?? []) m.set(d.date, d.n); return [...m].map(([date, n]) => ({ date, n })); }, [resp]);
   const by = new Map(inds.map((x) => [x.name, x]));
-  const shown = rows.slice(0, 14);
+  const shown = rows.slice(0, 14).sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || (b.marketCap ?? 0) - (a.marketCap ?? 0));   // the largest due, then by day as the sub-title says
   return (
     <Section id="rs-week" title={`Coming up this week · ${n0(resp?.total ?? 0)} companies`} help="Coming up this week. The companies whose board meets on results in the next seven days, as announced to the exchanges."
       sub={`The ${shown.length} largest companies due, by day. The last column shows how their industry has done so far: a yardstick for what to expect.`}
