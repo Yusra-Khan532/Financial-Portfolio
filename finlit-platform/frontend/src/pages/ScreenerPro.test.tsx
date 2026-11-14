@@ -268,7 +268,7 @@ describe("the table (file 04 §5)", () => {
     expect(table().querySelector("tbody tr td:nth-child(2)")!.textContent).toMatch(/\+1\.5%/);
   });
 
-  it("Gold sees FinLit Prism (column, rating chips, rule group), never the FinLit IQ (tasks #64 P-1, #100)", async () => {
+  it("Gold sees FinLit Prism (column, rule group), never the FinLit IQ (tasks #64 P-1, #100)", async () => {
     const g = catalog(false, "gold");
     st.cat = { ...g, bandModel: "prism", standardColumns: ["market_cap", "prism_final", "prism_st_score", "prism_lt_score"],
       bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })),
@@ -281,7 +281,7 @@ describe("the table (file 04 §5)", () => {
     const tech = Array.from(table().querySelectorAll("tbody tr:first-child td.ssw-iq")).slice(1);   // task #141: the two technical views follow the Prism score, each a signed pill with its word
     expect(tech.length).toBe(2);
     for (const c of tech) { expect(c.querySelector(".ssw-sc")!.textContent).toBe("+12"); expect((c.querySelector("small")!.textContent ?? "").length).toBeGreaterThan(2); }
-    expect(within(rulesPanel()).getByRole("group", { name: "FinLit Prism rating" }).textContent).toMatch(/Average/);
+    expect(within(rulesPanel()).queryByRole("group", { name: "FinLit Prism rating" })).toBeNull();   // task #143: the rating box is gone from Your rules
     for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
     expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
@@ -295,6 +295,22 @@ describe("the table (file 04 §5)", () => {
     await waitFor(() => expect(heads()).toEqual(["Company", "Market cap", "Short-term technical", "Long-term technical"]));
     fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
     expect(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name: /^Fundamental Prism score$/ })).toBeTruthy();
+  });
+
+  // Task #143 (14 Nov 2026): "remove this section from stock screnner" (the FinLit Prism rating chips: Strong, Healthy, Average, Weak, Poor). The founder: both plans,
+  // so Gold's FinLit Prism rating box and Silver's FinLit IQ rating box are gone; a rating set by a ready-made screen still shows as a pill you can clear.
+  it("Your rules has no rating box on any plan: no FinLit Prism rating (Gold), no FinLit IQ rating (Silver, Basic) (task #143)", async () => {
+    for (const [plan, prism] of [["gold", true], ["silver", false], ["basic", false]] as const) {
+      const g = catalog(plan === "basic", plan);
+      st.cat = prism ? { ...g, bandModel: "prism", bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })) } : g;
+      const v = mount(); await ready();
+      const panel = rulesPanel();
+      expect(within(panel).getByRole("heading", { name: "Size" })).toBeTruthy();
+      expect(within(panel).getByRole("heading", { name: "Rules on numbers" })).toBeTruthy();
+      for (const name of ["FinLit Prism rating", "FinLit IQ rating"]) expect(within(panel).queryByRole("group", { name })).toBeNull();
+      expect([...panel.querySelectorAll(".ssw-sec h3")].map((h) => h.textContent)).not.toContainEqual(expect.stringMatching(/rating/i));
+      v.unmount();
+    }
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {

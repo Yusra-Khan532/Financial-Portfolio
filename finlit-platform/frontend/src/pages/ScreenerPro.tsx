@@ -318,9 +318,6 @@ export function ScreenerPro() {
                   <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
-              <div className="ssw-sec"><h3>{prismOnly ? "FinLit Prism" : "FinLit IQ"} rating {!prismOnly && <span className="ssr-tier silver">SILVER</span>}</h3>
-                <div className="ssw-chips" role="group" aria-label={prismOnly ? "FinLit Prism rating" : "FinLit IQ rating"}>{data.bands.map((b) => <button key={b.key} type="button" className={"ssw-chip" + (b.locked ? " is-locked" : "")} aria-pressed={F.bands.includes(b.key)}
-                  onClick={() => (b.locked ? ask("silver", "Filtering by the FinLit IQ rating comes with the Silver plan.") : toggle("bands", b.key))}>{b.locked && <Icon name="lock" />}{b.label}{b.n != null && <span>{nf(b.n, 0)}</span>}</button>)}</div></div>
               <div className="ssw-sec"><h3>Rules on numbers</h3>
                 <div className="ssw-size" role="group" aria-label="Every filter, by group">
                   <p className="ssw-size-n"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
