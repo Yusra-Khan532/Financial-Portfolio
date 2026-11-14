@@ -1,10 +1,56 @@
 /* EPS calculator (pages/EpsCalculator.tsx). Builds on dcf.css; tokens only, so both themes follow. */
 .eps .card { overflow: hidden; }
-.eps-measure > span { font-weight: 600; font-size: 14px; }
-.eps-measure { margin: 0 0 16px; padding: 0; border: 0; }
+/* task #155: top part laid out as the founder's picture: inputs + growth side by side, four result tiles, two scenario tables */
+.eps-top { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; }
+.eps-box { display: grid; gap: 14px; align-content: start; }
+.eps-boxh { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.eps .eps-boxh h2 { margin: 0; }
+.eps h2:has(.eps-no), .eps h2:has(.eps-ico) { align-items: center; flex-wrap: nowrap; }
+.eps-no { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--gain); color: var(--bg); font: 600 var(--fs-14)/1 var(--sans); }
+.eps-ico { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--gain-soft); color: var(--gain); }
+.eps-ico svg { width: 18px; height: 18px; }
+.eps h2 small { display: block; font: 400 var(--fs-13)/1.4 var(--sans); margin-top: 2px; }
+.eps-measure { display: flex; align-items: center; gap: 8px; }
+.eps-measure > span:first-child { font-weight: 600; font-size: var(--fs-14); }
+.eps-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--s1); }
+.eps-seg button { border: 0; background: none; color: var(--muted); font: 600 var(--fs-14)/1 var(--sans); padding: 9px 16px; cursor: pointer; }
+.eps-seg button + button { border-left: 1px solid var(--border-strong); }
+.eps-seg button.on { background: var(--gain); color: var(--bg); }
+.eps-seg button:focus-visible, .eps-picks button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.eps-ingrid { gap: 12px 20px; }
+.eps-inote { margin: 0; font-size: var(--fs-13); }
+.eps-grow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.eps-picks { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.eps-picks > span { font-size: var(--fs-13); margin-right: 4px; }
+.eps-picks button { border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); border-radius: 8px; padding: 8px 14px; font: 500 var(--fs-14)/1 var(--mono); cursor: pointer; }
+.eps-picks button:hover { border-color: var(--gain); }
+.eps-picks button.on { background: var(--gain); border-color: var(--gain); color: var(--bg); }
+
+.eps-res { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.eps-tile { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: var(--gain-soft); min-width: 0; }
+.eps-tile.alt { background: var(--gold-soft); }
+.eps-tile > div { display: grid; gap: 4px; min-width: 0; }
+.eps-tile span:not(.eps-ti) { font-size: var(--fs-14); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.eps-tile b { font: 500 var(--fs-28)/1.15 var(--mono); overflow-wrap: anywhere; }
+.eps-tile b.down { color: var(--loss); }
+.eps-tile small { font-size: var(--fs-13); color: var(--muted); overflow-wrap: anywhere; }
+.eps-ti { flex: none; color: var(--gain); margin-top: 2px; }
+.eps-tile.alt .eps-ti { color: var(--gold); }
+.eps-ti svg { width: 26px; height: 26px; }
+
+.eps-scen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.eps-st { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
+.eps-st th, .eps-st td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: middle; text-transform: none; letter-spacing: normal; border-radius: 0; }
+.eps-st thead th { background: var(--s2); font-weight: 600; color: var(--muted); font-size: var(--fs-13); }
+.eps-st tbody th { font: 500 var(--fs-14)/1.4 var(--mono); color: var(--text); background: none; }
+.eps-st .num { text-align: right; font-family: var(--mono); }
+.eps-st tr.cur th, .eps-st tr.cur td { background: var(--gain-soft); font-weight: 600; }
+.eps-pill { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--s2); font-weight: 600; }
+.eps-pill.up { background: var(--gain-soft); color: var(--gain); } .eps-pill.down { background: var(--loss-soft); color: var(--loss); }
+.eps-scnote { margin: -8px 0 0; }
 .eps-sum { margin-top: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .eps-sum.eps-sum3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.eps-formula { margin: 12px 0 0; }
+.eps-formula { margin: 12px 0 0; font-size: var(--fs-13); }
 .eps-years { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 14px; align-items: center; }
 .eps-years input[type="range"] { width: 100%; accent-color: var(--gold); }
 .eps-years input[type="range"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
@@ -40,13 +86,11 @@
 .eps-read { margin: 12px 0 6px; font-size: var(--fs-14); }
 .eps-read b { font-family: var(--mono); font-weight: 500; }
 
-.eps-rev { margin-top: 8px; align-items: start; }
-.eps-revlabel { font-weight: 600; font-size: var(--fs-16); }
-.eps-revout { font: 500 24px/1.2 var(--mono); padding: 6px 0; display: block; }
 
+@media (max-width: 1100px) { .eps-res { grid-template-columns: repeat(2, minmax(0, 1fr)); } .eps-scen, .eps-top { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) { .eps-charts, .eps-cases { grid-template-columns: minmax(0, 1fr); } .eps-sum.eps-sum3 { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .eps-sum { grid-template-columns: minmax(0, 1fr); } .eps-years { grid-template-columns: minmax(0, 1fr) 96px; } .eps-tw table { font-size: 13px; } }
+@media (max-width: 640px) { .eps-res { grid-template-columns: minmax(0, 1fr); } .eps-st th, .eps-st td { padding: 8px 6px; font-size: var(--fs-13); } .eps-st thead th { white-space: normal; vertical-align: bottom; } .eps-pill { padding: 2px 6px; } .eps-sum { grid-template-columns: minmax(0, 1fr); } .eps-years { grid-template-columns: minmax(0, 1fr) 96px; } .eps-tw table { font-size: 13px; } }
 @media print {
-  .eps .dcf-co, .eps .dcf-acts, .eps-measure, .eps button.ghost { display: none !important; }
+  .eps .dcf-co, .eps .dcf-acts, .eps-measure, .eps-picks, .eps button.ghost { display: none !important; }
   .eps .card { break-inside: avoid; }
 }
