@@ -37,7 +37,7 @@ export const SECTIONS: NavSection[] = [
       i("/research/stress-lab", "Stress Lab", "How a shock to crude, the rupee or rates would move a company's earnings", "gauge"),
     ] },
     { title: "Investment calculators", items: [
-      i("/eps-calculator", "EPS & P/E calculator", "Estimate earnings per share and explore valuation multiples.", "gauge"),
+      i("/eps-calculator", "P/E, EPS & PEG calculator", "Estimate earnings per share and explore P/E and PEG.", "gauge"),
       i("/dcf", "DCF valuation calculator", "Estimate intrinsic value using projected future cash flows.", "rupee", { gold: true }),
       i("/reverse-valuation", "Reverse valuation", "Solve for the growth, margin, exit multiple or return today's price assumes.", "gauge", { gold: true }),
       i("/sip-calculator", "SIP calculator", "Project potential wealth creation through monthly investments.", "spark"),
