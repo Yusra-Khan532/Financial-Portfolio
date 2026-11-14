@@ -715,6 +715,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
     app.include_router(search_api.router)
+    app.include_router(__import__("finlit.isin", fromlist=["router"]).router)   # POST /api/isin/resolve: holdings files are read by ISIN (task #128)
     app.include_router(ext_api.router)   # /api/ext/company/{symbol}: the browser extension's one lookup
     app.include_router(logos_api.router)
     app.include_router(amfi_import_api.router)

@@ -5,6 +5,8 @@ Order, first rule that answers wins, and a rule that is not sure never guesses, 
                         the row is `choose` with that scheme as the suggestion.
   2. ISIN               the ISIN (or its IDCW re-investment twin) belongs to one scheme -> matched; to several -> `choose`.
                         An ISIN that disagrees with the AMFI code -> `choose` with both.
+                        Task #128: a row whose ISIN no scheme has is never matched by its name alone. A company's share ISIN (INE..01) is `not_found`
+                        with the reason (it belongs on the Equity portfolio); any other unknown ISIN lets rules 3-4 only suggest (`choose`), with the reason.
   3. exact name         the name, with plan / option / filler words taken out, equals one scheme family's name; then the plan (Direct / Regular) and option
                         (Growth / IDCW) the file states narrow it. One scheme left -> matched (via "name"). The file gives no plan or option and the family has
                         several -> `choose` (a Direct and a Regular plan of one fund are different holdings).
@@ -21,6 +23,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
+from ..isin import kind_of
 from .parse import Clean
 
 MAX_CANDIDATES = 8
@@ -159,6 +162,20 @@ def match_row(ix: Index, row: Clean) -> Match:
         if row.name and words and _jaccard(words, pick.words) < SANITY_MIN:
             return Match("choose", "isin", pick, [pick], "The ISIN in the file belongs to a fund whose name does not look like the name in the file. Check it, then choose.")
         return Match("matched", "isin", pick)
+    if row.isin and kind_of(row.isin) == "share":
+        return Match("not_found", None, None, [], f"The ISIN in the file ({row.isin}) is a company's share, not a mutual fund unit: add it on the Equity portfolio page.")
+    found = _by_name(ix, row, words, plan, option)
+    if row.isin and found.status != "not_found":           # an ISIN AMFI's list does not have: the name may only suggest, never decide
+        why = f"The ISIN in the file ({row.isin}) is not in AMFI's list of funds, so this was found by the fund's name only. Check it, then choose."
+        return Match("choose", found.via, None, found.candidates or ([found.scheme] if found.scheme else []), why)
+    if row.isin and found.status == "not_found":
+        return Match("not_found", None, None, [], f"Neither the ISIN in the file ({row.isin}) nor the fund's name is in AMFI's list of funds. Search for it below." if words else
+                     f"The ISIN in the file ({row.isin}) is not in AMFI's list of funds, and the row has no fund name. Search for it below.")
+    return found
+
+
+def _by_name(ix: Index, row: Clean, words: FrozenSet[str], plan: Optional[str], option: Optional[str]) -> Match:
+    """Rules 3 and 4: the exact family name, then names that share most of their words."""
     if not words:
         return Match("not_found", None, None, [], "The row has no fund name, ISIN or AMFI code to match on." if not row.name else "The name has no usable words.")
     exact = ix.by_words.get(words, [])

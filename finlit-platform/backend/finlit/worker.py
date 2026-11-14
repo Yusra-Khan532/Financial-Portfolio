@@ -947,6 +947,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finlit.worker")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate")
+    p_isin = sub.add_parser("load-isin-list", help="load a newer NSDL ISIN list (the .zip NSDL sends, or its .csv) into isin_master (task #128)")
+    p_isin.add_argument("--file", required=True)
     sub.add_parser("refresh-universe")
     sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
     p_ingest = sub.add_parser("ingest")
@@ -1186,7 +1188,15 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     beat = _start_job_heartbeat()
     try:
         if args.cmd == "migrate":
-            print("migrated; timescale =", store.timescale)
+            from .isin import ensure_shipped
+            meta = await ensure_shipped(store)   # the depository's ISIN list shipped with the code, when newer than the stored one (task #128)
+            await store.invalidate_search()      # the search list carries each company's ISIN: rebuilt once after a deploy
+            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"))
+            return 0
+        if args.cmd == "load-isin-list":
+            from pathlib import Path
+            from .isin import load_master
+            print(json.dumps(await load_master(store, Path(args.file))))
             return 0
         if args.cmd == "canary":
             from .jobs.cli import run_canary

@@ -1,10 +1,14 @@
 /** Reading a broker's holdings file (Excel .xlsx/.xls/.xlsm/.ods, .csv, .tsv, .txt, or the HTML table some brokers save as ".xls").
- *  A broker's export holds much more than names: quantity, average price, P&L, ISIN, dates and title rows. Only the share names are taken.
+ *  A broker's export holds much more than names: quantity, average price, P&L, ISIN, dates and title rows. Only the ISIN and the share name are taken
+ *  (task #128: the ISIN decides which company a line is; the name is used only on a line without one, see lib/isin.ts).
  *  The name column is found by looking at the VALUES (which column's cells match listed companies), then by its header, so the file does
- *  not need a particular layout. The spreadsheet library is loaded only when a spreadsheet is chosen. */
+ *  not need a particular layout; the ISIN column is the one whose cells hold valid ISINs. The spreadsheet library is loaded only when a spreadsheet is chosen. */
+import { isinIn } from "./isin";
 
 export type Grid = string[][];
 export type NameMatcher = (name: string) => boolean;
+/** One line of a holdings file: its ISIN when the line has one, and the name the file gives ("" when it gives none). */
+export type Entry = { name: string; isin?: string };
 
 const NAME_HEAD = /^(symbol|trading ?symbol|ticker|scrip( ?name)?|stock( ?name)?|share( ?name)?|instrument( ?name)?|security( ?name)?|company( ?name)?|name( of (the )?(security|scrip|stock|company|instrument))?|name|nse|bse|isin)\b/i;
 const NOT_NAME = /^(total|grand total|sub ?total|net|portfolio|summary|invested|current|holdings|equity|equities|mutual funds?|cash|margin|p ?& ?l|unrealised|realised|as on|as of|date|client|name:|id|pan|account|ucc|dp|demat|sr\.? ?no|s\.? ?no)\b/i;
@@ -39,10 +43,12 @@ export function tidy(s: string): string {
     .replace(/\s*\((EQ|BE|NSE|BSE)\)$/i, "");
 }
 
-/** The share names in a grid of cells (rows of columns): the best column wins. `matches` says whether a name is a listed company. */
-export function namesFromGrid(grid: Grid, matches?: NameMatcher): string[] {
+type Layout = { rows: Grid; headerRow: number; body: Grid; width: number; col: number; mode: "row" | "column" | "none"; names: string[] };
+
+/** Where the names are in a grid: the header row, the body (up to a Total line), the name column and the names in it. */
+function layout(grid: Grid, matches?: NameMatcher): Layout {
   const rows = grid.slice(0, MAX_ROWS).map((r) => r.map((c) => (c == null ? "" : String(c))));
-  if (!rows.length) return [];
+  if (!rows.length) return { rows, headerRow: -1, body: [], width: 0, col: -1, mode: "none", names: [] };
   const width = Math.max(...rows.map((r) => r.length));
   // Header row: the first of the first 80 rows that names a column like a share column.
   // Title blocks ("Name  TEST USER", "Client ID ...") also hold words like "Name", so the row with the MOST heading-like cells wins (ties: the earliest).
@@ -64,13 +70,39 @@ export function namesFromGrid(grid: Grid, matches?: NameMatcher): string[] {
 
   let best = { c: -1, v: [] as string[], hit: 0 };
   if (matches) for (let c = 0; c < width; c++) { const s = score(c); if (s.hit > best.hit || (s.hit === best.hit && s.hit > 0 && headed.some((h) => h.c === s.c) && !headed.some((h) => h.c === best.c))) best = s; }
-  let chosen: string[];
-  if (headerRow < 0 && rows.length === 1 && width > 1) chosen = rows[0].map(tidy).filter(plausibleName);   // "TCS, INFY, ITC" on one line is a list, not a table
-  else if (best.hit > 0) chosen = best.v;                                                  // the column whose cells are listed companies
-  else if (headed.length) chosen = colValues(headed[0].c);                            // else the column headed like a share name
-  else if (headerRow < 0 && width) chosen = rows.map((r) => tidy(r[0] || "")).filter(plausibleName);   // pasted text: the first column
-  else chosen = [];
-  return [...new Set(chosen)];
+  const out = (mode: Layout["mode"], col: number, names: string[]): Layout => ({ rows, headerRow, body: headerRow < 0 ? rows : body, width, col, mode, names: [...new Set(names)] });
+  if (headerRow < 0 && rows.length === 1 && width > 1) return out("row", -1, rows[0].map(tidy).filter(plausibleName));   // "TCS, INFY, ITC" on one line is a list, not a table
+  if (best.hit > 0) return out("column", best.c, best.v);                                 // the column whose cells are listed companies
+  if (headed.length) return out("column", headed[0].c, colValues(headed[0].c));          // else the column headed like a share name
+  if (headerRow < 0 && width) return out("column", 0, rows.map((r) => tidy(r[0] || "")).filter(plausibleName));   // pasted text: the first column
+  return out("none", -1, []);
+}
+
+/** The share names in a grid of cells (rows of columns): the best column wins. `matches` says whether a name is a listed company. */
+export function namesFromGrid(grid: Grid, matches?: NameMatcher): string[] {
+  return layout(grid, matches).names;
+}
+
+/** The lines of a holdings grid as ISIN + name (task #128). The ISIN column is the one whose cells hold the most valid ISINs (an ISIN written inside the name
+ *  cell counts too); each line keeps its own ISIN and its own name, so the ISIN decides the company. Without any ISIN this is `namesFromGrid` as before. */
+export function entriesFromGrid(grid: Grid, matches?: NameMatcher): Entry[] {
+  const L = layout(grid, matches);
+  const seen = new Set<string>(), list: Entry[] = [];
+  const push = (e: Entry) => { const k = e.isin || "n:" + e.name.toUpperCase(); if (!seen.has(k) && (e.isin || e.name)) { seen.add(k); list.push(e); } };
+  const nameIn = (cell: string, isin?: string) => { const t = tidy(isin ? cell.toUpperCase().includes(isin) ? cell.replace(new RegExp(isin, "i"), " ").replace(/^[\s:,\-–|]+|[\s:,\-–|]+$/g, "") : cell : cell); return plausibleName(t) ? t : ""; };
+  if (L.mode === "row" || (L.headerRow < 0 && L.rows.length === 1)) {               // one line: each cell is a holding
+    (L.rows[0] || []).forEach((c) => { const i = isinIn(c); push({ isin: i, name: nameIn(c, i) }); });
+    return list.filter((e) => e.isin || plausibleName(e.name));
+  }
+  let ic = -1, icN = 0;
+  for (let c = 0; c < L.width; c++) { const n = L.body.filter((r) => isinIn(r[c] || "")).length; if (n > icN) { ic = c; icN = n; } }
+  if (ic < 0) return L.names.map((name) => ({ name }));
+  for (const r of L.body) {
+    const isin = isinIn(r[ic] || "");
+    const name = L.col >= 0 && L.col !== ic ? nameIn(r[L.col] || "") : nameIn(r[ic] || "", isin);
+    if (isin) push({ isin, name }); else if (name && L.mode === "column") push({ name });
+  }
+  return list;
 }
 
 /** Higher = a more likely share-name header. ISIN is the weakest (it identifies, but is not a name). */
@@ -139,6 +171,17 @@ export async function gridsFromFile(file: File): Promise<Grid[]> {
   let wb: import("xlsx").WorkBook;
   try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
   return wb.SheetNames.map((n) => (XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: "", blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c)))));
+}
+
+/** The lines of a file as ISIN + name (task #128); the sheet with the most ISINs and listed companies wins. */
+export async function entriesFromFile(file: File, matches?: NameMatcher): Promise<Entry[]> {
+  const grids = await gridsFromFile(file);
+  let best: Entry[] = [], bestHit = -1;
+  for (const g of grids) {
+    const es = entriesFromGrid(g, matches), hit = es.filter((e) => e.isin || (matches ? matches(e.name) : true)).length;
+    if (hit > bestHit) { best = es; bestHit = hit; }
+  }
+  return best;
 }
 
 /** The share names in a file; the sheet and column with the most listed companies win. */

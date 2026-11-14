@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SearchRow } from "../lib/api";
+import type { SearchIndex, SearchRow } from "../lib/api";
 import type { Found } from "../lib/holdingsMatch";
 import { PdfPasswordError, isSure, readPdfHoldings, type PdfFinds, type PdfFound } from "../lib/holdingsPdf";
 import "../styles/pdfimport.css";
@@ -10,13 +10,17 @@ const WHY: Record<Found["how"], { label: string }> = {
   split: { label: "Demerged: you now hold all its parts" },
   close: { label: "Name starts the same: please check" },
   scan: { label: "Found in the text: please check" },
+  isin: { label: "Matched by ISIN" },
+  old_isin: { label: "Older ISIN, same company" },
+  issuer: { label: "Same issuer's ISIN: please check" },
+  issuer_name: { label: "Issuer's name: please check" },
 };
 /** The words shown beside a find: the reason it needs checking when there is one. */
 const tagOf = (f: PdfFound) => f.unsure || WHY[f.how].label;
 
 /** Reads a holdings PDF in the browser and shows what it found next to the PDF's own words, so nothing is added until the person confirms.
  *  The file and any password stay on the device. */
-export function PdfImport({ file, index, held, room, onAdd, onClose }: { file: File; index: SearchRow[]; held: string[]; room: number; onAdd: (symbols: string[]) => void; onClose: () => void }) {
+export function PdfImport({ file, index, search, held, room, onAdd, onClose }: { file: File; index: SearchRow[]; search?: SearchIndex; held: string[]; room: number; onAdd: (symbols: string[]) => void; onClose: () => void }) {
   const [state, setState] = useState<"reading" | "password" | "review" | "error">("reading");
   const [wrong, setWrong] = useState(false), [pw, setPw] = useState(""), [msg, setMsg] = useState("");
   const [finds, setFinds] = useState<PdfFinds | null>(null), [pick, setPick] = useState<Record<string, boolean>>({});
@@ -24,7 +28,7 @@ export function PdfImport({ file, index, held, room, onAdd, onClose }: { file: F
   const run = async (password?: string) => {
     setState("reading");
     try {
-      const r = await readPdfHoldings(file, index, password);
+      const r = await readPdfHoldings(file, index, password, search);
       setFinds(r); setPick(Object.fromEntries(r.found.map((f) => [f.symbol, isSure(f) && !held.includes(f.symbol)]))); setState("review");
     } catch (e) {
       if (e instanceof PdfPasswordError) { setWrong(e.wrong); setState("password"); return; }
@@ -56,7 +60,7 @@ export function PdfImport({ file, index, held, room, onAdd, onClose }: { file: F
       <div className="card-h"><h3>Found {finds.found.length} {finds.found.length === 1 ? "company" : "companies"} in {file.name}</h3>
         <span className="s">{finds.mode === "table" ? "Read from the statement's table" : "Found in the text of the statement"}</span></div>
       {finds.notes.length > 0 && <p className="pdfi-note" role="note">{finds.notes.join(" ")}</p>}
-      <p className="muted">Check each line against your statement, then add them. Only the company names are used: quantities, prices and everything else in the PDF are ignored and nothing leaves your device. Lines marked "please check" are not ticked.</p>
+      <p className="muted">Check each line against your statement, then add them. A line's ISIN decides which company it is; its name is used only when the line has no ISIN. Quantities, prices and everything else in the PDF are ignored; only the ISINs are sent, to be looked up, and the file itself never leaves your device. Lines marked "please check" are not ticked.</p>
       <div className="pdfi-list" role="list">{finds.found.map((f) => {
         const already = held.includes(f.symbol), sure = isSure(f);
         return (

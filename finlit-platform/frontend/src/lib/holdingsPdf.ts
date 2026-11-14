@@ -5,13 +5,16 @@
  *   - text pieces become rows of cells by position; a heading row (Stock / Symbol / Scrip / Security ... plus Qty / Price / Value ...) opens a table;
  *   - a name wrapped over 2-5 lines (numbers on the first, middle or last line) is put back together by position, choosing the way that gives listed names;
  *     a line left over next to a complete name casts doubt on it ("Tata Motors" + "Finance Ltd" is not Tata Motors);
+ *   - a line's ISIN decides its company (task #128; lib/isin.ts): the line's name is used only when the line has no ISIN, or its ISIN could not be checked;
+ *     an ISIN that is a fund unit, a bond, an unlisted share or unknown is listed with that reason, never matched by its name;
  *   - ISINs written inside the name cell are split off; mutual fund, ETF, bond and G-sec lines (ISIN INF / IN0, or under a Mutual Funds / Bonds heading) are skipped;
  *   - several tables: only a table headed Holdings / Portfolio / Demat is used; tables headed or labelled sold / trades / realised / transactions / dividends are
  *     ignored; if none is headed Holdings, the one table not marked as sold is used; if still unclear, everything is shown unticked (see `findHoldingsInRows`);
  *   - when there is no table, a name at the start of a line that carries an amount is found in the text, always unticked ("scan");
  *   - the page then shows every match next to the PDF's own words, so the person confirms before anything is added; only `isSure` finds are ticked.
  *  A scanned PDF (a photo of paper) holds no text and cannot be read (no OCR): say so instead of guessing. */
-import type { SearchRow } from "./api";
+import type { SearchIndex, SearchRow } from "./api";
+import { resolveIsins, type IsinAnswer } from "./isin";
 import { SPLIT_NAMES } from "./aliases";
 import { plausibleName, tidy, type Grid } from "./holdingsFile";
 import { makeLookup, makeMatcher, matchNames, type Found } from "./holdingsMatch";
@@ -151,7 +154,7 @@ const kindOf = (r: PdfRow): Kind => {
 export type PdfFound = Found & { unsure?: string };
 export type PdfFinds = { found: PdfFound[]; missing: string[]; mode: "table" | "text"; rows: number; notes: string[] };
 /** Whether a find may be ticked without asking: an exact name, ticker, code or retired ticker, and nothing in the statement that casts doubt on it. */
-export const isSure = (f: PdfFound) => (f.how === "exact" || f.how === "alias" || f.how === "split") && !f.unsure;
+export const isSure = (f: PdfFound) => (f.how === "exact" || f.how === "alias" || f.how === "split" || f.how === "isin" || f.how === "old_isin") && !f.unsure;
 
 type Rec = { row: PdfRow; own?: PdfCell; skip: boolean; name: string; isin?: string; others: string[]; doubt?: string };
 type Table = { cls: TableClass; heading: string; recs: Rec[]; rows: PdfRow[]; above: Set<string> };
@@ -257,7 +260,7 @@ function recordsOf(region: PdfRow[], grade: (name: string) => number): Rec[] {
 /** Companies in a PDF's rows. Table first: the table's name column is the one whose cells are listed companies, wrapped names are put back together
  *  by position, and when a statement holds several tables only the holdings table is used (see `chooseTables`). When there is no table, whole company
  *  names at the start of rows that also carry an amount are found in the text, each marked "scan" (never ticked). */
-export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[]): PdfFinds {
+export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?: ReadonlyMap<string, IsinAnswer>): PdfFinds {
   const notes: string[] = [];
   if (!rowsIn.length || !index.length) return { found: [], missing: [], mode: "table", rows: rowsIn.length, notes };
   const { exact, find, norm } = makeLookup(index);
@@ -309,12 +312,20 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[]): PdfFin
     const found: PdfFound[] = [], missing: string[] = [];
     for (const r of table.recs) {
       const n = nameOf.get(r)!;
+      const a = r.isin ? isins?.get(r.isin) : undefined;
+      if (a && r.isin) {                                     // the ISIN decides (task #128): the name is not looked at
+        const input = n || r.isin;
+        if (a.symbol && (a.status === "matched" || a.status === "check")) found.push({ input, symbol: a.symbol, name: a.name || a.symbol, how: a.how || "isin", isin: r.isin, ...(a.status === "check" ? { unsure: a.note || "Please check" } : {}) });
+        else missing.push(`${input}${input !== r.isin ? ` (${r.isin})` : ""}: ${a.note || "not a listed company's share"}`);
+        continue;
+      }
       const hits = byInput.get(n);
       if (!hits) { if (n && missingSet.has(n) && plausibleName(n) && !LABEL_ONLY.test(n.trim())) missing.push(n); continue; }
       let doubt = r.doubt && hits.every((h) => h.how === "exact" || h.how === "alias" || h.how === "split") ? r.doubt : undefined;
       const t = r.isin?.slice(7, 9);
       if (r.isin && /^IN[F0]/.test(r.isin) && !r.isin.startsWith("INE")) continue;                         // a mutual fund unit or a government security, not a share
       if (r.isin?.startsWith("INE") && t !== "01") doubt = doubt || `Its ISIN ${r.isin} is not an equity share's (type ${t}): a bond or another security of the company? Please check`;
+      if (r.isin && isins && !a) doubt = doubt || `Its ISIN ${r.isin} could not be checked just now, so this is matched by the name in the statement: please check`;
       for (const h of hits) {
         let u = doubt;
         if (!u && h.how === "close") {                       // a name that only starts like a company: say how many companies start that way
@@ -398,7 +409,7 @@ function dedupe(found: PdfFound[]): PdfFound[] {
   for (const f of found) { const cur = by.get(f.symbol); if (!cur || score(f) < score(cur)) by.set(f.symbol, f); }
   return [...by.values()];
 }
-const rank = (h: Found["how"]) => ({ exact: 0, alias: 1, split: 1, close: 2, scan: 3 }[h]);
+const rank = (h: Found["how"]) => ({ exact: 0, isin: 0, old_isin: 0, alias: 1, split: 1, issuer: 2, issuer_name: 2, close: 2, scan: 3 }[h]);
 const score = (f: PdfFound) => (isSure(f) ? 0 : 10) + rank(f.how);
 
 /* ------------------------------------------------------------------ reading the file */
@@ -441,8 +452,13 @@ export async function readPdfItems(file: File, password?: string): Promise<PdfIt
 }
 
 /** The whole job: a PDF file and the list of listed companies in, the companies found (and the lines that were not recognised) out. */
-export async function readPdfHoldings(file: File, index: SearchRow[], password?: string): Promise<PdfFinds> {
-  return findHoldingsInRows(rowsFromPdfItems(await readPdfItems(file, password)), index);
+export async function readPdfHoldings(file: File, index: SearchRow[], password?: string, search?: SearchIndex): Promise<PdfFinds> {
+  const rows = rowsFromPdfItems(await readPdfItems(file, password));
+  const isins = [...new Set(rows.flatMap((r) => r.cells.map((c) => withIsin(c).isin).filter((x): x is string => !!x)))];
+  const res = isins.length && search ? await resolveIsins(isins, search) : null;   // the page always passes the company list; without it the PDF is read by names, as before
+  const finds = findHoldingsInRows(rows, index, res?.answers);
+  if (res?.offline) finds.notes.push("Some ISINs could not be checked just now, so those lines were matched by their names and are marked please check.");
+  return finds;
 }
 
 export { tidy };
