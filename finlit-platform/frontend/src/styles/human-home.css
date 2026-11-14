@@ -52,14 +52,9 @@
 
 .pgrid-l .pl-art { display: none; }
 
-/* The tour's look switch and the trust line (landing page) */
+/* The tour caption and the trust line (landing page; the look switch was removed by task #152) */
 .hh-tour figcaption { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px; }
 .hh-cap { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
-.hh-look { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; background: var(--s1); }
-.hh-look span { padding: 0 8px 0 10px; font-size: 12px; color: var(--muted); }
-.hh-look button { min-height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
-.hh-look button[aria-pressed="true"] { background: var(--text); color: var(--bg, var(--s1)); }
-.hh-look button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .hh-tour[data-look="dark"] .hh-video { box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .7); }
 
 /* Task #118 (13 Nov 2026): the hero as in the team's design: a deep green panel (a light green wash in the light theme), the three-part line on top, "Research with
@@ -75,14 +70,11 @@
 .hh-top .hh-fine { color: var(--hh-hero-muted); }
 .hh-frame i:nth-child(1) { background: var(--hh-au-fill); } .hh-frame i:nth-child(2) { background: var(--hh-y-fill); } .hh-frame i:nth-child(3) { background: var(--hh-g-fill); }
 .hh-top .hh-tour figcaption { color: var(--hh-hero-muted); } .hh-top .hh-tour figcaption b { color: var(--hh-hero-text); }
-.hh-top .hh-look { background: transparent; border-color: var(--hh-hero-line); } .hh-top .hh-look span { color: var(--hh-hero-muted); } .hh-top .hh-look button { color: var(--hh-hero-text); }
-.hh-top .hh-look button[aria-pressed="true"] { background: var(--hh-hero-text); color: var(--hh-hero-b); }
 .hh-top .hh-video { border-color: var(--hh-hero-line); }
 .hh :focus-visible { outline-color: var(--hh-g); }
 @media (max-width: 760px) {
   .hh-strip { gap: 6px 10px; font-size: 16px; } .hh-strip::before, .hh-strip::after { display: none; }
   .hh .cta-row { flex-direction: column; } .hh .cta-row .btn { width: 100%; justify-content: center; min-height: 48px; }
-  .hh-look button { min-height: 44px; }
 }
 .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
 .hh-top h1 { font-size: clamp(40px, 4.7vw, 70px); }
