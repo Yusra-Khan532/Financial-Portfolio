@@ -7,7 +7,7 @@ better: "higher" / "lower" / "none" (used for the plain-words hint and sorting d
 
 from __future__ import annotations
 
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 
 class Metric(NamedTuple):
@@ -283,6 +283,13 @@ CATALOG: List[Metric] = [
     M("prism_lt_score", "Long-term technical", "prism", "pts", "higher", "gold", "Prism's long-term price trend, -100 to +100 (months). It describes past prices only.", 0),
 ]
 BY_KEY: Dict[str, Metric] = {m.key: m for m in CATALOG}
+# The fixed scale of each score (task #144): the page's From and To boxes keep a value inside it, and say so. A score never leaves its scale, so a range
+# outside it would only ever find nothing.
+SCALE: Dict[str, Tuple[float, float]] = {
+    **{k: (0.0, 100.0) for k in ("overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical",
+                                  "prism_final", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk")},
+    **{k: (-100.0, 100.0) for k in ("prism_st_score", "prism_lt_score")},
+}
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab
 VARIANTS: Dict[str, Dict[str, str]] = {b: {"now": b, "3y": f"{b}_avg_3y", "5y": f"{b}_avg_5y", "7y": f"{b}_avg_7y"} for b in ("pe", "pb", "ps")}
 # Stored beside the filters in `scores.metrics` but not a filter: which quarter q_revenue and the other q_* figures are for (yyyymmdd).
