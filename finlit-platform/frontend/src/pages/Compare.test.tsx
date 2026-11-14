@@ -64,3 +64,24 @@ describe("Compare: the Stress test tab (task 79, SL-7)", () => {
     }
   });
 });
+
+describe("Compare: Prism's two technical readings (task #123)", () => {
+  it("Gold sees Short term and Long term trend as bars and as two more axes of the spider chart, with the sign; a missing reading shows a dash and its reason", () => {
+    st.plan = "gold";
+    st.rows = [{ ...row("AAA", 71), prism_st_score: 34, prism_lt_score: -12 } as unknown as Row, { ...row("BBB", 60), prism_st_score: null, prism_lt_score: 8 } as unknown as Row];
+    const { container } = view();
+    const card = container.querySelector(".cmp-pil") as HTMLElement;
+    expect(card.textContent).toContain("Price trend");
+    expect(card.textContent).toContain("not part of the Prism score");
+    const rows = [...card.querySelectorAll(".cmp-trend")].map((r) => r.textContent);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain("Short term trend"); expect(rows[0]).toContain("+34"); expect(rows[0]).toContain("—");
+    expect(rows[1]).toContain("Long term trend"); expect(rows[1]).toContain("-12"); expect(rows[1]).toContain("+8");
+    const axes = [...card.querySelectorAll("svg text")].map((t) => t.textContent);
+    expect(axes).toEqual(expect.arrayContaining(["Short term", "Long term", "Valuation", "Quality", "Risk"]));
+  });
+  it("Silver sees no Prism trend (it is Gold, like the rest of Prism)", () => {
+    st.plan = "silver"; const { container } = view();
+    expect(container.querySelector(".cmp-trend")).toBeNull();
+  });
+});
