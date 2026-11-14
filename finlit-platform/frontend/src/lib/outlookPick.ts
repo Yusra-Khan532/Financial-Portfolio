@@ -49,7 +49,7 @@ export function takeaways(d: Outlook, model: Outlook | null): string[] {
       out.push(Math.abs(diff) < 0.05 ? "Your growth rates give the same estimate as the FinLit model."
         : `Your estimate for ${end.period} is ${Math.abs(diff).toFixed(1)}% ${diff > 0 ? "higher" : "lower"} than the FinLit model's ${fmtCr(m.valueCr)}.`);
     }
-  } else out.push("Choose “Set your own model” to set your own growth rate for each input and see how the estimate changes.");
+  } else out.push("Choose “Build your own growth model” to set your own growth rate for each input and see how the estimate changes.");
   if (d.rate.unavailable.length) out.push(`Left out for this company: ${d.rate.unavailable.join("; ")}. Their weight was shared across the other inputs.`);
   return out;
 }

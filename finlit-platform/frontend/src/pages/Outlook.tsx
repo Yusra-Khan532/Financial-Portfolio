@@ -1,5 +1,5 @@
 // Profit and revenue outlook (Gold): estimates of revenue and net profit for the next 1, 3 or 5 financial years from the company's own history and its
-// sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Our model", or "Set your own model": the user's own growth rate for
+// sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Our model", or "Build your own growth model": the user's own growth rate for
 // each input (task #146), combined by the model's weights. All arithmetic is on the server; what stays here is the slider logic (lib/outlook.ts) and the chart
 // series (lib/outlookChart.ts), both tested. Information only, not advice.
 import { PageHeader } from "../components/PageHeader";
@@ -100,7 +100,7 @@ export function BuildTable({ d }: { d: Outlook }) {
   return (
     <section className="card" aria-labelledby={`ol-build-${k}`}>
       <h2 id={`ol-build-${k}`}>How this {KIND_LABEL[k].toLowerCase()} estimate is built <span className="tier gold">{d.mode === "custom" ? MINE : "FinLit model"}</span></h2>
-      <p className="muted">Each input is a yearly growth rate. The weighted growth rate is the sum of weight × value, using the {d.horizon.label.toLowerCase()} column of weights ({d.horizon.span}). Inputs that cannot be worked out drop out and their weight is shared across the others in proportion.{d.mode === "custom" ? " With “Set your own model” the values marked “Your assumption” are the growth rates you set; the weights stay FinLit's." : ""}</p>
+      <p className="muted">Each input is a yearly growth rate. The weighted growth rate is the sum of weight × value, using the {d.horizon.label.toLowerCase()} column of weights ({d.horizon.span}). Inputs that cannot be worked out drop out and their weight is shared across the others in proportion.{d.mode === "custom" ? " With “Build your own growth model” the values marked “Your assumption” are the growth rates you set; the weights stay FinLit's." : ""}</p>
       <div className="ol-ctable ol-build"><table>
         <caption className="sr-only">Inputs, weights and contributions to the weighted {KIND_LABEL[k].toLowerCase()} growth rate</caption>
         <thead><tr><th scope="col">Input</th><th scope="col" className="num">Value</th><th scope="col" className="num">Weight</th><th scope="col" className="num">Weight used</th><th scope="col" className="num">Adds</th></tr></thead>
@@ -204,7 +204,7 @@ export function OutlookPage() {
               <span className="ol-ctl-l" id="ol-md-l">Estimation model</span>
               <div className="ol-models" role="radiogroup" aria-labelledby="ol-md-l">
                 {([["model", "Our model", "FinLit's data-driven weights from the company's own growth and its sector's. Recommended for a quick, reliable estimate.", "bars", false],
-                   ["custom", "Set your own model", "Set the growth rate you expect for each input, one by one, and see the profit and revenue estimates that follow from your assumptions.", "gauge", true]] as const).map(([m, label, text, icon, usp]) => (
+                   ["custom", "Build your own growth model", "Take control of your growth assumptions. Customise company and sector CAGR inputs, experiment with margin trends, and evaluate how different assumptions impact future profit and revenue.", "gauge", true]] as const).map(([m, label, text, icon, usp]) => (
                   <button key={m} type="button" role="radio" aria-checked={mode === m} className={"ol-mcard" + (mode === m ? " on" : "")} onClick={() => setMode(m)}>
                     <span className="ol-mdot" aria-hidden="true" /><Icon name={icon} /><span className="ol-mt"><b>{label}{usp && <em className="ol-usp">FinLit USP</em>}</b><small>{text}</small></span></button>))}
               </div>
@@ -219,7 +219,7 @@ export function OutlookPage() {
           {mode === "custom" && (
             <section className="card ol-assume" aria-labelledby="ol-as-h">
               <div className="ol-assume-h">
-                <h2 id="ol-as-h">Set your own model: assumptions</h2>
+                <h2 id="ol-as-h">Build your own growth model: assumptions</h2>
                 <div className="ol-mode" role="radiogroup" aria-label="Which estimate to adjust">
                   {TABS.map((t) => <button key={t.kind} type="button" role="radio" aria-checked={kind === t.kind} className={kind === t.kind ? "on" : ""} onClick={() => setKind(t.kind)}>{t.label} estimate</button>)}
                 </div>

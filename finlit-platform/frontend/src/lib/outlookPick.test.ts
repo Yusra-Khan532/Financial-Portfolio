@@ -31,7 +31,7 @@ describe("key takeaways", () => {
   it("says the change, the rate, the biggest input and what was left out", () => {
     const t = takeaways(mk(), null);
     expect(t[0]).toMatch(/grow 15\.0% in FY27/); expect(t[1]).toMatch(/15\.00% a year/); expect(t[2]).toMatch(/Company growth/); expect(t.join(" ")).toMatch(/Left out for this company: Missing/);
-    expect(t.join(" ")).toMatch(/Set your own model/);
+    expect(t.join(" ")).toMatch(/Build your own growth model/);
   });
   it("a longer horizon says the total change over the years", () => expect(takeaways(mk({}, 3, 150), null)[0]).toMatch(/by FY29, \+50\.0% on .* over 3 years/));
   it("a falling estimate says fall, never grow", () => expect(takeaways(mk({}, 1, 90), null)[0]).toMatch(/fall 10\.0%/));

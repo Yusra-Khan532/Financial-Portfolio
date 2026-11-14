@@ -128,7 +128,7 @@
 .ol-take-l svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--gain); }
 .olp-cap { margin: 0 0 -6px; font-size: var(--fs-13); }
 
-/* ---- "Set your own model": the sliders come first, right under the model cards, then the charts */
+/* ---- "Build your own growth model" (was "Set your own model"): the sliders come first, right under the model cards, then the charts */
 .ol-assume { display: grid; gap: 12px; border-color: var(--gold); }
 .ol-assume-h { display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
 .ol-assume-h h2 { margin: 0; } .ol-assume-p { margin: 0; font-size: var(--fs-14); }
@@ -147,7 +147,7 @@
 @media (max-width: 1100px) { .ol-top.ol-split { grid-template-columns: minmax(0, 1fr); } .ol-top.ol-split > .ol-assume { grid-column: 1; grid-row: 1; position: static; } .ol-top.ol-split > .ol-charts { grid-column: 1; grid-row: 2; } .ol-pair, .ol-fold3 { grid-template-columns: minmax(0, 1fr); } }
 .sl-nc { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
 
-/* Task #55 (again): with "Set your own model" the Revenue chart sits above the Profit chart, both on the left, and the sliders stand on the right beside the two,
+/* Task #55 (again): with "Build your own growth model" the Revenue chart sits above the Profit chart, both on the left, and the sliders stand on the right beside the two,
    so a slider is moved with the charts in view. The chart the sliders drive is marked, and the other can be picked with one click. */
 .ol-top.ol-split > .ol-charts { grid-template-columns: minmax(0, 1fr); }
 .ol-chartcard.is-adjusting { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }

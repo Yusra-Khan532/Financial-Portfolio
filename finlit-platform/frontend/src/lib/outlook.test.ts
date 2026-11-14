@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_WEIGHTS, HORIZONS, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, type Horizon, type Kind, type Outlook } from "./outlook";
 
-describe("Set your own model: each input's own growth rate (task #146)", () => {
+describe("Build your own growth model: each input's own growth rate (task #146)", () => {
   const model = { rate: { rows: [
     { key: "co_1y", status: "ok", valuePct: 12.34 }, { key: "co_3y", status: "ok", valuePct: -3 }, { key: "sec_1y", status: "unavailable", valuePct: null },
   ] } } as unknown as Outlook;
