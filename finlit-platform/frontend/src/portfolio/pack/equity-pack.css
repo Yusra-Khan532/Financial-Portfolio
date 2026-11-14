@@ -94,3 +94,9 @@
 .eq-short[open] .sp-show.eq-hs, .eq-short .sp-show.eq-hs { visibility: visible; } .eq-short .eq-hs .c { display: none; } .eq-short:not([open]) .eq-hs .o { display: none; } .eq-short:not([open]) .eq-hs .c { display: inline; }
 @media (max-width: 900px) { .eq-gridrow { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .eq-tilt li { grid-template-columns: minmax(0, 1fr); gap: 4px; } .eq-segs { grid-template-columns: minmax(0, 1fr); } }
+/* Task #128: what a holdings file's ISINs gave: lines to check (with an Add button each) and lines not added, each with its reason. */
+.eq-isin ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.eq-isin li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; overflow-wrap: anywhere; }
+.eq-isin li > span { flex: 1 1 260px; min-width: 0; } .eq-isin small { color: var(--sp-mute); }
+.eq-isin .pfx-btn { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.eq-isin-src { margin: 8px 0 0; }

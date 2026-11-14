@@ -777,7 +777,10 @@ class Store:
                           EXISTS(SELECT 1 FROM snapshots s WHERE s.symbol = c.symbol AND s.section = 'summary') AS ready,
                           COALESCE(NULLIF(m.macro_sector, ''), NULLIF(m.sector, ''), NULLIF(c.sector, '')) AS sector,
                           COALESCE(NULLIF(l.market_cap, 0), x.market_cap)::float8 AS mcap,
-                          (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol) AS isin
+                          COALESCE((SELECT n.isin FROM dhan_instruments n WHERE n.exch = 'NSE' AND n.symbol = c.nse_code AND c.nse_code <> '' AND n.isin IS NOT NULL
+                                     ORDER BY (n.series = 'EQ') DESC, n.series LIMIT 1),
+                                   (SELECT b.isin FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> '' AND b.isin IS NOT NULL LIMIT 1),
+                                   (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin
                    FROM companies c
                    LEFT JOIN listing_quotes l ON l.symbol = c.symbol
                    LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
@@ -792,7 +795,7 @@ class Store:
         code = {name: i for i, name in enumerate(sectors)}
         out, sec, mc, isin = [], [], [], []
         for r in rows:
-            isin.append(r["isin"] or "")                                     # ISIN where the disclosure feed knows it ("" otherwise): search by ISIN
+            isin.append(r["isin"] or "")      # the current ISIN: the exchanges' (NSE, else BSE), else the funds' disclosure files ("" when none knows it); task #128
             row = [r["symbol"], r["name"], r["bse_code"], int(r["ready"])]
             if r["nse_code"] and r["nse_code"] != r["symbol"]:
                 row.append(r["nse_code"])

@@ -1041,11 +1041,11 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "How do I add my shares?",
-    "a": "Type a name or ticker, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work."
+    "a": "Type a name, ticker or ISIN, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). When a line has an ISIN, the ISIN decides which company it is, because a company's name can be written differently from one file to another; the name is used only for a line without an ISIN. Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work."
    },
    {
     "q": "Does FinLit use my quantities or connect to my broker?",
-    "a": "No. Only the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. So every share counts equally and no money-weighted totals are shown."
+    "a": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. So every share counts equally and no money-weighted totals are shown."
    },
    {
     "q": "Which scores does this page use?",

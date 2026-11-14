@@ -339,3 +339,18 @@ def test_followed_funds_are_not_reported_as_unvalued_and_share_the_score_equally
     held = {"current": 300, "invested": 300, "navDate": "2026-10-29", "xirr": None, "lots": [], "score": {"final": 80}}
     m = calc.summarize([held, mk(10)], score_locked=False)
     assert m["score"]["value"] == 80.0 and m["notes"] == []               # beside a fund with a value, a followed one stays out of the weighted score
+
+
+def test_128_a_row_with_an_isin_is_never_matched_by_its_name_alone():
+    """Task #128: when the file gives an ISIN, the ISIN decides. One AMFI's list does not have may only suggest a fund by its name, with the reason."""
+    r = m(isin="INF000X01019", name="Alpha Bluechip Fund - Direct Plan - Growth")          # unknown ISIN; the name alone would have matched 100001
+    assert r.status == "choose" and r.scheme is None and [s.code for s in r.candidates] == [100001]
+    assert "INF000X01019" in r.reason and "not in AMFI's list" in r.reason
+    rej = clean_row({"row": 1, "units": "1", "isin": "INE002A01018", "name": "Reliance Industries Ltd"}, TODAY)   # a company's share in a fund file: set aside, with why
+    assert rej.status == "ignored" and "INE" in rej.reason
+    r = m(isin="INF000X01019", name="")
+    assert r.status == "not_found" and "no fund name" in r.reason
+    r = m(isin="INF000X01019", name="Completely Unknown Thing Fund")
+    assert r.status == "not_found" and "Neither the ISIN" in r.reason
+    r = m(isin="INF000A01011", name="ALPHA BLUECHIP FUND DIRECT GROWTH")                    # the known ISIN still matches as before
+    assert (r.status, r.via, r.scheme.code) == ("matched", "isin", 100001)
