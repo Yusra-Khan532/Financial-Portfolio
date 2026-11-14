@@ -39,6 +39,8 @@ const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
 export const PAGE = 25;
 const MAX_COLS = 12;
+const RULES_MIN_KEY = "finlit-screener-rules-min";
+const rulesMinStored = () => { try { return localStorage.getItem(RULES_MIN_KEY) === "1"; } catch { return false; } };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
 const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); useEffect(() => { const t = setTimeout(() => setD(v), ms); return () => clearTimeout(t); }, [v, ms]); return d; };
 
@@ -95,7 +97,17 @@ export function ScreenerPro() {
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
-  const [rulesOpen, setRulesOpen] = useState(() => !narrow());
+  // Your rules can be minimized (task #140): on a phone it starts closed; on a wide screen it starts open unless the reader minimized it last time (kept in this browser).
+  const [rulesOpen, setRulesOpenState] = useState(() => !narrow() && !rulesMinStored());
+  const setRulesOpen = (open: boolean) => {
+    setRulesOpenState(open);
+    if (!narrow()) { try { if (open) localStorage.removeItem(RULES_MIN_KEY); else localStorage.setItem(RULES_MIN_KEY, "1"); } catch { /* private mode */ } }
+  };
+  const minimizeRules = () => {
+    setRulesOpen(false);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(".ssw-rtoggle")?.focus({ preventScroll: true }));
+    if (narrow()) requestAnimationFrame(() => document.querySelector(".ssw-res")?.scrollIntoView({ block: "start" }));
+  };
   const saved = useSavedScreens();
   // One score per plan (tasks #64 P-1 and #100): the server sends Gold the FinLit Prism group, columns and rating words, and every other plan the FinLit IQ's.
   const data = cat.data;
@@ -279,12 +291,13 @@ export function ScreenerPro() {
         <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
           onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
-        <button type="button" className="btn ssw-rtoggle" aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
+        <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
           Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
-        <div className="ssw-work">
+        <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")}>
           <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
-            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}</div>
+            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
+              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
             {nActive === 0 || !funnel.length
               ? <p className="ssw-funnel-0">All {listed} companies. Each rule narrows the list; this line then shows how many are left after each one.</p>
@@ -344,6 +357,7 @@ export function ScreenerPro() {
                 </div>
               </div>
             </>}
+            <button type="button" className="btn primary ssw-rdone" onClick={minimizeRules}>Show {res.data ? `${nf(total, 0)} companies` : "the results"}</button>
           </aside>
 
           <section className="card ssw-res" aria-label="Results">
