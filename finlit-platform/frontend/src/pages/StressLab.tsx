@@ -104,7 +104,7 @@ export function StressLabPage() {
       }
       h = mountStressLab(root, StressEngine, d, {
         view: peer && wantPeer ? "compare" : "single", peer, peerStatus, peerReason, logoUrl: (s: string) => logoRef.current?.get(String(s).toUpperCase()) ?? "",
-        search: (t: string) => searchCovered(t, [sym, ...(peerSym ? [peerSym] : [])]), onCompany: (s: string) => nav(`${BASE}/${s}`), onPeer: (s: string) => pickRef.current(s), requestPeer: () => setWantPeer(true),
+        search: (t: string) => searchCovered(t, [sym, ...(peerSym ? [peerSym] : [])]), onCompany: (s: string) => nav(`${BASE}/${s}`), onClose: () => nav(BASE), onPeer: (s: string) => pickRef.current(s), requestPeer: () => setWantPeer(true),
         onUpgrade: () => upgradeRef.current("gold", "Stress Lab's other scenarios, your own shocks and Compare two are part of Gold."), upgradeUrl: "/plans",
       });
     } catch (e) {   // the data arrived but the page could not be drawn from it: say so in words (never "being prepared", never a blank body) and log it

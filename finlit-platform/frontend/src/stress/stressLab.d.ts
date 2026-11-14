@@ -4,7 +4,7 @@ export type StressOpts = {
   peerStatus?: "loading" | "none" | "preparing" | "notcovered" | "error" | "";
   /** With "notcovered": the server's plain reason (for example that financial companies are not covered). */
   peerReason?: string;
-  logoUrl?: (symbol: string) => string; search?: (q: string) => any[]; onCompany?: (symbol: string) => void; onPeer?: (symbol: string) => void; requestPeer?: () => void;
+  logoUrl?: (symbol: string) => string; search?: (q: string) => any[]; onCompany?: (symbol: string) => void; onClose?: () => void; onPeer?: (symbol: string) => void; requestPeer?: () => void;
   /** Silver: "See what Gold adds" opens the site's upgrade flow; upgradeUrl is the plain link behind it. */
   onUpgrade?: () => void; upgradeUrl?: string;
 };
