@@ -1,12 +1,13 @@
 // The landing page's FinLit Prism part as the team drew it (task #122, 14 Nov 2026): a deep green band with the FINLIT PRISM pill, the line "Beyond Ratios.
 // A Statistical Model for Deeper Financial Analysis." and two feature items, then the Prism card larger than before: Fundamental analysis and Technical
 // analysis (task #149 removed the "One Health Score" item and the Overall Financial Health strip). Hovering (or focusing) a feature item lights it and its block of the card in gold, and the other way round.
-// The card shows Reliance Industries' real reading of 6 Nov 2026 (the same one the page showed as a picture), dated and marked as an example.
+// The card shows the showcase company's live reading (task #153: Reliance Industries, its actual score on each part, read daily, named and dated); the real
+// reading of 6 Nov 2026 stays as the dated fallback. Marked as an example, not a recommendation.
 // Styles: styles/prism-showcase.css (hpz-), on the landing page's --hh- tokens. Describes, never advises.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
-import { PRISM_SAMPLE as S, partTone, techPos, type PartTone } from "../lib/prismShowcase";
+import { partTone, techPos, useShowcase, type PartTone } from "../lib/prismShowcase";
 import "../styles/prism-showcase.css";
 
 type Key = "fund" | "tech";
@@ -28,6 +29,7 @@ function Ring({ v, size, stroke, tone }: { v: number; size: number; stroke: numb
 }
 
 export function PrismShowcase() {
+  const S = useShowcase();
   const [lit, setLit] = useState<Key | null>(null);
   const on = (k: Key) => ({ onMouseEnter: () => setLit(k), onMouseLeave: () => setLit(null), onFocus: () => setLit(k), onBlur: () => setLit(null) });
   const cls = (k: Key, base: string) => base + (lit === k ? " lit" : "");
@@ -53,7 +55,7 @@ export function PrismShowcase() {
               <header className="hpz-bh">
                 <span className="hpz-bi gold" aria-hidden="true">{glyph(<><circle cx="12" cy="12" r="8" /><path d="M14.5 9.5c-.5-.9-1.5-1.3-2.5-1.3-1.4 0-2.5.8-2.5 1.9 0 2.7 5 1.4 5 4 0 1.1-1.1 1.9-2.5 1.9-1.1 0-2.1-.5-2.6-1.4M12 6.8v1.4M12 15.8v1.4" /></>)}</span>
                 <div><h3>Fundamental analysis</h3><p>Evaluates business and financial strength across four areas.</p></div>
-                <span className="hpz-sample">Sample Reading</span>
+                <span className="hpz-sample" title={S.live ? `${S.company}, FinLit Prism reading of ${S.date}` : `Sample reading of ${S.date}`}>{S.company}</span>
               </header>
               <div className="hpz-fbody">
                 <div className="hpz-score">
@@ -66,7 +68,7 @@ export function PrismShowcase() {
                     const t = partTone(p.word);
                     return (
                       <li key={p.name} className={"hpz-part " + t}>
-                        <div className="hpz-ph"><Ring v={p.v} size={30} stroke={4} tone={t} /><div><b>{p.name}</b><em className={"hpz-chip " + t}>{p.word}</em></div></div>
+                        <div className="hpz-ph"><Ring v={p.v} size={30} stroke={4} tone={t} /><div><b>{p.name}</b><em className={"hpz-chip " + t}>{p.word}</em></div><strong className={"hpz-pv " + t} aria-label={`${p.v} of 100`}>{p.v}</strong></div>
                         <span className="hpz-slide" role="img" aria-label={`${p.name} ${p.v} of 100, ${p.word.toLowerCase()}`}><i style={{ width: `${p.v}%` }} /><s style={{ left: `${p.v}%` }} /></span>
                       </li>);
                   })}
