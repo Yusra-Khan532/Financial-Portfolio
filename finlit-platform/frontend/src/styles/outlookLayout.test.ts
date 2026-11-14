@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(process.cwd(), "src/styles/outlook.css"), "utf8");
 
-describe("outlook layout with Set your own model", () => {
+describe("outlook layout with Build your own growth model", () => {
   it("is a two-column grid on its own (the site's .side class, which is sticky and height-limited, must not be on it), charts left and sliders right", () => {
     expect(css).toMatch(/\.ol-top\.ol-split \{ display: grid; grid-template-columns: minmax\(0, 1\.6fr\) minmax\(300px, 1fr\)/);
     expect(css).toMatch(/\.ol-top\.ol-split > \.ol-assume \{ grid-column: 2; grid-row: 1; position: sticky/);

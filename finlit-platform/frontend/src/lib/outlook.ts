@@ -1,4 +1,4 @@
-// Profit and revenue outlook (Gold): API types, the hook, and the pure logic of the "Set your own model" sliders (each input's own growth rate, task #146).
+// Profit and revenue outlook (Gold): API types, the hook, and the pure logic of the "Build your own growth model" sliders (each input's own growth rate, task #146).
 // All forecast arithmetic is on the server (backend/finlit/outlook/model.py); the chart series, ticks and formats are in lib/outlookChart.ts.
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
@@ -48,7 +48,7 @@ export const PARAM_LABELS: Record<Kind, Record<string, string>> = {
   profit: { co_1y: "Company net profit growth (1Y)", co_3y: "Company net profit CAGR (3Y)", co_5y: "Company net profit CAGR (5Y)", sec_1y: "Sector net profit growth (1Y)", sec_3y: "Sector net profit CAGR (3Y)", sec_5y: "Sector net profit CAGR (5Y)", margin: "Net profit margin trend" },
 };
 
-/** "Set your own model" (task #146): each slider is that input's expected growth rate, percent a year, set on its own: not a weight, no total.
+/** "Build your own growth model" (task #146): each slider is that input's expected growth rate, percent a year, set on its own: not a weight, no total.
  *  The server limits every input to this range (model.INPUT_CAP); FinLit's weights for the horizon combine the rates into one yearly rate. */
 export const VALUE_MIN = -50, VALUE_MAX = 50, VALUE_STEP = 0.1;   // a tenth of a point: the knob sits exactly on the company's figure as shown (one decimal)
 export const clampValue = (v: number) => (Number.isFinite(v) ? Math.max(VALUE_MIN, Math.min(VALUE_MAX, Number(v.toFixed(1)))) : 0);

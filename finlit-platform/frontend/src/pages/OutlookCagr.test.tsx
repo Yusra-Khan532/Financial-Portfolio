@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Task #146: on "Set your own model" each slider is that input's own expected growth rate (CAGR %), set on its own: not a weight, no total of 100.
+// Task #146: on "Build your own growth model" each slider is that input's own expected growth rate (CAGR %), set on its own: not a weight, no total of 100.
 // Every slider starts at the company's figure; moving one changes that one only, and only the moved rates are sent (the model's weights combine them).
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -37,15 +37,15 @@ afterEach(cleanup);
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/outlook/HDFCBANK"]}><Routes><Route path="/outlook/:symbol" element={<OutlookPage />} /></Routes></MemoryRouter></QueryClientProvider>);
 const sliders = () => within(screen.getByRole("group", { name: /Expected growth rate of each input/ })).getAllByRole("slider") as HTMLInputElement[];
 
-describe("Set your own model: each input's own growth rate (task #146)", () => {
+describe("Build your own growth model: each input's own growth rate (task #146)", () => {
   it("is a growth rate from -50% to +50% a year per input, starting at the company's figure, with no 100% total anywhere", () => {
     open();
-    fireEvent.click(screen.getByRole("radio", { name: /Set your own model/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const s = sliders();
     expect(s.length).toBe(7);
     expect(s.map((x) => [x.min, x.max, x.step])).toEqual(Array(7).fill(["-50", "50", "0.1"]));
     expect(s[0].value).toBe("18.4"); expect(s[1].value).toBe("12.1");
-    const box = screen.getByRole("heading", { name: /Set your own model: assumptions/ }).closest("section")!;
+    const box = screen.getByRole("heading", { name: /Build your own growth model: assumptions/ }).closest("section")!;
     expect(box.textContent).toContain("Company figure +18.4%"); expect(box.textContent).toContain("counts 35%");
     expect(box.textContent).toContain("No company figure; move it to use your own");       // margin has no figure: the slider says why
     expect(s[6].closest(".ol-sl")!.querySelector("output")!.textContent).toBe("—");            // and shows a dash, not a 0.0% that looks like a real figure
@@ -54,7 +54,7 @@ describe("Set your own model: each input's own growth rate (task #146)", () => {
   });
   it("moving one slider changes that one only, and only the moved rate is asked for", async () => {
     open();
-    fireEvent.click(screen.getByRole("radio", { name: /Set your own model/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const before = sliders().map((x) => x.value);
     fireEvent.change(sliders()[1], { target: { value: "30" } });
     const after = sliders().map((x) => x.value);
@@ -68,7 +68,7 @@ describe("Set your own model: each input's own growth rate (task #146)", () => {
   });
   it("works the same for revenue, with its six inputs", () => {
     open();
-    fireEvent.click(screen.getByRole("radio", { name: /Set your own model/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     fireEvent.click(screen.getByRole("radio", { name: "Revenue estimate" }));
     const s = sliders();
     expect(s.length).toBe(6); expect(s[0].value).toBe("15.2");
