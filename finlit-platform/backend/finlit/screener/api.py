@@ -18,10 +18,10 @@ router = APIRouter(prefix="/api/screener")
 BASIC_ROWS = 25
 # The table opens with company, market cap and price only; the website adds a column for each filter the visitor adds (and takes it away with the filter).
 DEFAULT_COLUMNS = ["market_cap", "price"]
-# The Stock screener's nine standard columns (task #64, file 04): LTP (with the day's change under it), market cap, P/E, ROE, ROCE, sales growth 3Y, debt to equity,
-# 1-year return and the plan's score. A visitor is sent only the ones their plan shows. Task #141 (14 Nov 2026): Gold, whose score is the Fundamental Prism score,
-# also gets the two technical columns, Short-term technical and Long-term technical (the Prism price-trend views), right after it.
-STANDARD_COLUMNS = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_to_equity", "ret_1y", "overall"]
+# The Stock screener opens with the company name and the market cap only (task #145, 14 Nov 2026: "only name of company and market cap should be visible";
+# it had opened with nine standard columns, task #64 file 04). Every other column is added from the Columns menu, or appears with a rule the visitor sets.
+# Task #141: Gold also opens with the two Prism technical views, Short-term technical and Long-term technical, beside the market cap.
+STANDARD_COLUMNS = ["market_cap"]
 GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
 IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
@@ -32,10 +32,8 @@ def is_gold(plan: str) -> bool:
 
 
 def standard_columns(plan: str) -> List[str]:
-    """The standard columns of the plan: the plan's score is the last of the nine (FinLit Prism for Gold, the FinLit IQ below); Gold adds the two technical views after it."""
-    cols = [("prism_final" if k == "overall" and is_gold(plan) else k) for k in STANDARD_COLUMNS]
-    if is_gold(plan):
-        cols += GOLD_TECHNICAL_COLUMNS
+    """The columns the table opens with: the market cap for every plan, and for Gold the two technical views after it."""
+    cols = list(STANDARD_COLUMNS) + (GOLD_TECHNICAL_COLUMNS if is_gold(plan) else [])
     return [k for k in cols if allowed(plan, BY_KEY[k].tier)]
 
 

@@ -1,6 +1,6 @@
 // The Stock screener (task #64, handover file 04, 10 Nov; with tasks #73, #74 and #75 of 11 Nov): a short head with the Find stocks tabs, the ready-made
 // screens, then "Your rules" (funnel, size, the one Sector filter, index, FinLit rating, rule cards, + Add a rule, Type rules) beside the results (count,
-// Save screen, Download, the active rules, search, the nine standard columns plus a "Your rules" band, the pager). A click on a row opens the chart panel
+// Save screen, Download, the active rules, search, the standard columns (the company and its market cap; Gold also the two technical views, tasks #145 and #141) plus a "Your rules" band, the pager). A click on a row opens the chart panel
 // with the company's figures, your rules first.
 import { HScroll } from "../components/HScroll";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
@@ -116,7 +116,7 @@ export function ScreenerPro() {
   const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, F.ranges);
   const ruleKey = (m: MetricInfo) => (m.variants ? m.variants[periodOf(m)] ?? m.key : m.key);
 
-  // columns: the visitor's own choice or the nine standard ones, then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
+  // columns: the visitor's own choice or the standard ones (company and market cap), then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
   const base = useMemo(() => cols ?? standardColumns(data), [cols, data]);
   const ruleCols = rules.map((k) => chipColumn(byKey.get(k), byKey.get(k) ? periodOf(byKey.get(k)!) : undefined, byKey));
   const columns = useMemo(() => tableColumns(base, F.ranges, ruleCols, (k) => !data || byKey.has(k)), [base, F.ranges, ruleCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
