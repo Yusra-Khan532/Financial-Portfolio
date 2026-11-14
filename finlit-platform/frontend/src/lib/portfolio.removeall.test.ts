@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // "Remove all" on the Equity portfolio (task #127): the list empties and is saved to the account like any change; Undo puts back exactly what was there.
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { portfolio } from "./portfolio";
 
 describe("portfolio.clear and portfolio.restore", () => {
