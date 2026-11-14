@@ -411,6 +411,58 @@ async def test_a_report_refused_by_our_own_checks_says_so_and_not_that_the_provi
     assert "did not pass our own accuracy checks" in r.json()["detail"] and "did not answer" not in r.json()["detail"]
 
 
+async def test_a_refused_report_is_not_rebuilt_on_every_visit_until_the_code_changes(ingested, monkeypatch):
+    """14 Nov 2026: CHENNPETRO was rebuilt 105 times in a day and five BSE companies 20 to 64 times each, every visit after a refusal starting a full rebuild
+    (about 20 provider calls), so the nightly ingest never got through its list. A refusal is now held for some hours with the code version that made it."""
+    from finlit.store import refused_key
+    monkeypatch.setenv("APP_VERSION", "v-old")
+    app, tr = await _app(ingested, ondemand_wait_seconds=6.0)
+    builds = []
+
+    async def refuse(*a, **k):
+        builds.append(1)
+        raise worker.DataRejected([{"key": "market_cap_consistent", "severity": "critical"}])
+    monkeypatch.setattr(worker, "_build_sections", refuse)
+    c = client_with(SlowTransport(0.0))
+
+    async def the_worker():
+        for _ in range(3):
+            for _ in range(100):
+                if await ingested.queue_length():
+                    break
+                await asyncio.sleep(0.05)
+            await worker.drain_queue(c, ingested)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=tr, base_url="http://test") as http:
+        task = asyncio.create_task(the_worker())
+        r = await http.get("/api/stocks/TCS")
+        await task
+        assert r.json()["status"] == "build_rejected" and await ingested.redis.get(refused_key("TCS", "consolidated")) == b"v-old"
+        made = len(builds)
+        await ingested.redis.delete("pending:TCS:consolidated")          # the 5-minute "being prepared" marker has run out, as on the live site
+        again = await http.get("/api/stocks/TCS")
+        assert again.status_code == 503 and again.json()["status"] == "build_rejected"
+        assert await ingested.queue_length() == 0 and len(builds) == made         # answered at once: nothing queued, nothing rebuilt
+        monkeypatch.setenv("APP_VERSION", "v-new")                                # a new version (a fixed check) builds it again at the next visit
+        await http.get("/api/stocks/TCS")
+        assert await ingested.queue_length() == 1
+    async with ingested.pool.acquire() as conn:
+        await conn.execute("DELETE FROM ingest_queue")
+
+
+async def test_the_nightly_ingest_asks_for_a_refused_company_once_per_refresh_window(ingested):
+    """The nightly picker put refused companies first in every run (they have no stored report). Now a company whose last load was refused within the window waits."""
+    before = await ingested.pending_symbols(limit=20)
+    sym = next(s for s in before if s != "RELIANCE")
+    async with ingested.pool.acquire() as conn:
+        await conn.execute("INSERT INTO ingest_runs (symbol, statement, status, started_at) VALUES ($1, 'consolidated', 'rejected', now() - interval '2 hours')", sym)
+    assert sym not in await ingested.pending_symbols(limit=20)
+    async with ingested.pool.acquire() as conn:
+        await conn.execute("UPDATE ingest_runs SET started_at = now() - interval '25 hours' WHERE symbol = $1 AND status = 'rejected'", sym)
+    assert sym in await ingested.pending_symbols(limit=20)                       # past the window: asked again
+    async with ingested.pool.acquire() as conn:
+        await conn.execute("DELETE FROM ingest_runs WHERE symbol = $1 AND status = 'rejected'", sym)
+
+
 async def test_opening_a_chart_built_by_older_code_queues_the_rebuild_once_and_still_serves_the_chart(ingested):
     """A screener's chart panel reads only the price section: a report stored by older code (before weekly candles and the 9 and 20-day lines) is queued for
     a rebuild when its chart is opened, at most once in half an hour, and the stored chart is served at once meanwhile."""
