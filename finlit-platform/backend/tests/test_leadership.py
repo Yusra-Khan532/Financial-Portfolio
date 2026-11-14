@@ -265,7 +265,12 @@ async def test_weekly_run_then_api(store):  # noqa: F811
             hist = (await c.get("/api/stocks/T00/leadership-history")).json()
             assert hist["available"] and hist["rows"][-1]["rank"] == 1 and hist["series"]["sector"] and len(hist["series"]["dates"]) == 120
             gone = (await c.get("/api/stocks/NOPE/leadership")).json()
-            assert gone == {"available": False, "reason": "history", "display": gone["display"]} and gone["display"]["line"].startswith("Not enough price history")
+            # task #139: a company that was not in the weekly run at all (its prices were not stored then) says so; it never reads "Not enough price history"
+            assert gone == {"available": False, "reason": "not_compared", "asOf": gone["asOf"], "display": gone["display"]} and gone["asOf"]
+            assert gone["display"]["line"].startswith("Not in the last weekly peer comparison") and "price history" not in gone["display"]["line"]
+            listed = (await c.get("/api/leadership/list?symbols=NOPE,T00")).json()
+            assert listed["rows"]["NOPE"]["reason"] == "not_compared" and listed["rows"]["NOPE"]["text"] == "Not in the last weekly comparison"
+            assert listed["rows"]["T00"]["available"] is True
 
     # the second weekly run publishes nothing new unless the raw label held for two runs; a re-run of the same Friday is idempotent
     again = await L.run(store, settings, as_of=END)

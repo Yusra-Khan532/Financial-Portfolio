@@ -66,7 +66,7 @@ async def test_list_endpoint_gives_each_stocks_label_or_the_reason_in_words(stor
             assert top["rank"] == single["rank"] and top["rel52"] == single["rel"]["w52"] and top["sector"] == single["benchmarks"]["sector"]["name"]
             assert top["fundamentalRank"] == single["fundamentalRank"] and top["fundamentalOf"] == single["fundamentalOf"] and top["group"] == single["peerGroup"]["short"]
             assert bottom["label"] == "laggard"
-            assert gone == {"available": False, "reason": "history", "text": "Under a year of prices"}
+            assert gone == {"available": False, "reason": "not_compared", "text": "Not in the last weekly comparison"}   # not in the run at all (task #139), never "under a year of prices"
             assert (await c.get("/api/leadership/list?symbols=")).json()["rows"] == {}
             many = ",".join(f"S{i}" for i in range(leadership_api.MAX_LIST + 1))
             assert (await c.get(f"/api/leadership/list?symbols={many}")).status_code == 400
