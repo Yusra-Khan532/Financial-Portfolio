@@ -37,6 +37,17 @@ def kind(reason: Optional[str]) -> str:
     return re.sub(r"\d+", "#", (reason or "").split(" (")[0].split(":")[0])
 
 
+
+def _capacity_mb():
+    """The memory limit of the container the supervisor runs in (the jobs container since 14 Nov 2026), or None. The website's container has its own, smaller
+    limit, and the status page (served by the website) must not judge the jobs by it: on 14 Nov it called ingest and prism 'can never start here' (500 MB)
+    while they run in the 800 MB jobs container."""
+    try:
+        from .resources import container_limit_mb
+        return container_limit_mb()
+    except Exception:
+        return None
+
 class LockHeld(RuntimeError):
     pass
 
@@ -538,7 +549,8 @@ class Supervisor:
             raise LockHeld("another supervisor took over")
         try:
             await self.signals.heartbeat(now, {"pid": __import__("os").getpid(), "ticks": self.ticks, "running": sorted(self.running), "startedAt": self.started_at.timestamp(),
-                                               "dbOk": self.db_ok, "lastError": self.last_error})
+                                               "dbOk": self.db_ok, "lastError": self.last_error,
+                                               "capacityMb": _capacity_mb()})   # this container's memory limit: the status page judges "can never start here" by it
         except Exception:   # nosec B110 - the heartbeat is best effort; the loop goes on
             pass
         if self.every_cycle is not None and (self._cycle_task is None or self._cycle_task.done()):
