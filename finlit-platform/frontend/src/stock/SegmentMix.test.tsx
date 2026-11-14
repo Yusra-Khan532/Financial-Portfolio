@@ -77,16 +77,16 @@ describe("Segments section and the report numbering (task #11, renumbered in tas
   const read = (f: string) => readFileSync(join(__dirname, f), "utf8");
   it("Where the revenue comes from is its own Segments section (17), no longer a box inside Gold insights", () => {
     const s3 = read("Sections3.tsx");
-    expect(s3).toContain('no="17 · Segments"');
+    expect(s3).toContain('no="15 · Segments"');
     expect(s3).toContain('title="Where the revenue comes from"');
     const insights = s3.slice(s3.indexOf("export function InsightsSection"), s3.indexOf("export function SegmentsSection"));
     expect(insights).not.toContain("SegmentCard");
-    expect(insights).toContain('no="16 · Gold insights"');
+    expect(insights).toContain('no="14 · Gold insights"');
   });
   it("the sections after it are numbered 18, 19 (Pros, cons) and 20 (community, the last section: task #113), in page order", () => {
-    expect(read("Sections2.tsx")).toContain('no="18 · Dividends & events"');
-    expect(read("Sections2.tsx")).toContain('no="19 · Pros, cons & Prism history"');
-    expect(read("CommunitySection.tsx")).toContain('no="20 · Community"');   // tasks #105 and #113: the discussions are their own section, the last one
+    expect(read("Sections2.tsx")).toContain('no="16 · Dividends & events"');
+    expect(read("Sections2.tsx")).toContain('no="17 · Pros, cons & Prism history"');
+    expect(read("CommunitySection.tsx")).toContain('no="18 · Community"');   // tasks #105 and #113: the discussions are their own section, the last one
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
     expect(at("<InsightsSection")).toBeLessThan(at("<SegmentsSection"));

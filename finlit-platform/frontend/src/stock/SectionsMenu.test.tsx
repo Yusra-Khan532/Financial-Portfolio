@@ -5,16 +5,16 @@ import { NAV, columnsOf, moveIndex, navFor } from "../lib/sectionNav";
 
 describe("All sections panel", () => {
   it("lists every section with its icon, name and hint, and marks the current one", () => {
-    const h = renderToStaticMarkup(<SectionsMenu items={navFor(true)} active="ratios" onPick={() => {}} />);
+    const h = renderToStaticMarkup(<SectionsMenu items={navFor()} active="ratios" onPick={() => {}} />);
     for (const [id, label, , hint] of NAV) { expect(h).toContain(`data-s="${id}"`); expect(h).toContain(`<b>${label.replace("&", "&amp;")}</b>`); expect(h).toContain(hint); }
     expect(h).toContain("All sections");
     expect(h.match(/aria-current="true"/g)).toHaveLength(1);
     expect(h).toMatch(/data-s="ratios"[^>]*aria-current|aria-current="true"[^>]*data-s="ratios"|class="smn-i on"[^>]*aria-current="true"[^>]*data-s="ratios"/);
   });
-  it("is closed to start with and lists Leadership only when it is shown", () => {
-    const h = renderToStaticMarkup(<SectionsMenu items={navFor(false)} active={null} onPick={() => {}} />);
+  it("is closed to start with, and lists Where it stands in place of Sector & peers and Leadership", () => {
+    const h = renderToStaticMarkup(<SectionsMenu items={navFor()} active={null} onPick={() => {}} />);
     expect(h).toContain("hidden"); expect(h).toContain('aria-expanded="false"'); expect(h).not.toContain('data-s="leadership"'); expect(h).not.toContain('data-s="history"'); expect(h).toContain('data-s="ownership"'); expect(h).not.toContain('data-s="plans"');
-    expect(navFor(false)).toHaveLength(21); expect(navFor(true)).toHaveLength(22);   // Key findings is merged into Strengths & watch-outs (task #37)
+    expect(navFor()).toHaveLength(21); expect(h).toContain("<b>Where it stands</b>");   // Key findings is merged into Strengths & watch-outs (task #37); Leadership went into Where it stands (pack board 17)
   });
 });
 

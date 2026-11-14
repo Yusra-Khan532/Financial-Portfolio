@@ -1,5 +1,5 @@
 // The stock page's sections, for the sticky section bar and its "All sections" panel: id, name, icon and a one-line hint of what the section holds,
-// plus the pure keyboard rule of the panel's grid. Leadership is listed only when the report says it is shown.
+// plus the pure keyboard rule of the panel's grid.
 export type NavItem = [id: string, label: string, icon: string, hint: string];
 
 export const NAV: NavItem[] = [
@@ -17,8 +17,7 @@ export const NAV: NavItem[] = [
   ["earnings", "Earnings & cash", "coins", "Is the profit real, and is it turning into cash?"],
   ["ownership", "Ownership", "pie", "Promoters, institutions and the public"],
   ["peers", "Peers", "layers", "How the company compares with its peers"],
-  ["sector", "Sector & peers", "activity", "Where its industry stands, and how the stock ranks inside it"],
-  ["leadership", "Leadership", "medal", "Directors and key management"],
+  ["sector", "Where it stands", "activity", "Its industry, its peers, its own price and its risk, one question per tab"],
   ["insights", "What to watch", "crown", "Triggers to watch and where the company fits"],
   ["segments", "Segments", "pie", "Where the revenue comes from"],
   ["dividends", "Dividends", "coins", "Dividends, splits, bonuses and events"],
@@ -30,8 +29,8 @@ export const NAV: NavItem[] = [
 /** The first section of each reading group: the bar draws a thin separator before it. */
 export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "insights", "dividends", "method"]);
 
-/** The sections to list: Leadership only when the report shows it. */
-export const navFor = (leadershipShown: boolean): NavItem[] => NAV.filter(([id]) => id !== "leadership" || leadershipShown);
+/** The sections to list (Where it stands took over the old Leadership section, final pages pack board 17). */
+export const navFor = (): NavItem[] => NAV;
 
 /** Where arrow keys move inside the panel's grid of `n` items laid out in `cols` columns: Left/Right step one (wrapping), Up/Down step a row (staying put at the
  *  top and bottom edge), Home/End jump to the ends. Any other key returns the same index. */
