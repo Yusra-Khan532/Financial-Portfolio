@@ -9,6 +9,7 @@ import sambhv from "../lib/__fixtures__/sectors/sambhv.json";
 import { ApiError } from "../lib/api";
 import { chartGeometry, filterCounts, inFilter, sortRows, type Board, type IndustryPage, type StockSector } from "../lib/sectors";
 
+const rotationCard = vi.hoisted(() => vi.fn((): unknown => undefined));
 const st = vi.hoisted(() => ({ board: null as unknown, page: null as unknown, stock: null as unknown }));
 const q = (d: unknown) => (d instanceof Error ? { data: undefined, isLoading: false, isError: true, error: d, refetch: () => {} } : { data: d, isLoading: false, isError: false, error: null, refetch: () => {} });
 vi.mock("../lib/sectors", async (orig) => ({ ...(await orig<typeof import("../lib/sectors")>()), useSectorBoard: () => q(st.board), useSectorPage: () => q(st.page), useStockSector: () => q(st.stock) }));
@@ -16,10 +17,12 @@ vi.mock("../lib/sectorExtra", async (orig) => ({ ...(await orig<typeof import(".
 vi.mock("../lib/sectorHistory", async (orig) => ({ ...(await orig<typeof import("../lib/sectorHistory")>()), useSectorHistory: () => ({ data: undefined }) }));
 vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("../lib/leadership")>()), useLeadership: () => ({ data: undefined }) }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "basic", upgrade: vi.fn(), has: () => true }), TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
-vi.mock("../lib/rotation", async (orig) => ({ ...(await orig<typeof import("../lib/rotation")>()), useRotationMap: () => ({ data: undefined, isLoading: false, isError: false }), useRotationCard: () => ({ data: undefined, isLoading: false, isError: false }) }));   // the rotation card has its own tests (Rotation.test.tsx)
+vi.mock("../lib/rotation", async (orig) => ({ ...(await orig<typeof import("../lib/rotation")>()), useRotationMap: () => ({ data: undefined, isLoading: false, isError: false }), useRotationCard: () => ({ data: rotationCard(), isLoading: false, isError: false }) }));   // the rotation card has its own tests (Rotation.test.tsx)
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
+vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => "iq", usePlanPrism: () => ({}) }));
+vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), usePrice: () => ({ data: undefined }) }));
 import { LearnSectorSignalsPage } from "./LearnSectorSignals";
-import { SectorPeersSection, oneLine } from "../stock/SectorPeers";
+import { WhereStands } from "../stock/pack/WhereStands";
 
 const B = board as unknown as Board;
 const P = ferrous as unknown as IndustryPage;
@@ -59,41 +62,47 @@ describe("helpers", () => {
 
 // The industry page itself (the final pages pack) is tested in SectorIndustry.test.tsx.
 
+// "Where it stands" (final pages pack, board 17) replaced the stock page's Sector & peers section: its industry tab, from the same sector JSON.
+const SUM = { returns: [], quote: { price: 100, high52: 120, marketCapCr: 8000 }, keyMetrics: [] } as never;
+const where = (sym = "SAMBHV", name = "Sambhv Steel Tubes") => render(<MemoryRouter><WhereStands symbol={sym} name={name} s={SUM} /></MemoryRouter>);
 describe("stock page section", () => {
-  it("adds the rotation line under the industry's state, from sector.rotation", () => {
-    st.stock = { ...S, rotation: { corner: "ahead_slowing", corner_name: "Ahead but slowing", weeks_in_corner: 1, this_week_reading_name: "Ahead and gaining", rank: 7, ranked: 37, rank_change_1w: 1, rank_change_4w: -3, strength_pts: 7.8, change_pts: -2.1, breadth: "narrow", breadth_name: "Narrow" } };
-    render(<MemoryRouter><SectorPeersSection symbol="SAMBHV" name="Sambhv Steel Tubes" /></MemoryRouter>);
-    const line = screen.getByTestId("stock-rotation");
-    expect(line.textContent).toContain("Against other industries:"); expect(line.textContent).toContain("Ahead but slowing"); expect(line.textContent).toContain("7 of 37");
-    expect(line.textContent).toContain("+7.8 pts"); expect(line.textContent).toContain("New this week; this week reads Ahead and gaining"); expect(line.textContent).toContain("Past returns, not a forecast");
+  it("shows the industry's rotation box, rank, figures and the box that may change", () => {
+    st.stock = { ...S, rotation: null };
+    vi.mocked(rotationCard).mockReturnValue({ corner: "ahead_slowing", corner_name: "Ahead but slowing", weeks_in_corner: 1, this_week_reading_name: "Ahead and gaining", rank: 7, ranked: 37, rank_change_1w: 1, rank_change_4w: -3, strength_pts: 7.8, change_pts: -2.1 });
+    where();
+    const t = screen.getByTestId("where-stands").textContent ?? "";
+    expect(t).toContain("Sector Rotation · the last few months"); expect(t).toContain("7 of 37 ▲1"); expect(t).toContain("+7.8 pts"); expect(t).toContain("−2.1 pts");
+    expect(t).toContain("May change box next week"); expect(t).toContain("This week's reading is Ahead and gaining");
+    vi.mocked(rotationCard).mockReturnValue(undefined);
   });
-  it("writes the one line and the two cards from the sector JSON", () => {
-    expect(oneLine("SAMBHV", S)).toBe("SAMBHV is in the top quarter of Industrial Products stocks over 6 months (+32.4%), and the industry as a whole is in a Washout while the Nifty 50 is below its 200-day exponential average.");
-    render(<MemoryRouter><SectorPeersSection symbol="SAMBHV" name="Sambhv Steel Tubes" /></MemoryRouter>);
-    const t = screen.getByTestId("sector-peers").textContent ?? "";
-    expect(t).toContain("20th of 105 counted Industrial Products stocks by 6-month return");
-    expect(t).toContain("−4.1%"); expect(t).toContain("105 of 219");
-    expect(t).toContain("No leader flag.");
-    expect(screen.getByRole("link", { name: "Open the Industrial Products page" }).getAttribute("href")).toBe("/sectors/industrial-products");
+  it("writes where the stock ranks inside its industry, from the sector JSON", () => {
+    where();
+    const t = screen.getByTestId("where-stands").textContent ?? "";
+    expect(t).toContain("Where Sambhv Steel Tubes stands"); expect(t).toContain("20th of 105");
+    expect(t).toContain("Inside its industry: 6-month return"); expect(t).toContain("Sector Pulse · the last few days");
+    expect(screen.getByRole("link", { name: /Open the .* page/ }).getAttribute("href")).toBe("/sectors/industrial-products");
     expect(t).toContain("not a recommendation");
   });
   it("below Gold: the industry's state and what Gold adds, no rank", () => {
-    st.stock = { symbol: "SAMBHV", name: "Sambhv Steel Tubes Limited", group: { ...S.group!, summary: undefined }, in_group: null, locked: { stock: "gold" } };
-    render(<MemoryRouter><SectorPeersSection symbol="SAMBHV" name="Sambhv" /></MemoryRouter>);
-    const t = screen.getByTestId("sector-peers").textContent ?? "";
-    expect(t).toContain("The Sector & peers cards are part of the Gold plan"); expect(t).toContain("Sold off"); expect(t).not.toContain("20th of");
+    // below Gold the stock's sector answer leaves out the breadth figures: they come from the industry page, which every plan sees
+    st.stock = { symbol: "SAMBHV", name: "Sambhv Steel Tubes Limited", group: { ...S.group!, summary: undefined, breadth: undefined, stocks_counted: undefined }, in_group: null, locked: { stock: "gold" } };
+    where("SAMBHV", "Sambhv");
+    expect(screen.getByTestId("where-stands").textContent).toContain(`${P.stocks_counted} of ${P.stocks_listed}`);
+    const t = screen.getByTestId("where-stands").textContent ?? "";
+    expect(t).toContain("Where the stock ranks inside its industry is part of the Gold plan"); expect(t).not.toContain("20th of");
   });
   it("not counted, unclassified and unavailable each say why", () => {
-    st.stock = { ...S, in_group: false, note: "Not counted: traded value under Rs 1 crore a day.", not_counted_because: ["median traded value under Rs 1 crore a day"] };
-    render(<MemoryRouter><SectorPeersSection symbol="X" name="X" /></MemoryRouter>);
+    st.stock = { ...S, in_group: false, rank_6m: null, note: "Not counted: traded value under Rs 1 crore a day." };
+    st.page = { ...P, stocks: null };
+    where("X", "X");
     expect(screen.getByText("Not counted: traded value under Rs 1 crore a day.")).toBeTruthy();
     cleanup();
     st.stock = { symbol: "NEWCO", group: null, in_group: false, note: "Industry not yet classified.", locked: {} };
-    render(<MemoryRouter><SectorPeersSection symbol="NEWCO" name="Newco" /></MemoryRouter>);
+    where("NEWCO", "Newco");
     expect(screen.getAllByText(/Industry not yet classified/).length).toBeGreaterThan(0);
     cleanup();
     st.stock = notLoaded();
-    render(<MemoryRouter><SectorPeersSection symbol="X" name="X" /></MemoryRouter>);
+    where("X", "X");
     expect(screen.getByTestId("sector-blank").textContent).toContain("Sector data is not loaded yet");
   });
 });

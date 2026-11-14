@@ -1,4 +1,4 @@
-// Task #34 and #37: the company report has no "Historical trend" section, and the section numbers run 01 to 20 with no gap (19 is Pros, cons & Prism history; Community discussions is the last section, 20: tasks #105 and #113) (every main section is numbered).
+// Task #34 and #37: the company report has no "Historical trend" section, and the section numbers run 01 to 18 with no gap (Where it stands, the final pages pack's new section, is drawn without a number; 17 is Pros, cons & Prism history; Community discussions is the last section, 18: tasks #105 and #113) (every main section is numbered).
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,9 +12,9 @@ const numbered = () => {
 };
 
 describe("company report numbering", () => {
-  it("has the sections 01 to 20, each number once, in one unbroken run", () => {
+  it("has the sections 01 to 18, each number once, in one unbroken run", () => {
     const nums = [...new Set(numbered().map(([n]) => n))].sort((a, b) => a - b);
-    expect(nums).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(nums).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
   });
   it("no longer has the Historical trend section or its menu entry", () => {
     expect(numbered().some(([, t]) => /Historical trend/i.test(t))).toBe(false);
@@ -24,16 +24,18 @@ describe("company report numbering", () => {
   it("every main section has its number, in the order of the page", () => {
     const m = new Map(numbered().map(([n, t]) => [t.split(" · ")[0], n]));
     const want: [string, number][] = [["Company overview", 1], ["Macro and sector outlook", 2], ["What's going well and what to watch", 3], ["Price & technicals", 4], ["Latest quarter", 5], ["Financials", 6], ["Trends", 7],
-      ["Chart lab", 8], ["Ratios", 9], ["DuPont analysis", 10], ["Earnings & cash quality", 11], ["Ownership", 12], ["Peers", 13], ["Sector & peers", 14], ["Leadership", 15], ["Gold insights", 16],
-      ["Segments", 17], ["Dividends & events", 18], ["Pros, cons & Prism history", 19], ["Community", 20]];
+      ["Chart lab", 8], ["Ratios", 9], ["DuPont analysis", 10], ["Earnings & cash quality", 11], ["Ownership", 12], ["Peers", 13], ["Gold insights", 14],
+      ["Segments", 15], ["Dividends & events", 16], ["Pros, cons & Prism history", 17], ["Community", 18]];
     for (const [t, n] of want) expect(m.get(t), t).toBe(n);
   });
-  it("Leadership sits right after Sector & peers, in the report and in the section bar", () => {
+  it("Where it stands replaces Sector & peers and Leadership, after Peers and before Gold insights, in the report and in the section bar", () => {
     const ids = NAV.map(([id]) => id);
-    expect(ids.indexOf("leadership")).toBe(ids.indexOf("sector") + 1);
+    expect(ids).not.toContain("leadership");
+    expect(NAV.find(([id]) => id === "sector")?.[1]).toBe("Where it stands");
     const page = readFileSync(join(__dirname, "StockPage.tsx"), "utf8");
-    expect(page.indexOf("<LeadershipSection")).toBeGreaterThan(page.indexOf("<SectorPeersSection"));
-    expect(page.indexOf("<LeadershipSection")).toBeLessThan(page.indexOf("<InsightsSection"));
+    expect(page).not.toContain("<LeadershipSection"); expect(page).not.toContain("<SectorPeersSection");
+    expect(page.indexOf("<WhereStands")).toBeGreaterThan(page.indexOf("<PeersSection"));
+    expect(page.indexOf("<WhereStands")).toBeLessThan(page.indexOf("<InsightsSection"));
   });
   it("Community discussions is the last section of the report, after Pros & cons (task #113), in the page and in the section bar", () => {
     const page = readFileSync(join(__dirname, "StockPage.tsx"), "utf8");

@@ -22,9 +22,7 @@ import { useStats } from "../lib/forum";
 import { MacroOutlookSection } from "./MacroOutlook";
 import { BusinessSection, DividendsSection, MethodSection, OwnershipSection } from "./Sections2";
 import { CompanyBriefSection } from "./CompanyBrief";
-import { useLeadership } from "../lib/leadership";
-import { LeadershipSection } from "./Leadership";
-import { SectorPeersSection } from "./SectorPeers";
+import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
 import { MiniBar } from "./MiniBar";
@@ -72,8 +70,7 @@ export function StockPage() {
   const peers = useSection<Peers>(symbol, "peers", ready).data;
   const seg = useSection<Segments>(symbol, "segments", ready).data;
   const events = useSection<Events>(symbol, "events", ready).data;
-  const lead = useLeadership(symbol, ready).data;
-  const navItems = useMemo(() => navFor(!!(lead && (lead.available || lead.display))), [lead]);
+  const navItems = useMemo(() => navFor(), []);
   const talk = useStats(symbol).data;      // how many discussions members have started about this company, on the viewer's own board (task #101)   // no pill for a section that is switched off
   const pReality = useProfitReality(symbol, !!s?.dataQuality.isBank);
   const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank, checkItems(earningsIntel(pReality, s.profile.sector, s.profile.industry))) : null), [s, fin, pReality]);   // the red / orange dots on the tabs
@@ -172,8 +169,7 @@ export function StockPage() {
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SectorPeersSection symbol={symbol} name={s.profile.name} tech={tech} score={s.score} jump={jump} /></ErrorBoundary></Defer>
-        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><LeadershipSection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer>
