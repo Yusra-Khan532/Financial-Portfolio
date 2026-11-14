@@ -134,6 +134,10 @@
 .ssw-a { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 2px 0 10px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 999px; background: var(--gold-soft); color: var(--text); font: 600 var(--fs-12) var(--sans); }
 .ssw-a button { border: 0; background: none; color: inherit; font-size: var(--fs-16); line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: 999px; }
 .ssw-a button:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); }
+/* task #154: Clear all at the end of the active filters (shown once two or more are on): back to the normal screen */
+.ssw-clear { min-height: 28px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--text); font: 600 var(--fs-12) var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ssw-clear:hover { border-color: var(--gold); background: var(--gold-soft); }
+.ssw-clear:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ssw-tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 10px; }
 .ssw-sp { flex: 1; }
 .ssw-pg { font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }

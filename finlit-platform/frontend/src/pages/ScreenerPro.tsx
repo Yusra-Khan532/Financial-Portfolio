@@ -186,7 +186,12 @@ export function ScreenerPro() {
     setPicker(false);
     toast(`Added ${m.label}${start.min != null || start.max != null ? ", starting on its better quarter. Change the range on its card." : ". Set a range on its card."}`);
   };
-  const clearAll = () => { setF(norm({})); setOrder([]); setFrom(null); };   // the screens that are on go too
+  // Clear all (task #154: back to the normal screen): every filter, the screens that are on, the name search; a custom ratio the member built stays, as a
+  // column, only its filter goes (the formula is their own work)
+  const clearAll = () => {
+    setF(norm({})); setOrder([]); setFrom(null); setQ("");
+    if (ratios.some((r) => r.op !== "none")) setRatios(ratios.map((r) => (r.op === "none" ? r : { ...r, op: "none" as const })));
+  };
   // a rule added but with no range yet is still chosen: it is counted and kept until removed or cleared (task #75)
   const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => F.ranges[x]); }).length;
 
@@ -208,6 +213,8 @@ export function ScreenerPro() {
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
     ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
+
+  const nOn = chips.filter((c) => !c.label.endsWith(" (column)")).length + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
 
   // a ready-made screen turns on or off; several can be on, and each adds its filters to the reader's and to the other screens' (task #64 P-4)
   const toggleScreen = (s: ReadyScreen) => {
@@ -374,7 +381,8 @@ export function ScreenerPro() {
                     <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
               </div>
             </div>
-            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
+            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}
+              {nOn >= 2 && <button type="button" className="ssw-clear" onClick={clearAll} aria-label={`Clear all ${nOn} filters`}>Clear all</button>}</div>}
             <div className="ssw-tbar">
               <input className="ssw-srch" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or symbol" aria-label="Search the results by name or symbol" />
               <span className="ssw-sp" />
