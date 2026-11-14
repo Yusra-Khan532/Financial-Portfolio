@@ -63,6 +63,42 @@ def get_tools(client_ip: str = "") -> List[Dict[str, Any]]:
                 return _cache["tools"]
             if _cache["failed_at"] is not None and now - _cache["failed_at"] < RETRY_AFTER_FAILURE_SECONDS:
                 return _cache["tools"] if _cache["tools"] else []
+            if _cache["tools"]:
+                # Task #138: an old list is still good (the tools rarely change): answer with it now and refresh it in the background,
+                # so a question never waits for the list (it cost a visitor about 5 seconds).
+                _refresh_in_background(url, client_ip)
+                return _cache["tools"]
+    return _fetch(url, client_ip, now)
+
+
+_refreshing = threading.Event()
+_refresh_thread: List[threading.Thread] = []
+
+
+def _refresh_in_background(url: str, client_ip: str) -> None:
+    if _refreshing.is_set():
+        return
+    _refreshing.set()
+
+    def run() -> None:
+        try:
+            _fetch(url, client_ip, monotonic())
+        finally:
+            _refreshing.clear()
+    t = threading.Thread(target=run, name="mcp-tools-refresh", daemon=True)
+    _refresh_thread[:] = [t]
+    t.start()
+
+
+def warm(client_ip: str = "") -> None:
+    """Loads the list once at start-up, so the first visitor's question does not wait for it (task #138)."""
+    try:
+        get_tools(client_ip)
+    except Exception:   # an addition: the chat works without it
+        pass
+
+
+def _fetch(url: str, client_ip: str, now: float) -> List[Dict[str, Any]]:
     try:
         tools = _post(url, "tools/list", {}, client_ip, LIST_TIMEOUT).get("tools") or []
         tools = [t for t in tools if isinstance(t, dict) and isinstance(t.get("name"), str)]

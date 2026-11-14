@@ -9,8 +9,9 @@ import { MARKET_ANSWERS, MARKET_QUESTIONS } from "../lib/askFlow";
 import { CATEGORIES, QUARTERS, SEGMENTS, TABS, quarterQuestion, related, tabQuestions } from "../lib/askFlow";
 
 const ask = vi.fn(async (q: string, _h?: unknown, _preset?: boolean): Promise<{ response: string; saved_at?: string | null }> => ({ response: "answer to " + q }));
-const stepsSeen = { list: [] as string[] };
-vi.mock("../lib/siteApi", () => ({ askAssistantStream: async (q: string, h: unknown, preset: boolean, onStep: (t: string) => void) => { for (const t of stepsSeen.list) onStep(t); return ask(q, h, preset); } }));
+const stepsSeen = { list: [] as string[], text: [] as (string | null)[], company: null as string | null };
+vi.mock("../lib/siteApi", () => ({ askAssistantStream: async (q: string, h: unknown, preset: boolean, onStep: (t: string) => void, onText: (t: string | null) => void, company?: string | null) => {
+  stepsSeen.company = company ?? null; for (const t of stepsSeen.list) onStep(t); for (const t of stepsSeen.text) onText(t); return ask(q, h, preset); } }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: async () => ({ fields: [], rows: [["RELIANCE", "Reliance Industries Ltd", null, 1], ["TCS", "Tata Consultancy Services Ltd", null, 1]] }) }));
 beforeAll(() => { Element.prototype.scrollIntoView = () => {}; });
 afterEach(() => { cleanup(); ask.mockClear(); });
@@ -163,6 +164,21 @@ describe("Assistant away from a company page", () => {
     await act(async () => { finish({ response: "Profit grew." }); });
     expect(screen.queryByRole("list", { name: "Steps so far" })).toBeNull();
     stepsSeen.list = [];
+  });
+  it("the answer appears word by word as it is written, the company goes with the question, and a taken-back start is cleared (task #138)", async () => {
+    let finish!: (v: { response: string }) => void;
+    ask.mockImplementationOnce(() => new Promise((r) => { finish = r; }));
+    stepsSeen.text = ["Let me ", null, "RELIANCE's profit ", "grew 9% a year."];
+    open();
+    fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What are RELIANCE's 3-year and 5-year profit CAGRs?" })); });
+    expect(stepsSeen.company).toBe("RELIANCE");
+    const liveBubble = document.querySelector(".aif-live")!;
+    expect(liveBubble.textContent).toBe("RELIANCE's profit grew 9% a year.");   // "Let me " was taken back
+    expect(screen.queryByRole("list", { name: "Steps so far" })).toBeNull();      // the words replace the steps once they start
+    await act(async () => { finish({ response: "RELIANCE's profit grew 9% a year." }); });
+    expect(document.querySelector(".aif-live")).toBeNull();
+    stepsSeen.text = [];
   });
   it("an answer from FinLit's saved answers says so, with its date (task #138)", async () => {
     ask.mockImplementationOnce(async (q: string) => ({ response: "answer to " + q, saved_at: "2026-11-14T05:30:00+00:00" }));

@@ -50,7 +50,8 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [steps, setSteps] = useState<string[]>([]);       // task #138: the real steps of the answer being prepared, shown while the visitor waits
+  const [steps, setSteps] = useState<string[]>([]);
+  const [live, setLive] = useState("");                   // task #138: the answer as it is being written, shown word by word       // task #138: the real steps of the answer being prepared, shown while the visitor waits
   const [find, setFind] = useState("");
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
@@ -109,11 +110,11 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
     const history = msgs.filter((m) => m.content);
     setMsgs((m) => [...m, { role: "user", content: q }]);
     if (written) { setMsgs((m) => [...m, { role: "assistant", content: written }]); return; }
-    setBusy(true); setSteps([]);
+    setBusy(true); setSteps([]); setLive("");
     const withContext = company && !q.toUpperCase().includes(company) ? `About ${company}: ${q}` : q;   // the company stays in context for a follow-up
-    try { const r = await askAssistantStream(withContext, history, preset, (t) => setSteps((s) => [...s, t])); if (!r?.response) throw new Error("I couldn't answer that just now. Please try again or use the contact form."); setMsgs((m) => [...m, { role: "assistant", content: r.response, savedAt: r.saved_at ?? null }]); }
+    try { const r = await askAssistantStream(withContext, history, preset, (t) => setSteps((s) => [...s, t]), (t) => setLive((x) => (t == null ? "" : x + t)), company); if (!r?.response) throw new Error("I couldn't answer that just now. Please try again or use the contact form."); setMsgs((m) => [...m, { role: "assistant", content: r.response, savedAt: r.saved_at ?? null }]); }
     catch (er) { setMsgs((m) => [...m, { role: "assistant", content: (er as Error).message || "I couldn't answer that just now. Please try again or use the contact form." }]); }
-    finally { setBusy(false); setSteps([]); }
+    finally { setBusy(false); setSteps([]); setLive(""); }
   };
   const tapQ = (q: Q) => {
     if (q.needsSecondCompany) { setText(q.text); setPick((n) => n + 1); return; }   // the second company is the user's to name: nothing is sent yet
@@ -278,7 +279,8 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
 
             {view === "chat" && <>
               {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.savedAt && <small className="aif-kept">Saved answer from {keptAt(m.savedAt)}: answered at once from FinLit&apos;s saved answers.</small>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}</div>)}
-              {busy && <div className="bub bot aif-wait" role="status" aria-live="polite"><span className="typing"><i /><i /><i /></span>
+              {busy && live && <div className="bub bot aif-live" style={{ whiteSpace: "pre-wrap" }} aria-live="polite" aria-busy="true">{live}</div>}
+              {busy && !live && <div className="bub bot aif-wait" role="status" aria-live="polite"><span className="typing"><i /><i /><i /></span>
                 {steps.length > 0 && <ol className="aif-path" aria-label="Steps so far">{steps.map((t, i) => <li key={i} className={i === steps.length - 1 ? "now" : "done"}>{t}</li>)}</ol>}</div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
                 <ul className="aif-qs" aria-label="Related questions">{relatedQs.map((q) => row(q))}</ul></div>}

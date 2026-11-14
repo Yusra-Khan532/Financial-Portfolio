@@ -136,6 +136,8 @@ def test_tool_list_is_fetched_once_and_cached_for_ten_minutes(monkeypatch):
     t = mcp_tools.monotonic()
     monkeypatch.setattr(mcp_tools, "monotonic", lambda: t + mcp_tools.CACHE_SECONDS + 1)
     chat()
+    for th in list(mcp_tools._refresh_thread):   # task #138: an old list answers at once and is refreshed in the background
+        th.join(timeout=5)
     assert mcp.listed == 2
 
 

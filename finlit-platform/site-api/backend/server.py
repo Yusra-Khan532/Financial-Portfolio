@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import Any, Dict, List, Optional
 from typing import Literal
 import uuid
+from types import SimpleNamespace
 from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from time import monotonic, time, sleep
@@ -271,6 +272,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     history: List[ChatTurn] = Field(default_factory=list, max_length=12)
     preset: bool = False                   # task #138: the visitor tapped one of the page's predefined questions (it stands on its own, whatever came before)
+    company: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9&.\-]{1,20}$")   # task #138: the company the panel is on, so its data is looked up before the model is asked
 
 
 class ChatResponse(BaseModel):
@@ -4192,6 +4194,32 @@ def gemini_finish_reason(response) -> str:
 CHAT_CALL_SECONDS = 12      # one Gemini call; a slower one moves on to the next model (25 s made a slow first model cost the visitor 48 s: 25 + the next model)
 CHAT_MODEL_COOLDOWN_SECONDS = 600   # a model that was busy or slow is skipped for this long, so the next visitor goes straight to a model that answers
 _chat_model_cooldown: dict = {}
+# Task #138: when Google says a model's DAILY limit is used up (429 RESOURCE_EXHAUSTED, "...PerDay..."), that model is left alone until the time Google
+# gives, and once every model is out the visitor is told at once, in plain words, instead of waiting 20 to 40 seconds for a general error.
+_chat_quota_until: Dict[str, float] = {}   # model -> wall-clock time (epoch seconds) its daily limit resets
+
+
+def daily_quota_seconds(exc: Exception) -> Optional[float]:
+    """Seconds until a used-up daily limit resets, read from Google's error, or None when the error is not a daily limit."""
+    text = str(exc)
+    if getattr(exc, "code", None) != 429 or not re.search(r"per ?day", text, re.I):
+        return None
+    m = re.search(r"retryDelay'?\"?\s*:\s*'?\"?(\d+(?:\.\d+)?)s", text) or re.search(r"retry in (\d+(?:\.\d+)?)s", text)
+    if m:
+        return float(m.group(1))
+    m = re.search(r"retry in (\d+)h(\d+)m", text)
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 if m else 3600.0
+
+
+def quota_message(models: List[str]) -> Optional[str]:
+    """The plain message when every model has used up its daily limit, with the India time the first one is back; None while any model is usable."""
+    now = time()
+    backs = [_chat_quota_until.get(m, 0) for m in models]
+    if not models or any(b <= now for b in backs):
+        return None
+    when = datetime.fromtimestamp(min(backs), ZoneInfo("Asia/Kolkata")).strftime("%-I:%M %p on %-d %b")
+    return (f"FinLit AI has used today's limit of new questions with its AI provider. Written and saved answers still work now; "
+            f"new questions work again from {when} (India time).")
 CHAT_TOTAL_SECONDS = 60     # the whole answer
 
 
@@ -4280,6 +4308,44 @@ async def _no_step(_text: str) -> None:
     return None
 
 
+async def _no_delta(_text: Optional[str]) -> None:
+    return None
+
+
+# Task #138 ("even the first question takes a lot of time"): a question about a company used to cost two or three model calls in a row (the model
+# asked for data, the site fetched it, the model was asked again). The company's core data is now looked up first, all at once (each look-up takes
+# a fraction of a second), and given to the model with the question, so most answers need a single model call. The tools stay available for anything else.
+CHAT_PREFETCH = (("get_company_profile", {}, "profile"), ("get_stock_quote", {}, "quote"), ("get_ratios", {}, "ratios"),
+                 ("get_financials", {"period": "annual"}, "annual statements"), ("get_financials", {"period": "quarterly"}, "quarterly statements"),
+                 ("get_shareholding", {}, "shareholding"), ("get_finlit_score", {}, "FinLit score"))
+CHAT_PREFETCH_SECONDS = 6.0
+CHAT_PREFETCH_CHARS = 60_000
+
+
+def chat_company(payload: "ChatRequest") -> Optional[str]:
+    """The company a question is about: the panel's company, or the one in "About XYZ:" that the page puts before a follow-up."""
+    if payload.company:
+        return payload.company.upper()
+    m = re.match(r"^about ([a-z0-9&.\-]{1,20}):", payload.message.strip(), re.I)
+    return m.group(1).upper() if m else None
+
+
+async def prefetch_company(symbol: str, client_ip: str) -> Dict[str, Any]:
+    """The company's core FinLit data, every look-up at the same time; whatever does not come back in time is left to the model's own tools."""
+    async def one(name: str, args: Dict[str, Any]):
+        return await run_in_threadpool(mcp_tools.call_tool, name, {"symbol": symbol, **args}, client_ip)
+    try:
+        results = await asyncio.wait_for(asyncio.gather(*(one(n, a) for n, a, _ in CHAT_PREFETCH), return_exceptions=True), CHAT_PREFETCH_SECONDS)
+    except asyncio.TimeoutError:
+        logger.warning("FinLit AI company data slow (event=chat_prefetch_timeout, symbol=%s)", symbol)
+        return {}
+    out: Dict[str, Any] = {}
+    for (name, _a, label), r in zip(CHAT_PREFETCH, results):
+        if isinstance(r, tuple) and r[0]:
+            out[label] = r[1]
+    return out
+
+
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request):
     return await chat_answer(payload, request, _no_step)
@@ -4294,9 +4360,12 @@ async def chat_stream(payload: ChatRequest, request: Request):
     async def step(text: str) -> None:
         await queue.put(("step", {"text": text}))
 
+    async def delta(text: Optional[str]) -> None:   # the answer as it is written; None takes back what was sent (the model turned to its tools after all)
+        await queue.put(("delta", {"text": text}) if text is not None else ("retract", {}))
+
     async def run() -> None:
         try:
-            result = await chat_answer(payload, request, step)
+            result = await chat_answer(payload, request, step, delta)
             await queue.put(("answer", result.model_dump()))
         except HTTPException as exc:
             await queue.put(("error", {"status": exc.status_code, "detail": exc.detail}))
@@ -4322,7 +4391,7 @@ async def chat_stream(payload: ChatRequest, request: Request):
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatResponse:
+async def chat_answer(payload: ChatRequest, request: Request, step, delta=_no_delta) -> ChatResponse:
     api_key = os.environ.get("GEMINI_API_KEY")
     logger.info(
         "FinLit AI chat handler reached (gemini_api_key_configured=%s, app_version=%s)",
@@ -4384,6 +4453,15 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
         except Exception as exc:
             logger.warning("FinLit AI tools not attached (event=chat_tools_unavailable, exception_type=%s)", type(exc).__name__)
             tool_config = None
+        prefetched_tools: List[str] = []
+        symbol = chat_company(payload)
+        if tool_config and symbol:
+            await step(f"Looking up FinLit data for {symbol}: profile, price, ratios, statements, shareholding and score")
+            data = await prefetch_company(symbol, client_ip)
+            if data:
+                block = json.dumps(data, separators=(",", ":"), ensure_ascii=False)[:CHAT_PREFETCH_CHARS]
+                contents[-1]["parts"].append({"text": f"FinLit data already looked up for {symbol} (use it first; call a tool only for something it does not contain):\n{block}"})
+                prefetched_tools = sorted({n for n, _a, label in CHAT_PREFETCH if label in data})
         # The FinLit question bank: when the message is one of the predefined questions (in the user's own words), tell the assistant exactly which one, so it answers that question in full from the data tools.
         bank_note, bank_id = "", None
         try:
@@ -4400,6 +4478,38 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
 
         chat_deadline = monotonic() + CHAT_TOTAL_SECONDS   # the whole answer, tool rounds included, stays inside the site's 75 s proxy limit
 
+        loop = asyncio.get_running_loop()
+        streaming = delta is not _no_delta and hasattr(client.models, "generate_content_stream")
+
+        async def call_model(name, config):
+            """One model call. On the streamed page the answer's words are sent as they are written (task #138); a call that turns to the
+            data tools is made again the ordinary way, so the tool round keeps the model's own turn exactly as it sent it."""
+            if not streaming:
+                return await run_in_threadpool(client.models.generate_content, model=name, contents=contents, config=config)
+
+            def run_stream():
+                pieces, last, sent = [], None, False
+                for chunk in client.models.generate_content_stream(model=name, contents=contents, config=config):
+                    last = chunk
+                    if getattr(chunk, "function_calls", None):
+                        return None, sent
+                    text = getattr(chunk, "text", None) or ""
+                    if text:
+                        pieces.append(text)
+                        sent = True
+                        asyncio.run_coroutine_threadsafe(delta(text), loop).result(timeout=5)
+                return SimpleNamespace(text="".join(pieces), function_calls=None, candidates=getattr(last, "candidates", None)), sent
+            try:
+                reply, sent = await run_in_threadpool(run_stream)
+            except Exception:
+                await delta(None)
+                raise
+            if reply is None:
+                if sent:
+                    await delta(None)
+                return await run_in_threadpool(client.models.generate_content, model=name, contents=contents, config=config)
+            return reply
+
         async def generate(output_limit, with_tools=True):
             options = {"system_instruction": system_instruction, "max_output_tokens": output_limit}
             thinking = getattr(types, "ThinkingConfig", None)
@@ -4409,8 +4519,12 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
                 options["tools"] = tool_config
                 options["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(disable=True)   # this code runs the tools, to count and limit them
             # Google answers 429/500/503 when a model is busy: the next model in the list takes the question, so the chat keeps working.
+            out_of_quota = quota_message(chat_models)
+            if out_of_quota:
+                raise HTTPException(status_code=503, detail=out_of_quota)
             now_m = monotonic()
-            usable = [m for m in chat_models if _chat_model_cooldown.get(m, 0) <= now_m] or list(chat_models)   # all cooling down: try them all rather than none
+            usable = [m for m in chat_models if _chat_quota_until.get(m, 0) <= time() and _chat_model_cooldown.get(m, 0) <= now_m] \
+                or [m for m in chat_models if _chat_quota_until.get(m, 0) <= time()]   # all cooling down: try them all rather than none (never one whose daily limit is used up)
             for position, name in enumerate(usable):
                 remaining = chat_deadline - monotonic()
                 if remaining < 4:
@@ -4421,12 +4535,7 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
                     call_options["http_options"] = http_options(timeout=int(min(CHAT_CALL_SECONDS, remaining) * 1000))
                 call_started = monotonic()
                 try:
-                    reply = await run_in_threadpool(
-                        client.models.generate_content,
-                        model=name,
-                        contents=contents,
-                        config=types.GenerateContentConfig(**call_options),
-                    )
+                    reply = await call_model(name, types.GenerateContentConfig(**call_options))
                     logger.info("FinLit AI model answered (event=gemini_call_ok, model_id=%s, seconds=%.1f)", name, monotonic() - call_started)
                     return reply
                 except Exception as exc:
@@ -4435,7 +4544,14 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
                     logger.info("FinLit AI model call failed (event=gemini_call_failed, model_id=%s, seconds=%.1f, provider_status=%s)", name, monotonic() - call_started, getattr(exc, "code", None))
                     if busy:
                         _chat_model_cooldown[name] = monotonic() + CHAT_MODEL_COOLDOWN_SECONDS
+                    reset_in = daily_quota_seconds(exc)
+                    if reset_in is not None:
+                        _chat_quota_until[name] = time() + reset_in
+                        logger.warning("FinLit AI model daily limit used up (event=gemini_daily_quota, model_id=%s, resets_in_s=%.0f)", name, reset_in)
                     if not busy or position == len(usable) - 1:
+                        out_of_quota = quota_message(chat_models)
+                        if out_of_quota:
+                            raise HTTPException(status_code=503, detail=out_of_quota)
                         raise
                     logger.warning("FinLit AI model busy or slow, trying the next one (event=gemini_model_fallback, provider_status=%s, slow=%s, model_id=%s)", getattr(exc, "code", None), slow, name)
 
@@ -4454,6 +4570,7 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
                     bounded_history_length,
                 )
                 attempt = 2
+                await delta(None)   # the cut-short text is taken back; the longer answer is sent from the start
                 result = await generate(CHAT_RETRY_OUTPUT_TOKENS, with_tools)
                 finish_reason = gemini_finish_reason(result)
             if finish_reason == "MAX_TOKENS":
@@ -4486,11 +4603,14 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
             candidates = getattr(result, "candidates", None) or []
             model_turn = getattr(candidates[0], "content", None) if candidates else None
             contents.append(model_turn or {"role": "model", "parts": [{"function_call": {"name": c.name, "args": dict(c.args or {})}} for c in wanted]})
+            # Task #138: the look-ups of one round run at the same time, not one after another.
+            for call in wanted[: mcp_tools.MAX_CALLS_PER_ROUND]:
+                await step(tool_step(call.name, dict(call.args or {})))
+            outcomes = await asyncio.gather(*(run_in_threadpool(mcp_tools.call_tool, call.name, dict(call.args or {}), client_ip) for call in wanted[: mcp_tools.MAX_CALLS_PER_ROUND]))
             replies = []
             for position, call in enumerate(wanted):
                 if position < mcp_tools.MAX_CALLS_PER_ROUND:
-                    await step(tool_step(call.name, dict(call.args or {})))
-                    succeeded, output = await run_in_threadpool(mcp_tools.call_tool, call.name, dict(call.args or {}), client_ip)
+                    succeeded, output = outcomes[position]
                     if succeeded and call.name not in tools_used:
                         tools_used.append(call.name)
                 else:
@@ -4506,6 +4626,7 @@ async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatRespo
         answer = plain_chat_text(getattr(result, "text", None) or "")
         if gave_up and not answer:
             answer = CHAT_TOOL_FALLBACK
+        tools_used = prefetched_tools + [t for t in tools_used if t not in prefetched_tools]
         if tool_config and tools_used:
             answer = strip_recommendations(answer) or CHAT_TOOL_FALLBACK
         if not answer:
@@ -4668,6 +4789,12 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Cache-Control", "Pragma"],
     max_age=600,
 )
+
+
+@app.on_event("startup")
+async def warm_chat_tools():
+    """Task #138: the FinLit data-tool list is loaded at start-up, in the background, so the first question does not wait for it."""
+    asyncio.get_running_loop().run_in_executor(None, mcp_tools.warm)
 
 
 @app.on_event("startup")
