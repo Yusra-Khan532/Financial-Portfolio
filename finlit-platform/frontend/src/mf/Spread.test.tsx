@@ -35,18 +35,18 @@ const trend = {
 
 describe("SpreadSection trend", () => {
   it("Gold sees the trend card and a Silver member sees the lock note, never the numbers", () => {
-    const { unmount } = render(<MemoryRouter><SpreadSection d={{ ...d, trend }} /></MemoryRouter>);
+    const { unmount } = render(<MemoryRouter><SpreadSection d={{ ...d, trend }} part="mix" /></MemoryRouter>);
     expect(screen.getByText("8 of 10 stocks rated")).toBeTruthy();
     expect(screen.getByText(/2 stocks are held through two or more funds/)).toBeTruthy();
     unmount();
-    render(<MemoryRouter><SpreadSection d={{ ...d, trendLocked: true }} /></MemoryRouter>);
+    render(<MemoryRouter><SpreadSection d={{ ...d, trendLocked: true }} part="mix" /></MemoryRouter>);
     expect(screen.getByText(/part of the Gold plan/)).toBeTruthy();
   });
 });
 
 describe("SpreadSection", () => {
   it("shows words and plain figures, and names the funds whose holdings are missing", () => {
-    render(<MemoryRouter><SpreadSection d={d} /></MemoryRouter>);
+    render(<MemoryRouter><SpreadSection d={d} part="mix" /></MemoryRouter>);
     expect(screen.getByRole("heading", { name: "Partly spread" })).toBeTruthy();
     expect(screen.getAllByText(/Gamma Liquid/).length).toBeGreaterThan(0);
     expect(screen.getByText(/share the "MNC" theme/)).toBeTruthy();

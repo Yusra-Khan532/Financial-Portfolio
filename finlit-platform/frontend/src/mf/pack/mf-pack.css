@@ -1,0 +1,44 @@
+/* The MF portfolio as the final pages pack draws it (board 15). Colours come from sectors-pack.css (sp- tokens). */
+.mfp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 24px; align-items: start; }
+.mfp-head h1 { margin: 6px 0 10px; } .mfp-plan span { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--s2); font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--sp-mute); }
+.mfp-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.mfp-add .mp-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .mfp-add .mp-search { flex: 1 1 220px; min-width: 0; } .mfp-add .mp-search input { width: 100%; }
+.mfp-add .mp-picked { flex: 1 1 220px; min-width: 0; } .mfp-add2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--sp-mute); }
+.mfp-import { margin: 0 0 14px; }
+
+.mfp-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+.mfp-tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 14px; }
+.mfp-good { background: var(--sp-good-bg); border-color: var(--sp-good-bd); } .mfp-info { background: color-mix(in srgb, #2F5A9E 8%, var(--sp-panel)); border-color: color-mix(in srgb, #2F5A9E 22%, transparent); }
+.mfp-watch { background: var(--sp-watch-bg); border-color: var(--sp-watch-bd); } .mfp-bad { background: var(--sp-bad-bg); border-color: var(--sp-bad-bd); } .mfp-mute { background: var(--s2); }
+.mfp-tile-k { display: flex; align-items: center; gap: 4px; margin: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.mfp-good .mfp-tile-k { color: var(--sp-good); } .mfp-info .mfp-tile-k { color: #2F5A9E; } .mfp-bad .mfp-tile-k { color: var(--sp-bad); }
+:root[data-theme="dark"] .mfp-info .mfp-tile-k { color: #9DB8E6; }
+.mfp-tile-v { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--sp-ink); } .mfp-tile-x { margin: 0; font-size: 13px; line-height: 1.4; color: var(--sp-ink); }
+.mfp-tile-go { all: unset; margin-top: auto; padding-top: 4px; font: 700 13px var(--sans); color: #0E6471; cursor: pointer; } .mfp-tile-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mfp-bad .mfp-tile-go { color: var(--sp-bad); } :root[data-theme="dark"] .mfp-tile-go { color: #7CC7D2; }
+
+.mfp-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 14px; }
+.mfp-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); text-align: left; cursor: pointer; }
+.mfp-tabs button b { font: 700 16px var(--sans); } .mfp-tabs button small { font-size: 13px; color: var(--sp-mute); }
+.mfp-tabs button[aria-selected="true"] { background: #0E6471; border-color: #0E6471; color: #fff; } .mfp-tabs button[aria-selected="true"] small { color: rgba(255, 255, 255, .85); }
+.mfp-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.mfp-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.mfp-fund b { color: var(--sp-ink); } .mfp-sub { display: block; font-size: 12px; font-weight: 400; color: var(--sp-mute); }
+.mfp-ft th[scope="row"], .mfp-ut th[scope="row"] { text-align: left; text-transform: none; letter-spacing: 0; font: 600 14px var(--sans); color: var(--sp-ink); }
+.mfp-fund { color: var(--sp-ink); text-decoration: none; } .mfp-fund:hover { text-decoration: underline; }
+.mfp-ut .ip-sym small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.mfp-h b { font-variant-numeric: tabular-nums; } .mfp-h span { text-transform: none; letter-spacing: 0; } .mfp-amber { color: var(--sp-watch); font-weight: 600; }
+.mfp-lock { padding: 2px 8px; border: 1px solid var(--sp-line); border-radius: 999px; background: var(--s2); color: var(--sp-ink); font: 600 12px var(--sans); cursor: pointer; }
+.mfp-act .btn { min-height: 28px; padding: 0 8px; }
+.mfp-peer { display: inline-block; padding: 1px 8px; border-radius: 999px; font: 700 12px var(--sans); }
+.mfp-peer.leader { background: var(--sp-good-bg); color: var(--sp-good); } .mfp-peer.in_line { background: var(--s2); color: var(--sp-ink); } .mfp-peer.laggard { background: var(--sp-watch-bg); color: var(--sp-watch); }
+.mfp-next { display: block; font-size: 12px; color: #2F5A9E; } :root[data-theme="dark"] .mfp-next { color: #9DB8E6; }
+.mfp-held { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 12px; color: var(--sp-mute); } .mfp-held abbr { text-decoration: none; white-space: nowrap; }
+.mfp-held abbr + abbr::before { content: "· "; }
+.mfp-rtiles { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 10px; }
+
+@media (max-width: 1100px) { .mfp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .mfp-head { grid-template-columns: minmax(0, 1fr); } .mfp-tabs { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .mfp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mfp-rtiles { grid-template-columns: minmax(0, 1fr); } .mfp-tools { justify-content: flex-start; } }
+.mfp .sp-scroll { position: relative; }   /* the screen-reader labels inside a table stay inside its scroll box on a phone */
