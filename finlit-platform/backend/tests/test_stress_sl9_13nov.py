@@ -166,3 +166,42 @@ async def test_the_nightly_run_rebuilds_pages_not_on_the_latest_close_first(stor
     res = await service.refresh_stress(store, object(), max_minutes=5)
     assert calls == [("ASIANPAINT", True)] and res["skipped_built_today"] == 1
     await _clean(store)
+
+
+async def test_sl10_a_company_with_prices_only_from_2020_gets_its_2018_closes_once(store, monkeypatch):  # noqa: F811
+    """14 Nov 2026, the live Reliance page: the chart's prices start in 2020, so the 2018 row said "Listed later" for a company listed decades ago;
+    the older prices were fetched only when nothing before 2022 was on file."""
+    from types import SimpleNamespace
+    from finlit import history as hist, indices
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM price_history_long WHERE symbol = 'ZZREL'"); await conn.execute("DELETE FROM snapshots WHERE symbol = 'ZZREL'")
+        await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ('ZZREL', 'consolidated', 'price-MAX', $1, 'e', now())",
+                           json.dumps({"series": {"t": ["2020-01-17", "2020-03-20", "2022-02-04"], "c": [1500.0, 1000.0, 2400.0]}}))
+    asked = []
+
+    class Client:
+        async def get(self, path, params, **kw):
+            asked.append((path, params["from"]))
+            return {}
+    monkeypatch.setattr(indices, "_client", lambda a: Client())
+    monkeypatch.setattr(hist, "weekly_closes", lambda payload: ([date(2018, 8, 31), date(2018, 10, 26)], [1250.0, 1050.0]))
+    app = SimpleNamespace(state=SimpleNamespace(store=store))
+    got = await service.weekly_closes(store, "ZZREL", app)
+    assert asked == [("/daily-quotes/ZZREL", "2018")] and got["2018-08-31"] == 1250.0 and got["2020-03-20"] == 1000.0
+    rows = P.history({"ZZREL": got}, {})
+    assert rows[0]["ZZREL"] is not None and rows[0]["ZZREL"]["fall_pct"] < 0        # the 2018 row has the company now, not "Listed later"
+    asked.clear()
+    await service.weekly_closes(store, "ZZREL", app)
+    assert asked == []                                                              # kept: asked once
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM price_history_long WHERE symbol = 'ZZREL'"); await conn.execute("DELETE FROM snapshots WHERE symbol = 'ZZREL'")
+
+
+def test_sl10_a_stored_page_with_a_blank_episode_is_refreshed_behind_the_reader():
+    from datetime import timedelta
+    now = datetime(2026, 11, 14, 12, tzinfo=timezone.utc)
+    rows = [{"episode": "2018", "from": "2018-08-28", "to": "2018-10-26", "nifty": {"fall_pct": -14.6}, "RELIANCE": None},
+            {"episode": "2020", "from": "2020-01-14", "to": "2020-03-23", "nifty": {"fall_pct": -38.4}, "RELIANCE": {"fall_pct": -35.6}}]
+    rec = lambda h: {"built_at": now - timedelta(hours=h), "payload": {"company": {"base_end": "2026-09-30"}, "history": rows}}   # noqa: E731
+    assert not service.page_is_stale(rec(1), "2026-09-30", now)          # not on every visit
+    assert service.page_is_stale(rec(8), "2026-09-30", now)              # a few hours old with a blank episode: rebuilt behind the reader

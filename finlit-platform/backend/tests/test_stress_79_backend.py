@@ -456,8 +456,8 @@ async def test_nifty_closes_add_the_older_years_a_year_at_a_time_and_keep_them_o
 def test_a_stored_page_without_any_company_prices_is_rebuilt_once_it_is_a_few_hours_old():
     now = datetime(2026, 11, 13, 12, tzinfo=timezone.utc)
     empty = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": None}]
-    filled = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": {"fall_pct": -10.0}}]
+    filled = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": {"fall_pct": -12.0}, "ASIANPAINT": {"fall_pct": -10.0}}]
     rec = lambda h, hist: {"built_at": now - timedelta(hours=h), "payload": {"company": {"base_end": "2026-09-30"}, "history": hist}}   # noqa: E731
     assert not service.page_is_stale(rec(1, empty), "2026-09-30", now)          # not on every visit
     assert service.page_is_stale(rec(8, empty), "2026-09-30", now)
-    assert not service.page_is_stale(rec(8, filled), "2026-09-30", now)
+    assert not service.page_is_stale(rec(8, filled), "2026-09-30", now)          # every episode filled (a blank Nifty column also counts as a gap since SL-10)
