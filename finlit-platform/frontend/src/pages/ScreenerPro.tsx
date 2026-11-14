@@ -192,6 +192,16 @@ export function ScreenerPro() {
     setF(norm({})); setOrder([]); setFrom(null); setQ("");
     if (ratios.some((r) => r.op !== "none")) setRatios(ratios.map((r) => (r.op === "none" ? r : { ...r, op: "none" as const })));
   };
+  // "Added · Edit" in the filter list (task #144): close the list, open the rules panel, bring that rule's card into view and put the cursor in its From box
+  const goToRule = (m: MetricInfo) => {
+    setPicker(false); setRulesOpen(true);
+    setHot(m.key); window.setTimeout(() => setHot((h) => (h === m.key ? null : h)), 1400);
+    window.setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(`[data-rule="${m.key}"]`);   // filter keys are lower-case letters, digits and _ (the catalogue)
+      card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      (card?.querySelector<HTMLInputElement>("input[type=number]") ?? card?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
+    }, 80);
+  };
   // a rule added but with no range yet is still chosen: it is counted and kept until removed or cleared (task #75)
   const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => F.ranges[x]); }).length;
 
@@ -444,7 +454,7 @@ export function ScreenerPro() {
       </div>
       {rd && data && <RatioDrawer groups={data.groups} byKey={byKey} start={rd.start} ratiosOn={ratios.length} firstSymbols={rows.map((r) => r.symbol)} countWith={countWith} currentTotal={res.data ? total : null}
         onAdd={addRatio} onSave={saveRatio} onClose={() => setRd(null)} onUseFilter={(m) => { setRd(null); addRule(m); }} />}
-      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} ask={ask} onClose={() => setPicker(false)} startGroup={picker.group} startQuery={picker.q} />}
+      {picker && data && <RulePicker groups={data.groups} byKey={byKey} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} go={goToRule} ask={ask} onClose={() => setPicker(false)} startGroup={picker.group} startQuery={picker.q} />}
       {chart && <ChartPanel key={chart.symbol} row={chart} onClose={closeChart} onStep={step} extra={<RuleFigures symbol={chart.symbol} ranges={F.ranges} byKey={byKey} />} />}
     </>
   );

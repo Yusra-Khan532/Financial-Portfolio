@@ -287,6 +287,7 @@ describe("the table (file 04 §5)", () => {
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
+<<<<<<< HEAD
   it("Gold opens with the market cap and the two technical views; Fundamental Prism score is one click away in the Columns menu (tasks #145, #141)", async () => {
     const g = catalog(false, "gold");
     st.cat = { ...g, bandModel: "prism", standardColumns: ["market_cap", "prism_st_score", "prism_lt_score"],
@@ -311,6 +312,47 @@ describe("the table (file 04 §5)", () => {
       expect([...panel.querySelectorAll(".ssw-sec h3")].map((h) => h.textContent)).not.toContainEqual(expect.stringMatching(/rating/i));
       v.unmount();
     }
+=======
+  it("task #144: Gold's Prism total is 'Fundamental Prism score'; once added, 'Added · Edit' takes you to its card, whose boxes keep 0 to 100", async () => {
+    const g = catalog(false, "gold");
+    st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final"],
+      bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })),
+      groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [
+        M("prism_final", "Fundamental Prism score", { unit: "pts", better: "higher", tier: "gold", scale: [0, 100] }),
+        M("prism_st_score", "Prism short-term view", { unit: "pts", better: "higher", tier: "gold", scale: [-100, 100] })] }] };
+    mount(); await ready();
+    await addRule("Fundamental Prism score");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a rule" })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));             // open the list again: the filter is there, marked as added, and it can be pressed
+    const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
+    fireEvent.change(within(dlg).getByRole("searchbox", { name: "Find a filter" }), { target: { value: "Prism Fundamental" } });
+    const added = within(dlg).getByRole("button", { name: "Fundamental Prism score is added: go to its rule" });
+    expect(added.textContent).toBe("Added · Edit");
+    fireEvent.click(added);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a rule" })).toBeNull());   // the list closes
+    const from = screen.getByRole("spinbutton", { name: "Fundamental Prism score from" }), to = screen.getByRole("spinbutton", { name: "Fundamental Prism score to" });
+    await waitFor(() => expect(document.activeElement).toBe(from));                    // the cursor is in its From box, ready to type
+    expect(from.getAttribute("min")).toBe("0"); expect(from.getAttribute("max")).toBe("100");
+    expect(from.closest("[data-rule]")!.querySelector(".ssr-scale")!.textContent).toBe("0 to 100");
+    fireEvent.change(from, { target: { value: "60" } }); fireEvent.change(to, { target: { value: "150" } });   // a figure past the scale is kept at its end
+    await waitFor(() => expect(last().filters.prism_final).toEqual({ min: 60, max: 100 }));
+    fireEvent.change(from, { target: { value: "-5" } });
+    await waitFor(() => expect(last().filters.prism_final).toEqual({ min: 0, max: 100 }));
+  });
+
+  it("task #144: a technical view keeps -100 to +100, and a figure with no fixed scale is not limited", async () => {
+    const g = catalog(false, "gold");
+    st.cat = { ...g, bandModel: "prism", standardColumns: STD, groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [
+      M("prism_st_score", "Prism short-term view", { unit: "pts", better: "higher", tier: "gold", scale: [-100, 100] })] }] };
+    mount(); await ready();
+    await addRule("Prism short-term view");
+    const from = await screen.findByRole("spinbutton", { name: "Prism short-term view from" });
+    expect(from.closest("[data-rule]")!.querySelector(".ssr-scale")!.textContent).toBe("\u2212100 to +100");
+    fireEvent.change(from, { target: { value: "-250" } });
+    await waitFor(() => expect(last().filters.prism_st_score?.min).toBe(-100));
+    await addRule("Dividend yield");
+    expect((await screen.findByRole("spinbutton", { name: "Dividend yield from" })).hasAttribute("max")).toBe(false);
+>>>>>>> 9afbde9 (Task #144: 'Prism Fundamental score'; 'Added · Edit' opens the rule; score boxes keep their 0 to 100 scale)
   });
 
   it("on the Basic plan only the columns the plan can see are asked for", async () => {
