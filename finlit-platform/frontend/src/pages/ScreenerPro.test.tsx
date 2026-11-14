@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cellTone, chipColumn, colourColumns, colourNote, decodeState, defaultColumns, emptyReason, encodeState, norm, standardColumns, tableColumns, toBody, type Catalog, type MetricInfo } from "../lib/proscreen";
+import { cellTone, chipColumn, colourColumns, colourNote, decodeState, defaultColumns, emptyReason, encodeRatios, encodeState, norm, standardColumns, tableColumns, toBody, type Catalog, type MetricInfo } from "../lib/proscreen";
 import { quickRanges, scaleOf, startRange } from "../components/screener/RuleCard";
 
 const ui = vi.hoisted(() => ({ upgrade: vi.fn(), toast: vi.fn() }));
@@ -459,6 +459,32 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     await waitFor(() => expect(last().filters).toEqual({ pe: { max: 15 } }));
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(last().filters).toEqual({})); expect(last().cats!.cap).toEqual([]);
+  });
+
+  it("Clear all beside the active filters, once two or more are on: back to the normal screen (task #154)", async () => {
+    mount(); await ready();
+    const row = () => document.querySelector(".ssw-actv") as HTMLElement | null;
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Large 204/ }));
+    await waitFor(() => expect(row()).toBeTruthy());
+    expect(within(row()!).queryByRole("button", { name: /^Clear all/ })).toBeNull();               // one filter: its own × clears it, no Clear all yet
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Mid 386/ }));
+    const clear = await within(row()!).findByRole("button", { name: "Clear all 2 filters" });       // the team's screenshot: Large cap and Mid cap
+    expect(clear.textContent).toBe("Clear all");
+    expect(row()!.lastElementChild).toBe(clear);                                                    // at the end of the chips
+    fireEvent.click(clear);
+    await waitFor(() => expect(last().cats!.cap).toEqual([]));
+    expect(row()).toBeNull();                                                                       // no chips left: the normal screen
+  });
+  it("Clear all takes away rules, a custom ratio's filter (the ratio stays as a column) and the name search (task #154)", async () => {
+    const cr = encodeRatios([{ id: "r1", num: "pe", den: "roe", show: "times", op: "gt", a: 1.5, name: "PE to ROE" }]);
+    mount("?s=" + encodeState({ ...norm({ ranges: { roe: { min: 40 } } }), caps: ["Large"] }, "market_cap", "desc") + "&cr=" + encodeURIComponent(cr)); await ready();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search the results by name or symbol" }), { target: { value: "tata" } });
+    const row = document.querySelector(".ssw-actv") as HTMLElement;
+    fireEvent.click(await within(row).findByRole("button", { name: /^Clear all [0-9]+ filters$/ }));
+    await waitFor(() => expect(last().filters).toEqual({})); expect(last().cats!.cap).toEqual([]);
+    expect((screen.getByRole("searchbox", { name: "Search the results by name or symbol" }) as HTMLInputElement).value).toBe("");
+    expect(screen.getByText("PE to ROE (column)")).toBeTruthy();                                    // the member's own ratio is kept, only its filter went
+    expect(document.querySelector(".ssw-actv button.ssw-clear")).toBeNull();                        // a column is not a filter: no Clear all for it alone
   });
 
   it("when nothing passes, the page names the tightest rule and removes it on click", async () => {
