@@ -35,7 +35,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 from html import escape
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from starlette.concurrency import run_in_threadpool
 try:
@@ -270,11 +270,13 @@ class ChatTurn(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     history: List[ChatTurn] = Field(default_factory=list, max_length=12)
+    preset: bool = False                   # task #138: the visitor tapped one of the page's predefined questions (it stands on its own, whatever came before)
 
 
 class ChatResponse(BaseModel):
     response: str
     question_id: Optional[str] = None      # the FinLit question-bank question this message was recognised as, when it was recognised with confidence
+    saved_at: Optional[str] = None         # task #138: set when the answer came from FinLit's saved answers (ISO time it was written), so the page can say so
 
 
 class ContentInput(BaseModel):
@@ -4193,8 +4195,134 @@ _chat_model_cooldown: dict = {}
 CHAT_TOTAL_SECONDS = 60     # the whole answer
 
 
+# Task #138 (14 Nov 2026, "finlit ai speed"): FinLit's saved answers. A predefined question (one of the question bank's, or any question asked without earlier
+# turns) is answered once by the model and kept: a question about a company for 12 hours (its figures change with the day's data), a general one for 7 days.
+# The next visitor who asks it gets the saved answer at once, even while the model is busy. Kept in MongoDB (collection chat_answers) and in this process;
+# a slow or missing database never slows the chat (each look-up gives up after a second and a failing database is skipped for a while).
+CHAT_STORE_COMPANY_SECONDS = 12 * 3600
+CHAT_STORE_GENERAL_SECONDS = 7 * 86400
+CHAT_STORE_DB_SECONDS = 1.0
+CHAT_STORE_MEMO_MAX = 500
+_chat_store_memo: Dict[str, Dict[str, Any]] = {}
+_chat_store_db_off_until = [0.0]
+COMPANY_GROUPS = {"Company", "Fund", "ETF", "Earnings"}
+
+
+def chat_store_key(message: str) -> str:
+    """The same question in a different case, spacing or end mark is the same saved answer."""
+    t = re.sub(r"\s+", " ", (message or "").strip().lower())
+    return re.sub(r"[\s?.!]+$", "", t)
+
+
+def chat_store_seconds(message: str, group: Optional[str]) -> int:
+    about_company = bool(re.match(r"^about [a-z0-9&.\-]{1,20}:", (message or "").strip(), re.I)) or (group in COMPANY_GROUPS)
+    return CHAT_STORE_COMPANY_SECONDS if about_company else CHAT_STORE_GENERAL_SECONDS
+
+
+def _chat_store_db_on() -> bool:
+    return os.environ.get("CHAT_ANSWER_STORE", "on").strip().lower() != "off" and monotonic() >= _chat_store_db_off_until[0]
+
+
+async def chat_store_get(key: str) -> Optional[Dict[str, Any]]:
+    now = time()
+    hit = _chat_store_memo.get(key)
+    if hit and hit["expires"] > now:
+        return hit
+    if not _chat_store_db_on():
+        return None
+    try:
+        doc = await asyncio.wait_for(db.chat_answers.find_one({"_id": key}), CHAT_STORE_DB_SECONDS)
+    except Exception as exc:
+        _chat_store_db_off_until[0] = monotonic() + 300
+        logger.warning("FinLit AI saved answers unavailable (event=chat_store_error, exception_type=%s)", type(exc).__name__)
+        return None
+    if not doc or float(doc.get("expires") or 0) <= now:
+        return None
+    hit = {"answer": doc.get("answer") or "", "question_id": doc.get("question_id"), "saved_at": doc.get("saved_at"), "expires": float(doc["expires"])}
+    if hit["answer"]:
+        _chat_store_remember(key, hit)
+        return hit
+    return None
+
+
+def _chat_store_remember(key: str, hit: Dict[str, Any]) -> None:
+    if len(_chat_store_memo) >= CHAT_STORE_MEMO_MAX:
+        for k in sorted(_chat_store_memo, key=lambda k: _chat_store_memo[k]["expires"])[: CHAT_STORE_MEMO_MAX // 5]:
+            _chat_store_memo.pop(k, None)
+    _chat_store_memo[key] = hit
+
+
+async def chat_store_put(key: str, answer: str, question_id: Optional[str], seconds: int) -> None:
+    saved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    hit = {"answer": answer, "question_id": question_id, "saved_at": saved_at, "expires": time() + seconds}
+    _chat_store_remember(key, hit)
+    if not _chat_store_db_on():
+        return
+    try:
+        await asyncio.wait_for(db.chat_answers.replace_one({"_id": key}, {"_id": key, **hit}, upsert=True), CHAT_STORE_DB_SECONDS)
+    except Exception as exc:
+        _chat_store_db_off_until[0] = monotonic() + 300
+        logger.warning("FinLit AI answer not saved (event=chat_store_error, exception_type=%s)", type(exc).__name__)
+
+
+# What the visitor sees while an answer is prepared (task #138: "the path to the answer"): one plain line per real step, never an invented one.
+TOOL_STEP = {"company_summary": "the company's summary", "company_financials": "the company's statements", "company_ratios": "the company's ratios",
+             "company_price": "the share price history", "company_ownership": "the shareholding", "company_events": "results and corporate actions"}
+
+
+def tool_step(name: str, args: Dict[str, Any]) -> str:
+    what = TOOL_STEP.get(name) or name.replace("_", " ")
+    sym = next((str(args[k]) for k in ("symbol", "company", "ticker", "query") if args.get(k)), "")
+    return f"Looking up FinLit data: {what}" + (f" ({sym.upper()[:20]})" if sym else "")
+
+
+async def _no_step(_text: str) -> None:
+    return None
+
+
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request):
+    return await chat_answer(payload, request, _no_step)
+
+
+@api_router.post("/chat/stream")
+async def chat_stream(payload: ChatRequest, request: Request):
+    """The same answer as /chat, sent as server-sent events: one `step` event per real step (saved answer, question recognised, each data look-up,
+    writing), then one `answer` event (the /chat body) or one `error` event ({status, detail}). The page shows the steps while it waits (task #138)."""
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def step(text: str) -> None:
+        await queue.put(("step", {"text": text}))
+
+    async def run() -> None:
+        try:
+            result = await chat_answer(payload, request, step)
+            await queue.put(("answer", result.model_dump()))
+        except HTTPException as exc:
+            await queue.put(("error", {"status": exc.status_code, "detail": exc.detail}))
+        except Exception:
+            await queue.put(("error", {"status": 502, "detail": "FinLit AI couldn’t respond just now. Please try again."}))
+        finally:
+            await queue.put(None)
+
+    task = asyncio.create_task(run())
+
+    async def events():
+        try:
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                kind, data = item
+                yield f"event: {kind}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+async def chat_answer(payload: ChatRequest, request: Request, step) -> ChatResponse:
     api_key = os.environ.get("GEMINI_API_KEY")
     logger.info(
         "FinLit AI chat handler reached (gemini_api_key_configured=%s, app_version=%s)",
@@ -4206,6 +4334,22 @@ async def chat(payload: ChatRequest, request: Request):
     client_ip = client_identifier(request)
     if rate_limit_exceeded(_chat_attempts, client_ip, monotonic(), CHAT_MAX_REQUESTS_PER_MINUTE, CHAT_RATE_WINDOW_SECONDS):
         raise HTTPException(status_code=429, detail="You’ve sent several messages. Please wait a minute and try again.")
+
+    # Task #138: a predefined question (from the question bank, or asked without earlier turns) is answered from FinLit's saved answers when one is kept.
+    early = None
+    try:
+        early = question_matcher.bank().match(payload.message)
+    except Exception:
+        early = None
+    storable = payload.preset or not any(t.content.strip() for t in payload.history)   # a typed follow-up depends on the earlier turns: always asked afresh
+    store_key = chat_store_key(payload.message) if storable else None
+    if store_key:
+        await step("Checking FinLit's saved answers")
+        kept = await chat_store_get(store_key)
+        if kept:
+            await step("Found a saved answer")
+            logger.info("FinLit AI saved answer used (event=chat_store_hit, question_id=%s)", kept.get("question_id"))
+            return ChatResponse(response=kept["answer"], question_id=kept.get("question_id"), saved_at=kept.get("saved_at"))
 
     if not api_key:
         logger.warning("FinLit AI unavailable: GEMINI_API_KEY is not configured")
@@ -4243,7 +4387,9 @@ async def chat(payload: ChatRequest, request: Request):
         # The FinLit question bank: when the message is one of the predefined questions (in the user's own words), tell the assistant exactly which one, so it answers that question in full from the data tools.
         bank_note, bank_id = "", None
         try:
-            found = question_matcher.bank().match(payload.message)
+            found = early or question_matcher.bank().match(payload.message)
+            if found.confidence == "high" and found.best:
+                await step("Recognised a FinLit question")
             bank_note = question_matcher.directive(found) if tool_config or found.best and found.best.group == "FinLit" else ""
             if found.confidence == "high" and found.best: bank_id = found.best.id
             if found.best:
@@ -4326,6 +4472,7 @@ async def chat(payload: ChatRequest, request: Request):
                 )
             return result, finish_reason
 
+        await step("Asking FinLit AI")
         result, finish_reason = await complete()
         tools_used, tool_rounds, gave_up = [], 0, False
         while tool_config:
@@ -4342,6 +4489,7 @@ async def chat(payload: ChatRequest, request: Request):
             replies = []
             for position, call in enumerate(wanted):
                 if position < mcp_tools.MAX_CALLS_PER_ROUND:
+                    await step(tool_step(call.name, dict(call.args or {})))
                     succeeded, output = await run_in_threadpool(mcp_tools.call_tool, call.name, dict(call.args or {}), client_ip)
                     if succeeded and call.name not in tools_used:
                         tools_used.append(call.name)
@@ -4349,6 +4497,7 @@ async def chat(payload: ChatRequest, request: Request):
                     output = {"error": "Too many tool calls at once; ask for fewer."}
                 replies.append({"function_response": {"name": call.name, "response": output}})
             contents.append({"role": "user", "parts": replies})
+            await step("Reading the data and writing the answer")
             result, finish_reason = await complete()
         if gave_up:
             logger.warning("FinLit AI tool round limit reached (event=chat_tool_round_limit, tool_rounds=%s)", tool_rounds)
@@ -4364,6 +4513,8 @@ async def chat(payload: ChatRequest, request: Request):
         if tools_used:
             answer += "\n\nData from FinLit tools: " + ", ".join(tools_used)
         logger.info("FinLit AI response ready (finish_reason=%s, response_chars=%s, tool_rounds=%s, tools_used=%s)", finish_reason, len(answer), tool_rounds, ",".join(tools_used) or "none")
+        if store_key and not gave_up and answer != CHAT_TOOL_FALLBACK:   # a full answer is kept for the next visitor; a cut-short one never is
+            await chat_store_put(store_key, answer, bank_id, chat_store_seconds(payload.message, early.best.group if early and early.best else None))
         return ChatResponse(response=answer, question_id=bank_id)
     except HTTPException:
         raise

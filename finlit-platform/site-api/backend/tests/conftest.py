@@ -14,9 +14,18 @@ os.environ["CMS_ADMIN_EMAIL"] = "admin@example.test"
 os.environ["CMS_ADMIN_PASSWORD_HASH"] = "not-used-by-these-tests"
 os.environ["RESEND_API_KEY"] = "test-resend-key"
 os.environ["CONTACT_RECIPIENT_EMAIL"] = "owner@example.com"
+os.environ["CHAT_ANSWER_STORE"] = "off"   # task #138: the saved answers stay in this process only (no database in tests)
 os.environ["MCP_INTERNAL_URL"] = "off"   # the chat never reaches for a data endpoint unless a test supplies one
 
 from backend import server
+
+
+@pytest.fixture(autouse=True)
+def _fresh_chat_store():
+    """Every test starts with no saved FinLit AI answers (task #138), so a test that asks the same question twice sees the model each time unless it means to."""
+    server._chat_store_memo.clear()
+    yield
+    server._chat_store_memo.clear()
 
 
 class FakeCursor:

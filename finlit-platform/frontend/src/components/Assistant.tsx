@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
-import { askAssistant } from "../lib/siteApi";
+import { askAssistantStream } from "../lib/siteApi";
 import { apiGet, type SearchIndex } from "../lib/api";
 import {
   CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions, writtenAnswer,
@@ -16,7 +16,7 @@ import "../styles/ask-ai.css";
 
 /** Fired by the header button; the assistant panel listens for it. */
 export const OPEN_AI = "finlit:open-ai";
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; savedAt?: string | null };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -31,6 +31,9 @@ async function findCompanies(q: string): Promise<{ symbol: string; name: string 
   const has = rows.filter((r) => !starts.includes(r) && r.name.toLowerCase().includes(t));
   return [...starts, ...has].slice(0, 6);
 }
+
+/** When a saved answer was written, in India time (task #138: data shows its date). */
+const keptAt = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "earlier" : d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 
 const companyOf = (pathname: string) => { const m = /^\/stocks\/([A-Za-z0-9&.\-]{1,20})\/?$/.exec(pathname); return m ? decodeURIComponent(m[1]).toUpperCase() : null; };
 
@@ -47,6 +50,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [steps, setSteps] = useState<string[]>([]);       // task #138: the real steps of the answer being prepared, shown while the visitor waits
   const [find, setFind] = useState("");
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
@@ -97,18 +101,19 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const relatedQs = related(pool, asked);
 
   const goCompany = (sym: string, t: TabId) => { setCompany(sym); setTab(t); setFind(""); setFound([]); setView("company"); };
-  const ask = async (q: string, via: View) => {
+  /** `preset`: a question tapped from a list (or re-asked from history or saved) stands on its own, so the site may answer it from its saved answers (task #138). */
+  const ask = async (q: string, via: View, preset = true) => {
     if (!q || busy) return;
     setBack(via === "chat" ? back : via); setView("chat"); setText(""); setRecent((r) => pushRecent(r, q));
     const written = writtenAnswer(q);
     const history = msgs.filter((m) => m.content);
     setMsgs((m) => [...m, { role: "user", content: q }]);
     if (written) { setMsgs((m) => [...m, { role: "assistant", content: written }]); return; }
-    setBusy(true);
+    setBusy(true); setSteps([]);
     const withContext = company && !q.toUpperCase().includes(company) ? `About ${company}: ${q}` : q;   // the company stays in context for a follow-up
-    try { const r = await askAssistant(withContext, history); setMsgs((m) => [...m, { role: "assistant", content: r.response }]); }
+    try { const r = await askAssistantStream(withContext, history, preset, (t) => setSteps((s) => [...s, t])); if (!r?.response) throw new Error("I couldn't answer that just now. Please try again or use the contact form."); setMsgs((m) => [...m, { role: "assistant", content: r.response, savedAt: r.saved_at ?? null }]); }
     catch (er) { setMsgs((m) => [...m, { role: "assistant", content: (er as Error).message || "I couldn't answer that just now. Please try again or use the contact form." }]); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setSteps([]); }
   };
   const tapQ = (q: Q) => {
     if (q.needsSecondCompany) { setText(q.text); setPick((n) => n + 1); return; }   // the second company is the user's to name: nothing is sent yet
@@ -123,7 +128,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const pageFaq = faqForPath(loc.pathname);
   const sub = view === "company" || (view === "chat" && company) ? company : null;
   const row = (q: Q) => <li key={q.id}><button type="button" className="aif-q" onClick={() => tapQ(q)} title={q.needsSecondCompany ? `Replace ${SECOND} with the second company, then send` : undefined}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>;
-  const send = (e: React.FormEvent) => { e.preventDefault(); void ask(text.trim(), view === "chat" ? back : view); };
+  const send = (e: React.FormEvent) => { e.preventDefault(); void ask(text.trim(), view === "chat" ? back : view, false); };
 
   return (
     <>
@@ -272,8 +277,9 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}</div>)}
-              {busy && <div className="bub bot typing"><i /><i /><i /></div>}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.savedAt && <small className="aif-kept">Saved answer from {keptAt(m.savedAt)}: answered at once from FinLit&apos;s saved answers.</small>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}</div>)}
+              {busy && <div className="bub bot aif-wait" role="status" aria-live="polite"><span className="typing"><i /><i /><i /></span>
+                {steps.length > 0 && <ol className="aif-path" aria-label="Steps so far">{steps.map((t, i) => <li key={i} className={i === steps.length - 1 ? "now" : "done"}>{t}</li>)}</ol>}</div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
                 <ul className="aif-qs" aria-label="Related questions">{relatedQs.map((q) => row(q))}</ul></div>}
               {!busy && msgs.length > 0 && <div className="chips"><button type="button" className="back" onClick={() => setView(company ? "company" : "home")}>{company ? `← More about ${company}` : "← Main menu"}</button>
