@@ -36,10 +36,6 @@
 .hh-tour figcaption { margin-top: 12px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; } .hh-tour figcaption b { color: var(--text); font-weight: 600; }
 @media (max-width: 900px) { .hh-top-cols { grid-template-columns: minmax(0, 1fr); } .hh-top h1 { font-size: clamp(36px, 10vw, 52px); } }
 
-/* FinLit Prism panel */
-.hh-prism h2 { font: 400 clamp(26px, 3.4vw, 40px)/1.15 var(--serif); letter-spacing: -.01em; margin: 10px auto 28px; max-width: 24ch; text-wrap: balance; }
-.hh-prism-fig { margin: 0 auto 28px; max-width: 980px; } .hh-prism-fig img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 50px -32px rgba(35, 32, 24, .45); }
-.hh-prism-fig figcaption { margin-top: 12px; text-align: center; font-size: 13px; color: var(--faint); }
 
 /* plans on the home page: three equal-height cards showing their first 8 features, with the full table in a closed dropdown */
 .pgrid-l .plan .plan-desc { margin: 14px 0 16px; min-height: 0; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; height: calc(3 * 1.5em); line-height: 1.5; }

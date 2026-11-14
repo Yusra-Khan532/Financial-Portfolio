@@ -4,6 +4,7 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { PlansBand } from "./Plans";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
+import { PrismShowcase } from "../components/PrismShowcase";
 import { TOUR_CHOICE_KEY, asChoice, tourLook, type Choice, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
@@ -49,21 +50,6 @@ function Tour() {
   );
 }
 
-/** FinLit Prism: only its panel, with the technical rating under it. The picture is a real report, dated, and shown as an example. */
-function PrismPanel() {
-  return (
-    <section className="sec hh-sec hh-prism" id="prism" aria-labelledby="hpTitle"><div className="wrap">
-      <div className="hh-center"><div className="hh-kicker">FinLit Prism</div><h2 id="hpTitle">Financial health in four parts, plus the two technical views.</h2></div>
-      <figure className="hh-prism-fig">
-        <img src={`${import.meta.env.BASE_URL}landing/tools/prism-with-technical.webp`} width={1200} height={750} loading="lazy" decoding="async"
-          alt="The FinLit Prism panel for Reliance Industries: an overall score with Growth & Profitability, Valuation, Quality and Risk, and the short-term and long-term technical views under it" />
-        <figcaption>Reliance Industries on FinLit Prism, 6 Nov 2026. Shown as an example, not a recommendation.</figcaption>
-      </figure>
-      <div className="hh-center"><Link className="btn lg" to="/prism">Open FinLit Prism <Icon name="arrow" /></Link></div>
-    </div></section>
-  );
-}
-
 export function Home() {
   useDocTitle("Research deeper. Invest with clarity.", "Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more for every listed Indian company, all in one platform. Information only, not investment advice.");
   return (
@@ -91,7 +77,7 @@ export function Home() {
       </section>
 
       <ExploreTools />
-      <PrismPanel />
+      <PrismShowcase />
       <PlansBand id="pricing" landing />
     </div>
   );
