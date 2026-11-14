@@ -26,7 +26,7 @@ from fastapi import APIRouter, Request, Response
 from . import sector_data as sd
 from . import sector_extra, sector_history
 from .rotation_insights import rotation_insights
-from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan
+from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan, sees_all
 from .auth.service import current
 from .background import etag_matches
 
@@ -73,7 +73,7 @@ def _not_found(request: Request, started: float, reason: str) -> Response:
 
 async def _plan(request: Request) -> str:
     ctx = await current(request)
-    return sector_plan(ctx.plan, ctx.role)
+    return "gold" if sees_all(ctx) else sector_plan(ctx.plan)
 
 
 # status first: /api/sectors/{slug} would otherwise claim it

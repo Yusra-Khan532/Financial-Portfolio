@@ -19,7 +19,7 @@ const ZOOM = [
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
-  "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
+  "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
   "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
@@ -46,6 +46,7 @@ const EXEMPT: Record<string, string> = {
   "components/rotation/pack/RotationSimple.tsx": "Sector Rotation as the final pages pack draws it (08): the map has box toggles, rings and paths and scrolls sideways on a phone; its bars and rank lines sit in rows; no enlarge arrow in the pack",
   "components/rotation/pack/RotationTable.tsx": "the Full table view as the final pages pack draws it (09): rank lines inside table rows and Six months of ranks, which scrolls sideways on a phone; no enlarge arrow in the pack",
   "components/sectors/pack/IndustryPack.tsx": "an industry page as the final pages pack draws it (07): A year of <industry> scrolls sideways on a phone and has Hide, its numbers are in the story and a dropdown table, and the rank line is small; no enlarge arrow in the pack",
+  "stock/pack/WhereStands.tsx": "Where the company stands as the final pages pack draws it (17): the breadth sparkline, the 6-month bars, the 12-month price line and the group-leader lines sit inside their tab with every figure written beside them; the pack has no enlarge arrow on them",
   "portfolio/pack/EquityPack.tsx": "the Equity portfolio as the final pages pack draws it (12-14): the score rings, the small group-leader lines and the bars sit inside cards with their figures written beside them; no enlarge arrow in the pack",
   "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",

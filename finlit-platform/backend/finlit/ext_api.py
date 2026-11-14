@@ -19,7 +19,7 @@ import orjson
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.service import current
 from .portfolio_overview import BAND_WORD
 from .prism import PRISM_NAME, _PARTS, _num
@@ -116,7 +116,7 @@ async def company(request: Request, symbol: str):
     if not SYMBOL.match(sym):
         return JSONResponse({"status": "not_found", "detail": "No such company."}, status_code=404)
     who = await current(request)
-    level = "gold" if who.role == "admin" or has(who.plan, "gold") else "silver" if has(who.plan, "silver") else "basic"
+    level = "gold" if sees_all(who) or has(who.plan, "gold") else "silver" if has(who.plan, "silver") else "basic"
     store = request.app.state.store
     key = f"ext:company:{level}:{sym}"
     try:

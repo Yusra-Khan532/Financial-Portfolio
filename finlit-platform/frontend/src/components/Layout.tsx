@@ -1,3 +1,4 @@
+import { AdminViewStrip, AdminViewSwitch } from "./AdminViewSwitch";
 import { ExtensionBanner } from "./ExtensionBanner";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { initDepth } from "../lib/depth";
@@ -82,6 +83,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           {theme === "light" ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" /></svg>
             : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>}
         </button>
+        {isAdmin && <AdminViewSwitch />}
         {isAdmin && <SystemControl />}
         {user && <NotificationBell />}
         {user ? (
@@ -227,6 +229,7 @@ export function Layout() {
         <Tape />
         <Header onSearch={() => setSearch(true)} />
         {!bare && <ExtensionBanner />}
+        <AdminViewStrip />
         <main id="main"><ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
         {!bare && <Footer />}
         <SearchPalette open={search} onClose={() => setSearch(false)} />

@@ -225,7 +225,7 @@ async def crude_3m(conn) -> Optional[float]:
 @router.get("/api/macro/sectors")
 async def sectors(request: Request, symbol: str = Query("", max_length=40)) -> JSONResponse:
     """The macro backdrop of all 18 sectors, and of one company's sector when `symbol` is given. Gold, and only once switched on (administrators always)."""
-    from .auth.entitlements import has
+    from .auth.entitlements import has, sees_all
     from .auth.service import current
     from .macro import get_meta
     ctx = await current(request)
@@ -233,7 +233,7 @@ async def sectors(request: Request, symbol: str = Query("", max_length=40)) -> J
     admin = ctx.role == "admin"
     if not admin and not await switched_on(store):
         return JSONResponse({"status": "off", "detail": "The macro backdrop is not switched on yet."}, status_code=404, headers=NO_STORE)
-    if not admin and not (ctx.authed and has(ctx.plan, "gold")):
+    if not sees_all(ctx) and not (ctx.authed and has(ctx.plan, "gold")):
         return JSONResponse({"status": "plan_required", "plan": "gold", "detail": "The macro backdrop is part of the Gold plan."}, status_code=403, headers=NO_STORE)
     sym = symbol.strip().upper()
     if sym and not _SYMBOL.match(sym):

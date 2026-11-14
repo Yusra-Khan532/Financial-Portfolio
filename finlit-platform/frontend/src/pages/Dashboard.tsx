@@ -33,7 +33,7 @@ import "../styles/dashboard.css";
 
 export function Dashboard() {
   useDocTitle("Dashboard", "Your FinLit dashboard: your stocks today, the market, results and filings, arranged your way.");
-  const { user, ready } = useAuth();
+  const { user, ready, seesAll } = useAuth();
   const { plan } = useUI();
   const p = usePrefs();
   const wl = useWatchlist();
@@ -66,10 +66,14 @@ export function Dashboard() {
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fdashboard" replace />;
 
+  const all = seesAll;
+
   const meta = Object.fromEntries(WIDGETS.map((w) => [w.id, w]));
   const loadingFollowed = !followed.length && mine.isLoading;
   const loadingRows = uni.isLoading;
-  const shown = p.dashboard.filter((w) => w.on && (!phone || meta[w.id].tab === tab));
+  // An administrator seeing every plan's features gets every block (founder, 14 Nov 2026), except "Gold & silver today": its prices come through Dhan,
+  // whose terms do not allow showing them on the site, so it stays off until a licensed source is connected.
+  const shown = p.dashboard.filter((w) => (w.on || (all && w.id !== "commodities")) && (!phone || meta[w.id].tab === tab));
   const body = (id: string) => {
     const w = meta[id];
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;

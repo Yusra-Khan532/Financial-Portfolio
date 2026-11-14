@@ -37,12 +37,30 @@ def test_balance_sheet_that_does_not_balance_is_rejected(clean):
     assert "balance_sheet_balances" in keys(result, "critical")
 
 
-def test_old_site_dividend_bug_is_rejected(clean):
+def test_old_site_dividend_bug_is_caught_and_only_that_figure_is_held_back(clean):
     broken = copy.deepcopy(clean)
     for r in broken["summary"]["returns"]:
         if r["dividend"] is not None:
             r["dividend"] = 89.14
-    assert "dividend_return_1Y" in keys(quality.run(broken, today=NOW.date()), "critical")
+    res = quality.run(broken, today=NOW.date())
+    assert "dividend_return_1Y" in keys(res, "warning") and res["status"] != "rejected"     # the report is shown ...
+    quality.withhold_unbelievable(broken["summary"], res)
+    one = next(r for r in broken["summary"]["returns"] if r["period"] == "1Y")
+    assert one["dividend"] is None and one["total"] is None and "not shown" in one["withheld"]   # ... without the figure it cannot stand behind
+
+
+def test_a_real_high_dividend_payer_is_shown_when_its_earnings_could_pay_it(clean):
+    """14 Nov 2026: Chennai Petroleum (5Y dividend return 147%) and Coal India (81%) were refused their whole report although the figures are real."""
+    rich = copy.deepcopy(clean)
+    r = next(x for x in rich["summary"]["returns"] if x["period"] == "1Y" and x["price"] is not None)
+    end = rich["price"]["daily"]["c"][-1]
+    start = end / (1 + r["price"] / 100)
+    eps = rich["financials"]["yearly"]["pl"]["rows"]["eps"]
+    for i in range(len(eps) - 3, len(eps)):
+        eps[i] = round(0.2 * start, 2)                                                   # a company that earns about a fifth of its share price a year (CPCL: P/E near 5)
+    r["dividend"] = 40.0                                                                 # 40% in a year: far above the old 15% limit, but less than what it earned
+    assert 0.4 * start <= 1.5 * sum(eps[-3:])
+    assert "dividend_return_1Y" not in keys(quality.run(rich, today=NOW.date()))
 
 
 def since_listing(clean, dividend, listed="1999-03-01"):
@@ -60,8 +78,8 @@ def test_a_long_listed_dividend_payer_is_not_rejected_for_what_it_paid_since_lis
 
 
 def test_the_dividend_check_still_catches_an_impossible_figure_since_listing(clean):
-    assert "dividend_return_Since listing" in keys(since_listing(clean, 89.0, listed="2026-01-02"), "critical")        # a company listed 9 months ago did not pay 89%
-    assert "dividend_return_Since listing" in keys(since_listing(clean, 900.0, listed="1999-03-01"), "critical")       # nor 900% in 27 years (limit about 400%)
+    assert "dividend_return_Since listing" in keys(since_listing(clean, 89.0, listed="2026-01-02"), "warning")         # a company listed 9 months ago did not pay 89%: held back
+    assert "dividend_return_Since listing" in keys(since_listing(clean, 900.0, listed="1999-03-01"), "warning")        # nor 900% in 27 years, beyond its earnings: held back
 
 
 def test_stale_prices_and_odd_ratios_only_warn(clean):

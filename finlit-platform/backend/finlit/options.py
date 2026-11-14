@@ -40,7 +40,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 import orjson
 from fastapi import APIRouter, Depends, Query, Request, Response
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.routes import Ctx, fail, secure_ctx
 from .background import spawn
 from .dhan import IST, DhanClient, DhanError
@@ -577,7 +577,7 @@ async def cached(app, key: str, fresh: Callable[[float], bool], fetch: Callable[
 # ------------------------------------------------------------------------------------------------------------------ routes
 
 async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "The option chain is part of the Gold plan.", plan="gold")
     return ctx
 

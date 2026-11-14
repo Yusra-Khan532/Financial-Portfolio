@@ -2,6 +2,7 @@
 // Pure helpers only (no React), so every rule here is tested in advanced.test.ts. The statistics themselves are computed by the API
 // (backend advanced/stats.py); this file never recomputes r, p, slopes or bands, it only rounds them for display as the plan says:
 // r and rho 2 decimals; p 3 significant figures or "< 0.001"; slope 3 significant figures.
+import { viewAsHeader } from "./adminView";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, apiSend, apiUrl, API_BASE, ApiError, type Financials } from "./api";
 import { DEMO } from "./demo";
@@ -462,7 +463,7 @@ export const useFacets = () => useQuery<Facets, ApiError>({
 
 /** POST /export and return the CSV file the server wrote (header block + every row). */
 export async function exportCsv(body: Record<string, unknown>, csrf: string | null): Promise<Blob> {
-  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "text/csv" };
+  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() };
   if (csrf) headers["X-CSRF-Token"] = csrf;
   const res = await fetch(apiUrl("/api/advanced/export"), { method: "POST", headers, credentials: API_BASE ? "include" : "same-origin", body: JSON.stringify(body) });
   if (!res.ok) {

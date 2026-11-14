@@ -1,5 +1,6 @@
 // Typed client for the FinLit API. Every stock section is a small precomputed JSON document,
 // served with an ETag; React Query caches them per stock and section.
+import { viewAsHeader } from "./adminView";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 export type Band = { key: "strong" | "healthy" | "mixed" | "watch" | "insufficient"; label: string };
@@ -20,7 +21,7 @@ export type Quote = {
 };
 export type Note = { key: string; title: string; text: string; value: number | null };
 export type KeyMetric = { key: string; value: number; unit: string | null; label: string; period: string };
-export type Return = { period: string; price: number | null; dividend: number | null; total: number | null; annualised: number | null };
+export type Return = { period: string; price: number | null; dividend: number | null; total: number | null; annualised: number | null; withheld?: string };   // withheld: why the figure is not shown (it failed a data check)
 export type QualityIssue = { key: string; severity: "critical" | "warning"; message: string; value?: number };
 export type DataQuality = {
   missing: string[]; notes: string[]; provisionalLastBar: boolean; removedBadTicks: string[]; statement: string; isBank: boolean;
@@ -123,7 +124,7 @@ export const setCsrf = (t: string | null) => { csrf = t; };
 
 /** POST/PUT/PATCH/DELETE with the session cookie and CSRF header. */
 export async function apiSend<T = { status?: string }>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", ...viewAsHeader() };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (csrf) headers["X-CSRF-Token"] = csrf;
   const res = await fetch(apiUrl(path), { method, headers, credentials: API_BASE ? "include" : "same-origin", body: body === undefined ? undefined : JSON.stringify(body) });
@@ -138,7 +139,7 @@ export async function apiSend<T = { status?: string }>(method: "POST" | "PUT" | 
 }
 
 export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), { headers: { Accept: "application/json" }, credentials: API_BASE ? "include" : "same-origin", ...init });
+  const res = await fetch(apiUrl(path), { credentials: API_BASE ? "include" : "same-origin", ...init, headers: { Accept: "application/json", ...viewAsHeader(), ...(init?.headers as Record<string, string> | undefined) } });
   if (res.status === 202 || !res.ok) {
     let body: ApiError["body"] = {};
     try { body = errorBody(await res.json()); } catch { /* not JSON */ }

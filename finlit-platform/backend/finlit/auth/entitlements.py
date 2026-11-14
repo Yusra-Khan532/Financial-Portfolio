@@ -33,6 +33,15 @@ def has(plan: str, tier: str) -> bool:
     return RANK.get(plan, 0) >= RANK[tier]
 
 
+VIEW_AS = ("basic", "silver", "gold")
+
+
+def sees_all(ctx) -> bool:
+    """An administrator sees every plan's features (founder, 14 Nov 2026), unless previewing one plan with "view as" (auth.service.current): then the
+    request is served exactly as that plan. Admin tools (moderation, the admin pages, switched-off features) keep their own role check."""
+    return getattr(ctx, "role", None) == "admin" and not (getattr(ctx, "extra", None) or {}).get("view_as")
+
+
 def varies_by_plan(section: str) -> bool:
     return section in ("summary", "ratios", "segments", "stats") or section.startswith("price-")
 

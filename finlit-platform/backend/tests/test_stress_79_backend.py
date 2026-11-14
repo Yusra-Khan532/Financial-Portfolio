@@ -28,12 +28,10 @@ PACK = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
 MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
-def _today_in(series=None, stopgap=True):
+def _today_in(series=None):
+    """Today's inputs as the builder gives them: FinLit's own series only (task #79, SL-9: the x-rates.com stop-gap is gone)."""
     s = series or LIVE["series"]
-    d = {"as_of": LIVE["today"], "series": s, "brent": [list(p) for p in s["brent_d"]["points"]]}
-    if stopgap:
-        d["usdinr_monthly"] = service.stopgap_usdinr()
-    return d
+    return {"as_of": LIVE["today"], "series": s, "brent": [list(p) for p in s["brent_d"]["points"]]}
 
 
 def _shifted(months):
@@ -57,7 +55,10 @@ def _row(sym, mcap, bank=0, q=20260930, sector="Consumer Durables", industry="Pa
 
 
 @pytest.fixture(autouse=True)
-def fake_table():
+def fake_table(monkeypatch):
+    async def no_close(store_, now=None):        # the close rule (task #79, SL-9) has its own tests in test_stress_sl9_13nov.py
+        return None
+    monkeypatch.setattr(service, "current_close", no_close)
     data._table = Table([_row("ASIANPAINT", 233000), _row("BERGEPAINT", 60000), _row("KANSAINER", 30000, q=20260630), _row("BANKX", 90000, bank=1),
                          _row("SBILIFE", 180000), _row("SMALLCO", 500)], {}, {})
     R._failed_at.clear()
@@ -99,12 +100,7 @@ def test_two_weeks_of_daily_rates_no_longer_pass_for_ten_months():
     s["usdinr_d"] = {"points": days}
     co = S.company_from_pack(_shifted(3))                                                   # base window Jan to Dec 2026
     with pytest.raises(ValueError):
-        S.load_today(_today_in(s, stopgap=False), co.base_end)                             # 40-odd daily points were counted as 40 "months" before
-    today = S.load_today(_today_in(s), co.base_end)
-    ti = today.inputs
-    assert ti["usdinr_source"] == "FinLit usdinr + usdinr argument" and ti["usdinr_months"]["finlit"] == 2 and ti["usdinr_months"]["argument"] == 10
-    row = next(r for r in P.today_rows(today, {}) if r["driver"].startswith("Rupees"))
-    assert "FBIL" in row["source"] and "x-rates.com" in row["source"] and "10 of the base window's 12 months" in row["source"]
+        S.load_today(_today_in(s), co.base_end)        # 40-odd daily points were counted as 40 "months" before; with no stop-gap (SL-9) the page is not built ("being prepared")
 
 
 def test_asian_paints_today_is_unchanged_on_the_handover_inputs():
@@ -235,7 +231,7 @@ async def test_the_nightly_queue_puts_companies_without_a_page_first_and_new_res
             await conn.execute("UPDATE stress_pages SET built_at = now() - make_interval(hours => $1) WHERE symbol = $2", age_h, sym)
     calls = []
 
-    async def build(app_, sym, size, statement="consolidated"):
+    async def build(app_, sym, size, statement="consolidated", **kw):
         calls.append(sym)
         return _payload(), PACK
     monkeypatch.setattr(service, "build_payload_and_pack", build)
@@ -250,7 +246,7 @@ async def test_a_run_that_stops_at_its_time_cap_says_there_is_work_left_and_the_
     await _clean(store)
     data._table = Table([_row("AAA", 500000), _row("BBB", 400000)], {}, {})
 
-    async def build(app_, sym, size, statement="consolidated"):
+    async def build(app_, sym, size, statement="consolidated", **kw):
         return _payload(), PACK
     monkeypatch.setattr(service, "build_payload_and_pack", build)
     res = await service.refresh_stress(store, object(), max_minutes=0)                 # the cap is reached before any company
@@ -335,7 +331,7 @@ async def test_compare_answers_without_either_companys_assumptions(app, store, m
     m = json.loads((FIX / "macro_2026-11-04.json").read_text(encoding="utf-8"))
 
     async def today(store_):
-        return {"as_of": "2026-11-04", "series": m["series"], "brent": [list(p) for p in m["brent_quarterly"]], "usdinr_monthly": service.stopgap_usdinr()}, None
+        return _today_in(), None          # FinLit's own FBIL series (SL-9: no stop-gap)
     monkeypatch.setattr(service, "macro_today", today)
     gold = await signed_in(app, "cmp79@example.com", plan="gold")
     r = await gold.post("/api/stress/compare", json={"a": "ASIANPAINT", "b": "BERGEPAINT", "preset": "2022"})
@@ -408,33 +404,60 @@ async def test_weekly_closes_use_the_long_history_else_the_stored_chart_series(s
         await conn.execute("DELETE FROM snapshots WHERE symbol = 'ZZCHART'")
 
 
-async def test_nifty_closes_reach_back_far_enough_and_fall_back_to_the_five_years_and_log(monkeypatch, caplog):
+async def test_nifty_closes_add_the_older_years_a_year_at_a_time_and_keep_them_once(monkeypatch, caplog):
+    """SL-10 (13 Nov 2026): the Nifty 50 column was empty for 2018 and 2020 because only about five years came back."""
     from finlit import indices
-    asked = []
+    from finlit.stress import page as P
 
     async def cached(app_, key, fresh, fetch):
-        asked.append(key)
-        if key.endswith(":long"):
-            raise RuntimeError("provider said no")
-        return {"rows": [{"quote_date": "2022-03-01", "close_price": 17000.0}]}
+        return {"rows": [{"quote_date": "2022-03-01", "close_price": 17000.0}, {"quote_date": "2026-03-02", "close_price": 24000.0}]}
+    asked = []
+
+    class Client:
+        async def get(self, path, params, **kw):
+            asked.append(params["from_date"][:4])
+            y = params["from_date"][:4]
+            return {"rows": [{"quote_date": f"{y}-09-03", "close_price": 11500.0}, {"quote_date": f"{y}-10-05", "close_price": 10000.0}, {"quote_date": f"{y}-03-02", "close_price": 12000.0}]}
+
+    class Redis:
+        def __init__(self):
+            self.kv = {}
+        async def get(self, k):
+            return self.kv.get(k)
+        async def set(self, k, v, **kw):
+            self.kv[k] = v
+    r = Redis()
+    app = SimpleNamespace(state=SimpleNamespace(store=SimpleNamespace(redis=r)))
     monkeypatch.setattr(indices, "_cached", cached)
-    with caplog.at_level("WARNING", logger="finlit.stress"):
-        got = await service.nifty_closes(SimpleNamespace())
-    assert got == {"2022-03-01": 17000.0} and asked == ["idx:px:NIF50:long", "idx:px:NIF50"]
-    assert any("RuntimeError" in r.getMessage() for r in caplog.records)
-    assert service.NIFTY_YEARS >= 9                                                                       # 2018-08 is about 8.2 years back
+    monkeypatch.setattr(indices, "_client", lambda a: Client())
+    got = await service.nifty_closes(app)
+    assert got["2018-09-03"] == 11500.0 and got["2020-03-02"] == 12000.0 and got["2026-03-02"] == 24000.0
+    assert asked[0] == "2018" and service.NIFTY_PAST_KEY in r.kv
+    rows = P.history({"X": {}}, got)
+    assert rows[0]["nifty"] and rows[0]["nifty"]["fall_pct"] < 0 and rows[1]["nifty"] is not None     # 2018 and 2020 now have the Nifty
+    asked.clear()
+    await service.nifty_closes(app)
+    assert asked == []                                                                                    # kept: the past is fetched once
 
     async def none(app_, key, fresh, fetch):
         return None
+
+    class Down:
+        async def get(self, *a, **k):
+            raise RuntimeError("provider said no")
     monkeypatch.setattr(indices, "_cached", none)
-    assert await service.nifty_closes(SimpleNamespace()) == {}
+    monkeypatch.setattr(indices, "_client", lambda a: Down())
+    empty = SimpleNamespace(state=SimpleNamespace(store=SimpleNamespace(redis=Redis())))
+    with caplog.at_level("WARNING", logger="finlit.stress"):
+        assert await service.nifty_closes(empty) == {}
+    assert any("unavailable" in rec.getMessage() for rec in caplog.records)
 
 
 def test_a_stored_page_without_any_company_prices_is_rebuilt_once_it_is_a_few_hours_old():
     now = datetime(2026, 11, 13, 12, tzinfo=timezone.utc)
     empty = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": None}]
-    filled = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": None, "ASIANPAINT": {"fall_pct": -10.0}}]
+    filled = [{"episode": "e", "from": "2018-08-28", "to": "2018-10-26", "nifty": {"fall_pct": -12.0}, "ASIANPAINT": {"fall_pct": -10.0}}]
     rec = lambda h, hist: {"built_at": now - timedelta(hours=h), "payload": {"company": {"base_end": "2026-09-30"}, "history": hist}}   # noqa: E731
     assert not service.page_is_stale(rec(1, empty), "2026-09-30", now)          # not on every visit
     assert service.page_is_stale(rec(8, empty), "2026-09-30", now)
-    assert not service.page_is_stale(rec(8, filled), "2026-09-30", now)
+    assert not service.page_is_stale(rec(8, filled), "2026-09-30", now)          # every episode filled (a blank Nifty column also counts as a gap since SL-10)

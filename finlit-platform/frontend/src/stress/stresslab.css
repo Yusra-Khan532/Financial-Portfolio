@@ -203,8 +203,8 @@ details.fold[open]>summary::before{transform:rotate(45deg)}
 .cgroup:last-child{border-bottom:0}
 .cgroup .gn{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px}
 /* i buttons (same as the site's) */
-.ib{position:relative;display:inline-flex;vertical-align:middle;margin-left:6px;cursor:help;outline:none}
-.ibi{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--h8d8571);color:var(--h4d4a42);font:italic 700 11px/1 Georgia,serif;background:var(--hffffff)}
+.ib{text-transform:none;letter-spacing:normal;position:relative;display:inline-flex;vertical-align:middle;margin-left:6px;cursor:help;outline:none}
+.ibi{text-transform:none;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--h8d8571);color:var(--h4d4a42);font:italic 700 11px/1 Georgia,serif;background:var(--hffffff)}
 .ib:hover .ibi,.ib:focus .ibi,.ib.open .ibi{background:var(--teal);border-color:var(--teal);color:var(--hffffff)}
 .tip{display:none;position:absolute;z-index:90;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:290px;max-width:calc(100vw - 16px);padding:11px 13px;border-radius:12px;background:var(--h17262e);color:var(--hf4f1ea);font:400 13px/1.5 Inter,system-ui,sans-serif;text-align:left;letter-spacing:0;text-transform:none;white-space:normal;box-shadow:0 12px 30px rgba(10,20,25,.28)}
 .tip b{color:var(--hffffff)}
@@ -291,3 +291,6 @@ tr.lockrow td{color:var(--muted);background:var(--hfaf7f0)}
 .sres button{display:flex;justify-content:space-between;gap:12px;border:0;background:none;text-align:left;padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--ink);font:inherit}
 .sres button:hover,.sres button:focus-visible{background:var(--tintbg);outline:none}.sres small{color:var(--muted)}
 .sl-root .wrap{max-width:none;padding:0 0 32px}
+
+/* Task #79, SL-12b: text boxes at 16 px on phones, so iPhones do not zoom in when one is tapped */
+@media (max-width:760px){.sl-root input,.sl-root select,.sl-root textarea{font-size:16px}}

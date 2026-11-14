@@ -69,7 +69,7 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
   const threads = stats?.threads ?? n ?? 0, replies = stats?.replies ?? 0;
   return (
     <section className="block fo-rep" ref={top} aria-label="Community discussions" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="community" no="20 · Community" icon="users" title="Community discussions" color="--gold"
+      <SectionHead id="community" no="18 · Community" icon="users" title="Community discussions" color="--gold"
         sub={`What members are saying about ${short}. Opinion only, not advice.`}
         aside={me?.signedIn ? <Link className="btn" to={`/forum/c/${encodeURIComponent(symbol)}`}>Open in Discussion forums</Link> : undefined} />
       {me && !me.signedIn ? (

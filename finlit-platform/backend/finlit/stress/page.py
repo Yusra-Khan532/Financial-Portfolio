@@ -94,18 +94,14 @@ def today_eia(today: S.Scenario, eia_brent_next4: Sequence[float]) -> S.Scenario
     return replace(today, name="Today, crude eases", crude=round((avg / today.inputs["brent_base"] - 1) * 100, 2))
 
 
-# The words under the rupee row: the source the numbers really came from (the page must never name one they did not).
-FX_SOURCE_WORDS = {"FinLit usdinr": "FBIL reference rate, published by the RBI",
-                   "usdinr argument": "Monthly averages from x-rates.com for the base window (a stop-gap until FinLit's own FBIL series is filled), then today's FBIL reference rate",
-                   "FinLit usdinr + usdinr argument": "FBIL reference rate, published by the RBI; {n} of the base window's {m} months from x-rates.com monthly averages (a stop-gap until FinLit's own FBIL series has them)"}
+# The words under the rupee row. Task #79, SL-9 (13 Nov 2026): the only rupee source is FinLit's own FBIL series; the x-rates.com stop-gap and its wording are gone,
+# and a page whose base window the series does not cover is not built (the reader sees "being prepared"), so no other source is ever named.
+FX_SOURCE_WORDS = {"FinLit usdinr": "FBIL reference rate, published by the RBI"}
 
 
 def fx_source_words(ti: Dict[str, Any]) -> str:
-    """The rupee row's source line, naming every source the base average really came from (and how many months each gave)."""
-    src = ti.get("usdinr_source")
-    got = ti.get("usdinr_months") or {}
-    n = int(got.get("argument") or 0)
-    return FX_SOURCE_WORDS.get(src, "FBIL").format(n=n, m=n + int(got.get("finlit") or 0))
+    """The rupee row's source line."""
+    return FX_SOURCE_WORDS["FinLit usdinr"]
 
 
 def _level(ti: Dict[str, Any], key: str, which: str) -> str:
@@ -190,7 +186,7 @@ def company_json(co: S.Company, pack: dict, sources: Dict[str, str], **extra) ->
          "shares": co.shares, "debt": co.debt, "cash": co.cash, "beta": co.beta, "growth": co.growth,
          "base_label": co.base_label, "base_end": co.base_end, "reported_eps": co.reported_eps,
          "exposure": {k: getattr(e, k) for k in sorted(S._EXPOSURE_KEYS - {"excluded"})},
-         "exposure_source": e.source, "exposure_notes": e.notes, "notes": co.notes,
+         "exposure_source": e.source,      # SL-11 (13 Nov 2026): co.notes and e.notes are for the team (the build logs them); they never leave the server
          "calibration": {k: {"from_history": bool((co.calibration[k] or {}).get("years_used"))}
                         for k in ("pass_through", "var_opex", "demand_beta") if k in co.calibration},
          "field_source": sources}

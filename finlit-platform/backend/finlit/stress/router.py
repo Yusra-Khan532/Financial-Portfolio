@@ -13,7 +13,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
 from ..background import spawn
 from ..screener.data import get_table
@@ -30,13 +30,13 @@ RANGES = {"crude": (-90.0, 300.0), "usdinr": (1 / 1.4 * 100 - 100, 1 / 0.67 * 10
 
 
 async def silver_ctx(ctx: Ctx = Depends(user_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "silver"):
+    if not sees_all(ctx) and not has(ctx.plan, "silver"):
         raise fail(403, "plan_required", "Stress Lab is part of the Silver and Gold plans.", plan="silver")
     return ctx
 
 
 async def gold_ctx(ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "This part of Stress Lab is part of the Gold plan.", plan="gold")
     return ctx
 
@@ -132,7 +132,7 @@ _failed_at: Dict[str, Tuple[float, BaseException]] = {}   # a company's last fai
 RETRY_AFTER_S = 120.0
 
 
-def _start_build(app, sym: str, size: str) -> Optional["asyncio.Task[Any]"]:
+def _start_build(app, sym: str, size: str, pack: Optional[dict] = None) -> Optional["asyncio.Task[Any]"]:
     """The running build of this company, or a new one. None when its last build failed less than RETRY_AFTER_S ago (a failed build is tried again on a later
     visit, never on every poll of the page)."""
     task = _building.get(sym)
@@ -140,16 +140,16 @@ def _start_build(app, sym: str, size: str) -> Optional["asyncio.Task[Any]"]:
         return task
     if time.monotonic() - _failed_at.get(sym, (-1e9, None))[0] < RETRY_AFTER_S:
         return None
-    task = spawn(_build_and_store(app, sym, size))
+    task = spawn(_build_and_store(app, sym, size, pack))
     _building[sym] = task
     return task
 
 
-async def _build_and_store(app, sym: str, size: str):
+async def _build_and_store(app, sym: str, size: str, pack: Optional[dict] = None):
     """Build a company's page and store it. Runs in the background, so a slow data provider finishes the job even after the reader was told the page is being prepared;
     the reason of a failure goes to stress_failures and the log, never to a reader, and the next try waits RETRY_AFTER_S (_start_build)."""
     try:
-        payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size), service.PER_COMPANY_S)
+        payload, pack = await asyncio.wait_for(service.build_payload_and_pack(app, sym, size=size, **({"pack": pack} if pack else {})), service.PER_COMPANY_S)
         await service.save_page(app.state.store, sym, payload, pack)
         _failed_at.pop(sym, None)
         return payload, pack
@@ -183,11 +183,20 @@ async def _stored_or_live(request: Request, sym: str) -> dict:
     app = request.app
     table, size = await _covered(request, sym)
     rec = await service.load_page(app.state.store, sym)
+    reuse = None
+    if rec and not service.page_is_current(rec["payload"], await service.current_close(app.state.store)):
+        # task #79, SL-9: a page from an older close (or another model, or another rupee source) is never served; it is rebuilt on this close, from its stored
+        # statements when the company has reported nothing newer (seconds, no call to the data provider)
+        latest_q, base_end = service.covered_quarters(table, [sym]).get(sym), ((rec["payload"].get("company") or {}).get("base_end"))
+        reuse = rec.get("pack") if not (latest_q and base_end and latest_q > base_end) else None
+        rec = None
     if rec:
         if service.page_is_stale(rec, service.covered_quarters(table, [sym]).get(sym)):
-            _start_build(app, sym, size)          # the stored copy is served now; a fresh one (new results, or a day old) is built behind it
+            latest_q, base_end = service.covered_quarters(table, [sym]).get(sym), ((rec["payload"].get("company") or {}).get("base_end"))
+            same = not (latest_q and base_end and latest_q > base_end)
+            _start_build(app, sym, size, rec.get("pack") if same else None)   # served now; rebuilt behind it (from its stored statements unless newer results came out)
         return rec
-    task = _start_build(app, sym, size)
+    task = _start_build(app, sym, size, reuse)
     if task is None:                          # the last build of this company failed a moment ago: no new provider call yet, the same answer at once
         last = _failed_at.get(sym, (0.0, None))[1]
         if isinstance(last, service.NotCovered):
@@ -227,7 +236,7 @@ async def covered(request: Request, ctx: Ctx = Depends(silver_ctx)):
 async def quick_picks(request: Request, ctx: Ctx = Depends(silver_ctx)):
     """The start page's quick picks: the six largest covered companies that have a stored page (so each one opens), never a bank or a company outside the launch list."""
     store = request.app.state.store
-    have = set(await service.stored_symbols(store))
+    have = set(await service.stored_symbols(store, await service.current_close(store)))     # pages on the latest close only, so each pick opens at once
     picks = []
     for sym, mc in await service.covered_symbols(store):
         if sym in have:
@@ -271,7 +280,7 @@ def _kick(app, table, sym: str) -> bool:
 async def page(request: Request, symbol: str, ctx: Ctx = Depends(silver_ctx)):
     sym = _sym(symbol)
     payload = await _page(request, sym)
-    plan = "gold" if (ctx.role == "admin" or has(ctx.plan, "gold")) else "silver"
+    plan = "gold" if (sees_all(ctx) or has(ctx.plan, "gold")) else "silver"
     out = {**P.plan_payload(payload, plan), "flags": {"showValue": request.app.state.settings.stress_show_value}}
     if not out["flags"]["showValue"]:
         out = strip_value(out)

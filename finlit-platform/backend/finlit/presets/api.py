@@ -9,7 +9,7 @@ from typing import List
 
 from fastapi import APIRouter, Request, Response
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
 from datetime import date as _date
@@ -24,12 +24,12 @@ API_ONLY = ("exportRows",)
 
 
 def _gold(ctx) -> bool:
-    return bool(ctx.authed and (has(ctx.plan, "gold") or ctx.role == "admin"))
+    return bool(ctx.authed and (has(ctx.plan, "gold") or sees_all(ctx)))
 
 
 def _allowed(ctx, tab: str) -> bool:
     """The Advanced tab's screens are Gold (Prism columns); the Basic tab's are Silver (FinLit score columns)."""
-    return bool(ctx.authed and (has(ctx.plan, "gold" if tab == "advanced" else "silver") or ctx.role == "admin"))
+    return bool(ctx.authed and (has(ctx.plan, "gold" if tab == "advanced" else "silver") or sees_all(ctx)))
 
 
 def _tab_of(request: Request) -> str:

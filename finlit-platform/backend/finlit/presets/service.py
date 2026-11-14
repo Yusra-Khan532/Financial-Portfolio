@@ -239,17 +239,22 @@ async def refresh_presets(store, settings=None) -> dict:
     try:       # its own guard: a scan problem never stops the screens below (the founder's rule: one step stopping never stops another)
         previous = fr.patterns
         day = await candle_day(store, fr.as_of)
+        topped: dict = {}
+        try:        # companies without a Prism report get their latest candle from Dhan here, not only when ingest reloads them
+            topped = await pat_mod.top_up_candles(store, settings, fr.t, day)
+        except Exception:
+            log.exception("the missing candles were not fetched; the scans wait for them as before")
         cov = await pat_mod.wait_for_candles(store, fr.t, day)
         if cov["ratio"] < pat_mod.MIN_COVERAGE:       # thin candles would publish thin lists: stop, keep the last saved run, and raise the alarm (the job reports failed)
             log.error("chart-pattern scans NOT published: only %s of %s companies have the %s candle (%.1f%%, needs 98%%)", cov["fresh"], cov["universe"], day, 100 * cov["ratio"])
             pattern_failed = f"patterns:candles {cov['fresh']}/{cov['universe']} below 98%"
-            pattern_note = {"patternsHeld": True, "patternCoverage": round(cov["ratio"], 4), "patternsSuspended": cov["suspended"]}
+            pattern_note = {"patternsHeld": True, "patternCoverage": round(cov["ratio"], 4), "patternsSuspended": cov["suspended"], **topped}
         else:
             found = await pat_mod.scan_all(store, fr.t, day)           # labelled with that close's date
             await pat_mod.save(store, found, previous)
             fr.patterns = found
             pattern_note = {"patternsAsOf": day.isoformat(), "patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
-                            "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4)}
+                            "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4), **topped}
     except Exception as exc:
         log.exception("chart-pattern scans failed; the last saved run stays in use")
         pattern_note = {"patternsError": type(exc).__name__}

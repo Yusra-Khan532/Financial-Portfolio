@@ -31,7 +31,7 @@ import orjson
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.service import current
 from .background import etag_matches
 from .dhan import IST, DhanClient, DhanError, security_map
@@ -259,7 +259,7 @@ async def intraday(request: Request, symbol: str, range: str = Query("1D")):
         if not who.authed:
             return JSONResponse({"status": "auth_required", "detail": "Sign in to see intraday charts.", "plan": "basic"}, status_code=401, headers=NO_STORE)
         tier = TIER[rng]
-        if who.role != "admin" and not has(who.plan, tier):
+        if not sees_all(who) and not has(who.plan, tier):
             return JSONResponse({"status": "plan_required", "plan": tier, "detail": f"The {rng} intraday chart is part of the {tier.title()} plan."},
                                 status_code=403, headers=NO_STORE)
     body, status, why = await load(request.app, sym, rng)

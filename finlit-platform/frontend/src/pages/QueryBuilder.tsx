@@ -1,6 +1,7 @@
 // Query builder: type a rule in plain words, get the listed companies that match it, and keep it as a basket. The language, every error and the
 // matching happen on the server (backend/finlit/screener/ql.py, qeval.py); this page helps a person write the query without mistakes:
 // autocomplete, live checking with one-click fixes, an "Add a condition" helper, examples and a list of every ratio.
+import { viewAsHeader } from "../lib/adminView";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { PageHeader } from "../components/PageHeader";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -236,7 +237,7 @@ export function QueryBuilder() {
   const exportCsv = async () => {
     if (!rat.data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
     try {
-      const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv" }, body: JSON.stringify(bodyFor(0)) });
+      const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() }, body: JSON.stringify(bodyFor(0)) });
       if (!r.ok) throw new Error(String(r.status));
       saveFile("FinLit-query.csv", await r.text(), "text/csv;charset=utf-8"); toast("Saved your results as FinLit-query.csv.");
     } catch { toast("We could not prepare the download. Please try again."); }

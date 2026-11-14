@@ -164,3 +164,87 @@ def test_the_pattern_scans_wait_for_the_session_dhan_has_not_the_calendar_day():
         async def get(self, key):
             raise ConnectionError
     assert asyncio.run(service.candle_day(_StoreTarget(ends, _Broken()), expected)) == expected                # Redis not readable: never stops the job
+
+
+class _DailyPool:
+    """A pool whose price_daily holds the given sessions for every symbol."""
+    def __init__(self, days):
+        self.days = days
+
+    def acquire(self):
+        days = self.days
+
+        class _C:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def fetch(self, sql, sym, after, limit):
+                from decimal import Decimal
+                return [{"day": d, "open": Decimal("10.5"), "high": Decimal("11"), "low": Decimal("10"), "close": Decimal(str(c)), "volume": 1000}
+                        for d, c in days if d > after][:limit]
+        return _C()
+
+
+def test_the_scans_add_the_nightly_closes_after_the_last_stored_bar():
+    """14 Nov 2026 (the founder's job_runs table): 818 of 1301, then 1274 of 1390, companies had the 13 Nov close, so the pattern scans were held back.
+    Companies without a Prism report have no Dhan candles; their stored prices only move when the report is rebuilt. The nightly closes now count."""
+    from finlit.presets import candles
+    day = date(2026, 11, 13)
+
+    class St(_Store):
+        def __init__(self, ends):
+            super().__init__(ends)
+            self.redis = None
+            self.pool = _DailyPool([(date(2026, 11, 12), 101.0), (date(2026, 11, 13), 102.5)])
+    ends = {f"S{i}": "2026-11-11" for i in range(50)}
+    st = St(ends)
+    got = asyncio.run(candles.series(st, "S0"))
+    assert got["t"][-2:] == ["2026-11-12", "2026-11-13"]
+    full = asyncio.run(candles.with_daily_closes(st, "S0", {"t": ["2026-11-11"], "o": [1.0], "h": [1.0], "l": [1.0], "c": [100.0], "v": [5]}))
+    assert full["c"] == [100.0, 101.0, 102.5] and full["t"][-1] == "2026-11-13" and full["o"][-1] == 10.5 and full["v"][-1] == 1000.0
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 1.0          # every company reaches the 13 Nov close
+    assert asyncio.run(patterns.candle_coverage(_Store(ends), _Table(list(ends)), day))["ratio"] == 0.0  # without the nightly closes: none (the old result)
+    assert asyncio.run(candles.with_daily_closes(st, "S0", {})) == {}                                    # nothing to extend: unchanged
+
+
+def test_the_presets_job_fetches_the_missing_candles_itself_so_the_scans_are_not_held():
+    """14 Nov 2026: 1296 of 1400 scanned companies had the 13 Nov candle (92.6%, needs 98%), so the scans were held every run. The companies without a Prism report get
+    no Dhan candles from the technicals job and waited for an ingest reload. The presets job now fetches them from Dhan before it waits."""
+    day = date(2026, 11, 11)
+    ends = {f"S{i}": "2026-11-11" for i in range(90)}
+    ends.update({f"B{i}": "2026-11-09" for i in range(10)})          # ten companies behind
+    ends["GONE"] = "2026-05-12"                                        # suspended since May: never fetched
+    st = _StoreDhan(ends)
+    asked = []
+
+    async def fetch(sym):
+        asked.append(sym)
+        if sym == "B9":
+            return None                                                  # Dhan has nothing for it: counted, not guessed
+        if sym == "B8":
+            return {"stock": {"candles": _rows("2026-11-10")}}           # Dhan is behind too: not counted as fetched
+        return {"stock": {"candles": _rows("2026-11-11")}}
+
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 0.9
+    got = asyncio.run(patterns.top_up_candles(st, None, _Table(list(ends)), day, fetch=fetch))
+    assert sorted(asked) == sorted(f"B{i}" for i in range(10))
+    assert got == {"candlesBehind": 10, "candlesFetched": 8, "candlesNotFetched": 2}
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 0.98     # the gate passes now
+
+
+def test_the_candle_top_up_stops_at_its_time_budget_and_counts_what_is_left():
+    day = date(2026, 11, 11)
+    ends = {f"B{i}": "2026-11-09" for i in range(5)}
+    st = _StoreDhan(ends)
+    ticks = iter(range(0, 1000, 100))
+
+    async def fetch(sym):
+        return {"stock": {"candles": _rows("2026-11-11")}}
+
+    got = asyncio.run(patterns.top_up_candles(st, None, _Table(list(ends)), day, budget_s=250, fetch=fetch, clock=lambda: next(ticks)))     # started at 0; asked at 100 and 200; 300 is past the budget
+    assert got["candlesBehind"] == 5 and got["candlesFetched"] == 2 and got["candlesNotFetched"] == 3
+    none = asyncio.run(patterns.top_up_candles(st, None, _Table(list(ends)), day))       # no Dhan settings: nothing fetched, the job waits as before
+    assert none == {"candlesBehind": 3, "candlesFetched": 0, "candlesNotFetched": 3}

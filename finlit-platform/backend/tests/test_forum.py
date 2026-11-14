@@ -247,7 +247,9 @@ async def test_a_moderator_can_open_any_board_and_replies_stay_on_the_threads_bo
     tid = (await thread(gold)).json()["post"]["id"]
     admin = await mfa_admin(fapp)
     assert (await admin.post("/api/forum/profile", json={"handle": "team_note", "accept": True})).status_code == 201
-    assert (await admin.get("/api/forum/threads")).json()["total"] == 0                       # their own (Basic) board is empty
+    # an administrator is served as Gold (they see every plan's features, founder 14 Nov 2026): their own board is Gold; Basic is empty
+    assert [t["id"] for t in (await admin.get("/api/forum/threads")).json()["threads"]] == [tid]
+    assert (await admin.get("/api/forum/threads?board=basic")).json()["total"] == 0
     listing = (await admin.get("/api/forum/threads?board=gold")).json()
     assert listing["board"] == "gold" and [t["id"] for t in listing["threads"]] == [tid]
     assert (await admin.get(f"/api/forum/threads/{tid}")).status_code == 200

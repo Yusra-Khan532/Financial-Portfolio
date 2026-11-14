@@ -21,7 +21,7 @@ from typing import Dict, Optional, Tuple
 import httpx
 from fastapi import APIRouter, Depends, Query, Request, Response
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.routes import NO_STORE, Ctx, fail, secure_ctx
 from .background import spawn
 
@@ -35,7 +35,7 @@ SECTIONS = ("ipo", "results", "announcements", "transcripts", "indices", "valuat
 
 
 async def premium_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "The market and fundamentals dashboards are part of the Gold plan.", plan="gold")
     return ctx
 

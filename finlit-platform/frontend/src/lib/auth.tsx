@@ -1,12 +1,16 @@
 // Who is signed in, and which plan they have. The server decides both; the website only reflects it.
 // Visitors (no session) get the Basic experience. In demo mode (VITE_DEMO=1) there are no accounts and the plan is a local preview.
+import { setSeesAllNow } from "./adminView";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, setCsrf } from "./api";
 import { DEMO } from "./demo";
 
 export type Plan = "basic" | "silver" | "gold";
-export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: Plan; verified: boolean; mfa: boolean; mfaOk: boolean };
+/** Keeps lib/adminView's flag in step with the signed-in account, and returns it. */
+const setSeesAll = (v: boolean): boolean => { setSeesAllNow(v); return v; };
+
+export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: Plan; verified: boolean; mfa: boolean; mfaOk: boolean; viewAs?: Plan | null };
 export type Limits = { watchlist_lists: number; watchlist_symbols: number; screens: number; baskets: number; compare: number; holdings: number; mf_holdings: number; earnings_calls_per_month: number };
 type Me = { user: User | null; plan: Plan; limits: Limits; csrf: string | null; showcase?: string[] };
 
@@ -25,6 +29,8 @@ const VISITOR: Me = { user: null, plan: "basic", limits: LIMITS.basic, csrf: nul
 
 type Auth = {
   ready: boolean; user: User | null; plan: Plan; limits: Limits; isAdmin: boolean;
+  /** An administrator in the "everything" view (lib/adminView): every plan's features at once. False while one plan is previewed, so the page is exactly that plan. */
+  seesAll: boolean;
   /** Symbols whose full report the server sends to everyone (the free example). */
   showcase: string[];
   /** Re-read the session after a sign-in, sign-out or plan change; clears plan-dependent cached data. */
@@ -64,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [qc, clearPlanData]);
 
   const value = useMemo<Auth>(() => ({
-    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.plan, limits: me.limits, isAdmin: me.user?.role === "admin", showcase: me.showcase ?? [], refresh, signOut,
+    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.plan, limits: me.limits, isAdmin: me.user?.role === "admin", seesAll: setSeesAll(me.user?.role === "admin" && !me.user?.viewAs), showcase: me.showcase ?? [], refresh, signOut,
   }), [me, q.isPending, refresh, signOut]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
