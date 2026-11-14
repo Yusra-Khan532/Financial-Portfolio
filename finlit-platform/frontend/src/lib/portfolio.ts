@@ -23,6 +23,10 @@ export const portfolio = {
   add: (h: Omit<Holding, "id">) => { state = { holdings: [...state.holdings, { ...h, symbol: h.symbol.toUpperCase(), id: uid() }] }; emit(); },
   update: (id: string, h: Partial<Holding>) => { state = { holdings: state.holdings.map((x) => (x.id === id ? { ...x, ...h } : x)) }; emit(); },
   remove: (id: string) => { state = { holdings: state.holdings.filter((x) => x.id !== id) }; emit(); },
+  /** "Remove all" (task #127): an empty list, saved to the account like any other change. Returns what was there, so the page can offer Undo. */
+  clear: (): PState => { const before = state; state = fresh(); emit(); return before; },
+  /** Undo of "Remove all": puts the earlier list back exactly (ids, quantities, notes), saved to the account like any other change. */
+  restore: (s: PState) => { state = s?.holdings ? { holdings: [...s.holdings] } : fresh(); emit(); },
   addMany: (hs: Omit<Holding, "id">[]) => { state = { holdings: [...state.holdings, ...hs.map((h) => ({ ...h, symbol: h.symbol.toUpperCase(), id: uid() }))] }; emit(); },
 };
 export const usePortfolio = () => useSyncExternalStore(portfolio.subscribe, portfolio.get, portfolio.get);

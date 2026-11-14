@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from finlit.mfportfolio import api as mfp
-from test_auth import PW, app, make_admin, new_client, signed_in  # noqa: F401
+from test_auth import PW, anon, app, make_admin, new_client, signed_in  # noqa: F401
 from test_integration import ingested, make_settings, store  # noqa: F401
 
 pytestmark = pytest.mark.integration
@@ -181,6 +181,27 @@ async def test_one_member_cannot_see_change_or_delete_anothers_holdings(app):
     assert (await a.get(URL)).json()["holdings"][0]["units"] == 100.0
     assert (await a.delete(f"{URL}/not-a-uuid")).status_code == 404
     assert (await a.delete(f"{URL}/{hid}")).status_code == 200 and (await a.get(URL)).json()["count"] == 0
+
+
+async def test_remove_all_deletes_every_holding_of_the_member_and_only_theirs(app):   # task #127
+    a = await signed_in(app, "all-a@example.com", plan="silver")
+    b = await signed_in(app, "all-b@example.com", plan="silver")
+    for code in (BASE + 1, BASE + 2): await add(a, code)
+    await add(b, BASE + 1)
+    r = await a.delete(URL)
+    assert r.status_code == 200 and r.json() == {"status": "deleted", "removed": 2}
+    assert (await a.get(URL)).json()["count"] == 0
+    assert (await b.get(URL)).json()["count"] == 1                                  # another member's funds are untouched
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM mf_holding_lots l JOIN mf_holdings h ON h.id = l.holding_id") == 1   # only b's purchases are left
+    r = await a.delete(URL)
+    assert r.status_code == 200 and r.json()["removed"] == 0                        # an empty list is not an error
+
+
+async def test_remove_all_needs_a_member(app, anon):   # noqa: F811
+    assert (await anon.delete(URL)).status_code in (401, 403)
+    basic = await signed_in(app, "all-basic@example.com", plan="basic")
+    assert (await basic.delete(URL)).status_code == 403
 
 
 async def test_deleting_the_account_deletes_the_holdings(app):
