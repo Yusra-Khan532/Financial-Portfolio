@@ -561,13 +561,14 @@ export function mountStressLab(root, E, D, opts) {
   function compareSummary(ra, rb, a, b) {
     var ea = ra.change_pct.eps, eb = rb.change_pct.eps;
     if (ea === null || eb === null) return 'One of the two made a loss in the base period, so the EPS changes cannot be compared.';
-    if (Math.abs(ea - eb) < 3) return 'Both are affected about equally: EPS ' + pct(ea) + ' for ' + short(a) + ' and ' + pct(eb) + ' for ' + short(b) + '.';
+    // Task #79, SL-12d (the team's wording, 13 Nov 2026): 'about the same' only under half a point of EPS, so the sentence never contradicts the insight under it
+    if (Math.abs(ea - eb) < 0.5) return 'Both are affected about the same: EPS ' + pct(ea) + ' for ' + short(a) + ' and ' + pct(eb) + ' for ' + short(b) + '.';
     var lo = ea < eb ? [ra, a, ea] : [rb, b, eb], hi = ea < eb ? [rb, b, eb] : [ra, a, ea];
-    return short(lo[1]) + ' is more exposed to this shock: EPS ' + pct(lo[2]) + ' against ' + pct(hi[2]) + ' for ' + short(hi[1]) + ', mainly through ' + PHR[lo[0].drivers[0].key] + '.';
+    return short(lo[1]) + ' takes the bigger hit: EPS ' + pct(lo[2]) + ', against ' + pct(hi[2]) + ' for ' + short(hi[1]) + '.';
   }
   function cmpInsights(ra, rb, a, b) {
     var out = [], both = ALL_IDS.map(function (id) { var s = scenOf(id); return [E.run(a, s).change_pct.eps, E.run(b, forB(s)).change_pct.eps]; }).filter(function (x) { return x[0] !== null && x[1] !== null; });
-    var n = both.length, GAP = 3;   // the same 3 points as 'about equally' above and 'More exposed' in the table: a smaller gap is not a bigger hit
+    var n = both.length, GAP = 3;   // the same 3 points as 'More exposed' in the table: a smaller gap is not a bigger hit in the count across scenarios
     var bWorse = both.filter(function (x) { return x[1] < x[0] - GAP; }).length, aWorse = both.filter(function (x) { return x[0] < x[1] - GAP; }).length;
     [[ra, a], [rb, b]].forEach(function (x) {
       var r = x[0], c = x[1];

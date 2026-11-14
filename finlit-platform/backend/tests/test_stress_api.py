@@ -97,7 +97,10 @@ def test_eia_outlook_is_the_average_of_the_next_four_full_quarters():
 
 # ---------------------------------------------------------------------------------------------------------------- who may call what
 @pytest.fixture(autouse=True)
-def fake_table():
+def fake_table(monkeypatch):
+    async def no_close(store_, now=None):        # these tests are about serving and building; the close rule (task #79, SL-9) has its own tests in test_stress_sl9_13nov.py
+        return None
+    monkeypatch.setattr(service, "current_close", no_close)
     data._table = Table([_row("ASIANPAINT", 233000), _row("BANKX", 90000, bank=1), _row("SMALLCO", 500)], {}, {})
     R._failed_at.clear()                 # each test starts with no failed build waiting out its retry gap
     yield
@@ -228,31 +231,26 @@ async def _clean_pages(store):
 
 def _macro_today(m):
     async def fake(store):
-        return {"as_of": "2026-11-04", "series": m["series"], "brent": [list(p) for p in m["brent_quarterly"]], "usdinr_monthly": service.stopgap_usdinr()}, None
+        live = json.loads((__import__("pathlib").Path(__file__).parent / "stress_launch" / "macro_live_2026-11-13.json").read_text(encoding="utf-8"))
+        # FinLit's own FBIL series (task #79, SL-9: no stop-gap, so the 4 Nov sample without FBIL months cannot build a page any more)
+        return {"as_of": live["today"], "series": live["series"], "brent": [list(p) for p in live["series"]["brent_d"]["points"]]}, None
     return fake
 
 
-def test_sl1_the_rupee_hole_no_longer_blocks_a_company_and_the_page_names_the_source_it_really_used():
+def test_sl9_a_rupee_hole_means_no_page_never_another_source_and_a_full_series_names_fbil():
+    """Task #79, SL-9 (13 Nov 2026): the x-rates.com stop-gap is gone. A hole in FinLit's own series means the page is not built (the reader sees "being prepared",
+    the gap goes to the log); with the months filled the page names the FBIL rate, the only source it used."""
     pack = json.loads((FIX / "ASIANPAINT.json").read_text(encoding="utf-8"))
     m = json.loads((FIX / "macro_2026-11-04.json").read_text(encoding="utf-8"))
     co = S.company_from_pack(pack)
     holed = {"as_of": "2026-11-04", "series": {**m["series"], "usdinr": {"points": [["2025-08-31", 88.0], ["2026-10-27", 94.0], ["2026-11-02", 94.9]]}}, "brent": [list(p) for p in m["brent_quarterly"]]}
     with pytest.raises(ValueError):
-        S.load_today(holed, co.base_end)                                   # the 12 Nov failure: no month inside the base window and no fallback
-    today = S.load_today({**holed, "usdinr_monthly": service.stopgap_usdinr()}, co.base_end)
-    assert today.inputs["usdinr_source"] == "usdinr argument"
-    row = next(r for r in P.today_rows(today, {}) if r["driver"].startswith("Rupees"))
-    assert "x-rates.com" in row["source"] and "stop-gap" in row["source"]      # never "FBIL" for numbers that did not come from it
+        S.load_today(holed, co.base_end)
     months = [[f"{y}-{mo:02d}-28", 88.0 + i * 0.3] for i, (y, mo) in enumerate([(2025, 10), (2025, 11), (2025, 12)] + [(2026, k) for k in range(1, 10)])]
     full = {**holed, "series": {**holed["series"], "usdinr": {"points": months + [["2026-11-02", 94.9]]}}}
-    today2 = S.load_today({**full, "usdinr_monthly": service.stopgap_usdinr()}, co.base_end)
-    assert today2.inputs["usdinr_source"] == "FinLit usdinr"                   # the site's own series is used as soon as it has the months
+    today2 = S.load_today(full, co.base_end)
+    assert today2.inputs["usdinr_source"] == "FinLit usdinr"
     assert next(r for r in P.today_rows(today2, {}) if r["driver"].startswith("Rupees"))["source"] == "FBIL reference rate, published by the RBI"
-
-
-def test_sl1_the_stop_gap_file_says_what_it_is():
-    d = json.loads(service.STOPGAP_FX.read_text(encoding="utf-8"))
-    assert "STOP-GAP" in d["_note"] and d["source"] == service.STOPGAP_FX_SOURCE and len(d["points"]) >= 19
 
 
 async def test_sl4_a_page_that_cannot_be_built_says_plain_words_and_keeps_the_reason_in_the_log(app, store, monkeypatch, caplog):  # noqa: F811

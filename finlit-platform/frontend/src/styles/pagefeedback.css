@@ -9,7 +9,9 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 @media (max-width: 900px) {
   .pf-dock { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); right: 12px; }   /* above the phone's bottom tab bar */
   .pf-fab { min-height: 44px; padding: 0 14px; }
-  .pf-dock[data-no-banner] .pf-fab span { display: none; } .pf-dock[data-no-banner] .pf-fab { padding: 0 13px; }   /* two buttons on a phone: icons only (each button carries its name for screen readers) */
+  .pf-fab span { display: none; } .pf-fab { width: 44px; padding: 0; justify-content: center; }   /* task #79, SL-12c: small round icons on a phone (each button keeps its name for screen readers) */
+  .pf-dock { transition: transform .2s ease, opacity .2s ease; }
+  .pf-dock[data-away] { transform: translateY(calc(100% + 110px)); opacity: 0; pointer-events: none; }   /* out of the way while the page scrolls down; back on the way up */
   body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 }
 .pf-scrim { position: fixed; inset: 0; }   /* the dimmer and the layers come from overlay.css */

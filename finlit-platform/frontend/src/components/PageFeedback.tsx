@@ -103,10 +103,18 @@ export function PageFeedbackDock() {
   const { user, plan } = useAuth();
   const open = openKind(), banners = bannerCount();
   useEffect(() => { panel.set(null); }, [pathname]);   // moving to another page closes it: it was about the page left behind
+  // Task #79, SL-12c: on a phone the buttons are small round icons that step aside while the page scrolls down, so they never sit over what is being read
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const on = () => { const y = window.scrollY; if (y > last + 8) setAway(true); else if (y < last - 8) setAway(false); last = y; };
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   if (/^\/admin(\/|$)/.test(pathname)) return null;
   return (
     <>
-      <div className="pf-dock" data-no-banner={banners === 0 || undefined}>
+      <div className="pf-dock" data-no-banner={banners === 0 || undefined} data-away={away || undefined}>
         {banners === 0 && <button type="button" className="pf-fab pf-fab-q" aria-label="Raise a Query" onClick={() => panel.set("query")} aria-haspopup="dialog"><Icon name="bubble" /><span>Raise a Query</span></button>}
         <button type="button" className="pf-fab" aria-label="Share feedback" onClick={() => panel.set("feedback")} aria-haspopup="dialog"><Icon name="pencil" /><span>Share feedback</span></button>
       </div>
