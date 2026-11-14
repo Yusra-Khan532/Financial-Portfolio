@@ -52,6 +52,7 @@ describe("Results calendar (pack 10)", () => {
 describe("the words", () => {
   it("tiles, a day's cards and the week's cards", () => {
     expect(kpiTiles(totals as never).map((t) => t.v)).toEqual(["3,040", "+18.4%", "+15.4%", "62%", "47%", "32%"]);
+    expect(kpiTiles(totals as never, true).map((t) => `${t.v} | ${t.sub}`)).toEqual(["3,040 | of 4,682 · 1,642 still due", ...Array(5).fill("Silver plan | Opens with Silver")]);
     const rows = [row("DIVISLAB", { name: "Divi's Laboratories Ltd" }), row("TATASTEEL", { verdict: "Poor", cap: "Large", marketCap: 200000 }), row("A", { verdict: "Loss", cap: "Small", marketCap: 10 })] as unknown as VRow[];
     const c = dayCards(rows, { Strong: 14, Good: 3, "In line": 9, Weak: 6, Poor: 8, Loss: 9 }, 49, "2026-11-07", [{ date: "2026-11-12", n: 428 }, { date: "2026-11-13", n: 604 }]);
     expect(c[0]).toEqual({ kind: "good", title: "17 of 49 beat their industry", text: "Divi's Laboratories was the largest Strong result: revenue +35.4% and profit +63.6% from a year ago." });
@@ -60,6 +61,7 @@ describe("the words", () => {
     const w = weekCards(0, { held: 14, watched: 3 }, [{ date: "2026-11-12", n: 428 }, { date: "2026-11-13", n: 604 }, { date: "2026-11-14", n: 445 }], [{ symbol: "HAL", name: "Hindustan Aeronautics Ltd", date: "2026-11-12" }]);
     expect(w[0]).toEqual({ kind: "insight", title: "Your stocks have all reported", text: "All 14 shares in your portfolio and the 3 you follow have already declared. Nothing of yours is due this week." });
     expect(w[1]).toEqual({ kind: "watch", title: "The heaviest days are Friday and Saturday", text: "428 companies on Thursday, 604 companies on Friday and 445 companies on Saturday, including HAL." });
+    expect(soFar(undefined)).toBe("No industry figures to compare");
     expect(soFar({ name: "Power", companies: 35, declared: 23, medianProfitYoY: 38.7 })).toBe("23 of 35 have reported · typical profit +38.7%");
   });
 });

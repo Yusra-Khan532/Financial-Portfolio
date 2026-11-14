@@ -29,8 +29,8 @@ const nameOf = (r: Pick<QRow, "symbol" | "name">) => (/^\d+$/.test(r.symbol) ? s
 
 // ------------------------------------------------------------------------------------------------ the KPI tiles
 export type Tile = { k: string; v: string; sub: string; help?: string };
-export function kpiTiles(t: VSummary): Tile[] {
-  return [
+export function kpiTiles(t: VSummary, locked = false): Tile[] {
+  const tiles: Tile[] = [
     { k: "Declared", v: n0(t.declared), sub: `of ${n0(t.companies)} · ${n0(t.companies - t.declared)} still due`, help: `Companies that have announced results for the quarter. ${n0(t.withNumbers)} of them have full figures in so far.` },
     { k: "Typical revenue growth", v: sp(t.medianRevenueYoY), sub: `vs a year ago · ${t.nRevenue == null ? "–" : n0(t.nRevenue)} companies`, help: "The middle company when all declared results are lined up from best to worst (the median), so one extreme result cannot distort it." },
     { k: "Typical profit growth", v: sp(t.medianProfitYoY), sub: `vs a year ago · ${t.nProfit == null ? "–" : n0(t.nProfit)} companies`, help: "The middle company when all declared results are lined up from best to worst (the median), so one extreme result cannot distort it." },
@@ -38,6 +38,8 @@ export function kpiTiles(t: VSummary): Tile[] {
     { k: "Net margin up", v: t.marginUpShare == null ? "–" : `${Math.round(t.marginUpShare)}%`, sub: "of companies, vs a year ago", help: "Net profit as a share of revenue, compared with a year ago. Up means each ₹100 of sales left more profit." },
     { k: "Beat their industry", v: t.beatShare == null ? "–" : `${Math.round(t.beatShare)}%`, sub: "Strong or Good result", help: "Revenue growth, profit growth and margin change on a year ago are each compared with the typical company in the same NSE industry. Above on most of them: Strong or Good. Below on most: Weak or Poor. Company size does not change the yardstick." },
   ];
+  // On Basic the server leaves out the growth figures: those tiles say which plan opens them, never an empty dash.
+  return locked ? tiles.map((x, i) => (i === 0 ? x : { ...x, v: "Silver plan", sub: "Opens with Silver" })) : tiles;
 }
 
 // ------------------------------------------------------------------------------------------------ one day's declared results
@@ -79,4 +81,4 @@ export function weekCards(dueMine: number, followed: { held: number; watched: nu
   return out;
 }
 /** "103 of 148 have reported · typical profit +25.4%" */
-export const soFar = (x: IndustrySoFar | undefined) => (!x ? "–" : `${n0(x.declared)} of ${n0(x.companies)} have reported${x.medianProfitYoY != null ? ` · typical profit ${sp(x.medianProfitYoY)}` : ""}`);
+export const soFar = (x: IndustrySoFar | undefined) => (!x ? "No industry figures to compare" : `${n0(x.declared)} of ${n0(x.companies)} have reported${x.medianProfitYoY != null ? ` · typical profit ${sp(x.medianProfitYoY)}` : ""}`);
