@@ -18,7 +18,12 @@ case "\$1" in
   backup) exit 0 ;;
   clean) exit 0 ;;
   rollback) echo imgA > "$T/image"; exit 0 ;;
-  deploy) case "\${FAKE_MODE:-ok}" in
+  jobs) case "\${FAKE_JOBS:-moved}" in
+          pending) echo "    the jobs container moves to the new code when the running long job is done: waiting for ingest (held \$RANDOM min)"; exit 0 ;;
+          *) rm -f "$FINLIT_HOME/state/jobs_pending"; echo "    the jobs container runs the new code"; exit 0 ;;
+        esac ;;
+  deploy) [ "\${FAKE_JOBS:-}" = pending ] && echo jobcodeX > "$FINLIT_HOME/state/jobs_pending"   # deploy.sh deploy: the jobs move had to wait
+          case "\${FAKE_MODE:-ok}" in
             ok) echo imgB > "$T/image"; exit 0 ;;
             unhealthy) echo imgC > "$T/image"; exit 1 ;;
             early) exit 1 ;;
@@ -26,9 +31,6 @@ case "\$1" in
 esac
 FAKE
 export DEPLOY_SH="$FINLIT_HOME/src/sub/deploy/aws/deploy.sh" IMAGE_ID_CMD="cat $T/image" DISK_PCT_CMD="echo 40"
-# the deploy gate (jobs first): GATE says what the running app answers; every call is recorded in $T/gate
-echo "go: no long job is running" > "$T/gate_answer"; : > "$T/gate"
-export DEPLOY_GATE_CMD="sh -c 'echo \"\$*\" >> $T/gate; cat $T/gate_answer' gate"
 A="$HERE/auto-deploy.sh"
 mkdir -p "$FINLIT_HOME/state"; date +%s > "$FINLIT_HOME/state/last_daily_clean"   # today's daily cleaning is done, so the tests below only see what they ask for
 fail=0; ok() { if [ "$2" = "$3" ]; then echo "PASS  $1"; else echo "FAIL  $1 (wanted '$2', got '$3')"; fail=1; fi; }
@@ -70,24 +72,25 @@ reset; DISK_PCT_CMD="echo 90" bash "$A" >/dev/null 2>&1; ok "...but not again wi
 reset; rm -f "$FINLIT_HOME/state/last_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a disk with room is left alone (already cleaned today)" "" "$(calls)"
 reset; rm -f "$FINLIT_HOME/state/last_daily_clean"; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "a day without cleaning: waste is cleared even with room" "clean" "$(calls | cut -d" " -f1)"
 reset; DISK_PCT_CMD="echo 40" bash "$A" >/dev/null 2>&1; ok "...and only once a day" "" "$(calls)"
-# 8. jobs first: while a long job runs the new commit waits (no deploy, logged once), then goes when the job is done; force deploys at once
+# 8. a website deploy never waits for a job (founder, 14 Nov 2026): the jobs container moves separately (deploy.sh jobs), and a move that has to wait for a
+#    long job is asked again at every check, also when nothing new was committed or GitHub cannot be reached; force moves it at once
 printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$ORIGIN" > "$FINLIT_HOME/auto-deploy.conf"
 date +%s > "$FINLIT_HOME/state/last_daily_clean"; rm -f "$FINLIT_HOME/state/last_clean"
-commit six; reset; : > "$T/gate"
-echo "wait: waiting for ingest to finish (held 3 of 150 min; no new long job starts meanwhile)" > "$T/gate_answer"
-FAKE_MODE=ok bash "$A" >/dev/null 2>&1;            ok "a long job runs: the new commit is held, nothing deployed" "" "$(calls)"
-ok "the gate was asked about that commit" "check $(git -C "$W" rev-parse HEAD)" "$(head -n 1 "$T/gate")"
-echo "wait: waiting for ingest to finish (held 8 of 150 min; no new long job starts meanwhile)" > "$T/gate_answer"
-n1="$(grep -c 'held:' "$FINLIT_HOME/logs/auto-deploy.log")"; FAKE_MODE=ok bash "$A" >/dev/null 2>&1; n2="$(grep -c 'held:' "$FINLIT_HOME/logs/auto-deploy.log")"
+commit six; reset
+FAKE_JOBS=pending FAKE_MODE=ok bash "$A" >/dev/null 2>&1;  ok "a long job runs: the website is deployed at once all the same" "backup deploy" "$(calls)"
+ok "...and the jobs move is left waiting" "jobcodeX" "$(cat "$FINLIT_HOME/state/jobs_pending" 2>/dev/null)"
+reset; FAKE_JOBS=pending bash "$A" >/dev/null 2>&1;         ok "next check, nothing new: the waiting jobs move is asked again" "jobs" "$(calls)"
+n1="$(grep -c 'jobs container:' "$FINLIT_HOME/logs/auto-deploy.log")"; FAKE_JOBS=pending bash "$A" >/dev/null 2>&1; n2="$(grep -c 'jobs container:' "$FINLIT_HOME/logs/auto-deploy.log")"
 ok "the same wait is logged once, not every check" "$n1" "$n2"
-commit seven; reset; FAKE_MODE=ok bash "$A" >/dev/null 2>&1
-ok "a second commit while held: still nothing deployed (they go out together)" "" "$(calls)"
-echo "go: no long job is running" > "$T/gate_answer"; : > "$T/gate"
-FAKE_MODE=ok bash "$A" >/dev/null 2>&1;            ok "the long job is done: one deploy carries both commits" "backup deploy" "$(calls)"
+commit seven; reset; FAKE_JOBS=pending FAKE_MODE=ok bash "$A" >/dev/null 2>&1
+ok "a second commit while the jobs move waits: deployed to the website at once" "backup deploy" "$(calls)"
+reset; FAKE_JOBS=moved bash "$A" >/dev/null 2>&1;           ok "the long job is done: the jobs container moves" "jobs" "$(calls)"
+ok "...and nothing is waiting any more" "none" "$(cat "$FINLIT_HOME/state/jobs_pending" 2>/dev/null || echo none)"
+reset; bash "$A" >/dev/null 2>&1;                           ok "nothing waiting, nothing new: nothing runs" "" "$(calls)"
 ok "the newest commit is recorded" "$(git -C "$W" rev-parse HEAD)" "$(cat "$FINLIT_HOME/state/auto_deployed_sha")"
-ok "after the deploy the hold is released" "release" "$(tail -n 1 "$T/gate")"
-commit eight; reset; echo "wait: waiting for score to finish (held 1 of 150 min)" > "$T/gate_answer"
-FAKE_MODE=ok bash "$A" force >/dev/null 2>&1;      ok "force: deployed at once, even while a long job runs" "backup deploy" "$(calls)"
-commit nine; reset; echo "gibberish" > "$T/gate_answer"
-FAKE_MODE=ok bash "$A" >/dev/null 2>&1;            ok "a gate that cannot answer (older build, app down): deploy goes on" "backup deploy" "$(calls)"
+commit eight; reset; FAKE_MODE=ok bash "$A" force >/dev/null 2>&1; ok "force: deployed and the jobs container moved at once" "backup deploy jobs" "$(calls)"
+reset; bash "$A" force >/dev/null 2>&1;                     ok "force with nothing new: the jobs container is moved at once" "jobs" "$(calls)"
+echo jobcodeY > "$FINLIT_HOME/state/jobs_pending"
+printf 'REPO_URL=%s\nREPO_BRANCH=main\nREPO_SUBDIR=sub\n' "$T/missing.git" > "$FINLIT_HOME/auto-deploy.conf"
+reset; FAKE_JOBS=moved bash "$A" >/dev/null 2>&1;           ok "GitHub unreachable: a waiting jobs move still goes" "jobs" "$(calls)"
 exit $fail
