@@ -265,3 +265,16 @@
 .ssw-rlex > small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .ssw-rlmy { display: inline-flex; align-items: center; gap: 6px; }
 .ssr-ratio .ssr-rt .lnk { margin-left: auto; font-size: 13px; }
+
+/* Minimize Your rules (task #140): the × in the panel's heading hides the panel; the toggle above brings it back (on a wide screen the results then use the full width). */
+.ssw-rmin { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.ssw-rmin:hover, .ssw-rmin:focus-visible { color: var(--text); border-color: var(--text); }
+.ssw-rmin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.ssw-rdone { display: none; }
+.ssw-work.rules-min { grid-template-columns: minmax(0, 1fr); }
+.ssw-work.rules-min .ssw-rules { display: none; }
+.ssw-rtoggle.min { display: inline-flex; justify-content: space-between; width: 100%; min-height: 44px; margin-bottom: 16px; }
+@media (max-width: 1000px) {
+  .ssw-rmin { width: 44px; height: 44px; }
+  .ssw-rdone { display: flex; justify-content: center; width: 100%; min-height: 44px; margin-top: 16px; }
+}

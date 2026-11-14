@@ -602,3 +602,30 @@ describe("the address holds the whole screen", () => {
     expect(s.industries).toEqual(["Software"]); expect(s.indices).toEqual(["NIFTY 50"]); expect(s.model).toBeUndefined(); expect(s.on).toBeUndefined();
   });
 });
+
+describe("task #140: Your rules can be minimized", () => {
+  it("the × in the panel hides it, the results use the full width, the bar above brings it back, and the rules stay on", async () => {
+    mount("?caps=Large"); await ready();
+    const work = () => document.querySelector(".ssw-work") as HTMLElement;
+    expect(rulesPanel().className).toContain("open");
+    expect(work().className).not.toContain("rules-min");
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Your rules" }));
+    await waitFor(() => expect(work().className).toContain("rules-min"));
+    const bar = screen.getByRole("button", { name: /^Your rules/ });
+    expect(bar.getAttribute("aria-expanded")).toBe("false"); expect(bar.className).toContain("min");
+    expect(localStorage.getItem("finlit-screener-rules-min")).toBe("1");          // remembered on a wide screen
+    expect(loc()).toContain("caps=Large");                                         // minimizing never drops a rule
+    fireEvent.click(bar);
+    await waitFor(() => expect(work().className).not.toContain("rules-min"));
+    expect(localStorage.getItem("finlit-screener-rules-min")).toBeNull();
+  });
+  it("a reader who minimized it last time finds it minimized; the panel's Show button closes it too", async () => {
+    localStorage.setItem("finlit-screener-rules-min", "1");
+    mount(); await ready();
+    expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min");
+    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    await waitFor(() => expect(rulesPanel().className).toContain("open"));
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Show / }));
+    await waitFor(() => expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min"));
+  });
+});
