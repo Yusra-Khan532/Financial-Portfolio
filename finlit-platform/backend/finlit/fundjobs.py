@@ -83,9 +83,20 @@ async def run(request: Request, body: RunIn, ctx: Ctx = Depends(admin_ctx)):
     return Response(content=json.dumps({"ok": True, "job": body.job}), media_type="application/json", headers=NO_STORE)
 
 
+def _first_to_go() -> None:
+    """A load started from the admin button runs in the WEBSITE container (the scheduled ones run in the jobs container). Its OOM score is raised, as the
+    supervisor does for every job (finlit/jobs/runner.py), so if memory runs out the kernel stops this load, never the website. Inherited by the worker."""
+    try:
+        with open("/proc/self/oom_score_adj", "w") as fh:
+            fh.write("500")
+    except OSError:   # nosec B110 - not on Linux or not allowed: the load still runs
+        pass
+
+
 async def _runner(job: str) -> int:
     from .config import Settings
     from .store import Store
+    _first_to_go()
     fd = os.open(FUNDS_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

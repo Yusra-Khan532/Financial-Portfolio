@@ -25,8 +25,8 @@ COPY backend/scripts ./scripts
 COPY backend/tests/fixtures ./tests/fixtures
 COPY site-api/backend ./site-api/backend
 COPY --from=web /web/dist ./web
-COPY deploy/start.sh deploy/scheduler.sh ./
-RUN chmod +x start.sh scheduler.sh && useradd --create-home finlit && chown -R finlit /app
+COPY deploy/start.sh deploy/scheduler.sh deploy/jobs.sh ./
+RUN chmod +x start.sh scheduler.sh jobs.sh && useradd --create-home finlit && chown -R finlit /app
 USER finlit
 ARG GIT_COMMIT=unknown
 ENV FRONTEND_DIST=/app/web APP_VERSION=$GIT_COMMIT
