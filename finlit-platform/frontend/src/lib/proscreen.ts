@@ -16,7 +16,7 @@ export type Catalog = {
   indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
   bandModel?: "prism" | "iq";   // which score the rating chips are on: FinLit Prism for Gold, the FinLit IQ below (tasks #64, #100)
-  standardColumns?: string[];   // the Stock screener's nine standard columns, only those the visitor's plan shows (file 04)
+  standardColumns?: string[];   // the columns the Stock screener opens with, only those the visitor's plan shows: the market cap, and for Gold the two technical views (tasks #145, #141)
 };
 export type Range = { min?: number; max?: number };
 export type PState = {
@@ -124,7 +124,7 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
 /** One ready-made screen of the Stock screener (task #64, file 04), as the server sends it: a metric screen's rules come in `state`; a screen on the FinLit model has none. */
 export type ReadyScreen = { id: string; label: string; says: string; tier: Plan; group: "everyday" | "silver" | "model"; count: number | null; state?: Partial<PState> };
 export const useReady = () => useQuery<{ asOf: string; total: number; screens: ReadyScreen[] }, ApiError>({ queryKey: ["screener-ready"], queryFn: () => apiGet("/api/screener/ready"), staleTime: 300_000, retry: 1 });
-/** The nine standard columns (file 04) the visitor's plan shows, else the older default set. */
+/** The columns the table opens with (task #145: the company and its market cap) that the visitor's plan shows, else the older default set. */
 export const standardColumns = (cat: Pick<Catalog, "defaultColumns" | "groups" | "standardColumns"> | undefined): string[] =>
   !cat ? [] : cat.standardColumns?.length ? defaultColumns({ ...cat, defaultColumns: cat.standardColumns }) : defaultColumns(cat);
 

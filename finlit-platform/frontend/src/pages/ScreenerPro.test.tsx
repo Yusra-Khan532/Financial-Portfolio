@@ -23,10 +23,11 @@ const STATS = { min: 0, p10: 5, p25: 10, p50: 20, p75: 40, p90: 60, max: 100, n:
 const M = (key: string, label: string, o: Partial<MetricInfo> = {}): MetricInfo => ({ key, label, unit: "x", better: "lower", tier: "basic", say: `${label} explained`, digits: 1, locked: false, hidden: false, variants: null, stats: STATS, ...o });
 const VAR = (b: string) => ({ now: b, "3y": `${b}_avg_3y`, "5y": `${b}_avg_5y`, "7y": `${b}_avg_7y` });
 const STD = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_to_equity", "ret_1y"];
+const wide = (c: Catalog): Catalog => ({ ...c, standardColumns: STD });   // a catalogue whose table opens with many columns (the tests of cells, colours and the column menu)
 const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSilver ? "basic" : "silver"): Catalog => ({
   plan, total: 5813, withReport: 5000, updatedAt: "2026-10-30T00:00:00Z", sectors: [], industries: [], indices: [], caps: [{ name: "Large", n: 204 }, { name: "Mid", n: 386 }, { name: "Small", n: 5244 }],
   bands: ["strong", "healthy", "mixed", "watch"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: plan !== "gold", n: 10 })), limits: { rows: null, export: true },
-  defaultColumns: ["market_cap", "price"], standardColumns: lockSilver ? STD.filter((k) => k !== "sales_cagr_3y") : STD,
+  defaultColumns: ["market_cap", "price"], standardColumns: ["market_cap"],   // task #145: the table opens with the company and its market cap only
   groups: [
     { id: "valuation", label: "Valuation", tier: "basic", metrics: [
       M("pe", "P/E", { variants: VAR("pe") }), M("pb", "P/B", { tier: "silver", locked: lockSilver, variants: VAR("pb") }), M("dividend_yield", "Dividend yield", { unit: "%", better: "higher" }),
@@ -251,18 +252,25 @@ describe("Tell me when a company joins (file 04 §9)", () => {
 });
 
 describe("the table (file 04 §5)", () => {
-  it("opens with the nine standard columns the plan shows; LTP carries the day's change; IQ is Gold", async () => {
+  it("opens with the company and its market cap only (task #145); the other columns come from the Columns menu", async () => {
     mount(); await ready();
+    expect(heads()).toEqual(["Company", "Market cap"]);
+    expect(st.bodies[0].columns).toEqual(["market_cap"]);
+    expect(colBtn()).toBe("Columns · 1 ▾");
+    expect(document.querySelectorAll(".ssw-t tbody tr").length).toBe(2);
+  });
+
+  it("the older wide set still works when the server sends it: LTP carries the day's change", async () => {
+    st.cat = wide(catalog()); mount(); await ready();
     expect(heads()).toEqual(["Company", "Share price", "Market cap", "P/E", "Return on equity", "Return on capital employed", "Sales growth, 3 years a year", "Debt to equity", "1-year return"]);
     expect(Array.from(table().querySelectorAll("thead tr.ssw-hd th button")).map((b) => b.childNodes[0].textContent?.trim())).toContain("LTP");
     expect(st.bodies[0].columns).toEqual([...STD, "ret_1d"]);                       // the day's change comes with the price, without a column of its own
-    expect(colBtn()).toBe("Columns · 8 ▾");
     expect(table().querySelector("tbody tr td:nth-child(2)")!.textContent).toMatch(/\+1\.5%/);
   });
 
   it("Gold sees FinLit Prism (column, rating chips, rule group), never the FinLit IQ (tasks #64 P-1, #100)", async () => {
     const g = catalog(false, "gold");
-    st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final", "prism_st_score", "prism_lt_score"],
+    st.cat = { ...g, bandModel: "prism", standardColumns: ["market_cap", "prism_final", "prism_st_score", "prism_lt_score"],
       bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })),
       groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [M("prism_final", "Fundamental Prism score", { unit: "pts", better: "higher", tier: "gold" }), M("prism_st_score", "Short-term technical", { unit: "pts", better: "higher", tier: "gold" }), M("prism_lt_score", "Long-term technical", { unit: "pts", better: "higher", tier: "gold" })] }] };
     mount(); await ready();
@@ -279,13 +287,23 @@ describe("the table (file 04 §5)", () => {
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
+  it("Gold opens with the market cap and the two technical views; Fundamental Prism score is one click away in the Columns menu (tasks #145, #141)", async () => {
+    const g = catalog(false, "gold");
+    st.cat = { ...g, bandModel: "prism", standardColumns: ["market_cap", "prism_st_score", "prism_lt_score"],
+      groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [M("prism_final", "Fundamental Prism score", { unit: "pts", better: "higher", tier: "gold" }), M("prism_st_score", "Short-term technical", { unit: "pts", better: "higher", tier: "gold" }), M("prism_lt_score", "Long-term technical", { unit: "pts", better: "higher", tier: "gold" })] }] };
+    mount(); await ready();
+    await waitFor(() => expect(heads()).toEqual(["Company", "Market cap", "Short-term technical", "Long-term technical"]));
+    fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
+    expect(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name: /^Fundamental Prism score$/ })).toBeTruthy();
+  });
+
   it("on the Basic plan only the columns the plan can see are asked for", async () => {
     st.cat = catalog(true); mount(); await ready();
     expect(st.bodies[0].columns).not.toContain("sales_cagr_3y"); expect(st.bodies[0].columns).not.toContain("overall");
   });
 
   it("the results table has the enlarge arrow, and enlarging opens the same table in a dialog", async () => {
-    mount(); await ready();
+    st.cat = wide(catalog()); mount(); await ready();
     fireEvent.click(await screen.findByRole("button", { name: /Enlarge table: Stock screener results/ }));
     const dlg = await screen.findByRole("dialog", { name: "Stock screener results" });
     expect(within(dlg).getAllByRole("columnheader").length).toBeGreaterThan(9);
@@ -299,12 +317,12 @@ describe("the table (file 04 §5)", () => {
     expect(heads()).toEqual(["Company", "Market cap", "Return on equity"]);
     fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
     fireEvent.click(screen.getByRole("button", { name: "Back to the standard set" }));
-    await waitFor(() => expect(heads()).toHaveLength(9));
+    await waitFor(() => expect(heads()).toHaveLength(2));   // the standard set is the company and its market cap (task #145)
     expect(localStorage.getItem("finlit.screener.cols")).toBeNull();
   });
 
   it("removing a standard column is remembered", async () => {
-    mount(); await ready();
+    st.cat = wide(catalog()); mount(); await ready();
     fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));
     fireEvent.click(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name: /^Share price$/ }));
     await waitFor(() => expect(heads()).not.toContain("Share price"));
@@ -312,7 +330,7 @@ describe("the table (file 04 §5)", () => {
   });
 
   it("an empty cell is a dash with the reason in its tooltip", async () => {
-    mount(); await ready();
+    st.cat = wide(catalog()); mount(); await ready();
     const cell = Array.from(table().querySelectorAll("tbody tr")[1].querySelectorAll("td"))[3];
     expect(cell.textContent).toBe("–"); expect(cell.getAttribute("title")).toMatch(/Loss-making/);
   });
@@ -474,7 +492,7 @@ describe("The green and red colour note (task 73)", () => {
   const pick = (name: RegExp) => { if (!document.querySelector(".pl-colmenu")) fireEvent.click(screen.getByRole("button", { name: /^Columns/ })); fireEvent.click(within(document.querySelector(".pl-colmenu") as HTMLElement).getByRole("checkbox", { name })); };
 
   it("is not there on the standard columns, though their cells are coloured", async () => {
-    st.many = 10; mount(); await ready();
+    st.many = 10; st.cat = wide(catalog()); mount(); await ready();
     expect(table().querySelector("td.tone-good, td.tone-bad")).toBeTruthy();
     expect(note()).toBeNull();
   });
@@ -533,9 +551,9 @@ describe("One Sector filter (task 74)", () => {
 
 describe("helpers", () => {
   const cat = catalog(); const by = new Map(cat.groups.flatMap((g) => g.metrics.map((m) => [m.key, m] as const)));
-  it("standard columns: the nine the plan shows, else the older default set", () => {
-    expect(standardColumns(cat)).toEqual(STD); expect(standardColumns({ ...cat, standardColumns: undefined })).toEqual(defaultColumns(cat));
-    expect(standardColumns(catalog(true))).not.toContain("sales_cagr_3y"); expect(standardColumns(undefined)).toEqual([]);
+  it("standard columns: the market cap only (task #145), else the older default set", () => {
+    expect(standardColumns(cat)).toEqual(["market_cap"]); expect(standardColumns(wide(cat))).toEqual(STD); expect(standardColumns({ ...cat, standardColumns: undefined })).toEqual(defaultColumns(cat));
+    expect(standardColumns(catalog(true))).toEqual(["market_cap"]); expect(standardColumns(undefined)).toEqual([]);
   });
   it("chip column follows the period and skips locked metrics", () => {
     const pb = by.get("pb")!;
