@@ -8,16 +8,18 @@ export type ScoreModel = "prism" | "iq";
 function useHas(): ((tier: "silver" | "gold") => boolean) | null {
   try { return useUI().has; } catch { return null; }
 }
-function useAdmin(): boolean {
-  try { return !!useAuth().isAdmin; } catch { return false; }
+/** An administrator in the "everything" view: every plan's features at once (founder, 14 Nov 2026). */
+export function useSeesAll(): boolean {
+  try { return !!useAuth().seesAll; } catch { return false; }
 }
-/** True on Gold. */
+/** True on Gold, for what Gold does without (task #100: no Basic stock screener, which uses the FinLit IQ). False for an administrator seeing every
+ *  plan's features: nothing is taken away from them (founder, 14 Nov 2026). */
 export function useIsGold(): boolean {
-  const has = useHas();
-  return !!has?.("gold");
+  const has = useHas(), all = useSeesAll();
+  return !!has?.("gold") && !all;
 }
 /** "prism" for Gold and administrators, "iq" for Silver, null below Silver. */
 export function usePlanModel(): ScoreModel | null {
-  const has = useHas(), admin = useAdmin();
-  return has?.("gold") || admin ? "prism" : has?.("silver") ? "iq" : null;
+  const has = useHas(), all = useSeesAll();
+  return has?.("gold") || all ? "prism" : has?.("silver") ? "iq" : null;
 }

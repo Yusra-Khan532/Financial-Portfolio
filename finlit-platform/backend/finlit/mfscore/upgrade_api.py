@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from ..alertengine import ALERT_LIMITS
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import NO_STORE, Ctx, fail, limit, secure_ctx
 from . import MODEL_VERSION, scorehist
 from .api import DISCLAIMER, METHOD_URL, PRIVATE, _json, _sub_label, may_see, resolve_mf
@@ -340,7 +340,7 @@ def alert_view(r: Any) -> Dict[str, Any]:
 
 
 def need_gold(ctx: Ctx) -> None:
-    if not (has(ctx.plan, "gold") or ctx.role == "admin"):
+    if not (has(ctx.plan, "gold") or sees_all(ctx)):
         raise fail(403, "plan_required", "Score alerts are part of the Gold plan.", plan="gold")
 
 

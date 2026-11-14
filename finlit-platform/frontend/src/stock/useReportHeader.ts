@@ -14,10 +14,10 @@ export function useReportHeader(s: Summary) {
   const { has, toast, upgrade } = useUI();
   const open = useContext(OpenAccess);
   const two = has("gold") || open;   // Gold sees the score and FinLit Prism side by side
-  const { isAdmin } = useAuth();
-  const prism = usePrismLatest(s.profile.symbol, s.meta.statement, two || isAdmin).data;
+  const { isAdmin, seesAll } = useAuth();
+  const prism = usePrismLatest(s.profile.symbol, s.meta.statement, two || seesAll).data;
   const prismRep = prism?.kind === "report" ? prism.report : null;
-  const effPlan: Plan = two || isAdmin ? "gold" : has("silver") ? "silver" : "basic";
+  const effPlan: Plan = two || seesAll ? "gold" : has("silver") ? "silver" : "basic";
   const tech = prismRep ? parseTechnical(prismRep.technicalAssessment) : null;
   const prismIn: PrismInput = !prism ? { kind: "loading" } : prism.kind === "report"
     ? { kind: "report", final: prism.report.rating.final, word: LABEL[prism.report.rating.label][0], status: prism.report.rating.status, parts: prism.report.rating.parts,
@@ -33,5 +33,5 @@ export function useReportHeader(s: Summary) {
     if (on) { if (!has("gold") && wl.total() >= 30) { upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(p.symbol); } else wl.remove(p.symbol);
     toast(on ? `${p.nse || p.symbol} added to your watchlist.` : `${p.nse || p.symbol} removed from your watchlist.`);
   };
-  return { open, two, isAdmin, prism, prismRep, effPlan, prismIn, watch, toggleWatch, need, has };
+  return { open, two, isAdmin, seesAll, prism, prismRep, effPlan, prismIn, watch, toggleWatch, need, has };
 }

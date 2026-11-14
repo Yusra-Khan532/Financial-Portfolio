@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import fail
 from ..auth.service import current
 from . import MODEL_VERSION
@@ -54,7 +54,7 @@ async def may_see(request: Request, code: Optional[int] = None) -> bool:
     if code is not None and code in showcase():
         return True
     ctx = await current(request)
-    return has(ctx.plan, "gold") or ctx.role == "admin"
+    return has(ctx.plan, "gold") or sees_all(ctx)
 
 
 async def require_score_plan(request: Request) -> None:

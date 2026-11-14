@@ -136,3 +136,4 @@
 :root:root:root .wp .wp-t input.wp-tg:hover, :root:root:root .wp .wp-t textarea.wp-nt:hover { border-color: var(--sp-line); }
 :root:root:root .wp .wp-t input.wp-tg:focus, :root:root:root .wp .wp-t textarea.wp-nt:focus { border-color: var(--sp-info); background-color: var(--bg); box-shadow: none; }
 @media (min-width: 761px) { :root:root:root .wp .wp-t textarea.wp-nt { font-size: 13px; } }   /* phones keep the site's 16px in fields, so iOS does not zoom on focus */
+.wp-sc .wp-iq { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }   /* administrators: the FinLit IQ beside FinLit Prism */

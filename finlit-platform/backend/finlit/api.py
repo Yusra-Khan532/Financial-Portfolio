@@ -58,7 +58,7 @@ from . import fundjobs, sysctl, wake
 from . import options as options_api
 from .auth import routes as auth_routes
 from .mcp import server as mcp_server
-from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan
+from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan, sees_all
 from .auth.mailer import ConsoleMailer, ResendMailer
 from .auth.service import cookie_name, current
 from .modelguard import ModelGuardMiddleware
@@ -677,7 +677,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         Built once per few minutes and kept in Redis, one copy per access level (model scores are a Silver feature, FinLit Prism a Gold one)."""
         started = time.perf_counter()
         ctx = await current(request)
-        level = "gold" if has(ctx.plan, "gold") or ctx.role == "admin" else "silver" if has(ctx.plan, "silver") else "basic"     # FinLit Prism is a Gold feature
+        level = "gold" if has(ctx.plan, "gold") or sees_all(ctx) else "silver" if has(ctx.plan, "silver") else "basic"     # FinLit Prism is a Gold feature
         redis = app.state.store.redis
         try:
             hit = await redis.hmget(f"universe:{level}", ["body", "etag"])

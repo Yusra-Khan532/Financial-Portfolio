@@ -23,7 +23,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.routes import SYMBOL, Ctx, fail, ip_of, secure_ctx
 from .prism_screen import PARTS
 from .technical_wording import rating_word
@@ -214,7 +214,7 @@ def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], go
 # ---------------------------------------------------------------------------------------------------------- the route
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "silver"):
+    if not sees_all(ctx) and not has(ctx.plan, "silver"):
         raise fail(403, "plan_required", "Equity portfolio scores are part of the Silver plan.", plan="silver")
     return ctx
 
@@ -252,7 +252,7 @@ async def overview(request: Request, body: OverviewIn, ctx: Ctx = Depends(member
     if len(body.symbols) > MAX_SYMBOLS:
         raise fail(400, "too_many", f"Send at most {MAX_SYMBOLS} symbols at a time.")
     symbols = clean_symbols(body.symbols)
-    gold = ctx.role == "admin" or has(ctx.plan, "gold")
+    gold = sees_all(ctx) or has(ctx.plan, "gold")
     store = request.app.state.store
     key = f"pfo:{VERSION}:{'gold' if gold else 'silver'}:{hashlib.sha1('|'.join(sorted(symbols)).encode()).hexdigest()}"  # nosec B324 - cache key
     headers = {"Cache-Control": "private, no-store", "Vary": "Cookie"}

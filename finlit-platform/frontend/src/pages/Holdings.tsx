@@ -49,9 +49,9 @@ import "../portfolio/pack/equity-pack.css";
 export function HoldingsPage() {
   useDocTitle("Equity portfolio", "Add the shares you own, by name or from a broker file, and see how strong each one is, how spread out the list is, what moves together and where the risk comes from.");
   const { plan, toast } = useUI();
-  const { isAdmin } = useAuth();
+  const { seesAll } = useAuth();
   const qc = useQueryClient();
-  const model = modelFor(plan, isAdmin);          // Silver: the basic FinLit IQ. Gold: FinLit Prism only. Basic: the page is gated.
+  const model = modelFor(plan, seesAll);          // Silver: the basic FinLit IQ. Gold: FinLit Prism only. Basic: the page is gated.
   const [params, setParams] = useSearchParams();
   const tab = parseTab(params.get("tab")), period = parsePeriod(params.get("period"));
   const go = (t: Tab, pd: Period = period) => setParams(withTab(params.toString(), t, pd), { replace: true });
