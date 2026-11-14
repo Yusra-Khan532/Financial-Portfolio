@@ -89,6 +89,9 @@ def fresh(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     server._chat_attempts.clear()
     mcp_tools.reset_cache()
+    async def none(_key):   # these tests are about the data tools: every question goes to the model (FinLit's saved answers, task #138, are tested in test_chat_store.py)
+        return None
+    monkeypatch.setattr(server, "chat_store_get", none)
     yield
     mcp_tools.reset_cache()
 

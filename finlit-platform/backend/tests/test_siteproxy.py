@@ -94,3 +94,16 @@ async def test_the_site_backends_password_only_cms_sign_in_is_never_forwarded():
         assert r.status_code == 404 and "token" not in r.json(), path
     assert calls == []
     assert (await c.get("/api/content/admin/items")).status_code == 200   # the rest of the CMS (token-protected upstream) still goes through
+
+
+async def test_a_streamed_answer_is_passed_on_as_events_not_held_back():
+    """Task #138: FinLit AI's /api/chat/stream sends its steps as server-sent events; the proxy keeps the event-stream type and every event."""
+    events = b'event: step\ndata: {"text": "Asking FinLit AI"}\n\nevent: answer\ndata: {"response": "ok"}\n\n'
+
+    def upstream(request: httpx.Request):
+        assert request.url.path == "/api/chat/stream" and request.method == "POST"
+        return httpx.Response(200, content=events, headers={"content-type": "text/event-stream", "cache-control": "no-cache"})
+
+    r = await client(make_app(upstream)).post("/api/chat/stream", json={"message": "hi"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+    assert r.headers["x-accel-buffering"] == "no" and r.content == events

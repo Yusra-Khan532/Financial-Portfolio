@@ -66,7 +66,15 @@ const starter = (i: number): Q => ({ id: "s" + i, text: STARTERS[i].q });
 /** Investment concepts and Platform & tools answer at once from the written starters (no model call). */
 export const CONCEPT_QUESTIONS: Q[] = [starter(3), starter(2), starter(4)];
 export const PLATFORM_QUESTIONS: Q[] = [starter(0), starter(1), starter(5)];
-export const writtenAnswer = (text: string): string | undefined => STARTERS.find((s) => s.q === text)?.a;
+/** Task #138: the general market questions answer at once from written text too (they describe how things work, so no live figure is needed and no model call is made).
+ *  Questions about a company still go to the assistant, which uses FinLit's data; the site keeps those answers for a while, so a repeat is instant. */
+export const MARKET_ANSWERS: Record<string, string> = {
+  [MARKET_QUESTIONS[0].text]: "FII (foreign institutional investors) and DII (domestic institutions such as mutual funds and insurers) flows are the net amounts these groups put into or took out of Indian shares on a day. Large FII selling has often coincided with weaker markets and a softer rupee, and DII buying has often absorbed part of it; when both are net buyers, prices have tended to have broad support. Flows describe who traded, not what comes next. FinLit shows the daily and monthly figures on the FII / DII page. Information only, not investment advice.",
+  [MARKET_QUESTIONS[1].text]: "The repo rate is the rate at which the RBI lends to banks. When it rises, borrowing becomes dearer for companies and households, fixed deposits and bonds pay more, and the present value of future profits falls, which has tended to weigh on share prices, most of all for rate-sensitive sectors such as banks, real estate and autos. Cuts work the other way. The effect depends on how far a change was already expected. FinLit's Macro page shows the rate history. Information only, not investment advice.",
+  [MARKET_QUESTIONS[2].text]: "The 200-day average is the mean closing level of the Nifty 50 over the last 200 trading sessions, a common way to describe the long-term trend. Above it, the index has been rising over that period; below it, the long-term trend has been down. It describes past prices only and says nothing certain about what happens next; markets often cross it back and forth. FinLit's Sector Pulse page shows the Nifty 50 against its 200-day average at the top. Information only, not investment advice.",
+  [MARKET_QUESTIONS[3].text]: "On FinLit, Sector Pulse lists every industry group with its recent returns and how many of its stocks are above their short and longer averages, and Sector Rotation places each sector in one of four corners by its recent strength and momentum, so you can see which have been rising faster than the market and which are slowing. Both use the latest closing prices and show their date. They describe what prices have done, not what they will do. Information only, not investment advice.",
+};
+export const writtenAnswer = (text: string): string | undefined => STARTERS.find((s) => s.q === text)?.a ?? MARKET_ANSWERS[text];
 
 export const categoryQuestions = (c: Exclude<CategoryId, "company">): Q[] => (c === "market" ? MARKET_QUESTIONS : c === "concepts" ? CONCEPT_QUESTIONS : PLATFORM_QUESTIONS);
 

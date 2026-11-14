@@ -65,5 +65,39 @@ export const assetUrl = (key: string) => apiUrl(`/api/content/assets/${encodeURI
 export type ContactPayload = { name: string; email: string; phone?: string; investment_size?: string; subject?: string; message?: string };
 export const sendContact = (p: ContactPayload) => send<{ id?: string }>("/api/contact", p);
 export const sendEnquiry = (p: { name: string; email: string; phone: string; services: string[]; message?: string }) => send<{ id?: string }>("/api/service-enquiry", p);
-export const askAssistant = (message: string, history: { role: "user" | "assistant"; content: string }[]) =>
-  send<{ response: string }>("/api/chat", { message, history: history.slice(-12) });
+export type AssistantAnswer = { response: string; question_id?: string | null; saved_at?: string | null };
+type Turn = { role: "user" | "assistant"; content: string };
+export const askAssistant = (message: string, history: Turn[], preset = false) =>
+  send<AssistantAnswer>("/api/chat", { message, history: history.slice(-12), preset });
+
+/** Task #138: the same answer, streamed. `onStep` hears each real step the site takes (saved answer, data look-ups, writing) while the visitor waits.
+ *  Any problem with the stream itself (an older server, a proxy that buffers) falls back to the plain request; an answer error from the site is shown as it is. */
+export async function askAssistantStream(message: string, history: Turn[], preset: boolean, onStep: (text: string) => void): Promise<AssistantAnswer> {
+  const body = JSON.stringify({ message, history: history.slice(-12), preset });
+  let res: Response;
+  try {
+    res = await fetch(apiUrl("/api/chat/stream"), { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body });
+  } catch { return askAssistant(message, history, preset); }
+  if (!res.ok || !res.body || !(res.headers.get("content-type") || "").includes("text/event-stream")) {
+    if (res.status === 429 || res.status === 400) { let d: any = {}; try { d = await res.json(); } catch { /* not JSON */ } throw new ApiError(res.status, { detail: friendlyError(d, res.status) }); }
+    return askAssistant(message, history, preset);
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buf += dec.decode(value, { stream: true });
+    let cut: number;
+    while ((cut = buf.indexOf("\n\n")) >= 0) {
+      const block = buf.slice(0, cut); buf = buf.slice(cut + 2);
+      const kind = /^event: (.+)$/m.exec(block)?.[1], raw = /^data: (.*)$/m.exec(block)?.[1];
+      if (!kind || raw == null) continue;
+      let data: any; try { data = JSON.parse(raw); } catch { continue; }
+      if (kind === "step" && typeof data.text === "string") onStep(data.text);
+      else if (kind === "answer") return data as AssistantAnswer;
+      else if (kind === "error") throw new ApiError(Number(data.status) || 502, { detail: typeof data.detail === "string" ? data.detail : friendlyError(data, 502) });
+    }
+    if (done) break;
+  }
+  return askAssistant(message, history, preset);   // the stream ended without an answer: ask once more the plain way
+}
