@@ -4,6 +4,7 @@
     POST    ""                 add a holding (or a purchase to the same fund and folio)
     PUT     "/{id}"            replace a holding's folio and purchases
     DELETE  "/{id}"            remove a holding
+    DELETE  ""                 remove every holding of the member (task #127: "Remove all"); their purchases go with them
     POST    "/import-preview"  rows read from a file -> each row matched / choose / not_found / ignored / invalid / duplicate, nothing stored
     POST    "/import-commit"   the rows the member confirmed (each with the scheme chosen) -> stored
 
@@ -408,6 +409,16 @@ async def update_holding(request: Request, hid: str, body: UpdateIn, ctx: Ctx = 
             await conn.executemany("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on) VALUES ($1, $2, $3, $4)", [(h, u, i, d) for u, i, d in lots])
             await conn.execute("UPDATE mf_holdings SET updated_at = now() WHERE id = $1", h)
     return reply({"status": "saved", "id": str(h)})
+
+
+@router.delete("")
+async def delete_all_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """'Remove all' on the MF portfolio page: every holding of the signed-in member, and only theirs (their purchases go with them, ON DELETE CASCADE).
+    Answers how many were removed, so the page can say so; an empty list is not an error."""
+    await limit(request, "mfpw", ctx.user_id, 120, 600)
+    async with request.app.state.store.pool.acquire() as conn:
+        n = int((await conn.execute("DELETE FROM mf_holdings WHERE user_id = $1", ctx.user_id)).split()[-1])
+    return reply({"status": "deleted", "removed": n})
 
 
 @router.delete("/{hid}")
