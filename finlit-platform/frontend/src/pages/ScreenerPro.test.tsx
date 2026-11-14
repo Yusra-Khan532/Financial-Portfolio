@@ -349,7 +349,7 @@ describe("the table (file 04 §5)", () => {
     const from = await screen.findByRole("spinbutton", { name: "Prism short-term view from" });
     expect(from.closest("[data-rule]")!.querySelector(".ssr-scale")!.textContent).toBe("\u2212100 to +100");
     fireEvent.change(from, { target: { value: "-250" } });
-    await waitFor(() => expect(last().filters.prism_st_score?.min).toBe(-100));
+    await waitFor(() => expect((last().filters.prism_st_score as { min?: number } | undefined)?.min).toBe(-100));
     await addRule("Dividend yield");
     expect((await screen.findByRole("spinbutton", { name: "Dividend yield from" })).hasAttribute("max")).toBe(false);
 >>>>>>> 9afbde9 (Task #144: 'Prism Fundamental score'; 'Added · Edit' opens the rule; score boxes keep their 0 to 100 scale)
