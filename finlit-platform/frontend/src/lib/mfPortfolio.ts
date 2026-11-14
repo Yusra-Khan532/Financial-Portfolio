@@ -60,6 +60,7 @@ export function useMfWrites() {
     add: useMutation({ mutationFn: (b: Partial<LotInput> & { code: number; folio?: string; follow?: boolean }) => apiSend<{ id: string; merged: boolean }>("POST", "/api/me/mf-portfolio", b), onSuccess: done }),
     update: useMutation({ mutationFn: (b: { id: string; folio?: string; lots: LotInput[] }) => apiSend("PUT", `/api/me/mf-portfolio/${b.id}`, { folio: b.folio, lots: b.lots }), onSuccess: done }),
     remove: useMutation({ mutationFn: (id: string) => apiSend("DELETE", `/api/me/mf-portfolio/${id}`), onSuccess: done }),
+    clear: useMutation({ mutationFn: () => apiSend<{ status: string; removed: number }>("DELETE", "/api/me/mf-portfolio"), onSuccess: done }),   // "Remove all" (task #127)
     preview: useMutation({ mutationFn: (rows: RawRow[]) => apiSend<Preview>("POST", "/api/me/mf-portfolio/import-preview", { rows }) }),
     commit: useMutation({ mutationFn: (b: { items: CommitItem[]; existing: "skip" | "replace" }) => apiSend<CommitResult>("POST", "/api/me/mf-portfolio/import-commit", b), onSuccess: done }),
   };

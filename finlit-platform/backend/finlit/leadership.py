@@ -62,10 +62,13 @@ LISTS_FILE = Path(__file__).with_name("data") / "leadership_groups.json"
 LABELS = ("leader", "in_line", "laggard")
 CHIP = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
 REASON_TEXT = {"history": "Not enough price history to compare with peers yet", "stale": "Not enough price history to compare with peers yet",
-               "liquidity": "Too thinly traded to compare with peers", "group": "Too few comparable companies to rank"}
+               "liquidity": "Too thinly traded to compare with peers", "group": "Too few comparable companies to rank",
+               # not in the last weekly run at all: its prices were not stored here when it ran (task #139, 14 Nov 2026: Chennai Petroleum and Avantel, decades of
+               # prices, read "Not enough price history" because their reports were not stored on 7 Nov)
+               "not_compared": "Not in the last weekly peer comparison: its prices were not stored here then. It is compared in the next weekly run"}
 # Why a company on a peer list is not in the ranking (shown in the "not ranked" list under the table)
 UNRANKED_TEXT = {"history": "Under a year of prices", "stale": "Prices not up to date", "liquidity": "Too thinly traded", "no_prices": "No price history stored here yet",
-                 "not_covered": "Not covered here"}
+                 "not_covered": "Not covered here", "not_compared": "Not in the last weekly comparison"}
 
 
 # ---------------------------------------------------------------------------------------------------------------- 1. pure functions

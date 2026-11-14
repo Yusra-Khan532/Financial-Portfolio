@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { flagsOf } from "./EarningsCash";
+import { flagsOf, verdictTone } from "./EarningsCash";
 
 const pr = (o: Record<string, unknown> = {}) => ({ years: [{ period: "2026-03-31", receivablesFlag: true, receivablesGrowth: 38.9, revenueGrowth: 10.2, otherIncomeShare: 44 }], ...o }) as never;
 const m = (L: Record<string, unknown>, warnings: unknown[] = []) => ({ state: "ok", latest: L, warnings }) as never;
@@ -19,5 +21,29 @@ describe("Earnings & cash: the red flag is written once", () => {
   });
   it("no receivables problem, no red flag", () => {
     expect(flagsOf(pr({ years: [{ period: "2026-03-31", receivablesFlag: false, receivablesGrowth: 3 }] }), m({ receivablesGrowth: 3 }), null).flag).toBeNull();
+  });
+});
+
+// Task #129 (14 Nov 2026): "highlight in proper color the verdict green, orange and red in 11". Every verdict tile takes its colour (it used to be only the first:
+// "Healthy" and the cash-backing tile were plain), and the watch colour is a clear orange, not brown.
+describe("Earnings & cash: each verdict tile in its colour (task #129)", () => {
+  it("green for the good verdict, orange for the one to watch, red for the alarm, in all three tiles", () => {
+    for (const v of ["Strong", "Healthy", "ok"]) expect(verdictTone(v), v).toBe("s");
+    for (const v of ["Mixed", "Watch", "Improving", "watch"]) expect(verdictTone(v), v).toBe("w");
+    for (const v of ["Needs a closer look", "Needs attention", "alert"]) expect(verdictTone(v), v).toBe("f");
+    for (const v of [null, undefined, "", "na", "Not enough data", "Not comparable"]) expect(verdictTone(v as string)).toBe("");
+  });
+  it("each of the three tiles reads its verdict through the one map (the bug: only the first tile had a colour class)", () => {
+    const src = readFileSync(join(__dirname, "EarningsCash.tsx"), "utf8");
+    expect(src).toContain('"ec-tile " + verdictTone(pr.verdict)');
+    expect(src).toContain('"ec-tile " + verdictTone(intel?.pill.tone)');
+    expect(src).toContain('"ec-tile " + verdictTone(ok?.status)');
+    expect(src).not.toMatch(/className="ec-tile"/);
+  });
+  it("the watch colour is orange in both themes, not the old brown", () => {
+    const css = readFileSync(join(__dirname, "..", "styles", "earningscash.css"), "utf8");
+    for (const old of ["#8A4B00", "#A35700", "#F0B45A"]) expect(css).not.toContain(old);
+    expect(css).toMatch(/^\.ec \{[^}]*--ck-watch: #AE3A09;[^}]*--ck-solid-watch: #EA580C;/m);
+    expect(css).toMatch(/:root:not\(\[data-theme="light"\]\) \.ec \{[^}]*--ck-watch: #FDBA74;[^}]*--ck-solid-watch: #EA580C;/);
   });
 });

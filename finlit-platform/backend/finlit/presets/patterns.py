@@ -180,9 +180,12 @@ async def top_up_candles(store, settings, table, expected_day: date, budget_s: f
     if fetch is None:
         if settings is None:
             return {"candlesBehind": len(todo), "candlesFetched": 0, "candlesNotFetched": len(todo)}
-        from ..prism_candles import supplied_candles
+        from ..prism_candles import pattern_candles
         state = SimpleNamespace(store=store, settings=settings)
-        fetch = lambda sym: supplied_candles(state, sym)          # noqa: E731
+
+        async def fetch(sym):          # the scans' own minimum (25 sessions), not the Prism view's year: most lagging companies are recent listings
+            rows = await pattern_candles(state, sym)
+            return {"stock": {"candles": rows}} if rows else None
     start = clock()
     done = 0
     for sym in todo:

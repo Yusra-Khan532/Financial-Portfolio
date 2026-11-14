@@ -10,7 +10,8 @@ import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useSearchIndex } from "../lib/api";
 import { useUniverse } from "../lib/screener";
-import { portfolio, usePortfolio } from "../lib/portfolio";
+import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
+import { RemoveAll } from "../components/RemoveAll";
 import { saveFile } from "../stock/derive";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
@@ -64,6 +65,8 @@ export function HoldingsPage() {
   const [one, setOne] = useState(""), [text, setText] = useState(""), [pasting, setPasting] = useState(false), [missing, setMissing] = useState<string[]>([]);
   const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
+  const [undo, setUndo] = useState<{ before: PState; n: number } | null>(null);   // after "Remove all": the list as it was, for Undo (task #127)
+  useEffect(() => { if (st.holdings.length) setUndo(null); }, [st.holdings.length]);   // once the list has shares again, Undo would throw them away: it goes
   const matcher = useMemo(() => makeMatcher(index), [index]);
   const mode: Mode = "eq";   // the final pages pack reads the list as equal amounts throughout
 
@@ -164,9 +167,12 @@ export function HoldingsPage() {
             <button type="button" className="pfx-btn" onClick={() => file.current?.click()} disabled={busy}>{busy ? "Reading…" : "Upload broker file"}</button>
             <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (isPdf(f)) { setPdf(f); return; } setBusy(true);
               try { await add(await entriesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
+            <RemoveAll count={symbols.length} noun="share" className="pfx-btn" note={qtyBySymbol.size ? "The quantities you typed go too." : undefined}
+              onConfirm={() => { const n = symbols.length, before = portfolio.clear(); setUndo({ before, n }); }} />
             <span className="pfx-cap">{symbols.length} of {cap} shares</span></span>
           </form>
           <p className="pfx-note sr-only">{ADD_NOTE}</p>
+          {undo && <p className="pfx-note rma-done" role="status">All {undo.n} {undo.n === 1 ? "share was" : "shares were"} removed. <button type="button" className="pfx-btn" onClick={() => { portfolio.restore(undo.before); setUndo(null); }}>Undo</button></p>}
           {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
             <button className="pfx-solid" onClick={() => { void add(entriesFrom(text, matcher)); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
           {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}

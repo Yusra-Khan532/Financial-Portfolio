@@ -5,10 +5,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Assistant, OPEN_AI } from "./Assistant";
 import { bankGroups, STARTERS } from "../lib/questionBank";
+import { MARKET_ANSWERS, MARKET_QUESTIONS } from "../lib/askFlow";
 import { CATEGORIES, QUARTERS, SEGMENTS, TABS, quarterQuestion, related, tabQuestions } from "../lib/askFlow";
 
-const ask = vi.fn(async (q: string, _h?: unknown) => ({ response: "answer to " + q }));
-vi.mock("../lib/siteApi", () => ({ askAssistant: (q: string, h: unknown) => ask(q, h) }));
+const ask = vi.fn(async (q: string, _h?: unknown, _preset?: boolean): Promise<{ response: string; saved_at?: string | null }> => ({ response: "answer to " + q }));
+const stepsSeen = { list: [] as string[] };
+vi.mock("../lib/siteApi", () => ({ askAssistantStream: async (q: string, h: unknown, preset: boolean, onStep: (t: string) => void) => { for (const t of stepsSeen.list) onStep(t); return ask(q, h, preset); } }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: async () => ({ fields: [], rows: [["RELIANCE", "Reliance Industries Ltd", null, 1], ["TCS", "Tata Consultancy Services Ltd", null, 1]] }) }));
 beforeAll(() => { Element.prototype.scrollIntoView = () => {}; });
 afterEach(() => { cleanup(); ask.mockClear(); });
@@ -69,7 +71,7 @@ describe("Assistant on a company page", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Q2/ })); });
-    expect(ask).toHaveBeenCalledWith(expect.stringContaining("Q2 (Jul–Sep)"), expect.anything());
+    expect(ask).toHaveBeenCalledWith(expect.stringContaining("Q2 (Jul–Sep)"), expect.anything(), true);
     expect(await screen.findByText(/answer to .*Q2 \(Jul–Sep\)/)).toBeTruthy();
     expect(screen.getByText("Related questions")).toBeTruthy();
     expect(within(screen.getByRole("list", { name: "Related questions" })).getAllByRole("button").length).toBeGreaterThan(0);
@@ -80,13 +82,13 @@ describe("Assistant on a company page", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What are RELIANCE's 3-year and 5-year profit CAGRs?" })); });
-    expect(ask).toHaveBeenCalledWith("What are RELIANCE's 3-year and 5-year profit CAGRs?", expect.anything());
+    expect(ask).toHaveBeenCalledWith("What are RELIANCE's 3-year and 5-year profit CAGRs?", expect.anything(), true);   // tapped: may come from the saved answers (task #138)
   });
   it("a typed follow-up keeps the company in context", async () => {
     open();
     fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How is the debt trend?" } });
     await act(async () => { fireEvent.submit(screen.getByLabelText("Your question").closest("form")!); });
-    expect(ask).toHaveBeenCalledWith("About RELIANCE: How is the debt trend?", expect.anything());
+    expect(ask).toHaveBeenCalledWith("About RELIANCE: How is the debt trend?", expect.anything(), false);   // typed: always asked afresh
     expect(screen.getByText("How is the debt trend?")).toBeTruthy();   // the user sees what they typed
   });
   it("shows the banks question only when the page knows the company is a lender", () => {
@@ -139,11 +141,35 @@ describe("Assistant away from a company page", () => {
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/ETF trades on the stock exchange/)).toBeTruthy();
   });
-  it("Market & economy questions go to the assistant", async () => {
+  it("Market & economy questions answer at once from written text, with no model call (task #138)", async () => {
     open("/about");
     fireEvent.click(screen.getByRole("button", { name: /Market & economy/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /FII and DII flows/ })); });
-    expect(ask).toHaveBeenCalledWith("What do FII and DII flows tell us about the market?", expect.anything());
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByText(/net amounts these groups put into or took out of Indian shares/)).toBeTruthy();
+    for (const a of Object.values(MARKET_ANSWERS)) { expect(a).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i); expect(a).toMatch(/not investment advice/); }
+    expect(Object.keys(MARKET_ANSWERS)).toEqual(MARKET_QUESTIONS.map((q) => q.text));   // every market question has its written answer
+  });
+  it("while an answer is prepared, each real step the site takes is shown (task #138)", async () => {
+    let finish!: (v: { response: string }) => void;
+    ask.mockImplementationOnce(() => new Promise((r) => { finish = r; }));
+    stepsSeen.list = ["Checking FinLit's saved answers", "Asking FinLit AI", "Looking up FinLit data: the company's statements (RELIANCE)"];
+    open();
+    fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What are RELIANCE's 3-year and 5-year profit CAGRs?" })); });
+    const path = screen.getByRole("list", { name: "Steps so far" });
+    expect(within(path).getAllByRole("listitem").map((li) => li.textContent)).toEqual(stepsSeen.list);
+    expect(path.querySelector("li.now")!.textContent).toMatch(/statements/);
+    await act(async () => { finish({ response: "Profit grew." }); });
+    expect(screen.queryByRole("list", { name: "Steps so far" })).toBeNull();
+    stepsSeen.list = [];
+  });
+  it("an answer from FinLit's saved answers says so, with its date (task #138)", async () => {
+    ask.mockImplementationOnce(async (q: string) => ({ response: "answer to " + q, saved_at: "2026-11-14T05:30:00+00:00" }));
+    open();
+    fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What are RELIANCE's 3-year and 5-year profit CAGRs?" })); });
+    expect(await screen.findByText(/Saved answer from 14 Nov.*11:00.*answered at once/i)).toBeTruthy();
   });
   it("the back arrow returns one step", () => {
     open("/about");

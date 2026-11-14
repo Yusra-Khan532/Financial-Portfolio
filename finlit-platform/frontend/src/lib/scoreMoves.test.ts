@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { axisIndexes, bandWord, dotRadius, figureOn, inForce, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
+import { axisIndexes, bandWord, monotonePath, stepPath, dotRadius, figureOn, inForce, inPeriod, moveSentence, movesOf, reRated, trendBand } from "./scoreMoves";
 import type { HistPoint } from "./prismHistory";
 
 const day = (n: number) => new Date(Date.UTC(2026, 7, 1) + n * 86_400_000).toISOString().slice(0, 10);
@@ -69,5 +69,36 @@ describe("every recorded day is readable on the chart", () => {
   it("the dot is large for a month of days and smaller for a year, but always visible", () => {
     expect([6, 31, 45].map(dotRadius)).toEqual([4, 4, 4]);
     expect(dotRadius(90)).toBe(3); expect(dotRadius(250)).toBe(2.3); expect(dotRadius(250)).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("how the lines are drawn (task #126)", () => {
+  it("business scores are steps: only horizontal and vertical moves, the jump on the day of the new rating", () => {
+    const d = stepPath([[0, 10], [10, 10], [20, 10], [30, 40], [40, 40]]);
+    expect(d).toBe("M0.0,10.0H10.0H20.0H30.0V40.0H40.0");
+    expect(d).not.toMatch(/[LC]/);                                                   // never a slope between two ratings
+  });
+  it("technical views are a smooth curve through every reading that never goes beyond the readings either side", () => {
+    const pts: [number, number][] = [[0, 50], [10, 40], [20, 45], [30, 10], [40, 12]];
+    const d = monotonePath(pts);
+    expect(d.startsWith("M0.0,50.0C")).toBe(true);
+    const ends = [...d.matchAll(/C[\d.-]+,[\d.-]+ [\d.-]+,[\d.-]+ ([\d.-]+),([\d.-]+)/g)].map((m) => [+m[1], +m[2]]);
+    expect(ends).toEqual(pts.slice(1));                                              // it passes through every reading
+    const ctrl = [...d.matchAll(/C([\d.-]+),([\d.-]+) ([\d.-]+),([\d.-]+)/g)];
+    ctrl.forEach((c, i) => { const lo = Math.min(pts[i][1], pts[i + 1][1]), hi = Math.max(pts[i][1], pts[i + 1][1]);
+      for (const y of [+c[2], +c[4]]) { expect(y).toBeGreaterThanOrEqual(lo - 1e-6); expect(y).toBeLessThanOrEqual(hi + 1e-6); } });   // no invented high or low
+    expect(monotonePath([[0, 1], [10, 2]])).toBe("M0.0,1.0L10.0,2.0");
+  });
+});
+
+describe("re-rating days (task #126)", () => {
+  const P = (day: string, f: number | null, v: number | null) => ({ day, modelVersion: "1", final: 60, label: "HEALTHY", status: "RATED",
+    parts: { fundamental: f, valuation: v, quality: f, risk: v }, shortTerm: 1, longTerm: 1 });
+  it("finds a new rating that comes after days with no rating of their own, by comparing with the rating still in force", () => {
+    const pts = [P("2026-11-05", 97, 97.3), P("2026-11-06", null, null), P("2026-11-12", null, null), P("2026-11-13", 97, 95), P("2026-11-14", 76.2, 96.1)];
+    expect(reRated(pts)).toEqual(["2026-11-13", "2026-11-14"]);
+  });
+  it("a rating that repeats the one in force is not a re-rating, and the first rating in the window has nothing to compare with", () => {
+    expect(reRated([P("2026-11-05", 97, 97), P("2026-11-06", null, null), P("2026-11-07", 97, 97)])).toEqual([]);
   });
 });

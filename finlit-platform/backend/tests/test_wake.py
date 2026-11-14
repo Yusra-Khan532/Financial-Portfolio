@@ -328,5 +328,5 @@ def test_the_scheduler_keeps_the_loops_quiet_and_the_windows_live_in_the_registr
 
 def test_deploy_scripts_parse(tmp_path):
     import subprocess
-    for f in ("scheduler.sh", "start.sh"):
+    for f in ("scheduler.sh", "start.sh", "jobs.sh"):
         assert subprocess.run(["bash", "-n", str(ROOT / "deploy" / f)]).returncode == 0

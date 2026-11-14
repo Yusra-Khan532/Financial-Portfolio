@@ -1,6 +1,6 @@
 // The Stock screener (task #64, handover file 04, 10 Nov; with tasks #73, #74 and #75 of 11 Nov): a short head with the Find stocks tabs, the ready-made
 // screens, then "Your rules" (funnel, size, the one Sector filter, index, FinLit rating, rule cards, + Add a rule, Type rules) beside the results (count,
-// Save screen, Download, the active rules, search, the nine standard columns plus a "Your rules" band, the pager). A click on a row opens the chart panel
+// Save screen, Download, the active rules, search, the standard columns (the company and its market cap; Gold also the two technical views, tasks #145 and #141) plus a "Your rules" band, the pager). A click on a row opens the chart panel
 // with the company's figures, your rules first.
 import { HScroll } from "../components/HScroll";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
@@ -18,6 +18,7 @@ import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, st
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
+import { techBandOf, trendWord } from "../lib/scoreScreen";
 import { TableZoom } from "../components/TableZoom";
 import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
@@ -39,6 +40,8 @@ const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
 export const PAGE = 25;
 const MAX_COLS = 12;
+const RULES_MIN_KEY = "finlit-screener-rules-min";
+const rulesMinStored = () => { try { return localStorage.getItem(RULES_MIN_KEY) === "1"; } catch { return false; } };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
 const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); useEffect(() => { const t = setTimeout(() => setD(v), ms); return () => clearTimeout(t); }, [v, ms]); return d; };
 
@@ -46,7 +49,11 @@ const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); 
 const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", pe: "P/E", pb: "P/B", roe: "ROE", roce: "ROCE", sales_cagr_3y: "Sales growth 3Y", profit_cagr_3y: "Profit growth 3Y",
   debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
-const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : m ? UNIT_LINE[m.unit] ?? "" : "");
+/** Task #141: the two technical views (Gold) run from −100 to +100; the pill is green for an uptrend, red for a downtrend, plain for sideways (same edges as the Prism card). */
+const TECH_COLS = ["prism_st_score", "prism_lt_score"];
+const TECH_HEAD: Record<string, string> = { prism_st_score: "Short\u2011term technical", prism_lt_score: "Long\u2011term technical" };   // non-breaking hyphen: the head never splits "Long-" / "term"
+const TECH_PILL: Record<string, string> = { pos: "healthy", neutral: "", neg: "watch" };
+const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : TECH_COLS.includes(k) ? "−100 to +100" : m ? UNIT_LINE[m.unit] ?? "" : "");
 const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
 /** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
@@ -95,7 +102,17 @@ export function ScreenerPro() {
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
-  const [rulesOpen, setRulesOpen] = useState(() => !narrow());
+  // Your rules can be minimized (task #140): on a phone it starts closed; on a wide screen it starts open unless the reader minimized it last time (kept in this browser).
+  const [rulesOpen, setRulesOpenState] = useState(() => !narrow() && !rulesMinStored());
+  const setRulesOpen = (open: boolean) => {
+    setRulesOpenState(open);
+    if (!narrow()) { try { if (open) localStorage.removeItem(RULES_MIN_KEY); else localStorage.setItem(RULES_MIN_KEY, "1"); } catch { /* private mode */ } }
+  };
+  const minimizeRules = () => {
+    setRulesOpen(false);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(".ssw-rtoggle")?.focus({ preventScroll: true }));
+    if (narrow()) requestAnimationFrame(() => document.querySelector(".ssw-res")?.scrollIntoView({ block: "start" }));
+  };
   const saved = useSavedScreens();
   // One score per plan (tasks #64 P-1 and #100): the server sends Gold the FinLit Prism group, columns and rating words, and every other plan the FinLit IQ's.
   const data = cat.data;
@@ -111,7 +128,7 @@ export function ScreenerPro() {
   const periodOf = (m: MetricInfo) => period[m.key] ?? firstPeriod(m, F.ranges);
   const ruleKey = (m: MetricInfo) => (m.variants ? m.variants[periodOf(m)] ?? m.key : m.key);
 
-  // columns: the visitor's own choice or the nine standard ones, then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
+  // columns: the visitor's own choice or the standard ones (company and market cap), then one for every rule (its current Now / 3Y / 5Y / 7Y figure)
   const base = useMemo(() => cols ?? standardColumns(data), [cols, data]);
   const ruleCols = rules.map((k) => chipColumn(byKey.get(k), byKey.get(k) ? periodOf(byKey.get(k)!) : undefined, byKey));
   const columns = useMemo(() => tableColumns(base, F.ranges, ruleCols, (k) => !data || byKey.has(k)), [base, F.ranges, ruleCols.join(","), data, byKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -279,12 +296,13 @@ export function ScreenerPro() {
         <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
           onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
-        <button type="button" className="btn ssw-rtoggle" aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
+        <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
           Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
-        <div className="ssw-work">
+        <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")}>
           <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
-            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}</div>
+            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
+              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
             {nActive === 0 || !funnel.length
               ? <p className="ssw-funnel-0">All {listed} companies. Each rule narrows the list; this line then shows how many are left after each one.</p>
@@ -344,6 +362,7 @@ export function ScreenerPro() {
                 </div>
               </div>
             </>}
+            <button type="button" className="btn primary ssw-rdone" onClick={minimizeRules}>Show {res.data ? `${nf(total, 0)} companies` : "the results"}</button>
           </aside>
 
           <section className="card ssw-res" aria-label="Results">
@@ -380,7 +399,7 @@ export function ScreenerPro() {
                       <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
-                          <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
+                          <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
                     <tbody>{rows.map((r) => (
@@ -389,6 +408,7 @@ export function ScreenerPro() {
                         {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
+                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}

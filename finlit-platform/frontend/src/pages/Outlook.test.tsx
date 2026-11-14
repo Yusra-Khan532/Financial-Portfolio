@@ -21,7 +21,7 @@ const open = () => render(<QueryClientProvider client={new QueryClient()}><Memor
 const before = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("outlook page, Set your own model", () => {
-  it("shows no sliders with Our model", () => { open(); expect(screen.queryByRole("group", { name: /Weight of each input/ })).toBeNull(); expect(screen.queryByText(/Set your own model: assumptions/)).toBeNull(); });
+  it("shows no sliders with Our model", () => { open(); expect(screen.queryByRole("group", { name: /Expected growth rate of each input/ })).toBeNull(); expect(screen.queryByText(/Set your own model: assumptions/)).toBeNull(); });
   it("opens the sliders first: right after the model cards and before the charts and the detail tabs", () => {
     open();
     fireEvent.click(screen.getByRole("radio", { name: /Set your own model/ }));

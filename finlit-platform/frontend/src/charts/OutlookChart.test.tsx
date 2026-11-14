@@ -24,8 +24,8 @@ describe("OutlookChart", () => {
   });
   it("labels a second dashed line when two estimates are drawn", () => {
     const s = buildSeries(H([100, 110, 121]), E([133, 146], 23), E([130, 140], 23));
-    const html = renderToStaticMarkup(<OutlookChart kind="profit" symbol="X" series={s} who="Your weights" horizonLabel="mid-term" />);
-    expect(html).toContain("Estimate (Your weights)"); expect(html).toContain("Estimate (FinLit model)"); expect(html).toContain('stroke-dasharray="2 5"');
+    const html = renderToStaticMarkup(<OutlookChart kind="profit" symbol="X" series={s} who="Your assumptions" horizonLabel="mid-term" />);
+    expect(html).toContain("Estimate (Your assumptions)"); expect(html).toContain("Estimate (FinLit model)"); expect(html).toContain('stroke-dasharray="2 5"');
   });
   it("shows a loss-making company with a zero line and no estimate line", () => {
     const html = renderToStaticMarkup(<OutlookChart kind="profit" symbol="X" series={buildSeries(H([50, 10, -30, -40]), null)} who="FinLit model" horizonLabel="short-term" />);

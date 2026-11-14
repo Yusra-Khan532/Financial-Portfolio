@@ -11,7 +11,7 @@ const COLOR: Record<Kind, string> = { revenue: "var(--c1)", profit: "var(--c2)" 
 const ALT = "var(--c4)";
 
 /** One line chart for one metric: reported years as a solid line with filled dots, estimate years as a dashed line with hollow dots, joined at the last reported year.
- *  `who` names whose estimate the dashed line is ("Your weights" / "FinLit model"); a second dashed line (the model's) is drawn when the series carries one.
+ *  `who` names whose estimate the dashed line is ("Your assumptions" / "FinLit model"); a second dashed line (the model's) is drawn when the series carries one.
  *  Annual figures only: the model works on financial years. Hover, touch or arrow keys read a year; "Show as table" opens the same numbers. */
 export function OutlookChart({ kind, symbol, series, who, horizonLabel }: { kind: Kind; symbol: string; series: Series; who: string; horizonLabel: string }) {
   const uid = useId().replace(/:/g, "");

@@ -20,6 +20,8 @@
 .ol-sliders { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 0; display: grid; gap: 10px; background: var(--s1); }
 .ol-sl { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) 64px; gap: 12px; align-items: center; }
 .ol-sl label { font-size: 14px; }
+.ol-sl .ol-sl-ref { display: block; font-size: 12px; margin-top: 2px; }   /* task #146: the company's own figure and the input's weight, under its name */
+.ol-sl output.is-mine { color: var(--gold); font-weight: 600; }        /* a rate the user moved away from the company's figure */
 .ol-sl input[type=range] { width: 100%; accent-color: var(--gold); min-height: 28px; }
 .ol-sl output { text-align: right; font-size: 14px; }
 .ol-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }

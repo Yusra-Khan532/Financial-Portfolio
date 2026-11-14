@@ -31,7 +31,7 @@ from .calendars import why as fail_reason
 from .config import Settings, get_settings
 from .finedge import ESSENTIAL_KEYS, FinEdgeClient, FinEdgeError, _has_rows, bundle_requests
 from .normalize import market
-from .store import Store
+from .store import REFUSED_HOLD_S, Store, code_version, refused_key
 
 log = logging.getLogger("finlit.worker")
 
@@ -124,6 +124,10 @@ async def _record_failure(store: Store, symbol: str, statement: str, status: str
             await store.redis.set(f"ingest:fail:{symbol}:{statement}", status, ex=90)
         else:
             await store.redis.delete(f"ingest:fail:{symbol}:{statement}")
+        if status == "rejected":      # held for REFUSED_HOLD_S with the code version that refused it: visits in between are answered at once, not rebuilt
+            await store.redis.set(refused_key(symbol, statement), code_version(), ex=REFUSED_HOLD_S)
+        elif status in ("ok", "warnings", "partial"):
+            await store.redis.delete(refused_key(symbol, statement))
     except Exception:   # nosec B110
         pass
 

@@ -254,6 +254,9 @@
 .ssw-groups small { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Task #64 S-5: no slider; the frozen Company column casts a soft shadow while there is more to the right */
 .tw.has-more .ssw-t .stick, .tw.is-scrolled .ssw-t .stick { box-shadow: 6px 0 8px -4px rgba(0,0,0,.22); }
+/* Task #141: on a phone the frozen Company column (220px) left a strip of about 100px, so the last columns (the Prism score and the two technical views) could never be
+   scrolled fully into view; a narrower frozen column leaves room for a whole column and the report icon beside it. */
+@media (max-width: 700px) { .ssw-t th.stick, .ssw-t td.stick { min-width: 150px; max-width: 150px; } .ssw-t td.stick .co { gap: 8px; } .ssw-t td.stick .co > span:last-child { display: block; min-width: 0; max-width: 84px; overflow: hidden; text-align: left; } .ssw-t td.stick .co b, .ssw-t td.stick .co small { display: block; text-align: left; margin-left: 0; margin-right: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 /* Task #64 CR-7: the Custom ratio section of the panel; CR-6: a ratio's rule card */
 .ssw-rlon { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
 .ssw-rlon button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--s1); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
@@ -262,3 +265,16 @@
 .ssw-rlex > small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .ssw-rlmy { display: inline-flex; align-items: center; gap: 6px; }
 .ssr-ratio .ssr-rt .lnk { margin-left: auto; font-size: 13px; }
+
+/* Minimize Your rules (task #140): the × in the panel's heading hides the panel; the toggle above brings it back (on a wide screen the results then use the full width). */
+.ssw-rmin { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.ssw-rmin:hover, .ssw-rmin:focus-visible { color: var(--text); border-color: var(--text); }
+.ssw-rmin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.ssw-rdone { display: none; }
+.ssw-work.rules-min { grid-template-columns: minmax(0, 1fr); }
+.ssw-work.rules-min .ssw-rules { display: none; }
+.ssw-rtoggle.min { display: inline-flex; justify-content: space-between; width: 100%; min-height: 44px; margin-bottom: 16px; }
+@media (max-width: 1000px) {
+  .ssw-rmin { width: 44px; height: 44px; }
+  .ssw-rdone { display: flex; justify-content: center; width: 100%; min-height: 44px; margin-top: 16px; }
+}

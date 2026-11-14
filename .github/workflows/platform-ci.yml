@@ -44,6 +44,8 @@ jobs:
       - run: python -m pytest -q -s
       - name: AWS deployment automation checks
         run: bash ../deploy/aws/test-auto-deploy.sh
+      - name: Jobs container move checks (deploy.sh jobs)
+        run: bash ../deploy/aws/test-deploy-jobs.sh
 
   site-api:
     runs-on: ubuntu-latest

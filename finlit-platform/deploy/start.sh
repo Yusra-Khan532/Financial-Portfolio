@@ -37,7 +37,8 @@ if [ -z "${SITE_API_URL:-}" ] && [ -d "$SITE_DIR" ] && site_api_wanted; then
       if [ "${SITE_API_DEV:-}" = "1" ]; then   # local testing only: in-memory MongoDB stand-in (see dev/site_api_dev.py)
         "$SITE_PY" "$HERE/../dev/site_api_dev.py" --backend "$SITE_DIR" --port 8001 2>&1 | sed -u "s/^/[site-api] /"
       else
-        MALLOC_ARENA_MAX=2 "$SITE_PY" -m uvicorn server:app --host 127.0.0.1 --port 8001 --workers 1 --no-server-header 2>&1 | sed -u "s/^/[site-api] /"
+        # SITE_API_HOST=0.0.0.0 (AWS compose) lets the separate jobs container reach it as app:8001; it is still only on the private compose network
+        MALLOC_ARENA_MAX=2 "$SITE_PY" -m uvicorn server:app --host "${SITE_API_HOST:-127.0.0.1}" --port 8001 --workers 1 --no-server-header 2>&1 | sed -u "s/^/[site-api] /"
       fi
       echo "[site-api] stopped; restarting in 3 s"; sleep 3
     done ) &
@@ -76,10 +77,15 @@ if [ -n "${RESET_MFA_EMAIL:-}" ]; then
 fi
 
 # Company data and the recurring jobs (quotes, nightly refresh, alerts, emails): scheduler.sh keeps the job supervisor (finlit/jobs, docs/JOBS.md) alive, which
-# decides and runs every job; it is started here, before the web server takes over this shell.
+# decides and runs every job. On AWS the jobs run in their OWN container (the `jobs` service, deploy/jobs.sh) and JOBS_IN_APP=0 here, so a deploy of the
+# website never stops a job (founder, 14 Nov 2026). Everywhere else (local Docker, a single-container host) they still start here, as before.
 export APP_DIR="$PWD" PYTHON="$PY"
-# The scheduler's lines go to the file and, prefixed, to the service log, so a job that fails is visible in the container logs.
-nohup bash -c "\"$HERE/scheduler.sh\" 2>&1 | tee -a /tmp/scheduler.log | sed -u 's/^/[scheduler] /'" &
+if [ "${JOBS_IN_APP:-1}" != "0" ]; then
+  # The scheduler's lines go to the file and, prefixed, to the service log, so a job that fails is visible in the container logs.
+  nohup bash -c "\"$HERE/scheduler.sh\" 2>&1 | tee -a /tmp/scheduler.log | sed -u 's/^/[scheduler] /'" &
+else
+  echo "[scheduler] not started here: the jobs run in the separate jobs container (JOBS_IN_APP=0)"
+fi
 
 # Bound glibc arenas to reduce memory retained by the web server and background jobs.
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"

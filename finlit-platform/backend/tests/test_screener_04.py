@@ -53,7 +53,7 @@ def test_every_ready_made_screen_uses_real_filters_and_the_groups_follow_the_pla
             assert all(BY_KEY[k].group == ("prism" if r.score == "prism" else "model") for k in r.rules), r.id
     for r in MODEL.values():                                               # model screens say it in words: no figure, no "or more"
         assert not any(ch.isdigit() for ch in r.says), r.says
-    assert set(STANDARD_COLUMNS) <= set(BY_KEY) and len(STANDARD_COLUMNS) == 9
+    assert set(STANDARD_COLUMNS) <= set(BY_KEY) and STANDARD_COLUMNS == ["market_cap"]   # task #145: the table opens with the company and its market cap only
 
 
 @pytest.fixture
@@ -74,10 +74,10 @@ async def test_catalog_lists_nse_sectors_and_the_standard_columns_each_plan_may_
     async with new_client(app) as anon:
         cat = (await anon.get("/api/screener/catalog")).json()
     assert [s["name"] for s in cat["sectors"]] == ["Energy", "Information Technology"]                # no stray one-company label
-    assert cat["standardColumns"] == [k for k in STANDARD_COLUMNS if k not in ("overall", "sales_cagr_3y")]   # FinLit IQ and 3-year sales growth are Silver
+    assert cat["standardColumns"] == ["market_cap"]   # task #145: name and market cap only
     silver = await signed_in(app, "s04c@example.com", plan="silver")
     scat = (await silver.get("/api/screener/catalog")).json()
-    assert scat["standardColumns"] == STANDARD_COLUMNS and scat["bandModel"] == "iq"                         # Silver: the FinLit IQ
+    assert scat["standardColumns"] == ["market_cap"] and scat["bandModel"] == "iq"                           # Silver: the same two
     assert "prism" not in {g["id"] for g in scat["groups"]} and "model" in {g["id"] for g in scat["groups"]}
     assert scat["limits"]["export"] is False                                                                  # no downloads on any plan
     m = next(x for g in cat["groups"] for x in g["metrics"] if x["key"] == "market_cap")
@@ -86,7 +86,10 @@ async def test_catalog_lists_nse_sectors_and_the_standard_columns_each_plan_may_
     gold = await signed_in(app, "g04@example.com", plan="gold")
     g = await gold.get("/api/screener/catalog")
     gcat = g.json()
-    assert gcat["standardColumns"] == [("prism_final" if k == "overall" else k) for k in STANDARD_COLUMNS]   # Gold: FinLit Prism in the IQ's place
+    assert gcat["standardColumns"] == ["market_cap", "prism_st_score", "prism_lt_score"]   # Gold: market cap, then the two technical views (tasks #145, #141)
+    by_key = {m["key"]: m["label"] for x in gcat["groups"] for m in x["metrics"]}
+    assert by_key["prism_final"] == "Fundamental Prism score" and by_key["prism_st_score"] == "Short-term technical" and by_key["prism_lt_score"] == "Long-term technical"   # task #141 names
+    assert "prism_st_score" not in scat["standardColumns"] and "prism_lt_score" not in scat["standardColumns"]   # Silver has no Prism views
     assert "model" not in {x["id"] for x in gcat["groups"]} and "prism" in {x["id"] for x in gcat["groups"]}
     assert gcat["bandModel"] == "prism" and [b["key"] for b in gcat["bands"]] == ["strong", "healthy", "average", "weak", "poor"]
     for word in ("FinLit IQ", "pillar", "Mixed", "Watch"):                                                     # task #64 P-1: nothing of the FinLit IQ for Gold

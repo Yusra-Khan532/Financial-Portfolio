@@ -82,6 +82,37 @@ def validate_weights(kind: str, weights: Optional[Dict[str, float]], horizon: st
     return out
 
 
+def validate_values(kind: str, values: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
+    """The user's own expected growth rates ("Set your own model", task #146): a percent a year per parameter, each set on its own (no total), within
+    -INPUT_CAP .. +INPUT_CAP, the same limit the model's inputs have. Any subset of the kind's parameters; one left out keeps the company's figure."""
+    if values is None:
+        return None
+    keys = {p[0] for p in PARAMS[kind]}
+    extra = sorted(set(values) - keys)
+    if extra:
+        raise WeightError("Unknown parameter: " + ", ".join(extra))
+    out: Dict[str, float] = {}
+    for k, v in values.items():
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or abs(v) > INPUT_CAP:
+            raise WeightError(f"{k}: each growth rate must be between -{INPUT_CAP:g}% and +{INPUT_CAP:g}% a year.")
+        out[k] = float(v)
+    return out
+
+
+def apply_values(inputs: Dict[str, "Input"], values: Optional[Dict[str, float]]) -> Dict[str, "Input"]:
+    """The inputs with the user's growth rates in place of the computed ones. The company's own figure stays on the row (actual) for comparison."""
+    if not values:
+        return inputs
+    out = dict(inputs)
+    for k, v in values.items():
+        i = inputs[k]
+        actual = i.value
+        out[k] = Input(k, i.label, i.who, value=v, raw=None, capped=False, method="Your assumption",
+                       detail=(f"company figure {actual:+.2f}%" if i.who == "company" else f"sector figure {actual:+.2f}%") if actual is not None else "no figure for this company",
+                       actual=actual)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------------------- growth arithmetic
 def yoy(begin: Optional[float], end: Optional[float]) -> Optional[float]:
     """Year-on-year growth in percent; undefined unless the beginning is positive."""
@@ -156,6 +187,7 @@ class Input:
     method: Optional[str] = None
     reason: Optional[str] = None       # why it is blank
     detail: Optional[str] = None
+    actual: Optional[float] = None     # the computed figure, when the user's own growth rate replaced it (task #146)
 
 
 def _at(xs: Sequence[Optional[float]], back: int) -> Optional[float]:
@@ -273,7 +305,8 @@ def weighted_rate(kind: str, inputs: Dict[str, Input], weights: Dict[str, float]
         rows.append({"key": key, "label": label, "who": who, "weightPct": round(w, 2), "effectiveWeightPct": round(eff, 2),
                      "valuePct": None if i.value is None else round(i.value, 2), "rawPct": None if i.raw is None else round(i.raw, 2), "capped": i.capped,
                      "contributionPts": None if rate is None or key not in live else round(eff / 100 * i.value, 2),   # type: ignore[operator]
-                     "status": "ok" if i.value is not None else "unavailable", "method": i.method, "reason": i.reason, "detail": i.detail})
+                     "status": "ok" if i.value is not None else "unavailable", "method": i.method, "reason": i.reason, "detail": i.detail,
+                     "assumed": i.method == "Your assumption", "actualPct": None if i.actual is None else round(i.actual, 2)})
     unavailable = [r["label"] for r in rows if r["status"] == "unavailable" and r["weightPct"] > 0]
     return {"ratePct": None if rate is None else round(rate, 2), "rows": rows, "unavailable": unavailable, "weightLeftPct": round(sum(weights.get(k, 0) for k in live), 2)}
 
@@ -295,11 +328,12 @@ def project(base: float, ratePct: float, years: int) -> List[float]:
     return out
 
 
-def forecast(kind: str, h: Hist, horizon: str, weights: Dict[str, float], sector: Dict[str, Input]) -> dict:
-    """The full model result for one company, one kind and one horizon (everything the API sends except names and history)."""
+def forecast(kind: str, h: Hist, horizon: str, weights: Dict[str, float], sector: Dict[str, Input], values: Optional[Dict[str, float]] = None) -> dict:
+    """The full model result for one company, one kind and one horizon (everything the API sends except names and history). `values`: the user's own
+    growth rates (task #146), combined by the model's weights for the horizon."""
     years = HORIZONS[horizon]["years"]
     inputs = {**company_inputs(kind, h), **sector}
-    ordered = {k: inputs.get(k) or Input(k, label, who, reason="Not available for this company.") for k, label, who, _ in PARAMS[kind]}
+    ordered = apply_values({k: inputs.get(k) or Input(k, label, who, reason="Not available for this company.") for k, label, who, _ in PARAMS[kind]}, values)
     wr = weighted_rate(kind, ordered, weights)
     base = _at(h.revenue if kind == "revenue" else h.profit, 0)
     last = h.fy[-1] if h.fy else None

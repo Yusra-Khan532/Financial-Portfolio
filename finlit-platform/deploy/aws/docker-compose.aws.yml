@@ -4,7 +4,9 @@
 #   ENV_FILE=/opt/finlit/.env.aws docker compose -p finlit -f deploy/aws/docker-compose.aws.yml --env-file /opt/finlit/.env.aws up -d
 #
 # Memory plan (2 GB total): Postgres shared_buffers 256 MB (limit 640 MB), Redis maxmemory 256 MB (limit 320 MB),
-# app limit 1200 MB (website + research API + site backend + background jobs), Caddy about 40 MB; the rest is the OS and the 2 GB swapfile.
+# app 500 MB (website + research API + site backend) and jobs 800 MB (the job supervisor and the jobs it runs, the on-demand report lane, the commodity loop):
+# together 1300 MB, the 1200 MB the single container had plus room for the second Python process. APP_MEM_LIMIT / JOBS_MEM_LIMIT in the env file override them.
+# Caddy about 40 MB; the rest is the OS and the 2 GB swapfile.
 # The limits are ceilings, not reservations: normal use is well below them.
 # Only Caddy publishes ports (80 and 443). The database, Redis and the app are reachable only on the private compose network.
 name: finlit
@@ -24,7 +26,7 @@ services:
         finlit.commit: ${GIT_COMMIT:-unknown}
     image: finlit-app:current        # deploy.sh keeps the one before it as finlit-app:previous (for "deploy.sh rollback")
     env_file: ${ENV_FILE:-../../.env.aws}   # deploy.sh sets ENV_FILE=/opt/finlit/.env.aws (outside the git clone)
-    environment:
+    environment: &app_env
       # Built here from the passwords in the env file, so the two can never disagree.
       DATABASE_URL: postgresql://finlit:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.aws}@db:5432/finlit
       REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.aws}@redis:6379/0
@@ -33,18 +35,22 @@ services:
       # reads the chain from the right, skipping private (Docker network) addresses, so rate limits and sign-in lockouts see the real visitor.
       CLIENT_IP_HEADER: x-forwarded-for
       TZ: Asia/Kolkata
+      # The jobs run in the separate `jobs` service below, so a website deploy never stops one (founder, 14 Nov 2026); the site backend listens on the
+      # private network so the jobs reach it as app:8001 (nothing publishes that port).
+      JOBS_IN_APP: "0"
+      SITE_API_HOST: "0.0.0.0"
     expose: ["8000"]
     # Sector pages (docs/SECTORS.md). Two folders of the host are mounted into the one app container:
     #   /opt/finlit/data/nse      NSE's daily files (about 240 MB, uploaded once by the founder); the nightly job adds the newest days to it.
     #   /opt/finlit/data/sectors  what the job writes and the website reads (releases/, current -> the live one, last_run.json).
     # Both are read-write on purpose: the job (fetch-nse, the market-panel cache, the swap) and the website live in this one container. Folders must be owned by uid 1000 (user finlit).
-    volumes:
+    volumes: &app_volumes
       - ${NSE_DATA_DIR:-/opt/finlit/data/nse}:/data/nse
       - ${SECTORS_DATA_DIR:-/opt/finlit/data/sectors}:/data/sectors
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
-    mem_limit: 1200m                          # unchanged. Only if the sector job is to run on the server: a 4 GB server and a higher limit here (docs/SECTORS.md, "Memory and time")
+    mem_limit: ${APP_MEM_LIMIT:-500m}         # the website alone; the jobs have their own limit in the jobs service below
     # The API and website keep the default OOM score; every job process the supervisor starts raises its own to +500 (finlit/jobs/runner.py), so when
     # memory runs out the kernel kills a job first (it is retried within 30 minutes) and the site keeps answering. db, redis and caddy are protected below.
     cap_drop: [ALL]
@@ -58,6 +64,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 180s             # database migrations run first on every start
+
+  # The background jobs, in their own container from the SAME image (deploy/jobs.sh): the job supervisor, the on-demand report lane and the commodity loop.
+  # deploy.sh replaces it only when the job code changed, and only when no long job is running (deploy.sh jobs, the deploy gate); a website deploy leaves it alone.
+  # An image older than deploy/jobs.sh has no jobs.sh: this container then just waits, and that image's app container runs the jobs itself (a rollback stays safe).
+  jobs:
+    image: finlit-app:current
+    env_file: ${ENV_FILE:-../../.env.aws}
+    environment: *app_env
+    command: ["sh", "-c", "if [ -x ./jobs.sh ]; then exec ./jobs.sh; fi; echo 'this image runs its jobs in the app container'; exec sleep infinity"]
+    volumes: *app_volumes
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    mem_limit: ${JOBS_MEM_LIMIT:-800m}        # the supervisor's memory gate reads this limit (finlit/jobs/resources.py); a sector job needs more (docs/SECTORS.md)
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    init: true
+    stop_grace_period: 30s
+    restart: unless-stopped
+    logging: *logging
 
   db:
     image: timescale/timescaledb:2.17.2-pg16

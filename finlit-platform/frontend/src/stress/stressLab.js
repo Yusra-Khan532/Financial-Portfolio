@@ -648,14 +648,16 @@ export function mountStressLab(root, E, D, opts) {
     var a = A, fact = function (l, v, t) { return '<span class="fact"><span class="l">' + l + (t ? ib(t, 'lt', 'About ' + l) : '') + '</span><span class="v">' + v + '</span></span>'; };
     var baseTip = 'Every shock is applied to the company’s last four reported quarters, ' + winWords(D.base_window) + '. A shock of zero gives back those quarters exactly.';
     var coA_ = '<div class="co">' + logoHtml(a) + '<div><b>' + esc(a.name) + '</b><small>' + idLine(a) + '</small></div></div>';
+    // task #148: a cross at the right end of the strip closes this company and goes back to the Stress Lab start, where another company is picked
+    var close = opts.onClose ? '<button type="button" class="coclose" data-close="1" aria-label="Close ' + esc(a.name) + ' and pick another company" title="Close this company">' + svg('<path d="M5 5l10 10M15 5L5 15"/>', 18) + '</button>' : '';
     if (VIEW === 'compare') {
       $('costrip').innerHTML = coA_ + '<span class="vs">vs</span><div class="co">' + logoHtml(B) + '<div><b>' + esc(B.name) + '</b><small>' + idLine(B) + (SAMEQ ? '' : ' · four quarters to ' + my(B.base_end)) + '</small></div></div>' +
-        '<div class="facts" style="margin-left:auto">' + fact('Base', 'Four quarters to ' + my(A.base_end), baseTip) + fact('Data to', dt(D.as_of)) + '</div>' +
+        '<div class="facts" style="margin-left:auto">' + fact('Base', 'Four quarters to ' + my(A.base_end), baseTip) + fact('Data to', dt(D.as_of)) + '</div>' + close +
         '<div class="pickrow" data-find="peer"><label class="find">' + svg('<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>', 16) + '<input type="search" placeholder="Compare with another company" aria-label="Compare with another company"></label>' +
         '<span class="note" style="margin:0">' + (opts.peer.picked ? (SAMEQ ? 'Picked for you: the first peer Stress Lab covers that has results to the same quarter (' + my(A.base_end) + ')' : 'Picked for you: the first peer Stress Lab covers. No covered peer has results to ' + my(A.base_end) + ' yet, so each company is measured against its own four quarters') : 'You picked ' + esc(B.name)) + ib('So both companies face the same Today shock. If no peer has results to that quarter yet, the first covered peer is used and each company’s window is shown under its name.', 'lt', 'About how the second company is picked') + '</span></div>';
     } else {
       $('costrip').innerHTML = coA_ + '<div class="facts">' + fact('Market cap', cr(a.market_cap_cr)) + fact('Share price', (a.price == null ? '–' : '₹' + a.price.toLocaleString('en-IN')) + ' <small style="font-weight:400;color:var(--muted)">' + dt(a.price_as_of).replace(/ \d{4}$/, '') + '</small>') +
-        fact('Base', 'Four quarters, ' + winWords(D.base_window), baseTip) + fact('Accounts', basis()) + fact('Data to', dt(D.as_of)) + '</div>' + peerBox();
+        fact('Base', 'Four quarters, ' + winWords(D.base_window), baseTip) + fact('Accounts', basis()) + fact('Data to', dt(D.as_of)) + '</div>' + close + peerBox();
     }
   }
   var PEER_WORDS = {
@@ -719,6 +721,8 @@ export function mountStressLab(root, E, D, opts) {
     if (upg && opts.onUpgrade) { ev.preventDefault(); opts.onUpgrade(); return; }   // the site's own upgrade flow (sign in first, then the plan page)
     var go = ev.target.closest('[data-go]');
     if (go) { var sym = go.getAttribute('data-go'); if (go.getAttribute('data-for') === 'peer') { if (opts.onPeer) opts.onPeer(sym); } else if (opts.onCompany) opts.onCompany(sym); return; }
+    var cl = ev.target.closest('[data-close]');
+    if (cl) { if (opts.onClose) opts.onClose(); return; }   // closes the company even when its figures could not be drawn
     var lk = ev.target.closest('[data-locked]');
     if (lk) { var up = $('upnote'); if (up) { up.classList.remove('pulse'); void up.offsetWidth; up.classList.add('pulse'); up.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } return; }
     var t = ev.target.closest('[data-scen],[data-tc],[data-pers],[data-reset],[data-sure],[data-unit],[data-pick],[data-resetedits],#adj,[data-view]');

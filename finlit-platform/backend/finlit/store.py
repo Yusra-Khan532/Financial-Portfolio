@@ -145,6 +145,20 @@ def _redis(url: str) -> aioredis.Redis:
     return aioredis.Redis(connection_pool=pool)
 
 
+# A report our own accuracy checks refused is not rebuilt on every visit (14 Nov 2026: CHENNPETRO was rebuilt 105 times in a day and five BSE companies
+# 20 to 64 times each, about 20 provider calls a time, so the nightly ingest never got through its list). The refusal is held for REFUSED_HOLD_S with the
+# code version that made it: a new version (a fixed check) builds it again at the next visit, and the nightly ingest asks again once per refresh window.
+REFUSED_HOLD_S = 6 * 3600
+
+
+def refused_key(symbol: str, statement: str) -> str:
+    return f"ingest:refused:{symbol.upper()}:{statement}"
+
+
+def code_version() -> str:
+    return os.getenv("APP_VERSION") or "unknown"
+
+
 class Store:
     db_tag = ""
 
@@ -565,6 +579,9 @@ class Store:
                 "OR (s.body::jsonb -> 'quote' ->> 'price') IS NULL "   # a report saved without a price (half-loaded) is reloaded at once
                 "OR (jsonb_array_length(coalesce(s.body::jsonb -> 'dataQuality' -> 'missing', '[]'::jsonb)) > 0 AND s.generated_at < now() - interval '3 hours') "   # a part the provider failed to send: ask again
                 f"OR coalesce((s.body::jsonb -> 'meta' ->> 'version')::int, 0) < {SNAPSHOT_VERSION}) "   # built by older code: rebuild
+                # refused by the accuracy checks within the refresh window: asked again once per window, not first in every run (14 Nov 2026: 105 rebuilds a day)
+                "AND NOT EXISTS (SELECT 1 FROM (SELECT status, started_at FROM ingest_runs x WHERE x.symbol = r.symbol AND x.statement = $1 ORDER BY x.started_at DESC LIMIT 1) last "
+                "WHERE last.status = 'rejected' AND last.started_at > now() - make_interval(hours => $2)) "
                 "ORDER BY (s.symbol IS NOT NULL), r.rn", statement, older_than_hours, limit or 100000, pinned)
         return [r["symbol"] for r in rows]
 

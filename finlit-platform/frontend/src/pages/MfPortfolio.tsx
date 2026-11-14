@@ -8,6 +8,7 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
+import { RemoveAll } from "../components/RemoveAll";
 import { saveFile } from "../stock/derive";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
@@ -214,7 +215,10 @@ export function MfPortfolioPage() {
             <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">Fund Health Score →</Link></nav></div>
           <section className="mfp-add" aria-label="Add funds">
             <AddFund disabled={false} onDone={toast} />
-            <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button><span>{d ? `${d.count} of ${limit} funds` : ""}</span></div>
+            <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
+              <RemoveAll count={d?.count ?? 0} noun="fund" className="btn" busy={w.clear.isPending} note="Their units and purchase dates go too. This cannot be undone."
+                onConfirm={async () => { try { const r = await w.clear.mutateAsync(); toast(`Removed ${r.removed} ${r.removed === 1 ? "fund" : "funds"}.`); } catch (x) { toast(x instanceof Error && x.message ? x.message : "The funds could not be removed. Try again in a moment."); } }} />
+              <span>{d ? `${d.count} of ${limit} funds` : ""}</span></div>
           </section>
         </header>
         {importing && <section className="sp-sec mfp-import" aria-label="Import a file"><ImportFile onDone={(m) => { toast(m); setImporting(false); }} /></section>}

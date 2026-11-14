@@ -410,3 +410,9 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
   .cmpw .cmp-peer-cos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .cmpw .cmp-chip { padding: 4px 4px 4px 10px; } .cmpw .cmp-chip span { font-size: 13px; }
 }
+
+/* Compare, FinLit Prism parts: the two price-trend readings (task #123). -100 sits at the left end, 0 at the middle tick, +100 at the right end. */
+.cmp-trend-h { margin: 14px 0 6px; font-size: var(--fs-12); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.cmp-trend-h span { font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.cmp-trend .pb { position: relative; }
+.cmp-trend .pb::after { content: ""; position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px; background: var(--muted); opacity: .6; pointer-events: none; }

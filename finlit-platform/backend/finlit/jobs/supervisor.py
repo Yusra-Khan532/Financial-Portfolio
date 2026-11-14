@@ -495,7 +495,7 @@ class Supervisor:
                 problems.append((f"failing:{name}", f"FinLit job failing: {name}",
                                  f"{name} has failed {st.consecutive_failures} times in a row ({st.last_status}).{await self._why(name)} {st.state_reason or ''} It is retried automatically "
                                  f"{'every 2 hours (never later than 3)' if st.consecutive_failures >= job.max_attempts else 'with a growing delay'}; the alert ends when a run succeeds. "
-                                 f"Look at /tmp/job-{name}.log in the app container."))
+                                 f"Look at /tmp/job-{name}.log in the jobs container (docker exec finlit-jobs-1 tail -n 50 /tmp/job-{name}.log)."))
         if self.last_fresh_report:
             states = plan.states
             for d in self.last_fresh_report.get("datasets", []):
