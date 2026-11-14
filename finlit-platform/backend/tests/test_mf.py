@@ -404,16 +404,33 @@ async def test_backfill_is_resumable_and_skips_houses_already_done(loaded):
     async with amfi_client(calls=calls) as c:
         res = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
         again = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
-    # Axis was done by the fixture. Every active scheme keeps its series now (IDCW included), so Aditya Birla (an active IDCW scheme in the sample) is loaded
-    # too, and first: the best-known houses go first (config.MF_FEATURED_AMCS), Bank of India is not on that list. AMFI answers both with its web form.
-    assert [d["amc"] for d in res["done"]] == ["Aditya Birla Sun Life Mutual Fund", "Bank of India Mutual Fund"] and all(d["schemes"] == 0 for d in res["done"])
-    assert res["skipped"] == ["Axis Mutual Fund"]
+    # Axis was done by the fixture and is skipped. Every active scheme keeps its series now (IDCW included), so Aditya Birla (an active IDCW scheme in the
+    # sample) is asked for too, and first: best-known houses go first (config.MF_FEATURED_AMCS); Bank of India is not on that list.
+    # AMFI answers both with its web form for every window: a refused request, so they FAIL and are NOT marked done, and the next run asks again.
+    assert res["done"] == [] and res["skipped"] == ["Axis Mutual Fund"]
+    assert [f.split(":")[0] for f in res["failed"]] == ["Aditya Birla Sun Life Mutual Fund", "Bank of India Mutual Fund"]
+    assert all("not marked done" in f for f in res["failed"])
     hist = [u for u in calls if "History" in u]
-    assert hist and all("mf=3&" in u or u.endswith("mf=3") or "mf=46" in u for u in hist)
-    assert hist.index(next(u for u in hist if "mf=46" in u)) > hist.index(next(u for u in hist if "mf=3" in u))   # the famous house was asked first
-    assert again["done"] == [] and sorted(again["skipped"]) == ["Aditya Birla Sun Life Mutual Fund", "Axis Mutual Fund", "Bank of India Mutual Fund"]
+    first_boi = next(k for k, u in enumerate(hist) if "mf=46" in u)
+    assert all("mf=3&" in u or u.endswith("mf=3") for u in hist[:first_boi]) and first_boi > 0   # the famous house was asked first
+    assert again["skipped"] == ["Axis Mutual Fund"] and len(again["failed"]) == 2                       # asked again, not skipped
     async with loaded.pool.acquire() as conn:
-        assert "no history rows" in await conn.fetchval("SELECT note FROM mf_backfill WHERE amc_key = 'bankofindia'")
+        assert await conn.fetchval("SELECT count(*) FROM mf_backfill WHERE amc_key IN ('bankofindia', 'adityabirlasunlife')") == 0
+
+
+async def test_history_is_asked_in_windows_amfi_serves(loaded):
+    """AMFI refuses ranges over about 100 days (14 Nov 2026: a year returns its web form). Every window the backfill asks for is at most 90 days."""
+    from urllib.parse import parse_qs, urlsplit
+    calls = []
+    async with amfi_client(calls=calls) as c:
+        await mf.backfill(loaded, None, amc="Axis", client=c, force=True, log_fn=lambda *_: None, settle=False)
+    spans = []
+    for u in calls:
+        if "History" in u:
+            q = parse_qs(urlsplit(u).query)
+            a, b = (datetime.strptime(q[k][0], "%d-%b-%Y").date() for k in ("frmdt", "todt"))
+            spans.append((b - a).days + 1)
+    assert spans and max(spans) <= 90 and len(spans) >= 20      # five years in about 21 pieces
 
 
 class _Row:
@@ -439,7 +456,9 @@ async def test_backfill_loads_every_house_again_when_the_done_markers_outlived_t
     monkeypatch.setattr(mf, "_history_wiped", wiped)
     async with amfi_client() as c:
         res = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None)
-    assert [d["amc"] for d in res["done"]] == ["Aditya Birla Sun Life Mutual Fund", "Axis Mutual Fund", "Bank of India Mutual Fund"] and res["skipped"] == []   # nothing skipped (Axis was marked done by the fixture); best-known first
+    # nothing skipped (Axis was marked done by the fixture); Axis answers with data and is done; the two houses AMFI answers with its web form fail
+    assert [d["amc"] for d in res["done"]] == ["Axis Mutual Fund"] and res["skipped"] == []
+    assert [f.split(":")[0] for f in res["failed"]] == ["Aditya Birla Sun Life Mutual Fund", "Bank of India Mutual Fund"]   # best-known first
 
 
 @needs_db
