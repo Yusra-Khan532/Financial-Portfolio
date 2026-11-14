@@ -320,7 +320,7 @@ async def weekly_closes(store, sym: str, app: Any = None) -> Dict[str, float]:
     if row:
         out.update({(d.isoformat() if hasattr(d, "isoformat") else str(d)[:10]): float(c) for d, c in zip(row["dates"] or [], row["closes"] or []) if c})
     out.update(await _section_closes(store, sym))
-    if app is not None and not row and not any(d < "2022-01-17" for d in out):        # asked once: the row it stores (even an empty one) stops a second ask
+    if app is not None and not row and not any(d <= EPISODES_START for d in out):    # nothing from the first shock (Aug 2018) on file: asked once; the row it stores stops a second ask
         out.update(await _fetch_long(app, sym))
     out.update({r["day"].isoformat(): float(r["close"]) for r in daily})
     return {d: c for d, c in out.items() if d >= HISTORY_FROM}
@@ -469,8 +469,10 @@ def page_is_stale(rec: dict, latest_quarter: Optional[str], now: Optional[dateti
     age_h = ((now or datetime.now(timezone.utc)) - at).total_seconds() / 3600
     base_end = ((rec.get("payload") or {}).get("company") or {}).get("base_end")
     payload = rec.get("payload") or {}
-    no_history = "history" in payload and not any(v for row in payload["history"] or [] for k, v in row.items() if k not in ("episode", "from", "to", "nifty"))
-    return age_h > PAGE_MAX_AGE_H or (age_h > RECENT_FAIL_H and (no_history or bool(latest_quarter and base_end and latest_quarter > base_end)))
+    rows = payload.get("history") or []
+    no_history = "history" in payload and not any(v for row in rows for k, v in row.items() if k not in ("episode", "from", "to", "nifty"))
+    gap = any(row.get("nifty") is None or any(v is None for k, v in row.items() if k not in ("episode", "from", "to", "nifty")) for row in rows)   # an episode still blank (task #79, SL-10)
+    return age_h > PAGE_MAX_AGE_H or (age_h > RECENT_FAIL_H and (no_history or gap or bool(latest_quarter and base_end and latest_quarter > base_end)))
 
 
 async def save_failure(store, sym: str, kind: str, reason: str) -> None:

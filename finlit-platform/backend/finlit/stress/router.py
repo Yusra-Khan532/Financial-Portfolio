@@ -192,7 +192,9 @@ async def _stored_or_live(request: Request, sym: str) -> dict:
         rec = None
     if rec:
         if service.page_is_stale(rec, service.covered_quarters(table, [sym]).get(sym)):
-            _start_build(app, sym, size)          # the stored copy is served now; a fresh one (new results, or a day old) is built behind it
+            latest_q, base_end = service.covered_quarters(table, [sym]).get(sym), ((rec["payload"].get("company") or {}).get("base_end"))
+            same = not (latest_q and base_end and latest_q > base_end)
+            _start_build(app, sym, size, rec.get("pack") if same else None)   # served now; rebuilt behind it (from its stored statements unless newer results came out)
         return rec
     task = _start_build(app, sym, size, reuse)
     if task is None:                          # the last build of this company failed a moment ago: no new provider call yet, the same answer at once
