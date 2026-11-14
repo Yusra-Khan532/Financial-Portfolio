@@ -139,6 +139,13 @@ describe("Stress Lab page", () => {
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toBe("?with=PEERX"));
     await waitFor(() => expect(shadow()?.getElementById("costrip")?.textContent).toMatch(/Peer X Ltd/));
   });
+  it("the cross on the company strip closes the company and goes back to the Stress Lab start (task #148)", async () => {
+    render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/research/stress-lab/ASIANPAINT"]}><Routes>
+      <Route path="/research/stress-lab/:symbol" element={<StressLabPage />} /><Route path="/research/stress-lab" element={<p>Stress Lab start</p>} /></Routes></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(shadow()?.querySelector("#costrip .coclose")).toBeTruthy());
+    shadow()!.querySelector<HTMLButtonElement>("#costrip .coclose")!.click();
+    await waitFor(() => expect(screen.getByText("Stress Lab start")).toBeTruthy());
+  });
   it("the search boxes offer only companies Stress Lab covers: a bank is not listed, and a covered company is (A4.7)", async () => {
     location.hash = "#compare"; st.covered = ["PIDILITIND", "BERGEPAINT"];
     st.hits = [["HDFCBANK", "HDFC Bank Ltd", "", "", "HDFCBANK"], ["IDFCFIRSTB", "IDFC First Bank Ltd", "", "", "IDFCFIRSTB"], ["PIDILITIND", "Pidilite Industries Ltd", "", "", "PIDILITIND"]];

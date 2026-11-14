@@ -31,6 +31,11 @@ h3{margin:0;font-size:16px;font-weight:700;color:var(--ink)}
 .find input{border:0;outline:0;background:transparent;font:inherit;color:var(--ink);width:100%}
 /* company strip */
 .costrip{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center}
+.costrip:has(.coclose){position:relative;padding-right:52px}
+/* task #148: close this company (back to the Stress Lab start); top right of the strip, level with the company's name */
+.coclose{position:absolute;top:2px;right:0;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--muted);cursor:pointer}
+.coclose:hover{color:var(--ink);border-color:var(--muted)}
+.coclose:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 .co{display:flex;align-items:center;gap:12px;min-width:0}
 .logo{flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--hffffff);display:grid;place-items:center;overflow:hidden}
 .logo img{width:36px;height:36px;object-fit:contain}
