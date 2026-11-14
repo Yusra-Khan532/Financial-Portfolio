@@ -68,7 +68,7 @@ from .web import mount_frontend
 from .security import RateLimiter, SecurityHeadersMiddleware, client_ip
 from .finedge import ESSENTIAL_KEYS
 from .snapshot import PRICE_RANGES, SECTIONS, SNAPSHOT_VERSION
-from .store import Store
+from .store import Store, code_version, refused_key
 from .background import etag_matches, spawn
 
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
@@ -406,6 +406,12 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             # The report is stored (key numbers first) and this block is still being fetched: nothing is queued again, the page asks again in a moment.
             return await queued_reply(symbol, statement, "This part of the report is still loading.")
         if await store.company(symbol):
+            try:      # refused by our accuracy checks within the last hours, by this same code version: say so at once, no rebuild (worker.REFUSED_HOLD_S)
+                held = await store.redis.get(refused_key(symbol, statement))
+                if held is not None and (held.decode() if isinstance(held, bytes) else str(held)) == code_version():
+                    return await after_wait(request, symbol, statement, name, "rejected")
+            except Exception:   # nosec B110 - Redis trouble: the normal build path below
+                pass
             # Each new stock costs ~21 upstream calls: cap per client and in total, failing closed.
             # Already being prepared: the page asks every few seconds while it waits, and those asks must not use up the visitor's allowance.
             pending = f"pending:{symbol.upper()}:{statement}"
