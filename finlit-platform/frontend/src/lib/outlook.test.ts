@@ -1,41 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WEIGHTS, HORIZONS, PARAM_LABELS, isDefault, rebalance, signedPct, totalOf, type Horizon, type Kind } from "./outlook";
+import { DEFAULT_WEIGHTS, HORIZONS, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, type Horizon, type Kind, type Outlook } from "./outlook";
 
-describe("rebalance", () => {
-  it("keeps the total at exactly 100 for every slider move", () => {
-    for (const kind of ["profit", "revenue"] as const) {
-      let w = { ...DEFAULT_WEIGHTS[kind].mid };
-      const letters = Object.keys(w);
-      for (let n = 0; n < 200; n++) {
-        const l = letters[(n * 7) % letters.length];
-        w = rebalance(w, l, ((n * 37) % 1001) / 10);
-        expect(totalOf(w)).toBe(100);
-        expect(Object.values(w).every((x) => x >= 0 && x <= 100)).toBe(true);
-      }
-    }
+describe("Set your own model: each input's own growth rate (task #146)", () => {
+  const model = { rate: { rows: [
+    { key: "co_1y", status: "ok", valuePct: 12.34 }, { key: "co_3y", status: "ok", valuePct: -3 }, { key: "sec_1y", status: "unavailable", valuePct: null },
+  ] } } as unknown as Outlook;
+  it("starts every slider at the company's own figure, and leaves a blank input blank", () => {
+    expect(companyValues(model)).toEqual({ co_1y: 12.34, co_3y: -3 }); expect(companyValues(null)).toEqual({});
   });
-  it("shares the rest in proportion to the other groups", () => {
-    const w = rebalance({ A: 50, B: 30, C: 20 }, "A", 60);
-    expect(w).toEqual({ A: 60, B: 24, C: 16 });
+  it("moves one rate without touching any other: no rebalancing, no total of 100", () => {
+    const base = companyValues(model);
+    const mine = { co_1y: 20 };
+    expect(changedValues(base, mine)).toEqual({ co_1y: 20 });                                   // only the moved input is sent; co_3y keeps -3
+    expect(changedValues(base, { co_1y: 20, co_3y: 45 })).toEqual({ co_1y: 20, co_3y: 45 });       // two moved: both kept as set, they need not add up to anything
+    expect(changedValues(base, { co_1y: 12.3 })).toEqual({});                                      // back on the company's figure (as shown, one decimal): nothing changed
+    expect(changedValues(base, { sec_1y: 8 })).toEqual({ sec_1y: 8 });                             // a blank input the user sets is used
   });
-  it("sets one group to 100 and the rest to 0, and shares equally when the others hold nothing", () => {
-    expect(rebalance({ A: 50, B: 30, C: 20 }, "B", 100)).toEqual({ A: 0, B: 100, C: 0 });
-    expect(rebalance({ A: 100, B: 0, C: 0 }, "A", 40)).toEqual({ A: 40, B: 30, C: 30 });
+  it("keeps every rate within the model's limit, in tenths of a point (the knob sits on the figure shown)", () => {
+    expect([clampValue(73), clampValue(-80), clampValue(12.26), clampValue(7.39), clampValue(NaN)]).toEqual([VALUE_MAX, VALUE_MIN, 12.3, 7.4, 0]);
+    expect([VALUE_MIN, VALUE_MAX, VALUE_STEP]).toEqual([-50, 50, 0.1]);
   });
-  it("clamps junk and ignores unknown groups", () => {
-    expect(totalOf(rebalance({ A: 50, B: 50 }, "A", 250))).toBe(100);
-    expect(rebalance({ A: 50, B: 50 }, "A", NaN)).toEqual({ A: 0, B: 100 });
-    expect(rebalance({ A: 50, B: 50 }, "Z", 10)).toEqual({ A: 50, B: 50 });
-  });
-  it("every default column adds to 100 and names every input, per horizon", () => {
+  it("every weight column (FinLit's, which combines the rates) adds to 100 and names every input, per horizon", () => {
     for (const kind of ["profit", "revenue"] as Kind[]) for (const h of HORIZONS) {
       const w = DEFAULT_WEIGHTS[kind][h.key];
-      expect(totalOf(w)).toBe(100);
+      expect(Object.values(w).reduce((a, b) => a + b, 0)).toBe(100);
       expect(Object.keys(w)).toEqual(Object.keys(PARAM_LABELS[kind]));
-      expect(isDefault(kind, h.key, w)).toBe(true);
     }
-    expect(isDefault("profit", "mid", rebalance(DEFAULT_WEIGHTS.profit.mid, "co_1y", 30))).toBe(false);
-    expect(isDefault("profit", "short", DEFAULT_WEIGHTS.profit.mid)).toBe(false);
   });
   it("matches the team's table", () => {
     expect(DEFAULT_WEIGHTS.revenue.short).toEqual({ co_1y: 50, co_3y: 10, co_5y: 5, sec_1y: 25, sec_3y: 5, sec_5y: 5 });

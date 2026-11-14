@@ -14,7 +14,7 @@ from ..auth.entitlements import has, sees_all
 from ..auth.routes import SYMBOL, Ctx, fail, secure_ctx
 from ..screener.data import get_table
 from .inputs import build_inputs
-from .model import HISTORY_YEARS, WeightError, default_weights, forecast, hist_from_inputs, sector_inputs, validate_weights
+from .model import HISTORY_YEARS, WeightError, default_weights, forecast, hist_from_inputs, sector_inputs, validate_values, validate_weights
 from .sector import peer_values
 
 router = APIRouter(prefix="/api/outlook")
@@ -27,6 +27,7 @@ class OutlookIn(BaseModel):
     kind: Literal["profit", "revenue"]
     horizon: Literal["short", "mid", "long"] = "short"
     weights: Optional[Dict[str, float]] = None
+    values: Optional[Dict[str, float]] = None      # "Set your own model" (task #146): the user's expected growth rate per input, combined by the model's weights
     normalise: bool = False
     statement: Literal["consolidated", "standalone"] = "consolidated"
 
@@ -37,13 +38,14 @@ async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     return ctx
 
 
-def build_response(kind: str, horizon: str, weights: Dict[str, float], custom: bool, sections: Dict[str, dict], symbol: str, statement: str, table=None) -> dict:
+def build_response(kind: str, horizon: str, weights: Dict[str, float], custom: bool, sections: Dict[str, dict], symbol: str, statement: str, table=None,
+                   values: Optional[Dict[str, float]] = None) -> dict:
     inp = build_inputs(sections.get("summary"), sections.get("financials"), sections.get("ratios"), sections.get("segments"))
     hist = hist_from_inputs(inp)
     peers, groups, why = (None, {}, "The sector table is not available right now.")
     if table is not None:
         peers, groups, why = peer_values(kind, symbol, table.symbols, table.sector, table.industry, table.cols)
-    result = forecast(kind, hist, horizon, weights, sector_inputs(kind, peers, groups, why))
+    result = forecast(kind, hist, horizon, weights, sector_inputs(kind, peers, groups, why), values)
     meta = (sections.get("summary") or {}).get("meta") or {}
     key = "revenue" if kind == "revenue" else "net_profit"
     reported = {p: (inp.pl.get(key) or {}).get(p) for p in inp.fy}
@@ -54,7 +56,7 @@ def build_response(kind: str, horizon: str, weights: Dict[str, float], custom: b
         "symbol": symbol, "statement": statement, "kind": kind, "mode": "custom" if custom else "model",
         "name": (((sections.get("summary") or {}).get("profile")) or {}).get("name"), "isLender": inp.lender,
         "asOf": {"yearly": inp.fy[-1] if inp.fy else None}, "reportGeneratedAt": meta.get("generatedAt"),
-        "weights": weights, "defaultWeights": default_weights(kind, horizon), "adjustedYears": hist.adjusted if kind == "profit" else [],
+        "weights": weights, "values": values, "defaultWeights": default_weights(kind, horizon), "adjustedYears": hist.adjusted if kind == "profit" else [],
         "history": {"unit": "Rs crore", "points": pts}, **result, "disclaimer": DISCLAIMER,
     }
 
@@ -66,6 +68,7 @@ async def outlook(request: Request, symbol: str, body: OutlookIn, ctx: Ctx = Dep
         raise fail(400, "invalid_symbol", "That is not a stock symbol.")
     try:
         weights = validate_weights(body.kind, body.weights, body.horizon, body.normalise)
+        values = validate_values(body.kind, body.values)
     except WeightError as exc:
         raise fail(422, "invalid_weights", str(exc))
     store = request.app.state.store
@@ -77,7 +80,8 @@ async def outlook(request: Request, symbol: str, body: OutlookIn, ctx: Ctx = Dep
         raise fail(404, "not_ready", "This company's report is not stored yet. Open its page once (it is prepared in about a minute), then try again.")
     version = hashlib.sha1("|".join(f"{n}:{hits[n][1] if hits[n] else '-'}" for n in SECTIONS).encode()).hexdigest()[:16]  # nosec B324 - cache key
     whash = hashlib.sha1(json.dumps(sorted(weights.items())).encode()).hexdigest()[:12]  # nosec B324 - cache key
-    key = f"outlook2:{sym}:{st}:{body.kind}:{body.horizon}:{whash if body.weights is not None else 'model'}:{version}"
+    vhash = hashlib.sha1(json.dumps(sorted((values or {}).items())).encode()).hexdigest()[:12] if values else "-"  # nosec B324 - cache key
+    key = f"outlook3:{sym}:{st}:{body.kind}:{body.horizon}:{whash if body.weights is not None else 'model'}:{vhash}:{version}"
     redis = store.redis
     payload = None
     try:
@@ -91,7 +95,7 @@ async def outlook(request: Request, symbol: str, body: OutlookIn, ctx: Ctx = Dep
             table = await get_table(store)
         except Exception:   # the sector table is optional: the sector inputs then say why they are blank
             table = None
-        payload = orjson.dumps(build_response(body.kind, body.horizon, weights, body.weights is not None, sections, sym, st, table))
+        payload = orjson.dumps(build_response(body.kind, body.horizon, weights, body.weights is not None or values is not None, sections, sym, st, table, values))
         try:
             await redis.set(key, payload, ex=CACHE_SECONDS)
         except Exception:

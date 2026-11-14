@@ -1,6 +1,7 @@
 // Profit and revenue outlook (Gold): estimates of revenue and net profit for the next 1, 3 or 5 financial years from the company's own history and its
-// sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Use our model" or "Set your own" weights. All arithmetic is on the
-// server; what stays here is the weight balancing (lib/outlook.ts) and the chart series (lib/outlookChart.ts), both tested. Information only, not advice.
+// sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Our model", or "Set your own model": the user's own growth rate for
+// each input (task #146), combined by the model's weights. All arithmetic is on the server; what stays here is the slider logic (lib/outlook.ts) and the chart
+// series (lib/outlookChart.ts), both tested. Information only, not advice.
 import { PageHeader } from "../components/PageHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -10,7 +11,7 @@ import { Icon } from "../lib/icons";
 import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
 import { nf } from "../lib/format";
-import { DEFAULT_WEIGHTS, HORIZONS, KIND_LABEL, PARAM_LABELS, isDefault, rebalance, signedPct, totalOf, useOutlook, type Horizon, type Kind, type Outlook, type Weights } from "../lib/outlook";
+import { DEFAULT_WEIGHTS, HORIZONS, KIND_LABEL, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, useOutlook, type Horizon, type Kind, type Outlook, type Values } from "../lib/outlook";
 import { fmtCr } from "../lib/outlookChart";
 import { OutlookChart, buildSeries } from "../charts/OutlookChart";
 import { Gate } from "../components/Gate";
@@ -20,7 +21,7 @@ import "../styles/outlook.css";
 
 const TABS: { kind: Kind; label: string }[] = [{ kind: "profit", label: "Profit" }, { kind: "revenue", label: "Revenue" }];
 const NOTE = "Estimates from the company's own history and its sector, not a prediction or advice. The weights are starting values and have not yet been validated.";
-const GATE_POINTS = ["Revenue and net profit estimates for the next 1, 3 or 5 years, drawn after the reported years", "Every input, its weight and its contribution shown, with the reason for any blank", "Use our model's weights, or set the weight of each input yourself"];
+const GATE_POINTS = ["Revenue and net profit estimates for the next 1, 3 or 5 years, drawn after the reported years", "Every input, its weight and its contribution shown, with the reason for any blank", "Use our model, or set your own expected growth rate for each input"];
 
 // ---------------------------------------------------------------------------------------------------------- /outlook (search)
 export function OutlookIndexPage() {
@@ -35,20 +36,30 @@ export function OutlookIndexPage() {
 }
 
 // ---------------------------------------------------------------------------------------------------------- pieces
-const wkey = (kind: Kind, h: Horizon) => `${kind}:${h}`;
+const MINE = "Your assumptions";
 
-function Sliders({ kind, names, weights, onChange, onReset, horizon }: { kind: Kind; names: Record<string, string>; weights: Weights; onChange: (l: string, v: number) => void; onReset: () => void; horizon: Horizon }) {
-  const total = totalOf(weights);
+/** One slider per input: the growth rate (percent a year) the user expects for it, set on its own (task #146). It starts at the company's own figure, which
+ *  stays in view, with how much FinLit's weights count the input for the horizon. */
+function Sliders({ kind, horizon, names, base, mine, ratePct, loading, onChange, onReset }: { kind: Kind; horizon: Horizon; names: Record<string, string>; base: Values; mine: Values;
+  ratePct: number | null; loading: boolean; onChange: (l: string, v: number) => void; onReset: () => void }) {
+  const keys = Object.keys(PARAM_LABELS[kind]);
+  const moved = Object.keys(changedValues(base, mine)).length;
+  const hz = HORIZONS.find((h) => h.key === horizon)!;
   return (
-    <fieldset className="ol-sliders"><legend className="sr-only">Weight of each input, in percent</legend>
-      {Object.keys(weights).map((l) => (
-        <div className="ol-sl" key={l}>
-          <label htmlFor={`ol-${kind}-${l}`}>{names[l] ?? PARAM_LABELS[kind][l] ?? l}</label>
-          <input id={`ol-${kind}-${l}`} type="range" min={0} max={100} step={0.5} value={weights[l]} onChange={(e) => onChange(l, Number(e.target.value))} aria-valuetext={`${weights[l]} percent`} />
-          <output htmlFor={`ol-${kind}-${l}`} className="mono">{nf(weights[l], 1)}%</output>
-        </div>))}
-      <div className="ol-total" aria-live="polite"><span>Total <b className="mono">{nf(total, 1)}%</b> <span className="faint">· the other weights move with the one you change, so the total stays 100%</span></span>
-        <button type="button" className="btn ghost" onClick={onReset} disabled={isDefault(kind, horizon, weights)}>Reset to our model</button></div>
+    <fieldset className="ol-sliders" disabled={loading}><legend className="sr-only">Expected growth rate of each input, in percent a year</legend>
+      {keys.map((l) => {
+        const has = base[l] != null, set = has || mine[l] != null, v = mine[l] ?? (has ? clampValue(base[l]) : 0), who = l.startsWith("sec_") ? "Sector" : "Company";
+        const ref = loading ? "Loading the company's figure" : has ? `${who} figure ${signedPct(base[l], 1)}` : `No ${who.toLowerCase()} figure; ${mine[l] != null ? "your rate is used" : "move it to use your own"}`;
+        return (
+          <div className="ol-sl" key={l}>
+            <label htmlFor={`ol-${kind}-${l}`}>{names[l] ?? PARAM_LABELS[kind][l] ?? l}<small className="faint ol-sl-ref">{ref} · counts {DEFAULT_WEIGHTS[kind][horizon][l]}%</small></label>
+            <input id={`ol-${kind}-${l}`} type="range" min={VALUE_MIN} max={VALUE_MAX} step={VALUE_STEP} value={v} onChange={(e) => onChange(l, Number(e.target.value))}
+              aria-valuetext={set ? `${signedPct(v, 1)} a year` : "no figure; not used until you set it"} />
+            <output htmlFor={`ol-${kind}-${l}`} className={"mono" + (mine[l] != null && (!has || Math.abs(base[l] - v) >= VALUE_STEP / 2) ? " is-mine" : "")}>{set ? signedPct(v, 1) : "—"}</output>
+          </div>);
+      })}
+      <div className="ol-total" aria-live="polite"><span>Combined yearly rate <b className="mono">{ratePct == null ? "—" : signedPct(ratePct, 2)}</b> <span className="faint">· each rate is set on its own; FinLit's {hz.label.toLowerCase()} weights (the “counts” figures) combine them</span></span>
+        <button type="button" className="btn ghost" onClick={onReset} disabled={!moved}>Reset to the company's figures</button></div>
     </fieldset>
   );
 }
@@ -57,8 +68,8 @@ function Skeleton() {
   return <div className="ol-skel" aria-busy="true" aria-label="Loading the estimate"><div className="sk-lines"><i /><i /><i /><i /><i /></div></div>;
 }
 
-/** One metric's chart. Its estimate is the user's own weights when they differ from the model's, else the model's; the model's is then drawn as a second dashed line. */
-function ChartCard({ sym, kind, horizon, own, gold, adjusting, onPick }: { sym: string; kind: Kind; horizon: Horizon; own: Weights | null; gold: boolean; adjusting?: boolean; onPick?: () => void }) {
+/** One metric's chart. Its estimate is the user's own growth rates when any differs from the company's figure, else the model's; the model's is then drawn as a second dashed line. */
+function ChartCard({ sym, kind, horizon, own, gold, adjusting, onPick }: { sym: string; kind: Kind; horizon: Horizon; own: Values | null; gold: boolean; adjusting?: boolean; onPick?: () => void }) {
   const mine = useOutlook(sym, kind, horizon, own, gold);
   const model = useOutlook(sym, kind, horizon, null, gold && !!own);
   const last = useRef<Outlook | null>(null);
@@ -66,7 +77,7 @@ function ChartCard({ sym, kind, horizon, own, gold, adjusting, onPick }: { sym: 
   const d = mine.data ?? (mine.isFetching ? last.current : null);
   const alt = own && model.data?.forecast.available ? model.data.forecast.years : null;
   const series = useMemo(() => (d ? buildSeries(d.history.points, d.forecast.available ? d.forecast.years : null, alt) : null), [d, alt]);
-  const who = own ? "Your weights" : "FinLit model";
+  const who = own ? MINE : "FinLit model";
   return (
     <section className={"card ol-chartcard" + (mine.isFetching ? " is-busy" : "") + (adjusting ? " is-adjusting" : "")} aria-labelledby={`ol-ch-${kind}`} aria-busy={mine.isFetching}>
       <h2 id={`ol-ch-${kind}`}>{KIND_LABEL[kind]}: reported and estimate
@@ -78,7 +89,7 @@ function ChartCard({ sym, kind, horizon, own, gold, adjusting, onPick }: { sym: 
         <>
           <OutlookChart kind={kind} symbol={sym} series={series} who={who} horizonLabel={d.horizon.label.toLowerCase()} />
           {!d.forecast.available && <p className="ol-empty" role="note"><b>No estimate drawn.</b> {d.forecast.reason}</p>}
-          {d.forecast.available && <p className="faint ol-chart-note">Estimate from {who === "Your weights" ? "your weights" : "the FinLit model"} · {d.horizon.label.toLowerCase()} ({d.horizon.span}){d.adjustedYears.length ? ` · reported years ${d.adjustedYears.join(", ")} adjusted for one-off items` : ""}</p>}
+          {d.forecast.available && <p className="faint ol-chart-note">Estimate from {who === MINE ? "your growth rates" : "the FinLit model"} · {d.horizon.label.toLowerCase()} ({d.horizon.span}){d.adjustedYears.length ? ` · reported years ${d.adjustedYears.join(", ")} adjusted for one-off items` : ""}</p>}
         </>) : null}
     </section>
   );
@@ -88,8 +99,8 @@ export function BuildTable({ d }: { d: Outlook }) {
   const k = d.kind;
   return (
     <section className="card" aria-labelledby={`ol-build-${k}`}>
-      <h2 id={`ol-build-${k}`}>How this {KIND_LABEL[k].toLowerCase()} estimate is built <span className="tier gold">{d.mode === "custom" ? "Your weights" : "FinLit model"}</span></h2>
-      <p className="muted">Each input is a yearly growth rate. The weighted growth rate is the sum of weight × value, using the {d.horizon.label.toLowerCase()} column of weights ({d.horizon.span}). Inputs that cannot be worked out drop out and their weight is shared across the others in proportion.</p>
+      <h2 id={`ol-build-${k}`}>How this {KIND_LABEL[k].toLowerCase()} estimate is built <span className="tier gold">{d.mode === "custom" ? MINE : "FinLit model"}</span></h2>
+      <p className="muted">Each input is a yearly growth rate. The weighted growth rate is the sum of weight × value, using the {d.horizon.label.toLowerCase()} column of weights ({d.horizon.span}). Inputs that cannot be worked out drop out and their weight is shared across the others in proportion.{d.mode === "custom" ? " With “Set your own model” the values marked “Your assumption” are the growth rates you set; the weights stay FinLit's." : ""}</p>
       <div className="ol-ctable ol-build"><table>
         <caption className="sr-only">Inputs, weights and contributions to the weighted {KIND_LABEL[k].toLowerCase()} growth rate</caption>
         <thead><tr><th scope="col">Input</th><th scope="col" className="num">Value</th><th scope="col" className="num">Weight</th><th scope="col" className="num">Weight used</th><th scope="col" className="num">Adds</th></tr></thead>
@@ -137,7 +148,7 @@ export function Takeaways({ d, model }: { d: Outlook; model: Outlook | null }) {
   if (!lines.length) return null;
   return (
     <section className="card ol-take" aria-labelledby={`ol-take-${d.kind}`}>
-      <h2 id={`ol-take-${d.kind}`}>Key takeaways, {KIND_LABEL[d.kind].toLowerCase()} <span className="tier gold">{d.mode === "custom" ? "Your weights" : "FinLit model"}</span></h2>
+      <h2 id={`ol-take-${d.kind}`}>Key takeaways, {KIND_LABEL[d.kind].toLowerCase()} <span className="tier gold">{d.mode === "custom" ? MINE : "FinLit model"}</span></h2>
       <ul className="ol-take-l">{lines.map((l) => <li key={l}><Icon name="check" />{l}</li>)}</ul>
     </section>
   );
@@ -154,13 +165,14 @@ export function OutlookPage() {
   const [kind, setKind] = useState<Kind>("profit");
   const [horizon, setHorizon] = useState<Horizon>("short");
   const [mode, setMode] = useState<"model" | "custom">("model");
-  const [custom, setCustom] = useState<Record<string, Weights>>({});
-  const getW = (k: Kind, h: Horizon): Weights => custom[wkey(k, h)] ?? DEFAULT_WEIGHTS[k][h];
-  const [sent, setSent] = useState<Record<string, Weights>>({});   // the weights last settled on: the server is asked after the sliders stop moving
-  useEffect(() => { const h = window.setTimeout(() => setSent(custom), 400); return () => window.clearTimeout(h); }, [custom]);
-  const own = (k: Kind): Weights | null => { const w = sent[wkey(k, horizon)] ?? DEFAULT_WEIGHTS[k][horizon]; return mode === "custom" && !isDefault(k, horizon, w) ? w : null; };
+  // The user's own growth rates (task #146), per estimate (not per horizon: a growth expectation does not change with the horizon; the weights do).
+  const [mine, setMine] = useState<Record<Kind, Values>>({ profit: {}, revenue: {} });
+  const [sent, setSent] = useState<Record<Kind, Values>>({ profit: {}, revenue: {} });   // the rates last settled on: the server is asked after the sliders stop moving
+  useEffect(() => { const h = window.setTimeout(() => setSent(mine), 400); return () => window.clearTimeout(h); }, [mine]);
+  const modelOf = { profit: useOutlook(sym, "profit", horizon, null, gold), revenue: useOutlook(sym, "revenue", horizon, null, gold) };   // the company's own figures
+  const own = (k: Kind): Values | null => { if (mode !== "custom") return null; const c = changedValues(companyValues(modelOf[k].data), sent[k]); return Object.keys(c).length ? c : null; };
   const q = useOutlook(sym, kind, horizon, own(kind), gold);
-  const modelQ = useOutlook(sym, kind, horizon, null, gold && own(kind) != null);   // the FinLit model's answer, for "how your weights differ"
+  const modelQ = modelOf[kind];   // the FinLit model's answer, for "how your growth rates differ"
   useEffect(() => { if (q.data?.name) pushRecent(sym); }, [q.data?.name, sym]);       // "Last searched": only a company that really has an estimate
   const last = useRef<Outlook | null>(null);
   if (q.data) last.current = q.data;
@@ -192,7 +204,7 @@ export function OutlookPage() {
               <span className="ol-ctl-l" id="ol-md-l">Estimation model</span>
               <div className="ol-models" role="radiogroup" aria-labelledby="ol-md-l">
                 {([["model", "Our model", "FinLit's data-driven weights from the company's own growth and its sector's. Recommended for a quick, reliable estimate.", "bars", false],
-                   ["custom", "Set your own model", "Customise the weight of each input and test your own growth assumptions to see different profit and revenue outcomes.", "gauge", true]] as const).map(([m, label, text, icon, usp]) => (
+                   ["custom", "Set your own model", "Set the growth rate you expect for each input, one by one, and see the profit and revenue estimates that follow from your assumptions.", "gauge", true]] as const).map(([m, label, text, icon, usp]) => (
                   <button key={m} type="button" role="radio" aria-checked={mode === m} className={"ol-mcard" + (mode === m ? " on" : "")} onClick={() => setMode(m)}>
                     <span className="ol-mdot" aria-hidden="true" /><Icon name={icon} /><span className="ol-mt"><b>{label}{usp && <em className="ol-usp">FinLit USP</em>}</b><small>{text}</small></span></button>))}
               </div>
@@ -212,9 +224,10 @@ export function OutlookPage() {
                   {TABS.map((t) => <button key={t.kind} type="button" role="radio" aria-checked={kind === t.kind} className={kind === t.kind ? "on" : ""} onClick={() => setKind(t.kind)}>{t.label} estimate</button>)}
                 </div>
               </div>
-              <p className="faint ol-assume-p">Move a slider to change how much each input counts. The other weights move with it so the total stays 100%, and the charts beside it update as you go.</p>
-              <Sliders kind={kind} horizon={horizon} names={names} weights={getW(kind, horizon)} onChange={(l, v) => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: rebalance(c[wkey(kind, horizon)] ?? DEFAULT_WEIGHTS[kind][horizon], l, v) }))}
-              onReset={() => setCustom((c) => ({ ...c, [wkey(kind, horizon)]: { ...DEFAULT_WEIGHTS[kind][horizon] } }))} />
+              <p className="faint ol-assume-p">Move a slider to set the growth rate (CAGR, percent a year) you expect for that input. Each rate is set on its own: it is not a weight and nothing has to add up to 100%. Every slider starts at the company's own figure; FinLit's weights combine your rates into one yearly rate, and the charts beside it update as you go.</p>
+              <Sliders kind={kind} horizon={horizon} names={names} base={companyValues(modelOf[kind].data)} mine={mine[kind]} loading={!modelOf[kind].data}
+                ratePct={(own(kind) ? q.data?.rate.ratePct : modelOf[kind].data?.rate.ratePct) ?? null}
+                onChange={(l, v) => setMine((m) => ({ ...m, [kind]: { ...m[kind], [l]: clampValue(v) } }))} onReset={() => setMine((m) => ({ ...m, [kind]: {} }))} />
             </section>)}
 
           {!gold ? null : (
@@ -236,11 +249,11 @@ export function OutlookPage() {
               <div className={"ol-out" + (q.isFetching ? " is-busy" : "")} aria-busy={q.isFetching}>
                 <div className="ol-pair"><YearTable d={d} /><Takeaways d={d} model={d.mode === "custom" ? modelQ.data ?? null : null} /></div>
                 <div className="ol-fold3">
-                  <details><summary>How this estimate is built <em>{d.mode === "custom" ? "Your weights" : "FinLit model"}</em></summary><BuildTable d={d} /></details>
+                  <details><summary>How this estimate is built <em>{d.mode === "custom" ? MINE : "FinLit model"}</em></summary><BuildTable d={d} /></details>
                   <details><summary>Why these inputs and weights</summary><p className="ol-disc">Each year's figure is the year before, grown by one weighted yearly growth rate, made from the company's own growth and its sector's. The weights are the team's starting values and have not yet been validated against later results.</p></details>
                   <details><summary>Important notes</summary><p className="ol-disc">{d.disclaimer} Information only, not investment advice.</p>{d.isLender && <p className="ol-note" role="note"><Icon name="info" />This is a bank or lender: total income is used as its revenue.</p>}</details>
                 </div>
-                <p className="faint">Latest reported year {d.asOf.yearly ?? "—"} · {d.statement} statements · {d.mode === "custom" ? "your weights" : "FinLit model"}.</p>
+                <p className="faint">Latest reported year {d.asOf.yearly ?? "—"} · {d.statement} statements · {d.mode === "custom" ? "your growth rates" : "FinLit model"}.</p>
               </div>
             ) : null}
           </div>

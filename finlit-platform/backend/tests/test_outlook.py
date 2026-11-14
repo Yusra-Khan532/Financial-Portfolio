@@ -171,6 +171,33 @@ def test_forecast_hands_back_rate_rows_and_the_year_table():
     assert [y["valueCr"] for y in ys] == [1771.56, 1948.72, 2143.59] and ys[0]["period"] == "FY26" and r["inputCapPct"] == 50.0
 
 
+def test_own_growth_rates_replace_the_inputs_one_by_one_and_the_model_weights_combine_them():
+    """Task #146: on "Set your own model" each slider is that input's expected growth rate (CAGR %), set on its own; not a weight, no total of 100.
+    The model's weights for the horizon combine them into the yearly rate; the company's own figure stays on each row."""
+    h = hist([1000, 1100, 1210, 1331, 1464.1, 1610.51], [100, 110, 121, 133.1, 146.41, 161.051])
+    sec = M.sector_inputs("revenue", {k: [10.0] * 5 for k in ("sec_1y", "sec_3y", "sec_5y")}, {k: "X (sector)" for k in ("sec_1y", "sec_3y", "sec_5y")})
+    w = M.default_weights("revenue", "mid")
+    mine = {"co_1y": 20.0, "co_3y": 15.0, "co_5y": 10.0, "sec_1y": 5.0, "sec_3y": 0.0, "sec_5y": -5.0}
+    r = M.forecast("revenue", h, "mid", w, sec, mine)
+    expect = sum(w[k] / 100 * v for k, v in mine.items())                        # 10% x20 + 40% x15 + 10% x10 + 20% x5 + 10% x0 + 10% x-5
+    assert r["rate"]["ratePct"] == pytest.approx(round(expect, 2)) and expect == pytest.approx(9.5)
+    assert r["forecast"]["years"][0]["valueCr"] == pytest.approx(1610.51 * 1.095, abs=0.01)
+    rows = {x["key"]: x for x in r["rate"]["rows"]}
+    assert rows["co_1y"]["valuePct"] == 20.0 and rows["co_1y"]["assumed"] and rows["co_1y"]["actualPct"] == pytest.approx(10.0)
+    assert rows["co_1y"]["weightPct"] == 10 and rows["co_1y"]["method"] == "Your assumption" and "company figure +10.00%" in rows["co_1y"]["detail"]
+    one = M.forecast("revenue", h, "mid", w, sec, {"co_3y": 25.0})                    # only one moved: the others keep the company's figures
+    assert one["rate"]["ratePct"] == pytest.approx(10.0 + 0.40 * 15.0, abs=0.01)
+    assert {x["key"]: x["assumed"] for x in one["rate"]["rows"]}["co_1y"] is False
+    gap = M.sector_inputs("profit", None, why="The sector table is not available right now.")
+    filled = M.forecast("profit", h, "short", M.default_weights("profit", "short"), gap, {"sec_1y": 8.0})   # a blank input the user fills in counts
+    frow = {x["key"]: x for x in filled["rate"]["rows"]}
+    assert frow["sec_1y"]["status"] == "ok" and frow["sec_1y"]["detail"] == "no figure for this company" and frow["sec_3y"]["status"] == "unavailable"
+    assert M.validate_values("revenue", None) is None and M.validate_values("profit", {"margin": -50}) == {"margin": -50.0}
+    for bad in ({"co_1y": 50.5}, {"co_1y": float("nan")}, {"margin": 3}, {"co_1y": True}):
+        with pytest.raises(M.WeightError):
+            M.validate_values("revenue", bad)
+
+
 # ------------------------------------------------------------------------------------------------------------ back-test
 def test_backtest_uses_only_data_before_the_origin_and_summarises():
     def co(sym, g, sector="A"):
@@ -229,6 +256,12 @@ async def test_outlook_is_gold_only_and_validates(app, anon):  # noqa: F811
     assert scaled.status_code == 200 and sum(scaled.json()["weights"].values()) == pytest.approx(100, abs=0.01)
     assert (await gold.post("/api/outlook/RELIANCE", json={**body, "weights": {**d, "co_1y": 50}})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={**body, "weights": {**d, "Q": 0}})).status_code == 422
+    own = await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 12.5, "sec_3y": -4}})       # task #146: own growth rates
+    oj = own.json()
+    assert own.status_code == 200 and oj["mode"] == "custom" and oj["weights"] == d and oj["values"] == {"co_1y": 12.5, "sec_3y": -4.0}
+    assert {r["key"]: r["valuePct"] for r in oj["rate"]["rows"]}["co_1y"] == 12.5 and oj["rate"]["ratePct"] != j["rate"]["ratePct"]
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 51}})).status_code == 422
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"Q": 1}})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "other"})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "profit", "horizon": "decade"})).status_code == 422
     assert (await gold.post("/api/outlook/NOTSTORED", json=body)).status_code == 404
