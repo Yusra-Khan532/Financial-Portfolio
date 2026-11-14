@@ -41,13 +41,13 @@ code, pre, kbd, samp, .qb-box textarea, .qb-mirror { font-family: var(--code); }
   height: 44px; min-height: 44px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s1); box-shadow: none;
 }
 .side-find:focus-within, .scr-find:focus-within, .mf-search:focus-within, .scr-search:focus-within, .etf-search:focus-within, .ol-search:focus-within, .cb-field:focus-within,
-.dcf-search:focus-within, .oc-search:focus-within, .gx-s:focus-within, .gl-s:focus-within, .ssw-size-q:focus-within, .aif-exs:focus-within, .wp-pill:focus-within, .pl-mm label:focus-within {
+.dcf-search:focus-within, .oc-search:focus-within, .gl-s:focus-within, .ssw-size-q:focus-within, .aif-exs:focus-within, .wp-pill:focus-within, .pl-mm label:focus-within {
   border-color: var(--gold); outline: 2px solid var(--focus-ring); outline-offset: 2px; box-shadow: none;
 }
 /* every bar whose input sits inside its own bordered box (tasks #111: on Reverse valuation, DCF and EPS the dark theme's input box and its light-green focus ring
    showed as a second box inside the bar; the command palette's input sits in the palette's own box) */
 .side-find input, .scr-find input, .mf-search input, .scr-search input, .etf-search input, .ol-search input, .cb-field input,
-.dcf-search input, .oc-search input, .gx-s input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
+.dcf-search input, .oc-search input, .gp-search input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
 
 /* ---- the pillar / part cards: neutral surface, one icon tone; colour stays only in the ring, the status word and the score bar ---- */
 :root .dk-tile, :root .dk-tile.band-hi, :root .dk-tile.band-mid, :root .dk-tile.band-lo {

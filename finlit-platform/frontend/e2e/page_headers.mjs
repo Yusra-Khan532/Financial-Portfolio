@@ -32,7 +32,7 @@ const PAGES = [
   ["/fii-dii", "Free", "demo"], ["/macro", "Free", "demo"], ["/commodities", "Free", "demo"], ["/results", "Free", "demo"], ["/results/quarter", "Free", "demo"], ["/ipo", "Free", "demo"], ["/news", "Free", "demo"],
   ["/funds", "Free", "demo"], ["/funds/compare", "Free", "demo"], ["/funds/insights", "Free", "demo"], ["/etfs", "Free", "demo"], ["/etfs/compare", "Free", "demo"], ["/etfs/compare-index-funds", "Free", "demo"],
   ["/holdings", "Silver", "demo"], ["/mf-portfolio", "Silver", "demo"], ["/alerts", "Free", "demo"], ["/baskets", "Free", "demo"],
-  ["/documents", "Free", "demo"], ["/glossary", null, "demo"], ["/methodology/mf-score", null, "demo"],
+  ["/documents", "Free", "demo"], ["/methodology/mf-score", null, "demo"],
 ];
 
 // ---- API mock (same shapes as e2e/layout_guard.mjs api mode) ----

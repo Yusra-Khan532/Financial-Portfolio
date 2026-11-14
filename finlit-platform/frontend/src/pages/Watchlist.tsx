@@ -100,7 +100,7 @@ export function WatchlistPage() {
   useEffect(() => { if (!st.lists.some((l) => l.id === lid)) setLid(st.lists[0].id); }, [st.lists, lid]);
   useEffect(() => { setPick(list.labelAlert ?? "any"); }, [list.id, list.labelAlert]);
   useEffect(() => { if (DEMO && !st.seeded && rows.length) wl.seed([...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 9).map((r) => r.symbol)); }, [rows, st.seeded]);
-  const leadQ = useLeadershipList(list.symbols, silver);
+  const leadQ = useLeadershipList(list.symbols);   // public, like the stock page's label: the preview behind the Silver lock shows the real labels, never "not available"
   const leads = leadQ.data && leadQ.data.available ? leadQ.data.rows : null;
   const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
