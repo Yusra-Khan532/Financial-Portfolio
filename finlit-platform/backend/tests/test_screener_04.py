@@ -236,10 +236,13 @@ async def test_gold_two_sectors_and_prism_average_returns_the_companies_not_an_e
         assert r.status_code == 200 and [x["symbol"] for x in r.json()["rows"]] == ["S5"]
         r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["nonsense"]}, "limit": 50})
         assert r.status_code == 422                                                       # a word of neither score is still refused
+    finally:
+        data._table = None
 
 
+@pytest.mark.integration
 async def test_the_catalog_names_the_prism_total_and_sends_each_scores_scale(app):  # noqa: F811
-    """Task #144: Gold's Prism total is called "Fundamental Prism score" (the Advanced stock screener's name, task #93), and every score carries its fixed
+    """Task #144: Gold's Prism total is called "Fundamental Prism score" (task #141's name, kept at the founder's choice), and every score carries its fixed
     scale (0 to 100; the technical views -100 to +100) so the page's From and To boxes keep a value inside it. A figure with no fixed scale has none."""
     rows = [_row(f"C{i}", macro="Energy", industry="Oil", market_cap=1000 * (i + 1), price=100) for i in range(5)]
     prism = {f"C{i}": {"prism_final": 40 + 5 * i, "prism_label": "AVERAGE", "prism_status": "RATED", "prism_st_score": -20 + 10 * i} for i in range(5)}
