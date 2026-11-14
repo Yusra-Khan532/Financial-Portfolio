@@ -46,6 +46,7 @@ export function TimeChart({ kind, series, c, w }: { kind: "line" | "area" | "col
   return (
     <div className="gx-plot" onPointerLeave={() => setHi(null)}>
       <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} tabIndex={0} role="img" aria-label={`${kind} chart of ${series.map((s) => s.label).join(", ")}. Arrow keys move through ${dates.length} dates.`} onPointerMove={move} onKeyDown={key} onBlur={() => setHi(null)}>
+        <rect data-plot="" x={M.l} y={M.t} width={pw} height={H - M.t - M.b} fill="none" pointerEvents="none" />{/* the plotting area: chart drawings stay inside it (task #124) */}
         {ticks(doms[0][0], doms[0][1]).map((t) => <g key={t}><line x1={M.l} x2={w - M.r} y1={Y(t, doms[0])} y2={Y(t, doms[0])} stroke={t === 0 ? c.axis : c.grid} /><text x={M.l - 6} y={Y(t, doms[0]) + 4} textAnchor="end" fill={c.muted} fontSize="11">{fmtTick(t, units[0])}</text></g>)}
         {units[1] && ticks(doms[1][0], doms[1][1]).map((t) => <text key={t} x={w - M.r + 6} y={Y(t, doms[1]) + 4} fill={c.muted} fontSize="11">{fmtTick(t, units[1])}</text>)}
         <text x={M.l - 6} y={9} textAnchor="end" fill={c.muted} fontSize="11">{UNITS[units[0]].label}</text>
@@ -71,6 +72,7 @@ export function TimeChart({ kind, series, c, w }: { kind: "line" | "area" | "col
 export function HBars({ rows, unit, c, w }: { rows: { key: string; label: string; v: number; color: string; note?: string }[]; unit: UnitId; c: Colors; w: number }) {
   const sorted = [...rows].sort((a, b) => b.v - a.v), mx = Math.max(...sorted.map((r) => Math.abs(r.v)), 1), lw = Math.min(150, w * 0.38), rh = 30;
   return <svg width={w} height={sorted.length * rh + 8} role="img" aria-label={"Latest values: " + sorted.map((r) => `${r.label} ${fmtValue(r.v, unit)}`).join("; ")}>
+    <rect data-plot="" x={lw} y={0} width={Math.max(1, w - lw)} height={sorted.length * rh + 8} fill="none" pointerEvents="none" />
     {sorted.map((r, i) => <g key={r.key}><title>{`${r.label}: ${fmtValue(r.v, unit)}${r.note ? ". " + r.note : ""}`}</title>
       <text x={lw - 8} y={i * rh + 20} textAnchor="end" fill={c.text} fontSize="12">{r.label.length > 22 ? r.label.slice(0, 21) + "…" : r.label}</text>
       <rect x={lw} y={i * rh + 6} width={Math.max(2, (Math.abs(r.v) / mx) * (w - lw - 90))} height={18} rx="3" fill={r.color} />
@@ -85,6 +87,7 @@ export function Pie({ cats, unit, c, w }: { cats: { name: string; value: number;
   const total = slices.reduce((s, x) => s + x.value, 0), size = Math.min(w, 260), R = size / 2 - 4;
   let a = 0;
   return <div className="gx-pie"><svg width={size} height={size} role="img" aria-label={"Breakdown: " + slices.map((s) => `${s.name} ${((s.value / total) * 100).toFixed(1)}%`).join("; ")}>
+    <rect data-plot="" x={0} y={0} width={size} height={size} fill="none" pointerEvents="none" />
     {slices.map((s, i) => { const a0 = a, a1 = (a += (s.value / total) * Math.PI * 2), big = a1 - a0 > Math.PI ? 1 : 0, p = (r: number, t: number) => `${size / 2 + r * Math.sin(t)},${size / 2 - r * Math.cos(t)}`;
       const d = slices.length === 1 ? `M${size / 2},${size / 2 - R}A${R},${R} 0 1 1 ${size / 2 - 0.01},${size / 2 - R}Z` : `M${size / 2},${size / 2}L${p(R, a0)}A${R},${R} 0 ${big} 1 ${p(R, a1)}Z`;
       return <path key={s.name} d={d} fill={c.s[i % 8]} stroke={c.surface} strokeWidth="2" opacity={hi != null && hi !== i ? 0.6 : 1} tabIndex={0} onPointerEnter={() => setHi(i)} onPointerLeave={() => setHi(null)} onFocus={() => setHi(i)} onBlur={() => setHi(null)}><title>{`${s.name}: ${((s.value / total) * 100).toFixed(1)}% (${fmtValue(s.value, unit)})`}</title></path>; })}
@@ -98,6 +101,7 @@ export function Scatter({ xs, ys, labels, xl, yl, xu, yu, r, c, w }: { xs: numbe
   const fit = fitLine(xs, ys), near = (e: React.PointerEvent<SVGSVGElement>) => { const b = e.currentTarget.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top; let k = 0, best = Infinity; xs.forEach((x, i) => { const dd = (X(x) - px) ** 2 + (Y(ys[i], dy) - py) ** 2; if (dd < best) { best = dd; k = i; } }); setHi(k); };
   return <div className="gx-plot" onPointerLeave={() => setHi(null)}><svg width={w} height={H} tabIndex={0} role="img" aria-label={`Scatter of ${yl} against ${xl}, ${xs.length} points${r != null ? `, Pearson r ${r.toFixed(2)}` : ""}`} onPointerMove={near}
     onKeyDown={(e) => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); setHi((h) => Math.max(0, Math.min(xs.length - 1, (h ?? xs.length - 1) + (e.key === "ArrowRight" ? 1 : -1)))); } }}>
+    <rect data-plot="" x={M.l} y={M.t} width={pw} height={H - M.t - M.b} fill="none" pointerEvents="none" />
     {ticks(dy[0], dy[1]).map((t) => <g key={t}><line x1={M.l} x2={w - 16} y1={Y(t, dy)} y2={Y(t, dy)} stroke={c.grid} /><text x={M.l - 6} y={Y(t, dy) + 4} textAnchor="end" fill={c.muted} fontSize="11">{fmtTick(t, yu)}</text></g>)}
     {ticks(dx[0], dx[1], 5).map((t) => <text key={t} x={X(t)} y={H - 12} textAnchor="middle" fill={c.muted} fontSize="11">{fmtTick(t, xu)}</text>)}
     <text x={M.l + pw / 2} y={H - 0} textAnchor="middle" fill={c.muted} fontSize="11">{xl} ({UNITS[xu].label})</text><text x={M.l - 6} y={9} textAnchor="end" fill={c.muted} fontSize="11">{yl} ({UNITS[yu].label})</text>
@@ -116,6 +120,7 @@ export function Heat({ mode, labels, matrix, grid, cols, units, c, w }: { mode: 
   const [hi, setHi] = useState<string | null>(null);
   const n = mode === "corr" ? labels.length : cols!.length, lw = Math.min(130, w * 0.3), cw = Math.max(28, Math.min(70, (w - lw - 8) / n)), rh = 34, top = mode === "grid" ? 26 : 8;
   return <div className="gx-plot"><svg width={Math.max(w, lw + cw * n + 8)} height={labels.length * rh + top + 8} role="img" aria-label={mode === "corr" ? "Correlation matrix: " + labels.join(", ") : "Values by period: " + labels.join(", ")}>
+    <rect data-plot="" x={lw} y={top} width={cw * n} height={labels.length * rh} fill="none" pointerEvents="none" />
     {mode === "grid" && cols!.map((l, j) => <text key={l} x={lw + j * cw + cw / 2} y={16} textAnchor="middle" fill={c.muted} fontSize="11">{l.length > 8 ? l.slice(0, 8) : l}</text>)}
     {labels.map((l, i) => <g key={l + i}><text x={lw - 8} y={top + i * rh + 21} textAnchor="end" fill={c.text} fontSize="11">{l.length > 20 ? l.slice(0, 19) + "…" : l}</text>
       {Array.from({ length: n }, (_, j) => {
@@ -133,6 +138,7 @@ export function Candles({ pts, c, w }: { pts: Pt[]; c: Colors; w: number }) {
   const X = (i: number) => M.l + step * (i + 0.5);
   return <div className="gx-plot" onPointerLeave={() => setHi(null)}><svg width={w} height={H} tabIndex={0} role="img" aria-label={`Candlestick chart, ${d.length} trading days`} onPointerMove={(e) => setHi(Math.max(0, Math.min(d.length - 1, Math.floor((e.clientX - e.currentTarget.getBoundingClientRect().left - M.l) / step))))}
     onKeyDown={(e) => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); setHi((h) => Math.max(0, Math.min(d.length - 1, (h ?? d.length - 1) + (e.key === "ArrowRight" ? 1 : -1)))); } }}>
+    <rect data-plot="" x={M.l} y={M.t} width={pw} height={H - M.t - M.b} fill="none" pointerEvents="none" />
     {ticks(dm[0], dm[1]).map((t) => <g key={t}><line x1={M.l} x2={w - 16} y1={Y(t, dm)} y2={Y(t, dm)} stroke={c.grid} /><text x={M.l - 6} y={Y(t, dm) + 4} textAnchor="end" fill={c.muted} fontSize="11">{fmtTick(t, "inr")}</text></g>)}
     {d.filter((_, i) => i % Math.ceil(d.length / 5) === 0).map((p) => <text key={p.t} x={X(d.indexOf(p))} y={H - 10} textAnchor="middle" fill={c.muted} fontSize="11">{dlabel(p.t).replace(/ \d{4}$/, "")}</text>)}
     {d.map((p, i) => { const up = (p.v as number) >= (p.o as number), col = up ? c.gain : c.loss; return <g key={p.t}><line x1={X(i)} x2={X(i)} y1={Y(p.h as number, dm)} y2={Y(p.lo as number, dm)} stroke={col} strokeWidth="1.5" /><rect x={X(i) - cw / 2} y={Y(Math.max(p.o as number, p.v as number), dm)} width={cw} height={Math.max(1.5, Math.abs(Y(p.o as number, dm) - Y(p.v as number, dm)))} fill={up ? c.surface : col} stroke={col} strokeWidth="1.5" /></g>; })}

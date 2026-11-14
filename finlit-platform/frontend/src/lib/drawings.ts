@@ -1,5 +1,6 @@
 // Chart drawings (the pencil tools traders use to mark up a chart): the shapes, their hit-testing, saving and checking. No React here, so it is tested on its own.
-// Points are stored as fractions (0 to 1) of the chart's width and height, so a drawing keeps its place when the chart is resized.
+// Points are stored as fractions (0 to 1) of the chart's PLOTTING AREA (task #124: drawing stays inside it, off the axes and labels), so a drawing keeps its
+// place when the chart is resized. Drawings saved before task #124 were fractions of the whole chart box; `toPlot` moves them once (format v2 marks the new ones).
 export type Pt = [number, number];
 export type ToolId = "pen" | "line" | "arrow" | "darrow" | "hline" | "vline" | "rect" | "ellipse" | "fib" | "text" | "hl" | "eraser";
 /** The tools, in the order and groups of the annotation panel (task #115): "draw" = Draw on chart, "text" = Add text, "erase" = the Erase button in the bottom row.
@@ -18,6 +19,13 @@ export const TOOLS: { id: ToolId; label: string; hint: string; group: "draw" | "
   { id: "hl", label: "Highlight", hint: "Drag over the part of the chart to highlight", group: "text" },
   { id: "eraser", label: "Erase", hint: "Click or drag over an annotation to remove it", group: "erase" },
 ];
+/** The floating markup toolbar's groups (task #124): the shapes sit behind one Shapes button; pen, highlighter, eraser and text have their own. */
+export const SHAPE_TOOLS: ToolId[] = ["line", "arrow", "darrow", "rect", "ellipse", "hline", "vline", "fib"];
+/** Which settings a tool has (task #124: "stroke thickness and opacity appearing only when the relevant tool is selected"). */
+export const SETTINGS_OF = (t: ToolId): { width: boolean; opacity: boolean } => (t === "eraser" || t === "text" ? { width: false, opacity: false } : { width: true, opacity: true });
+/** Opacity steps, and each tool's starting opacity (a highlighter is see-through). */
+export const OPACITIES = [1, 0.6, 0.3] as const;
+export const defaultOpacity = (t: ToolId) => (t === "hl" ? 0.3 : 1);
 /** A highlight stroke's width, from the chosen thickness: a broad, see-through marker. */
 export const hlWidth = (w: number) => Math.max(10, w * 4);
 
@@ -27,7 +35,7 @@ export type ColourId = keyof typeof COLOURS;
 export const WIDTHS = [1.5, 3, 5] as const;
 export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
 
-export type Shape = { id: string; c: ColourId; w: number } & (
+export type Shape = { id: string; c: ColourId; w: number; o?: number } & (
   | { k: "pen" | "hl"; pts: Pt[] }
   | { k: "line" | "arrow" | "darrow" | "rect" | "ellipse" | "fib"; a: Pt; b: Pt }
   | { k: "hline" | "vline"; a: Pt }
@@ -104,7 +112,7 @@ export function sanitize(raw: unknown): Shape[] {
     if (!r || typeof r !== "object") continue;
     const o = r as Record<string, unknown>;
     const c = typeof o.c === "string" && o.c in COLOURS ? (o.c as ColourId) : "red", w = finite(o.w) ? Math.min(8, Math.max(1, o.w)) : 3, id = typeof o.id === "string" && o.id ? o.id.slice(0, 24) : newId();
-    const base = { id, c, w };
+    const base = { id, c, w, ...(finite(o.o) ? { o: Math.min(1, Math.max(0.1, o.o)) } : {}) };
     if ((o.k === "pen" || o.k === "hl") && Array.isArray(o.pts)) { const pts = o.pts.slice(0, MAX_PEN_POINTS).map(pt).filter((p): p is Pt => !!p); if (pts.length) out.push({ ...base, k: o.k, pts }); }
     else if ((o.k === "line" || o.k === "arrow" || o.k === "darrow" || o.k === "rect" || o.k === "ellipse" || o.k === "fib") && pt(o.a) && pt(o.b)) out.push({ ...base, k: o.k, a: pt(o.a)!, b: pt(o.b)! });
     else if ((o.k === "hline" || o.k === "vline") && pt(o.a)) out.push({ ...base, k: o.k, a: pt(o.a)! });
@@ -116,11 +124,25 @@ export function sanitize(raw: unknown): Shape[] {
 let seq = 0;
 export const newId = () => `${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-export function loadShapes(id: string): Shape[] {
-  try { return sanitize(JSON.parse(localStorage.getItem(KEY + id) || "[]")); } catch { return []; }
+/** The saved drawings of one chart view. `legacy` is true for drawings saved before task #124 (fractions of the whole chart box, not of the plotting area). */
+export function loadStored(id: string): { shapes: Shape[]; legacy: boolean } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY + id) || "[]");
+    return Array.isArray(raw) ? { shapes: sanitize(raw), legacy: raw.length > 0 } : { shapes: sanitize((raw as { s?: unknown })?.s), legacy: false };
+  } catch { return { shapes: [], legacy: false }; }
 }
+export function loadShapes(id: string): Shape[] { return loadStored(id).shapes; }
 export function saveShapes(id: string, shapes: readonly Shape[]): void {
-  try { if (shapes.length) localStorage.setItem(KEY + id, JSON.stringify(shapes)); else localStorage.removeItem(KEY + id); } catch { /* private mode or full: drawings then last for this visit only */ }
+  try { if (shapes.length) localStorage.setItem(KEY + id, JSON.stringify({ v: 2, s: shapes })); else localStorage.removeItem(KEY + id); } catch { /* private mode or full: drawings then last for this visit only */ }
+}
+
+/** The plotting area inside the chart box, in pixels. */
+export type Plot = { l: number; t: number; w: number; h: number };
+/** A drawing saved as fractions of the whole chart box, moved to fractions of its plotting area: every mark stays exactly where it was drawn (task #124). */
+export function toPlot(shapes: readonly Shape[], box: { w: number; h: number }, plot: Plot): Shape[] {
+  if (!plot.w || !plot.h || (plot.l === 0 && plot.t === 0 && plot.w === box.w && plot.h === box.h)) return [...shapes];
+  const P = (p: Pt): Pt => clampPt([(p[0] * box.w - plot.l) / plot.w, (p[1] * box.h - plot.t) / plot.h]);
+  return shapes.map((s) => ("pts" in s ? { ...s, pts: s.pts.map(P) } : "b" in s ? { ...s, a: P(s.a), b: P(s.b) } : { ...s, a: P(s.a) }) as Shape);
 }
 
 /** A short stable id for a chart view built from any text (series, range, filters...), so each view keeps its own drawings. */

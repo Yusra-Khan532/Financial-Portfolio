@@ -1,63 +1,57 @@
-/* Chart drawing tools (components/DrawLayer.tsx). Theme variables only. */
+/* Chart drawing tools (components/DrawLayer.tsx). Theme variables only.
+   Task #124: no panel. The pencil opens a floating Markup toolbar over the chart (as in the team's picture: a rounded bar with a grip, the tools, the colours,
+   undo and redo); it is positioned absolutely inside the chart box, so opening, moving or minimising it never moves, shrinks or resizes the chart. */
 .dl { position: relative; min-width: 0; }
-.dl-svg { position: absolute; left: 0; top: 0; z-index: 3; overflow: hidden; user-select: none; -webkit-user-select: none; }
-.dl.drawing { outline: 2px dashed color-mix(in srgb, var(--gold) 55%, transparent); outline-offset: 2px; border-radius: 10px; }
+.dl-outer { min-width: 0; }
+.dl-svg { position: absolute; z-index: 3; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.dl-svg.on { outline: 1.5px dashed color-mix(in srgb, var(--gain) 60%, transparent); outline-offset: 1px; border-radius: 4px; }   /* the plotting area: the only place drawing goes */
 .dl-bar { position: absolute; top: 6px; right: 6px; z-index: 6; }
 .dl-toggle { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--s1); color: var(--muted); cursor: pointer; box-shadow: var(--shadow); }
 .dl-toggle:hover, .dl-toggle.on { color: var(--text); border-color: var(--gold); } .dl-toggle.on { background: color-mix(in srgb, var(--gold) 16%, var(--s1)); }
 .dl-n { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--gold); color: #fff; font: 700 11px var(--sans); }
-.dl-outer { min-width: 0; }
-/* Task #115 (13 Nov 2026): the annotation panel as in the team's picture: a header with the close button top-right, four labelled groups (Draw on chart, Add text,
-   Color, Stroke), every tool an icon over its label, then Undo, Redo, Erase and Clear all together at the bottom with the hint and a prominent Done. */
-.dl-tools { position: relative; display: grid; gap: 12px; background: var(--s2); border: 1px solid color-mix(in srgb, var(--gain) 45%, var(--border-strong)); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
-.dl-head { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-strong); color: var(--text); }
-.dl-head > svg { width: 20px; height: 20px; }
-.dl-head b { font: 600 16px var(--sans); }
-.dl-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
-.dl-icon:hover { color: var(--text); background: var(--s1); } .dl-icon[aria-expanded="true"] { color: var(--text); }
-.dl-x { margin-left: auto; border-color: var(--border-strong); }
-.dl-help { margin: 0; padding: 10px 12px 10px 28px; border-radius: 12px; background: var(--s1); border: 1px solid var(--border-strong); display: grid; gap: 4px; font-size: 13px; line-height: 1.45; color: var(--muted); }
-.dl-help b { color: var(--text); font-weight: 600; }
-.dl-groups { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 0; }
-.dl-grp { display: grid; gap: 8px; padding: 0 16px; min-width: 0; }
-.dl-grp:first-child { padding-left: 0; } .dl-grp + .dl-grp { border-left: 1px solid var(--border-strong); }
-.dl-grp > p { margin: 0; font: 600 14px var(--sans); color: var(--text); }
-.dl-tools { container-type: inline-size; }
-.dl-grp-draw { flex: 1 1 100%; padding-right: 0; }                     /* nine tools: their own row, the other three groups side by side below */
-.dl-grp-draw + .dl-grp { border-left: 0; padding-left: 0; }
-@container (min-width: 1280px) { .dl-grp-draw { flex: 0 1 auto; padding-right: 16px; } .dl-grp-draw + .dl-grp { border-left: 1px solid var(--border-strong); padding-left: 16px; } }
-.dl-box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); }
-.dl-tool { min-width: 64px; min-height: 58px; padding: 6px 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 500 12px/1.15 var(--sans); text-align: center; }
-.dl-tool svg { width: 20px; height: 20px; }
-.dl-tool span { max-width: 9ch; }
-.dl-tool:hover { color: var(--text); background: var(--s2); }
-.dl-tool.on { background: var(--gain-soft); color: var(--text); border-color: var(--gain); }
-.dl-sw, .dl-wd { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; border: 1px solid transparent; background: none; cursor: pointer; }
-.dl-sw i { width: 22px; height: 22px; border-radius: 50%; display: block; border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--border-strong); }
-.dl-sw.on { border-color: var(--gain); background: var(--gain-soft); } .dl-sw.on i { box-shadow: 0 0 0 1px var(--gain); }
-.dl-wd { width: 52px; border-radius: 10px; } .dl-wd i { width: 26px; border-radius: 3px; background: var(--text); display: block; }
-.dl-wd.on { border-color: var(--gain); background: var(--gain-soft); }
-.dl-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-top: 12px; border-top: 1px solid var(--border-strong); }
-.dl-edit { display: flex; flex-wrap: wrap; gap: 8px; padding-right: 14px; border-right: 1px solid var(--border-strong); }
-.dl-edit button { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; font: 600 14px var(--sans); }
-.dl-edit button svg { width: 17px; height: 17px; }
-.dl-edit button:hover:not(:disabled) { border-color: var(--gain); } .dl-edit button.on { background: var(--gain-soft); border-color: var(--gain); }
-.dl-edit button:disabled { opacity: .45; cursor: not-allowed; }
-.dl-hint { flex: 1 1 260px; margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
-.dl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* the chosen tool, read out by screen readers; the hint line itself never changes, so picking a tool never moves the chart */
-.dl-hint svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
-.dl-done { margin-left: auto; min-height: 42px; padding: 0 24px; display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; border: 0; background: var(--gain); color: var(--bg); cursor: pointer; font: 700 16px var(--sans); box-shadow: 0 8px 20px -12px var(--gain); }
-.dl-done svg { width: 18px; height: 18px; } .dl-done:hover { filter: brightness(1.06); }
-.dl-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--loss); background: var(--loss-soft); font-size: 14px; color: var(--text); }
-.dl-confirm span { flex: 1 1 220px; }
-.dl-confirm button { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; font: 600 14px var(--sans); }
-.dl-confirm .dl-danger { border-color: var(--loss); background: var(--loss); color: var(--bg); }
-.dl-tools button:focus-visible, .dl-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-@media (max-width: 760px) {
-  .dl-groups { display: grid; gap: 12px; }
-  .dl-grp { padding: 0; } .dl-grp + .dl-grp { border-left: 0; }
-  .dl-grp-draw .dl-box { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
-  .dl-edit { padding-right: 0; border-right: 0; width: 100%; } .dl-edit button { flex: 1 1 auto; justify-content: center; }
-  .dl-done { width: 100%; justify-content: center; margin-left: 0; min-height: 46px; }
-}
+.dl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .dl-text { position: absolute; z-index: 7; transform: translateY(-85%); min-width: 150px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--gold); background: var(--s1); font: 600 14px var(--sans); box-shadow: var(--shadow); }
+
+/* the floating toolbar */
+.dlm { position: absolute; z-index: 8; box-sizing: border-box; display: grid; gap: 4px; padding: 5px 6px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--gain) 55%, var(--border-strong));
+  background: color-mix(in srgb, var(--s1) 94%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .55); touch-action: none; }
+.dlm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.dlm-b, .dlm-grip { position: relative; width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
+.dlm-b:hover:not(:disabled) { color: var(--text); background: var(--s2); }
+.dlm-b.on { color: var(--text); border-color: var(--gain); background: var(--gain-soft); }
+.dlm-b:disabled { opacity: .4; cursor: not-allowed; }
+.dlm-grip { width: 24px; cursor: grab; color: var(--faint, var(--muted)); } .dlm-grip:active { cursor: grabbing; }
+.dlm-caret { position: absolute; right: 3px; bottom: 3px; width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid currentColor; opacity: .7; }
+.dlm-sep { width: 1px; height: 22px; margin: 0 4px; background: var(--border-strong); flex: none; }
+.dlm-cols { display: inline-flex; align-items: center; gap: 1px; }
+.dlm-sw { width: 30px; height: 30px; flex: none; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; }
+.dlm-sw i { width: 18px; height: 18px; border-radius: 50%; display: block; box-shadow: 0 0 0 1px var(--border-strong); }
+.dlm-sw.on { border-color: var(--text); }
+.dlm-done { color: var(--gain); } .dlm-done:hover { background: var(--gain-soft); color: var(--gain); }
+.dlm-now { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; color: var(--text); } .dlm-now i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.dlm-set { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px 4px 2px 28px; border-top: 1px solid var(--border-strong); }
+.dlm-set > span { display: inline-flex; align-items: center; gap: 2px; } .dlm-set small { margin-right: 4px; font: 600 11px var(--sans); color: var(--muted); }
+.dlm-wd, .dlm-op { min-width: 34px; height: 28px; display: grid; place-items: center; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 600 11px var(--sans); }
+.dlm-wd i { width: 18px; border-radius: 3px; background: currentColor; display: block; }
+.dlm-wd.on, .dlm-op.on { color: var(--text); border-color: var(--gain); background: var(--gain-soft); }
+.dlm-pop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 9; display: grid; gap: 2px; min-width: 190px; padding: 6px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .55); }
+.dlm-pop.up { top: auto; bottom: calc(100% + 6px); }
+.dlm-pop > button { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; border: 0; background: none; color: var(--text); cursor: pointer; font: 500 13px var(--sans); text-align: left; }
+.dlm-pop > button:hover, .dlm-pop > button.on { background: var(--gain-soft); }
+.dlm-pop-sw { display: flex; min-width: 0; } .dlm-pop-sw > button { padding: 0; min-height: 30px; }
+.dlm-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: min(320px, 86vw); border-color: var(--loss); background: var(--loss-soft); font-size: 13px; color: var(--text); }
+.dlm-confirm span { flex: 1 1 100%; }
+.dlm-confirm > button { min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); background: var(--s1); font-weight: 600; justify-content: center; }
+.dlm-confirm .dlm-danger { border-color: var(--loss); background: var(--loss); color: var(--bg); }
+.dlm button:focus-visible, .dl-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* a narrow chart (a 2 x 2 grid, a phone): the same tools, smaller and without dividers, so the toolbar covers as little of the chart as possible */
+.dlm-narrow { padding: 4px; gap: 2px; border-radius: 14px; }
+.dlm-narrow .dlm-row { gap: 0; }
+.dlm-narrow .dlm-b { width: 30px; height: 30px; border-radius: 9px; } .dlm-narrow .dlm-b svg { width: 16px; height: 16px; }
+.dlm-narrow .dlm-grip { width: 20px; height: 30px; }
+.dlm-narrow .dlm-sep { display: none; }
+.dlm-narrow .dlm-sw { width: 28px; height: 28px; }
+.dlm-narrow .dlm-set { padding-left: 4px; gap: 2px 8px; } .dlm-narrow .dlm-wd, .dlm-narrow .dlm-op { min-width: 30px; height: 26px; padding: 0 4px; }
+/* a phone: one row of tools still */
+.dlm-tiny .dlm-b { width: 27px; height: 30px; } .dlm-tiny .dlm-grip { width: 18px; } .dlm-tiny .dlm-sw { width: 26px; }
+.dlm-tiny .dlm-set small { margin-right: 2px; } .dlm-tiny .dlm-wd, .dlm-tiny .dlm-op { min-width: 26px; padding: 0 3px; }
