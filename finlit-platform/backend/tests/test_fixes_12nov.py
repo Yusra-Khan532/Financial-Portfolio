@@ -248,3 +248,39 @@ def test_the_candle_top_up_stops_at_its_time_budget_and_counts_what_is_left():
     assert got["candlesBehind"] == 5 and got["candlesFetched"] == 2 and got["candlesNotFetched"] == 3
     none = asyncio.run(patterns.top_up_candles(st, None, _Table(list(ends)), day))       # no Dhan settings: nothing fetched, the job waits as before
     assert none == {"candlesBehind": 3, "candlesFetched": 0, "candlesNotFetched": 3}
+
+
+def test_a_recent_listing_gives_the_scans_its_candles_though_it_has_under_a_year():
+    """14 Nov 2026, the job log: 102 scanned companies lacked the close, Dhan answered for them, but 101 series (32 to 244 sessions) were refused as 'too few
+    sessions', the Prism view's year-long minimum. The scans need 25 sessions; every other check stays (here: a clean 40-session series)."""
+    from datetime import timedelta
+    from finlit import prism_candles as pc
+    end = date(2026, 11, 13)
+    days, d = [], end
+    while len(days) < 40:
+        if d.weekday() < 5:
+            days.append(d)
+        d -= timedelta(days=1)
+    rows = [{"day": x, "open": 100.0 + i, "high": 102.0 + i, "low": 99.0 + i, "close": 101.0 + i, "volume": 1000} for i, x in enumerate(sorted(days))]
+    assert pc.clean_reason(rows, end, pc.STOCK_MIN)[0] is None                       # the Prism view still needs a year
+    got, why = pc.clean_reason(rows, end, pc.PATTERN_MIN)
+    assert got is not None and len(got) == 40 and got[-1][0] == "2026-11-13", why
+    bad = [dict(r) for r in rows]
+    bad[20]["close"] = bad[19]["close"] * 3                                          # an impossible daily move is still refused
+    bad[20]["high"] = bad[20]["close"]
+    assert pc.clean_reason(bad, end, pc.PATTERN_MIN)[0] is None
+
+
+def test_the_presets_top_up_uses_the_scans_own_fetch(monkeypatch):
+    from finlit import prism_candles as pc
+    day = date(2026, 11, 11)
+    ends = {"YOUNG": "2026-11-09"}
+    st = _StoreDhan(ends)
+    asked = []
+
+    async def fake(state, sym, now=None):
+        asked.append((sym, state.settings))
+        return _rows("2026-11-11", 40)
+    monkeypatch.setattr(pc, "pattern_candles", fake)
+    got = asyncio.run(patterns.top_up_candles(st, "settings", _Table(list(ends)), day))
+    assert asked == [("YOUNG", "settings")] and got == {"candlesBehind": 1, "candlesFetched": 1, "candlesNotFetched": 0}
