@@ -18,6 +18,7 @@ import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, st
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
+import { techBandOf, trendWord } from "../lib/scoreScreen";
 import { TableZoom } from "../components/TableZoom";
 import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
@@ -46,7 +47,11 @@ const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); 
 const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", pe: "P/E", pb: "P/B", roe: "ROE", roce: "ROCE", sales_cagr_3y: "Sales growth 3Y", profit_cagr_3y: "Profit growth 3Y",
   debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
-const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : m ? UNIT_LINE[m.unit] ?? "" : "");
+/** Task #141: the two technical views (Gold) run from −100 to +100; the pill is green for an uptrend, red for a downtrend, plain for sideways (same edges as the Prism card). */
+const TECH_COLS = ["prism_st_score", "prism_lt_score"];
+const TECH_HEAD: Record<string, string> = { prism_st_score: "Short\u2011term technical", prism_lt_score: "Long\u2011term technical" };   // non-breaking hyphen: the head never splits "Long-" / "term"
+const TECH_PILL: Record<string, string> = { pos: "healthy", neutral: "", neg: "watch" };
+const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : TECH_COLS.includes(k) ? "−100 to +100" : m ? UNIT_LINE[m.unit] ?? "" : "");
 const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
 /** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
@@ -380,7 +385,7 @@ export function ScreenerPro() {
                       <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
-                          <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
+                          <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
                     <tbody>{rows.map((r) => (
@@ -389,6 +394,7 @@ export function ScreenerPro() {
                         {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
+                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}

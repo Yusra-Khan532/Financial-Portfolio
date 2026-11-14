@@ -262,13 +262,17 @@ describe("the table (file 04 §5)", () => {
 
   it("Gold sees FinLit Prism (column, rating chips, rule group), never the FinLit IQ (tasks #64 P-1, #100)", async () => {
     const g = catalog(false, "gold");
-    st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final"],
+    st.cat = { ...g, bandModel: "prism", standardColumns: [...STD, "prism_final", "prism_st_score", "prism_lt_score"],
       bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })),
-      groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [M("prism_final", "Prism score", { unit: "pts", better: "higher", tier: "gold" })] }] };
+      groups: [...g.groups.filter((x) => x.id !== "model"), { id: "prism", label: "FinLit Prism", tier: "gold", metrics: [M("prism_final", "Fundamental Prism score", { unit: "pts", better: "higher", tier: "gold" }), M("prism_st_score", "Short-term technical", { unit: "pts", better: "higher", tier: "gold" }), M("prism_lt_score", "Long-term technical", { unit: "pts", better: "higher", tier: "gold" })] }] };
     mount(); await ready();
-    await waitFor(() => expect(heads()).toContain("Prism score"));
+    await waitFor(() => expect(heads()).toContain("Fundamental Prism score"));
+    expect(heads().slice(-3)).toEqual(["Fundamental Prism score", "Short-term technical", "Long-term technical"]);   // task #141
     const cell = table().querySelector("tbody td.ssw-iq")!;
     expect(cell.querySelector(".ssw-sc.healthy")!.textContent).toBe("12"); expect(cell.textContent).toMatch(/Healthy/);   // the Prism word, from the row's pband
+    const tech = Array.from(table().querySelectorAll("tbody tr:first-child td.ssw-iq")).slice(1);   // task #141: the two technical views follow the Prism score, each a signed pill with its word
+    expect(tech.length).toBe(2);
+    for (const c of tech) { expect(c.querySelector(".ssw-sc")!.textContent).toBe("+12"); expect((c.querySelector("small")!.textContent ?? "").length).toBeGreaterThan(2); }
     expect(within(rulesPanel()).getByRole("group", { name: "FinLit Prism rating" }).textContent).toMatch(/Average/);
     for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
     expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();

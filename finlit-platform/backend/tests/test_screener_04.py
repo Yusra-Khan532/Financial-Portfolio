@@ -86,7 +86,10 @@ async def test_catalog_lists_nse_sectors_and_the_standard_columns_each_plan_may_
     gold = await signed_in(app, "g04@example.com", plan="gold")
     g = await gold.get("/api/screener/catalog")
     gcat = g.json()
-    assert gcat["standardColumns"] == [("prism_final" if k == "overall" else k) for k in STANDARD_COLUMNS]   # Gold: FinLit Prism in the IQ's place
+    assert gcat["standardColumns"] == [("prism_final" if k == "overall" else k) for k in STANDARD_COLUMNS] + ["prism_st_score", "prism_lt_score"]   # Gold: FinLit Prism in the IQ's place, then the two technical views (task #141)
+    by_key = {m["key"]: m["label"] for x in gcat["groups"] for m in x["metrics"]}
+    assert by_key["prism_final"] == "Fundamental Prism score" and by_key["prism_st_score"] == "Short-term technical" and by_key["prism_lt_score"] == "Long-term technical"   # task #141 names
+    assert "prism_st_score" not in scat["standardColumns"] and "prism_lt_score" not in scat["standardColumns"]   # Silver has no Prism views
     assert "model" not in {x["id"] for x in gcat["groups"]} and "prism" in {x["id"] for x in gcat["groups"]}
     assert gcat["bandModel"] == "prism" and [b["key"] for b in gcat["bands"]] == ["strong", "healthy", "average", "weak", "poor"]
     for word in ("FinLit IQ", "pillar", "Mixed", "Watch"):                                                     # task #64 P-1: nothing of the FinLit IQ for Gold
