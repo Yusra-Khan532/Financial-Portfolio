@@ -100,6 +100,10 @@ async def build(store: Any, redis: Any, now: Optional[datetime] = None, env: Opt
         beat = json.loads(raw) if raw else {}
     except Exception:   # nosec B110
         pass
+    if "JOBS_CAPACITY_MB" not in env and isinstance(beat.get("capacityMb"), int) and beat["capacityMb"] > 0:
+        # The jobs run in their own container (deploy/jobs.sh); this page is built by the website's. "Can this job ever start here" is decided by the
+        # container the supervisor reports it runs in (14 Nov 2026: the website's 500 MB marked ingest and prism "disabled" while the 800 MB jobs container ran them).
+        env = {**env, "JOBS_CAPACITY_MB": str(beat["capacityMb"])}
     age = (now.timestamp() - float(beat["at"])) if beat.get("at") else None
     alive = age is not None and age <= HEARTBEAT_STALE_S
     out["supervisor"] = {"alive": alive, "heartbeatAgeSeconds": int(age) if age is not None else None, "heartbeatAt": _iso(datetime.fromtimestamp(beat["at"], timezone.utc)) if beat.get("at") else None,

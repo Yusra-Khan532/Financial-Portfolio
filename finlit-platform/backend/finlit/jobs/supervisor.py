@@ -21,6 +21,16 @@ from .deploy_gate import LONG_CLASSES, hold_reason, read_hold
 from .due import DEGRADED_RETRY_MIN, HELD_RETRY_MIN, YIELD_RETRY_MIN, Ctx, JobState, Verdict, evaluate, retry_delay_min, sla_status
 from .reasons import PARTIAL_EXIT, explain, failed_steps
 from .registry import Job, JobsConfig, disabled_reason
+
+
+def _own_capacity_mb():
+    """The memory limit of the container this supervisor runs in (the jobs container on AWS). Sent with every heartbeat, so the status page, which the
+    WEBSITE container builds, judges "can this job ever start here" against the container that really runs the jobs, not its own smaller limit."""
+    try:
+        from .resources import container_limit_mb
+        return container_limit_mb()
+    except Exception:   # nosec B110 - unknown: the status page falls back to its own reading
+        return None
 from .schedule import fmt_ist
 
 log = logging.getLogger("finlit.jobs")
@@ -538,7 +548,7 @@ class Supervisor:
             raise LockHeld("another supervisor took over")
         try:
             await self.signals.heartbeat(now, {"pid": __import__("os").getpid(), "ticks": self.ticks, "running": sorted(self.running), "startedAt": self.started_at.timestamp(),
-                                               "dbOk": self.db_ok, "lastError": self.last_error})
+                                               "dbOk": self.db_ok, "lastError": self.last_error, "capacityMb": _own_capacity_mb()})
         except Exception:   # nosec B110 - the heartbeat is best effort; the loop goes on
             pass
         if self.every_cycle is not None and (self._cycle_task is None or self._cycle_task.done()):

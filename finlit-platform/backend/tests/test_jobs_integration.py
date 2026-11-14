@@ -359,3 +359,27 @@ async def test_status_shows_a_job_too_big_for_the_server_as_disabled_never_overd
     row = {j["name"]: j for j in body["jobs"]}["sectors"]
     assert row["state"] == "disabled" and row["overdue"] is False and "never start" in row["disabledReason"]
     assert "sectors" not in body["overdue"] and any(d["name"] == "sectors" for d in body["disabledByConfig"])
+
+
+async def test_status_judges_job_size_by_the_jobs_container_not_the_website(store, monkeypatch):  # noqa: F811
+    """14 Nov 2026, after the jobs moved to their own container: the status page (built by the 500 MB website container) showed ingest and prism as
+    "disabled: can never start", while the 800 MB jobs container ran them. The supervisor now reports its own container's limit with its heartbeat."""
+    from finlit.jobs import resources
+    await clean(store)
+    monkeypatch.setattr(resources, "container_limit_mb", lambda root="/sys/fs/cgroup": 500)   # the website container this page runs in
+    await store.redis.set(BEAT_KEY, json.dumps({"at": NOW.timestamp(), "running": [], "startedAt": NOW.timestamp(), "capacityMb": 800}))
+    body = await jobs_status.build(store, store.redis, NOW, None)
+    rows = {j["name"]: j for j in body["jobs"]}
+    assert rows["ingest"]["state"] != "disabled" and rows["ingest"]["disabledReason"] is None      # 450 + 100 reserve fits in 800
+    assert all(d["name"] != "ingest" for d in body["disabledByConfig"])
+    # with no capacity in the heartbeat (an older supervisor), the page still reads its own container, as before
+    await store.redis.set(BEAT_KEY, json.dumps({"at": NOW.timestamp(), "running": [], "startedAt": NOW.timestamp()}))
+    body = await jobs_status.build(store, store.redis, NOW, None)
+    assert {j["name"]: j for j in body["jobs"]}["ingest"]["state"] == "disabled"
+    await store.redis.delete(BEAT_KEY)
+
+
+def test_the_heartbeat_carries_the_supervisors_own_memory_limit():
+    import inspect
+    from finlit.jobs import supervisor
+    assert '"capacityMb": _own_capacity_mb()' in inspect.getsource(supervisor)
