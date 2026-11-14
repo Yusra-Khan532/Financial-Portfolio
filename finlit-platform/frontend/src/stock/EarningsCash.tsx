@@ -16,7 +16,11 @@ import { Pill } from "./EarningsIntel";
 import "../styles/insights.css";
 import "../styles/earningscash.css";
 
-const TONE: Record<string, string> = { Strong: "s", Mixed: "w", "Needs a closer look": "f" };
+/** The colour of a verdict tile (task #129): green ("s") for the good verdict, orange ("w") for the one to watch, red ("f") for the alarm, none when there is no verdict.
+ *  One map for the three tiles: Earnings quality (Strong / Mixed / Needs a closer look), Cash backing (the pill's ok / watch / alert) and Cash conversion
+ *  health (Healthy / Improving / Watch / Needs attention; Improving is still under the healthy line, so it is orange). */
+const TONE: Record<string, "s" | "w" | "f"> = { Strong: "s", Healthy: "s", ok: "s", Mixed: "w", Improving: "w", Watch: "w", watch: "w", "Needs a closer look": "f", "Needs attention": "f", alert: "f" };
+export const verdictTone = (v: string | null | undefined): "s" | "w" | "f" | "" => (v ? TONE[v] ?? "" : "");
 
 /** The one red flag and the items to investigate, with the receivables warning written once (both bases together). */
 export function flagsOf(pr: PrModel, m: ReturnType<typeof useRevenueCashModel>["m"], intel: ReturnType<typeof earningsIntel>) {
@@ -61,9 +65,9 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
   return (
     <div className="card ec" id="earnings-body" aria-label="Earnings and cash quality">
       <div className="ec-tiles" role="list">
-        <div className={"ec-tile " + (pr.verdict ? TONE[pr.verdict] : "")} role="listitem"><span className="k">Earnings quality</span><b>{pr.verdict ?? "Not enough data"}</b><small>{pr.findings.length ? `${pr.findings.length} point${pr.findings.length === 1 ? "" : "s"} to look at` : "Nothing flagged"}</small></div>
-        <div className="ec-tile" role="listitem"><span className="k">Cash backing</span><b>{intel ? <Pill tone={intel.pill.tone}>{intel.pill.label}</Pill> : "Not enough data"}</b><small>{lender ? "Cash flow is not comparable for lenders" : "Operating cash flow against profit"}</small></div>
-        <div className="ec-tile" role="listitem"><span className="k">Cash conversion health</span><b>{ok?.status ?? (m?.state === "lender" ? "Not comparable" : "Not enough data")}</b><small>{L?.ocfMargin != null ? `Operating cash flow ${fmtPct(L.ocfMargin)} of revenue (${L.period})` : "Operating cash flow against revenue"}</small></div>
+        <div className={"ec-tile " + verdictTone(pr.verdict)} role="listitem"><span className="k">Earnings quality</span><b>{pr.verdict ?? "Not enough data"}</b><small>{pr.findings.length ? `${pr.findings.length} point${pr.findings.length === 1 ? "" : "s"} to look at` : "Nothing flagged"}</small></div>
+        <div className={"ec-tile " + verdictTone(intel?.pill.tone)} role="listitem"><span className="k">Cash backing</span><b>{intel ? <Pill tone={intel.pill.tone}>{intel.pill.label}</Pill> : "Not enough data"}</b><small>{lender ? "Cash flow is not comparable for lenders" : "Operating cash flow against profit"}</small></div>
+        <div className={"ec-tile " + verdictTone(ok?.status)} role="listitem"><span className="k">Cash conversion health</span><b>{ok?.status ?? (m?.state === "lender" ? "Not comparable" : "Not enough data")}</b><small>{L?.ocfMargin != null ? `Operating cash flow ${fmtPct(L.ocfMargin)} of revenue (${L.period})` : "Operating cash flow against revenue"}</small></div>
       </div>
 
       {intel && <div className="ins v"><span className="ins-tag">The read</span><b>{intel.happening}</b></div>}
