@@ -104,3 +104,11 @@
 .hh-trust li { display: inline-flex; align-items: center; gap: 8px; }
 .hh-trust svg { flex: none; width: 17px; height: 17px; color: var(--hh-g); }
 @media (max-width: 760px) { .hh-strip { font-size: 18px; } .hh-trust { gap: 10px 18px; font-size: 14px; } }
+
+/* Task #150 (14 Nov 2026): the FinLit Prism band's green is the background of the whole landing page in dark mode. It is one background on the page itself,
+   held in place while the page scrolls, so every band (hero, the platform, Prism, plans) sits on the same green with no seam between them. Light mode is unchanged. */
+:root[data-theme="dark"] .hh { --hh-hero-a: #1B4A34; --hh-hero-b: #0C2619; background: #0C2619 radial-gradient(110% 120% at 80% 0%, #1B4A34, #0C2619 72%) fixed; }
+:root[data-theme="dark"] .hh .hh-top,
+:root[data-theme="dark"] .hh .xt,
+:root[data-theme="dark"] .hh .hpz,
+:root[data-theme="dark"] .hh .band.plans { background: transparent; }
