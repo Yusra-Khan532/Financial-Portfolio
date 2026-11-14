@@ -1,7 +1,7 @@
 import { Link } from "react-router";
-import { CoLogo } from "../components/CoLogo";
 import { Hideable } from "../components/Hideable";
 import type { MfSpread, MfTrend, TrendRead } from "../lib/mfPortfolio";
+import { shortFund } from "../lib/mfPack";
 import { dateIN } from "../lib/format";
 
 /* The Diversification section of /mf-portfolio. Every word and figure is worked out on the server (backend mfportfolio/spread.py);
@@ -11,7 +11,7 @@ const GOOD = new Set(["Move on their own", "Widely spread", "Low", "None", "Spre
 const BAD = new Set(["Move as one", "Concentrated", "High", "Repeated"]);
 const pill = (w: string) => (GOOD.has(w) ? "good" : BAD.has(w) ? "warn" : "mid");
 const p0 = (x: number) => `${Math.round(x * 100)}%`;
-const short = (n: string) => n.replace(/\s*-\s*(direct|regular)\s+plan.*$/i, "").replace(/\s*-\s*(growth|idcw).*$/i, "").replace(/\s+fund$/i, "").trim();
+const short = shortFund;   // the same short names as the rest of the page (and the server)
 const oCls = (p: number) => (p < 5 ? "o0" : p < 15 ? "o1" : p < 30 ? "o2" : "o3");
 const cCls = (c: number) => (c < 0.2 ? "c0" : c < 0.4 ? "c1" : c < 0.6 ? "c2" : c < 0.8 ? "c3" : "c4");
 const trCls = (w: string | null | undefined) => (!w ? "na" : /strong uptrend/i.test(w) ? "t4" : /uptrend/i.test(w) ? "t3" : /strong downtrend/i.test(w) ? "t0" : /downtrend/i.test(w) ? "t1" : "t2");
@@ -20,7 +20,9 @@ const GRID_ROWS = [["1", "Long term up"], ["0", "Long term sideways"], ["-1", "L
 const GRID_COLS = [["-1", "Short term down"], ["0", "Short term sideways"], ["1", "Short term up"]] as const;
 const list = (a: string[]) => (a.length < 3 ? a.join(" and ") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
-export function SpreadSection({ d }: { d: MfSpread }) {
+/** part "mix": the readings, what the money is in, fund types and houses, overlap and the trend underneath (Mix & overlap); part "together": the funds that
+ *  move together (Risk analytics). The largest stocks underneath and the disclaimer now sit on the page itself (Your funds, and the page's disclaimer fold). */
+export function SpreadSection({ d, part }: { d: MfSpread; part: "mix" | "together" }) {
   const nm = new Map(d.funds.map((f) => [f.code, short(f.name)]));
   const n = (c: number) => nm.get(c) || `Scheme ${c}`;
   const r = d.readings;
@@ -41,6 +43,19 @@ export function SpreadSection({ d }: { d: MfSpread }) {
   const withShares = Array.from(new Set(d.overlap.flatMap((o) => [o.a, o.b])));
   const ov = new Map(d.overlap.map((o) => [`${o.a}-${o.b}`, o]));
 
+  if (part === "together") return <div className="x-div">
+        <Hideable id="mf.together" title="Funds that move together">
+        <section className="card" aria-label="Funds that move together">
+          <div className="card-h"><h3>Funds that move together</h3></div>
+          {stockFunds.length > 1 ? <>
+            <div className="x-tw"><table className="x-mx"><thead><tr><th><span className="sr-only">Fund</span></th>{stockFunds.map((c) => <th key={c} scope="col"><span>{n(c)}</span></th>)}</tr></thead>
+              <tbody>{stockFunds.map((a, i) => <tr key={a}><th scope="row">{n(a)}</th>{stockFunds.map((b, j) => i === j ? <td key={b} className="x-self">–</td> : <td key={b} className={cCls(d.together.C[i][j])}><b>{d.together.C[i][j].toFixed(2)}</b></td>)}</tr>)}</tbody></table></div>
+            <p className="x-legend"><span><i className="c0" /> under 0.2</span><span><i className="c1" /> 0.2 to 0.4</span><span><i className="c2" /> 0.4 to 0.6</span><span><i className="c3" /> 0.6 to 0.8</span><span><i className="c4" /> 0.8 or more</span></p>
+            <p className="x-fine">Weekly NAV changes of each fund's Growth option, {d.together.weeks} weeks{d.together.from && d.together.to ? ` (${dateIN(d.together.from)} to ${dateIN(d.together.to)})` : ""}. 1.00 means the two rise and fall in step. Liquid and overnight funds are left out: their weekly change is noise.</p>
+          </> : <p className="faint">Needs a year of NAV history for at least two equity-type funds.</p>}
+        </section>
+        </Hideable>
+  </div>;
   return (
     <div className="x-div" id="diversification">
       <div className="x-sec-h"><span className="x-eyebrow">Diversification</span><h2>How spread your funds are</h2><p>Worked out from the funds' published NAVs and monthly portfolio files. It describes the list; it is not a suggestion to change it.</p></div>
@@ -111,36 +126,12 @@ export function SpreadSection({ d }: { d: MfSpread }) {
         </section>
         </Hideable>
 
-        <Hideable id="mf.together" title="Funds that move together">
-        <section className="card" aria-label="Funds that move together">
-          <div className="card-h"><h3>Funds that move together</h3></div>
-          {stockFunds.length > 1 ? <>
-            <div className="x-tw"><table className="x-mx"><thead><tr><th><span className="sr-only">Fund</span></th>{stockFunds.map((c) => <th key={c} scope="col"><span>{n(c)}</span></th>)}</tr></thead>
-              <tbody>{stockFunds.map((a, i) => <tr key={a}><th scope="row">{n(a)}</th>{stockFunds.map((b, j) => i === j ? <td key={b} className="x-self">–</td> : <td key={b} className={cCls(d.together.C[i][j])}><b>{d.together.C[i][j].toFixed(2)}</b></td>)}</tr>)}</tbody></table></div>
-            <p className="x-legend"><span><i className="c0" /> under 0.2</span><span><i className="c1" /> 0.2 to 0.4</span><span><i className="c2" /> 0.4 to 0.6</span><span><i className="c3" /> 0.6 to 0.8</span><span><i className="c4" /> 0.8 or more</span></p>
-            <p className="x-fine">Weekly NAV changes of each fund's Growth option, {d.together.weeks} weeks{d.together.from && d.together.to ? ` (${dateIN(d.together.from)} to ${dateIN(d.together.to)})` : ""}. 1.00 means the two rise and fall in step. Liquid and overnight funds are left out: their weekly change is noise.</p>
-          </> : <p className="faint">Needs a year of NAV history for at least two equity-type funds.</p>}
-        </section>
-        </Hideable>
       </div>
 
 
       {d.trendLocked && <section className="card x-trend" aria-label="Short- and long-term trend underneath"><div className="card-h"><h3>Short- and long-term trend underneath</h3></div><p className="faint">How the stocks inside your funds are trending, short and long term, is part of the Gold plan. <Link to="/plans">See plans</Link></p></section>}
       {d.trend && <TrendCard t={d.trend} nm={n} />}
-      {d.topStocks.length > 0 && <section className="card" aria-label="Largest stocks underneath">
-        <div className="card-h"><h3>Largest stocks underneath</h3><span className="s">{d.topStocks.length} of {r.underneath.stocks}</span></div>
-        <table className="x-st"><thead><tr><th scope="col">Stock</th><th scope="col">Sector</th><th scope="col" className="r">Share of your list</th>{d.trend && <><th scope="col" className="c">Prism</th><th scope="col" className="c">Short term</th><th scope="col" className="c">Long term</th></>}<th scope="col">Held by</th></tr></thead>
-          <tbody>{d.topStocks.map((s) => <tr key={s.name}>
-            <td className="l">{s.symbol ? <Link to={`/stocks/${s.symbol}`} className="pfx-co"><CoLogo symbol={s.symbol} name={s.name} size={22} inline /><b>{s.name}</b></Link> : <b>{s.name}</b>}</td>
-            <td>{s.sector || "–"}</td>
-            <td className="r"><b>{(s.w / (d.knownShares || 1) * 100).toFixed(1)}%</b></td>
-            {d.trend && <><td className="c">{s.prism?.score != null ? <span className={"x-ps " + (s.prism.score >= 70 ? "hi" : s.prism.score >= 50 ? "mid" : "lo")}>{Math.round(s.prism.score)}</span> : <span className="x-ps na">Not rated</span>}</td><td className="c"><Tr w={s.prism?.st} /></td><td className="c"><Tr w={s.prism?.lt} /></td></>}
-            <td><span className="x-fwrap">{s.funds.map((c) => <span key={c} className="x-fchip">{n(c)}</span>)}</span></td>
-          </tr>)}</tbody></table>
-        <p className="x-fine">Share of the shares held through all your funds together.</p>
-      </section>}
 
-      <aside className="x-disc" aria-label="Disclaimer"><b>Disclaimer</b><p>This page describes your mutual funds using the funds' published NAVs and the fund houses' monthly portfolio files. Holdings are published once a month and may have changed since; NAVs can be delayed. Until you add units, every fund counts the same, so the figures describe the list, not your actual investment. Past performance does not guarantee future returns. Nothing here is investment advice or a recommendation about any fund or share. Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</p></aside>
     </div>
   );
 }

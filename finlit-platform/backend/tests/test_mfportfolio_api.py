@@ -475,3 +475,71 @@ async def test_diversification_trend_is_gold_and_has_no_cutoffs(app):
     g = (await gold.get(URL + "/diversification")).json()
     assert "trendLocked" not in g and set(g["trend"]) == {"all", "perFund", "sharedWeakSpots"}
     assert "gap" not in g["trend"]["all"] and g["trend"]["all"]["rated"] == 0
+
+
+# ------------------------------------------------------------------------------------------------------------------ risk figures
+
+def _trading_days(n):
+    out, d = [], TODAY - timedelta(days=1)
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(d)
+        d -= timedelta(days=1)
+    return out[::-1]
+
+
+async def _risk_data(app, with_bench=True):
+    import json
+    import time
+    from finlit import mf
+    days = _trading_days(800)
+    bench = [100.0]
+    for i in range(1, len(days)):
+        bench.append(bench[-1] * (1 + (0.01 if i % 3 else -0.012)))
+    navs = {BASE + 1: [b * 1.5 for b in bench], BASE + 5: [100.0]}
+    for i in range(1, len(days)):                           # the small-cap fund moves twice the index
+        navs[BASE + 5].append(navs[BASE + 5][-1] * (1 + 2 * (bench[i] / bench[i - 1] - 1)))
+    async with app.state.store.pool.acquire() as conn:
+        for code, v in navs.items():
+            await conn.execute("INSERT INTO mf_history (code, n, d0, d1, blob, complete) VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (code) DO UPDATE SET blob = EXCLUDED.blob, d0 = EXCLUDED.d0, d1 = EXCLUDED.d1, n = EXCLUDED.n",
+                               code, len(days), days[0], days[-1], mf.pack_series([d.toordinal() for d in days], v))
+    if with_bench:
+        rows = [{"quote_date": d.isoformat(), "close_price": c} for d, c in zip(days, bench)]
+        await app.state.store.redis.set("idx:px:NIF500", json.dumps({"t": time.time(), "v": {"rows": rows}}))
+    else:
+        await app.state.store.redis.delete("idx:px:NIF500")
+
+
+async def test_risk_figures_are_silver_and_come_from_the_navs_against_the_nifty_500(app):
+    await _risk_data(app)
+    basic = await signed_in(app, "b@example.com")
+    assert (await basic.get(URL + "/risk")).status_code == 403
+    silver = await signed_in(app, "s@example.com", plan="silver")
+    assert (await silver.get(URL + "/risk")).json()["count"] == 0
+    assert (await add(silver, BASE + 1, "100")).status_code == 201
+    assert (await add(silver, BASE + 5, "50")).status_code == 201
+    r = await silver.get(URL + "/risk")
+    assert r.status_code == 200 and r.headers["cache-control"] == "private, no-store"
+    body = r.json()
+    by = {f["code"]: f for f in body["funds"]}
+    assert by[BASE + 1]["beta"] == 1.0 and by[BASE + 1]["fallsTaken"] == 100
+    assert by[BASE + 5]["beta"] == 2.0 and by[BASE + 5]["fallsTaken"] == 200 and by[BASE + 5]["short"] == "Delta Small Cap"
+    assert by[BASE + 5]["swing"] > by[BASE + 1]["swing"] and by[BASE + 5]["worstFall"] < 0
+    assert body["bench"]["name"] == "NIFTY 500" and body["bench"]["swing"] == by[BASE + 1]["swing"]
+    lvl = body["list"]["level"]
+    assert lvl["word"] == "A little higher" and lvl["because"] == "because of Delta Small Cap (small cap)" and lvl["riskier"] == ["Delta Small Cap"]
+    assert body["basis"] == "value"
+    assert all("cut" not in k and "band" not in k for k in lvl), "the cut-offs stay on the server"
+
+
+async def test_risk_says_why_when_the_nifty_500_history_is_missing(app, monkeypatch):
+    await _risk_data(app, with_bench=False)
+    from finlit import indices
+
+    async def none(*a, **k):
+        return None
+    monkeypatch.setattr(indices, "_fetch_levels", none)
+    silver = await signed_in(app, "s@example.com", plan="silver")
+    assert (await add(silver, BASE + 1, "100")).status_code == 201
+    r = await silver.get(URL + "/risk")
+    assert r.status_code == 503 and "NIFTY 500" in r.json()["detail"]["detail"]
