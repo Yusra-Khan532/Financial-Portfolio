@@ -46,10 +46,10 @@ export function takeaways(d: Outlook, model: Outlook | null): string[] {
     const m = model?.forecast.available ? lastYear(model) : null;
     if (m && m.valueCr > 0) {
       const diff = (end.valueCr / m.valueCr - 1) * 100;
-      out.push(Math.abs(diff) < 0.05 ? "Your weights give the same estimate as the FinLit model."
+      out.push(Math.abs(diff) < 0.05 ? "Your growth rates give the same estimate as the FinLit model."
         : `Your estimate for ${end.period} is ${Math.abs(diff).toFixed(1)}% ${diff > 0 ? "higher" : "lower"} than the FinLit model's ${fmtCr(m.valueCr)}.`);
     }
-  } else out.push("Choose “Set your own model” to see how different weights change this estimate.");
+  } else out.push("Choose “Set your own model” to set your own growth rate for each input and see how the estimate changes.");
   if (d.rate.unavailable.length) out.push(`Left out for this company: ${d.rate.unavailable.join("; ")}. Their weight was shared across the other inputs.`);
   return out;
 }

@@ -1,4 +1,4 @@
-// Profit and revenue outlook (Gold): API types, the hook, and the pure weight-balancing logic for the "Set your own" sliders.
+// Profit and revenue outlook (Gold): API types, the hook, and the pure logic of the "Set your own model" sliders (each input's own growth rate, task #146).
 // All forecast arithmetic is on the server (backend/finlit/outlook/model.py); the chart series, ticks and formats are in lib/outlookChart.ts.
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
@@ -9,12 +9,14 @@ export type Weights = Record<string, number>;
 export type RateRow = {
   key: string; label: string; who: "company" | "sector"; weightPct: number; effectiveWeightPct: number; valuePct: number | null; rawPct: number | null; capped: boolean;
   contributionPts: number | null; status: "ok" | "unavailable"; method: string | null; reason: string | null; detail: string | null;
+  assumed?: boolean; actualPct?: number | null;   // set by the user's own growth rate; the company's (or sector's) figure it replaced
 };
+export type Values = Record<string, number>;
 export type YearRow = { period: string; valueCr: number; growthPct: number; changeCr: number };
 export type HistoryPoint = { period: string; valueCr: number | null; reportedCr: number | null; adjusted: boolean };
 export type Outlook = {
   symbol: string; statement: string; kind: Kind; mode: "model" | "custom"; name: string | null; isLender: boolean; asOf: { yearly: string | null }; reportGeneratedAt: string | null;
-  weights: Weights; defaultWeights: Weights; adjustedYears: string[];
+  weights: Weights; values?: Values | null; defaultWeights: Weights; adjustedYears: string[];
   horizon: { key: Horizon; years: number; label: string; span: string };
   history: { unit: string; points: HistoryPoint[] };
   rate: { ratePct: number | null; rows: RateRow[]; unavailable: string[]; weightLeftPct: number };
@@ -46,37 +48,24 @@ export const PARAM_LABELS: Record<Kind, Record<string, string>> = {
   profit: { co_1y: "Company net profit growth (1Y)", co_3y: "Company net profit CAGR (3Y)", co_5y: "Company net profit CAGR (5Y)", sec_1y: "Sector net profit growth (1Y)", sec_3y: "Sector net profit CAGR (3Y)", sec_5y: "Sector net profit CAGR (5Y)", margin: "Net profit margin trend" },
 };
 
-export const TOTAL_TENTHS = 1000;
-const toTenths = (v: number) => Math.round(v * 10);
-
-/** Change one group's percentage; the others rebalance in proportion to what they hold, so the total stays exactly 100 (one decimal place).
- *  The changed value is clamped to 0..100. If the others hold nothing, they share the rest equally. Largest-remainder rounding keeps the sum exact. */
-export function rebalance(weights: Weights, letter: string, value: number): Weights {
-  const letters = Object.keys(weights);
-  if (!letters.includes(letter)) return { ...weights };
-  const v = Math.max(0, Math.min(TOTAL_TENTHS, Number.isFinite(value) ? toTenths(value) : 0));
-  const others = letters.filter((l) => l !== letter);
-  if (!others.length) return { [letter]: 100 };
-  const rest = TOTAL_TENTHS - v;
-  const held = others.reduce((s, l) => s + Math.max(0, weights[l]), 0);
-  const raw = others.map((l) => (held > 0 ? (Math.max(0, weights[l]) / held) * rest : rest / others.length));
-  const base = raw.map(Math.floor);
-  let left = rest - base.reduce((s, x) => s + x, 0);
-  raw.map((r, i) => ({ i, f: r - base[i] })).sort((a, b) => b.f - a.f || a.i - b.i).forEach(({ i }) => { if (left > 0) { base[i] += 1; left -= 1; } });
-  const out: Weights = { [letter]: v / 10 };
-  others.forEach((l, i) => { out[l] = base[i] / 10; });
-  return Object.fromEntries(letters.map((l) => [l, out[l]]));
-}
-
-export const totalOf = (w: Weights) => Object.values(w).reduce((s, x) => s + toTenths(x), 0) / 10;
-export const isDefault = (kind: Kind, horizon: Horizon, w: Weights) => Object.entries(DEFAULT_WEIGHTS[kind][horizon]).every(([l, x]) => Math.abs((w[l] ?? NaN) - x) < 1e-9);
+/** "Set your own model" (task #146): each slider is that input's expected growth rate, percent a year, set on its own: not a weight, no total.
+ *  The server limits every input to this range (model.INPUT_CAP); FinLit's weights for the horizon combine the rates into one yearly rate. */
+export const VALUE_MIN = -50, VALUE_MAX = 50, VALUE_STEP = 0.1;   // a tenth of a point: the knob sits exactly on the company's figure as shown (one decimal)
+export const clampValue = (v: number) => (Number.isFinite(v) ? Math.max(VALUE_MIN, Math.min(VALUE_MAX, Number(v.toFixed(1)))) : 0);
+/** The company's own figure for each input that has one (the FinLit model's answer): where every slider starts. */
+export const companyValues = (d: Outlook | null | undefined): Values =>
+  Object.fromEntries((d?.rate.rows ?? []).filter((r) => r.status === "ok" && r.valuePct != null).map((r) => [r.key, r.valuePct as number]));
+/** Only the inputs the user moved away from the company's figure (what is sent; the others keep the company's figure on the server). */
+export const changedValues = (base: Values, mine: Values): Values =>
+  Object.fromEntries(Object.entries(mine).filter(([k, v]) => base[k] == null || Math.abs(base[k] - v) >= VALUE_STEP / 2).map(([k, v]) => [k, clampValue(v)]));
 export const signedPct = (v: number, d = 1) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d)}%`;
 
-export function useOutlook(symbol: string | undefined, kind: Kind, horizon: Horizon, weights: Weights | null, enabled: boolean) {
-  const key = weights ? Object.entries(weights).sort().map(([k, v]) => `${k}${v}`).join(",") : "model";
+/** One estimate: the FinLit model's (values null), or the user's own growth rates combined by the model's weights. */
+export function useOutlook(symbol: string | undefined, kind: Kind, horizon: Horizon, values: Values | null, enabled: boolean) {
+  const key = values ? Object.entries(values).sort().map(([k, v]) => `${k}${v}`).join(",") : "model";
   return useQuery<Outlook, ApiError>({
-    queryKey: ["outlook2", symbol, kind, horizon, key],
-    queryFn: () => apiSend<Outlook>("POST", `/api/outlook/${encodeURIComponent(symbol as string)}`, weights ? { kind, horizon, weights } : { kind, horizon }),
+    queryKey: ["outlook3", symbol, kind, horizon, key],
+    queryFn: () => apiSend<Outlook>("POST", `/api/outlook/${encodeURIComponent(symbol as string)}`, values ? { kind, horizon, values } : { kind, horizon }),
     enabled: enabled && !!symbol, retry: false, staleTime: 300_000,
   });
 }
