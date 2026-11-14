@@ -267,6 +267,8 @@ async def test_saved_state_and_plan_limits(app):
     assert (await silver.put("/api/me/watchlist", json=bad_symbol)).status_code == 422
     screen = {"screens": [{"name": "Quality", "state": {"ranges": {"roe": {"min": 15}}, "sectors": [], "bands": ["strong"]}}]}
     assert (await silver.put("/api/me/screens", json=screen)).status_code == 200
+    prism_words = {"screens": [{"name": "Average", "state": {"sectors": ["Oil", "Fast Moving Consumer Goods"], "bands": ["strong", "healthy", "average", "weak", "poor"]}}]}
+    assert (await silver.put("/api/me/screens", json=prism_words)).status_code == 200   # task #142: a screen on FinLit Prism's words (Gold) can be saved
     unknown = {"screens": [{"name": "x", "state": {"ranges": {"__proto__": {"min": 1}}}}]}
     assert (await silver.put("/api/me/screens", json=unknown)).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "midnight", "density": "compact", "dashboard": [{"id": "movers", "on": True, "size": "full"}]})).status_code == 200
@@ -469,6 +471,11 @@ async def test_screen_alert_emails_only_new_matches(app):
     from finlit.screens import check_screens, matches
     pool = app.state.store.pool
     assert matches({"pe": 15, "sector": "IT", "band": "strong", "overall": 80}, {"ranges": {"pe": {"max": 20}}, "sectors": ["IT"], "bands": ["strong"]})
+    # task #142: a Gold member's rating words are FinLit Prism's, read from the company's Prism rating, never from FinLit IQ's word
+    avg = {"sector": "Oil", "band": "mixed", "pband": "average"}
+    assert matches(avg, {"sectors": ["Oil"], "bands": ["average"]}, prism=True)
+    assert not matches(avg, {"sectors": ["Oil"], "bands": ["average"]})                 # below Gold the words are FinLit IQ's
+    assert not matches({**avg, "pband": None}, {"bands": ["average"]}, prism=True)      # an unrated company has no Prism word
     assert not matches({"pe": 25}, {"ranges": {"pe": {"max": 20}}}) and not matches({"pe": None}, {"ranges": {"pe": {"max": 20}}})
     c = await signed_in(app, "b@example.com", plan="silver")
     screen = {"screens": [{"name": "Cheap", "state": {"ranges": {"pe": {"max": 30}}, "sectors": [], "bands": []}}]}

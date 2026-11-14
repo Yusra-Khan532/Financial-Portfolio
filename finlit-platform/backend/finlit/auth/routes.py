@@ -209,7 +209,7 @@ class Range(BaseModel):
 class ScreenState(BaseModel):
     ranges: Dict[str, Range] = Field(default_factory=dict, max_length=60)
     sectors: List[str] = Field(default_factory=list, max_length=40)
-    bands: List[Literal["strong", "healthy", "mixed", "watch"]] = Field(default_factory=list, max_length=4)
+    bands: List[Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]] = Field(default_factory=list, max_length=5)   # FinLit IQ's words or, for Gold, FinLit Prism's (task #142)
     industries: List[str] = Field(default_factory=list, max_length=60)
     indices: List[str] = Field(default_factory=list, max_length=20)
     caps: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
