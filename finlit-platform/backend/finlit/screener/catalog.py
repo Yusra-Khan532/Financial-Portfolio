@@ -274,13 +274,13 @@ CATALOG: List[Metric] = [
     M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the FinLit IQ report lists for the company.", 0),
     M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the FinLit IQ report lists for the company.", 0),
     # ---- FinLit Prism (Gold): the stored rating of each company, 0 to 100 (the two views -100 to +100); a company not rated yet has no figure
-    M("prism_final", "Prism score", "prism", "pts", "higher", "gold", "FinLit Prism's rating of the company, 0 to 100. Higher is better.", 0),
+    M("prism_final", "Fundamental Prism score", "prism", "pts", "higher", "gold", "FinLit Prism's rating of the company, 0 to 100. Higher is better.", 0),
     M("prism_fundamental", "Prism Growth & Profitability", "prism", "pts", "higher", "gold", "Prism's Growth & Profitability part, 0 to 100: how steadily sales and profit grow.", 0),
     M("prism_valuation", "Prism Valuation", "prism", "pts", "higher", "gold", "Prism's Valuation part, 0 to 100: a higher score is a more modest price for what the company earns.", 0),
     M("prism_quality", "Prism Quality", "prism", "pts", "higher", "gold", "Prism's Quality part, 0 to 100: borrowing, interest cover, returns and cash behind profit.", 0),
     M("prism_risk", "Prism Risk", "prism", "pts", "higher", "gold", "Prism's Risk part, 0 to 100: a higher score means lower risk (price swings, falls, pledged shares).", 0),
-    M("prism_st_score", "Prism short-term view", "prism", "pts", "higher", "gold", "Prism's short-term price trend, -100 to +100 (weeks). It describes past prices only.", 0),
-    M("prism_lt_score", "Prism long-term view", "prism", "pts", "higher", "gold", "Prism's long-term price trend, -100 to +100 (months). It describes past prices only.", 0),
+    M("prism_st_score", "Short-term technical", "prism", "pts", "higher", "gold", "Prism's short-term price trend, -100 to +100 (weeks). It describes past prices only.", 0),
+    M("prism_lt_score", "Long-term technical", "prism", "pts", "higher", "gold", "Prism's long-term price trend, -100 to +100 (months). It describes past prices only.", 0),
 ]
 BY_KEY: Dict[str, Metric] = {m.key: m for m in CATALOG}
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab

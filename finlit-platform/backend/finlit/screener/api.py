@@ -19,8 +19,10 @@ BASIC_ROWS = 25
 # The table opens with company, market cap and price only; the website adds a column for each filter the visitor adds (and takes it away with the filter).
 DEFAULT_COLUMNS = ["market_cap", "price"]
 # The Stock screener's nine standard columns (task #64, file 04): LTP (with the day's change under it), market cap, P/E, ROE, ROCE, sales growth 3Y, debt to equity,
-# 1-year return and FinLit IQ. A visitor is sent only the ones their plan shows (FinLit IQ is Gold).
+# 1-year return and the plan's score. A visitor is sent only the ones their plan shows. Task #141 (14 Nov 2026): Gold, whose score is the Fundamental Prism score,
+# also gets the two technical columns, Short-term technical and Long-term technical (the Prism price-trend views), right after it.
 STANDARD_COLUMNS = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_to_equity", "ret_1y", "overall"]
+GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
 IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
 
@@ -30,8 +32,10 @@ def is_gold(plan: str) -> bool:
 
 
 def standard_columns(plan: str) -> List[str]:
-    """The nine standard columns of the plan: the last is the plan's score (FinLit Prism for Gold, the FinLit IQ below)."""
+    """The standard columns of the plan: the plan's score is the last of the nine (FinLit Prism for Gold, the FinLit IQ below); Gold adds the two technical views after it."""
     cols = [("prism_final" if k == "overall" and is_gold(plan) else k) for k in STANDARD_COLUMNS]
+    if is_gold(plan):
+        cols += GOLD_TECHNICAL_COLUMNS
     return [k for k in cols if allowed(plan, BY_KEY[k].tier)]
 
 
