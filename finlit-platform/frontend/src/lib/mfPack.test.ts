@@ -1,5 +1,6 @@
 // The MF portfolio's words, checked with the pack's own sample (board 15, 6 Nov 2026).
 import { describe, expect, it } from "vitest";
+import { wordCase } from "../mf/pack/MfPack";
 import { fundCards, fundTag, mfTiles, shortFund, underCards, type MfRisk, type Under } from "./mfPack";
 
 const h = (code: number, name: string, cat: string, final: number | null, label: string | null) => ({ code, name, categoryLabel: cat, score: { final, label } }) as never;
@@ -40,6 +41,7 @@ describe("MF portfolio words", () => {
     expect(underCards(UNDER)[1].text).not.toMatch(/\b(sell|buy|hold)\b/i);
   });
   it("names and tags", () => {
+    expect([wordCase("AVERAGE"), wordCase("Healthy"), wordCase(null)]).toEqual(["Average", "Healthy", ""]);
     expect(shortFund("HDFC Flexi Cap Fund - Growth Option - Direct Plan")).toBe("HDFC Flexi Cap");
     expect(shortFund("ICICI Prudential Large Cap Fund (erstwhile Bluechip Fund)")).toBe("ICICI Prudential Large Cap");
     expect(shortFund("SBI SMALL CAP FUND")).toBe("SBI Small Cap");
