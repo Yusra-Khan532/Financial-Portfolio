@@ -235,6 +235,9 @@
 .ssy-on .lnk { margin-left: auto; }
 .ssy-n.is-on { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text); }
 .ssw-a.is-screen { border-color: var(--gold); }
+/* task #154: Clear all at the end of the chips, once two or more filters are on */
+.ssw-clr { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.ssw-clr:hover { border-color: var(--gold); } .ssw-clr:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* Task #64 S-9: the header on one line, with the data date */
 .ssw-h1row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; }

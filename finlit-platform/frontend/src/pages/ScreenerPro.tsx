@@ -186,7 +186,9 @@ export function ScreenerPro() {
     setPicker(false);
     toast(`Added ${m.label}${start.min != null || start.max != null ? ", starting on its better quarter. Change the range on its card." : ". Set a range on its card."}`);
   };
-  const clearAll = () => { setF(norm({})); setOrder([]); setFrom(null); };   // the screens that are on go too
+  // every filter goes, back to the plain list of every listed company: the reader's rules, sizes, sectors, index and rating, the ready-made screens that are on,
+  // and the custom ratios (task #154: they are rules too, and stayed behind before). The search box, the sort and the columns are not filters and stay.
+  const clearAll = (say = false) => { setF(norm({})); setOrder([]); setFrom(null); setRatios([]); if (say) toast("All filters cleared: every listed company is back."); };
   // a rule added but with no range yet is still chosen: it is counted and kept until removed or cleared (task #75)
   const nWaiting = rules.filter((k) => { const m = byKey.get(k); return m && !(m.variants ? Object.values(m.variants) : [k]).some((x) => F.ranges[x]); }).length;
 
@@ -301,7 +303,7 @@ export function ScreenerPro() {
 
         <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")}>
           <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
-            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
+            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={() => clearAll(true)}>Clear all</button>}
               <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
             {nActive === 0 || !funnel.length
@@ -374,7 +376,8 @@ export function ScreenerPro() {
                     <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
               </div>
             </div>
-            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}</div>}
+            {chips.length > 0 && <div className="ssw-actv" aria-label="Your rules">{chips.map((c) => <span key={c.label} className={"ssw-a" + (c.label.startsWith("Screen: ") ? " is-screen" : "")} title={c.title}>{c.label}<button type="button" onClick={c.clear} aria-label={`Remove ${c.label}`}>×</button></span>)}
+              {chips.length > 1 && <button type="button" className="ssw-clr" onClick={() => clearAll(true)} aria-label={`Clear all ${chips.length} filters`}>Clear all</button>}</div>}
             <div className="ssw-tbar">
               <input className="ssw-srch" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or symbol" aria-label="Search the results by name or symbol" />
               <span className="ssw-sp" />
@@ -411,7 +414,7 @@ export function ScreenerPro() {
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}
-                      {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={clearAll}>clear them all</button>.</td></tr>}
+                      {!rows.length && !tight && <tr><td colSpan={shown.length + ratios.length + 2} className="empty">No companies match all of these rules. Try loosening one, or <button className="alx-link" onClick={() => clearAll(true)}>clear them all</button>.</td></tr>}
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>

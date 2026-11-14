@@ -461,6 +461,33 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     await waitFor(() => expect(last().filters).toEqual({})); expect(last().cats!.cap).toEqual([]);
   });
 
+  it("task #154: with two or more filters on, Clear all sits with the chips above the table and brings back every listed company", async () => {
+    mount("?s=" + encodeState({ ...norm({}), caps: ["Large"] }, "market_cap", "desc")); await ready();
+    const actv = () => document.querySelector(".ssw-actv") as HTMLElement | null;
+    expect(within(actv()!).queryByRole("button", { name: /^Clear all/ })).toBeNull();          // one filter: its own × is enough
+    fireEvent.click(within(screen.getByRole("group", { name: "Company size" })).getByRole("button", { name: /^Mid/ }));
+    const clear = await within(actv()!).findByRole("button", { name: "Clear all 2 filters" });   // Large cap and Mid cap: two filters, though one rule
+    expect(clear.textContent).toBe("Clear all");
+    fireEvent.click(clear);
+    await waitFor(() => expect(last().cats!.cap).toEqual([]));
+    expect(last().filters).toEqual({});
+    expect(actv()).toBeNull();                                                                   // no chips left
+    expect(screen.getByText(/every listed company/)).toBeTruthy();                               // back to the plain list
+    expect(ui.toast).toHaveBeenCalledWith("All filters cleared: every listed company is back.");
+  });
+
+  it("task #154: Clear all also takes off the custom ratios (they are rules too), from the chips and from Your rules", async () => {
+    localStorage.setItem("finlit.screener.ratios", JSON.stringify([{ id: "r1", name: "Cash to debt", num: "pe", den: "pb", op: "gt", a: 1, show: "times" }]));
+    mount("?s=" + encodeState({ ...norm({ ranges: { pe: { max: 15 } } }), caps: ["Large"] }, "market_cap", "desc")); await ready();
+    const actv = () => document.querySelector(".ssw-actv") as HTMLElement | null;
+    expect(actv()!.textContent).toMatch(/Cash to debt/);
+    fireEvent.click(within(actv()!).getByRole("button", { name: /^Clear all \d+ filters$/ }));
+    await waitFor(() => expect(actv()).toBeNull());
+    await waitFor(() => expect(last().filters).toEqual({}));
+    expect(last().ratios ?? []).toEqual([]); expect(last().cats!.cap).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("finlit.screener.ratios") || "[]")).toEqual([]);     // they do not come back on the next visit
+  });
+
   it("when nothing passes, the page names the tightest rule and removes it on click", async () => {
     st.funnel = [{ key: "pe", before: 5813, after: 3000, missing: 0 }, { key: "roe", before: 3000, after: 0, missing: 0 }];
     mount("?s=" + encodeState(norm({ ranges: { pe: { max: 15 }, roe: { min: 90 } } }), "market_cap", "desc")); await ready();
