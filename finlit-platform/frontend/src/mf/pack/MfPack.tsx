@@ -32,6 +32,8 @@ export function MfTabs({ view, onView }: { view: MfView; onView: (v: MfView) => 
   return <div className="mfp-tabs" role="tablist" aria-label="MF portfolio views">{tabs.map(([k, t, s]) => <button key={k} type="button" role="tab" id={`mfp-tab-${k}`} aria-selected={view === k} aria-controls="mfp-panel" onClick={() => onView(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
 }
 
+/** "AVERAGE" -> "Average": the stored Prism labels are in capitals; the pack writes them in normal case. */
+export const wordCase = (w: string | null | undefined) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "");
 const HEALTH_TONE = (w: string | null) => (/strong|healthy/i.test(w || "") ? "sp-good" : /average/i.test(w || "") ? "mfp-amber" : /weak|poor/i.test(w || "") ? "sp-red" : "");
 
 /** Your funds: three cards, then each fund's category, Health Score and risk figures (or, on the second view, its NAV, returns and costs). */
@@ -88,7 +90,7 @@ export function UnderSection({ under, sp, n }: { under: Under[]; sp: MfSpread; n
           <tr key={u.name}>
             <th scope="row">{u.symbol ? <Link to={`/stocks/${u.symbol}`} className="ip-sym"><CoLogo symbol={u.symbol} name={u.name} size={22} inline /><span><b>{coName(u.name)}</b><small>{u.industry ?? "–"}</small></span></Link> : <span className="ip-sym"><span><b>{coName(u.name)}</b><small>{u.industry ?? "–"}</small></span></span>}</th>
             <td>{u.size ?? "–"}</td><td className="r">{pc(u.w * 100)}</td>
-            {gold && <><td>{p?.score != null ? <span className="mfp-h"><b>{Math.round(p.score)}</b> <span className={HEALTH_TONE(p.label)}>{p.label}</span></span> : <span className="sp-note">Not rated</span>}</td>
+            {gold && <><td>{p?.score != null ? <span className="mfp-h"><b>{Math.round(p.score)}</b> <span className={HEALTH_TONE(p.label)}>{wordCase(p.label)}</span></span> : <span className="sp-note">Not rated</span>}</td>
               <td><span className={"x-tr " + trCls(p?.st)}>{p?.st || "Not rated"}</span></td><td><span className={"x-tr " + trCls(p?.lt)}>{p?.lt || "Not rated"}</span></td></>}
             <td>{u.peer ? <><span className={"mfp-peer " + u.peer.label}>{PEER[u.peer.label]}</span><small className="mfp-sub">{u.peer.rank} of {u.peer.of} {u.peer.group}</small>
               {u.peer.raw && u.peer.raw !== u.peer.label && <small className="mfp-next">may become {PEER[u.peer.raw] ?? u.peer.raw} next week</small>}</> : <small className="sp-note">{u.notCompared ? `Not compared: ${u.notCompared}` : "Not compared"}</small>}</td>
