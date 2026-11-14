@@ -23,6 +23,8 @@ import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
+import "../styles/tools.css";
+import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
 
@@ -55,6 +57,9 @@ export function MfScreenerPage() {
   const sortVal = `${q.sort}:${q.dir}`;
   const onSort = (key: string) => go({ sort: key, dir: q.sort === key ? (q.dir === "asc" ? "desc" : "asc") : (key === "name" || key === "ter" || key === "fall" || key === "rank3y" || key === "gap" || key === "worst" || key === "negshare" || key === "downdev" ? "asc" : "desc"), page: 1 });
   const showPanel = () => { if (narrow()) setSheet(true); else { setPanelOpen(true); saveUi("mfscreen.panel", 1, true); } };
+  // Task #140 (team note): the advanced screeners' sliding bar between the filters and the results: drag to resize, drag far left or double-click to hide.
+  const [sideW, setSideW] = useSideWidth("mfscreen");
+  const resizePanel = (w: number, snap = false) => { if (w < (snap ? SIDE.min / 2 : 1)) { setPanelOpen(false); saveUi("mfscreen.panel", 1, false); return; } setSideW(w); };
   const togglePanel = () => { if (narrow()) setSheet(true); else { setPanelOpen(!panelOpen); saveUi("mfscreen.panel", 1, !panelOpen); } };
   const reset = () => setSp(new URLSearchParams(), { replace: true });
   const saveScreen = () => {
@@ -95,7 +100,7 @@ export function MfScreenerPage() {
             {!sorts.some((s) => `${s.v}:${s.dir}` === sortVal) && <option value={sortVal}>Sorted by column</option>}
             {sorts.map((s) => <option key={s.v + s.dir} value={`${s.v}:${s.dir}`}>{s.v === "aum" && s.dir === "desc" ? "No sort: default order (fund size, largest first)" : `Sort: ${s.label}`}</option>)}</select></label>} />
 
-      <div className={"mfs-layout" + (panelOpen ? "" : " is-collapsed") + (sheet ? " is-sheet" : "")}>
+      <div className={"mfs-layout" + (panelOpen ? "" : " is-collapsed") + (sheet ? " is-sheet" : "")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
         {sheet && <div className="mfs-back" onClick={() => setSheet(false)} aria-hidden="true" />}
         <aside ref={sideRef} className="card mfs-side" aria-label="Filters" role={sheet ? "dialog" : undefined} aria-modal={sheet ? true : undefined} hidden={!panelOpen && !sheet}>
           <div className="mfs-grab" aria-hidden="true" />
@@ -108,6 +113,7 @@ export function MfScreenerPage() {
           <div className="mfs-foot"><button type="button" className="btn primary" onClick={() => setSheet(false)}>Show {list.data ? nf(total, 0) : ""} fund{total === 1 ? "" : "s"}</button>
             <button type="button" className="btn" onClick={reset} disabled={isDefault(q)}>Reset</button></div>
         </aside>
+        {panelOpen && !sheet && <SplitDivider width={sideW || SIDE.def} set={resizePanel} />}
 
         <section className="card mfs-main" aria-label="Results">
           <div className="mfs-rbar">

@@ -278,3 +278,9 @@
   .ssw-rmin { width: 44px; height: 44px; }
   .ssw-rdone { display: flex; justify-content: center; width: 100%; min-height: 44px; margin-top: 16px; }
 }
+
+/* Task #140 (team note): the sliding bar between Your rules and the results, as on the advanced screeners (components/SplitDivider, .scr-split in tools.css). */
+@media (min-width: 1001px) {
+  .ssw-work:not(.rules-min) { grid-template-columns: min(var(--side-w, 330px), max(240px, calc(100% - 448px))) 28px minmax(0, 1fr); gap: 0; }
+  .ssw-work > .scr-split { min-height: 200px; }
+}
