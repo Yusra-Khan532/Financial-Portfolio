@@ -20,7 +20,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.routes import NO_STORE, SYMBOL, Ctx, fail, secure_ctx
 
 router = APIRouter(prefix="/api/dcf")
@@ -28,7 +28,7 @@ MAX_SCENARIOS = 50
 
 
 async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "The DCF calculator is part of the Gold plan.", plan="gold")
     return ctx
 

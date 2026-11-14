@@ -48,7 +48,7 @@ import httpx
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from .auth.entitlements import has
+from .auth.entitlements import has, sees_all
 from .auth.routes import IST, NO_STORE, ip_of, pre_session_guard, secure_ctx
 from .auth.service import Ctx, current
 from .premium import gateway_token
@@ -240,7 +240,7 @@ async def _access(request: Request, symbol: str, full: bool = True) -> Tuple[Ctx
             allowed, wait = await limiter.hit("prism-read", ctx.user_id or "ip:" + ip_of(request), READ_LIMIT, READ_WINDOW, fail_open=True)
             if not allowed:
                 return ctx, _reply({"status": "limit", "detail": f"Too many {PRISM_NAME} reports opened in a short time. Please wait a few minutes."}, 429, wait or 60)
-    if symbol in request.app.state.settings.showcase_symbols or ctx.role == "admin" or has(ctx.plan, "gold"):
+    if symbol in request.app.state.settings.showcase_symbols or sees_all(ctx) or has(ctx.plan, "gold"):
         return ctx, None
     detail = f"{PRISM_NAME} is part of the Gold plan." if ctx.authed else f"Sign in with the Gold plan to see {PRISM_NAME}."
     return ctx, _reply({"status": "plan_required", "detail": detail, "plan": "gold"}, 403)
@@ -619,7 +619,7 @@ async def scores(request: Request, symbols: str = Query("", max_length=1200)) ->
     reports); the consolidated report is used, else the standalone one. A company with no stored report is simply absent from `scores`.
     Technical rating words are the site's descriptive words (never the model's), as in the reports."""
     ctx = await current(request)
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         detail = f"{PRISM_NAME} is part of the Gold plan." if ctx.authed else f"Sign in with the Gold plan to see {PRISM_NAME}."
         return _reply({"status": "plan_required", "detail": detail, "plan": "gold"}, 403)
     wanted = list(dict.fromkeys(s.strip().upper() for s in symbols.split(",") if s.strip()))
@@ -663,7 +663,7 @@ async def create(request: Request) -> JSONResponse:
     store = app.state.store
     # Visitors may open a showcase report but not order a new calculation of one that is still fresh.
     refresh = body.get("refresh") is True and ctx.authed
-    if refresh and ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if refresh and not sees_all(ctx) and not has(ctx.plan, "gold"):
         # A free account may open a showcase report, but forcing new calculations spends the paid data providers' quota.
         return _reply({"status": "plan_required", "detail": f"Recalculating is part of the Gold plan. {PRISM_NAME} reports are refreshed automatically.", "plan": "gold"}, 403)
     background = body.get("background") is True     # answer at once (202) and calculate behind the page; it polls GET /api/prism/jobs

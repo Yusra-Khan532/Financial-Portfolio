@@ -30,7 +30,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
   const { toast } = useUI();
   const [dashOpen, setDashOpen] = useDashOpen();
   const [dl, setDl] = useState(false);
-  const { two, isAdmin, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
+  const { two, isAdmin, seesAll, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
   const q = s.quote, p = s.profile, good = (q.change ?? 0) >= 0, cov = s.dataQuality.coverage;
   const asOf = q.asOf ? new Date(q.asOf) : null;
   const download = (kind: "pdf" | "html" | "csv") => {
@@ -49,9 +49,9 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
           <div className="idl">
             <div className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></div>
             <div style={{ minWidth: 0 }}>
-              <div className="hs-name"><h1>{p.name}</h1><NameDots score={s.score} plan={effPlan} admin={isAdmin} prism={prismIn} /></div>
+              <div className="hs-name"><h1>{p.name}</h1><NameDots score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} /></div>
               <div className="hs-grid">
-                <SubLine profile={p} score={s.score} plan={effPlan} admin={isAdmin} prism={prismIn} />
+                <SubLine profile={p} score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} />
                 <Row label="Listed as"><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></Row>
                 <ScreenBadges symbol={p.symbol} />
               </div>

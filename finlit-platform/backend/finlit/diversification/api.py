@@ -22,7 +22,7 @@ import orjson
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import fail
 from ..auth.service import current
 from ..indices import IST, _cached, _fetch_levels, shape_levels
@@ -214,7 +214,7 @@ async def diversification(request: Request, body: DiversificationIn) -> Response
             pass
     # The style tilt depends on the caller's plan and on the live Prism ratings, so it is added after the cache.
     if "score" in result:
-        if ctx.role == "admin" or has(ctx.plan, STYLE_TILT_TIER):
+        if sees_all(ctx) or has(ctx.plan, STYLE_TILT_TIER):
             from . import calc
             tilt = calc.style_tilt(await _prism_universe(app), symbols)
             tilt["sentence"] = calc.tilt_sentence(tilt["parts"])

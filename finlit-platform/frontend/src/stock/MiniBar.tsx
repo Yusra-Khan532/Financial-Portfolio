@@ -10,9 +10,9 @@ import "../styles/minibar.css";
 import { CoLogo } from "../components/CoLogo";
 
 export function MiniBar({ s, on }: { s: Summary; on: boolean }) {
-  const { effPlan, isAdmin, prismIn, watch, toggleWatch, has } = useReportHeader(s);
+  const { effPlan, seesAll, prismIn, watch, toggleWatch, has } = useReportHeader(s);
   const p = s.profile, q = s.quote, up = (q.changePct ?? 0) >= 0;
-  const view = badgeView(effPlan, isAdmin, { overall: s.score.overall, word: s.score.band.label }, prismIn);
+  const view = badgeView(effPlan, seesAll, { overall: s.score.overall, word: s.score.band.label }, prismIn);
   return (
     <div className={"mhbar" + (on ? " on" : "")} aria-hidden={!on} {...(!on ? { inert: true } : {})}>
       <div className="wrap mhbar-in">
@@ -21,7 +21,7 @@ export function MiniBar({ s, on }: { s: Summary; on: boolean }) {
         <span className="mhbar-px">₹{q.price == null ? "–" : nf(q.price)}</span>
         {q.changePct != null && <span className={"mhbar-chg " + (up ? "up" : "down")}>{signed(q.changePct)}</span>}
         <ScoreBadge view={view} symbol={p.symbol} />
-        <span className="mhbar-dots"><NameDots score={s.score} plan={effPlan} admin={isAdmin} prism={prismIn} /></span>
+        <span className="mhbar-dots"><NameDots score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} /></span>
         <button type="button" className={"btn sm mhbar-wl" + (watch ? " on" : "")} aria-pressed={watch} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
       </div>
     </div>);

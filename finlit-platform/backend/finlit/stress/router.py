@@ -13,7 +13,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import SYMBOL, Ctx, admin_ctx, fail, secure_ctx, user_ctx
 from ..background import spawn
 from ..screener.data import get_table
@@ -30,13 +30,13 @@ RANGES = {"crude": (-90.0, 300.0), "usdinr": (1 / 1.4 * 100 - 100, 1 / 0.67 * 10
 
 
 async def silver_ctx(ctx: Ctx = Depends(user_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "silver"):
+    if not sees_all(ctx) and not has(ctx.plan, "silver"):
         raise fail(403, "plan_required", "Stress Lab is part of the Silver and Gold plans.", plan="silver")
     return ctx
 
 
 async def gold_ctx(ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "This part of Stress Lab is part of the Gold plan.", plan="gold")
     return ctx
 
@@ -278,7 +278,7 @@ def _kick(app, table, sym: str) -> bool:
 async def page(request: Request, symbol: str, ctx: Ctx = Depends(silver_ctx)):
     sym = _sym(symbol)
     payload = await _page(request, sym)
-    plan = "gold" if (ctx.role == "admin" or has(ctx.plan, "gold")) else "silver"
+    plan = "gold" if (sees_all(ctx) or has(ctx.plan, "gold")) else "silver"
     out = {**P.plan_payload(payload, plan), "flags": {"showValue": request.app.state.settings.stress_show_value}}
     if not out["flags"]["showValue"]:
         out = strip_value(out)

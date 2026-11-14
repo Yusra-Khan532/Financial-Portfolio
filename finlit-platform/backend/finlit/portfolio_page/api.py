@@ -23,7 +23,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import Ctx, fail, ip_of, secure_ctx
 from ..diversification import api as div
 from . import inputs
@@ -58,7 +58,7 @@ class PageIn(BaseModel):
 
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "silver"):
+    if not sees_all(ctx) and not has(ctx.plan, "silver"):
         raise fail(403, "plan_required", "Equity portfolio is part of the Silver plan.", plan="silver")
     return ctx
 
@@ -126,7 +126,7 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
         except Exception:
             pass
     if result.get("page"):
-        if ctx.role == "admin" or has(ctx.plan, div.STYLE_TILT_TIER):
+        if sees_all(ctx) or has(ctx.plan, div.STYLE_TILT_TIER):
             from ..diversification import calc
             tilt = calc.style_tilt(await div._prism_universe(app), result["symbols"])
             tilt["sentence"] = calc.tilt_sentence(tilt["parts"])
@@ -140,7 +140,7 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
 async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
     """Short- and long-term trend of the listed shares (FinLit Prism technical scores). Names only; every share counts the same. Gold only (Prism), as the style
     tilt: Silver gets a locked answer. Words, shares and counts: the bands and the gap figure stay here."""
-    if not (ctx.role == "admin" or has(ctx.plan, div.STYLE_TILT_TIER)):
+    if not (sees_all(ctx) or has(ctx.plan, div.STYLE_TILT_TIER)):
         return Response(orjson.dumps({"locked": True, "why": "The short- and long-term trend of your shares is part of the Gold plan."}), media_type="application/json", headers=NO_STORE)
     from .. import prism_screen
     from ..mfportfolio import trend
@@ -204,7 +204,7 @@ def _score_compute(prices, nifty_rows, bench_rows, meta, symbols, values, cards,
 @router.post("/score")
 async def score_page(request: Request, body: ScoreIn, ctx: Ctx = Depends(member_ctx)) -> Response:
     """Your portfolio score (Gold: it reads FinLit Prism). The total and the readings come back as words and plain figures; the blend and its points stay here."""
-    if not (ctx.role == "admin" or has(ctx.plan, div.STYLE_TILT_TIER)):
+    if not (sees_all(ctx) or has(ctx.plan, div.STYLE_TILT_TIER)):
         return Response(orjson.dumps({"locked": True, "why": "Your portfolio score is part of the Gold plan."}), media_type="application/json", headers=NO_STORE)
     app = request.app
     allowed, retry = await app.state.limiter.hit("portfolio_score", ip_of(request), 30, 60, fail_open=False)

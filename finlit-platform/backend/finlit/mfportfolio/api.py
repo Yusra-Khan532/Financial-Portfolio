@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .. import mf
-from ..auth.entitlements import LIMITS, has
+from ..auth.entitlements import LIMITS, has, sees_all
 from ..auth.routes import Ctx, fail, limit, secure_ctx
 from ..mfscore.api import NOT_SCORED
 from .. import mf_fill
@@ -48,17 +48,17 @@ def reply(body: Dict[str, Any], status: int = 200) -> JSONResponse:
 
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "silver"):
+    if not sees_all(ctx) and not has(ctx.plan, "silver"):
         raise fail(403, "plan_required", "My mutual funds is part of the Silver plan.", plan="silver")
     return ctx
 
 
 def is_gold(ctx: Ctx) -> bool:
-    return ctx.role == "admin" or has(ctx.plan, "gold")
+    return sees_all(ctx) or has(ctx.plan, "gold")
 
 
 def cap_for(ctx: Ctx) -> int:
-    return LIMITS["gold" if ctx.role == "admin" else ctx.plan if ctx.plan in LIMITS else "basic"]["mf_holdings"]
+    return LIMITS["gold" if sees_all(ctx) else ctx.plan if ctx.plan in LIMITS else "basic"]["mf_holdings"]
 
 
 def uid_of(s: str) -> uuid.UUID:

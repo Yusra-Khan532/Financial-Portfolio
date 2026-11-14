@@ -217,7 +217,7 @@ export function WatchlistPage() {
                               <td className="r">{r.pe != null ? nf(r.pe, 1) + "×" : "—"}</td>
                               <td className="r">{r.roe != null ? nf(r.roe, 1) + "%" : "—"}</td>
                               <td className="wp-size">{sizeWord(i.marketCap) ?? "—"}{i.marketCap != null && <small>₹{nf(i.marketCap, 0)} Cr</small>}</td>
-                              <td className={"r wp-sc " + v.band}>{v.score != null ? <><b>{v.score}</b>{v.word && <span>{v.word}</span>}</> : <span className="wp-na" title={v.why ?? undefined}>{model === "prism" ? (v.word === "Not rated" ? "Not rated" : "Not rated yet") : "Not scored yet"}</span>}</td>
+                              <td className={"r wp-sc " + v.band}>{v.score != null ? <><b>{v.score}</b>{v.word && <span>{v.word}</span>}</> : <span className="wp-na" title={v.why ?? undefined}>{model === "prism" ? (v.word === "Not rated" ? "Not rated" : "Not rated yet") : "Not scored yet"}</span>}{v.also && <small className="wp-iq" title="FinLit IQ (shown to administrators beside FinLit Prism)">IQ {v.also.score ?? "–"}</small>}</td>
                               <td className="wp-peer"><span className={"wp-chip " + p.tone}>{p.chip}</span><small>{p.line}</small></td>
                               <td>
                                 <input className="wp-tg" type="number" inputMode="decimal" min={0} value={m.target ?? ""} placeholder="–" onChange={(e) => wl.setMeta(i.symbol, { target: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} aria-label={`${i.symbol} target price in rupees`} />

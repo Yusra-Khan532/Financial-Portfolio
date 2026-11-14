@@ -10,7 +10,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
-from ..auth.entitlements import has
+from ..auth.entitlements import has, sees_all
 from ..auth.routes import SYMBOL, Ctx, fail, secure_ctx
 from ..screener.data import get_table
 from .inputs import build_inputs
@@ -32,7 +32,7 @@ class OutlookIn(BaseModel):
 
 
 async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
-    if ctx.role != "admin" and not has(ctx.plan, "gold"):
+    if not sees_all(ctx) and not has(ctx.plan, "gold"):
         raise fail(403, "plan_required", "The profit and revenue outlook is part of the Gold plan.", plan="gold")
     return ctx
 

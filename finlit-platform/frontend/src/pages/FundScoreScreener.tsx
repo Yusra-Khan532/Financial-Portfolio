@@ -1,5 +1,6 @@
 // /fund-score-screener (Gold): every scored fund with the FinLit Mutual Fund Health Score, its four parts and the facts beside them; filters, quick views,
 // sorting, CSV, compare tick-boxes, and a category leaderboard tab. Plans below Gold get the upgrade page and no request is made for any score.
+import { viewAsHeader } from "../lib/adminView";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
@@ -118,7 +119,7 @@ function Screener() {
   const download = async () => {
     setBusy(true);
     try {
-      const r = await fetch(apiUrl(csvUrl(q)), { credentials: "include" });
+      const r = await fetch(apiUrl(csvUrl(q)), { credentials: "include", headers: viewAsHeader() });
       if (r.ok) { const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = "finlit-fund-scores.csv"; a.click(); URL.revokeObjectURL(a.href); }
     } finally { setBusy(false); }
   };

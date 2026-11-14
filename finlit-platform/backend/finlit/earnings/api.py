@@ -12,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Request, Response
 
 from ..aliases import canonical
-from ..auth.entitlements import LIMITS, has
+from ..auth.entitlements import LIMITS, has, sees_all
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
 from . import service
@@ -27,7 +27,7 @@ def _json(body, status: int = 200) -> Response:
 
 
 def _gold(ctx) -> bool:
-    return bool(ctx.authed and (has(ctx.plan, "gold") or ctx.role == "admin"))
+    return bool(ctx.authed and (has(ctx.plan, "gold") or sees_all(ctx)))
 
 
 def _limit() -> int:

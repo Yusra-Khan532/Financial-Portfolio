@@ -9,7 +9,7 @@ import { csvText } from "./format";
 export type MarketSection = "ipo" | "results" | "announcements" | "transcripts" | "indices" | "valuations";
 export type Feed<T> = { items: T[]; total: number; fetchedAt: string; cached?: boolean; provider: string };
 
-export const useGold = () => { const { isAdmin } = useAuth(); const { has } = useUI(); return isAdmin || has("gold"); };
+export const useGold = () => { const { seesAll } = useAuth(); const { has } = useUI(); return seesAll || has("gold"); };
 
 const call = <T,>(path: string) => apiGet<T>("/api/premium" + path);
 const opts = <T,>(path: string, enabled = true) => ({

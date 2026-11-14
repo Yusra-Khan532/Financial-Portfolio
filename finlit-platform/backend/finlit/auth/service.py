@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
@@ -16,6 +16,8 @@ from starlette.requests import Request
 
 from ..config import Settings
 from .crypto import token_hash
+
+from .entitlements import VIEW_AS
 
 log = logging.getLogger("finlit.auth")
 
@@ -43,8 +45,11 @@ class Ctx:
         return self.user_id is not None
 
     def public(self) -> Dict[str, Any]:
-        return {"id": self.user_id, "email": self.email, "name": self.name, "role": self.role, "plan": self.plan,
-                "verified": self.verified, "mfa": self.totp, "mfaOk": self.mfa_ok}
+        out = {"id": self.user_id, "email": self.email, "name": self.name, "role": self.role, "plan": self.plan,
+               "verified": self.verified, "mfa": self.totp, "mfaOk": self.mfa_ok}
+        if self.role == "admin":
+            out["viewAs"] = self.extra.get("view_as")     # None: every plan's features; else the plan being previewed
+        return out
 
 
 ANON = Ctx()
@@ -132,8 +137,23 @@ async def current(request: Request) -> Ctx:
     ctx = ANON
     if token and 20 <= len(token) <= 100:
         ctx = await lookup(request.app, token)
+    if ctx.role == "admin":
+        ctx = admin_view(ctx, request.headers.get(VIEW_AS_HEADER))
     request.state.ctx = ctx
     return ctx
+
+
+VIEW_AS_HEADER = "x-finlit-view-as"
+
+
+def admin_view(ctx: Ctx, view_as: Optional[str]) -> Ctx:
+    """An administrator sees every plan's features (founder, 14 Nov 2026): served as Gold, with entitlements.sees_all() true. With the "view as"
+    header (basic, silver or gold) the request is served exactly as that plan instead, so the admin can check what each plan sees. Only an
+    administrator's request is changed; for anyone else the header means nothing."""
+    want = (view_as or "").strip().lower()
+    if want in VIEW_AS:
+        return replace(ctx, plan=want, extra={**ctx.extra, "view_as": want})
+    return replace(ctx, plan="gold")
 
 
 async def forget_cached(app, user_id: str, only_hash: Optional[str] = None) -> None:
