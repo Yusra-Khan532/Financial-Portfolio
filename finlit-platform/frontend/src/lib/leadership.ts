@@ -25,7 +25,7 @@ export type LeadershipOn = {
   /** Absent on an answer from before the peer lists. `runs52`: the published labels over the last 52 weeks (a count of the weekly checks that exist). */
   notRanked?: NotRanked[]; runs52?: { leader: number; in_line: number; laggard: number; total: number } | null;
 };
-export type LeadershipOff = { available: false; reason: "history" | "stale" | "liquidity" | "group" | "hidden" | "pending"; display?: LeadDisplay };
+export type LeadershipOff = { available: false; reason: "history" | "stale" | "liquidity" | "group" | "hidden" | "pending" | "not_compared"; asOf?: string; display?: LeadDisplay };
 export type Leadership = LeadershipOn | LeadershipOff;
 export type LeadRun = { date: string; rank: number; ranked: number; label: LeadLabel; rawLabel?: LeadLabel | null; direction: Direction; rel13?: number | null; rel52: number | null; rel52Market: number | null };
 export type LeadHistory = { available: boolean; rows: LeadRun[]; series: { dates: string[]; stock: (number | null)[]; sector: (number | null)[] | null; market: (number | null)[] | null } | null };

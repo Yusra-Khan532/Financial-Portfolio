@@ -120,7 +120,7 @@ def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
     """One stock of a watchlist: its published label and the figures the Watchlists page shows (rank, group, the 12-month gap to the sector benchmark,
     the business-score rank), or why it has none, in words. The same numbers as /api/stocks/{symbol}/leadership, without the peers."""
     if row is None:
-        why = reason or "history"
+        why = reason or "not_compared"      # no row and no recorded reason: it was not in the last weekly run (never "not enough price history")
         return {"available": False, "reason": why, "text": UNRANKED_TEXT.get(why) or REASON_TEXT.get(why) or "Not compared this week"}
     return {"available": True, "label": row["label"], "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
             "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
@@ -169,8 +169,9 @@ async def leadership(request: Request, symbol: str) -> Response:
         if row is None:
             if not await conn.fetchval("SELECT EXISTS (SELECT 1 FROM leadership)"):   # the first weekly run has not happened: say nothing rather than 'no history'
                 return _reply(request, {"available": False, "reason": "pending"}, started, cache=PRIVATE)
-            why = await conn.fetchval("SELECT reason FROM leadership_excluded WHERE symbol = $1", symbol) or "history"
-            return _reply(request, {"available": False, "reason": why, "display": display(label=None, rank=None, ranked=None, group_short="", sector_name="",
+            why = await conn.fetchval("SELECT reason FROM leadership_excluded WHERE symbol = $1", symbol) or "not_compared"   # not in the last run at all (task #139)
+            last = await conn.fetchval("SELECT max(as_of) FROM leadership")
+            return _reply(request, {"available": False, "reason": why, "asOf": _day(last), "display": display(label=None, rank=None, ranked=None, group_short="", sector_name="",
                                                                                            market_name=None, rel52=None, rel52_market=None, direction=None,
                                                                                            fundamental=None, fund_rank=None, fund_n=None, reason=why)}, started, cache=cache)
         rel = await conn.fetchrow("SELECT * FROM sector_reliability WHERE group_id = $1", row["group_id"])
