@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-// MF portfolio: the category card above the funds table. The categories and the pie chart are for reading only (task #8): no tick boxes,
+// MF portfolio (board 15 of the final pages pack): the tiles, the three views, Your funds, and the category card under Mix & overlap. The categories and the pie chart are for reading only (task #8): no tick boxes,
 // no "Select All", nothing to click except the group tabs.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Holding, MfPortfolio } from "../lib/mfPortfolio";
 
@@ -40,7 +41,8 @@ beforeEach(() => { st.data = DATA; vi.stubGlobal("ResizeObserver", class { obser
 afterEach(cleanup);
 const card = () => document.querySelector("section.mp-cat") as HTMLElement;
 const fundRows = () => [...document.querySelectorAll("table tbody tr")].map((r) => r.textContent || "");
-const show = () => render(<MemoryRouter initialEntries={["/mf-portfolio"]}><MfPortfolioPage /></MemoryRouter>);
+vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: () => new Promise(() => {}) }));
+const show = (view = "mix") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[`/mf-portfolio${view === "funds" ? "" : `?view=${view}`}`]}><MfPortfolioPage /></MemoryRouter></QueryClientProvider>);
 
 describe("MF portfolio category card", () => {
   it("has no tick boxes and no Select All: the categories are read-only", () => {
@@ -58,26 +60,43 @@ describe("MF portfolio category card", () => {
     expect(card().querySelector("svg")).toBeTruthy();
   });
 
-  it("clicking a category does nothing: all funds stay in the table", () => {
+  it("clicking a category does nothing, and Your funds always lists every fund", () => {
     show();
-    expect(fundRows()).toHaveLength(4);
     fireEvent.click(card().querySelector(".mp-cat-chip") as HTMLElement);
+    expect(card().querySelector(".mp-cat-chip")).toBeTruthy();
+    cleanup(); show("funds");
     expect(fundRows()).toHaveLength(4);
   });
 
-  it("the group tabs still switch the categories, the pie chart and the funds table", () => {
+  it("the group tabs switch the categories and the pie chart", () => {
     show();
     fireEvent.click(within(card()).getByRole("tab", { name: "Debt" }));
     const chips = [...card().querySelectorAll(".mp-cat-chip")].map((c) => (c.textContent || "").replace(/\s+/g, " ").trim());
     expect(chips).toEqual(["Corporate Bond1"]);
-    expect(fundRows()).toHaveLength(1);
-    expect(fundRows()[0]).toContain("Delta Corporate Bond Fund");
-    fireEvent.click(within(card()).getByRole("tab", { name: "All funds" }));
-    expect(fundRows()).toHaveLength(4);
+    expect(screen.getByText(/Share of your debt funds by category/)).toBeTruthy();
   });
 
   it("the note under the pie chart no longer talks about ticking categories", () => {
     show();
     expect(screen.getByText(/Share of your funds by type/)).toBeTruthy();
+  });
+});
+
+describe("MF portfolio as the pack draws it", () => {
+  it("shows the five tiles, the three views and Your funds with the Gold plan words for a locked Health Score", () => {
+    show("funds");
+    expect([...document.querySelectorAll(".mfp-tile-k")].map((x) => x.firstChild?.textContent)).toEqual(["Funds", "Average health", "Highest overlap", "Top 10 stocks vs peers", "Risk level"]);
+    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")?.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);
+    expect(screen.getByRole("heading", { name: "Your funds" })).toBeTruthy();
+    expect(screen.getAllByText("Gold plan").length).toBeGreaterThan(1);
+    document.querySelector(".mfp-disc")?.remove();   // the disclaimer itself says "not a recommendation to buy, sell or hold"
+    const text = document.body.textContent || "";
+    expect(text.match(/\b(buy|sell|hold|reduce|avoid|accumulate|best)\b/gi)).toBeNull();
+  });
+  it("the Returns & costs view keeps each fund's NAV, returns and costs", () => {
+    show("funds");
+    fireEvent.click(screen.getByRole("button", { name: "Returns & costs" }));
+    expect(screen.getByRole("columnheader", { name: "Expense ratio" })).toBeTruthy();
+    expect(fundRows()[0]).toContain("5.00%");
   });
 });

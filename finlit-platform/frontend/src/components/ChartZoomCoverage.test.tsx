@@ -21,11 +21,11 @@ const ZOOM = [
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/Leadership.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
-  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/sectors/BreadthChart.tsx", "components/sectors/PulseCharts.tsx", "components/sectors/ExtraCharts.tsx", "components/rotation/RotationMap.tsx", "components/rotation/RotationCard.tsx", "components/rotation/RotationCharts.tsx",
+  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
-  "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "portfolio/Risk.tsx", "portfolio/Together.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
+  "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
   "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/QrGrowth.tsx", "components/TableZoom.tsx",
 ];
 
@@ -40,6 +40,14 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 const EXEMPT: Record<string, string> = {
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
+  "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
+  "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
+  "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
+  "components/rotation/pack/RotationSimple.tsx": "Sector Rotation as the final pages pack draws it (08): the map has box toggles, rings and paths and scrolls sideways on a phone; its bars and rank lines sit in rows; no enlarge arrow in the pack",
+  "components/rotation/pack/RotationTable.tsx": "the Full table view as the final pages pack draws it (09): rank lines inside table rows and Six months of ranks, which scrolls sideways on a phone; no enlarge arrow in the pack",
+  "components/sectors/pack/IndustryPack.tsx": "an industry page as the final pages pack draws it (07): A year of <industry> scrolls sideways on a phone and has Hide, its numbers are in the story and a dropdown table, and the rank line is small; no enlarge arrow in the pack",
+  "portfolio/pack/EquityPack.tsx": "the Equity portfolio as the final pages pack draws it (12-14): the score rings, the small group-leader lines and the bars sit inside cards with their figures written beside them; no enlarge arrow in the pack",
+  "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
   "charts/Dial.tsx": "score dial: one figure, drawn as a ring",
@@ -50,7 +58,7 @@ const EXEMPT: Record<string, string> = {
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",
   "components/LogoLoader.tsx": "logo animation", "components/Assistant.tsx": "icon in the chat header", "pages/Feedback.tsx": "a decorative line in the side panel, no data", "components/TierEmblem.tsx": "plan emblem", "lib/icons.tsx": "icons",
   "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/SearchFilters.tsx": "icons",
-  "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/screener/PageParts.tsx": "small completeness ring in a summary strip",
+  "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/screener/PageParts.tsx": "small completeness ring in a summary strip", "components/screener/RatioDrawer.tsx": "small spread chart of one ratio inside the Custom ratio drawer",
   "components/search/SearchOverlay.tsx": "icons", "components/search/parts.tsx": "sparklines and icons in search rows", "components/search/prismParts.tsx": "score ring in a search row",
   "components/prism/pzr/Hero.tsx": "score ring and scale: one figure", "components/prism/pzr/Landing.tsx": "decorative mark", "components/prism/shared/PartTile.tsx": "score tile ring",
   "components/prism/shared/PrismGlyph.tsx": "glyph", "components/rotation/Parts.tsx": "corner glyphs and a sparkline in a table row",
@@ -60,7 +68,7 @@ const EXEMPT: Record<string, string> = {
   "components/dashboard/Legacy.tsx": "six-bar spark inside a link card", "components/dashboard/Snapshot.tsx": "one breadth bar", "components/FlowsPanel.tsx": "46px bars under two figures (the full charts are on the FII/DII page)",
   "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/ScoreScreener.tsx": "completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",
   "pages/Watchlist.tsx": "one stacked industry strip", "stock/DuPont.tsx": "per-factor mini bars inside a table", "stock/CompanyBrief.tsx": "inline progress bars", "pages/PremiumReport.tsx": "inline score bars",
-  "portfolio/Summary.tsx": "one score scale", "components/sectors/Parts.tsx": "three small bars inside a table cell", "components/dashboard/Flows.tsx": "30 small bars inside a dashboard card; the full charts are on the FII / DII page", "components/dashboard/Portfolio.tsx": "one colour strip and four short bars inside a dashboard card", "components/dashboard/parts.tsx": "only the chevron icon of the Show more button", "components/prism/pzr/Parts.tsx": "a small score ring and one bar on each part card", "etf/common.tsx": "sparklines in list rows", "pages/Fundamentals.tsx.exempt": "",
+  "components/sectors/Parts.tsx": "three small bars inside a table cell", "components/dashboard/Flows.tsx": "30 small bars inside a dashboard card; the full charts are on the FII / DII page", "components/dashboard/Portfolio.tsx": "one colour strip and four short bars inside a dashboard card", "components/dashboard/parts.tsx": "only the chevron icon of the Show more button", "components/prism/pzr/Parts.tsx": "a small score ring and one bar on each part card", "etf/common.tsx": "sparklines in list rows", "pages/Fundamentals.tsx.exempt": "",
 };
 delete EXEMPT["pages/Fundamentals.tsx.exempt"];
 

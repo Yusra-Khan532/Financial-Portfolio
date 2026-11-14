@@ -181,6 +181,10 @@ def _row(r: Dict[str, Any]) -> Dict[str, Any]:
     out["breadth"] = _breadth(r.get("breadth"))
     out["last_thrust"] = _thrust(r.get("last_thrust"))
     out["date_label"] = date_label(r.get("date"))
+    # "Held up" (the "FinLit final pages" pack, 13 Nov 2026): at the industry's last low, the share of its stocks that stayed above their earlier low. The figure only; the rule
+    # that turns it into a state stays private. None when the industry has had no recent low to measure.
+    hl = r.get("higher_low_share")
+    out["held_up"] = round(float(hl), 1) if isinstance(hl, (int, float)) and hl == hl else None
     if "rotation" in r:
         out["rotation"] = _rot_short(r.get("rotation"))
     return out

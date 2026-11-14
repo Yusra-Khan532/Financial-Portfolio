@@ -127,3 +127,40 @@ def test_the_scans_use_the_fresher_dhan_candles_so_a_lagging_report_is_not_left_
     asyncio.run(candles.save(st.redis, "S0", _rows("2026-11-05")))                              # an older Dhan copy never replaces a newer stored series
     assert asyncio.run(candles.series(st, "S0"))["t"][-1] == "2026-11-09"
     assert asyncio.run(candles.series(_Store({"X": "2026-11-11"}), "X"))["t"][-1] == "2026-11-11"   # no Redis at all: the stored prices
+
+
+class _TargetRedis:
+    def __init__(self, data=None):
+        self.data = dict(data or {})
+
+    async def get(self, key):
+        return self.data.get(key)
+
+
+class _StoreTarget(_Store):
+    def __init__(self, ends, redis):
+        super().__init__(ends)
+        self.redis = redis
+
+
+def test_the_pattern_scans_wait_for_the_session_dhan_has_not_the_calendar_day():
+    """13 Nov 2026, the founder's log: at 23:16 IST Dhan's newest session was still 12 Nov (the technicals job worked to 12 Nov), but the pattern scans demanded the
+    13 Nov candle, found it for 232 of 1275 companies (18%), held every run back and the presets job failed four times in a row."""
+    from datetime import timedelta
+    from finlit.presets import service
+    from finlit.prism_candles import expected_session
+    from finlit.prism_technical import IST, TARGET_KEY
+    from datetime import datetime as _dt
+    expected = expected_session(_dt.now(IST))
+    behind = expected - timedelta(days=1)
+    ends = {f"S{i}": behind.isoformat() for i in range(18)} | {f"N{i}": expected.isoformat() for i in range(4)}   # most end on the session before
+    found = _TargetRedis({TARGET_KEY: json.dumps({"expected": expected.isoformat(), "target": behind.isoformat(), "at": 0})})
+    day = asyncio.run(service.candle_day(_StoreTarget(ends, found), expected))
+    assert day == behind
+    assert asyncio.run(patterns.candle_coverage(_Store(ends), _Table(list(ends)), day))["ratio"] == 1.0          # every company reaches that close: the scans run
+    assert asyncio.run(patterns.candle_coverage(_Store(ends), _Table(list(ends)), expected))["ratio"] < 0.98     # the old rule: held back
+    assert asyncio.run(service.candle_day(_StoreTarget(ends, _TargetRedis()), expected)) == expected                  # no run found yet today: the calendar day, as before
+    class _Broken:
+        async def get(self, key):
+            raise ConnectionError
+    assert asyncio.run(service.candle_day(_StoreTarget(ends, _Broken()), expected)) == expected                # Redis not readable: never stops the job

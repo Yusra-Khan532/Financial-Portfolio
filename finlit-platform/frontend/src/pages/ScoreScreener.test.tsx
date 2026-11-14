@@ -32,6 +32,8 @@ const DATA = [
   mk("FFF", null, 60, null, 4000), mk("GGG", "Auto", null, 60, null, { scored: false }), mk("HHH", "Pharma", 78, 77, 3000),
   ...Array.from({ length: 14 }, (_, i) => mk("ZZ" + String(i).padStart(2, "0"), "Metals", 55, 55, 2000 - i * 10)),
 ];
+/** More than one page of 25 (task #64, B-6: 25 rows a page): DATA plus 30 small Metals companies. */
+const MANY = [...DATA, ...Array.from({ length: 30 }, (_, i) => mk("YY" + String(i).padStart(2, "0"), "Metals", 50, 50, 100 - i))];
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const open = (qs = "") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/score-screener" + qs]}><Routes><Route path="/score-screener" element={<ScoreScreener />} /><Route path="/advanced-score-screener" element={<div data-testid="adv">advanced page</div>} /><Route path="*" element={<div>elsewhere</div>} /></Routes><Where /></MemoryRouter></QueryClientProvider>);
@@ -44,20 +46,27 @@ beforeEach(() => { admin.on = true; st.plan = "silver"; st.rows = DATA; st.cover
 afterEach(cleanup);
 
 describe("Basic stock screener page", () => {
-  it("lists the universe sorted by market cap, with 10 rows a page, the count over the whole set and no summary boxes", () => {
+  it("lists the universe sorted by market cap, with 25 rows a page (task #64, B-6), the count over the whole set and no summary boxes", () => {
     open();
-    expect(symbols()).toEqual(["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "HHH", "ZZ00", "ZZ01", "ZZ02"]);
+    expect(symbols().slice(0, 10)).toEqual(["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "HHH", "ZZ00", "ZZ01", "ZZ02"]);
+    expect(symbols()).toHaveLength(22);
     expect(screen.queryByLabelText("Summary")).toBeNull();                       // the design has no Companies found, Sectors, Median Technical or Active filters boxes
     expect(screen.getByText("22 companies in this result")).toBeTruthy();
     expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
-    expect(screen.getByText("1–10 of 22")).toBeTruthy();
+    expect(screen.getByText("1–22 of 22")).toBeTruthy();
+    expect((screen.getByLabelText("Rows per page") as HTMLSelectElement).value).toBe("25");
   });
 
-  it("the compare hint is worded for Silver (compares 2) and every group heading has a label that stays in view", () => {
+  it("no Compare row until the first tick; then the bottom bar (task #64, B-6); Technical sits inside the FinLit IQ group (B-2)", () => {
     st.plan = "silver"; open();
-    expect(document.querySelector(".sx-bulkhint")!.textContent).toMatch(/^Tick the box on 2 rows to compare them\./);
+    expect(document.querySelector(".sx-cbar")).toBeNull();
+    expect(screen.queryByText(/Tick the box/)).toBeNull();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select AAA" }));
+    const bar = screen.getByRole("region", { name: "Selected companies" });
+    expect(bar.textContent).toMatch(/1 selected/); expect(bar.textContent).toMatch(/Tick one more company to compare\./);
     const labs = [...document.querySelectorAll(".gh.tg-row th[data-g] .gh-lab")].map((e) => e.textContent);
-    expect(labs).toEqual(expect.arrayContaining(["Price & size", "FinLit IQ0–100", "Technical"]));
+    expect(labs).toEqual(["Price & size", "FinLit IQ0–100, higher is better"]);
+    expect(document.querySelector('.gh.tg-row th[data-g="iq"]')!.getAttribute("colspan")).toBe("6");
   });
   it("a Gold member never gets the Basic stock screener: its address opens the Advanced one (task #100)", () => {
     st.plan = "gold"; open();
@@ -119,7 +128,7 @@ describe("Basic stock screener page", () => {
     expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("14");
     fireEvent.click(screen.getByRole("checkbox", { name: /^Large cap/ }));      // Large caps: the 100 largest, here all 22 are Large
     await waitFor(() => expect(loc()).toContain("cap=Large"));
-    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("button", { name: "Quality Score Strong, the highest rating word" }));
     await waitFor(() => expect(loc()).toContain("qual=high"));
     await waitFor(() => { expect(symbols()).toEqual(["AAA", "BBB", "HHH"]); expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("0"); expect(count("IT")).toBe("0"); expect(count("Pharma")).toBe("1"); });   // the table follows the address a moment later (a deferred update), most visibly on a busy machine
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
@@ -139,14 +148,14 @@ describe("Basic stock screener page", () => {
   it("score bands and min-max are exact, and missing scores never pass", () => {
     open();
     const quality = screen.getByRole("group", { name: "Quality Score" }), growth = screen.getByRole("group", { name: "Growth Score" });
-    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score Strong, 78 and above" }));
+    fireEvent.click(within(quality).getByRole("button", { name: "Quality Score Strong, the highest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);                        // 78 is in, 77 (EEE) is out, GGG has no score
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, the lowest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual([]);                                           // both pillars must pass
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, under 45" }));
-    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Strong, 78 and above" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Watch, the lowest rating word" }));
+    fireEvent.click(within(growth).getByRole("button", { name: "Growth Score Strong, the highest rating word" }));
     fireEvent.submit(quality.closest("form")!);
     expect(symbols()).toEqual(["AAA", "BBB", "HHH"]);
     fireEvent.click(within(screen.getByRole("group", { name: "Quality Score" })).getByRole("checkbox", { name: "Quality Score" }));   // ticking enables Min and Max
@@ -185,7 +194,7 @@ describe("Basic stock screener page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove filter FinLit IQ rating: Strong, Not rated" }));
     await waitFor(() => expect(loc()).toBe("/score-screener"), { timeout: 10000 });
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Remove filter FinLit IQ rating/ })).toBeNull());   // the chip is gone before the next filter is set: on a slow machine the two raced
-    fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /78 and above/ }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Technical Score" })).getByRole("button", { name: /Strong, the highest rating word/ }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "CCC", "EEE"]), { timeout: 10000 });
     fireEvent.change(within(screen.getByRole("group", { name: "Total FinLit IQ Score" })).getByLabelText("Min"), { target: { value: "80" } });
     await waitFor(() => { expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/score-screener?t=high&omin=80"); });
@@ -214,15 +223,15 @@ describe("Basic stock screener page", () => {
     expect(symbols()).toEqual(["EEE", "GGG"]);                                // Auto only
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
     expect(loc()).toBe("/score-screener");
-    expect(symbols()).toHaveLength(10);
+    expect(symbols()).toHaveLength(22);
   });
 
   it("opens a shared link with its filters, sort and page", () => {
-    open("?cap=Large&sector=Metals&sort=name&dir=asc&size=5&page=2");
+    st.rows = MANY; open("?sector=Metals&sort=name&dir=asc&size=25&page=2");
     expect((sector("Metals") as HTMLInputElement).checked).toBe(true);
     expect(screen.getByRole("button", { name: "Sort by Stock" }).closest("th")!.getAttribute("aria-sort")).toBe("ascending");
     expect(screen.getByRole("button", { name: "Sort by FinLit IQ" }).closest("th")!.getAttribute("aria-sort")).toBe("none");
-    expect((screen.getByLabelText("Rows per page") as HTMLSelectElement).value).toBe("5");
+    expect((screen.getByLabelText("Rows per page") as HTMLSelectElement).value).toBe("25");
     expect(screen.getByRole("button", { name: "Page 2" }).getAttribute("aria-current")).toBe("page");
   });
 
@@ -238,27 +247,27 @@ describe("Basic stock screener page", () => {
   });
 
   it("selects rows, compares 2 and keeps the selection across pages", () => {
-    open("?size=5");
+    st.rows = MANY; open();
     const box = (s: string) => screen.getByRole("checkbox", { name: `Select ${s}` });
     fireEvent.click(box("AAA"));
     expect((screen.getByRole("button", { name: "Compare" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(box("BBB"));
-    expect(screen.getByText("2 selected")).toBeTruthy();
+    expect(screen.getAllByText("2 selected").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("2 selected")).toBeTruthy();
+    expect(screen.getAllByText("2 selected").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Compare 2" }));
     expect(loc()).toBe("/compare?c=AAA,BBB");
   });
 
   it("the header box selects the page and shows a partial state", () => {
-    open("?size=5");
+    st.rows = MANY; open();
     const head = screen.getByRole("checkbox", { name: "Select all companies on this page" }) as HTMLInputElement;
     fireEvent.click(head);
-    expect(screen.getByText("5 selected")).toBeTruthy();
+    expect(screen.getAllByText("25 selected").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("checkbox", { name: "Select AAA" }));
     expect(head.indeterminate).toBe(true);
     fireEvent.click(head);
-    expect(screen.getByText("5 selected")).toBeTruthy();
+    expect(screen.getAllByText("25 selected").length).toBeGreaterThan(0);
     fireEvent.click(head);
     expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
   });
@@ -284,6 +293,7 @@ describe("Basic stock screener page", () => {
 
   it("has no export buttons, only Compare and Add to watchlist", () => {
     open();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select AAA" }));
     expect(screen.queryByRole("button", { name: /Export/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Add to watchlist" })).toBeTruthy();
   });
@@ -323,7 +333,8 @@ describe("Basic stock screener page", () => {
     open();
     const heads = () => within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent);
     expect(heads().join("|")).not.toMatch(/52-week/);
-    fireEvent.click(screen.getByRole("button", { name: "Add 52-week and return columns" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Columns/ }));             // a Columns option, not a row of its own (task #64, B-4)
+    fireEvent.click(screen.getByRole("checkbox", { name: /52-week high and returns/ }));
     expect(heads().join("|")).toMatch(/3M return.*6M return.*1Y return.*Down from 52-week high/);
     const first = within(screen.getByRole("table")).getAllByRole("row")[2].textContent!;
     expect(first).toMatch(/\+12\.3%/); expect(first).toMatch(/−3\.2%/); expect(first).toMatch(/−4\.6%/);   // down from the high reads as a minus (task #62)
@@ -333,11 +344,12 @@ describe("Basic stock screener page", () => {
     expect(loc()).toMatch(/sort=pct_from_high/);
   });
 
-  it("opens and closes the How scores work dialog with the exact definitions", () => {
+  it("opens and closes the How FinLit IQ works dialog with the exact definitions", () => {
     open();
-    fireEvent.click(screen.getAllByRole("button", { name: /How scores work/ })[0]);
-    const d = screen.getByRole("dialog", { name: "How scores work" });
-    expect(d.textContent).toMatch(/Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45/);
+    fireEvent.click(screen.getAllByRole("button", { name: /How FinLit IQ works/ })[0]);
+    const d = screen.getByRole("dialog", { name: "How FinLit IQ works" });
+    expect(d.textContent).toMatch(/Strong, Healthy, Mixed and Watch/);
+    expect(d.textContent).not.toMatch(/78|62 to 77|45 to 61|under 45|average of/);              // the model's cut-offs and formula never show (task #64)
     expect(d.textContent).toMatch(/Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr/);
     expect(d.textContent).toMatch(/26 Oct 2026/);
     expect(d.textContent?.toLowerCase()).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target)\b/);
@@ -372,14 +384,16 @@ describe("Basic stock screener: no Prism", () => {
   it("has the FinLit columns only, in order", () => {
     open();
     const heads = within(screen.getByRole("table")).getAllByRole("columnheader").map((h) => h.textContent?.replace(/[▲▼▾]/g, "").trim());
-    expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["FinLit IQ", "Quality", "Growth", "Profit.", "Balance", "Technical"]));
+    expect(heads.map((h) => h?.replace(/ \?$/, ""))).toEqual(expect.arrayContaining(["FinLit IQ", "Quality", "Growth", "Profitability", "Balance sheet", "Technical"]));   // headings in full (task #64, B-3)
+    expect(heads).not.toContain("Sector");                                                // the sector sits under the company name
+    expect(document.querySelector(".sx-secn")!.textContent).toBe("Banks");
   });
-  it("shows its own Basic heading above the table, with a link to the Advanced stock screener (Gold)", () => {
+  it("the header is one line: the name, the plan, the score date, How FinLit IQ works and a link to the Advanced stock screener (Gold) (task #64, B-4)", () => {
     open();
-    const head = document.querySelector(".sx-here")!;
-    expect(head.textContent).toMatch(/Silver/); expect(head.textContent).toMatch(/Basic stock screener/);
-    expect(head.textContent).toMatch(/The FinLit IQ and the five scores it is made of/);
-    expect(head.textContent).not.toMatch(/4 financial-health parts/);
+    const head = document.querySelector(".sx-h1row")!;
+    expect(head.querySelector("h1")!.textContent).toBe("Basic stock screener"); expect(head.textContent).toMatch(/Silver/i);
+    expect(head.textContent).toMatch(/Scores: /);
+    expect(document.querySelector(".sx-here, .pzs-explain, .sx-colopt")).toBeNull();      // no separate box, no "What the FinLit IQ means" fold, no columns row
     const a = screen.getByRole("link", { name: /Advanced stock screener \(Gold\)/ });
     expect(a.getAttribute("href")).toBe("/advanced-score-screener");
   });
@@ -449,9 +463,11 @@ describe("Basic stock screener: no Prism", () => {
     expect(loc()).toBe("/score-screener?size=50");
   });
 
-  it("the sort select writes the same address as a column heading", () => {
+  it("the Sort button's menu writes the same address as a column heading (task #64, B-5)", () => {
     open();
-    fireEvent.change(screen.getByLabelText("Sort by"), { target: { value: "overall:-1" } });
+    expect(document.querySelector(".fgx-tool select")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Sort: / }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "FinLit IQ, high to low" }));
     expect(loc()).toContain("sort=overall&dir=desc");
     expect(symbols().slice(0, 3)).toEqual(["AAA", "BBB", "HHH"]);
   });

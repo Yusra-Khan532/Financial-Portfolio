@@ -73,8 +73,9 @@ async def test_views_are_private_to_their_owner(app):  # noqa: F811
 
 async def test_basic_plan_limits_are_enforced_on_the_server(app):  # noqa: F811
     c = await signed_in(app, "gv3@example.com")
-    r = await c.put("/api/me/graph-views/big", json=cfg("3x3"))
-    assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_limit"
+    assert (await c.put("/api/me/graph-views/big", json=cfg("g20"))).status_code == 200      # 20 charts on every plan (task #114)
+    assert (await c.put("/api/me/graph-views/big", json=cfg("g21"))).status_code == 422      # no layout past 20
+    await c.delete("/api/me/graph-views/big")                                                # (Basic keeps two saved views: free the slot again)
     r = await c.put("/api/me/graph-views/sc", json=cfg(cells=[{"chart": "scatter", "series": []}]))
     assert r.status_code == 403 and "scatter" in r.json()["detail"]["detail"]
     four = [{"s": "A", "m": "revenue"}, {"s": "A", "m": "net_profit"}, {"s": "A", "m": "eps"}, {"s": "A", "m": "pe"}]

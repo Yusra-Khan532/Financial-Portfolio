@@ -59,7 +59,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which screener should I use?",
-    "a": "Use this Stock screener when you want to combine many rules. The Basic stock screener (Silver) filters by the FinLit IQ, the Advanced stock screener (Gold) by the FinLit Prism rating, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
+    "a": "Use this Stock screener when you want to combine many rules. The score screener of your plan lists every company with your plan's score and its parts, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    },
    {
     "q": "What can I filter on?",
@@ -82,8 +82,8 @@ export const PAGE_FAQS: PageFaq[] = [
     "a": "Green cells are in the best quarter of all listed companies on that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
    },
    {
-    "q": "How do I add columns, save or download my results?",
-    "a": "Use Columns to choose what the table shows. Name your filters under Save as a screen to keep them; saved screens appear on your dashboard with the number of companies that match. Download exports the table."
+    "q": "How do I add columns or save my results?",
+    "a": "Use Columns to choose what the table shows. Name your filters under Save screen to keep them; saved screens appear under Ready-made screens, My screens, with the number of companies that match."
    },
    {
     "q": "Does a screen tell me what to buy?",
@@ -106,7 +106,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What do Strong, Healthy, Mixed and Watch mean?",
-    "a": "Strong is 78 and above, Healthy 62 to 77, Mixed 45 to 61 and Watch under 45. In the filters, Healthy and Mixed are grouped together as 45 to 77."
+    "a": "They are the FinLit IQ's four rating words, from the highest: Strong, Healthy, Mixed and Watch. They describe the company's financial health from its filings and prices; they are not advice."
    },
    {
     "q": "What do the Quick views do?",
@@ -1007,23 +1007,23 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Can I have more than one list?",
-    "a": "Yes. Select + New list and switch between your lists at the top."
+    "a": "Yes. Select + New list and switch between your lists at the top. Rename or delete the list you are on with the links under them."
    },
    {
     "q": "How do I group and sort my stocks?",
-    "a": "Bucket by industry, company size, FinLit band or style, and sort by FinLit IQ, today's change, market cap, P/E, dividend yield or name."
+    "a": "Group by Against peers, Industry or Size with the buttons over the table, and select a column name (Company, Price, P/E, ROE, Size, the score or Against peers) to sort by it. Select it again to reverse the order."
    },
    {
     "q": "What are targets and notes for?",
     "a": "Your own reminders: set a target price and a note on why you are watching. Targets are not predictions, and FinLit does not tell you when to buy or sell."
    },
    {
-    "q": "What does “Need a second look” count?",
-    "a": "Stocks in the list with a flag worth checking, such as a weak FinLit band, a weak balance sheet, a big fall in a month, a high P/E or a price near your target."
+    "q": "What does \"Need a second look\" count?",
+    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer tag yet. They describe the figures; they are not advice."
    },
    {
     "q": "Can I set an alert from here?",
-    "a": "Yes. Select Alert on a stock to create one. Remove takes it off the list."
+    "a": "Yes. Select the bell on a stock to create an alert, or use “Tell me when a label changes” to hear when a stock on the list becomes a Leader, In line or a Laggard after the weekly check. The bin takes a stock off the list."
    },
    {
     "q": "Where are my lists saved?",

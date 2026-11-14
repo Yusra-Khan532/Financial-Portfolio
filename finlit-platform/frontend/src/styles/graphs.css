@@ -68,3 +68,4 @@
 .gx-cell .csay > summary { min-height: 56px; }
 .gx-cell .csay-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gx-cell .csay-t { min-width: 0; }
+.gx-count { font: 600 13px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; } .gx-max { font-size: 13px; color: var(--warn); }

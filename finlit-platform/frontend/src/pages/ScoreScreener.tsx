@@ -7,7 +7,7 @@ import { IQ_SUB, IQ_TITLE, IqScoreRows, iqActive } from "../components/screener/
 import { Donut } from "../components/screener/PageParts";
 import { Score } from "../components/screener/cells";
 import { useScreener } from "../components/screener/useScreener";
-import { PRICE_COL_COUNT, PriceCells, PriceColumnsToggle, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
+import { ColumnsMenu, PRICE_COL_COUNT, PriceCells, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
 import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
@@ -16,7 +16,6 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { nf, dateIN } from "../lib/format";
 import { PILLARS, hasPrismParams } from "../lib/scoreScreen";
-import { EXPLAIN } from "../lib/scorePrism";
 import { useIsGold } from "../lib/planGate";
 import "../styles/scorescreen.css";
 
@@ -47,7 +46,9 @@ function Basic() {
   return (
     <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic stock screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
       intro={<>Every listed company with its <b>FinLit IQ</b> and the five scores it is made of. Filter, sort and compare by size, sector and score.</>}
-      head={{ art: "rating", links: [], stats: [{ icon: "building", value: !isLoading && s.items.length > 0 ? nf(s.items.length, 0) : null, label: "Companies" }, { icon: "quality", value: !isLoading && s.items.length > 0 ? nf(s.items.length - s.unscored, 0) : null, label: "Scored" }] }}
+      dateLine={asOf ? `Scores: ${dateIN(asOf)}` : null} howTitle="How FinLit IQ works"
+      headLink={<Link to="/advanced-score-screener" className="sx-hlink" aria-label="Advanced stock screener (Gold)">Advanced stock screener <TierChip tier="gold" /></Link>}
+      columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
       tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
       donut={!isLoading && s.rows.length > 0 ? <Donut part={s.rows.length - notScored} total={s.rows.length} partLabel="Scored" restLabel="Not scored" title={notScored > 0 ? `${nf(notScored, 0)} of ${nf(s.rows.length, 0)} companies in this result are not scored yet.` : `All ${nf(s.rows.length, 0)} companies in this result are scored.`} note="Scoring fills in every night, or open a company's report to score it now." /> : undefined}
       presets={null} screens={<ScreensStrip route={route} />}
@@ -64,26 +65,15 @@ function Basic() {
         <FilterGroup id="high" icon="line" title="Down from 52-week high" active={highActive(s)}><HighFilter s={s} /></FilterGroup>
       </>)}
       tiles={[]}
-      lead={<div className="sx-adv sx-here">
-        <span className="sx-adv-t"><TierChip tier="silver" /><b>Basic stock screener</b></span>
-        <span className="sx-adv-s">The FinLit IQ and the five scores it is made of</span>
-        <Link to="/advanced-score-screener" className="sx-adv-go">Advanced stock screener (Gold) <Icon name="arrow" /></Link></div>}
-      beforeTable={<>
-        <PriceColumnsToggle on={priceCols} set={setPriceCols} />
-        <details className="pzs-explain">
-          <summary>What the FinLit IQ means</summary>
-          <div className="pzs-two"><div><b>FinLit IQ</b><p>{EXPLAIN.finlit}</p></div></div>
-        </details>
-      </>}
-      groupHead={<GroupRow groups={[{ g: "iq", n: 5, label: "FinLit IQ", sub: "0–100" }, { g: "tech", n: 1, label: "Technical" },
+      groupHead={<GroupRow groups={[{ g: "iq", n: 6, label: "FinLit IQ", sub: "0–100, higher is better" },
         ...(priceCols ? [{ g: "range", n: PRICE_COL_COUNT, label: "52 weeks & returns" }] : [])]} />}
       columnHeads={<>
         <SortTh s={s} k="overall" label="FinLit IQ" of="FinLit IQ" />
-        {PILLARS.map((x) => <SortTh key={x.k} s={s} k={x.col} label={x.short} of="FinLit IQ" cls="ss-ph" title={x.say} />)}
+        {PILLARS.map((x) => <SortTh key={x.k} s={s} k={x.col} label={x.label} of="FinLit IQ" cls="ss-ph" title={x.say} />)}
         <SortTh s={s} k="t" label="Technical" of="FinLit IQ" />
         {priceCols && <PriceHeads s={s} />}
       </>}
-      colSpan={13 + (priceCols ? PRICE_COL_COUNT : 0)}
+      colSpan={12 + (priceCols ? PRICE_COL_COUNT : 0)}
       cells={(r) => <>
         <td><Score r={r} k="overall" locked={locked} /></td>
         {PILLARS.map((x) => <td key={x.k} className="ss-pc"><Score r={r} k={x.col} locked={locked} /></td>)}
@@ -91,12 +81,13 @@ function Basic() {
         {priceCols && <PriceCells r={r} />}
       </>}
       plain="A score screen narrows a long list. It describes financial health and price trend from filings and prices; it is not a recommendation. Open a company's report to see why a score looks the way it does."
-      how={<HowDialog onClose={() => s.setHow(false)}>
+      how={<HowDialog title="How FinLit IQ works" onClose={() => s.setHow(false)}>
+        <p><Link to="/glossary/finlit-iq">What the FinLit IQ means</Link>: the glossary entry, with its five parts in words.</p>
         <p>Every score runs from 0 to 100 and is worked out from a company's filed statements and its prices. Nothing on this page is computed differently from the company's own report page.</p>
         <dl>
-          <dt>Technical</dt><dd>The technical pillar: how the price is trending against its 50 and 200 day averages, and its momentum.</dd>
-          <dt>Overall</dt><dd>The FinLit IQ shown on every company page: the average of the pillar scores that are available, rounded to a whole number.</dd>
-          <dt>Bands</dt><dd>Strong 78 and above, Healthy 62 to 77, Mixed 45 to 61, Watch under 45. The filter groups Healthy and Mixed together as 45 to 77. Bands use whole numbers: 44 is Watch, 45 is Mixed, 77 is Healthy, 78 is Strong.</dd>
+          <dt>Technical</dt><dd>The fifth part of the FinLit IQ, 0 to 100: the price trend.</dd>
+          <dt>Overall</dt><dd>The FinLit IQ shown on every company page, 0 to 100, from its filed statements and prices.</dd>
+          <dt>Bands</dt><dd>Four rating words, from the highest: Strong, Healthy, Mixed and Watch. The model's cut-offs stay with the model; the filter sends the words and the server applies them.</dd>
           <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Missing data</dt><dd>A dash or a lock means the figure is not available (not scored yet, not enough data, or not in your plan). It never counts as a pass and is never treated as zero.</dd>
           <dt>Data date</dt><dd>{asOf ? <>Newest scores were computed on {dateIN(asOf)}. </> : <>The score date is not available right now. </>}Scores refresh every night; prices come from the latest market refresh.</dd>

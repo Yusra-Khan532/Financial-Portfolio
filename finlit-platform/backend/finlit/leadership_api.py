@@ -24,7 +24,7 @@ from . import indices
 from .auth.routes import Ctx, admin_ctx
 from .auth.service import current
 from .background import etag_matches
-from .leadership import STALE_AFTER_RUNS, UNRANKED_TEXT, Prices, display, pending_line, reliability_sentence, top_count
+from .leadership import REASON_TEXT, STALE_AFTER_RUNS, UNRANKED_TEXT, Prices, display, pending_line, reliability_sentence, top_count
 from .store import Store
 
 router = APIRouter()
@@ -111,6 +111,46 @@ def shape(row: dict, rel: Optional[dict], peers: List[dict], unranked: Optional[
         "fundamentalNote": row["fundamental"], "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "labelSince": _day(row["label_since"]),
         "sectorReliability": reliability, "display": shown, "peers": peers, "notRanked": unranked or [], "runs52": runs,
     }
+
+
+MAX_LIST = 300   # symbols per watchlist call; the page asks in pieces for longer lists
+
+
+def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
+    """One stock of a watchlist: its published label and the figures the Watchlists page shows (rank, group, the 12-month gap to the sector benchmark,
+    the business-score rank), or why it has none, in words. The same numbers as /api/stocks/{symbol}/leadership, without the peers."""
+    if row is None:
+        why = reason or "history"
+        return {"available": False, "reason": why, "text": UNRANKED_TEXT.get(why) or REASON_TEXT.get(why) or "Not compared this week"}
+    return {"available": True, "label": row["label"], "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
+            "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
+            "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS}
+
+
+@router.get("/api/leadership/list")
+async def leadership_list(request: Request, symbols: str = Query("", max_length=MAX_LIST * 26)) -> Response:
+    """The Leader / In line / Laggard label of every stock on a watchlist in one read (the Watchlists page). Open to the same callers as the stock page's label:
+    it describes past price performance only. Unknown or malformed symbols are left out."""
+    started = time.perf_counter()
+    syms: List[str] = []
+    for s in symbols.split(","):
+        s = s.strip().upper()
+        if s and SYMBOL.match(s) and s not in syms:
+            syms.append(s)
+    if len(syms) > MAX_LIST:
+        return _bad("too_many_symbols")
+    store: Store = request.app.state.store
+    shown = await gate(request, store)
+    if shown is None:
+        return _hidden(request, started)
+    async with store.pool.acquire() as conn:
+        as_of = await conn.fetchval("SELECT max(as_of) FROM leadership")
+        if as_of is None:
+            return _reply(request, {"available": False, "reason": "pending"}, started, cache=PRIVATE)
+        rows = {r["symbol"]: dict(r) for r in await conn.fetch("SELECT * FROM leadership WHERE symbol = ANY($1::text[])", syms)} if syms else {}
+        missing = [s for s in syms if s not in rows]
+        why = {r["symbol"]: r["reason"] for r in await conn.fetch("SELECT symbol, reason FROM leadership_excluded WHERE symbol = ANY($1::text[])", missing)} if missing else {}
+    return _reply(request, {"available": True, "asOf": _day(as_of), "rows": {s: list_row(rows.get(s), why.get(s)) for s in syms}}, started, cache=CACHE if shown else PRIVATE)
 
 
 @router.get("/api/stocks/{symbol}/leadership")

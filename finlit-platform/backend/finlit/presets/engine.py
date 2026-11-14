@@ -84,8 +84,9 @@ class Frame:
     def get_raw(self, i: int, name: str) -> Any:
         if name in self.t.cols:
             v = self.t.cols[name][i]
-            return v if v == v else None
-        z = self.pz[i]
+            if v == v or not name.startswith("prism_"):
+                return v if v == v else None
+        z = self.pz[i]     # the screen's own Prism fields (the screener table's Prism columns may be empty where this frame brings them)
         return z.get(name)
 
     # ---- fields
@@ -106,7 +107,8 @@ class Frame:
         t = self.t
         if name in t.cols:
             v = t.cols[name][i]
-            return v if v == v else None
+            if v == v or not name.startswith("prism_"):
+                return v if v == v else None
         if name.startswith("cap:"):
             v = self.get(i, name[4:])
             lo_hi = self.caps.get(name[4:])

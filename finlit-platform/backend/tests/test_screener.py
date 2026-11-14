@@ -15,7 +15,9 @@ def test_catalogue_is_consistent():
     assert len({m.key for m in CATALOG}) == len(CATALOG) >= 150
     groups = {g for g, _ in GROUPS}
     assert all(m.group in groups and m.tier in ("basic", "silver", "gold") and m.unit for m in CATALOG)
-    assert {m.key for m in CATALOG if m.group == "model"} and all(m.tier == "gold" for m in CATALOG if m.group == "model")
+    assert {m.key for m in CATALOG if m.group == "model"} and all(m.tier == "silver" for m in CATALOG if m.group == "model")   # the FinLit IQ is Silver's
+    assert {m.key for m in CATALOG if m.group == "prism"} and all(m.tier == "gold" for m in CATALOG if m.group == "prism")    # FinLit Prism is Gold's
+    assert not any(w in m.say.lower() for m in CATALOG if m.group in ("model", "prism") for w in ("average of", "weight", "percentile", "cut-off"))   # no model formula (task #64 P-2)
     assert sum(1 for m in CATALOG if m.tier == "basic") >= 10
 
 
@@ -100,16 +102,16 @@ async def test_plan_gate(app):  # noqa: F811
         assert (await _q(anon, {"columns": ["overall"]})).status_code == 403          # cannot read locked data through columns either
         assert (await _q(anon, {"sort": {"key": "pb"}})).status_code == 403            # nor through sorting
         assert (await _q(anon, {"cats": {"band": ["strong"]}})).status_code == 403
-        assert (await anon.post("/api/screener/export", json={})).status_code == 403
+        assert (await anon.post("/api/screener/export", json={})).status_code in (404, 405)   # no downloads on any plan (task #64 P-3)
         assert (await _q(anon, {"filters": {"nonsense": {"min": 1}}})).status_code == 422
     silver = await signed_in(app, "s@example.com", plan="silver")
     assert (await _q(silver, {"filters": {"pb": {"max": 50}}, "columns": ["pb"]})).status_code == 200
-    assert (await _q(silver, {"filters": {"overall": {"min": 10}}})).status_code == 403   # FinLit model filters are Gold
-    r = await silver.post("/api/screener/export", json={"columns": ["pe", "roe"]})
-    assert r.status_code == 200 and r.text.startswith("﻿Symbol,Company")
+    ok = await _q(silver, {"filters": {"overall": {"min": 0}}, "columns": ["overall", "pillar_quality"], "cats": {"band": ["mixed", "strong", "healthy", "watch"]}})
+    assert ok.status_code == 200 and ok.json()["total"] >= 1 and any(r["band"] for r in ok.json()["rows"])   # the FinLit IQ filters are Silver's (task #64)
+    assert (await _q(silver, {"filters": {"prism_final": {"min": 10}}})).status_code == 400   # FinLit Prism is not part of Silver's score
     gold = await signed_in(app, "g@example.com", plan="gold")
-    ok = await _q(gold, {"filters": {"overall": {"min": 0}}, "columns": ["overall", "pillar_quality"], "cats": {"band": ["mixed", "strong", "healthy", "watch"]}})
-    assert ok.status_code == 200 and ok.json()["total"] >= 1 and any(r["band"] for r in ok.json()["rows"])
+    assert (await _q(gold, {"filters": {"overall": {"min": 0}}})).status_code == 400          # Gold never filters by the FinLit IQ
+    assert (await gold.post("/api/screener/export", json={"columns": ["pe", "roe"]})).status_code in (404, 405)
 
 
 # ---------------------------------------------------------------- annual operating profit (item 2)
@@ -222,4 +224,5 @@ async def test_default_view_is_company_market_cap_and_price(app):  # noqa: F811
         assert r.status_code == 200 and r.json()["columns"] == ["market_cap", "price"]
     gold = await signed_in(app, "g2@example.com", plan="gold")
     assert (await _q(gold, {"limit": 5})).json()["columns"] == ["market_cap", "price"]       # the same default for every plan; filters add columns
-    assert (await _q(gold, {"columns": ["overall"], "limit": 5})).status_code == 200            # Gold columns still work for Gold
+    assert (await _q(gold, {"columns": ["prism_final"], "limit": 5})).status_code == 200        # Gold's FinLit Prism columns work for Gold
+    assert (await _q(gold, {"columns": ["overall"], "limit": 5})).status_code == 400            # and Gold never reads the FinLit IQ (task #64 P-1)

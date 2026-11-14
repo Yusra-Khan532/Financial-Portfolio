@@ -191,7 +191,7 @@ describe("summary", () => {
 describe("URL state", () => {
   it("round-trips every control", () => {
     const f = emptyFilters(); f.caps = ["Large", "Mid"]; f.sectors = ["IT", "Banks, Private"]; f.bands.f = ["mixed", "healthy", "high"]; f.bands.b = ["low"]; f.ranges.t = { min: 40, max: 90.5 }; f.ranges.o = { min: null, max: 80 };
-    const s = { filters: f, sort: { key: "f" as const, dir: 1 as const }, size: 20, page: 2 };
+    const s = { filters: f, sort: { key: "f" as const, dir: 1 as const }, size: 50, page: 2 };
     const qs = serializeState(s).toString();
     expect(parseState(new URLSearchParams(qs))).toEqual(s);
   });
@@ -208,7 +208,7 @@ describe("URL state", () => {
     expect(s.filters.ranges.f).toEqual({ min: null, max: null });
     expect(s.filters.ranges.t).toEqual({ min: 0, max: 100 });
     expect(s.filters.ranges.o).toEqual({ min: 20, max: 80 });
-    expect(s.sort).toEqual(DEFAULT_SORT); expect(s.size).toBe(10); expect(s.page).toBe(0);
+    expect(s.sort).toEqual(DEFAULT_SORT); expect(s.size).toBe(25); expect(s.page).toBe(0);
   });
 });
 
@@ -313,7 +313,7 @@ describe("technical view bands", () => {
   it("chips, address and removal", () => {
     const f = emptyFilters(); f.tech.st = ["neg", "pos"]; f.tech.lt = ["neutral"];
     expect(chipsFor(f).map((c) => c.label)).toEqual(["Short-term technical: Uptrend, Downtrend", "Long-term technical: Sideways"]);
-    const qs = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 }).toString();
+    const qs = serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 }).toString();
     expect(qs).toBe("st=pos%2Cneg&lt=neutral");
     expect(parseState(new URLSearchParams(qs)).filters.tech).toEqual({ st: ["pos", "neg"], lt: ["neutral"] });
     expect(parseState(new URLSearchParams("st=bogus&lt=")).filters.tech).toEqual({ st: [], lt: [] });
@@ -350,7 +350,7 @@ describe("Prism chips, address and summary", () => {
   });
   it("round-trips through the address and ignores junk", () => {
     const f = emptyFilters(); f.labels = ["STRONG", "NOT RATED"]; f.rated = true; f.ranges.z = { min: 40, max: 90 }; f.ranges.zv = { min: 55, max: null };
-    const s = { filters: f, sort: { key: "prism_quality" as const, dir: 1 as const }, size: 20, page: 1 };
+    const s = { filters: f, sort: { key: "prism_quality" as const, dir: 1 as const }, size: 50, page: 1 };
     const qs = serializeState(s).toString();
     expect(qs).toContain("pl=strong%2Cnotrated"); expect(qs).toContain("rated=1");
     expect(parseState(new URLSearchParams(qs))).toEqual(s);
@@ -425,7 +425,7 @@ describe("Top 10 large / mid / small caps by FinLit IQ", () => {
   });
   it("the address keeps the screen (top=10 with the size class) and a shared link opens it", () => {
     const f = topOf("Mid");
-    const qs = serializeState({ filters: f, sort: { key: "overall", dir: -1 }, size: 10, page: 0 });
+    const qs = serializeState({ filters: f, sort: { key: "overall", dir: -1 }, size: 25, page: 0 });
     expect(qs.get("top")).toBe("10"); expect(qs.get("cap")).toBe("Mid");
     const back = parseState(new URLSearchParams(qs.toString()), "basic");
     expect(back.filters.top).toBe(10);
@@ -449,7 +449,7 @@ describe("the two valuation views split at 50 (issue 30.b)", () => {
   it("the weak view is recognised again from its address and says 'below 50'", () => {
     const f = withPrismPreset(emptyFilters(), PRISM_PRESETS.find((p) => p.id === "weakvalue")!);
     expect(activePrismPreset(f)).toBe("weakvalue");
-    const qs = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 }).toString();
+    const qs = serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 }).toString();
     expect(qs).toContain("zvlt=50"); expect(qs).not.toContain("zvmax");
     const back = parseState(new URLSearchParams(qs), "advanced").filters;
     expect(activePrismPreset(back)).toBe("weakvalue"); expect(back.ranges.zv).toEqual({ min: null, max: 50, maxExcl: true });
@@ -490,7 +490,7 @@ describe("Basic FinLit IQ rating chips, Technical and Total rows", () => {
   });
   it("URL round trip: ?iql=, ?ovr=, ?omin= and the Technical keys; Prism links are not touched", () => {
     const f = emptyFilters(); f.iqLabels = ["watch", "strong"]; f.bands.o = ["high", "low"]; f.bands.t = ["mixed", "healthy"]; f.ranges.o = { min: 40, max: 90 }; f.ranges.t = { min: 10, max: null };
-    const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 });
+    const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 });
     expect(p.get("iql")).toBe("strong,watch"); expect(p.get("ovr")).toBe("low,high"); expect(p.get("t")).toBe("mixed,healthy"); expect(p.get("omin")).toBe("40"); expect(p.get("tmin")).toBe("10");
     const back = parseState(new URLSearchParams(p.toString()), "basic").filters;
     expect(back.iqLabels).toEqual(["strong", "watch"]); expect(back.bands.o).toEqual(["low", "high"]); expect(back.ranges.o).toEqual({ min: 40, max: 90 }); expect(filtersKey(back)).toBe(filtersKey(f));
@@ -526,7 +526,7 @@ describe("band chips as a Min - Max range (Advanced rows)", () => {
   });
   it("URL round trip of a chip-set range (zvlt / zmin)", () => {
     const f = emptyFilters(); f.ranges.zv = bandsToRange(["low"]); f.ranges.zq = bandsToRange(["mixed", "healthy", "high"]);
-    const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 });
+    const p = serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 });
     expect(p.get("zvlt")).toBe("45"); expect(p.get("zqmin")).toBe("45");
     const back = parseState(p, "advanced").filters;
     expect(rangeToBands(back.ranges.zv)).toEqual(["low"]); expect(rangeToBands(back.ranges.zq)).toEqual(["mixed", "healthy", "high"]);

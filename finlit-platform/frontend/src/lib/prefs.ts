@@ -6,7 +6,7 @@ import { isPalette, type PaletteId } from "./palettes";
 export type Density = "comfortable" | "compact";
 export type WidgetSize = "third" | "half" | "full";
 export type WidgetPref = { id: string; on: boolean; size: WidgetSize };
-export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; screenAlerts: boolean; profitGap: boolean; rotationCorner: boolean; rotationRank: boolean; digest: boolean; dashboard: WidgetPref[] };
+export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; screenAlerts: boolean; profitGap: boolean; rotationCorner: boolean; rotationRank: boolean; digest: boolean; dashboard: WidgetPref[]; /** industries watched from an industry page ("Add to watch"): their Sector Rotation alerts come too */ sectorWatch: string[] };
 
 /** The phone's three tabs, each holding some of the blocks. */
 export type DashTab = "stocks" | "market" | "news";
@@ -20,9 +20,10 @@ export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" |
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", tab: "market" },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", tab: "market" },
   { id: "sectors", label: "Sectors today", blurb: "Every sector's move today, ranked.", min: "basic", size: "half", tab: "market" },
+  { id: "marketread", label: "The market: what it adds up to", blurb: "Six readings of the day (breadth, big moves, which sizes lead, short and bigger trends, industries) and what they add up to.", min: "basic", size: "full", tab: "market" },
   { id: "flows", label: "FII / DII flows", blurb: "Net buying and selling by foreign and domestic institutions.", min: "basic", size: "half", tab: "market" },
   { id: "portfolio", label: "Your portfolio at a glance", blurb: "Average FinLit Prism score, score colours, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", tab: "stocks" },
-  { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks" },
+  { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks", off: true },
   { id: "heatmap", label: "Index heatmap", blurb: "Stocks of an index as a map or a list, coloured by today's move.", min: "basic", size: "full", tab: "market" },
   { id: "resultstoday", label: "Results today", blurb: "Companies that have filed, or are due to report, results.", min: "basic", size: "half", tab: "news" },
   { id: "filings", label: "Filings and news", blurb: "The latest exchange filings, tagged and shortened to one line.", min: "basic", size: "half", tab: "news" },
@@ -37,13 +38,15 @@ export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" |
   { id: "commodities", label: "Gold & silver today", blurb: "MCX gold, silver and crude oil with the day change. Off until a licensed price source is connected.", min: "basic", size: "half", tab: "market", off: true },
 ];
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout() };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [] };
 
 const KEY = "finlit-prefs-v1";
 /** A saved layout, cleaned: only known blocks, each once, every block present. A layout saved before the refreshed dashboard (it has no "Your stocks today") is replaced by the new default. */
 export function normaliseLayout(saved: WidgetPref[] | undefined | null): WidgetPref[] {
   const known = new Map(WIDGETS.map((w) => [w.id, w]));
   if (!(saved ?? []).some((w) => w?.id === "mystocks")) return defaultLayout();
+  // A layout saved before the final pages pack (13 Nov 2026) has no "marketread": the pack's dashboard has no Stress Lab block, so it is switched off once (it stays in Customise).
+  if (!(saved ?? []).some((w) => w?.id === "marketread")) saved = (saved ?? []).map((w) => (w?.id === "stress" ? { ...w, on: false } : w));
   const seen = new Set<string>();
   const dash: WidgetPref[] = [];
   for (const w of saved ?? []) if (w && known.has(w.id) && !seen.has(w.id)) { seen.add(w.id); dash.push({ id: w.id, on: !!w.on, size: w.size === "full" ? "full" : w.size === "third" ? "third" : "half" }); }
@@ -57,7 +60,7 @@ export function normaliseLayout(saved: WidgetPref[] | undefined | null): WidgetP
   return dash;
 }
 function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
-  return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: normaliseLayout(raw?.dashboard) };
+  return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: normaliseLayout(raw?.dashboard), sectorWatch: [...new Set((Array.isArray(raw?.sectorWatch) ? raw!.sectorWatch : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 60) };
 }
 function read(): Prefs { try { return normalise(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { return normalise(null); } }
 

@@ -22,6 +22,9 @@ import "../../../styles/presets.css";
 import { CoLogo } from "../../CoLogo";
 import { INFO, INFO_ASON, INFO_ASON_GAINERS, INFO_BAND_LIST, INFO_BAND_SCREEN, INFO_LEFT, INFO_START, PsxInfo } from "./PsxInfo";
 
+/** What Top gainers says while fewer than two closes are stored (task #64, D-2: the handover's words). */
+export const GAINERS_EMPTY = "No company has joined a list since FinLit began storing lists on 11 Nov 2026. Top gainers fills in from the next close.";
+
 const STATE_WORD: Record<Theme["state"], string> = { in_play: "In play", emerging: "Emerging", fading: "Fading", closest: "Closest to qualifying" };
 const signed = (v: number, d = 1) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d);
 const BADGE_TONE: Record<string, string> = { "prism-confirmed": "good", provisional: "warn", "loss-making": "warn", "closest to qualifying": "info", "trend not confirmed": "warn", "not rated by prism": "plain" };
@@ -241,8 +244,8 @@ export function ScreenView({ route }: { route: PresetRoute }) {
       <button type="button" className="btn primary" onClick={() => upgrade(plan, `Prebuilt screens on this page are part of ${planName}.`)}>Unlock with {planName} <Icon name="arrow" /></button></div><Disclaimer /></Frame>);
   if (err instanceof ApiError && err.status === 404 && err.body.status === "no_history") return (
     <Frame route={route} name={name} cardText={preset?.cardText}>
-      <div className="psx-state" role="status"><h2>{asOn ? "Nothing is stored for that day" : preset?.kind === "gainers" ? "Top gainers has not started yet" : "No list is stored yet"}</h2>
-        <p>{preset?.kind === "gainers" ? (asOn ? `No Top gainers are stored for the close of ${dayLabel(asOn)}. Pick another date, or go back to the latest close.` : "Top gainers starts once FinLit has stored a few days of screen lists. Lists have been stored since 11 Nov 2026.")
+      <div className="psx-state" role="status"><h2>{asOn ? "Nothing is stored for that day" : preset?.kind === "gainers" ? "No company has joined a list yet" : "No list is stored yet"}</h2>
+        <p>{preset?.kind === "gainers" ? (asOn ? `No Top gainers are stored for the close of ${dayLabel(asOn)}. Pick another date, or go back to the latest close.` : GAINERS_EMPTY)
           : `This screen has no stored list for ${asOn ? dayLabel(asOn) : "that day"}. Lists have been stored since 11 Nov 2026.`}</p>
         {asOn && <button type="button" className="btn" onClick={() => setAsOnDay(null)}>Back to the latest close</button>}
         <button type="button" className="fgx-link" onClick={route.clear}>Back to the screens</button></div><Disclaimer /></Frame>);

@@ -53,7 +53,7 @@ describe("overlay surfaces", () => {
   });
 
   it("the main dialog, menu, popover and tooltip classes all use the opaque surface rule", () => {
-    for (const c of ["alx-modal", "modal", "palette", "pop", "dl-menu", "nt-p", "ddm", "alx-dd", "toast", "alx-toast", "ai", "qb-drawer", "ld-tip", "chh-p", "cb-menu", "pk-m", "sf-panel", "etf-pop", "mf-cols-pop", "scr-colmenu", "mk-dd-m", "pm-sug", "etf-tray", "mf-tray", "wl-dock", "mtabs"]) expect(covered.has(c), c).toBe(true);
+    for (const c of ["alx-modal", "modal", "palette", "pop", "dl-menu", "nt-p", "ddm", "alx-dd", "toast", "alx-toast", "ai", "qb-drawer", "ld-tip", "chh-p", "cb-menu", "pk-m", "sf-panel", "etf-pop", "mf-cols-pop", "scr-colmenu", "mk-dd-m", "pm-sug", "etf-tray", "mf-tray", "wp-dock", "mtabs"]) expect(covered.has(c), c).toBe(true);
   });
 
   it("every translucent floating rule elsewhere belongs to a class overlay.css makes opaque", () => {

@@ -10,7 +10,7 @@ export type Cap = "Large" | "Mid" | "Small";
 export type Band = "low" | "mixed" | "healthy" | "high";   // Watch, Mixed, Healthy, Strong (an older link or saved screen may say "mid": Mixed and Healthy together)
 export type Pillar = "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance";
 /** `ret_3m`, `ret_6m` and `pct_from_high` feed the optional 52-week and return columns: read from the stored screener numbers, blank without enough price history. */
-export type Item = Row & { cap: Cap | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
+export type Item = Row & { cap: Cap | null; /** Leader / In line / Laggard among its peers (Gold list only, while the label is switched on), and "3 of 13 IT peers". */ lead?: "leader" | "in_line" | "laggard" | null; lead_line?: string | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
 export type BandKey = "f" | "t" | "o" | "q" | "g" | "p" | "b";   // o: the overall FinLit IQ ("Total FinLit IQ Score" row of the Basic panel)
 export type RangeKey = "f" | "t" | "o" | "q" | "g" | "p" | "b" | "dh" | PrismRangeKey;   // q g p b: the four pillars (min and max boxes in the Basic screener)
 export type SortKey = "name" | "price" | "market_cap" | "sector" | "f" | "t" | "overall" | Pillar | PrismCol | "ret_3m" | "ret_6m" | "return_1y" | "pct_from_high";
@@ -43,10 +43,10 @@ export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", 
 export const SHARED_RANGES: RangeKey[] = ["dh"];
 /** The four score bands, as the FinLit model and the whole site name them: Watch under 45, Mixed 45 to 61, Healthy 62 to 77, Strong 78 and above. */
 export const BANDS: Record<Band, { label: string; short: string; word: string; min: number; max: number }> = {
-  low: { label: "Under 45 (Watch)", short: "<45", word: "Watch", min: 0, max: 44 },
-  mixed: { label: "45 to 61 (Mixed)", short: "45–61", word: "Mixed", min: 45, max: 61 },
-  healthy: { label: "62 to 77 (Healthy)", short: "62–77", word: "Healthy", min: 62, max: 77 },
-  high: { label: "78 and above (Strong)", short: "78+", word: "Strong", min: 78, max: 100 },
+  low: { label: "Watch", short: "Watch", word: "Watch", min: 0, max: 44 },
+  mixed: { label: "Mixed", short: "Mixed", word: "Mixed", min: 45, max: 61 },
+  healthy: { label: "Healthy", short: "Healthy", word: "Healthy", min: 62, max: 77 },
+  high: { label: "Strong", short: "Strong", word: "Strong", min: 78, max: 100 },
 };
 export const BAND_ORDER: Band[] = ["low", "mixed", "healthy", "high"];
 
@@ -55,7 +55,7 @@ export const BAND_ORDER: Band[] = ["low", "mixed", "healthy", "high"];
 export type IqLabel = "strong" | "healthy" | "mixed" | "watch" | "notrated";
 export const IQ_LABELS: IqLabel[] = ["strong", "healthy", "mixed", "watch", "notrated"];
 export const IQ_LABEL_WORD: Record<IqLabel, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", notrated: "Not rated" };
-export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "FinLit IQ 78 and above", healthy: "FinLit IQ 62 up to 78", mixed: "FinLit IQ 45 up to 62", watch: "FinLit IQ under 45", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
+export const IQ_LABEL_SAY: Record<IqLabel, string> = { strong: "The FinLit IQ's highest rating word", healthy: "The FinLit IQ's second rating word", mixed: "The FinLit IQ's third rating word", watch: "The FinLit IQ's lowest rating word", notrated: "No FinLit IQ yet (not scored, or not enough data)" };
 export const iqLabelOf = (v: number | null | undefined): IqLabel => (v == null || !Number.isFinite(v) ? "notrated" : v >= 78 ? "strong" : v >= 62 ? "healthy" : v >= 45 ? "mixed" : "watch");
 export const FUNDAMENTAL = ["pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance"] as const;
 export const PILLARS: { k: "q" | "g" | "p" | "b"; col: Pillar; label: string; short: string; say: string }[] = [
@@ -65,7 +65,7 @@ export const PILLARS: { k: "q" | "g" | "p" | "b"; col: Pillar; label: string; sh
   { k: "b", col: "pillar_balance", label: "Balance sheet", short: "Balance", say: "Debt, interest cover and liquidity." },
 ];
 export const NAMES: Record<BandKey | RangeKey, string> = { f: "Growth & Profitability", t: "Technical", q: "Quality", g: "Growth", p: "Profitability", b: "Balance sheet", o: "Total FinLit IQ", dh: "Down from 52-week high", ...PRISM_NAMES };
-export const PAGE_SIZES = [5, 10, 20, 50];
+export const PAGE_SIZES = [25, 50, 100];      // 25 rows by default (task #64, B-6 / V-9)
 
 /** Colour level of a score: the site's one colour rule (green 70+, orange 50 to 69, red under 50), see lib/scoreBands.ts. Colour only decorates; the model's word and the number carry the meaning. */
 export const level = scoreBand;
@@ -354,7 +354,7 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   if (finlit && Number(p.get("top")) === TOP_N) f.top = TOP_N;
   const key = SORT_KEYS.find((k) => k === p.get("sort") && !(scope === "basic" && PRISM_SORT.includes(k)) && !(scope === "advanced" && FINLIT_SORT.includes(k)));
   const sort: Sort = key ? { key, dir: p.get("dir") === "asc" ? 1 : p.get("dir") === "desc" ? -1 : firstDir(key) } : DEFAULT_SORT;
-  const size = PAGE_SIZES.find((n) => n === Number(p.get("size"))) ?? 10;
+  const size = PAGE_SIZES.find((n) => n === Number(p.get("size"))) ?? 25;
   const page = Math.max(0, (Math.floor(Number(p.get("page"))) || 1) - 1);
   return { filters: f, sort, size, page };
 }
@@ -370,8 +370,8 @@ export function serializeState(s: State): URLSearchParams {
   if (f.top != null) p.set("top", String(f.top));
   TECH_KEYS.forEach((k) => { if (f.tech[k].length) p.set(k, TECH_BAND_ORDER.filter((b) => f.tech[k].includes(b)).join(",")); });
   if (s.sort.key !== DEFAULT_SORT.key || s.sort.dir !== DEFAULT_SORT.dir) { p.set("sort", s.sort.key); p.set("dir", s.sort.dir === 1 ? "asc" : "desc"); }
-  if (s.size !== 10) p.set("size", String(s.size));
+  if (s.size !== 25) p.set("size", String(s.size));
   if (s.page > 0) p.set("page", String(s.page + 1));
   return p;
 }
-export const filtersKey = (f: Filters) => serializeState({ filters: f, sort: DEFAULT_SORT, size: 10, page: 0 }).toString();
+export const filtersKey = (f: Filters) => serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 }).toString();

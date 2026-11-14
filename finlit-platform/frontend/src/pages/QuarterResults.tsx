@@ -1,4 +1,3 @@
-import { PageHeader } from "../components/PageHeader";
 import { titleOf } from "../lib/companyLabel";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -11,7 +10,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
 import { MINUS, nf } from "../lib/format";
-import { DATE_MEANING, GAP_LABEL, PAGE, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QResp, type QRow, type QSummary } from "../lib/qresults";
+import { DATE_MEANING, GAP_LABEL, PAGE, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
 import { saveFile } from "../stock/derive";
 import { ChartHelp } from "../components/ChartHelp";
 import { HScroll } from "../components/HScroll";
@@ -20,6 +19,15 @@ import { FilterGroup } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
 import "../styles/qresults.css";
 import { CoLogo } from "../components/CoLogo";
+import { short } from "../lib/pulsePack";
+import { KpiTiles, ResultsHead, VerdictCell } from "../components/results/pack/ResultsPack";
+import { IndustriesView } from "../components/results/pack/IndustriesView";
+import type { VRow } from "../lib/resultsPack";
+import "../styles/sectors.css";
+import "../styles/sectors-pack.css";
+import "../styles/industry-pack.css";
+import "../styles/rotation-pack.css";
+import "../styles/results-pack.css";
 
 const SORTS: [string, string, boolean][] = [   // value, label, needs Silver
   ["date", "Date declared", false], ["marketCap", "Market cap", false], ["revenueYoY", "Revenue growth (YoY)", true], ["profitYoY", "Profit growth (YoY)", true],
@@ -29,7 +37,7 @@ const SORTS: [string, string, boolean][] = [   // value, label, needs Silver
 const INDICES: [string, string][] = [["NIFTY50", "NIFTY 50"], ["NIFTY100", "NIFTY 100"], ["NIFTY500", "NIFTY 500"]];
 const STATUSES: [string, string][] = [["", "Any status"], ["declared", "Figures in"], ["awaiting", "Report being updated"], ["due", "Due"]];
 const CAPS = [["", "Any size"], ["Large", "Large cap"], ["Mid", "Mid cap"], ["Small", "Small cap"]];
-const COLS = 15;
+const COLS = 16;   // with the verdict against the industry (final pages pack, board 11)
 
 const money = (v: number | null) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, Math.abs(v) >= 1000 ? 0 : 2));
 const pc1 = (v: number | null) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, 1) + "%");
@@ -37,35 +45,6 @@ const Chg = ({ v, why }: { v: number | null; why?: string | null }) =>
   v == null && why ? <abbr className="qr-chg qr-na" title={why} tabIndex={0} aria-label={`Not available. ${why}`}>—</abbr>
     : <span className={"qr-chg" + (v == null ? "" : v > 0 ? " pos" : v < 0 ? " neg" : "")}>{signedPct(v)}</span>;
 const Plain = ({ text, why }: { text: string; why?: string | null }) => (text === "—" && why ? <abbr className="qr-na" title={why} tabIndex={0} aria-label={`Not available. ${why}`}>—</abbr> : <>{text}</>);
-
-function Tile({ label, value, sub, help, locked, tone }: { label: string; value: ReactNode; sub?: ReactNode; help?: string; locked?: boolean; tone?: "up" | "down" }) {
-  return (
-    <div className="qr-tile card">
-      <small>{label}{help && <ChartHelp id={help} />}</small>
-      <b className={tone || ""}>{locked ? <span className="qr-lock"><Icon name="lock" /> Silver</span> : value}</b>
-      {sub && <span>{sub}</span>}
-    </div>
-  );
-}
-
-function Scoreboard({ s, all, locked, q }: { s: QSummary; all: QSummary; locked: boolean; q: QResp }) {
-  const share = (v: number | null) => (v == null ? "—" : `${nf(v, 0)}%`);
-  const filtered = s.companies !== all.companies;
-  return (
-    <section className="qr-tiles" aria-label="Scoreboard">
-      <Tile label="Declared" value={<>{nf(all.declared, 0)} <em>of {nf(all.companies, 0)}</em></>} sub={`${nf(all.due, 0)} still due${all.awaitingOurs ?? all.awaiting ? ` · ${nf(all.awaitingOurs ?? all.awaiting, 0)} being updated` : ""}${all.awaitingProvider ? ` · ${nf(all.awaitingProvider, 0)} awaiting the data provider` : ""}`} help="qr-scoreboard" />
-      <Tile label="Median revenue growth" locked={locked} tone={s.medianRevenueYoY == null ? undefined : s.medianRevenueYoY >= 0 ? "up" : "down"} value={signedPct(s.medianRevenueYoY)} sub={`vs a year ago · ${nf(s.nRevenue || 0, 0)} companies`} />
-      <Tile label="Median profit growth" locked={locked} tone={s.medianProfitYoY == null ? undefined : s.medianProfitYoY >= 0 ? "up" : "down"} value={signedPct(s.medianProfitYoY)} sub={`vs a year ago · ${nf(s.nProfit || 0, 0)} companies`} />
-      <Tile label="Profit up" locked={locked} value={share(s.profitUpShare)} sub="of companies, vs a year ago" />
-      <Tile label="Net margin up" locked={locked} value={share(s.marginUpShare)} sub="of companies, vs a year ago" />
-      <Tile label="Sales and profit apart" locked={locked} value={s.flagged == null ? "—" : nf(s.flagged, 0)} sub={`${GAP_LABEL.toLowerCase()} by 15+ points`} help="qr-gap" />
-      <p className="qr-cover muted">
-        Figures are in for <b>{nf(s.withNumbers, 0)}</b> of {nf(s.companies, 0)} companies{filtered ? " in this view" : ""}. We hold full numbers for roughly the 500 largest companies; the rest show the date only.
-        {q.updatedAt ? ` Updated ${new Date(q.updatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}.` : ""}{filtered ? " The scoreboard follows your filters." : ""}
-      </p>
-    </section>
-  );
-}
 
 function Copy({ text }: { text: string }) {
   const { toast } = useUI();
@@ -175,6 +154,7 @@ function Row({ r, fiscal, locked, onUnlock, hit, phit }: { r: QRow; fiscal?: str
             <td className="qg2 qgs"><Plain text={money(r.operatingProfit)} why={r.opYoYWhy} /></td><td className={"qg2" + h("opYoY")}><Chg v={r.opYoY} why={r.opYoYWhy} />{tag("opYoY")}</td><td className={"qg2" + h("opQoQ")}><Chg v={r.opQoQ} why={r.opQoQWhy} />{tag("opQoQ")}</td><td className="qg2"><Plain text={pc1(r.opm)} why={r.opYoYWhy} /></td>
             <td className="qg3 qgs"><b>{money(r.netProfit)}</b></td><td className={"qg3" + h("npYoY")}><Chg v={r.profitYoY} />{tag("npYoY")}</td><td className={"qg3" + h("npQoQ")}><Chg v={r.profitQoQ} />{tag("npQoQ")}</td><td className="qg3">{pc1(r.npm)}</td>
             <td className="qgs">{r.eps == null ? "—" : (r.eps < 0 ? MINUS : "") + nf(r.eps, 2)}</td>
+            <td className="qgs"><VerdictCell r={r as VRow} /></td>
           </>}
         {locked ? <td colSpan={2} className="qg4 qgs qr-pp"><abbr className="qr-na" title="Price position is part of the Silver plan." tabIndex={0}>—</abbr></td>
           : <><PriceCell r={r} k="w52" hit={phit("w52")} /><PriceCell r={r} k="ath" hit={phit("ath")} /></>}
@@ -224,7 +204,10 @@ export function QuarterResultsPage() {
   const { plan, upgrade, toast } = useUI();
   const [sp, setSp] = useSearchParams();
   const silver = plan !== "basic";
-  const [f, setF] = useState<QParams>({ scope: "all", sort: "date", dir: "desc" });
+  const [f, setF] = useState<QParams>(() => ({ scope: "all", sort: "date", dir: "desc", industry: sp.get("industry") || undefined }));
+  const view = sp.get("view") === "industries" ? "industries" : "companies";   // the final pages pack's Industries / Companies tabs (board 11)
+  const setView = (v: "industries" | "companies") => { const n = new URLSearchParams(sp); if (v === "industries") n.set("view", "industries"); else n.delete("view"); setSp(n, { replace: true }); };
+
   const [offset, setOffset] = useState(0);
   const [sideW, setSide] = useSideWidth("results-quarter");   // the draggable divider: the width is remembered; dragged to the edge it hides the filters
   const wide = sideW === 0;                                   // filters hidden, table at full width
@@ -326,28 +309,34 @@ export function QuarterResultsPage() {
 
   const delayed = useResultsDelayedNote();
   return (
-    <div className="wrap ipo qr">
-      <PageHeader plan="free" art="calendar" links={["/results", "/news", "/documents"]}
-        title={<>Latest results{q ? <> <span className="qr-q">{q.fiscal}</span></> : null}</>}
-        description={<>{q ? `Quarter ended ${new Date(q.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}. ` : ""}Every company's results, the <b>most recently declared first</b>, back to the first of the quarter.<ChartHelp id="qr-table" /></>}
-        stats={[{ icon: "notes", value: (d?.quarters || []).find((x) => x.key === q?.key)?.declared ?? null, label: "Results declared" }]}
-        actions={<label className="wl-sel"><span>Quarter</span>
-          <select aria-label="Quarter" value={q?.key || ""} onChange={(e) => { const n = new URLSearchParams(sp); if (e.target.value) n.set("quarter", e.target.value); else n.delete("quarter"); setSp(n); setOffset(0); }}>
-            {(d?.quarters || []).map((x) => <option key={x.key} value={x.key}>{x.label} · {x.fiscal} ({x.declared} out)</option>)}
-            {!d?.quarters?.length && <option value="">Loading…</option>}
-          </select></label>} />
-
+    <div className="wrap ipo qr sp rs">
+      <ResultsHead title={`Latest results${q ? ` · ${q.fiscal}` : ""}`} view={view}
+        desc={`Every company's results for the quarter${q ? ` ended ${new Date(q.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}` : ""}, the most recently declared first, with how each compares with similar companies.`}
+        links={[["/results", "Results calendar"], ["/news", "News & filings"], ["/documents", "Documents"]]} />
+      <KpiTiles r={d} />
+      <div className="rs-qsel"><label className="wl-sel"><span>Quarter</span>
+        <select aria-label="Quarter" value={q?.key || ""} onChange={(e) => { const n = new URLSearchParams(sp); if (e.target.value) n.set("quarter", e.target.value); else n.delete("quarter"); setSp(n); setOffset(0); }}>
+          {(d?.quarters || []).map((x) => <option key={x.key} value={x.key}>{x.label} · {x.fiscal} ({x.declared} out)</option>)}
+          {!d?.quarters?.length && <option value="">Loading…</option>}
+        </select></label></div>
+      <div className="rs-tabs" role="tablist" aria-label="Industries or companies">
+        {([["industries", "Industries", "How each industry's results compare with the market"], ["companies", "Companies", "Every company, newest first, with its verdict"]] as const).map(([k, t, s2]) =>
+          <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}><b>{t}</b><small>{s2}</small></button>)}
+      </div>
       {delayed && <div className="rc-stale" role="status" data-testid="results-delayed">{delayed}</div>}
       {dateErr && <div className="formerr qr-derr" role="alert">{dateErr} <button type="button" className="alx-link" onClick={() => setDates(null)}>Show the latest quarter</button></div>}
       {growthLocked && <div className="formerr" role="alert">Filtering by {growthOn(growth) ? "growth" : "price position"} is part of the Silver plan. <button type="button" className="alx-link" onClick={() => need("Filtering by growth and price position is part of the Silver plan.")}>See Silver</button> <button type="button" className="alx-link" onClick={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)}>Remove the {growthOn(growth) && priceOn(price) ? "filters" : growthOn(growth) ? "growth filter" : "price-position filter"}</button></div>}
       {res.isError && !dateErr && !growthLocked && <div className="formerr">The results could not be loaded. Please try again shortly. <Link to="/results">Open the results calendar</Link></div>}
-      {d && !dateErr && <Scoreboard s={d.summary} all={d.totals} locked={locked} q={d} />}
 
       {locked && (
         <div className="pl-cap qr-cap"><Icon name="lock" /><span><b>Basic shows who declared and when.</b> Silver shows every figure, growth against last year and last quarter, margins, the copy-ready summary line, the sales-and-profit flag, all the sorting and filters, and a CSV download.</span>
           <button type="button" className="btn primary" onClick={() => need("Quarter results figures are part of the Silver plan.")}>See Silver</button></div>
       )}
 
+      {view === "industries" && <IndustriesView inds={d?.industries ?? []} />}
+      {view === "industries" && <p className="sp-disclaimer">Reported figures from company filings to NSE; verdicts compare each company with its industry this quarter. Not a recommendation to buy, sell or hold any security.</p>}
+      {view === "companies" && <>
+      {f.industry && <p className="qr-active" role="status">Showing {short(f.industry)} only. <button type="button" className="alx-link" onClick={() => { set({ industry: undefined }); const n = new URLSearchParams(sp); n.delete("industry"); setSp(n, { replace: true }); }}>Show every industry</button></p>}
       <div className={"qr-split" + (wide ? " qr-wide" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
       <aside className="qr-side card" aria-label="Filters" id="qr-filters" hidden={wide}>
         <div className="qr-side-h">
@@ -443,7 +432,7 @@ export function QuarterResultsPage() {
           <HScroll label="results table" className="qr-scroll">
             <table className="qtt qr-t">
               <thead>
-                <tr className="qr-grp"><th rowSpan={2} scope="col">Company</th><th colSpan={3} scope="colgroup" className="qg1 qgs">Revenue</th><th colSpan={4} scope="colgroup" className="qg2 qgs">Operating profit</th><th colSpan={4} scope="colgroup" className="qg3 qgs">Net profit</th><th rowSpan={2} scope="col" className="qgs">EPS</th><th colSpan={2} scope="colgroup" className="qg4 qgs">Price position</th></tr>
+                <tr className="qr-grp"><th rowSpan={2} scope="col">Company</th><th colSpan={3} scope="colgroup" className="qg1 qgs">Revenue</th><th colSpan={4} scope="colgroup" className="qg2 qgs">Operating profit</th><th colSpan={4} scope="colgroup" className="qg3 qgs">Net profit</th><th rowSpan={2} scope="col" className="qgs">EPS</th><th rowSpan={2} scope="col" className="qgs">Verdict<ChartHelp id="qr-verdict" /></th><th colSpan={2} scope="colgroup" className="qg4 qgs">Price position</th></tr>
                 <tr><th scope="col" className="qg1 qgs">Rs Cr</th><th scope="col" className="qg1">YoY</th><th scope="col" className="qg1">QoQ</th><th scope="col" className="qg2 qgs">Rs Cr</th><th scope="col" className="qg2">YoY</th><th scope="col" className="qg2">QoQ</th><th scope="col" className="qg2">OPM</th><th scope="col" className="qg3 qgs">Rs Cr</th><th scope="col" className="qg3">YoY</th><th scope="col" className="qg3">QoQ</th><th scope="col" className="qg3">NPM</th>{PRICE_KEYS.map((k, i) => <SortTh key={k} k={k} first={i === 0} sort={f.sort} dir={f.dir} onSort={sortBy} />)}</tr>
               </thead>
               <tbody>{body}</tbody>
@@ -461,6 +450,7 @@ export function QuarterResultsPage() {
       </section>
       </div>
       </div>
+      </>}
     </div>
   );
 }

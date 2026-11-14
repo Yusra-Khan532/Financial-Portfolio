@@ -38,6 +38,8 @@ export type Thrust = { type: "C" | "CAP"; date: string; sessions_ago: number } |
 export type GroupRow = {
   name: string; slug: string; kind: "industry" | "sector"; sector: string; industries: string[]; date: string; state: StateName; state_code: StateCode; meaning: string;
   breadth: Breadth; index_vs_52w_high: number | null; last_60d_low?: { sessions_ago: number; date: string } | null; higher_low_share?: number | null; last_thrust: Thrust;
+  /** "Held up" (final pages pack): at the industry's last low, the share of its stocks that stayed above their earlier low. Null when there was no recent low. */
+  held_up?: number | null;
   /** Why the higher-low share is blank (null when it has a value). */
   higher_low_note?: string | null;
   today: { thrust_c: boolean; thrust_cap: boolean; turned_fading: boolean; confirmed: boolean }; leader_flags: number | null;

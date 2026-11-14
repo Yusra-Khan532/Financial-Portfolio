@@ -61,7 +61,10 @@ describe("route matching", () => {
     expect(faqForPath("/funds")?.id).toBe("mutual-funds");
   });
   it("returns null where there is no set", () => {
-    for (const p of ["/", "/glossary", "/blog", "/blog/x", "/account", "/account/plan", "/login", "/plans", "/funds/123", "/stocks", "/stocks/TCS/extra", "/nope"]) expect(faqForPath(p), p).toBeNull();
+    for (const p of ["/", "/blog", "/blog/x", "/account", "/account/plan", "/login", "/plans", "/funds/123", "/stocks", "/stocks/TCS/extra", "/nope"]) expect(faqForPath(p), p).toBeNull();
+  });
+  it("the Glossary has its own set (the pack's eight questions), on /glossary and on each term's page", () => {
+    for (const p of ["/glossary", "/glossary/price-to-earnings-ratio-p-e"]) { const f = faqForPath(p); expect(f?.id, p).toBe("glossary"); expect(f?.items).toHaveLength(8); }
   });
   it("every set is reachable from its first route", () => {
     for (const f of PAGE_FAQS) expect(faqForPath(f.routes[0].replace(/:\w+/g, "abc"))?.id).toBe(f.id);
@@ -69,7 +72,7 @@ describe("route matching", () => {
 });
 
 describe("<PageFaqs />", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs /></MemoryRouter>);
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("renders nothing on a page without a set", () => { const { container } = at("/glossary"); expect(container.innerHTML).toBe(""); cleanup(); });
   it("shows title, count, plan, note and the All FAQs link", () => {
     at("/prism/TCS");
@@ -104,7 +107,7 @@ describe("<PageFaqs />", () => {
 });
 
 describe("FAQ upgrades", () => {
-  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs /></MemoryRouter>);
+  const at = (p: string) => render(<MemoryRouter initialEntries={[p]}><PageFaqs inline={p.startsWith("/dashboard")} /></MemoryRouter>);   // the dashboard places its own copy (final pages pack)
   it("Expand all / Collapse all toggles every answer", () => {
     at("/dashboard");
     const qs = () => screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"));

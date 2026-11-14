@@ -185,19 +185,22 @@ async def size_ranks(conn, isins: List[str]) -> Dict[str, str]:
     return {r["isin"]: ("Large" if r["rk"] <= 100 else "Mid" if r["rk"] <= 250 else "Small") for r in rows}
 
 
-async def growth_series(conn, rows: List[Dict[str, Any]]) -> Dict[int, Dict[str, List[Any]]]:
-    """The last year of NAVs of each fund's Growth option (the same plan of the same fund; an IDCW option has no steady NAV line)."""
+async def nav_history(conn, r: Dict[str, Any]) -> Tuple[List[int], List[float]]:
+    """Every stored daily NAV of a fund's Growth option (the same plan of the same fund; an IDCW option has no steady NAV line), as date ordinals and NAVs."""
     from ..mf import unpack_series
+    if r["option_class"] == "Growth":
+        gc = r["code"]
+    else:
+        gc = await conn.fetchval("SELECT code FROM mf_schemes WHERE family = $1 AND plan = $2 AND option_class = 'Growth' AND active ORDER BY code LIMIT 1", r["family"], r["plan"])
+    h = await conn.fetchrow("SELECT blob, d0 FROM mf_history WHERE code = $1", gc) if gc else None
+    return unpack_series(bytes(h["blob"]), h["d0"].toordinal()) if h is not None else ([], [])
+
+
+async def growth_series(conn, rows: List[Dict[str, Any]]) -> Dict[int, Dict[str, List[Any]]]:
+    """The last year of NAVs of each fund's Growth option."""
     out: Dict[int, Dict[str, List[Any]]] = {}
     for r in rows:
-        if r["option_class"] == "Growth":
-            gc = r["code"]
-        else:
-            gc = await conn.fetchval("SELECT code FROM mf_schemes WHERE family = $1 AND plan = $2 AND option_class = 'Growth' AND active ORDER BY code LIMIT 1", r["family"], r["plan"])
-        h = await conn.fetchrow("SELECT blob, d0 FROM mf_history WHERE code = $1", gc) if gc else None
-        if h is None:
-            continue
-        days, navs = unpack_series(bytes(h["blob"]), h["d0"].toordinal())
+        days, navs = await nav_history(conn, r)
         if not days:
             continue
         cut = days[-1] - 371
@@ -265,6 +268,52 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
         out["trendLocked"] = True
     out.update(count=len(funds), disclaimer=DISCLAIMER)
     return reply(out)
+
+
+@router.get("/risk")
+async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """Each fund's swing, worst fall, beta and share of the NIFTY 500's falls, from its daily NAV over the last three years, and the list's risk level against
+    the NIFTY 500 (Silver and Gold, as the page). Plain figures and words only; the cut-offs behind the level stay in mfportfolio.risk."""
+    from .. import indices
+    from . import risk
+    store = request.app.state.store
+    raw = await indices._cached(request.app, "idx:px:NIF500", 6 * 3600, lambda: indices._fetch_levels(request.app, "NIF500"))
+    rows = indices.shape_levels(raw, risk.YEARS + 1)["rows"] if raw else []
+    if len(rows) < risk.MIN_DAYS:
+        raise fail(503, "bench_unavailable", "The NIFTY 500 history is not available right now, so the risk figures cannot be worked out. Please try again in a moment.")
+    bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in rows}
+    end = max(bench)
+    async with store.pool.acquire() as conn:
+        held = await holdings_of(conn, ctx.user_id)
+        codes = sorted({h["code"] for h in held})
+        if not codes:
+            return reply({"count": 0, "why": "Add funds to see their risk figures."})
+        schemes = {r["code"]: dict(r) for r in await conn.fetch(f"SELECT {SCHEME_COLS} FROM mf_schemes WHERE code = ANY($1::int[])", codes)}  # nosec B608 - fixed column list; codes are bound
+        hist = {c: await nav_history(conn, schemes[c]) for c in codes if c in schemes}
+    units: Dict[int, Decimal] = defaultdict(Decimal)
+    for h in held:
+        for l in h["lots"]:
+            if l["units"] is not None:
+                units[h["code"]] += Decimal(str(l["units"]))
+    valued = all(units.get(c) and schemes[c].get("nav") is not None for c in hist)
+    funds, parts = [], []
+    for c, (days, navs) in hist.items():
+        s = schemes[c]
+        cat = mf.classify(s["category"])[2] if s["category"] else ""
+        fig = risk.fund_figures(days, navs, bench, end)
+        funds.append({"code": c, "name": s["name"], "short": risk.short_name(s["name"]), "category": cat, **fig})
+        if fig["swing"] is not None:
+            parts.append((days, navs, float(units[c] * Decimal(str(s["nav"]))) if valued else 1.0))
+    ld, lv = risk.list_series(parts, end)
+    bd, bv = risk.window(sorted(bench), [bench[d] for d in sorted(bench)], end)
+    bench_swing = risk.swing(risk.returns(bv), risk.per_year(bd))
+    list_swing = risk.swing(risk.returns(lv), risk.per_year(ld)) if len(lv) >= risk.MIN_DAYS else None
+    return reply({"count": len(funds), "basis": "value" if valued else "equal", "funds": funds,
+                  "bench": {"name": "NIFTY 500", "swing": risk.r1(bench_swing), "worstFall": risk.r1(risk.worst_fall(bv)), "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat()},
+                  "list": {"swing": risk.r1(list_swing), "worstFall": risk.r1(risk.worst_fall(lv)) if len(lv) >= risk.MIN_DAYS else None,
+                           "level": risk.list_level(list_swing, bench_swing, funds),
+                           "why": None if list_swing is not None else "Your funds share less than a year of NAV days, so the whole list cannot be followed as one line yet."},
+                  "disclaimer": DISCLAIMER})
 
 
 # ------------------------------------------------------------------------------------------------------------------------ writing

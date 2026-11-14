@@ -228,3 +228,37 @@
   .ssw-popb { position: static; flex-basis: 100%; max-width: none; box-shadow: none; }
   .ssw-popb input { flex: 1; width: auto; }
 }
+/* ready-made screens stack (task #64 P-4): a card that is on has a tick and a gold border; one line says how many are on and how many companies pass all of them */
+.ssy-c.is-on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; background: color-mix(in srgb, var(--gold) 8%, var(--s1)); }
+.ssy-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font-style: normal; font-size: 11px; vertical-align: 1px; }
+.ssy-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; font-size: 14px; color: var(--muted); } .ssy-on b { color: var(--text); }
+.ssy-on .lnk { margin-left: auto; }
+.ssy-n.is-on { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text); }
+.ssw-a.is-screen { border-color: var(--gold); }
+
+/* Task #64 S-9: the header on one line, with the data date */
+.ssw-h1row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; }
+.ssw-asof { font-size: var(--fs-14, 14px); color: var(--muted); }
+/* Task #64 S-1: the groups of filters, up front */
+.ssw-size { margin: 4px 0 12px; }
+.ssw-size-n { margin: 0 0 8px; font-size: var(--fs-14, 14px); color: var(--muted); }
+.ssw-size-n b { color: var(--text); }
+.ssw-size-q { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; background: var(--surface, var(--card)); margin-bottom: 8px; }
+.ssw-size-q input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 8px 0; outline: none; }
+.ssw-size-q:focus-within { border-color: var(--accent, var(--brand)); }
+.ssw-groups { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ssw-groups button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-14, 14px); text-align: left; cursor: pointer; }
+.ssw-groups button:hover, .ssw-groups button:focus-visible { background: var(--soft, rgba(127,127,127,.1)); }
+.ssw-groups button > span { flex: 1; display: flex; align-items: center; gap: 6px; }
+.ssw-groups em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--accent, var(--brand)); }
+.ssw-groups small { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Task #64 S-5: no slider; the frozen Company column casts a soft shadow while there is more to the right */
+.tw.has-more .ssw-t .stick, .tw.is-scrolled .ssw-t .stick { box-shadow: 6px 0 8px -4px rgba(0,0,0,.22); }
+/* Task #64 CR-7: the Custom ratio section of the panel; CR-6: a ratio's rule card */
+.ssw-rlon { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.ssw-rlon button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--s1); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ssw-rlon button > span { flex: 1; display: grid; } .ssw-rlon small { color: var(--muted); font-size: 12px; } .ssw-rlon em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--gold); }
+.ssw-rlex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 8px; font-size: 14px; }
+.ssw-rlex > small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.ssw-rlmy { display: inline-flex; align-items: center; gap: 6px; }
+.ssr-ratio .ssr-rt .lnk { margin-left: auto; font-size: 13px; }

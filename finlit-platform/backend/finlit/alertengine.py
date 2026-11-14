@@ -392,4 +392,9 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             fired += await auto_rotation_alerts(pool, mailer, site_url)
         except Exception:
             log.exception("built-in alerts failed")
+        try:   # the Watchlists page's "Tell me when a label changes": after each weekly Leader / In line / Laggard check (deduped per stock and week)
+            from .labelalerts import auto_label_alerts
+            fired += await auto_label_alerts(pool, mailer, site_url)
+        except Exception:
+            log.exception("label-change alerts failed")
     return fired

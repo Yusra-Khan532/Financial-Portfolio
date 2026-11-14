@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { useAuth } from "../lib/auth";
-import { timeAgo, useAlerts, useBrowserNotify, useNotices, type Notice } from "../lib/alerts";
+import { noticeLabels, timeAgo, useAlerts, useBrowserNotify, useNotices, type Notice } from "../lib/alerts";
 import { useUniverse } from "../lib/screener";
 import { DEMO } from "../lib/demo";
 
@@ -49,7 +49,7 @@ export function NotificationBell() {
   );
 }
 
-/** Pops a card for each alert that fires while the site is open ("Alert Triggered … View Stock →"), and raises browser notifications if allowed. */
+/** Pops a card for each alert that fires while the site is open ("Alert triggered … View stock →" for a stock; other notices say what they are), and raises browser notifications if allowed. */
 export function AlertToasts() {
   const { user } = useAuth();
   const { items, markRead } = useNotices();
@@ -71,17 +71,17 @@ export function AlertToasts() {
     <>
     {DEMO && <DemoSeeder />}
     <div className="alx-toasts" role="region" aria-label="New alerts" aria-live="polite">
-      {shown.map((n) => (
+      {shown.map((n) => { const lb = noticeLabels(n); return (
         <div className="alx-toast" key={n.id}>
           <span className="alx-ti"><Icon name="bell" /></span>
           <div className="alx-tb">
-            <b>Alert triggered</b>
-            <p>{n.title}</p>
-            <div className="alx-tf"><button className="alx-link" onClick={() => { markRead([n.id]); setShown((s) => s.filter((x) => x.id !== n.id)); if (n.link) nav(n.link); }}>View stock <Icon name="arrow" /></button><small>{timeAgo(n.createdAt)}</small></div>
+            <b>{lb.head}</b>
+            <p>{lb.text ?? n.title}</p>
+            <div className="alx-tf">{lb.action && <button className="alx-link" onClick={() => { markRead([n.id]); setShown((s) => s.filter((x) => x.id !== n.id)); if (n.link) nav(n.link); }}>{lb.action} <Icon name="arrow" /></button>}<small>{timeAgo(n.createdAt)}</small></div>
           </div>
           <button className="alx-x" aria-label="Dismiss" onClick={() => { markRead([n.id]); setShown((s) => s.filter((x) => x.id !== n.id)); }}>✕</button>
         </div>
-      ))}
+      ); })}
     </div>
     </>
   );

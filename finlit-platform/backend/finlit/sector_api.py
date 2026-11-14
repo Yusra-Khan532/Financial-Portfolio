@@ -131,6 +131,51 @@ async def sector_state_history(request: Request) -> Response:
     return _reply(request, {**data, "date": board.get("date")}, started)
 
 
+_NSE_FULL: Dict[str, Any] = {}
+
+
+def _nse_classes() -> Dict[str, Any]:
+    """symbol -> (NSE industry, NSE sector), from finlit_technicals/data/nse_industries.json (the classification Sector Pulse groups by)."""
+    if not _NSE_FULL:
+        import json as _json
+        from pathlib import Path
+        raw = _json.loads((Path(__file__).resolve().parents[1] / "finlit_technicals" / "data" / "nse_industries.json").read_text(encoding="utf-8")).get("stocks") or {}
+        _NSE_FULL.update({str(k).upper(): (v[0], v[1] if len(v) > 1 else None) for k, v in raw.items() if isinstance(v, list) and v and v[0]})
+    return _NSE_FULL
+
+
+@router.get("/api/sectors/membership")
+async def sector_membership(request: Request, symbols: str = "") -> Response:
+    """Which Sector Pulse group each of the given shares belongs to ("How your industries are doing", the final pages pack, 13 Nov 2026): {symbol: {slug, name}} for the ones
+    in a group with a reading; the others are left out (no NSE industry, or a group with too few stocks). Names only, open to every plan, at most 200 symbols."""
+    started = time.perf_counter()
+    rel = sd.live_release()
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _not_loaded(request, started)
+    want = [s.strip().upper() for s in symbols.split(",") if s.strip()][:200]
+    by_ind: Dict[str, Dict[str, str]] = {}
+    by_sec: Dict[str, Dict[str, str]] = {}
+    for r in board.get("rows", []):
+        if not isinstance(r, dict) or not r.get("slug"):
+            continue
+        ref = {"slug": r["slug"], "name": r.get("name") or r["slug"]}
+        if r.get("kind") == "sector":
+            by_sec[str(r.get("name") or "")] = ref
+        for ind in r.get("industries") or []:
+            by_ind[str(ind)] = ref
+    cls = _nse_classes()
+    out: Dict[str, Dict[str, str]] = {}
+    for sym in want:
+        if not sd.SYMBOL.match(sym) or sym not in cls:
+            continue
+        ind, sec = cls[sym]
+        hit = by_ind.get(ind) or (by_sec.get(sec) if sec else None)
+        if hit:
+            out[sym] = hit
+    return _reply(request, {"date": board.get("date"), "groups": out}, started)
+
+
 @router.get("/api/sector-map")
 async def sector_map(request: Request) -> Response:
     """"Industry map" on Sector Pulse: every industry with a reading as a point (stocks rising of 100, how far below its 1-year high), with the insight sentences. Open to every plan, like the states."""
@@ -177,7 +222,7 @@ def _same_name(a: Optional[str], b: Optional[str]) -> bool:
 @router.get("/api/sectors/small/{slug}")
 async def small_group(slug: str, request: Request) -> Response:
     """A group shown as "Too few stocks for a reading": its listed stocks from the screener table (the group has no page of its own), best 6 months first,
-    with size, the 6-month and 1-year returns and how far each is below its 1-year high. Silver, like the ranked stock tables; Basic gets the counts only."""
+    with size, the 6-month and 1-year returns and how far each is below its 1-year high. Silver, like the ranked stock tables; Basic gets the counts only (counted and listed)."""
     started = time.perf_counter()
     rel = sd.live_release()
     board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
@@ -187,11 +232,11 @@ async def small_group(slug: str, request: Request) -> Response:
     if not g:
         return _not_found(request, started, "There is no small group with this address. The groups are listed on Sector Pulse under \"Too few stocks for a reading\".")
     base = {"slug": slug, "name": g.get("name"), "counted": g.get("stocks_counted")}
-    if await _plan(request) == "basic":
-        return _reply(request, {**base, "stocks": None, "listed": None, "locked": "silver"}, started)
     from .screener.data import get_table
     t = await get_table(request.app.state.store)
     idx = [i for i in range(len(t.symbols)) if _same_name(t.industry[i], g.get("name"))] or [i for i in range(len(t.symbols)) if _same_name(t.sector_label[i], g.get("name"))]
+    if await _plan(request) == "basic":                                              # the count of listed stocks is open to all (pack 06: "5 counted · 18 listed"); the names are Silver
+        return _reply(request, {**base, "stocks": None, "listed": len(idx), "locked": "silver"}, started)
     num = lambda col, i: (lambda v: None if v != v else round(v, 1))(t.cols[col][i]) if col in t.cols else None     # noqa: E731
     mc = lambda i: t.cols["market_cap"][i] if t.cols["market_cap"][i] == t.cols["market_cap"][i] else -1.0        # noqa: E731
     listed = len(idx)

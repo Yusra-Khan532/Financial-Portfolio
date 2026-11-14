@@ -198,3 +198,59 @@
 .sx-hibar h3 { margin: 0; font: 600 var(--fs-16) / 1.3 var(--sans); display: flex; align-items: center; gap: 8px; }
 .sx-hibar-on { font-size: var(--fs-12); font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--gold) 22%, var(--s1)); color: var(--text); }
 .sx-hibar .sx-range { max-width: 420px; }
+
+/* ---- Task #64 Part 5: Basic and Advanced stock screeners ---- */
+/* B-4 / V-4: the header on one line */
+.sx-head { padding: 10px 20px !important; margin-bottom: 10px; }
+.sx-h1row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.sx-h1row h1 { margin: 0; font-size: clamp(22px, 2.6vw, 28px); line-height: 1.2; }
+.sx-asof { font-size: 14px; color: var(--muted); }
+.sx-hsp { flex: 1; }
+.sx-hlink { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--text); text-decoration: none; }
+.sx-hlink:hover { text-decoration: underline; }
+/* B-1 / V-1: the search, filter and sort row sticks under the site bar; the column names stay under it on the whole list */
+.sx-stick { position: sticky; top: var(--sx-top, 64px); z-index: 30; background: var(--bg); padding: 8px 0 2px; margin: 0 -2px; }
+.tw-pin thead { position: relative; z-index: 4; will-change: transform; }
+.tw-pin thead th { background: var(--s1); }
+.tw-pin thead.is-pinned th { box-shadow: 0 1px 0 var(--border); }
+/* B-5 / V-8: the Sort button and menu; B-4: the Columns menu */
+/* B-7 / V-10: one control style in the bar: 14 px text, 8 px corners, one height */
+/* B-6 / V-9: rows per page in the site's type */
+.scr-wrap .ss-foot select { font-family: var(--sans); }
+/* B-3 / V-7: the sector under the company name */
+.sx-secn { display: block; color: var(--faint); font-size: 12px; }
+/* V-5: Leader, In line, Laggard after the name */
+.sxl-tag { display: inline-block; width: fit-content; margin: 2px 0 0; padding: 0 6px; border-radius: 999px; font: 600 11px/18px var(--sans); vertical-align: 1px; border: 1px solid var(--border); color: var(--muted); }
+.sxl-tag.leader { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 45%, transparent); background: var(--gain-soft); }
+.sxl-tag.laggard { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, transparent); background: var(--loss-soft); }
+/* V-6: a technical view as a signed pill, a bar from the centre and its word */
+.pzs-tv { display: inline-grid; justify-items: center; gap: 3px; min-width: 76px; font-family: var(--sans); }
+.pzs-tp { padding: 1px 8px; border-radius: 999px; font: 700 13px/20px var(--sans); font-variant-numeric: tabular-nums; background: var(--s2); color: var(--text); }
+.pzs-tp.hi { background: var(--gain-soft); color: var(--gain); } .pzs-tp.lo { background: var(--loss-soft); color: var(--loss); } .pzs-tp.mid { background: var(--warn-soft); color: var(--warn); }
+.pzs-tb { position: relative; width: 64px; height: 4px; border-radius: 2px; background: var(--s2); }
+.pzs-tb::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border-strong); }
+.pzs-tb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--muted); }
+.pzs-tb i.hi { background: var(--gain); } .pzs-tb i.lo { background: var(--loss); } .pzs-tb i.mid { background: var(--warn); }
+.pzs-tv small { color: var(--muted); font-size: 12px; }
+/* B-6 / V-9: the Compare bar that appears on the first tick */
+.sx-cbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); box-shadow: 0 12px 32px rgba(0,0,0,.22); max-width: calc(100vw - 32px); }
+.sx-cbar small { color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { .sx-cbar { bottom: 92px; left: 16px; right: 16px; transform: none; } }
+/* the question button inside "How … works" */
+.sx-how-q { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 14px; }
+.sx-count { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+.pzs-i { display: inline-flex; margin-left: 4px; color: var(--faint); vertical-align: -2px; } .pzs-i svg { width: 13px; height: 13px; }
+
+/* Task #64 B-7 / V-10 (follow-up): one control style on the Basic and Advanced screeners. Five kinds in all: a control (14 px, 8 px corners, 600),
+   a chip (13 px, round, 600), a round icon (12 px, 600), a text link and a column heading. Scoped to these two pages (sx-root). */
+.sx-root.sx-root :is(.btn, .psx-gtab, .psx-gs, .psx-gb, .cz-btn, select) { font-size: 14px; font-weight: 600; border-radius: 8px; }
+.sx-root.sx-root :is(.iq-chip) { font-size: 13px; font-weight: 600; border-radius: 999px; }
+.sx-root.sx-root :is(.chh-b, .scr-split-btn) { font-size: 12px; font-weight: 600; border-radius: 50%; }
+.sx-root.sx-root thead th button { font-size: 12px; font-weight: 600; border-radius: 0; }
+/* B-4 / V-4 (follow-up): the first row within 650 px: tighter header, bar and count line */
+.sx-root .sx-head { padding: 8px 18px !important; margin-bottom: 8px; }
+.sx-root .sx-stick { padding-top: 4px; }
+.sx-root .sx-count { margin: 0 0 4px; font-size: 13px; }
+.sx-root.sx-root .pzf-sh > button { font-size: 14px; font-weight: 600; border-radius: 8px; }
+:root:root .sx-root .ss-actions .btn.primary { border-radius: 8px; font-weight: 600; }
+@media (min-width: 761px) { .sx-root.sx-root .ss-foot select { font-size: 14px; } }   /* a phone keeps 16 px, so the select does not zoom the page */

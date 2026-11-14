@@ -9,12 +9,7 @@ vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect()
 import { FAQ_BANNED, PAGE_BANNED } from "./wordingRules";
 import * as W from "./words";
 import { MY_PORTFOLIO_FAQ } from "../content/myPortfolioFaqs";
-import { Summary } from "./Summary";
-import { ScoreMade, WhatThisMeans } from "./Readings";
-import { CountTable, HeatTable, MixCards, Treemap, WhereReadings } from "./Where";
-import { Together } from "./Together";
-import { Nifty, RiskShare } from "./Risk";
-import { Style } from "./Style";
+import { InShort, MarketFall, MoneyRisk, MovesGrid, Packs, SpreadSection, StyleTiltPack, WhereSits } from "./pack/EquityPack";
 import { SharesTable } from "./SharesTable";
 import { sectorColors, sectorOrder } from "./derive";
 import s12 from "./__fixtures__/sample_12.json";
@@ -35,14 +30,14 @@ describe.each(cases)("the page text, %s", (_n, s) => {
   const page = s.page as unknown as PageObject;
   const meta = Object.fromEntries(Object.entries(s.inputs.meta).map(([k, v]) => [k, { name: v.name, sector: v.sector, size: v.size, mcap_cr: v.mcap_cr }])) as Record<string, Meta>;
   const symbols = Object.keys(meta), colors = sectorColors(sectorOrder(page, "eq"));
+  const counts: Record<string, string[]> = {}; symbols.forEach((x) => (counts[meta[x].sector ?? "Other"] ??= []).push(x));
+  const packs = page.groups.map((g) => ({ members: g.members, avg: g.avg_corr, name: meta[g.members[0]]?.sector ?? "Mixed" }));
   it.each(["eq", "mc"] as Mode[])("holds no advice wording in mode %s", (mode) => {
     const { container } = render(<MemoryRouter><div>
-      <Summary page={page} metas={Object.values(meta)} lines={[]} model="prism" n={symbols.length} state="ready" />
-      <WhatThisMeans page={page} mode={mode} onOpenTogether={() => {}} /><ScoreMade page={page} />
-      {page.layout === "long" ? <Treemap page={page} meta={meta} symbols={symbols} mode={mode} colors={colors} model="prism" ov={new Map()} /> : <HeatTable page={page} meta={meta} symbols={symbols} mode={mode} colors={colors} model="prism" ov={new Map()} />}
-      <CountTable page={page} meta={meta} symbols={symbols} mode={mode} colors={colors} /><MixCards lines={[]} model="prism" parts={[{ label: "Quality", value: 69 }]} /><WhereReadings page={page} mode={mode} />
-      <Together page={page} meta={meta} mode={mode} colors={colors} open onToggle={() => {}} />
-      <RiskShare page={page} mode={mode} colors={colors} /><Nifty page={page} mode={mode} /><Style tilt={TILT} />
+      <SpreadSection page={page} weights={page.sector_weight.eq} counts={counts} sizeCount={{ Large: 6, Mid: 4, Small: 2 }} packs={packs} />
+      <WhereSits weights={page.sector_weight.eq} sizes={[{ k: "Large", pct: 50, who: symbols.slice(0, 6) }]} /><Packs packs={packs} weights={page.sector_weight.eq} n={symbols.length} />
+      <MovesGrid page={page} packs={packs} /><StyleTiltPack tilt={TILT} />
+      <MoneyRisk sw={page.sector_weight.eq} sr={page.sector_risk.eq} counts={counts} /><MarketFall beta={page.market.eq.beta} /><InShort items={page.summary[mode]} />
       <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} onExport={() => {}} actions={() => null} />
     </div></MemoryRouter>);
     const text = container.textContent || "";

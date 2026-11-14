@@ -38,6 +38,7 @@ from .auth.service import current
 from .calendars import SOURCE_RESULTS, parse_date
 from .screener.compute import quarter_block
 from .screener.data import get_table
+from .result_verdicts import add_verdicts, industries, verdict_counts
 
 log = logging.getLogger("finlit.results")
 router = APIRouter(prefix="/api/results")
@@ -66,7 +67,7 @@ NUMERIC_SORTS = {"revenueYoY": "revenueYoY", "profitYoY": "profitYoY", "marginCh
                  "below52": "below52", "belowAth": "belowAth"}
 SORTS = {"date", "marketCap", *NUMERIC_SORTS}
 # every figure a row carries that Basic must not see
-FIGURES = ("revenue", "revenueYoY", "revenueQoQ", "operatingProfit", "opYoY", "opQoQ", "opYoYWhy", "opQoQWhy", "opm", "netProfit", "profitYoY", "profitQoQ", "npm", "npmChange", "eps", "gap")
+FIGURES = ("verdict", "checks", "revenue", "revenueYoY", "revenueQoQ", "operatingProfit", "opYoY", "opQoQ", "opYoYWhy", "opQoQWhy", "opm", "netProfit", "profitYoY", "profitQoQ", "npm", "npmChange", "eps", "gap")
 # the price-position figures every row carries (Silver and Gold see them; Basic gets empty cells)
 PRICE_FIELDS = ("price", "high52", "low52", "ath", "athDate", "below52", "belowAth", "above52Low", "stale52", "staleAth")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -462,6 +463,7 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
         return op_growth(h["ends"], h["op"], e, m.get("q_operating_profit"))
     rows = [{**build_row(s, d, base.get(s, {"symbol": s}), metrics.get(s, {}), e, today, cap_of(s), sorted(members.get(s, [])), growth(s),
                          {"used": s in used_light, "basis": (used_light.get(s) or {}).get("basis"), "asked": s in asked, **asked.get(s, {})}), **quote_of(s)} for s, d in decls.items()]
+    add_verdicts(rows)   # each company against the typical company of its NSE industry this quarter (final pages pack, boards 10 and 11)
     counts: Dict[str, int] = {}
     for r in rows:
         if r["sector"]:
@@ -582,7 +584,8 @@ def summarize(rows: List[dict], today: date) -> Dict[str, Any]:
     return {"companies": len(rows), "declared": len(declared), "due": sum(1 for r in rows if r["status"] == "due"), "awaiting": sum(1 for r in rows if r["status"] == "awaiting"),
             "awaitingProvider": sum(1 for r in rows if r.get("awaitingWhy") == "provider"), "awaitingOurs": sum(1 for r in rows if r.get("awaitingWhy") == "ours"),
             "withNumbers": len(withnum), "medianRevenueYoY": med(ry), "medianProfitYoY": med(py), "profitUpShare": share(py, lambda x: x > 0), "marginUpShare": share(mc, lambda x: x > 0),
-            "flagged": sum(1 for r in withnum if r["flagged"]), "nRevenue": len(ry), "nProfit": len(py), "nMargin": len(mc)}
+            "flagged": sum(1 for r in withnum if r["flagged"]), "nRevenue": len(ry), "nProfit": len(py), "nMargin": len(mc),
+            "verdicts": verdict_counts(withnum), "beatShare": share([r["verdict"] for r in withnum if r.get("verdict")], lambda v: v in ("Strong", "Good"))}
 
 
 def strip_figures(r: dict) -> dict:
@@ -594,7 +597,7 @@ def strip_figures(r: dict) -> dict:
     return out
 
 
-def select(rows: List[dict], *, q: str = "", sector: str = "", cap: str = "", index: str = "", symbols: Optional[set] = None, flagged: bool = False, status: str = "",
+def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "", cap: str = "", index: str = "", symbols: Optional[set] = None, flagged: bool = False, status: str = "",
            sort: str = "date", desc: bool = True, today: str = "9999-12-31", date_from: str = "", date_to: str = "") -> List[dict]:
     out = rows
     if date_from or date_to:   # the announcement date, as ISO text (which sorts like a date)
@@ -604,6 +607,8 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", cap: str = "", in
         out = [r for r in out if t in r["symbol"].lower() or t in (r["name"] or "").lower()]
     if sector:
         out = [r for r in out if r["sector"] == sector]
+    if industry:   # the Sector Pulse group the verdicts compare with (finlit/result_verdicts.py)
+        out = [r for r in out if r.get("industry") == industry]
     if cap:
         out = [r for r in out if r["cap"] == cap]
     if index:
@@ -872,8 +877,9 @@ async def _symbols_of(request: Request, ctx, scope: str) -> Optional[set]:
     return {str(h.get("symbol", "")).upper() for h in parse(row["portfolio"]).get("holdings") or []}
 
 
-def parse_range(on: str, frm: str, to: str, today: date) -> Optional[Tuple[date, date]]:
-    """`date=` (one day) or `from=`+`to=` (a range, both ends included), as India dates. None when no date was asked for. Raises a 400 with a plain message."""
+def parse_range(on: str, frm: str, to: str, today: date, future: bool = False) -> Optional[Tuple[date, date]]:
+    """`date=` (one day) or `from=`+`to=` (a range, both ends included), as India dates. None when no date was asked for. Raises a 400 with a plain message.
+    `future`: dates still to come are allowed (only for the companies still due: "who reports next week", the final pages pack's Results calendar)."""
     if not (on or frm or to):
         return None
     if on and (frm or to):
@@ -892,7 +898,7 @@ def parse_range(on: str, frm: str, to: str, today: date) -> Optional[Tuple[date,
             raise fail(400, "bad_request", f"The {label} must look like {today.isoformat()} (year-month-day) and be a real calendar date.")
     start = vals[0]
     end = vals[0] if on else (vals[1] if len(vals) > 1 else today)
-    if max(start, end) > today:
+    if max(start, end) > today and not future:
         raise fail(400, "future_date", f"Results can be looked up for dates up to today ({today.strftime('%a %d %b %Y')}, India time). Dates still to come are listed under 'Still to declare' for the quarter.", today=today.isoformat())
     if start > end:
         raise fail(400, "bad_request", "The from date is after the to date.")
@@ -924,7 +930,7 @@ def date_facts(decls: Dict[str, Dict[str, Decl]], rng: Tuple[date, date], qkey: 
 
 
 async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str, index: str, scope: str, flagged: bool, status: str, sort: str, dir_: str,
-                  on: str = "", frm: str = "", to: str = "", growth: Optional[GrowthSpec] = None, price: Optional[PriceSpec] = None):
+                  on: str = "", frm: str = "", to: str = "", growth: Optional[GrowthSpec] = None, price: Optional[PriceSpec] = None, industry: str = ""):
     ctx = await current(request)
     plan = ctx.plan if ctx.authed else "basic"
     silver = has(plan, "silver")
@@ -936,7 +942,7 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
         raise fail(403, "plan_required", "Filtering by price position is part of the Silver plan.", plan="silver")
     store = request.app.state.store
     today = today_ist()
-    rng = parse_range(on, frm, to, today)
+    rng = parse_range(on, frm, to, today, future=status == "due")
     decls = await get_declarations(store)
     quarters = list_quarters(decls, today)
     qkey = quarter or None
@@ -957,7 +963,7 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
         raise fail(400, "bad_request", "Quarter must look like 2026-09 (a quarter-end month: 03, 06, 09 or 12).")
     entry = await get_entry(store, qkey)
     syms = await _symbols_of(request, ctx, scope)
-    rows = select(entry.rows, q=q, sector=sector, cap=cap, index=index, symbols=syms, flagged=flagged, status=status, sort=sort, desc=dir_ == "desc", today=today.isoformat(),
+    rows = select(entry.rows, q=q, sector=sector, industry=industry, cap=cap, index=index, symbols=syms, flagged=flagged, status=status, sort=sort, desc=dir_ == "desc", today=today.isoformat(),
                   date_from=rng[0].isoformat() if rng else "", date_to=rng[1].isoformat() if rng else "")
     # The two cards combine with AND. Each summary describes its own card over the same companies; `combined` is how many pass both.
     g_rows, gsum = growth_filter(rows, growth or GrowthSpec())
@@ -976,7 +982,7 @@ def _dump(body: dict) -> Response:
 
 
 @router.get("/quarter")
-async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80),
+async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
                           cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                           status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
@@ -987,7 +993,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
     started = time.perf_counter()
-    ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price)
+    ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     gsum, psum = sums or (None, None)
     silver = has(plan, "silver")
     if entry is None:
@@ -999,7 +1005,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     summary = summarize(rows, today)
     totals = summarize(all_rows, today)
     if not silver:   # the headline counts are free; every average, share and flag is a figure
-        for k in ("medianRevenueYoY", "medianProfitYoY", "profitUpShare", "marginUpShare", "flagged", "nRevenue", "nProfit", "nMargin"):
+        for k in ("medianRevenueYoY", "medianProfitYoY", "profitUpShare", "marginUpShare", "flagged", "nRevenue", "nProfit", "nMargin", "verdicts", "beatShare"):
             summary[k] = totals[k] = None
     per_day: Dict[str, int] = {}
     for r in rows:
@@ -1008,11 +1014,13 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     return _dump({"plan": plan, "locked": not silver, "today": today.isoformat(), "quarter": entry.quarter, "quarters": quarters, "total": len(rows), "offset": offset, "limit": limit,
                   "summary": summary, "totals": totals, "rows": out_rows, "days": [{"date": d, "n": n} for d, n in sorted(per_day.items(), reverse=True)], "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(entry.loaded)),
                   "facets": {"sectors": [{"name": n, "n": c} for n, c in entry.sectors], "indices": [{"code": c, "n": n} for c, n in idx_counts.items()]},
-                  "dates": dates, "dateMeaning": DATE_MEANING, "gapFlag": GAP_FLAG, "growth": gsum, "price": psum, "priceStrip": price_strip(rows) if silver else None, "distribution": distribution(rows), "took": round((time.perf_counter() - started) * 1000, 1)})
+                  "dates": dates, "dateMeaning": DATE_MEANING, "gapFlag": GAP_FLAG, "growth": gsum, "price": psum, "priceStrip": price_strip(rows) if silver else None, "distribution": distribution(rows),
+                  "industries": industries(entry.rows) if silver else [{k: v for k, v in x.items() if k in ("name", "companies", "declared")} for x in industries(entry.rows)],
+                  "took": round((time.perf_counter() - started) * 1000, 1)})
 
 
 @router.get("/quarter/export")
-async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80),
+async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
                          cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                          scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
@@ -1024,7 +1032,7 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
     ctx = await current(request)
     if not has(ctx.plan if ctx.authed else "basic", "silver"):
         raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
-    _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price)
+    _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
 
 

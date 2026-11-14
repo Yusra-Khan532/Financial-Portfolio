@@ -627,7 +627,7 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   },
   "score-filter": {
     title: "Pillar score bands",
-    what: "Buttons that filter the screener by each pillar's score band: below 45, 45 to 77, or 78 and above.",
+    what: "Buttons that filter the screener by each part's rating word (Watch, Mixed, Healthy, Strong).",
     x: "The three score bands for each pillar: quality, growth, profitability and balance sheet.",
     y: "The four pillars, one row each.",
     read: "Select a band on one or more rows to keep only companies whose score sits there. 'Strong on all four' picks 78 or above on every pillar.",
@@ -664,6 +664,14 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     y: "Companies, one row each, under the day they declared. Amounts are in rupees crore; EPS is in rupees per share.",
     read: "Green is growth and red is a fall. A blank growth figure means last year's quarter was a loss, so a percentage would mislead. A company whose date has passed but whose report has not been refreshed yet shows the date and a note, never last quarter's figures.",
     why: "Results are when a business shows its progress. Seeing the whole market's quarter in one place shows who is growing, whose margins are moving, and how the season is going.",
+  },
+  "qr-verdict": {
+    title: "Verdict against its industry",
+    what: "How the company's quarter compares with similar companies: its revenue growth, profit growth and margin change on a year ago, each set against the typical company of the same NSE industry this quarter.",
+    x: "Three checks: Rev, Profit and Margin. ▲ better than typical, ● close to typical, ▼ worse than typical, ✕ a loss.",
+    y: "One verdict per company: Strong (better on most checks), Good (better on balance), In line, Weak (worse on balance), Poor (worse on most checks), or Loss.",
+    read: "Company size does not change the yardstick: a small company is compared with the same typical company as a large one. Use the size filter to compare like with like. A company with too few figures has no verdict.",
+    why: "A 20% rise in profit means one thing in an industry where the typical company grew 40% and another where it fell. The verdict puts each result in that context. It describes the quarter, not the shares.",
   },
   "qr-scoreboard": {
     title: "Results scoreboard",

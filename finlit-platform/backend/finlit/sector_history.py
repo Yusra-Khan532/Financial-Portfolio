@@ -10,9 +10,12 @@ from datetime import date as _date
 from typing import Any, Dict, List, Optional, Sequence
 
 DAYS = 126                       # about six months of trading sessions
-KEYS = ("sold_off", "bouncing", "rising", "losing", "no_signal")
-WORD = {"sold_off": "Sold off", "bouncing": "Bouncing back", "rising": "Rising together", "losing": "Losing steam", "no_signal": "No clear signal"}
-OF_CODE = {"washout": "sold_off", "thrust_c": "bouncing", "thrust_cap": "bouncing", "confirmed": "rising", "fading": "losing", "neutral": "no_signal"}
+# The "FinLit final pages" pack (13 Nov 2026) keeps "Bouncing back after a crash" apart from "Bouncing back" in the mood chart and the state table, so the two have their own key;
+# every sentence that says "bouncing back" counts both (BOUNCE).
+KEYS = ("sold_off", "crash", "bouncing", "rising", "losing", "no_signal")
+WORD = {"sold_off": "Sold off", "crash": "Bouncing back after a crash", "bouncing": "Bouncing back", "rising": "Rising together", "losing": "Losing steam", "no_signal": "No clear signal"}
+OF_CODE = {"washout": "sold_off", "thrust_c": "bouncing", "thrust_cap": "crash", "confirmed": "rising", "fading": "losing", "neutral": "no_signal"}
+BOUNCE = ("bouncing", "crash")
 
 
 def key_of(code: Any) -> Optional[str]:
@@ -45,11 +48,15 @@ def build(pages: List[dict], days: int = DAYS) -> Optional[dict]:
     groups = []
     for p in usable:
         codes: List[Optional[str]] = [None] * len(dates)
-        for d, c in zip(p["history"]["dates"], p["history"]["state_code"]):
+        rising: List[Optional[float]] = [None] * len(dates)      # out of every 100 counted stocks, how many are above their medium trend (the pack's "stocks rising")
+        above = p["history"].get("above_20") or []
+        for i, (d, c) in enumerate(zip(p["history"]["dates"], p["history"]["state_code"])):
             if d in pos:
                 codes[pos[d]] = key_of(c)
+                v = above[i] if i < len(above) else None
+                rising[pos[d]] = round(float(v), 1) if isinstance(v, (int, float)) and v == v else None
         if any(codes):
-            groups.append({"name": p["name"], "slug": p["slug"], "kind": p.get("kind", "industry"), "states": codes})
+            groups.append({"name": p["name"], "slug": p["slug"], "kind": p.get("kind", "industry"), "states": codes, "rising": rising})
     if not groups:
         return None
     groups.sort(key=lambda g: g["name"].lower())
@@ -70,8 +77,9 @@ def _fmt(d: str) -> str:
 def mood_insights(groups: List[dict], dates: List[str], counts: Dict[str, List[int]], ends: List[int]) -> List[dict]:
     out: List[dict] = []
     n, last = len(dates), len(dates) - 1
-    now = counts["bouncing"][last]
-    prev = counts["bouncing"][ends[-2]] if len(ends) > 1 else counts["bouncing"][max(0, last - 5)]
+    both = [a + b for a, b in zip(counts["bouncing"], counts["crash"])]
+    now = both[last]
+    prev = both[ends[-2]] if len(ends) > 1 else both[max(0, last - 5)]
     ind = "industry" if now == 1 else "industries"
     out.append({"kind": "insight", "title": "Bouncing back now", "text": f"{now} {ind} {'is' if now == 1 else 'are'} bouncing back today, against {prev} at last week's close."})
     rising_days = [i for i in range(n) if counts["rising"][i] > 0]
@@ -101,7 +109,7 @@ def strip_insights(groups: List[dict], dates: List[str], ends: List[int]) -> Lis
     if len(ends) < 2:
         return out
     this, prev = ends[-1], ends[-2]
-    turned = [g["name"] for g in groups if g["states"][this] == "bouncing" and g["states"][prev] != "bouncing"]
+    turned = [g["name"] for g in groups if g["states"][this] in BOUNCE and g["states"][prev] not in BOUNCE]
     if turned:
         names = ", ".join(turned[:3]) + (f" and {len(turned) - 3} more" if len(turned) > 3 else "")
         out.append({"kind": "insight", "title": "Turned to a bounce this week", "text": f"{names} turned to bouncing back since last Friday."})

@@ -1,0 +1,138 @@
+/* Watchlists as the "FinLit final pages" pack draws it (board 16, 13 Nov 2026). The page wrapper is ".wp sp", so the pack's colour tokens of
+   sectors-pack.css (--sp-good, --sp-watch, --sp-info, --sp-bad and their -bg / -bd) apply; the wp- classes add the page's own pieces.
+   Font sizes stay on the type scale (src/styles/typescale.test.ts). */
+.wp { --wp-org: #8A3A0E; --wp-org-bg: #FBEEE0; --wp-org-bd: rgba(138, 58, 14, .2); --wp-row: #EEE6D4; --wp-chip-off: #F1ECE0; padding-bottom: 32px; }
+:root[data-theme="dark"] .wp { --wp-org: #F0B48A; --wp-org-bg: rgba(240, 180, 138, .12); --wp-org-bd: rgba(240, 180, 138, .3); --wp-row: var(--border); --wp-chip-off: var(--s2); }
+
+/* the header panel: plan chip, title, the line under it; the lists, + New list and Add a stock on the right */
+.wp-head { margin: 22px 0 14px; padding: 24px 28px; border: 1px solid var(--sp-line); border-radius: 16px; background: var(--sp-panel); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.wp-head-t { display: flex; flex-direction: column; gap: 8px; max-width: 760px; min-width: 0; }
+.wp-plan { align-self: flex-start; display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; background: var(--s2); color: var(--sp-mute); font: 700 12px var(--sans); letter-spacing: .02em; }
+.wp-head h1 { margin: 0; font: 600 40px/1.1 var(--serif); color: var(--sp-ink); }
+.wp-head p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--sp-ink); }
+.wp-lists { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.wp-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sp-line); background: var(--sp-panel); color: var(--sp-ink); font: 600 16px var(--sans); cursor: pointer; white-space: nowrap; }
+.wp-pill[aria-pressed="true"] { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg, #fff); }
+.wp-pill:hover:not([aria-pressed="true"]) { border-color: var(--sp-ink); }
+.wp-pill input { width: 150px; border: 0; background: transparent; color: inherit; font: inherit; outline: none; }
+.wp-add { position: relative; }
+.wp-add input { width: 260px; height: 42px; padding: 0 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); font: 400 14px var(--sans); }
+.wp-add input:focus-visible { outline: 2px solid var(--sp-info); outline-offset: 1px; }
+.wp-add ul { position: absolute; z-index: 20; top: 46px; right: 0; width: 300px; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--border-strong, var(--sp-line)); border-radius: 12px; background: var(--sp-panel); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .35); }
+.wp-add li button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--sp-ink); font: 600 14px var(--sans); text-align: left; cursor: pointer; }
+.wp-add li button:hover, .wp-add li button:focus-visible { background: var(--s2); } .wp-add li small { font-weight: 400; font-size: 12px; color: var(--sp-mute); }
+.wp-manage { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: flex-end; font-size: 13px; }
+.wp-manage button { border: 0; background: none; padding: 0; color: var(--sp-info); font: 600 13px var(--sans); cursor: pointer; } .wp-manage button:hover { text-decoration: underline; }
+
+/* the five tiles */
+.wp-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
+.wp-tile { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--sp-line); background: var(--sp-panel); }
+.wp-tile > span:first-child { display: flex; align-items: center; gap: 4px; font: 800 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.wp-tile b { font: 600 28px/1.1 var(--serif); color: var(--sp-ink); }
+.wp-tile small { font-size: 13px; line-height: 1.4; color: var(--sp-ink); }
+.wp-t-info { background: var(--sp-info-bg); border-color: var(--sp-info-bd); } .wp-t-info > span:first-child { color: var(--sp-info); }
+.wp-t-day { background: var(--wp-chip-off); } .wp-t-day > span:first-child { color: var(--sp-ink); }
+.wp-t-good { background: var(--sp-good-bg); border-color: var(--sp-good-bd); } .wp-t-good > span:first-child { color: var(--sp-good); }
+.wp-t-org { background: var(--wp-org-bg); border-color: var(--wp-org-bd); } .wp-t-org > span:first-child { color: var(--wp-org); }
+
+/* My watchlist: Group by, Download, cards and the table */
+.wp-sec { margin: 0 0 18px; padding: 22px 24px; border: 1px solid var(--sp-line); border-radius: 16px; background: var(--sp-panel); min-width: 0; }
+.wp-sec-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.wp-sec h2 { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 24px/1.25 var(--serif); color: var(--sp-ink); }
+.wp-sub { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--sp-mute); }
+.wp-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .wp-group > span { font-size: 13px; color: var(--sp-mute); }
+.wp-sec .sp-cards { margin-top: 12px; }
+.wp-tw { margin-top: 12px; }
+.wp-tw .sp-scroll { position: relative; }   /* keeps the visually hidden header label inside the scrolling box, so the page never scrolls sideways */
+.wp-t { width: 100%; min-width: 1060px; border-collapse: collapse; font-size: 14px; color: var(--sp-ink); }
+.wp-t thead th { padding: 0 6px 8px; text-align: left; font: 800 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); white-space: nowrap; vertical-align: bottom; }
+.wp-t thead th.r { text-align: right; }
+.wp-th { display: inline-flex; align-items: center; gap: 4px; }
+.wp-th button { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.wp-th button:hover { color: var(--sp-ink); } .wp-t th[aria-sort="ascending"] button, .wp-t th[aria-sort="descending"] button { color: var(--sp-ink); }
+.wp-th button svg { opacity: .55; }
+.wp-t td { padding: 10px 6px; border-top: 1px solid var(--wp-row); vertical-align: middle; }
+.wp-t td.r { text-align: right; }
+.wp-grp th { padding: 10px 0 0; text-align: left; font-weight: 400; }
+.wp-grp th > div { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--wp-chip-off); }
+.wp-grp b { font-size: 14px; color: var(--sp-mute); } .wp-grp span { font-size: 13px; color: var(--sp-ink); }
+.wp-grp.good th > div { background: var(--sp-good-bg); } .wp-grp.good b { color: var(--sp-good); }
+.wp-grp.bad th > div { background: var(--sp-bad-bg); } .wp-grp.bad b { color: var(--sp-bad); }
+.wp-grp.mid th > div { background: var(--sp-info-bg); } .wp-grp.mid b { color: var(--sp-info); }
+.wp-grp + tr td { border-top: 0; }
+.wp-co { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wp-co input[type="checkbox"] { flex: none; width: 16px; height: 16px; accent-color: var(--sp-info); }
+.wp-co a { color: var(--sp-ink); text-decoration: none; } .wp-co a:hover b { text-decoration: underline; }
+.wp-co small { display: block; font-size: 12px; color: var(--sp-mute); }
+.wp-ind { font-size: 13px; max-width: 180px; }
+.wp-px b { font-weight: 700; } .wp-px span { display: block; font-size: 13px; font-weight: 700; }
+.wp-up { color: var(--sp-good); } .wp-dn { color: var(--sp-bad); }
+.wp-size { font-size: 13px; white-space: nowrap; } .wp-size small { display: block; font-size: 12px; color: var(--sp-faint); }
+.wp-sc { white-space: nowrap; } .wp-sc b { font: 600 18px var(--serif); } .wp-sc span { margin-left: 4px; font-size: 12px; font-weight: 700; color: var(--sp-good); }
+.wp-sc.mid span { color: var(--sp-watch); } .wp-sc.lo span { color: var(--sp-bad); } .wp-sc .wp-na { margin: 0; font: 400 12px var(--sans); color: var(--sp-faint); }
+.wp-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font: 700 12px var(--sans); letter-spacing: .02em; white-space: nowrap; background: var(--wp-chip-off); color: var(--sp-mute); }
+.wp-chip.good { background: var(--sp-good-bg); color: var(--sp-good); } .wp-chip.bad { background: var(--sp-bad-bg); color: var(--sp-bad); } .wp-chip.mid { background: var(--sp-info-bg); color: var(--sp-info); }
+.wp-peer small { display: block; margin-top: 2px; font-size: 12px; color: var(--sp-ink); }
+.wp-tg { width: 76px; height: 32px; padding: 0 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--sp-ink); font: 400 14px var(--sans); }
+.wp-tg::placeholder, .wp-nt::placeholder { color: var(--sp-faint); opacity: 1; }
+.wp-tg:hover, .wp-nt:hover { border-color: var(--sp-line); } .wp-tg:focus, .wp-nt:focus { border-color: var(--sp-info); outline: none; background: var(--bg); }
+.wp-tgd { display: block; font-size: 12px; }
+.wp-nt { width: 100%; min-width: 120px; min-height: 32px; padding: 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--sp-ink); font: 400 13px/1.4 var(--sans); resize: vertical; }
+.wp-ac { white-space: nowrap; text-align: right; }
+.wp-ac > * { vertical-align: middle; }
+.wp-ib { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-left: 2px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--sp-mute); cursor: pointer; }
+.wp-ib:hover { border-color: var(--sp-line); color: var(--sp-ink); } .wp-ib svg { width: 16px; height: 16px; }
+.wp-mv { height: 32px; max-width: 110px; padding: 0 6px; border: 1px solid var(--sp-line); border-radius: 8px; background: var(--sp-panel); color: var(--sp-ink); font: 400 13px var(--sans); }
+.wp-empty { margin: 12px 0 0; padding: 16px; border-radius: 12px; background: var(--s2); font-size: 16px; color: var(--sp-ink); }
+.wp-empty div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* Price and business disagree | Tell me when a label changes */
+.wp-pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: stretch; margin-bottom: 18px; }
+.wp-pair .wp-sec { margin: 0; }
+.wp-why { margin: 10px 0 0; display: flex; gap: 8px; align-items: baseline; font-size: 14px; line-height: 1.5; color: var(--sp-ink); }
+.wp-why b { flex: none; font: 800 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--sp-info); }
+.wp-dis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.wp-dc { min-width: 0; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--sp-line); background: var(--bg, #fff); }
+:root[data-theme="light"] .wp-dc { background: #fff; }
+.wp-dc-h { display: flex; align-items: center; gap: 10px; } .wp-dc-h a { color: var(--sp-ink); font-weight: 700; text-decoration: none; } .wp-dc-h a:hover { text-decoration: underline; }
+.wp-rk { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.wp-rk > div { padding: 10px; border-radius: 10px; }
+.wp-rk span { font: 800 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.wp-rk b { display: block; font: 600 24px var(--serif); color: var(--sp-ink); }
+.wp-rk .good { background: var(--sp-good-bg); } .wp-rk .good span { color: var(--sp-good); }
+.wp-rk .bad { background: var(--sp-bad-bg); } .wp-rk .bad span { color: var(--sp-bad); }
+.wp-dc p { margin: 8px 0 0; font-size: 14px; color: var(--sp-ink); }
+.wp-alert { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.wp-set { margin-left: auto; height: 42px; padding: 0 18px; border: 0; border-radius: 12px; background: #162335; color: #fff; font: 600 16px var(--sans); cursor: pointer; }
+:root[data-theme="dark"] .wp-set { background: var(--sp-info); color: #0B1A1F; }
+.wp-set:hover { filter: brightness(1.1); }
+.wp-on { flex-basis: 100%; margin: 4px 0 0; font-size: 14px; color: var(--sp-good); } .wp-on button { margin-left: 8px; border: 0; background: none; padding: 0; color: var(--sp-info); font: 600 14px var(--sans); cursor: pointer; text-decoration: underline; }
+.wp-note { margin: 8px 0 0; font-size: 13px; color: var(--sp-mute); }
+
+/* In simple words */
+.wp-plain { margin: 0 0 18px; padding: 14px 18px; border-radius: 14px; background: var(--sp-good-bg); font-size: 14px; color: var(--sp-ink); }
+
+/* the compare bar (kept from the old page): appears once a row is ticked */
+.wp-dock { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--sp-line); border-radius: 14px; background: var(--sp-panel); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .45); font-size: 14px; color: var(--sp-ink); }
+.wp-dock button.lnk { border: 0; background: none; color: var(--sp-info); font: 600 14px var(--sans); cursor: pointer; }
+
+@media (max-width: 1180px) { .wp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .wp-pair { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .wp-head { padding: 18px; } .wp-head h1 { font-size: 32px; }
+  .wp-lists, .wp-add, .wp-add input { width: 100%; } .wp-add ul { left: 0; right: auto; width: 100%; }
+  .wp-manage { justify-content: flex-start; }
+  .wp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wp-tile b { font-size: 24px; }
+  .wp-sec { padding: 18px 16px; } .wp-sec h2 { font-size: 20px; }
+  .wp-group { width: 100%; } .wp-dis { grid-template-columns: minmax(0, 1fr); }
+  .wp-set { margin-left: 0; width: 100%; }
+  .wp-dock { left: 12px; right: 12px; transform: none; flex-wrap: wrap; bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+/* the (i) keeps its lower-case letter inside the capitalised headers; the group rows are in normal case, as in the pack */
+.wp-t thead .sp-i { text-transform: none; letter-spacing: 0; }
+.wp .wp-grp th { text-transform: none; letter-spacing: normal; }
+.wp .wp-t textarea.wp-nt { font: 400 13px/1.4 var(--sans); }
+/* the target and note cells read as plain text until used (as in the pack), in both themes: stronger than the dark theme's own input box (theme.css) */
+:root:root:root .wp .wp-t input.wp-tg, :root:root:root .wp .wp-t textarea.wp-nt { background-color: transparent; border-color: transparent; box-shadow: none; }
+:root:root:root .wp .wp-t input.wp-tg:hover, :root:root:root .wp .wp-t textarea.wp-nt:hover { border-color: var(--sp-line); }
+:root:root:root .wp .wp-t input.wp-tg:focus, :root:root:root .wp .wp-t textarea.wp-nt:focus { border-color: var(--sp-info); background-color: var(--bg); box-shadow: none; }
+@media (min-width: 761px) { :root:root:root .wp .wp-t textarea.wp-nt { font-size: 13px; } }   /* phones keep the site's 16px in fields, so iOS does not zoom on focus */

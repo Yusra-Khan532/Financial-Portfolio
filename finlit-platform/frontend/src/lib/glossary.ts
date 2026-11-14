@@ -1,7 +1,8 @@
 // Glossary data (generated from backend/finlit/normalize/glossary_data.json by backend/scripts/sync_glossary.py) and search.
 import data from "../content/glossary.json";
 
-export type Term = { id: string; term: string; letter: string; topic: string; meaning: string; why: string; how: string; formula: string; finlit: string; aliases: string[] };
+/** `change`: board 03 of the "FinLit final pages" pack marks the 7 new terms and the 35 renamed or rewritten ones of this update. */
+export type Term = { id: string; term: string; letter: string; topic: string; meaning: string; why: string; how: string; formula: string; finlit: string; aliases: string[]; change?: "new" | "updated" };
 export const TERMS = data.terms as Term[];
 export const TOPICS = data.topics as string[];
 export const LETTERS = ["0–9", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];

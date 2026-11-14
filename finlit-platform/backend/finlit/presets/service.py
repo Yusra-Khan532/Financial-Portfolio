@@ -218,6 +218,18 @@ def live_presets() -> List[Preset]:
     return [p for p in ALL if p.status == "live"]
 
 
+async def candle_day(store, as_of):
+    """The close the chart-pattern scans can be built on: the newest completed session Dhan has, as the technicals job found it (it fetches these candles), never
+    later than the screens' own date. 13 Nov 2026: in the evening Dhan's newest session was still 12 Nov, so a scan that demanded the 13 Nov candle found it for
+    only 232 of 1275 companies, held every run back and the presets job failed four times in a row; the technicals job was already working to 12 Nov."""
+    try:
+        from ..prism_technical import current_target
+        return min(await current_target(store.redis), as_of)
+    except Exception:
+        log.warning("the technicals job's session is not readable; the pattern scans use the screens' date", exc_info=True)
+        return as_of
+
+
 async def refresh_presets(store, settings=None) -> dict:
     """The nightly job: seed top-up, derived tables, every live screen for its common chip sets into the cache."""
     fr = await build_frame(store, persist=True)
@@ -226,16 +238,17 @@ async def refresh_presets(store, settings=None) -> dict:
     pattern_failed = ""
     try:       # its own guard: a scan problem never stops the screens below (the founder's rule: one step stopping never stops another)
         previous = fr.patterns
-        cov = await pat_mod.wait_for_candles(store, fr.t, fr.as_of)
+        day = await candle_day(store, fr.as_of)
+        cov = await pat_mod.wait_for_candles(store, fr.t, day)
         if cov["ratio"] < pat_mod.MIN_COVERAGE:       # thin candles would publish thin lists: stop, keep the last saved run, and raise the alarm (the job reports failed)
-            log.error("chart-pattern scans NOT published: only %s of %s companies have the %s candle (%.1f%%, needs 98%%)", cov["fresh"], cov["universe"], fr.as_of, 100 * cov["ratio"])
+            log.error("chart-pattern scans NOT published: only %s of %s companies have the %s candle (%.1f%%, needs 98%%)", cov["fresh"], cov["universe"], day, 100 * cov["ratio"])
             pattern_failed = f"patterns:candles {cov['fresh']}/{cov['universe']} below 98%"
             pattern_note = {"patternsHeld": True, "patternCoverage": round(cov["ratio"], 4), "patternsSuspended": cov["suspended"]}
         else:
-            found = await pat_mod.scan_all(store, fr.t, fr.as_of)
+            found = await pat_mod.scan_all(store, fr.t, day)           # labelled with that close's date
             await pat_mod.save(store, found, previous)
             fr.patterns = found
-            pattern_note = {"patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
+            pattern_note = {"patternsAsOf": day.isoformat(), "patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
                             "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4)}
     except Exception as exc:
         log.exception("chart-pattern scans failed; the last saved run stays in use")

@@ -89,6 +89,13 @@ describe("grouped panel", () => {
 });
 
 describe("screen view", () => {
+  it("Top gainers with fewer than two stored closes shows the line, not a blank area (task #64, D-2)", async () => {
+    listBody = { ...LIST, groups: [...LIST.groups, { id: "gain", name: "Top gainers", presets: [P("gainers-1m", "Top gainers", "Top gainers", { kind: "gainers" })] }] };
+    detail["gainers-1m"] = [404, { detail: { status: "no_history", message: "Not enough closes stored yet." } }];
+    mount("?preset=gainers-1m");
+    expect(await screen.findByText("No company has joined a list since FinLit began storing lists on 11 Nov 2026. Top gainers fills in from the next close.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Back to the screens" })).toBeTruthy();
+  });
   it("choosing a screen sets the address and shows the response rows, card facts, how it works and the disclaimer", async () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: /Highest-rated large caps/ }));

@@ -99,18 +99,8 @@
 .gl-f { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--s2); border: 1px solid var(--border); } .gl-f .label { font-size: var(--fs-11); } .gl-f code { display: block; margin-top: 6px; font: 500 13px/1.6 var(--mono); color: var(--gold); overflow-wrap: anywhere; } .gl-foot { margin-top: 24px; font-size: var(--fs-13); }
 @media (max-width: 900px) { .gl-bar { grid-template-columns: 1fr; } .gl-az { grid-template-columns: repeat(7, 1fr); } .gl-list { grid-template-columns: 1fr; } }
 
-/* ---- watchlist ---- */
-.wl { padding-bottom: 80px; }
-.wl-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); } .wl-tab { display: inline-flex; } .wl-tab button { display: inline-flex; gap: 10px; align-items: center; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--muted); font: 600 14px var(--sans); cursor: pointer; } .wl-tab button i { font: 600 11px var(--mono); font-style: normal; padding: 1px 7px; border-radius: 9px; background: var(--s3); } .wl-tab.on button { background: linear-gradient(135deg, var(--gold-2), var(--gold)); border-color: var(--gold); color: var(--on-gold); } .wl-tab.on button i { background: rgba(0,0,0,.14); } .wl-tab input { height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--gold); background: var(--s1); color: var(--text); font: 14px var(--sans); width: 160px; }
-.wl-new { padding: 9px 16px; border-radius: 999px; border: 1px dashed var(--border-strong); background: none; color: var(--gold); font: 600 14px var(--sans); cursor: pointer; } .wl-new:hover { background: var(--gold-soft); } .grow { flex: 1; }
-.wl-kpi { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; } .wk { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--border); background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 7%, var(--s1)), var(--s1)); } .wk b { display: block; font: 300 32px/1 var(--serif); } .wk span { font-size: var(--fs-13); color: var(--muted); } .wk.up b { color: var(--gain); } .wk.down b { color: var(--loss); } .wk.warn { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); } .wk.warn b { color: var(--gold); }
-.wl-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 18px; } .wl-add { position: relative; flex: 1; min-width: 240px; } .wl-add label { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); } .wl-add label:focus-within { border-color: var(--gold); } .wl-add svg { width: 16px; height: 16px; color: var(--faint); } .wl-add input { flex: 1; border: 0; outline: 0; background: none; color: var(--text); font: 14px var(--sans); }
+/* ---- the labelled selects (.wl-sel), shared by the results pages; the Watchlists page itself is styles/watchlist-pack.css ---- */
 .wl-sel { display: grid; gap: 4px; font: 700 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); } .wl-sel select { height: 46px; padding: 0 12px; min-width: 150px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 14px var(--sans); letter-spacing: 0; text-transform: none; }
-.wl-sug { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
-.wl-mix { margin-bottom: 16px; } .wl-leg { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0; font-size: 13px; color: var(--muted); } .wl-leg span { display: inline-flex; align-items: center; gap: 8px; } .wl-leg i { width: 10px; height: 10px; border-radius: 3px; } .wl-leg b { color: var(--text); font-family: var(--mono); }
-.wl-att { margin-bottom: 16px; } .wl-att ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; } .wl-att li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; padding: 10px 14px; border-radius: 12px; background: var(--s2); border-left: 3px solid var(--gold); font-size: var(--fs-14); align-items: center; } .wl-att li a { color: var(--text); text-decoration: none; } .wl-att li span { color: var(--muted); }
-.wl-dock { position: fixed; z-index: 40; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-radius: 999px; border: 1px solid var(--gold); background: var(--s1); box-shadow: var(--lift); } .wl-dock b { font: 600 16px var(--mono); }
-@media (max-width: 1100px) { .wl-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); } } @media (max-width: 640px) { .wl-dock { width: calc(100% - 32px); justify-content: space-between; border-radius: 18px; } }
 
 /* ---- latest quarter + trends ---- */
 .qk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
@@ -333,43 +323,6 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .cc-prism { padding-top: 10px; border-top: 1px dashed var(--border); } .cc-prism small a { color: inherit; text-decoration: underline; }
 @media (max-width: 600px) { .cmp-models .mchip { min-height: 44px; } }
 
-/* ---- Watchlist: the list as one table (task #32) ---- */
-.wl-tw { padding: 0; overflow-x: auto; margin-bottom: 16px; }
-.wl-t { width: 100%; border-collapse: collapse; font-size: var(--fs-14); min-width: 1060px; }
-.wl-t th, .wl-t td { padding: 12px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--border); }
-.wl-t thead th { font: 600 var(--fs-12)/1.3 var(--sans); color: var(--muted); background: var(--s1); position: sticky; top: 0; white-space: nowrap; }
-.wl-t thead th button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; } .wl-t thead th button svg { opacity: .45; } .wl-t thead th.is-sorted button { color: var(--text); } .wl-t thead th.is-sorted button svg { opacity: 1; color: var(--gold); }
-.wl-t thead th button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
-.wl-t .r { text-align: right; } .wl-t .c { text-align: center; } .wl-t td.r b { display: block; font-variant-numeric: tabular-nums; } .wl-t td.r span, .wl-t td em { display: block; font: 600 var(--fs-12) var(--sans); font-style: normal; }
-.wl-t .wl-ck { width: 38px; padding-right: 0; } .wl-t .wl-ck input { width: 18px; height: 18px; accent-color: var(--gold); }
-.wl-t tbody tr:hover { background: color-mix(in srgb, var(--gold) 5%, transparent); } .wl-t tbody tr.sel { background: color-mix(in srgb, var(--gold) 9%, transparent); } .wl-t tbody tr:last-child td { border-bottom: 0; }
-.wl-t .wl-co { min-width: 210px; } .wl-t .wl-coin { display: flex; align-items: center; gap: 10px; } .wc-n { display: grid; min-width: 0; } .wc-n a { color: var(--text); text-decoration: none; } .wc-n a:hover b { text-decoration: underline; } .wc-n b { font-size: var(--fs-14); } .wc-n small { color: var(--faint); font-size: var(--fs-12); }
-.wl-t .wl-ind { min-width: 130px; color: var(--muted); }
-.wl-t td:not(.wl-ntc):not(.wl-co):not(.wl-ind) { font-variant-numeric: tabular-nums; }
-.wl-t { --band-hi: #2FBF7F; --band-mid: #F0A030; --band-lo: #E5484D; } :root[data-theme="light"] .wl-t { --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; }
-.wl-iq { display: inline-block; min-width: 42px; padding: 4px 10px; border-radius: 8px; font: 700 var(--fs-14) var(--mono); text-align: center; color: var(--text); background: var(--s2); }
-.wl-iq.hi { background: color-mix(in srgb, var(--band-hi) 38%, var(--s1)); } .wl-iq.mid { background: color-mix(in srgb, var(--band-mid) 38%, var(--s1)); } .wl-iq.lo { background: color-mix(in srgb, var(--band-lo) 38%, var(--s1)); }
-.wl-st { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; white-space: nowrap; } .wl-st i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
-.wl-st.strong i, .wl-st.healthy i { background: var(--band-hi); } .wl-st.mixed i { background: var(--band-mid); } .wl-st.watch i { background: var(--band-lo); }
-.wl-tg { width: 78px; height: 34px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 600 var(--fs-13) var(--sans); text-align: center; } .wl-tg::placeholder { color: var(--text); opacity: 1; }
-.wl-tg:focus-visible, .wl-nt:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.wl-t .wl-ntc { min-width: 190px; } .wl-nt { width: 100%; min-height: 48px; resize: vertical; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: var(--fs-13)/1.4 var(--sans); }
-.wl-t .wl-ac { white-space: nowrap; } .wl-t .wl-ac > * { vertical-align: middle; }
-.wl-ib { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; border: 0; background: none; color: var(--muted); cursor: pointer; } .wl-ib:hover { background: var(--s2); color: var(--gold); } .wl-ib:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; } .wl-ib .ico { width: 18px; height: 18px; }
-.wl-mv { height: 32px; max-width: 96px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: var(--fs-12) var(--sans); margin-right: 4px; }
-.wl-grow th { padding: 14px 12px 8px; background: var(--s2); font-weight: 500; color: var(--muted); } .wl-grow b { margin-right: 14px; color: var(--text); font: 400 var(--fs-18) var(--serif); } .wl-grow span { margin-right: 14px; font-size: var(--fs-13); }
-/* the strip above the table, as in the design: concentration with its legend beside it, and one row for "worth a second look" */
-.wl-mix { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 4px 28px; align-items: start; } .wl-mix .card-h { grid-column: 1 / -1; } .wl-mix .rib { grid-column: 1; } .wl-mix .wl-leg { grid-column: 2; grid-row: 2 / span 2; flex-direction: column; gap: 8px; margin: 0; } .wl-mix .seg-note { grid-column: 1; margin: 0; }
-.wl-att ul { grid-template-columns: 1fr; } .wl-att li { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
-@media (max-width: 760px) {
-  .wl-mix { grid-template-columns: 1fr; } .wl-mix .wl-leg, .wl-mix .seg-note { grid-column: 1; grid-row: auto; flex-direction: row; flex-wrap: wrap; }
-  .wl-tw { overflow: visible; border: 0; background: none; padding: 0; } .wl-t { min-width: 0; display: block; } .wl-t thead { display: none; } .wl-t tbody, .wl-t tr, .wl-t td { display: block; }
-  .wl-t tr:not(.wl-grow) { position: relative; margin-bottom: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); }
-  .wl-t td { border: 0; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; }
-  .wl-t td[data-l]:not([data-l=""])::before { content: attr(data-l); color: var(--faint); font: 600 var(--fs-12) var(--sans); text-align: left; }
-  .wl-t td.wl-ck { position: absolute; top: 12px; right: 12px; width: auto; padding: 0; } .wl-t td.wl-co { min-width: 0; display: block; padding-right: 36px; } .wl-t td.wl-co::before, .wl-t td.wl-ntc::before { display: none; }
-  .wl-t td.wl-ntc { display: block; } .wl-t td.wl-ac { justify-content: flex-end; } .wl-grow th { display: block; } .wl-t td.r b, .wl-t td.r span, .wl-t td em { display: inline; margin-left: 6px; }
-}
 
 /* Compare: tidy range strips (task #80), the Spider tab (task #81) */
 .cmpw .mt-h, .cmpw .sp-h { top: 70px; padding: 4px 8px !important; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 6px 14px -10px rgba(0, 0, 0, .55) !important; background: var(--s2) !important; }
@@ -418,4 +371,42 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
   .sp-t .sp-h > span:not(:first-child) .mk { margin: 0; grid-row: auto; } .sp-t .sp-h > span:not(:first-child) b { font-size: var(--fs-12); line-height: 1.25; } .sp-t .sp-h > span:not(:first-child) small { display: none; }
   .sp-v { font-size: var(--fs-13); } .sp-v .dt { margin-right: 5px; }
   .sp-t.n4 { overflow-x: auto; } .sp-t.n4 > .sp-h, .sp-t.n4 > .sp-r { min-width: 430px; }   /* four companies do not fit across a phone: the table moves sideways, the chart above it does not */
+}
+
+/* Task #81: the company-name row of every Compare tab. It sticks flush under the site bar (--cmp-top, measured), and an 8 px ring in the card's colour
+   fills round its rounded corners, so no row of the table shows above or behind the names while the page scrolls. On a phone or tablet the row shows too
+   (it was hidden, so the columns had no names): names wrap, there is no empty first column. */
+.cmpw .mt-h, .cmpw .sp-h { top: var(--cmp-top, 62px); box-shadow: 0 0 0 8px var(--s1), 0 6px 14px -10px rgba(0, 0, 0, .55) !important; }
+@media (max-width: 900px) {
+  .cmpw .mt-h { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+  .cmpw .mt-h > span:first-child { display: none; }
+  .cmpw .mt-h > span:not(:first-child) { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; font-size: var(--fs-12); line-height: 1.25; padding: 5px 8px; }
+}
+
+/* Task #116 (13 Nov 2026): the compact Peer Comparison header. It sticks under the site bar while the metrics scroll, and the column-aligned names row of each
+   tab (task #81, kept by the founder) sticks right under it (--cmp-peer, measured in Compare.tsx). Premium deep green in the dark theme, a light green wash in
+   the light theme; the first company's mark is green and the second's blue (the founder: on these chips only), C and D keep the page's own marks. */
+.cmpw { --peer-bg: linear-gradient(180deg, #E9F4EC, #E1EFE6); --peer-line: rgba(31, 107, 73, .22); --peer-ic: #1F6B49; --peer-chip: #FFFFFF; --peer-a: #1F8A55; --peer-b: #2F6FEB; }
+:root[data-theme="dark"] .cmpw { --peer-bg: linear-gradient(180deg, #0F2A1E, #0B2117); --peer-line: rgba(127, 216, 166, .22); --peer-ic: #7FD8A6; --peer-chip: rgba(255, 255, 255, .03); --peer-a: #7FD8A6; --peer-b: #4A93F0; }
+.cmpw .cmp-peer { position: sticky; top: var(--cmp-top, 62px); z-index: 6; display: flex; align-items: center; gap: 10px 18px; margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--peer-line); background: var(--peer-bg); box-shadow: 0 0 0 8px var(--bg), 0 8px 20px -14px rgba(0, 0, 0, .6); }
+.cmpw .cmp-peer-t { display: flex; align-items: center; gap: 12px; padding-right: 18px; border-right: 1px solid var(--peer-line); min-width: 0; flex: none; }
+.cmpw .cmp-peer-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; color: var(--peer-ic); background: color-mix(in srgb, var(--peer-ic) 12%, transparent); border: 1px solid var(--peer-line); }
+.cmpw .cmp-peer-ic svg { width: 20px; height: 20px; }
+.cmpw .cmp-peer-t b { display: block; font: 600 16px/1.25 var(--sans); color: var(--text); }
+.cmpw .cmp-peer-t small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--muted); }
+.cmpw .cmp-peer-cos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.cmpw .cmp-chip { --cc: var(--k2); display: inline-flex; align-items: center; gap: 9px; min-width: 0; max-width: 100%; padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--cc) 45%, var(--peer-line)); background: var(--peer-chip); }
+.cmpw .cmp-chip.c0 { --cc: var(--peer-a); } .cmpw .cmp-chip.c1 { --cc: var(--peer-b); } .cmpw .cmp-chip.c3 { --cc: #8B6FE8; }   /* D: violet, so no two chips share a colour (the page's own D green is too close to A's); its triangle still matches D's mark below */
+.cmpw .cmp-chip .mk { flex: none; width: 12px; height: 12px; margin: 0; background: var(--cc); }
+.cmpw .cmp-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px var(--sans); color: var(--text); }
+.cmpw .cmp-chip button { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; border: 0; background: none; color: var(--muted); cursor: pointer; font: 400 18px/1 var(--sans); }
+.cmpw .cmp-chip button:hover { color: var(--text); background: color-mix(in srgb, var(--cc) 14%, transparent); }
+.cmpw .cmp-chip button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 1px; }
+.cmpw .mt-h, .cmpw .sp-h { top: calc(var(--cmp-top, 62px) + var(--cmp-peer, 0px) + 8px); }
+@media (max-width: 760px) {
+  .cmpw .cmp-peer { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
+  .cmpw .cmp-peer-t { padding-right: 0; border-right: 0; gap: 10px; }
+  .cmpw .cmp-peer-ic { width: 32px; height: 32px; } .cmpw .cmp-peer-t small { display: none; }     /* compact on phones: the heading and the chips */
+  .cmpw .cmp-peer-cos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .cmpw .cmp-chip { padding: 4px 4px 4px 10px; } .cmpw .cmp-chip span { font-size: 13px; }
 }

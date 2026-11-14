@@ -1,38 +1,69 @@
-import { PageHeader } from "../components/PageHeader";
-import { rowScore, rowView, usePlanModel, type ScoreModel } from "../lib/planScore";
-import { CoLogo } from "../components/CoLogo";
-import { titleOf, subOf, codeNote } from "../lib/companyLabel";
+// Watchlists as the "FinLit final pages" pack draws it (board 16, 13 Nov 2026): the header panel with the lists and Add a stock, five tiles, My watchlist
+// (Group by Against peers / Industry / Size, Download, the insight cards and the table), Price and business disagree, Tell me when a label changes,
+// In simple words and the page's questions. Kept from the old page at the founder's request (13 Nov 2026): row actions (alert, move, remove), renaming
+// and deleting a list, ticking rows to compare, and sorting by a column. The score is the plan's (task #100): FinLit Prism for Gold, the FinLit IQ for
+// Silver. Words: lib/watchlistPack.ts. Styles: styles/watchlist-pack.css (wp-) on the pack's tokens (sectors-pack.css). Describes, never advises.
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { AlertButton } from "../components/AlertComposer";
 import { Link, useNavigate } from "react-router";
-import { Icon } from "../lib/icons";
-import { capSize } from "../lib/format";
+import { AlertButton } from "../components/AlertComposer";
 import { Gate } from "../components/Gate";
-import { Plain } from "../components/Plain";
-import { useUI } from "../lib/ui";
-import { limitsFor } from "../lib/auth";
-import { useDocTitle } from "../lib/title";
-import { DEMO } from "../lib/demo";
-import { cr, csvText, nf } from "../lib/format";
-import { saveFile } from "../stock/derive";
-import { watch as wl, useWatchlist } from "../lib/watchlist";
-import { FilterNote, SearchFilters, useRowFilter } from "../components/SearchFilters";
-import { hiddenRowMatches } from "../lib/searchFilters";
-import { BAND_LABEL, METRICS, fmt, useUniverse, type NumKey, type Row } from "../lib/screener";
-import { ChartHelp } from "../components/ChartHelp";
+import { PageFaqs } from "../components/PageFaqs";
+import { Cards, Scroll, Tip } from "../components/sectors/pack/Common";
 import { Logo } from "../components/search/parts";
+import { limitsFor } from "../lib/auth";
 import { useQuotesFor } from "../lib/api";
+import { DEMO } from "../lib/demo";
+import { csvText, nf } from "../lib/format";
 import { quoteMap } from "../lib/globalSearch";
-import { scoreBand } from "../lib/scoreBands";
+import { Icon } from "../lib/icons";
+import { useIndices } from "../lib/indices";
+import { useLeadershipList } from "../lib/leadership";
+import { rowScore, rowView, usePlanModel, type ScoreModel } from "../lib/planScore";
+import { METRICS, fmt, useUniverse, type Row } from "../lib/screener";
+import { useDocTitle } from "../lib/title";
+import { useUI } from "../lib/ui";
+import { watch as wl, useWatchlist, type LabelAlert } from "../lib/watchlist";
+import {
+  ALERT_SUB, DISAGREE_SUB, DISAGREE_WHY, GROUP_SUB, HELP, PAGE_DESC, PEER_HELP, PLAIN, concentrationTile, dayName, dayTile, disagree, groupTone, groups, listCards, peerCell, peersTile,
+  scoreTile, sizeWord, stocksTile, type GroupBy, type Item, type ListLead,
+} from "../lib/watchlistPack";
+import { saveFile } from "../stock/derive";
+import "../styles/sectors-pack.css";
+import "../styles/watchlist-pack.css";
 
-type GroupBy = "none" | "sector" | "size" | "band" | "style";
-const GROUPS: { id: GroupBy; label: string; gold?: boolean }[] = [{ id: "none", label: "No grouping" }, { id: "sector", label: "Industry" }, { id: "size", label: "Company size" }, { id: "band", label: "Prism rating", gold: true }, { id: "style", label: "Style", gold: true }];
-const SORTS: { id: NumKey | "name"; label: string }[] = [{ id: "overall", label: "FinLit IQ" }, { id: "change_pct", label: "Today's change" }, { id: "market_cap", label: "Market cap" }, { id: "price", label: "Price" }, { id: "roe", label: "ROE" }, { id: "pe", label: "P/E" }, { id: "dividend_yield", label: "Dividend yield" }, { id: "name", label: "Name" }];
-const size = (c: number | null) => capSize(c) ?? "Unknown";
-const style = (r: Row) => (r.pe == null ? "Unknown" : r.pe < 15 || (r.pb != null && r.pb < 1.5) ? "Value" : r.pe > 35 ? "Premium growth" : "Blend");
-// task #100: the score of the plan everywhere on this page: FinLit Prism for Gold (also the "band" bucket: the Prism rating word), the FinLit IQ for Silver
-const keyOf = (g: GroupBy, r: Row, model: ScoreModel = "iq") => (g === "sector" ? r.sector || "Other" : g === "size" ? size(r.market_cap) : g === "band" ? (model === "prism" ? rowView("prism", r).word ?? "Not rated yet" : r.band ? BAND_LABEL[r.band] : "Unscored") : g === "style" ? style(r) : "");
+type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
+type Rich = Item & { row: Row };
+const ASC: SortKey[] = ["peers", "name", "pe"];   // the rest sort highest first
+const GROUP_BTNS: { id: GroupBy; label: string }[] = [{ id: "peers", label: "Against peers" }, { id: "industry", label: "Industry" }, { id: "size", label: "Size" }];
+const ALERT_BTNS: { id: LabelAlert; label: string }[] = [{ id: "any", label: "Any change" }, { id: "laggard", label: "Only to Laggard" }, { id: "leader", label: "Only to Leader" }];
 
+/** "Add a stock to this list": type a name or symbol, pick it from the list. */
+function Add({ rows, taken, onAdd }: { rows: Row[]; taken: string[]; onAdd: (r: Row) => void }) {
+  const [q, setQ] = useState(""), [open, setOpen] = useState(false), box = useRef<HTMLDivElement>(null);
+  useEffect(() => { const h = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, []);
+  const s = q.trim().toLowerCase();
+  const list = s ? rows.filter((r) => !taken.includes(r.symbol) && (r.symbol.toLowerCase().includes(s) || (r.name || "").toLowerCase().includes(s))).slice(0, 7) : [];
+  return (
+    <div className="wp-add" ref={box}>
+      <input type="text" value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" && list[0]) { onAdd(list[0]); setQ(""); setOpen(false); } if (e.key === "Escape") setOpen(false); }}
+        placeholder="Add a stock to this list" aria-label="Add a stock" aria-expanded={open && list.length > 0} aria-controls="wp-add-list" role="combobox" aria-autocomplete="list" />
+      {open && list.length > 0 && <ul id="wp-add-list" role="listbox" aria-label="Matching stocks">{list.map((r) => <li key={r.symbol}><button type="button" role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}>{r.symbol}<small>{r.name} · {r.sector}</small></button></li>)}</ul>}
+    </div>
+  );
+}
+
+function Th({ k, label, sort, dir, on, r, help }: { k?: SortKey; label: string; sort: SortKey; dir: 1 | -1; on: (k: SortKey) => void; r?: boolean; help?: string }) {
+  const active = k === sort;
+  return (
+    <th scope="col" className={r ? "r" : ""} aria-sort={k ? (active ? (dir === 1 ? "ascending" : "descending") : "none") : undefined}>
+      <span className="wp-th">{k ? <button type="button" onClick={() => on(k)} title={`Sort by ${label}`}>{label}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 5 6 2.5 8.5 5M3.5 7 6 9.5 8.5 7" /></svg></button> : label}
+        {help && <Tip text={help} label={`About ${label}`} />}</span>
+    </th>
+  );
+}
+
+/** The flags of a stock worth a second look (used by the dashboard's older watchlist block): a low score, a weak balance sheet, a big fall in a month, a high P/E
+ *  or a price near the member's own target. */
 export function signals(r: Row, target?: number, model: ScoreModel = "iq"): string[] {
   const out: string[] = [];
   if (model === "prism") { const v = rowView("prism", r); if (v.band === "lo" && v.score != null) out.push(`FinLit Prism is ${v.score}, ${v.word ?? "below 50"}`); }
@@ -44,191 +75,202 @@ export function signals(r: Row, target?: number, model: ScoreModel = "iq"): stri
   return out;
 }
 
-function Th({ id, label, sort, on, r, c }: { id: NumKey | "name"; label: string; sort: NumKey | "name"; on: (k: NumKey | "name") => void; r?: boolean; c?: boolean }) {
-  const active = sort === id;
-  return (
-    <th scope="col" className={(r ? "r " : c ? "c " : "") + (active ? "is-sorted" : "")} aria-sort={active ? (id === "pe" || id === "name" ? "ascending" : "descending") : "none"}>
-      <button type="button" onClick={() => on(id)} title={`Sort by ${label}`}>{label}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 5 6 2.5 8.5 5M3.5 7 6 9.5 8.5 7" /></svg></button>
-    </th>
-  );
-}
-
-function Add({ rows: all, taken, onAdd }: { rows: Row[]; taken: string[]; onAdd: (r: Row) => void }) {
-  const [q, setQ] = useState(""), [open, setOpen] = useState(false), box = useRef<HTMLDivElement>(null);
-  useEffect(() => { const h = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, []);
-  const sf = useRowFilter(all, (r) => ({ sector: r.sector, cap: r.market_cap }));
-  const rows = sf.rows, s = q.trim().toLowerCase();
-  const list = s ? rows.filter((r) => !taken.includes(r.symbol) && (r.symbol.toLowerCase().includes(s) || (r.name || "").toLowerCase().includes(s))).slice(0, 7) : sf.on ? [...rows].sort((a, b) => (b.market_cap ?? -1) - (a.market_cap ?? -1)).filter((r) => !taken.includes(r.symbol)).slice(0, 7) : [];
-  return (
-    <div className="wl-add" ref={box}>
-      <label><Icon name="table" /><input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Add a stock to this list…" aria-label="Add a stock" /><SearchFilters variant="panel" className="sf-flex" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} /></label>
-      {open && sf.on && !list.length && <div className="pk-m"><FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={hiddenRowMatches(all.filter((r) => !taken.includes(r.symbol)), (r) => ({ sector: r.sector, cap: r.market_cap }), q, sf.filter)} /></div>}
-      {open && list.length > 0 && <div className="pk-m" role="listbox">{list.map((r) => <button key={r.symbol} role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}><b>{r.name}</b><small>{r.symbol} · {r.sector}</small></button>)}</div>}
-    </div>
-  );
+const leadOf = (l: ListLead | null | undefined) => (l && l.available ? l : null);
+function sortValue(k: SortKey, i: Rich, model: ScoreModel): number | string | null {
+  if (k === "name") return i.symbol;
+  if (k === "peers") { const l = leadOf(i.lead); return l ? (l.rank - 1) / Math.max(1, l.ranked) : null; }
+  if (k === "size") return i.marketCap;
+  if (k === "score") return rowScore(model, i.row);
+  return (i.row[k] as number | null) ?? null;
 }
 
 export function WatchlistPage() {
-  useDocTitle("Watchlist", "Track your stocks in named lists, bucket them by industry, size or FinLit band, and see what needs attention.");
+  useDocTitle("Watchlists", "The companies you are keeping an eye on: how they are doing, how they compare with their peers, and what to look at next.");
   const { has, toast, upgrade, plan } = useUI();
   const nav = useNavigate();
   const st = useWatchlist();
-  const uniQ = useUniverse(), { data } = uniQ;
-  const rows = data?.rows || [], bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
-  const [lid, setLid] = useState(st.lists[0].id), [group, setGroup] = useState<GroupBy>("none"), [sort, setSort] = useState<NumKey | "name">("overall");
+  const uniQ = useUniverse(), rows = useMemo(() => uniQ.data?.rows || [], [uniQ.data]);
+  const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
+  const [lid, setLid] = useState(st.lists[0].id), [group, setGroup] = useState<GroupBy>("peers"), [sort, setSort] = useState<SortKey>("peers"), [dir, setDir] = useState<1 | -1>(1);
   const [sel, setSel] = useState<string[]>([]), [naming, setNaming] = useState(false), [name, setName] = useState(""), [edit, setEdit] = useState<string | null>(null);
   const gold = has("gold"), silver = has("silver");
   const model = usePlanModel() ?? "iq", scName = model === "prism" ? "FinLit Prism" : "FinLit IQ";
   const list = st.lists.find((l) => l.id === lid) || st.lists[0];
+  const [pick, setPick] = useState<LabelAlert>(list.labelAlert ?? "any");
   useEffect(() => { if (!st.lists.some((l) => l.id === lid)) setLid(st.lists[0].id); }, [st.lists, lid]);
+  useEffect(() => { setPick(list.labelAlert ?? "any"); }, [list.id, list.labelAlert]);
   useEffect(() => { if (DEMO && !st.seeded && rows.length) wl.seed([...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 9).map((r) => r.symbol)); }, [rows, st.seeded]);
-  useEffect(() => { if (!gold && (group === "band" || group === "style")) setGroup("sector"); }, [gold, group]);
-
-  const items = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).sort((a, b) => {
-    if (sort === "name") return (a.name || "").localeCompare(b.name || "");
-    const A = sort === "overall" ? rowScore(model, a) : a[sort] as number | null, B = sort === "overall" ? rowScore(model, b) : b[sort] as number | null; if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1;
-    return sort === "pe" ? A - B : B - A;
-  }), [list, bySym, sort, model]);
-  const buckets = useMemo(() => { if (group === "none") return [["", items] as [string, Row[]]]; const m = new Map<string, Row[]>(); items.forEach((r) => { const k = keyOf(group, r, model); m.set(k, [...(m.get(k) || []), r]); }); return [...m.entries()].sort((a, b) => b[1].length - a[1].length); }, [items, group]);
+  const leadQ = useLeadershipList(list.symbols);   // public, like the stock page's label: the preview behind the Silver lock shows the real labels, never "not available"
+  const leads = leadQ.data && leadQ.data.available ? leadQ.data.rows : null;
+  const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
-  const adv = items.filter((r) => (r.change_pct ?? 0) > 0).length, dec = items.filter((r) => (r.change_pct ?? 0) < 0).length;
-  const scored = items.filter((r) => rowScore(model, r) != null), avg = scored.length ? scored.reduce((a, r) => a + (rowScore(model, r) as number), 0) / scored.length : null;
-  const attention = items.map((r) => ({ r, s: signals(r, st.meta[r.symbol]?.target, model) })).filter((x) => x.s.length);
-  const secMix = useMemo(() => { const m = new Map<string, number>(); items.forEach((r) => m.set(r.sector || "Other", (m.get(r.sector || "Other") || 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1]); }, [items]);
-  const topShare = items.length ? (secMix[0]?.[1] || 0) / items.length : 0;
+
+  const items: Rich[] = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).map((r) => {
+    const v = rowView(model, r);
+    return { symbol: r.symbol, name: r.name || r.symbol, sector: r.sector || null, marketCap: r.market_cap ?? null, change: r.change_pct ?? null, score: v.score, word: v.word, lead: leads?.[r.symbol] ?? null, row: r };
+  }), [list, bySym, model, leads]);
+  const sorted = useMemo(() => [...items].sort((a, b) => {
+    const A = sortValue(sort, a, model), B = sortValue(sort, b, model);
+    if (A == null && B == null) return a.symbol.localeCompare(b.symbol); if (A == null) return 1; if (B == null) return -1;
+    return (typeof A === "string" ? A.localeCompare(B as string) : (A as number) - (B as number)) * dir;
+  }), [items, sort, dir, model]);
+  const grouped = useMemo(() => groups(group, sorted), [group, sorted]);
+  const cards = useMemo(() => listCards(items), [items]);
+  const dis = useMemo(() => disagree(items), [items]);
   const lim = limitsFor(plan), MAXL = lim.watchlist_lists;
+  const onSort = (k: SortKey) => { if (k === sort) setDir((d) => (d === 1 ? -1 : 1)); else { setSort(k); setDir(ASC.includes(k) ? 1 : -1); } };
 
   const addStock = (r: Row) => { if (wl.total() >= lim.watchlist_symbols && !wl.has(r.symbol)) { if (gold) toast(`Your watchlist is full (${lim.watchlist_symbols} stocks).`); else upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(r.symbol, list.id); toast(`${r.symbol} added to ${list.name}.`); };
   const newList = () => { if (st.lists.length >= MAXL) { if (gold) toast(`You have reached ${MAXL} lists.`); else upgrade("gold", "Silver includes 3 lists; Gold has up to 50."); return; } const id = wl.create(name || `List ${st.lists.length + 1}`); setLid(id); setName(""); setNaming(false); };
-  const exportCsv = () => { if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; } const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`; const ks: NumKey[] = ["price", "change_pct", "market_cap", "pe", "roe", "dividend_yield"]; saveFile("FinLit-watchlist.csv", [["Symbol", "Company", "Sector", ...ks.map((k) => METRICS[k].label), scName, "Target", "Note"].map(esc).join(","), ...items.map((r) => [r.symbol, r.name || "", r.sector || "", ...ks.map((k) => r[k] ?? ""), rowView(model, r).score ?? "", st.meta[r.symbol]?.target ?? "", st.meta[r.symbol]?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","))].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv."); };
+  const exportCsv = () => {
+    if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; }
+    const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
+    const head = ["Symbol", "Company", "Industry", "Price", "Change %", "P/E", "ROE %", "Size", "Market cap (Cr)", scName, "Against peers", "Peer rank", "Target", "Note"];
+    const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.sector || "", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", i.score ?? "", p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });
+    saveFile("FinLit-watchlist.csv", [head.map(esc).join(","), ...body].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv.");
+  };
   const toggleSel = (s: string) => setSel((x) => (x.includes(s) ? x.filter((y) => y !== s) : x.length >= (gold ? 4 : 2) ? (toast(gold ? "Compare up to 4 companies." : "Silver compares 2 companies. Gold compares up to 4."), x) : [...x, s]));
+  const openSample = (e: React.MouseEvent, r: Row) => { if (r.sample) { e.preventDefault(); toast("Sample company: the live site opens its report here."); } };
+
+  const t1 = stocksTile(items), t2 = dayTile(items), t3 = scoreTile(items), t4 = peersTile(items), t5 = concentrationTile(items);
+  const loading = items.length === 0 && list.symbols.length > 0 && (uniQ.isLoading || uniQ.isError);
 
   return (
-    <>
-      <PageHeader wrap plan="silver" title="Watchlists" art="portfolio" links={["/holdings", "/alerts", "/compare"]}
-        description={<>Track and manage your shortlisted companies. Add notes, set targets and monitor them in one place.</>} />
-      <div className="wrap wl">
-        <Gate tier="silver" title="Build your watchlist" points={["Named lists for your own themes", "Bucket stocks by industry and size", "Notes, target prices and one-click comparison"]}>
-          {data?.sample && <div className="sample-note" role="note"><Icon name="info" /><span><b>Sample data.</b> Lists are saved in this browser. Reliance is real; the other companies are fictional (SMP-). On the live site your lists will follow your account to the app.</span></div>}
-          <div className="wl-tabs" role="group" aria-label="Your lists">
-            {st.lists.map((l) => (
-              <span key={l.id} className={"wl-tab" + (l.id === list.id ? " on" : "")}>
-                {edit === l.id ? <input autoFocus defaultValue={l.name} aria-label="List name" onBlur={(e) => { wl.rename(l.id, e.target.value); setEdit(null); }} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-                  : <button aria-pressed={l.id === list.id} onClick={() => setLid(l.id)} onDoubleClick={() => setEdit(l.id)}>{l.name}<i>{l.symbols.length}</i></button>}
-              </span>))}
-            {naming ? <span className="wl-tab on"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="List name" aria-label="New list name" onKeyDown={(e) => { if (e.key === "Enter") newList(); if (e.key === "Escape") setNaming(false); }} onBlur={() => !name && setNaming(false)} /></span> : <button className="wl-new" onClick={() => (st.lists.length >= MAXL ? newList() : setNaming(true))}>+ New list{st.lists.length >= MAXL && !gold ? " · Gold" : ""}</button>}
-            <span className="grow" />
-            {st.lists.length > 1 && edit !== list.id && <><button className="lnk" onClick={() => setEdit(list.id)}>Rename</button><button className="lnk" onClick={() => { wl.drop(list.id); toast(`Deleted “${list.name}”.`); }}>Delete list</button></>}
+    <div className="wrap wp sp">
+      <header className="wp-head" aria-labelledby="wp-title">
+        <div className="wp-head-t">
+          <span className="wp-plan">SILVER</span>
+          <h1 id="wp-title">Watchlists</h1>
+          <p>{PAGE_DESC}</p>
+        </div>
+        <div className="wp-lists" role="group" aria-label="Your lists">
+          {st.lists.map((l) => edit === l.id
+            ? <span key={l.id} className="wp-pill"><input autoFocus defaultValue={l.name} aria-label="List name" maxLength={28} onBlur={(e) => { wl.rename(l.id, e.target.value); setEdit(null); }} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEdit(null); }} /></span>
+            : <button key={l.id} type="button" className="wp-pill" aria-pressed={l.id === list.id} onClick={() => setLid(l.id)} onDoubleClick={() => setEdit(l.id)}>{l.name} · {l.symbols.length}</button>)}
+          {naming ? <span className="wp-pill"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="List name" aria-label="New list name" maxLength={28} onKeyDown={(e) => { if (e.key === "Enter") newList(); if (e.key === "Escape") setNaming(false); }} onBlur={() => !name && setNaming(false)} /></span>
+            : <button type="button" className="wp-pill" onClick={() => (st.lists.length >= MAXL ? newList() : setNaming(true))}>+ New list{st.lists.length >= MAXL && !gold ? " · Gold" : ""}</button>}
+          <Add rows={rows} taken={list.symbols} onAdd={addStock} />
+          <div className="wp-manage">
+            <button type="button" onClick={() => setEdit(list.id)}>Rename “{list.name}”</button>
+            {st.lists.length > 1 && <button type="button" onClick={() => { wl.drop(list.id); toast(`Deleted “${list.name}”.`); }}>Delete this list</button>}
           </div>
+        </div>
+      </header>
 
-          <div className="wl-kpi">
-            <div className="wk"><b>{items.length}</b><span>Stocks in this list</span></div>
-            <div className="wk up"><b>{adv}</b><span>Rising today</span></div>
-            <div className="wk down"><b>{dec}</b><span>Falling today</span></div>
-            <div className="wk"><b>{avg == null ? "—" : nf(avg, 0)}</b><span>Average {scName}</span></div>
-            <div className={"wk" + (attention.length ? " warn" : "")}><b>{gold ? attention.length : "—"}</b><span>{gold ? "Need a second look" : "Needs attention · Gold"}</span></div>
+      <Gate tier="silver" title="Build your watchlist" points={["Named lists for your own themes", "Each stock against its peers, with notes and targets", "An alert when a stock's peer label changes"]}>
+        {uniQ.data?.sample && <p className="wp-note" role="note"><b>Sample data.</b> Lists are saved in this browser. Reliance is real; the other companies are fictional (SMP-).</p>}
+        <div className="wp-tiles">
+          <div className="wp-tile wp-t-info"><span>Stocks</span><b>{t1.value}</b><small>{t1.sub}</small></div>
+          <div className="wp-tile wp-t-day"><span>{dayName(idx.data?.asOf ?? uniQ.data?.asOf, !!idx.data?.live && !!idx.data?.marketOpen)}</span><b>{t2.value}</b><small>{t2.sub}</small></div>
+          <div className="wp-tile wp-t-good"><span>Average {scName}</span><b>{t3.value}</b><small>{t3.sub}</small></div>
+          <div className="wp-tile wp-t-good"><span>Against peers<Tip text={PEER_HELP} label="About Against peers" /></span><b>{leads ? t4.value : "—"}</b><small>{leads ? t4.sub : leadQ.isLoading ? "Loading the weekly check" : "The weekly peer check is not available yet"}</small></div>
+          <div className="wp-tile wp-t-org"><span>Concentration</span><b>{t5.value}</b><small>{t5.sub}</small></div>
+        </div>
+
+        <section className="wp-sec" aria-labelledby="wp-list">
+          <div className="wp-sec-h">
+            <div><h2 id="wp-list">{list.name}</h2><p className="wp-sub">{GROUP_SUB[group]}</p></div>
+            <div className="wp-group" role="group" aria-label="Group by"><span>Group by</span>
+              {GROUP_BTNS.map((g) => <button key={g.id} type="button" className="wp-pill" aria-pressed={group === g.id} onClick={() => setGroup(g.id)}>{g.label}</button>)}
+              <button type="button" className="wp-pill" onClick={exportCsv}>Download</button>
+            </div>
           </div>
-
-          <div className="wl-bar">
-            <Add rows={rows} taken={list.symbols} onAdd={addStock} />
-            <label className="wl-sel"><span>Bucket by</span><select value={group} onChange={(e) => { const g = e.target.value as GroupBy; if (GROUPS.find((x) => x.id === g)?.gold && !gold) { upgrade("gold", "Bucketing by Prism rating and style comes with Gold."); } setGroup(g); }} aria-label="Bucket by">{GROUPS.map((g) => <option key={g.id} value={g.id}>{g.id === "band" && !gold ? "FinLit band" : g.label}{g.gold && !gold ? " (Gold)" : ""}</option>)}</select></label>
-            <label className="wl-sel"><span>Sort by</span><select value={sort} onChange={(e) => setSort(e.target.value as NumKey | "name")} aria-label="Sort by">{SORTS.map((s) => <option key={s.id} value={s.id}>{s.id === "overall" ? scName : s.label}</option>)}</select></label>
-            <button className="btn" onClick={exportCsv}>Download</button>
-          </div>
-
-          {items.length === 0 && (uniQ.isLoading || uniQ.isError) && list.symbols.length > 0 ? (
-            uniQ.isError ? <div className="state"><h2>Your stocks could not be loaded</h2><p>The company data did not arrive. Your list is safe.</p><button className="btn" onClick={() => uniQ.refetch()}>Try again</button></div>
-              : <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading your stocks" />
-          ) : items.length === 0 ? (
-            <div className="state"><h2>This list is empty</h2><p>Search above to add a stock, or tap the star on any company report. Try one of these:</p>
-              <div className="wl-sug">{[...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 6).map((r) => <button key={r.symbol} className="btn" onClick={() => addStock(r)}>+ {r.symbol}</button>)}</div></div>
-          ) : (
-            <>
-              {items.length > 1 && (
-                <div className="card wl-mix"><div className="card-h"><h3><span className="ci"><Icon name="pie" /></span>Where your list is concentrated<ChartHelp id="wl-concentration" /></h3><span className="s">By industry</span></div>
-                  <div className="rib" role="img" aria-label="Industry mix">{secMix.map(([s, c], i) => <span key={s} style={{ flex: c, background: ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"][i % 5] }} title={`${s}: ${c}`}><b>{c / items.length >= 0.14 ? Math.round((c / items.length) * 100) + "%" : ""}</b></span>)}</div>
-                  <div className="wl-leg">{secMix.map(([s, c], i) => <span key={s}><i style={{ background: ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"][i % 5] }} />{s} <b>{c}</b></span>)}</div>
-                  <p className={"seg-note" + (topShare >= 0.5 ? " warn" : "")}>{topShare >= 0.5 ? `${Math.round(topShare * 100)}% of this list is in ${secMix[0][0]}. A downturn in one industry would hit most of it.` : "This list is spread across several industries, which spreads the risk."}</p></div>
-              )}
-              {gold && attention.length > 0 && (
-                <div className="card acc wl-att" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Worth a second look<ChartHelp id="wl-second" /></h3><span className="s">Based on the FinLit model and your targets</span></div>
-                  <ul>{attention.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`} onClick={(e) => { if (r.sample) { e.preventDefault(); toast("Sample company: the live site opens its report here."); } }}><CoLogo symbol={r.symbol} name={titleOf(r)} size={20} inline /><b title={codeNote(r)}>{titleOf(r)}</b></Link><span>{s.join(" · ")}</span></li>)}</ul></div>
-              )}
-              <div className="wl-tw card">
-                <table className="wl-t" aria-label={`${list.name}: your stocks`}>
-                  <thead>
-                    <tr>
-                      <th className="wl-ck"><input type="checkbox" checked={sel.length > 0} disabled={!sel.length} onChange={() => setSel([])} aria-label="Clear the selection" title="Clear the selection" /></th>
-                      <Th id="name" label="Company" sort={sort} on={setSort} />
-                      <th scope="col">Industry</th>
-                      <Th id="price" label="Price" sort={sort} on={setSort} r />
-                      <Th id="pe" label="P/E" sort={sort} on={setSort} r />
-                      <Th id="roe" label="ROE" sort={sort} on={setSort} r />
-                      <Th id="market_cap" label="Mkt cap" sort={sort} on={setSort} r />
-                      <Th id="overall" label={scName} sort={sort} on={setSort} c />
-                      <th scope="col">Status</th>
-                      <th scope="col">Target</th>
-                      <th scope="col">Your note</th>
-                      <th scope="col" className="r">Actions</th>
-                    </tr>
-                  </thead>
+          {loading ? (uniQ.isError
+            ? <div className="wp-empty"><b>Your stocks could not be loaded.</b> The company data did not arrive; your list is safe. <div><button type="button" className="wp-pill" onClick={() => uniQ.refetch()}>Try again</button></div></div>
+            : <div className="skeleton" style={{ height: 220, marginTop: 12 }} aria-busy="true" aria-label="Loading your stocks" />)
+            : items.length === 0 ? (
+              <div className="wp-empty">This list is empty. Type a stock in “Add a stock to this list”, or use Watchlist on any company report. Try one of these:
+                <div>{[...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 6).map((r) => <button key={r.symbol} type="button" className="wp-pill" onClick={() => addStock(r)}>+ {r.symbol}</button>)}</div></div>
+            ) : (<>
+              <Cards items={cards} cols={Math.min(3, cards.length)} />
+              <div className="wp-tw"><Scroll label={`${list.name}: your stocks, scrolls sideways`}>
+                <table className="wp-t" aria-label={`${list.name}: your stocks`}>
+                  <thead><tr>
+                    <Th k="name" label="Company" sort={sort} dir={dir} on={onSort} />
+                    <Th label="Industry" sort={sort} dir={dir} on={onSort} />
+                    <Th k="price" label="Price" sort={sort} dir={dir} on={onSort} r />
+                    <Th k="pe" label="P/E" sort={sort} dir={dir} on={onSort} r help={HELP.pe} />
+                    <Th k="roe" label="ROE" sort={sort} dir={dir} on={onSort} r help={HELP.roe} />
+                    <Th k="size" label="Size" sort={sort} dir={dir} on={onSort} help={HELP.size} />
+                    <Th k="score" label={scName} sort={sort} dir={dir} on={onSort} r help={model === "prism" ? HELP.prism : HELP.iq} />
+                    <Th k="peers" label="Against peers" sort={sort} dir={dir} on={onSort} help={PEER_HELP} />
+                    <Th label="Target" sort={sort} dir={dir} on={onSort} help={HELP.target} />
+                    <Th label="Your note" sort={sort} dir={dir} on={onSort} />
+                    <th scope="col"><span className="sr-only">Actions</span></th>
+                  </tr></thead>
                   <tbody>
-                    {buckets.map(([k, rs]) => {
-                      const ch = rs.filter((r) => r.change_pct != null), a = ch.reduce((x, r) => x + (r.change_pct as number), 0) / Math.max(1, ch.length), sc = rs.filter((r) => rowScore(model, r) != null);
-                      return (
-                        <Fragment key={k || "all"}>
-                          {k && (
-                            <tr className="wl-grow"><th colSpan={12} scope="colgroup">
-                              <b>{k}</b><span>{rs.length} stock{rs.length === 1 ? "" : "s"}</span><span className={a >= 0 ? "pos" : "neg"}>{a >= 0 ? "▲ +" : "▼ −"}{nf(Math.abs(a), 2)}% today on average</span>
-                              {sc.length > 0 && <span>Avg {model === "prism" ? "Prism" : "FinLit IQ"} {nf(sc.reduce((x, r) => x + (rowScore(model, r) as number), 0) / sc.length, 0)}</span>}
-                            </th></tr>
-                          )}
-                          {rs.map((r) => {
-                            const m = st.meta[r.symbol] || { added: 0 }, d = m.target && r.price ? ((m.target - r.price) / r.price) * 100 : null, lg = logos.get(r.symbol);
-                            return (
-                              <tr className={sel.includes(r.symbol) ? "sel" : ""} key={r.symbol}>
-                                <td className="wl-ck" data-l=""><input type="checkbox" checked={sel.includes(r.symbol)} onChange={() => toggleSel(r.symbol)} aria-label={`Select ${r.symbol} to compare`} /></td>
-                                <td className="wl-co" data-l="Company"><div className="wl-coin">
-                                  <Logo src={lg?.logo} name={titleOf(r)} kind="stock" size={36} />
-                                  <span className="wc-n"><Link to={`/stocks/${r.symbol}`} onClick={(e) => { if (r.sample) { e.preventDefault(); toast("Sample company: the live site opens its report here."); } }}><b title={codeNote(r)}>{titleOf(r)}</b></Link>{subOf(r) && <small>{subOf(r)}</small>}</span>
-                                </div></td>
-                                <td className="wl-ind" data-l="Industry">{r.sector || "—"}</td>
-                                <td className="r" data-l="Price"><b>{fmt(METRICS.price, r.price)}</b><span className={(r.change_pct ?? 0) >= 0 ? "pos" : "neg"}>{(r.change_pct ?? 0) >= 0 ? "▲" : "▼"} {fmt(METRICS.change_pct, r.change_pct).replace("+", "")}</span></td>
-                                <td className="r" data-l="P/E">{fmt(METRICS.pe, r.pe)}</td>
-                                <td className="r" data-l="ROE">{fmt(METRICS.roe, r.roe)}</td>
-                                <td className="r" data-l="Mkt cap">{cr(r.market_cap)}</td>
-                                {(() => { const v = rowView(model, r); return model === "prism" ? <>
-                                  <td className="c" data-l={scName}>{v.score != null ? <span className={"wl-iq " + v.band}>{v.score}</span> : <span className="faint" title={v.why ?? "Not rated yet"}>—</span>}</td>
-                                  <td data-l="Status">{v.score != null ? <span className={"wl-st " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")}><i aria-hidden="true" />{v.word}</span> : <span className="faint">{v.word === "Not rated" ? "Not rated" : "Not rated yet"}</span>}</td></> : <>
-                                  <td className="c" data-l={scName}>{r.overall != null ? <span className={"wl-iq " + scoreBand(r.overall)}>{Math.round(r.overall)}</span> : <span className="faint" title="Not scored yet">—</span>}</td>
-                                  <td data-l="Status">{r.overall != null && r.band ? <span className={"wl-st " + r.band}><i aria-hidden="true" />{BAND_LABEL[r.band]}</span> : <span className="faint">Not scored</span>}</td></>; })()}
-                                <td data-l="Target">
-                                  <input className="wl-tg" type="number" inputMode="decimal" min={0} value={m.target ?? ""} placeholder="Set" onChange={(e) => wl.setMeta(r.symbol, { target: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} aria-label={`${r.symbol} target price in rupees`} />
-                                  {d != null && <em className={d >= 0 ? "pos" : "neg"}>{d >= 0 ? "▲ " : "▼ "}{nf(Math.abs(d), 1)}% to target</em>}
-                                </td>
-                                <td className="wl-ntc" data-l="Your note"><textarea className="wl-nt" rows={2} maxLength={200} placeholder="Add a note…" value={m.note ?? ""} onChange={(e) => wl.setMeta(r.symbol, { note: e.target.value })} aria-label={`${r.symbol} note`} /></td>
-                                <td className="r wl-ac" data-l="">
-                                  {st.lists.length > 1 && <select className="wl-mv" aria-label={`Move ${r.symbol} to another list`} value="" onChange={(e) => { if (e.target.value) { wl.move(r.symbol, list.id, e.target.value); toast(`Moved ${r.symbol}.`); } }}><option value="">Move…</option>{st.lists.filter((l) => l.id !== list.id).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
-                                  <AlertButton symbol={r.symbol} className="wl-ib" />
-                                  <button type="button" className="wl-ib" onClick={() => { wl.remove(r.symbol, list.id); setSel((x) => x.filter((y) => y !== r.symbol)); }} aria-label={`Remove ${r.symbol} from this list`} title="Remove from this list"><Icon name="trash" /></button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </Fragment>
-                      );
-                    })}
+                    {grouped.map(([k, rs]) => (
+                      <Fragment key={k}>
+                        <tr className={"wp-grp " + groupTone(group === "peers" ? k : "")}><th colSpan={11} scope="colgroup"><div><b>{k}</b><span>{rs.length} stock{rs.length === 1 ? "" : "s"}</span></div></th></tr>
+                        {rs.map((i) => {
+                          const r = i.row, m = st.meta[i.symbol] || { added: 0 }, v = rowView(model, r), p = peerCell(i.lead), lg = logos.get(i.symbol);
+                          const d = m.target && r.price ? ((m.target - r.price) / r.price) * 100 : null;
+                          return (
+                            <tr key={i.symbol}>
+                              <td><div className="wp-co">
+                                <input type="checkbox" checked={sel.includes(i.symbol)} onChange={() => toggleSel(i.symbol)} aria-label={`Select ${i.symbol} to compare`} />
+                                <Logo src={lg?.logo} name={i.name} kind="stock" size={30} />
+                                <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b>{i.symbol}</b><small>{i.name}</small></Link>
+                              </div></td>
+                              <td className="wp-ind">{i.sector || "—"}</td>
+                              <td className="r wp-px"><b>{fmt(METRICS.price, r.price)}</b>{i.change != null && <span className={i.change >= 0 ? "wp-up" : "wp-dn"}>{(i.change > 0 ? "+" : i.change < 0 ? "−" : "") + nf(Math.abs(i.change), 2)}%</span>}</td>
+                              <td className="r">{r.pe != null ? nf(r.pe, 1) + "×" : "—"}</td>
+                              <td className="r">{r.roe != null ? nf(r.roe, 1) + "%" : "—"}</td>
+                              <td className="wp-size">{sizeWord(i.marketCap) ?? "—"}{i.marketCap != null && <small>₹{nf(i.marketCap, 0)} Cr</small>}</td>
+                              <td className={"r wp-sc " + v.band}>{v.score != null ? <><b>{v.score}</b>{v.word && <span>{v.word}</span>}</> : <span className="wp-na" title={v.why ?? undefined}>{model === "prism" ? (v.word === "Not rated" ? "Not rated" : "Not rated yet") : "Not scored yet"}</span>}</td>
+                              <td className="wp-peer"><span className={"wp-chip " + p.tone}>{p.chip}</span><small>{p.line}</small></td>
+                              <td>
+                                <input className="wp-tg" type="number" inputMode="decimal" min={0} value={m.target ?? ""} placeholder="–" onChange={(e) => wl.setMeta(i.symbol, { target: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} aria-label={`${i.symbol} target price in rupees`} />
+                                {d != null && <span className={"wp-tgd " + (d >= 0 ? "wp-up" : "wp-dn")}>{d >= 0 ? "+" : "−"}{nf(Math.abs(d), 1)}% away</span>}
+                              </td>
+                              <td><textarea className="wp-nt" rows={1} maxLength={200} placeholder="Add a note" value={m.note ?? ""} onChange={(e) => wl.setMeta(i.symbol, { note: e.target.value })} aria-label={`${i.symbol} note`} /></td>
+                              <td className="wp-ac">
+                                {st.lists.length > 1 && <select className="wp-mv" aria-label={`Move ${i.symbol} to another list`} value="" onChange={(e) => { if (e.target.value) { wl.move(i.symbol, list.id, e.target.value); toast(`Moved ${i.symbol}.`); } }}><option value="">Move…</option>{st.lists.filter((l) => l.id !== list.id).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
+                                <AlertButton symbol={i.symbol} className="wp-ib" />
+                                <button type="button" className="wp-ib" onClick={() => { wl.remove(i.symbol, list.id); setSel((x) => x.filter((y) => y !== i.symbol)); }} aria-label={`Remove ${i.symbol} from this list`} title="Remove from this list"><Icon name="trash" /></button>
+                              </td>
+                            </tr>);
+                        })}
+                      </Fragment>))}
                   </tbody>
                 </table>
-              </div>
-              {sel.length > 0 && (
-                <div className="wl-dock" role="region" aria-label="Selected stocks"><span><b>{sel.length}</b> selected</span>
-                  <button className="btn primary" disabled={sel.length < 2} onClick={() => nav(`/compare?c=${sel.join(",")}`)}>{sel.length < 2 ? "Pick one more to compare" : "Compare selected"}</button>
-                  <button className="lnk" onClick={() => setSel([])}>Clear</button></div>)}
-              <Plain>Lists, notes and targets are saved in this browser. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell.</Plain>
+              </Scroll></div>
             </>)}
-        </Gate>
-      </div>
-    </>
+        </section>
+
+        <div className="wp-pair">
+          <section className="wp-sec" aria-labelledby="wp-dis">
+            <h2 id="wp-dis">Price and business disagree<Tip text={PEER_HELP} label="About Price and business disagree" /></h2>
+            <p className="wp-sub">{DISAGREE_SUB}</p>
+            <p className="wp-why"><b>Why it matters</b><span>{DISAGREE_WHY}</span></p>
+            {dis.length ? (
+              <div className="wp-dis">{dis.map((x) => (
+                <div key={x.symbol} className="wp-dc">
+                  <div className="wp-dc-h"><Logo src={logos.get(x.symbol)?.logo} name={bySym.get(x.symbol)?.name || x.symbol} kind="stock" size={28} /><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link></div>
+                  <div className="wp-rk"><div className={x.priceAhead ? "good" : "bad"}><span>Price rank</span><b>{x.price}</b></div><div className={x.priceAhead ? "bad" : "good"}><span>Business rank</span><b>{x.business}</b></div></div>
+                  {x.line && <p>{x.line}</p>}
+                </div>))}</div>
+            ) : <p className="wp-empty">{leads ? "On this list, the price rank and the business rank agree for every stock that is compared with its peers." : "This shows once the weekly peer check is available for the stocks on this list."}</p>}
+          </section>
+          <section className="wp-sec" aria-labelledby="wp-al">
+            <h2 id="wp-al">Tell me when a label changes</h2>
+            <p className="wp-sub">{ALERT_SUB}</p>
+            <div className="wp-alert" role="group" aria-label="Which changes">
+              {ALERT_BTNS.map((b) => <button key={b.id} type="button" className="wp-pill" aria-pressed={pick === b.id} onClick={() => setPick(b.id)}>{b.label}</button>)}
+              <button type="button" className="wp-set" onClick={() => { wl.setLabelAlert(list.id, pick); toast(`Alert set for “${list.name}”: ${ALERT_BTNS.find((b) => b.id === pick)!.label.toLowerCase()}.`); }}>Set alert for this list</button>
+              {list.labelAlert && <p className="wp-on" role="status">On for this list: {ALERT_BTNS.find((b) => b.id === list.labelAlert)!.label.toLowerCase()}, sent after the weekly check.<button type="button" onClick={() => { wl.setLabelAlert(list.id, null); toast(`Alert switched off for “${list.name}”.`); }}>Switch off</button></p>}
+            </div>
+          </section>
+        </div>
+
+        <p className="wp-plain"><b>In simple words:</b> {PLAIN}</p>
+        <PageFaqs inline />
+
+        {sel.length > 0 && (
+          <div className="wp-dock" role="region" aria-label="Selected stocks"><span><b>{sel.length}</b> selected</span>
+            <button type="button" className="btn primary" disabled={sel.length < 2} onClick={() => nav(`/compare?c=${sel.join(",")}`)}>{sel.length < 2 ? "Pick one more to compare" : "Compare selected"}</button>
+            <button type="button" className="lnk" onClick={() => setSel([])}>Clear</button></div>)}
+      </Gate>
+    </div>
   );
 }

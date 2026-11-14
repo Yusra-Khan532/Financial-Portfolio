@@ -25,10 +25,17 @@ GROUPS = [
     ("size", "Size & price"), ("returns", "Returns"), ("valuation", "Valuation"), ("profitability", "Profitability"), ("growth", "Growth"),
     ("quarterly", "Quarterly results"), ("health", "Financial health"), ("liquidity", "Liquidity"), ("solvency", "Solvency"), ("efficiency", "Efficiency"),
     ("ownership", "Ownership"), ("events", "Company events"), ("flags", "Red flags"), ("banks", "Banks & lenders"), ("trading", "Volume, range & trend"),
-    ("model", "FinLit model"),
+    ("model", "FinLit IQ"), ("prism", "FinLit Prism"),
 ]
 GROUP_LABEL = dict(GROUPS)
-GROUP_TIER = {"model": "gold"}
+# One score per plan (founder, 13 Nov 2026, tasks #64 and #100): Silver filters by the FinLit IQ ("model"), Gold and up by FinLit Prism ("prism") and never see the IQ.
+GROUP_TIER = {"model": "silver", "prism": "gold"}
+
+
+def offered(plan: str, group: str) -> bool:
+    """Whether a plan is shown a group at all: Gold has the Prism group instead of the FinLit IQ group, every other plan the IQ group (locked below Silver) and no Prism."""
+    gold = plan in ("gold", "admin", "platinum")
+    return not (gold and group == "model") and not (not gold and group == "prism")
 
 M = Metric
 _B = "basic"
@@ -256,17 +263,24 @@ CATALOG: List[Metric] = [
     M("turnover20_cr", "Average value traded (20 sessions)", "trading", "Cr", "none", "silver", "The average of price times volume over the last 20 sessions, in rupee crore.", 1),
     M("volatility", "Volatility (yearly)", "trading", "%", "lower", "silver", "How much the price swings in a year.", 0),
     M("max_drawdown", "Worst fall (since data starts)", "trading", "%", "higher", "silver", "Biggest drop from a peak to a low.", 0),
-    # ---- FinLit model (Gold)
-    M("overall", "FinLit IQ", "model", "pts", "higher", "gold", "Average of the five FinLit pillars, out of 100.", 0),
-    M("pillar_quality", "Quality pillar", "model", "pts", "higher", "gold", "Return on money and how well profit turns into cash.", 0),
-    M("pillar_growth", "Growth pillar", "model", "pts", "higher", "gold", "Sales and profit growth over the years.", 0),
-    M("pillar_profitability", "Profitability pillar", "model", "pts", "higher", "gold", "Margins and returns on money.", 0),
-    M("pillar_balance", "Balance sheet pillar", "model", "pts", "higher", "gold", "Debt, liquidity and interest cover.", 0),
-    M("pillar_technical", "Technical pillar", "model", "pts", "higher", "gold", "Price trend and momentum.", 0),
-    M("fundamental_score", "Growth & Profitability score", "model", "pts", "higher", "gold", "Average of the four pillars: quality, growth, profitability and balance sheet (no price trend).", 0),
-    M("score_change", "Score change since last quarter", "model", "pts", "higher", "gold", "Points the FinLit IQ moved since the last quarter.", 0),
-    M("strengths_count", "Strengths found", "model", "n", "higher", "gold", "How many strengths the FinLit model lists for the company.", 0),
-    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "gold", "How many watch-outs the FinLit model lists for the company.", 0),
+    # ---- FinLit IQ (Silver; Gold sees FinLit Prism instead). No formula, cut-off or weight in any text (task #64, P-2).
+    M("overall", "FinLit IQ", "model", "pts", "higher", "silver", "FinLit's score for the company, 0 to 100, from its filed statements and prices.", 0),
+    M("pillar_quality", "Quality", "model", "pts", "higher", "silver", "The FinLit IQ's Quality part, 0 to 100: returns on money and cash behind profit.", 0),
+    M("pillar_growth", "Growth", "model", "pts", "higher", "silver", "The FinLit IQ's Growth part, 0 to 100: how sales and profit have grown.", 0),
+    M("pillar_profitability", "Profitability", "model", "pts", "higher", "silver", "The FinLit IQ's Profitability part, 0 to 100: margins and returns.", 0),
+    M("pillar_balance", "Balance sheet", "model", "pts", "higher", "silver", "The FinLit IQ's Balance sheet part, 0 to 100: debt, liquidity and interest cover.", 0),
+    M("pillar_technical", "Technical", "model", "pts", "higher", "silver", "The FinLit IQ's Technical part, 0 to 100: the price trend.", 0),
+    M("score_change", "FinLit IQ change since last quarter", "model", "pts", "higher", "silver", "Points the FinLit IQ moved since the last quarter.", 0),
+    M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the FinLit IQ report lists for the company.", 0),
+    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the FinLit IQ report lists for the company.", 0),
+    # ---- FinLit Prism (Gold): the stored rating of each company, 0 to 100 (the two views -100 to +100); a company not rated yet has no figure
+    M("prism_final", "Prism score", "prism", "pts", "higher", "gold", "FinLit Prism's rating of the company, 0 to 100. Higher is better.", 0),
+    M("prism_fundamental", "Prism Growth & Profitability", "prism", "pts", "higher", "gold", "Prism's Growth & Profitability part, 0 to 100: how steadily sales and profit grow.", 0),
+    M("prism_valuation", "Prism Valuation", "prism", "pts", "higher", "gold", "Prism's Valuation part, 0 to 100: a higher score is a more modest price for what the company earns.", 0),
+    M("prism_quality", "Prism Quality", "prism", "pts", "higher", "gold", "Prism's Quality part, 0 to 100: borrowing, interest cover, returns and cash behind profit.", 0),
+    M("prism_risk", "Prism Risk", "prism", "pts", "higher", "gold", "Prism's Risk part, 0 to 100: a higher score means lower risk (price swings, falls, pledged shares).", 0),
+    M("prism_st_score", "Prism short-term view", "prism", "pts", "higher", "gold", "Prism's short-term price trend, -100 to +100 (weeks). It describes past prices only.", 0),
+    M("prism_lt_score", "Prism long-term view", "prism", "pts", "higher", "gold", "Prism's long-term price trend, -100 to +100 (months). It describes past prices only.", 0),
 ]
 BY_KEY: Dict[str, Metric] = {m.key: m for m in CATALOG}
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab
@@ -302,3 +316,30 @@ def tier_of(key: str) -> str:
 
 def allowed(plan: str, tier: str) -> bool:
     return RANK.get(plan, 0) >= RANK[tier]
+
+
+# ---- Custom ratio (task #64, CR-2): which figures make a sensible ratio, and in what unit ----
+NOT_RATIOABLE_GROUPS = ("model", "prism")        # a FinLit score divided by another has no meaning, on any plan
+SHARE_COUNTS = ("volume", "avg_volume_20d")
+PEOPLE = ("employees",)
+PER_PERSON = ("sales_per_employee", "profit_per_employee")
+
+
+def ratioable(m: "Metric") -> bool:
+    """False for the FinLit model and Prism groups and for yes-or-no filters."""
+    return m.group not in NOT_RATIOABLE_GROUPS and m.unit != "flag"
+
+
+def family(m: "Metric"):
+    """The unit family a ratio checks: "cr" (amounts in Rs Cr), "per_share" (Rs a share), "shares", "people", or None (ratios, percentages, days, points, other counts)."""
+    if not ratioable(m):
+        return None
+    if m.key in SHARE_COUNTS:
+        return "shares"
+    if m.key in PEOPLE:
+        return "people"
+    if m.unit == "Cr" and m.key not in PER_PERSON:
+        return "cr"
+    if m.unit == "Rs":
+        return "per_share"
+    return None

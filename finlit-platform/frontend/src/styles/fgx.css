@@ -192,3 +192,21 @@ button.fgx-kpi { cursor: pointer; } button.fgx-kpi:hover { border-color: var(--g
 @media (max-width: 1100px) { .crx-top { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .crx-set { grid-template-columns: minmax(0, 1fr); } }
 .crx-prev b.faint { border-color: var(--border); background: var(--s2); color: var(--muted); font-weight: 500; }
+
+/* Task #64 B-5 / V-8 and B-4: the Sort button and menu, and the Columns menu, of the score screeners' toolbar */
+.fgx-sortm { position: relative; }
+.fgx-sortl { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 240px; max-height: 60vh; overflow: auto; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--s1); box-shadow: 0 10px 28px rgba(0,0,0,.18); display: grid; }
+.fgx-sortl > button { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 28px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer; position: relative; }
+.fgx-sortl > button i { position: absolute; left: 10px; font-style: normal; color: var(--gold); }
+.fgx-sortl > button:hover, .fgx-sortl > button:focus-visible { background: var(--s2); }
+.fgx-colsl label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; font: 14px var(--sans); cursor: pointer; }
+.fgx-colsl small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+@media (max-width: 760px) { .fgx-sortv { display: none; } .fgx-sortm { flex: 1 1 auto; } .fgx-sortm > .fgx-pb { width: 100%; justify-content: center; } .fgx-sortl { left: 0; right: auto; } }
+/* Task #64 B-1 / B-7 (and V-1 / V-10): the score screeners' sticky toolbar, one control style */
+.sx-stick .fgx-tool { margin-bottom: 8px; }
+.scr-wrap .fgx-tool .fgx-pb, .scr-wrap .fgx-tool .fgx-find, .scr-wrap .ss-foot select, .scr-wrap .sx-pager .btn, .sx-cbar .btn { font: 600 14px var(--sans); border-radius: 8px; min-height: 36px; }
+.scr-wrap .fgx-tool .fgx-find input { font-size: 14px; }
+/* Task #64 B-7 / V-10 (follow-up): the screeners' fgx controls in the one style (see scorescreen.css) */
+.sx-root.sx-root :is(.fgx-pb, .fgx-hb) { font-size: 14px; font-weight: 600; border-radius: 8px; }
+.sx-root.sx-root :is(.fgx-chip) { font-size: 13px; font-weight: 600; border-radius: 999px; }
+.sx-root.sx-root :is(.fgx-link) { font-size: 13px; font-weight: 600; }

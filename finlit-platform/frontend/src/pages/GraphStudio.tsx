@@ -5,7 +5,7 @@ import { ChartReading } from "../components/ChartReading";
 import { topicOfChart } from "../lib/chartSays";
 import { readBars, readBreakdown, readCandles, readCorrelationMatrix, readTimeSeries } from "../lib/chartReading";
 import { chartInference, pFromR } from "../lib/chartInference";
-import { viewId } from "../lib/drawings";
+import { clearShapes, viewId } from "../lib/drawings";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ import { ZoomGlyph } from "../components/ChartZoom";
 import { alignSeries, changes, corrMatrix, csvRow, pearson, rebase, RANGES, strength, windowPts } from "../lib/graphData";
 import { BY_ID, extract, GROUPS, IDX, indexCode, isIndexSym, metricFor, metricsIn, unsupportedWhy, UNITS, type Bundle, type Extracted, type Metric, type UnitId } from "../lib/graphMetrics";
 import { graphLimits, chartTier, type ChartKind } from "../lib/graphLimits";
-import { CHART_LABEL, LAYOUTS, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
+import { CHART_LABEL, LAYOUTS, LAYOUT_BUTTONS, MAX_CHARTS, nextFreeCell, cellCount, layoutAbove, withoutCell, chartCheck, decodeView, defaultView, encodeView, sanitize, type CellFacts, type CellSpec, type SeriesSpec, type View } from "../lib/graphState";
 import "../styles/graphs.css";
 
 const CHARTS = Object.keys(CHART_LABEL) as ChartKind[];
@@ -142,6 +142,17 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
     : k0 === "heatmap" ? ((cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === "corr" && align && ok.length > 1 ? (() => { const m = corrMatrix(tfCols); return readCorrelationMatrix(ok.map((r) => r.label), m.r, m.n); })() : null)
     : ps.length ? readTimeSeries(ps.map((p) => ({ label: p.label, unit: p.unit, pts: p.pts })), view.basis, { change: tf === "change" }) : null;
 
+  // Drawings are kept per what the chart shows (so a saved view finds them again). Task #117: when a measure leaves the chart, or the chart is removed, its
+  // drawing goes with it; before, ticking the same measure again brought the old drawing back. A change of range or chart type keeps them.
+  const drawId = "gx:" + viewId(JSON.stringify([cell.chart, tf, cell.x, cell.y, cell.mode, view.range, view.from, view.basis, cell.series.map((x) => [x.s, x.m, x.as])]));
+  const seriesKeys = cell.series.map((x) => `${x.s}|${x.m}|${x.as ?? ""}`);
+  const prevDraw = useRef({ id: drawId, keys: seriesKeys });
+  useEffect(() => {
+    const p = prevDraw.current;
+    if (p.id !== drawId && p.keys.some((k) => !seriesKeys.includes(k))) clearShapes(p.id);   // a series was taken off this chart
+    prevDraw.current = { id: drawId, keys: seriesKeys };
+  }, [drawId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <section className={"gx-cell" + (active ? " on" : "") + (zoomed ? " gx-zoomed" : "")} onClick={onActive} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const m = e.dataTransfer.getData("text/plain"); if (BY_ID[m]) onDrop(m); }} aria-label={`Chart ${i + 1}: ${title}`}>
       <header><h3 title={title}>{title}</h3>
@@ -149,7 +160,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
           {CHARTS.map((k) => { const r = chartCheck(k, facts, plan); return <option key={k} value={k} disabled={!r.ok && k !== cell.chart && !!r.why && r.why !== "Not in your plan"}>{CHART_LABEL[k]}{!r.ok && r.why ? ` — ${r.why}` : ""}</option>; })}
         </select>
         <button className="gx-x gx-zoom" aria-label={zoomed ? `Restore chart ${i + 1}` : `Enlarge chart ${i + 1}`} aria-pressed={zoomed} title={zoomed ? "Back to the grid (Esc)" : "Enlarge this chart"} onClick={(e) => { e.stopPropagation(); onZoom(); }}><ZoomGlyph zoomed={zoomed} /></button>
-        <button className="gx-x" aria-label={`Remove chart ${i + 1}`} title="Remove this chart" onClick={(e) => { e.stopPropagation(); onRemove(); }}>×</button></header>
+        <button className="gx-x" aria-label={`Remove chart ${i + 1}`} title="Remove this chart" onClick={(e) => { e.stopPropagation(); clearShapes(drawId); onRemove(); }}>×</button></header>
       <div className="gx-legend">{rs.map((r, n) => <span key={r.sp.s + r.sp.m} className="gx-chip"><i style={{ background: r.color }} />{r.label} <small>{UNITS[r.mt.unit].label}</small>
         {cell.chart === "combo" && r.mt.grain !== "price" && <button className="gx-mini" title="Switch between bars and line" onClick={() => onChange({ ...cell, series: cell.series.map((s, m) => (m === n ? { ...s, as: (s.as ?? (n === 0 ? "bar" : "line")) === "bar" ? "line" : "bar" } : s)) })}>{(r.sp.as ?? (n === 0 ? "bar" : "line")) === "bar" ? "bars" : "line"}</button>}
         {r.ex.status !== "ok" && <em title={r.ex.status}>{r.ex.status === "loading" ? "loading" : r.ex.status === "locked" ? "plan" : r.ex.status === "noperiod" ? "annual only" : r.ex.status === "unsupported" ? "n/a" : "no data"}</em>}
@@ -157,7 +168,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
       {cell.chart === "scatter" && ok.length >= 2 && <div className="gx-xy"><label>X <select value={Math.min(cell.x ?? 0, ok.length - 1)} onChange={(e) => asSet({ x: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label><label>Y <select value={Math.min(cell.y ?? 1, ok.length - 1)} onChange={(e) => asSet({ y: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label></div>}
       {cell.chart === "heatmap" && ok.length >= 1 && <div className="gx-seg" role="group" aria-label="Heatmap kind">{(["corr", "grid"] as const).map((m) => <button key={m} aria-pressed={(cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === m} onClick={() => asSet({ mode: m })}>{m === "corr" ? "Correlation" : "Period × measure"}</button>)}</div>}
       {ok.length > 0 && !comp && !["candlestick", "bar"].includes(cell.chart) && <div className="gx-seg" role="group" aria-label="Values or changes">{([["values", "Values"], ["change", "Period change"], ["index", "Index to 100"]] as const).map(([v, l]) => <button key={v} aria-pressed={tf === v} disabled={v === "index" && (facts.ratioUnits || ["scatter", "heatmap"].includes(cell.chart))} onClick={() => asSet({ tf: v })}>{l}</button>)}</div>}
-      <div ref={ref} className="gx-body"><DrawLayer id={"gx:" + viewId(JSON.stringify([cell.chart, tf, cell.x, cell.y, cell.mode, view.range, view.from, view.basis, cell.series.map((x) => [x.s, x.m, x.as])]))} enabled={w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar")}>{body}</DrawLayer></div>
+      <div ref={ref} className="gx-body"><DrawLayer id={drawId} enabled={w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar")}>{body}</DrawLayer></div>
       {dualNote && <p className="gx-r">Two units, so two axes: {[...new Set(ps.map((p) => p.unit))].map((u, n) => `${n ? "right" : "left"} ${UNITS[u].label}`).join(", ")}. Compare shapes, not heights.</p>}
       {csvOnly && ps.some((p) => p.pts.filter((x) => x.v != null).length < 3) && !["scatter", "heatmap"].includes(cell.chart) && <p className="gx-r faint">Few points in this window; widen the range or switch to Quarterly.</p>}
       <ChartReading id={"gx-rd-" + i} reading={reading} topic={topicOfChart(cell.chart, { matrix: (cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === "corr" })} />
@@ -198,17 +209,29 @@ export function GraphStudio() {
   const set = (n: View) => setView(n);
   const setCell = (i: number, c: CellSpec) => { const cells = [...view.cells]; while (cells.length <= i) cells.push({ chart: "line", series: [] }); cells[i] = c; set({ ...view, cells }); };
   const cellOf = (i: number): CellSpec => view.cells[i] ?? { chart: "line", series: [] };
-  const addTo = (i: number, mid: string, only?: string) => {
-    const mt = BY_ID[mid], cell = cellOf(i); if (!mt) return;
+  const addTo = (i: number, mid: string, only?: string, base: View = view) => {
+    const mt = BY_ID[mid], cell = base.cells[i] ?? { chart: "line" as const, series: [] }; if (!mt) return;
     const syms = only ? [only] : companies.length ? companies : ["RELIANCE"];
     const isComp = mt.grain === "composition", hasComp = cell.series.some((s) => BY_ID[s.m]?.grain === "composition");
     if ((isComp && cell.series.length && !hasComp) || (!isComp && hasComp)) { toast("A breakdown (pie) can't share a chart with time series. Use another chart."); return; }
     let series = isComp ? [] : [...cell.series], added = 0;
     for (const s of isComp ? syms.slice(0, 1) : syms) { const why = unsupportedWhy(s, mt); if (why) { toast(`${mt.label} for ${isIndexSym(s) ? name(rows, s) : s}: ${why}`); continue; } if (isComp && isIndexSym(s)) { toast("Breakdowns are for companies."); continue; } if (series.some((x) => x.s === s && x.m === mid)) continue; if (series.length >= lim.series) { toast(`Your plan allows ${lim.series} series per chart.`); break; } series.push({ s, m: mid }); added++; }
     if (!added && !isComp) return;
-    setCell(i, { ...cell, series, chart: isComp ? "pie" : cell.chart === "pie" ? "line" : cell.chart, x: undefined, y: undefined });
+    const cells = [...base.cells]; while (cells.length <= i) cells.push({ chart: "line", series: [] });
+    cells[i] = { ...cell, series, chart: isComp ? "pie" : cell.chart === "pie" ? "line" : cell.chart, x: undefined, y: undefined };
+    set({ ...base, cells });
+    return true;
   };
-  const toggle = (mid: string) => { const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid); if (has) setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); else addTo(active, mid); };
+  /** Picking a measure (task #114): unticking removes it from the chart picked; a new one goes on that chart only when it is empty, otherwise it gets a
+   *  chart of its own (the first empty one, or one more), so measures in different units never share a chart and the charts already drawn stay as they are. */
+  const toggle = (mid: string) => {
+    const cell = cellOf(active); const has = cell.series.some((s) => s.m === mid);
+    if (has) { setCell(active, { ...cell, series: cell.series.filter((s) => s.m !== mid) }); return; }
+    if (!cell.series.length) { addTo(active, mid); return; }
+    const free = nextFreeCell(view, Math.min(MAX_CHARTS, lim.cells));
+    if (!free) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
+    if (addTo(free.index, mid, undefined, { ...view, layout: free.layout })) setActive(free.index);
+  };
   const nCo = (l: string[]) => l.filter((x) => !isIndexSym(x)).length;
   const addCompany = (s: string) => { if (companies.includes(s)) return; if (!isIndexSym(s) && nCo(companies) >= lim.companies) { upgrade(plan === "basic" ? "silver" : "gold", `Comparing more than ${lim.companies} companies`); return; } setCompanies([...companies, s]); setCq("");
     // the new company joins every chart: each measure already drawn gets a line for it (breakdown charts stay with one company; the plan's series limit and unsupported measures are respected)
@@ -237,7 +260,7 @@ export function GraphStudio() {
   /** "+ Add chart" steps to the next larger layout (plan limits and the upgrade prompt apply as for the layout buttons) and selects the new chart. */
   const addChart = () => {
     const n = cellCount(view.layout), next = layoutAbove(view.layout);
-    if (!next) { toast("Six charts is the most a view can hold."); return; }
+    if (!next || n >= MAX_CHARTS) { toast(`${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.`); return; }
     if (cellCount(next) > lim.cells) { upgrade(plan === "basic" ? "silver" : "gold", `Layouts with ${cellCount(next)} charts`); return; }
     set({ ...view, layout: next });
     setActive(n);
@@ -318,8 +341,10 @@ export function GraphStudio() {
             <div className="gx-seg" role="group" aria-label="Time range">{RANGES.map((r) => <button key={r.id} aria-pressed={!view.from && view.range === r.id} onClick={() => set({ ...view, range: r.id, from: undefined })}>{r.label}</button>)}</div>
             <label className="gx-yr">From year <select value={view.from ?? ""} onChange={(e) => set({ ...view, from: e.target.value ? Number(e.target.value) : undefined })}><option value="">Any</option>{Array.from({ length: new Date().getFullYear() - 2009 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}</select></label>
             <div className="gx-seg" role="group" aria-label="Annual or quarterly">{(["annual", "quarterly"] as const).map((b) => <button key={b} aria-pressed={view.basis === b} onClick={() => set({ ...view, basis: b })}>{b === "annual" ? "Annual" : "Quarterly"}</button>)}</div>
-            <div className="gx-seg" role="group" aria-label="Layout">{Object.keys(LAYOUTS).filter((l) => l !== "2x3-5").map((l) => <button key={l} aria-pressed={view.layout === l || (l === "2x3" && view.layout === "2x3-5")} aria-label={`Layout ${l.replace("x", " by ")}`} onClick={() => setLayout(l)}>{l.replace("x", "×")}{cellCount(l) > lim.cells && <Icon name="lock" />}</button>)}</div>
-            <button className="btn ghost gx-addchart" aria-label="Add a chart" title="Add a chart" onClick={addChart}><span aria-hidden="true">+</span> Add chart</button>
+            <div className="gx-seg" role="group" aria-label="Layout">{LAYOUT_BUTTONS.map((l) => <button key={l} aria-pressed={view.layout === l || (l === "2x3" && view.layout === "2x3-5")} aria-label={`Layout ${l.replace("x", " by ")}`} onClick={() => setLayout(l)}>{l.replace("x", "×")}{cellCount(l) > lim.cells && <Icon name="lock" />}</button>)}</div>
+            <button className="btn ghost gx-addchart" aria-label="Add a chart" title={count >= MAX_CHARTS ? `${MAX_CHARTS} charts is the most a view can hold. Remove one to add another.` : "Add a chart"} onClick={addChart} disabled={count >= MAX_CHARTS}><span aria-hidden="true">+</span> Add chart</button>
+            <span className="gx-count" aria-live="polite" title="Charts in this view">{count}/{MAX_CHARTS}</span>
+            {count >= MAX_CHARTS && <span className="gx-max" role="status">You have reached the most charts a view can hold ({MAX_CHARTS}). Remove one to add another.</span>}
             <button className="btn ghost" onClick={copy}><Icon name="spark" />Copy link</button>
             <button className="btn ghost" onClick={exportPng}>PNG</button><button className="btn ghost" onClick={exportCsv}>CSV</button>
           </div>

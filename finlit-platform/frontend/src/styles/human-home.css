@@ -70,46 +70,41 @@
    clarity." with a drawn underline, a light green main button, three features with round icons and a glowing curve along the bottom. */
 .hh-strip { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 clamp(26px, 4vw, 52px); font: 400 20px/1.25 var(--serif); color: var(--hh-hero-text); text-align: center; flex-wrap: wrap; }
 .hh-strip::before, .hh-strip::after { content: ""; flex: 0 1 110px; height: 1px; background: var(--hh-hero-line); }
-.hh-strip i { font-style: normal; color: var(--hh-g); opacity: .8; } .hh-strip em { font-style: italic; color: var(--hh-g); }
+.hh-strip i { font-style: normal; color: var(--hh-g); opacity: .8; } .hh-strip em { font-style: normal; color: var(--hh-g); }
 .hh-top h1 { color: var(--hh-hero-text); }
-.hh-swoosh { position: absolute; left: 2%; right: 0; bottom: -.16em; width: 98%; height: .26em; overflow: visible; }
-.hh-swoosh path { fill: none; stroke: var(--hh-g); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 :root .hh .btn.hh-go:not(.primary) { border: 0; background: var(--hh-g-fill); color: var(--hh-on-g); box-shadow: 0 12px 28px -14px var(--hh-glow); }
 :root .hh .btn.hh-go:not(.primary):hover { filter: brightness(1.06); }
 :root .hh .btn.hh-ghost:not(.primary) { background: transparent; color: var(--hh-hero-text); border: 1px solid var(--hh-hero-line); }
 :root .hh .btn.hh-ghost:not(.primary):hover { border-color: var(--hh-g); }
-.hh-feats { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 14px 0; }
-.hh-feats li { display: flex; align-items: center; gap: 12px; padding: 0 18px; font-size: var(--fs-16, 16px); line-height: 1.3; color: var(--hh-hero-text); }
-.hh-feats li > span + * , .hh-feats li { overflow-wrap: normal; }
-.hh-feats li:first-child { padding-left: 0; } .hh-feats li + li { border-left: 1px solid var(--hh-hero-line); }
-.hh-fi { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: var(--hh-g); background: var(--hh-g-soft); box-shadow: inset 0 0 0 1px var(--hh-hero-line); }
-.hh-fi svg { width: 22px; height: 22px; }
 .hh-top .hh-fine { color: var(--hh-hero-muted); }
 .hh-frame i:nth-child(1) { background: var(--hh-au-fill); } .hh-frame i:nth-child(2) { background: var(--hh-y-fill); } .hh-frame i:nth-child(3) { background: var(--hh-g-fill); }
 .hh-top .hh-tour figcaption { color: var(--hh-hero-muted); } .hh-top .hh-tour figcaption b { color: var(--hh-hero-text); }
 .hh-top .hh-look { background: transparent; border-color: var(--hh-hero-line); } .hh-top .hh-look span { color: var(--hh-hero-muted); } .hh-top .hh-look button { color: var(--hh-hero-text); }
 .hh-top .hh-look button[aria-pressed="true"] { background: var(--hh-hero-text); color: var(--hh-hero-b); }
-.hh-curve { position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; width: 100%; height: clamp(50px, 7vw, 110px); pointer-events: none; }
-.hh-curve path { fill: none; stroke: var(--hh-g); stroke-width: 2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 -6px 14px var(--hh-glow)); opacity: .85; }
 .hh-top .hh-video { border-color: var(--hh-hero-line); }
 .hh :focus-visible { outline-color: var(--hh-g); }
 @media (max-width: 760px) {
   .hh-strip { gap: 6px 10px; font-size: 16px; } .hh-strip::before, .hh-strip::after { display: none; }
   .hh .cta-row { flex-direction: column; } .hh .cta-row .btn { width: 100%; justify-content: center; min-height: 48px; }
-  .hh-feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .hh-feats li { flex-direction: column; text-align: center; gap: 8px; padding: 0 4px; font-size: 13px; max-width: none; } .hh-feats li:first-child { padding-left: 4px; }
-  .hh-fi { width: 46px; height: 46px; }
   .hh-look button { min-height: 44px; }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .hh-swoosh path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hh-draw .9s .35s cubic-bezier(.6, 0, .2, 1) forwards; }
-}
-@keyframes hh-draw { to { stroke-dashoffset: 0; } }
 .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
 .hh-top h1 { font-size: clamp(40px, 4.7vw, 70px); }
 @media (min-width: 1000px) { .hh-top h1 { white-space: nowrap; } }
 .hh-top h1 em { white-space: nowrap; }
-.hh-feats li { flex: 0 1 auto; }
-.hh-feats .hh-lbl { display: block; max-width: 11ch; }
 @media (max-width: 900px) { .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1fr); } }
-@media (min-width: 1100px) { .hh-strip { font-size: 24px; } }
+
+/* Task #121 (13 Nov 2026): the hero as in the team's picture: a plain deep green-black panel (plain cream in the light theme), the three-part line on top made
+   bigger (upright "Track what matters." in green), "Research deeper." over "Invest with clarity." in green italic, the mint "Explore the platform" button, an
+   outlined sample-report button and three ticks. The bottom curve, the drawn underline and the round-icon features of #118 are gone. */
+.hh { --hh-hero-a: var(--bg, #F7F3EA); }
+:root[data-theme="dark"] .hh { --hh-hero-a: #0C1910; --hh-hero-b: #0C1910; }
+.hh-top { background: var(--hh-hero-a); }
+.hh-strip { font-size: 24px; }
+@media (min-width: 1100px) { .hh-strip { font-size: 28px; } }
+.hh-top h1 em { display: inline; }
+:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: linear-gradient(90deg, #BAF7D1, #5DAF7A); color: #0B2A1E; }
+.hh-trust { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 26px; font-size: var(--fs-16, 16px); color: var(--hh-hero-text); }
+.hh-trust li { display: inline-flex; align-items: center; gap: 8px; }
+.hh-trust svg { flex: none; width: 17px; height: 17px; color: var(--hh-g); }
+@media (max-width: 760px) { .hh-strip { font-size: 18px; } .hh-trust { gap: 10px 18px; font-size: 14px; } }

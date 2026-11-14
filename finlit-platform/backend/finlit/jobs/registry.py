@@ -276,7 +276,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             shards=prism_workers, resumable=True, probe="prism", interval_min=10, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 26), boot=True, prerequisites=("ingest", "score"),
             gate=Gate("PRISM_PRECOMPUTE_ENABLED", "Prism pre-compute is switched off: PRISM_PRECOMPUTE_ENABLED is not 1", forced=True), owns=("prism",),
             what="FinLit Prism rating of every company with a full report (resumable, one company at a time per worker)"),
-        Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=20, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
+        Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
             prerequisites=("prism",), catchup=False,
             what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         Job("stress", ("refresh-stress", "--max-minutes", "40"), cls="bulk", priority=43, max_runtime_min=50, weight_mb=300, stall_min=20, windows=(W("NIGHT", 20), W("MORNING", 14)),

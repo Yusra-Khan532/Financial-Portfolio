@@ -2,7 +2,9 @@
 // so lists follow them to other devices and the app.
 import { useSyncExternalStore } from "react";
 
-export type List = { id: string; name: string; symbols: string[] };
+/** `labelAlert`: the list's "Tell me when a label changes" choice (Watchlists page), sent after each weekly peer check by the server (finlit/labelalerts.py). */
+export type LabelAlert = "any" | "laggard" | "leader";
+export type List = { id: string; name: string; symbols: string[]; labelAlert?: LabelAlert };
 export type Meta = { note?: string; target?: number; added: number };
 export type WState = { lists: List[]; meta: Record<string, Meta>; seeded?: boolean };
 
@@ -40,6 +42,7 @@ export const watch = {
   create: (name: string) => { const id = uid(); set((s) => ({ ...s, lists: [...s.lists, { id, name: name.trim().slice(0, 28) || "New list", symbols: [] }] })); return id; },
   rename: (id: string, name: string) => set((s) => ({ ...s, lists: s.lists.map((l) => (l.id === id ? { ...l, name: name.trim().slice(0, 28) || l.name } : l)) })),
   drop: (id: string) => set((s) => (s.lists.length > 1 ? { ...s, lists: s.lists.filter((l) => l.id !== id) } : s)),
+  setLabelAlert: (id: string, pick: LabelAlert | null) => set((s) => ({ ...s, lists: s.lists.map((l) => { if (l.id !== id) return l; const { labelAlert: _old, ...rest } = l; void _old; return pick ? { ...rest, labelAlert: pick } : rest; }) })),
   setMeta: (sym: string, m: Partial<Meta>) => set((s) => ({ ...s, meta: { ...s.meta, [sym]: { ...s.meta[sym], ...m, added: s.meta[sym]?.added ?? Date.now() } } })),
   seed: (syms: string[]) => set((s) => ({ ...s, seeded: true, lists: s.lists.map((l, i) => (i === 0 ? { ...l, symbols: [...new Set([...l.symbols, ...syms])] } : l)) })),
 };

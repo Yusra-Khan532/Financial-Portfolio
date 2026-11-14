@@ -28,7 +28,7 @@ async def seed(app):
 async def test_every_metric_for_every_company(app):  # noqa: F811
     await seed(app)
     gold = await signed_in(app, "gcmp@example.com", plan="gold")
-    keys = [m.key for m in CATALOG]
+    keys = [m.key for m in CATALOG if m.group != "model"]           # Gold compares on FinLit Prism, never the FinLit IQ (task #100)
     r = await gold.post("/api/compare/metrics", json={"symbols": ["aaa", "BBB", "CCC", "ZZZ"], "keys": keys})
     assert r.status_code == 200, r.text
     j = r.json()
@@ -40,7 +40,7 @@ async def test_every_metric_for_every_company(app):  # noqa: F811
             assert (cell["v"] is None) != (cell["why"] is None)
     assert j["values"]["pe"]["AAA"]["v"] == 12.5 and j["values"]["roe"]["AAA"]["v"] == 18.25 and j["values"]["net_debt"]["AAA"]["v"] == -300
     assert j["values"]["pb"]["BBB"]["v"] is None and "not meaningful" in j["values"]["pb"]["BBB"]["why"].lower()
-    assert j["values"]["overall"]["BBB"]["v"] is None and j["values"]["pe"]["ZZZ"]["why"] == "This company is not in the FinLit list yet"
+    assert j["values"]["prism_final"]["BBB"]["v"] is None and j["values"]["pe"]["ZZZ"]["why"] == "This company is not in the FinLit list yet"
     assert next(c for c in j["companies"] if c["symbol"] == "ZZZ")["known"] is False
     meta = {m["key"]: m for m in j["metrics"]}
     assert meta["pe"]["better"] == "lower" and meta["roe"]["better"] == "higher" and meta["pe"]["unit"] == "x" and meta["pe"]["groupLabel"] == "Valuation"
@@ -60,10 +60,11 @@ async def test_plan_gate_and_limits(app):  # noqa: F811
         assert (await anon.post("/api/compare/metrics", json={"symbols": ["bad symbol!"], "keys": ["pe"]})).status_code == 422
     silver = await signed_in(app, "scmp@example.com", plan="silver")
     assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["pe", "pb", "net_debt"]})).status_code == 200
-    assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["overall"]})).status_code == 403   # FinLit model is Gold
+    assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["overall"]})).status_code == 200   # the FinLit IQ is Silver's (task #64)
     assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["pe"]})).status_code == 403
     gold = await signed_in(app, "gcmp2@example.com", plan="gold")
-    assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["overall"]})).status_code == 200
+    assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["prism_final"]})).status_code == 200
+    assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["overall"]})).status_code == 400    # Gold never compares on the FinLit IQ (task #100)
 
 
 async def test_saved_sets(app):  # noqa: F811
