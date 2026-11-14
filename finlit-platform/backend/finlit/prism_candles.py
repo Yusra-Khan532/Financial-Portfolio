@@ -315,6 +315,30 @@ async def supplied_candles(state: Any, symbol: str, now: Optional[datetime] = No
     return out or None
 
 
+PATTERN_MIN = 25      # sessions the chart-pattern scans need (finlit/presets/patterns.py); the Prism technical view needs STOCK_MIN
+
+
+async def pattern_candles(state: Any, symbol: str, now: Optional[datetime] = None) -> Optional[List[list]]:
+    """The stock's own Dhan daily candles for the chart-pattern scans, or None: the same source and checks as `supplied_candles` (complete, consistent, no
+    impossible daily move, last close within MAX_QUOTE_GAP of the stored quote, last session recent), but PATTERN_MIN sessions instead of a year and no index
+    series. 14 Nov 2026: 101 of the 102 scanned companies that lacked the close were listed within the last year (32 to 244 sessions), so the year-long
+    minimum of the Prism view threw their candles away and the scans stayed held."""
+    store, settings = state.store, state.settings
+    client = dhan_client(state, settings, getattr(store, "redis", None))
+    if client is None or await is_down(getattr(store, "redis", None)):
+        return None
+    try:
+        sec = (await security_map(store, [symbol])).get(symbol)
+    except Exception as exc:
+        log.warning("pattern candles: no security id for %s: %s", symbol, type(exc).__name__)
+        return None
+    if not sec:
+        return None
+    now = now or datetime.now(IST)
+    rows, _failed = await _fetch(client, sec[0], sec[1], "EQUITY", now, expected_session(now), PATTERN_MIN, await _quote_price(store, symbol))
+    return rows
+
+
 async def _quote_price(store: Any, symbol: str) -> Optional[float]:
     """The stored quote price of the company (summary snapshot), or None: then the last-close check is simply not made."""
     for statement in ("consolidated", "standalone"):
