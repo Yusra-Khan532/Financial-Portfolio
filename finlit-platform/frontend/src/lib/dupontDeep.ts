@@ -278,6 +278,21 @@ export function simStart(years: DeepYear[]): { year: DeepYear; margin: number; t
   return null;
 }
 
+/** The what-if sliders' ranges, fixed by the starting year alone. Before, the margin slider's top end was twice the value then set, so each drag to the
+ *  end doubled it and the figure ran away (4,85,23,30,… %, the team's report on CreditAccess Grameen, 14 Nov 2026). A loss year starts the margin below 0. */
+export type SimRanges = { m: [number, number]; t: [number, number]; e: [number, number] };
+export function simRanges(s: { margin: number; turnover: number; multiplier: number }): SimRanges {
+  const fin = (v: number) => (Number.isFinite(v) ? v : 0);
+  const m = fin(s.margin), t = fin(s.turnover), e = fin(s.multiplier);
+  return {
+    m: [Math.min(0, Math.floor(m)), Math.ceil(Math.max(40, Math.abs(m) * 2))],
+    t: [0, Math.ceil(Math.max(3, t * 2.5) * 2) / 2],
+    e: [1, Math.ceil(Math.max(6, e * 1.6))],
+  };
+}
+/** A slider value kept inside its range. */
+export const clampTo = (v: number, [lo, hi]: [number, number]) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
+
 // ------------------------------------------------------------------------------------------------ table rows (shared by the table and the CSV)
 
 export type TableRow = { key: string; label: string; kind: "pct" | "x" | "flag"; values: (number | string | null)[]; whys: (Why | null)[]; emphasis?: boolean; sub?: boolean };
