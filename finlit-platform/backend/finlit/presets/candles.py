@@ -11,6 +11,7 @@ mixed: a series is either the stored one or the Dhan one, whole.
 from __future__ import annotations
 
 import json
+from datetime import date
 import logging
 import zlib
 from typing import Any, Dict, List, Optional, Sequence
@@ -86,6 +87,34 @@ async def series(store, symbol: str) -> Dict[str, list]:
     redis = getattr(store, "redis", None)
     fresh = await load(redis, symbol) if redis is not None else None
     last = lambda s: str((s.get("t") or [""])[-1])[:10]          # noqa: E731
-    if fresh and fresh.get("t") and (not stored.get("t") or last(fresh) > last(stored)):
-        return fresh
-    return stored
+    out = fresh if fresh and fresh.get("t") and (not stored.get("t") or last(fresh) > last(stored)) else stored
+    return await with_daily_closes(store, symbol, out)
+
+
+DAILY_TAIL = 30      # at most this many sessions are added from the nightly closes
+
+
+async def with_daily_closes(store, symbol: str, s: Dict[str, list]) -> Dict[str, list]:
+    """The series with the sessions the nightly job has stored since its last bar (price_daily) added at the end. 14 Nov 2026: companies without a Prism report
+    have no Dhan candles, and their stored one-year prices only move when the report is rebuilt, so 8% to 37% of the scanned companies lacked the latest close
+    and the chart-pattern scans were held back every run. Nothing changes when the series already reaches the latest stored close, or has no bars to extend."""
+    pool = getattr(store, "pool", None)
+    if pool is None or not s.get("t"):
+        return s
+    try:
+        after = date.fromisoformat(str(s["t"][-1])[:10])
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT day, open, high, low, close, volume FROM price_daily WHERE symbol = $1 AND day > $2 AND close > 0 ORDER BY day LIMIT $3",
+                                    symbol, after, DAILY_TAIL)
+    except Exception:   # the series as it was; the scans then see the company as behind
+        return s
+    if not rows:
+        return s
+    out = {k: list(v) for k, v in s.items() if isinstance(v, list)}
+    for r in rows:
+        bar = {"t": r["day"].isoformat(), "o": r["open"], "h": r["high"], "l": r["low"], "c": r["close"], "v": r["volume"]}
+        for k in ("t", "o", "h", "l", "c", "v"):
+            if k in out:
+                v = bar[k]
+                out[k].append(float(v) if k != "t" and v is not None else v)
+    return out

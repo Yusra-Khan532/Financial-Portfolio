@@ -164,3 +164,47 @@ def test_the_pattern_scans_wait_for_the_session_dhan_has_not_the_calendar_day():
         async def get(self, key):
             raise ConnectionError
     assert asyncio.run(service.candle_day(_StoreTarget(ends, _Broken()), expected)) == expected                # Redis not readable: never stops the job
+
+
+class _DailyPool:
+    """A pool whose price_daily holds the given sessions for every symbol."""
+    def __init__(self, days):
+        self.days = days
+
+    def acquire(self):
+        days = self.days
+
+        class _C:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def fetch(self, sql, sym, after, limit):
+                from decimal import Decimal
+                return [{"day": d, "open": Decimal("10.5"), "high": Decimal("11"), "low": Decimal("10"), "close": Decimal(str(c)), "volume": 1000}
+                        for d, c in days if d > after][:limit]
+        return _C()
+
+
+def test_the_scans_add_the_nightly_closes_after_the_last_stored_bar():
+    """14 Nov 2026 (the founder's job_runs table): 818 of 1301, then 1274 of 1390, companies had the 13 Nov close, so the pattern scans were held back.
+    Companies without a Prism report have no Dhan candles; their stored prices only move when the report is rebuilt. The nightly closes now count."""
+    from finlit.presets import candles
+    day = date(2026, 11, 13)
+
+    class St(_Store):
+        def __init__(self, ends):
+            super().__init__(ends)
+            self.redis = None
+            self.pool = _DailyPool([(date(2026, 11, 12), 101.0), (date(2026, 11, 13), 102.5)])
+    ends = {f"S{i}": "2026-11-11" for i in range(50)}
+    st = St(ends)
+    got = asyncio.run(candles.series(st, "S0"))
+    assert got["t"][-2:] == ["2026-11-12", "2026-11-13"]
+    full = asyncio.run(candles.with_daily_closes(st, "S0", {"t": ["2026-11-11"], "o": [1.0], "h": [1.0], "l": [1.0], "c": [100.0], "v": [5]}))
+    assert full["c"] == [100.0, 101.0, 102.5] and full["t"][-1] == "2026-11-13" and full["o"][-1] == 10.5 and full["v"][-1] == 1000.0
+    assert asyncio.run(patterns.candle_coverage(st, _Table(list(ends)), day))["ratio"] == 1.0          # every company reaches the 13 Nov close
+    assert asyncio.run(patterns.candle_coverage(_Store(ends), _Table(list(ends)), day))["ratio"] == 0.0  # without the nightly closes: none (the old result)
+    assert asyncio.run(candles.with_daily_closes(st, "S0", {})) == {}                                    # nothing to extend: unchanged
