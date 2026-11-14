@@ -280,6 +280,7 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
         "stats": {"meta": meta, **pricestats.build(history)},
     }
     summary["dataQuality"]["checks"] = quality_checks.run(sections, today=(now or datetime.now(timezone.utc)).date())
+    quality_checks.withhold_unbelievable(summary, summary["dataQuality"]["checks"])      # a figure the checks cannot stand behind is blanked with its reason
     summary["dataQuality"]["coverage"] = coverage.assess(bundle, sections)   # what the provider sent against what this report shows
     if bundle.get("_source"):
         summary["dataQuality"]["notes"] = [*summary["dataQuality"].get("notes", []), "Some figures come from our secondary data source."]
