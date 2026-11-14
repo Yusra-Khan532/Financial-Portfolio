@@ -146,6 +146,61 @@ async def wait_for_candles(store, table, expected_day: date, max_wait_s: int = C
         waited += step_s
 
 
+TOP_UP_S = 480          # the time the presets job spends fetching the missing companies' candles from Dhan (inside its 40-minute limit, before the wait above)
+
+
+async def behind(store, table, expected_day: date) -> List[str]:
+    """The scanned companies whose daily series ends before the close (the same universe and series `candle_coverage` counts; suspended companies are not included)."""
+    mc = table.cols["market_cap"]
+    out: List[str] = []
+    for i, sym in enumerate(table.symbols):
+        if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
+            continue
+        try:
+            t = (await candles_mod.series(store, sym)).get("t") or []
+            if len(t) < 25:
+                continue
+            last = date.fromisoformat(str(t[-1])[:10])
+        except Exception:
+            continue
+        if last < expected_day and (expected_day - last).days <= SUSPENDED_DAYS:
+            out.append(sym)
+    return out
+
+
+async def top_up_candles(store, settings, table, expected_day: date, budget_s: float = TOP_UP_S, fetch=None, clock=None) -> Dict[str, Any]:
+    """Fetch the Dhan daily candles of the scanned companies that lack the close and keep them for the scans, the way the technicals job does for companies with a
+    Prism report. 14 Nov 2026: about 100 of the 1,400 scanned companies have no Prism report, so their candles moved only when the ingest job reloaded them; with ingest
+    behind, the scans were held back every run (1296/1400 = 92.6% against the 98% needed). Stops at `budget_s`; what is left is counted, never guessed."""
+    import time
+    from types import SimpleNamespace
+    clock = clock or time.monotonic
+    todo = await behind(store, table, expected_day)
+    got = failed = 0
+    if fetch is None:
+        if settings is None:
+            return {"candlesBehind": len(todo), "candlesFetched": 0, "candlesNotFetched": len(todo)}
+        from ..prism_candles import supplied_candles
+        state = SimpleNamespace(store=store, settings=settings)
+        fetch = lambda sym: supplied_candles(state, sym)          # noqa: E731
+    start = clock()
+    done = 0
+    for sym in todo:
+        if clock() - start > budget_s:
+            break
+        done += 1
+        try:
+            c = await fetch(sym)
+            rows = ((c or {}).get("stock") or {}).get("candles") or []
+            ok = bool(rows) and str(rows[-1][0])[:10] >= expected_day.isoformat() and await candles_mod.save(store.redis, sym, rows)
+        except Exception:
+            log.warning("pattern scans: Dhan candles of %s not fetched", sym, exc_info=True)
+            ok = False
+        got += 1 if ok else 0
+        failed += 0 if ok else 1
+    return {"candlesBehind": len(todo), "candlesFetched": got, "candlesNotFetched": failed + (len(todo) - done)}
+
+
 async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
     """Run the scans for every company of Rs 1,000 Cr or more that has a stored report. Returns {as_of, scans: {scan: {symbol: hit}}, left_out: {scan: [[symbol, reason]]}, checked}."""
     import pandas as pd
