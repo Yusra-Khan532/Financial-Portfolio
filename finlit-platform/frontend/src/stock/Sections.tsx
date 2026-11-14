@@ -131,9 +131,9 @@ function ReturnBars({ rows }: { rows: Summary["returns"] }) {
       {rows.map((r) => (
         <div className="rrow" key={r.period}><span className="muted">{r.period}</span>
           <div className="rtrack">{r.total != null && <b style={r.total >= 0 ? { left: "50%", width: `${(Math.abs(r.total) / max) * 50}%`, background: "linear-gradient(90deg,color-mix(in srgb,var(--gain) 45%,transparent),var(--gain))" } : { right: "50%", width: `${(Math.abs(r.total) / max) * 50}%`, background: "linear-gradient(270deg,color-mix(in srgb,var(--loss) 45%,transparent),var(--loss))" }} />}</div>
-          <span className={r.total == null ? "faint" : r.total >= 0 ? "pos" : "neg"} style={{ textAlign: "right", fontWeight: 600, whiteSpace: "nowrap" }}>{r.total == null ? "n/a" : signed(r.total)}</span></div>
+          <span className={r.total == null ? "faint" : r.total >= 0 ? "pos" : "neg"} style={{ textAlign: "right", fontWeight: 600, whiteSpace: "nowrap" }} title={r.withheld || undefined}>{r.total == null ? (r.withheld ? "held back" : "n/a") : signed(r.total)}</span></div>
       ))}
-      <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>“n/a” means this company's price history does not cover that period.</p>
+      <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>“n/a” means this company's price history does not cover that period.{rows.some((r) => r.withheld) && " “Held back” means the dividend part of that figure did not pass our check against the company's own earnings, so we do not show it rather than show a number we cannot stand behind."}</p>
     </div>
   );
 }

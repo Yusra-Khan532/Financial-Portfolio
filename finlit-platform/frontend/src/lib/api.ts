@@ -21,7 +21,7 @@ export type Quote = {
 };
 export type Note = { key: string; title: string; text: string; value: number | null };
 export type KeyMetric = { key: string; value: number; unit: string | null; label: string; period: string };
-export type Return = { period: string; price: number | null; dividend: number | null; total: number | null; annualised: number | null };
+export type Return = { period: string; price: number | null; dividend: number | null; total: number | null; annualised: number | null; withheld?: string };   // withheld: why the figure is not shown (it failed a data check)
 export type QualityIssue = { key: string; severity: "critical" | "warning"; message: string; value?: number };
 export type DataQuality = {
   missing: string[]; notes: string[]; provisionalLastBar: boolean; removedBadTicks: string[]; statement: string; isBank: boolean;

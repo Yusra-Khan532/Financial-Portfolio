@@ -34,6 +34,22 @@ def _aligned_latest(table: dict, *keys: str):
     return None, None
 
 
+def _dividends_per_share(r: dict, end_close: Optional[float]) -> Optional[float]:
+    """Rupees of dividend per share paid in a return period: the dividend return applied to the start price (latest close / (1 + price return))."""
+    if not end_close or r.get("price") is None or r["price"] <= -100:
+        return None
+    return r["dividend"] / 100 * end_close / (1 + r["price"] / 100)
+
+
+def withhold_unbelievable(summary: dict, checks: dict) -> None:
+    """Blank the return figures the checks could not stand behind (dividend, total, yearly rate of that period), with the reason, so the report is shown
+    without them instead of not at all."""
+    held = {i.get("withhold"): i["message"] for i in checks.get("issues", []) if i.get("withhold")}
+    for r in summary.get("returns", []):
+        if r.get("period") in held:
+            r.update(dividend=None, total=None, annualised=None, withheld=held[r["period"]])
+
+
 def _gap(a: float, b: float) -> float:
     return abs(a - b) / max(abs(a), abs(b), 1e-9) * 100
 
@@ -118,6 +134,8 @@ def run(sections: Dict[str, dict], today: Optional[date] = None) -> dict:
         value = metrics.get(key)
         if value is not None:
             check(f"range_{key}", low <= value <= high, WARNING, f"{key} = {value} is outside the believable range.", value=value)
+    eps_years = [v for v in (pl.get("rows", {}).get("eps") or []) if v is not None]
+    end_close = closes[-1] if closes else price
     for r in summary.get("returns", []):
         if r.get("dividend") is not None:
             # The current site showed 89% dividend return at every horizon; a real one is a few % a year.
@@ -127,8 +145,20 @@ def run(sections: Dict[str, dict], today: Optional[date] = None) -> dict:
                     years = (today - date.fromisoformat(str(r["from"])[:10])).days / 365.25
                 except ValueError:
                     pass
-            check(f"dividend_return_{r['period']}", r["dividend"] <= 15 * max(years, 1), CRITICAL,
-                  f"{r['period']} dividend return of {r['dividend']}% is not believable.", value=r["dividend"])
+            ok = r["dividend"] <= 15 * max(years, 1)
+            if not ok:
+                # 14 Nov 2026: Chennai Petroleum (5Y 147%) and Coal India (5Y 81%) were refused their whole report although the figure is real: their shares
+                # were cheap five years ago and they paid large dividends since. A figure over 15% a year still passes when the company's own earnings over the
+                # same years could have paid it (dividends per share in the period at most 1.5 x the EPS of those years, plus one, added up).
+                dps = _dividends_per_share(r, end_close)
+                n = int(years) + 2 if years >= 1 else 2
+                earned = sum(max(e, 0.0) for e in eps_years[-n:])
+                ok = dps is not None and earned > 0 and dps <= 1.5 * earned
+            # A figure that still fails is held back alone (the snapshot blanks that period's dividend, total and yearly rate with this reason); the rest
+            # of the report is shown. It used to be critical and hid the whole report for one return figure.
+            check(f"dividend_return_{r['period']}", ok, WARNING,
+                  f"{r['period']} dividend return of {r['dividend']}% is not believable against the company's earnings, so it is not shown.",
+                  value=r["dividend"], withhold=r["period"])
 
     # ---- composition data adds up
     holdings = sections.get("ownership", {}).get("latest") or []
