@@ -155,3 +155,8 @@
   .mfs-table th.mfs-n { min-width: 190px; max-width: 220px; }
   .mfs-box { width: 84px; }
 }
+
+/* Task #140 (team note): the sliding bar between the filters and the results, as on the advanced screeners (components/SplitDivider, .scr-split in tools.css). */
+@media (min-width: 1001px) {
+  .mfs-layout:not(.is-collapsed) { grid-template-columns: min(var(--side-w, 330px), max(240px, calc(100% - 448px))) 28px minmax(0, 1fr); gap: 0; }
+}

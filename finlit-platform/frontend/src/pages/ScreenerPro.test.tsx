@@ -689,3 +689,22 @@ describe("task #140: Your rules can be minimized", () => {
     await waitFor(() => expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min"));
   });
 });
+
+describe("task #140 (team note): the sliding bar beside Your rules, as on the advanced screeners", () => {
+  it("resizes Your rules with the arrow keys, keeps the minimum width, hides the panel on Enter, and reopens at the last width", async () => {
+    mount(); await ready();
+    const work = () => document.querySelector(".ssw-work") as HTMLElement;
+    const bar = screen.getByRole("separator", { name: /Resize the filters panel/ });
+    expect(work().style.getPropertyValue("--side-w")).toBe("330px");
+    fireEvent.keyDown(bar, { key: "ArrowRight" });
+    await waitFor(() => expect(work().style.getPropertyValue("--side-w")).toBe("360px"));
+    for (let i = 0; i < 8; i++) fireEvent.keyDown(screen.getByRole("separator", { name: /Resize the filters panel/ }), { key: "ArrowLeft" });
+    await waitFor(() => expect(work().style.getPropertyValue("--side-w")).toBe("240px"));   // never narrower than the minimum
+    fireEvent.keyDown(screen.getByRole("separator", { name: /Resize the filters panel/ }), { key: "Enter" });     // Enter or a double-click hides it, as on the advanced screeners
+    await waitFor(() => expect(work().className).toContain("rules-min"));
+    expect(screen.queryByRole("separator", { name: /Resize the filters panel/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    await waitFor(() => expect(work().className).not.toContain("rules-min"));
+    expect(work().style.getPropertyValue("--side-w")).toBe("240px");                 // reopens at the last width it had
+  });
+});

@@ -34,6 +34,8 @@ import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
 import "../styles/stockscreener.css";
+import "../styles/tools.css";
+import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { CoLogo } from "../components/CoLogo";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
@@ -108,6 +110,10 @@ export function ScreenerPro() {
     setRulesOpenState(open);
     if (!narrow()) { try { if (open) localStorage.removeItem(RULES_MIN_KEY); else localStorage.setItem(RULES_MIN_KEY, "1"); } catch { /* private mode */ } }
   };
+  // Task #140 (team note): the same sliding bar as the advanced screeners between Your rules and the results: drag it left or right to make the panel
+  // narrower or wider, drag it far left (or double-click it) to minimize the panel, which the Your rules bar then brings back. The width is remembered.
+  const [sideW, setSideW] = useSideWidth("pro");
+  const resizeRules = (w: number, snap = false) => { if (w < (snap ? SIDE.min / 2 : 1)) { setRulesOpen(false); return; } setSideW(w); };
   const minimizeRules = () => {
     setRulesOpen(false);
     requestAnimationFrame(() => document.querySelector<HTMLElement>(".ssw-rtoggle")?.focus({ preventScroll: true }));
@@ -306,7 +312,7 @@ export function ScreenerPro() {
         <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
           Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
-        <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")}>
+        <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
           <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
             <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
               <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
@@ -368,6 +374,7 @@ export function ScreenerPro() {
             </>}
             <button type="button" className="btn primary ssw-rdone" onClick={minimizeRules}>Show {res.data ? `${nf(total, 0)} companies` : "the results"}</button>
           </aside>
+          {rulesOpen && <SplitDivider width={sideW || SIDE.def} set={resizeRules} />}
 
           <section className="card ssw-res" aria-label="Results">
             <div className="ssw-rhd">
