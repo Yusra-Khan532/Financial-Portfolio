@@ -2,8 +2,9 @@
 # Deploy / update / roll back / inspect the FinLit stack on THIS server. Run it as the ubuntu user (after bootstrap.sh):
 #   bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh              pull the latest code from the company repository, rebuild, restart, check health
 #   bash .../deploy.sh rollback                                            go back to the previous build
+#   bash .../deploy.sh jobs [force]                                        move the jobs container to the new code when the job code changed and no long job runs
 #   bash .../deploy.sh status                                              which commit runs, container health, disk, memory
-#   bash .../deploy.sh logs [service]                                      follow the logs (app, db, redis, caddy, backup); Ctrl+C to stop
+#   bash .../deploy.sh logs [service]                                      follow the logs (app, jobs, db, redis, caddy, backup); Ctrl+C to stop
 #   bash .../deploy.sh restart [service]                                   restart one service or all (no rebuild)
 #   bash .../deploy.sh backup                                              take a database backup now
 #   bash .../deploy.sh restore FILE.dump                                   replace the database with a backup (asks first; file name as listed by "backups")
@@ -219,8 +220,9 @@ cmd_deploy() {
     docker rmi "$IMAGE:pending" >/dev/null 2>&1 || true
   fi
   disk_guard
-  say "Starting everything"
-  dc up -d --remove-orphans
+  say "Starting the website (the jobs container is moved separately, below)"
+  # Everything except `jobs`: a website deploy never stops a running job (founder, 14 Nov 2026). An older layout's single app container is replaced here.
+  dc up -d --remove-orphans db redis app caddy backup
   echo "$commit" > "$STATE/current_commit"
   # Caddyfile and backup.sh are single files mounted into containers; git replaces files with new ones, so a running container would keep
   # reading the old copy. When either changed since the last deploy, recreate those two containers (a second of downtime for the front door).
@@ -235,12 +237,58 @@ cmd_deploy() {
     echo "The new version did not become healthy. To go back to the previous build:  bash $0 rollback" >&2
     exit 1
   fi
+  cmd_jobs || info "WARNING: the jobs container could not be moved to the new code now; auto-deploy tries again at its next check (bash $0 jobs)"
   docker image prune -f >/dev/null 2>&1 || true
   docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-2gb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
   say "Done: FinLit is running (commit $commit)"
   info "Open:        $(site_url)"
   info "Check it:    cd $PROJ && bash scripts/smoke.sh $(site_url)"
   info "Admin login: $(site_url)/login"
+}
+
+# ---------------------------------------------------------------- the jobs container (founder, 14 Nov 2026: a website deploy never stops a job)
+# The jobs run in their own container from the same image (deploy/jobs.sh). It is moved to a new build only when the code the jobs run changed (most
+# merges are website-only, and then it is not touched at all), and only when no long job is running: the deploy gate (backend/finlit/jobs/deploy_gate.py)
+# answers "wait" while one runs and lets no new long one start, so the running job finishes and the move goes in the gap, at most DEPLOY_HOLD_MAX_MIN
+# (150) minutes later. Until then $STATE/jobs_pending is there and auto-deploy calls this again at every check.
+JOBS_CODE_PATHS=(backend/finlit backend/finlit_technicals backend/requirements.txt Dockerfile deploy/scheduler.sh deploy/jobs.sh)
+
+jobs_code_id() {   # one id for the code the jobs container runs: the git object ids of those paths (works in the shallow clone deploy.sh keeps)
+  local p
+  for p in "${JOBS_CODE_PATHS[@]}"; do git -C "$SRC" rev-parse "HEAD:$REPO_SUBDIR/$p" 2>/dev/null || echo "missing:$p"; done | sha256sum | cut -c1-16
+}
+
+jobs_gate() { timeout 90 docker compose -p finlit -f "$PROJ/deploy/aws/docker-compose.aws.yml" --env-file "$ENV_FILE" exec -T app python -m finlit.worker deploy-gate "$@" 2>/dev/null </dev/null | tail -n 1; }
+
+cmd_jobs() {
+  need_stack
+  local want have running verdict
+  want="$(jobs_code_id)"
+  have="$(cat "$STATE/jobs_code" 2>/dev/null || true)"
+  running="$(dc ps -q --status running jobs 2>/dev/null || true)"
+  if [ -n "$running" ] && [ "$want" = "$have" ] && [ "${1:-}" != force ]; then
+    rm -f "$STATE/jobs_pending"
+    info "the jobs container already runs this job code: left alone"
+    return 0
+  fi
+  if [ -n "$running" ] && [ "${1:-}" != force ]; then
+    verdict="$(jobs_gate check "jobs-$want")"
+    case "$verdict" in
+      wait:*)
+        echo "$want" > "$STATE/jobs_pending"
+        info "the jobs container moves to the new code when the running long job is done: ${verdict#wait: }"
+        return 0 ;;
+      go:*) info "no long job is running: moving the jobs container now" ;;
+      *) info "the deploy gate did not answer (${verdict:-no reply}): moving the jobs container now" ;;
+    esac
+  else
+    info "${running:+forced: }starting the jobs container on the new code now"
+  fi
+  dc up -d --no-deps --no-build --force-recreate jobs
+  echo "$want" > "$STATE/jobs_code"
+  rm -f "$STATE/jobs_pending"
+  jobs_gate release >/dev/null 2>&1 || true   # long jobs may start again (the flag also expires by itself)
+  info "the jobs container runs the new code (job code $want)"
 }
 
 cmd_rollback() {
@@ -254,6 +302,7 @@ cmd_rollback() {
   if [ -n "$(image_id "$IMAGE:swap")" ]; then docker tag "$IMAGE:swap" "$IMAGE:previous"; docker rmi "$IMAGE:swap" >/dev/null 2>&1 || true; fi   # run rollback again to switch forward
   dc up -d --no-build --remove-orphans
   echo "$(image_commit "$IMAGE:current")" > "$STATE/current_commit" 2>/dev/null || true
+  echo "rolled-back" > "$STATE/jobs_code"; rm -f "$STATE/jobs_pending"   # the jobs container went back too; the next deploy moves it forward again
   wait_healthy || die "the rolled-back app is not healthy either: see: bash $0 logs app"
   info "Rolled back. Database changes made by the newer version stay (migrations only go forward)."
   info "The next 'deploy.sh' pulls $REPO_BRANCH again and deploys the newest code, so fix the problem in the company repository first."
@@ -266,6 +315,7 @@ cmd_status() {
   info "image finlit-app:current   commit $(image_commit "$IMAGE:current")   built $(docker image inspect -f '{{.Created}}' "$IMAGE:current" 2>/dev/null | cut -c1-19)"
   info "previous (for rollback)    commit $(image_commit "$IMAGE:previous")"
   [ -d "$SRC/.git" ] && info "checkout on disk           commit $(git -C "$SRC" rev-parse --short HEAD) ($REPO_BRANCH)"
+  info "jobs container             job code $(cat "$STATE/jobs_code" 2>/dev/null || echo unknown)$([ -s "$STATE/jobs_pending" ] && echo "   (waiting to move to $(cat "$STATE/jobs_pending") when no long job runs)")"
   say "Containers"
   dc ps -a || true
   say "Memory"
@@ -282,7 +332,7 @@ cmd_logs() {
   need_docker
   [ -f "$PROJ/deploy/aws/docker-compose.aws.yml" ] || die "nothing deployed yet at $PROJ"
   if [ -n "${1:-}" ]; then
-    case "$1" in app|db|redis|caddy|backup) ;; *) die "unknown service '$1' (app, db, redis, caddy, backup)";; esac
+    case "$1" in app|jobs|db|redis|caddy|backup) ;; *) die "unknown service '$1' (app, jobs, db, redis, caddy, backup)";; esac
   fi
   dc logs --tail 200 -f ${1:+"$1"}
 }
@@ -312,20 +362,21 @@ cmd_restore() {
   echo "This ERASES the current database and loads $f. The site is stopped meanwhile. A safety backup is taken first."
   read -r -p "Type  restore  to go on: " ans
   [ "$ans" = restore ] || die "cancelled, nothing changed"
-  dc stop app
-  dc exec -T -e CONFIRM=yes backup /bin/sh /backup.sh restore "$f" </dev/null || { echo "restore failed: starting the app again with whatever is there" >&2; dc start app; exit 1; }
-  dc start app
+  dc stop app jobs
+  dc exec -T -e CONFIRM=yes backup /bin/sh /backup.sh restore "$f" </dev/null || { echo "restore failed: starting the app again with whatever is there" >&2; dc start app jobs; exit 1; }
+  dc start app jobs
   wait_healthy || die "the app is not healthy after the restore: bash $0 logs app"
   info "Restore done."
 }
 
 main() {
   case "${1:-deploy}" in   # one deploy, rollback or restore at a time (a person and the automatic deploy must never overlap)
-    deploy|rollback|restore) mkdir -p "$STATE"; exec 9>"$STATE/deploy.lock"; flock -n 9 || die "another deploy, rollback or restore is running right now: wait for it to finish" ;;
+    deploy|rollback|restore|jobs) mkdir -p "$STATE"; exec 9>"$STATE/deploy.lock"; flock -n 9 || die "another deploy, rollback, restore or jobs move is running right now: wait for it to finish" ;;
   esac
   case "${1:-deploy}" in
     deploy)   cmd_deploy ;;
     rollback) cmd_rollback ;;
+    jobs)     shift; cmd_jobs "$@" ;;
     status)   cmd_status ;;
     logs)     shift; cmd_logs "$@" ;;
     restart)  shift; cmd_restart "$@" ;;
@@ -334,8 +385,8 @@ main() {
     clean)    cmd_clean ;;
     restore)  shift; cmd_restore "$@" ;;
     compose)  shift; need_stack; dc "$@" ;;
-    -h|--help|help) sed -n '2,19p' "$0" ;;
-    *) die "unknown command '$1'. Use: deploy | rollback | status | logs [service] | restart [service] | backup | backups | clean | restore FILE | compose ARGS" ;;
+    -h|--help|help) sed -n '2,20p' "$0" ;;
+    *) die "unknown command '$1'. Use: deploy | jobs [force] | rollback | status | logs [service] | restart [service] | backup | backups | clean | restore FILE | compose ARGS" ;;
   esac
 }
 { main "$@"; exit $?; }
