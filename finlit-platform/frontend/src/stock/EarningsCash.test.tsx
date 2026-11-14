@@ -47,3 +47,20 @@ describe("Earnings & cash: each verdict tile in its colour (task #129)", () => {
     expect(css).toMatch(/:root:not\(\[data-theme="light"\]\) \.ec \{[^}]*--ck-watch: #FDBA74;[^}]*--ck-solid-watch: #EA580C;/);
   });
 });
+
+// Task #129, second pass (team note): "in this mention what each color signifies and create uniformity with above symbols / follow - green, orange and red color only".
+describe("Earnings & cash: one key, the six checks' marks, three colours only (task #129, team note)", () => {
+  const src = readFileSync(join(__dirname, "EarningsCash.tsx"), "utf8");
+  const css = readFileSync(join(__dirname, "..", "styles", "earningscash.css"), "utf8");
+  it("a key says what green, orange and red mean, with the same marks as the six checks (✓ ! ⚑)", () => {
+    expect(src).toContain("Green: in good shape"); expect(src).toContain("Orange: worth watching or checking"); expect(src).toContain("Red: a red flag that needs a closer look");
+    expect(src).toMatch(/MARKS = \{ s: "✓", w: "!", f: "⚑" \}/);
+    const pill = readFileSync(join(__dirname, "EarningsIntel.tsx"), "utf8");
+    expect(pill).toMatch(/ok: "✓", watch: "!", alert: "⚑"/);                      // the six checks' pills use the same three marks
+  });
+  it("the cards under the tiles are red, orange or green only: no gold 'read' and no grey or blue 'investigate' card", () => {
+    expect(src).not.toMatch(/className="ins v"|className="ins i"/);
+    expect(src).toContain('"ins ec-c f"'); expect(src).toContain('"ins ec-c w"');
+    expect(css).toMatch(/\.ec \.ins\.ec-c\.s \{ --ic: var\(--ck-solid-ok\); \} \.ec \.ins\.ec-c\.w \{ --ic: var\(--ck-solid-watch\); \} \.ec \.ins\.ec-c\.f \{ --ic: var\(--ck-solid-alert\);/);
+  });
+});

@@ -20,6 +20,9 @@ import "../styles/earningscash.css";
  *  One map for the three tiles: Earnings quality (Strong / Mixed / Needs a closer look), Cash backing (the pill's ok / watch / alert) and Cash conversion
  *  health (Healthy / Improving / Watch / Needs attention; Improving is still under the healthy line, so it is orange). */
 const TONE: Record<string, "s" | "w" | "f"> = { Strong: "s", Healthy: "s", ok: "s", Mixed: "w", Improving: "w", Watch: "w", watch: "w", "Needs a closer look": "f", "Needs attention": "f", alert: "f" };
+/** The same three marks as the six checks' pills: ✓ green, ! orange, ⚑ red (task #129: one set of symbols and colours for the whole section). */
+const MARKS = { s: "✓", w: "!", f: "⚑" } as const;
+const Mark = ({ t }: { t: "s" | "w" | "f" | "" }) => (t ? <span className="ec-m" aria-hidden="true">{MARKS[t]}</span> : null);
 export const verdictTone = (v: string | null | undefined): "s" | "w" | "f" | "" => (v ? TONE[v] ?? "" : "");
 
 /** The one red flag and the items to investigate, with the receivables warning written once (both bases together). */
@@ -65,15 +68,16 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
   return (
     <div className="card ec" id="earnings-body" aria-label="Earnings and cash quality">
       <div className="ec-tiles" role="list">
-        <div className={"ec-tile " + verdictTone(pr.verdict)} role="listitem"><span className="k">Earnings quality</span><b>{pr.verdict ?? "Not enough data"}</b><small>{pr.findings.length ? `${pr.findings.length} point${pr.findings.length === 1 ? "" : "s"} to look at` : "Nothing flagged"}</small></div>
+        <div className={"ec-tile " + verdictTone(pr.verdict)} role="listitem"><span className="k">Earnings quality</span><b><Mark t={verdictTone(pr.verdict)} />{pr.verdict ?? "Not enough data"}</b><small>{pr.findings.length ? `${pr.findings.length} point${pr.findings.length === 1 ? "" : "s"} to look at` : "Nothing flagged"}</small></div>
         <div className={"ec-tile " + verdictTone(intel?.pill.tone)} role="listitem"><span className="k">Cash backing</span><b>{intel ? <Pill tone={intel.pill.tone}>{intel.pill.label}</Pill> : "Not enough data"}</b><small>{lender ? "Cash flow is not comparable for lenders" : "Operating cash flow against profit"}</small></div>
-        <div className={"ec-tile " + verdictTone(ok?.status)} role="listitem"><span className="k">Cash conversion health</span><b>{ok?.status ?? (m?.state === "lender" ? "Not comparable" : "Not enough data")}</b><small>{L?.ocfMargin != null ? `Operating cash flow ${fmtPct(L.ocfMargin)} of revenue (${L.period})` : "Operating cash flow against revenue"}</small></div>
+        <div className={"ec-tile " + verdictTone(ok?.status)} role="listitem"><span className="k">Cash conversion health</span><b><Mark t={verdictTone(ok?.status)} />{ok?.status ?? (m?.state === "lender" ? "Not comparable" : "Not enough data")}</b><small>{L?.ocfMargin != null ? `Operating cash flow ${fmtPct(L.ocfMargin)} of revenue (${L.period})` : "Operating cash flow against revenue"}</small></div>
       </div>
+      <p className="ec-colkey" aria-label="What the colours mean"><span className="s"><b aria-hidden="true">✓</b>Green: in good shape</span><span className="w"><b aria-hidden="true">!</b>Orange: worth watching or checking</span><span className="f"><b aria-hidden="true">⚑</b>Red: a red flag that needs a closer look</span></p>
 
-      {intel && <div className="ins v"><span className="ins-tag">The read</span><b>{intel.happening}</b></div>}
-      {flag && <div className="ins f"><span className="ins-tag">Red flag</span><b>{flag.title}</b><p>{flag.text}</p></div>}
-      {watch.map((w) => <div className="ins w" key={w.id}><span className="ins-tag">Watch</span><b>{w.text}</b><p>{w.why}</p></div>)}
-      {investigate.map((t, i) => <div className="ins i" key={i}><span className="ins-tag">Investigate</span><p>{t}</p></div>)}
+      {intel && <div className={"ins ec-c " + (verdictTone(intel.pill.tone) || "w")}><span className="ins-tag"><Mark t={verdictTone(intel.pill.tone) || "w"} />The read</span><b>{intel.happening}</b></div>}
+      {flag && <div className="ins ec-c f"><span className="ins-tag"><Mark t="f" />Red flag</span><b>{flag.title}</b><p>{flag.text}</p></div>}
+      {watch.map((w) => <div className="ins ec-c w" key={w.id}><span className="ins-tag"><Mark t="w" />Watch</span><b>{w.text}</b><p>{w.why}</p></div>)}
+      {investigate.map((t, i) => <div className="ins ec-c w" key={i}><span className="ins-tag"><Mark t="w" />Investigate</span><p>{t}</p></div>)}
 
       {!lender && (<section className="ec-sec" aria-labelledby="ec-1"><h3 id="ec-1"><span className="ec-n">1</span>Profit against cash</h3>
         <PrCash r={pr} lender={lender} />

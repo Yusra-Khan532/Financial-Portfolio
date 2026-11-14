@@ -49,3 +49,15 @@
 
 /* On a phone the hidden labels of a wide table escaped its scroll box and the page scrolled sideways by about 60px: the box is positioned. */
 .tw { position: relative; }
+
+/* Task #129, second pass (team note): the whole section uses green, orange and red only, with the six checks' marks (✓ ! ⚑), and a key says what each colour means.
+   The cards under the tiles (The read, Red flag, Watch, Investigate) take the same three colours: red flag red, watch and investigate orange, the read the colour of its verdict. */
+.ec-m { display: inline-block; min-width: 1.1em; margin-right: 6px; font-weight: 800; }
+.ec-tile.s .ec-m { color: var(--ck-solid-ok); } .ec-tile.w .ec-m { color: var(--ck-solid-watch); } .ec-tile.f .ec-m { color: var(--ck-solid-alert); }
+.ec .ec-colkey { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: -4px 2px 16px; font: 400 var(--fs-13)/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.ec .ec-colkey span { display: inline-flex; text-transform: none; letter-spacing: 0; align-items: center; gap: 6px; }
+.ec-colkey b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; }
+.ec-colkey .s b { background: var(--ck-solid-ok); } .ec-colkey .w b { background: var(--ck-solid-watch); } .ec-colkey .f b { background: var(--ck-solid-alert); }
+.ec .ins.ec-c.s { --ic: var(--ck-solid-ok); } .ec .ins.ec-c.w { --ic: var(--ck-solid-watch); } .ec .ins.ec-c.f { --ic: var(--ck-solid-alert); border-left-width: 4px; }
+.ec .ins.ec-c .ins-tag { color: var(--ck-solid-ok); } .ec .ins.ec-c.w .ins-tag { color: var(--ck-watch); } .ec .ins.ec-c.f .ins-tag { color: var(--ck-alert); } .ec .ins.ec-c.s .ins-tag { color: var(--ck-ok); }
+.ec .ins.ec-c { background: color-mix(in srgb, var(--ic) 12%, var(--s1)); }
