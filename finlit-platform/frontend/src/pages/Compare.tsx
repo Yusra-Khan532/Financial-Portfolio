@@ -15,7 +15,8 @@ import { ChartHelp } from "../components/ChartHelp";
 import { CompareCustom } from "../components/CompareCustom";
 import { decodeKeys, encodeKeys } from "../lib/compareSets";
 import { DiversificationCard } from "../components/diversification/DiversificationCard";
-import { LABEL_WORD, PRISM_PARTS, hasPrism, toneOf, type PrismLabel } from "../lib/scorePrism";
+import { LABEL_WORD, PRISM_PARTS, PRISM_TREND, hasPrism, prismReason, toneOf, trendPos, trendText, type PrismLabel } from "../lib/scorePrism";
+import { trendWord } from "../lib/scoreScreen";
 import { CoLogo } from "../components/CoLogo";
 import { useHoverTip } from "../components/HoverTip";
 
@@ -172,12 +173,22 @@ export function Compare() {
                   : <div className="cc-s cc-prism"><div><span className="label">FinLit Prism</span><b>{"—"}</b><small className="faint">{r.prism_state === "none" ? "Not rated yet" : "No stored Prism rating"} · <Link to={`/prism/${encodeURIComponent(r.symbol)}`}>Open Prism</Link></small></div></div>)}
               </div>))}</div>
             {showPrism && (
-              <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>The FinLit Prism parts</h3><span className="s">0–100, higher is better (a higher Risk score means lower risk)</span></div>
+              <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>The FinLit Prism parts</h3><span className="s">0–100, higher is better (a higher Risk score means lower risk); the two trend readings run from -100 to +100</span></div>
                 <div className="pil-grid">
-                  <Radar axes={PRISM_PARTS.map((x) => x.label)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PRISM_PARTS.map((x) => r[x.col] ?? null), tips: PRISM_PARTS.map((x) => r[x.col] == null ? null : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`) }))} />
+                  <Radar axes={[...PRISM_PARTS.map((x) => x.label), ...PRISM_TREND.map((t) => t.axis)]} scale="The four parts run from 0 to 100; the two trend axes place -100 at the centre, 0 halfway and +100 on the outer ring"
+                    series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i,
+                      values: [...PRISM_PARTS.map((x) => r[x.col] ?? null), ...PRISM_TREND.map((t) => trendPos(r[t.col]))],
+                      tips: [...PRISM_PARTS.map((x) => r[x.col] == null ? null : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`), ...PRISM_TREND.map((t) => r[t.col] == null ? null : `${r.name || r.symbol}\n${t.label}: ${trendText(r[t.col])} (${trendWord(r[t.col]) ?? ""}, from -100 to +100)`)] }))} />
                   <div>{PRISM_PARTS.map((x) => { const v = picked.map((r) => r[x.col]), top = Math.max(...v.map((n) => n ?? -1)); return (
                     <div className="pil-r" key={x.col}><span className="pil-l">{x.label}</span>
-                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (picked.filter((q) => q[x.col] === top).length === 1 && r[x.col] === top ? " win" : "")} tabIndex={0} {...tip.bind(r[x.col] == null ? `${r.name || r.symbol}\n${x.label}: no score` : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`)}><i style={{ width: `${r[x.col] ?? 0}%` }} /><b>{r[x.col] ?? "—"}</b></div>)}</div></div>); })}</div>
+                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (picked.filter((q) => q[x.col] === top).length === 1 && r[x.col] === top ? " win" : "")} tabIndex={0} {...tip.bind(r[x.col] == null ? `${r.name || r.symbol}\n${x.label}: no score` : `${r.name || r.symbol}\n${x.label}: ${r[x.col]} / 100`)}><i style={{ width: `${r[x.col] ?? 0}%` }} /><b>{r[x.col] ?? "—"}</b></div>)}</div></div>); })}
+                    <p className="cmp-trend-h">Price trend <span>from -100 to +100 · not part of the Prism score</span></p>
+                    {PRISM_TREND.map((t) => { const v = picked.map((r) => r[t.col]), top = Math.max(...v.map((n) => n ?? -101)); return (
+                    <div className="pil-r cmp-trend" key={t.col}><span className="pil-l">{t.label}</span>
+                      <div className="pil-bars">{picked.map((r, i) => { const n = r[t.col], why = n == null ? prismReason(r, true, t.key) : null; return (
+                        <div key={r.symbol} className={"pb k" + i + (n != null && picked.filter((q) => q[t.col] === top).length === 1 && n === top ? " win" : "")} tabIndex={0}
+                          {...tip.bind(n == null ? `${r.name || r.symbol}\n${t.label}: ${why}` : `${r.name || r.symbol}\n${t.label}: ${trendText(n)} (${trendWord(n) ?? ""}, from -100 to +100)${r.prism_tech_at ? `\nas of ${r.prism_tech_at.slice(0, 10)}` : ""}`)}>
+                          <i style={{ width: `${trendPos(n) ?? 0}%` }} /><b>{n == null ? "—" : trendText(n)}</b></div>); })}</div></div>); })}</div>
                 </div>
                 <div className="pil-key">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
                 <p className="faint cmp-foot">Describes each company's financial health from its filings and prices. Not a recommendation. A company with no stored rating shows a dash.</p>

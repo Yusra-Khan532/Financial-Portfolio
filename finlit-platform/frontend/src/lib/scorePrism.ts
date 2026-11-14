@@ -25,6 +25,15 @@ export const PRISM_PARTS: { range: PrismRangeKey; col: PrismCol; label: string; 
   { range: "zq", col: "prism_quality", label: "Quality", say: "Financial strength: borrowing, interest cover, returns and cash backing for profit." },
   { range: "zr", col: "prism_risk", label: "Risk", say: "Market risk: price swings, largest fall, trading activity and pledged shares. Higher means lower risk." },
 ];
+/** Prism's two price-trend readings (-100 to +100). They describe the trend only and are not part of the Prism score (task #123: shown beside the four parts on Compare). */
+export const PRISM_TREND: { col: "prism_st_score" | "prism_lt_score"; key: "st" | "lt"; label: string; axis: string }[] = [
+  { col: "prism_st_score", key: "st", label: "Short term trend", axis: "Short term" },
+  { col: "prism_lt_score", key: "lt", label: "Long term trend", axis: "Long term" },
+];
+/** Where a -100..+100 trend reading sits on a 0..100 scale (-100 at 0, 0 at 50, +100 at 100); null stays null (never drawn as a value). */
+export const trendPos = (v: number | null | undefined): number | null => (v == null ? null : Math.max(0, Math.min(100, (v + 100) / 2)));
+/** A trend reading with its sign: "+34", "-12", "0". */
+export const trendText = (v: number | null | undefined): string => (v == null ? "—" : `${v > 0 ? "+" : ""}${Math.round(v)}`);
 export const PRISM_NAMES: Record<PrismRangeKey, string> = { z: "Total Fundamental Score", zf: `Prism ${FUND_PART_NAME}`, zv: "Prism Valuation", zq: "Prism Quality", zr: "Prism Risk" };
 export const PRISM_RANGE_KEYS: PrismRangeKey[] = ["z", "zf", "zv", "zq", "zr"];
 export const prismRangeValue = (r: Row, k: PrismRangeKey): number | null | undefined =>
