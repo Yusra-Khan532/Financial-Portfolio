@@ -101,6 +101,10 @@ describe("<ExploreTools />", () => {
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
+    // task #151: one tool per row, name and plan mark on the left, the figure in its own pill on the right; the count reads "07 TOOLS"
+    expect(Array.from(first.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "", "xt-fig", ""]);
+    expect(rows[0].querySelector(".xt-cnt")!.textContent).toBe("07 tools");
+    const adv = rows[0].querySelectorAll("a.xt-tool")[2]; expect(Array.from(adv.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "", "xt-badge", "xt-fig", ""]);
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
