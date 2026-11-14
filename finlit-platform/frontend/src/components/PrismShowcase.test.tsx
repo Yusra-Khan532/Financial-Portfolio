@@ -25,20 +25,17 @@ describe("task #122: the landing page's FinLit Prism part", () => {
     open();
     expect(document.body.textContent).not.toMatch(/A single view of a company's business strength, financial quality and price momentum/);
   });
-  it("1. has the first picture's parts: the pill, three feature items, and the card with its three blocks", () => {
+  it("1. has the first picture's parts: the pill, the feature items, and the card with its blocks (two of each since task #149)", () => {
     open();
     expect(screen.getByText("FinLit Prism", { selector: ".hpz-pill" })).toBeTruthy();
     const feats = within(screen.getByRole("list", { name: "What FinLit Prism reads" })).getAllByRole("listitem").map((li) => li.textContent);
-    expect(feats).toEqual(["4 Fundamental AreasGrowth, Valuation, Quality, Risk", "2 Technical ViewsShort term (5–20) & Long term (6–18 months)", "One Health ScoreA consolidated view of overall strength"]);
+    expect(feats).toEqual(["4 Fundamental AreasGrowth, Valuation, Quality, Risk", "2 Technical ViewsShort term (5–20) & Long term (6–18 months)"]);
     const fund = screen.getByRole("region", { name: "Fundamental analysis" });
     for (const t of ["Fundamental analysis", "Evaluates business and financial strength across four areas.", "Sample Reading", "59.4", "/ 100", "Cumulative fundamental score"]) expect(within(fund).getAllByText(t).length).toBeGreaterThan(0);
     const parts = within(within(fund).getByRole("list", { name: "The four parts" })).getAllByRole("listitem").map((li) => li.textContent);
     expect(parts).toEqual(["Growth & ProfitabilityAverage", "ValuationWeak", "QualityHealthy", "RiskStrong"]);
     const tech = screen.getByRole("region", { name: "Technical analysis" });
     for (const t of ["Technical short term", "5–20 sessions", "+29", "▲ Uptrend", "Technical long term", "6–18 months", "−55", "▼ Strong downtrend"]) expect(within(tech).getByText(t)).toBeTruthy();
-    const all = screen.getByRole("region", { name: "Overall financial health" });
-    expect(within(all).getByText("Overall Financial Health")).toBeTruthy();
-    expect(within(all).getByText("Combines fundamental and technical views for a unified read on strength and momentum.")).toBeTruthy();   // the picture's words (founder, 14 Nov 2026)
     expect(screen.getByText("Reliance Industries on FinLit Prism, 6 Nov 2026. Shown as an example, not a recommendation.")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Open FinLit Prism/ }).getAttribute("href")).toBe("/prism");
   });
@@ -46,15 +43,15 @@ describe("task #122: the landing page's FinLit Prism part", () => {
     open();
     const item = (k: string) => document.querySelector(`.hpz-feat[aria-describedby="hpz-b-${k}"]`) as HTMLElement;
     const block = (k: string) => document.getElementById(`hpz-b-${k}`) as HTMLElement;
-    for (const k of ["fund", "tech", "overall"]) {
+    for (const k of ["fund", "tech"]) {
       fireEvent.mouseEnter(item(k));
       expect(item(k).className).toContain("lit"); expect(block(k).className).toContain("lit");
-      for (const o of ["fund", "tech", "overall"].filter((x) => x !== k)) { expect(block(o).className).not.toContain("lit"); expect(item(o).className).not.toContain("lit"); }
+      for (const o of ["fund", "tech"].filter((x) => x !== k)) { expect(block(o).className).not.toContain("lit"); expect(item(o).className).not.toContain("lit"); }
       fireEvent.mouseLeave(item(k));
       expect(block(k).className).not.toContain("lit");
     }
     fireEvent.focus(item("tech")); expect(block("tech").className).toContain("lit");
-    fireEvent.mouseEnter(block("overall")); expect(item("overall").className).toContain("lit");   // and the other way round: the block lights its item
+    fireEvent.mouseEnter(block("fund")); expect(item("fund").className).toContain("lit");   // and the other way round: the block lights its item
     expect(css).toMatch(/\.hpz-feat\.lit \{[^}]*border-color: var\(--hpz-glow\)/);
     expect(css).toMatch(/\.hpz-blk\.lit \{[^}]*border-color: var\(--hpz-glow\)/);
   });
@@ -66,5 +63,24 @@ describe("task #122: the landing page's FinLit Prism part", () => {
   it("shows the sample's words in their colour families and the technical marks where they belong", () => {
     expect([partTone("Average"), partTone("Weak"), partTone("Healthy"), partTone("Strong"), partTone("Poor")]).toEqual(["gold", "red", "green", "green", "red"]);
     expect([techPos(29), techPos(-55), techPos(-100), techPos(100)]).toEqual([64.5, 22.5, 0, 100]);
+  });
+});
+
+// Task #149 (14 Nov 2026): "remove the red box part completely". The picture boxes two things in red: the "One Health Score" feature item at the top
+// and the "Overall Financial Health" strip at the foot of the card. Both are gone, with their styles; nothing else of the part changes.
+describe("task #149: the One Health Score item and the Overall Financial Health strip are removed completely", () => {
+  it("has no One Health Score item and no Overall Financial Health strip, words or score", () => {
+    open();
+    const items = within(screen.getByRole("list", { name: "What FinLit Prism reads" })).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(screen.queryByRole("region", { name: /Overall financial health/i })).toBeNull();
+    expect(document.getElementById("hpz-b-overall")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/One Health Score|consolidated view of overall strength|Overall Financial Health|unified read on strength and momentum/);
+    expect(document.querySelectorAll(".hpz-blk")).toHaveLength(2);   // only Fundamental analysis and Technical analysis
+    expect(screen.getAllByText("59.4")).toHaveLength(1);              // the score shows once, in the Fundamental ring
+  });
+  it("leaves no style behind for the removed parts, and lays the two items out in two columns", () => {
+    expect(css).not.toMatch(/hpz-overall|hpz-total|hpz-bi\.green/);
+    expect(css).toMatch(/\.hpz-feats \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   });
 });

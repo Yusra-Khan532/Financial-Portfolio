@@ -1,6 +1,6 @@
 // The landing page's FinLit Prism part as the team drew it (task #122, 14 Nov 2026): a deep green band with the FINLIT PRISM pill, the line "Beyond Ratios.
-// A Statistical Model for Deeper Financial Analysis." and three feature items, then the Prism card larger than before: Fundamental analysis, Technical
-// analysis and the Overall Financial Health strip. Hovering (or focusing) a feature item lights it and its block of the card in gold, and the other way round.
+// A Statistical Model for Deeper Financial Analysis." and two feature items, then the Prism card larger than before: Fundamental analysis and Technical
+// analysis (task #149 removed the "One Health Score" item and the Overall Financial Health strip). Hovering (or focusing) a feature item lights it and its block of the card in gold, and the other way round.
 // The card shows Reliance Industries' real reading of 6 Nov 2026 (the same one the page showed as a picture), dated and marked as an example.
 // Styles: styles/prism-showcase.css (hpz-), on the landing page's --hh- tokens. Describes, never advises.
 import { useState, type ReactNode } from "react";
@@ -9,11 +9,10 @@ import { Icon } from "../lib/icons";
 import { PRISM_SAMPLE as S, partTone, techPos, type PartTone } from "../lib/prismShowcase";
 import "../styles/prism-showcase.css";
 
-type Key = "fund" | "tech" | "overall";
+type Key = "fund" | "tech";
 const FEATURES: { k: Key; icon: ReactNode; title: string; text: [string, string] }[] = [
   { k: "fund", icon: <path d="M5 19V11M10 19V7M15 19v-5M20 19V4" />, title: "4 Fundamental Areas", text: ["Growth, Valuation,", "Quality, Risk"] },
   { k: "tech", icon: <path d="M4 17l5-5 4 3 7-8M15 7h5v5" />, title: "2 Technical Views", text: ["Short term (5–20) &", "Long term (6–18 months)"] },
-  { k: "overall", icon: <><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5" /></>, title: "One Health Score", text: ["A consolidated view", "of overall strength"] },
 ];
 const glyph = (d: ReactNode) => <svg className="hpz-glyph" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>;
 
@@ -87,11 +86,6 @@ export function PrismShowcase() {
                 </div>))}
             </section>
           </div>
-          <section className={cls("overall", "hpz-blk hpz-overall")} id="hpz-b-overall" aria-label="Overall financial health" {...on("overall")}>
-            <span className="hpz-bi green" aria-hidden="true">{glyph(<><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5" /></>)}</span>
-            <div><h3>Overall Financial Health</h3><p>Combines fundamental and technical views for a unified read on strength and momentum.</p></div>
-            <span className="hpz-total"><b>{S.score.toFixed(1)}</b><span>/ 100</span><em className={"hpz-chip " + partTone(S.word)}>{S.word}</em></span>
-          </section>
         </div>
         <figcaption>{S.caption}</figcaption>
       </figure>
