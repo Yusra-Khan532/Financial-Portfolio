@@ -63,8 +63,14 @@ export function moveSentence(points: HistPoint[], series: Series[], period: Peri
 
 /** Days on which a Prism re-rating moved at least one of the four business scores (they change only then, so they move in steps). */
 export function reRated(points: HistPoint[]): string[] {
-  const out: string[] = [];
-  for (let i = 1; i < points.length; i++) if (BUSINESS.some((s) => { const a = valueOf(points[i - 1], s), b = valueOf(points[i], s); return a != null && b != null && a !== b; })) out.push(points[i].day);
+  // a day with a new rating is compared with the rating still in force before it, not only with the day before: the days between two ratings carry no rating
+  // of their own, so comparing neighbours missed every re-rating that came after a day without one (task #126)
+  const out: string[] = [], last: Partial<Record<Series, number>> = {};
+  points.forEach((p) => {
+    let moved = false;
+    for (const s of BUSINESS) { const v = valueOf(p, s); if (v == null) continue; if (last[s] != null && last[s] !== v) moved = true; last[s] = v; }
+    if (moved) out.push(p.day);
+  });
   return out;
 }
 
@@ -101,3 +107,36 @@ export function axisIndexes(n: number, max = 6): number[] {
 
 /** The size of the dot drawn on every recorded day: large while the chart has few days, smaller as they crowd, never so small it cannot be seen. */
 export const dotRadius = (n: number): number => (n <= 45 ? 4 : n <= 120 ? 3 : 2.3);
+
+/** The four business scores change only when Prism re-rates the company: a flat line at the rating in force, which jumps straight up or down on the day of the
+ *  new rating (horizontal, then vertical segments only, never a slope that would suggest a score drifted between two ratings). `pts` are [x, y], left to right. */
+export function stepPath(pts: [number, number][]): string {
+  if (!pts.length) return "";
+  const f = (v: number) => v.toFixed(1);
+  let d = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 1; i < pts.length; i++) { d += `H${f(pts[i][0])}`; if (pts[i][1] !== pts[i - 1][1]) d += `V${f(pts[i][1])}`; }
+  return d;
+}
+
+/** The technical views are read every trading evening: a smooth line through every reading that never bulges above or below the readings on either side
+ *  (monotone cubic, Fritsch and Carlson), so the curve shows the path between two evenings without inventing a high or a low that was not read. */
+export function monotonePath(pts: [number, number][]): string {
+  const n = pts.length, f = (v: number) => v.toFixed(1);
+  if (!n) return "";
+  if (n < 3) return pts.map(([x, y], i) => `${i ? "L" : "M"}${f(x)},${f(y)}`).join("");
+  const d: number[] = [], m: number[] = new Array(n).fill(0);
+  for (let i = 0; i < n - 1; i++) d.push((pts[i + 1][1] - pts[i][1]) / (pts[i + 1][0] - pts[i][0] || 1));
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  let out = `M${f(pts[0][0])},${f(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], h = (x1 - x0) / 3;
+    out += `C${f(x0 + h)},${f(y0 + m[i] * h)} ${f(x1 - h)},${f(y1 - m[i + 1] * h)} ${f(x1)},${f(y1)}`;
+  }
+  return out;
+}

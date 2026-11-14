@@ -21,3 +21,23 @@
   .scm-panel svg { min-width: 560px; }
   .scm-tip { position: sticky; left: 0; top: auto; right: auto; margin: 4px 0 0; width: max-content; max-width: 100%; }
 }
+/* task #126: one card per group. Fundamental (the four business scores, 0 to 100) and Technical (the two technical views, −100 to +100), each with its tag,
+   its title, a line that says how it moves, its own key with the change in the period, its chart and, for the business scores, how to read the dots */
+.scm-grp { margin: 14px 0 0; padding: 14px 16px 12px; border: 1px solid var(--border); border-top: 3px solid var(--grp); border-radius: 14px; background: var(--s1); }
+.scm-grp.scm-g-biz { --grp: var(--p-growth); } .scm-grp.scm-g-tech { --grp: var(--gold); }
+.scm-gh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.scm-gh h4 { margin: 0; font: 600 var(--fs-18)/1.3 var(--sans); color: var(--text); }
+.scm-tag { display: inline-flex; align-items: center; padding: 3px 12px; border-radius: 999px; font: 700 var(--fs-13)/1.4 var(--sans); color: var(--grp); background: color-mix(in srgb, var(--grp) 16%, transparent); border: 1px solid color-mix(in srgb, var(--grp) 35%, transparent); }
+.scm-pat { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 10px; font-size: var(--fs-14); line-height: 1.45; color: var(--muted); }
+.scm-pat svg { flex: none; width: 14px; height: 14px; margin-top: 3px; fill: none; stroke: var(--grp); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.scm-grp .scm-keys { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 4px; }
+.scm-chg { font-weight: 500; color: var(--muted); }
+.scm-mk { font: 600 var(--fs-11) var(--sans); fill: var(--muted); paint-order: stroke; stroke: var(--s1); stroke-width: 4px; stroke-linejoin: round; }   /* a halo in the card's colour keeps the word readable where it crosses a line */
+.scm-lg { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 2px 0 6px; padding: 0; list-style: none; font-size: var(--fs-13); color: var(--muted); }
+.scm-lg li { display: inline-flex; align-items: center; gap: 7px; }
+.scm-lg svg { width: 12px; height: 12px; flex: none; }
+.scm-lg .solid { fill: var(--text); } .scm-lg .hollow { fill: var(--bg); stroke: var(--text); stroke-width: 1.6; }
+.scm-lg line { stroke: var(--gold); stroke-width: 1.6; stroke-dasharray: 2 2; }
+.scm-grp .scm-note { margin: 4px 0 0; }
+@media (max-width: 640px) { .scm-grp { padding: 12px 12px 10px; } .scm-gh h4 { font-size: var(--fs-16); } .scm-pat { font-size: var(--fs-13); }
+  .scm-grp .scm-key { display: flex; width: 100%; margin-right: 0; text-align: left; flex-wrap: wrap; row-gap: 2px; } .scm-grp .scm-key .scm-chg { margin-left: auto; } }

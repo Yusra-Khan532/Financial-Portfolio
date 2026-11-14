@@ -8,16 +8,20 @@ import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
 import { OpenAccess } from "../components/Gate";
 import { toWeekly, usePrismHistory, valueOf, type HistPoint, type Series } from "../lib/prismHistory";
-import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, figureOn, inPeriod, moveSentence, movesOf, readingNow, reRated, seriesFor, type Period, type Show } from "../lib/scoreMoves";
+import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, figureOn, inPeriod, monotonePath, moveSentence, movesOf, readingNow, reRated, seriesFor, stepPath, type Move, type Period, type Show } from "../lib/scoreMoves";
 import "../styles/scoremoves.css";
 import { ChartZoom } from "../components/ChartZoom";
 
 const COLOR: Record<Series, string> = { final: "var(--text)", ["fundamental"]: "var(--p-growth)", valuation: "var(--p-quality)", quality: "var(--p-profit)", risk: "var(--p-balance)", shortTerm: "var(--gold)", longTerm: "var(--info)" };
+/** Two lines are dashed so that neither can hide under another: Growth & Profitability often sits on the same figure as Valuation (both 97, say), and the
+ *  long-term view is the slower of the two technical lines. Dashed lines are drawn last, on top. */
+const DASHED = new Set<Series>(["fundamental", "longTerm"]);
+const swatch = (s: Series) => (DASHED.has(s) ? `repeating-linear-gradient(90deg, ${COLOR[s]} 0 5px, transparent 5px 8px)` : COLOR[s]);
 const W = 720, L = 42, R = 16;
 const fmt = (v: number | null, signed = false) => (v == null ? MINUS : (signed && v > 0 ? "+" : "") + String(Math.round(v * 10) / 10).replace("-", MINUS));
 
 function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed }: { points: HistPoint[]; history: HistPoint[]; series: Series[]; lo: number; hi: number; ticks: number[]; h: number; marks: string[]; label: string; signed: boolean }) {
-  const T = 10, B = 22, days = points.map((p) => Date.parse(p.day)), t0 = days[0], t1 = days[days.length - 1];
+  const T = marks.length ? 24 : 10, B = 22, days = points.map((p) => Date.parse(p.day)), t0 = days[0], t1 = days[days.length - 1];
   const x = (d: string) => L + (t1 === t0 ? (W - L - R) / 2 : ((Date.parse(d) - t0) / (t1 - t0)) * (W - L - R));
   const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
   const [hover, setHover] = useState<number | null>(null);
@@ -26,7 +30,10 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
     let best = 0, bd = Infinity; points.forEach((p, i) => { const d = Math.abs(x(p.day) - px); if (d < bd) { bd = d; best = i; } }); setHover(best);
   };
   const n = points.length, dr = dotRadius(n), hp = hover == null ? null : points[hover];
-  const axis = axisIndexes(n), last = axis.length - 1;
+  // which re-rating days get the word "Re-rated": from the newest back, each needs about 64 units clear of the one kept after it, so the words never overlap
+  const labelled = new Set<string>(); let room = Infinity;
+  for (let i = marks.length - 1; i >= 0; i--) { const xd = x(marks[i]); if (room - xd >= 64) { labelled.add(marks[i]); room = xd; } }
+  const axis = axisIndexes(n, 10), last = axis.length - 1;   // every recorded day gets its date while ten or fewer fit; more, ten spread evenly
   const key = (e: React.KeyboardEvent<SVGSVGElement>) => {
     const to = e.key === "ArrowRight" ? Math.min(n - 1, (hover ?? -1) + 1) : e.key === "ArrowLeft" ? Math.max(0, (hover ?? n) - 1) : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : null;
     if (to != null) { e.preventDefault(); setHover(to); }
@@ -37,14 +44,20 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
         onKeyDown={key} onFocus={() => setHover((c) => c ?? n - 1)} onBlur={() => setHover(null)}>
         {ticks.map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth={g === 0 && signed ? 1.2 : 0.6} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="scm-ax">{fmt(g)}</text></g>)}
         {signed && <rect x={L} width={W - L - R} y={y(20)} height={y(-20) - y(20)} fill="var(--gold)" opacity=".07" />}
-        {marks.map((d) => <g key={d}><line x1={x(d)} x2={x(d)} y1={T} y2={h - B} stroke="var(--gold)" strokeDasharray="2 3" /><path d={`M${x(d) - 4},${h - B + 8} l4,-7 l4,7z`} fill="var(--gold-deep, var(--gold))"><title>{`Prism re-rated on ${dateIN(d)}`}</title></path></g>)}
+        {marks.map((d) => {
+          // the dotted line and the triangle mark the day Prism re-rated the company, and the words say so; a word is left out only where it would touch the next one
+          const xd = x(d), word = labelled.has(d), left = xd < L + 64;
+          return <g key={d} className="scm-mark"><line x1={xd} x2={xd} y1={T - 14} y2={h - B} stroke="var(--gold)" strokeDasharray="2 3" /><path d={`M${xd - 4},${h - B + 8} l4,-7 l4,7z`} fill="var(--gold-deep, var(--gold))"><title>{`Prism re-rated on ${dateIN(d)}`}</title></path>
+            {word && <text className="scm-mk" x={left ? xd + 5 : xd - 5} y={T - 8} textAnchor={left ? "start" : "end"}>Re-rated</text>}</g>; })}
         {points.map((p) => <line key={"r" + p.day} className="scm-rug" x1={x(p.day)} x2={x(p.day)} y1={h - B} y2={h - B + 5} />)}
-        {series.map((s) => {
+        {[...series].sort((a, b) => Number(DASHED.has(a)) - Number(DASHED.has(b))).map((s) => {
           // a dot on EVERY recorded day of every line. The technical views are read every evening, so each dot is a reading. The four business scores change only when
           // Prism re-rates the company: a day with no new rating shows the rating still in force as a hollow dot, so no date is left without a point.
           const v = points.map((p) => ({ p, f: signed ? (valueOf(p, s) == null ? null : { value: valueOf(p, s)!, day: p.day, exact: true }) : figureOn(history, s, p.day) })).filter((d) => d.f != null) as { p: HistPoint; f: { value: number; day: string; exact: boolean } }[];
           if (!v.length) return null; const end = v[v.length - 1];
-          return <g key={s}><path d={v.map((d, i) => `${i ? "L" : "M"}${x(d.p.day).toFixed(1)},${y(d.f.value).toFixed(1)}`).join("")} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+          const xy = v.map((d) => [x(d.p.day), y(d.f.value)] as [number, number]);
+          // business scores move in steps (flat until the day of a new rating); the technical views, read every evening, as a smooth line through every reading
+          return <g key={s} className="scm-line" data-series={s}><path d={signed ? monotonePath(xy) : stepPath(xy)} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={DASHED.has(s) ? "6 4" : undefined} />
             {v.map((d) => <circle key={d.p.day} className={"scm-dot" + (d.f.exact ? "" : " carried")} cx={x(d.p.day)} cy={y(d.f.value)} r={hp && hp.day === d.p.day ? dr + 2 : dr} fill={d.f.exact ? COLOR[s] : "var(--bg)"} stroke={d.f.exact ? "var(--bg)" : COLOR[s]} strokeWidth={d.f.exact ? 1.3 : 1.8}><title>{`${NAME[s]} ${fmt(d.f.value, signed)} on ${dateIN(d.p.day)}${d.f.exact ? "" : `, the rating from ${dateIN(d.f.day)} still in force`}`}</title></circle>)}
             <circle cx={x(end.p.day)} cy={y(end.f.value)} r={dr + 2.4} fill="none" stroke={COLOR[s]} strokeWidth="1.4" /></g>; })}
         {axis.map((i, k) => <text key={points[i].day} x={x(points[i].day)} y={h - 5} textAnchor={axis.length > 1 && k === 0 ? "start" : axis.length > 1 && k === last ? "end" : "middle"} className="scm-ax">{dateIN(points[i].day, { day: "numeric", month: "short" })}</text>)}
@@ -52,8 +65,25 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
       </svg>
       {hp && hover != null && <div className="scm-tip" role="status"><b>{dateIN(hp.day)}</b>{series.map((s) => {
         const f = signed ? (valueOf(hp, s) == null ? null : { value: valueOf(hp, s)!, day: hp.day, exact: true }) : figureOn(history, s, hp.day);   // business scores: the figure in force that day
-        return <span key={s}><i style={{ background: COLOR[s] }} />{NAME[s]} {f ? fmt(f.value, signed) : "no figure yet"}{f && !f.exact && <small> · rated {dateIN(f.day, { day: "numeric", month: "short" })}</small>}</span>; })}</div>}
+        return <span key={s}><i style={{ background: swatch(s) }} />{NAME[s]} {f ? fmt(f.value, signed) : "no figure yet"}{f && !f.exact && <small> · rated {dateIN(f.day, { day: "numeric", month: "short" })}</small>}</span>; })}</div>}
     </div>);
+}
+
+const GROUP = {
+  biz: { tag: "Fundamental", title: "Business scores · 0 to 100", aria: "Business scores, 0 to 100",
+    pattern: "Step pattern: flat lines that jump only when Prism re-rates the company.",
+    icon: "M1 11h4V7h4V3h4" },
+  tech: { tag: "Technical", title: "Technical views · \u2212100 to +100", aria: "Technical views, \u2212100 to +100",
+    pattern: "Continuous pattern: moves every trading evening. Short term reads 5 to 20 sessions, long term 6 to 18 months.",
+    icon: "M1 9c2 0 2-5 4-5s2 7 4 7 2-8 4-8" },
+} as const;
+
+/** One key chip: the line's colour (dashed where the line is), its name, the latest figure and how far it moved in the period on screen ("−20.8 since 5 Nov").
+ *  A line with only one figure in the period says so instead of leaving the change blank. Pressing it hides or shows the line. */
+function Key({ s, now, move, off, onToggle }: { s: Series; now: number | null; move: Move | undefined; off: boolean; onToggle: () => void }) {
+  const signed = TECHNICAL.includes(s);
+  const chg = move ? (move.delta === 0 ? `unchanged since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}` : `${fmt(move.delta, true)} since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}`) : "only one figure in this period";
+  return <button type="button" className={"scm-key" + (off ? " off" : "")} aria-pressed={!off} onClick={onToggle}><i style={{ background: swatch(s) }} />{NAME[s]} <b>{fmt(now, signed)}</b> <span className="scm-chg">{chg}</span></button>;
 }
 
 export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
@@ -62,9 +92,30 @@ export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
   const chosen = seriesFor(show), visible = chosen.filter((s) => !off.includes(s));
   const biz = visible.filter((s) => BUSINESS.includes(s)), tech = visible.filter((s) => TECHNICAL.includes(s));
   const latest = all[all.length - 1], marks = useMemo(() => reRated(base), [base]);
-  const moves = movesOf(base, visible);
+  const moves = movesOf(base, visible), keyMoves = movesOf(base, chosen);
   const toggle = (s: Series) => setOff((o) => (o.includes(s) ? o.filter((x) => x !== s) : [...o, s]));
   const pick = (k: Show) => { setShow(k); setOff([]); };
+  const bizOn = BUSINESS.some((s) => chosen.includes(s)), techOn = TECHNICAL.some((s) => chosen.includes(s)), few = base.length < 2;
+  const group = (k: "biz" | "tech", members: Series[], drawn: Series[]) => {
+    const g = GROUP[k];
+    return (
+      <section className={"scm-grp scm-g-" + k} aria-label={g.aria}>
+        <header className="scm-gh"><span className="scm-tag">{g.tag}</span><h4>{g.title}</h4></header>
+        <p className="scm-pat"><svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d={g.icon} /></svg>{g.pattern}</p>
+        <div className="scm-keys" role="group" aria-label={g.aria}>
+          {members.filter((s) => chosen.includes(s)).map((s) => <Key key={s} s={s} now={latest ? valueOf(latest, s) : null} move={keyMoves.find((m) => m.s === s)} off={off.includes(s)} onToggle={() => toggle(s)} />)}
+        </div>
+        {few ? null : drawn.length === 0 ? <p className="faint scm-empty">No line is selected here. Press a score above to draw it.</p>
+          : k === "biz" ? <Panel points={base} history={all} series={drawn} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={techOn ? 210 : 250} marks={marks} label="Business scores over time" signed={false} />
+            : <Panel points={base} history={all} series={drawn} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={bizOn ? 180 : 240} marks={[]} label="Technical views over time" signed />}
+        {k === "biz" && !few && drawn.length > 0 && <ul className="scm-lg" aria-label="How to read the business chart">
+          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4.5" className="solid" /></svg>Solid dot: new rating that day</li>
+          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4" className="hollow" /></svg>Hollow dot: earlier rating still holds</li>
+          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><line x1="6" x2="6" y1="0" y2="12" /></svg>Dotted line: re-rating event</li>
+        </ul>}
+        {k === "biz" && <p className="scm-note"><Icon name="info" /><span>Valuation: higher means cheaper. Risk: higher means lower risk.</span></p>}
+      </section>);
+  };
   return (
     <div className="scm">
       <ChartZoom label={"Score moves"} className="cz-r">
@@ -74,21 +125,12 @@ export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
         <div className="seg" role="group" aria-label="Period">{PERIODS.map((p) => <button key={p.id} type="button" aria-pressed={period === p.id} onClick={() => setPeriod(p.id)}>{p.id}</button>)}</div>
       </div>
       <p className="scm-sum" aria-live="polite">{biz.length && tech.length ? `${moveSentence(base, biz, period)} ${moveSentence(base, tech, period).replace(/^Over the last [^,]+, the/, "The")}` : moveSentence(base, visible, period)}</p>
-      <div className="scm-keys">
-        {BUSINESS.some((s) => chosen.includes(s)) && <div role="group" aria-label="Business scores, 0 to 100"><small>BUSINESS SCORES · 0 TO 100</small>
-          {BUSINESS.filter((s) => chosen.includes(s)).map((s) => <button key={s} type="button" className={"scm-key" + (off.includes(s) ? " off" : "")} aria-pressed={!off.includes(s)} onClick={() => toggle(s)}><i style={{ background: COLOR[s] }} />{NAME[s]} <b>{fmt(latest ? valueOf(latest, s) : null)}</b></button>)}</div>}
-        {TECHNICAL.some((s) => chosen.includes(s)) && <div role="group" aria-label="Technical views, −100 to +100"><small>TECHNICAL VIEWS · −100 TO +100</small>
-          {TECHNICAL.filter((s) => chosen.includes(s)).map((s) => <button key={s} type="button" className={"scm-key" + (off.includes(s) ? " off" : "")} aria-pressed={!off.includes(s)} onClick={() => toggle(s)}><i style={{ background: COLOR[s] }} />{NAME[s]} <b>{fmt(latest ? valueOf(latest, s) : null, true)}</b></button>)}</div>}
-      </div>
-      {visible.length === 0 ? <p className="faint scm-empty">No line is selected. Tick a score above to draw it.</p> : base.length < 2 ? <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p> : (
-        <>
-          {biz.length > 0 && <Panel points={base} history={all} series={biz} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={biz.length && tech.length ? 190 : 240} marks={marks} label="Business scores over time" signed={false} />}
-          {tech.length > 0 && <Panel points={base} history={all} series={tech} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={biz.length ? 150 : 230} marks={[]} label="Technical views over time" signed />}
-          <p className="scm-note"><Icon name="info" /><span>Every recorded day has a dot on every line. Business scores change only when Prism re-rates the company (▲), so they move in steps: a solid dot is a day with a new rating, a hollow dot is a day when the earlier rating still holds. Technical views update every trading evening: short term reads the last 5 to 20 sessions, long term the last 6 to 18 months. Valuation: higher means cheaper. Risk: higher means lower risk.</span></p>
-          {moves.length > 0 && <div className="tw"><table className="qtt scm-t"><caption>Change since {dateIN(moves[0].fromDay)}</caption>
-            <thead><tr><th>Score</th><th className="num">Start</th><th className="num">Now</th><th className="num">Change</th><th>Reading now</th></tr></thead>
-            <tbody>{moves.map((m) => <tr key={m.s}><td><i style={{ background: COLOR[m.s] }} />{NAME[m.s]}</td><td className="num">{fmt(m.from, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.to, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.delta, true)}</td><td>{readingNow(m.s, m.to)}</td></tr>)}</tbody></table></div>}
-        </>)}
+      {few && <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p>}
+      {bizOn && group("biz", BUSINESS, biz)}
+      {techOn && group("tech", TECHNICAL, tech)}
+      {!few && moves.length > 0 && <div className="tw"><table className="qtt scm-t"><caption>Change since {dateIN(moves[0].fromDay)}</caption>
+        <thead><tr><th>Score</th><th className="num">Start</th><th className="num">Now</th><th className="num">Change</th><th>Reading now</th></tr></thead>
+        <tbody>{moves.map((m) => <tr key={m.s}><td><i style={{ background: swatch(m.s) }} />{NAME[m.s]}</td><td className="num">{fmt(m.from, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.to, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.delta, true)}</td><td>{readingNow(m.s, m.to)}</td></tr>)}</tbody></table></div>}
       </ChartZoom>
     </div>);
 }
