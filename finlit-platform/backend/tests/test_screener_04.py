@@ -211,3 +211,30 @@ async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_sp
     assert st["have"] == 24 and st["total"] == 25 and len(st["hist30"]) == 30 and st["values"] == sorted(st["values"])
     assert st["example"]["symbol"] == "S03" and st["example"]["value"] == round(4000 / 103, 4)
     assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400
+
+
+@pytest.mark.integration
+async def test_gold_two_sectors_and_prism_average_returns_the_companies_not_an_error(app):  # noqa: F811
+    """Task #142: two sectors and the Prism rating Average (or Weak, Poor) gave "The screener is unavailable" for Gold: the request only accepted
+    FinLit IQ's words (strong, healthy, mixed, watch) and at most four of them, so Prism's own words were refused before any filtering."""
+    labels = ["AVERAGE", "AVERAGE", "WEAK", "POOR", "STRONG", "AVERAGE"]
+    rows = [_row(f"S{i}", macro=("Oil, Gas & Consumable Fuels" if i < 3 else "Fast Moving Consumer Goods" if i < 5 else "Information Technology"),
+                 industry=("Oil" if i < 3 else "Agricultural Food & other Products" if i < 5 else "IT - Software"), band="mixed", market_cap=1000 * (i + 1), price=100) for i in range(6)]
+    prism = {f"S{i}": {"prism_final": 50, "prism_label": labels[i], "prism_status": "RATED"} for i in range(6)}
+    data._table = Table(rows, {}, {}, None, prism)
+    try:
+        gold = await signed_in(app, "g142@example.com", plan="gold")
+        two = ["Oil, Gas & Consumable Fuels", "Fast Moving Consumer Goods"]
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"sector": two, "band": ["average"]}, "limit": 50})
+        assert r.status_code == 200, r.text                                              # was 422: Input should be 'strong', 'healthy', 'mixed' or 'watch'
+        assert {x["symbol"] for x in r.json()["rows"]} == {"S0", "S1"}                    # in one of the two sectors and rated Average (S5 is Average but in IT)
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"industry": ["Oil", "Agricultural Food & other Products"], "band": ["weak", "poor"]}, "limit": 50})
+        assert r.status_code == 200 and {x["symbol"] for x in r.json()["rows"]} == {"S2", "S3"}
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["strong", "healthy", "average", "weak", "poor"]}, "limit": 50})
+        assert r.status_code == 200 and r.json()["total"] == 6                            # all five Prism words at once (it allowed four)
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["average"], "sector": ["Information Technology"]}, "limit": 50})
+        assert r.status_code == 200 and [x["symbol"] for x in r.json()["rows"]] == ["S5"]
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["nonsense"]}, "limit": 50})
+        assert r.status_code == 422                                                       # a word of neither score is still refused
+    finally:
+        data._table = None

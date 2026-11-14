@@ -25,6 +25,7 @@ STANDARD_COLUMNS = ["market_cap"]
 GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
 IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
+BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]   # every word of either score (IQ_BANDS + PRISM_BANDS)
 
 
 def is_gold(plan: str) -> bool:
@@ -47,7 +48,9 @@ class Cats(BaseModel):
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
     cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
-    band: List[Literal["strong", "healthy", "mixed", "watch"]] = Field(default_factory=list, max_length=4)
+    # the rating words of the plan's score: FinLit IQ's below Gold (strong, healthy, mixed, watch), FinLit Prism's for Gold (strong, healthy, average, weak, poor).
+    # Task #142: only the IQ words were accepted, so a Gold member who picked Average, Weak or Poor got a refused request ("The screener is unavailable").
+    band: List[BandWord] = Field(default_factory=list, max_length=5)
 
 
 class Sort(BaseModel):
