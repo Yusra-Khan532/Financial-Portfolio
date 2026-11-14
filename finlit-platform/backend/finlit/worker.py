@@ -37,6 +37,9 @@ log = logging.getLogger("finlit.worker")
 
 ONDEMAND_LANES = int(os.getenv("ONDEMAND_LANES") or 2)      # reports visitors wait for are built this many at a time (its own cap, apart from the bulk jobs)
 ONDEMAND_EXTRAS = int(os.getenv("ONDEMAND_EXTRAS") or 2)    # and the rest of those reports (parts not needed for the first paint) this many at a time
+FIRST_PAINT_TIMEOUT_S = float(os.getenv("FIRST_PAINT_TIMEOUT_S") or 150)
+LANE_TIMEOUT_S = float(os.getenv("LANE_TIMEOUT_S") or 300)   # no on-demand load (first paint or a refresh) ever holds a lane longer than this
+QUEUE_RECHECK_S = float(os.getenv("QUEUE_RECHECK_SECONDS") or 120)   # the loop looks at the queue this often even with no flag (a lost flag never strands it)   # a visitor's report never holds a lane longer than this: the page says "try again"
 
 
 class DataRejected(Exception):
@@ -475,7 +478,14 @@ async def serve_one(client: FinEdgeClient, store: Store, symbol: str, statement:
     are stored) and the rest follows in the background; a refresh of a good report is a plain full load."""
     if await _usable_report(store, symbol, statement):
         return await ingest_one(client, store, symbol, statement)
-    result, bundle = await ingest_essential(client, store, symbol, statement)
+    try:
+        result, bundle = await asyncio.wait_for(ingest_essential(client, store, symbol, statement), FIRST_PAINT_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        # The provider kept answering "too many requests": the lane is freed for the next visitor and this page is told at once, not left waiting.
+        log.warning("ingest %s %s first paint: no answer within %.0f s", symbol, statement, FIRST_PAINT_TIMEOUT_S)
+        await _after_load(store, symbol, statement)
+        await _record_failure(store, symbol, statement, "failed", {})
+        return {"symbol": symbol, "status": "failed", "errors": {"error": f"timed out after {FIRST_PAINT_TIMEOUT_S:.0f} s"}, "retry": False}
     if bundle is not None:
         async def rest():
             async with extras:
@@ -486,35 +496,48 @@ async def serve_one(client: FinEdgeClient, store: Store, symbol: str, statement:
     return result
 
 
-async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, idle_seconds: float = 0.5, recheck_seconds: float = 24 * 3600.0,
+async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, idle_seconds: float = 0.5, recheck_seconds: float = QUEUE_RECHECK_S,
                       lanes: int = ONDEMAND_LANES) -> int:
     """With loop=True the idle wait watches a Redis flag set by enqueue, and looks at Postgres only when the flag is up (or every
     `recheck_seconds` as a safety net). Polling Postgres every couple of seconds would keep a serverless database awake all day.
-    The loop does not look at start-up either (a restart would wake the database for nothing): items left over from before are taken by the one-shot
-    `drain-queue` that every DB window runs, and by the flag, which enqueue raises for an hour.
+    The loop does not look at start-up either (a restart would wake the database for nothing): items left over from before are taken at the first
+    recheck (QUEUE_RECHECK_SECONDS, 2 minutes). Once it takes work it keeps taking it, without a new flag, until the queue is empty; the newest request
+    goes first (store.claim), because that is the company a visitor is looking at now.
 
     THE PRIORITY LANE. Reports visitors wait for are served by `lanes` (2) independent lanes, each taking the next waiting company the moment it is
     free, so nobody queues behind a slow company. This loop is its own process: it does not take the heavy-load lock, the memory gate or the admin
     "heavy loads" switch of the bulk jobs, which in turn step aside while a visitor waits (the VISITOR_WAITING flag). Companies pre-warmed from a
     report's peers (the low queue) are taken only when no visitor is waiting."""
-    total, last_db = 0, (time.monotonic() if loop else float("-inf"))
+    total, last_db, more = 0, (time.monotonic() if loop else float("-inf")), False
     active: set = set()
     background: set = set()
     extras = asyncio.Semaphore(ONDEMAND_EXTRAS)
 
     async def lane(sym: str, st: str):
         try:
-            res = await serve_one(client, store, sym, st, extras, background)
+            try:
+                res = await asyncio.wait_for(serve_one(client, store, sym, st, extras, background), LANE_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                log.warning("on-demand load of %s %s: no result within %.0f s, lane freed", sym, st, LANE_TIMEOUT_S)
+                await _after_load(store, sym, st)
+                return
             await _retry_dropped(store, [res])
             await store.invalidate_search()
         except Exception:
             log.exception("on-demand load of %s failed", sym)
+
+    serving: set = set()      # the visitor lanes now running (not the pre-warm one): while any runs, the bulk jobs' flag is kept up
+    flag_at = [0.0]
 
     def start(items, low: bool = False):
         for sym, st in items:
             task = asyncio.create_task(lane_low(sym, st) if low else lane(sym, st))
             active.add(task)
             task.add_done_callback(active.discard)
+            if not low:
+                serving.add(task)
+                task.add_done_callback(serving.discard)
+                flag_at[0] = time.monotonic()
 
     async def lane_low(sym: str, st: str):
         try:
@@ -528,7 +551,7 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
         while True:
             free = lanes - len(active)
             if free > 0:
-                if loop and time.monotonic() - last_db < recheck_seconds:
+                if loop and not more and time.monotonic() - last_db < recheck_seconds:
                     try:
                         flagged = await store.redis.exists(store.QUEUE_FLAG)
                     except Exception:
@@ -543,7 +566,11 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
                         except Exception:   # nosec B110
                             pass
                     items = await store.claim(free)
+                    # The queue may hold more than the free lanes took: keep taking without waiting for another flag (the flag was cleared above,
+                    # and before this the rest stayed stranded until some other visitor queued a company, which also meant the oldest went first).
+                    more = len(items) >= free
                     if items:
+                        log.info("claimed %s (lanes busy %d of %d)", ", ".join(f"{a}/{b[:4]}" for a, b in items), len(active) + len(items), lanes)
                         try:
                             await store.redis.set(store.READER_FLAG, 1, ex=120)   # tells the bulk jobs to wait while these are prepared
                         except Exception:   # nosec B110
@@ -566,8 +593,14 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
                     if low:
                         start(low, low=True)
                         continue
+            if serving and time.monotonic() - flag_at[0] > 30:   # a build can outlast the flag's 120 s: renewed while a visitor still waits
+                flag_at[0] = time.monotonic()
+                try:
+                    await store.redis.set(store.READER_FLAG, 1, ex=120)
+                except Exception:   # nosec B110
+                    pass
             if active:
-                await asyncio.wait(set(active), timeout=idle_seconds if loop else None, return_when=asyncio.FIRST_COMPLETED)
+                await asyncio.wait(set(active), timeout=(idle_seconds if loop else (30.0 if serving else None)), return_when=asyncio.FIRST_COMPLETED)
                 continue
             if not loop:
                 if background:
@@ -1503,6 +1536,8 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 print(await jobs.refresh_indices(store))
             return 0
         async with FinEdgeClient(settings) as client:
+            if args.cmd != "drain-queue":   # every bulk job lets a visitor's report go first on the shared provider limit
+                client.yield_to = lambda: store.redis.exists(store.READER_FLAG)
             if args.cmd == "refresh-universe":
                 print(await refresh_universe(client, store), "companies")
             elif args.cmd == "history-probe":

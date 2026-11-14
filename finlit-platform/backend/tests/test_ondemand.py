@@ -428,3 +428,45 @@ async def test_opening_a_chart_built_by_older_code_queues_the_rebuild_once_and_s
         assert again.status_code == 200 and await ingested.queue_length() == 1          # not queued twice
         current = await http.get("/api/stocks/RELIANCE/price?range=6M")                  # built by the current code: nothing is queued
         assert current.status_code == 200 and await ingested.queue_length() == 1
+
+
+# ------------------------------------------------------------------------------------------------------- a stalled provider never holds a lane
+async def test_a_stalled_first_paint_frees_its_lane_and_tells_the_page(monkeypatch):
+    """The provider answers "too many requests" for minutes: after FIRST_PAINT_TIMEOUT_S the lane is free for the next visitor and the waiting page
+    is told at once (pending cleared, failure note left) instead of waiting behind it."""
+    class Redis:
+        def __init__(self): self.kv = {"pending:SLOW:consolidated": 1}
+        async def set(self, k, v, ex=None, nx=False): self.kv[k] = v; return True
+        async def delete(self, *ks): [self.kv.pop(k, None) for k in ks]
+    class Store:
+        redis = Redis()
+
+    async def stalls(*a, **k):
+        await asyncio.sleep(60)
+    async def not_usable(*a): return False
+    monkeypatch.setattr(worker, "ingest_essential", stalls)
+    monkeypatch.setattr(worker, "_usable_report", not_usable)
+    monkeypatch.setattr(worker, "FIRST_PAINT_TIMEOUT_S", 0.05)
+    s = time.perf_counter()
+    res = await worker.serve_one(None, Store(), "SLOW", "consolidated", asyncio.Semaphore(1), set())
+    assert time.perf_counter() - s < 1
+    assert res["status"] == "failed" and res["retry"] is False
+    assert "pending:SLOW:consolidated" not in Store.redis.kv
+    assert Store.redis.kv["ingest:fail:SLOW:consolidated"] == "failed"
+
+
+def test_every_bulk_job_lets_visitors_go_first_on_the_provider():
+    import inspect
+    src = inspect.getsource(worker)
+    assert 'if args.cmd != "drain-queue":' in src and "client.yield_to = lambda: store.redis.exists(store.READER_FLAG)" in src
+
+
+async def test_queue_serves_the_newest_request_first_and_a_repeat_moves_to_the_front(store):  # noqa: F811
+    async with store.pool.acquire() as c:
+        await c.execute("DELETE FROM ingest_queue")
+        await c.execute("INSERT INTO ingest_queue(symbol, statement, requested_at) VALUES ('OLDA','consolidated', now() - interval '1 day'),"
+                        " ('OLDB','consolidated', now() - interval '20 hours')")
+    await store.enqueue("AVANTEL", "consolidated")
+    assert await store.claim(1) == [("AVANTEL", "consolidated")]           # the visitor's company, not yesterday's
+    await store.enqueue("OLDA", "consolidated")                            # opened again: to the front
+    assert await store.claim(2) == [("OLDA", "consolidated"), ("OLDB", "consolidated")]

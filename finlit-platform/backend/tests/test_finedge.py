@@ -135,3 +135,49 @@ async def test_healthy_consolidated_stays_consolidated_and_adds_no_note():
     assert bundle["statement"] == "consolidated" and "basisChoice" not in bundle
     assert "pl_annual_standalone" in bundle   # fetched once here, reused by the worker's revenue guard
     assert not any("standalone, which are up to date" in n for n in build(bundle)["summary"]["dataQuality"]["notes"])
+
+
+async def test_bulk_client_holds_back_while_a_visitor_waits_then_goes_on(monkeypatch):
+    """A bulk job's calls wait while a visitor's report is being built, and never longer than YIELD_MAX_S of every YIELD_WINDOW_S of wall clock,
+    however many calls wait together (the job is held back, never stopped or pushed past its time limit)."""
+    from finlit import finedge
+    clock = {"t": 1000.0}
+
+    async def fake_sleep(s):
+        clock["t"] += s
+    monkeypatch.setattr("finlit.finedge.asyncio.sleep", fake_sleep)
+    looks = {"n": 0}
+
+    async def visitor_waiting():
+        looks["n"] += 1
+        return looks["n"] <= 3          # the visitor's report is done after three looks
+    async with FinEdgeClient(settings()) as client:
+        client._clock = lambda: clock["t"]
+        client.yield_to = visitor_waiting
+        assert await client.get("/quote", {"symbol": "RELIANCE"})
+    assert clock["t"] - 1000.0 == 3 * finedge.YIELD_POLL_S
+
+    async def always():
+        return True
+    clock["t"] = 1000.0
+    async with FinEdgeClient(settings()) as client:
+        client._clock = lambda: clock["t"]
+        client.yield_to = always
+        for _ in range(20):              # 20 calls in a row while a visitor waits the whole time: held 12 s once, not 12 s each
+            assert await client.get("/quote", {"symbol": "RELIANCE"})
+        assert clock["t"] - 1000.0 == pytest.approx(finedge.YIELD_MAX_S)
+        clock["t"] += finedge.YIELD_WINDOW_S   # the next window: held again, still bounded
+        start = clock["t"]
+        assert await client.get("/quote", {"symbol": "RELIANCE"})
+        assert clock["t"] - start == pytest.approx(finedge.YIELD_MAX_S)
+
+
+async def test_visitor_client_never_holds_back(monkeypatch):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+    monkeypatch.setattr("finlit.finedge.asyncio.sleep", fake_sleep)
+    async with FinEdgeClient(settings()) as client:      # yield_to is unset on the visitor lane's client
+        assert await client.get("/quote", {"symbol": "RELIANCE"})
+    assert slept == []

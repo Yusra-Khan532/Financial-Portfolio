@@ -461,10 +461,17 @@ class Store:
     READER_FLAG = "ingest:reader:waiting"   # somebody is waiting on a report right now: the bulk loader steps aside (expires by itself)
 
     async def enqueue(self, symbol: str, statement: str):
+        """Adds a company to the on-demand queue. Asked again while it waits, it moves to the front (the worker takes the newest request first:
+        that is the one a visitor is looking at now)."""
         async with self.pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO ingest_queue(symbol, statement) VALUES($1, $2) ON CONFLICT DO NOTHING",
-                symbol.upper(), statement)
+            try:
+                await conn.execute(
+                    "INSERT INTO ingest_queue(symbol, statement) VALUES($1, $2) ON CONFLICT (symbol, statement) DO UPDATE SET requested_at = now()",
+                    symbol.upper(), statement)
+            except asyncpg.InsufficientPrivilegeError:   # an API role without UPDATE (before migration 100): added, not moved
+                await conn.execute(
+                    "INSERT INTO ingest_queue(symbol, statement) VALUES($1, $2) ON CONFLICT DO NOTHING",
+                    symbol.upper(), statement)
         try:  # lets the worker watch Redis instead of polling Postgres, so a serverless database (Neon) can sleep when idle
             await self.redis.set(self.QUEUE_FLAG, 1, ex=3600)
             await self.redis.set(self.READER_FLAG, 1, ex=120)
@@ -526,7 +533,7 @@ class Store:
         async with self.pool.acquire() as conn, conn.transaction():
             rows = await conn.fetch(
                 """DELETE FROM ingest_queue WHERE (symbol, statement) IN (
-                       SELECT symbol, statement FROM ingest_queue ORDER BY requested_at
+                       SELECT symbol, statement FROM ingest_queue ORDER BY requested_at DESC
                        LIMIT $1 FOR UPDATE SKIP LOCKED)
                    RETURNING symbol, statement""", limit)
         return [(r["symbol"], r["statement"]) for r in rows]
