@@ -203,6 +203,10 @@ def benchmark_disclosure(row, item, report):
     current_text = f"Company {ratio}: {current:.2f}x. " if current is not None else ""
     benchmark_label = "Own-history median" if history else "Sector benchmark" if scope == "sector" else "Industry peer median"
     description = f"{current_text}{benchmark_label}: {value:.2f}x. Source: {provider}."
+    if info.get("method") == "FinLit industry median":
+        benchmark_label = "Industry median" if scope == "industry" else "Sector median"
+        description = (f"{current_text}{benchmark_label}: {value:.2f}x across {info['positiveCount']} companies in {info['group']} with a positive {ratio}. "
+                       f"Source: FinLit company data (FinEdge and Upstox had no {ratio} benchmark for this company).")
     if info.get("method") == "available peer median":
         description += f" Uses {info['positiveCount']} positive multiples; {info['observedCount']} of {info['universeCount']} peer records available."
         if info.get("peerSet") == "close":

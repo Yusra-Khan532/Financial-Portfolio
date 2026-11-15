@@ -231,8 +231,29 @@ def close_peers(get, symbol, industry_peers):
     return {"peers": found} if 0 < len(found) <= PEER_UNIVERSE_LIMIT else None
 
 
-def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_of=None, observations=None, symbol=None):
-    """Select reported comparisons first, calculating only unresolved peer metrics."""
+FINLIT_METHOD = "FinLit industry median"
+FINLIT_MIN_COUNT = 5
+
+
+def finlit_fallbacks(items_, as_of):
+    """Valid medians the research API sent from its own company table (task #160): {key: details}. Anything malformed is dropped, never guessed."""
+    out = {}
+    for item in items_ if isinstance(items_, list) else []:
+        if not isinstance(item, dict):
+            continue
+        key, value, count = item.get("key"), num(item.get("value")), num(item.get("count"))
+        scope = item.get("scope") if item.get("scope") in ("industry", "sector") else None
+        group_name = str(item.get("group") or "").strip()[:120]
+        if key not in ("pe", "pb") or key in out or scope is None or not group_name or value is None or not 0 < value < 10_000 or count is None or count < FINLIT_MIN_COUNT:
+            continue
+        out[key] = {"value": value, "provider": "FinLit", "scope": scope, "method": FINLIT_METHOD, "group": group_name, "positiveCount": int(count),
+                    "statementBasis": "unspecified", "asOf": str(item.get("asOf") or as_of.isoformat())[:10]}
+    return out
+
+
+def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_of=None, observations=None, symbol=None, fallback=None):
+    """Select reported comparisons first, calculating only unresolved peer metrics. `fallback` (FinLit's own industry medians) fills a P/E or P/B
+    comparison only when FinEdge, Upstox and the FinEdge peer median (industry list, or close peers when that list is too long) all left it empty."""
     # Match benchmark observations to the report price date, not a later market close.
     try: benchmark_date = date.fromisoformat(price_as_of or as_of.isoformat())
     except ValueError: benchmark_date = as_of
@@ -256,6 +277,12 @@ def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_o
                     "peerSet": "none", "industryUniverseCount": industry_count, "statementBasis": statement_type, "asOf": as_of.isoformat()})
     benchmarks.update(reported)
     benchmark_meta.setdefault("metrics", {}).update(reported_meta)
+    for key, info in finlit_fallbacks(fallback, as_of).items():
+        target = "industry_median_" + key
+        if target not in benchmarks:
+            tried = benchmark_meta["metrics"].get(target)
+            benchmarks[target] = info["value"]
+            benchmark_meta["metrics"][target] = {**info, **({"peerAttempt": tried} if tried else {})}
     providers = sorted({item["provider"] for item in benchmark_meta["metrics"].values() if item.get("value") is not None})
     if providers:
         benchmark_meta["source"] = " / ".join(providers)

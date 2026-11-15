@@ -286,8 +286,9 @@ def test_the_nightly_job_gives_way_to_a_member_and_the_cache_block_is_only_sent_
     from backend.tests.test_premium_reports import asgi_request, auth, sample_report, example  # noqa: F401
     seen = {}
 
-    def fake_generate(get, symbol, name, statement, report_id, created, loader, observations):
+    def fake_generate(get, symbol, name, statement, report_id, created, loader, observations, fallback_benchmarks=None):
         seen["observations"] = observations
+        seen["fallback"] = fallback_benchmarks
         return report_for_route
     import backend.tests.test_premium_reports as shared
     report_for_route = None
@@ -301,6 +302,10 @@ def test_the_nightly_job_gives_way_to_a_member_and_the_cache_block_is_only_sent_
     status, rich = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "cache": True, "observations": {"consolidated|2026-10-26|pr:pb,pe|ABB": {"pe": 1}}}, shared.auth())
     assert status == 200 and set(rich["cache"]) >= {"observations", "universe", "inputsReused", "seconds"} and rich["cache"]["inputsReused"] is False
     assert ("consolidated", "2026-10-26", "pr:pb,pe", "ABB") in seen["observations"].rows
+    assert seen["fallback"] is None
+    medians = [{"key": "pe", "value": 21.5, "count": 38, "scope": "industry", "group": "NBFC", "asOf": "2026-11-15"}]
+    status, _ = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "sectorBenchmarks": medians}, shared.auth())
+    assert status == 200 and seen["fallback"] == medians              # task #160: FinLit's industry medians reach the model
     monkeypatch.setattr(server, "_premium_interactive", 1)               # a member's calculation is running
     status, refused = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "priority": "background"}, shared.auth())
     assert status == 429 and "member is waiting" in refused["detail"]

@@ -603,6 +603,9 @@ class PremiumReportRequest(BaseModel):
     keep: bool = True                                                            # ...and in it the packed inputs of a fresh fetch, for the caller to keep
     # FinLit addition: Dhan daily candles from the research API (premium_supplied_candles.py); validated there, a bad value just means the usual providers.
     suppliedCandles: Optional[Dict[str, Any]] = None
+    # FinLit addition (task #160): the industry median P/E and P/B from the research API's own company table. Used only where FinEdge, Upstox and
+    # the FinEdge peer median give no benchmark; premium_benchmarks.finlit_fallbacks validates every field.
+    sectorBenchmarks: Optional[List[Dict[str, Any]]] = Field(default=None, max_length=4)
 
     @field_validator("suppliedCandles", mode="before")
     @classmethod
@@ -921,7 +924,8 @@ async def create_premium_report(payload: PremiumReportRequest, background_tasks:
             fresh = {}
             async with _premium_generation_slots:
                 report = await asyncio.to_thread(generate_report, _finedge_get, symbol, instrument.get("name"), payload.statement_type, report_id, created_at,
-                                                 _premium_inputs_loader(kept, fresh, observations, payload.suppliedCandles), observations)
+                                                 _premium_inputs_loader(kept, fresh, observations, payload.suppliedCandles), observations,
+                                                 payload.sectorBenchmarks)
             snapshot = issue(report, _admin["sub"], token_secret())
             report_cache = {"observations": premium_cache.flatten(observations.new), "universe": observations.universe(), "inputsReused": kept is not None and not fresh,
                             "seconds": round(monotonic() - started, 1)}

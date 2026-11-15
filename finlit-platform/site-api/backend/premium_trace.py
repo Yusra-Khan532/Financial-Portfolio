@@ -55,7 +55,7 @@ def build_calculation_trace(d, rating, meta):
         info = d.get('benchmark_details', {}).get(row['key'], {})
         if info.get('scope') == 'sector':
             ratio = {'industry_median_pe':'P/E', 'industry_median_pb':'P/B', 'industry_median_ev_ebitda':'EV/EBITDA'}.get(row['key'])
-            if ratio: row['label'] = f'Upstox sector {ratio} benchmark'
+            if ratio: row['label'] = f"{info.get('provider') or 'Upstox'} sector {ratio} benchmark"
     rows=[]
     for row in rating['metrics']:
         metric, info, state = row['metric'], row.get('details',{}), row['status']
