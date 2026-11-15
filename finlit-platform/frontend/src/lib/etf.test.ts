@@ -88,7 +88,7 @@ describe("columns match the server", () => {
     for (const f of FILTERS) expect(banned).not.toContain(f.key);
   });
   it("the default columns are the ones meant to show", () => {
-    expect(DEFAULT_COLS).toEqual(["category", "price", "change", "ret1y", "ret5y"]);
+    expect(DEFAULT_COLS).toEqual(["category", "price", "change", "ret1y", "ret5y", "ter", "premium", "turnover"]);   // task #133: expense ratio, price vs NAV, traded a day
     expect(COLUMNS.map((c) => c.key)).not.toContain("score" as never);                                                          // no Health score column for an ETF
     expect(COLUMNS.filter((c) => /^(change|ret)/.test(c.key)).map((c) => c.key)).toEqual(["change", "ret1y", "ret5y"]);       // exactly three return columns
     expect(COL_BY.ret5y.label).toMatch(/total/);                                                                              // 5Y is the total change, and says so
