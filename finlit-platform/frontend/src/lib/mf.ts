@@ -43,7 +43,7 @@ export type Risk = {
   vol1y: { value: number | null; why: string | null }; vol3y: { value: number | null; why: string | null };
   maxDrawdown: { value: number | null; why: string | null; peak: string | null; trough: string | null; since: string | null };
 };
-export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "MAX";
+export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "MAX";
 export type Points = { t: string[]; v: number[] };
 export type Change = { abs: number; pct: number; since: string | null };
 export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null };
@@ -398,7 +398,7 @@ export function buildLines(series: LineSeries[], W: number, H: number, pad = { l
     return { key: s.key, d: xy.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(""), xy };
   });
   const span = x1 - x0, xt: Tick[] = [];
-  const fmt = (d: number) => dateIN(new Date(d * 86_400_000).toISOString().slice(0, 10), span > 200 ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" });
+  const fmt = (d: number) => dateIN(new Date(d * 86_400_000).toISOString().slice(0, 10), span > 1100 ? { year: "numeric" } : span > 200 ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" });   // over 3 years: the year alone (5 labels like "Sept 2021" ran into each other on a phone)
   for (let k = 0; k <= 4; k++) { const d = x0 + (span * k) / 4; xt.push({ at: X(d), label: fmt(Math.round(d)) }); }
   return { lines, yTicks: yt.map((v) => ({ at: Y(v), v })), xTicks: xt, X, Y, lo, hi, x0, x1, pad };
 }

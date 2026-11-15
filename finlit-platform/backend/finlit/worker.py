@@ -1139,7 +1139,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_sc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_ms = sub.add_parser("refresh-mf-screen", help="nightly, after refresh-facts / refresh-industry / refresh-portfolios: the Mutual Fund Screener's figures (volatility, worst month, downside capture, ranks in category, exit load, portfolio and category-flow summaries, theme tags) from tables already held; one transaction, idempotent, no network (finlit/mfscreen); recorded at /api/mf/status (run:refresh-mf-screen)")
     p_ms.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
-    p_bf = sub.add_parser("backfill-mf", help="one-off, resumable: 5 years of NAV history from AMFI, one fund house at a time (run once after the first refresh-mf)")
+    p_bf = sub.add_parser("backfill-mf", help="resumable: the full NAV history from AMFI (since April 2006), one fund house at a time; houses loaded with five years get only the missing older years")
     p_bf.add_argument("--amc", default="all", help="AMFI fund house id or name, or all")
     p_bf.add_argument("--force", action="store_true")
     p_lg = sub.add_parser("refresh-logos", help="nightly: company and fund-house logos from their own websites (robots.txt obeyed; blocked sites are left alone)")
@@ -1448,13 +1448,14 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
         if args.cmd == "backfill-mf":
             from .mf import backfill, record_run
             try:
-                result = await backfill(store, settings, args.amc, force=args.force)
+                from .mf import MONTH_DEEP_SECONDS
+                result = await backfill(store, settings, args.amc, force=args.force, monthly_seconds=MONTH_DEEP_SECONDS)
             except Exception as exc:
                 await record_run(store, args.cmd, {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"[:300]})
                 raise
             await record_run(store, args.cmd, {"status": result.get("status"), "done": len(result.get("done", [])), "failed": len(result.get("failed", []))})
             print(result)
-            return 0 if result.get("status") == "ok" else 1
+            return 0 if result.get("status") in ("ok", "partial") else 1   # partial: houses left for the next run, by design (the run stays inside its limit)
         if args.cmd in ("refresh-etf", "refresh-mf"):
             if args.cmd == "refresh-etf":
                 from .etf import refresh as refresh_funds

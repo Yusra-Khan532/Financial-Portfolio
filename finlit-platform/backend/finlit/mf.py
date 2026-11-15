@@ -60,7 +60,10 @@ USER_AGENT = "FinLitVentures-MF/1.0 (+https://finlitventures.com; reads AMFI's p
 # AMFI's history download answers at most about 100 days per request (tested 14 Nov 2026: 100 days served, 110 days and a full year return its web form
 # instead of data). The backfill asked a year at a time, so every fund house got nothing. 89 days keeps a safe margin; 5 years is about 21 requests a house.
 HISTORY_WINDOW_DAYS = 89
-KEEP_DAYS = 5 * 366 + 20      # history kept: five years and a little more, so the 5Y start day is always inside
+# History kept (task #162, 15 Nov 2026: the server disk is now 40 GB): every NAV AMFI publishes, from the first day of its history file (1 April 2006) or the
+# scheme's launch if later. It was five years while the database was small. Full history for every active scheme is about 200 MB packed.
+HISTORY_START = date(2006, 4, 1)
+DEEP_SEGMENT_DAYS = 730       # the older years are loaded about two years at a time, each written before the next is asked (flat memory on a small host)
 ACTIVE_DAYS = 7               # a scheme whose last NAV is older than this, against the newest NAV in the file, has stopped publishing
 MIN_KEEP_RATIO = 0.8          # a file with fewer schemes than this share of what is stored is refused, never applied
 MAX_STALE = 7                 # a return's start NAV may be at most this many days before the start date (weekends, holidays)
@@ -441,7 +444,7 @@ def volatility(days: List[int], navs: List[float], years: int, complete: bool) -
 
 
 def max_drawdown(days: List[int], navs: List[float]) -> dict:
-    """Largest fall from a NAV high to a later low over the stored history (up to about five years), in percent (0 or negative)."""
+    """Largest fall from a NAV high to a later low over the stored history (since HISTORY_START or the scheme's launch; `since` says from when), in percent."""
     if len(days) < 30:
         return {"value": None, "why": "Too few NAVs to measure it."}
     peak_i, worst, w_peak, w_low = 0, 0.0, 0, 0
@@ -476,7 +479,7 @@ def metric_columns(m: dict) -> Tuple[Optional[float], ...]:
 #   return       the yearly rate (XIRR) that makes the instalments grow into that value: sum(flow / (1 + r) ** (days from the first flow / 365)) = 0.
 # No figure when any instalment month is missing (a younger scheme, a hole in the history). The figure is a rate per year, not a total.
 
-MONTHLY_KEEP = 63            # month-end NAVs kept per scheme: 60 instalment months, the current month and a spare
+MONTHLY_KEEP = 12 * 22        # month-end NAVs kept per scheme: every month since April 2006 with room to spare (was 63: five years of SIP instalments)
 SIP_MONTHS = (36, 60)
 FALL_MONTHS = 36             # the month-end fall is measured over the last 3 years, so funds of different ages are measured alike
 FALL_MAX_HOLES = 3
@@ -611,7 +614,8 @@ def dashboard_figures(mdays: Sequence[int], mnavs: Sequence[float], end_day: int
 
 
 def trim(days: List[int], navs: List[float]) -> Tuple[List[int], List[float]]:
-    cut = bisect_right(days, days[-1] - KEEP_DAYS)
+    """Everything from HISTORY_START on is kept; only days before it (never in AMFI's own file, but a mirror may send them) are dropped."""
+    cut = bisect_right(days, HISTORY_START.toordinal() - 1)
     return (days[cut:], navs[cut:]) if cut else (days, navs)
 
 
@@ -940,11 +944,11 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
     4. If whole days were missed (the job did not run), AMFI's industry-wide history for just those days fills the hole.
     5. Every other Growth scheme gets its 1, 3 and 5 year returns worked out again from AMFI's history for just the three start dates (`refresh_anchors`).
     6. Month-end NAVs: today's NAV is folded into every Growth scheme's month-end series, month-ends not read yet come from AMFI's history (a few each
-       run until five years are filled), and the SIP returns and month-end fall are worked out again (`refresh_monthly`).
+       run until the full history is filled), and the SIP returns and month-end fall are worked out again (`refresh_monthly`).
     7. Fund size, expense ratio and the checklist are copied / worked out for the category table (`derive_dashboard`).
     8. The hot set is chosen and its pages are rebuilt (`refresh_hot`); the stored series of everything else is dropped.
     Fund houses on config.MF_EXCLUDED_AMCS are never loaded; their rows, if any, are deleted first (`prune_excluded`, idempotent).
-    `backfill_amc` (an AMC id, name or 'all') additionally loads five years of history for those fund houses: see `backfill`."""
+    `backfill_amc` (an AMC id, name or 'all') additionally loads the full history (from HISTORY_START) for those fund houses: see `backfill`."""
     started = time.perf_counter()
     own = client is None
     client = client or make_client()
@@ -1185,7 +1189,9 @@ async def _guarded(step: str, job) -> dict:
 # ====================================================================================== month-end NAVs (SIP returns) for every scheme
 
 MONTH_WINDOW_DAYS = 8         # a month-end is read from AMFI's industry-wide history for the month's last 8 days (a month-end NAV may be 7 days early)
-MONTH_FILL_SECONDS = 1200     # a run stops starting new month downloads after this long; the rest are read on the next runs
+MONTH_FILL_SECONDS = 240      # the nightly refresh-mf (20-minute limit) starts no new month download after this long; the rest are read on the next runs
+MONTH_DEEP_SECONDS = 1800     # backfill-mf (2-hour limit) reads the older month-ends (task #162) for at most this long, after its fund houses
+BACKFILL_HOUSE_MINUTES = 80   # backfill-mf starts no new fund house after this long, so the run always ends inside its 2-hour limit; the rest go next run
 MONTH_FILL_FAILS = 3          # ...and after this many failed downloads in a row (AMFI is down: nothing is hammered)
 MONTH_BATCH = 1000
 
@@ -1196,15 +1202,15 @@ def _same(a: Optional[float], b: Optional[float]) -> bool:
 
 async def refresh_monthly(store, client: Optional[httpx.AsyncClient], newest: date, *, max_seconds: float = MONTH_FILL_SECONDS) -> dict:
     """Keep every active Growth scheme's month-end NAVs (mf_monthly) and the figures worked out from them current.
-    1. Month-ends not read yet (the 60 months before the newest NAV's month; mf_meta 'monthly' remembers which were read) come from AMFI's industry-wide
-       history for each month's last days: one download a month, newest first, at most `max_seconds` a run (the first run after deploy reads all
-       five years, about 60 downloads of a few MB; afterwards one a month). No client: nothing is downloaded.
+    1. Month-ends not read yet (every month from HISTORY_START to the newest NAV's month; mf_meta 'monthly' remembers which were read) come from AMFI's
+       industry-wide history for each month's last days: one download a month, newest first, at most `max_seconds` a run (after task #162 the older
+       months, about 190 downloads of a few MB, are read over the next runs; afterwards one a month). No client: nothing is downloaded.
     2. Each scheme's stored month-ends, those downloads and its latest NAV (the current month) are merged (per month, the NAV of the latest day wins).
     3. Schemes without a stored daily series get their SIP 3 / 5 year figures and month-end fall worked out again (the hot ones get them from their
        daily series in _write_series, by the same rules)."""
     out: Dict[str, object] = {"status": "ok", "monthsRead": 0, "monthsFailed": 0, "monthsMissing": 0, "schemes": 0, "seriesWritten": 0, "figuresWritten": 0}
     end_mk = month_key(newest.toordinal())
-    want_months = set(range(end_mk - SIP_MONTHS[-1], end_mk))
+    want_months = set(range(month_key(HISTORY_START.toordinal()), end_mk))   # every month since AMFI's history starts (task #162; was the last 60)
     async with store.pool.acquire() as conn:
         meta = await _meta(conn, "monthly") or {}
         wanted = {r["code"] for r in await conn.fetch(f"SELECT code FROM mf_schemes WHERE {HIST_WANTED}")}  # nosec B608 - constant filter, no input
@@ -1572,8 +1578,9 @@ async def _history_wiped(conn) -> bool:
 
 
 async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: Optional[httpx.AsyncClient] = None, force: bool = False,
-                   log_fn=print, settle: bool = True) -> dict:
-    """Load five years of NAV history from AMFI for every active scheme (HIST_KEEP), ONE FUND HOUSE AT A TIME (AMFI cannot filter below a fund house).
+                   log_fn=print, settle: bool = True, max_minutes: Optional[float] = BACKFILL_HOUSE_MINUTES, monthly_seconds: float = 0) -> dict:
+    """Load the full NAV history (from HISTORY_START) from AMFI for every active scheme (HIST_KEEP), ONE FUND HOUSE AT A TIME (AMFI cannot filter below a
+    fund house). A house loaded before task #162 (five years, mf_backfill.full_from NULL) is picked again and only its missing older years are asked.
     The best-known houses go first (config.MF_FEATURED_AMCS, in that order), then the rest by number of schemes.
     `amc` is an AMC id, part of a name, or 'all' (every house not done yet; `force` redoes them). A house is written only when all its yearly downloads
     succeeded, then recorded in mf_backfill, so an interrupted run simply continues. Cost for the whole industry: see the figures logged per house."""
@@ -1584,7 +1591,7 @@ async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: 
         async with store.pool.acquire() as conn:
             newest = await conn.fetchval("SELECT max(nav_date) FROM mf_schemes")
             rows = await conn.fetch(f"SELECT code, amc, nav, nav_date FROM mf_schemes WHERE {HIST_KEEP}")  # nosec B608 - fixed column list and constant filter, no input
-            done = {r["amc_key"] for r in await conn.fetch("SELECT amc_key FROM mf_backfill")}
+            done = {r["amc_key"] for r in await conn.fetch("SELECT amc_key FROM mf_backfill WHERE full_from IS NOT NULL AND full_from <= $1", HISTORY_START)}
             if done and not force and await _history_wiped(conn):
                 await conn.execute("DELETE FROM mf_backfill")
                 log.warning("mf backfill: %d fund houses were marked done but almost no scheme has a 1-year return; the markers are cleared and every house is loaded again", len(done))
@@ -1609,12 +1616,17 @@ async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: 
                 out["skipped"].append(nm)
                 continue
             picks.append((k, nm, ident))
-        for k, nm, ident in picks:
+        started = time.perf_counter()
+        for n_done, (k, nm, ident) in enumerate(picks):
+            if max_minutes is not None and time.perf_counter() - started > max_minutes * 60:
+                out["waiting"] = [p[1] for p in picks[n_done:]]   # not started this run: the next run continues with them (the job stays inside its limit)
+                break
             t0 = time.perf_counter()
             if ident is None:
                 async with store.pool.acquire() as conn:
-                    await conn.execute("INSERT INTO mf_backfill (amc_key, amc, amc_id, note) VALUES ($1, $2, NULL, $3) ON CONFLICT (amc_key) DO UPDATE SET note = EXCLUDED.note, done_at = now()",
-                                       k, nm, "no AMFI history id for this fund house; the mirror fallback serves its schemes")
+                    await conn.execute("INSERT INTO mf_backfill (amc_key, amc, amc_id, note, full_from) VALUES ($1, $2, NULL, $3, $4) "
+                                   "ON CONFLICT (amc_key) DO UPDATE SET note = EXCLUDED.note, full_from = EXCLUDED.full_from, done_at = now()",
+                                       k, nm, "no AMFI history id for this fund house; the mirror fallback serves its schemes", HISTORY_START)
                 out["failed"].append(f"{nm}: no AMFI id")
                 continue
             try:
@@ -1628,65 +1640,93 @@ async def backfill(store, settings=None, amc: Optional[str] = "all", *, client: 
             out["points"] += res["points"]
             out["bytes"] += res["bytes"]
             log_fn(f"backfill {nm}: {res['schemes']} schemes, {res['points']} points, {res['bytes'] / 1e6:.1f} MB downloaded, {res['seconds']} s")
+        if monthly_seconds > 0:
+            left = monthly_seconds if max_minutes is None else min(monthly_seconds, max(0.0, (max_minutes + 30) * 60 - (time.perf_counter() - started)))
+            if left > 0:
+                out["monthly"] = await _guarded("monthly", refresh_monthly(store, client, newest, max_seconds=left))
         if out["done"] and settle:
             out["hot"] = await refresh_hot(store, client)   # series of everything but the hot schemes is dropped again; their figures stay
             await _bump(store, newest)
-        out["status"] = "ok"
+        out["status"] = "partial" if out.get("waiting") else "ok"
         return out
     finally:
         if own:
             await client.aclose()
 
 
-async def _backfill_one(store, client, key: str, name: str, amc_id: int, schemes: List[dict], newest: date) -> dict:
-    wanted = {s["code"] for s in schemes}
-    start = newest - timedelta(days=KEEP_DAYS)
+async def _backfill_window(store, client, amc_id: int, wanted: set, frm: date, to: date, schemes: List[dict]) -> dict:
+    """Ask AMFI for [frm, to] in HISTORY_WINDOW_DAYS pieces and merge what comes back into the stored series (nothing stored is ever lost: the merge
+    keeps every day already there). Written in batches inside one transaction."""
     pieces: Dict[int, List[Tuple[array.array, array.array]]] = {}
     total_bytes = ok_windows = 0
-    frm = start
-    while frm <= newest:
-        to = min(newest, frm + timedelta(days=HISTORY_WINDOW_DAYS))
-        got = await fetch_history(client, frm, to, amc_id, wanted)
+    while frm <= to:
+        end = min(to, frm + timedelta(days=HISTORY_WINDOW_DAYS))
+        got = await fetch_history(client, frm, end, amc_id, wanted)
         if got is not None:
             ok_windows += 1
             total_bytes += got[1]["bytes"]
             for code, pair in got[0].items():
                 pieces.setdefault(code, []).append(pair)
-        frm = to + timedelta(days=1)
-    if not ok_windows:
-        # AMFI answered every window with its web form instead of data: that is a refused request (a range it no longer serves, a busy site), not a fund
-        # house without history. It is NOT marked done, so the next run asks again (marking it done once kept 41 houses without history for good).
-        raise RuntimeError(f"AMFI returned no history for any of the {HISTORY_WINDOW_DAYS + 1}-day windows; not marked done, asked again next run")
-    async with store.pool.acquire() as conn, conn.transaction():
-        if not pieces:
-            await conn.execute("INSERT INTO mf_backfill (amc_key, amc, amc_id, schemes, note) VALUES ($1, $2, $3, 0, $4) "
-                               "ON CONFLICT (amc_key) DO UPDATE SET note = EXCLUDED.note, done_at = now()", key, name, amc_id, "AMFI answered but holds none of this house's active schemes; the mirror fallback serves them")
-            return {"amc": name, "schemes": 0, "points": 0, "bytes": total_bytes}
-        existing = {r["code"]: r for r in await conn.fetch("SELECT code, blob, d0 FROM mf_history WHERE code = ANY($1::int[])", list(pieces))}
-        items, points, mismatches, written = [], 0, 0, 0
+        frm = end + timedelta(days=1)
+    points = mismatches = written = 0
+    if pieces:
         latest = {s["code"]: s for s in schemes}
-        for code, parts in pieces.items():
-            ps = [(p[0], p[1]) for p in parts]
-            if code in existing:
-                ps.insert(0, unpack_series(bytes(existing[code]["blob"]), existing[code]["d0"].toordinal()))
-            days, navs = merge_points(*ps)
-            # AMFI's history and its NAVAll must agree on the newest day; a difference is counted and reported, never hidden.
-            s = latest[code]
-            if days[-1] == s["nav_date"].toordinal() and navs[-1] != s["nav"]:
-                mismatches += 1
-            items.append((code, days, navs, True))
-            points += len(days)
-            written += 1
-            if len(items) >= 200:   # batches keep the memory flat on a small host
+        async with store.pool.acquire() as conn, conn.transaction():
+            existing = {r["code"]: r for r in await conn.fetch("SELECT code, blob, d0 FROM mf_history WHERE code = ANY($1::int[])", list(pieces))}
+            items = []
+            for code, parts in pieces.items():
+                ps = [(p[0], p[1]) for p in parts]
+                if code in existing:
+                    ps.insert(0, unpack_series(bytes(existing[code]["blob"]), existing[code]["d0"].toordinal()))
+                days, navs = merge_points(*ps)
+                # AMFI's history and its NAVAll must agree on the newest day; a difference is counted and reported, never hidden.
+                s = latest[code]
+                if days[-1] == s["nav_date"].toordinal() and navs[-1] != s["nav"]:
+                    mismatches += 1
+                items.append((code, days, navs, True))
+                points += len(days)
+                written += 1
+                if len(items) >= 200:   # batches keep the memory flat on a small host
+                    await _write_series(conn, items)
+                    items = []
+            if items:
                 await _write_series(conn, items)
-                items = []
-        if items:
-            await _write_series(conn, items)
-        await conn.execute("INSERT INTO mf_backfill (amc_key, amc, amc_id, schemes, points, bytes, note) VALUES ($1, $2, $3, $4, $5, $6, $7) "
+    return {"ok": ok_windows, "bytes": total_bytes, "points": points, "written": written, "mismatches": mismatches}
+
+
+async def _backfill_one(store, client, key: str, name: str, amc_id: int, schemes: List[dict], newest: date) -> dict:
+    """One fund house. A house with stored series gets only the years before its oldest stored NAV (the old five-year load already covers the rest);
+    a new house gets everything from HISTORY_START. The older years go DEEP_SEGMENT_DAYS at a time, each written before the next is asked."""
+    wanted = {s["code"] for s in schemes}
+    async with store.pool.acquire() as conn:
+        oldest = await conn.fetchval("SELECT min(d0) FROM mf_history WHERE code = ANY($1::int[])", list(wanted))
+    end = (oldest - timedelta(days=1)) if oldest is not None else newest
+    total = {"ok": 0, "bytes": 0, "points": 0, "written": 0, "mismatches": 0}
+    segments = 0
+    frm = HISTORY_START
+    while frm <= end:
+        to = min(end, frm + timedelta(days=DEEP_SEGMENT_DAYS))
+        res = await _backfill_window(store, client, amc_id, wanted, frm, to, schemes)
+        segments += 1
+        for k in total:
+            total[k] += res[k] if k != "written" else 0
+        total["written"] = max(total["written"], res["written"])
+        frm = to + timedelta(days=1)
+    if segments and not total["ok"]:
+        # AMFI answered every window with its web form instead of data: that is a refused request (a busy site), not a fund house without history.
+        # It is NOT marked done, so the next run asks again (marking it done once kept 41 houses without history for good).
+        raise RuntimeError(f"AMFI returned no history for any of the {HISTORY_WINDOW_DAYS + 1}-day windows; not marked done, asked again next run")
+    note = (f"{total['ok']} downloads from {HISTORY_START} to {end}; {total['mismatches']} newest-NAV mismatches against NAVAll" if segments
+            else f"history already reaches {HISTORY_START}")
+    if segments and not total["points"]:
+        note = "AMFI answered but holds none of this house's active schemes before " + str(end) + "; the mirror fallback serves them"
+    async with store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO mf_backfill (amc_key, amc, amc_id, schemes, points, bytes, note, full_from) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
                            "ON CONFLICT (amc_key) DO UPDATE SET amc = EXCLUDED.amc, amc_id = EXCLUDED.amc_id, schemes = EXCLUDED.schemes, points = EXCLUDED.points, "
-                           "bytes = EXCLUDED.bytes, note = EXCLUDED.note, done_at = now()",
-                           key, name, amc_id, written, points, total_bytes, f"{ok_windows} yearly downloads; {mismatches} newest-NAV mismatches against NAVAll")
-    return {"amc": name, "schemes": written, "points": points, "bytes": total_bytes, "mismatches": mismatches, "windows": ok_windows}
+                           "bytes = EXCLUDED.bytes, note = EXCLUDED.note, full_from = EXCLUDED.full_from, done_at = now()",
+                           key, name, amc_id, total["written"], total["points"], total["bytes"], note, HISTORY_START)
+    return {"amc": name, "schemes": total["written"], "points": total["points"], "bytes": total["bytes"], "mismatches": total["mismatches"],
+            "windows": total["ok"], "from": HISTORY_START.isoformat(), "to": end.isoformat()}
 
 
 # ====================================================================================== the mirror (fallback only)
@@ -2056,8 +2096,9 @@ async def filters(request: Request, screen: bool = False, fields: str = Query(""
     return await cached_json(request, "filters", "all" if scr is None else json.dumps(["screen", q.strip().lower(), scr.key, scr.family, sorted(want or [])], default=str), build)
 
 
-RANGES = (("1M", 1), ("6M", 6), ("1Y", 12), ("3Y", 36), ("5Y", 60))
-RANGE_CAP = {"1M": 40, "6M": 200, "1Y": 380, "3Y": 450, "5Y": 450, "MAX": 450}
+RANGES = (("1M", 1), ("6M", 6), ("1Y", 12), ("3Y", 36), ("5Y", 60), ("10Y", 120))
+MAX_EXTRA_DAYS = 183            # "since launch / since 2006" is offered only when it reaches at least half a year beyond the longest range
+RANGE_CAP = {"1M": 40, "6M": 200, "1Y": 380, "3Y": 450, "5Y": 450, "10Y": 500, "MAX": 520}
 
 
 async def load_series(app, row) -> Tuple[List[int], List[float], bool, str, Optional[str]]:
@@ -2076,7 +2117,8 @@ async def load_series(app, row) -> Tuple[List[int], List[float], bool, str, Opti
 
 
 def series_block(days: List[int], navs: List[float]) -> Dict[str, dict]:
-    """Chart series per range. A range is offered only if the history reaches back to its start; MAX (since the first NAV on file) only when no 5Y range covers it."""
+    """Chart series per range. A range is offered only if the history reaches back to its start; MAX (since the first NAV on file) whenever the history
+    goes further back than the longest range offered (task #162: the full history is kept, so a fund from 2006 offers 10Y and MAX)."""
     out: Dict[str, dict] = {}
     if len(days) < 2:
         return out
@@ -2086,7 +2128,9 @@ def series_block(days: List[int], navs: List[float]) -> Dict[str, dict]:
         if i >= 0:
             d, v = thin(days[i:], navs[i:], RANGE_CAP[key])
             out[key] = {"t": [date.fromordinal(x).isoformat() for x in d], "v": v}
-    if "5Y" not in out:
+    longest = next((key for key, _ in reversed(RANGES) if key in out), None)
+    # MAX only when it adds something: the history reaches at least MAX_EXTRA_DAYS before the longest range's start (not a near copy of 5Y)
+    if longest is None or date.fromisoformat(out[longest]["t"][0]).toordinal() - days[0] >= MAX_EXTRA_DAYS:
         d, v = thin(days, navs, RANGE_CAP["MAX"])
         out["MAX"] = {"t": [date.fromordinal(x).isoformat() for x in d], "v": v}
     return out
@@ -2161,7 +2205,7 @@ async def _scheme(request: Request, code: int):
 
 
 @router.get("/compare")
-async def compare(request: Request, ids: str = Query("", max_length=60), range: str = Query("1Y", pattern="^(1M|6M|1Y|3Y|5Y|MAX)$")) -> Response:
+async def compare(request: Request, ids: str = Query("", max_length=60), range: str = Query("1Y", pattern="^(1M|6M|1Y|3Y|5Y|10Y|MAX)$")) -> Response:
     """2 to 4 schemes side by side: facts, returns, risk, and each NAV series rebased to 100 on the first day all of them have a NAV in the range."""
     try:
         codes = list(dict.fromkeys(int(x) for x in ids.split(",") if x.strip()))

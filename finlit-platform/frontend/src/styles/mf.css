@@ -24,6 +24,7 @@
 .mf-seg-w { display: grid; gap: 4px; justify-items: start; }
 .mf-seg-w .seg { max-width: 100%; flex-wrap: wrap; }
 .mf .card-h .seg { max-width: 100%; overflow-x: auto; }
+@media (max-width: 560px) { .mf .card-h .seg { flex-wrap: wrap; overflow-x: visible; } }   /* phones: every range button stays in view (task #162 added 10Y and "Since 2006") */
 .mf-pick { position: relative; display: grid; gap: 4px; min-width: 0; }
 .mf-pick-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; text-align: left; min-width: 0; }
 .mf-pick-b span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

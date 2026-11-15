@@ -244,6 +244,9 @@ class Mirror:
         return sum(self.calls.values())
 
 
+FIVE_YEARS = 5 * 366 + 20   # what was kept before task #162
+
+
 @pytest.fixture
 async def store():
     settings = Settings(finedge_api_key="test", finedge_mode="fixtures", database_url=TEST_DB, redis_url=TEST_REDIS)
@@ -256,10 +259,12 @@ async def store():
         await conn.execute("TRUNCATE mf_cat_avg, mf_history, mf_backfill, mf_meta, mf_facts, mf_schemes CASCADE")
         await conn.executemany("""INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, option_label, family, nav, nav_date,
                                                           prev_nav, prev_date, active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)""", SCHEMES)
-        # AMFI's own five years are stored for A and B (the hot path); C and D are cold (the mirror serves them)
+        # AMFI's own five years are stored for A and B (the hot path, as before a fund house's deep load of task #162); C and D are cold (the mirror serves them)
         rows = []
         for code in (A, B):
-            days, navs = mf.trim(*SERIES[code])
+            days, navs = SERIES[code]
+            cut = next(i for i, d in enumerate(days) if d > days[-1] - FIVE_YEARS)
+            days, navs = days[cut:], navs[cut:]
             rows.append((code, len(days), date.fromordinal(days[0]), date.fromordinal(days[-1]), mf.pack_series(days, navs), True, "amfi"))
         await conn.executemany(mf.HIST_UPSERT, rows)
         await conn.execute("UPDATE mf_schemes SET has_hist = true WHERE code = ANY($1::int[])", [A, B])
@@ -349,6 +354,19 @@ async def test_ten_years_need_a_mirror_that_agrees_with_amfi(api):
     d = (await api.get(f"/api/mf-compare?a={A}&b={B}&period=10Y")).json()
     # A's mirror history disagrees with AMFI's NAV: only AMFI's five stored years are used, so ten years cannot be shown for it
     assert d["funds"]["a"]["history"]["source"] == "amfi" and d["returns"]["funds"]["a"]["value"] is None and "less than 10 years" in d["why"]["a"]
+
+
+@needs_db
+async def test_ten_years_come_from_amfi_once_the_full_history_is_stored(api):
+    # task #162: after the deep load AMFI's own series reaches back ten years, so the mirror is not needed (even one that disagrees)
+    api.app.state.mf_client = Mirror(shift={A: 0.5}).client()
+    days, navs = mf.trim(*SERIES[A])
+    async with api.app.state.store.pool.acquire() as conn:
+        await conn.executemany(mf.HIST_UPSERT, [(A, len(days), date.fromordinal(days[0]), date.fromordinal(days[-1]), mf.pack_series(days, navs), True, "amfi")])
+    async for k in api.app.state.store.redis.scan_iter("mf:*"):
+        await api.app.state.store.redis.delete(k)
+    d = (await api.get(f"/api/mf-compare?a={A}&b={B}&period=10Y")).json()
+    assert d["funds"]["a"]["history"]["source"] == "amfi" and d["returns"]["funds"]["a"]["value"] is not None
 
 
 @needs_db
