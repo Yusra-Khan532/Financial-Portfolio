@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import json
 import logging
 import os
 import re
@@ -25,7 +26,7 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -533,6 +534,43 @@ async def get_facts(pool, key) -> Optional[dict]:
         out.update(ter=te, trackingError={"unavailable": NO_TRACKING},
                    minInvestment={"value": "1 unit, bought on the stock exchange", "source": SRC_EXCHANGE},
                    exitLoad={"value": "None when sold on the stock exchange", "source": SRC_EXCHANGE})
+    return out
+
+
+async def etf_ters(pool, isins: Sequence[str]) -> Dict[str, dict]:
+    """The expense ratio of many ETFs at once, for the ETF list (task #133), by the same rules as one ETF page (get_facts): AMFI's TER file
+    first (the scheme's own name, then a sibling plan's), else the fund house's own TER disclosure. {isin: {value (percent a year), asOf,
+    source} or {unavailable: reason}}. Four reads, whatever the number of ETFs."""
+    want = sorted({i for i in isins if i})
+    if not want:
+        return {}
+    async with pool.acquire() as conn:
+        me = await conn.fetch("SELECT DISTINCT ON (k.isin) k.isin, s.code, s.family, f.name_key FROM unnest($1::text[]) AS k(isin) "
+                              "JOIN mf_schemes s ON s.isin = k.isin OR s.isin_reinvest = k.isin LEFT JOIN mf_facts f ON f.code = s.code "
+                              "ORDER BY k.isin, s.active DESC, s.code", want)
+        fams = sorted({r["family"] for r in me})
+        sib = await conn.fetch("SELECT s.family, f.name_key FROM mf_schemes s JOIN mf_facts f ON f.code = s.code "
+                               "WHERE s.family = ANY($1::text[]) AND f.name_key IS NOT NULL ORDER BY s.code", fams)
+        keys = sorted({r["name_key"] for r in me if r["name_key"]} | {r["name_key"] for r in sib})
+        ter = {r["name_key"]: r for r in await conn.fetch("SELECT name_key, ter_regular, ter_direct, ter_date FROM mf_ter WHERE name_key = ANY($1::text[])", keys)}
+        house = {r["fkey"]: r for r in await conn.fetch("SELECT fkey, as_of, value, source FROM disclosure_facts WHERE kind = 'ter' AND fkey = ANY($1::text[])", fams)}
+    siblings: Dict[str, List[str]] = {}
+    for r in sib:
+        siblings.setdefault(r["family"], []).append(r["name_key"])
+    out: Dict[str, dict] = {i: {"unavailable": "Not found in AMFI's list of schemes."} for i in want}
+    for r in me:
+        row = next((ter[k] for k in [r["name_key"], *siblings.get(r["family"], [])] if k and k in ter), None)
+        v = None if row is None else (row["ter_regular"] if row["ter_regular"] is not None else row["ter_direct"])
+        if v is not None:
+            out[r["isin"]] = {"value": round(v, 2), "asOf": row["ter_date"].isoformat(), "source": SRC_TER}
+            continue
+        h = house.get(r["family"])
+        hv = (json.loads(h["value"]) if isinstance(h["value"], str) else h["value"]) if h else None
+        hv = (hv or {}).get("regular") if (hv or {}).get("regular") is not None else (hv or {}).get("direct")
+        if hv is not None:
+            out[r["isin"]] = {"value": round(float(hv), 2), "asOf": h["as_of"].isoformat() if h["as_of"] else None, "source": h["source"]}
+        else:
+            out[r["isin"]] = {"unavailable": _etf_ter_fact(row)["unavailable"]}
     return out
 
 

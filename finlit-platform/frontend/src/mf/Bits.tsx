@@ -3,7 +3,7 @@ import { Icon } from "../lib/icons";
 import { TERMS, type Term } from "../lib/glossary";
 import { Info } from "../components/Info";
 import { dateIN } from "../lib/format";
-import { DISCLAIMER, MIRROR_LABEL, pctText, tone, type Facts, type FundDetail } from "../lib/mf";
+import { AMFI_RISK_LINE, DISCLAIMER, MIRROR_LABEL, pctText, tone, type Facts, type FundDetail } from "../lib/mf";
 
 const termById = (id: string): Term | undefined => TERMS.find((t) => t.id === id);
 
@@ -24,6 +24,7 @@ export function Fig({ v, why, d = 2, plus = true, plain = false }: { v: number |
 export function Foot({ facts, history }: { facts?: Facts | null; history?: FundDetail["history"] | null }) {
   return (
     <footer className="mf-foot" aria-label="Source and disclaimer">
+      <p className="mf-amfi">{AMFI_RISK_LINE}</p>
       <p><b>{DISCLAIMER}</b></p>
       <p>
         Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}.

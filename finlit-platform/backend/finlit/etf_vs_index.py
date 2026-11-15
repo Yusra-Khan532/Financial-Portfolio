@@ -141,6 +141,23 @@ def detect(text: Optional[str]) -> Optional[str]:
     return next(iter(found)) if len(found) == 1 else None
 
 
+_FAMILY = re.compile(r"(?<![A-Z0-9])(NIFTY|SENSEX|BSE)(?![A-Z0-9])")
+
+
+def names_other_index(text: Optional[str]) -> bool:
+    """True when a name names a Nifty or BSE index that is none of ours: 'Groww Nifty EV & New Age Automotive ETF', 'Nifty India Railways PSU'. Task #134,
+    15 Nov 2026: three such Groww ETFs carried 'Nifty 50 TRI' as their stored benchmark (the fund-house file's additional benchmark) and were listed as
+    Nifty 50 products. A bare 'Nifty' name (Nifty BeES, SBI Nifty Index Fund) is not another index."""
+    n = norm(text)
+    if not n or _scan(text)[0]:
+        return False
+    for m in _FAMILY.finditer(n):
+        rest = [w for w in n[m.end():].split() if w not in _NOISE]
+        if rest:
+            return True
+    return False
+
+
 def classify(benchmark: Optional[str], names: Sequence[Optional[str]]) -> dict:
     """{key, basis, returnType, conflict}: the benchmark the fund house states decides; the name decides when none is stored; if they disagree, or
     either one names a variant index, the product is not classified (conflict True)."""
@@ -150,7 +167,8 @@ def classify(benchmark: Optional[str], names: Sequence[Optional[str]]) -> dict:
     nkey = next((next(iter(f)) for f, _v in scans if len(f) == 1), None)
     nvar = any(v for _f, v in scans)
     rtype = return_type(benchmark) if benchmark else None
-    if (bkey and nkey and bkey != nkey) or (bkey and nvar) or (nkey and bvar):
+    nother = not nkey and any(names_other_index(x) for x in names if x)   # the name points at another index: a stated benchmark of ours cannot override it
+    if (bkey and nkey and bkey != nkey) or (bkey and nvar) or (nkey and bvar) or (bkey and nother):
         return {"key": None, "basis": None, "returnType": rtype, "conflict": True}
     if bkey:
         return {"key": bkey, "basis": "benchmark", "returnType": rtype, "conflict": False}

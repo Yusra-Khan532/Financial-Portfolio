@@ -185,7 +185,7 @@ export function MfScreenerPage() {
             </nav>)}
 
           <footer className="mfs-fine faint" aria-label="How to read this page">
-            <p><b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
+            <p><b>Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b> <b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
             <p>Risk figures use month-end NAVs up to the last full month; ranks and “against category” compare funds of the same category and plan and need at least three funds with a figure. A dash means the fund has no figure: the reason is in its tooltip, and the “N of M funds have this figure” line under each slider counts them.
               {where && <> Screener figures worked out {where.run ? dateIN(where.run) : ""}{where.portfolioDate ? `; portfolios as of ${dateIN(where.portfolioDate)}` : ""}.</>}
               {fac && fac.built.rows === 0 && <> The nightly job that works out risk, ranks, portfolio and category figures has not run yet, so those filters show “no data”.</>}

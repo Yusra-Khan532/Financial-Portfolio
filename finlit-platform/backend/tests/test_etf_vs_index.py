@@ -536,3 +536,14 @@ async def test_an_etf_page_gets_its_index_tracking_and_every_product_on_the_same
 
 def test_the_etf_pages_never_name_the_price_provider():
     assert etf.SOURCE == "NAV, scheme names and fund houses: AMFI." and "Dhan" not in etf.SOURCE and "Upstox" not in etf.SOURCE
+
+
+def test_a_name_that_names_another_index_is_never_listed_under_a_stated_benchmark_of_ours():
+    """15 Nov 2026, live: three Groww thematic ETFs carried 'Nifty 50 TRI' as their stored benchmark (the fund-house file's additional benchmark) and were
+    listed with the Nifty 50 ETFs; a Tourism ETF sat under the Nifty Smallcap 250. A name that points at another Nifty or BSE index wins over that."""
+    for name in ("Groww Nifty EV & New Age Automotive ETF", "Groww Nifty India Internet ETF", "Groww Nifty India Railways PSU ETF", "Motilal Oswal Nifty India Tourism ETF"):
+        c = ev.classify("Nifty 50 TRI", [name])
+        assert c["key"] is None and c["conflict"] is True, name
+    for name in ("SBI Nifty Index Fund", "Nippon India ETF Nifty BeES", "JioBlackRock Nifty 50 ETF", "UTI Nifty 50 Index Fund - Direct Plan"):
+        assert ev.classify("Nifty 50 TRI", [name])["key"] == "nifty50", name
+    assert ev.names_other_index("Groww Nifty India Railways PSU ETF") and not ev.names_other_index("SBI Nifty Index Fund") and not ev.names_other_index("Nifty 50 ETF")

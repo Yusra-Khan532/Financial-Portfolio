@@ -8,7 +8,7 @@ const RANGES: { k: "1y" | "5y"; label: string }[] = [{ k: "1y", label: "1 year r
 
 function Seg({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void }) {
   return (
-    <div className="mf-seg-w"><span className="label" id={`seg-${label}`}>{label}</span>
+    <div className="mf-seg-w"><span className="sr-only" id={`seg-${label}`}>{label}</span>
       <div className="seg" role="group" aria-labelledby={`seg-${label}`}>{options.map(([v, t]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}>{t}</button>)}</div></div>
   );
 }
@@ -29,29 +29,29 @@ function RangeBox({ label, lo, hi, onLo, onHi }: { label: string; lo: string; hi
   );
 }
 
-/** Search, fund house, plan, option and return ranges. The categories are chosen above it, with the cards, tabs and tick boxes (mf/Dashboard). */
+/** One filter bar (task #130 C-6): search, fund house, Plan (Direct · Regular · All) and Option (Growth · IDCW · Not stated · All) as segments,
+ *  "Return range" opening in place, and the stopped-schemes tick, all in one row that wraps. The categories are chosen above it (mf/Dashboard). */
 export function Controls({ q, text, onText, set, filters, loading }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean }) {
   const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).filter((a) => q.stopped || a.active > 0).map((a) => ({ value: a.name, label: a.name, count: q.stopped ? a.total : a.active })), [filters, q.stopped]);
   const n = activeFilterCount(q);
-  const [more, setMore] = useState(() => RANGES.some((r) => q[`min${r.k}` as "min1y"] || q[`max${r.k}` as "max1y"]));
+  const ranged = RANGES.some((r) => q[`min${r.k}` as "min1y"] || q[`max${r.k}` as "max1y"]);
+  const [more, setMore] = useState(ranged);
   return (
     <section className="card mf-ctl" aria-label="Search and filters">
-      <label className="mf-search"><Icon name="search" /><span className="sr-only">Search schemes by name or fund house</span>
-        <input type="search" value={text} onChange={(e) => onText(e.target.value)} placeholder="Search by scheme or fund house, e.g. hdfc mid cap" autoComplete="off" spellCheck={false} />
-        {loading && <span className="mf-busy" role="status">Loading…</span>}
-      </label>
-      <div className="mf-filters">
+      <div className="mf-fbar">
+        <label className="mf-search"><Icon name="search" /><span className="sr-only">Search schemes by name or fund house</span>
+          <input type="search" value={text} onChange={(e) => onText(e.target.value)} placeholder="Search a scheme or fund house…" autoComplete="off" spellCheck={false} />
+          {loading && <span className="mf-busy" role="status">Loading…</span>}
+        </label>
         <Pick label="Fund house" value={q.amc} items={amcs} any="All fund houses" onChange={(v) => set({ amc: v })} />
-        <Seg label="Plan" value={q.plan} onChange={(v) => set({ plan: v })} options={[["Direct", "Direct"], ["Regular", "Regular"], ["", "All plans"]]} />
-        <Seg label="Option" value={q.option} onChange={(v) => set({ option: v })} options={[["", "Growth"], ["IDCW", "IDCW (payout)"], ["Other", "Not stated"], ["All", "All options"]]} />
-      </div>
-      <div className="mf-more">
-        <button type="button" className="mf-linkbtn" aria-expanded={more} onClick={() => setMore((m) => !m)}>{more ? "Hide return ranges" : "Filter by return range"}</button>
-        <label className="mf-check"><input type="checkbox" checked={q.stopped} onChange={(e) => set({ stopped: e.target.checked })} /> Include schemes that stopped publishing NAVs</label>
+        <Seg label="Plan" value={q.plan} onChange={(v) => set({ plan: v })} options={[["Direct", "Direct"], ["Regular", "Regular"], ["", "All"]]} />
+        <Seg label="Option" value={q.option} onChange={(v) => set({ option: v })} options={[["", "Growth"], ["IDCW", "IDCW"], ["Other", "Not stated"], ["All", "All"]]} />
+        <button type="button" className={"btn mf-rangebtn" + (ranged ? " on" : "")} aria-expanded={more} aria-controls="mf-ranges" onClick={() => setMore((m) => !m)}>Return range{ranged ? " · on" : ""} <span aria-hidden="true">{more ? "▴" : "▾"}</span></button>
+        <label className="mf-check mf-stopck"><input type="checkbox" checked={q.stopped} onChange={(e) => set({ stopped: e.target.checked })} /> Include schemes that stopped publishing NAVs</label>
         {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", plan: PAGE_DEFAULTS.plan, option: "", stopped: false, min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
       </div>
       {more && (
-        <div className="mf-ranges">
+        <div className="mf-ranges" id="mf-ranges">
           {RANGES.map((r) => <RangeBox key={r.k} label={r.label} lo={q[`min${r.k}` as "min1y"]} hi={q[`max${r.k}` as "max1y"]} onLo={(v) => set({ [`min${r.k}`]: v } as Partial<ListQuery>)} onHi={(v) => set({ [`max${r.k}`]: v } as Partial<ListQuery>)} />)}
           <p className="faint">Schemes without a figure for a period (younger funds, IDCW options) are left out while a range is set for it.</p>
         </div>)}
