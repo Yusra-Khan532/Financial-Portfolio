@@ -2,20 +2,20 @@
 import { SORT_PILLS, summarise } from "../lib/mfSummary";
 import { aumText, pctText, terText, type FundRow, type ListQuery } from "../lib/mf";
 
-export function SummaryCards({ items, total }: { items: FundRow[]; total: number }) {
+/** The six tiles above the table (task #130 C-7): each has a label, its number and a short line saying in words what the number means. */
+export function SummaryCards({ items, total, plan = "Direct", scope = "in the chosen categories" }: { items: FundRow[]; total: number; plan?: string; scope?: string }) {
   const s = summarise(items);
   if (!s.n) return null;
-  const upShare = s.withR1y ? (s.up1y / s.withR1y) * 100 : 0;
+  const plans = plan === "Direct" ? "Direct plans" : plan === "Regular" ? "Regular plans" : "all plans";
   return (
     <div className="mf-sum" role="group" aria-label="Summary of the schemes on this page">
-      <div className="mf-sc"><small>Schemes</small><b>{total.toLocaleString("en-IN")}</b><span>{s.n} on this page</span></div>
-      <div className="mf-sc"><small>Rose over 1 year</small><b className="pos">{s.up1y}<em> / {s.withR1y}</em></b>
-        <i className="mf-split" aria-hidden="true"><u style={{ width: `${upShare}%` }} /></i><span>{s.down1y} fell · on this page</span></div>
-      <div className="mf-sc"><small>Median return a year</small>
-        <b>{s.median1y == null ? "—" : pctText(s.median1y, 1)}</b><span>1Y{s.median3y != null && <> · 3Y {pctText(s.median3y, 1)}</>}{s.median5y != null && <> · 5Y {pctText(s.median5y, 1)}</>}</span></div>
-      <div className="mf-sc"><small>Median 3Y SIP return</small><b>{s.medianSip3y == null ? "—" : pctText(s.medianSip3y, 1)}</b><span>{s.withSip ? `${s.withSip} schemes with a figure` : "loading"}</span></div>
-      <div className="mf-sc"><small>Median expense ratio</small><b>{s.medianTer == null ? "—" : terText(s.medianTer)}</b><span>{s.withTer ? `${s.withTer} schemes with a figure` : "loading"}</span></div>
-      <div className="mf-sc"><small>Largest fund size</small><b>{s.largestAum ? aumText(s.largestAum.aum) : "—"}</b><span title={s.largestAum?.name}>{s.largestAum ? s.largestAum.name : "loading"}</span></div>
+      <div className="mf-sc t-blue"><small>Schemes</small><b>{total.toLocaleString("en-IN")}</b><span>{scope}</span></div>
+      <div className="mf-sc t-green"><small>Rose over 1 year</small><b className="pos">{s.up1y}<em> of {s.withR1y}</em></b><span>on this page gained in a year</span></div>
+      <div className="mf-sc t-amber"><small>Median return</small>
+        <b>{s.median1y == null ? "—" : pctText(s.median1y, 1)}</b><span>a year{s.median3y != null && <> · 3Y {pctText(s.median3y, 1)}</>}{s.median5y != null && <> · 5Y {pctText(s.median5y, 1)}</>}</span></div>
+      <div className="mf-sc t-teal"><small>Median 3-year SIP</small><b>{s.medianSip3y == null ? "—" : pctText(s.medianSip3y, 1)}</b><span>{s.withSip ? "a year, on monthly investing" : "still being worked out"}</span></div>
+      <div className="mf-sc t-grey"><small>Median expense</small><b>{s.medianTer == null ? "—" : terText(s.medianTer)}</b><span>{s.withTer ? `a year, ${plans}` : "still being worked out"}</span></div>
+      <div className="mf-sc t-blue"><small>Largest fund</small><b>{s.largestAum ? aumText(s.largestAum.aum) : "—"}</b><span title={s.largestAum?.name}>{s.largestAum ? s.largestAum.name : "still being worked out"}</span></div>
     </div>
   );
 }

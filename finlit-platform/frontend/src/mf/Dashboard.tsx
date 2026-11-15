@@ -1,39 +1,41 @@
 // The category chooser of /funds: six quick cards, the fund-type tabs and the sub-category tick boxes with "Select All". State lives in the address.
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useUI } from "../lib/ui";
 import { useCategoryScores } from "../lib/mfScore";
-import { cardScoreView, scoreSortHref, type CardScoreView } from "../lib/mfScoreDash";
+import { cardScoreView, type CardScoreView } from "../lib/mfScoreDash";
 import { bandInk } from "../lib/scoreBands";
 import { toggleAll, toggleCat, type ListQuery, type SubCat } from "../lib/mf";
-import { CARDS, TABS, type Card, type TabKey } from "../lib/mfCategories";
+import { CARDS, ELSS_FOOTNOTE, TABS, type Card, type TabKey } from "../lib/mfCategories";
 
-/** The Health score strip of a card: the median of the category's scored Direct-plan funds, how they split into the three colour bands, and a link to the list in that order. */
-function ScoreStrip({ v, card }: { v: CardScoreView; card: Card }) {
+/** The Health Score strip of a card (task #130): the median of the category's scored Direct-plan funds, the bar of its three bands named in words
+ *  ("Healthy or strong 3% · Average 66% · Weak or poor 31%", never by colour), and a button that opens the list below on that category, by Health Score. */
+function ScoreStrip({ v, card, onScore }: { v: CardScoreView; card: Card; onScore: (c: Card) => void }) {
   if (v.kind === "locked") return <div className="mf-qscore"><span className="mf-qs-lock"><Icon name="lock" /><span>Health score: part of the Gold plan</span></span></div>;
   if (v.kind === "loading") return <div className="mf-qscore" aria-busy="true"><span className="skeleton" style={{ height: 40 }} /></div>;
   if (v.kind === "unavailable") return <div className="mf-qscore"><span>The Health score is not available right now.</span></div>;
   if (v.kind === "notRun") return <div className="mf-qscore"><span><b>Health score:</b> Not scored yet</span></div>;
-  if (v.kind === "none") return <div className="mf-qscore"><span><b>Health score:</b> no Direct-plan fund of this category is scored yet</span><Link to={scoreSortHref(card)}>See the funds</Link></div>;
+  if (v.kind === "none") return <div className="mf-qscore"><span><b>Health score:</b> no Direct-plan fund of this category is scored yet</span><button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See the funds →</button></div>;
   const { green, orange, red } = v.shares;
   return (
     <div className="mf-qscore" role="group" aria-label={v.label}>
-      <div className="mf-qs-h"><span className="mf-qs-t">Health score, median</span><b className="mf-qs-n" style={{ color: bandInk(v.band) }}>{v.median}</b><span className="mf-qs-t">of {v.n.toLocaleString("en-IN")} scored fund{v.n === 1 ? "" : "s"}</span></div>
+      <div className="mf-qs-h"><b className="mf-qs-n" style={{ color: bandInk(v.band) }}>{v.median}</b><span className="mf-qs-t">median Health Score</span></div>
       <div className="mf-qdist" aria-hidden="true">{green > 0 && <i className="g" style={{ flex: green }} />}{orange > 0 && <i className="o" style={{ flex: orange }} />}{red > 0 && <i className="r" style={{ flex: red }} />}</div>
-      <div className="mf-qdist-l" aria-hidden="true"><span className="g">{green}% green</span><span className="o">{orange}% orange</span><span className="r">{red}% red</span></div>
-      <Link to={scoreSortHref(card)}>See these funds by Health score</Link>
+      <div className="mf-qdist-l" aria-hidden="true"><span className="g">Healthy or strong {green}%</span><span className="o">Average {orange}%</span><span className="r">Weak or poor {red}%</span></div>
+      <button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See these {v.n.toLocaleString("en-IN")} funds by Health Score →</button>
     </div>
   );
 }
 
-/** One card per popular category; the pressed one is the category shown on its own. Under each card, for Gold, the category's Health score. */
-export function CategoryCards({ q, onPick }: { q: ListQuery; onPick: (c: Card) => void }) {
+/** "Six categories most people start with": one card per popular category; the pressed one is the category shown on its own. Each card shows how many
+ *  of its funds are scored (top right) and, for Gold, the category's Health Score. The ELSS tax note is one footnote beside the heading (task #130 C-3). */
+export function CategoryCards({ q, onPick, onScore }: { q: ListQuery; onPick: (c: Card) => void; onScore: (c: Card) => void }) {
   const { has } = useUI();
   const canSee = has("gold");
   const sc = useCategoryScores(canSee);
   return (
-    <section aria-label="Popular categories">
+    <section className="mf-cats" aria-labelledby="mf-cats-h">
+      <div className="mf-cats-h"><h2 id="mf-cats-h">Six categories most people start with</h2><p className="faint" id="mf-elss-note">{ELSS_FOOTNOTE}</p></div>
       <ul className="mf-cards">
         {CARDS.map((c) => {
           const on = q.tab === c.tab && q.cats?.length === 1 && q.cats[0] === c.key;
@@ -44,10 +46,11 @@ export function CategoryCards({ q, onPick }: { q: ListQuery; onPick: (c: Card) =
                 <button type="button" className="mf-qcard" aria-pressed={on} onClick={() => onPick(c)}>
                   <span className="ci" aria-hidden="true"><Icon name={c.icon} /></span>
                   <b>{c.title}</b>
+                  {v.kind === "scored" && <span className="mf-qcount">{v.n.toLocaleString("en-IN")} scored fund{v.n === 1 ? "" : "s"}</span>}
                   <span>{c.lines[0]}</span>
-                  <span title={c.note}>{c.lines[1]}{c.note && <><sup aria-hidden="true">*</sup><span className="sr-only"> ({c.note})</span></>}</span>
+                  <span>{c.lines[1]}{c.note && <sup aria-describedby="mf-elss-note">*</sup>}</span>
                 </button>
-                <ScoreStrip v={v} card={c} />
+                <ScoreStrip v={v} card={c} onScore={onScore} />
               </div>
             </li>);
         })}

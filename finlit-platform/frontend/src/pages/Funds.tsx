@@ -8,7 +8,7 @@ import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
 import { dateIN, nf } from "../lib/format";
 import {
-  AUM_BUCKETS, CHECKS, EMPTY_QUERY, RETURN_LABELS, TRAY_MAX, catNames, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rowSortValue, subCats, tone,
+  AUM_BUCKETS, CHECKS, EMPTY_QUERY, RETURN_LABELS, TRAY_MAX, catNames, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
   useFundCompare, useFundDetail, useFundFacts, useFundFilters, useFundList, useFundPortfolio, useHotList, useTray, writeCols,
   type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
 } from "../lib/mf";
@@ -53,27 +53,77 @@ function historyLoading(items: FundRow[]): boolean {
   return growth.length >= 5 && growth.every((r) => r.r1y == null && r.r3y == null && r.r5y == null && r.noReturns === "short");
 }
 
-function Legend() {
+/** Task #130 C-12: "How to read this table": the nine notes as nine short cards, each opening its full text with "Read more". */
+function NoteCard({ title, short, children }: { title: string; short: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="faint mf-legend" aria-label="How to read the table">
-      <p><b>Returns.</b> <b>1 year</b> is the total change in NAV over the year; <b>3 years</b> and <b>5 years</b> are yearly rates (<GTerm id="cagr-compound-annual-growth-rate">CAGR</GTerm>), not totals.
-        <b> SIP returns</b> are the yearly rate (XIRR) of putting the same amount in every month for the last 3 or 5 years: one instalment at the last NAV of each month, everything valued at the latest NAV. A scheme without a month-end NAV for every one of those months shows a dash.
-        Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV). Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
-      <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
-      <p><b>Health score</b> (Gold) is the FinLit Mutual Fund Health Score, 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
-      <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
-        These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show <b>Insufficient history</b> rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
-      <div className="mf-bands">
-        <p><b>Fund size bands.</b> The word under the fund size is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
-        <table><caption className="sr-only">Fund size bands in rupees crore</caption>
-          <thead><tr><th scope="col">Fund size</th><th scope="col">Label</th></tr></thead>
-          <tbody>{AUM_BUCKETS.map((b, i) => <tr key={b.label}><td>{b.range}</td><td><span className={"mf-size s" + (i + 1)}><i aria-hidden="true" />{b.label}</span></td></tr>)}</tbody></table>
-      </div>
-      <p><b>Checklist.</b> Five plain checks, each against the active Growth options of the same category and plan:</p>
-      <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
-      <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
-      <p>* ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
+    <li className="mf-note-card">
+      <h3>{title}</h3>
+      <p>{short}</p>
+      <details><summary>Read more</summary><div className="mf-note-full">{children}</div></details>
+    </li>
+  );
+}
+
+function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
+  return (
+    <section className="mf-legend" aria-labelledby="mf-legend-h">
+      <h2 id="mf-legend-h">How to read this table</h2>
+      <ul className="mf-note-cards">
+        <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
+          <p><b>1 year</b> is the total change in NAV over the year; <b>3 years</b> and <b>5 years</b> are yearly rates (<GTerm id="cagr-compound-annual-growth-rate">CAGR</GTerm>), not totals.
+            <b> SIP returns</b> are the yearly rate (XIRR) of putting the same amount in every month for the last 3 or 5 years: one instalment at the last NAV of each month, everything valued at the latest NAV. A scheme without a month-end NAV for every one of those months shows a dash.
+            Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV). Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
+        </NoteCard>
+        <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
+          <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
+        </NoteCard>
+        <NoteCard title="Mutual Fund Health Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
+          <p><b>Health score</b> (Gold) is the FinLit Mutual Fund Health Score, 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
+        </NoteCard>
+        <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
+          <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
+            These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show <b>Insufficient history</b> rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
+        </NoteCard>
+        <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
+          <div className="mf-bands">
+            <p>The word under the fund size is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
+            <table><caption className="sr-only">Fund size bands in rupees crore</caption>
+              <thead><tr><th scope="col">Fund size</th><th scope="col">Label</th></tr></thead>
+              <tbody>{AUM_BUCKETS.map((b, i) => <tr key={b.label}><td>{b.range}</td><td><span className={"mf-size s" + (i + 1)}><i aria-hidden="true" />{b.label}</span></td></tr>)}</tbody></table>
+          </div>
+        </NoteCard>
+        <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
+          <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
+          <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
+          <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
+        </NoteCard>
+        <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
+          <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
+        </NoteCard>
+        <NoteCard title="Older schemes" short={hidden ? <>{hidden.toLocaleString("en-IN")} schemes that stopped publishing NAVs are hidden. Tick “Include schemes that stopped publishing NAVs” to see them.</> : <>Schemes that stopped publishing NAVs are hidden unless you tick “Include schemes that stopped publishing NAVs”.</>}>
+          <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record but is hidden from the list by default, so the figures shown are for schemes still running. Tick “Include schemes that stopped publishing NAVs” above the table to see them too; they carry a “Stopped publishing” tag and no returns.</p>
+        </NoteCard>
+        <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
+          <p>Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}; expense ratios from AMFI's TER file; fund size from AMFI's quarterly AUM report or the fund house's month-end portfolio file.</p>
+          {facts?.excludedAmcs && facts.excludedAmcs.length > 0 && <p>Some fund houses are not listed here: {facts.excludedAmcs.join(", ")}.</p>}
+        </NoteCard>
+      </ul>
     </section>
+  );
+}
+
+/** Task #130 C-9: the dark bar under the table once a fund is ticked: the chosen names and "Compare N funds →" (2 to 4), which opens Fund compare. */
+export function CompareBar({ tray, onClear, onOpen }: { tray: number[]; onClear: () => void; onOpen: () => void }) {
+  if (!tray.length) return null;
+  return (
+    <div className="mf-cmpbar" role="region" aria-label="Funds chosen for comparison">
+      <span className="mf-cmpbar-l">Compare</span>
+      <ul className="mf-cmpbar-n">{tray.map((c) => <li key={c}>{trayName(c) ?? `Scheme ${c}`}</li>)}</ul>
+      <span className="mf-cmpbar-sp" />
+      {tray.length < 2 && <span className="mf-cmpbar-hint">Tick one more fund to compare.</span>}
+      <button type="button" className="mf-cmpbar-clear" onClick={onClear}>Clear</button>
+      <button type="button" className="btn primary mf-cmpbar-go" disabled={tray.length < 2} onClick={onOpen}>Compare {tray.length} fund{tray.length === 1 ? "" : "s"} →</button>
+    </div>
   );
 }
 
@@ -87,7 +137,7 @@ export function FundListPage() {
   const eq = useMemo(() => { const e = effectiveQuery(q); return e.sort === "score" && !canScore ? { ...e, sort: "aum" as const, dir: "desc" as const } : e; }, [q, canScore]);
   const [text, setText] = useState(q.q);
   const [cols, setCols] = useState<ColId[]>(readCols);
-  const [tray, toggle, clear] = useTray();
+  const [tray, toggle, clear] = useTray(true);
   const filt = useFundFilters();
   const subs = useMemo(() => (q.tab === "all" ? [] : subCats(filt.data?.categories, q.tab, q)), [filt.data, q]);
   const names = useMemo(() => (q.tab === "all" || q.cats === null ? null : filt.data ? catNames(filt.data.categories, q.tab, q.cats) : undefined), [filt.data, q.tab, q.cats]);
@@ -102,7 +152,13 @@ export function FundListPage() {
   useEffect(() => { if (text.trim() === q.q) return; const t = window.setTimeout(() => set({ q: text.trim() }), 350); return () => window.clearTimeout(t); }, [text]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setText(q.q); }, [q.q]);
   const onSort = (s: SortKey) => set(eq.sort === s ? { sort: s, dir: eq.dir === "asc" ? "desc" : "asc" } : { sort: s, dir: s === "name" || s === "amc" || s === "category" ? "asc" : "desc" });
-  const pick = (code: number) => { if (!toggle(code)) toast(`You can compare up to ${TRAY_MAX} schemes at a time.`); };
+  // Task #130 C-9: up to 4 funds; a fifth replaces the oldest. The names on the compare bar come from the rows they were ticked on.
+  const pick = (code: number, name?: string) => { if (name) rememberName(code, name); const replacing = tray.length >= TRAY_MAX && !tray.includes(code); toggle(code); if (replacing) toast(`Up to ${TRAY_MAX} funds at a time: the first one chosen was replaced.`); };
+  // Task #130 C-4: "See these funds by Health Score" switches the tab and sub-category below to that category, orders it by Health Score and scrolls to the list.
+  const showByScore = (c: { tab: ListQuery["tab"]; key: string }) => {
+    set({ tab: c.tab, cats: [c.key], view: "", ...(canScore ? { sort: "score" as SortKey, dir: "desc" as const } : {}) });
+    requestAnimationFrame(() => document.getElementById("mf-list")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
   const hot = useHotList(ready);
   const none = q.tab !== "all" && q.cats !== null && q.cats.length === 0;
   const d = ready || none ? undefined : list.data;
@@ -119,8 +175,7 @@ export function FundListPage() {
     <>
       {HEAD(title, "Compare all mutual funds in the chosen categories based on latest returns, historic returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
       <div className="wrap mf">
-        <CategoryCards q={q} onPick={(c) => set({ tab: c.tab, cats: [c.key], view: "" })} />
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null })} onCats={(cats) => set({ cats })} />
+        <CategoryCards q={q} onPick={(c) => set({ tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />
         <Link className="evi-promo" to="/funds/insights">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
           <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
@@ -129,13 +184,14 @@ export function FundListPage() {
         </Link>
         <Link className="evi-promo" to="/fund-score-screener">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="quality" /></span>
-          <span className="evi-promo-t"><b>Fund score screener <span className="evi-badge">Gold</span></b>
-            <small>Every scored fund with its Health Score and four parts: filter by category, cost, size and age, see category leaderboards, compare and download.</small></span>
+          <span className="evi-promo-t"><b>Fund score screener</b>
+            <small>Every scored fund with its Health Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
           <span className="evi-promo-go" aria-hidden="true">Open →</span>
         </Link>
+        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null })} onCats={(cats) => set({ cats })} />
         <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
 
-        <div className="mf-bar">
+        <div className="mf-bar" id="mf-list">
           <div className="seg" role="group" aria-label="Which schemes to show">
             <button aria-pressed={!ready} onClick={() => set({ view: "" })}>Chosen categories</button>
             <button aria-pressed={ready} onClick={() => set({ view: "ready" })}>Ready list ({hot.data?.items.length ?? 100})</button>
@@ -155,6 +211,7 @@ export function FundListPage() {
             <div className="card mf-tablecard">
               <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
               <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} />
+              <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             </div>)
         ) : none ? (
           <div className="pm-empty mf-empty"><b>Tick at least one category.</b><p>Use the tick boxes above, “Select All”, or one of the cards.</p>
@@ -167,26 +224,22 @@ export function FundListPage() {
             <button className="btn" onClick={() => { setText(""); setSp(new URLSearchParams(), { replace: true }); }}>Clear search and filters</button></div>
         ) : (
           <>
-          <SummaryCards items={d.items} total={d.total} />
+          <SummaryCards items={d.items} total={d.total} plan={q.plan} scope={q.tab === "all" ? "across all categories" : "in the chosen categories"} />
           {summarise(d.items).extrasLoading && <LoadingNotice />}
           {historyLoading(d.items) && <p className="mf-note" role="status"><Icon name="info" /><span><b>Return history is still loading.</b> None of the funds on this page has its 1, 3 or 5 year return yet because the NAV history from AMFI is loaded one fund house at a time. The figures appear as each house finishes; nothing here is missing for good.</span></p>}
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
           <div className="card mf-tablecard">
             <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} />
+            <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             <Pager q={q} pages={d.pages} total={d.total} onPage={(p) => { set({ page: p }); window.scrollTo({ top: 0 }); }} onSize={(n) => set({ size: n })} />
           </div>
           </>
         )}
-        <Legend />
+        <Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} />
         <Foot facts={facts} />
       </div>
 
-      {tray.length > 0 && (
-        <div className="mf-tray" role="region" aria-label="Schemes chosen for comparison">
-          <span><b>{tray.length}</b> scheme{tray.length > 1 ? "s" : ""} chosen{tray.length < 2 ? ". Choose one more to compare." : "."}</span>
-          <button className="btn primary" disabled={tray.length < 2} onClick={() => nav(compareUrl(tray))}><Icon name="compare" />Compare</button>
-          <button className="btn" onClick={clear}>Clear</button>
-        </div>)}
+
     </>
   );
 }
