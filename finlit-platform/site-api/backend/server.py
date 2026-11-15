@@ -808,6 +808,7 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         "prices": annual.get("prices", {}), "summary": annual.get("summary", {}),
         "distribution": annual.get("distribution", {}), "declaration": annual.get("declaration", {}),
         "annual_standalone": {"financials": annual.get("standaloneIncome", [])},
+        "cashflow_standalone": {"financials": annual.get("standaloneCashflow", [])},
         "asset_quality": {"financials": quarterly.get("assetQualityRows", [])},
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "benchmarkObservations": annual.get("benchmarkObservations", []),
@@ -3651,6 +3652,13 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     quarterly_income_rows = shared_raw.get("quarterly", {}).get("financials", quarterly_income_rows)
     balance_rows = shared_raw.get("balance", {}).get("financials", [])
     cash_rows = shared_raw.get("cashflow", {}).get("financials", [])
+    # Prism's cash conversion needs three years of operating cash flow. FinEdge's consolidated history can start years after the standalone one
+    # (ABB: consolidated 2024-2025 only), so when the consolidated cash flow has fewer than three annual rows, the standalone cash flow is fetched
+    # (one extra call, only in that case) and the model may use it, saying so (3.6.15).
+    standalone_cash_rows = []
+    if period == "yearly" and effective_statement_type == "consolidated" and len([r for r in cash_rows if isinstance(r, dict)]) < 3:
+        standalone_cash_rows = _payload_items(_safe_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+            {"statement_type": "s", "statement_code": "cf", "period": "annual"}, default={}), ["financials", "data", "results", "items"])
     for note in resolution_notes:
         if note.startswith("Upstox") and "recovered periods" in note:
             data_sources["cashFlow" if "cashflow" in note else "balanceSheet" if "Upstox balance " in note else "incomeStatement"] = "finedge+upstox:fallback"
@@ -3983,6 +3991,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes,
         # Yearly standalone P&L rows (already fetched above for the revenue check): PEG's growth may use them when the consolidated history is too short.
         "standaloneIncome": standalone_income_rows if effective_statement_type == "consolidated" else [],
+        "standaloneCashflow": standalone_cash_rows,
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})
     model_inputs["leverage"] = ratio_payloads[1]

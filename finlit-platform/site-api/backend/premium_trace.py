@@ -99,7 +99,10 @@ def build_calculation_trace(d, rating, meta):
                 profit = d.get('net_profit_y',[])[-1] if d.get('net_profit_y') else None
                 denominator = nw if metric=='ROE' else d.get('total_assets')
                 formula=f'Last FY owner-attributable profit / latest {"equity" if metric=="ROE" else "assets"} x 100 = {fmt(profit)} / {fmt(denominator)} x 100 = {fmt(row["value"])}%.'
-            elif metric=='CASH_CONVERSION': formula=f'Sum of latest 3 annual operating cash flows / sum of matching annual profits = {fmt(complete_sum(d.get("operating_cash_flow_y",[]),3))} / {fmt(complete_sum(d.get("net_profit_y",[]),3))} = {fmt(row["value"])}x.'
+            elif metric=='CASH_CONVERSION':
+                c3 = info.get("operatingCashFlow3y") if info.get("basis") == "standalone" else complete_sum(d.get("operating_cash_flow_y",[]),3)
+                p3 = info.get("netProfit3y") if info.get("basis") == "standalone" else complete_sum(d.get("net_profit_y",[]),3)
+                formula=f'Sum of latest 3 annual operating cash flows / sum of matching annual profits = {fmt(c3)} / {fmt(p3)} = {fmt(row["value"])}x.'
             elif metric.startswith(('PE_VS_','PB_VS_','EV_EBITDA_VS_')):
                 key = 'pe' if metric.startswith('PE_') else 'pb' if metric.startswith('PB_') else 'ev_ebitda'
                 current=values.get(key)

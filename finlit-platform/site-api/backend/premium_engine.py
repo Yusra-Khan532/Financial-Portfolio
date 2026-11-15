@@ -370,10 +370,23 @@ def score_company(d, group):
         put("ROE", value * 100 if value is not None else None, explicit_points=0. if annual_nw is not None and annual_nw <= 0 else None)
         p3 = complete_sum(d.get("net_profit_y", []), 3)
         c3 = complete_sum(d.get("operating_cash_flow_y", []), 3)
+        cash_detail = None
+        if p3 is None or c3 is None:
+            # 3.6.15 (owner, 15 November 2026): a consolidated history too short for three years is measured on the standalone statements, when
+            # their latest three annual periods are consecutive, complete and reach the same latest year.
+            sa_ends, sa_np, sa_cf = d.get("standalone_period_ends") or [], d.get("net_profit_y_standalone") or [], d.get("operating_cash_flow_y_standalone") or []
+            con = d.get("consolidated_years") or []
+            if len(sa_ends) >= 3 and len(sa_np) == len(sa_ends) == len(sa_cf) and (not con or int(sa_ends[-1][:4]) >= con[-1]):
+                start, _ = dated_cagr_window([1.] * 3, sa_ends[-3:])        # only to check that the three periods are consecutive
+                sp3, sc3 = complete_sum(sa_np, 3), complete_sum(sa_cf, 3)
+                if start == 0 and sp3 is not None and sc3 is not None:
+                    p3, c3 = sp3, sc3
+                    cash_detail = {"basis": "standalone", "note": f"Standalone statements, {sa_ends[-3]} to {sa_ends[-1]} (consolidated history too short)",
+                                   "operatingCashFlow3y": sc3, "netProfit3y": sp3}
         if p3 is not None and p3 <= 0 and c3 is not None:
-            put("CASH_CONVERSION", None, "Z", {"note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, float(CASH_LOSS_POINTS["cash_positive" if c3 > 0 else "cash_negative"]))
+            put("CASH_CONVERSION", None, "Z", {**(cash_detail or {}), "note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, float(CASH_LOSS_POINTS["cash_positive" if c3 > 0 else "cash_negative"]))
         else:
-            put("CASH_CONVERSION", ratio(c3, p3))
+            put("CASH_CONVERSION", ratio(c3, p3), detail=cash_detail)
 
     if group in ("BANK", "NBFC"):
         # Calculate the conditional capital-adequacy fallback. It is weighted
