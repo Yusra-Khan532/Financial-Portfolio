@@ -127,14 +127,23 @@ def dated_cagr_window(values, ends):
     days = [_date.fromisoformat(e[:10]) for e in ends]
     if not values or num(values[-1]) is None:
         return None, 0
-    oldest = len(values) - 1
-    while oldest > 0 and num(values[oldest - 1]) is not None and 300 <= (days[oldest] - days[oldest - 1]).days <= 490:
-        oldest -= 1
-    span = len(values) - 1 - oldest
+    # Periods ending less than 300 days apart overlap (FinEdge labels Nestle's 15-month period to March 2024 as a year next to calendar 2023): they
+    # fill one slot and the later one is kept, so the overlap is not a break in the run.
+    chain, j = [len(values) - 1], len(values) - 2
+    while j >= 0 and num(values[j]) is not None:
+        gap = (days[chain[-1]] - days[j]).days
+        if gap < 300:
+            j -= 1
+            continue
+        if gap > 490:
+            break
+        chain.append(j)
+        j -= 1
+    span = len(chain) - 1
     if span < CAGR_MIN_YEARS:
         return None, 0
     back = next((n for n in CAGR_PREFERRED_YEARS if span >= n), span)
-    i = len(values) - 1 - back
+    i = chain[back]
     if num(values[i]) is None or num(values[i]) <= 0:
         return None, 0
     return i, (days[-1] - days[i]).days / 365.25

@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.15"
+MODEL_VERSION = "3.6.16"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -110,6 +110,9 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.16 (owner, 15 November 2026): when the latest unbroken run of consolidated full years is shorter than 4 (too short for a 3-year comparison)
+# and the standalone statements have such a run and are as recent, the whole report uses the standalone statements (server resolver), and says so.
+# Periods ending less than 300 days apart (a mislabelled 15-month year) fill one slot instead of breaking a run.
 # 3.6.15 (owner, 15 November 2026): cash conversion. When the consolidated history has fewer than three complete years of operating cash flow
 # and profit, the standalone statements are used if their latest three annual periods are consecutive, complete and reach the same latest year.
 # 3.6.14 (owner, 15 November 2026): PEG growth. When the consolidated EPS history is too short for a 3-year window (FinEdge's consolidated history can start
