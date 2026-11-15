@@ -1,7 +1,7 @@
 # FinLit Prism: integration contract
 
 **FinLit Prism** is the Gold plan's advanced financial-health rating. It is the model merged from
-`Yusra-Khan532/financial-portfolio` (engine 3.6.14 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
+`Yusra-Khan532/financial-portfolio` (engine 3.6.15 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
 The name is in one place on each side: `PRISM_NAME` in `backend/finlit/prism.py` and in `frontend/src/lib/prism.ts`.
 
 A prism splits light into its bands: the rating splits a company into its four parts (Growth & Profitability, Valuation, Quality, Risk).
@@ -46,7 +46,7 @@ or `standalone`.
 
 ### Scoring-version freshness
 
-Stored reports must match the current financial model version, 3.6.14. An older
+Stored reports must match the current financial model version, 3.6.15. An older
 calculation is not returned as the latest report or reused by generation just
 because it was created recently. The page starts a fresh calculation when the
 latest endpoint returns no current-model report. The nightly precompute queue
@@ -57,7 +57,8 @@ Version 3.6.11 recorded the all-group PEG eligibility override. Version 3.6.12 c
 latest consecutive annual window, 5 years, then 3, then what exists, with splits and bonus issues put on one share basis), falling back to net profit growth
 (the net profit CAGR, then the 12-month profit growth) only when there is no usable EPS CAGR. Version 3.6.13 gives NBFCs with neither Gross NPA nor Net NPA
 (FinEdge reports neither for NBFCs) financial leverage, total assets / equity scored 10x = 0 to 4x = 100, in those two Quality slots. Version 3.6.14 measures PEG's EPS growth on the standalone statements when the consolidated EPS history is too short for a
-3-year window and the standalone history reaches the same latest year with a longer window (the growth basis says so). Reports of an older version are rebuilt.
+3-year window and the standalone history reaches the same latest year with a longer window (the growth basis says so). Version 3.6.15 measures cash conversion on the standalone statements when the consolidated history has fewer
+than three complete years and the standalone latest three annual periods are consecutive and complete. Reports of an older version are rebuilt.
 
 ### Storage
 

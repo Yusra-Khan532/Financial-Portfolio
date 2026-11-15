@@ -23,6 +23,7 @@ except ImportError:
 PROFIT_FIELDS = ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent",
                  "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems",
                  "profitLossAfterTaxBeforeExtraordinaryItems")
+OCF_FIELDS = ("netCashFromOperatingActivities", "cashFromOperatingActivity", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")
 EPS_FIELDS = ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr")
 
 
@@ -145,7 +146,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
     # measure EPS growth on them when the consolidated EPS history is too short for a 3- or 5-year window. Only PEG's growth uses them, and the report says so.
     # Kept as the reported annual periods in order (not calendar slots) with their end dates, so a change of year-end (Nestle: December 2023, then
     # March 2025, the 15-month period between being dropped as non-comparable) does not break the run of years; the engine uses the real time between ends.
-    d["eps_y_standalone"], d["net_profit_y_standalone"], d["standalone_period_ends"] = [], [], []
+    d["eps_y_standalone"], d["net_profit_y_standalone"], d["standalone_period_ends"], d["operating_cash_flow_y_standalone"] = [], [], [], []
     if statement_type == "consolidated":
         kept = len(warnings)
         sa = dated(comparable(items(raw.get("annual_standalone"), "financials", "data"), 330, 400, "annual"))
@@ -157,6 +158,11 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         d["eps_y_standalone"] = [plain(sa[day], EPS_FIELDS, 1) for day in sa_ends]
         d["net_profit_y_standalone"] = [plain(sa[day], PROFIT_FIELDS, CR) for day in sa_ends]
         d["standalone_period_ends"] = [day.isoformat() for day in sa_ends]
+        # Standalone operating cash flow on the same periods (fetched only when the consolidated cash flow has fewer than three years).
+        kept = len(warnings)
+        sa_cf = dated(comparable(items(raw.get("cashflow_standalone"), "financials", "data"), 330, 400, "cash-flow"))
+        del warnings[kept:]
+        d["operating_cash_flow_y_standalone"] = [plain(sa_cf.get(day, {}), OCF_FIELDS, CR) for day in sa_ends] if sa_cf else []
     d["consolidated_years"] = ykeys
     # Cash and other bank balances are disjoint provider fields. Do not assume all investments are liquid.
     other_bank = record(current_b, "cash", ("otherBankBalances",))
@@ -167,7 +173,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         long = record(current_b, "total_debt", ("longTermBorrowings", "borrowingsNoncurrent"))
         if short is not None and long is not None: d["total_debt"] = short + long
     cfmap = {day.year: row for day, row in cf.items()}
-    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", ("netCashFromOperatingActivities", "cashFromOperatingActivity", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")) for year in ykeys]
+    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", OCF_FIELDS) for year in ykeys]
     def loans(row):
         value = record(row, "loans", ("advances", "loansAndAdvances", "loans", "advancesToCustomers"))
         if value is None:
