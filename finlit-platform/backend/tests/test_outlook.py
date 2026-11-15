@@ -243,7 +243,7 @@ async def test_outlook_is_gold_only_and_validates(app, anon):  # noqa: F811
     assert (await anon.post("/api/outlook/RELIANCE", json=body)).status_code == 401
     silver = await signed_in(app, "s@example.com", plan="silver")
     r = await silver.post("/api/outlook/RELIANCE", json=body)
-    assert r.status_code == 403 and r.json()["detail"]["plan"] == "gold" and "forecast" not in r.text
+    assert r.status_code == 403 and r.json()["detail"]["plan"] == "gold" and '"forecast"' not in r.text and "years" not in r.text   # no forecast data below Gold (the message itself says "forecasting", task #170)
     gold = await signed_in(app, "g@example.com", plan="gold")
     ok = await gold.post("/api/outlook/reliance", json=body)
     assert ok.status_code == 200 and ok.headers["cache-control"] == "private, no-store"
