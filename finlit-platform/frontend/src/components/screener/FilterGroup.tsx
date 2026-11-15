@@ -8,9 +8,13 @@ export const FgxFocus = createContext<{ id: string | null; n: number }>({ id: nu
 
 export const Chev = () => <svg className="fgx-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
 
-type GroupProps = { id: string; title: ReactNode; icon?: string; active?: number; hint?: ReactNode; meta?: ReactNode; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; className?: string; children: ReactNode };
-export function FilterGroup({ id, title, icon, active = 0, hint, meta, defaultOpen = false, open: ctl, onOpenChange, className = "", children }: GroupProps) {
-  const [own, setOwn] = useState(defaultOpen || active > 0);
+type GroupProps = { id: string; title: ReactNode; icon?: string; active?: number; hint?: ReactNode; meta?: ReactNode; defaultOpen?: boolean; open?: boolean; onOpenChange?: (o: boolean) => void; className?: string; children: ReactNode;
+  /** The word after the count in the badge ("3 active" by default; the Mutual Fund Screener says "3 on", task #131). */
+  activeWord?: string;
+  /** Whether a group with choices on starts open (default). The fund screener's "Plan, option and status" always has its default choices on and starts closed. */
+  autoOpen?: boolean };
+export function FilterGroup({ id, title, icon, active = 0, hint, meta, defaultOpen = false, open: ctl, onOpenChange, className = "", children, activeWord = "active", autoOpen = true }: GroupProps) {
+  const [own, setOwn] = useState(defaultOpen || (autoOpen && active > 0));
   const open = ctl ?? own;
   const set = (o: boolean) => { setOwn(o); onOpenChange?.(o); };
   const uid = useId(), body = `fgx-b-${uid}`, root = useRef<HTMLElement>(null), btn = useRef<HTMLButtonElement>(null);
@@ -29,7 +33,7 @@ export function FilterGroup({ id, title, icon, active = 0, hint, meta, defaultOp
         {icon && <span className="fgx-gi" aria-hidden="true"><Icon name={icon} /></span>}
         <span className="fgx-t">{title}</span>
         {meta != null && <span className="fgx-meta">{meta}</span>}
-        {active > 0 && <span className="fgx-badge">{active} active</span>}
+        {active > 0 && <span className="fgx-badge">{active} {activeWord}</span>}
         <Chev /></button></h3>
       <div id={body} className="fgx-body" hidden={!open}>{hint && <p className="fgx-hint">{hint}</p>}{children}</div>
     </section>);
