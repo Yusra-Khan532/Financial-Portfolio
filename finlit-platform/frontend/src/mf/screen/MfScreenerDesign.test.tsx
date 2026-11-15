@@ -25,8 +25,8 @@ vi.mock("../../lib/api", async (orig) => ({
         aumbasis: {}, aumrank: {}, exit: {}, chk: {}, chk_each: {}, tick: {}, rk: {}, tags: [], sectors: [], portfolio: {}, cflow: {}, cstreak: {}, csize: {},
         built: { rows: 20, run: "2026-10-20", portfolioDate: "2026-09-30", flowMonth: "2026-09-01", tagged: 2, indexTagged: 0 },
         scatter: { points: [[1, "Alpha Mid Cap Fund", 10, 12, "equity"], [2, "Beta Liquid Fund", 6.8, 0.2, "debt"], [3, "Gamma Balanced", -12, 9, "hybrid"]], eligible: 1137, shown: 400 },
-        flows: [{ key: "liquid", label: "Liquid", months: ["May", "Jun"], net: [40000, 30534] }, { key: "flexi", label: "Flexi Cap", months: ["May", "Jun"], net: [2500, 2480] },
-          { key: "fof-overseas", label: "FoF Overseas", months: ["May", "Jun"], net: [-200, -170] }] } };
+        flows: [{ key: "liquid", label: "Liquid", months: ["2026-09", "2026-10"], net: [-95743, 70534] }, { key: "flexi", label: "Flexi Cap", months: ["2026-09", "2026-10"], net: [6702, 4980] },
+          { key: "fof-overseas", label: "FoF Overseas", months: ["2026-09", "2026-10"], net: [-159, -370] }] } };
     }
     return { total: 2, page: 1, size: 50, pages: 1, dataDate: "2026-10-20", items: [ROW(1, "Alpha Mid Cap Fund", "Equity Scheme - Mid Cap Fund"), ROW(2, "Beta Liquid Fund", "Debt Scheme - Liquid Fund")] };
   }),
@@ -134,9 +134,9 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect([...list.querySelectorAll(".mfs-fl-n")].map((x) => x.textContent)).toEqual(["Liquid", "Flexi Cap", "FoF Overseas"]);
     expect([...list.querySelectorAll(".mfs-fl-v")].map((x) => x.textContent)).toEqual(["+₹70,534 Cr", "+₹4,980 Cr", "−₹370 Cr"]);
     expect(list.querySelectorAll("em")).toHaveLength(1); expect(list.querySelector("em")!.textContent).toBe("bar cut");
-    expect(document.body.textContent).toMatch(/Money in on the right, money out on the left\. Liquid funds take in far more than any other category, so its bar is cut\./);
-    const rows = flowRows([{ key: "a", label: "A", months: [], net: [100] }, { key: "b", label: "B", months: [], net: [50, null] }]);
-    expect(rows.map((r) => [r.cut, r.width])).toEqual([[false, 1], [false, 0.5]]);
+    expect(document.body.textContent).toMatch(/Money in on the right, money out on the left\. Each bar is the category's latest month \(Oct 2026\)\. Liquid funds take in far more than any other category, so its bar is cut\./);
+    const rows = flowRows([{ key: "a", label: "A", months: ["2026-10"], net: [100] }, { key: "b", label: "B", months: ["2026-09", "2026-10"], net: [50, null] }, { key: "c", label: "C", months: ["2026-10"], net: [null] }]);
+    expect(rows.map((r) => [r.key, r.month, r.cut, r.width])).toEqual([["a", "2026-10", false, 1], ["b", "2026-09", false, 0.5]]);   // the latest month with a figure; none at all: dropped
   });
   it("C-9 a Health Score column after the fund name: the score with its band word for Gold; a lock below Gold, never a value", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
@@ -171,6 +171,18 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     fireEvent.click(btn);
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(false);
     expect(screen.queryByRole("dialog")).toBeNull();                     // in place, not a sheet
+  });
+  it("the table's columns carry the pack's names, and each fund reads 'house · plan · option' then 'category · NAV ₹… on <date>'", async () => {
+    mount(); await screen.findAllByText("Alpha Mid Cap Fund");
+    const heads = [...document.querySelectorAll(".mfs-table thead th")].map((th) => th.textContent!.replace(/[▲▼]/g, "").trim());
+    expect(heads.slice(2)).toEqual(["1 year", "3 yrs a year", "5 yrs a year", "Expense", "Size", "Volatility 3 yrs", "Biggest fall", "Rank 3 yrs"]);
+    const cell = document.querySelector(".mfs-table tbody th.mfs-n")!;
+    expect(cell.querySelectorAll("small")[0].textContent).toMatch(/^Alpha Mutual Fund/);
+    expect(cell.querySelector(".mfs-nav")!.textContent).toMatch(/^Mid Cap.* · NAV ₹?10(\.0+)? on 20 Oct$/);
+  });
+  it("carries the AMFI risk line with the disclaimer (the pack's common rules)", async () => {
+    mount(); await screen.findAllByText("Alpha Mid Cap Fund");
+    expect(document.querySelector(".mfs-fine")!.textContent).toMatch(/Mutual fund investments are subject to market risks; read all scheme-related documents carefully\./);
   });
   it("keeps the disclaimer and uses no advice wording", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
