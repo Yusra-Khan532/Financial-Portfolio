@@ -654,7 +654,7 @@ async def test_missed_nights_are_filled_from_amfis_industry_wide_history(loaded)
         h = await conn.fetchrow("SELECT blob, d0, n FROM mf_history WHERE code = $1", LARGE)
     days, navs = mf.unpack_series(bytes(h["blob"]), h["d0"].toordinal())
     assert [date.fromordinal(d).day for d in days[-6:]] == [20, 21, 22, 23, 26, 27] and navs[-6:] == [67.1, 67.2, 67.3, 67.4, 69.0, 70.0]
-    assert days[0] > date(2026, 10, 27).toordinal() - mf.KEEP_DAYS and h["n"] == len(days)   # and the oldest days beyond the kept window were trimmed
+    assert days[0] >= mf.HISTORY_START.toordinal() and h["n"] == len(days)   # task #162: nothing after AMFI's history start is trimmed any more
 
 
 def test_a_future_dated_nav_is_not_stored_and_cannot_block_later_files():
@@ -692,3 +692,75 @@ async def test_an_idcw_series_is_stored_but_no_return_is_worked_out_from_it(load
         assert await conn.fetchval("SELECT n FROM mf_history WHERE code = $1", code) == 401
     assert row["r1y"] is None and row["r5y"] is None and row["sip3y"] is None and row["mdd"] is None
     assert row["prev_nav"] == pytest.approx(navs[-2]) and row["prev_date"] == date.fromordinal(days[-2])   # the day change still works
+
+
+# ---------------------------------------------------------------------------------------------- task #162: the full NAV history is kept (40 GB disk)
+
+def test_trim_keeps_everything_from_amfis_history_start():
+    start = mf.HISTORY_START.toordinal()
+    days = [start - 10, start - 1, start, start + 1, date(2026, 10, 19).toordinal()]
+    d, v = mf.trim(days, [1.0, 2.0, 3.0, 4.0, 5.0])
+    assert d == days[2:] and v == [3.0, 4.0, 5.0]       # only days before 1 April 2006 (a mirror may send them) are dropped
+    d, v = mf.trim(days[2:], [3.0, 4.0, 5.0])
+    assert d == days[2:]                                 # twenty years are not cut to five any more
+
+
+def _daily(first: date, last: date):
+    days = list(range(first.toordinal(), last.toordinal() + 1))
+    return days, [10.0 + i * 0.001 for i in range(len(days))]
+
+
+def test_chart_offers_ten_years_and_max_only_when_the_history_reaches_that_far():
+    old = mf.series_block(*_daily(mf.HISTORY_START, date(2026, 10, 19)))
+    assert {"5Y", "10Y", "MAX"} <= set(old) and old["MAX"]["t"][0] == "2006-04-01"
+    assert len(old["MAX"]["t"]) <= mf.RANGE_CAP["MAX"] and len(old["10Y"]["t"]) <= mf.RANGE_CAP["10Y"]
+    five = mf.series_block(*_daily(date(2021, 10, 1), date(2026, 10, 19)))   # five years and a few days: MAX would be a copy of 5Y
+    assert "5Y" in five and "10Y" not in five and "MAX" not in five
+    young = mf.series_block(*_daily(date(2024, 1, 1), date(2026, 10, 19)))  # under three years: MAX shows the whole life
+    assert "1Y" in young and "3Y" not in young and young["MAX"]["t"][0] == "2024-01-01"
+
+
+@needs_db
+async def test_backfill_loads_from_amfis_history_start_and_marks_the_house_full(loaded):
+    async with loaded.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT full_from, note FROM mf_backfill WHERE amc = 'Axis Mutual Fund'")
+    assert row["full_from"] == mf.HISTORY_START and str(mf.HISTORY_START) in row["note"]
+
+
+@needs_db
+async def test_a_house_loaded_with_five_years_gets_only_its_older_years(loaded):
+    """Houses done before task #162 have full_from NULL: the next run asks AMFI only for the days before the oldest NAV already stored, then marks them."""
+    from urllib.parse import parse_qs, urlsplit
+    async with loaded.pool.acquire() as conn:
+        await conn.execute("UPDATE mf_backfill SET full_from = NULL")
+        oldest = await conn.fetchval("SELECT min(d0) FROM mf_history")
+        before = {r["code"]: r["n"] for r in await conn.fetch("SELECT code, n FROM mf_history")}
+    calls = []
+    async with amfi_client(calls=calls) as c:
+        res = await mf.backfill(loaded, None, amc="Axis", client=c, log_fn=lambda *_: None, settle=False)
+        again = await mf.backfill(loaded, None, amc="Axis", client=c, log_fn=lambda *_: None, settle=False)
+    windows = []
+    for u in calls:
+        if "History" in u:
+            q = parse_qs(urlsplit(u).query)
+            windows.append(tuple(datetime.strptime(q[k][0], "%d-%b-%Y").date() for k in ("frmdt", "todt")))
+    assert res["status"] == "ok" and [d["amc"] for d in res["done"]] == ["Axis Mutual Fund"]
+    assert windows[0][0] == mf.HISTORY_START and max(b for _, b in windows) < oldest           # the five stored years are not downloaded again
+    assert max((b - a).days + 1 for a, b in windows) <= 90
+    assert again["skipped"] == ["Axis Mutual Fund"] and again["done"] == []                    # marked full: not asked again
+    async with loaded.pool.acquire() as conn:
+        after = {r["code"]: r["n"] for r in await conn.fetch("SELECT code, n FROM mf_history")}
+        assert await conn.fetchval("SELECT full_from FROM mf_backfill WHERE amc = 'Axis Mutual Fund'") == mf.HISTORY_START
+    assert all(after[k] >= before[k] for k in before)                                         # nothing stored is lost
+
+
+@needs_db
+async def test_backfill_stops_starting_houses_at_its_time_budget(loaded):
+    """The job has a 2-hour limit; it starts no new fund house after BACKFILL_HOUSE_MINUTES and ends as 'partial', the rest waiting for the next run."""
+    async with loaded.pool.acquire() as conn:
+        await conn.execute("UPDATE mf_backfill SET full_from = NULL")
+    calls = []
+    async with amfi_client(calls=calls) as c:
+        res = await mf.backfill(loaded, None, amc="all", client=c, log_fn=lambda *_: None, settle=False, max_minutes=0)
+    assert res["status"] == "partial" and res["done"] == [] and "Axis Mutual Fund" in res["waiting"]
+    assert not [u for u in calls if "History" in u]

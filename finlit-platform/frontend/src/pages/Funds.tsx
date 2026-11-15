@@ -268,8 +268,12 @@ function Risk({ d }: { d: FundDetail }) {
   );
 }
 
+// AMFI's NAV history starts on 1 April 2006 (task #162 keeps all of it): a series that starts later began with the fund's launch; one that starts then
+// only reaches back as far as AMFI's file, so "since launch" would not be true.
+export const maxLabel = (first?: string) => (first && first > "2006-04-15" ? "Since launch" : "Since 2006");
+
 function NavChart({ d }: { d: FundDetail }) {
-  const keys = (["1M", "6M", "1Y", "3Y", "5Y", "MAX"] as RangeKey[]).filter((k) => d.series[k]);
+  const keys = (["1M", "6M", "1Y", "3Y", "5Y", "10Y", "MAX"] as RangeKey[]).filter((k) => d.series[k]);
   const [range, setRange] = useState<RangeKey>(keys.includes("1Y") ? "1Y" : keys[keys.length - 1]);
   if (!keys.length) return <div className="card mf-card"><div className="card-h"><h3><span className="ci"><Icon name="line" /></span>NAV chart</h3></div><p className="muted mf-pad">{d.returnsNote || d.history.note || "No NAV history is loaded for this scheme yet."}</p></div>;
   const p = d.series[keys.includes(range) ? range : keys[0]]!;
@@ -278,7 +282,7 @@ function NavChart({ d }: { d: FundDetail }) {
     <div className="card mf-card">
       <ChartZoom label="NAV chart" className="cz-r">
       <div className="card-h"><h3><span className="ci"><Icon name="line" /></span>NAV chart</h3>
-        <div className="seg" role="group" aria-label="Chart range">{keys.map((k) => <button key={k} aria-pressed={k === range} onClick={() => setRange(k)}>{k === "MAX" ? "Since launch" : k}</button>)}</div></div>
+        <div className="seg" role="group" aria-label="Chart range">{keys.map((k) => <button key={k} aria-pressed={k === range} onClick={() => setRange(k)}>{k === "MAX" ? maxLabel(d.series.MAX?.t[0]) : k}</button>)}</div></div>
       <FundChart series={[{ key: String(d.code), label: d.name, t: p.t, v: p.v }]} format={axisFmt} label={`NAV of ${d.name}, ${range === "MAX" ? "since the first NAV on file" : "last " + range}`} />
       <p className="faint mf-fine">Total change over this range: <b className={tone(change)}>{pctText(change)}</b> (NAV of {dateIN(p.t[0])} to NAV of {dateIN(p.t[p.t.length - 1])}).
         The chart shows NAV in rupees; the line is thinned to at most a few hundred points for long periods.</p>
@@ -382,7 +386,7 @@ export function FundDetailPage() {
 
 // ================================================================================================ compare
 
-const RANGE_BUTTONS: RangeKey[] = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
+const RANGE_BUTTONS: RangeKey[] = ["1M", "6M", "1Y", "3Y", "5Y", "10Y", "MAX"];
 
 function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }) {
   const [text, setText] = useState("");
@@ -486,7 +490,7 @@ function FundMultiCompare() {
             <div className="card mf-card" aria-busy={isFetching}>
               <ChartZoom label="NAV, every scheme starting at 100" className="cz-r">
               <div className="card-h"><h3><span className="ci"><Icon name="line" /></span>NAV, every scheme starting at 100</h3>
-                <div className="seg" role="group" aria-label="Chart range">{RANGE_BUTTONS.map((k) => <button key={k} aria-pressed={k === range} onClick={() => put(ids, k)}>{k === "MAX" ? "Since launch" : k}</button>)}</div></div>
+                <div className="seg" role="group" aria-label="Chart range">{RANGE_BUTTONS.map((k) => <button key={k} aria-pressed={k === range} onClick={() => put(ids, k)}>{k === "MAX" ? "Max" : k}</button>)}</div></div>
               {data.chart ? (
                 <>
                   <FundChart base={100} format={(v) => nf(v, 1)} label={`NAV of the chosen schemes, rebased to 100 on ${dateIN(data.chart.from)}`}

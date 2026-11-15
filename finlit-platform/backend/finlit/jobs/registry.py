@@ -307,7 +307,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             sla=Sla("hours", 30), prerequisites=("facts", "industry", "portfolios"), gate=FUNDS_GATE, boot=True,
             what="Mutual Fund Screener figures: risk from month-end NAVs, ranks in category, exit load, portfolio and category-flow summaries, theme tags (database only; docs/MF-FILTERS.md)"),
         Job("backfill-mf", ("backfill-mf",), cls="bulk", priority=60, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
-            sla=Sla("hours", 192), resumable=True, gate=FUNDS_GATE, boot=True, what="five years of NAV history, one fund house at a time (resumable)"),
+            sla=Sla("hours", 192), resumable=True, gate=FUNDS_GATE, boot=True, what="the full NAV history since April 2006, one fund house at a time (resumable; task #162)"),
         Job("backfill-dii", ("backfill-dii",), cls="bulk", priority=66, max_runtime_min=20, weight_mb=100, windows=(W("NIGHT", 144),), day_rule=_saturday,
             sla=Sla("hours", 24 * 14), resumable=True, catchup=False, what="earlier days of DII flows from NSDL's own date form, weekly until the floor of NSDL's history is found (insert-only)"),
         Job("mf-returns", ("fill-mf-returns", "--limit", "400", "--max-minutes", "10"), priority=27, max_runtime_min=14, weight_mb=120, stall_min=10, interval_min=30,
