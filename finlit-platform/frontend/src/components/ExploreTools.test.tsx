@@ -126,3 +126,23 @@ describe("<ExploreTools />", () => {
     expect(screen.getByRole("link", { name: /open advanced stock screener/i }).getAttribute("href")).toBe("/advanced-score-screener");
   });
 });
+
+describe("task #159: three landing cards", () => {
+  const card = (id: string) => BUCKETS.flatMap((b) => b.cards).find((c) => c.id === id)!;
+  it("Stock Screener and Company Report are for Silver and Gold, never Free", () => {
+    expect(card("stock-screener").badge).toBe("SILVER");
+    expect(card("company-report").badge).toBe("SILVER");
+  });
+  it("the fund score card is called Mutual Fund Score", () => {
+    expect(card("fund-health-score").title).toBe("Mutual Fund Score");
+    expect(card("fund-health-score").badge).toBe("GOLD");
+  });
+  it("the company report card says what the team wrote", () => {
+    expect(card("company-report").points).toEqual([
+      "FinLit IQ (5 pillars) and Prism (7 pillars): proprietary company scoring",
+      "Valuation comparison, sector leaders and laggards",
+      "19 sections in total: financials, advanced ratios, charts, ownership and filings, and many more",
+    ]);
+  });
+});
+
