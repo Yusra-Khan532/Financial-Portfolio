@@ -21,6 +21,7 @@ import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
 import { summarise } from "../lib/mfSummary";
 import { Fig, Foot, GTerm, PlanChip } from "../mf/Bits";
 import { FactsCard } from "../mf/Facts";
+import { FundGlance, FundSectionNav } from "../mf/FundGlance";
 import { ReturnsBlock } from "../mf/Returns";
 import { PageHeader, type PageHeaderProps } from "../components/PageHeader";
 import { HoldingsSection } from "../holdings";
@@ -330,6 +331,8 @@ export function FundDetailPage() {
           </div>
         </div>
       </header>
+      <FundGlance d={d} facts={facts.data} factsLoading={facts.isLoading} />
+      <FundSectionNav present={["fd-returns", "fd-score", "fd-chart", "fd-facts", "fd-risk", "fd-holdings", ...(d.family.length ? ["fd-plans"] : []), "fd-about"]} />
 
       {!d.active && <p className="mf-note warn" role="note"><Icon name="alert" /><span>This scheme has stopped publishing NAVs{d.navDate ? `; its last NAV is dated ${dateIN(d.navDate)}` : ""}. Matured, merged and closed schemes stay in AMFI's file.</span></p>}
       {d.history.source === "mirror" && <p className="mf-note" role="note"><Icon name="info" /><span>{d.history.note}. AMFI's own history for this scheme is not loaded yet; the mirror's newest NAV was checked against AMFI's.</span></p>}
@@ -338,17 +341,17 @@ export function FundDetailPage() {
         const g = d.family.find((f) => f.optionClass === "Growth" && f.plan === d.plan && f.active) || d.family.find((f) => f.optionClass === "Growth" && f.active);
         return g ? <p className="mf-note" role="note"><Icon name="info" /><span>Returns are shown for the Growth option of this fund: <Link to={`/funds/${g.code}`}>{g.name}</Link>.</span></p> : null;
       })()}
-      <ReturnsBlock d={d} />
-      <FundScoreCard code={d.code} />
-      <NavChart key={d.code} d={d} />
+      <div id="fd-returns" className="fd-anchor"><ReturnsBlock d={d} /></div>
+      <div id="fd-score" className="fd-anchor"><FundScoreCard code={d.code} /></div>
+      <div id="fd-chart" className="fd-anchor"><NavChart key={d.code} d={d} /></div>
       <div className="mf-grid">
-        <FactsCard facts={facts.data} loading={facts.isLoading} failed={facts.isError} />
-        <Risk d={d} />
+        <div id="fd-facts" className="fd-anchor"><FactsCard facts={facts.data} loading={facts.isLoading} failed={facts.isError} /></div>
+        <div id="fd-risk" className="fd-anchor"><Risk d={d} /></div>
       </div>
-      <HoldingsSection portfolio={portfolio.data} title="What it invests in" unit="fund" />
+      <div id="fd-holdings" className="fd-anchor"><HoldingsSection portfolio={portfolio.data} title="What it invests in" unit="fund" layout="bars" fundPage /></div>
 
       {d.family.length > 0 && (
-        <div className="card mf-card">
+        <div className="card mf-card fd-anchor" id="fd-plans">
           <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>Other plans and options of this fund</h3></div>
           <div className="tw"><table className="mf-fam">
             <thead><tr><th scope="col">Plan and option</th><th scope="col">NAV</th><th scope="col">NAV date</th><th scope="col"><span className="sr-only">Compare</span></th></tr></thead>
@@ -363,7 +366,7 @@ export function FundDetailPage() {
         </div>)}
 
       <div className="mf-grid">
-        <div className="card mf-card">
+        <div className="card mf-card fd-anchor" id="fd-about">
           <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>About the data</h3></div>
           <ul className="mf-facts">
             <li><span>NAV history on file</span><b>{d.history.points ? `${d.history.points.toLocaleString("en-IN")} daily NAVs, ${dateIN(d.history.from!)} to ${dateIN(d.history.to!)}` : "None yet"}</b></li>

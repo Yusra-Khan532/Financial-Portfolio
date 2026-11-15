@@ -32,7 +32,7 @@ export const STATE_EXPLAIN: Record<string, string> = {
   Z: "The fund's own figure was a loss, which earns 0 points.",
   S: "A nearby figure or a wider peer group stood in for the one asked for.",
   F: "No usable figure, so the group value (never better than a typical fund) was used.",
-  N: "This measure does not apply to this kind of fund and is left out of the weights.",
+  N: "This measure does not apply to this kind of fund and is left out of the score.",
 };
 export const stateLine = (m: ScoreMetric & { whyText?: string | null }) => `${STATE_EXPLAIN[m.state] ?? ""}${m.whyText ? ` Reason: ${m.whyText}.` : ""}`.trim();
 export const barBand = (points: number | null) => bandOf(points);

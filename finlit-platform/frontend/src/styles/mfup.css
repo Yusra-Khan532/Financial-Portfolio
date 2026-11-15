@@ -44,3 +44,10 @@
 .fss-sub { margin: -2px 0 4px; font-size: 12px; color: var(--faint); line-height: 1.4; }
 .fss-act { display: grid; grid-template-columns: auto 1fr; gap: 8px; margin-top: 2px; } .fss-act .btn { min-height: 38px; justify-content: center; } .fss-act .btn svg { width: 14px; height: 14px; } .fss-act .btn[disabled] { opacity: .55; cursor: not-allowed; }
 .fss-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+/* Task #132: the four parts against the category median as a table (it was a radar chart) */
+.mfu-parts { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
+.mfu-parts th, .mfu-parts td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.mfu-parts thead th { font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mfu-parts td, .mfu-parts thead th { text-align: left; }
+.mfu-bd .mfu-bdtop { grid-template-columns: minmax(320px, 1fr) minmax(0, 1fr); }
+@media (max-width: 860px) { .mfu-bd .mfu-bdtop { grid-template-columns: 1fr; } }

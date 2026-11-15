@@ -63,3 +63,11 @@
 .hd-top10 li .hd-bl small { display: block; color: var(--muted); font-size: var(--fs-12); }
 .hd-more { margin: 10px 0 0; min-height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--link-gold, var(--gold)); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .hd-more:hover, .hd-more:focus-visible { border-color: var(--gold); }
+
+/* task #132: the mutual fund page: the 10 largest beside the sectors, and the change table opened by four counts */
+.hd-main { align-items: start; }
+.hd-chh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.hd-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.hd-count { min-height: 36px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s2); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.hd-count b { margin-left: 4px; } .hd-count[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--s2)); } .hd-count:disabled { opacity: .5; cursor: default; }
+@media (max-width: 640px) { .hd-count, .hd-more { min-height: 44px; } }

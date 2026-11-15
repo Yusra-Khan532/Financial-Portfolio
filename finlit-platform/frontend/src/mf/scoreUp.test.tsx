@@ -103,14 +103,16 @@ describe("breakdown", () => {
     pillars: [{ key: "performance", name: "Performance", reading: "Strong" }, { key: "risk", name: "Risk", reading: "Fair" }, { key: "cost", name: "Cost", reading: "Fair" }, { key: "quality", name: "Quality", reading: "Weak" }],
     metrics: [m("A_ONE", "performance", "A", 12, 90), m("F_TWO", "cost", "F", null, 35, { whyText: "expense ratio not reported", why: "ter_missing" }), m("N_THREE", "quality", "N", null, null)],
     categoryMedian: { performance: "Fair", risk: "Fair", cost: "Fair", quality: "Fair", final: 52, n: 40, plan: "Direct", categoryLabel: "Large Cap" } } as never;
-  it("shows the radar, the data gaps box and the table with state explanations", () => {
+  it("shows the four parts against the category median as a table (task #132: no radar), the data gaps box and the measure table", () => {
     render(<ScoreBreakdown s={s} />);
-    expect(screen.getByRole("img", { name: /Category median \(40 funds\)/ })).toBeTruthy();
+    expect(screen.queryByRole("img")).toBeNull();
+    const parts = screen.getAllByRole("table")[0];
+    expect(within(parts).getByRole("columnheader", { name: "Category median (40 funds)" })).toBeTruthy();
+    expect([...parts.querySelectorAll("tbody tr")].map((r) => [...r.children].map((c) => c.textContent))).toEqual([["Performance", "Strong", "Fair"], ["Risk", "Fair", "Fair"], ["Cost", "Fair", "Fair"], ["Quality", "Weak", "Fair"]]);
     const gaps = screen.getByLabelText("Data gaps");
     expect(gaps.textContent).toMatch(/1 measure\(s\) used the group value/); expect(gaps.textContent).toMatch(/expense ratio not reported/);
-    expect(screen.getByText(/74 months/)).toBeTruthy(); expect(screen.getByText(/31 funds · widened/)).toBeTruthy();
     fireEvent.click(screen.getByText("Show the measure-by-measure table"));
-    const t = screen.getByRole("table");
+    const t = screen.getAllByRole("table")[1];
     expect(within(t).getAllByText("Filled").length).toBe(1); expect(within(t).getByText(/does not apply to this kind of fund/)).toBeTruthy();
     expect(within(t).getAllByRole("row").length).toBe(1 + 4 + 3);
   });
