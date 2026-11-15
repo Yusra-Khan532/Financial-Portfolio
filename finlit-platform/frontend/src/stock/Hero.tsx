@@ -26,6 +26,15 @@ const KPI_SPEC: [key: string, label: string, icon: string, color: string][] = [
 ];
 
 
+/** Task #197: why a headline figure has no number. Debt/Equity and EV/EBITDA are not used for banks and lenders (their debt is their raw material, see
+ *  backend snapshot.NOT_FOR_LENDERS); any other blank uses the reason the server gives with the ratios, else says the data provider sent none. */
+const LENDER_NA = new Set(["debt_to_equity", "ev_ebitda"]);
+export function blankWhy(key: string, label: string, lender: boolean | undefined, blanks?: Record<string, string>): { short: string; long: string } {
+  if (lender && LENDER_NA.has(key)) return { short: "Not used for lenders", long: blanks?.[key] ?? `${label} is not shown for banks and lenders: their debt is their raw material.` };
+  if (blanks?.[key]) return { short: "Not available", long: blanks[key] };
+  return { short: "Not reported", long: `${label}: the data provider sent no figure for this company.` };
+}
+
 export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fin?: Financials; jump: (id: string) => void }) {
   const { toast } = useUI();
   const [dashOpen, setDashOpen] = useDashOpen();
@@ -109,11 +118,13 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
         <div className="kpis">
           {KPI_SPEC.map(([key, label, icon, color]) => {
             const m = metric(s, key), e = ratios?.latest[key], val = key === "market_cap" ? (s.profile.marketCapCr ?? m?.value ?? e?.value) : (m?.value ?? e?.value), unit = m?.unit ?? e?.unit, period = m?.period ?? e?.period;
+            const why = val == null ? blankWhy(key, label, s.dataQuality.isBank, ratios?.blanks) : null;   // task #197: a blank tile says why
             return (
-              <div className="kpi" key={key} style={{ "--kc": `var(${color})` } as React.CSSProperties}>
+              <div className="kpi" key={key} style={{ "--kc": `var(${color})` } as React.CSSProperties} title={why?.long}>
                 <div className="kl"><Icon name={icon} />{label} <Info g={ratios?.glossary[key]} /></div>
                 <div className="v">{key === "market_cap" && val != null ? <>₹{val >= 100000 ? nf(val / 100000) : nf(val, 0)}<span className="unit">{val >= 100000 ? "L Cr" : "Cr"}</span></> : fmtUnit(val, unit)}</div>
-                <div className="s">{period === "latest" ? "Latest" : period || ""}{key === "roe" && val != null ? " · reported, year-end equity" : ""}</div>
+                {why ? <div className="s kpi-why">{why.short}<span className="sr-only">. {why.long}</span></div>
+                  : <div className="s">{period === "latest" ? "Latest" : period || ""}{key === "roe" && val != null ? " · reported, year-end equity" : ""}</div>}
               </div>
             );
           })}
