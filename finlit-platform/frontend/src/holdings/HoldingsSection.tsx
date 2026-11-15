@@ -93,8 +93,10 @@ function TopBars({ rows }: { rows: Holding[] }) {
     </div>);
 }
 
-/** `layout`: "donut" (mutual fund pages, as before) or "bars" (the ETF page). `firstChanges`: open the change table on this many of the biggest moves, the rest behind a button. */
-export function HoldingsSection({ portfolio, title = "What it invests in", unit = "fund", layout = "donut", firstChanges }: { portfolio: PortfolioResult | null | undefined; title?: string; unit?: string; layout?: "donut" | "bars"; firstChanges?: number }) {
+/** `layout`: "donut" or "bars" (the ETF page, task #134; the mutual fund page, task #132). `firstChanges`: open the change table on this many of the biggest moves,
+ *  the rest behind a button (ETF page). `fundPage` (task #132, the mutual fund pack): the 10 largest beside the sectors (10 first, all one click away), every
+ *  holding and those below 1% behind one button, and the change table opened by four counts (New, Exited, Increased, Decreased) that filter it. */
+export function HoldingsSection({ portfolio, title = "What it invests in", unit = "fund", layout = "donut", firstChanges, fundPage = false }: { portfolio: PortfolioResult | null | undefined; title?: string; unit?: string; layout?: "donut" | "bars"; firstChanges?: number; fundPage?: boolean }) {
   const p = isPortfolio(portfolio) ? portfolio : null;
   const g = useMemo(() => (p ? groupHoldings(p.holdings) : null), [p]);
   const slices = useMemo(() => (g ? sliceList(g) : []), [g]);
@@ -102,6 +104,7 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
   const sectors = useMemo(() => (p ? sectorRows(p) : []), [p]);
   const [showAll, setShowAll] = useState(false);
   const [allChanges, setAllChanges] = useState(false), [allHoldings, setAllHoldings] = useState(false);
+  const [kind, setKind] = useState<ChangeKind | null>(null), [allSectors, setAllSectors] = useState(false);   // fundPage: the count that filters the change table; every sector
 
   if (!p || !g) {
     return (
@@ -114,7 +117,10 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
   const count = p.summary.count || p.holdings.length;
   const maxSector = Math.max(1, ...sectors.map((s) => s.pct));
   const moved = (changes || []).filter((c) => c.kind !== "unchanged");
-  const listed = showAll ? changes || [] : moved;
+  const COUNT_KINDS = ["new", "exited", "increased", "decreased"] as const;
+  const countOf = (k: ChangeKind) => moved.filter((c) => c.kind === k).length;
+  const listed = fundPage ? (kind ? moved.filter((c) => c.kind === kind) : moved) : showAll ? changes || [] : moved;
+  const SECTORS_FIRST = 10, sectorList = fundPage && !allSectors ? sectors.slice(0, SECTORS_FIRST) : sectors;
   const byMove = firstChanges ? [...listed].sort((a, b) => Math.abs(b.change ?? 0) - Math.abs(a.change ?? 0)) : listed;   // the biggest moves first when the list is cut
   const shownChanges = firstChanges && !allChanges ? byMove.slice(0, firstChanges) : byMove;
   return (
@@ -124,10 +130,38 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
       <dl className="hd-kpis">
         <div><dt>Holdings</dt><dd>{nf(count, 0)}</dd></div>
         <div><dt>Top 10 together</dt><dd>{pct(top10)}</dd></div>
-        <div><dt>{layout === "bars" ? `At ${SMALL_BELOW_PCT}% or more` : "Shown in the chart"}</dt><dd>{layout === "bars" ? nf(g.major.length, 0) : `${g.major.length} at ${SMALL_BELOW_PCT}% or more`}</dd></div>
+        {!fundPage && <div><dt>{layout === "bars" ? `At ${SMALL_BELOW_PCT}% or more` : "Shown in the chart"}</dt><dd>{layout === "bars" ? nf(g.major.length, 0) : `${g.major.length} at ${SMALL_BELOW_PCT}% or more`}</dd></div>}
         <div><dt>Small holdings</dt><dd>{g.otherCount} below {SMALL_BELOW_PCT}%, {pct(g.otherPct)} together</dd></div>
       </dl>
 
+      {fundPage ? (<>
+        <ChartZoom label="Largest holdings and sectors" className="cz-top">
+        <div className="hd-two hd-main">
+          <div>
+            <TopBars rows={p.holdings} />
+            <button type="button" className="hd-more" aria-expanded={allHoldings} onClick={() => setAllHoldings((v) => !v)}>{allHoldings ? "Hide the full list" : `All ${nf(count, 0)} holdings, and those below ${SMALL_BELOW_PCT}% →`}</button>
+          </div>
+          <div>
+            <h4 className="hd-h4">By sector</h4>
+            {sectors.length ? (
+              <ul className="hd-bars">{sectorList.map((s) => (
+                <li key={s.sector}><span className="hd-bl">{s.sector}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${(s.pct / maxSector) * 100}%` }} /></span><b>{pct(s.pct)}</b></li>))}</ul>
+            ) : <p className="hd-none">— No sector split is published for this {unit}.</p>}
+            {sectors.length > SECTORS_FIRST && <button type="button" className="hd-more" aria-expanded={allSectors} onClick={() => setAllSectors(!allSectors)}>{allSectors ? `Show the ${SECTORS_FIRST} largest sectors` : `All ${sectors.length} sectors`}</button>}
+            <h4 className="hd-h4">By asset type</h4>
+            <ul className="hd-bars">{assetRows(p.summary.assetSplit).map((a) => (
+              <li key={a.key}><span className="hd-bl">{a.label}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${Math.min(100, a.pct ?? 0)}%` }} /></span>
+                <b>{a.pct == null ? <span title="Not published in the source rows">—</span> : pct(a.pct)}</b></li>))}</ul>
+            <p className="hd-fine">Only classes present in the published rows are shown; a dash means the source does not give that class.</p>
+          </div>
+        </div>
+        </ChartZoom>
+        {allHoldings && <>
+          <h4 className="hd-h4">All {nf(count, 0)} holdings</h4>
+          <SmallTable rows={p.holdings} label={`All ${p.holdings.length} holdings, largest first`} />
+          <p className="hd-fine">{g.otherCount ? `${g.otherCount} of them are below ${SMALL_BELOW_PCT}%, ${pct(g.otherPct)} of the ${unit} together.` : `Every holding is at ${SMALL_BELOW_PCT}% or more.`}</p>
+        </>}
+      </>) : (<>
       {layout === "bars" ? (<>
         <TopBars rows={p.holdings} />
         <button type="button" className="hd-more" aria-expanded={allHoldings} onClick={() => setAllHoldings((v) => !v)}>{allHoldings ? "Hide the full list" : `All ${nf(count, 0)} holdings, with quantity and value →`}</button>
@@ -167,10 +201,15 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
         </div>
       </div>
 
-      <h4 className="hd-h4">Change since {p.previousAsOf ? dateIN(p.previousAsOf) : "last month"}</h4>
+      </>)}
+
+      <div className="hd-chh"><h4 className="hd-h4">Change since {p.previousAsOf ? dateIN(p.previousAsOf) : "last month"}</h4>
+        {fundPage && changes != null && <div className="hd-counts" role="group" aria-label="Show one kind of change">{COUNT_KINDS.map((k) => (
+          <button key={k} type="button" className={`hd-count ${k}`} aria-pressed={kind === k} disabled={!countOf(k)} onClick={() => setKind(kind === k ? null : k)}>{KIND_TEXT[k]} <b>{countOf(k)}</b></button>))}</div>}</div>
       {changes == null ? <p className="hd-none">— Only one month of portfolio is on file, so no change can be shown yet.</p> : (
         <>
-          <label className="hd-chk"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Include unchanged holdings</label>
+          {fundPage ? kind && <p className="hd-fine" role="status">Showing {KIND_TEXT[kind].toLowerCase()} holdings only. <button type="button" className="hd-more" onClick={() => setKind(null)}>Show every move</button></p>
+            : <label className="hd-chk"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Include unchanged holdings</label>}
           {shownChanges.length === 0 ? <p className="hd-none">No holding moved between the two months.</p> : (
             <div className="hd-scroll" tabIndex={0} role="region" aria-label="Change in holdings since the previous month">
               <table className="hd-table">

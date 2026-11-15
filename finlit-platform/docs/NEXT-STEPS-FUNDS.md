@@ -72,7 +72,7 @@
 - ETF re-fetch is still one Upstox call per ETF per night.
 
 ## Ready-made pieces
-- `frontend/src/holdings/` (HoldingsSection): donut with keyboard-focusable slices and tooltips, positions under 1% grouped into "Other holdings", a table of every small holding with its exact percent, top-10 concentration, sector list, asset split, month-over-month changes, links to /stocks/<symbol>. Tested with demo data only.
+- `frontend/src/holdings/` (HoldingsSection): the 10 largest holdings as bars (name, sector, share; task #132 replaced the donut), every holding one click away in a sortable table, top-10 concentration, sector bars (10 largest, all one click away), asset split, the month-over-month change opened by four counts (New, Exited, Increased, Decreased) that filter its table, links to /stocks/<symbol>.
 - Routes `GET /api/mf/{code}/facts|portfolio` and `GET /api/etf/{symbol}/facts|portfolio` import `finlit.disclosure` lazily and return "unavailable" with a reason when it is absent. Contract: `get_portfolio(pool, key)` returns `{asOf, previousAsOf, source, sourceUrl, holdings:[{name, isin, sector, assetClass, pct, qty, valueLakh, stockSymbol, prevPct, change}], exited, summary:{count, top10Pct, assetSplit, sectors}}`; `get_facts` returns each field as `{value, asOf, source}` or `{unavailable: reason}`. Fund page also expects `finlit.disclosure.top_by_aum(pool, n)` for the hot ranking.
 - Unfinished data-source work is parked in `docs/wip-disclosure/` (a partial `disclosure.py`, parsers, migration 036, fixtures). It is NOT shipped: it had 4 bandit B314 findings (xml parsing; use defusedxml) and no verified sources. Move it back into `backend/finlit/` only after fixing and testing.
 

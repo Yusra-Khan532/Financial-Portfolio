@@ -1,10 +1,10 @@
-// Full measure-by-measure breakdown of a score (Gold): pillars with every measure (your value, the category median, points, state and what it means,
-// a coloured bar), the radar of the four parts against the category median, and a "Data gaps" box. Rendered inside the score card when the score is rated.
+// Full measure-by-measure breakdown of a score: pillars with every measure (your value, the category median, points, state and what it means, a coloured bar),
+// the four parts against the category median as a four-row table (task #132: it was a radar chart), and a "Data gaps" box. Rendered inside the score card when
+// the score is rated. Rank, peers, NAV history used and the category median score sit in the card's top list.
 import { useState } from "react";
-import { Radar } from "./Radar";
 import { Icon } from "../lib/icons";
-import { PEER_KIND_WORD, PILLARS, STATE_WORD, dataGaps, groupMetrics, stateLine, type CategoryMedian } from "../lib/mfScoreUp";
-import { bandOf, scoreText, wordBand, wordPos, type FundScore } from "../lib/mfScore";
+import { PILLARS, STATE_WORD, dataGaps, groupMetrics, stateLine, type CategoryMedian } from "../lib/mfScoreUp";
+import { bandOf, wordBand, type FundScore } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import "../styles/mfup.css";
 
@@ -15,18 +15,18 @@ export function ScoreBreakdown({ s }: { s: S }) {
   const [open, setOpen] = useState(false);
   if (s.final == null || !s.metrics?.length) return null;
   const groups = groupMetrics(s), gaps = dataGaps(s), med = s.categoryMedian;
-  const own = PILLARS.map(([k]) => wordPos(s.pillars.find((p) => p.key === k)?.reading));
+  const word = (w: string | null | undefined) => <b className={"b-" + wordBand(w)}>{w || "Not scored"}</b>;
   return (
     <div className="mfu-bd" data-testid="score-breakdown">
-      <h3 className="mf-h4">Score breakdown</h3>
+      <h3 className="mf-h4">Score breakdown: this fund against the category median</h3>
       <div className="mfu-bdtop">
-        <Radar label="The four parts against the category median" series={[{ name: "This fund", values: own, color: "var(--gold)" }, ...(med ? [{ name: `Category median${med.n ? ` (${med.n} funds)` : ""}`, values: PILLARS.map(([k]) => wordPos(med[k])), color: "var(--k1)", dashed: true }] : [])]} />
+        <div className="tw"><table className="mfu-parts">
+          <caption className="sr-only">The four parts of this fund's score in words, beside the category median{med?.n ? ` of ${med.n} funds` : ""}</caption>
+          <thead><tr><th scope="col">Part</th><th scope="col">This fund</th><th scope="col">{med ? `Category median${med.n ? ` (${med.n} funds)` : ""}` : "Category median"}</th></tr></thead>
+          <tbody>{PILLARS.map(([k, name]) => (
+            <tr key={k}><th scope="row">{name}</th><td>{word(s.pillars.find((p) => p.key === k)?.reading)}</td><td>{med ? word(med[k]) : <span className="faint" title="The category median is not worked out for this group yet">—</span>}</td></tr>))}</tbody>
+        </table></div>
         <div className="mfu-facts">
-          <dl>
-            <dt>NAV history used</dt><dd>{s.months ? `${s.months} months (${(s.months / 12).toFixed(1)} years)` : "—"}</dd>
-            <dt>Compared with</dt><dd>{s.peers?.n ? `${s.peers.n} funds · ${PEER_KIND_WORD[s.peers.kind || ""] || s.peers.text || "similar funds"}` : "—"}</dd>
-            {med && <><dt>Category median score</dt><dd>{scoreText(med.final)} ({med.categoryLabel}, {med.plan} plan)</dd></>}
-          </dl>
           <div className={"mfu-gaps" + (gaps.length ? " has" : "")} aria-label="Data gaps">
             <h4><Icon name={gaps.length ? "alert" : "check"} /> Data gaps</h4>
             {gaps.length === 0 ? <p>Every measure used the fund's own figures.</p> : (
