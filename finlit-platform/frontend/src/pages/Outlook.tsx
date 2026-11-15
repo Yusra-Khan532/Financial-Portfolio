@@ -1,6 +1,6 @@
 // Profit and revenue outlook (Gold): estimates of revenue and net profit for the next 1, 3 or 5 financial years from the company's own history and its
 // sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Our model", or "Build your own growth model": the user's own growth rate for
-// each input (task #146), combined by the model's weights. All arithmetic is on the server; what stays here is the slider logic (lib/outlook.ts) and the chart
+// each input (task #146), combined by the model's weights. All arithmetic is on the server; what stays here is the rate-box logic (lib/outlook.ts) and the chart
 // series (lib/outlookChart.ts), both tested. Information only, not advice.
 import { PageHeader } from "../components/PageHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { Icon } from "../lib/icons";
 import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
 import { nf } from "../lib/format";
-import { DEFAULT_WEIGHTS, HORIZONS, KIND_LABEL, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, useOutlook, type Horizon, type Kind, type Outlook, type Values } from "../lib/outlook";
+import { DEFAULT_WEIGHTS, HORIZONS, KIND_LABEL, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, parseRate, signedPct, useOutlook, type Horizon, type Kind, type Outlook, type Values } from "../lib/outlook";
 import { fmtCr } from "../lib/outlookChart";
 import { OutlookChart, buildSeries } from "../charts/OutlookChart";
 import { Gate } from "../components/Gate";
@@ -38,24 +38,40 @@ export function OutlookIndexPage() {
 // ---------------------------------------------------------------------------------------------------------- pieces
 const MINE = "Your assumptions";
 
-/** One slider per input: the growth rate (percent a year) the user expects for it, set on its own (task #146). It starts at the company's own figure, which
- *  stays in view, with how much FinLit's weights count the input for the horizon. */
+/** One rate box per input (task #166, was a slider capped at +/-50%): the growth rate (percent a year) the user expects for it, typed in, set on its own
+ *  (task #146). It starts at the company's own figure, which stays in view, with how much FinLit's weights count the input for the horizon. */
+function RateBox({ id, value, set, mine, label, onCommit }: { id: string; value: number; set: boolean; mine: boolean; label: string; onCommit: (v: number) => void }) {
+  const shown = set ? value.toFixed(1) : "";
+  const [text, setText] = useState(shown);
+  const [bad, setBad] = useState(false);
+  const typing = useRef(false);   // while the box has focus, what the user types stays as typed (it is tidied to one decimal when they leave)
+  useEffect(() => { setText((t) => (typing.current && set && parseRate(t) === value ? t : shown)); setBad(false); }, [shown]);   // a change from outside (Reset) always shows
+  const commit = (t: string) => { if (!t.trim()) { setText(shown); setBad(false); return; } const v = parseRate(t); if (v == null) { setBad(true); return; } setBad(false); if (!set || v !== value) onCommit(v); };
+  return (
+    <span className={"ol-rate" + (mine ? " is-mine" : "") + (bad ? " is-bad" : "")}>
+      <input id={id} type="text" inputMode="decimal" autoComplete="off" value={text} placeholder="—" aria-invalid={bad || undefined} aria-describedby={bad ? id + "-err" : undefined}
+        onChange={(e) => { setText(e.target.value); const v = parseRate(e.target.value); setBad(e.target.value.trim() !== "" && v == null); if (v != null && (!set || v !== value)) onCommit(v); }}
+        onFocus={() => { typing.current = true; }} onBlur={(e) => { typing.current = false; commit(e.target.value); const v = parseRate(e.target.value); if (v != null) setText(v.toFixed(1)); }} onKeyDown={(e) => { if (e.key === "Enter") commit((e.target as HTMLInputElement).value); }} aria-label={`${label}, percent a year`} />
+      <span aria-hidden="true">%</span>
+      {bad && <small id={id + "-err"} className="ol-rate-err" role="alert">A rate from {VALUE_MIN}% to +{VALUE_MAX}% a year</small>}
+    </span>);
+}
+
 function Sliders({ kind, horizon, names, base, mine, ratePct, loading, onChange, onReset }: { kind: Kind; horizon: Horizon; names: Record<string, string>; base: Values; mine: Values;
   ratePct: number | null; loading: boolean; onChange: (l: string, v: number) => void; onReset: () => void }) {
   const keys = Object.keys(PARAM_LABELS[kind]);
   const moved = Object.keys(changedValues(base, mine)).length;
   const hz = HORIZONS.find((h) => h.key === horizon)!;
   return (
-    <fieldset className="ol-sliders" disabled={loading}><legend className="sr-only">Expected growth rate of each input, in percent a year</legend>
+    <fieldset className="ol-sliders ol-rates" disabled={loading}><legend className="sr-only">Expected growth rate of each input, in percent a year</legend>
       {keys.map((l) => {
         const has = base[l] != null, set = has || mine[l] != null, v = mine[l] ?? (has ? clampValue(base[l]) : 0), who = l.startsWith("sec_") ? "Sector" : "Company";
-        const ref = loading ? "Loading the company's figure" : has ? `${who} figure ${signedPct(base[l], 1)}` : `No ${who.toLowerCase()} figure; ${mine[l] != null ? "your rate is used" : "move it to use your own"}`;
+        const ref = loading ? "Loading the company's figure" : has ? `${who} figure ${signedPct(base[l], 1)}` : `No ${who.toLowerCase()} figure; ${mine[l] != null ? "your rate is used" : "type a rate to use your own"}`;
+        const name = names[l] ?? PARAM_LABELS[kind][l] ?? l;
         return (
           <div className="ol-sl" key={l}>
-            <label htmlFor={`ol-${kind}-${l}`}>{names[l] ?? PARAM_LABELS[kind][l] ?? l}<small className="faint ol-sl-ref">{ref} · counts {DEFAULT_WEIGHTS[kind][horizon][l]}%</small></label>
-            <input id={`ol-${kind}-${l}`} type="range" min={VALUE_MIN} max={VALUE_MAX} step={VALUE_STEP} value={v} onChange={(e) => onChange(l, Number(e.target.value))}
-              aria-valuetext={set ? `${signedPct(v, 1)} a year` : "no figure; not used until you set it"} />
-            <output htmlFor={`ol-${kind}-${l}`} className={"mono" + (mine[l] != null && (!has || Math.abs(base[l] - v) >= VALUE_STEP / 2) ? " is-mine" : "")}>{set ? signedPct(v, 1) : "—"}</output>
+            <label htmlFor={`ol-${kind}-${l}`}>{name}<small className="faint ol-sl-ref">{ref} · counts {DEFAULT_WEIGHTS[kind][horizon][l]}%</small></label>
+            <RateBox id={`ol-${kind}-${l}`} value={v} set={set} label={name} mine={mine[l] != null && (!has || Math.abs(base[l] - v) >= VALUE_STEP / 2)} onCommit={(n) => onChange(l, n)} />
           </div>);
       })}
       <div className="ol-total" aria-live="polite"><span>Combined yearly rate <b className="mono">{ratePct == null ? "—" : signedPct(ratePct, 2)}</b> <span className="faint">· each rate is set on its own; FinLit's {hz.label.toLowerCase()} weights (the “counts” figures) combine them</span></span>
@@ -82,8 +98,8 @@ function ChartCard({ sym, kind, horizon, own, gold, adjusting, onPick }: { sym: 
     <section className={"card ol-chartcard" + (mine.isFetching ? " is-busy" : "") + (adjusting ? " is-adjusting" : "")} aria-labelledby={`ol-ch-${kind}`} aria-busy={mine.isFetching}>
       <h2 id={`ol-ch-${kind}`}>{KIND_LABEL[kind]}: reported and estimate
         {onPick && (adjusting
-          ? <span className="ol-adj" role="status"><Icon name="gauge" />The sliders change this chart</span>
-          : <button type="button" className="ol-adj pick" onClick={onPick}><Icon name="gauge" />Adjust this chart with the sliders</button>)}
+          ? <span className="ol-adj" role="status"><Icon name="gauge" />Your rates change this chart</span>
+          : <button type="button" className="ol-adj pick" onClick={onPick}><Icon name="gauge" />Adjust this chart with your rates</button>)}
       </h2>
       {mine.isLoading && !d ? <Skeleton /> : mine.error && !d ? <p className="formerr" role="alert">{(mine.error.body?.detail as string) || "Could not load this chart."}</p> : d && series ? (
         <>
@@ -167,7 +183,7 @@ export function OutlookPage() {
   const [mode, setMode] = useState<"model" | "custom">("model");
   // The user's own growth rates (task #146), per estimate (not per horizon: a growth expectation does not change with the horizon; the weights do).
   const [mine, setMine] = useState<Record<Kind, Values>>({ profit: {}, revenue: {} });
-  const [sent, setSent] = useState<Record<Kind, Values>>({ profit: {}, revenue: {} });   // the rates last settled on: the server is asked after the sliders stop moving
+  const [sent, setSent] = useState<Record<Kind, Values>>({ profit: {}, revenue: {} });   // the rates last settled on: the server is asked once the typing stops
   useEffect(() => { const h = window.setTimeout(() => setSent(mine), 400); return () => window.clearTimeout(h); }, [mine]);
   const modelOf = { profit: useOutlook(sym, "profit", horizon, null, gold), revenue: useOutlook(sym, "revenue", horizon, null, gold) };   // the company's own figures
   const own = (k: Kind): Values | null => { if (mode !== "custom") return null; const c = changedValues(companyValues(modelOf[k].data), sent[k]); return Object.keys(c).length ? c : null; };
@@ -224,7 +240,7 @@ export function OutlookPage() {
                   {TABS.map((t) => <button key={t.kind} type="button" role="radio" aria-checked={kind === t.kind} className={kind === t.kind ? "on" : ""} onClick={() => setKind(t.kind)}>{t.label} estimate</button>)}
                 </div>
               </div>
-              <p className="faint ol-assume-p">Move a slider to set the growth rate (CAGR, percent a year) you expect for that input. Each rate is set on its own: it is not a weight and nothing has to add up to 100%. Every slider starts at the company's own figure; FinLit's weights combine your rates into one yearly rate, and the charts beside it update as you go.</p>
+              <p className="faint ol-assume-p">Type the growth rate (CAGR, percent a year) you expect for each input, any figure from −99% to +999%. Each rate is set on its own: it is not a weight and nothing has to add up to 100%. Every box starts at the company's own figure; FinLit's weights combine your rates into one yearly rate, and the charts beside it update as you go.</p>
               <Sliders kind={kind} horizon={horizon} names={names} base={companyValues(modelOf[kind].data)} mine={mine[kind]} loading={!modelOf[kind].data}
                 ratePct={(own(kind) ? q.data?.rate.ratePct : modelOf[kind].data?.rate.ratePct) ?? null}
                 onChange={(l, v) => setMine((m) => ({ ...m, [kind]: { ...m[kind], [l]: clampValue(v) } }))} onReset={() => setMine((m) => ({ ...m, [kind]: {} }))} />

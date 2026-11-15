@@ -193,7 +193,11 @@ def test_own_growth_rates_replace_the_inputs_one_by_one_and_the_model_weights_co
     frow = {x["key"]: x for x in filled["rate"]["rows"]}
     assert frow["sec_1y"]["status"] == "ok" and frow["sec_1y"]["detail"] == "no figure for this company" and frow["sec_3y"]["status"] == "unavailable"
     assert M.validate_values("revenue", None) is None and M.validate_values("profit", {"margin": -50}) == {"margin": -50.0}
-    for bad in ({"co_1y": 50.5}, {"co_1y": float("nan")}, {"margin": 3}, {"co_1y": True}):
+    # task #166: the user may type any rate from -99% to +999% a year (the model's own inputs keep the +/-50% cap)
+    assert M.validate_values("revenue", {"co_1y": 50.5, "co_3y": 120, "sec_1y": -99}) == {"co_1y": 50.5, "co_3y": 120.0, "sec_1y": -99.0}
+    big = M.forecast("revenue", h, "mid", w, sec, {"co_3y": 120.0})
+    assert {x["key"]: x for x in big["rate"]["rows"]}["co_3y"]["valuePct"] == 120.0 and big["userRangePct"] == [-99.0, 999.0] and big["inputCapPct"] == 50.0
+    for bad in ({"co_1y": 999.5}, {"co_1y": -100}, {"co_1y": float("nan")}, {"margin": 3}, {"co_1y": True}):
         with pytest.raises(M.WeightError):
             M.validate_values("revenue", bad)
 
