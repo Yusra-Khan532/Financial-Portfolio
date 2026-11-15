@@ -1,4 +1,4 @@
-"""PEG growth (model 3.6.12, current 3.6.13): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
+"""PEG growth (model 3.6.12, current 3.6.14): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
 import pytest
 from backend.premium_engine import score_company, split_adjusted_eps
 from backend.premium_model_config import MODEL_VERSION
@@ -19,7 +19,7 @@ def series(start, rate, n):
 
 
 def test_model_version_is_3_6_12():
-    assert MODEL_VERSION == "3.6.13"
+    assert MODEL_VERSION == "3.6.14"
 
 
 def test_peg_uses_eps_growth_not_profit_growth():
@@ -56,7 +56,7 @@ def test_non_positive_eps_growth_gives_no_peg_and_zero_points_and_does_not_fall_
     # EPS falls while profit rises: no PEG, and the profit growth is NOT used instead (the EPS growth exists and is negative)
     _, _, row = peg([24.0, 20.0, 16.0, 12.0, 10.0, 8.0], series(100, .30, 6))
     assert row["status"] == "Z" and row["points"] == 0
-    assert "non-positive earnings growth" in row["details"]["note"]
+    assert row["details"]["note"].startswith("Earnings growth is not positive (") and "EPS growth over 5 years" in row["details"]["note"]
     assert row["value"] is None
 
 

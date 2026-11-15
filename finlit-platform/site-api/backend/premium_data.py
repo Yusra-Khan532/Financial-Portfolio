@@ -20,6 +20,12 @@ except ImportError:
     from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 
 
+PROFIT_FIELDS = ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent",
+                 "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems",
+                 "profitLossAfterTaxBeforeExtraordinaryItems")
+EPS_FIELDS = ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr")
+
+
 def adapt_inputs(raw, symbol, as_of, statement_type):
     profile = profile_from(raw)
     group, defaulted = resolve_group(profile)
@@ -84,7 +90,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
-        return record(row, "net_profit", ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent", "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems", "profitLossAfterTaxBeforeExtraordinaryItems"))
+        return record(row, "net_profit", PROFIT_FIELDS)
     def ebitda(row):
         value = record(row, "operating_profit", ("ebitda", "EBITDA", "earningsBeforeInterestTaxesDepreciationAndAmortization"))
         if value is not None: return value
@@ -96,7 +102,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         interest = record(row, "operating_profit", INTEREST_COST_FIELDS)
         other = record(row, "operating_profit", ("otherIncome",))
         return pbt + interest + depreciation - other if all(v is not None for v in (pbt, interest, depreciation, other)) else None
-    def eps(row): return record(row, "eps", ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr"), 1)
+    def eps(row): return record(row, "eps", EPS_FIELDS, 1)
     def net_worth(row, target="net_worth"):
         # Model specification section 2 names Total equity, including non-controlling interests.
         value = record(row, target, ("totalEquity", "shareholdersEquity", "netWorth", "equity"))
@@ -134,6 +140,24 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         "interest_cost": record(current_a, "interest_cost", INTEREST_COST_FIELDS),
         "total_assets": record(current_b, "total_assets", ("totalAssets", "totalAsset", "assets")),
     }
+    # PEG growth fallback (3.6.14, owner 15 November 2026): FinEdge's consolidated history can start years after the standalone one (Nestle, ABB: one or two
+    # consolidated years against eight or nine standalone). The yearly standalone EPS and profit are kept beside the consolidated ones so the engine can
+    # measure EPS growth on them when the consolidated EPS history is too short for a 3- or 5-year window. Only PEG's growth uses them, and the report says so.
+    # Kept as the reported annual periods in order (not calendar slots) with their end dates, so a change of year-end (Nestle: December 2023, then
+    # March 2025, the 15-month period between being dropped as non-comparable) does not break the run of years; the engine uses the real time between ends.
+    d["eps_y_standalone"], d["net_profit_y_standalone"], d["standalone_period_ends"] = [], [], []
+    if statement_type == "consolidated":
+        kept = len(warnings)
+        sa = dated(comparable(items(raw.get("annual_standalone"), "financials", "data"), 330, 400, "annual"))
+        del warnings[kept:]             # standalone periods are not the report's statements; their exclusions are not report warnings
+        sa_ends = sorted(sa)[-(CAGR_MAX_YEARS + 3):]
+        def plain(row, names, scale):
+            value = first(row, *names)
+            return value / scale if value is not None else None
+        d["eps_y_standalone"] = [plain(sa[day], EPS_FIELDS, 1) for day in sa_ends]
+        d["net_profit_y_standalone"] = [plain(sa[day], PROFIT_FIELDS, CR) for day in sa_ends]
+        d["standalone_period_ends"] = [day.isoformat() for day in sa_ends]
+    d["consolidated_years"] = ykeys
     # Cash and other bank balances are disjoint provider fields. Do not assume all investments are liquid.
     other_bank = record(current_b, "cash", ("otherBankBalances",))
     if d["cash"] is not None and other_bank is not None and num(current_b.get("cashAndBankBalances")) is None:

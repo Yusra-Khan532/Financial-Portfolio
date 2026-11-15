@@ -298,7 +298,8 @@ CLASSIFICATION_VERSION = 3
 # Mirrors site-api/backend/premium_model_config.py; a regression test keeps them aligned.
 # 3.6.12: the growth in PEG is EPS growth (split/bonus adjusted), falling back to net profit growth; stored reports of an older version are rebuilt.
 # 3.6.13: NBFCs with neither Gross NPA nor Net NPA use financial leverage (assets / equity, 10x-4x) in those two Quality slots.
-REQUIRED_MODEL_VERSION = "3.6.13"
+# 3.6.14: PEG growth uses standalone EPS history when the consolidated one is too short for a 3-year window.
+REQUIRED_MODEL_VERSION = "3.6.14"
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 
 
