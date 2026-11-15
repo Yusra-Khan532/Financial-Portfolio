@@ -19,6 +19,7 @@ describe("'FinLit score' is 'FinLit IQ' everywhere a person can read it", () => 
         const around = src.slice(Math.max(0, (m.index ?? 0) - 12), (m.index ?? 0) + m[0].length + 14);
         if (/FinLit models? scores?/i.test(m[0]) && /how the FinLit model scores/i.test(around)) continue;     // "how the FinLit model scores them": a verb, not the name
         if (/FinLit scores describe a co/.test(src.slice(m.index ?? 0, (m.index ?? 0) + 30))) continue;       // the one line under every screener table, worded by the team (13 Nov 2026 handover)
+        if (/FinLit's score for the company, 0 to 100, from its filed statements and prices\./.test(src.slice(m.index ?? 0, (m.index ?? 0) + 90))) continue;   // the Basic screener's FinLit IQ line, worded by the team (14 Nov 2026, N-26)
         hits.push(`${f.replace(ROOT, "")}: ${around.replace(/\s+/g, " ")}`);
       }
     }

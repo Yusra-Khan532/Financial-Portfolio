@@ -1,5 +1,5 @@
-// P/E, EPS & PEG calculator (free; named so in task #156, was "EPS & P/E calculator"): earnings per share and P/E from four inputs, then a future-EPS and price scenario with Bear/Base/Bull cases, a
-// sensitivity grid, year-by-year charts, PEG and the growth a target price needs. All arithmetic lives in lib/epsCalc.ts (pure, tested).
+// P/E, EPS & PEG calculator (free; named so in task #156, was "EPS & P/E calculator"): earnings per share and P/E from four inputs, PEG and 5-year growth
+// scenarios, then a future-EPS and price scenario with Bear/Base/Bull cases, a sensitivity grid and year-by-year charts. All arithmetic lives in lib/epsCalc.ts (pure, tested).
 // A company can be loaded from our stored annual figures (net profit attributable to owners, diluted weighted shares, price); every field stays editable.
 import { PageHeader } from "../components/PageHeader";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
@@ -13,18 +13,18 @@ import { csvText, dateIN, nf } from "../lib/format";
 import { TERMS } from "../lib/glossary";
 import { Info } from "../components/Info";
 import {
-  LIMITS, MINUS, around, checkCase, eps as epsOf, fix2, parseNum, path, pctText, pe as peOf, peg as pegOf, project, requiredGrowth, sensitivity, type Case,
+  LIMITS, MINUS, around, checkCase, eps as epsOf, fix2, parseNum, path, pctText, pe as peOf, peg as pegOf, project, sensitivity, futureEps, priceReturn, type Case,
 } from "../lib/epsCalc";
 import "../styles/dcf.css";
 import "../styles/eps.css";
 import { ChartZoom } from "../components/ChartZoom";
 
 // ------------------------------------------------------------------------------------------------------------- form state
-type Form = { np: string; pd: string; sh: string; ds: string; px: string; m: "b" | "d"; g: string; pe: string; n: string; bg: string; bp: string; ug: string; up: string; tp: string; sym: string };
-const DEFAULT: Form = { np: "100", pd: "0", sh: "10", ds: "", px: "300", m: "b", g: "12", pe: "20", n: "5", bg: "6", bp: "15", ug: "18", up: "25", tp: "", sym: "" };
+type Form = { np: string; pd: string; sh: string; ds: string; px: string; m: "b" | "d"; g: string; pe: string; n: string; bg: string; bp: string; ug: string; up: string; sym: string };
+const DEFAULT: Form = { np: "100", pd: "0", sh: "10", ds: "", px: "300", m: "b", g: "12", pe: "20", n: "5", bg: "6", bp: "15", ug: "18", up: "25", sym: "" };
 /** The fields a company fills (and Deselect puts back), task #156. */
 const COMPANY_DEFAULTS: Partial<Form> = { np: DEFAULT.np, pd: DEFAULT.pd, sh: DEFAULT.sh, ds: DEFAULT.ds, px: DEFAULT.px, m: DEFAULT.m, sym: "" };
-const PARAM: Record<string, keyof Form> = { np: "np", pd: "pd", sh: "sh", ds: "ds", px: "px", m: "m", g: "g", pe: "pe", n: "n", bg: "bg", bp: "bp", ug: "ug", up: "up", tp: "tp", sym: "sym" };
+const PARAM: Record<string, keyof Form> = { np: "np", pd: "pd", sh: "sh", ds: "ds", px: "px", m: "m", g: "g", pe: "pe", n: "n", bg: "bg", bp: "bp", ug: "ug", up: "up", sym: "sym" };
 
 function fromParams(sp: URLSearchParams): Form {
   const f = { ...DEFAULT };
@@ -39,10 +39,13 @@ function toParams(f: Form): URLSearchParams {
   return sp;
 }
 
+// quick picks for 5-year EPS growth and the P/E multiples in the scenario table (task #155)
+const PICKS = [5, 10, 15, 20, 25];
+const PE_ROWS = [15, 20, 25, 30, 35];
+
 // ------------------------------------------------------------------------------------------------------------- formatting
 const rs = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "—" : (v < 0 ? MINUS + "₹" : "₹") + nf(Math.abs(Number(fix2(v))), 2));
 const mult = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "—" : nf(Number(fix2(v)), 2) + "x");
-const pcA = (v: number) => (v < 0 ? MINUS : "") + nf(Math.abs(Number(fix2(v))), 2) + "%";
 
 // ------------------------------------------------------------------------------------------------------------- help (glossary mechanism)
 const term = (id: string, label?: string): Glossary | undefined => {
@@ -52,6 +55,7 @@ const term = (id: string, label?: string): Glossary | undefined => {
 const HELP = {
   eps: term("earnings-per-share-eps"), basic: term("basic-eps"), diluted: term("diluted-eps"), shares: term("weighted-average-shares"), pe: term("price-to-earnings-ratio-p-e"),
   target: term("target-pe"), implied: term("implied-future-price"), peg: term("peg-ratio"),
+  cagr: { key: "cagr", label: "Expected EPS growth (CAGR)", what: "The rate a year at which you assume earnings per share will grow, compounded over the next 5 years. It is your assumption, not a forecast; the scenario tables below show how the results change at other rates.", formula: "EPS in 5 years = EPS today × (1 + growth)^5" } as Glossary,
   pref: { key: "pref", label: "Preference dividends", what: "Dividends owed to preference shareholders. They are paid before ordinary shareholders, so they come off profit when working out EPS. Enter 0 if the company has no preference shares.", formula: "Profit for ordinary shareholders = Net profit − Preference dividends" } as Glossary,
 };
 
@@ -192,7 +196,7 @@ function exportCsv(f: Form, rows: (string | number)[][]) {
 
 // ------------------------------------------------------------------------------------------------------------- page
 export function EpsCalculatorPage() {
-  useDocTitle("P/E, EPS & PEG calculator", "P/E, earnings per share, PEG and a future-price scenario: basic or diluted EPS, Bear/Base/Bull cases, a sensitivity grid, PEG and the growth a target price needs.");
+  useDocTitle("P/E, EPS & PEG calculator", "Earnings per share, P/E and a future-price scenario: basic or diluted EPS, PEG, 5-year growth and P/E scenarios, Bear/Base/Bull cases and a sensitivity grid.");
   const { toast } = useUI();
   const [sp, setSp] = useSearchParams();
   const [form, setForm] = useState<Form>(() => fromParams(sp));
@@ -227,16 +231,20 @@ export function EpsCalculatorPage() {
   const whyNone = a.e == null ? "Complete the four inputs above first." : a.e <= 0 ? "Not meaningful: EPS is zero or negative, so growing it by a percentage does not describe a business." : !(a.px > 0) ? "Enter a share price above zero." : !chk.ok ? "Fix the assumptions to see the scenario." : "";
   const pts = useMemo(() => (proj && a.e ? path(a.e, base, n) : null), [proj, a.e, base.growth, base.targetPe, n]);   // eslint-disable-line react-hooks/exhaustive-deps
   const selYear = Math.min(sel, Number.isInteger(n) ? n : 0);
-  const tpNum = parseNum(form.tp);
-  const req = form.tp.trim() === "" ? null : requiredGrowth(tpNum, base.targetPe, a.e, n);
   const peg = pegOf(a.pe.value, base.growth);
+  const eps5 = a.e != null && a.e > 0 && !chk.growth ? futureEps(a.e, base.growth, 5) : null;
+  // scenario tables (task #155): growth rows are the quick picks plus the user's own rate; P/E rows are fixed multiples plus today's P/E
+  const scenOk = a.e != null && a.e > 0 && a.px > 0 && !a.errs.px;
+  const scenWhy = a.e == null || a.errs.px ? "Complete the company inputs to see the scenarios." : "Not meaningful: EPS is zero or negative, so growth rates and P/E multiples do not describe a price.";
+  const gScen = [...new Set([...PICKS, ...(Number.isFinite(base.growth) && !chk.growth ? [base.growth] : [])])].sort((x, y) => x - y);
+  const peScen = [...PE_ROWS.map((m) => ({ m, cur: false })), ...(a.pe.value != null ? [{ m: a.pe.value, cur: true }] : [])].sort((x, y) => x.m - y.m || Number(x.cur) - Number(y.cur));
   const gCols = around(base.targetPe, base.targetPe >= 20 ? 5 : 2.5, 5, 0.5, LIMITS.peMax), gRows = around(base.growth, 3, 5, LIMITS.growthMin, LIMITS.growthMax);
   const grid = useMemo(() => (proj ? sensitivity(a.e, a.px, gRows, gCols, n) : null), [proj, a.e, a.px, n, base.growth, base.targetPe]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const onLoad = (patch: Partial<Form>, info: Loaded) => { setForm((f) => ({ ...f, ...patch })); setLoaded(info); };
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied: it opens the calculator with these inputs."); } catch { toast("Copy the address from the browser bar."); } };
   const reset = () => { setForm(DEFAULT); setLoaded(null); setSel(0); };
-  // Deselect (task #156): the figures that came from the company go back to the starting example; the scenario typed below (growth, P/E, years, cases, target price) stays.
+  // Deselect (task #156): the figures that came from the company go back to the starting example; the scenario typed below (growth, P/E, years, cases) stays.
   const clearCompany = () => { setForm((f) => ({ ...f, ...COMPANY_DEFAULTS })); setLoaded(null); setSel(0); if (sp.get("load")) { const n = new URLSearchParams(sp); n.delete("load"); setSp(n, { replace: true }); } };
   const csv = () => exportCsv(form, [["Input", "Value"], ["Net profit (Rs Cr)", a.np], ["Preference dividends (Rs Cr)", a.pd], [diluted ? "Diluted weighted average shares (crore)" : "Weighted average shares (crore)", a.sh],
     ["Current share price (Rs)", a.px], ["EPS measure", diluted ? "diluted" : "basic"], ["EPS growth %", base.growth], ["Target P/E (x)", base.targetPe], ["Years", n], [],
@@ -256,32 +264,83 @@ export function EpsCalculatorPage() {
       <div className="wrap dcf eps">
         <CompanyLoader initial={sp.get("load") === "1" && form.sym ? form.sym : null} loaded={loaded} onLoad={onLoad} onClear={clearCompany} />
 
-        <section className="card" aria-labelledby="eps-1-h">
-          <h2 id="eps-1-h">1. Calculate EPS <span className="faint">₹ crore unless stated</span></h2>
-          <div className="dcf-opts eps-measure" role="group" aria-label="EPS measure">
-            <span>EPS measure</span>
-            <button type="button" className={"chip-b" + (!diluted ? " on" : "")} aria-pressed={!diluted} onClick={() => set("m")("b")}>Basic</button><Info g={HELP.basic} />
-            <button type="button" className={"chip-b" + (diluted ? " on" : "")} aria-pressed={diluted} onClick={() => setForm((f) => ({ ...f, m: "d", ds: f.ds.trim() === "" ? f.sh : f.ds }))}>Diluted</button><Info g={HELP.diluted} />
+        <div className="eps-top">
+          <section className="card eps-box" aria-labelledby="eps-1-h">
+            <div className="eps-boxh">
+              <h2 id="eps-1-h"><span className="eps-no" aria-hidden="true">1</span>Company inputs</h2>
+              <div className="eps-measure" role="group" aria-label="EPS measure">
+                <span>EPS measure:</span>
+                <span className="eps-seg">
+                  <button type="button" className={!diluted ? "on" : ""} aria-pressed={!diluted} onClick={() => set("m")("b")}>Basic</button>
+                  <button type="button" className={diluted ? "on" : ""} aria-pressed={diluted} onClick={() => setForm((f) => ({ ...f, m: "d", ds: f.ds.trim() === "" ? f.sh : f.ds }))}>Diluted</button>
+                </span>
+                <Info g={diluted ? HELP.diluted : HELP.basic} />
+              </div>
+            </div>
+            <div className="dcf-grid eps-ingrid">
+              <Field id="np" label="Net profit (₹ crore)" help={HELP.eps} value={form.np} onChange={set("np")} error={a.errs.np} />
+              <Field id="pd" label="Preference dividends (₹ crore)" help={HELP.pref} value={form.pd} onChange={set("pd")} error={a.errs.pd} required={false} />
+              {diluted
+                ? <Field id="ds" label="Diluted weighted average shares (crore)" help={HELP.shares} value={form.ds} onChange={set("ds")} error={a.errs.sh} />
+                : <Field id="sh" label="Weighted average shares (crore)" help={HELP.shares} value={form.sh} onChange={set("sh")} error={a.errs.sh} />}
+              <Field id="px" label="Current share price (₹)" value={form.px} onChange={set("px")} error={a.errs.px} />
+            </div>
+            <p className="faint eps-inote">Net profit is profit attributable to the owners of the company (negative for a loss). Leave preference dividends at 0 if there are none. {diluted ? "Diluted shares include shares that options and convertibles could create." : "Shares are ordinary shares, each counted for the part of the year it existed."}</p>
+          </section>
+
+          <section className="card eps-box" aria-labelledby="eps-g-h">
+            <div className="eps-boxh"><h2 id="eps-g-h"><span className="eps-no" aria-hidden="true">2</span>EPS growth assumption</h2></div>
+            <div className="eps-grow">
+              <Field id="g5" label="Expected EPS growth (CAGR) for the next 5 years" help={HELP.cagr} value={form.g} onChange={set("g")} unit="%" error={chk.growth} />
+              <div className="eps-picks" role="group" aria-label="Quick pick growth">
+                <span className="faint">Quick pick:</span>
+                {PICKS.map((v) => <button key={v} type="button" className={base.growth === v ? "on" : ""} aria-pressed={base.growth === v} onClick={() => set("g")(String(v))}>{v}%</button>)}
+              </div>
+            </div>
+            <p className="faint eps-inote">A scenario assumption, not a forecast. It is also the Base growth in section 3, so changing one changes the other.</p>
+          </section>
+        </div>
+
+        <section className="card" aria-labelledby="eps-r-h">
+          <h2 id="eps-r-h"><span className="eps-ico" aria-hidden="true"><Icon name="bars" /></span>Calculated results</h2>
+          <div className="eps-res" aria-live="polite">
+            <div className="eps-tile"><span className="eps-ti" aria-hidden="true"><Icon name="coins" /></span><div><span>EPS (₹) <Info g={HELP.eps} /></span><b className={a.e != null && a.e < 0 ? "down" : ""}>{a.e == null ? "—" : rs(a.e)}</b>
+              <small>{a.e == null ? "Complete the inputs" : <>({nf(a.np, 2)} − {nf(a.pd, 2)}) ÷ {nf(a.sh, 2)} · {diluted ? "diluted" : "basic"}{a.e < 0 ? ", a loss per share" : ""}</>}</small></div></div>
+            <div className="eps-tile"><span className="eps-ti" aria-hidden="true"><Icon name="bars" /></span><div><span>P/E ratio <Info g={HELP.pe} /></span><b>{a.pe.value == null ? "Not meaningful" : mult(a.pe.value)}</b>
+              <small>{a.pe.value == null ? a.pe.reason : <>Price ÷ EPS ({nf(a.px, 2)} ÷ {fix2(a.e as number)})</>}</small></div></div>
+            <div className="eps-tile"><span className="eps-ti" aria-hidden="true"><Icon name="growth" /></span><div><span>PEG ratio <Info g={HELP.peg} /></span><b>{peg.value == null ? "Not meaningful" : fix2(peg.value)}</b>
+              <small>{peg.value == null ? peg.reason : <>P/E ÷ growth ({fix2(a.pe.value as number)} ÷ {nf(base.growth, 1)})</>}</small></div></div>
+            <div className="eps-tile alt"><span className="eps-ti" aria-hidden="true"><Icon name="spark" /></span><div><span>Implied 5Y EPS (₹)</span><b>{eps5 == null ? "—" : rs(eps5)}</b>
+              <small>{eps5 == null ? (a.e == null ? "Complete the inputs" : a.e <= 0 ? "Not meaningful: EPS is zero or negative" : chk.growth) : <>{fix2(a.e as number)} × (1 + {nf(base.growth, 1)}%)<sup>5</sup></>}</small></div></div>
           </div>
-          <div className="dcf-grid">
-            <Field id="np" label="Net profit (₹ crore)" help={HELP.eps} value={form.np} onChange={set("np")} error={a.errs.np} hint="Profit attributable to the owners of the company. Negative for a loss." />
-            <Field id="pd" label="Preference dividends (₹ crore)" help={HELP.pref} value={form.pd} onChange={set("pd")} error={a.errs.pd} required={false} hint="Leave empty or 0 if there are no preference shares." />
-            {diluted
-              ? <Field id="ds" label="Diluted weighted average shares (crore)" help={HELP.shares} value={form.ds} onChange={set("ds")} error={a.errs.sh} hint="Includes shares that options and convertibles could create." />
-              : <Field id="sh" label="Weighted average shares (crore)" help={HELP.shares} value={form.sh} onChange={set("sh")} error={a.errs.sh} hint="Ordinary shares, each counted for the part of the year it existed." />}
-            <Field id="px" label="Current share price (₹)" value={form.px} onChange={set("px")} error={a.errs.px} />
-          </div>
-          <div className="dcf-sum eps-sum" aria-live="polite">
-            <div className="dcf-k main"><span>Earnings Per Share (₹) <Info g={HELP.eps} /></span><b className={a.e != null && a.e < 0 ? "down" : ""}>{a.e == null ? "—" : rs(a.e)}</b><small>{diluted ? "Diluted" : "Basic"} EPS{a.e != null && a.e < 0 ? ": a loss per share" : ""}</small></div>
-            <div className="dcf-k"><span>Calculated P/E ratio <Info g={HELP.pe} /></span><b>{a.pe.value == null ? "Not meaningful" : mult(a.pe.value)}</b><small>{a.pe.value == null ? a.pe.reason : "price ÷ EPS"}</small></div>
-          </div>
-          <p className="faint eps-formula">(Net profit − Preference dividends) ÷ Weighted average diluted or basic shares, depending on the EPS measure selected.
-            {a.e != null && <> Here: ({nf(a.np, 2)} − {nf(a.pd, 2)}) ÷ {nf(a.sh, 2)} = <b>{rs(a.e)}</b>.</>}</p>
           {a.e != null && a.pd > 0 && a.np - a.pd < 0 && a.np >= 0 && <p className="dcf-note" role="note"><Icon name="info" />Preference dividends are larger than net profit, so nothing is left for ordinary shareholders and EPS is negative.</p>}
+          <p className="faint eps-formula">EPS = (Net profit − Preference dividends) ÷ weighted average basic or diluted shares, as selected. PEG uses the growth rate you assume, not a history, and says nothing where growth is zero or negative or the P/E is not meaningful. FinLit's PEG on company pages uses 5-year profit growth instead.</p>
         </section>
 
+        <div className="eps-scen">
+          <section className="card" aria-labelledby="eps-s1-h">
+            <h2 id="eps-s1-h"><span className="eps-ico" aria-hidden="true"><Icon name="line" /></span><span>Scenario analysis: EPS growth and PEG<small className="faint">How PEG changes with different EPS growth rates{a.pe.value != null ? ` (P/E held at ${mult(a.pe.value)})` : ""}</small></span></h2>
+            {scenOk ? <div className="eps-tw"><table className="eps-st"><caption className="sr-only">Implied EPS in year 5 and PEG for each EPS growth rate</caption>
+              <thead><tr><th scope="col">EPS growth (CAGR, 5Y)</th><th scope="col" className="num">Implied EPS (₹, year 5)</th><th scope="col" className="num">PEG ratio</th></tr></thead>
+              <tbody>{gScen.map((r) => { const pg = pegOf(a.pe.value, r), on = r === base.growth; return (
+                <tr key={r} className={on ? "cur" : ""}><th scope="row">{nf(r, r % 1 ? 1 : 0)}%{on && " (Base)"}</th><td className="num">{nf(Number(fix2(futureEps(a.e as number, r, 5))), 2)}</td>
+                  <td className="num"><span className="eps-pill">{pg.value == null ? "—" : fix2(pg.value) + "x"}</span></td></tr>); })}</tbody></table></div>
+              : <p className="dcf-note" role="note"><Icon name="info" />{scenWhy}</p>}
+          </section>
+          <section className="card" aria-labelledby="eps-s2-h">
+            <h2 id="eps-s2-h"><span className="eps-ico" aria-hidden="true"><Icon name="layers" /></span><span>Scenario analysis: P/E and implied price<small className="faint">Indicative share price at different P/E multiples{a.e != null && a.e > 0 ? ` (EPS = ${rs(a.e)})` : ""}</small></span></h2>
+            {scenOk ? <div className="eps-tw"><table className="eps-st"><caption className="sr-only">Implied share price at each P/E multiple and its difference from today's price</caption>
+              <thead><tr><th scope="col">P/E multiple</th><th scope="col" className="num">Implied price (₹)</th><th scope="col" className="num">Upside / downside vs {rs(a.px)}</th></tr></thead>
+              <tbody>{peScen.map(({ m, cur }) => { const price = m * (a.e as number), d = priceReturn(price, a.px); return (
+                <tr key={m + (cur ? "c" : "")} className={cur ? "cur" : ""}><th scope="row">{mult(m)}{cur && " (Current)"}</th><td className="num">{nf(Number(fix2(price)), 2)}</td>
+                  <td className="num">{cur ? "—" : <span className={"eps-pill " + (d > 0 ? "up" : d < 0 ? "down" : "")}>{pctText(d)}</span>}</td></tr>); })}</tbody></table></div>
+              : <p className="dcf-note" role="note"><Icon name="info" />{scenWhy}</p>}
+          </section>
+        </div>
+        <p className="faint eps-scnote">Both tables apply simple arithmetic to your inputs: they describe what each assumption implies, not what will happen. Prices exclude dividends, taxes and costs.</p>
+
         <section className="card" aria-labelledby="eps-2-h">
-          <h2 id="eps-2-h">2. Future EPS & valuation</h2>
+          <h2 id="eps-2-h">3. Future EPS & valuation</h2>
           <div className="dcf-grid">
             <Field id="g" label="Annual EPS growth (%)" value={form.g} onChange={set("g")} unit="%" error={chk.growth} hint={`A scenario assumption, from ${LIMITS.growthMin}% to ${LIMITS.growthMax}%.`} />
             <Field id="pe" label="Target P/E multiple (x)" help={HELP.target} value={form.pe} onChange={set("pe")} unit="x" error={chk.targetPe} hint="The multiple assumed at the end of the period." />
@@ -321,7 +380,7 @@ export function EpsCalculatorPage() {
                   </div>);
               })}
             </div>
-            <p className="faint">The Base case is the assumptions in section 2; edit it here or there. Bear and Bull are yours to set.</p>
+            <p className="faint">The Base case is the assumptions in section 3; edit it here or there. Bear and Bull are yours to set.</p>
           </section>
 
           <section className="card" aria-labelledby="eps-sens-h">
@@ -345,22 +404,6 @@ export function EpsCalculatorPage() {
             <p className="faint">Hover, touch or use the arrow keys on a chart to read a year. The price path applies the same target P/E to every year's EPS, so it is not a forecast of where the price will be along the way.</p>
           </section>
 
-          <section className="card" aria-labelledby="eps-an-h">
-            <h2 id="eps-an-h">Growth, PEG and the reverse question</h2>
-            <div className="dcf-kv">
-              <span>PEG ratio <Info g={HELP.peg} /> <b>{peg.value == null ? "—" : fix2(peg.value)}</b></span>
-              <span>P/E {mult(a.pe.value)} ÷ assumed growth {pcA(base.growth)}</span>
-            </div>
-            <p className="faint">{peg.value == null ? `PEG is not shown: ${peg.reason?.toLowerCase()}` : "PEG uses the growth rate assumed above, not a history, and says nothing where growth is zero or negative or the P/E is not meaningful. FinLit's PEG on company pages uses 5-year profit growth instead."}</p>
-            <div className="dcf-grid eps-rev">
-              <Field id="tp" label="Target price (₹), to work backwards" value={form.tp} onChange={set("tp")} required={false} hint={`Uses the target P/E (${nf(base.targetPe, 1)}x) and ${n} years above.`} />
-              <div className="dcf-f"><span className="eps-revlabel">EPS growth needed a year</span>
-                <output className="eps-revout" aria-live="polite">{req == null ? "Enter a target price" : req.value == null ? "Not available" : pcA(req.value)}</output>
-                {req && req.value == null && <p className="dcf-err">{req.reason}</p>}
-                {req && req.value != null && <p className="dcf-hint faint">{req.value > LIMITS.growthMax ? `Above the ${LIMITS.growthMax}% a year this calculator accepts, which suggests the target is very demanding for ${n} years. ` : ""}Compared with {pcA(base.growth)} a year in your Base case. Formula: ((target price ÷ target P/E) ÷ EPS)^(1/n) − 1.</p>}
-              </div>
-            </div>
-          </section>
         </>)}
 
         <section className="card" aria-labelledby="eps-sh-h">

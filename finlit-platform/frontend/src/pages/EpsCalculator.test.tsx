@@ -1,56 +1,74 @@
 // @vitest-environment jsdom
-// Task #156: "give deselect button if i select any company below search bar" and "change name of calculator to pe, eps and peg calculator".
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+// Task #155: the top of the EPS & P/E calculator is company inputs + a 5-year EPS growth assumption, four results (EPS, P/E, PEG,
+// implied 5-year EPS) and two scenario tables; the old "Growth, PEG and the reverse question" part is gone.
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn() }) }));
-vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title }: { title: string }) => <header><h1>{title}</h1></header> }));
+vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
+vi.mock("../components/Info", () => ({ Info: () => null }));
+vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
+vi.mock("../components/ChartZoom", () => ({ ChartZoom: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: () => undefined }) }));
 vi.mock("../components/SearchFilters", () => ({
   SearchFilters: () => null, FilterNote: () => null,
-  useIndexFilter: () => ({ idx: { data: {} }, search: (q: string) => (q ? [["RELIANCE", "Reliance Industries Ltd"]] : []), facets: [], filter: {}, setFilter: () => {}, count: 0, on: false, hidden: () => 0 }),
+  useIndexFilter: () => ({ idx: { data: undefined }, search: () => [], facets: [], filter: {}, setFilter: () => undefined, count: 0, on: false, hidden: () => 0 }),
 }));
-const SUMMARY = { meta: { symbol: "RELIANCE", statement: "consolidated" }, profile: { name: "Reliance Industries Ltd" }, quote: { price: 1339.6, asOf: "2026-11-13" } };
-const FIN = { meta: { symbol: "RELIANCE" }, yearly: { pl: { periods: ["FY26"], periodEnds: ["2026-03-31"], rows: { net_profit: [80775], diluted_shares_cr: [1353.2], eps: [59.69] } } } };
-vi.mock("../lib/api", async (orig) => ({
-  ...(await orig<typeof import("../lib/api")>()),
-  useSummary: (s: string, on: boolean) => ({ data: on && s ? SUMMARY : undefined, isFetching: false, isError: false }),
-  useSection: (s: string, _k: string, on: boolean) => ({ data: on && s ? FIN : undefined, isFetching: false, isError: false }),
-}));
+vi.mock("../lib/api", () => ({ useSummary: () => ({ data: undefined }), useSection: () => ({ data: undefined }) }));
 import { EpsCalculatorPage } from "./EpsCalculator";
 
 afterEach(cleanup);
-const open = (path = "/eps-calculator") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><EpsCalculatorPage /></MemoryRouter></QueryClientProvider>);
-const val = (id: string) => (document.getElementById("eps-" + id) as HTMLInputElement).value;
+// the founder's example: net profit 110, no preference dividends, 10 crore shares, price 300, 14% growth
+const open = (q = "?np=110&pd=0&sh=10&px=300&g=14") => render(<MemoryRouter initialEntries={["/eps-calculator" + q]}><EpsCalculatorPage /></MemoryRouter>);
+const tile = (name: RegExp) => screen.getByText(name, { selector: ".eps-tile span" }).closest(".eps-tile") as HTMLElement;
+const rows = (h: string) => [...(screen.getByRole("heading", { name: new RegExp(h) }).closest("section") as HTMLElement).querySelectorAll("tbody tr")].map((r) => [...r.children].map((c) => c.textContent?.trim()));
 
-describe("P/E, EPS & PEG calculator (#156)", () => {
-  it("is named P/E, EPS & PEG calculator, in the heading and in the browser tab", () => {
+describe("EPS calculator top part (task #155)", () => {
+  it("shows the inputs, the growth assumption and EPS, P/E, PEG and implied 5-year EPS with their working", () => {
     open();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("P/E, EPS & PEG calculator");
-    expect(document.title).toMatch(/^P\/E, EPS & PEG calculator/);
+    expect(screen.getByRole("heading", { name: /Company inputs/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /EPS growth assumption/ })).toBeTruthy();
+    expect(within(tile(/^EPS/)).getByText("₹11.00")).toBeTruthy();
+    expect(tile(/^EPS/).textContent).toContain("(110.00 − 0.00) ÷ 10.00");
+    expect(within(tile(/P\/E ratio/)).getByText("27.27x")).toBeTruthy();
+    expect(tile(/P\/E ratio/).textContent).toContain("Price ÷ EPS (300.00 ÷ 11.00)");
+    expect(within(tile(/PEG ratio/)).getByText("1.95")).toBeTruthy();
+    expect(tile(/PEG ratio/).textContent).toContain("27.27 ÷ 14");
+    expect(within(tile(/Implied 5Y EPS/)).getByText("₹21.18")).toBeTruthy();
   });
-  it("shows no Deselect until a company is chosen", () => {
+
+  it("builds the growth/PEG table from the quick picks plus the user's own rate, and the P/E/price table around today's P/E", () => {
     open();
-    expect(screen.queryByRole("button", { name: /^Deselect/ })).toBeNull();
+    expect(rows("EPS growth and PEG")).toEqual([
+      ["5%", "14.04", "5.45x"], ["10%", "17.72", "2.73x"], ["14% (Base)", "21.18", "1.95x"], ["15%", "22.12", "1.82x"], ["20%", "27.37", "1.36x"], ["25%", "33.57", "1.09x"],
+    ]);
+    expect(rows("P/E and implied price")).toEqual([
+      ["15.00x", "165.00", "−45.00%"], ["20.00x", "220.00", "−26.67%"], ["25.00x", "275.00", "−8.33%"], ["27.27x (Current)", "300.00", "—"], ["30.00x", "330.00", "+10.00%"], ["35.00x", "385.00", "+28.33%"],
+    ]);
   });
-  it("a chosen company can be deselected from right below the search bar: its figures go, the scenario typed stays", async () => {
+
+  it("a quick pick sets the growth, which is also the Base growth further down, and every figure follows", () => {
     open();
-    const search = screen.getByPlaceholderText("Company name or NSE symbol");
-    fireEvent.change(search, { target: { value: "Reliance" } });
-    fireEvent.click(screen.getByRole("button", { name: /Reliance Industries Ltd/ }));
-    await waitFor(() => expect(val("np")).toBe("80775"));
-    expect(val("px")).toBe("1339.6");
-    fireEvent.change(document.getElementById("eps-g")!, { target: { value: "15" } });        // the person's own growth assumption
-    const btn = screen.getByRole("button", { name: "Deselect Reliance Industries Ltd" });
-    const row = search.closest(".dcf-co-row")!;
-    expect(row.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();  // below the search bar
-    expect(btn.closest(".eps-chosen")!.previousElementSibling).toBe(row);                         // directly below it
-    fireEvent.click(btn);
-    expect(screen.queryByRole("button", { name: /^Deselect/ })).toBeNull();
-    expect(document.querySelector(".dcf-src")).toBeNull();                                      // the company's source lines go
-    expect([val("np"), val("px")]).toEqual(["100", "300"]);                                     // back to the starting example
-    expect(val("g")).toBe("15");                                                                // the scenario stays
-    expect(document.activeElement).toBe(search);                                                // ready for the next company
+    fireEvent.click(screen.getByRole("button", { name: "20%" }));
+    expect((screen.getByLabelText(/Expected EPS growth/) as HTMLInputElement).value).toBe("20");
+    expect((screen.getByLabelText(/Annual EPS growth/) as HTMLInputElement).value).toBe("20");
+    expect(within(tile(/PEG ratio/)).getByText("1.36")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "20%" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("explains every blank: a loss makes P/E, PEG, implied EPS and both tables not meaningful", () => {
+    open("?np=-20&pd=0&sh=10&px=300&g=14");
+    expect(within(tile(/^EPS/)).getByText("−₹2.00")).toBeTruthy();
+    expect(tile(/P\/E ratio/).textContent).toContain("Not meaningful");
+    expect(tile(/PEG ratio/).textContent).toContain("Needs a meaningful P/E.");
+    expect(tile(/Implied 5Y EPS/).textContent).toContain("EPS is zero or negative");
+    expect(screen.getAllByText(/growth rates and P\/E multiples do not describe a price/)).toHaveLength(2);
+  });
+
+  it("the reverse-question part (target price to work backwards) is removed", () => {
+    open("?np=110&pd=0&sh=10&px=300&g=14&tp=500");
+    expect(screen.queryByText(/Growth, PEG and the reverse question/)).toBeNull();
+    expect(screen.queryByLabelText(/Target price/)).toBeNull();
+    expect(screen.queryByText(/EPS growth needed a year/)).toBeNull();
+    expect(screen.getByRole("heading", { name: /3\. Future EPS & valuation/ })).toBeTruthy();
   });
 });

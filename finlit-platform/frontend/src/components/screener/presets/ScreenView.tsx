@@ -89,7 +89,7 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and LTP cells, not as columns of their own
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" ? null : m > 50000 ? "Large cap" : m >= 10000 ? "Mid cap" : "Small cap"; };
 const BAND_I: Record<string, string> = { "On this list": INFO_BAND_LIST, "This screen": INFO_BAND_SCREEN,
-  "FinLit IQ": "FinLit's basic score and its pillars, each 0 to 100. Higher is better.", "FinLit Prism": "FinLit's advanced rating: one Prism score and its four parts, each 0 to 100. Higher is better.",
+  "FinLit IQ": "FinLit's basic score and its parts, each 0 to 100. Higher is better.", "FinLit Prism": "FinLit's advanced rating: one Prism score and its four parts, each 0 to 100. Higher is better.",
   "Technical": "What the price chart shows. It describes the past trend; it is not a forecast.", "Technical views": "What the price chart shows, short term and long term. It describes the past trend; it is not a forecast.",
   "Returns": "Price change over 3 months, 6 months and 1 year, and how far the price is below its highest close of the past year." };
 

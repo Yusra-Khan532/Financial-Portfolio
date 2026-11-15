@@ -616,20 +616,38 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
             t.cancel()
 
 
+INGEST_COMPANY_TIMEOUT_S = 150.0   # one company never holds ingest-all longer than this (as score-all)
+
+
 async def ingest_all(client: FinEdgeClient, store: Store, statement: str = "consolidated", hours: int = 24, limit: Optional[int] = None,
-                     parallel: int = 3, chunk: int = 30) -> dict:
+                     parallel: int = 3, chunk: int = 30, max_minutes: Optional[float] = None) -> dict:
     """Fill (or refresh) every company in the universe, in chunks, so a long run can be stopped and restarted safely:
-    each restart picks up whatever has no snapshot yet. Never-loaded companies go first."""
+    each restart picks up whatever has no snapshot yet. Never-loaded companies go first.
+
+    With `max_minutes` the run stops itself at that budget (looked at before every company, each company capped at INGEST_COMPANY_TIMEOUT_S) and
+    ends normally, so the job is recorded as finished and the rest is taken by the next run. Without it (14 Nov 2026) every night's run tried all
+    ~5,800 stale companies, reached the job's hard limit, was killed mid-chunk and never recorded a success, so the job showed overdue for days."""
     pending = await store.pending_symbols(statement, hours, limit)
     log.info("ingest-all: %d companies to load (%s)", len(pending), statement)
     done = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0}
+    deadline = time.monotonic() + max_minutes * 60 if max_minutes is not None else None
+    tried = 0
     for i in range(0, len(pending), chunk):
+        if deadline is not None and time.monotonic() > deadline:
+            log.info("ingest-all: time budget used, the rest waits for the next run")
+            break
         batch = pending[i:i + chunk]
-        for r in await ingest_many(client, store, [(s, statement) for s in batch], parallel=parallel, yield_to_readers=True):
+        skipped = 0
+        kw = {"deadline": deadline, "company_timeout_s": INGEST_COMPANY_TIMEOUT_S} if deadline is not None else {}
+        for r in await ingest_many(client, store, [(s, statement) for s in batch], parallel=parallel, yield_to_readers=True, **kw):
+            if r["status"] == "skipped":
+                skipped += 1
+                continue
             done[r["status"]] = done.get(r["status"], 0) + 1
-        log.info("ingest-all: %d / %d  %s  (%d upstream calls)", min(i + chunk, len(pending)), len(pending), done, client.calls)
+        tried += len(batch) - skipped
+        log.info("ingest-all: %d / %d  %s  (%d upstream calls)", tried, len(pending), done, client.calls)
     await store.invalidate_search()   # once at the end: each drop makes the next visitor read the whole name list from Postgres again
-    return done
+    return {**done, "tried": tried, "waiting": len(pending) - tried}
 
 
 SCORE_COMPANY_TIMEOUT_S = 150.0   # one company (~21 provider calls) never holds score-all longer than this (as results_run.COMPANY_TIMEOUT_S)
@@ -965,6 +983,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_all.add_argument("--hours", type=int, default=24, help="reload snapshots older than this")
     p_all.add_argument("--limit", type=int, default=None)
     p_all.add_argument("--parallel", type=int, default=3)
+    p_all.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
     p_probe = sub.add_parser("probe", help="check the FinEdge key and every endpoint for one symbol")
     p_probe.add_argument("symbol", nargs="?", default="RELIANCE")
     p_alerts = sub.add_parser("check-alerts", help="evaluate members' alerts and watchlist targets; notify in the app and by email")
@@ -1579,7 +1598,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     print(f"{r['symbol']:<14} {r['status']:<7} {r['ms']:>6} ms  {r['errors'] or ''}")
                 return 0 if all(r["status"] in ("ok", "warnings") for r in results) else 1
             elif args.cmd == "ingest-all":
-                print(await ingest_all(client, store, args.statement, args.hours, args.limit, args.parallel))
+                print(await ingest_all(client, store, args.statement, args.hours, args.limit, args.parallel, max_minutes=args.max_minutes))
             elif args.cmd == "probe":
                 results = await probe(client, args.symbol)
                 for key, state, ms in results:

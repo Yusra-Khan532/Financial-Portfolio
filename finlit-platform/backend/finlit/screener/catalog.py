@@ -7,7 +7,7 @@ better: "higher" / "lower" / "none" (used for the plain-words hint and sorting d
 
 from __future__ import annotations
 
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 
 class Metric(NamedTuple):
@@ -246,16 +246,16 @@ CATALOG: List[Metric] = [
     M("vol_ratio_10_50", "Volume, last 10 sessions against 50", "trading", "x", "none", "silver", "Average volume of the last 10 sessions as a multiple of the last 50.", 2),
     M("vol_ratio_5_50", "Volume, last 5 sessions against 50", "trading", "x", "none", "silver", "Average volume of the last 5 sessions as a multiple of the last 50.", 2),
     M("days_since_high", "Sessions since the 52-week closing high", "trading", "n", "none", "silver", "0 means the latest close is the 52-week closing high.", 0),
-    M("breakout_age", "Sessions since the latest breakout", "trading", "n", "none", "silver", "Sessions since the close last rose above a 52-week closing high that was set at least 15 sessions earlier (last 30 sessions only).", 0),
-    M("breakout_level", "Level of that breakout", "trading", "Rs", "none", "silver", "The earlier high that the price broke above.", 2),
-    M("vs_breakout", "Price against the breakout level", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the level it broke.", 1),
-    M("breakout_vol_ratio", "Volume on the breakout day", "trading", "x", "none", "silver", "The breakout day's volume as a multiple of the 50 sessions before it.", 2),
-    # ---- the Breakouts group, version 2 rules (task #64): a breakout 3 to 25 sessions ago and the last four sessions against the 9-day average
-    M("b2_age", "Sessions since the recent breakout", "trading", "n", "none", "silver", "Sessions since the close rose above a 52-week closing high that was at least 10 sessions old (last 25 sessions only).", 0),
-    M("b2_level", "Breakout level, recent 25 sessions", "trading", "Rs", "none", "silver", "The earlier high that the price broke above.", 2),
-    M("b2_vs_level", "Price against the recent breakout level", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the level it broke.", 1),
-    M("b2_pullback", "Below the highest close since the breakout", "trading", "%", "none", "silver", "How far the latest close is below the highest close since the breakout day.", 1),
-    M("b2_vol_x", "Breakout-day volume, recent 25 sessions", "trading", "x", "none", "silver", "The breakout day's volume as a multiple of the 50 sessions before it.", 2),
+    M("breakout_age", "Sessions since it last closed above its range", "trading", "n", "none", "silver", "Sessions since the close last rose above a 52-week closing high that was set at least 15 sessions earlier (last 30 sessions only).", 0),
+    M("breakout_level", "Top of the range it closed above", "trading", "Rs", "none", "silver", "The earlier high that the price closed above.", 2),
+    M("vs_breakout", "Price against that range top", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the range top it closed above.", 1),
+    M("breakout_vol_ratio", "Volume on the day it closed above its range", "trading", "x", "none", "silver", "That day's volume as a multiple of the 50 sessions before it.", 2),
+    # ---- the New highs group (named Breakouts before 14 Nov; FinLit does not use that word), version 2 rules (task #64): a close above the range 3 to 25 sessions ago and the last four sessions against the 9-day average
+    M("b2_age", "Sessions since a recent close above its range", "trading", "n", "none", "silver", "Sessions since the close rose above a 52-week closing high that was at least 10 sessions old (last 25 sessions only).", 0),
+    M("b2_level", "Range top it closed above, recent 25 sessions", "trading", "Rs", "none", "silver", "The earlier high that the price closed above.", 2),
+    M("b2_vs_level", "Price against that recent range top", "trading", "%", "none", "silver", "How far the latest close is above (+) or below (−) the range top it closed above.", 1),
+    M("b2_pullback", "Below the highest close since then", "trading", "%", "none", "silver", "How far the latest close is below the highest close since the day it closed above its range.", 1),
+    M("b2_vol_x", "Volume on that day, recent 25 sessions", "trading", "x", "none", "silver", "That day's volume as a multiple of the 50 sessions before it.", 2),
     M("ema9_above4", "Last four closes above the 9-day average", "trading", "flag", "none", "silver", "Yes if each of the last four closes was above that day's 9-day average.", 0),
     M("ema9_near4", "Last four closes within 4% of the 9-day average", "trading", "flag", "none", "silver", "Yes if each of the last four closes was no more than 4% above that day's 9-day average.", 0),
     M("ema9_touch4", "Touched the 9-day average in the last four sessions", "trading", "flag", "none", "silver", "Yes if the low of any of the last four sessions reached the 9-day average.", 0),
@@ -283,6 +283,13 @@ CATALOG: List[Metric] = [
     M("prism_lt_score", "Long-term technical", "prism", "pts", "higher", "gold", "Prism's long-term price trend, -100 to +100 (months). It describes past prices only.", 0),
 ]
 BY_KEY: Dict[str, Metric] = {m.key: m for m in CATALOG}
+# The fixed scale of each score (task #144): the page's From and To boxes keep a value inside it, and say so. A score never leaves its scale, so a range
+# outside it would only ever find nothing.
+SCALE: Dict[str, Tuple[float, float]] = {
+    **{k: (0.0, 100.0) for k in ("overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical",
+                                  "prism_final", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk")},
+    **{k: (-100.0, 100.0) for k in ("prism_st_score", "prism_lt_score")},
+}
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab
 VARIANTS: Dict[str, Dict[str, str]] = {b: {"now": b, "3y": f"{b}_avg_3y", "5y": f"{b}_avg_5y", "7y": f"{b}_avg_7y"} for b in ("pe", "pb", "ps")}
 # Stored beside the filters in `scores.metrics` but not a filter: which quarter q_revenue and the other q_* figures are for (yyyymmdd).

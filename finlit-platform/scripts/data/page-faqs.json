@@ -141,7 +141,7 @@
   "items": [
    {
     "q": "What is FinLit Prism?",
-    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor under 35."
+    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong, Healthy, Average, Weak or Poor."
    },
    {
     "q": "What does each Prism part measure?",
@@ -149,7 +149,7 @@
    },
    {
     "q": "What are the short-term and long-term technical views?",
-    "a": "Prism's reading of the price trend, from −100 to +100: short term covers 5 to 20 sessions and long term 6 to 18 months. Positive is +20 and above, Neutral is above −20 up to +20, Negative is −20 and below. They describe the trend only and are not part of the Prism score."
+    "a": "Prism's reading of the price trend, from −100 to +100, over a short and a long period. Each view reads as Uptrend, Sideways or Downtrend. They describe the trend only and are not part of the Prism score."
    },
    {
     "q": "What do Rated, Provisional and Not rated mean?",
@@ -161,7 +161,7 @@
    },
    {
     "q": "How is this different from the Basic stock screener?",
-    "a": "The Basic stock screener uses the FinLit IQ (five pillars, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
+    "a": "The Basic stock screener uses the FinLit IQ (five parts, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
    },
    {
     "q": "What do the Quick views do?",
@@ -438,7 +438,7 @@
    },
    {
     "q": "What are Bear, Base and Bull?",
-    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 2; Bear and Bull are yours to set."
+    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 3; Bear and Bull are yours to set."
    },
    {
     "q": "How do I read the sensitivity table?",
@@ -446,11 +446,11 @@
    },
    {
     "q": "What is PEG here?",
-    "a": "P/E ÷ the growth rate you assumed. It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
+    "a": "P/E ÷ the 5-year EPS growth rate you assumed (section 2). It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
    },
    {
-    "q": "Can I work backwards from a target price?",
-    "a": "Yes. Enter a target price and the calculator shows the EPS growth needed each year, using your target P/E and period."
+    "q": "What do the two scenario tables show?",
+    "a": "EPS growth and PEG: the EPS in 5 years and the PEG at 5%, 10%, 15%, 20% and 25% growth plus your own rate, with the P/E held at today's. P/E and implied price: today's EPS × 15x to 35x and today's P/E, with the difference from today's price. Both are arithmetic on your inputs, not forecasts."
    },
    {
     "q": "Can I save or share my numbers?",

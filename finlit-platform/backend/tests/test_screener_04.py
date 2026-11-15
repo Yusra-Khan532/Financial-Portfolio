@@ -238,3 +238,24 @@ async def test_gold_two_sectors_and_prism_average_returns_the_companies_not_an_e
         assert r.status_code == 422                                                       # a word of neither score is still refused
     finally:
         data._table = None
+
+
+@pytest.mark.integration
+async def test_the_catalog_names_the_prism_total_and_sends_each_scores_scale(app):  # noqa: F811
+    """Task #144: Gold's Prism total is called "Fundamental Prism score" (task #141's name, kept at the founder's choice), and every score carries its fixed
+    scale (0 to 100; the technical views -100 to +100) so the page's From and To boxes keep a value inside it. A figure with no fixed scale has none."""
+    rows = [_row(f"C{i}", macro="Energy", industry="Oil", market_cap=1000 * (i + 1), price=100) for i in range(5)]
+    prism = {f"C{i}": {"prism_final": 40 + 5 * i, "prism_label": "AVERAGE", "prism_status": "RATED", "prism_st_score": -20 + 10 * i} for i in range(5)}
+    data._table = Table(rows, {}, {}, None, prism)
+    try:
+        gold = await signed_in(app, "g144@example.com", plan="gold")
+        ms = {m["key"]: m for g in (await gold.get("/api/screener/catalog")).json()["groups"] for m in g["metrics"]}
+        assert ms["prism_final"]["label"] == "Fundamental Prism score" and ms["prism_final"]["scale"] == [0.0, 100.0]
+        assert ms["prism_st_score"]["scale"] == [-100.0, 100.0] and ms["prism_lt_score"]["scale"] == [-100.0, 100.0]
+        assert all(ms[k]["scale"] == [0.0, 100.0] for k in ("prism_fundamental", "prism_valuation", "prism_quality", "prism_risk"))
+        assert ms["market_cap"]["scale"] is None
+        silver = await signed_in(app, "s144@example.com", plan="silver")
+        sm = {m["key"]: m for g in (await silver.get("/api/screener/catalog")).json()["groups"] for m in g["metrics"]}
+        assert sm["overall"]["scale"] == [0.0, 100.0] and "prism_final" not in sm   # Silver keeps FinLit IQ, with its scale; Prism stays Gold
+    finally:
+        data._table = None

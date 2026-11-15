@@ -453,7 +453,7 @@ describe("the two valuation views split at 50 (issue 30.b)", () => {
     expect(qs).toContain("zvlt=50"); expect(qs).not.toContain("zvmax");
     const back = parseState(new URLSearchParams(qs), "advanced").filters;
     expect(activePrismPreset(back)).toBe("weakvalue"); expect(back.ranges.zv).toEqual({ min: null, max: 50, maxExcl: true });
-    expect(chipsFor(f).map((c) => c.label).find((l) => /below 50/.test(l))).toMatch(/Valuation.*: below 50/);
+    expect(chipsFor(f).map((c) => c.label).find((l) => /Valuation/.test(l))).toMatch(/Valuation.*: Poor, Weak$/);   // band names, never the cut-off (14 Nov N-31)
     expect(inRange(49.99, back.ranges.zv)).toBe(true); expect(inRange(50, back.ranges.zv)).toBe(false);
   });
   it("an exact maximum typed in the boxes stays inclusive", () => expect(inRange(50, { min: null, max: 50 })).toBe(true));

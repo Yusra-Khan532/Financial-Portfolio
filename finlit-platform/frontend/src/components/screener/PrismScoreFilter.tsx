@@ -4,9 +4,8 @@
 // pillars and leaves the price-trend views out) and the tech bands (st, lt), so saved screens and prebuilt screens keep working.
 import { useId, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
-import { TECH_BANDS, rangeToBands, TECH_BAND_ORDER, TECH_KEYS, TECH_NAMES } from "../../lib/scoreScreen";
+import { PBAND_ORDER, PBAND_WORD, TECH_BANDS, rangeToPBands, TECH_BAND_ORDER, TECH_KEYS, TECH_NAMES, type PBand } from "../../lib/scoreScreen";
 import { LABEL_WORD, PRISM_LABELS, PRISM_PARTS, type PrismRangeKey } from "../../lib/scorePrism";
-import { BandChips } from "./IqScoreFilter";
 import { Chev, RangeRow } from "./FilterGroup";
 import type { Screener } from "./useScreener";
 
@@ -16,10 +15,19 @@ export const PRISM_SUB = "Filter stocks using our fundamental and technical scor
 export const TOTAL_FUND = "Total Fundamental Score";
 export const FUND_TITLE = "Fundamental Score";
 export const TECH_TITLE = "Technical Score";
-/** The five rows, in the order the founder set: the four pillars, then the total. */
+/** Prism's own five bands as chips (task #64, 14 Nov N-32: never the IQ's Watch or Mixed on a Prism part), names only (N-31: no cut-off on the page). */
+function PrismBandChips({ name, bands, onToggle }: { name: string; bands: PBand[]; onToggle: (b: PBand) => void }) {
+  return (
+    <div className="iq-chips">
+      {PBAND_ORDER.map((b) => { const sel = bands.includes(b);
+        return <button key={b} type="button" className={"iq-chip" + (sel ? " is-on" : "")} aria-pressed={sel} aria-label={`${name} ${PBAND_WORD[b]}`} onClick={() => onToggle(b)}>{PBAND_WORD[b]}</button>; })}
+    </div>);
+}
+
+/** The five rows, in the order the founder set: the four parts, then the total. */
 export const FUND_ROWS: { range: PrismRangeKey; label: string; say: string }[] = [
   ...PRISM_PARTS.map((x) => ({ range: x.range, label: x.label, say: x.say })),
-  { range: "z", label: TOTAL_FUND, say: "The overall result of the four pillars above, weighed into one number from 0 to 100. The price-trend views are not part of it." },
+  { range: "z", label: TOTAL_FUND, say: "The overall result of the four parts above, weighed into one number from 0 to 100. The price-trend views are not part of it." },
 ];
 const RANGE_KEYS = FUND_ROWS.map((x) => x.range);
 
@@ -42,12 +50,12 @@ export function PrismScoreRows({ s }: { s: Screener }) {
   const fundActive = draft.labels.length + RANGE_KEYS.filter((k) => draft.ranges[k].min != null || draft.ranges[k].max != null).length;
   return (<div className="pzf">
     <Sub title={FUND_TITLE} icon="bars" active={fundActive}>
-      <p className="fgx-hint">Pick the ratings you want, then set the lowest and highest value (0 to 100) for any of the five pillars.</p>
+      <p className="fgx-hint">Pick the ratings you want, then set the lowest and highest value (0 to 100) for any of the four parts or their total.</p>
       <div className="fgx-chips pzf-chips" role="group" aria-label="Rating">
         {PRISM_LABELS.map((l) => <button key={l} type="button" className={"fgx-chip" + (draft.labels.includes(l) ? " is-on" : "")} aria-pressed={draft.labels.includes(l)} onClick={() => s.setLabel(l)}>{draft.labels.includes(l) && <i aria-hidden="true">&#10003;</i>}{l === "NOT RATED" ? "Not rated" : LABEL_WORD[l]}</button>)}
       </div>
       {FUND_ROWS.map((x) => <div key={x.range} title={x.say}><RangeRow label={x.label} group={x.range === "z" ? `${x.label}, exact range` : `${x.label} score, exact range`} min={draft.ranges[x.range].min} max={draft.ranges[x.range].max} maxExcl={!!draft.ranges[x.range].maxExcl}
-        chips={<BandChips name={x.label} bands={rangeToBands(draft.ranges[x.range])} onToggle={(b) => s.setRangeBand(x.range, b)} />} error={s.problems[x.range]} minPh="Min" maxPh="Max" onChange={(end, v) => s.setRange(x.range, end, v)} /></div>)}
+        chips={<PrismBandChips name={x.label} bands={rangeToPBands(draft.ranges[x.range])} onToggle={(b) => s.setPRangeBand(x.range, b)} />} error={s.problems[x.range]} minPh="Min" maxPh="Max" onChange={(end, v) => s.setRange(x.range, end, v)} /></div>)}
       <p className="fgx-note">A high Risk score means lower risk.</p>
     </Sub>
     <Sub title={TECH_TITLE} icon="line" active={draft.tech.st.length + draft.tech.lt.length}>

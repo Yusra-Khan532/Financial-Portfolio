@@ -3,7 +3,7 @@
 // technical pillar, Overall is the FinLit IQ as stored. A missing score is null and never passes a score filter or counts as zero.
 import { scoreBand } from "./scoreBands";
 import type { Row } from "./screener";
-import { BANDS as TREND_EDGES, ratingWord, scoreBand as trendTone } from "./prismTechnical";
+import { ratingWord, scoreBand as trendTone } from "./prismTechnical";
 import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, isLabel, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
 
 export type Cap = "Large" | "Mid" | "Small";
@@ -21,11 +21,11 @@ export type TechBand = "pos" | "neutral" | "neg";
 export type TechKey = "st" | "lt";
 export const TECH_KEYS: TechKey[] = ["st", "lt"];
 export const TECH_BAND_ORDER: TechBand[] = ["pos", "neutral", "neg"];
-const sgn = (v: number) => (v > 0 ? "+" : v < 0 ? "\u2212" : "") + Math.abs(v);
 export const TECH_BANDS: Record<TechBand, { label: string; short: string }> = {
-  pos: { label: `Uptrend (${sgn(TREND_EDGES.positive)} and above)`, short: "Uptrend" },
-  neutral: { label: `Sideways (above ${sgn(TREND_EDGES.neutral)} up to ${sgn(TREND_EDGES.positive)})`, short: "Sideways" },
-  neg: { label: `Downtrend (${sgn(TREND_EDGES.neutral)} and below)`, short: "Downtrend" },
+  // band names only on the page (task #64, 14 Nov N-31): the edges stay with the model (TREND_EDGES, the Prism card's own)
+  pos: { label: "Uptrend", short: "Uptrend" },
+  neutral: { label: "Sideways", short: "Sideways" },
+  neg: { label: "Downtrend", short: "Downtrend" },
 };
 export const TECH_NAMES: Record<TechKey, string> = { st: "Short-term technical", lt: "Long-term technical" };
 /** The band of a technical score, from the same edges as the Prism card; null when there is no score. */
@@ -141,6 +141,33 @@ export function toggleRangeBand(r: Range, b: Band): Range {
   const next = cur.length && (BAND_ORDER.indexOf(cur[0]) === i + 1 || BAND_ORDER.indexOf(cur[cur.length - 1]) === i - 1) ? [...cur, b] : [b];
   return bandsToRange(next);
 }
+/** FinLit Prism's own five bands (task #64, 14 Nov N-32: never the IQ's Watch or Mixed on a Prism part), the edges of the Prism card (scoreBands.BAND_RULE): Poor below 35,
+ *  Weak 35, Average 50, Healthy 65, Strong 80. The page shows the names only (N-31); a chip is a half-open range, so no score falls between two. */
+export type PBand = "poor" | "weak" | "average" | "healthy" | "strong";
+export const PBAND_ORDER: PBand[] = ["poor", "weak", "average", "healthy", "strong"];
+export const PBAND_WORD: Record<PBand, string> = { poor: "Poor", weak: "Weak", average: "Average", healthy: "Healthy", strong: "Strong" };
+const PEDGE: (number | null)[] = [null, 35, 50, 65, 80];
+export function pBandsToRange(bands: PBand[]): Range {
+  const idx = PBAND_ORDER.map((b, i) => (bands.includes(b) ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) return { min: null, max: null };
+  const lo = idx[0], hi = idx[idx.length - 1];
+  const min = lo === 0 ? null : (PEDGE[lo] as number), max = hi === PBAND_ORDER.length - 1 ? null : (PEDGE[hi + 1] as number);
+  return max == null ? { min, max } : { min, max, maxExcl: true };
+}
+export function rangeToPBands(r: Range): PBand[] {
+  if (r.min == null && r.max == null) return [];
+  for (let lo = 0; lo < PBAND_ORDER.length; lo++) for (let hi = lo; hi < PBAND_ORDER.length; hi++) {
+    const bands = PBAND_ORDER.slice(lo, hi + 1), w = pBandsToRange(bands);
+    if (w.min === r.min && w.max === r.max && !!w.maxExcl === !!r.maxExcl) return bands;
+  }
+  return [];
+}
+export function togglePRangeBand(r: Range, b: PBand): Range {
+  const cur = rangeToPBands(r), i = PBAND_ORDER.indexOf(b);
+  if (cur.includes(b)) { const rest = cur.filter((x) => x !== b); const ok = rest.length === 0 || rest.every((x, k) => k === 0 || PBAND_ORDER.indexOf(x) === PBAND_ORDER.indexOf(rest[k - 1]) + 1); return pBandsToRange(ok ? rest : []); }
+  const next = cur.length && (PBAND_ORDER.indexOf(cur[0]) === i + 1 || PBAND_ORDER.indexOf(cur[cur.length - 1]) === i - 1) ? [...cur, b] : [b];
+  return pBandsToRange(next);
+}
 export const inRange = (v: number | null, r: Range) => (r.min == null && r.max == null) || (v != null && (r.min == null || v >= r.min) && (r.max == null || (r.maxExcl ? v < r.max : v <= r.max)));
 const rangeValue = (r: Item, k: RangeKey) => (k === "dh" ? r.pct_from_high ?? null : k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : k === "q" || k === "g" || k === "p" || k === "b" ? r[PILLARS.find((x) => x.k === k)!.col] : prismRangeValue(r, k) ?? null);
 const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : r[PILLARS.find((x) => x.k === k)!.col]);
@@ -230,7 +257,9 @@ export function chipsFor(f: Filters): Chip[] {
   if (f.caps.length) out.push({ id: "caps", label: `Market cap: ${CAPS.filter((c) => f.caps.includes(c)).join(", ")}` });
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].word).join(", ")}` }); });
-  RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) out.push({ id: "range:" + k, label: `${NAMES[k]}: ${rangeText(r)}${k === "dh" ? "%" : ""}` }); });
+  RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) {
+    const pb = (PRISM_RANGE_KEYS as readonly string[]).includes(k) ? rangeToPBands(r) : [];   // a Prism part set by its band chips reads as the band names, never the cut-offs (N-31)
+    out.push({ id: "range:" + k, label: `${NAMES[k]}: ${pb.length ? pb.map((b) => PBAND_WORD[b]).join(", ") : rangeText(r)}${k === "dh" ? "%" : ""}` }); } });
   if (f.iqLabels.length) out.push({ id: "iqlabels", label: `FinLit IQ rating: ${IQ_LABELS.filter((l) => f.iqLabels.includes(l)).map((l) => IQ_LABEL_WORD[l]).join(", ")}` });
   if (f.labels.length) out.push({ id: "labels", label: `Prism rating: ${PRISM_LABELS.filter((l) => f.labels.includes(l)).map((l) => LABEL_WORD[l]).join(", ")}` });
   TECH_KEYS.forEach((k) => { if (f.tech[k].length) out.push({ id: "tech:" + k, label: `${TECH_NAMES[k]}: ${TECH_BAND_ORDER.filter((b) => f.tech[k].includes(b)).map((b) => TECH_BANDS[b].short).join(", ")}` }); });

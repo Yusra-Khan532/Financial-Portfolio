@@ -120,7 +120,7 @@ describe("Advanced stock screener (Gold)", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Apply filters" }).closest("form")!);
     expect(symbols()).toEqual(["AAA"]);
     expect(loc()).toBe("/advanced-score-screener?zvmin=50&zrmin=65");
-    expect(screen.getByRole("button", { name: "Remove filter Prism Valuation: 50 or more" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove filter Prism Valuation: Average, Healthy, Strong" })).toBeTruthy();   // band names, never the cut-off (14 Nov N-31)
     for (const p of ["Growth & Profitability", "Quality"]) expect(screen.getByRole("group", { name: `${p} score, exact range` })).toBeTruthy();
   });
 
@@ -135,25 +135,27 @@ describe("Advanced stock screener (Gold)", () => {
     expect(screen.getByRole("group", { name: "Total Fundamental Score, exact range" })).toBeTruthy();
   });
 
-  it("every pillar row and the Total row has the Watch / Mixed / Healthy / Strong chips that set its Min and Max; typing a custom range clears the highlight", { timeout: 30000 }, async () => {
+  it("every part row and the Total row has Prism's own Poor / Weak / Average / Healthy / Strong chips (never the IQ's Watch or Mixed, 14 Nov N-32) that set its Min and Max; typing a custom range clears the highlight", { timeout: 30000 }, async () => {
     open();
     for (const n of ["Growth & Profitability score", "Valuation score", "Quality score", "Risk score", "Total Fundamental Score"]) {
       const g = within(screen.getByRole("group", { name: `${n}, exact range` }).closest(".fgx-rr") as HTMLElement);
-      expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["Watch", "Mixed", "Healthy", "Strong"]);
+      expect(g.getAllByRole("button").map((b) => b.textContent)).toEqual(["Poor", "Weak", "Average", "Healthy", "Strong"]);
     }
     const q = () => within(screen.getByRole("group", { name: "Quality score, exact range" }));
-    fireEvent.click(q().getByRole("button", { name: "Quality Strong, the highest rating word" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=78"));
-    expect((q().getByLabelText("Min") as HTMLInputElement).value).toBe("78");
-    expect(q().getByRole("button", { name: "Quality Strong, the highest rating word" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(q().getByRole("button", { name: "Quality Healthy, the second rating word" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=62"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Mixed, the third rating word" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=45"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Watch, the lowest rating word" }));   // joins Mixed, Healthy and Strong: all four = no limit
+    fireEvent.click(q().getByRole("button", { name: "Quality Strong" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=80"));                  // Prism's own edges: Strong 80, Healthy 65, Average 50, Weak 35
+    expect((q().getByLabelText("Min") as HTMLInputElement).value).toBe("80");
+    expect(q().getByRole("button", { name: "Quality Strong" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(q().getByRole("button", { name: "Quality Healthy" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=65"));
+    fireEvent.click(q().getByRole("button", { name: "Quality Average" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=50"));
+    fireEvent.click(q().getByRole("button", { name: "Quality Weak" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmin=35"));
+    fireEvent.click(q().getByRole("button", { name: "Quality Poor" }));   // joins the other four: all five = no limit
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener"));
-    fireEvent.click(q().getByRole("button", { name: "Quality Watch, the lowest rating word" }));
-    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqlt=45"));
+    fireEvent.click(q().getByRole("button", { name: "Quality Poor" }));
+    await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqlt=35"));
     fireEvent.change(q().getByLabelText("Below (the score must be under this number)"), { target: { value: "60" } });
     await waitFor(() => expect(loc()).toBe("/advanced-score-screener?zqmax=60"));
     for (const b of q().getAllByRole("button")) expect(b.getAttribute("aria-pressed")).toBe("false");
@@ -172,7 +174,7 @@ describe("Advanced stock screener (Gold)", () => {
   it("filters each technical view by Positive, Neutral or Negative, using the Prism card's bands", () => {
     open();
     const st = screen.getByRole("group", { name: "Short-term technical view" }), lt = screen.getByRole("group", { name: "Long-term technical view" });
-    expect(within(st).getByRole("button", { name: /^Uptrend \(\+20 and above\)/ })).toBeTruthy();
+    expect(within(st).getByRole("button", { name: "Uptrend" })).toBeTruthy();   // the band name only (14 Nov N-31)
     fireEvent.click(within(st).getByRole("button", { name: /^Uptrend/ }));
     fireEvent.submit(st.closest("form")!);
     expect(symbols()).toEqual(["AAA", "CCC", "FFF"]);                         // +55, +22, +22 are Positive; BBB +5 is Neutral; unrated have no score
@@ -241,8 +243,8 @@ describe("Advanced stock screener (Gold)", () => {
     open();
     fireEvent.click(screen.getAllByRole("button", { name: /How FinLit Prism works/ })[0]);
     const d = screen.getByRole("dialog", { name: "How FinLit Prism works" });
-    expect(d.textContent).toMatch(/Strong 80 and above, Healthy 65 to 79/);
-    expect(d.textContent).toMatch(/Uptrend \(\+20 and above\)/);
+    expect(d.textContent).toMatch(/Strong, Healthy, Average, Weak or Poor/); expect(d.textContent).not.toMatch(/80 and above|65 to 79|5 to 20 sessions|6 to 18 months|\+20 and above/);   // N-31
+    expect(d.textContent).toMatch(/Uptrend, Sideways and Downtrend/);
     expect(d.textContent?.toLowerCase()).not.toMatch(forbidden);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();

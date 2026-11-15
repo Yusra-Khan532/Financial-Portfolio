@@ -5,6 +5,7 @@ import { MINUS, cr, nf } from "./format";
 import type { Plan } from "./ui";
 
 export type MetricInfo = { key: string; label: string; unit: string; better: "higher" | "lower" | "none"; tier: Plan; say: string; digits: number; locked: boolean;
+  /** A score's fixed scale (task #144): 0 to 100, or -100 to +100 for the two technical views; the From and To boxes stay inside it. */ scale?: [number, number] | null;
   /** Custom ratio (task #64, CR-2): whether the figure may be divided, and its unit family. */ ratioable?: boolean; family?: "cr" | "per_share" | "shares" | "people" | null;
   stats: { min: number; p10: number; p50: number; p90: number; max: number; n: number; lo?: number; hi?: number; hist?: number[];
     // the Stock screener's rule cards (task #64, file 04): quartiles, and 30 bars from the 5th to the 95th percentile, on a log scale for long-tailed figures

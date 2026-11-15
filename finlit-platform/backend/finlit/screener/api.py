@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
-from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, VARIANTS, allowed, family, offered, ratioable
+from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, SCALE, VARIANTS, allowed, family, offered, ratioable
 from .data import get_table
 from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
@@ -147,7 +147,7 @@ async def catalog(request: Request):
         groups.append({"id": gid, "label": label, "tier": GROUP_TIER.get(gid, "basic"), "metrics": [
             {"key": m.key, "label": m.label, "unit": m.unit, "better": m.better, "tier": m.tier, "say": m.say, "digits": m.digits,
              "locked": not allowed(plan, m.tier), "stats": t.stats.get(m.key), "hidden": m.key in HIDDEN, "variants": VARIANTS.get(m.key),
-             "ratioable": ratioable(m), "family": family(m)} for m in ms]})
+             "ratioable": ratioable(m), "family": family(m), "scale": list(SCALE[m.key]) if m.key in SCALE else None} for m in ms]})
     body = {
         "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "pricesAt": (t.sig or {}).get("lat"), "scoresAt": (t.sig or {}).get("at"),
         "groups": groups,

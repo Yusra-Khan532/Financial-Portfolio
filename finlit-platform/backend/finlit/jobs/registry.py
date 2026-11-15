@@ -267,7 +267,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("ingest-flagship", ("ingest", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "LT", "BHARTIARTL", "HINDUNILVR"), cls="bulk",
             priority=15, max_runtime_min=30, weight_mb=300, windows=(W("NIGHT", 144),), sla=Sla("hours", 400), boot=True, resumable=True,
             what="the ten flagship companies first (first start: visitors see them before the long load)"),
-        Job("ingest", ("ingest-all", "--hours", "20", *limit, "--parallel", parallel), cls="bulk", priority=20, max_runtime_min=ingest_cap, weight_mb=450,
+        Job("ingest", ("ingest-all", "--hours", "20", *limit, "--parallel", parallel, "--max-minutes", f"{max(10.0, ingest_cap - 15):g}"), cls="bulk", priority=20, max_runtime_min=ingest_cap, weight_mb=450,
             windows=night_morning, sla=Sla("hours", 26), resumable=True, boot=True, owns=("daily_prices",), prerequisites=("ingest-flagship",),
             what="load or reload every company's statements (resumable; one run is capped so other bulk jobs get their turn)"),
         Job("score", ("score-all", "--max-minutes", "70"), cls="bulk", priority=30, max_runtime_min=90, weight_mb=300, windows=night_morning, sla=Sla("hours", 26), resumable=True,
