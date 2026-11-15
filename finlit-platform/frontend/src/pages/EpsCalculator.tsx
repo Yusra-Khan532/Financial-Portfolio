@@ -1,5 +1,5 @@
-// EPS calculator (free): earnings per share and P/E from four inputs, PEG and 5-year growth scenarios, then a future-EPS and price scenario with Bear/Base/Bull
-// cases, a sensitivity grid and year-by-year charts. All arithmetic lives in lib/epsCalc.ts (pure, tested).
+// P/E, EPS & PEG calculator (free; named so in task #156, was "EPS & P/E calculator"): earnings per share and P/E from four inputs, PEG and 5-year growth
+// scenarios, then a future-EPS and price scenario with Bear/Base/Bull cases, a sensitivity grid and year-by-year charts. All arithmetic lives in lib/epsCalc.ts (pure, tested).
 // A company can be loaded from our stored annual figures (net profit attributable to owners, diluted weighted shares, price); every field stays editable.
 import { PageHeader } from "../components/PageHeader";
 import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchFilters";
@@ -22,6 +22,8 @@ import { ChartZoom } from "../components/ChartZoom";
 // ------------------------------------------------------------------------------------------------------------- form state
 type Form = { np: string; pd: string; sh: string; ds: string; px: string; m: "b" | "d"; g: string; pe: string; n: string; bg: string; bp: string; ug: string; up: string; sym: string };
 const DEFAULT: Form = { np: "100", pd: "0", sh: "10", ds: "", px: "300", m: "b", g: "12", pe: "20", n: "5", bg: "6", bp: "15", ug: "18", up: "25", sym: "" };
+/** The fields a company fills (and Deselect puts back), task #156. */
+const COMPANY_DEFAULTS: Partial<Form> = { np: DEFAULT.np, pd: DEFAULT.pd, sh: DEFAULT.sh, ds: DEFAULT.ds, px: DEFAULT.px, m: DEFAULT.m, sym: "" };
 const PARAM: Record<string, keyof Form> = { np: "np", pd: "pd", sh: "sh", ds: "ds", px: "px", m: "m", g: "g", pe: "pe", n: "n", bg: "bg", bp: "bp", ug: "ug", up: "up", sym: "sym" };
 
 function fromParams(sp: URLSearchParams): Form {
@@ -67,9 +69,10 @@ function lastIndex(rows: (number | null)[] | undefined): number {
 }
 const round6 = (x: number) => String(Math.round(x * 1e6) / 1e6);
 
-function CompanyLoader({ initial, loaded, onLoad }: { initial: string | null; loaded: Loaded | null; onLoad: (patch: Partial<Form>, info: Loaded) => void }) {
+function CompanyLoader({ initial, loaded, onLoad, onClear }: { initial: string | null; loaded: Loaded | null; onLoad: (patch: Partial<Form>, info: Loaded) => void; onClear: () => void }) {
   const [q, setQ] = useState("");
   const [sym, setSym] = useState<string | null>(initial);
+  const searchBox = useRef<HTMLInputElement>(null);
   const sf = useIndexFilter(true), index = sf.idx;   // the same index query the palette makes: no extra request
   const hits = useMemo(() => sf.search(q, 8), [sf.search, q]);   // name, symbol, BSE/NSE code or ISIN that pass the filter
 
@@ -101,10 +104,16 @@ function CompanyLoader({ initial, loaded, onLoad }: { initial: string | null; lo
         <p className="muted">Fills net profit (attributable to owners), diluted weighted average shares and the latest price from FinLit's stored figures. Every field stays editable, and anything we do not hold is left empty.</p></div>
       <div className="dcf-co-row">
         <label className="dcf-search"><Icon name="search" /><span className="sr-only">Search a company</span>
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name or NSE symbol" autoComplete="off" spellCheck={false} maxLength={60}
+          <input ref={searchBox} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name or NSE symbol" autoComplete="off" spellCheck={false} maxLength={60}
             onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); doneFor.current = null; setSym(hits[0][0]); setQ(""); } }} /></label>
         <SearchFilters variant="panel" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
       </div>
+      {sym && (   /* task #156: a chosen company can be deselected, right below the search bar */
+        <p className="eps-chosen">
+          <span>Company: <b>{loaded?.name ?? sym}</b> <span className="mono faint">{loaded?.symbol ?? sym}</span></span>
+          <button type="button" className="btn ghost eps-desel" aria-label={`Deselect ${loaded?.name ?? sym}`} title="Deselect this company and go back to your own figures"
+            onClick={() => { doneFor.current = null; setSym(null); setQ(""); onClear(); searchBox.current?.focus(); }}><span aria-hidden="true">×</span>Deselect</button>
+        </p>)}
       {(q.trim() || sf.on) && hits.length > 0 && <ul className="dcf-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><button type="button" onClick={() => { doneFor.current = null; setSym(h[0]); setQ(""); }}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>}
       {index.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
       {busy && <p className="muted" aria-live="polite">Loading {sym}…</p>}
@@ -176,7 +185,7 @@ function Chart({ title, unitLabel, kind, pts, sel, setSel, fmt, years }: { title
 
 // ------------------------------------------------------------------------------------------------------------- CSV
 function exportCsv(f: Form, rows: (string | number)[][]) {
-  const lines: (string | number)[][] = [["FinLit EPS calculator", f.sym || "custom inputs", new Date().toISOString().slice(0, 10)], [], ...rows];
+  const lines: (string | number)[][] = [["FinLit P/E, EPS & PEG calculator", f.sym || "custom inputs", new Date().toISOString().slice(0, 10)], [], ...rows];
   const csv = lines.map((r) => r.map((c) => { const s = csvText(String(c)); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
@@ -187,7 +196,7 @@ function exportCsv(f: Form, rows: (string | number)[][]) {
 
 // ------------------------------------------------------------------------------------------------------------- page
 export function EpsCalculatorPage() {
-  useDocTitle("EPS calculator", "Earnings per share, P/E and a future-price scenario: basic or diluted EPS, PEG, 5-year growth and P/E scenarios, Bear/Base/Bull cases and a sensitivity grid.");
+  useDocTitle("P/E, EPS & PEG calculator", "Earnings per share, P/E and a future-price scenario: basic or diluted EPS, PEG, 5-year growth and P/E scenarios, Bear/Base/Bull cases and a sensitivity grid.");
   const { toast } = useUI();
   const [sp, setSp] = useSearchParams();
   const [form, setForm] = useState<Form>(() => fromParams(sp));
@@ -235,6 +244,8 @@ export function EpsCalculatorPage() {
   const onLoad = (patch: Partial<Form>, info: Loaded) => { setForm((f) => ({ ...f, ...patch })); setLoaded(info); };
   const copyLink = async () => { try { await navigator.clipboard.writeText(location.href); toast("Link copied: it opens the calculator with these inputs."); } catch { toast("Copy the address from the browser bar."); } };
   const reset = () => { setForm(DEFAULT); setLoaded(null); setSel(0); };
+  // Deselect (task #156): the figures that came from the company go back to the starting example; the scenario typed below (growth, P/E, years, cases) stays.
+  const clearCompany = () => { setForm((f) => ({ ...f, ...COMPANY_DEFAULTS })); setLoaded(null); setSel(0); if (sp.get("load")) { const n = new URLSearchParams(sp); n.delete("load"); setSp(n, { replace: true }); } };
   const csv = () => exportCsv(form, [["Input", "Value"], ["Net profit (Rs Cr)", a.np], ["Preference dividends (Rs Cr)", a.pd], [diluted ? "Diluted weighted average shares (crore)" : "Weighted average shares (crore)", a.sh],
     ["Current share price (Rs)", a.px], ["EPS measure", diluted ? "diluted" : "basic"], ["EPS growth %", base.growth], ["Target P/E (x)", base.targetPe], ["Years", n], [],
     ["Result", "Value"], ["EPS (Rs)", a.e == null ? "" : fix2(a.e)], ["Current P/E (x)", a.pe.value == null ? "not meaningful" : fix2(a.pe.value)],
@@ -248,10 +259,10 @@ export function EpsCalculatorPage() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="EPS & P/E calculator" art="calculator" links={["/dcf", "/sip-calculator", "/research"]}
-        description={<>Work out <b>earnings per share and the P/E ratio</b> from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</>} />
+      <PageHeader wrap plan="free" title="P/E, EPS & PEG calculator" art="calculator" links={["/dcf", "/sip-calculator", "/research"]}
+        description={<>Work out <b>earnings per share, the P/E ratio and the PEG ratio</b> from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</>} />
       <div className="wrap dcf eps">
-        <CompanyLoader initial={sp.get("load") === "1" && form.sym ? form.sym : null} loaded={loaded} onLoad={onLoad} />
+        <CompanyLoader initial={sp.get("load") === "1" && form.sym ? form.sym : null} loaded={loaded} onLoad={onLoad} onClear={clearCompany} />
 
         <div className="eps-top">
           <section className="card eps-box" aria-labelledby="eps-1-h">

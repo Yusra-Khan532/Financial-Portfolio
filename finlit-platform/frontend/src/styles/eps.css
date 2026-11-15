@@ -94,3 +94,8 @@
   .eps .dcf-co, .eps .dcf-acts, .eps-measure, .eps-picks, .eps button.ghost { display: none !important; }
   .eps .card { break-inside: avoid; }
 }
+/* Task #156: the chosen company, with Deselect, right below the search bar */
+.eps .eps-chosen { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 10px 0 0; padding: 8px 8px 8px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); font-size: 14px; }
+.eps .eps-chosen > span { min-width: 0; overflow-wrap: anywhere; }
+.eps .eps-desel { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; }
+.eps .eps-desel span { font-size: 18px; line-height: 1; }

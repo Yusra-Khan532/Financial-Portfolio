@@ -410,7 +410,7 @@ export const PAGE_FAQS: PageFaq[] = [
  },
  {
   "id": "eps-p-e-calculator",
-  "title": "EPS & P/E calculator",
+  "title": "P/E, EPS & PEG calculator",
   "section": "Investment calculators",
   "routes": [
    "/eps-calculator"
