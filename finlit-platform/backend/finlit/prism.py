@@ -384,18 +384,33 @@ async def record_history(db, symbol: str, statement: str, view: Dict[str, Any], 
         return False
 
 
-async def record_technical(db, symbol: str, statement: str, card: Optional[Dict[str, Any]]) -> bool:
-    """The short- and long-term technical views of today, from the daily refresh: only those two columns of today's row (the row is created with no score when no full
-    calculation ran today, so a score is never claimed for a day it was not worked out). Never raises."""
+async def record_technical(db, symbol: str, statement: str, card: Optional[Dict[str, Any]], rating: Optional[Dict[str, Any]] = None) -> bool:
+    """Today's row from the daily refresh: the short- and long-term technical views, and (task #126) the business scores IN FORCE today, from the stored report
+    the refresh has just read (`rating`): the Prism score, its four parts, label, status and model version that the report page shows today. A full calculation
+    the same day keeps its own figures (it writes them, and they are never replaced here), so every recorded day has the rating that held on it, and the
+    chart's step lines run across the days between two re-ratings. A company with no rating gets no score. Never raises."""
     card = card if isinstance(card, dict) else {}
     st, lt = _score((card.get("st") or {}).get("score")), _score((card.get("lt") or {}).get("score"))
-    if st is None and lt is None:
+    rating = rating if isinstance(rating, dict) else {}
+    final = _score(rating.get("final"))
+    parts = rating.get("parts") if isinstance(rating.get("parts"), dict) else {}
+    if st is None and lt is None and final is None:
         return False
     try:
         await db.execute(
-            """INSERT INTO prism_history (symbol, statement, day, st_score, lt_score) VALUES ($1, $2, (now() AT TIME ZONE 'Asia/Kolkata')::date, $3, $4)
+            """INSERT INTO prism_history (symbol, statement, day, st_score, lt_score, model_version, final, label, status, p_fundamental, p_valuation, p_quality, p_risk)
+               VALUES ($1, $2, (now() AT TIME ZONE 'Asia/Kolkata')::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                ON CONFLICT (symbol, statement, day) DO UPDATE SET st_score = COALESCE(EXCLUDED.st_score, prism_history.st_score),
-                   lt_score = COALESCE(EXCLUDED.lt_score, prism_history.lt_score), recorded_at = now()""", symbol, statement, st, lt)
+                   lt_score = COALESCE(EXCLUDED.lt_score, prism_history.lt_score),
+                   model_version = COALESCE(prism_history.model_version, EXCLUDED.model_version), final = COALESCE(prism_history.final, EXCLUDED.final),
+                   label = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.label ELSE prism_history.label END,
+                   status = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.status ELSE prism_history.status END,
+                   p_fundamental = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_fundamental ELSE prism_history.p_fundamental END,
+                   p_valuation = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_valuation ELSE prism_history.p_valuation END,
+                   p_quality = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_quality ELSE prism_history.p_quality END,
+                   p_risk = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_risk ELSE prism_history.p_risk END, recorded_at = now()""",
+            symbol, statement, st, lt, rating.get("modelVersion") if final is not None else None, final, rating.get("label") if final is not None else None,
+            rating.get("status") if final is not None else None, *((_score(parts.get(k)) if final is not None else None) for k in ("fundamental", "valuation", "quality", "risk")))
         return True
     except Exception as exc:
         log.warning("prism technical history not recorded for %s: %s", symbol, type(exc).__name__)

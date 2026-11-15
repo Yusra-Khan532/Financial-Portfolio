@@ -238,10 +238,10 @@ async def refresh_symbol(app, symbol: str, now: datetime, target: Optional[date]
                     report, card = _apply(report, _json(row["card"]) if row["card"] is not None else None, view, at)
                     await conn.execute("UPDATE prism_reports SET report = $3::jsonb, card = $4::jsonb WHERE symbol = $1 AND statement = $2",
                                        symbol, row["statement"], json.dumps(report, allow_nan=False), json.dumps(card, allow_nan=False))
-                    recorded.append((row["statement"], card))
+                    recorded.append((row["statement"], card, report.get("rating") if isinstance(report, dict) else None))
                     updated += 1
-        for statement, card in recorded:                    # today's short- and long-term views for the score chart (after the transaction: a failure there cannot undo the refresh)
-            await prism.record_technical(store.pool, symbol, statement, card)
+        for statement, card, rating in recorded:            # today's views and the rating in force for the score chart (after the transaction: a failure there cannot undo the refresh)
+            await prism.record_technical(store.pool, symbol, statement, card, rating)
         if not ready:
             if gap:      # still no long-term score with today's candles: not asked again until tomorrow
                 await store.redis.set(NONEW_PREFIX + symbol, stored_bar, ex=NONEW_SECONDS)

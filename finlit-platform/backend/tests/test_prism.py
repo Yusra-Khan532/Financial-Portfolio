@@ -1098,6 +1098,25 @@ async def test_history_is_one_row_a_day_and_a_score_is_never_claimed_for_a_day_i
     assert not await prism.record_technical(pool, "HISTTO", "consolidated", {"st": {"score": None}, "lt": {"score": None}})
 
 
+async def test_the_daily_refresh_records_the_rating_in_force_so_no_day_is_missing_its_business_scores(env):
+    """Task #126 (reopened, 15 Nov): business scores were written only on days a full calculation ran, so a company re-rated on 14 Nov showed one point. The daily
+    technical refresh now also records the rating in force that day (from the stored report it reads); a full calculation's own figures are never replaced."""
+    app, _ = env
+    pool = app.state.store.pool
+    await pool.execute("DELETE FROM prism_history WHERE symbol IN ('HISTIF', 'HISTFC')")
+    held = _view(final=61.0, parts=(50, 60, 70, 80))["rating"]
+    assert await prism.record_technical(pool, "HISTIF", "consolidated", {"st": {"score": 12.0}, "lt": {"score": -5.0}}, held)
+    r = await pool.fetchrow("SELECT * FROM prism_history WHERE symbol = 'HISTIF'")
+    assert r["final"] == 61.0 and (r["p_fundamental"], r["p_valuation"], r["p_quality"], r["p_risk"]) == (50, 60, 70, 80) and r["st_score"] == 12.0 and r["status"] == "RATED"
+    assert await prism.record_history(pool, "HISTFC", "consolidated", _view(final=72.5, parts=(55, 61, 71, 81)))            # a full calculation today
+    assert await prism.record_technical(pool, "HISTFC", "consolidated", {"st": {"score": 3.0}, "lt": {"score": None}}, held)   # then the refresh, with an older stored rating
+    f = await pool.fetchrow("SELECT * FROM prism_history WHERE symbol = 'HISTFC'")
+    assert f["final"] == 72.5 and f["p_fundamental"] == 55 and f["p_risk"] == 81 and f["st_score"] == 3.0                    # the calculation's own figures stay
+    nr = _view(final=None)["rating"]
+    await pool.execute("DELETE FROM prism_history WHERE symbol = 'HISTNR2'")
+    assert not await prism.record_technical(pool, "HISTNR2", "consolidated", {"st": {"score": None}, "lt": {"score": None}}, nr)   # no rating and no view: no row
+
+
 async def test_history_route_is_gold_only_ordered_and_honest_about_its_start(env):
     app, _ = env
     pool = app.state.store.pool
