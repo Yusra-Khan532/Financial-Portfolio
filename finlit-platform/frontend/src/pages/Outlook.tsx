@@ -1,4 +1,4 @@
-// Profit and revenue outlook (Gold): estimates of revenue and net profit for the next 1, 3 or 5 financial years from the company's own history and its
+// Profit and revenue forecasting (Gold): estimates of revenue and net profit for the next 1, 3 or 5 financial years from the company's own history and its
 // sector's, by a weighted growth rate (the team's methodology, docs/outlook/METHOD.md). "Our model", or "Build your own growth model": the user's own growth rate for
 // each input (task #146), combined by the model's weights. All arithmetic is on the server; what stays here is the slider logic (lib/outlook.ts) and the chart
 // series (lib/outlookChart.ts), both tested. Information only, not advice.
@@ -25,10 +25,10 @@ const GATE_POINTS = ["Revenue and net profit estimates for the next 1, 3 or 5 ye
 
 // ---------------------------------------------------------------------------------------------------------- /outlook (search)
 export function OutlookIndexPage() {
-  useDocTitle("Profit and revenue outlook", "Revenue and net profit estimates for a listed company over the next 1, 3 or 5 years, from its own reported history and its sector's.");
+  useDocTitle("Profit and revenue forecasting", "Revenue and net profit estimates for a listed company over the next 1, 3 or 5 years, from its own reported history and its sector's.");
   return (
     <>
-      <PageHeader wrap plan="gold" title="Profit and revenue outlook" art="chart" links={["/research", "/compare", "/dcf"]}
+      <PageHeader wrap plan="gold" title="Profit and revenue forecasting" art="chart" links={["/research", "/compare", "/dcf"]}
         description={<>Pick a listed company to see its <b>reported revenue and net profit by year</b>, and an estimate for the next 1, 3 or 5 years worked out from its own growth and its sector's. Estimates from past results, not a prediction or advice.</>} />
       <div className="wrap ol"><OutlookPicker intro /></div>
     </>
@@ -158,7 +158,7 @@ export function Takeaways({ d, model }: { d: Outlook; model: Outlook | null }) {
 export function OutlookPage() {
   const { symbol = "" } = useParams();
   const sym = symbol.toUpperCase();
-  useDocTitle(`${sym} profit and revenue outlook`, "Revenue and net profit estimates for the next 1, 3 or 5 years, from the company's own reported history and its sector's. Not a prediction, not advice.");
+  useDocTitle(`${sym} profit and revenue forecasting`, "Revenue and net profit estimates for the next 1, 3 or 5 years, from the company's own reported history and its sector's. Not a prediction, not advice.");
   const { has } = useUI();
   const { user } = useAuth();
   const gold = has("gold") && !!user && !DEMO;
@@ -188,11 +188,11 @@ export function OutlookPage() {
 
   return (
     <>
-      <PageHeader wrap plan="gold" title="Profit and revenue outlook" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, "/outlook", "/dcf"]}
+      <PageHeader wrap plan="gold" title="Profit and revenue forecasting" art="chart" links={[{ to: `/stocks/${encodeURIComponent(sym)}`, label: "Company report" }, "/outlook", "/dcf"]}
         description={<>{d?.name ? <><b>{d.name}</b> <span className="mono faint">{sym}</span> · </> : <><span className="mono">{sym}</span> · </>}Estimates from the company's own history and its sector.</>} />
       <div className="wrap ol">
         <OutlookPicker current={sym} />
-        <Gate tier="gold" title="Profit and revenue outlook" points={GATE_POINTS}>
+        <Gate tier="gold" title="Profit and revenue forecasting" points={GATE_POINTS}>
           <div className="ol-ctl card">
             <div className="ol-ctl-row">
               <span className="ol-ctl-l" id="ol-hz-l">Estimate for</span>

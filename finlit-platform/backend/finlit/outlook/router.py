@@ -1,4 +1,4 @@
-"""POST /api/outlook/{symbol}: the Gold-only profit and revenue outlook. Reads the stored report sections and the screener table only (no provider calls). Information only, not investment advice."""
+"""POST /api/outlook/{symbol}: the Gold-only profit and revenue forecasting. Reads the stored report sections and the screener table only (no provider calls). Information only, not investment advice."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class OutlookIn(BaseModel):
 
 async def gold_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
     if not sees_all(ctx) and not has(ctx.plan, "gold"):
-        raise fail(403, "plan_required", "The profit and revenue outlook is part of the Gold plan.", plan="gold")
+        raise fail(403, "plan_required", "The profit and revenue forecasting is part of the Gold plan.", plan="gold")
     return ctx
 
 
