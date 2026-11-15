@@ -49,7 +49,7 @@ export function stockLists(followed: Followed[], watch: ReadonlySet<string>, hel
 }
 
 /** Task #135: the rows of All, Mutual funds and ETFs. Shares and the watchlist from the quotes and the stock list (1-year move), funds from the MF portfolio
- *  (NAV, 1-year return, Health Score) and each fund's page answer (the last NAV move and its date). ETFs: none until the ETF portfolio exists (task #136). */
+ *  (NAV, 1-year return, FundPulse) and each fund's page answer (the last NAV move and its date). ETFs: none until the ETF portfolio exists (task #136). */
 function buildInv(lists: ReturnType<typeof stockLists>, followed: Followed[], funds: MfHolding[], details: (FundDetail | undefined)[], qm: ReturnType<typeof quoteMap>,
   oneYear: ReadonlyMap<string, number | null>, qty: ReadonlyMap<string, number>): { all: InvRow[]; funds: InvRow[]; etfs: InvRow[] } {
   const nameOf = new Map(followed.map((f) => [f.symbol, f.name]));
@@ -139,7 +139,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
     <>
     <Card id="mystocks" title="Your investments today" sub={sub} right={right} className="dsh-ys">
       {loading ? <Rows n={3} h={56} /> : !followed.length && !funds.length ? (
-        <div className="dsh-empty"><b>Follow stocks or add your funds to see them here every day</b><p>Price, today's move, {model === "prism" ? "FinLit Prism" : "FinLit IQ"} and latest results for each stock you follow; NAV and the Health Score for your mutual funds.</p>
+        <div className="dsh-empty"><b>Follow stocks or add your funds to see them here every day</b><p>Price, today's move, {model === "prism" ? "FinLit Prism" : "FinLit IQ"} and latest results for each stock you follow; NAV and FundPulse for your mutual funds.</p>
           <button type="button" className="dsh-search" onClick={() => dispatchEvent(new Event("finlit:open-search"))}>Find a stock to follow</button></div>
       ) : isStockTab ? (!list.length ? (
         tab === "portfolio"
@@ -176,15 +176,15 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
         </div>
       )) : !invList.length ? (
         tab === "mf" ? (has("silver")
-          ? <div className="dsh-empty"><b>No mutual funds added yet</b><p>Add your mutual funds to see their NAV and Health Score here.</p><Link className="dsh-btn" to="/mf-portfolio">Add a fund</Link></div>
-          : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their NAV here, and their Health Score on Gold.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
+          ? <div className="dsh-empty"><b>No mutual funds added yet</b><p>Add your mutual funds to see their NAV and FundPulse here.</p><Link className="dsh-btn" to="/mf-portfolio">Add a fund</Link></div>
+          : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their NAV here, and their FundPulse on Gold.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
         : <div className="dsh-empty"><b>No ETFs added yet</b><p>ETFs you hold will show here with their price against NAV once the ETF portfolio opens. Until then, every ETF on the NSE is on the ETFs page.</p><Link className="dsh-btn" to="/etfs">See ETFs</Link></div>
       ) : (
         <div className="dsh-st dsh-inv" role="table" id={LIST_ID} aria-label={tab === "mf" ? "Your mutual funds" : tab === "etf" ? "Your ETFs" : "Your investments"}>
           <div className="dsh-st-h" role="row"><span role="columnheader">Name</span><span role="columnheader">Type</span><span role="columnheader" className="r">Price or NAV</span>
             <span role="columnheader" className="r">{day}<Tip text={`The change on ${day === "Today" ? "today's" : `${day}'s`} session: the share price, or the fund's NAV against its previous NAV.`} /></span>
             <span role="columnheader" className="r">1 year<Tip text="The price or NAV change over the last year. Dividends are not included for shares and ETFs." /></span>
-            <span role="columnheader">FinLit reading<Tip text={`Shares: ${model === "prism" ? "FinLit Prism" : "FinLit IQ"}. Mutual funds: the Health Score (Gold). ETFs: the last price against the NAV.`} /></span><span role="columnheader" className="r">Alert</span></div>
+            <span role="columnheader">FinLit reading<Tip text={`Shares: ${model === "prism" ? "FinLit Prism" : "FinLit IQ"}. Mutual funds: FundPulse (Gold). ETFs: the last price against the NAV.`} /></span><span role="columnheader" className="r">Alert</span></div>
           {invShown.map((r) => {
             const mine = r.symbol ? alerts.filter((a) => a.symbol === r.symbol && a.status !== "done") : [];
             return (

@@ -192,7 +192,7 @@ export function MfPortfolioPage() {
     return () => clearTimeout(t);
   }, [noReturns, polls, q]);
   const limit = d?.limit ?? limitsFor(plan).mf_holdings;
-  const unlock = () => upgrade("gold", "The FinLit Mutual Fund Health Score is part of Gold.");
+  const unlock = () => upgrade("gold", "The FinLit FundPulse is part of Gold.");
 
   // the largest stocks underneath: industry and FinLit size from the stock list, how each did against its peers from its weekly reading
   const uni = useUniverse(), byU = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol, r])), [uni.data]);
@@ -208,11 +208,11 @@ export function MfPortfolioPage() {
 
   return (
     <div className="wrap ipo mp sp mfp">
-      <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is (Health Score on Gold)", "How much your funds overlap, and the stocks underneath", "Each fund's swing, worst fall and beta against the Nifty 500", "Import your CAS PDF, or Excel / CSV statements"]}>
+      <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is (FundPulse on Gold)", "How much your funds overlap, and the stocks underneath", "Each fund's swing, worst fall and beta against the Nifty 500", "Import your CAS PDF, or Excel / CSV statements"]}>
         <header className="sp-head mfp-head">
           <div><p className="mfp-plan"><span>Silver</span></p><h1>MF portfolio</h1>
             <p className="sp-desc">How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.</p>
-            <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">Fund Health Score →</Link></nav></div>
+            <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">FinLit FundPulse →</Link></nav></div>
           <section className="mfp-add" aria-label="Add funds">
             <AddFund disabled={false} onDone={toast} />
             <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>

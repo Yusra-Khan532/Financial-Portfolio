@@ -5,7 +5,7 @@ sends it); the member's mutual funds are read from their MF portfolio here. No n
 page changes this page. ETFs are not read: the ETF portfolio does not exist yet, and the answer says so.
 
 Plans (founder, 15 Nov 2026): Silver and Gold, as the two portfolio pages. Shares are read with the FinLit IQ on Silver and FinLit Prism on Gold, never
-both; the funds' Health Score is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
+both; the funds' FundPulse is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
 Information only, not investment advice.
 """
 

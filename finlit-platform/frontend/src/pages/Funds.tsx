@@ -78,8 +78,8 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
         <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
           <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
         </NoteCard>
-        <NoteCard title="Mutual Fund Health Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
-          <p><b>Health score</b> (Gold) is the FinLit Mutual Fund Health Score, 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
+        <NoteCard title="FinLit FundPulse" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
+          <p><b>FundPulse</b> (Gold) is the FinLit FundPulse, 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
         </NoteCard>
         <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
           <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
@@ -155,7 +155,7 @@ export function FundListPage() {
   const onSort = (s: SortKey) => set(eq.sort === s ? { sort: s, dir: eq.dir === "asc" ? "desc" : "asc" } : { sort: s, dir: s === "name" || s === "amc" || s === "category" ? "asc" : "desc" });
   // Task #130 C-9: up to 4 funds; a fifth replaces the oldest. The names on the compare bar come from the rows they were ticked on.
   const pick = (code: number, name?: string) => { if (name) rememberName(code, name); const replacing = tray.length >= TRAY_MAX && !tray.includes(code); toggle(code); if (replacing) toast(`Up to ${TRAY_MAX} funds at a time: the first one chosen was replaced.`); };
-  // Task #130 C-4: "See these funds by Health Score" switches the tab and sub-category below to that category, orders it by Health Score and scrolls to the list.
+  // Task #130 C-4: "See these funds by FundPulse" switches the tab and sub-category below to that category, orders it by FundPulse and scrolls to the list.
   const showByScore = (c: { tab: ListQuery["tab"]; key: string }) => {
     set({ tab: c.tab, cats: [c.key], view: "", ...(canScore ? { sort: "score" as SortKey, dir: "desc" as const } : {}) });
     requestAnimationFrame(() => document.getElementById("mf-list")?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -186,7 +186,7 @@ export function FundListPage() {
         <Link className="evi-promo" to="/fund-score-screener">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="quality" /></span>
           <span className="evi-promo-t"><b>Fund score screener</b>
-            <small>Every scored fund with its Health Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
+            <small>Every scored fund with its FundPulse and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
           <span className="evi-promo-go" aria-hidden="true">Open →</span>
         </Link>
         <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null })} onCats={(cats) => set({ cats })} />

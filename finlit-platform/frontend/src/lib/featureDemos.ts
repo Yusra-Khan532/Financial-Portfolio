@@ -28,7 +28,7 @@ export const DEMOS: Record<string, Demo> = {
   dcf: v("dcf", "DCF calculator", "Change the growth or discount rate and the intrinsic value, margin of safety and the full working update at once.", "/dcf", "Open the DCF calculator"),
   "adv-screener": v("adv-screener", "Advanced stock screener", "Every listed company rated by FinLit Prism: ready-made screens by size and theme, with the parts and technical views beside each one.", "/advanced-score-screener", "Open the advanced screener"),
   prism: v("prism", "FinLit Prism", "A company's financial health in four parts, with the short and long-term technical views kept apart.", "/prism", "Open FinLit Prism"),
-  "fund-health": v("fund-health", "Mutual Fund Health Score", "A 0 to 100 health score for every fund from its NAVs, costs and holdings, with category leaderboards.", "/fund-score-screener", "Open the Fund Health Score"),
+  "fund-health": v("fund-health", "FinLit FundPulse", "A 0 to 100 health score for every fund from its NAVs, costs and holdings, with category leaderboards.", "/fund-score-screener", "Open the FinLit FundPulse"),
   portfolio: v("portfolio", "Portfolio scorecard", "Add your shares by name to see each one's score, the average for your list, its sector mix and how spread it is.", "/holdings", "Open the portfolio"),
   compare: v("compare", "Compare companies", "Two companies side by side (four on Gold): financials, charts, a spider view of the scores and valuation.", "/compare", "Open Compare"),
   alerts: v("alerts", "Alerts", "Get a message when a price, a ratio, a score or a new filing reaches the level you set.", "/alerts", "Open alerts"),
@@ -56,7 +56,7 @@ export const FEATURE_DEMO: Record<string, string> = {
   "Watchlists": "watchlists", "Watchlists with notes and targets": "watchlists", "Bigger watchlists": "watchlists",
   "Downloads": "downloads", "Downloads: PDF note, offline copy, CSV": "downloads", "Portfolio scorecard": "portfolio",
   "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit forecasting": "outlook",
-  "FinLit Mutual Fund Health Score": "fund-health", "Fund Health Score": "fund-health", "Revenue by segment": "segments",
+  "FinLit FundPulse": "fund-health", "Revenue by segment": "segments",
   "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
 };
 

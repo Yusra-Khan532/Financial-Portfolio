@@ -221,7 +221,7 @@ export const PRESETS: PresetDef[] = [
   { id: "ai-tech", label: "AI and technology funds", say: "Technology and AI tags, India and overseas.", set: () => ({ ...base(), tags: ["ai", "semis", "robotics", "cloud", "cyber", "it", "g_nasdaq"] }) },
   { id: "elss-record", label: "Tax saver (ELSS) with a five-year record", say: "ELSS, five years or older, 5-year return above the category median.", set: () => rng(rng({ ...base(), subs: ["elss"] }, "age", "5"), "ex5y", "0") },
   { id: "steady-hybrid", label: "Hybrid funds with steady months", say: "Hybrid, no falling month in 3 years, equity share 10 to 40%.", set: () => rng({ ...base(), group: "hybrid", tick: ["noneg36"] }, "eq_pct", "10", "40") },
-  { id: "score-cost", label: "Health score 65+ at low cost", say: "Needs the score filter, which lives in the Fund score screener.", set: () => base(), off: "Score filters are in the Fund score screener." },
+  { id: "score-cost", label: "FundPulse 65+ at low cost", say: "Needs the score filter, which lives in the Fund score screener.", set: () => base(), off: "Score filters are in the Fund score screener." },
 ];
 const presetKey = (q: SQ) => queryToParams({ ...q, page: 1, sort: q.sort, dir: q.dir }).toString();
 /** A preset is "on" while every filter it sets is still as it set it (more filters on top do not switch it off). */

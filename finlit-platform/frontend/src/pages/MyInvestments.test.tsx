@@ -66,14 +66,14 @@ describe("task #137: All my investments", () => {
     expect(tiles[0]).toMatch(/Asset mix86% shares.*debt and cash 11%, counting what sits inside each fund/);
     expect(tiles[1]).toMatch(/Biggest companyHDFC Bank 6\.1%4\.2% direct, 1\.9% through funds/);
     expect(tiles[2]).toMatch(/Held twice1 company/);
-    expect(tiles[3]).toMatch(/Health65 · 52Shares: FinLit Prism 65, Healthy\. Funds: Health Score 52, Average/);
+    expect(tiles[3]).toMatch(/Health65 · 52Shares: FinLit Prism 65, Healthy\. Funds: FundPulse 52, Average/);
     expect(tiles[4]).toMatch(/Risk levelA little lowerthan the Nifty 500/);
   });
-  it("Silver sees FinLit IQ and a lock on the funds' Health Score; Basic sees the plan gate", async () => {
+  it("Silver sees FinLit IQ and a lock on the funds' FundPulse; Basic sees the plan gate", async () => {
     st.plan = "silver"; st.answer = ANSWER({ plan: "silver", parts: { ...ANSWER().parts, shares: { ...ANSWER().parts.shares, score: 66, scoreModel: "iq" }, funds: { ...ANSWER().parts.funds, score: null, scoreLocked: true } } });
     mount(); await screen.findByText("Where your money sits");
     const health = [...document.querySelectorAll(".mi-tile")][3].textContent!;
-    expect(health).toMatch(/Shares: FinLit IQ 66, Healthy\. Funds: Health Score comes with Gold/);
+    expect(health).toMatch(/Shares: FinLit IQ 66, Healthy\. Funds: FundPulse comes with Gold/);
     expect(document.body.textContent).not.toMatch(/FinLit Prism \d/);
     cleanup(); st.plan = "basic"; mount();
     expect(screen.getByTestId("gate").textContent).toMatch(/See all your investments together/);

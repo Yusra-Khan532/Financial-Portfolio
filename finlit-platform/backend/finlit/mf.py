@@ -1808,7 +1808,7 @@ LIST_COLS = ("code, name, amc, category, scheme_type, plan, option_class, option
 SORTS = {"name": "name", "amc": "amc", "category": "category", "nav": "nav", "navDate": "nav_date", "r1y": "r1y", "r3y": "r3y", "r5y": "r5y",
          "change": "(CASE WHEN prev_nav > 0 THEN nav / prev_nav - 1 END)", "sip3y": "sip3y", "sip5y": "sip5y", "aum": "aum_lakh", "ter": "ter",
          "checklist": "(chk_pass * 8 + chk_known)",
-         "score": "(SELECT sc.final FROM mf_scores sc WHERE sc.key = 'mf:' || mf_schemes.code::text)"}   # the Mutual Fund Health Score (finlit/mfscore): Gold only, see list_funds
+         "score": "(SELECT sc.final FROM mf_scores sc WHERE sc.key = 'mf:' || mf_schemes.code::text)"}   # the FinLit FundPulse (finlit/mfscore): Gold only, see list_funds
 SORTS.update(screen_spec.SORT_EXTRA)   # the screener's sorts (fall, age, rank in category ...): they read mf_screen, which the list always joins
 MAX_CATEGORIES = 80
 PLANS = ("Direct", "Regular", "Unspecified")

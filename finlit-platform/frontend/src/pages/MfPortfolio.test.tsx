@@ -83,7 +83,7 @@ describe("MF portfolio category card", () => {
 });
 
 describe("MF portfolio as the pack draws it", () => {
-  it("shows the five tiles, the three views and Your funds with the Gold plan words for a locked Health Score", () => {
+  it("shows the five tiles, the three views and Your funds with the Gold plan words for a locked FundPulse", () => {
     show("funds");
     expect([...document.querySelectorAll(".mfp-tile-k")].map((x) => x.firstChild?.textContent)).toEqual(["Funds", "Average health", "Highest overlap", "Top 10 stocks vs peers", "Risk level"]);
     expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")?.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);

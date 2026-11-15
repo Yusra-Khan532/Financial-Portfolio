@@ -128,7 +128,7 @@ const once = (items: { to: string; label: string }[]) => items.filter((it, i) =>
 const FOOT: { title: string; items: { to: string; label: string }[] }[] = [
   { title: "Research", items: pick("research") },
   { title: "Markets and news", items: once([...pick("markets"), ...pick("news"), { to: "/premium/markets", label: "Market events & index" }, { to: "/premium/options", label: "Option chain" }]) },
-  { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "Fund Health Score" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
+  { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "FinLit FundPulse" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
 ];
 
 /** The home page's footer: the logo, one line, the disclosure and the main links. Every other page keeps the full footer. */
