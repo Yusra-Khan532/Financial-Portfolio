@@ -36,7 +36,7 @@ export function cardScoreView(key: string, data: CategoryScores | undefined, opt
   if (!c || !(c.n > 0) || c.median == null) return { kind: "none" };
   const band = scoreBand(c.median);
   return { kind: "scored", median: scoreText(c.median), band, n: c.n, line: medianLine(c.median, c.n), shares: bandShares(c),
-    label: `Health score of Direct-plan funds: ${medianLine(c.median, c.n)}. ${c.green} green, ${c.orange} orange, ${c.red} red.` };
+    label: `Health Score of Direct-plan funds: ${medianLine(c.median, c.n)}. ${c.green} healthy or strong, ${c.orange} average, ${c.red} weak or poor.` };   // task #130 C-1: the bands by name, never by colour
 }
 
 /** The funds list for a card, ordered by the Health score, best-scoring first (Gold; the server refuses that order below). Direct plan is the list's default. */
