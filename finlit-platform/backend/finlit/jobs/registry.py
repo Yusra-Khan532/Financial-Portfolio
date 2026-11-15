@@ -319,7 +319,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             day_rule=_first_sunday_of_quarter, sla=Sla("hours", 24 * 100), catchup=False, what="quarterly: has leadership held in each peer group?"),
         Job("rebuild-metrics", ("rebuild-metrics", "--only-missing"), cls="bulk", priority=71, max_runtime_min=45, weight_mb=250, windows=(W("NIGHT", 144),),
             sla=Sla("hours", 400), boot=True, what="screener filters for companies loaded before they existed (database only)"),
-        Job("short-history", ("refresh-short-history",), cls="bulk", priority=72, max_runtime_min=60, weight_mb=250, windows=(W("NIGHT", 144),),
+        Job("short-history", ("refresh-short-history", "--max-minutes", "45"), cls="bulk", priority=72, max_runtime_min=60, weight_mb=250, windows=(W("NIGHT", 144),),
             sla=Sla("hours", 400), resumable=True, boot=True, what="reload stored reports with four years or fewer of statements"),
         # ---------------------------------------------------------------- light jobs of the nightly chain and the evening data
         Job("universe", ("refresh-universe",), priority=12, max_runtime_min=15, weight_mb=150, windows=(W("NIGHT", 144),), day_rule=_sunday,
