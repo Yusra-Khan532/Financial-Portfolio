@@ -347,7 +347,7 @@
  {
   "declared": 6,
   "id": "profit-and-revenue-outlook",
-  "title": "Profit and revenue outlook",
+  "title": "Profit and revenue forecasting",
   "section": "Analyse a company",
   "routes": [
    "/outlook",
@@ -357,23 +357,23 @@
   "items": [
    {
     "q": "What does this page show?",
-    "a": "Pick a company to see how its own reported history points for profit and for revenue: an outlook score and an indicative range for the next four quarters. It is a scenario from the company's numbers, not a forecast."
+    "a": "Pick a company to see how its own reported history points for profit and for revenue: a forecasting score and an indicative range for the next four quarters. It is a scenario from the company's numbers, not a forecast."
    },
    {
-    "q": "How is the outlook score built?",
+    "q": "How is the forecasting score built?",
     "a": "From areas with set weights: profitability and margins (25%), historical profit growth (15%), cost efficiency and operating leverage (15%), cash conversion (10%), leverage and interest (10%), capital and asset efficiency (10%), and tax and exceptional items, earnings volatility, and capex and depreciation (5% each). Each area shows how many of its measures could be worked out."
    },
    {
     "q": "What is the indicative range?",
-    "a": "Low, middle and high figures for the next four quarters' total net profit, against the same four quarters a year earlier. It is built from the trailing four quarters, the 3-year growth rate and how much the company's own quarterly growth has varied, nudged by the outlook score."
+    "a": "Low, middle and high figures for the next four quarters' total net profit, against the same four quarters a year earlier. It is built from the trailing four quarters, the 3-year growth rate and how much the company's own quarterly growth has varied, nudged by the forecasting score."
    },
    {
     "q": "Can I change the weights?",
     "a": "Yes. Choose Set your own and give each area a weight in percent (they must add up to 100%). Reset to our model brings back the default weights."
    },
    {
-    "q": "Is there a revenue outlook too?",
-    "a": "Yes. Switch between Profit outlook and Revenue outlook at the top."
+    "q": "Is there a revenue forecast too?",
+    "a": "Yes. Switch between Profit estimate and Revenue estimate at the top."
    },
    {
     "q": "Which figures does it use?",

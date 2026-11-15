@@ -35,7 +35,7 @@ export const DEMOS: Record<string, Demo> = {
   watchlists: v("watchlists", "Watchlists", "Keep the companies you follow in lists, with your notes and price levels, grouped by industry and size.", "/watchlist", "Open watchlists"),
   calendars: v("calendars", "Results, IPO and news calendars", "Result dates, open and upcoming IPOs and company filings, in one place.", "/results", "Open the calendars"),
   "iq-table": v("iq-table", "FinLit IQ table", "Every listed company with its score and five pillars, to sort and filter.", "/score-screener", "Open the score screener"),
-  outlook: v("outlook", "Revenue and profit outlook", "Estimates of revenue and profit from the company's own history and its sector, with the weights you choose.", "/outlook", "Open the outlook"),
+  outlook: v("outlook", "Revenue and profit forecasting", "Estimates of revenue and profit from the company's own history and its sector, with the weights you choose.", "/outlook", "Open the outlook"),
   downloads: v("downloads", "Downloads", "Save a company's report as a PDF note or an offline copy, and download tables as CSV.", "/stocks/RELIANCE", "Open a company report"),
   segments: v("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "/premium/fundamentals", "Open company financials"),
   "gold-dash": v("gold-dash", "Gold dashboards", "Markets and financials: index moves with the events behind them, and every ratio over the years.", "/premium", "Open the Gold dashboards"),
@@ -55,7 +55,7 @@ export const FEATURE_DEMO: Record<string, string> = {
   "FinLit IQ and five pillars": "iq", "How the score is built": "iq", "Growth & Profitability and technical scores side by side": "iq", "FinLit IQ table for every company": "iq-table",
   "Watchlists": "watchlists", "Watchlists with notes and targets": "watchlists", "Bigger watchlists": "watchlists",
   "Downloads": "downloads", "Downloads: PDF note, offline copy, CSV": "downloads", "Portfolio scorecard": "portfolio",
-  "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit outlook": "outlook",
+  "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit forecasting": "outlook",
   "FinLit Mutual Fund Health Score": "fund-health", "Fund Health Score": "fund-health", "Revenue by segment": "segments",
   "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
 };
