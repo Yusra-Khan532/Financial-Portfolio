@@ -264,7 +264,10 @@ async def test_outlook_is_gold_only_and_validates(app, anon):  # noqa: F811
     oj = own.json()
     assert own.status_code == 200 and oj["mode"] == "custom" and oj["weights"] == d and oj["values"] == {"co_1y": 12.5, "sec_3y": -4.0}
     assert {r["key"]: r["valuePct"] for r in oj["rate"]["rows"]}["co_1y"] == 12.5 and oj["rate"]["ratePct"] != j["rate"]["ratePct"]
-    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 51}})).status_code == 422
+    big = await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 51}})            # task #166: a typed rate above the old 50% is accepted
+    assert big.status_code == 200 and {r["key"]: r["valuePct"] for r in big.json()["rate"]["rows"]}["co_1y"] == 51
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 1000}})).status_code == 422   # beyond +999% a year
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": -100}})).status_code == 422   # a fall of 100% or more is not a rate
     assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"Q": 1}})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "other"})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "profit", "horizon": "decade"})).status_code == 422
