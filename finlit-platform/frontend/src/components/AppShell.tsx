@@ -80,6 +80,7 @@ export function AppShell() {
     "/screener": saved.length ? String(saved.length) : undefined, "/watchlist": followed ? String(followed) : undefined, "/holdings": held ? String(held) : undefined,
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
     "/my-investments": "NEW",   // task #137: a new page
+    "/etf-portfolio": Date.now() < Date.parse("2026-12-15") ? "NEW" : undefined,   // task #136: NEW for 30 days
   };
   const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to] });
   const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];

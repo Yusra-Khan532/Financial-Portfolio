@@ -21,6 +21,7 @@ export const SECTIONS: NavSection[] = [
     i("/my-investments", "All my investments", "Your shares and mutual funds together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
     i("/holdings", "Equity portfolio", "Score and mix of the shares you hold", "pie"),
     i("/mf-portfolio", "MF portfolio", "Score, value and returns of the mutual funds you hold", "pie"),
+    i("/etf-portfolio", "ETF portfolio", "What your ETFs track, cost and how risky they are together", "layers"),   // task #136 (NEW tag in the rail for 30 days)
     i("/alerts", "Alerts", "Price, signals, scores and filings", "bell"),
   ] }] },
   { id: "research", label: "Research", wide: true, groups: [

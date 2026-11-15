@@ -11,14 +11,14 @@ export type Plan = "basic" | "silver" | "gold";
 const setSeesAll = (v: boolean): boolean => { setSeesAllNow(v); return v; };
 
 export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: Plan; verified: boolean; mfa: boolean; mfaOk: boolean; viewAs?: Plan | null };
-export type Limits = { watchlist_lists: number; watchlist_symbols: number; screens: number; baskets: number; compare: number; holdings: number; mf_holdings: number; earnings_calls_per_month: number };
+export type Limits = { watchlist_lists: number; watchlist_symbols: number; screens: number; baskets: number; compare: number; holdings: number; mf_holdings: number; etf_holdings: number; earnings_calls_per_month: number };
 type Me = { user: User | null; plan: Plan; limits: Limits; csrf: string | null; showcase?: string[] };
 
 /** Same numbers the server enforces (backend/finlit/auth/entitlements.py); the server is what actually applies them. */
 export const LIMITS: Record<Plan, Limits> = {
-  basic: { watchlist_lists: 0, watchlist_symbols: 0, screens: 3, baskets: 3, compare: 2, holdings: 0, mf_holdings: 0, earnings_calls_per_month: 0 },
-  silver: { watchlist_lists: 3, watchlist_symbols: 30, screens: 20, baskets: 20, compare: 2, holdings: 30, mf_holdings: 30, earnings_calls_per_month: 0 },
-  gold: { watchlist_lists: 50, watchlist_symbols: 1000, screens: 100, baskets: 100, compare: 4, holdings: 500, mf_holdings: 500, earnings_calls_per_month: 5 },
+  basic: { watchlist_lists: 0, watchlist_symbols: 0, screens: 3, baskets: 3, compare: 2, holdings: 0, mf_holdings: 0, etf_holdings: 0, earnings_calls_per_month: 0 },
+  silver: { watchlist_lists: 3, watchlist_symbols: 30, screens: 20, baskets: 20, compare: 2, holdings: 30, mf_holdings: 30, etf_holdings: 30, earnings_calls_per_month: 0 },
+  gold: { watchlist_lists: 50, watchlist_symbols: 1000, screens: 100, baskets: 100, compare: 4, holdings: 500, mf_holdings: 500, etf_holdings: 500, earnings_calls_per_month: 5 },
 };
 export const limitsFor = (plan: Plan): Limits => LIMITS[plan];
 

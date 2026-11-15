@@ -20,6 +20,7 @@ import { dayMonth, quarterEndLabel, yoyLabel } from "../../lib/dashboard";
 import { Card, Rows, ShowMoreButton, tone, useShowMore } from "./parts";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, type Holding as MfHolding } from "../../lib/mfPortfolio";
+import { useEtfPortfolio, type EtfHolding } from "../../lib/etfPortfolio";
 import type { FundDetail } from "../../lib/mf";
 import { KIND_TAG, healthText, investRows, investSub, navText, type InvRow } from "../../lib/dashInvest";
 
@@ -51,7 +52,7 @@ export function stockLists(followed: Followed[], watch: ReadonlySet<string>, hel
 /** Task #135: the rows of All, Mutual funds and ETFs. Shares and the watchlist from the quotes and the stock list (1-year move), funds from the MF portfolio
  *  (NAV, 1-year return, Health Score) and each fund's page answer (the last NAV move and its date). ETFs: none until the ETF portfolio exists (task #136). */
 function buildInv(lists: ReturnType<typeof stockLists>, followed: Followed[], funds: MfHolding[], details: (FundDetail | undefined)[], qm: ReturnType<typeof quoteMap>,
-  oneYear: ReadonlyMap<string, number | null>, qty: ReadonlyMap<string, number>): { all: InvRow[]; funds: InvRow[]; etfs: InvRow[] } {
+  oneYear: ReadonlyMap<string, number | null>, qty: ReadonlyMap<string, number>, etfs: EtfHolding[] = []): { all: InvRow[]; funds: InvRow[]; etfs: InvRow[] } {
   const nameOf = new Map(followed.map((f) => [f.symbol, f.name]));
   const stock = (sym: string, kind: "share" | "watch"): InvRow => {
     const q = qm.get(sym), n = qty.get(sym);
@@ -70,8 +71,11 @@ function buildInv(lists: ReturnType<typeof stockLists>, followed: Followed[], fu
       health: { score: h.score.final, label: h.score.label, locked: h.score.locked, why: h.score.reason } };
   });
   const shares = lists.portfolio.map((f) => stock(f.symbol, "share")), watch = lists.watchlist.map((f) => stock(f.symbol, "watch"));
-  const all = investRows({ shares, funds: fundRows, etfs: [], watch });
-  return { all, funds: all.filter((r) => r.kind === "mf"), etfs: [] };
+  const etfRows: InvRow[] = etfs.filter((e) => !e.missing).map((e) => ({ key: "etf:" + e.symbol, kind: "etf", symbol: e.symbol, name: e.name, sub: [e.symbol, e.index?.label].filter(Boolean).join(" · "),
+    href: `/etfs/${encodeURIComponent(e.symbol)}`, alertHref: "/alerts", price: e.price, day: e.changePct, dayWhy: e.changePct == null ? e.why?.change : undefined,
+    y1: e.ret1y, y1Why: e.ret1y == null ? e.why?.ret_1y ?? "Listed less than a year" : undefined, value: e.value, premium: e.premium }));
+  const all = investRows({ shares, funds: fundRows, etfs: etfRows, watch });
+  return { all, funds: all.filter((r) => r.kind === "mf"), etfs: all.filter((r) => r.kind === "etf") };
 }
 
 const PEER_WORD = { leader: "Leader", in_line: "In line", laggard: "Laggard" } as const;
@@ -89,7 +93,9 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   // the cards count every followed stock, so prices, results and peer labels are read for all of them (each call is cached and shared with the rows)
   const quotes = useQuotesFor(allSyms), qm = quoteMap(quotes.data);
   const fundData = fundDetail.map((d) => d.data);
-  const inv = useMemo(() => buildInv(lists, followed, funds, fundData, qm, oneYear, qty), [lists, followed, funds, fundData.map((d) => d?.code ?? 0).join(","), quotes.data, oneYear, qty]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const etfq = useEtfPortfolio(has("silver"));   // task #136: the member's ETFs (ETF portfolio)
+  const etfs = etfq.data?.holdings ?? [];
+  const inv = useMemo(() => buildInv(lists, followed, funds, fundData, qm, oneYear, qty, etfs), [lists, followed, funds, fundData.map((d) => d?.code ?? 0).join(","), quotes.data, oneYear, qty, etfs]);   // eslint-disable-line react-hooks/exhaustive-deps
   const isStockTab = tab === "watchlist" || tab === "portfolio";
   const list = isStockTab ? lists[tab as "watchlist" | "portfolio"] : [];
   const invList = tab === "mf" ? inv.funds : tab === "etf" ? inv.etfs : inv.all;
@@ -120,7 +126,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const subWhen = when ?? (navWhen ? dayMonth(navWhen) : null);
   const sub = followed.length || funds.length ? [investSub(counts, subWhen), tab === "watchlist" || tab === "portfolio" ? (latestEnd ? `latest quarter ${quarterEndLabel(latestEnd)}` : null) : null].filter(Boolean).join(" · ") : undefined;
   const open = tab === "portfolio" ? { to: "/holdings", long: "Open Equity portfolio", short: "Shares" } : tab === "mf" ? { to: "/mf-portfolio", long: "Open MF portfolio", short: "Funds" }
-    : tab === "etf" ? { to: "/etfs", long: "Open ETFs", short: "ETFs" } : { to: "/watchlist", long: "Open watchlist", short: "Watchlist" };
+    : tab === "etf" ? { to: "/etf-portfolio", long: "Open ETF portfolio", short: "ETFs" } : { to: "/watchlist", long: "Open watchlist", short: "Watchlist" };
   const tabs: [StockTab, string, number][] = [["all", "All", inv.all.length], ["watchlist", "Watchlist", counts.watch], ["portfolio", "Shares", counts.shares], ["mf", "Mutual funds", counts.funds], ["etf", "ETFs", counts.etfs]];
   const right = (
     <div className="dsh-ys-tools">
@@ -178,7 +184,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
         tab === "mf" ? (has("silver")
           ? <div className="dsh-empty"><b>No mutual funds added yet</b><p>Add your mutual funds to see their NAV and Health Score here.</p><Link className="dsh-btn" to="/mf-portfolio">Add a fund</Link></div>
           : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their NAV here, and their Health Score on Gold.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
-        : <div className="dsh-empty"><b>No ETFs added yet</b><p>ETFs you hold will show here with their price against NAV once the ETF portfolio opens. Until then, every ETF on the NSE is on the ETFs page.</p><Link className="dsh-btn" to="/etfs">See ETFs</Link></div>
+        : <div className="dsh-empty"><b>No ETFs added yet</b><p>Add your ETFs to see their price against NAV here.</p><Link className="dsh-btn" to="/etf-portfolio">Add an ETF</Link></div>
       ) : (
         <div className="dsh-st dsh-inv" role="table" id={LIST_ID} aria-label={tab === "mf" ? "Your mutual funds" : tab === "etf" ? "Your ETFs" : "Your investments"}>
           <div className="dsh-st-h" role="row"><span role="columnheader">Name</span><span role="columnheader">Type</span><span role="columnheader" className="r">Price or NAV</span>

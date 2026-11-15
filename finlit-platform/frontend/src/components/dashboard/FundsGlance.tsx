@@ -1,6 +1,6 @@
 // Task #135 (dashboard pack 06, section 3): "Your mutual funds at a glance" and "Your ETFs at a glance", beside "Your shares at a glance". The fund figures are the
 // MF portfolio page's own (its holdings, Health Scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Members cannot hold
-// ETFs yet (the ETF portfolio is task #136), so the ETF panel shows its empty state until then. Descriptive only; information only.
+// ETFs in the ETF portfolio (task #136); the ETF panel reads that page's figures the same way. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { dayMonth } from "../../lib/dashboard";
 import { Tip } from "../sectors/pack/Common";
 import { Card, Rows } from "./parts";
 import { DashCards } from "./DashCards";
+import { cards as etfCards, tiles as etfTiles, useEtfPortfolio, useEtfRisk } from "../../lib/etfPortfolio";
 
 const signed = (v: number | null | undefined, d = 1) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
 const ringBand = (label: string | null) => { const l = (label || "").toLowerCase(); return /strong|healthy/.test(l) ? "g" : /average/.test(l) ? "o" : /weak|poor/.test(l) ? "r" : "n"; };
@@ -71,11 +72,42 @@ export function FundsGlance() {
   );
 }
 
-/** Members cannot add ETFs yet: the ETF portfolio is its own task (#136). Until it exists this panel is its empty state, with the way to every ETF on the NSE. */
+/** Your ETFs at a glance (task #135, filled by the ETF portfolio of task #136): what they track with counts, the yearly cost, price against value, how much
+ *  they swing against the Nifty 500 and the change over 1 year, one Watch out line, and the way to the ETF portfolio. Empty state with no ETFs. */
 export function EtfsGlance() {
-  return (
+  const { has } = useUI();
+  const silver = has("silver");
+  const q = useEtfPortfolio(silver);
+  const n = q.data?.count ?? 0;
+  const rk = useEtfRisk(silver && n > 0, n);
+  const hs = useMemo(() => (q.data?.holdings ?? []).filter((h) => !h.missing), [q.data]);
+  const t = useMemo(() => etfTiles(hs), [hs]);
+  if (!silver) return (
     <Card id="etfglance" title="Your ETFs at a glance">
-      <div className="dsh-empty"><b>No ETFs added yet</b><p>Add your ETFs to see what they track, their yearly cost and their price against NAV here. The ETF portfolio opens soon; every ETF on the NSE is on the ETFs page now.</p><Link className="dsh-btn" to="/etfs">See ETFs →</Link></div>
+      <div className="dsh-empty"><b>Track your ETFs</b><p>The ETF portfolio is part of Silver: add your ETFs to see what they track, their cost and their price against NAV here.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>
+    </Card>);
+  if (q.isLoading) return <Card id="etfglance" title="Your ETFs at a glance"><Rows n={3} h={40} /></Card>;
+  if (!n) return (
+    <Card id="etfglance" title="Your ETFs at a glance">
+      <div className="dsh-empty"><b>No ETFs added yet</b><p>Add your ETFs to see what they track, their yearly cost and their price against NAV here.</p><Link className="dsh-btn" to="/etf-portfolio">Add an ETF →</Link></div>
+    </Card>);
+  const idx = new Map<string, number>();
+  for (const h of hs) { const k = h.index?.label ?? "Not told"; idx.set(k, (idx.get(k) ?? 0) + 1); }
+  const tw = hs.reduce((a, h) => a + (h.ret1y != null ? h.weight ?? 0 : 0), 0);
+  const r1y = tw > 0 ? hs.reduce((a, h) => a + (h.ret1y != null ? (h.ret1y as number) * (h.weight ?? 0) : 0), 0) / tw : null;
+  const watch = etfCards(hs, rk.data).filter((c) => c.kind === "watch").slice(0, 1);
+  return (
+    <Card id="etfglance" className="dsh-pg dsh-fg" title={<>Your ETFs at a glance<Tip text="The same figures as the ETF portfolio page: what your ETFs track, their yearly cost, how close their prices are to NAV and how much they swing." label="About “Your ETFs at a glance”" /></>}
+      sub={`${n} ${n === 1 ? "ETF" : "ETFs"}${q.data?.asOf ? ` · prices of ${dayMonth(q.data.asOf)}` : ""}`}>
+      <ul className="dsh-eg-chips" aria-label="What they track">{[...idx.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => <li key={k}>{k} <b>{c}</b></li>)}</ul>
+      <dl className="dsh-fg-kv">
+        <div><dt>Yearly cost</dt><dd>{t.cost.avg == null ? <span title="No expense ratio published yet">—</span> : `${t.cost.avg.toFixed(2)}% a year`}</dd></div>
+        <div><dt>Price against value</dt><dd>{t.nav.of ? `${t.nav.within} of ${t.nav.of} within 0.2% of NAV` : <span title="No NAV for the day of the last close yet">—</span>}</dd></div>
+        <div><dt>Swing a year</dt><dd>{rk.isLoading ? <i className="skeleton sk-n" /> : rk.data?.list.swing != null ? `${nf(rk.data.list.swing, 1)}% · Nifty 500 ${rk.data.bench.swing != null ? nf(rk.data.bench.swing, 1) + "%" : "—"}` : <span title={rk.data?.list.why ?? "Not enough price history yet"}>—</span>}</dd></div>
+        <div><dt>Over 1 year</dt><dd className={r1y == null ? "" : r1y > 0 ? "up" : r1y < 0 ? "down" : ""}>{r1y == null ? <span title="No ETF has a year of prices yet">—</span> : signed(r1y)}</dd></div>
+      </dl>
+      {watch.length > 0 && <div className="sp dsh-cards dsh-cards-after"><DashCards items={watch} scope="etfglance" /></div>}
+      <Link className="dsh-link foot" to="/etf-portfolio">Open the ETF portfolio →</Link>
     </Card>
   );
 }

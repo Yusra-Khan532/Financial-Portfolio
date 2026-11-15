@@ -74,6 +74,7 @@ const DocumentsPage = lazy(() => import("./pages/Documents").then((m) => ({ defa
 const AlertsPage = lazy(() => import("./pages/Alerts").then((m) => ({ default: m.AlertsPage })));
 const MfPortfolioPage = lazy(() => import("./pages/MfPortfolio").then((m) => ({ default: m.MfPortfolioPage })));
 const HoldingsPage = lazy(() => import("./pages/Holdings").then((m) => ({ default: m.HoldingsPage })));
+const EtfPortfolioPage = lazy(() => import("./pages/EtfPortfolio").then((m) => ({ default: m.EtfPortfolioPage })));   // task #136
 const MyInvestmentsPage = lazy(() => import("./pages/MyInvestments").then((m) => ({ default: m.MyInvestmentsPage })));   // task #137
 const ForumPage = lazy(() => import("./pages/Forum").then((m) => ({ default: m.ForumPage })));
 const EtfListPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfListPage })));
@@ -141,6 +142,7 @@ export default function App() {
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="sip-calculator" element={<SipCalculator />} />
             <Route path="my-investments" element={<MyInvestmentsPage />} />
+            <Route path="etf-portfolio" element={<EtfPortfolioPage />} />
             <Route path="holdings" element={<HoldingsPage />} />
             <Route path="mf-portfolio" element={<MfPortfolioPage />} />
             <Route path="alerts" element={<AlertsPage />} />

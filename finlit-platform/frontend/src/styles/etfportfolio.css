@@ -1,0 +1,45 @@
+/* The ETF portfolio (task #136, pages/EtfPortfolio.tsx). Built on the MF portfolio's styles (mf-pack.css, mfportfolio.css); only what differs is here,
+   scoped to .etfp or to its own etfp- classes. Tokens only, so both themes follow. */
+.etfp-addbox { position: relative; display: flex; gap: 8px; flex-wrap: wrap; }
+.etfp-search { flex: 1 1 220px; min-width: 0; }
+.etfp-search input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: inherit; }
+.etfp-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.etfp-hits { position: absolute; z-index: 20; top: 46px; left: 0; right: 0; list-style: none; margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); box-shadow: var(--lift); max-height: 300px; overflow: auto; }
+.etfp-hits button { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; width: 100%; padding: 9px 10px; border: 0; background: none; color: var(--text); text-align: left; border-radius: 8px; cursor: pointer; font: inherit; }
+.etfp-hits button:hover, .etfp-hits button:focus-visible { background: var(--s2); }
+.etfp-hits span { color: var(--muted); font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etfp-import { display: grid; gap: 10px; justify-items: start; }
+.etfp-preview { display: grid; gap: 10px; width: 100%; }
+.etfp-units { width: 96px; height: 34px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 400 var(--fs-14) var(--mono); text-align: right; }
+.etfp-dash { color: var(--faint); cursor: help; }
+.etfp-twice { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px; background: var(--warn-soft); color: var(--warn); font: 700 var(--fs-11)/1.4 var(--sans); letter-spacing: .04em; white-space: nowrap; }
+.etfp-tiles .mfp-tile-x .etfp-twice { margin-left: 0; }
+.etfp-basis { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.etfp-link { border: 0; background: none; padding: 0; color: var(--gold); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.etfp-tb th[scope="row"] { text-transform: none; letter-spacing: normal; font-size: var(--fs-14); }
+.etfp-tb th[scope="row"] a { color: var(--text); text-decoration: none; }
+.etfp-tb th[scope="row"] small { display: block; color: var(--muted); font-weight: 400; font-size: var(--fs-12); max-width: 260px; white-space: normal; }
+.etfp-tb td, .etfp-tb th { white-space: nowrap; }
+.etfp-vs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.etfp-vs > div { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--s2); }
+.etfp-vs b { font: 500 var(--fs-24)/1.2 var(--mono); }
+.etfp-vs small { color: var(--muted); font-size: var(--fs-13); }
+.etfp-level { margin: 12px 0 0; font-size: var(--fs-14); }
+.etfp-mx th[scope="row"] { text-transform: none; letter-spacing: normal; }
+.etfp-c { font-family: var(--mono); }
+.etfp-c.hi { background: var(--loss-soft); } .etfp-c.mid { background: var(--warn-soft); } .etfp-c.lo { background: var(--gain-soft); } .etfp-c.self { color: var(--faint); }
+.etfp-adds { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.etfp-adds li { display: grid; grid-template-columns: 120px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: var(--fs-14); }
+.etfp-adds .t { height: 8px; border-radius: 99px; background: var(--s2); overflow: hidden; } .etfp-adds .t i { display: block; height: 100%; background: var(--gold); }
+.etfp-adds b { text-align: right; font-family: var(--mono); font-weight: 500; }
+.etfp-disc { margin-top: 18px; }
+@media (max-width: 760px) {
+  .etfp .etfp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }     /* phone: tiles 2 across (pack 07) */
+  .etfp-vs { grid-template-columns: minmax(0, 1fr); }
+  .etfp-adds li { grid-template-columns: 90px minmax(0, 1fr) 56px; }
+  .etfp-search input { height: 44px; }
+}
+@media (max-width: 760px) {
+  .etfp .sp-sec-h { flex-direction: column; align-items: stretch; gap: 10px; }   /* the column switch goes under the heading on a phone */
+  .etfp .sp-sec-h .sp-view { align-self: flex-start; }
+}

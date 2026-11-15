@@ -663,3 +663,7 @@
 .dsh-fg-kv > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .dsh-fg-kv dt { color: var(--d-mut, var(--muted)); font-size: var(--fs-14); }
 .dsh-fg-kv dd { margin: 0; text-align: right; font-size: var(--fs-14); font-weight: 600; color: var(--d-ink, var(--text)); }
+/* Your ETFs at a glance: what they track, as chips with counts */
+.dsh-eg-chips { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.dsh-eg-chips li { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border: 1px solid var(--d-line, var(--border)); border-radius: 99px; font-size: var(--fs-13); }
+.dsh-eg-chips b { font-weight: 600; color: var(--d-mut, var(--muted)); }
