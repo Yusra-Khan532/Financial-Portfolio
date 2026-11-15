@@ -43,6 +43,7 @@ import "./styles/sidebar.css";
 import "./styles/earnings.css";
 import "./styles/calm.css";
 import "./styles/chartzoom.css";
+import "./styles/site-green.css";   // task #161: the landing green is the dark background of every page (after the theme layers; overlay.css stays last)
 import "./styles/overlay.css";
 import { purgeLegacy } from "./lib/persist";
 
