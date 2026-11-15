@@ -118,7 +118,8 @@ describe("phone tab memory", () => {
 describe("customise layout", () => {
   it("starts with the new default order, the three optional old blocks off, and no Gold & silver or DCF", () => {
     const d = normaliseLayout(null);
-    expect(d.slice(0, 3).map((w) => w.id)).toEqual(["mystocks", "market", "snapshot"]);
+    expect(d.slice(0, 5).map((w) => w.id)).toEqual(["mystocks", "portfolio", "mfglance", "etfglance", "market"]);   // task #135: the "at a glance" row under the table
+    expect(d.slice(1, 4).every((w) => w.size === "third")).toBe(true);
     const off = d.filter((w) => !w.on).map((w) => w.id);
     expect(off).toEqual(expect.arrayContaining(["commodities", "dcf", "results"]));
     expect(d.filter((w) => w.on).map((w) => w.id)).not.toContain("commodities");
@@ -132,15 +133,19 @@ describe("customise layout", () => {
     expect(mine.map((w) => w.id)).not.toContain("nope");
     expect(new Set(mine.map((w) => w.id)).size).toBe(WIDGETS.length);
   });
-  it("puts a block added later right after the block it follows by default (Your portfolio at a glance after FII / DII flows)", () => {
-    const old = normaliseLayout(null).filter((w) => w.id !== "portfolio");
+  it("puts a block added later right after the block it follows by default (the two new panels after Your shares at a glance, wherever the member put it)", () => {
+    const old = [{ id: "mystocks", on: true, size: "full" as const }, { id: "market", on: true, size: "full" as const }, { id: "flows", on: true, size: "half" as const }, { id: "portfolio", on: true, size: "half" as const }, { id: "marketread", on: true, size: "full" as const }];
     const ids = normaliseLayout(old).map((w) => w.id);
-    expect(ids.indexOf("portfolio")).toBe(ids.indexOf("flows") + 1);
+    expect(ids.indexOf("mfglance")).toBe(ids.indexOf("portfolio") + 1); expect(ids.indexOf("etfglance")).toBe(ids.indexOf("portfolio") + 2);
+    expect(ids.indexOf("market")).toBeLessThan(ids.indexOf("flows")); expect(ids.indexOf("flows")).toBeLessThan(ids.indexOf("portfolio"));   // the member's own order stays
+    expect(normaliseLayout(old).find((w) => w.id === "portfolio")!.size).toBe("third");          // once, so the three panels share a row
+    const later = normaliseLayout([...normaliseLayout(old).map((w) => (w.id === "portfolio" ? { ...w, size: "half" as const } : w))]);
+    expect(later.find((w) => w.id === "portfolio")!.size).toBe("half");                          // a width the member picks afterwards stays
   });
   it("moves a block up, down or to a dragged place", () => {
     const l = normaliseLayout(null).slice(0, 4);
-    expect(moveBlock(l, 1, 0).map((w) => w.id).slice(0, 2)).toEqual(["market", "mystocks"]);
-    expect(moveBlock(l, 0, 3).map((w) => w.id)).toEqual(["market", "snapshot", "sectors", "mystocks"]);
+    expect(moveBlock(l, 1, 0).map((w) => w.id).slice(0, 2)).toEqual(["portfolio", "mystocks"]);
+    expect(moveBlock(l, 0, 3).map((w) => w.id)).toEqual(["portfolio", "mfglance", "etfglance", "mystocks"]);
     expect(moveBlock(l, 0, 0)).toEqual(l); expect(moveBlock(l, 0, -1)).toEqual(l); expect(moveBlock(l, 9, 0)).toEqual(l);
   });
   it("gives every block a phone tab", () => { expect(new Set(WIDGETS.map((w) => w.tab))).toEqual(new Set(["stocks", "market", "news"])); });

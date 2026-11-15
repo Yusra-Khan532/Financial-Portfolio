@@ -41,6 +41,7 @@ const EXEMPT: Record<string, string> = {
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
   "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
+  "components/dashboard/DashCards.tsx": "only the round icon and the chevron of the dashboard's insight cards (task #135); no data",
   "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
   "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
   "components/rotation/pack/RotationSimple.tsx": "Sector Rotation as the final pages pack draws it (08): the map has box toggles, rings and paths and scrolls sideways on a phone; its bars and rank lines sit in rows; no enlarge arrow in the pack",

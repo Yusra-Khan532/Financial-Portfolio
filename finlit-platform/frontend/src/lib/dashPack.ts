@@ -1,7 +1,7 @@
 // The dashboard as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/04): the sentences and cards the blocks add, worked out
 // from what the page already loads (quotes, results, peer labels, the market snapshot, macro, FII/DII flows, Prism, the Sector Pulse board). Every figure comes from the
 // server; this file only chooses, counts and words. Describes the market and the member's stocks; never advice.
-import type { Card } from "./pulsePack";
+import type { Card, CardChip } from "./pulsePack";
 import type { Flows } from "./flows";
 import type { Board } from "./sectors";
 
@@ -35,7 +35,7 @@ export function dayWord(now: Date, asOf: string | null): string {
 }
 
 // ------------------------------------------------------------------------------------------------ Your stocks today: the three cards
-export type MyStock = { symbol: string; chg: number | null; size: "Large" | "Mid" | "Small" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
+export type MyStock = { symbol: string; name?: string | null; chg: number | null; size: "Large" | "Mid" | "Small" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
 const SIZE_WORD = { Large: "large", Mid: "mid-sized", Small: "small" } as const;
 export function myStockCards(items: MyStock[], day: string, quarterEnd: string | null): Card[] {
   const out: Card[] = [], on = day === "Today" ? "today" : `on ${day}`;
@@ -44,24 +44,31 @@ export function myStockCards(items: MyStock[], day: string, quarterEnd: string |
     const sizes = [...new Set(fell.map((s) => s.size))], same = sizes.length === 1 && sizes[0] ? SIZE_WORD[sizes[0]] : null;
     const who = fell.length === 1 ? "It is" : fell.length === 2 ? "Both are" : `All ${NUM[fell.length] ?? fell.length} are`;
     out.push({ kind: "warning", title: `${fell.length === 1 ? "One" : cap(NUM[fell.length] ?? String(fell.length))} of your stocks fell 10% or more ${on}`.replace(/^(\w)/, (c) => c.toUpperCase()),
-      text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg!)}`))}.${same ? ` ${who} ${fell.length === 1 ? `a ${same} company` : `${same} companies`}.` : ""} Check News & filings before reacting.` });
+      text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg!)}`))}.${same ? ` ${who} ${fell.length === 1 ? `a ${same} company` : `${same} companies`}.` : ""} Check News & filings before reacting.`,
+      groups: [{ label: `Fell 10% or more · ${fell.length}`, tone: "down", chips: fell.map((s) => chip(s, sp(s.chg!))) }] });
   } else if (rose.length) {
-    out.push({ kind: "good", title: `${cap(NUM[rose.length] ?? String(rose.length))} of your stocks rose 10% or more ${on}`, text: `${list(rose.map((s) => `${s.symbol} ${sp(s.chg!)}`))}. Check News & filings for what moved ${rose.length === 1 ? "it" : "them"}.` });
+    out.push({ kind: "good", title: `${cap(NUM[rose.length] ?? String(rose.length))} of your stocks rose 10% or more ${on}`, text: `${list(rose.map((s) => `${s.symbol} ${sp(s.chg!)}`))}. Check News & filings for what moved ${rose.length === 1 ? "it" : "them"}.`,
+      groups: [{ label: `Rose 10% or more · ${rose.length}`, tone: "up", chips: rose.map((s) => chip(s, sp(s.chg!))) }] });
   }
   const rep = items.filter((s) => s.reported), up = rep.filter((s) => (s.profit != null && s.profit > 0) || s.profitText === "Turned profit" || s.profitText === "Loss narrowed");
   if (rep.length) {
     const down = rep.filter((s) => !up.includes(s)), q = quarterEnd ? `${MONTH[+quarterEnd.slice(5, 7) - 1]}-quarter profit` : "Latest-quarter profit";
     const named = down.slice(0, 4).map((s) => `${s.symbol} (${s.profit != null ? sp(s.profit) : (s.profitText ?? "").toLowerCase()})`);
+    const fellGroup = down.length ? [{ label: `Profit fell, against a year ago · ${down.length}`, tone: "down" as const, chips: down.map((s) => chip(s, s.profit != null ? sp(s.profit) : s.profitText ?? undefined)) }] : [];
     out.push(up.length * 2 >= rep.length
-      ? { kind: "good", title: `Profit grew at ${up.length} of the ${rep.length} that reported`, text: down.length ? `${q} was higher than a year ago everywhere except ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.` : `${q} was higher than a year ago at every one of them.` }
-      : { kind: "watch", title: `Profit fell at ${down.length} of the ${rep.length} that reported`, text: `${q} was lower than a year ago at ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.` });
+      ? { kind: "good", title: `Profit grew at ${up.length} of the ${rep.length} that reported`, text: down.length ? `${q} was higher than a year ago everywhere except ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.` : `${q} was higher than a year ago at every one of them.`, groups: fellGroup }
+      : { kind: "watch", title: `Profit fell at ${down.length} of the ${rep.length} that reported`, text: `${q} was lower than a year ago at ${list(named)}${down.length > 4 ? ` and ${down.length - 4} more` : ""}.`, groups: fellGroup });
   }
-  const lead = items.filter((s) => s.peer === "leader").map((s) => s.symbol), lag = items.filter((s) => s.peer === "laggard").map((s) => s.symbol), none = items.filter((s) => s.peer === "unranked").length;
+  const leadS = items.filter((s) => s.peer === "leader"), lagS = items.filter((s) => s.peer === "laggard");
+  const lead = leadS.map((s) => s.symbol), lag = lagS.map((s) => s.symbol), none = items.filter((s) => s.peer === "unranked").length;
   if (lead.length || lag.length) out.push({ kind: "insight", title: `${lead.length} lead their peers, ${lag.length} lag`,
-    text: `${[lead.length ? `${lead.join(", ")} lead` : "", lag.length ? `${lag.join(", ")} lag` : ""].filter(Boolean).join("; ")}.${none ? ` ${none} ${none === 1 ? "is" : "are"} not ranked (too new or too thinly traded).` : ""}` });
+    text: `${[lead.length ? `${lead.join(", ")} lead` : "", lag.length ? `${lag.join(", ")} lag` : ""].filter(Boolean).join("; ")}.${none ? ` ${none} ${none === 1 ? "is" : "are"} not ranked (too new or too thinly traded).` : ""}`,
+    groups: [...(lead.length ? [{ label: `Lead · ${lead.length}`, tone: "up" as const, chips: leadS.map((s) => chip(s)) }] : []), ...(lag.length ? [{ label: `Lag · ${lag.length}`, tone: "down" as const, chips: lagS.map((s) => chip(s)) }] : [])],
+    note: none ? `${none} ${none === 1 ? "is" : "are"} not ranked: too new, or too thinly traded to compare fairly.` : undefined });
   return out;
 }
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const chip = (s: MyStock, note?: string): CardChip => ({ symbol: s.symbol, label: s.name && /^\d+$/.test(s.symbol) ? s.name : s.symbol, note });
 
 // ------------------------------------------------------------------------------------------------ Market snapshot, prices and rates, flows, portfolio
 export function snapshotCard(adv: number, dec: number, total: number, n50: { up: number; down: number; n: number } | null, niftyChg: number | null): Card | null {
