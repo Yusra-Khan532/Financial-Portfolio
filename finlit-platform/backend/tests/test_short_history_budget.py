@@ -2,7 +2,11 @@
 in name order with no budget; the list never shrinks because many companies really have four years or fewer, so each run was killed at the job's
 60-minute limit and the job had not finished since 31 Oct). The job's schedule, limit and retries are unchanged."""
 import asyncio
+import json
+import os
 from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from finlit import worker
 from finlit.jobs import registry
@@ -11,12 +15,15 @@ NOW = datetime.now(timezone.utc)
 
 
 class Conn:
+    """Does what the query does in the database: reports not reloaded within the window, oldest first, capped."""
     def __init__(self, rows):
         self.rows = rows
 
-    async def fetch(self, sql, *a):
-        assert "section = 'financials'" in sql
-        return self.rows
+    async def fetch(self, sql, secs, cap, timeout=None):
+        assert "section = 'financials'" in sql and "MATERIALIZED" in sql and timeout == worker.SHORT_HISTORY_QUERY_S
+        cut = NOW - timedelta(seconds=secs)
+        due = [r for r in self.rows if r["generated_at"] is not None and r["generated_at"] < cut]
+        return sorted(due, key=lambda r: (r["generated_at"], r["symbol"]))[:cap]
 
 
 class Pool:
@@ -55,10 +62,10 @@ def test_only_reports_not_reloaded_lately_are_taken_oldest_first(monkeypatch):
         return [{"symbol": s, "status": "ok"} for s, _ in items]
 
     monkeypatch.setattr(worker, "ingest_many", many)
-    rows = [row("AAA", 1), row("BBB", 20), row("CCC", 8), row("DDD", None), row("EEE", 3)]
+    rows = [row("AAA", 1), row("BBB", 20), row("CCC", 8), row("EEE", 3)]
     out = asyncio.run(worker.refresh_short_history(object(), Store(rows), days=7, max_minutes=45))
-    assert [s for s, _ in seen] == ["DDD", "BBB", "CCC"]           # never stamped first, then the oldest; AAA and EEE were reloaded this week
-    assert out == {"short": 5, "due": 3, "ok": 3, "warnings": 0, "rejected": 0, "failed": 0, "waiting": 0}
+    assert [s for s, _ in seen] == ["BBB", "CCC"]                  # the oldest first; AAA and EEE were reloaded this week
+    assert out == {"due": 2, "ok": 2, "warnings": 0, "rejected": 0, "failed": 0, "waiting": 0}
 
 
 def test_the_budget_and_the_per_company_cap_are_passed_on_and_skipped_ones_wait(monkeypatch):
@@ -92,3 +99,30 @@ def test_the_job_asks_for_a_budget_shorter_than_its_unchanged_limit_and_schedule
     assert job.max_runtime_min == 60 and budget == 45 and job.sla.hours == 400 and job.resumable
     ns = worker.build_parser().parse_args(args)
     assert ns.max_minutes == 45 and ns.days == 7
+
+
+DB = os.getenv("TEST_DATABASE_URL")
+
+
+@pytest.mark.skipif(not DB, reason="needs TEST_DATABASE_URL")
+def test_the_query_runs_on_postgres_and_parses_only_reports_past_the_window():
+    """The real SQL on a temporary snapshots table: a report reloaded lately is never parsed (its body is not even JSON), a long history is left
+    out, and the rest come oldest first, capped."""
+    import asyncpg
+
+    async def go():
+        conn = await asyncpg.connect(DB)
+        try:
+            await conn.execute("CREATE TEMP TABLE snapshots (symbol text, statement text, section text, body text, etag text, generated_at timestamptz)")
+            body = lambda n: json.dumps({"yearly": {"pl": {"periods": [str(2025 - i) for i in range(n)]}}})
+            await conn.executemany("INSERT INTO snapshots VALUES ($1, 'consolidated', $2, $3, 'e', now() - make_interval(days => $4))", [
+                ("OLD2", "financials", body(2), 30), ("OLD3", "financials", body(3), 10), ("LONG", "financials", body(10), 30),
+                ("FRESH", "financials", "not json: never parsed", 1), ("OTHER", "summary", body(2), 30)])
+            rows = await conn.fetch(worker.SHORT_HISTORY_SQL, 7 * 86400.0, 10)
+            capped = await conn.fetch(worker.SHORT_HISTORY_SQL, 7 * 86400.0, 1)
+        finally:
+            await conn.close()
+        return [r["symbol"] for r in rows], [r["symbol"] for r in capped]
+
+    got, capped = asyncio.run(go())
+    assert got == ["OLD2", "OLD3"] and capped == ["OLD2"]

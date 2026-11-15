@@ -650,9 +650,16 @@ async def ingest_all(client: FinEdgeClient, store: Store, statement: str = "cons
     return {**done, "tried": tried, "waiting": len(pending) - tried}
 
 
-SHORT_HISTORY_SQL = ("SELECT symbol, statement, generated_at FROM snapshots WHERE section = 'financials' "
-                     "AND (jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
-                     "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4)")
+# The date check runs first (MATERIALIZED), so only reports not reloaded lately are parsed: parsing every stored report took longer than the pool's
+# 10-second query limit on the server (15 Nov 2026, TimeoutError on the first run after the fix below).
+SHORT_HISTORY_SQL = ("WITH stale AS MATERIALIZED (SELECT symbol, statement, generated_at, body FROM snapshots WHERE section = 'financials' "
+                     "AND generated_at < now() - make_interval(secs => $1)) "
+                     "SELECT symbol, statement, generated_at FROM stale "
+                     "WHERE jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
+                     "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4 "
+                     "ORDER BY generated_at, symbol, statement LIMIT $2")
+SHORT_HISTORY_QUERY_S = 120.0     # this one query's own limit (the pool's default is 10 s)
+SHORT_HISTORY_MAX = 2000          # a 45-minute run reloads well under this many; the rest are taken next run, oldest first
 
 
 async def refresh_short_history(client: FinEdgeClient, store: Store, days: float = 7.0, max_minutes: Optional[float] = None, parallel: int = 2) -> dict:
@@ -664,11 +671,8 @@ async def refresh_short_history(client: FinEdgeClient, store: Store, days: float
     listed recently really have four years or fewer, so the list never shrank, each run reached the job's 60-minute limit, was killed and started
     again at A, and the job had not finished since 31 Oct."""
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch(SHORT_HISTORY_SQL)
-    cutoff = time.time() - days * 86400
-    due = sorted((r for r in rows if r["generated_at"] is None or r["generated_at"].timestamp() < cutoff),
-                 key=lambda r: (r["generated_at"].timestamp() if r["generated_at"] else 0.0, r["symbol"], r["statement"]))
-    log.info("short-history: %d reports with a short history, %d not reloaded in %g days", len(rows), len(due), days)
+        due = await conn.fetch(SHORT_HISTORY_SQL, days * 86400.0, SHORT_HISTORY_MAX, timeout=SHORT_HISTORY_QUERY_S)
+    log.info("short-history: %d reports with a short history not reloaded in %g days (oldest first, at most %d)", len(due), days, SHORT_HISTORY_MAX)
     deadline = time.monotonic() + max_minutes * 60 if max_minutes is not None else None
     kw = {"deadline": deadline, "company_timeout_s": INGEST_COMPANY_TIMEOUT_S} if deadline is not None else {}
     done: dict = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0, "skipped": 0}
@@ -680,7 +684,7 @@ async def refresh_short_history(client: FinEdgeClient, store: Store, days: float
     if results:
         await store.invalidate_search()
     waiting = done.pop("skipped")
-    return {"short": len(rows), "due": len(due), **done, "waiting": waiting}
+    return {"due": len(due), **done, "waiting": waiting}
 
 
 SCORE_COMPANY_TIMEOUT_S = 150.0   # one company (~21 provider calls) never holds score-all longer than this (as results_run.COMPANY_TIMEOUT_S)
