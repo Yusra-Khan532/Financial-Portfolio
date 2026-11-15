@@ -650,6 +650,39 @@ async def ingest_all(client: FinEdgeClient, store: Store, statement: str = "cons
     return {**done, "tried": tried, "waiting": len(pending) - tried}
 
 
+SHORT_HISTORY_SQL = ("SELECT symbol, statement, generated_at FROM snapshots WHERE section = 'financials' "
+                     "AND (jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
+                     "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4)")
+
+
+async def refresh_short_history(client: FinEdgeClient, store: Store, days: float = 7.0, max_minutes: Optional[float] = None, parallel: int = 2) -> dict:
+    """Reload the stored reports whose yearly statements cover four years or fewer, so the second source can add older years.
+
+    Only reports not reloaded in the last `days` days are taken, oldest first, and a reload stamps the report's time, so each run carries on where
+    the last one stopped. With `max_minutes` no company starts after that budget and each company is capped at INGEST_COMPANY_TIMEOUT_S, so the run
+    ends normally and is recorded as finished. Before 15 Nov 2026 every run reloaded the whole list in name order with no budget: many companies
+    listed recently really have four years or fewer, so the list never shrank, each run reached the job's 60-minute limit, was killed and started
+    again at A, and the job had not finished since 31 Oct."""
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch(SHORT_HISTORY_SQL)
+    cutoff = time.time() - days * 86400
+    due = sorted((r for r in rows if r["generated_at"] is None or r["generated_at"].timestamp() < cutoff),
+                 key=lambda r: (r["generated_at"].timestamp() if r["generated_at"] else 0.0, r["symbol"], r["statement"]))
+    log.info("short-history: %d reports with a short history, %d not reloaded in %g days", len(rows), len(due), days)
+    deadline = time.monotonic() + max_minutes * 60 if max_minutes is not None else None
+    kw = {"deadline": deadline, "company_timeout_s": INGEST_COMPANY_TIMEOUT_S} if deadline is not None else {}
+    done: dict = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0, "skipped": 0}
+    results = await ingest_many(client, store, [(r["symbol"], r["statement"]) for r in due], parallel=parallel, **kw) if due else []
+    for r in results:
+        done[r["status"]] = done.get(r["status"], 0) + 1
+        if r["status"] != "skipped":
+            log.info("%-14s %-7s %6s ms  %s", r["symbol"], r["status"], r.get("ms", ""), r.get("errors") or r.get("error") or "")
+    if results:
+        await store.invalidate_search()
+    waiting = done.pop("skipped")
+    return {"short": len(rows), "due": len(due), **done, "waiting": waiting}
+
+
 SCORE_COMPANY_TIMEOUT_S = 150.0   # one company (~21 provider calls) never holds score-all longer than this (as results_run.COMPANY_TIMEOUT_S)
 
 
@@ -972,7 +1005,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_isin = sub.add_parser("load-isin-list", help="load a newer NSDL ISIN list (the .zip NSDL sends, or its .csv) into isin_master (task #128)")
     p_isin.add_argument("--file", required=True)
     sub.add_parser("refresh-universe")
-    sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
+    p_short = sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
+    p_short.add_argument("--days", type=float, default=7.0, help="only reports not reloaded in this many days, oldest first")
+    p_short.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
     p_ingest = sub.add_parser("ingest")
     p_ingest.add_argument("symbols", nargs="+")
     p_ingest.add_argument("--statement", default="consolidated", choices=["consolidated", "standalone"])
@@ -1580,17 +1615,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 await record_run(store, args.cmd, {"status": "ok", "companies": res})
                 print(res)
             elif args.cmd == "refresh-short-history":
-                async with store.pool.acquire() as conn:
-                    short = [(r["symbol"], r["statement"]) for r in await conn.fetch(
-                        "SELECT symbol, statement FROM snapshots WHERE section = 'financials' "
-                        "AND (jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
-                        "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4) "
-                        "ORDER BY symbol, statement")]
-                print(len(short), "reports with a short history", short[:30])
-                results = await ingest_many(client, store, short, parallel=2) if short else []
-                await store.invalidate_search()
-                for r in results:
-                    print(f"{r['symbol']:<14} {r['status']:<7} {r['ms']:>6} ms  {r['errors'] or ''}")
+                print(await refresh_short_history(client, store, days=args.days, max_minutes=args.max_minutes))
             elif args.cmd == "ingest":
                 results = await ingest_many(client, store, [(s, args.statement) for s in args.symbols])
                 await store.invalidate_search()

@@ -79,6 +79,7 @@ export function AppShell() {
   const badges: Record<string, string | undefined> = {
     "/screener": saved.length ? String(saved.length) : undefined, "/watchlist": followed ? String(followed) : undefined, "/holdings": held ? String(held) : undefined,
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
+    "/my-investments": "NEW",   // task #137: a new page
   };
   const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to] });
   const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];

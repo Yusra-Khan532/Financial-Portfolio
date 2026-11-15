@@ -13,7 +13,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What does the dashboard show?",
-    "a": "The top half is the market: index levels (Nifty 50, Sensex, Nifty Bank, Midcap 100, Smallcap 100, Nifty IT and India VIX), a Nifty 50 / Sensex chart, market breadth, top gainers and decliners, sectors today, FII/DII flows, an index heatmap and sectoral activity. Below that are widgets about the stocks you follow: latest quarter results, results dates, news, IPOs, watchlist movers, stocks worth a second look, your saved screens and more."
+    "a": "At the top, Your investments today: your shares, watchlist and mutual funds in one table (All, Watchlist, Shares, Mutual funds and ETFs), with price or NAV, the day's move, 1 year and the FinLit reading, then What your stocks say and the three at a glance panels for your shares, mutual funds and ETFs. Below them is the market: index levels and chart, prices and rates, breadth, sectors, FII/DII flows, the heatmap, then results, filings, IPOs, alerts and more."
    },
    {
     "q": "How do I change the layout or colours?",

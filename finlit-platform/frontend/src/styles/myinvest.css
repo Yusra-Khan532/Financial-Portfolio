@@ -1,0 +1,99 @@
+/* All my investments (pages/MyInvestments.tsx, task #137): the team's 14 Nov pack. A header card, the dark "Where your money sits" card, five tinted tiles,
+   three tabs (Overview, Look-through, Risk) and the six questions. Class prefix mi-. Tile tints from the pack's common rules; font sizes on the type scale. */
+.mi { --mi-dark: #14211B; --mi-dark-ink: #F2EFE6; --mi-dark-mute: #B9C2BB; --mi-shares: #8FAEDB; --mi-funds: #8BC3A0; --mi-etfs: #7FC1C6;
+  --mi-t-blue: #E6ECF2; --mi-t-green: #E3EFE7; --mi-t-amber: #F6ECD8; --mi-t-teal: #E0EEEE; --mi-t-grey: #ECEAE4; --mi-teal: #2F5F66; padding-bottom: 40px; }
+:root[data-theme="dark"] .mi { --mi-dark: #0E1813; --mi-t-blue: #1B2430; --mi-t-green: #18271F; --mi-t-amber: #2A2418; --mi-t-teal: #172626; --mi-t-grey: #24231F; --mi-teal: #7FB8BF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mi { --mi-dark: #0E1813; --mi-t-blue: #1B2430; --mi-t-green: #18271F; --mi-t-amber: #2A2418; --mi-t-teal: #172626; --mi-t-grey: #24231F; --mi-teal: #7FB8BF; } }
+
+.mi-head { display: flex; gap: 20px; justify-content: space-between; align-items: flex-start; padding: 20px 24px; margin: 0 0 16px; flex-wrap: wrap; }
+.mi-hl { flex: 1 1 420px; min-width: 0; } .mi-hr { flex: 0 1 380px; display: grid; gap: 8px; justify-items: end; }
+.mi-head h1 { margin: 6px 0 6px; font: 600 40px/1.1 var(--serif); color: var(--text); }
+.mi-lede { margin: 0 0 10px; font-size: 16px; line-height: 1.5; color: var(--muted); max-width: 64ch; }
+.mi-tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; } .mi-tag { padding: 3px 10px; border-radius: 8px; background: var(--s2); font: 600 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mi-tag.new { background: var(--mi-t-teal); color: var(--mi-teal); }
+.mi-links { display: flex; gap: 18px; flex-wrap: wrap; margin: 0; font: 600 14px var(--sans); } .mi-links a { color: var(--mi-teal); text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
+.mi-links .ico { width: 14px; height: 14px; } .mi-soon { color: var(--faint); }
+.mi-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; } .mi-count { margin: 0; font-size: 13px; color: var(--muted); text-align: right; }
+.mi-pop { position: relative; } .mi-popl { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; gap: 4px; width: 280px; padding: 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); box-shadow: 0 16px 30px -18px rgba(0, 0, 0, .5); }
+.mi-popl a { display: flex; justify-content: space-between; gap: 8px; padding: 8px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 14px; } .mi-popl a:hover { background: var(--s2); }
+.mi-popl small { padding: 4px 8px 0; color: var(--faint); font-size: 12px; }
+.mi-skel { height: 420px; border-radius: 16px; }
+.mi-empty { padding: 20px 24px; } .mi-empty h2 { margin: 0 0 6px; font: 600 20px var(--serif); }
+
+/* where your money sits */
+.mi-money { margin: 0 0 16px; padding: 20px 24px; border-radius: 16px; background: var(--mi-dark); color: var(--mi-dark-ink); }
+.mi-mh { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; } .mi-mh h2 { margin: 0; font: 600 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--mi-dark-mute); }
+.mi-mh span { font-size: 13px; color: var(--mi-dark-mute); }
+.mi-total { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 12px 0 14px; } .mi-total b { font: 600 40px/1.1 var(--serif); } .mi-total span { font-size: 14px; color: var(--mi-dark-mute); }
+.mi-total.none b { font-size: 28px; } .mi-total a { color: var(--mi-funds); font: 600 14px var(--sans); display: inline-flex; gap: 4px; align-items: center; }
+.mi-bar { display: flex; gap: 2px; height: 14px; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .12); }
+.mi-bar i { display: block; } .mi-bar .shares { background: var(--mi-shares); } .mi-bar .funds { background: var(--mi-funds); }
+.mi-mparts { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.mi-mp b { display: block; font: 600 14px var(--sans); } .mi-mp span { font-size: 13px; color: var(--mi-dark-mute); } .mi-mp.etfs b { color: var(--mi-dark-mute); }
+.mi-eq { margin: 12px 0 0; font-size: 13px; color: var(--mi-dark-mute); }
+
+/* five tiles */
+.mi-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+.mi-tile { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 16px; border: 1px solid var(--border); }
+.mi-tile.blue { background: var(--mi-t-blue); } .mi-tile.amber { background: var(--mi-t-amber); } .mi-tile.teal { background: var(--mi-t-teal); } .mi-tile.green { background: var(--mi-t-green); } .mi-tile.grey { background: var(--mi-t-grey); }
+.mi-tile h3 { margin: 0; font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mi-big { margin: 0; font: 600 24px/1.2 var(--serif); color: var(--text); overflow-wrap: anywhere; } .mi-tt { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); flex: 1; }
+.mi-tl { align-self: flex-start; border: 0; background: none; padding: 4px 0; color: var(--mi-teal); font: 600 13px var(--sans); cursor: pointer; display: inline-flex; gap: 4px; align-items: center; min-height: 32px; }
+.mi-lock .ico { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* tabs */
+.mi-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; scroll-margin-top: 80px; }
+.mi-tabs button { display: grid; gap: 2px; text-align: left; padding: 12px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); color: var(--text); cursor: pointer; min-height: 44px; }
+.mi-tabs button b { font: 600 14px var(--sans); } .mi-tabs button small { font-size: 12px; color: var(--muted); }
+.mi-tabs button.on { background: var(--mi-teal); border-color: var(--mi-teal); color: #fff; } .mi-tabs button.on small { color: rgba(255, 255, 255, .8); }
+:root[data-theme="dark"] .mi-tabs button.on { color: #0B1512; } :root[data-theme="dark"] .mi-tabs button.on small { color: rgba(11, 21, 18, .75); }
+
+/* overview */
+.mi-parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 12px; }
+.mi-pc { padding: 16px 18px; display: grid; gap: 6px; align-content: start; } .mi-pc.soon { opacity: .85; }
+.mi-pch { display: flex; justify-content: space-between; align-items: center; } .mi-pch small { color: var(--muted); font-size: 13px; }
+.mi-pt { padding: 3px 8px; border-radius: 6px; font: 600 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+.mi-pt.shares { background: var(--mi-t-blue); } .mi-pt.funds { background: var(--mi-t-green); } .mi-pt.etfs { background: var(--mi-t-teal); }
+.mi-pv { margin: 4px 0 6px; font: 600 24px var(--serif); color: var(--text); }
+.mi-pr { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; } .mi-pr span { color: var(--muted); } .mi-pr b { font-weight: 600; text-align: right; }
+.mi-pr b.up { color: var(--gain); } .mi-pr b.down { color: var(--loss); }
+.mi-open { margin-top: 6px; color: var(--mi-teal); font: 600 14px var(--sans); text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
+.mi-ins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+.mi-in { padding: 14px 16px; border: 1px solid var(--border); border-left: 4px solid var(--mi-teal); border-radius: 14px; background: var(--s1); }
+.mi-in.sector { border-left-color: var(--gold); } .mi-in.soften { border-left-color: var(--gain); }
+.mi-in small { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } .mi-in b { display: block; margin: 4px 0; font: 600 16px var(--sans); } .mi-in p { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* look-through and risk */
+.mi-sec { padding: 18px 20px; margin: 0 0 14px; } .mi-sec h2, .mi-faq h2 { margin: 0 0 4px; font: 600 24px var(--serif); color: var(--text); }
+.mi-sh { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin: 0 0 10px; } .mi-sh p { margin: 0; }
+.mi-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+.mi-seg button { border: 0; background: none; padding: 8px 12px; font: 600 13px var(--sans); color: var(--text); cursor: pointer; min-height: 36px; } .mi-seg button[aria-pressed="true"] { background: var(--text); color: var(--bg, var(--s1)); }
+.mi-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.mi-t th, .mi-t td { padding: 10px 12px; border-top: 1px solid var(--border); text-align: right; white-space: nowrap; }
+.mi-t thead th { border-top: 0; border-bottom: 1px solid var(--border-strong); font: 600 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mi-t .l { text-align: left; } .mi-t tbody th { position: sticky; left: 0; background: var(--s1); font-weight: 600; white-space: normal; min-width: 180px; }
+.mi-t tbody th a { color: var(--text); text-decoration: none; } .mi-t tbody th small { display: block; font: 400 12px var(--sans); color: var(--faint); }
+.mi-tn { margin: 10px 0 0; font-size: 13px; } .mi-more { border: 0; background: none; padding: 0; color: var(--mi-teal); font: 600 13px var(--sans); cursor: pointer; text-decoration: underline; }
+.mi-sectors, .mi-swings { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: minmax(110px, 180px) minmax(0, 1fr) 56px; gap: 6px 12px; align-items: center; font-size: 14px; }
+.mi-sectors li, .mi-swings li { display: contents; } .mi-sn.sub, .mi-sectors b.sub { color: var(--faint); font-size: 13px; font-weight: 400; } .mi-sectors b, .mi-swings b { text-align: right; }
+.mi-sb { display: block; height: 10px; border-radius: 6px; background: var(--s2); overflow: hidden; } .mi-sb i { display: block; height: 100%; border-radius: 6px; }
+.mi-sb.mine i { background: var(--mi-teal); } .mi-sb.bench i { background: var(--border-strong); } .mi-sb.shares i { background: var(--mi-shares); } .mi-sb.funds i { background: var(--mi-funds); }
+.mi-swings { grid-template-columns: minmax(100px, 140px) minmax(0, 1fr) 56px minmax(90px, auto); } .mi-swings small { color: var(--faint); font-size: 12px; }
+.mi-swl { margin: 10px 0 0; font-size: 14px; color: var(--muted); }
+.mi-level { margin: 10px 0 12px; font: 600 20px var(--serif); color: var(--text); }
+.mi-rks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } .mi-rks > div { padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
+.mi-rks h3 { margin: 0 0 6px; font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } .mi-rks b { display: block; font: 600 24px var(--serif); } .mi-rks small { font-size: 13px; color: var(--muted); }
+.mi-faq { padding: 18px 20px; margin: 16px 0 12px; } .mi-faq details { border-top: 1px solid var(--border); } .mi-faq summary { padding: 12px 0; cursor: pointer; font: 500 16px var(--sans); color: var(--text); }
+.mi-fa { padding: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.mi-note, .mi-fine { font-size: 13px; line-height: 1.5; }
+
+@media (max-width: 1100px) { .mi-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .mi-head { padding: 16px; } .mi-head h1 { font-size: 32px; } .mi-hr { justify-items: start; } .mi-count { text-align: left; } .mi-acts { justify-content: flex-start; }
+  .mi-money { padding: 16px; } .mi-total b { font-size: 32px; } .mi-mparts { grid-template-columns: minmax(0, 1fr); }   /* the dark card stacks */
+  .mi-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }                                                         /* tiles 2 across */
+  .mi-tabs, .mi-parts, .mi-ins, .mi-rks { grid-template-columns: minmax(0, 1fr); } .mi-rks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mi-popl { right: auto; left: 0; width: min(280px, calc(100vw - 48px)); }
+  .mi-sectors { grid-template-columns: minmax(90px, 120px) minmax(0, 1fr) 48px; } .mi-swings { grid-template-columns: 90px minmax(0, 1fr) 48px; } .mi-swings small { display: none; }
+}
+.mi-soon-t { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }

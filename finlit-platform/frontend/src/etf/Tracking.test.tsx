@@ -79,7 +79,15 @@ describe("How closely it follows the index (task #134 C-1 to C-3)", () => {
     view(<Glance d={D} t={T} />);
     const cells = screen.getAllByRole("listitem").map((c) => c.textContent);
     expect(cells.map((c) => c!.match(/^[A-Za-z0-9 ]+?(?=[^A-Za-z0-9 ]|Nifty|0|−|\+|₹|$)/)?.[0]).length).toBe(6);
-    expect(cells[0]).toContain("Nifty 50"); expect(cells[1]).toContain("0.04%"); expect(cells[2]).toContain("−0.12%"); expect(cells[2]).toContain("below NAV");
+    expect(cells[0]).toContain("Nifty 50"); expect(cells[1]).toContain("0.04%"); expect(cells[1]).toContain("a year · AMFI"); expect(cells[2]).toContain("−0.12%"); expect(cells[2]).toContain("below NAV");
     expect(cells[4]).toContain("−1.97%"); expect(cells[5]).toContain("+46.65%".replace("+", "")); expect(cells[5]).toContain("7.95%");
+  });
+});
+
+describe("the expense ratio's source is named shortly (live check, 15 Nov)", () => {
+  it("a fund house's own TER page reads as such, never its long name and address", () => {
+    view(<Glance d={D} t={{ ...T, ter: { value: "0.05%", source: "Nippon India Mutual Fund, scheme-wise TER (mf.nipponindiaim.com)" } }} />);
+    const c = screen.getAllByRole("listitem")[1].textContent!;
+    expect(c).toContain("a year · the fund house's TER page"); expect(c).not.toContain("mf.nipponindiaim.com");
   });
 });
