@@ -171,7 +171,7 @@ describe("Basic stock screener page", () => {
   it("one panel, FinLit IQ Score: four pillar rows with band chips and Min - Max, and no Score bands section", () => {
     open();
     expect(screen.getByRole("button", { name: /^FinLit IQ Score/ })).toBeTruthy();
-    expect(screen.getByText("Filter stocks using our multi-pillar statistical scoring model.")).toBeTruthy();
+    expect(screen.getByText("FinLit's score for the company, 0 to 100, from its filed statements and prices.")).toBeTruthy();   // N-26
     expect(screen.queryByText("Score bands")).toBeNull();
     expect(screen.queryByText("Growth & Profitability score by pillar")).toBeNull();
     expect(within(screen.getByRole("group", { name: "FinLit IQ rating" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Strong", "Healthy", "Mixed", "Watch", "Not rated"]);

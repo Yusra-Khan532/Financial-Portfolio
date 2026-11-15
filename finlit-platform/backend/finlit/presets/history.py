@@ -27,7 +27,7 @@ REASONS: Tuple[Tuple[str, str], ...] = (
     ("finlit iq", "its FinLit IQ weakened"), ("prism score", "its Prism rating weakened"), ("technical", "its trend weakened"), ("trend", "its trend weakened"),
     ("quality", "its Quality score weakened"), ("growth", "its Growth score weakened"), ("profitab", "its Profitability score weakened"), ("balance", "its Balance sheet score weakened"),
     ("risk", "its Risk score weakened"), ("valuation", "its Valuation score moved out of range"), ("52-week high", "it fell further below its 52-week high"),
-    ("below the high", "it fell further below its 52-week high"), ("breakout", "the breakout is no longer recent"), ("9-day", "it moved away from its 9-day average"),
+    ("below the high", "it fell further below its 52-week high"), ("breakout", "its close above the range is no longer recent"), ("above its range", "its close above the range is no longer recent"), ("range top", "it moved away from the range top it closed above"), ("since then", "it moved away from its highest close since then"), ("9-day", "it moved away from its 9-day average"),
     ("20-day", "it moved away from its 20-day average"), ("rsi", "its momentum moved out of range"), ("uptrend", "its uptrend ended"), ("rating", "its rating changed"),
 )
 RULES_UPDATED = "screen rules updated"

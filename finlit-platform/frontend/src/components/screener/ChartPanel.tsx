@@ -36,7 +36,7 @@ const LINES: { k: keyof Ind; label: string; color: string; src: "ema" | "sma"; n
 ];
 const PEER_COLORS = ["#8b5cf6", "#ef4444", "#10b981"], NIFTY_COLOR = "#0ea5e9";
 const OFF: Ind = { ema9: false, ema20: false, ema50: false, ema200: false, sma10: false, sma20: false, sma50: false, volAvg: false, hiVol: false, rs: false, events: true, draw: true };
-/** The lines a screen opens with: 9-day for "Consolidating above the 9 EMA", 20-day for "Breakout, then pulled back", otherwise 50 and 200. */
+/** The lines a screen opens with: 9-day for "Consolidating above the 9 EMA", 20-day for "Closed above the 52-week high, then eased back", otherwise 50 and 200. */
 export const defaultIndicators = (screen?: string): Ind => /ema9/.test(screen || "") ? { ...OFF, ema9: true } : /breakout-pullback/.test(screen || "") ? { ...OFF, ema20: true } : { ...OFF, ema50: true, ema200: true };
 const readOpt = (): { range: Range; mode: Mode; weekly: boolean; log: boolean } => {
   const d = { range: "6M" as Range, mode: "candles" as Mode, weekly: false, log: false };
