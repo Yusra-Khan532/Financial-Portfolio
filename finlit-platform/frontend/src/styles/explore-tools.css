@@ -198,13 +198,17 @@
   background: color-mix(in srgb, var(--ac) 8%, transparent); font: 700 var(--fs-20)/1 var(--mono); }
 .xt-dir .xt-cnt small { display: block; font: 600 var(--fs-11)/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
 .xt-dir .xt-tools { grid-template-columns: minmax(0, 1fr); gap: 7px; margin: 16px 0 8px; }
-.xt-dir .xt-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 40px; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--ac) 18%, var(--border)); border-radius: 10px;
-  background: color-mix(in srgb, var(--ac) 5%, var(--s1)); }
+.xt-dir .xt-tool { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 10px; min-height: 42px; padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--ac) 18%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--ac) 5%, var(--s1)); }
+/* task #158: icon | name and crown | figure pill, one line each, the pill always on the right of the same line; a long name wraps inside its own column instead of pushing the pill down */
 .xt-dir .xt-tool .xt-ti { margin: 0; }
-.xt-dir .xt-tool b { flex: 0 1 auto; min-width: 0; font: 600 var(--fs-13)/1.3 var(--sans); white-space: nowrap; }   /* a name never breaks; when the row is short of room the figure moves under it, still on the right */
-.xt-dir .xt-tool .xt-badge { flex: none; margin: 0; }
-.xt-dir .xt-tool .xt-fig { flex: none; margin-left: auto; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); font: 500 var(--fs-11)/1.2 var(--sans); }
+.xt-dir .xt-nm { display: block; min-width: 0; line-height: 1.3; }   /* the crown follows the last word, even when a long name wraps */
+.xt-dir .xt-tool b { min-width: 0; font: 600 var(--fs-13)/1.3 var(--sans); white-space: normal; overflow-wrap: normal; }
+.xt-dir .xt-crown { display: inline-flex; margin-left: 6px; vertical-align: -2px; color: var(--gold); white-space: nowrap; }
+.xt-dir .xt-crown svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; }
+.xt-dir .xt-tool .xt-fig { justify-self: end; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); font: 500 var(--fs-11)/1.2 var(--sans); white-space: nowrap; }
 .xt-dir .xt-tool .xt-fig strong { font-weight: 700; }
+.xt-dir .xt-tool small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .xt-dir .xt-tool:hover, .xt-dir .xt-tool:focus-visible { border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); }
 @media (max-width: 700px) { .xt-dir .xt-tool { min-height: 44px; } }
 

@@ -102,9 +102,21 @@ describe("<ExploreTools />", () => {
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
     // task #151: one tool per row, name and plan mark on the left, the figure in its own pill on the right; the count reads "07 TOOLS"
-    expect(Array.from(first.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "", "xt-fig", ""]);
+    expect(Array.from(first.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "xt-nm", "xt-fig", ""]);
     expect(rows[0].querySelector(".xt-cnt")!.textContent).toBe("07 tools");
-    const adv = rows[0].querySelectorAll("a.xt-tool")[2]; expect(Array.from(adv.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "", "xt-badge", "xt-fig", ""]);
+    const adv = rows[0].querySelectorAll("a.xt-tool")[2]; expect(Array.from(adv.children).map((e) => e.className.split(" ")[0])).toEqual(["xt-ti", "xt-nm", "xt-fig", ""]);
+    // task #158: no "Gold" / "Silver" word on the rows; every paid tool (Silver or Gold) has one golden crown after its name, free tools none; the plan is still read out
+    const dir = screen.getByRole("list", { name: /six groups and their tools/i });
+    expect(dir.querySelectorAll(".xt-badge")).toHaveLength(0);
+    for (const c of BUCKETS.flatMap((b) => b.cards)) {
+      const a = dir.querySelector(`.xt-tool[href="${c.link}"], .xt-tool[title="${SHORT[c.id]}"]`)!;
+      expect(a.querySelectorAll(".xt-nm .xt-crown").length, c.id).toBe(c.badge === "FREE" ? 0 : 1);
+    }
+    for (const el of Array.from(dir.querySelectorAll(".xt-tool"))) {   // visible text: name, figure and the short line only, never the plan word
+      const seen = Array.from(el.querySelectorAll("b, .xt-fig")).map((e) => e.textContent).join(" ");
+      expect(seen).not.toMatch(/\b(Gold|Silver)\b/);
+    }
+    expect(adv.querySelector(".xt-crown")!.textContent).toBe(", Gold plan");
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
