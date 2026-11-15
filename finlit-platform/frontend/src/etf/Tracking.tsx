@@ -70,7 +70,8 @@ export function TrackingSection({ d, t, loading }: { d: EtfDetail; t: EtfTrackin
           <small>{tr.error.value != null ? `how much the daily gap moved about, from ${tr.error.days ?? "—"} days${dates ? `, ${dates}` : ""}` : "how much the gap moved about"}</small>
         </div>
       </div>
-      <p className="faint etf-small">Worked out from the ETF's {tr.basis} against the {t.index.label}'s {tr.index}. Over the same days, a lower tracking error means the ETF followed its index more closely.</p>
+      <p className="faint etf-small">Worked out from the ETF's {tr.basis} against the {t.index.label}'s {tr.index}. Over the same days, a lower tracking error means the ETF followed its index more closely.
+        {/closing price/i.test(tr.basis) ? " The exchange closing price sits a little above or below the NAV from day to day, and that adds to the tracking error, so it reads higher than one worked out from the NAV." : ""}</p>
 
       <h4 className="etf-h4">Others on the {t.index.label}</h4>
       <div className="tw"><table className="etf-ret etf-peers">
