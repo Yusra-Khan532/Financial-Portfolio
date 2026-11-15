@@ -35,32 +35,46 @@ import { OutlookPage } from "./Outlook";
 
 afterEach(cleanup);
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/outlook/HDFCBANK"]}><Routes><Route path="/outlook/:symbol" element={<OutlookPage />} /></Routes></MemoryRouter></QueryClientProvider>);
-const sliders = () => within(screen.getByRole("group", { name: /Expected growth rate of each input/ })).getAllByRole("slider") as HTMLInputElement[];
+const sliders = () => within(screen.getByRole("group", { name: /Expected growth rate of each input/ })).getAllByRole("textbox") as HTMLInputElement[];   // task #166: typed rate boxes
 
 describe("Build your own growth model: each input's own growth rate (task #146)", () => {
-  it("is a growth rate from -50% to +50% a year per input, starting at the company's figure, with no 100% total anywhere", () => {
+  it("is a typed growth rate per input, any figure from -99% to +999% a year, starting at the company's figure, with no 100% total anywhere (task #166)", () => {
     open();
     fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const s = sliders();
     expect(s.length).toBe(7);
-    expect(s.map((x) => [x.min, x.max, x.step])).toEqual(Array(7).fill(["-50", "50", "0.1"]));
+    expect(document.querySelectorAll('.ol-rates input[type="range"]').length).toBe(0);
     expect(s[0].value).toBe("18.4"); expect(s[1].value).toBe("12.1");
     const box = screen.getByRole("heading", { name: /Build your own growth model: assumptions/ }).closest("section")!;
     expect(box.textContent).toContain("Company figure +18.4%"); expect(box.textContent).toContain("counts 35%");
-    expect(box.textContent).toContain("No company figure; move it to use your own");       // margin has no figure: the slider says why
-    expect(s[6].closest(".ol-sl")!.querySelector("output")!.textContent).toBe("—");            // and shows a dash, not a 0.0% that looks like a real figure
+    expect(box.textContent).toContain("No company figure; type a rate to use your own");   // margin has no figure: the box says why
+    expect(s[6].value).toBe(""); expect(s[6].placeholder).toBe("—");                         // and shows a dash, not a 0.0% that looks like a real figure
+    expect(box.textContent).toContain("any figure from −99% to +999%");
     expect(box.textContent).not.toMatch(/total stays 100|Total 100/);
     expect(box.textContent).toContain("it is not a weight and nothing has to add up to 100%");
   });
-  it("moving one slider changes that one only, and only the moved rate is asked for", async () => {
+  it("accepts a rate above the old 50% limit and refuses one outside the range, saying why", async () => {
+    open();
+    fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
+    fireEvent.focus(sliders()[0]); fireEvent.change(sliders()[0], { target: { value: "120" } });
+    await new Promise((r) => setTimeout(r, 450));
+    expect(calls.some((c) => JSON.stringify(c) === JSON.stringify({ kind: "profit", horizon: "short", values: { co_1y: 120 } }))).toBe(true);
+    fireEvent.change(sliders()[0], { target: { value: "1200" } });
+    expect(screen.getByRole("alert").textContent).toBe("A rate from -99% to +999% a year");
+    expect(sliders()[0].getAttribute("aria-invalid")).toBe("true");
+    fireEvent.change(sliders()[0], { target: { value: "45.25" } }); fireEvent.blur(sliders()[0]);
+    expect(sliders()[0].value).toBe("45.3");                                                    // tidied to one decimal when the box is left
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("typing one rate changes that one only, and only the changed rate is asked for", async () => {
     open();
     fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const before = sliders().map((x) => x.value);
-    fireEvent.change(sliders()[1], { target: { value: "30" } });
+    fireEvent.focus(sliders()[1]); fireEvent.change(sliders()[1], { target: { value: "30" } });
     const after = sliders().map((x) => x.value);
     expect(after[1]).toBe("30");
     expect(after.filter((_, i) => i !== 1)).toEqual(before.filter((_, i) => i !== 1));          // no other slider moved
-    expect(screen.getByText("+30.0%").className).toContain("is-mine");
+    expect(sliders()[1].closest(".ol-rate")!.className).toContain("is-mine");
     await new Promise((r) => setTimeout(r, 450));                                                 // the request waits for the sliders to stop
     expect(calls.some((c) => JSON.stringify(c) === JSON.stringify({ kind: "profit", horizon: "short", values: { co_3y: 30 } }))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Reset to the company's figures" }));
@@ -72,7 +86,7 @@ describe("Build your own growth model: each input's own growth rate (task #146)"
     fireEvent.click(screen.getByRole("radio", { name: "Revenue estimate" }));
     const s = sliders();
     expect(s.length).toBe(6); expect(s[0].value).toBe("15.2");
-    fireEvent.change(s[3], { target: { value: "-12" } });
+    fireEvent.focus(s[3]); fireEvent.change(s[3], { target: { value: "-12" } });
     expect(sliders()[3].value).toBe("-12"); expect(sliders()[0].value).toBe("15.2");
   });
 });

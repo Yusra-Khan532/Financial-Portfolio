@@ -30,26 +30,27 @@ describe("outlook page, Build your own growth model", () => {
     expect(document.body.textContent).not.toMatch(/Set your own model|Set the growth rate you expect for each input|Customise the weight of each input/);
   });
   it("shows no sliders with Our model", () => { open(); expect(screen.queryByRole("group", { name: /Expected growth rate of each input/ })).toBeNull(); expect(screen.queryByText(/Build your own growth model: assumptions/)).toBeNull(); });
-  it("opens the sliders first: right after the model cards and before the charts and the detail tabs", () => {
+  it("opens the rate boxes first: right after the model cards and before the charts and the detail tabs", () => {
     open();
     fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const assume = screen.getByRole("heading", { name: /Build your own growth model: assumptions/ }).closest("section")!;
     const cards = screen.getByRole("radiogroup", { name: /Estimation model/ });
     const charts = document.querySelector(".ol-charts")!, tabs = screen.getByRole("tablist", { name: /Details of the estimate/ });
     expect(before(cards, assume)).toBe(true); expect(before(assume, charts)).toBe(true); expect(before(assume, tabs)).toBe(true);
-    expect(assume.querySelectorAll('input[type="range"]').length).toBeGreaterThan(5);
+    expect(assume.querySelectorAll('input[type="range"]').length).toBe(0);                    // task #166: typed rates, no slider
+    expect(assume.querySelectorAll(".ol-rate input").length).toBeGreaterThan(5);
     fireEvent.click(screen.getByRole("radio", { name: "Revenue estimate" }));
-    expect(assume.querySelectorAll('input[type="range"]').length).toBe(6);                    // revenue has six inputs, profit seven
+    expect(assume.querySelectorAll(".ol-rate input").length).toBe(6);                    // revenue has six inputs, profit seven
   });
-  it("marks the chart the sliders drive, lets the other be picked with one click, and says nothing of the kind with Our model", () => {
+  it("marks the chart the rates drive, lets the other be picked with one click, and says nothing of the kind with Our model", () => {
     open();
-    expect(screen.queryByText("The sliders change this chart")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Adjust this chart with the sliders/ })).toBeNull();
+    expect(screen.queryByText("Your rates change this chart")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Adjust this chart with your rates/ })).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: /Build your own growth model/ }));
     const rev = screen.getByRole("heading", { name: /Revenue: reported and estimate/ }).closest("section")!, prof = screen.getByRole("heading", { name: /Profit: reported and estimate/ }).closest("section")!;
     expect(prof.className).toContain("is-adjusting"); expect(rev.className).not.toContain("is-adjusting");          // Profit is the one the sliders drive at first
-    expect(screen.getAllByText("The sliders change this chart").length).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: /Adjust this chart with the sliders/ }));
+    expect(screen.getAllByText("Your rates change this chart").length).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: /Adjust this chart with your rates/ }));
     expect(rev.className).toContain("is-adjusting"); expect(prof.className).not.toContain("is-adjusting");
     expect(screen.getByRole("radio", { name: "Revenue estimate", checked: true })).toBeTruthy();                     // the sliders now belong to Revenue
   });
