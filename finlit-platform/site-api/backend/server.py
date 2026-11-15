@@ -781,8 +781,12 @@ def _premium_inputs_loader(kept, fresh, observations, supplied_candles=None):
             if current is not None:
                 return current, kept["sources"], kept["effective"], kept["sourcing"]
         raw, sources, effective, sourcing = _premium_dashboard_inputs(symbol, statement_type, now, supplied_candles, observations)
+        try:
+            from backend import premium_cache
+        except ImportError:
+            import premium_cache
         fresh.update({"symbol": symbol, "requested": statement_type, "fetchedAt": now.isoformat(), "raw": raw, "sources": sources,
-                      "effective": effective, "sourcing": sourcing})
+                      "effective": effective, "sourcing": sourcing, "inputsVersion": premium_cache.INPUTS_VERSION})
         return raw, sources, effective, sourcing
     return load
 
