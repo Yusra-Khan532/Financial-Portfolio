@@ -91,7 +91,7 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
               <Disclaimer compact />
             </div>
           </div>
-          <div className={"fo-hub" + (open == null ? " has-aside" : "")}>
+          <div className={"fo-hub" + (open == null && n != null && n > 1 ? " has-aside" : "")}>{/* task #168: the Trending column's room only when there is a Trending list */}
             <div className="fo-hub-main">
               {open != null
                 ? <ThreadView id={open} onBack={() => show(null)} backLabel={`All discussions about ${short}`} />

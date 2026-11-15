@@ -46,7 +46,7 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
   "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line",
-  "dcf-calculator": "rupee", "profit-revenue-outlook": "activity", "calculators": "percent", "option-chain": "grid",
+  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "calculators": "percent", "option-chain": "grid",
   "watchlists": "star", "portfolios": "wallet", "alerts": "bell", "compare-funds": "compare",
   "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-ipo": "calendar",
   "glossary": "book", "discussion-forum": "users", "finlit-bot": "chat",

@@ -22,6 +22,7 @@ export const BUCKETS: Bucket[] = [
   ] },
   { id: "quant-lab", name: "Quant Lab", line: "Value a company, test a forecast, read the options market.", cards: [
     { id: "dcf-calculator", title: "DCF Calculator", badge: "GOLD", link: "/dcf?sym=RELIANCE&load=1", what: "Work out what a share could be worth, and whether today's price is above it.", points: ["Fills a company's cash flow, debt, shares and price for you", "Intrinsic value, upside or downside, and a margin-of-safety price", "Sensitivity grid, reverse DCF and Bear, Base and Bull cases"], image: "dcf-calculator-light" },
+    { id: "reverse-valuation", title: "Reverse Valuation", badge: "GOLD", link: "/reverse-valuation?sym=RELIANCE", what: "Work out what today's share price already assumes.", points: ["Find the growth needed to justify today's price", "Understand the profit margins already expected", "See the returns implied by market expectations"], image: "reverse-valuation-light" },
     { id: "profit-revenue-outlook", title: "Profit & Revenue Forecasting", badge: "GOLD", link: "/outlook/RELIANCE", what: "Revenue and profit estimates built from a company's own history and its sector.", points: ["1, 3, 5-year estimates", "Reported figures solid, estimates dotted", "Use our weights or set your own"], image: "profit-revenue-outlook-light" },
     { id: "calculators", title: "EPS & SIP Calculators", badge: "FREE", link: "/sip-calculator", what: "Change one number and watch the result.", points: ["EPS & P/E: what a future EPS and target P/E imply for the price", "SIP: monthly amount, step-ups, goals, inflation and tax", "Every formula is shown"], image: "calculators-light" },
     { id: "option-chain", title: "Option Chain", badge: "GOLD", link: "/premium/options", what: "Read an index or F&O stock's option chain at a glance.", points: ["Open interest, OI change, volume and IV for every strike", "Put-call ratio and max pain worked out for you", "Open interest by strike, as a chart"], image: "option-chain-light" },
@@ -51,7 +52,7 @@ export const BUCKETS: Bucket[] = [
 export const SHORT: Record<string, string> = {
   "stock-screener": "190+ filters", "basic-score-screener": "rank by FinLit IQ", "advanced-score-screener": "rank by Prism", "query-builder": "rules in plain words", "mutual-funds": "filter every fund", "etfs": "350+ NSE ETFs", "fund-health-score": "score 1,200+ funds",
   "company-report": "everything on one page", "finlit-prism": "health in four parts", "company-financials": "statements and ratios", "compare-companies": "side by side", "chart-builder": "build your own charts",
-  "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "calculators": "EPS, P/E and SIP", "option-chain": "OI, IV, max pain",
+  "reverse-valuation": "what the price assumes", "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "calculators": "EPS, P/E and SIP", "option-chain": "OI, IV, max pain",
   "watchlists": "follow your stocks", "portfolios": "strength and spread", "alerts": "price and filing alerts", "compare-funds": "head to head",
   "sector-pulse": "which industries move", "sector-rotation": "who is pulling ahead", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "headlines and filings", "results-ipo": "who reports, who lists",
   "glossary": "440+ terms", "discussion-forum": "talk to investors", "finlit-bot": "ask the assistant",
@@ -63,7 +64,7 @@ export const FIGURE: Record<string, [string, string]> = {
   "stock-screener": ["190+", "filters"], "basic-score-screener": ["5", "scores per company"], "advanced-score-screener": ["4", "Prism parts"], "query-builder": ["190+", "ratios"],
   "mutual-funds": ["1,200+", "funds"], "etfs": ["350+", "ETFs"], "fund-health-score": ["1,200+", "funds scored"],
   "company-report": ["5", "IQ pillars"], "finlit-prism": ["4", "parts + 2 tech views"], "company-financials": ["3", "statements + ratios"], "compare-companies": ["2–4", "companies at once"],
-  "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
+  "reverse-valuation": ["4", "answers it solves for"], "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
   "sector-pulse": ["35+", "industry groups"], "sector-rotation": ["4", "corners"], "market-events": ["3", "calendars"],
   "glossary": ["440+", "terms"], "discussion-forum": ["5,800+", "company pages"],
 };
