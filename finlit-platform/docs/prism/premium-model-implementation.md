@@ -138,7 +138,7 @@ Common bounds, expressed as **0-point value -> 100-point value**: relative P/E, 
 | Margin change | Difference between comparable current/prior EBITDA-to-revenue margins, expressed in percentage points. |
 | Loan / net-worth growth | `(latest / matching balance one year earlier - 1) * 100`; the prior reporting month and day must match. |
 | Debt / equity | Latest total borrowings / latest total book equity. |
-| Interest cover | `(latest annual PBT + annual P&L interest expense) / interest expense`. Known zero expense has the model's special 100-point treatment; missing expense does not. Non-financial D/E below 0.1 makes this factor inapplicable. BANK/NBFC use this factor only when capital adequacy is unavailable. INSURANCE does not use interest cover. |
+| Interest cover | `(latest annual PBT + annual P&L interest expense) / interest expense`. Known zero expense has the model's special 100-point treatment; missing expense does not. Non-financial D/E below 0.1 makes this factor inapplicable: it is left out of the score, but since 3.6.14 its value is still worked out and shown, marked "shown for information; not scored", and it raises no low-cover alert. BANK/NBFC use this factor only when capital adequacy is unavailable. INSURANCE does not use interest cover. |
 | ROE / ROA | Latest annual profit / latest total equity or assets, multiplied by 100. |
 | Cash conversion | Sum of latest three annual operating cash flows / matching three annual profits, with all three periods present. |
 | P/E | Price / sum of latest four quarterly EPS. When fewer than four EPS slots exist, use supplied trailing EPS then annual EPS. Four or more slots with an interior/latest missing EPS do not silently fall back to annual EPS. |

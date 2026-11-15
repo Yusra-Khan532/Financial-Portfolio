@@ -356,13 +356,16 @@ def score_company(d, group):
             put("MARGIN_CHANGE", (now - before) * 100, "Z", {"note": "Current operating margin is non-positive", "operatingLoss": True, "opMarginNow": now * 100}, 0.)
         de = ratio(debt, nw)
         put("DEBT_TO_EQUITY", de, explicit_points=0. if nw is not None and nw <= 0 else None)
+        interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
+        cover = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
         if de is not None and de < IC_NOT_APPLICABLE_DE:
+            # Not scored (owner's v3.6 rule) but still worked out and shown, so the report agrees with the company page's interest coverage (3.6.14).
             statuses["INTEREST_COVER"] = "N"
-            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}"}
+            values["INTEREST_COVER"] = cover
+            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}, so interest cover is shown for information and not scored",
+                                         "shownNotScored": cover is not None}
         else:
-            interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
-            put("INTEREST_COVER", (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None,
-                explicit_points=100. if interest == 0 else None)
+            put("INTEREST_COVER", cover, explicit_points=100. if interest == 0 else None)
         value = ratio(annual_profit, annual_nw)
         put("ROE", value * 100 if value is not None else None, explicit_points=0. if annual_nw is not None and annual_nw <= 0 else None)
         p3 = complete_sum(d.get("net_profit_y", []), 3)
@@ -571,7 +574,7 @@ def score_company(d, group):
     if negative_nw: alerts.append("Net worth is zero or negative.")
     if details.get("FINANCIAL_LEVERAGE",{}).get("invalid"):
         alerts.append(details["FINANCIAL_LEVERAGE"]["note"])
-    if any(row['metric']=='INTEREST_COVER' for row in rows) and values.get("INTEREST_COVER") is not None and values["INTEREST_COVER"] < 1.5:
+    if any(row['metric']=='INTEREST_COVER' and row['status'] != "N" for row in rows) and values.get("INTEREST_COVER") is not None and values["INTEREST_COVER"] < 1.5:
         alerts.append("Interest cover is below 1.5 times.")
     if loss_capped: alerts.append(f"Loss rule ({tier}) capped Fundamental at {fundamental_cap} (before cap: {raw_fundamental:.1f}).")
     if valuation_capped: alerts.append(f"Weak-business rule capped Valuation at {VALUE_TRAP['cap']:g}.")
