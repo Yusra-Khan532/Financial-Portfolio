@@ -165,8 +165,11 @@ export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum
   if (me && !me.signedIn) return <BoardNote />;
   return (
     <div className="fo-tl">
+      {/* task #168: choosing a public name (or the paused-posting note) is its own block above the toolbar; inside the search-and-sort row it pushed the search box
+          to mid-height and, on Safari (MacBook), the row came out shorter than its contents so the list below overlapped it */}
+      {me?.signedIn && (!me.canPost || me.banned) && <div className="fo-join"><Writer quiet>{null}</Writer></div>}
       <div className="fo-tl-top">
-        <Writer quiet>{!compose && <button type="button" className="btn primary fo-start" onClick={() => setCompose(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg>{startLabel}</button>}</Writer>
+        {me?.canPost && !me.banned && !compose && <button type="button" className="btn primary fo-start" onClick={() => setCompose(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg>{startLabel}</button>}
         <form className="fo-search" role="search" onSubmit={(e) => { e.preventDefault(); set("q", text.trim()); }}>
           <input type="search" aria-label="Search discussion titles" placeholder="Search titles" value={text} onChange={(e) => { setText(e.target.value); if (!e.target.value) set("q", ""); }} maxLength={60} />
         </form>
