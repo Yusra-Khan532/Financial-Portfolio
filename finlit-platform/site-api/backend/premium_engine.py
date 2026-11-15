@@ -427,6 +427,27 @@ def score_company(d, group):
             for metric, weight in effective_weights["quality"].items()
         }
         fallbacks["INTEREST_COVER"] = "CAPITAL_ADEQUACY"
+    # Owner-requested NBFC replacement (3.6.13, 15 November 2026): FinEdge sends no NPA ratios for NBFCs, so when Gross NPA and Net NPA are BOTH
+    # missing, financial leverage (total assets / equity, lower is better) takes their two slots (their weights added together). If either NPA arrives, it is used.
+    if group == "NBFC" and points.get("GROSS_NPA") is None and points.get("NET_NPA") is None:
+        assets = num(d.get("total_assets"))
+        if nw is not None and nw <= 0:
+            statuses["FINANCIAL_LEVERAGE"] = "L"
+            details["FINANCIAL_LEVERAGE"] = {"invalid": True, "note": "Financial leverage is invalid: equity is zero or negative (financial distress)."}
+        else:
+            leverage = num(d.get("financial_leverage"))
+            source = d.get("financial_leverage_source")
+            if leverage is None:
+                leverage = ratio(assets, nw)
+                source = "Calculated from total assets and equity on the same balance-sheet date" if leverage is not None else None
+            put("FINANCIAL_LEVERAGE", leverage, detail={"assets": assets, "equity": nw, "source": source, "note": "Used in place of Gross NPA and Net NPA, which the data provider does not report for NBFCs."})
+        if points.get("FINANCIAL_LEVERAGE") is not None or statuses.get("FINANCIAL_LEVERAGE") == "L":
+            quality = {}
+            for metric, weight in effective_weights["quality"].items():
+                key = "FINANCIAL_LEVERAGE" if metric in ("GROSS_NPA", "NET_NPA") else metric
+                quality[key] = quality.get(key, 0) + weight
+            effective_weights["quality"] = quality
+            fallbacks["FINANCIAL_LEVERAGE"] = "GROSS_NPA,NET_NPA"
     # Owner-requested BANK overrides: replace the original slot rather than add
     # a second contribution. A genuine zero/loss score is available data.
     if group == "BANK" and points.get("PE_VS_INDUSTRY") is None and points.get("PE_VS_HISTORY") is not None:

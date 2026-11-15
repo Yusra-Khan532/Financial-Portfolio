@@ -184,7 +184,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
                     if raw.get("asset_quality_basis") != statement_type:
                         warnings.append(f"The dashboard's bank asset-quality disclosures use {raw.get('asset_quality_basis')} statements dated {quality_day}; NPA inputs use that explicitly disclosed basis. Financial statements remain {statement_type}.")
     d["solvency_ratio"] = record(latest_q, "solvency_ratio", ("solvencyRatio",), 1)
-    if group == "INSURANCE":
+    if group in ("INSURANCE", "NBFC"):
         leverage_rows = [row for row in items(raw.get('leverage'),'ratios','data') if field_date(row) and field_date(row)<=as_of]
         # Same provider ordering as the dashboard: TTM precedes annual rows.
         reported = next((first(row,'financialLeverage') for row in leverage_rows if first(row,'financialLeverage') is not None and first(row,'financialLeverage')>0),None)

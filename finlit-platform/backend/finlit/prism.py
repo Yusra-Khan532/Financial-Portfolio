@@ -297,7 +297,8 @@ def _summary(row, refreshing: bool = False) -> Dict[str, Any]:
 CLASSIFICATION_VERSION = 3
 # Mirrors site-api/backend/premium_model_config.py; a regression test keeps them aligned.
 # 3.6.12: the growth in PEG is EPS growth (split/bonus adjusted), falling back to net profit growth; stored reports of an older version are rebuilt.
-REQUIRED_MODEL_VERSION = "3.6.12"
+# 3.6.13: NBFCs with neither Gross NPA nor Net NPA use financial leverage (assets / equity, 10x-4x) in those two Quality slots.
+REQUIRED_MODEL_VERSION = "3.6.13"
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 
 
