@@ -2,11 +2,14 @@
 // so a page is named, grouped and ordered the same way everywhere. Each entry is [path, label, one line about it, icon].
 // `gold` marks tools that need the Gold plan (shown as a small tag, never hidden: locked tools stay visible behind an unlock card).
 
-export type NavItem = { to: string; label: string; sub: string; icon: string; gold?: boolean; end?: boolean; not?: string };
+export type NavItem = { to: string; label: string; sub: string; icon: string; gold?: boolean; end?: boolean; not?: string; newUntil?: string };
 export type NavGroup = { title?: string; items: NavItem[] };
 export type NavSection = { id: string; label: string; wide?: boolean; groups: NavGroup[] };
 
-const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boolean; end?: boolean; not?: string } = {}): NavItem => ({ to, label, sub, icon, ...o });
+const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boolean; end?: boolean; not?: string; newUntil?: string } = {}): NavItem => ({ to, label, sub, icon, ...o });
+
+/** A page carries a "New" tag in the menus until its `newUntil` day (task #136: 30 days from launch). */
+export const isNew = (n: { newUntil?: string }, now: number = Date.now()) => !!n.newUntil && now < Date.parse(n.newUntil + "T00:00:00+05:30");
 
 /** Pages a Gold member does not get (founder, 13 Nov 2026, task #100): Gold screens with FinLit Prism only, so the Basic stock screener (built on the FinLit IQ)
  *  is not offered to Gold. Menus, the left rail, page links and tool cards leave it out for Gold, and its address opens the Advanced stock screener. */
@@ -21,6 +24,7 @@ export const SECTIONS: NavSection[] = [
     i("/my-investments", "All my investments", "Your shares and mutual funds together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
     i("/holdings", "Equity portfolio", "Score and mix of the shares you hold", "pie"),
     i("/mf-portfolio", "MF portfolio", "Score, value and returns of the mutual funds you hold", "pie"),
+    i("/etf-portfolio", "ETF portfolio", "What your ETFs track and cost, what sits inside them and how risky they are together", "pie", { newUntil: "2026-12-15" }),
     i("/alerts", "Alerts", "Price, signals, scores and filings", "bell"),
   ] }] },
   { id: "research", label: "Research", wide: true, groups: [

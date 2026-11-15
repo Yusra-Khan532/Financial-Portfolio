@@ -18,6 +18,7 @@ except ImportError:
     from benchmark_resolution import select_reported_benchmarks
 
 NO_OBSERVATION = {"none": True}   # kept in place of a peer the provider answered for but gave nothing usable (so it is not asked again the same day)
+PEER_UNIVERSE_LIMIT = 500   # an industry list longer than this is not looked up peer by peer on demand (the finance industry lists ~580 companies)
 PEER_BUDGET_SECONDS = 45.0   # peers not looked up by then count as missing (and are listed as such); normally the lookups end in about 10
 _BENCHMARK_OBSERVATIONS = {}
 _BENCHMARK_CACHE_SECONDS = 15 * 60
@@ -73,7 +74,7 @@ def peer_benchmark(get, peers, statement_type, as_of, group=None, metrics=None, 
     symbols = sorted({str(value).upper() for value in symbols if re.fullmatch(r"[A-Za-z0-9.&-]{1,30}", str(value))})
     meta = {"source": "FinEdge industry peer universe", "asOf": as_of.isoformat(), "universeCount": len(symbols), "fetchedCount": 0, "positiveCounts": {}, "basis": statement_type}
     meta["metrics"] = {}
-    if not selected or not symbols or len(symbols) > 500:
+    if not selected or not symbols or len(symbols) > PEER_UNIVERSE_LIMIT:
         return {}, {**meta, "note": "No peer calculation required, or industry universe unavailable or exceeds the on-demand limit."}
     deadline = time.monotonic() + (PEER_BUDGET_SECONDS if budget_seconds is None else budget_seconds)
     scope = (statement_type, as_of.isoformat())
@@ -211,6 +212,25 @@ def derive_peer_ev_ebitda(raw, symbol, statement_type, as_of):
     return (market_cap + inputs['total_debt'] - inputs['cash']) / ebitda if ebitda > 0 else 0.
 
 
+def peer_symbols(peers):
+    symbols = peers.get("peers", []) if isinstance(peers, dict) else []
+    return sorted({str(value).upper() for value in symbols if re.fullmatch(r"[A-Za-z0-9.&-]{1,30}", str(value))})
+
+
+def close_peers(get, symbol, industry_peers):
+    """Task #160: when the provider's industry list is too long to look up on demand (NBFCs sit in a ~580-company finance list), the provider's
+    shorter list of the company's close peers (same business, e.g. other NBFCs for Bajaj Finance) is used instead. None when it is unavailable."""
+    if not symbol or len(peer_symbols(industry_peers)) <= PEER_UNIVERSE_LIMIT:
+        return None
+    try:
+        payload = provider_get(get, f"/peers/{symbol}", {})
+    except Exception:
+        return None
+    own = str(symbol).upper()
+    found = [s for s in peer_symbols(payload) if s != own]
+    return {"peers": found} if 0 < len(found) <= PEER_UNIVERSE_LIMIT else None
+
+
 FINLIT_METHOD = "FinLit industry median"
 FINLIT_MIN_COUNT = 5
 
@@ -231,9 +251,9 @@ def finlit_fallbacks(items_, as_of):
     return out
 
 
-def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_of=None, observations=None, fallback=None):
+def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_of=None, observations=None, symbol=None, fallback=None):
     """Select reported comparisons first, calculating only unresolved peer metrics. `fallback` (FinLit's own industry medians) fills a P/E or P/B
-    comparison only when FinEdge, Upstox and the FinEdge peer median all left it empty."""
+    comparison only when FinEdge, Upstox and the FinEdge peer median (industry list, or close peers when that list is too long) all left it empty."""
     # Match benchmark observations to the report price date, not a later market close.
     try: benchmark_date = date.fromisoformat(price_as_of or as_of.isoformat())
     except ValueError: benchmark_date = as_of
@@ -242,7 +262,19 @@ def resolve_report_benchmarks(get, raw, statement_type, as_of, group, price_as_o
     if group in ("HEAVY", "UTILITY") and "industry_median_ev_ebitda" not in reported:
         wanted.append("ev_ebitda")
     kept = {} if observations is None else {"observations": observations}
-    benchmarks, benchmark_meta = peer_benchmark(get, raw.get("peers", {}), statement_type, min(benchmark_date, as_of), group, wanted, **kept)
+    peers = raw.get("peers", {})
+    close = close_peers(get, symbol, peers) if wanted else None
+    benchmarks, benchmark_meta = peer_benchmark(get, close or peers, statement_type, min(benchmark_date, as_of), group, wanted, **kept)
+    industry_count = len(peer_symbols(peers))
+    if industry_count > PEER_UNIVERSE_LIMIT:
+        benchmark_meta["industryUniverseCount"] = industry_count
+        benchmark_meta["peerSet"] = "close" if close else "none"
+        for item in benchmark_meta.get("metrics", {}).values():
+            item.update(peerSet="close" if close else "none", industryUniverseCount=industry_count)
+        if not close:   # the reason a peer median is blank, for each metric that needed one
+            for key in wanted:
+                benchmark_meta["metrics"].setdefault("industry_median_" + key, {"value": None, "provider": "FinEdge", "scope": "industry", "method": "available peer median",
+                    "peerSet": "none", "industryUniverseCount": industry_count, "statementBasis": statement_type, "asOf": as_of.isoformat()})
     benchmarks.update(reported)
     benchmark_meta.setdefault("metrics", {}).update(reported_meta)
     for key, info in finlit_fallbacks(fallback, as_of).items():

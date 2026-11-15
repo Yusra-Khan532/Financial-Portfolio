@@ -1,0 +1,171 @@
+{
+"count": 5,
+"basis": "equal",
+"etfs": [
+{
+"symbol": "NIFTYBEES",
+"short": "NIFTYBEES",
+"category": "",
+"liquid": false,
+"weight": 20.0,
+"swing": 13.0,
+"worstFall": -14.9,
+"beta": 0.85,
+"fallsTaken": 85.0,
+"from": "2023-11-17",
+"to": "2026-11-13",
+"years": 3.0,
+"why": null
+},
+{
+"symbol": "SBINIFTY50",
+"short": "SBINIFTY50",
+"category": "",
+"liquid": false,
+"weight": 20.0,
+"swing": 13.0,
+"worstFall": -15.0,
+"beta": 0.85,
+"fallsTaken": 83.0,
+"from": "2023-11-17",
+"to": "2026-11-13",
+"years": 3.0,
+"why": null
+},
+{
+"symbol": "GOLDBEES",
+"short": "GOLDBEES",
+"category": "",
+"liquid": false,
+"weight": 20.0,
+"swing": 17.6,
+"worstFall": -15.0,
+"beta": 0.01,
+"fallsTaken": -27.0,
+"from": "2023-11-17",
+"to": "2026-11-13",
+"years": 3.0,
+"why": null
+},
+{
+"symbol": "MON100",
+"short": "MON100",
+"category": "",
+"liquid": false,
+"weight": 20.0,
+"swing": 23.2,
+"worstFall": -25.0,
+"beta": 0.53,
+"fallsTaken": 18.0,
+"from": "2023-11-17",
+"to": "2026-11-13",
+"years": 3.0,
+"why": null
+},
+{
+"symbol": "LIQUIDCASE",
+"short": "LIQUIDCASE",
+"category": "",
+"liquid": true,
+"weight": 20.0,
+"swing": null,
+"worstFall": null,
+"beta": null,
+"fallsTaken": null,
+"from": null,
+"to": null,
+"years": null,
+"why": "The ETF has less than a year of daily prices, too short for these figures."
+}
+],
+"bench": {
+"name": "Nifty 500",
+"swing": 14.3,
+"worstFall": -18.8,
+"from": "2023-11-15",
+"to": "2026-11-13"
+},
+"list": {
+"swing": 11.3,
+"worstFall": -9.6,
+"fallsTaken": 40.0,
+"beta": 0.56,
+"level": {
+"word": "Lower",
+"vs": "the Nifty 500",
+"because": "because your ETFs do not move together",
+"riskier": []
+},
+"why": null
+},
+"together": {
+"symbols": [
+"NIFTYBEES",
+"SBINIFTY50",
+"GOLDBEES",
+"MON100"
+],
+"pairs": [
+{
+"a": "NIFTYBEES",
+"b": "SBINIFTY50",
+"r": 1.0,
+"weeks": 52,
+"why": null
+},
+{
+"a": "NIFTYBEES",
+"b": "GOLDBEES",
+"r": 0.04,
+"weeks": 52,
+"why": null
+},
+{
+"a": "NIFTYBEES",
+"b": "MON100",
+"r": 0.29,
+"weeks": 52,
+"why": null
+},
+{
+"a": "SBINIFTY50",
+"b": "GOLDBEES",
+"r": 0.04,
+"weeks": 52,
+"why": null
+},
+{
+"a": "SBINIFTY50",
+"b": "MON100",
+"r": 0.29,
+"weeks": 52,
+"why": null
+},
+{
+"a": "GOLDBEES",
+"b": "MON100",
+"r": 0.33,
+"weeks": 52,
+"why": null
+}
+],
+"from": "2025-11-10",
+"to": "2026-11-13",
+"leftOut": [
+"LIQUIDCASE"
+]
+},
+"adds": {
+"shares": {
+"NIFTYBEES": 17.0,
+"SBINIFTY50": 16.7,
+"GOLDBEES": 39.1,
+"MON100": 27.2,
+"LIQUIDCASE": 0.0
+},
+"days": 248,
+"why": null,
+"from": "2025-11-13",
+"to": "2026-11-13"
+}
+}

@@ -753,6 +753,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.outlook.router", fromlist=["router"]).router)   # /api/outlook/{symbol}: Gold profit and revenue outlook
     app.include_router(__import__("finlit.mfportfolio.api", fromlist=["router"]).router)   # /api/me/mf-portfolio: My mutual funds (before the site-backend catch-all)
     app.include_router(__import__("finlit.myinvest.api", fromlist=["router"]).router)   # POST /api/me/all-investments: All my investments (task #137)
+    app.include_router(__import__("finlit.etfportfolio.api", fromlist=["router"]).router)   # /api/me/etf-portfolio: ETF portfolio, task #136 (before the site-backend catch-all)
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: Equity portfolio page, before the site-backend catch-all
     app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
     if settings.site_api_url:

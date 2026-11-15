@@ -17,7 +17,7 @@ describe("site map", () => {
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);
     expect(names("news")).toEqual(["Results calendar", "Latest results", "IPO calendar", "News & filings"]);
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
-    expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "All my investments", "Equity portfolio", "MF portfolio", "Alerts"]);   // task #137: All my investments after Watchlists, as the pack draws it
+    expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Alerts"]);   // task #137: All my investments after Watchlists, as the pack draws it; task #136: ETF portfolio after MF portfolio
   });
   it("marks the Gold tools of the Research menu", () => {
     expect(RESEARCH.groups.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/prism", "/reverse-valuation"]);
