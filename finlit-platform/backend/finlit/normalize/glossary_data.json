@@ -1814,7 +1814,7 @@
    "formula": "Downside capture = Fund return in down periods ÷ Yardstick return in down periods × 100",
    "id": "downside-capture-ratio",
    "letter": "D",
-   "finlit": "In FinLit's Mutual Fund Health Score, 'How it behaved when similar funds fell' measures this against similar funds, which stand in for the benchmark.",
+   "finlit": "In FinLit FundPulse, 'How it behaved when similar funds fell' measures this against similar funds, which stand in for the benchmark.",
    "aliases": [
     "Downside capture",
     "How it behaved when similar funds fell",
@@ -4122,7 +4122,7 @@
    "formula": "Months ahead % = Months above the category median ÷ Months counted × 100",
    "id": "months-ahead-of-peers",
    "letter": "M",
-   "finlit": "In FinLit's Mutual Fund Health Score this is 'Months it matched similar funds', part of Performance.",
+   "finlit": "In FinLit FundPulse this is 'Months it matched similar funds', part of Performance.",
    "aliases": [
     "Months ahead of peers (last 36)",
     "Months it matched similar funds",
@@ -4171,21 +4171,21 @@
    "aliases": []
   },
   {
-   "term": "Mutual Fund Health Score",
+   "term": "FinLit FundPulse",
    "topic": "FinLit words",
    "meaning": "FinLit's 0 to 100 score of a mutual fund against funds of the same kind, built from four parts: Performance, Risk, Cost and Quality (age, size and how the portfolio is built). How much each part counts depends on the fund group and stays with the model.",
    "why": "Return is only one part of a fund; how bumpy and deep its falls were and what it costs count too.",
    "how": "Read the group, the rank inside it and the risk-o-meter next to the score: a 75 for a small-cap fund and a 75 for a liquid fund do not mean the same thing. It is not a forecast or advice.",
    "formula": "",
    "id": "mutual-fund-health-score",
-   "letter": "M",
+   "letter": "F",
    "finlit": "Each measure is read against the other funds of the same kind, and the details of the scoring stay inside the model. Direct and Regular plans are scored separately. A fund with a short NAV history is marked provisional; a very new fund is not rated.",
    "aliases": [
     "Health score",
     "MF health score",
     "Fund health score",
     "Fund score",
-    "FinLit Mutual Fund Health Score",
+    "Mutual Fund Health Score",
     "The four parts",
     "Fund score screener"
    ],

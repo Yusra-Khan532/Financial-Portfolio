@@ -146,7 +146,7 @@ export const COL_GROUPS = { ret: "Returns", sip: "SIP returns (XIRR)" } as const
 export const COLUMNS: ColDef[] = [
   { id: "amc", label: "Fund house", hint: "The company that runs the scheme (also shown under the scheme's name)", sort: "amc", num: false },
   { id: "category", label: "Category", hint: "The group AMFI files the scheme in", sort: "category", num: false },
-  { id: "score", label: "Health score", hint: "FinLit Mutual Fund Health Score, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
+  { id: "score", label: "FundPulse", hint: "FinLit FundPulse, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
   { id: "plan", label: "Plan", hint: "Direct or Regular", sort: null, num: false },
   { id: "option", label: "Option", hint: "Growth or IDCW (payout)", sort: null, num: false },
   { id: "nav", label: "NAV", hint: "Net asset value of one unit, latest", sort: "nav", num: true },
@@ -162,7 +162,7 @@ export const COLUMNS: ColDef[] = [
   { id: "checklist", label: "Checklist", hint: "How many of five plain checks the scheme passes against its category (see the legend below the table)", sort: "checklist", num: true },
 ];
 export const DEFAULT_COLS: ColId[] = ["category", "score", "nav", "r1y", "r3y", "r5y", "sip3y", "sip5y", "aum", "ter", "checklist"];
-const COLS_KEY = "mf-cols";   // v4: the Health score column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
+const COLS_KEY = "mf-cols";   // v4: FundPulse column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
 const ALL_IDS = new Set<string>(COLUMNS.map((c) => c.id));
 
 /** Saved column choice, cleaned of anything unknown; the default when nothing valid is saved (storage can be blocked). */

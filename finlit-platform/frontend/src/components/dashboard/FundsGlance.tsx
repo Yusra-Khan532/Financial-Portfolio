@@ -1,5 +1,5 @@
 // Task #135 (dashboard pack 06, section 3): "Your mutual funds at a glance" and "Your ETFs at a glance", beside "Your shares at a glance". The fund figures are the
-// MF portfolio page's own (its holdings, Health Scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Members cannot hold
+// MF portfolio page's own (its holdings, FundPulse scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Members cannot hold
 // ETFs yet (the ETF portfolio is task #136), so the ETF panel shows its empty state until then. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
@@ -44,15 +44,15 @@ export function FundsGlance() {
   const top = sp.data?.readings.overlap.top ?? null, stock = sp.data?.topStocks?.[0] ?? null;
   const total = Math.max(1, g.bands.g + g.bands.o + g.bands.r + g.bands.n), w = (k: number) => `${(k / total) * 100}%`;
   const watch = g.weakest ? [{ kind: "watch" as const, title: `${shortFund(g.weakest.name)} scores ${g.weakest.label ?? g.weakest.score}`,
-    text: `${shortFund(g.weakest.name)} has the lowest Health Score of your funds (${g.weakest.score}${g.weakest.label ? `, ${g.weakest.label}` : ""})${g.weakest.parts.length ? `; its weakest parts are ${g.weakest.parts.join(" and ")}` : ""}.` }] : [];
+    text: `${shortFund(g.weakest.name)} has the lowest FundPulse of your funds (${g.weakest.score}${g.weakest.label ? `, ${g.weakest.label}` : ""})${g.weakest.parts.length ? `; its weakest parts are ${g.weakest.parts.join(" and ")}` : ""}.` }] : [];
   return (
-    <Card id="mfglance" className="dsh-pg dsh-fg" title={<>Your mutual funds at a glance<Tip text="The same figures as the MF portfolio page: the Health Score (Gold), how much your funds overlap, the stocks underneath and how much they swing." label="About “Your mutual funds at a glance”" /></>}
+    <Card id="mfglance" className="dsh-pg dsh-fg" title={<>Your mutual funds at a glance<Tip text="The same figures as the MF portfolio page: FundPulse (Gold), how much your funds overlap, the stocks underneath and how much they swing." label="About “Your mutual funds at a glance”" /></>}
       sub={`${n} ${n === 1 ? "fund" : "funds"}${d.dataDate ? ` · NAVs of ${dayMonth(d.dataDate)}` : ""}`}>
-      {g.locked ? <p className="dsh-note">The Health Score of each fund is part of Gold. <Link to="/plans">See plans</Link>.</p> : (
+      {g.locked ? <p className="dsh-note">FinLit FundPulse of each fund is part of Gold. <Link to="/plans">See plans</Link>.</p> : (
         <div className="dsh-pg-top">
-          <div className={"dsh-pg-ring " + ringBand(g.avgLabel)} role="img" aria-label={`Average Health Score ${g.avg ?? "not available"} out of 100${g.avgLabel ? `, ${g.avgLabel}` : ""}`} style={{ ["--v" as string]: g.avg ?? 0 }}><b>{g.avg ?? "—"}</b></div>
+          <div className={"dsh-pg-ring " + ringBand(g.avgLabel)} role="img" aria-label={`Average FundPulse ${g.avg ?? "not available"} out of 100${g.avgLabel ? `, ${g.avgLabel}` : ""}`} style={{ ["--v" as string]: g.avg ?? 0 }}><b>{g.avg ?? "—"}</b></div>
           <div>
-            <p className="dsh-lh first">Health Score{g.avgLabel ? ` · ${g.avgLabel}` : ""}</p>
+            <p className="dsh-lh first">FundPulse{g.avgLabel ? ` · ${g.avgLabel}` : ""}</p>
             <div className="dsh-pg-mix" role="img" aria-label={fundBandLine(g.bands)}>
               {g.bands.g > 0 && <i className="g" style={{ width: w(g.bands.g) }} />}{g.bands.o > 0 && <i className="o" style={{ width: w(g.bands.o) }} />}{g.bands.r > 0 && <i className="r" style={{ width: w(g.bands.r) }} />}{g.bands.n > 0 && <i className="n" style={{ width: w(g.bands.n) }} />}
             </div>

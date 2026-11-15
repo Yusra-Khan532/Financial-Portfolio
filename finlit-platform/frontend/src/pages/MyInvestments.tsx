@@ -1,7 +1,7 @@
 // /my-investments: All my investments (task #137, the team's 14 Nov pack "finlit-08-all-my-investments"). One page that reads the member's shares (Equity
 // portfolio) and mutual funds (MF portfolio) together and looks through each fund to the companies inside it. No new list: changing a list on its own page
 // changes this page. ETFs: the ETF portfolio does not exist yet, so every ETF part says it is coming (founder, 15 Nov 2026); no figure is made up.
-// Plans (founder): Silver and Gold; shares read with FinLit IQ on Silver and FinLit Prism on Gold; the funds' Health Score is Gold only. Describes; never advises.
+// Plans (founder): Silver and Gold; shares read with FinLit IQ on Silver and FinLit Prism on Gold; the funds' FundPulse is Gold only. Describes; never advises.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Gate } from "../components/Gate";
@@ -77,7 +77,7 @@ function Body() {
           {d.noHoldings.length > 0 && <>No monthly portfolio file yet for {d.noHoldings.join(", ")}: counted in the money, not in the look-through.</>}</p>}
       </>}
       <Faq />
-      <p className="faint mi-fine">{d?.disclaimer ?? "Information only, not investment advice."} Silver shows your shares with FinLit IQ, Gold with FinLit Prism and adds the funds' Health Score. Nothing is sent to a broker.</p>
+      <p className="faint mi-fine">{d?.disclaimer ?? "Information only, not investment advice."} Silver shows your shares with FinLit IQ, Gold with FinLit Prism and adds the funds' FundPulse. Nothing is sent to a broker.</p>
     </>
   );
 }
@@ -126,8 +126,8 @@ function Tiles({ d, go }: { d: AllInvestments; go: (t: Tab) => void }) {
       <Tile k="blue" label="Asset mix" big={`${pctOf(m.equity ?? 0, 0)} shares`} text={<>{m.other ? `Other (gold and the rest) ${pctOf(m.other, 0)} · ` : ""}debt and cash {pctOf(outside, 0)}{m.unknown ? ` · not known ${pctOf(m.unknown, 0)}` : ""}, counting what sits inside each fund</>} link="See the look-through" to="look" />
       <Tile k="amber" label="Biggest company" big={top ? `${top.name} ${pctOf(top.all)}` : "—"} text={top ? splitText(top) : "No company in your lists yet."} link="See the look-through" to="look" />
       <Tile k="teal" label="Held twice" big={`${nf(d.heldTwice, 0)} compan${d.heldTwice === 1 ? "y" : "ies"}`} text="You own them directly and again through a fund" link="See which" to="look" />
-      <Tile k="green" label="Health" big={<>{s.score != null ? nf(s.score, 0) : "—"} · {f.scoreLocked ? <span className="mi-lock" title="The funds' Health Score comes with Gold"><Icon name="lock" /></span> : f.score != null ? nf(f.score, 0) : "—"}</>}
-        text={<>Shares: {MODEL_NAME[model]} {s.score != null ? `${nf(s.score, 0)}, ${shareScoreWord(s.score, model)}` : "not rated yet"}. Funds: {f.scoreLocked ? "Health Score comes with Gold" : f.score != null ? `Health Score ${nf(f.score, 0)}, ${f.scoreWord ?? ""}` : "no Health Score yet"}</>} link="See each part" to="overview" />
+      <Tile k="green" label="Health" big={<>{s.score != null ? nf(s.score, 0) : "—"} · {f.scoreLocked ? <span className="mi-lock" title="The funds' FundPulse comes with Gold"><Icon name="lock" /></span> : f.score != null ? nf(f.score, 0) : "—"}</>}
+        text={<>Shares: {MODEL_NAME[model]} {s.score != null ? `${nf(s.score, 0)}, ${shareScoreWord(s.score, model)}` : "not rated yet"}. Funds: {f.scoreLocked ? "FundPulse comes with Gold" : f.score != null ? `FundPulse ${nf(f.score, 0)}, ${f.scoreWord ?? ""}` : "no FundPulse yet"}</>} link="See each part" to="overview" />
       <Tile k="grey" label="Risk level" big={d.risk?.level ?? "—"} text={d.risk?.level ? "than the Nifty 500, shares and funds together" : d.riskWhy ?? "Not worked out yet."} link="See risk" to="risk" />
     </div>
   );
@@ -154,7 +154,7 @@ function Overview({ d }: { d: AllInvestments }) {
           {head("funds", "Mutual funds", f)}
           <p className="mi-pv">{f.valued && f.value != null ? rupees(f.value) : "Add units to see the value"}</p>
           <Row k="Over 1 year" v={chg(f.chg1y)} tone={f.chg1y} />
-          <Row k="Health Score, average" v={f.scoreLocked ? <span className="mi-lock"><Icon name="lock" /> Gold</span> : f.score != null ? `${nf(f.score, 0)} · ${f.scoreWord ?? ""}` : "no score yet"} />
+          <Row k="FundPulse, average" v={f.scoreLocked ? <span className="mi-lock"><Icon name="lock" /> Gold</span> : f.score != null ? `${nf(f.score, 0)} · ${f.scoreWord ?? ""}` : "no score yet"} />
           <Row k="Highest overlap" v={f.overlap ? <span title={`${f.overlap.a} and ${f.overlap.b}`}>{pctOf(f.overlap.pct, 0)}</span> : f.count > 1 ? "—" : "needs two funds"} />
           <Row k="Largest" v={f.largest?.name ?? "—"} />
           <Link className="mi-open" to="/mf-portfolio">Open the MF portfolio <Icon name="arrow" /></Link>
@@ -244,7 +244,7 @@ const FAQ: [string, ReactNode][] = [
   ["Where do the numbers come from?", <>Your shares come from your <Link to="/holdings">Equity portfolio</Link> and your funds from your <Link to="/mf-portfolio">MF portfolio</Link>; this page keeps no list of its own. Prices are the exchange's closing prices; NAVs, scheme names and fund sizes come from AMFI; what sits inside each fund comes from the fund house's monthly portfolio file. The Nifty 500 is its published index level.</>],
   ["Why do I need quantities?", "Without quantities the page cannot know how much money sits in each holding, so it counts each holding the same, and each part the same, and says so. Add how many shares and units you hold on their own pages and every figure here is weighted by your money."],
   ["How are funds and ETFs looked through?", "Each fund's share of everything is spread over the companies in its latest monthly portfolio file, by each company's share of the fund's net assets. A company's figure here is what you hold directly plus what your funds hold of it. Debt, cash and other holdings stay in the asset mix. ETFs will be looked through the same way once the ETF portfolio is here."],
-  ["What does my plan show here?", "Silver shows the whole page with your shares read through FinLit IQ. Gold shows them through FinLit Prism and adds the funds' Health Score. A free account sees what the page offers."],
+  ["What does my plan show here?", "Silver shows the whole page with your shares read through FinLit IQ. Gold shows them through FinLit Prism and adds the funds' FundPulse. A free account sees what the page offers."],
   ["Why is a company counted three times?", "It is counted once, as one row: what you hold directly, what your funds hold and, later, what your ETFs hold are added into the All together figure. The columns show where each part comes from."],
   ["Is anything sent to my broker?", "No. Nothing is sent to a broker and nothing is traded. The page only reads the lists you keep on FinLit."],
 ];

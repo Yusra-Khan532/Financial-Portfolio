@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Mutual Fund Health Score upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
+// FinLit FundPulse upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
 // leaderboard, compare, chip, admin panel and the wording scan.
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -137,7 +137,7 @@ describe("screener", () => {
     expect(document.querySelector("[data-fgx=parts]")).toBeNull();
     const panel = document.querySelector("[data-fgx=score]") as HTMLElement;
     expect(panel.querySelector(".fgx-hb")!.textContent).toMatch(/Score & analytics filters.*1 active/);
-    for (const t of ["Overall Health Score", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
+    for (const t of ["Overall FundPulse", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Total Score, exact range" })).toBeTruthy();
     for (const g of ["Performance", "Risk", "Cost", "Quality"]) expect(within(panel).getByRole("group", { name: `${g}, band` })).toBeTruthy();
     expect((within(panel).getByRole("button", { name: "Apply filters" }) as HTMLButtonElement).disabled).toBe(true);
@@ -272,9 +272,9 @@ describe("wording", () => {
 });
 
 
-describe("exchange-traded funds get no Health Score", () => {
+describe("exchange-traded funds get no FundPulse", () => {
   it("the card disappears when the server says the score is not offered (an ETF-category scheme opened as a fund)", async () => {
-    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "The Health Score is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
+    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "FinLit FundPulse is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
     wrap(<FundScoreCard code={45678} />, "/funds/45678");
     await waitFor(() => expect(screen.queryByLabelText(MF_SCORE_NAME)).toBeNull());
     expect(st.calls.some((c) => c.startsWith("/api/mf/45678/score"))).toBe(true);

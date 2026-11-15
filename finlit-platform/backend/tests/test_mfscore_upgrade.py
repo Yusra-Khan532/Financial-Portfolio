@@ -1,4 +1,4 @@
-"""Mutual Fund Health Score upgrades: weekly history rows (idempotent, same transaction), 'what changed' wording, score alerts, the screener query (filters,
+"""FinLit FundPulse upgrades: weekly history rows (idempotent, same transaction), 'what changed' wording, score alerts, the screener query (filters,
 sorting, pagination, CSV), the leaderboard, the compare history, the admin health and calibration views, the prune and the migration. Every Gold-only route is
 checked for Basic, Silver and a visitor (locked, no value, no fund) and for Gold."""
 
@@ -103,7 +103,7 @@ def test_alert_rules_and_message():
     assert scorehist.alert_hit("move", 5, a, b) and not scorehist.alert_hit("move", 8, a, b)
     assert not scorehist.alert_hit("band", None, a, rowd(RUN, None))
     title, body = scorehist.alert_text("Test Fund", a, b)
-    assert body.startswith("The FinLit Mutual Fund Health Score of Test Fund moved from Healthy (68) to Average (61).") and "not investment advice" in body
+    assert body.startswith("The FinLit FundPulse of Test Fund moved from Healthy (68) to Average (61).") and "not investment advice" in body
 
 
 def test_quintiles_and_returns_are_descriptive():
@@ -179,7 +179,7 @@ async def test_job_writes_history_in_the_same_transaction_and_fires_alerts(app, 
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT count(*) FROM mf_score_history WHERE week = $1", date(2026, 10, 19)) == len(funds)
         note = await conn.fetchrow("SELECT * FROM notifications WHERE user_id = $1", uid)
-    assert note and note["body"].startswith("The FinLit Mutual Fund Health Score of Test Large Cap Fund 0 Direct moved from Weak (40) to ") and sent and "not investment advice" in sent[0][2]
+    assert note and note["body"].startswith("The FinLit FundPulse of Test Large Cap Fund 0 Direct moved from Weak (40) to ") and sent and "not investment advice" in sent[0][2]
     again = await job.run(app.state.store, None, run_date=RUN, mailer=M())      # the same run again: no second message, same rows
     assert again["alertsFired"] == 0
     async with app.state.store.pool.acquire() as conn:

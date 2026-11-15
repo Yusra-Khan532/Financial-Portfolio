@@ -1,4 +1,4 @@
-// The FinLit Mutual Fund Health Score card of a fund's page: one plain line, ring, four pillars, status, rank and the data behind it, reasons, gaps and a link to
+// The FinLit FundPulse card of a fund's page: one plain line, ring, four pillars, status, rank and the data behind it, reasons, gaps and a link to
 // the method (task #132: the line first, rank and data in one list, the breakdown as a table; no weights and no look-back lengths). Locked below the plan that has it.
 import { Link } from "react-router";
 import { Gate } from "../components/Gate";

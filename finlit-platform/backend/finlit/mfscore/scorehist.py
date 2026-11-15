@@ -115,7 +115,7 @@ def alert_hit(kind: str, points: Optional[float], prev: Dict[str, Any], cur: Dic
 
 def alert_text(name: str, prev: Dict[str, Any], cur: Dict[str, Any]) -> tuple:
     title = f"Score of {name}: {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))})"
-    body = f"The FinLit Mutual Fund Health Score of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
+    body = f"The FinLit FundPulse of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
            "It describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice."
     return title, body
 

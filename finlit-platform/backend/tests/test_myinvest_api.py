@@ -1,4 +1,4 @@
-"""POST /api/me/all-investments (task #137) against real Postgres and Redis: plan gating (Silver and Gold; IQ for Silver, Prism for Gold; the funds' Health Score
+"""POST /api/me/all-investments (task #137) against real Postgres and Redis: plan gating (Silver and Gold; IQ for Silver, Prism for Gold; the funds' FundPulse
 Gold only), the funds read from the member's own MF portfolio, the shares from the body, quantities deciding the weights, and ETFs said to be coming."""
 
 import pytest
@@ -25,7 +25,7 @@ async def test_silver_reads_its_funds_with_no_health_score_and_etfs_are_coming(a
     assert r.status_code == 200, r.text
     b = r.json()
     assert b["plan"] == "silver" and b["parts"]["funds"]["count"] == 1 and b["parts"]["shares"]["count"] == 0
-    assert b["parts"]["funds"]["scoreLocked"] is True and b["parts"]["funds"]["score"] is None          # the Health Score is Gold
+    assert b["parts"]["funds"]["scoreLocked"] is True and b["parts"]["funds"]["score"] is None          # the FundPulse is Gold
     assert b["parts"]["shares"]["scoreModel"] == "iq"
     assert b["parts"]["etfs"] == {"count": 0, "soon": True, "why": "The ETF portfolio is coming. Once you can keep a list of your ETFs, they are counted here too."}
     assert b["byValue"] is True and b["total"] == 15000.0                                              # 100 units x NAV 150

@@ -69,9 +69,9 @@ describe("Your investments today: rows and readings (task #135)", () => {
     expect(rows.map((x) => x.name)).toEqual(["Ant", "Bee", "Alpha Fund", "Zeta Fund", "Cat"]);   // a held share on the watchlist is listed once, as held
     expect(orderType([r({ name: "b", value: 1 }), r({ name: "a", value: 2 })]).map((x) => x.name)).toEqual(["a", "b"]);
   });
-  it("reads a fund by its Health Score and an ETF by its price against NAV; a blank says why", () => {
+  it("reads a fund by its FundPulse and an ETF by its price against NAV; a blank says why", () => {
     expect(healthText({ score: 60, label: "Average", locked: false })).toEqual({ text: "Health 60 · Average", band: "o" });
-    expect(healthText({ score: null, label: null, locked: true }).text).toBe("Health Score: Gold");
+    expect(healthText({ score: null, label: null, locked: true }).text).toBe("FundPulse: Gold");
     expect(healthText({ score: null, label: null, locked: false, why: "Too new" })).toMatchObject({ text: "Not scored yet", title: "Too new" });
     expect([navText(-0.12), navText(0.18), navText(0), navText(null)]).toEqual(["0.12% below NAV", "0.18% above NAV", "At NAV", "—"]);
     expect(investSub({ watch: 4, shares: 14, funds: 3, etfs: 0 }, "13 Nov")).toBe("4 on your watchlist · 14 shares · 3 mutual funds · prices and NAVs of 13 Nov");
