@@ -207,3 +207,11 @@
 .xt-dir .xt-tool .xt-fig strong { font-weight: 700; }
 .xt-dir .xt-tool:hover, .xt-dir .xt-tool:focus-visible { border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); }
 @media (max-width: 700px) { .xt-dir .xt-tool { min-height: 44px; } }
+
+/* Task #157: the landing page's green "Explore the platform" buttons (hero and platform part) turn gold on hover and keyboard focus. Before, the site-wide
+   dark-mode button hover (theme.css) replaced their green with a dark fill under their dark green text, so the words almost vanished. */
+:root .xt .btn.xt-go:not(.primary):hover, :root .xt .btn.xt-go:not(.primary):focus-visible,
+:root .hh .btn.hh-go:not(.primary):hover, :root .hh .btn.hh-go:not(.primary):focus-visible,
+:root:not([data-theme="light"]) .xt .btn.xt-go:not(.primary):hover, :root:not([data-theme="light"]) .hh .btn.hh-go:not(.primary):hover {
+  background: var(--gold-2); color: var(--on-gold, #1A1405); border-color: var(--gold-2); filter: none; box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--gold) 70%, transparent);
+}
