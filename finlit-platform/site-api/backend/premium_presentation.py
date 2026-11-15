@@ -18,7 +18,7 @@ REASONS = {
     "NETWORTH_GROWTH": ("Strong growth in net worth.", "Net-worth growth is weak."),
     "DEBT_TO_EQUITY": ("Low borrowing relative to equity.", "High borrowing relative to equity."),
     "INTEREST_COVER": ("Earnings provide a strong cushion for interest payments.", "Earnings provide a limited cushion for interest payments."),
-    "FINANCIAL_LEVERAGE": ("Lower assets relative to equity support the insurer's capital position.", "High assets relative to equity indicate elevated financial leverage."),
+    "FINANCIAL_LEVERAGE": ("Lower assets relative to equity support the capital position.", "High assets relative to equity indicate elevated financial leverage."),
     "ROE": ("Strong returns on shareholder equity.", "Low returns on shareholder equity."),
     "CASH_CONVERSION": ("Profits are well supported by operating cash flow.", "Operating cash flow provides weak support for reported profits."),
     "GROSS_NPA": ("Low gross non-performing loans support asset quality.", "High gross non-performing loans weaken asset quality."),
@@ -133,6 +133,9 @@ def factor(row, group):
     if row.get("fallbackFor") == "CAPITAL_ADEQUACY":
         label = "Interest coverage (capital adequacy unavailable)"
         reason += " Used in place of unavailable capital adequacy."
+    if row.get("fallbackFor") == "GROSS_NPA,NET_NPA":
+        label = "Financial leverage (NPA ratios unavailable)"
+        reason += " Used in place of Gross NPA and Net NPA, which the data provider does not report for NBFCs."
     return bucket, dict(item, label=label, summary=reason)
 
 
@@ -233,7 +236,9 @@ def build_report_review(report):
         notes.append("The industry P/B comparison is unavailable; the Valuation assessment uses return on equity instead.")
     if any(row.get("fallbackFor") == "CAPITAL_ADEQUACY" for row in rating["metrics"]):
         notes.append("Capital adequacy is unavailable; the Quality assessment uses interest coverage instead.")
-    if any(row['metric']=='FINANCIAL_LEVERAGE' for row in rating['metrics']):
+    if any(row.get("fallbackFor") == "GROSS_NPA,NET_NPA" for row in rating["metrics"]):
+        notes.append("Gross NPA and Net NPA are not reported by the data provider for NBFCs; the Quality assessment uses financial leverage (assets divided by equity, 10x or more scores 0, 4x or less scores 100) in their place.")
+    if rating.get("group") == "INSURANCE" and any(row['metric']=='FINANCIAL_LEVERAGE' for row in rating['metrics']):
         notes.append("Insurance financial leverage uses assets divided by equity. Its 5x–20x scoring range is provisional, pending calibration against insurers' historical data.")
     missing = [r["label"] for p in parts for r in p["unavailable"]]
     if missing: notes.append("Unavailable information: " + ", ".join(missing) + ". Estimates are not presented as company strengths or weaknesses.")

@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.12"
+MODEL_VERSION = "3.6.13"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -68,7 +68,9 @@ GROUPS = {
                    "ROE": (8, 18)}),
     "NBFC": group(F_LENDER, Q_LENDER, V_LENDER,
                   {"SALES_GROWTH": (5, 25), "PROFIT_GROWTH": (0, 25), "LOAN_GROWTH": (5, 25),
-                   "GROSS_NPA": (6, 1.5), "NET_NPA": (3, 0.5), "CAPITAL_ADEQUACY": (15, 25), "INTEREST_COVER": (2, 8), "ROA": (1.0, 3.5)}),
+                   "GROSS_NPA": (6, 1.5), "NET_NPA": (3, 0.5), "CAPITAL_ADEQUACY": (15, 25), "INTEREST_COVER": (2, 8), "ROA": (1.0, 3.5),
+                   # 3.6.13: used only when Gross NPA and Net NPA are both missing (owner, 15 November 2026). Assets / equity: 10x or more = 0, 4x or less = 100.
+                   "FINANCIAL_LEVERAGE": (10, 4)}),
     "INSURANCE": group(F_INSURER, {"FINANCIAL_LEVERAGE": 50, "ROE": 50},
                        {"PB_VS_INDUSTRY": 50, "PE_VS_INDUSTRY": 25, "PB_VS_HISTORY": 25, "PEG": 20},
                        {"SALES_GROWTH": (5, 20), "PROFIT_GROWTH": (0, 20), "NETWORTH_GROWTH": (5, 20),
@@ -108,6 +110,8 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.13 (owner, 15 November 2026): FinEdge sends no NPA ratios for NBFCs. An NBFC with neither Gross NPA nor Net NPA uses financial leverage (total assets /
+# equity, 10x or more = 0, 4x or less = 100) in those two Quality slots, their weights added (50). Banks, and NBFCs that do report NPA, are unchanged.
 # 3.6.12: the growth in PEG is EPS growth (per share, like P/E): the CAGR of yearly EPS over the latest consecutive annual window (5 years, then 3, then what
 # exists), with every year put on the same share basis. Only if there is no usable EPS CAGR (history too short, a missing year, or an oldest EPS that is zero or
 # negative) does it fall back to net profit growth: the net profit CAGR, then the 12-month profit growth.
