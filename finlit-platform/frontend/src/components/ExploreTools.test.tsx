@@ -10,8 +10,8 @@ afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 
 describe("platform data", () => {
-  it("has the six groups with 7, 5, 4, 4, 6 and 3 cards (29 tools), each with three points and an image", () => {
-    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 5, 4, 4, 6, 3]);
+  it("has the six groups with 7, 5, 5, 4, 6 and 3 cards (30 tools), each with three points and an image", () => {
+    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 5, 5, 4, 6, 3]);
     for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD"]).toContain(c.badge); }
   });
   it("drops the Premium Report and Connect AI cards and adds FinLit Bot", () => {
@@ -69,10 +69,10 @@ describe("<ExploreTools />", () => {
   });
   it("the address opens the group, so a shared link or Back works", () => {
     history.replaceState(null, "", "#tools-quant-lab"); view();
-    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(4);
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5);
     history.replaceState(null, "", "#");
   });
-  it("Expand opens a real dialog with the tool, runs through all 29 tools, locks the page scroll and closes with Esc", () => {
+  it("Expand opens a real dialog with the tool, runs through all 30 tools, locks the page scroll and closes with Esc", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
     fireEvent.click(document.querySelector('[data-exp="stock-screener"]')!);
     const dlg = screen.getByRole("dialog"); expect(dlg.getAttribute("aria-modal")).toBe("true");
@@ -97,7 +97,7 @@ describe("<ExploreTools />", () => {
     view();
     const rows = within(screen.getByRole("list", { name: /six groups and their tools/i })).getAllByRole("listitem").filter((li) => li.classList.contains("xt-row"));
     expect(rows).toHaveLength(6);
-    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 4, 4, 6, 3]);
+    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 5, 4, 6, 3]);
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
@@ -148,4 +148,16 @@ describe("task #159: three landing cards", () => {
     ]);
   });
 });
+
+describe("task #169: Reverse Valuation in Quant Lab", () => {
+  it("is a Quant Lab tool, row and card, with the team's three lines and its own picture", () => {
+    const q = BUCKETS.find((b) => b.id === "quant-lab")!;
+    const rv = q.cards.find((c) => c.id === "reverse-valuation")!;
+    expect(q.cards.map((c) => c.id).slice(0, 2)).toEqual(["dcf-calculator", "reverse-valuation"]);
+    expect(rv.title).toBe("Reverse Valuation"); expect(rv.badge).toBe("GOLD"); expect(rv.link).toMatch(/^\/reverse-valuation/);
+    expect(rv.points).toEqual(["Find the growth needed to justify today's price", "Understand the profit margins already expected", "See the returns implied by market expectations"]);
+    expect(rv.image).toBe("reverse-valuation-light"); expect(SHORT["reverse-valuation"]).toBeTruthy();
+  });
+});
+
 
