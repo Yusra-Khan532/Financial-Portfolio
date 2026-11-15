@@ -136,3 +136,5 @@
   .side, .side *, .side-tip { transition-duration: .01ms !important; transition-delay: 0s !important; animation: none !important; }
   .side-i:hover .side-ic, .side-i:hover .side-l { transform: none; }
 }
+/* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
+.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 11px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }

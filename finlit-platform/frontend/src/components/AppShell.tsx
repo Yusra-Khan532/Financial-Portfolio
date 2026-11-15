@@ -8,7 +8,7 @@ import { useWatchlist } from "../lib/watchlist";
 import { usePortfolio } from "../lib/portfolio";
 import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
-import { MORE, SECTIONS, offeredTo, type NavItem } from "../lib/nav";
+import { MORE, SECTIONS, isNew, offeredTo, type NavItem } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
 import { badgeFor } from "../lib/sideGroups";
 import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
@@ -16,7 +16,7 @@ import { SideRail } from "./SideRail";
 
 const RESEARCH = SECTIONS.find((x) => x.id === "research")!;   // by id: the header order changes (Workspace comes first)
 
-type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean };
+type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean };
 type Group = { title: string; items: Item[] };
 
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
@@ -81,7 +81,7 @@ export function AppShell() {
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
     "/my-investments": "NEW",   // task #137: a new page
   };
-  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to] });
+  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n) });
   const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];
   const groups: Group[] = ([
     { title: "Overview", items: [{ to: "/dashboard", label: "Dashboard", icon: "home" }] },
@@ -153,7 +153,7 @@ export function AppShell() {
               {items.map((i) => (
                 <NavLink key={i.to} to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
                   onMouseEnter={(e) => showTip(e.currentTarget, i.label)} onFocus={(e) => showTip(e.currentTarget, i.label)} onMouseLeave={() => setTip(null)} onBlur={() => setTip(null)}>
-                  <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
+                  <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
                 </NavLink>
               ))}
               </div>

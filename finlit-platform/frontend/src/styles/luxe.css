@@ -246,3 +246,5 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
   .ipo-list { grid-template-columns: minmax(0, 1fr); } .ipo-h > div { min-width: 0; } .ipo-h h3 { overflow-wrap: anywhere; }
 }
 .spc { min-width: 0; } .ipo-c { min-width: 0; }
+/* "New" next to a page launched in the last 30 days, in the header menus (lib/nav.ts isNew; task #136) */
+.nav-new { font: 700 11px/1 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; margin-left: 7px; padding: 2px 6px; border-radius: 999px; color: var(--gain); background: var(--gain-soft); vertical-align: 1px; }
