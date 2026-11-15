@@ -172,3 +172,24 @@
   .etf-ret thead th { white-space: normal; line-height: 1.25; }   /* "Total price change" and "A year" take two lines rather than push a column off the screen */
   .etf-ret { font-size: 14px; }
 }
+
+/* ---------- task #134 (the team's 14 Nov ETF page): At a glance, section links, How closely it follows the index ---------- */
+.etf-glance { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 0; margin-top: 14px; overflow: hidden; }
+.etf-glance .etf-g { padding: 14px 16px; border-right: 1px solid var(--border); }
+.etf-glance .etf-g:last-child { border-right: 0; }
+.etf-g { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.etf-g .k { font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.etf-g b { font: 600 var(--fs-18, 18px) var(--sans); font-variant-numeric: tabular-nums; color: var(--text); }
+.etf-g small { font-size: var(--fs-13); color: var(--muted); line-height: 1.35; }
+.etf-jump { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 12px 0 2px; }
+.etf-jump a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); color: var(--text); font-size: var(--fs-14); text-decoration: none; }
+.etf-jump a:hover, .etf-jump a:focus-visible { border-color: var(--gold); }
+#etf-tracks, #h-r3, #h-chart, #hd-h, #h-risk, #h-nav, #h-facts { scroll-margin-top: 90px; }
+.etf-tk { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: 14px; margin: 4px 0 8px; }
+.etf-tk .etf-g { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--s2); }
+.etf-tk .etf-g b { font: 300 28px var(--serif); }
+.etf-h4 { margin: 18px 0 6px; font: 600 16px var(--sans); }
+.etf-peers th small { display: block; font-size: var(--fs-12); margin-top: 2px; }
+.etf-peers tr.is-self th, .etf-peers tr.is-self td { background: var(--gold-soft); }
+@media (max-width: 1100px) { .etf-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); } .etf-glance .etf-g:nth-child(3n) { border-right: 0; } .etf-glance .etf-g:nth-child(-n+3) { border-bottom: 1px solid var(--border); } }
+@media (max-width: 640px) { .etf-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } .etf-glance .etf-g { border-right: 0; border-bottom: 1px solid var(--border); } .etf-glance .etf-g:nth-child(odd) { border-right: 1px solid var(--border); } .etf-tk { grid-template-columns: minmax(0, 1fr); } .etf-jump { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .etf-jump a { flex: none; min-height: 44px; } }

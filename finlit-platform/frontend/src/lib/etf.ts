@@ -233,6 +233,20 @@ export const useEtfCompare = (symbols: string[], range: RangeKey) => useQuery<Et
 export const useEtfFacts = (symbol: string) => useQuery<EtfFacts, ApiError>({
   queryKey: ["etf", "facts", symbol], queryFn: () => etfGet<EtfFacts>(`/api/etf/${encodeURIComponent(symbol)}/facts`), staleTime: 300_000, retry,
 });
+/** One ETF page's "How closely it follows the index" (task #134): the index it follows, the 1-year tracking difference and tracking error with their dates, and
+ *  every ETF and Direct index fund on the same index (finlit/etf_vs_index.py, /api/etf-vs-index/for/{symbol}). Every blank comes with its reason. */
+export type Fig = { value: number | null; why?: string | null; etfReturn?: number | null; indexReturn?: number | null; days?: number };
+export type TrackPeer = { kind: "etf" | "fund"; id: string; name: string; house: string | null; self: boolean; ter: { value: string | null; why?: string; asOf?: string | null; source?: string | null };
+  terPct: number | null; traded: number | null; tradedWhy: string | null; premium: number | null; premiumWhy: string | null; navDate?: string | null };
+export type EtfTracking = {
+  symbol: string; index: { key: string; label: string; code: string | null; basis?: string | null; returnType?: string | null } | null; why?: string;
+  tracking?: { difference: Fig; error: Fig; from: string | null; to: string | null; basis: string; index: string };
+  ter?: { value: string | null; why?: string; asOf?: string | null; source?: string | null }; terPct?: number | null;
+  peers?: TrackPeer[]; counts?: { etfs: number; funds: number }; source?: string; disclaimer: string;
+};
+export const useEtfTracking = (symbol: string) => useQuery<EtfTracking, ApiError>({
+  queryKey: ["etf", "tracking", symbol], queryFn: () => etfGet<EtfTracking>(`/api/etf-vs-index/for/${encodeURIComponent(symbol)}`), staleTime: 300_000, retry, enabled: !!symbol,
+});
 /** The portfolio, or { unavailable } with the reason: exactly what the shared HoldingsSection takes. */
 export const useEtfPortfolio = (symbol: string) => useQuery<PortfolioResult, ApiError>({
   queryKey: ["etf", "portfolio", symbol], staleTime: 300_000, retry,

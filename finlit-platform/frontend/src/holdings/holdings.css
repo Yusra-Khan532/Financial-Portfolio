@@ -58,3 +58,8 @@
   .hd-bars li { grid-template-columns: 1fr auto; }
   .hd-bars .hd-bt { grid-column: 1 / -1; order: 3; }
 }
+
+/* task #134: on the ETF page the 10 largest holdings are bars (no donut), and long lists open with a button */
+.hd-top10 li .hd-bl small { display: block; color: var(--muted); font-size: var(--fs-12); }
+.hd-more { margin: 10px 0 0; min-height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--link-gold, var(--gold)); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
+.hd-more:hover, .hd-more:focus-visible { border-color: var(--gold); }
