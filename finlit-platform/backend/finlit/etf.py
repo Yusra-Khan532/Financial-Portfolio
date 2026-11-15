@@ -69,7 +69,7 @@ CLOSE_IST = dtime(15, 45)    # a candle fetched after this (on a weekday) is tha
 CANDLE_BURST = 50            # candle calls allowed at once before pacing starts (a small refresh never waits)
 ALL_KEY, HOT_KEY = "etf:all:v1", "etf:hot:v1"
 DISCLAIMER = "Information only. Not investment advice. Past returns do not guarantee future returns."
-SOURCE = "Prices: NSE, via our market-data providers (Dhan, Upstox). NAV, scheme names and fund houses: AMFI."
+SOURCE = "NAV, scheme names and fund houses: AMFI."   # the page says "Prices are NSE closing prices as of ..." before it; it never names the price provider (task #134, C-6)
 NOT_PUBLISHED = "Not published in our price data source"
 UNAVAILABLE = ["Assets under management (AUM)", "Expense ratio", "Tracking error", "Holdings", "Benchmark index", "Launch date", "Fund manager"]
 

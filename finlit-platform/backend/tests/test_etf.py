@@ -625,7 +625,7 @@ async def test_list_counts_are_honest_and_carry_the_required_notes(api):
     b = r.json()
     assert r.status_code == 200 and b["total"] == 17 and b["universe"] == 17 and len(b["items"]) == 17 and b["asOf"] == "2026-10-21"
     assert b["disclaimer"] == "Information only. Not investment advice. Past returns do not guarantee future returns."
-    assert "Upstox" in b["source"] and "AMFI" in b["source"] and b["updatedAt"]
+    assert "Upstox" not in b["source"] and "Dhan" not in b["source"] and "AMFI" in b["source"] and b["updatedAt"]
     assert r.headers["cache-control"].startswith("public")
     assert b["items"][0]["symbol"] == "LIQUIDBEES" and b["items"][1]["symbol"] == "SILVERBEES"      # most rupees traded a day first (20-session average)
     have = [i["avgTurnover"] for i in b["items"] if i["avgTurnover"] is not None]
@@ -709,7 +709,7 @@ async def test_compare(api):
     assert [i["symbol"] for i in b["items"]] == ["NIFTYBEES", "GOLDBEES"] and b["items"][1]["ret1y"] is not None
     assert b["series"]["NIFTYBEES"][0] == ["2025-10-21", 100.0] and b["series"]["GOLDBEES"][0][1] == 100.0
     assert b["series"]["NIFTYBEES"][-1][1] == pytest.approx(259.57 / 291.87 * 100, abs=0.01)
-    assert b["disclaimer"].startswith("Information only") and "Upstox" in b["source"]
+    assert b["disclaimer"].startswith("Information only") and "Upstox" not in b["source"] and "Dhan" not in b["source"] and "AMFI" in b["source"]   # task #134 C-6: the price provider is never named
     young = (await api.get("/api/etf/compare?symbols=NIFTYBEES,GROWWMOM50,HDFCVALUE,SILVERBEES&range=MAX")).json()
     assert young["start"] == max(young["series"][s][0][0] for s in young["series"])               # starts where the newest of them begins
     assert any("chart starts on" in n and "GROWWMOM50" in n for n in young["notes"]) and any("29 Sep 2022" in n for n in young["notes"])
