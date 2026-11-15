@@ -1250,7 +1250,7 @@ async def list_etfs(request: Request, q: str = "", category: str = "", asset: st
     q = q.strip()[:60]
     cats = _csv(category, [*CATEGORIES, "none"])
     assets = _csv(asset, GROUPS)
-    sort = sort if sort in LIST_FIELDS else "turnover"       # no order by Health Score: the score is not given for exchange-traded funds
+    sort = sort if sort in LIST_FIELDS else "turnover"       # no order by FundPulse: the score is not given for exchange-traded funds
     desc = (order or ("asc" if sort == "name" else "desc")).lower() != "asc"
     limit, offset = max(1, min(limit, 100)), max(0, min(offset, 5000))
     ranges = {k: (_bound(qp.get(k + "Min")), _bound(qp.get(k + "Max"))) for k in FILTER_KEYS}

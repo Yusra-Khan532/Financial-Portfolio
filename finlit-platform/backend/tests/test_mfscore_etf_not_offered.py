@@ -1,4 +1,4 @@
-"""The Mutual Fund Health Score is not given for exchange-traded funds: whatever mf_scores holds for an ETF (the score run still reads ETFs as peers of
+"""The FinLit FundPulse is not given for exchange-traded funds: whatever mf_scores holds for an ETF (the score run still reads ETFs as peers of
 index funds), no route sends a score, a rank, a history or an alert for one, and the ETF list cannot be ordered by it. Mutual funds are unchanged."""
 
 import json
@@ -11,7 +11,7 @@ from test_mfscore_upgrade import BASE, RUN, clients, seed
 
 pytestmark = pytest.mark.integration
 SYM = "ZZETFTEST"
-OFFERED = "The Health Score is not given for exchange-traded funds."
+OFFERED = "FinLit FundPulse is not given for exchange-traded funds."
 
 
 async def with_etf(app):

@@ -1,4 +1,4 @@
-// /methodology/mf-score: the Mutual Fund Health Score in plain language. Describes the model; it never advises.
+// /methodology/mf-score: the FinLit FundPulse in plain language. Describes the model; it never advises.
 import { PageHeader } from "../components/PageHeader";
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ const ex = (v: number | null) => (v == null ? "—" : String(Math.round(v * 100)
 export function MfScoreMethodPage() {
   const [runDate, setRunDate] = useState<string | null>(null);
   useEffect(() => { apiGet<{ runDate: string | null }>("/api/mf/scores/categories").then((r) => setRunDate(r.runDate)).catch(() => undefined); }, []);
-  useDocTitle("How the Mutual Fund Health Score works", "The FinLit Mutual Fund Health Score in plain language: four parts, how gaps are treated, and what the score is not.");
+  useDocTitle("How the FinLit FundPulse works", "The FinLit FundPulse in plain language: four parts, how gaps are treated, and what the score is not.");
   return (
     <div className="wrap mf mfs-method">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>

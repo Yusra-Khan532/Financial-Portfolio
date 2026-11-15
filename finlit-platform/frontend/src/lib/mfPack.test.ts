@@ -25,7 +25,7 @@ describe("MF portfolio words", () => {
       "Top 10 stocks vs peers: 0 lead · 5 lag | 5 in line · the 10 biggest stocks inside your funds", "Risk level: A little higher | than the Nifty 500, because of the two small-cap funds"]);
     expect(mfTiles(HS, false, SP, RK, UNDER)[4].tone).toBe("warn");
     expect(mfTiles(HS, false, SP, { ...RK, list: { ...RK.list, level: { word: "A little lower", vs: "the Nifty 500", because: null, riskier: [] } } }, UNDER)[4]).toMatchObject({ tone: "good", sub: "than the Nifty 500" });
-    expect(mfTiles(HS, true, SP, RK, UNDER)[1]).toMatchObject({ v: "Gold plan", sub: "Each fund's Health Score opens with Gold" });
+    expect(mfTiles(HS, true, SP, RK, UNDER)[1]).toMatchObject({ v: "Gold plan", sub: "Each fund's FundPulse opens with Gold" });
   });
   it("the three cards above Your funds", () => {
     expect(fundCards(RK, HS, false, SP)).toEqual([

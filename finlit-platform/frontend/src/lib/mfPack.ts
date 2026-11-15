@@ -47,9 +47,9 @@ export function mfTiles(hs: Holding[], locked: boolean, sp: MfSpread | undefined
   const lv = rk?.list.level;
   return [
     { k: "Funds", v: String(hs.length), sub: [...cats].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c, n]) => `${n} ${c}`).join(" · "), to: "funds", link: "See your funds", tone: "info" },
-    locked ? { k: "Average health", v: "Gold plan", sub: "Each fund's Health Score opens with Gold", to: "funds", link: "See your funds", tone: "good", help: "The average FinLit Mutual Fund Health Score of your funds, from 0 to 100. It is part of the Gold plan." }
-      : { k: "Average health", v: avg == null ? "–" : String(avg), sub: avg == null ? "None of your funds has a Health Score yet" : `${ORDER.filter((w) => words.get(w)).map((w) => `${words.get(w)} ${w}`).join(" · ")}${hs.length - scored.length ? ` · ${hs.length - scored.length} not scored` : ""}`, to: "funds", link: "See your funds", tone: "good",
-        help: "The average FinLit Mutual Fund Health Score of your funds, from 0 to 100, from each fund's performance, risk, cost and quality." },
+    locked ? { k: "Average health", v: "Gold plan", sub: "Each fund's FundPulse opens with Gold", to: "funds", link: "See your funds", tone: "good", help: "The average FinLit FundPulse of your funds, from 0 to 100. It is part of the Gold plan." }
+      : { k: "Average health", v: avg == null ? "–" : String(avg), sub: avg == null ? "None of your funds has a FundPulse yet" : `${ORDER.filter((w) => words.get(w)).map((w) => `${words.get(w)} ${w}`).join(" · ")}${hs.length - scored.length ? ` · ${hs.length - scored.length} not scored` : ""}`, to: "funds", link: "See your funds", tone: "good",
+        help: "The average FinLit FundPulse of your funds, from 0 to 100, from each fund's performance, risk, cost and quality." },
     { k: "Highest overlap", v: top ? `${Math.round(top.pct)}%` : "–", sub: top ? `${nm.get(top.a) ?? "One fund"} and ${nm.get(top.b) ?? "another"}` : "Needs the holdings of two or more funds", to: "mix", link: "See mix & overlap", tone: "info",
       help: "The largest share of money two of your funds keep in the same stocks: for each stock in both, the smaller of the two weights, added up." },
     { k: "Top 10 stocks vs peers", v: under.length ? `${lead} lead · ${lag} lag` : "–", sub: under.length ? `${inl} in line${nc ? ` · ${nc} not compared` : ""} · the ${under.length} biggest stocks inside your funds` : "Needs the funds' monthly holdings", to: "funds", link: "See mix & overlap", tone: "info",

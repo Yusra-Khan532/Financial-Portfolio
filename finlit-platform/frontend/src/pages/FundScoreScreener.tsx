@@ -1,4 +1,4 @@
-// /fund-score-screener (Gold): every scored fund with the FinLit Mutual Fund Health Score, its four parts and the facts beside them; filters, quick views,
+// /fund-score-screener (Gold): every scored fund with the FinLit FundPulse, its four parts and the facts beside them; filters, quick views,
 // sorting, CSV, compare tick-boxes, and a category leaderboard tab. Plans below Gold get the upgrade page and no request is made for any score.
 import { viewAsHeader } from "../lib/adminView";
 import { useEffect, useState } from "react";
@@ -24,12 +24,12 @@ import "../styles/scorescreen.css";
 import "../styles/mf.css";
 import "../styles/mfup.css";
 
-const POINTS = ["The FinLit Mutual Fund Health Score of every scored fund, with its four parts", "Filters by category, plan, score, each part, cost, size and age", "Category leaderboards, compare and a CSV download"];
+const POINTS = ["The FinLit FundPulse of every scored fund, with its four parts", "Filters by category, plan, score, each part, cost, size and age", "Category leaderboards, compare and a CSV download"];
 const MAX_COMPARE = 4;
 
 export function FundScoreScreenerPage() {
   const { has } = useUI();
-  useDocTitle("Fund score screener", "Every scored mutual fund with the FinLit Mutual Fund Health Score, its four parts, cost, size and returns. Gold plan.");
+  useDocTitle("Fund score screener", "Every scored mutual fund with the FinLit FundPulse, its four parts, cost, size and returns. Gold plan.");
   return has("gold") ? <Screener /> : <Upgrade />;
 }
 
@@ -78,7 +78,7 @@ function ScorePanel({ q, set }: { q: SQuery; set: (p: Partial<SQuery>) => void }
   return (
     <FilterGroup id="score" title="Score & analytics filters" icon="gauge" active={active} hint={`Filter funds by the overall ${MF_SCORE_NAME} and by each of its four parts.`}>
       <div className="fss-sec">
-        <h4 className="fss-h"><Icon name="gauge" />Overall Health Score</h4>
+        <h4 className="fss-h"><Icon name="gauge" />Overall FundPulse</h4>
         <RangeRow label="Total Score" group="Total Score, exact range" min={d.min} max={d.max} onChange={(end, v) => setD((o) => ({ ...o, [end]: v }))} />
       </div>
       <div className="fss-sec">
@@ -204,7 +204,7 @@ function Screener() {
             </div>
             {active.length > 0 && <div className="scr-chips mfu-active" aria-label="Active filters">{active.map((c) => <button key={c.id} type="button" className="fchip" onClick={() => setSp(queryToParams(clearChip(q, c.id)))}>{c.text} <span aria-hidden="true">×</span><span className="sr-only">remove</span></button>)}<button type="button" className="alx-link" onClick={clearAll}>Clear all</button></div>}
             <HScroll className="scr-tw" label="results table"><table className="mf-table mfu-table scr-t sx-t">
-              <caption className="sr-only">Funds with their Health Score</caption>
+              <caption className="sr-only">Funds with their FundPulse</caption>
               <thead><tr><th scope="col"><span className="sr-only">Compare</span></th><th scope="col" className="sx-n">#</th>{th("name", "Fund", false)}{th("final", "Score")}{th("perf", "Performance")}{th("risk", "Risk")}{th("cost", "Cost")}{th("quality", "Quality")}{th("category", "Category", false)}{th("plan", "Plan", false)}{th("aum", "AUM ₹ Cr")}{th("age", "Age")}{th("ter", "Expense %")}{th("r1y", "1Y %")}{th("r3y", "3Y %")}{th("r5y", "5Y %")}<th scope="col"><span className="sr-only">Open</span></th></tr></thead>
               <tbody>{(list.data?.items || []).map((it, i) => (
                 <tr key={it.key} className={picked.includes(it.key) ? "sx-sel" : ""}>

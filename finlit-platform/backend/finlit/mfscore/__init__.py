@@ -1,4 +1,4 @@
-"""FinLit Mutual Fund Health Score (model specification v1.1 draft, 30 October 2026).
+"""FinLit FundPulse (model specification v1.1 draft, 30 October 2026).
 
 A descriptive health check of a fund against funds of the same kind, built from month-end NAVs, costs and holdings that the site already holds.
 It is not a forecast and not a recommendation. Information only, not investment advice.

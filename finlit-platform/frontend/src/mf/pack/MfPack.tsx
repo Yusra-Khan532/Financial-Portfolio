@@ -36,7 +36,7 @@ export function MfTabs({ view, onView }: { view: MfView; onView: (v: MfView) => 
 export const wordCase = (w: string | null | undefined) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "");
 const HEALTH_TONE = (w: string | null) => (/strong|healthy/i.test(w || "") ? "sp-good" : /average/i.test(w || "") ? "mfp-amber" : /weak|poor/i.test(w || "") ? "sp-red" : "");
 
-/** Your funds: three cards, then each fund's category, Health Score and risk figures (or, on the second view, its NAV, returns and costs). */
+/** Your funds: three cards, then each fund's category, FundPulse and risk figures (or, on the second view, its NAV, returns and costs). */
 export function FundsSection({ hs, rk, rkErr, sp, locked, onUnlock, cols, onCols, extra, actions, tools }: {
   hs: Holding[]; rk: MfRisk | undefined; rkErr: string | null; sp: MfSpread | undefined; locked: boolean; onUnlock: () => void; cols: "risk" | "returns"; onCols: (c: "risk" | "returns") => void;
   extra: (h: Holding) => React.ReactNode; actions: (h: Holding) => React.ReactNode; tools: React.ReactNode;
@@ -48,7 +48,7 @@ export function FundsSection({ hs, rk, rkErr, sp, locked, onUnlock, cols, onCols
       <Cards items={fundCards(rk, hs, locked, sp)} />
       {rkErr && <p className="sp-note" role="status">{rkErr}</p>}
       <Scroll label="your funds"><table className="sp-tb mfp-ft">
-        <thead><tr><th scope="col">Fund</th><th scope="col">Category<Tip text="The fund's SEBI category, as the fund house files it." /></th><th scope="col">Health<Tip text="The FinLit Mutual Fund Health Score, 0 to 100, from the fund's performance, risk, cost and quality. Part of the Gold plan." /></th>
+        <thead><tr><th scope="col">Fund</th><th scope="col">Category<Tip text="The fund's SEBI category, as the fund house files it." /></th><th scope="col">Health<Tip text="The FinLit FundPulse, 0 to 100, from the fund's performance, risk, cost and quality. Part of the Gold plan." /></th>
           {cols === "risk" ? <>
             <th scope="col" className="r">Swing a year<Tip text="How much the fund's NAV rises and falls in a typical year: the spread of its daily changes over 3 years, scaled to a year." /></th>
             <th scope="col" className="r">Worst fall<Tip text="The deepest drop of the NAV from a high to a later low over the 3 years." /></th>

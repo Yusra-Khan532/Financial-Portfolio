@@ -19,7 +19,7 @@ export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" |
   { id: "mystocks", label: "Your investments today", blurb: "Your shares, watchlist and mutual funds: price or NAV, the day's move, 1 year, the FinLit reading and alerts.", min: "basic", size: "full", tab: "stocks" },
   // task #135: the "at a glance" row (shares, mutual funds, ETFs) sits right under the table in the default order; a layout saved earlier keeps its order
   { id: "portfolio", label: "Your shares at a glance", blurb: "Average FinLit Prism score, score bands, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "third", tab: "stocks" },
-  { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average Health Score, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "third", tab: "stocks" },
+  { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average FundPulse, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "third", tab: "stocks" },
   { id: "etfglance", label: "Your ETFs at a glance", blurb: "What your ETFs track, their yearly cost and price against NAV. Opens with the ETF portfolio.", min: "basic", size: "third", tab: "stocks" },
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", tab: "market" },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", tab: "market" },

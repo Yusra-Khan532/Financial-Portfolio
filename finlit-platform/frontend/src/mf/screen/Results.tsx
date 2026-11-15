@@ -1,6 +1,6 @@
 // The Mutual Fund Screener's result table. Plain numbers in one ink colour (no red / green): the screener describes figures, it does not grade them.
 // Every dash has a reason in its tooltip. Columns follow the filters: a range set on a measure that has no column yet adds one, so you can see what you filtered by.
-// Task #131: a tick box before each fund to compare up to 4 (the tray of /funds), a Health Score column after the fund (Gold, the founder kept the plan;
+// Task #131: a tick box before each fund to compare up to 4 (the tray of /funds), a FundPulse column after the fund (Gold, the founder kept the plan;
 // below Gold a lock, never a value), and the Fund column frozen while the table scrolls sideways.
 import { Link } from "react-router";
 import { HScroll } from "../../components/HScroll";
@@ -42,7 +42,7 @@ export function columnsFor(q: SQ): Col[] {
 
 export type ScoreProps = { gold: boolean; items: Map<number, ScoreItem>; loading: boolean };
 export type PickProps = { picked: number[]; onPick: (code: number) => void };
-const NO_SCORE = "This plan has no FinLit Health Score yet (IDCW options, funds younger than three years and some categories are not scored).";
+const NO_SCORE = "This plan has no FinLit FundPulse yet (IDCW options, funds younger than three years and some categories are not scored).";
 
 export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: ScreenRow[]; q: SQ; onSort: (key: string) => void; loading: boolean; score: ScoreProps; pick: PickProps }) {
   const cols = columnsFor(q);
@@ -54,8 +54,8 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
         <thead>
           <tr>
             <th scope="col" className="mfs-n" aria-sort={sorted("name")}><span className="mfs-nh"><span className="mfs-tick-h" title="Tick up to 4 funds to compare them">Compare</span><button type="button" className="mf-sort" onClick={() => onSort("name")}>Fund{q.sort === "name" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button></span></th>
-            <th scope="col" className="mfs-hs" title="The FinLit Mutual Fund Health Score of this plan, 0 to 100, with its band" aria-sort={score.gold ? sorted("score") : undefined}>
-              {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>Health Score{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "Health Score"}</th>
+            <th scope="col" className="mfs-hs" title="The FinLit FundPulse of this plan, 0 to 100, with its band" aria-sort={score.gold ? sorted("score") : undefined}>
+              {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>FundPulse{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "FundPulse"}</th>
             {cols.map((c) => (
               <th key={c.id} scope="col" className="num" title={c.hint} aria-sort={sorted(c.sort)}>
                 {c.sort ? <button type="button" className="mf-sort" onClick={() => onSort(c.sort!)}>{c.label}{q.sort === c.sort && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : c.label}</th>))}

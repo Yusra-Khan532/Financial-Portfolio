@@ -1,4 +1,4 @@
-"""FinLit Mutual Fund Health Score, part 2: every metric of spec Section 6 with a hand-computed example (each comment shows the arithmetic), the states
+"""FinLit FundPulse, part 2: every metric of spec Section 6 with a hand-computed example (each comment shows the arithmetic), the states
 A / Z / S / F / N, the zero rules of Appendix Z (Z.2 cases 3 to 13), and the peer-set rules (leave-one-out, widening to S, filling with F)."""
 
 from datetime import date
