@@ -117,6 +117,9 @@ describe("<ExploreTools />", () => {
       expect(seen).not.toMatch(/\b(Gold|Silver)\b/);
     }
     expect(adv.querySelector(".xt-crown")!.textContent).toBe(", Gold plan");
+    // follow-up: the crown is bound to the name's last word, so a wrapped name never leaves the crown alone on a line
+    expect(adv.querySelector(".xt-tail")!.textContent).toBe("Screener, Gold plan");
+    expect(adv.querySelector(".xt-nm")!.textContent).toBe("Advanced Stock Screener, Gold plan");
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });
@@ -126,3 +129,23 @@ describe("<ExploreTools />", () => {
     expect(screen.getByRole("link", { name: /open advanced stock screener/i }).getAttribute("href")).toBe("/advanced-score-screener");
   });
 });
+
+describe("task #159: three landing cards", () => {
+  const card = (id: string) => BUCKETS.flatMap((b) => b.cards).find((c) => c.id === id)!;
+  it("Stock Screener and Company Report are for Silver and Gold, never Free", () => {
+    expect(card("stock-screener").badge).toBe("SILVER");
+    expect(card("company-report").badge).toBe("SILVER");
+  });
+  it("the fund score card is called Mutual Fund Score", () => {
+    expect(card("fund-health-score").title).toBe("Mutual Fund Score");
+    expect(card("fund-health-score").badge).toBe("GOLD");
+  });
+  it("the company report card says what the team wrote", () => {
+    expect(card("company-report").points).toEqual([
+      "FinLit IQ (5 pillars) and Prism (7 pillars): proprietary company scoring",
+      "Valuation comparison, sector leaders and laggards",
+      "19 sections in total: financials, advanced ratios, charts, ownership and filings, and many more",
+    ]);
+  });
+});
+

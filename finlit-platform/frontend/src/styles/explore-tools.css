@@ -204,6 +204,7 @@
 .xt-dir .xt-tool .xt-ti { margin: 0; }
 .xt-dir .xt-nm { display: block; min-width: 0; line-height: 1.3; }   /* the crown follows the last word, even when a long name wraps */
 .xt-dir .xt-tool b { min-width: 0; font: 600 var(--fs-13)/1.3 var(--sans); white-space: normal; overflow-wrap: normal; }
+.xt-dir .xt-tail, .xt-dir .xt-tool .xt-tail b { white-space: nowrap; }   /* task #158 follow-up: the last word and the crown wrap together */
 .xt-dir .xt-crown { display: inline-flex; margin-left: 6px; vertical-align: -2px; color: var(--gold); white-space: nowrap; }
 .xt-dir .xt-crown svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; }
 .xt-dir .xt-tool .xt-fig { justify-self: end; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); font: 500 var(--fs-11)/1.2 var(--sans); white-space: nowrap; }
