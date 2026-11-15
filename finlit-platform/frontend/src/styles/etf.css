@@ -193,3 +193,14 @@
 .etf-peers tr.is-self th, .etf-peers tr.is-self td { background: var(--gold-soft); }
 @media (max-width: 1100px) { .etf-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); } .etf-glance .etf-g:nth-child(3n) { border-right: 0; } .etf-glance .etf-g:nth-child(-n+3) { border-bottom: 1px solid var(--border); } }
 @media (max-width: 640px) { .etf-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } .etf-glance .etf-g { border-right: 0; border-bottom: 1px solid var(--border); } .etf-glance .etf-g:nth-child(odd) { border-right: 1px solid var(--border); } .etf-tk { grid-template-columns: minmax(0, 1fr); } .etf-jump { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .etf-jump a { flex: none; min-height: 44px; } }
+
+/* task #134, live check on a 390 px phone: the peer table's screen-reader caption is positioned, so without a positioned scroll box it escaped the box
+   and the whole page scrolled sideways (584 px). The box holds it now, as the company report's tables do. */
+.etf-detail .tw { position: relative; }
+/* phone: the peer table scrolls inside its box with the name column frozen and kept narrow, so the figures are one swipe away (COMMON-RULES 6) */
+@media (max-width: 640px) {
+  .etf-peers th[scope="row"] { position: sticky; left: 0; z-index: 1; min-width: 150px; max-width: 170px; white-space: normal; overflow-wrap: anywhere; background: var(--card); box-shadow: 1px 0 0 var(--border); }
+  .etf-peers th[scope="row"] a, .etf-peers th[scope="row"] small { white-space: normal; overflow-wrap: anywhere; }
+  .etf-peers tr.is-self th[scope="row"] { background: var(--gold-soft); }
+  .etf-peers td { white-space: nowrap; }
+}

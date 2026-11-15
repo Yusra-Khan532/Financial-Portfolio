@@ -33,7 +33,7 @@ export function Glance({ d, t, failed = false }: { d: EtfDetail; t: EtfTracking 
     <div className="card etf-glance" role="list" aria-label="At a glance">
       {cell("Tracks", t?.index ? t.index.label : t ? <Blank why={t.why ?? "Not known"} /> : failed ? <Blank why={FAILED} /> : "…", t?.index ? "the index it follows" : t ? "index not told" : failed ? "not loaded" : "")}
       {cell("Expense ratio", t?.terPct != null ? `${nf(t.terPct, 2)}%` : t ? <Blank why={t.ter?.why ?? "Not published in the sources loaded for this scheme."} /> : failed ? <Blank why={FAILED} /> : "…",
-        t?.terPct != null ? `a year · ${t.ter?.source?.startsWith("AMFI") ? "AMFI" : t.ter?.source ?? "AMFI"}` : "a year")}
+        t?.terPct != null ? `a year · ${/^AMFI/i.test(t.ter?.source ?? "AMFI") ? "AMFI" : "the fund house's TER page"}` : "a year")}
       {cell("Price vs NAV", d.nav?.premium != null ? <Tone v={d.nav.premium}>{signed(d.nav.premium)}</Tone> : <Blank why={d.nav?.premiumWhy ?? "No NAV for the day of the last close"} />,
         d.nav?.premium != null ? `${d.nav.premium < 0 ? "below" : d.nav.premium > 0 ? "above" : "at"} NAV on ${day(d.nav.date)}` : "exchange close against NAV")}
       {cell("Traded a day", turn != null ? traded(turn) : <Blank why="No traded value in the last 20 sessions" />, "average, 20 sessions")}
