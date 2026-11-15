@@ -117,6 +117,9 @@ describe("<ExploreTools />", () => {
       expect(seen).not.toMatch(/\b(Gold|Silver)\b/);
     }
     expect(adv.querySelector(".xt-crown")!.textContent).toBe(", Gold plan");
+    // follow-up: the crown is bound to the name's last word, so a wrapped name never leaves the crown alone on a line
+    expect(adv.querySelector(".xt-tail")!.textContent).toBe("Screener, Gold plan");
+    expect(adv.querySelector(".xt-nm")!.textContent).toBe("Advanced Stock Screener, Gold plan");
     for (const c of BUCKETS.flatMap((b) => b.cards)) expect(SHORT[c.id], c.id).toBeTruthy();
     expect(Object.values(SHORT).every((t) => t.split(" ").length <= 4 && !/\b(buy|sell)\b/i.test(t))).toBe(true);
   });

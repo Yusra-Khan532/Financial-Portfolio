@@ -34,9 +34,14 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
  *  same line. A paid tool shows one golden crown after its name instead of a "Gold"/"Silver" word (task #158); the plan stays readable for screen readers. The few words on what it does stay for screen readers and the tooltip. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
   const inner = <><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span>
-    <span className="xt-nm"><b>{c.title}</b>{c.badge !== "FREE" && <span className="xt-crown"><Icon name="crown" /><span className="sr-only">, {BADGE_LABEL[c.badge]} plan</span></span>}</span>
+    <span className="xt-nm">{c.badge === "FREE" ? <b>{c.title}</b> : <Crowned title={c.title} plan={BADGE_LABEL[c.badge]} />}</span>
     {FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}<small>{SHORT[c.id]}</small></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
+}
+/** A paid tool's name with its golden crown kept on the same line as the name's last word (a long name may wrap, the crown never sits alone). */
+function Crowned({ title, plan }: { title: string; plan: string }) {
+  const cut = title.lastIndexOf(" "), head = cut > 0 ? title.slice(0, cut + 1) : "", last = title.slice(cut + 1);
+  return <>{head && <b>{head}</b>}<span className="xt-tail"><b>{last}</b><span className="xt-crown"><Icon name="crown" /><span className="sr-only">, {plan} plan</span></span></span></>;
 }
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
