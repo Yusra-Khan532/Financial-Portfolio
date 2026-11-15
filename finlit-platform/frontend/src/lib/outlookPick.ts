@@ -1,4 +1,4 @@
-// Profit and revenue outlook: the company picker's quick picks and "last searched" list, and the plain-words key takeaways of a result. Pure, tested.
+// Profit and revenue forecasting: the company picker's quick picks and "last searched" list, and the plain-words key takeaways of a result. Pure, tested.
 import { signedPct, type Outlook } from "./outlook";
 import { fmtCr } from "./outlookChart";
 

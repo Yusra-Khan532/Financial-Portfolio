@@ -1,4 +1,4 @@
-// Profit and revenue outlook chart: the pure parts (series split, joint point, y-axis ticks and units, label thinning, text summary, CSV rows).
+// Profit and revenue forecasting chart: the pure parts (series split, joint point, y-axis ticks and units, label thinning, text summary, CSV rows).
 // Drawn by charts/OutlookChart.tsx. Reported years are solid, estimate years dashed; the estimate line starts at the last reported point.
 import { MINUS, nf } from "./format";
 import { labelEvery } from "./chartAxis";

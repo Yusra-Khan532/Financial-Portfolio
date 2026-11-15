@@ -5,7 +5,7 @@ import { MORE, PRICING, SECTIONS, type NavItem } from "./nav";
 /** Short names for the buttons ("Basic Screener", not "Basic stock screener"). Anything not listed uses its menu name. */
 const SHORT: Record<string, string> = {
   "/screener": "Stock Screener", "/score-screener": "Basic Screener", "/advanced-score-screener": "Advanced Screener", "/query-builder": "Query Builder",
-  "/fund-score-screener": "Fund Screener", "/research": "Company Report", "/compare": "Compare", "/prism": "FinLit Prism", "/outlook": "Outlook",
+  "/fund-score-screener": "Fund Screener", "/research": "Company Report", "/compare": "Compare", "/prism": "FinLit Prism", "/outlook": "Forecasting",
   "/premium/report": "Premium Reports", "/eps-calculator": "P/E, EPS & PEG Calculator", "/dcf": "DCF Calculator", "/sip-calculator": "SIP Calculator",
   "/graphs": "Chart Builder", "/graphs/advanced": "Correlation Charts", "/fii-dii": "FII & DII", "/macro": "India Economy", "/commodities": "Commodities",
   "/results": "Results Calendar", "/results/quarter": "Latest Results", "/ipo": "IPO Calendar", "/news": "News & Filings",

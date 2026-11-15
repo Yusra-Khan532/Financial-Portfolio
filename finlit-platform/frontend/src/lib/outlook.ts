@@ -1,4 +1,4 @@
-// Profit and revenue outlook (Gold): API types, the hook, and the pure logic of the "Build your own growth model" sliders (each input's own growth rate, task #146).
+// Profit and revenue forecasting (Gold): API types, the hook, and the pure logic of the "Build your own growth model" sliders (each input's own growth rate, task #146).
 // All forecast arithmetic is on the server (backend/finlit/outlook/model.py); the chart series, ticks and formats are in lib/outlookChart.ts.
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";

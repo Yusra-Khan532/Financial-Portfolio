@@ -49,6 +49,7 @@ export type Ratios = {
   valuationHistory: { periods: string[]; rows: Record<"pe" | "pb" | "ps" | "average_price", Series> };
   score: { model: string; overall: number | null; band: Band; pillars: (PillarSummary & { inputs: PillarInput[] })[] };
   glossary: Record<string, Glossary>;
+  blanks?: Record<string, string>;   // why a valuation figure has no number (backend snapshot._valuation_blanks)
 };
 export type Ownership = {
   meta: Meta; periods: string[]; asOf: string | null; comparedWith: string | null; series: Record<string, Series>;
