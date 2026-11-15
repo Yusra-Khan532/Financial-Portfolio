@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.13"
+MODEL_VERSION = "3.6.14"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -110,6 +110,8 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.14 (owner, 15 November 2026): PEG growth. When the consolidated EPS history is too short for a 3-year window (FinEdge's consolidated history can start
+# years after the standalone one), EPS growth is measured on the standalone statements if they reach the same latest year and give a longer window.
 # 3.6.13 (owner, 15 November 2026): FinEdge sends no NPA ratios for NBFCs. An NBFC with neither Gross NPA nor Net NPA uses financial leverage (total assets /
 # equity, 10x or more = 0, 4x or less = 100) in those two Quality slots, their weights added (50). Banks, and NBFCs that do report NPA, are unchanged.
 # 3.6.12: the growth in PEG is EPS growth (per share, like P/E): the CAGR of yearly EPS over the latest consecutive annual window (5 years, then 3, then what

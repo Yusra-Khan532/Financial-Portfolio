@@ -803,6 +803,7 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         "balance_recent": quarterly.get("balance", {}), "cashflow": annual.get("cashflow", {}),
         "prices": annual.get("prices", {}), "summary": annual.get("summary", {}),
         "distribution": annual.get("distribution", {}), "declaration": annual.get("declaration", {}),
+        "annual_standalone": {"financials": annual.get("standaloneIncome", [])},
         "asset_quality": {"financials": quarterly.get("assetQualityRows", [])},
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "benchmarkObservations": annual.get("benchmarkObservations", []),
@@ -3976,6 +3977,8 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "distribution": ownership_distribution, "declaration": ownership_declaration,
         "assetQualityRows": standalone_income_rows if bank_asset_quality_statement_type == "standalone" else income_rows,
         "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes,
+        # Yearly standalone P&L rows (already fetched above for the revenue check): PEG's growth may use them when the consolidated history is too short.
+        "standaloneIncome": standalone_income_rows if effective_statement_type == "consolidated" else [],
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})
     model_inputs["leverage"] = ratio_payloads[1]

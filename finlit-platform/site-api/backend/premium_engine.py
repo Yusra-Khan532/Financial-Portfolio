@@ -119,6 +119,27 @@ def cagr_window(annual):
     return list(reversed(available[:years + 1])), years, span
 
 
+def dated_cagr_window(values, ends):
+    """The latest run of consecutive reported annual periods (each end 300 to 490 days after the one before, so a change of year-end with its odd-length
+    period dropped still counts as consecutive), newest last. Prefers 5 periods back, then 3, then what exists (at least 1); the start must be positive.
+    Returns (index of the starting period, years between the two period ends) or (None, 0)."""
+    from datetime import date as _date
+    days = [_date.fromisoformat(e[:10]) for e in ends]
+    if not values or num(values[-1]) is None:
+        return None, 0
+    oldest = len(values) - 1
+    while oldest > 0 and num(values[oldest - 1]) is not None and 300 <= (days[oldest] - days[oldest - 1]).days <= 490:
+        oldest -= 1
+    span = len(values) - 1 - oldest
+    if span < CAGR_MIN_YEARS:
+        return None, 0
+    back = next((n for n in CAGR_PREFERRED_YEARS if span >= n), span)
+    i = len(values) - 1 - back
+    if num(values[i]) is None or num(values[i]) <= 0:
+        return None, 0
+    return i, (days[-1] - days[i]).days / 365.25
+
+
 def split_adjusted_eps(eps_y, profit_y):
     """Yearly EPS (oldest to newest) put on the share basis of the newest year, for stock splits and bonus issues only.
 
@@ -384,6 +405,20 @@ def score_company(d, group):
     if eps_years and eps_window[0] is not None and eps_window[0] > 0:
         g = ((eps_window[-1] / eps_window[0]) ** (1 / eps_years) - 1) * 100 if eps_window[-1] > 0 else -100.
         g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years", "years": eps_years}
+    # 3.6.14 (owner, 15 November 2026): a consolidated EPS history too short for a 3-year window is measured on the standalone statements instead, when they
+    # reach the same latest year and give a longer usable window. Only PEG's growth changes; P/E and every other factor stay on the report's own basis.
+    sa_eps, sa_ends = d.get("eps_y_standalone") or [], d.get("standalone_period_ends") or []
+    con_years_list = d.get("consolidated_years") or []
+    if (g is None or eps_years < 3) and sa_eps and len(sa_ends) == len(sa_eps) and (not con_years_list or int(sa_ends[-1][:4]) >= con_years_list[-1]):
+        sa_adj, sa_adjustments = split_adjusted_eps(sa_eps, d.get("net_profit_y_standalone", []))
+        first_i, sa_years = dated_cagr_window(sa_adj, sa_ends)
+        if first_i is not None and sa_years > (eps_years if g is not None else 0):
+            start, end = sa_adj[first_i], sa_adj[-1]
+            g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+            periods = len(sa_adj) - 1 - first_i
+            g_basis = {"kind": "eps_standalone", "text": f"standalone EPS growth over {sa_years:.1f} years, {sa_ends[first_i]} to {sa_ends[-1]} (consolidated history too short)",
+                       "years": round(sa_years, 2), "periods": periods, "consolidatedYears": eps_years or None}
+            eps_adjustments = sa_adjustments
     if g is None:
         g = values.get("PROFIT_CAGR")
         if g is not None:
@@ -394,10 +429,12 @@ def score_company(d, group):
             g_basis = {"kind": "profit_12m", "text": "12-month net profit growth (no usable EPS or profit CAGR)", "years": None}
     core = group in PEG_CORE_GROUPS
     if loss or (pe is not None and g is not None and g <= 0):
-        put("PEG", None, "Z", {"note": "Loss-making or non-positive earnings growth", "growthBasis": g_basis and g_basis["text"], "growthKind": g_basis and g_basis["kind"]}, 0.)
+        note = "Loss-making (EPS over the last four quarters is zero or negative)" if loss else f"Earnings growth is not positive ({g:.1f}% a year, {g_basis['text']})"
+        put("PEG", None, "Z", {"note": note, "growthBasis": g_basis and g_basis["text"], "growthKind": g_basis and g_basis["kind"], "growthRaw": g}, 0.)
     elif pe is not None and g is not None and g > 0 and (core or details["PROFIT_STREAK"]["good"] >= PEG_MIN_PROFIT_STREAK):
         put("PEG", pe / min(g, PEG_GROWTH_CAP), detail={"growthUsed": min(g, PEG_GROWTH_CAP), "growthRaw": g, "growthBasis": g_basis["text"], "growthKind": g_basis["kind"],
                                                         "growthYears": g_basis["years"], "epsSplitAdjustments": eps_adjustments or None,
+                                                        **({"consolidatedYears": g_basis["consolidatedYears"]} if "consolidatedYears" in g_basis else {}),
                                                         "note": "Core group" if core else f"At least {PEG_MIN_PROFIT_STREAK} actual good profit quarters"})
     elif not core:
         statuses["PEG"] = "N"
