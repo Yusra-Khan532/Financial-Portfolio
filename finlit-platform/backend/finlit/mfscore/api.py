@@ -105,6 +105,23 @@ PEER_TEXT = texts()["peerSets"]
 PRIVATE_METRIC_KEYS = ("weight", "pillarWeight")
 
 
+
+# Task #132 (and the site rule "no cut-offs, weights, formulas or look-back lengths on pages"): reasons.json no longer names a look-back window, but texts
+# written before that by the nightly scoring run are stored with it. They are cleaned on the way out, so the page never shows one; the next run stores clean text.
+_LOOKBACK = [(re.compile(r" of the months compared \(\d+ months compared\)"), " of months"), (re.compile(r" \(\d+ (?:months compared|down months)\)"), ""),
+             (re.compile(r" over three years"), ""), (re.compile(r" in the last three years"), ""), (re.compile(r" of the last three years"), " of the time")]
+
+
+def plain_text(text: str) -> str:
+    for rx, rep in _LOOKBACK:
+        text = rx.sub(rep, text)
+    return text
+
+
+def _plain_lines(lines):
+    return [{**x, "text": plain_text(x["text"])} if isinstance(x, dict) and isinstance(x.get("text"), str) else x for x in lines or []]
+
+
 def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One stored score row -> the answer of /api/mf/{code}/score (values included: the caller has checked the plan)."""
     b = _load(r["breakdown"]) or {}
@@ -127,7 +144,7 @@ def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) ->
         "months": r["months"], "flags": list(r["flags"] or []), "rank": rank_view(r) if rated else None,
         "peers": {"kind": r["peer_kind"], "n": r["peer_n"], "text": PEER_TEXT.get(r["peer_kind"] or "", None)},
         "family": b.get("family"), "nearIdentical": "NEAR_IDENTICAL" in (r["flags"] or []),
-        "reasons": {"strengths": reasons.get("strengths", []), "watchouts": reasons.get("watchouts", []), "gaps": reasons.get("gaps", []),
+        "reasons": {"strengths": _plain_lines(reasons.get("strengths", [])), "watchouts": _plain_lines(reasons.get("watchouts", [])), "gaps": reasons.get("gaps", []),
                     "notApplicable": reasons.get("notApplicable", []), "substitutions": reasons.get("substitutions", [])},
         "filled": {"n": n_f, "of": n_all}, "metrics": metrics if rated else [], "inherited": inherited, "model": r["model"], "disclaimer": DISCLAIMER, "method": METHOD_URL,
     }

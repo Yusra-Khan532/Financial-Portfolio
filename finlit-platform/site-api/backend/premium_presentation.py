@@ -79,6 +79,9 @@ def factor(row, group):
         if row.get("details",{}).get("invalid"):
             return "unavailable", dict(item,valueText="Invalid",summary=row['details']['note'])
         summary = "Not reported; an estimate is used in the assessment." if state == "F" else "Not reported; not assessed."
+        if metric in ("GROSS_NPA", "NET_NPA") and group == "NBFC":   # task #160: why an NBFC's NPA is blank while a bank's is shown
+            summary = (f"{'Gross' if metric == 'GROSS_NPA' else 'Net'} NPA is not in the provider's data for NBFCs: banks report NPA ratios in their quarterly "
+                       "results, while NBFCs disclose stage 3 loans only in the notes to their results. " + ("An estimate is used in the assessment." if state == "F" else "Not assessed."))
         return "unavailable", dict(item, valueText="Not available", summary=summary)
     points = row["points"]
     bucket = "pros" if points >= FLAG_GREEN else "cons" if points < FLAG_RED else "mixed"
@@ -181,6 +184,8 @@ def benchmark_disclosure(row, item, report):
             reason = f"The {ratio} benchmark is available, but the company's comparable ratio could not be calculated."
         elif history and info:
             reason = f"Only {info['positiveCount']} positive historical observations are available; at least {info['minimumCount']} are required."
+        elif info.get("peerSet") == "none":
+            reason = f"The provider's industry list has {info['industryUniverseCount']} companies, too many to look up on demand, and no shorter close-peer list was available."
         elif info.get("positiveCount") is not None:
             reason = f"Only {info['positiveCount']} positive peer observations are available; at least 5 are required."
         item["summary"] = reason + " A group estimate is used in the assessment."
@@ -198,6 +203,8 @@ def benchmark_disclosure(row, item, report):
     description = f"{current_text}{benchmark_label}: {value:.2f}x. Source: {provider}."
     if info.get("method") == "available peer median":
         description += f" Uses {info['positiveCount']} positive multiples; {info['observedCount']} of {info['universeCount']} peer records available."
+        if info.get("peerSet") == "close":
+            description += f" Peers: the company's close peers (the full industry list of {info['industryUniverseCount']} companies is too long to look up on demand)."
     if row["status"] == "S":
         own = inputs.get("benchmark_details", {}).get("own_5y_median_" + prefix, {})
         if own:

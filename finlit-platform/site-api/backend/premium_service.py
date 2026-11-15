@@ -39,7 +39,7 @@ def generate_report(get, symbol, name, statement_type, report_id, created_at, da
     if statement_type != requested_basis:
         warnings.append(f'The dashboard resolved {requested_basis} financials to {statement_type}; this entire report uses that same effective statement basis.')
     benchmarks, benchmark_meta = resolve_report_benchmarks(
-        get, raw, statement_type, now.date(), group, meta.get("priceAsOf"), observations
+        get, raw, statement_type, now.date(), group, meta.get("priceAsOf"), observations, symbol=symbol
     )
     inputs.setdefault("benchmark_details", {}).update(benchmark_meta["metrics"])
     inputs.update(benchmarks)

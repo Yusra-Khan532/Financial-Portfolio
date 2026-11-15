@@ -1,14 +1,16 @@
-// The FinLit Mutual Fund Health Score card of a fund's page: ring, four pillars, status, rank, reasons, gaps and a link to the method. Locked below Silver.
+// The FinLit Mutual Fund Health Score card of a fund's page: one plain line, ring, four pillars, status, rank and the data behind it, reasons, gaps and a link to
+// the method (task #132: the line first, rank and data in one list, the breakdown as a table; no weights and no look-back lengths). Locked below the plan that has it.
 import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, confidenceText, filledText, etfMeasures, percentileText, rankText, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, builtOnText, etfMeasures, rankText, scoreSentence, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
 import { ScoreHistoryCard } from "./ScoreHistory";
 import "../styles/mf.css";
@@ -71,12 +73,28 @@ function EtfMeasures({ s }: { s: FundScore }) {
   );
 }
 
+/** Rank, the share of the group it is above, the category median, who it is compared with and the data behind it, in one list beside the parts (task #132). */
+function Facts({ s }: { s: FundScore & { categoryMedian?: CategoryMedian } }) {
+  const med = s.categoryMedian, rows: [string, string][] = [];
+  if (s.rank) rows.push(["Rank in its group", rankText(s.rank, s.family)]);
+  if (s.rank?.percentile != null) rows.push(["Higher than", `${s.rank.percentile}% of the group`]);
+  if (med?.final != null) rows.push(["Category median", `${scoreText(med.final)}${med.categoryLabel ? ` (${med.categoryLabel}, ${med.plan} plan)` : ""}`]);
+  if (s.peers?.n) rows.push(["Compared with", `${s.peers.n} funds, ${PEER_KIND_WORD[s.peers.kind || ""] || s.peers.text || "similar funds"}`]);
+  if (s.months) rows.push(["NAV history used", `${s.months} months`]);
+  const built = builtOnText(s.filled);
+  if (built) rows.push(["Built on real data", built.replace("Built on real data: ", "")]);
+  if (!rows.length) return null;
+  return <dl className="mfs-dl" aria-label="Rank and the data behind the score">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
+}
+
 export function ScoreBody({ s }: { s: FundScore }) {
   const rated = s.final != null;
   const r = s.reasons;
   const band = bandOf(s.final);
+  const line = rated ? scoreSentence(s) : null;
   return (
     <>
+      {line && <p className="mfs-one">{line}</p>}
       {s.inherited && <p className="mf-note" role="note"><Icon name="info" /><span>Inherited score: {s.inherited.why}{s.inherited.code ? <> <Link to={`/funds/${s.inherited.code}`}>{s.inherited.name}</Link></> : s.inherited.symbol ? <> <Link to={`/etfs/${s.inherited.symbol}`}>{s.inherited.name}</Link></> : null}</span></p>}
       <div className="mfs-top">
         <div className="mfs-ringbox">
@@ -89,11 +107,13 @@ export function ScoreBody({ s }: { s: FundScore }) {
         <div className="mfs-side">
           {rated ? <Pillars s={s} /> : <p className="mfs-nr" role="status"><b>{s.status === "NOT SCORED" ? "Not scored" : "Not rated"}:</b> {s.reason}</p>}
         </div>
+        {rated && <Facts s={s} />}
       </div>
-      {s.group && <p className="mfs-grp"><b>{s.groupName}</b>{rated && s.rank ? <> · <span>{rankText(s.rank, s.family)}</span>{percentileText(s.rank.percentile) && <small> {percentileText(s.rank.percentile)}</small>}</> : null}</p>}
-      {rated && <p className="mfs-conf"><Icon name="quality" /><span>{confidenceText(s.confidence)} {filledText(s.filled)} {s.status === "PROVISIONAL" && s.reason ? s.reason + "." : ""}</span></p>}
+      {s.group && !rated && <p className="mfs-grp"><b>{s.groupName}</b></p>}
+      {rated && s.status === "PROVISIONAL" && s.reason && <p className="mfs-conf"><Icon name="info" /><span>{s.reason}.</span></p>}
       {s.cap && <p className="mf-note warn" role="note"><Icon name="alert" /><span>{s.cap} (the uncapped figure was {scoreText(s.rawFinal)}). A high return does not hide weak risk or weak foundations.</span></p>}
       {(s.flags || []).filter((f) => f === "NAV_BREAK" || f === "FROZEN_NAV" || f === "NEAR_IDENTICAL").map((f) => <p key={f} className="mf-note" role="note"><Icon name="info" /><span>{FLAG_TEXT[f]}</span></p>)}
+      <div className="mfs-scale" aria-hidden="true">{SCORE_BANDS.map(([w, a, b]) => <span key={w} style={{ flex: b - a }}>{w}</span>)}</div>
       {rated && r && (
         <div className="mfs-reasons">
           <h3 className="mf-h4">Why this score</h3>
@@ -107,7 +127,6 @@ export function ScoreBody({ s }: { s: FundScore }) {
             </details>)}
         </div>)}
       {rated && s.kind === "etf" && <EtfMeasures s={s} />}
-      <div className="mfs-scale" aria-hidden="true">{SCORE_BANDS.map(([w, a, b]) => <span key={w} style={{ flex: b - a }}>{w}</span>)}</div>
       <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={s.method || MF_METHOD_URL}>How it works</Link>{s.runDate ? ` · worked out ${dateIN(s.runDate)}` : ""}{s.peers?.text ? ` · compared with ${s.peers.text}` : ""}.</p>
     </>
   );
