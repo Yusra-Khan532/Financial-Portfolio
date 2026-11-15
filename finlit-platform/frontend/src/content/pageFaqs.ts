@@ -931,7 +931,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which ETFs are listed?",
-    "a": "Every ETF found on the NSE, with price and 1-day, 1-year and 5-year returns. Search by name, symbol, fund house or ISIN, filter, sort, and compare up to four."
+    "a": "Every ETF found on the NSE, with price, 1-day, 1-year and 5-year returns, the expense ratio, the price against the NAV and the value traded a day. Search by name, symbol, fund house or ISIN, filter, sort, and tick up to four to compare."
    },
    {
     "q": "Do the returns include dividends?",
