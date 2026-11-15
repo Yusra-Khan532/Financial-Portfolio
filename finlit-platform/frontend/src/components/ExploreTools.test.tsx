@@ -10,8 +10,8 @@ afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 
 describe("platform data", () => {
-  it("has the six groups with 7, 5, 5, 4, 6 and 3 cards (30 tools), each with three points and an image", () => {
-    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 5, 5, 4, 6, 3]);
+  it("has the six groups with 7, 5, 7, 5, 7 and 5 cards (36 tools), each with three points and an image", () => {
+    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 5, 7, 5, 7, 5]);
     for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD"]).toContain(c.badge); }
   });
   it("drops the Premium Report and Connect AI cards and adds FinLit Bot", () => {
@@ -61,18 +61,18 @@ describe("<ExploreTools />", () => {
     expect(screen.getByRole("list", { name: /six groups and their tools/i })).toBeTruthy();
   });
   it("Next from Learn & connect goes to Discover and Previous from Discover goes to Learn & connect", () => {
-    view(); fireEvent.click(screen.getByRole("button", { name: /See the 3 Learn & connect cards/ }));
+    view(); fireEvent.click(screen.getByRole("button", { name: /See the 5 Learn & connect cards/ }));
     fireEvent.click(within(screen.getByRole("navigation", { name: /between groups/i })).getByRole("button", { name: /Next group/ }));
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(7);
     fireEvent.click(within(screen.getByRole("navigation", { name: /between groups/i })).getByRole("button", { name: /Previous group/ }));
-    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(3); expect(screen.getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5); expect(screen.getByRole("button", { name: /open finlit bot/i })).toBeTruthy();
   });
   it("the address opens the group, so a shared link or Back works", () => {
     history.replaceState(null, "", "#tools-quant-lab"); view();
-    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5);
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(7);
     history.replaceState(null, "", "#");
   });
-  it("Expand opens a real dialog with the tool, runs through all 30 tools, locks the page scroll and closes with Esc", () => {
+  it("Expand opens a real dialog with the tool, runs through all 36 tools, locks the page scroll and closes with Esc", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
     fireEvent.click(document.querySelector('[data-exp="stock-screener"]')!);
     const dlg = screen.getByRole("dialog"); expect(dlg.getAttribute("aria-modal")).toBe("true");
@@ -97,7 +97,7 @@ describe("<ExploreTools />", () => {
     view();
     const rows = within(screen.getByRole("list", { name: /six groups and their tools/i })).getAllByRole("listitem").filter((li) => li.classList.contains("xt-row"));
     expect(rows).toHaveLength(6);
-    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 5, 4, 6, 3]);
+    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 7, 5, 7, 5]);
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
@@ -158,6 +158,30 @@ describe("task #169: Reverse Valuation in Quant Lab", () => {
     expect(rv.points).toEqual(["Find the growth needed to justify today's price", "Understand the profit margins already expected", "See the returns implied by market expectations"]);
     expect(rv.image).toBe("reverse-valuation-light"); expect(SHORT["reverse-valuation"]).toBeTruthy();
   });
+  it("splits the combined cards and adds the new tools in the team's words (tasks #172, #175, #176, #177, #178, #180)", () => {
+    const at = (id: string) => BUCKETS.flatMap((b) => b.cards.map((c) => ({ ...c, group: b.id }))).find((c) => c.id === id)!;
+    const ids = BUCKETS.flatMap((b) => b.cards.map((c) => c.id));
+    for (const gone of ["portfolios", "results-ipo", "calculators"]) expect(ids).not.toContain(gone);
+    const want: [string, string, string, string, string, string][] = [
+      ["equity-portfolio", "track", "Equity Portfolio", "SILVER", "/holdings", "Understand the strength, risk and diversification of your stock holdings."],
+      ["mf-portfolio", "track", "MF Portfolio", "SILVER", "/mf-portfolio", "Track mutual fund performance and assess the overall health of your investments."],
+      ["results-calendar", "market", "Results Calendar", "FREE", "/results", "Know when companies announce their financial results."],
+      ["ipo-calendar", "market", "IPO Calendar", "FREE", "/ipo", "Discover IPO opportunities from opening to listing."],
+      ["browser-extension", "learn", "Browser Extension", "FREE", "/browser-extension", "Get instant financial insights while browsing any website."],
+      ["insights-blog", "learn", "Investing & Finance Articles", "FREE", "/blog", "Explore investing, finance and market insights in simple language."],
+      ["eps-calculator", "quant-lab", "EPS Calculator", "FREE", "/eps-calculator", "Understand how future earnings translate into share value."],
+      ["sip-calculator", "quant-lab", "SIP Calculator", "FREE", "/sip-calculator", "Plan your investments and estimate future wealth."],
+      ["stress-lab", "quant-lab", "Stress Lab", "SILVER", "/research/stress-lab", "See how market shocks could impact company earnings."],
+    ];
+    for (const [id, group, title, badge, link, what] of want) { const c = at(id); expect([c.group, c.title, c.badge, c.link, c.what]).toEqual([group, title, badge, link, what]); expect(SHORT[id]).toBeTruthy(); }
+    expect(at("mf-portfolio").points).toEqual(["Track latest NAV and historical returns", "Evaluate mutual fund health scores", "Compare 1, 3 and 5-year performance"]);
+    expect(at("stress-lab").points).toEqual(["Test changes in crude, rupee and inflation", "Analyse the impact of interest rates and demand", "Explore possible earnings under different scenarios"]);
+    expect(at("browser-extension").points).toEqual(["Understand financial terms instantly", "View FinLit scores for listed companies", "Access FinLit IQ and Prism scores based on your plan"]);
+    view();
+    const learn = document.querySelector('.xt-row[data-group="learn"]') as HTMLElement;
+    expect(within(learn).getByRole("link", { name: /Insights & Blog/ }).getAttribute("href")).toBe("/blog");   // the directory row says Insights & Blog; the card carries the team's title
+    expect(within(learn).getByRole("link", { name: /Browser Extension/ }).getAttribute("href")).toBe("/browser-extension");
+    const quant = document.querySelector('.xt-row[data-group="quant-lab"]') as HTMLElement;
+    expect(within(quant).getByRole("link", { name: /Stress Lab/ }).querySelector(".xt-crown")).toBeTruthy();
+  });
 });
-
-

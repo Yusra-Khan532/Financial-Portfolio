@@ -34,7 +34,7 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
  *  same line. A paid tool shows one golden crown after its name instead of a "Gold"/"Silver" word (task #158); the plan stays readable for screen readers. The few words on what it does stay for screen readers and the tooltip. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
   const inner = <><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span>
-    <span className="xt-nm">{c.badge === "FREE" ? <b>{c.title}</b> : <Crowned title={c.title} plan={BADGE_LABEL[c.badge]} />}</span>
+    <span className="xt-nm">{c.badge === "FREE" ? <b>{c.rowTitle ?? c.title}</b> : <Crowned title={c.rowTitle ?? c.title} plan={BADGE_LABEL[c.badge]} />}</span>
     {FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}<small>{SHORT[c.id]}</small></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
@@ -46,10 +46,10 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
   "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line",
-  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "calculators": "percent", "option-chain": "grid",
-  "watchlists": "star", "portfolios": "wallet", "alerts": "bell", "compare-funds": "compare",
-  "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-ipo": "calendar",
-  "glossary": "book", "discussion-forum": "users", "finlit-bot": "chat",
+  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "option-chain": "grid", "stress-lab": "alert",
+  "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare",
+  "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-calendar": "calendar", "ipo-calendar": "bell",
+  "glossary": "book", "discussion-forum": "users", "browser-extension": "globe", "insights-blog": "notes", "finlit-bot": "chat",
 };
 const GROUP_ICON: Record<string, string> = { discover: "search", "company-360": "building", "quant-lab": "gauge", track: "wallet", market: "line", learn: "book" };
 
