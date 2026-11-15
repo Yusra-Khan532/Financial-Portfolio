@@ -141,7 +141,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What is FinLit Prism?",
-    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor under 35."
+    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong, Healthy, Average, Weak or Poor."
    },
    {
     "q": "What does each Prism part measure?",
@@ -149,7 +149,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What are the short-term and long-term technical views?",
-    "a": "Prism's reading of the price trend, from −100 to +100: short term covers 5 to 20 sessions and long term 6 to 18 months. Positive is +20 and above, Neutral is above −20 up to +20, Negative is −20 and below. They describe the trend only and are not part of the Prism score."
+    "a": "Prism's reading of the price trend, from −100 to +100, over a short and a long period. Each view reads as Uptrend, Sideways or Downtrend. They describe the trend only and are not part of the Prism score."
    },
    {
     "q": "What do Rated, Provisional and Not rated mean?",
@@ -161,7 +161,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "How is this different from the Basic stock screener?",
-    "a": "The Basic stock screener uses the FinLit IQ (five pillars, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
+    "a": "The Basic stock screener uses the FinLit IQ (five parts, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
    },
    {
     "q": "What do the Quick views do?",

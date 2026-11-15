@@ -6,7 +6,7 @@ import { BAND_ORDER, IQ_LABELS, IQ_LABEL_SAY, IQ_LABEL_WORD, PILLARS, type Band,
 import type { Screener } from "./useScreener";
 
 export const IQ_TITLE = "FinLit IQ Score";
-export const IQ_SUB = "Filter stocks using our multi-pillar statistical scoring model.";
+export const IQ_SUB = "FinLit's score for the company, 0 to 100, from its filed statements and prices.";   // task #64, 14 Nov N-26
 const CHIP: Record<Band, string> = { low: "Watch", mixed: "Mixed", healthy: "Healthy", high: "Strong" };
 const RANGE: Record<Band, string> = { low: "the lowest rating word", mixed: "the third rating word", healthy: "the second rating word", high: "the highest rating word" };   // words only: the edges stay with the model
 const ICON: Record<string, string> = { q: "quality", g: "growth", p: "profit", b: "balance", t: "line", o: "bars" };

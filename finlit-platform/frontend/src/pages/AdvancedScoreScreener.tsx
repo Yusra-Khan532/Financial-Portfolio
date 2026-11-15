@@ -63,8 +63,8 @@ function Advanced() {
       columnHeads={<>
         <SortTh s={s} k="prism_final" label="Prism score" cls="pzs-h" title={EXPLAIN.prism} />
         {PRISM_PARTS.map((x) => <SortTh key={x.col} s={s} k={x.col} label={x.label} of="Prism" cls="ss-ph" title={"Prism " + x.label + ": " + x.say} />)}
-        <SortTh s={s} k="prism_st_score" label="Short term" of="Technical" cls="ss-ph" title="Prism's short-term (5 to 20 sessions) price-trend reading" />
-        <SortTh s={s} k="prism_lt_score" label="Long term" of="Technical" cls="ss-ph" title="Prism's long-term (6 to 18 months) price-trend reading" />
+        <SortTh s={s} k="prism_st_score" label="Short term" of="Technical" cls="ss-ph" title="Prism's short-term price-trend reading" />
+        <SortTh s={s} k="prism_lt_score" label="Long term" of="Technical" cls="ss-ph" title="Prism's long-term price-trend reading" />
         {priceCols && <PriceHeads s={s} />}
       </>}
       colSpan={13 + (priceCols ? PRICE_COL_COUNT : 0)}
@@ -82,7 +82,7 @@ function Advanced() {
         <dl>
           <dt>FinLit Prism</dt><dd>{EXPLAIN.prism} {prismAsOf ? <>Newest ratings were calculated on {dateIN(prismAsOf)}.</> : null}{techAsOf ? <> Technical columns use prices up to {dateIN(techAsOf)}.</> : null}</dd>
           <dt>Prism parts</dt><dd>{PRISM_PARTS.map((x) => `${x.label}: ${x.say}`).join(" ")} Each part is 0 to 100 and higher is better; a high Risk score means lower risk.</dd>
-          <dt>Technical views</dt><dd>{EXPLAIN.technical} The filter bands are the ones on the Prism card: Positive {TECH_BANDS.pos.label.replace("Positive ", "")}, Neutral {TECH_BANDS.neutral.label.replace("Neutral ", "")}, Negative {TECH_BANDS.neg.label.replace("Negative ", "")}. Strongly positive counts as Positive and strongly negative as Negative.</dd>
+          <dt>Technical views</dt><dd>{EXPLAIN.technical} The filter bands are the ones on the Prism card: {TECH_BANDS.pos.label}, {TECH_BANDS.neutral.label} and {TECH_BANDS.neg.label}. A strong uptrend counts as {TECH_BANDS.pos.label} and a strong downtrend as {TECH_BANDS.neg.label}.</dd>
           <dt>Not rated yet</dt><dd>Prism ratings are calculated about 30 seconds each from the provider's data, so they are added in steps: first for companies with a full report, then a few hundred more companies every night, largest first. A company without one shows "Not rated yet" and a Rate now link to its Prism page, which starts the calculation when opened. "Not rated" means Prism looked and the filed data was not enough.</dd>
           <dt>Size</dt><dd>By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size.</dd>
           <dt>Leader, In line, Laggard</dt><dd>After a company's name: where its 52-week price performance ranks among its peers, from the weekly peer ranking. It describes past price performance only.</dd>
