@@ -58,6 +58,11 @@ type Props = {
   onCount?: (n: number) => void;
 };
 
+/** Task #164: several charts can have their markup open at once; the keyboard (Esc, undo, redo) acts on the one used last. */
+let lastLayer: string | null = null;
+export const touchLayer = (id: string) => { lastLayer = id; };
+export const keysFor = (id: string) => lastLayer === null || lastLayer === id;
+
 export function DrawLayer({ id, enabled = true, children, open: openProp, onOpenChange, onCount }: Props) {
   const controlled = openProp !== undefined;
   const [own, setOwn] = useState(false);
@@ -124,6 +129,7 @@ export function DrawLayer({ id, enabled = true, children, open: openProp, onOpen
   // keys work wherever the focus is while the toolbar is open (the pencil that opened it sits outside the chart)
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
+    if (!keysFor(id)) return;
     const inField = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (e.key === "Escape") { if (typing) setTyping(null); else if (menu) setMenu(null); else close(); return; }
     if (inField) return;
@@ -132,6 +138,7 @@ export function DrawLayer({ id, enabled = true, children, open: openProp, onOpen
   };
   useEffect(() => {
     if (!open) return;
+    touchLayer(id);
     const h = (e: KeyboardEvent) => keys.current(e);
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, [open]);
@@ -253,7 +260,7 @@ export function DrawLayer({ id, enabled = true, children, open: openProp, onOpen
   );
 
   return (
-    <div className="dl-outer">
+    <div className="dl-outer" onPointerDownCapture={() => touchLayer(id)} onFocusCapture={() => touchLayer(id)}>
       <div className={"dl" + (open ? " drawing" : "")} ref={box}>
         {children}
         {enabled && plot.w > 0 && (
