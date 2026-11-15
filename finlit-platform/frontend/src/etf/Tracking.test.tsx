@@ -62,6 +62,7 @@ describe("How closely it follows the index (task #134 C-1 to C-3)", () => {
     expect(screen.getByRole("heading", { name: /How closely it follows the Nifty 50/ })).toBeTruthy();
     expect(screen.getByText("−0.06 pp")).toBeTruthy(); expect(screen.getByText("0.03%")).toBeTruthy();
     expect(document.body.textContent).toContain("13 Nov 2025 to 13 Nov 2026");
+    expect(document.body.textContent).toContain("reads higher than one worked out from the NAV");          // measured on closing prices: said plainly
     const rows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.querySelector("th")!.textContent)).toEqual([expect.stringContaining("this ETF"), expect.stringContaining("SBI Nifty 50 ETF"), expect.stringContaining("Direct plan, index fund")]);
     expect(rows[0].getAttribute("aria-current")).toBe("true");
