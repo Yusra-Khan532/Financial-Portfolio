@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import {
-  COLUMNS, COL_BY, DEFAULT_COLS, DEFAULT_STATE, FILTERS, MAX_COMPARE, PAGE, activeFilters, nextSort, parseState, rupee, toParams, useEtfList, useTray, whyBlank,
+  COLUMNS, COL_BY, DEFAULT_COLS, DEFAULT_STATE, FILTERS, MAX_COMPARE, PAGE, activeFilters, day, nextSort, parseState, rupee, shortWhy, toParams, useEtfList, useTray, whyBlank,
   type Col, type ColKey, type EtfItem, type FilterKey, type ListState,
 } from "../lib/etf";
 import { Blank, DataNote, ErrorState, GlossInfo, Skeleton, Tone } from "./common";
@@ -14,13 +14,15 @@ import "../styles/etfvs.css";
 
 const COLS_KEY = "etf-cols";   // versioned by lib/persist: a different version or unknown column ids fall back to the default
 const COL_IDS: ReadonlySet<string> = new Set(Object.keys(COL_BY));
-const readCols = (): ColKey[] => loadUi<ColKey[]>(COLS_KEY, 3, isIdList<ColKey>(COL_IDS), DEFAULT_COLS);
-const saveCols = (c: ColKey[]) => { saveUi(COLS_KEY, 3, c); };
+// version 4 (task #133): expense ratio, price vs NAV and traded a day are on by default, so an older saved choice starts from the new default
+const readCols = (): ColKey[] => loadUi<ColKey[]>(COLS_KEY, 4, isIdList<ColKey>(COL_IDS), DEFAULT_COLS);
+const saveCols = (c: ColKey[]) => { saveUi(COLS_KEY, 4, c); };
+const TOP_CATS = 12;   // categories shown before "Show all" (the most used first, as the API sends them)
 
 function Cell({ c, i }: { c: Col; i: EtfItem }) {
   const v = c.get(i);
   const k = ` etf-c-${c.key}`;
-  if (v == null) return <td className={(c.num ? "num" : "") + k}><Blank why={whyBlank(i, c)} /></td>;
+  if (v == null) { const why = whyBlank(i, c); return <td className={(c.num ? "num" : "") + k}><Blank why={why} short={shortWhy(why)} /></td>; }
   if (c.key === "change" || c.key.startsWith("ret") || c.key === "premium") return <td className={"num" + k}><Tone v={v as number}>{c.text(i)}</Tone></td>;
   return <td className={(c.num ? "num" : "etf-txt") + k}>{c.text(i)}</td>;
 }
@@ -32,7 +34,8 @@ export function EtfListPage() {
   const [cols, setCols] = useState<ColKey[]>(readCols);
   const { data, isLoading, isError, isFetching, refetch } = useEtfList(state);
   const { tray, has, toggle, full, remove, clear } = useTray();
-  const [openCols, setOpenCols] = useState(false), [openFilters, setOpenFilters] = useState(() => activeFilters(state) > 0);
+  const [openCols, setOpenCols] = useState(false), [openFilters, setOpenFilters] = useState(true);   // task #133: the filters show without a click; "Filters" folds them
+  const [allCats, setAllCats] = useState(false);
   const [typed, setTyped] = useState(state.q);
   const update = (patch: Partial<ListState>) => setSp(toParams({ ...state, offset: 0, ...patch }), { replace: true });
 
@@ -82,24 +85,25 @@ export function EtfListPage() {
 
         {openFilters && (
           <div className="card etf-filters" id="etf-filters">
-            <div className="etf-fgroup"><h3>Type</h3>
+            <div className="etf-fgroup etf-frow"><h3>Type</h3>
               <div className="fchips">{(data?.groups ?? []).filter((g) => g.count).map((g) => (
                 <button key={g.key} className={"chip-b" + (state.asset.includes(g.key) ? " on" : "")} aria-pressed={state.asset.includes(g.key)}
                   onClick={() => update({ asset: state.asset.includes(g.key) ? state.asset.filter((x) => x !== g.key) : [...state.asset, g.key] })}>{g.label} <small>{g.count}</small></button>))}</div></div>
-            <div className="etf-fgroup"><h3>Category <small>what the ETF follows, from its registered name</small></h3>
-              <div className="fchips">{(data?.categories ?? []).map((c) => (
+            <div className="etf-fgroup etf-frow"><h3>Category <small>what the ETF follows, from its registered name</small></h3>
+              <div className="fchips">{(data?.categories ?? []).filter((c, n) => allCats || n < TOP_CATS || state.category.includes(c.key)).map((c) => (
                 <button key={c.key} className={"chip-b" + (state.category.includes(c.key) ? " on" : "")} aria-pressed={state.category.includes(c.key)}
-                  onClick={() => update({ category: state.category.includes(c.key) ? state.category.filter((x) => x !== c.key) : [...state.category, c.key] })}>{c.label} <small>{c.count}</small></button>))}</div></div>
-            <div className="etf-fgroup"><h3>Ranges <small>an ETF with no figure for a chosen range is left out, and counted below the table</small></h3>
+                  onClick={() => update({ category: state.category.includes(c.key) ? state.category.filter((x) => x !== c.key) : [...state.category, c.key] })}>{c.label} <small>{c.count}</small></button>))}
+                {(data?.categories.length ?? 0) > TOP_CATS && <button className="chip-b etf-allcats" aria-expanded={allCats} onClick={() => setAllCats((a) => !a)}>{allCats ? "Show fewer" : `Show all ${data!.categories.length}`}</button>}</div></div>
+            <div className="etf-fgroup etf-frow"><h3>Ranges <small>an ETF with no figure for a chosen range is left out, and counted below the table</small></h3>
               <div className="etf-ranges">{FILTERS.map((f) => <RangeBox key={f.key} k={f.key} label={f.label} value={state.bounds[f.key]} onCommit={(b) => { const bounds = { ...state.bounds }; if (b[0] == null && b[1] == null) delete bounds[f.key]; else bounds[f.key] = b; update({ bounds }); }} />)}</div></div>
             {filtered && <button className="btn" onClick={() => { setTyped(""); setSp(toParams({ ...DEFAULT_STATE, sort: state.sort, order: state.order }), { replace: true }); }}>Clear search and filters</button>}
           </div>)}
 
         <p className="etf-count" role="status" aria-live="polite">
-          {isLoading ? "Loading ETFs…" : data ? <>Showing <b>{from}–{to}</b> of <b>{data.total}</b> ETFs{data.total < data.universe ? <> (filtered from {data.universe})</> : null}{isFetching ? " · updating…" : ""}</> : ""}
+          {isLoading ? "Loading ETFs…" : data ? <>Showing <b>{from}–{to}</b> of <b>{data.total}</b> ETFs{data.total < data.universe ? <> (filtered from {data.universe})</> : null}{data.asOf ? <> · prices are NSE closes of {day(data.asOf)}</> : null}{isFetching ? " · updating…" : ""}</> : ""}
         </p>
 
-        {data && data.hotCount ? <p className="etf-foot faint etf-hotnote">All {data.universe} ETFs on the NSE are listed and sortable. The {data.hotCount} most traded (by rupees traded a day) open instantly; the other {data.universe - data.hotCount} fetch their price chart from the data source when you open them.</p> : null}
+        {data && data.hotCount ? <p className="etf-foot faint etf-hotnote">The {data.hotCount} most traded open at once; the other {data.universe - data.hotCount} take a moment longer.</p> : null}
 
         {isError && !data ? <ErrorState what="The ETF list" onRetry={() => refetch()} /> : isLoading ? <Skeleton /> : (
           <>
@@ -122,16 +126,19 @@ export function EtfListPage() {
                   <tbody>{items.map((i) => (
                     <tr key={i.symbol}>
                       <th scope="row" className="etf-first etf-name">
-                        <Link to={`/etfs/${encodeURIComponent(i.symbol)}`}>{i.name}</Link>
-                        <div className="etf-sub"><span className="mono">{i.symbol}</span><span className="etf-pricem mono">{i.price == null ? "" : rupee(i.price)}</span>
-                          <button className={"etf-add" + (has(i.symbol) ? " on" : "")} aria-pressed={has(i.symbol)} disabled={!has(i.symbol) && full} title={!has(i.symbol) && full ? `You can compare up to ${MAX_COMPARE} ETFs` : undefined}
-                            onClick={() => toggle(i.symbol)}>{has(i.symbol) ? "✓ In compare" : "+ Compare"}<span className="sr-only"> {i.name}</span></button></div>
+                        <div className="etf-nm">
+                          <label className="etf-cbl" title={!has(i.symbol) && full ? `You can compare up to ${MAX_COMPARE} ETFs` : `Add to compare (up to ${MAX_COMPARE})`}>
+                            <input type="checkbox" className="etf-cb" checked={has(i.symbol)} disabled={!has(i.symbol) && full} onChange={() => toggle(i.symbol)} aria-label={`Compare ${i.name}`} /></label>
+                          <div><Link to={`/etfs/${encodeURIComponent(i.symbol)}`}>{i.name}</Link>
+                            <div className="etf-sub"><span className="mono">{i.symbol}</span><span className="etf-pricem mono">{i.price == null ? "" : rupee(i.price)}</span></div></div>
+                        </div>
                       </th>
                       {shown.map((c) => <Cell key={c.key} c={c} i={i} />)}
                     </tr>))}</tbody>
                 </table>
               </div>)}
-            <p className="etf-foot faint">— means the figure is not available (hover or open the ETF to see why). 1 day is the change from the previous close. 1 year and 5 years are price returns; 5 years is the total change over the five years, not a yearly rate. Dividends are not included. More periods, risk and the chart are on each ETF's page.</p>
+            {tray.length > 0 && <CompareBar tray={tray} remove={remove} clear={clear} />}
+            <p className="etf-foot faint">— means the figure is not available; the word under it says why (hover or open the ETF for the full reason). 1 day is the change from the previous close. 1 year and 5 years are price returns; 5 years is the total change over the five years, not a yearly rate. Dividends are not included. Expense ratio: a year, from AMFI's TER file or the fund house's own figure. Price vs NAV: the last close against AMFI's NAV of the same day. Traded a day: the average over the last 20 sessions. More periods, risk and the chart are on each ETF's page.</p>
             {data && data.excluded > 0 && <p className="etf-foot">{data.excluded} ETF{data.excluded === 1 ? " was" : "s were"} left out because {data.excluded === 1 ? "it has" : "they have"} no figure for a range you chose (for example, listed less than a year).</p>}
             {data && data.total > PAGE && (
               <nav className="etf-pager" aria-label="Pages">
@@ -143,19 +150,20 @@ export function EtfListPage() {
 
         <p className="etf-foot faint">Categories are read from each fund's registered name (AMFI); where the name does not say clearly, the category is left blank rather than guessed.</p>
         <DataNote asOf={data?.asOf} updatedAt={data?.updatedAt} source={data?.source} />
-        {tray.length > 0 && <div style={{ height: 150 }} aria-hidden="true" />}
       </div>
-
-      {tray.length > 0 && (
-        <aside className="etf-tray" aria-label="ETFs chosen to compare">
-          <div className="etf-tray-in">
-            <span className="etf-tray-l">Compare {tray.length}/{MAX_COMPARE}</span>
-            <ul>{tray.map((s) => <li key={s}><span className="mono">{s}</span><button aria-label={`Remove ${s} from the comparison`} onClick={() => remove(s)}>×</button></li>)}</ul>
-            <button className="alx-link" onClick={clear}>Clear</button>
-            {tray.length >= 2 ? <Link className="btn primary" to={`/etfs/compare?symbols=${tray.join(",")}`}>Compare <Icon name="arrow" /></Link> : <span className="faint">Add one more to compare</span>}
-          </div>
-        </aside>)}
     </>
+  );
+}
+
+/** The ETFs ticked to compare (up to four), under the table (task #133). */
+function CompareBar({ tray, remove, clear }: { tray: string[]; remove: (s: string) => void; clear: () => void }) {
+  return (
+    <aside className="etf-cbar" aria-label="ETFs chosen to compare">
+      <span className="etf-tray-l">Compare {tray.length}/{MAX_COMPARE}</span>
+      <ul>{tray.map((s) => <li key={s}><span className="mono">{s}</span><button aria-label={`Remove ${s} from the comparison`} onClick={() => remove(s)}>×</button></li>)}</ul>
+      <button className="alx-link" onClick={clear}>Clear</button>
+      {tray.length >= 2 ? <Link className="btn primary" to={`/etfs/compare?symbols=${tray.join(",")}`}>Compare {tray.length} ETFs <Icon name="arrow" /></Link> : <span className="faint">Tick one more to compare</span>}
+    </aside>
   );
 }
 
