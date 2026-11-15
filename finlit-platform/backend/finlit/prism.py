@@ -55,6 +55,7 @@ from .premium import gateway_token
 from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 from .prism_public import public_report, public_summary
+from . import prism_screen
 
 log = logging.getLogger("finlit.prism")
 router = APIRouter(prefix="/api/prism")
@@ -545,6 +546,34 @@ async def _refresh_stale_technical(app, symbol: str, row) -> bool:
     except Exception as exc:
         log.warning("prism technical refresh on open not started for %s: %s", symbol, type(exc).__name__)
         return False
+
+
+SHOWCASE_MAX_AGE = 300    # seconds a browser or proxy may keep the landing page's reading (a score is worked out at most once a day)
+
+
+@router.get("/showcase")
+async def showcase(request: Request) -> JSONResponse:
+    """The landing page's FinLit Prism card (task #153): the newest stored reading of the showcase company (SHOWCASE_SYMBOLS, first entry; RELIANCE),
+    open to every visitor like the rest of that company's Prism figures. Only the card figures: the score, its four parts, the two technical views,
+    their dates and the company's name, never the report. No stored reading: 404 with the reason, and the page shows its dated example instead."""
+    symbols = list(request.app.state.settings.showcase_symbols or [])
+    if not symbols:
+        return _reply({"status": "none", "detail": "No showcase company is set."}, 404)
+    symbol = symbols[0]
+    try:
+        rows = await request.app.state.store.prism_cards([symbol])
+        name = await request.app.state.store.pool.fetchval("SELECT name FROM companies WHERE symbol = $1", symbol)
+    except Exception as exc:
+        log.warning("prism showcase not read: %s", type(exc).__name__)
+        return _reply({"status": "unavailable", "detail": "The sample reading cannot be read right now."}, 503, retry=60)
+    row = next((r for r in rows if r["symbol"] == symbol), None)
+    if row is None:
+        return _reply({"status": "none", "detail": f"No {PRISM_NAME} reading is stored for {symbol} yet."}, 404)
+    s = prism_screen.shape(row)
+    body = {"symbol": symbol, "name": name or symbol, "final": s["prism_final"], "label": s["prism_label"], "status": s["prism_status"], "at": s["prism_at"],
+            "techAt": s["prism_tech_at"], "parts": {k: s["prism_" + k] for k in prism_screen.PARTS},
+            "st": {"score": s["prism_st_score"], "word": s["prism_st"]}, "lt": {"score": s["prism_lt_score"], "word": s["prism_lt"]}}
+    return JSONResponse(body, headers={"Cache-Control": f"public, max-age={SHOWCASE_MAX_AGE}"})
 
 
 @router.get("/reports/latest")

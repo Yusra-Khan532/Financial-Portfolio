@@ -45,7 +45,9 @@
 .hpz-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .hpz-part { padding: 14px 16px 16px; border-radius: 14px; border: 1px solid transparent; }
 .hpz-part.gold { background: #FCF2DC; border-color: #F1DFB4; } .hpz-part.red { background: #FCE7E4; border-color: #F4CCC6; } .hpz-part.green { background: #E9F5EC; border-color: #CDE7D5; }
-.hpz-ph { display: flex; gap: 10px; align-items: flex-start; } .hpz-ph b { display: block; margin-bottom: 4px; font: 700 14px var(--sans); color: var(--hpz-ink); }
+.hpz-ph { display: flex; gap: 10px; align-items: flex-start; } .hpz-ph > div { flex: 1; min-width: 0; } .hpz-ph b { display: block; margin-bottom: 4px; font: 700 14px var(--sans); color: var(--hpz-ink); }
+/* task #153: each part's actual score, in its colour family */
+.hpz-pv { flex: none; font: 600 24px/1 var(--serif); color: var(--hpz-ink); } .hpz-pv.gold { color: var(--hpz-gold); } .hpz-pv.red { color: var(--hpz-red); } .hpz-pv.green { color: var(--hpz-green); }
 .hpz-slide { position: relative; display: block; height: 6px; margin-top: 14px; border-radius: 999px; background: #E3DCCD; }
 .hpz-slide i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
 .hpz-part.gold .hpz-slide i { background: var(--hpz-gold-fill); } .hpz-part.red .hpz-slide i { background: var(--hpz-red-fill); } .hpz-part.green .hpz-slide i { background: var(--hpz-green-fill); }
