@@ -122,6 +122,8 @@ export type ExtraFigs = {
   portfolio: { asOf: string; equity: number | null; debt: number | null; cash: number | null; other: number | null; holdings: number | null; top10: number | null; largest: number | null; sector: string | null; sectorPct: number | null } | null;
   category: { month: string | null; flow: number | null; streak: number | null; aumMom: number | null; aumYoy: number | null; share: number | null; folioMom: number | null };
 };
+/** The colour of a scatter dot: AMFI's category heading (task #131). */
+export type FundType = "equity" | "hybrid" | "debt" | "other";
 export type ScreenRow = FundRow & { x?: ExtraFigs };
 export type ScreenList = Facts & { total: number; page: number; size: number; pages: number; items: ScreenRow[] };
 export type ScreenFacets = {
@@ -131,7 +133,7 @@ export type ScreenFacets = {
   chk: Record<string, number>; chk_each: Record<string, number>; tick: Record<string, number>; rk: Record<string, number>; tags: { tag: string; kind: string; label: string; n: number }[];
   sectors: { name: string; n: number }[]; portfolio: Record<string, number>; cflow: Record<string, number>; cstreak: Record<string, number>; csize: Record<string, number>;
   built: { rows: number; run: string | null; portfolioDate: string | null; flowMonth: string | null; tagged: number; indexTagged: number };
-  scatter: { points: [number, string, number, number][]; eligible: number; shown: number };
+  scatter: { points: [code: number, name: string, ret: number, vol: number, type?: FundType][]; eligible: number; shown: number };   // type: task #131 (an older cached answer has none)
   flows: { key: string; label: string; months: string[]; net: (number | null)[] }[];
 };
 export type FacetAnswer = Facts & { totals: { schemes: number; active: number; withHistory: number }; amcs: { name: string; active: number; total: number }[]; screen?: ScreenFacets };
@@ -219,7 +221,7 @@ export const PRESETS: PresetDef[] = [
   { id: "ai-tech", label: "AI and technology funds", say: "Technology and AI tags, India and overseas.", set: () => ({ ...base(), tags: ["ai", "semis", "robotics", "cloud", "cyber", "it", "g_nasdaq"] }) },
   { id: "elss-record", label: "Tax saver (ELSS) with a five-year record", say: "ELSS, five years or older, 5-year return above the category median.", set: () => rng(rng({ ...base(), subs: ["elss"] }, "age", "5"), "ex5y", "0") },
   { id: "steady-hybrid", label: "Hybrid funds with steady months", say: "Hybrid, no falling month in 3 years, equity share 10 to 40%.", set: () => rng({ ...base(), group: "hybrid", tick: ["noneg36"] }, "eq_pct", "10", "40") },
-  { id: "score-cost", label: "Health score 65+ at low cost", say: "Needs the score filter, which lives in the Gold Fund score screener.", set: () => base(), off: "Score filters are in the Fund score screener (Gold)." },
+  { id: "score-cost", label: "Health score 65+ at low cost", say: "Needs the score filter, which lives in the Fund score screener.", set: () => base(), off: "Score filters are in the Fund score screener." },
 ];
 const presetKey = (q: SQ) => queryToParams({ ...q, page: 1, sort: q.sort, dir: q.dir }).toString();
 /** A preset is "on" while every filter it sets is still as it set it (more filters on top do not switch it off). */

@@ -19,6 +19,13 @@ FLOW_MONTHS = 6
 TOP_SECTORS = 40
 
 
+
+def fund_type(category: str | None) -> str:
+    """The colour of a scatter dot (task #131): equity, hybrid or debt from AMFI's scheme category ("Equity Scheme - Mid Cap Fund"), else other
+    (index funds, fund of funds, solution-oriented and the rest, which AMFI files under their own headings)."""
+    c = (category or "").lower()
+    return "equity" if c.startswith("equity") else "hybrid" if c.startswith("hybrid") else "debt" if c.startswith("debt") else "other"
+
 async def _count(conn, scr: Screen, exclude: Sequence[str]) -> int:
     src, args = source(scr.preds, scr.family, exclude)
     return await conn.fetchval(f"SELECT count(*) FROM {src}", *args)  # nosec B608 - fixed text; every value is a bound parameter
@@ -149,7 +156,7 @@ async def build(conn, scr: Screen, ctx: spec.Ctx, classify, fields: Optional[Set
     pts = await conn.fetch(f"SELECT code, name, category, r3y, x_vol3 AS vol FROM {src} {glue}"  # nosec B608
                            f" r3y IS NOT NULL AND x_vol3 IS NOT NULL ORDER BY aum_lakh DESC NULLS LAST, code LIMIT {SCATTER_MAX}", *args)
     total_pts = await conn.fetchval(f"SELECT count(*) FROM {src} {glue} r3y IS NOT NULL AND x_vol3 IS NOT NULL", *args)  # nosec B608
-    out["scatter"] = {"points": [[p["code"], p["name"], round(p["r3y"], 2), round(p["vol"], 2)] for p in pts], "eligible": total_pts, "shown": len(pts)}
+    out["scatter"] = {"points": [[p["code"], p["name"], round(p["r3y"], 2), round(p["vol"], 2), fund_type(p["category"])] for p in pts], "eligible": total_pts, "shown": len(pts)}
 
     # ---- category flow bars: the selected sub-categories, else the six with most funds in the result
     keys = list(scr.subs) or [s["key"] for s in out["subs"][:6]]
