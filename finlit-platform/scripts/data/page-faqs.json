@@ -10,7 +10,7 @@
   "items": [
    {
     "q": "What does the dashboard show?",
-    "a": "The top half is the market: index levels (Nifty 50, Sensex, Nifty Bank, Midcap 100, Smallcap 100, Nifty IT and India VIX), a Nifty 50 / Sensex chart, market breadth, top gainers and decliners, sectors today, FII/DII flows, an index heatmap and sectoral activity. Below that are widgets about the stocks you follow: latest quarter results, results dates, news, IPOs, watchlist movers, stocks worth a second look, your saved screens and more."
+    "a": "At the top, Your investments today: your shares, watchlist and mutual funds in one table (All, Watchlist, Shares, Mutual funds and ETFs), with price or NAV, the day's move, 1 year and the FinLit reading, then What your stocks say and the three at a glance panels for your shares, mutual funds and ETFs. Below them is the market: index levels and chart, prices and rates, breadth, sectors, FII/DII flows, the heatmap, then results, filings, IPOs, alerts and more."
    },
    {
     "q": "How do I change the layout or colours?",
@@ -951,7 +951,7 @@
   "items": [
    {
     "q": "Which ETFs are listed?",
-    "a": "Every ETF found on the NSE, with price and 1-day, 1-year and 5-year returns. Search by name, symbol, fund house or ISIN, filter, sort, and compare up to four."
+    "a": "Every ETF found on the NSE, with price, 1-day, 1-year and 5-year returns, the expense ratio, the price against the NAV and the value traded a day. Search by name, symbol, fund house or ISIN, filter, sort, and tick up to four to compare."
    },
    {
     "q": "Do the returns include dividends?",

@@ -2,8 +2,9 @@
 //   RiskReturn  each fund of the result as a dot, coloured by its type (equity, hybrid, debt, other) with a legend: yearly 3-year return up, volatility
 //               along, a dashed line at 0% and signed axis labels. Hovering or focusing a dot shows the fund's name and both figures. A picture of where
 //               the result sits, never a ranking.
-//   FlowBars    AMFI's net flow of each category in the result over the last six months, as diverging bars from a centre line (in to the right in
-//               green, out to the left in red), largest first, all on one scale. A category far above the rest is drawn to the edge and marked "bar cut".
+//   FlowBars    AMFI's net flow of each category in the result: its latest month in the six months held (the pack's figures: Liquid +₹70,534 Cr is
+//               October's), as diverging bars from a centre line (in to the right in green, out to the left in red), largest first, all on one scale.
+//               A category far above the rest is drawn to the edge and marked "bar cut".
 import { useState } from "react";
 import { Link } from "react-router";
 import { MINUS, nf } from "../../lib/format";
@@ -65,18 +66,21 @@ export function RiskReturn({ data }: { data?: ScreenFacets["scatter"] }) {
   );
 }
 
-export type FlowRow = { key: string; label: string; total: number; months: number; cut: boolean; width: number };
-/** Each category's net flow over the months given (a month with no figure is left out; a category with none at all is dropped), largest first,
- *  on one shared scale. When the largest is more than three times the next, the scale is set by the next one and the largest is drawn to the edge
- *  and marked cut, so one large category does not flatten the others. `width` is the share of half the track, 0 to 1. */
+export type FlowRow = { key: string; label: string; total: number; month: string; cut: boolean; width: number };
+/** Each category's net flow in its latest month with a figure (a category with no figure at all is dropped), largest first, on one shared scale.
+ *  When the largest is more than three times the next, the scale is set by the next one and the largest is drawn to the edge and marked cut, so one
+ *  large category does not flatten the others. `width` is the share of half the track, 0 to 1. */
 export function flowRows(flows: ScreenFacets["flows"]): FlowRow[] {
-  const rows = flows.map((f) => { const have = f.net.filter((v): v is number => v != null && Number.isFinite(v)); return { key: f.key, label: f.label, total: have.reduce((a, b) => a + b, 0), months: have.length }; })
-    .filter((r) => r.months > 0).sort((a, b) => b.total - a.total);
+  const rows = flows.map((f) => { let i = f.net.length - 1; while (i >= 0 && !(f.net[i] != null && Number.isFinite(f.net[i] as number))) i--; return i < 0 ? null : { key: f.key, label: f.label, total: f.net[i] as number, month: f.months[i] ?? "" }; })
+    .filter((r): r is { key: string; label: string; total: number; month: string } => r != null).sort((a, b) => b.total - a.total);
   const abs = rows.map((r) => Math.abs(r.total)).sort((a, b) => b - a);
   const scale = abs.length > 1 && abs[1] > 0 && abs[0] > 3 * abs[1] ? abs[1] * 1.25 : abs[0] || 1;
   return rows.map((r) => ({ ...r, cut: Math.abs(r.total) > scale, width: Math.min(1, Math.abs(r.total) / scale) }));
 }
 const crore = (v: number) => (v > 0 ? "+" : v < 0 ? MINUS : "") + "₹" + nf(Math.abs(v), 0) + " Cr";
+
+/** "2026-10" as "Oct 2026" (other labels are returned as they are). */
+export const monthText = (m: string) => { const x = /^(\d{4})-(\d{2})$/.exec(m); return x ? new Date(Date.UTC(+x[1], +x[2] - 1, 1)).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }) : m; };
 
 export function FlowBars({ flows }: { flows?: ScreenFacets["flows"] }) {
   if (!flows) return <p className="muted mfs-gl-none">Loading…</p>;
@@ -89,14 +93,14 @@ export function FlowBars({ flows }: { flows?: ScreenFacets["flows"] }) {
         {rows.map((r) => (
           <li key={r.key}>
             <span className="mfs-fl-n">{r.label}</span>
-            <span className="mfs-fl-track" role="img" aria-label={`${r.label}: ${r.total >= 0 ? "net inflow" : "net outflow"} of ₹${nf(Math.abs(r.total), 0)} crore over ${r.months} month${r.months === 1 ? "" : "s"}${r.cut ? "; bar cut, drawn to the edge" : ""}`}>
+            <span className="mfs-fl-track" role="img" aria-label={`${r.label}: ${r.total >= 0 ? "net inflow" : "net outflow"} of ₹${nf(Math.abs(r.total), 0)} crore in ${monthText(r.month)}${r.cut ? "; bar cut, drawn to the edge" : ""}`}>
               <i className={r.total >= 0 ? "up" : "down"} style={{ width: `${r.width * 50}%` }} />
               {r.cut && <em className={r.total >= 0 ? "up" : "down"}>bar cut</em>}
             </span>
-            <span className={"mfs-fl-v " + (r.total >= 0 ? "up" : "down")}>{crore(r.total)}</span>
+            <span className={"mfs-fl-v " + (r.total >= 0 ? "up" : "down")} title={monthText(r.month)}>{crore(r.total)}</span>
           </li>))}
       </ul>
-      <p className="faint mfs-fl-note">Money in on the right, money out on the left.{cut.map((r) => ` ${/funds?$/i.test(r.label) ? r.label : r.label + " funds"} ${r.total >= 0 ? "take in" : "pay out"} far more than any other category, so ${cut.length > 1 ? "their bars are" : "its bar is"} cut.`).join("")}</p>
+      <p className="faint mfs-fl-note">Money in on the right, money out on the left. Each bar is the category's latest month ({[...new Set(rows.map((r) => monthText(r.month)))].join(", ")}).{cut.map((r) => ` ${/funds?$/i.test(r.label) ? r.label : r.label + " funds"} ${r.total >= 0 ? "take in" : "pay out"} far more than any other category, so ${cut.length > 1 ? "their bars are" : "its bar is"} cut.`).join("")}</p>
     </>
   );
 }

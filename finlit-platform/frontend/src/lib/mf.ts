@@ -11,6 +11,8 @@ import { TAB_KEYS, classify, type TabKey } from "./mfCategories";
 import type { PortfolioResult } from "../holdings/types";
 
 export const DISCLAIMER = "Information only. Not investment advice. Past returns do not guarantee future returns.";
+/** The AMFI risk line every mutual fund page carries (task #130, the design pack's common rules). */
+export const AMFI_RISK_LINE = "Mutual fund investments are subject to market risks; read all scheme-related documents carefully.";
 export const MIRROR_LABEL = "NAV history: third-party mirror of AMFI data (api.mfapi.in)";
 
 export type Facts = { dataDate: string | null; updatedAt: string | null; source: string; disclaimer: string; excludedAmcs?: string[] };
@@ -335,9 +337,10 @@ export function searchOptions<T>(items: T[], query: string, label: (t: T) => str
 
 export const TRAY_MAX = 4;
 const TRAY_KEY = "finlit-mf-compare-v1";
-export function trayToggle(list: number[], code: number, max = TRAY_MAX): { list: number[]; full: boolean } {
+/** `replace` (the funds list, task #130 C-9): when the tray is full, a new fund replaces the oldest one instead of being refused. */
+export function trayToggle(list: number[], code: number, max = TRAY_MAX, replace = false): { list: number[]; full: boolean } {
   if (list.includes(code)) return { list: list.filter((c) => c !== code), full: false };
-  if (list.length >= max) return { list, full: true };
+  if (list.length >= max) return replace ? { list: [...list.slice(list.length - max + 1), code], full: false } : { list, full: true };
   return { list: [...list, code], full: false };
 }
 let tray: number[] | null = null;
@@ -349,9 +352,17 @@ function loadTray(): number[] {
 }
 function setTray(next: number[]) { tray = next; try { localStorage.setItem(TRAY_KEY, JSON.stringify(next)); } catch { /* private mode */ } listeners.forEach((l) => l()); }
 /** The funds chosen for comparison (2 to 4 are compared). Returns [list, toggle, clear]; toggle answers false when the tray is full. */
-export function useTray(): [number[], (code: number) => boolean, () => void] {
+export function useTray(replace = false): [number[], (code: number) => boolean, () => void] {
   const list = useSyncExternalStore((cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; }, loadTray, () => []);
-  return [list, (code) => { const r = trayToggle(loadTray(), code); if (!r.full) setTray(r.list); return !r.full; }, () => setTray([])];
+  return [list, (code) => { const r = trayToggle(loadTray(), code, TRAY_MAX, replace); if (!r.full) setTray(r.list); return !r.full; }, () => setTray([])];
+}
+/** The names of the funds ticked for comparison (task #130 C-9: the compare bar names them), kept for the visit as they are ticked. */
+const TRAY_NAMES_KEY = "finlit-mf-compare-names-v1";
+export function rememberName(code: number, name: string) {
+  try { const m = JSON.parse(sessionStorage.getItem(TRAY_NAMES_KEY) || "{}"); m[code] = name; sessionStorage.setItem(TRAY_NAMES_KEY, JSON.stringify(m)); } catch { /* private mode */ }
+}
+export function trayName(code: number): string | null {
+  try { const m = JSON.parse(sessionStorage.getItem(TRAY_NAMES_KEY) || "{}"); return typeof m[code] === "string" ? m[code] : null; } catch { return null; }
 }
 export const compareUrl = (codes: number[]) => `/funds/compare?ids=${codes.join(",")}`;
 /** ?ids=1,2,3 -> up to 4 distinct positive whole numbers. */

@@ -82,7 +82,11 @@ export function statesAt(h: SectorHistory | undefined, back: number): Record<Sta
 }
 
 // ------------------------------------------------------------------------------------------------ "Today in one minute"
-export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string };
+/** A chip in an opened dashboard card (task #135): a company that opens its report, with an optional figure (its % move or profit change). */
+export type CardChip = { symbol: string; label: string; note?: string };
+/** A labelled group of chips ("Lead · 16" in green, "Lag · 11" in red). */
+export type CardGroup = { label: string; tone?: "up" | "down"; chips: CardChip[] };
+export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string };
 const bounceKeys: StateKey[] = ["crash", "bouncing"];
 const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);

@@ -6,7 +6,8 @@ import { useFlows, type FlowDay, type Streak } from "../../lib/flows";
 import { ageLabel, diiState, inr } from "../../lib/flowsMath";
 import { Card, Rows } from "./parts";
 import { flowsCard } from "../../lib/dashPack";
-import { Cards, Tip } from "../sectors/pack/Common";
+import { Tip } from "../sectors/pack/Common";
+import { DashCards } from "./DashCards";
 
 const cls = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "up" : "down");
 const arrow = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "▲ " : "▼ ");
@@ -50,7 +51,7 @@ export function Flows() {
         </div>
         <PairBars days={f.days} />
         <p className="dsh-line">Last {f.last30.days} sessions: FII <b className={cls(f.last30.fii)}>{inr(f.last30.fii)}</b>{f.last30.dii != null && <> · DII <b className={cls(f.last30.dii)}>{inr(f.last30.dii)}</b></>}</p>
-        {(() => { const c = flowsCard(f); return c ? <div className="sp dsh-cards dsh-cards-after"><Cards items={[c]} /></div> : null; })()}
+        {(() => { const c = flowsCard(f); return c ? <div className="sp dsh-cards dsh-cards-after"><DashCards items={[c]} scope="flows" /></div> : null; })()}
         <Link className="dsh-link foot" to="/fii-dii">Full FII/DII data, charts and history →</Link>
       </>}
     </Card>

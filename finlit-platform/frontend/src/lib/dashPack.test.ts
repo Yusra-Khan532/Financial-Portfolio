@@ -23,9 +23,14 @@ describe("Your stocks today", () => {
     const items = [st("KINGFA", { chg: -12.6, size: "Small" }), st("MARINE", { chg: -11.0, size: "Small" }), st("AEROFLEX", { chg: -10.6, size: "Small", peer: "leader" }),
       st("PERSISTENT", { profit: -25.4, peer: "leader" }), st("GLENMARK", { profit: -56.8, peer: "unranked" }), st("RELIANCE", { peer: "laggard" }), st("TECHM", { peer: "leader" })];
     const c = myStockCards(items, "Friday", "2026-09-30");
-    expect(c[0]).toEqual({ kind: "warning", title: "Three of your stocks fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies. Check News & filings before reacting." });
-    expect(c[1]).toEqual({ kind: "good", title: "Profit grew at 5 of the 7 that reported", text: "September-quarter profit was higher than a year ago everywhere except PERSISTENT (−25.4%) and GLENMARK (−56.8%)." });
-    expect(c[2]).toEqual({ kind: "insight", title: "3 lead their peers, 1 lag", text: "AEROFLEX, PERSISTENT, TECHM lead; RELIANCE lag. 1 is not ranked (too new or too thinly traded)." });
+    expect(c[0]).toMatchObject({ kind: "warning", title: "Three of your stocks fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies. Check News & filings before reacting." });
+    expect(c[1]).toMatchObject({ kind: "good", title: "Profit grew at 5 of the 7 that reported", text: "September-quarter profit was higher than a year ago everywhere except PERSISTENT (−25.4%) and GLENMARK (−56.8%)." });
+    expect(c[2]).toMatchObject({ kind: "insight", title: "3 lead their peers, 1 lag", text: "AEROFLEX, PERSISTENT, TECHM lead; RELIANCE lag. 1 is not ranked (too new or too thinly traded)." });
+    // task #135: opened, the names show as chips grouped with a count (Lead green, Lag red), and the small note at the end
+    expect(c[0].groups).toEqual([{ label: "Fell 10% or more · 3", tone: "down", chips: [{ symbol: "KINGFA", label: "KINGFA", note: "−12.6%" }, { symbol: "MARINE", label: "MARINE", note: "−11.0%" }, { symbol: "AEROFLEX", label: "AEROFLEX", note: "−10.6%" }] }]);
+    expect(c[1].groups).toEqual([{ label: "Profit fell, against a year ago · 2", tone: "down", chips: [{ symbol: "PERSISTENT", label: "PERSISTENT", note: "−25.4%" }, { symbol: "GLENMARK", label: "GLENMARK", note: "−56.8%" }] }]);
+    expect(c[2].groups?.map((g) => [g.label, g.tone, g.chips.map((x) => x.symbol)])).toEqual([["Lead · 3", "up", ["AEROFLEX", "PERSISTENT", "TECHM"]], ["Lag · 1", "down", ["RELIANCE"]]]);
+    expect(c[2].note).toBe("1 is not ranked: too new, or too thinly traded to compare fairly.");
   });
 });
 

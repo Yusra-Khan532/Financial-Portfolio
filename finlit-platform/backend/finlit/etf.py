@@ -1019,8 +1019,9 @@ CACHE_SECONDS = 120
 FLAT_WHY = "The price barely moves for this ETF: it pays out its earnings instead of growing the price, so a price change of about 0% says nothing about what it earned."
 LIST_FIELDS = {"name": "display_name", "price": "price", "change": "change_pct", "ret1m": "ret_1m", "ret6m": "ret_6m", "ret1y": "ret_1y", "ret3y": "ret_3y",
                "ret5y": "ret_5y", "cagr3y": "cagr_3y", "cagr5y": "cagr_5y", "vol1y": "vol_1y", "mdd1y": "mdd_1y", "mdd3y": "mdd_3y", "mdd5y": "mdd_5y",
-               "turnover": "avg_turnover", "premium": "nav_premium", "from52": "from52"}
-FILTER_KEYS = {k: v for k, v in LIST_FIELDS.items() if k not in ("name", "price", "change", "turnover", "from52")}
+               "turnover": "avg_turnover", "premium": "nav_premium", "from52": "from52", "ter": "ter"}
+FILTER_KEYS = {k: v for k, v in LIST_FIELDS.items() if k not in ("name", "price", "change", "turnover", "from52", "ter")}
+TER_SECONDS = 1800           # the expense ratios change once a day at most (AMFI's TER file, the fund houses' own pages)
 SYMBOL_RE = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 
 
@@ -1218,6 +1219,31 @@ def headline(v: dict, reasons: dict, dates: Optional[Sequence[date]], closes: Op
     return out
 
 
+async def _ters(app, rows: Sequence[dict]) -> Dict[str, dict]:
+    """Every listed ETF's expense ratio (task #133), read in bulk and kept in this process for half an hour. A failing read gives every ETF the
+    same plain reason instead of breaking the list."""
+    c = getattr(app.state, "etf_ters", None)
+    if c and time.time() - c["at"] < TER_SECONDS:
+        return c["by"]
+    try:
+        from . import disclosure                              # noqa: PLC0415  (owned by the fund-facts job)
+        by = await disclosure.etf_ters(app.state.store.pool, [r["isin"] for r in rows])
+    except Exception as exc:
+        log.warning("etf expense ratios unavailable: %s", type(exc).__name__)
+        return {r["isin"]: {"unavailable": "The expense ratio could not be read right now."} for r in rows}
+    app.state.etf_ters = {"at": time.time(), "by": by}
+    return by
+
+
+def _with_ter(item: dict, ters: Dict[str, dict]) -> dict:
+    """An ETF row as the list shows it, with its expense ratio (percent a year), the date it applies to, and the reason when there is none."""
+    t = ters.get(item["isin"]) or {"unavailable": "Not found in AMFI's list of schemes."}
+    out = {**item, "ter": t.get("value"), "terDate": t.get("asOf"), "terSource": t.get("source")}
+    if t.get("value") is None:
+        out["why"] = {**(item.get("why") or {}), "ter": t["unavailable"]}
+    return out
+
+
 @router.get("")
 async def list_etfs(request: Request, q: str = "", category: str = "", asset: str = "", sort: str = "turnover", order: str = "", limit: int = 40, offset: int = 0):
     qp = request.query_params
@@ -1232,11 +1258,13 @@ async def list_etfs(request: Request, q: str = "", category: str = "", asset: st
     if not (q or cats or assets or ranges) and sort == "turnover" and desc:            # the default page: ready-made, no work at all
         hot = await _hot(request.app)
         if hot and offset + limit <= len(hot["items"]):
-            return _json({"items": hot["items"][offset:offset + limit], "total": hot["universe"], "universe": hot["universe"], "hotCount": len(hot["items"]), "offset": offset,
+            ters = await _ters(request.app, (await _load(request.app))["rows"])
+            return _json({"items": [_with_ter(i, ters) for i in hot["items"][offset:offset + limit]], "total": hot["universe"], "universe": hot["universe"], "hotCount": len(hot["items"]), "offset": offset,
                           "limit": limit, "excluded": 0, "categories": hot["categories"], "groups": hot["groups"], "asOf": hot["asOf"], "updatedAt": hot["updatedAt"],
                           "source": SOURCE, "disclaimer": DISCLAIMER})
     cache = await _load(request.app)
     rows = cache["rows"]
+    ters = await _ters(request.app, rows)
 
     views = []
     scored: Dict[str, int] = {}
@@ -1270,6 +1298,8 @@ async def list_etfs(request: Request, q: str = "", category: str = "", asset: st
     col = LIST_FIELDS[sort]
 
     def val(r):
+        if col == "ter":
+            return (ters.get(r["isin"]) or {}).get("value")
         if col == "from52":
             return (r["price"] / r["high52"] - 1) if r.get("price") and r.get("high52") else None
         return r.get(col)
@@ -1281,7 +1311,7 @@ async def list_etfs(request: Request, q: str = "", category: str = "", asset: st
         ordered.sort(key=lambda r: -scored.get(r["symbol"], 0))            # a search ranks by how well the words match; ties keep the most-traded first
     page = ordered[offset:offset + limit]
     fc, fg = _facets(rows)
-    body = {"items": [row_view(r) for r in page], "total": len(ordered), "universe": len(rows), "hotCount": sum(1 for r in rows if r.get("hot")), "offset": offset, "limit": limit,
+    body = {"items": [_with_ter(row_view(r), ters) for r in page], "total": len(ordered), "universe": len(rows), "hotCount": sum(1 for r in rows if r.get("hot")), "offset": offset, "limit": limit,
             "excluded": excluded, "categories": fc, "groups": fg,
             "asOf": cache["asOf"], "updatedAt": cache["updatedAt"], "source": SOURCE, "disclaimer": DISCLAIMER}
     return _json(body)

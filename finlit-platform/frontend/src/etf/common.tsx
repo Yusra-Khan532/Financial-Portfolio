@@ -17,8 +17,8 @@ export function GlossInfo({ name, fallback }: { name: GlossName; fallback: strin
 }
 
 /** A figure that is genuinely unavailable: a dash that says why to a mouse (title) and to a screen reader (hidden text). */
-export function Blank({ why }: { why: string }) {
-  return <span className="etf-blank" title={why}>—<span className="sr-only"> (not available: {why})</span></span>;
+export function Blank({ why, short }: { why: string; short?: string }) {
+  return <span className="etf-blank" title={why}>—{short && <small className="etf-bwhy" aria-hidden="true">{short}</small>}<span className="sr-only"> (not available: {why})</span></span>;
 }
 
 export function Tone({ v, children }: { v: number | null | undefined; children: ReactNode }) {
