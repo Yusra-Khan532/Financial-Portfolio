@@ -44,6 +44,8 @@ function Ring({ v, band }: { v: number | null; band: string | null }) {
   return <div className={"cr " + (band || "")}><svg viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="34" fill="none" stroke="var(--s3)" strokeWidth="8" /><circle className="ring-in" cx="42" cy="42" r="34" fill="none" stroke="var(--gold)" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${(C * (v ?? 0)) / 100} ${C}`} transform="rotate(-90 42 42)" /></svg><b>{v ?? "—"}</b></div>;
 }
 
+const TECH_LABEL = { st: "Short-term technical", lt: "Long-term technical" } as const;
+
 export function Compare() {
   useDocTitle("Compare companies", "Put companies side by side on size, valuation, quality, growth and price behaviour. Choose exactly which measures to compare.");
   const { has, upgrade, toast } = useUI();
@@ -168,9 +170,13 @@ export function Compare() {
                 {showIq && <Gate tier="silver" title="See the FinLit IQ" points={["Overall research score", "Five-pillar scorecard"]}>
                   <div className="cc-s"><Ring v={r.overall} band={r.band} /><div><span className="label">FinLit IQ</span><b>{r.overall ?? "—"}<small>/100</small></b>{r.band && <span className={"vd " + r.band}>{BAND_LABEL[r.band]}</span>}</div></div>
                 </Gate>}
-                {showPrism && (hasPrism(r)
+                {showPrism && <div className="cc-scores">{(hasPrism(r)
                   ? <div className="cc-s cc-prism"><Ring v={Math.round(r.prism_final as number)} band={toneOf(r.prism_final)} /><div><span className="label">FinLit Prism</span><b>{Math.round(r.prism_final as number)}<small>/100</small></b>{r.prism_label && <span className={"vd " + toneOf(r.prism_final)}>{LABEL_WORD[r.prism_label as PrismLabel] ?? r.prism_label}</span>}{r.prism_status && r.prism_status !== "RATED" && <small className="faint"> {r.prism_status.toLowerCase()}</small>}</div></div>
                   : <div className="cc-s cc-prism"><div><span className="label">FinLit Prism</span><b>{"—"}</b><small className="faint">{r.prism_state === "none" ? "Not rated yet" : "No stored Prism rating"} · <Link to={`/prism/${encodeURIComponent(r.symbol)}`}>Open Prism</Link></small></div></div>)}
+                {/* task #165: all three scores in the card: the Prism (fundamental) score and its two technical readings beside it, -100 to +100 */}
+                <ul className="cc-tech" aria-label={`${r.name || r.symbol}: technical scores`}>{PRISM_TREND.map((t) => { const n = r[t.col]; return (
+                  <li key={t.col} title={n == null ? prismReason(r, true, t.key) : `${t.label}: ${trendText(n)} (${trendWord(n) ?? ""}, from -100 to +100)${r.prism_tech_at ? `, as of ${r.prism_tech_at.slice(0, 10)}` : ""}`}>
+                    <span className="label">{TECH_LABEL[t.key]}</span><b className={n == null ? "faint" : n >= 0 ? "pos" : "neg"}>{trendText(n)}</b>{n != null && trendWord(n) && <small>{trendWord(n)}</small>}</li>); })}</ul></div>}
               </div>))}</div>
             {showPrism && (
               <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>The FinLit Prism parts</h3><span className="s">0–100, higher is better (a higher Risk score means lower risk); the two trend readings run from -100 to +100</span></div>

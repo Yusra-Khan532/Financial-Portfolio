@@ -80,8 +80,21 @@ describe("Compare: Prism's two technical readings (task #123)", () => {
     const axes = [...card.querySelectorAll("svg text")].map((t) => t.textContent);
     expect(axes).toEqual(expect.arrayContaining(["Short term", "Long term", "Valuation", "Quality", "Risk"]));
   });
+  it("task #165: each company card shows all three scores: Prism (fundamental) and the two technical readings, with a dash and its reason when one is missing", () => {
+    st.plan = "gold";
+    st.rows = [{ ...row("AAA", 71), prism_st_score: 34, prism_lt_score: -12 } as unknown as Row, { ...row("BBB", 60), prism_st_score: null, prism_lt_score: 8 } as unknown as Row];
+    const { container } = view();
+    const cards = [...container.querySelectorAll(".cc")];
+    expect(cards).toHaveLength(2);
+    const tech = cards.map((c) => [...c.querySelectorAll(".cc-tech li")].map((li) => li.textContent));
+    expect(tech[0][0]).toContain("Short-term technical"); expect(tech[0][0]).toContain("+34");
+    expect(tech[0][1]).toContain("Long-term technical"); expect(tech[0][1]).toContain("-12");
+    expect(tech[1][0]).toContain("—"); expect(cards[1].querySelector(".cc-tech li")!.getAttribute("title")).toMatch(/not calculated/);
+    expect(cards[0].querySelector(".cc-scores .cc-prism")).toBeTruthy();
+  });
   it("Silver sees no Prism trend (it is Gold, like the rest of Prism)", () => {
     st.plan = "silver"; const { container } = view();
     expect(container.querySelector(".cmp-trend")).toBeNull();
+    expect(container.querySelector(".cc-tech")).toBeNull();
   });
 });
