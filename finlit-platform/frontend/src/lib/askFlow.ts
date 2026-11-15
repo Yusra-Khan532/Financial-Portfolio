@@ -55,7 +55,7 @@ export function tabQuestions(tab: TabId, sym: string, lender: boolean): Q[] {
   return bankGroups(`/stocks/${sym}`, { lender }).filter((g) => groups.includes(g.n)).flatMap((g) => g.items);
 }
 
-/** Market & economy: general questions the assistant answers from its language model (they name no company). */
+/** Market & economy: general questions, answered from written text (task #138: no language model). */
 export const MARKET_QUESTIONS: Q[] = [
   { id: "m1", text: "What do FII and DII flows tell us about the market?" },
   { id: "m2", text: "How do interest rates and the repo rate affect the stock market?" },

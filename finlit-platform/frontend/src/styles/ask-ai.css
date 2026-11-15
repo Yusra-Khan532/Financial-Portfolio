@@ -123,11 +123,13 @@
 .aif.full > header.aif-hd { justify-content: flex-end; }
 .aif.full > header.aif-hd { padding-left: 24px; padding-right: 24px; }
 
-/* Task #138: the real steps of an answer being prepared, under the typing dots, and the note on an answer that came from FinLit's saved answers */
-.aif-wait { display: grid; gap: 8px; }
-.aif-path { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-13); line-height: 1.4; color: var(--muted); white-space: normal; }
-.aif-wait .aif-path li { display: block; position: relative; padding: 0 0 0 18px; margin: 0; text-align: left; min-height: 0; border: 0; background: none; }
-.aif-wait .aif-path li::before { content: ""; position: absolute; left: 3px; top: .5em; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--aif-g, var(--gold)); }
-.aif-wait .aif-path li.done::before { background: var(--aif-g, var(--gold)); }
-.aif-wait .aif-path li.now { color: var(--text); }
-.aif-kept { display: block; margin-top: 8px; font-size: var(--fs-12); color: var(--muted); white-space: normal; }
+/* Task #138: answers come from written text and FinLit's figures (no model). A link under an answer to the page it comes from; the listed questions that
+   match what is typed, above the box; the closest questions offered when a typed text matches none exactly. */
+.aif-ans-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--fs-13); font-weight: 600; color: var(--aif-g, var(--gold)); text-decoration: none; white-space: normal; }
+.aif-ans-link:hover, .aif-ans-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.aif-ans-link svg { width: 14px; height: 14px; }
+.aif-sugq { margin: 10px 0 0; white-space: normal; }
+.aif-typed { list-style: none; margin: 0; padding: 6px 10px 0; display: grid; gap: 4px; max-height: 210px; overflow: auto; border-top: 1px solid var(--border); }
+.aif-typed button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 10px; font-size: var(--fs-13); line-height: 1.35; color: var(--text); }
+.aif-typed button:hover, .aif-typed button:focus-visible { background: var(--s2); outline: none; }
+.aif-typed svg { flex: none; width: 14px; height: 14px; color: var(--muted); }
