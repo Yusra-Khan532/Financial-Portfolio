@@ -56,6 +56,7 @@ from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 from .prism_public import public_report, public_summary
 from . import prism_screen
+from . import prism_benchmarks
 
 log = logging.getLogger("finlit.prism")
 router = APIRouter(prefix="/api/prism")
@@ -763,6 +764,9 @@ async def _report_body(app, symbol: str, statement: str) -> Dict[str, Any]:
         await mark_down(getattr(getattr(app.state, "store", None), "redis", None))      # a timeout or crash: do not make the next report wait for Dhan too
     if candles:
         body["suppliedCandles"] = candles
+    medians = await prism_benchmarks.for_report(getattr(app.state, "store", None), symbol)    # used by the model only where FinEdge/Upstox give none (task #160)
+    if medians:
+        body["sectorBenchmarks"] = medians
     return body
 
 
