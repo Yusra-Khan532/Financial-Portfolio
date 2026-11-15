@@ -12,8 +12,8 @@ import zlib
 from datetime import datetime, timezone
 
 # The shape of the kept inputs. Bump it whenever the resolver adds or changes a raw input the model reads, so inputs kept by older code are
-# fetched afresh instead of being reused for up to a day without it. 2: yearly standalone P&L rows for PEG's growth (model 3.6.14) and, when the consolidated cash flow is short, yearly standalone cash flow (3.6.15).
-INPUTS_VERSION = 2
+# fetched afresh instead of being reused for up to a day without it. 2: yearly standalone P&L rows for PEG's growth (model 3.6.14) and, when the consolidated cash flow is short, yearly standalone cash flow (3.6.15). 3: a short consolidated history switches the whole report to standalone (3.6.16).
+INPUTS_VERSION = 3
 INPUT_MAX_AGE_SECONDS = 24 * 3600      # financial statements change quarterly; a day-old copy of the inputs is far inside that
 PACKED_LIMIT = 4_000_000               # bytes of base64 text accepted
 UNPACKED_LIMIT = 24_000_000            # bytes after inflating: a zip bomb is refused

@@ -804,6 +804,27 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         effective = quarterly_view["statementType"]
         annual = {}
         yearly = _fetch_stock_fundamentals(symbol, effective, "yearly", annual, _lean=lean)
+    # Short consolidated history (owner, 15 November 2026; model 3.6.16): FinEdge's consolidated statements for some companies cover only the latest
+    # one or two years (ABB: 2024-2025 after a gap since 2012; Nestle: two years), so every factor that needs history (growth over 3-5 years, PEG,
+    # margin change, cash conversion, the quarterly streaks) failed or fell back to a one-year view. When the latest unbroken run of consolidated
+    # full years is too short for a 3-year comparison (fewer than 4 years) and the standalone statements have that run and are as recent, the whole
+    # report uses the standalone statements, and says why.
+    basis_note = None
+    if effective == "consolidated":
+        try:
+            from backend.premium_data import recent_annual_run
+        except ImportError:
+            from premium_data import recent_annual_run
+        today = now.date() if hasattr(now, "date") else None
+        con_n, con_end = recent_annual_run((annual.get("income") or {}).get("financials"), today)
+        sa_n, sa_end = recent_annual_run(annual.get("standaloneIncome"), today)
+        if con_n < 4 and sa_n >= 4 and sa_end is not None and (con_end is None or (con_end - sa_end).days <= 31):
+            annual, quarterly = {}, {}
+            yearly = _fetch_stock_fundamentals(symbol, "standalone", "yearly", annual, _lean=lean)
+            quarterly_view = _fetch_stock_fundamentals(symbol, "standalone", "quarterly", quarterly, _lean=lean)
+            effective = "standalone"
+            basis_note = (f"The consolidated statements cover only {con_n} recent full year{'s' if con_n != 1 else ''} (to {con_end.isoformat() if con_end else 'no date'}), "
+                          f"too few for growth over 3 to 5 years; this report uses the standalone statements, which cover {sa_n} consecutive years to {sa_end.isoformat()}.")
     quote_data = yearly.get("quote", {})
     raw = {"profile": annual.get("profile", {}), "annual": annual.get("income", {}),
         "quarterly": quarterly.get("income", {}), "balance": annual.get("balance", {}),
@@ -818,6 +839,8 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         "leverage": annual.get("leverage", {}), "secondaryLeverage": annual.get("secondaryLeverage"),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
+    if basis_note:
+        raw["basis_note"] = basis_note
     resolved_profile = yearly.get("profile", {})
     if isinstance(raw["profile"], dict):
         raw["profile"] = {**raw["profile"], **{key: value for key, value in {
@@ -841,6 +864,8 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
     # the dashboard's separate quarterly-CF availability into a model warning.
     quarterly_notes = [note for note in quarterly.get("resolutionNotes", []) if "cashflow" not in note.lower()]
     notes = list(dict.fromkeys(annual.get("resolutionNotes", []) + quarterly_notes))
+    if basis_note:
+        notes.append(basis_note)
     # Technical candles must precede the dashboard's close-only display defaults.
     # Keep their source and any fallback separate from financial-health inputs.
     try:
@@ -3660,7 +3685,12 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     # (ABB: consolidated 2024-2025 only), so when the consolidated cash flow has fewer than three annual rows, the standalone cash flow is fetched
     # (one extra call, only in that case) and the model may use it, saying so (3.6.15).
     standalone_cash_rows = []
-    if period == "yearly" and effective_statement_type == "consolidated" and len([r for r in cash_rows if isinstance(r, dict)]) < 3:
+    try:
+        from backend.premium_data import recent_annual_run, OCF_FIELDS
+    except ImportError:
+        from premium_data import recent_annual_run, OCF_FIELDS
+    # the latest unbroken run of years, not a plain row count: ABB's consolidated cash flow has 2011, 2012, 2024 and 2025
+    if period == "yearly" and effective_statement_type == "consolidated" and recent_annual_run(cash_rows, None, OCF_FIELDS)[0] < 3:
         standalone_cash_rows = _payload_items(_safe_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
             {"statement_type": "s", "statement_code": "cf", "period": "annual"}, default={}), ["financials", "data", "results", "items"])
     for note in resolution_notes:

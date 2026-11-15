@@ -27,11 +27,42 @@ OCF_FIELDS = ("netCashFromOperatingActivities", "cashFromOperatingActivity", "ca
 EPS_FIELDS = ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr")
 
 
+def recent_annual_run(rows, as_of=None, fields=None):
+    """(number of periods, latest period end) of the latest run of consecutive full-year results (330 to 400 days long, each ending 300 to 490 days
+    after the one before) that report a profit. FinEdge's consolidated history can stop and start again years later (ABB: 2011, 2012, then 2024,
+    2025), so a plain count of rows overstates it; only the latest unbroken run can give a 3- or 5-year comparison."""
+    ends = []
+    for row in rows or []:
+        if not isinstance(row, dict) or first(row, *(fields or PROFIT_FIELDS)) is None:
+            continue
+        end, start = field_date(row), row.get("period_start") or row.get("periodStart")
+        start_day = field_date({"period_end": start}) if start else None
+        if not end or (as_of and end > as_of) or (start_day and not 330 <= (end - start_day).days + 1 <= 400):
+            continue
+        ends.append(end)
+    ends = sorted(set(ends))
+    if not ends:
+        return 0, None
+    # Two "full years" ending less than 300 days apart overlap: FinEdge labels Nestle's 15-month period to March 2024 as a year, next to calendar 2023.
+    # They fill one slot (the later is kept), not a break in the run.
+    n, current, j = 1, ends[-1], len(ends) - 2
+    while j >= 0:
+        gap = (current - ends[j]).days
+        if gap < 300:
+            j -= 1
+            continue
+        if gap > 490:
+            break
+        n, current, j = n + 1, ends[j], j - 1
+    return n, ends[-1]
+
+
 def adapt_inputs(raw, symbol, as_of, statement_type):
     profile = profile_from(raw)
     group, defaulted = resolve_group(profile)
     warnings = []
     if defaulted: warnings.append("No model group matched the industry label; the manufacturing default was used only to compute the inputs.")
+    if raw.get("basis_note"): warnings.append(raw["basis_note"])
     provenance = {}
     qrows = items(raw.get("quarterly"), "financials", "data")
     arows = items(raw.get("annual"), "financials", "data")
