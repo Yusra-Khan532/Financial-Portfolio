@@ -196,16 +196,16 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
     lo, hi = out["p2"], out["p98"]
     scale, bars = "linear", [0] * 30
     if v and lo is not None and hi is not None and hi > lo:
+        # the chart runs from p2 to p98; companies outside it sit in the end bars, so one extreme company never squashes the rest (task #64, N-5)
         if lo > 0 and hi / lo >= 50:          # a wide, positive spread reads better on a log scale
             import math
             scale, a, b = "log", math.log(lo), math.log(hi)
             for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((math.log(x) - a) / (b - a) * 30))] += 1
+                bars[0 if x <= lo else 29 if x >= hi else min(29, max(0, int((math.log(x) - a) / (b - a) * 30)))] += 1
         else:
             for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((x - lo) / (hi - lo) * 30))] += 1
+                bars[0 if x <= lo else 29 if x >= hi else min(29, max(0, int((x - lo) / (hi - lo) * 30)))] += 1
+    out["outside"] = {"below": sum(1 for x in v if lo is not None and x < lo), "above": sum(1 for x in v if hi is not None and x > hi)}
     out.update(hist30=bars, scale=scale, values=[round(x, 6) for x in v])
     if len(_ratio_stats) > 200:
         _ratio_stats.clear()

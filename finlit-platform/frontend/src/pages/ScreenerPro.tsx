@@ -377,7 +377,7 @@ export function ScreenerPro() {
                 </form>
                 {crGold ? <div className="ssw-rl" role="group" aria-label="Custom ratio">
                   <b>Custom ratio</b>
-                  <small>Divide one figure by another and filter on the result.</small>
+                  <small>Divide one figure by another, such as cash by market cap. It becomes a column, and a filter if you set a condition. Up to 3 at a time.</small>
                   {ratios.length > 0 && <ul className="ssw-rlon">{ratios.map((r) => <li key={r.id}><button type="button" onClick={() => openRatio(r)} aria-label={`Change ${r.name}`}><span><b>{r.name}</b><small>{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den}</small></span><em>{valueText(r)}</em></button></li>)}</ul>}
                   <button type="button" className="btn primary ssw-rb" onClick={() => openRatio()} disabled={ratios.length >= 3} title={ratios.length >= 3 ? "You have 3 ratios on, the most at one time. Remove one to add another." : undefined}><Icon name="percent" />+ Build a ratio</button>
                   {ratios.length === 0 && <div className="ssw-rlex"><small>Examples</small>{RATIO_EXAMPLES.filter((x) => byKey.has(x.num) && byKey.has(x.den)).map((x) => <button key={x.name} type="button" className="lnk" onClick={() => openRatio({ name: x.name, num: x.num, den: x.den, show: x.show, op: "gt" })}>{x.name}</button>)}</div>}

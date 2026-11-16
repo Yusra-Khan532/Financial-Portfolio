@@ -105,14 +105,14 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
     st.cat = catalog(false, "gold");                                                                 // Gold and Platinum only (CR-0)
     mount(); await ready();
+    expect(screen.getByRole("group", { name: "Custom ratio" }).textContent).toContain("Up to 3 at a time.");   // N-9
     const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
     expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
     expect(document.getElementById("scr-ratio")).toBeNull();
     fireEvent.click(b);
     const dlg = screen.getByRole("dialog", { name: "Build a custom ratio" });
     expect(document.getElementById("scr-ratio")).toBeNull();                                         // a drawer, not a section that pushes the table down
-    expect(within(dlg).queryByRole("button", { name: /^P\/E/ })).toBeNull();                         // P/E is behind the tick box (a ratio already)
-    fireEvent.click(within(dlg).getByRole("checkbox", { name: /Also show ratios, percentages and counts/ }));
+    expect(within(dlg).queryByRole("checkbox")).toBeNull();                                          // every figure is listed at once (14 Nov, N-1)
     fireEvent.click(within(dlg).getByRole("button", { name: /^P\/E/ }));
     fireEvent.click(within(dlg).getByRole("button", { name: /^Return on equity/ }));
     fireEvent.click(await within(dlg).findByRole("radio", { name: "No condition, just the column" }));
