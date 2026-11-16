@@ -42,7 +42,7 @@ export function ScoreGrid({ total, needsQty, band, tiles, onAddQty, onGo }: { to
 }
 export type View = "portfolio" | "diversification" | "risk";
 export function ViewTabs({ view, onView, n }: { view: View; onView: (v: View) => void; n: number }) {
-  const tabs: [View, string, string][] = [["portfolio", "Portfolio", `Your ${n} shares, their scores and how they compare with peers`], ["diversification", "Diversification", "How spread out the list is, and what moves together"], ["risk", "Risk analytics", "How much it swings, what drives the risk, what a fall could mean"]];
+  const tabs: [View, string, string][] = [["portfolio", "Portfolio", `Your ${n} shares, their scores and how they compare with peers`], ["diversification", "Diversification analytics", "How spread out the list is, and what moves together"], ["risk", "Risk analytics", "How much it swings, what drives the risk, what a fall could mean"]];
   return <div className="eq-tabs" role="tablist" aria-label="Equity portfolio views">{tabs.map(([k, t, s]) => <button key={k} type="button" role="tab" id={`eq-tab-${k}`} aria-selected={view === k} aria-controls="eq-panel" onClick={() => onView(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
 }
 

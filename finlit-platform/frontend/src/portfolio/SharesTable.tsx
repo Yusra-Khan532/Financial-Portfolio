@@ -37,7 +37,7 @@ const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x
 
 type Props = {
   lines: Line[]; meta: Record<string, Meta>; page: PageObject | null; mode: Mode; colors: Record<string, string>; model: Model; tab: Tab; period: Period; limit: number;
-  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; onExport: () => void; actions: (symbol: string) => ReactNode;
+  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; actions: (symbol: string) => ReactNode;
   /** Quantity the member typed for a share (null when none) and the setter; with the latest price they give the Value column. */
   qtyOf: (symbol: string) => number | null; onQty: (symbol: string, qty: number | null) => void;
   /** The final pages pack (12): each share's peer reading, FinLit size and industry, the day word for the move, and the cards above the table. */
@@ -142,8 +142,7 @@ export function SharesTable(p: Props) {
       <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{plural(lines.length, "share")} · limit {p.limit}{!long ? " · grouped by how each did against its peers" : ""}</p>}</div>
         <div className="pfx-tabs" role="tablist" aria-label="Portfolio views">{TABS.map((t, i) => (
           <button key={t.id} type="button" role="tab" id={`pf-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="pf-panel" tabIndex={tab === t.id ? 0 : -1} className={"pfx-pillbtn" + (tab === t.id ? " on" : "")} onClick={() => p.onTab(t.id)}
-            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}
-          <button type="button" className="pfx-btn" onClick={p.onExport} disabled={!lines.length}>Export CSV</button></div></div>
+            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
       <div className={"pfx-tools" + (p.peerOf && !long && tab !== "financials" ? " eq-hide" : "")}>
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />

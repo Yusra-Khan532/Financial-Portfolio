@@ -121,11 +121,11 @@ export function TabStrip({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
 
 export type PortfolioTableProps = {
   lines: Line[]; model: Model; tab: Tab; period: Period; limit: number; state: "loading" | "ready" | "error"; errorText?: string;
-  onPeriod: (p: Period) => void; onExport: () => void;
+  onPeriod: (p: Period) => void;
   flags?: Record<string, string>; actions?: (symbol: string) => ReactNode;
 };
 
-export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, onExport, flags, actions }: PortfolioTableProps) {
+export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, flags, actions }: PortfolioTableProps) {
   const cols = useMemo(() => columnsFor(tab, model, period), [tab, model, period]);
   const [sortId, setSortId] = useState("score"), [dir, setDir] = useState<1 | -1>(-1);
   const [band, setBand] = useState<BandFilter>(null), [q, setQ] = useState("");
@@ -142,8 +142,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
 
   return (
     <section className="card hold-card pf-tabs-card"><div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Your shares</h3>
-      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span>
-      <button type="button" className="btn" onClick={onExport} disabled={!lines.length}>Export CSV</button></div>
+      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span></div>
         <div className="hold-bar">
           <div className="hold-chips" role="group" aria-label={`Filter by ${unit} score colour`}>
             <button type="button" className={"hchip" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All <b>{lines.length}</b></button>

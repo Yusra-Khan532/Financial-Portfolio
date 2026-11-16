@@ -5,20 +5,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { useUI } from "../lib/ui";
+import { TIER, useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useSearchIndex } from "../lib/api";
 import { useUniverse } from "../lib/screener";
 import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
 import { RemoveAll } from "../components/RemoveAll";
-import { saveFile } from "../stock/derive";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
 import { isPdf } from "../lib/holdingsPdf";
 import { entriesFrom, entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
-import { csvName, modelFor, parsePeriod, parseTab, toCsv, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
+import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { ScoreCard, ScoreInputs } from "../portfolio/ScoreCard";
 import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
@@ -119,7 +118,6 @@ export function HoldingsPage() {
     if (symbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
     portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0 }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
   };
-  const exportCsv = () => model && saveFile(csvName(tab, period), toCsv(lines, tab, model, period), "text/csv;charset=utf-8");
   const empty = !lines.length;
   const common = page && model ? { page, meta, symbols: ids, mode, colors, model, ov: ovMap } : null;
 
@@ -154,7 +152,7 @@ export function HoldingsPage() {
       <Gate tier="silver" title="Score your portfolio" points={["FinLit IQ and pillars for every share you own (Gold: FinLit Prism)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <header className="sp-head eq-head">
-          <div><p className="eq-plan"><span>Silver</span></p><h1>Equity portfolio</h1>
+          <div><p className="eq-plan"><span>{TIER[plan].n}</span></p><h1>Equity portfolio</h1>
             <p className="sp-desc">How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money. Nothing is sent to a broker.</p>
             <nav className="eq-links" aria-label="Related pages"><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/watchlist">Watchlists →</Link><Link className="sp-link" to="/alerts">Alerts →</Link><Link className="sp-link" to="/learn/portfolio">Learn more →</Link></nav></div>
         <section className="eq-addbar" aria-label="Add shares">
@@ -201,7 +199,7 @@ export function HoldingsPage() {
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
           {view === "portfolio" && <>
             <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
-              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)} onExport={exportCsv}
+              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SizeFold counts={sizeCount} />

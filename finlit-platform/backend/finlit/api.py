@@ -213,7 +213,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             try:
                 if await leadership_api.public_now(app.state.store):
                     async with app.state.store.pool.acquire() as conn:
-                        lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+                        lead = {x["symbol"]: {**dict(x), "label": leadership_api.agreeing(x["label"], x["raw_label"], x["rel52"])} for x in await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
         out = []

@@ -9,7 +9,7 @@ const silver = fx.silver as unknown as Overview, gold = fx.gold as unknown as Ov
 const lines = (o: Overview): Line[] => o.holdings.map((h) => ({ symbol: h.symbol, name: isReady(h) ? h.name : null, ov: h }));
 const noop = () => {};
 const table = (o: Overview, model: Model, tab: Tab, period: Period = "year", state: "loading" | "ready" | "error" = "ready", ls = lines(o)) =>
-  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop} onExport={noop}
+  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop}
     actions={(s) => <button>Remove {s}</button>} /></StaticRouter>);
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
@@ -46,9 +46,9 @@ describe("Overview tab", () => {
     const html = table(silver, "finlit", "overview");
     expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
   });
-  it("has the filter chips, search box and Export CSV", () => {
+  it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).toContain("Export CSV");
+    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
   });
 });
 
