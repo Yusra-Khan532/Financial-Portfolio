@@ -69,3 +69,31 @@
 .gx-cell .csay-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gx-cell .csay-t { min-width: 0; }
 .gx-count { font: 600 13px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; } .gx-max { font-size: 13px; color: var(--warn); }
+/* Task #124: the chart's pencil sits with its other top-right controls; the badge counts its drawings */
+.gx-cell header .gx-draw { position: relative; } .gx-cell header .gx-draw svg { width: 17px; height: 17px; }
+.gx-cell header .gx-draw.on { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--s2)); }
+/* the pencil takes its place beside the other controls without taking it from the chart's title: the chart-type list gives the room (it is wide only for its
+   longest option), so the title keeps the width it had before task #124 */
+.gx-cell header h3 { flex: 1 1 0; min-width: 48px; } .gx-cell header select { flex: 0 1 140px; width: 140px; min-width: 96px; }
+@media (max-width: 640px) { .gx-cell header select { flex-basis: 128px; width: 128px; } }
+
+/* Task #164: three charts in a row. A chart narrower than 460px puts its title on a line of its own (shown in full) and its type menu and buttons on the
+   line below, so nothing spills over the card's edge into the next chart. */
+.gx-cell { container-type: inline-size; container-name: gxcell; }
+@container gxcell (max-width: 460px) {
+  .gx-cell header { flex-wrap: wrap; row-gap: 8px; }
+  .gx-cell header h3 { flex: 1 0 100%; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+  .gx-cell header select { flex: 1 1 0; max-width: none; min-width: 84px; }
+}
+/* Task #164: the arrow on the panel's top-right edge folds the companies-and-measures panel to a slim strip, giving the charts the full width. */
+.gx-edge { display: none; }
+@media (min-width: 901px) {
+  .gx-panel { position: sticky; }
+  .gx-edge { display: inline-grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 2; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border-strong); border-radius: 8px;
+    background: var(--s2); color: var(--muted); font: 600 var(--fs-20, 20px)/1 var(--sans); cursor: pointer; }
+  .gx-edge:hover, .gx-edge:focus-visible { color: var(--gold); border-color: var(--gold); }
+  .gx-panel:not(.gx-shut) > div > h2:first-child { padding-right: 40px; }
+  .gx.gx-wide { grid-template-columns: 54px minmax(0, 1fr); }
+  .gx-panel.gx-shut { padding: 10px; overflow: visible; min-height: 52px; }
+  .gx-panel.gx-shut .gx-edge { position: static; }
+}

@@ -194,3 +194,26 @@ describe("ROE quality score verdict (task #96)", () => {
     expect(card.textContent).toContain("/ 100");
   });
 });
+
+// The team's report (14 Nov 2026, CreditAccess Grameen): the what-if calculator showed a net margin of 4,85,23,30,…% and an ROE as long, and the value
+// ran into the next slider's label. The margin slider's top end was twice the value then set, so every drag to the end doubled it.
+describe("what-if calculator: the sliders keep the starting year's range", () => {
+  it("dragging the margin to its end again and again stays at a fixed top, and the ROE stays a short figure", async () => {
+    const { simRanges } = await import("../lib/dupontDeep");
+    show();
+    const m = screen.getByLabelText("Net margin") as HTMLInputElement;
+    const top = Number(m.max);
+    for (let i = 0; i < 40; i++) fireEvent.change(m, { target: { value: String(Number(m.max) * 10) } });   // the old bug: each drag to the end doubled the top
+    expect(Number(m.max)).toBe(top); expect(Number(m.value)).toBeLessThanOrEqual(top);
+    const out = document.querySelector(".dp-simout b")!.textContent!;
+    expect(out.length).toBeLessThan(10);                           // e.g. "296.0%", never a 60-digit figure
+    expect(simRanges({ margin: 12, turnover: 0.19, multiplier: 4.07 })).toEqual({ m: [0, 40], t: [0, 3], e: [1, 7] });
+  });
+  it("a lender and a loss year get sensible ranges: the margin can start below 0, and a broken input never escapes the range", async () => {
+    const { simRanges, clampTo } = await import("../lib/dupontDeep");
+    expect(simRanges({ margin: -8.4, turnover: 0.2, multiplier: 5 }).m).toEqual([-9, 40]);
+    expect(simRanges({ margin: 55, turnover: 1, multiplier: 2 }).m).toEqual([0, 110]);
+    expect(simRanges({ margin: NaN, turnover: Infinity, multiplier: 2 })).toEqual({ m: [0, 40], t: [0, 3], e: [1, 6] });
+    expect([clampTo(1e64, [0, 40]), clampTo(-5, [0, 40]), clampTo(NaN, [0, 40]), clampTo(12.5, [0, 40])]).toEqual([40, 0, 0, 12.5]);
+  });
+});

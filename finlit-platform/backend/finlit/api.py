@@ -721,6 +721,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(mf_insights.router)   # before mf_api: its /api/mf/{code} would otherwise claim /api/mf/insights
     app.include_router(mf_api.router)
     app.include_router(search_api.router)
+    app.include_router(__import__("finlit.isin", fromlist=["router"]).router)   # POST /api/isin/resolve: holdings files are read by ISIN (task #128)
     app.include_router(ext_api.router)   # /api/ext/company/{symbol}: the browser extension's one lookup
     app.include_router(logos_api.router)
     app.include_router(amfi_import_api.router)
@@ -750,8 +751,10 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.prism_technical", fromlist=["router"]).router)   # GET /api/technicals/status: public, read-only (when the technical views were last refreshed, and the bar dates held)
     app.include_router(__import__("finlit.sector_api", fromlist=["router"]).router)   # /api/sectors, /api/sectors/{slug}, /api/sectors/status, /api/technicals/{symbol}/sector: static JSON the nightly refresh-sectors job writes
     app.include_router(prism.router)   # /api/prism/*: the members' door to the site backend's administrator-only /api/premium-reports
-    app.include_router(__import__("finlit.outlook.router", fromlist=["router"]).router)   # /api/outlook/{symbol}: Gold profit and revenue outlook
+    app.include_router(__import__("finlit.outlook.router", fromlist=["router"]).router)   # /api/outlook/{symbol}: Gold profit and revenue forecasting
     app.include_router(__import__("finlit.mfportfolio.api", fromlist=["router"]).router)   # /api/me/mf-portfolio: My mutual funds (before the site-backend catch-all)
+    app.include_router(__import__("finlit.myinvest.api", fromlist=["router"]).router)   # POST /api/me/all-investments: All my investments (task #137)
+    app.include_router(__import__("finlit.etfportfolio.api", fromlist=["router"]).router)   # /api/me/etf-portfolio: ETF portfolio, task #136 (before the site-backend catch-all)
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: Equity portfolio page, before the site-backend catch-all
     app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
     if settings.site_api_url:

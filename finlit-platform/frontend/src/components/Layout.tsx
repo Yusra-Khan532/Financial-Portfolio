@@ -18,7 +18,7 @@ import { EnquiryProvider, useEnquiry } from "./Enquiry";
 import { InfoProvider } from "./Info";
 import { DEMO } from "../lib/demo";
 import { useAuth } from "../lib/auth";
-import { MORE, PRICING, SECTIONS, isHere, offeredTo, sectionHere, type NavSection } from "../lib/nav";
+import { MORE, PRICING, SECTIONS, isHere, isNew, offeredTo, sectionHere, type NavSection } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
 import { versionLine } from "../lib/version";
 import { PageFeedbackDock } from "./PageFeedback";
@@ -35,7 +35,7 @@ function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpe
         {m.groups.map((g, gi) => (
           <div className="ddg" key={gi}>{g.title && <span className="ddt">{g.title}</span>}
             {g.items.map((it) => <Link key={it.to} to={it.to} role="menuitem" className={isHere(path, it) ? "here" : undefined} aria-current={isHere(path, it) ? "page" : undefined} onClick={() => setOpen(null)}>
-              <span className="ddi"><Icon name={it.icon} /></span><span><b>{it.label}{it.gold && <em className="gtag">Gold</em>}</b><small>{it.sub}</small></span></Link>)}</div>
+              <span className="ddi"><Icon name={it.icon} /></span><span><b>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</b><small>{it.sub}</small></span></Link>)}</div>
         ))}
       </div>
     </div>
@@ -112,7 +112,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           {user && <div className="mg mg-first"><NavLink to="/dashboard" className="mdash">Dashboard</NavLink></div>}
           {[...sections, MORE].map((m) => <div key={m.id} className="mg"><span className="mt">{m.label}</span>
             {m.groups.map((g, gi) => <Fragment key={gi}>{g.title && m.id !== "more" && <span className="mt2">{g.title}</span>}{g.title && m.id === "more" && <span className="mt2">{g.title}</span>}
-              {g.items.map((it) => <NavLink key={it.to} to={it.to} end={it.end}>{it.label}{it.gold && <em className="gtag">Gold</em>}</NavLink>)}</Fragment>)}</div>)}
+              {g.items.map((it) => <NavLink key={it.to} to={it.to} end={it.end}>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</NavLink>)}</Fragment>)}</div>)}
           <div className="mg"><NavLink to={PRICING.to}>{PRICING.label}</NavLink>{user ? <><NavLink to="/dashboard">Dashboard</NavLink><NavLink to="/account">Account</NavLink></> : <><Link to="/login">Sign in</Link><Link to="/login?mode=signup" className="gold">Create free account</Link></>}</div>
         </nav>
       )}
@@ -128,7 +128,7 @@ const once = (items: { to: string; label: string }[]) => items.filter((it, i) =>
 const FOOT: { title: string; items: { to: string; label: string }[] }[] = [
   { title: "Research", items: pick("research") },
   { title: "Markets and news", items: once([...pick("markets"), ...pick("news"), { to: "/premium/markets", label: "Market events & index" }, { to: "/premium/options", label: "Option chain" }]) },
-  { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "Fund Health Score" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
+  { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "FinLit FundPulse" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
 ];
 
 /** The home page's footer: the logo, one line, the disclosure and the main links. Every other page keeps the full footer. */

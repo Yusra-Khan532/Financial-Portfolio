@@ -17,7 +17,8 @@ from dataclasses import dataclass, field
 from statistics import median
 from typing import Dict, List, Optional, Sequence, Tuple
 
-INPUT_CAP = 50.0          # each growth input is limited to -50% .. +50% a year (winsorised) before it is weighted
+INPUT_CAP = 50.0          # each growth input the model computes is limited to -50% .. +50% a year (winsorised) before it is weighted
+USER_MIN, USER_MAX = -99.0, 999.0   # task #166: a rate the user types in "Set your own model" may be any percentage in this range (a fall of 100% or more a year is not a rate)
 NEAR_ZERO_MARGIN = 0.005  # a profit under 0.5% of that year's revenue counts as near zero for the growth ratio
 MIN_PEERS = 5             # fewest peer companies for a sector median
 ONE_OFF_SHARE = 0.10      # one-off items below this share of net profit are left in
@@ -83,8 +84,9 @@ def validate_weights(kind: str, weights: Optional[Dict[str, float]], horizon: st
 
 
 def validate_values(kind: str, values: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
-    """The user's own expected growth rates ("Set your own model", task #146): a percent a year per parameter, each set on its own (no total), within
-    -INPUT_CAP .. +INPUT_CAP, the same limit the model's inputs have. Any subset of the kind's parameters; one left out keeps the company's figure."""
+    """The user's own expected growth rates ("Set your own model", task #146): a percent a year per parameter, each set on its own (no total), typed by
+    the user anywhere in USER_MIN .. USER_MAX (task #166: no longer held to the model's own +/-50% cap). Any subset of the kind's parameters; one left
+    out keeps the company's figure."""
     if values is None:
         return None
     keys = {p[0] for p in PARAMS[kind]}
@@ -93,8 +95,8 @@ def validate_values(kind: str, values: Optional[Dict[str, float]]) -> Optional[D
         raise WeightError("Unknown parameter: " + ", ".join(extra))
     out: Dict[str, float] = {}
     for k, v in values.items():
-        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or abs(v) > INPUT_CAP:
-            raise WeightError(f"{k}: each growth rate must be between -{INPUT_CAP:g}% and +{INPUT_CAP:g}% a year.")
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not USER_MIN <= v <= USER_MAX:
+            raise WeightError(f"{k}: each growth rate must be between {USER_MIN:g}% and +{USER_MAX:g}% a year.")
         out[k] = float(v)
     return out
 
@@ -354,4 +356,4 @@ def forecast(kind: str, h: Hist, horizon: str, weights: Dict[str, float], sector
             prev = v
         fc["available"] = True
         fc["base"] = {"period": last, "valueCr": round(base, 2)}
-    return {"rate": wr, "forecast": fc, "horizon": HORIZONS[horizon], "inputCapPct": INPUT_CAP, "minPeers": MIN_PEERS}
+    return {"rate": wr, "forecast": fc, "horizon": HORIZONS[horizon], "inputCapPct": INPUT_CAP, "userRangePct": [USER_MIN, USER_MAX], "minPeers": MIN_PEERS}

@@ -55,6 +55,8 @@ from .premium import gateway_token
 from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 from .prism_public import public_report, public_summary
+from . import prism_screen
+from . import prism_benchmarks
 
 log = logging.getLogger("finlit.prism")
 router = APIRouter(prefix="/api/prism")
@@ -296,7 +298,13 @@ def _summary(row, refreshing: bool = False) -> Dict[str, Any]:
 CLASSIFICATION_VERSION = 3
 # Mirrors site-api/backend/premium_model_config.py; a regression test keeps them aligned.
 # 3.6.12: the growth in PEG is EPS growth (split/bonus adjusted), falling back to net profit growth; stored reports of an older version are rebuilt.
-REQUIRED_MODEL_VERSION = "3.6.12"
+# 3.6.13: NBFCs with neither Gross NPA nor Net NPA use financial leverage (assets / equity, 10x-4x) in those two Quality slots.
+# 3.6.14: PEG growth uses standalone EPS history when the consolidated one is too short for a 3-year window.
+# 3.6.15: cash conversion uses standalone statements when the consolidated history has fewer than three complete years.
+# 3.6.16: a consolidated history too short for a 3-year comparison switches the whole report to the standalone statements.
+# 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
+# 3.6.18: out-of-date consolidated statements switch to standalone; provider failures on the company's own data stop the calculation.
+REQUIRED_MODEL_VERSION = "3.6.18"
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 
 
@@ -381,18 +389,33 @@ async def record_history(db, symbol: str, statement: str, view: Dict[str, Any], 
         return False
 
 
-async def record_technical(db, symbol: str, statement: str, card: Optional[Dict[str, Any]]) -> bool:
-    """The short- and long-term technical views of today, from the daily refresh: only those two columns of today's row (the row is created with no score when no full
-    calculation ran today, so a score is never claimed for a day it was not worked out). Never raises."""
+async def record_technical(db, symbol: str, statement: str, card: Optional[Dict[str, Any]], rating: Optional[Dict[str, Any]] = None) -> bool:
+    """Today's row from the daily refresh: the short- and long-term technical views, and (task #126) the business scores IN FORCE today, from the stored report
+    the refresh has just read (`rating`): the Prism score, its four parts, label, status and model version that the report page shows today. A full calculation
+    the same day keeps its own figures (it writes them, and they are never replaced here), so every recorded day has the rating that held on it, and the
+    chart's step lines run across the days between two re-ratings. A company with no rating gets no score. Never raises."""
     card = card if isinstance(card, dict) else {}
     st, lt = _score((card.get("st") or {}).get("score")), _score((card.get("lt") or {}).get("score"))
-    if st is None and lt is None:
+    rating = rating if isinstance(rating, dict) else {}
+    final = _score(rating.get("final"))
+    parts = rating.get("parts") if isinstance(rating.get("parts"), dict) else {}
+    if st is None and lt is None and final is None:
         return False
     try:
         await db.execute(
-            """INSERT INTO prism_history (symbol, statement, day, st_score, lt_score) VALUES ($1, $2, (now() AT TIME ZONE 'Asia/Kolkata')::date, $3, $4)
+            """INSERT INTO prism_history (symbol, statement, day, st_score, lt_score, model_version, final, label, status, p_fundamental, p_valuation, p_quality, p_risk)
+               VALUES ($1, $2, (now() AT TIME ZONE 'Asia/Kolkata')::date, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                ON CONFLICT (symbol, statement, day) DO UPDATE SET st_score = COALESCE(EXCLUDED.st_score, prism_history.st_score),
-                   lt_score = COALESCE(EXCLUDED.lt_score, prism_history.lt_score), recorded_at = now()""", symbol, statement, st, lt)
+                   lt_score = COALESCE(EXCLUDED.lt_score, prism_history.lt_score),
+                   model_version = COALESCE(prism_history.model_version, EXCLUDED.model_version), final = COALESCE(prism_history.final, EXCLUDED.final),
+                   label = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.label ELSE prism_history.label END,
+                   status = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.status ELSE prism_history.status END,
+                   p_fundamental = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_fundamental ELSE prism_history.p_fundamental END,
+                   p_valuation = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_valuation ELSE prism_history.p_valuation END,
+                   p_quality = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_quality ELSE prism_history.p_quality END,
+                   p_risk = CASE WHEN prism_history.final IS NULL THEN EXCLUDED.p_risk ELSE prism_history.p_risk END, recorded_at = now()""",
+            symbol, statement, st, lt, rating.get("modelVersion") if final is not None else None, final, rating.get("label") if final is not None else None,
+            rating.get("status") if final is not None else None, *((_score(parts.get(k)) if final is not None else None) for k in ("fundamental", "valuation", "quality", "risk")))
         return True
     except Exception as exc:
         log.warning("prism technical history not recorded for %s: %s", symbol, type(exc).__name__)
@@ -545,6 +568,34 @@ async def _refresh_stale_technical(app, symbol: str, row) -> bool:
     except Exception as exc:
         log.warning("prism technical refresh on open not started for %s: %s", symbol, type(exc).__name__)
         return False
+
+
+SHOWCASE_MAX_AGE = 300    # seconds a browser or proxy may keep the landing page's reading (a score is worked out at most once a day)
+
+
+@router.get("/showcase")
+async def showcase(request: Request) -> JSONResponse:
+    """The landing page's FinLit Prism card (task #153): the newest stored reading of the showcase company (SHOWCASE_SYMBOLS, first entry; RELIANCE),
+    open to every visitor like the rest of that company's Prism figures. Only the card figures: the score, its four parts, the two technical views,
+    their dates and the company's name, never the report. No stored reading: 404 with the reason, and the page shows its dated example instead."""
+    symbols = list(request.app.state.settings.showcase_symbols or [])
+    if not symbols:
+        return _reply({"status": "none", "detail": "No showcase company is set."}, 404)
+    symbol = symbols[0]
+    try:
+        rows = await request.app.state.store.prism_cards([symbol])
+        name = await request.app.state.store.pool.fetchval("SELECT name FROM companies WHERE symbol = $1", symbol)
+    except Exception as exc:
+        log.warning("prism showcase not read: %s", type(exc).__name__)
+        return _reply({"status": "unavailable", "detail": "The sample reading cannot be read right now."}, 503, retry=60)
+    row = next((r for r in rows if r["symbol"] == symbol), None)
+    if row is None:
+        return _reply({"status": "none", "detail": f"No {PRISM_NAME} reading is stored for {symbol} yet."}, 404)
+    s = prism_screen.shape(row)
+    body = {"symbol": symbol, "name": name or symbol, "final": s["prism_final"], "label": s["prism_label"], "status": s["prism_status"], "at": s["prism_at"],
+            "techAt": s["prism_tech_at"], "parts": {k: s["prism_" + k] for k in prism_screen.PARTS},
+            "st": {"score": s["prism_st_score"], "word": s["prism_st"]}, "lt": {"score": s["prism_lt_score"], "word": s["prism_lt"]}}
+    return JSONResponse(body, headers={"Cache-Control": f"public, max-age={SHOWCASE_MAX_AGE}"})
 
 
 @router.get("/reports/latest")
@@ -733,6 +784,9 @@ async def _report_body(app, symbol: str, statement: str) -> Dict[str, Any]:
         await mark_down(getattr(getattr(app.state, "store", None), "redis", None))      # a timeout or crash: do not make the next report wait for Dhan too
     if candles:
         body["suppliedCandles"] = candles
+    medians = await prism_benchmarks.for_report(getattr(app.state, "store", None), symbol)    # used by the model only where FinEdge/Upstox give none (task #160)
+    if medians:
+        body["sectorBenchmarks"] = medians
     return body
 
 

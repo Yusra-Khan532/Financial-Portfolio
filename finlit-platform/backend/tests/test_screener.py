@@ -142,6 +142,25 @@ def test_growth_is_blank_when_last_year_was_a_loss():
     assert m["op_profit"] == 100.0 and "op_profit_growth" not in m and "op_profit_cagr_3y" not in m
 
 
+def _peg_sections(**ratios):
+    latest = {k: {"value": v, "period": p} for k, (v, p) in ratios.items()}
+    return {"summary": {"profile": {}, "quote": {}}, "ratios": {"latest": latest}}
+
+
+@pytest.mark.parametrize("ratios,peg", [
+    ({"pe": (60.0, "x"), "profit_cagr_5y": (12.0, "5Y"), "profit_cagr": (30.0, "2Y")}, 5.0),     # the real 5-year CAGR wins
+    ({"pe": (60.0, "x"), "profit_cagr_3y": (15.0, "3Y")}, 4.0),                                # else the 3-year one
+    ({"pe": (60.0, "x"), "profit_cagr": (20.0, "3Y")}, 3.0),                                   # a growth rate that really spans 3 years
+    ({"pe": (60.0, "x"), "profit_cagr": (20.0, "5Y")}, 3.0),
+    ({"pe": (60.0, "x"), "profit_cagr": (20.0, "2Y")}, None),                                  # one or two years is not long-term growth: no PEG
+    ({"pe": (60.0, "x"), "profit_cagr": (20.0, "1Y")}, None),
+    ({"pe": (60.0, "x"), "profit_cagr_5y": (-3.0, "5Y")}, None),                               # no PEG for shrinking profit
+])
+def test_peg_uses_a_profit_growth_of_three_or_more_years(ratios, peg):
+    m = compute(_peg_sections(**ratios))
+    assert m.get("peg") == (pytest.approx(peg) if peg is not None else None)
+
+
 # ---------------------------------------------------------------- every listed company (item 5)
 from finlit.screener import listing  # noqa: E402
 from finlit.screener.data import with_listing  # noqa: E402

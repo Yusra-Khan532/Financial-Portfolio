@@ -1,5 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
-import { DrawLayer } from "../components/DrawLayer";
+import { DrawLayer, DrawToggle } from "../components/DrawLayer";
 import { ChartInference } from "../components/ChartInference";
 import { ChartReading } from "../components/ChartReading";
 import { topicOfChart } from "../lib/chartSays";
@@ -68,7 +68,13 @@ const RANK: Record<Plan, number> = { basic: 0, silver: 1, gold: 2 };
 type RS = { sp: SeriesSpec; mt: Metric; ex: Extracted; label: string; color: string; sym: string; err?: string };
 const name = (rows: [string, string][] | undefined, s: string) => rows?.find((r) => r[0] === s)?.[1] ?? s;
 
-function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRemove, onZoom, zoomed, plan, c }: { i: number; cell: CellSpec; view: View; bundles: ReturnType<typeof useBundles>; active: boolean; onActive: () => void; onChange: (n: CellSpec) => void; onDrop: (m: string) => void; onRemove: () => void; onZoom: () => void; zoomed: boolean; plan: Plan; c: Colors }) {
+const PANEL_KEY = "finlit-gx-panel";
+/** Task #164: open or shut chart n's markup toolbar without touching the others. */
+export const toggleDraw = (open: number[], n: number, on: boolean): number[] => (on ? (open.includes(n) ? open : [...open, n].sort((a, b) => a - b)) : open.filter((x) => x !== n));
+/** When chart n is removed, its toolbar goes and the charts after it move up one place, keeping theirs. */
+export const shiftDraw = (open: number[], n: number): number[] => open.filter((x) => x !== n).map((x) => (x > n ? x - 1 : x));
+
+function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRemove, onZoom, zoomed, plan, c, drawing, onDraw }: { i: number; cell: CellSpec; view: View; bundles: ReturnType<typeof useBundles>; active: boolean; onActive: () => void; onChange: (n: CellSpec) => void; onDrop: (m: string) => void; onRemove: () => void; onZoom: () => void; zoomed: boolean; plan: Plan; c: Colors; drawing: boolean; onDraw: (open: boolean) => void }) {
   const { ref, w } = useWidth();
   const { upgrade } = useUI();
   const lim = graphLimits(plan);
@@ -147,6 +153,8 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
   const drawId = "gx:" + viewId(JSON.stringify([cell.chart, tf, cell.x, cell.y, cell.mode, view.range, view.from, view.basis, cell.series.map((x) => [x.s, x.m, x.as])]));
   const seriesKeys = cell.series.map((x) => `${x.s}|${x.m}|${x.as ?? ""}`);
   const prevDraw = useRef({ id: drawId, keys: seriesKeys });
+  const drawable = w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar");
+  const [marks, setMarks] = useState(0);                                     // drawings on this chart, for the pencil's badge
   useEffect(() => {
     const p = prevDraw.current;
     if (p.id !== drawId && p.keys.some((k) => !seriesKeys.includes(k))) clearShapes(p.id);   // a series was taken off this chart
@@ -159,6 +167,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
         <select aria-label={`Chart ${i + 1} type`} value={cell.chart} onChange={(e) => { const v = e.target.value as ChartKind; if (!lim.charts.includes(v)) upgrade(chartTier(v), `The ${CHART_LABEL[v]} chart`); else asSet({ chart: v }); }}>
           {CHARTS.map((k) => { const r = chartCheck(k, facts, plan); return <option key={k} value={k} disabled={!r.ok && k !== cell.chart && !!r.why && r.why !== "Not in your plan"}>{CHART_LABEL[k]}{!r.ok && r.why ? ` — ${r.why}` : ""}</option>; })}
         </select>
+        {drawable && <DrawToggle open={drawing} count={marks} onToggle={() => { onActive(); onDraw(!drawing); }} className="gx-x gx-draw" />}{/* task #124: the pencil in the chart's top-right controls */}
         <button className="gx-x gx-zoom" aria-label={zoomed ? `Restore chart ${i + 1}` : `Enlarge chart ${i + 1}`} aria-pressed={zoomed} title={zoomed ? "Back to the grid (Esc)" : "Enlarge this chart"} onClick={(e) => { e.stopPropagation(); onZoom(); }}><ZoomGlyph zoomed={zoomed} /></button>
         <button className="gx-x" aria-label={`Remove chart ${i + 1}`} title="Remove this chart" onClick={(e) => { e.stopPropagation(); clearShapes(drawId); onRemove(); }}>×</button></header>
       <div className="gx-legend">{rs.map((r, n) => <span key={r.sp.s + r.sp.m} className="gx-chip"><i style={{ background: r.color }} />{r.label} <small>{UNITS[r.mt.unit].label}</small>
@@ -168,7 +177,7 @@ function Cell({ i, cell, view, bundles, active, onActive, onChange, onDrop, onRe
       {cell.chart === "scatter" && ok.length >= 2 && <div className="gx-xy"><label>X <select value={Math.min(cell.x ?? 0, ok.length - 1)} onChange={(e) => asSet({ x: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label><label>Y <select value={Math.min(cell.y ?? 1, ok.length - 1)} onChange={(e) => asSet({ y: +e.target.value })}>{ok.map((r, n) => <option key={n} value={n}>{r.label}</option>)}</select></label></div>}
       {cell.chart === "heatmap" && ok.length >= 1 && <div className="gx-seg" role="group" aria-label="Heatmap kind">{(["corr", "grid"] as const).map((m) => <button key={m} aria-pressed={(cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === m} onClick={() => asSet({ mode: m })}>{m === "corr" ? "Correlation" : "Period × measure"}</button>)}</div>}
       {ok.length > 0 && !comp && !["candlestick", "bar"].includes(cell.chart) && <div className="gx-seg" role="group" aria-label="Values or changes">{([["values", "Values"], ["change", "Period change"], ["index", "Index to 100"]] as const).map(([v, l]) => <button key={v} aria-pressed={tf === v} disabled={v === "index" && (facts.ratioUnits || ["scatter", "heatmap"].includes(cell.chart))} onClick={() => asSet({ tf: v })}>{l}</button>)}</div>}
-      <div ref={ref} className="gx-body"><DrawLayer id={drawId} enabled={w > 0 && ok.length > 0 && chk.ok && (ps.length > 0 || !!align || comp || cell.chart === "candlestick" || cell.chart === "bar")}>{body}</DrawLayer></div>
+      <div ref={ref} className="gx-body"><DrawLayer id={drawId} enabled={drawable} open={drawing} onOpenChange={onDraw} onCount={setMarks}>{body}</DrawLayer></div>
       {dualNote && <p className="gx-r">Two units, so two axes: {[...new Set(ps.map((p) => p.unit))].map((u, n) => `${n ? "right" : "left"} ${UNITS[u].label}`).join(", ")}. Compare shapes, not heights.</p>}
       {csvOnly && ps.some((p) => p.pts.filter((x) => x.v != null).length < 3) && !["scatter", "heatmap"].includes(cell.chart) && <p className="gx-r faint">Few points in this window; widen the range or switch to Quarterly.</p>}
       <ChartReading id={"gx-rd-" + i} reading={reading} topic={topicOfChart(cell.chart, { matrix: (cell.mode ?? (ok.length > 1 ? "corr" : "grid")) === "corr" })} />
@@ -185,8 +194,10 @@ export function GraphStudio() {
   const [sp, setSp] = useSearchParams();
   const [view, setView] = useState<View>(() => decodeView(sp.get("g"), plan) ?? defaultView(sp.get("c")?.split(",")[0]?.toUpperCase().match(/^[A-Z0-9&_.-]{1,24}$/)?.[0] ?? "RELIANCE"));
   const [companies, setCompanies] = useState<string[]>(() => [...new Set(view.cells.flatMap((c) => c.series.map((s) => s.s)))].slice(0, 6));
+  const [drawCells, setDrawCells] = useState<number[]>([]);          // task #164: every chart keeps its own markup toolbar open or shut (was one at a time, task #124)
   const [zoom, setZoom] = useState<number | null>(null), [active, setActive] = useState(0), [tab, setTab] = useState<"list" | "drag">("list"), [group, setGroup] = useState("popular"), [q, setQ] = useState(""), [cq, setCq] = useState("");
-  const [panel, setPanel] = useState(() => (typeof window === "undefined" ? true : window.innerWidth >= 900));
+  const [panel, setPanelState] = useState(() => { if (typeof window === "undefined") return true; if (window.innerWidth < 900) return false; try { return localStorage.getItem(PANEL_KEY) !== "shut"; } catch { return true; } });
+  const setPanel = (open: boolean) => { setPanelState(open); if (typeof window !== "undefined" && window.innerWidth >= 900) { try { localStorage.setItem(PANEL_KEY, open ? "open" : "shut"); } catch { /* private mode */ } } };   // task #164: the desktop choice is remembered
   const sf = useIndexFilter(true), idx = sf.idx;
   const feed = useIndices(true);
   const rows = useMemo(() => [...((idx.data?.rows as [string, string][] | undefined) ?? []), ...(feed.data?.items ?? []).map((x): [string, string] => [IDX + x.code, x.name])], [idx.data, feed.data]);
@@ -313,9 +324,12 @@ export function GraphStudio() {
     <>
       <PageHeader wrap plan="free" title="Chart builder" art="chart" links={[{ to: "/graphs/advanced", primary: true }, "/compare", "/research"]}
         description={<>Put several graphs next to each other to see patterns and correlation. Choose <b>companies and measures</b>, pick a chart type for each, and keep what you build.</>} />
-      <div className="wrap gx">
-        <aside className="gx-panel" aria-label="Choose companies and measures">
+      <div className={"wrap gx" + (panel ? "" : " gx-wide")}>
+        <aside className={"gx-panel" + (panel ? "" : " gx-shut")} aria-label="Choose companies and measures" id="gx-panel">
           <button className="btn ghost gx-toggle" aria-expanded={panel} onClick={() => setPanel(!panel)}>{panel ? "Hide" : "Choose"} companies and measures</button>
+          {/* task #164: on a wide screen an arrow on the panel's edge folds it away so the charts get the full width, and opens it again */}
+          <button type="button" className="gx-edge" aria-expanded={panel} aria-controls="gx-panel" title={panel ? "Hide companies and measures (wider charts)" : "Show companies and measures"} onClick={() => setPanel(!panel)}>
+            <span aria-hidden="true">{panel ? "‹" : "›"}</span><span className="sr">{panel ? "Hide" : "Show"} companies and measures</span></button>
           <div hidden={!panel}>
             <h2>1. Companies</h2>
             <div className="gx-chips">{companies.map((s) => <span key={s} className="gx-chip">{name(rows, s)}{isIndexSym(s) && <small> Index</small>}<button aria-label={`Remove ${name(rows, s)}`} onClick={() => removeCompany(s)}>×</button></span>)}</div>
@@ -358,7 +372,8 @@ export function GraphStudio() {
           {zoom !== null && <div className="gx-backdrop" onClick={() => setZoom(null)} aria-hidden="true" />}
           <div className="gx-grid" ref={gridRef} style={{ "--cols": co.cols } as React.CSSProperties}>
             {Array.from({ length: count }, (_, i) => <Cell key={i} i={i} cell={cellOf(i)} view={view} bundles={bundles} active={active === i} onActive={() => setActive(i)} plan={plan} c={colors}
-              onRemove={() => removeCell(i)} onZoom={() => setZoom(zoom === i ? null : i)} zoomed={zoom === i} onChange={(n) => setCell(i, n)} onDrop={(m) => (m.includes("@") ? addTo(i, m.split("@")[0], m.split("@")[1]) : addTo(i, m))} />)}
+              drawing={drawCells.includes(i)} onDraw={(o) => setDrawCells((d) => toggleDraw(d, i, o))}
+              onRemove={() => { setDrawCells((d) => shiftDraw(d, i)); removeCell(i); }} onZoom={() => setZoom(zoom === i ? null : i)} zoomed={zoom === i} onChange={(n) => setCell(i, n)} onDrop={(m) => (m.includes("@") ? addTo(i, m.split("@")[0], m.split("@")[1]) : addTo(i, m))} />)}
           </div>
           <p className="faint gx-foot">Figures are as reported by each company, in the units shown. Each series covers the chosen range back from its own latest reading. Information only; not advice to buy or sell.</p>
         </div>

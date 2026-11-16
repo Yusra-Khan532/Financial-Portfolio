@@ -8,8 +8,9 @@ import { TIER, type Plan } from "../../lib/ui";
 
 export const POPULAR = ["pe", "roe", "roce", "debt_to_equity", "sales_cagr_3y", "profit_cagr_3y", "dividend_yield", "ret_1y", "pct_from_high", "own_promoters", "vs_ema200"];
 
-export function RulePicker({ groups, byKey, has, add, ask, onClose, startGroup = "popular", startQuery = "" }: {
+export function RulePicker({ groups, byKey, has, add, go, ask, onClose, startGroup = "popular", startQuery = "" }: {
   groups: GroupInfo[]; byKey: Map<string, MetricInfo>; has: (k: string) => boolean; add: (m: MetricInfo) => void; ask: (tier: Plan, why: string) => void; onClose: () => void;
+  /** A filter already added (task #144): its "Added" opens that rule's card, ready to type a range. */ go?: (m: MetricInfo) => void;
   /** Opened from a group row or the search box of the panel (task #64, S-1): that group, or that search. */ startGroup?: string; startQuery?: string;
 }) {
   const [q, setQ] = useState(startQuery), [grp, setGrp] = useState(startGroup);
@@ -53,7 +54,7 @@ export function RulePicker({ groups, byKey, has, add, ask, onClose, startGroup =
           <nav className="ssk-groups" aria-label="Filter groups">
             {[{ id: "popular", label: "Popular", n: POPULAR.filter((k) => byKey.has(k)).length, tier: "basic" as Plan }, ...groups.map((g) => ({ id: g.id, label: g.label, n: g.metrics.filter(visible).length, tier: g.tier }))].map((g) => (
               <button key={g.id} type="button" aria-pressed={!q.trim() && grp === g.id} onClick={() => { setGrp(g.id); setQ(""); }}>
-                <span>{g.label}</span>{g.tier === "gold" && <span className="ssr-tier gold">GOLD</span>}<small>{g.n}</small>
+                <span>{g.label}</span><small>{g.n}</small>
               </button>))}
           </nav>
           <ul className="ssk-list" aria-label={q.trim() ? `Filters matching ${q}` : "Filters"}>
@@ -61,9 +62,9 @@ export function RulePicker({ groups, byKey, has, add, ask, onClose, startGroup =
               const on = has(m.key) || !!(m.variants && Object.values(m.variants).some(has));
               return (
                 <li key={m.key}>
-                  <div className="ssk-t"><b>{m.label}</b>{m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}</div>
+                  <div className="ssk-t"><b>{m.label}</b></div>
                   <p>{m.say}{m.stats && m.unit !== "flag" ? <> Most companies: {fmtMetric(m, m.stats.p10)} to {fmtMetric(m, m.stats.p90)}.</> : null}</p>
-                  <div className="ssk-a">{on ? <span className="ssk-added">Added</span>
+                  <div className="ssk-a">{on ? (go ? <button type="button" className="ssk-added ssk-go" onClick={() => go(m)} aria-label={`${m.label} is added: go to its rule`}>Added · Edit</button> : <span className="ssk-added">Added</span>)
                     : m.locked ? <button type="button" className="btn" onClick={() => ask(m.tier, `${m.label} is part of the ${TIER[m.tier].n} plan.`)}>Part of {TIER[m.tier].n}</button>
                     : <button type="button" className="btn" onClick={() => add(m)} aria-label={`Add ${m.label}`}>+ Add</button>}</div>
                 </li>);

@@ -75,7 +75,7 @@ def test_month_ends_merge_and_the_month_end_fall():
     assert md == [D(2026, 1, 30), D(2026, 2, 27), D(2026, 3, 3)] and mv == [2, 4, 5]
     d, v = mf.merge_months((md, mv), ([D(2026, 2, 28)], [4.5]), ([D(2026, 3, 1)], [9]))   # a later day of a month wins; an earlier one does not
     assert d == [D(2026, 1, 30), D(2026, 2, 28), D(2026, 3, 3)] and v == [2, 4.5, 5]
-    assert len(mf.merge_months((list(range(D(2010, 1, 1), D(2026, 1, 1), 30)), [1.0] * 195))[0]) == mf.MONTHLY_KEEP
+    assert len(mf.merge_months((list(range(D(1990, 1, 1), D(2026, 1, 1), 30)), [1.0] * 439))[0]) == mf.MONTHLY_KEEP   # only the newest MONTHLY_KEEP months
     # 36 month-ends: up from 100 to 150, down to 90, back to 120; the largest fall is 150 -> 90
     ends = [mf.month_last_day(mf.month_key(D(2023, 10, 1)) + i) for i in range(36)]
     vals = [100 + 50 * i / 11 for i in range(12)] + [150 - 60 * i / 11 for i in range(12)] + [90 + 30 * i / 11 for i in range(12)]
@@ -189,9 +189,10 @@ async def test_month_ends_read_from_amfi_give_the_same_sip_figures_and_are_read_
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
         out = await mf.refresh_monthly(loaded, c, date(2026, 10, 20))
         again = await mf.refresh_monthly(loaded, c, date(2026, 10, 20))
-    assert out["monthsRead"] == 60 and out["monthsMissing"] == 0 and len(seen) == 60 and "mf" not in seen[0]   # every fund house at once
-    assert seen[0] == {"frmdt": "23-Sep-2026", "todt": "30-Sep-2026"} and seen[-1]["todt"] == "31-Oct-2021"   # newest month first, its last 8 days
-    assert again["monthsRead"] == 0 and len(seen) == 60   # read once, remembered in mf_meta
+    # task #162: every month since AMFI's history starts (April 2006 to September 2026 = 246), not only the last 60
+    assert out["monthsRead"] == 246 and out["monthsMissing"] == 0 and len(seen) == 246 and "mf" not in seen[0]   # every fund house at once
+    assert seen[0] == {"frmdt": "23-Sep-2026", "todt": "30-Sep-2026"} and seen[-1]["todt"] == "30-Apr-2006"   # newest month first, its last 8 days
+    assert again["monthsRead"] == 0 and len(seen) == 246   # read once, remembered in mf_meta
     async with loaded.pool.acquire() as conn:
         got = {r["code"]: (r["sip3y"], r["sip5y"], r["mdd3y_m"]) for r in await conn.fetch("SELECT code, sip3y, sip5y, mdd3y_m FROM mf_schemes WHERE code = ANY($1::int[])", [LARGE, LIQUID])}
     for code in want:
@@ -203,7 +204,7 @@ async def test_month_end_downloads_stop_after_three_failures_and_keep_the_rest(l
     calls = []
     async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: calls.append(1) or httpx.Response(200, text="<html>form</html>"))) as c:
         out = await mf.refresh_monthly(loaded, c, date(2026, 10, 20))
-    assert len(calls) == mf.MONTH_FILL_FAILS and out["monthsFailed"] == 3 and out["monthsMissing"] == 60
+    assert len(calls) == mf.MONTH_FILL_FAILS and out["monthsFailed"] == 3 and out["monthsMissing"] == 246
     async with loaded.pool.acquire() as conn:   # the figures from the stored daily series are untouched
         assert await conn.fetchval("SELECT sip3y FROM mf_schemes WHERE code = $1", LARGE) is not None
 

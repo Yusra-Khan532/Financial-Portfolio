@@ -1,4 +1,4 @@
-// Profit and revenue outlook (Gold): API types, the hook, and the pure logic of the "Set your own model" sliders (each input's own growth rate, task #146).
+// Profit and revenue forecasting (Gold): API types, the hook, and the pure logic of the "Build your own growth model" sliders (each input's own growth rate, task #146).
 // All forecast arithmetic is on the server (backend/finlit/outlook/model.py); the chart series, ticks and formats are in lib/outlookChart.ts.
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
@@ -48,16 +48,24 @@ export const PARAM_LABELS: Record<Kind, Record<string, string>> = {
   profit: { co_1y: "Company net profit growth (1Y)", co_3y: "Company net profit CAGR (3Y)", co_5y: "Company net profit CAGR (5Y)", sec_1y: "Sector net profit growth (1Y)", sec_3y: "Sector net profit CAGR (3Y)", sec_5y: "Sector net profit CAGR (5Y)", margin: "Net profit margin trend" },
 };
 
-/** "Set your own model" (task #146): each slider is that input's expected growth rate, percent a year, set on its own: not a weight, no total.
- *  The server limits every input to this range (model.INPUT_CAP); FinLit's weights for the horizon combine the rates into one yearly rate. */
-export const VALUE_MIN = -50, VALUE_MAX = 50, VALUE_STEP = 0.1;   // a tenth of a point: the knob sits exactly on the company's figure as shown (one decimal)
+/** "Build your own growth model" (task #146): each box is that input's expected growth rate, percent a year, set on its own: not a weight, no total.
+ *  Task #166: the user types any rate in this range (the server's model.USER_MIN .. USER_MAX; the model's own computed inputs keep their +/-50% cap).
+ *  FinLit's weights for the horizon combine the rates into one yearly rate. */
+export const VALUE_MIN = -99, VALUE_MAX = 999, VALUE_STEP = 0.1;   // one decimal, as the company's figure is shown
 export const clampValue = (v: number) => (Number.isFinite(v) ? Math.max(VALUE_MIN, Math.min(VALUE_MAX, Number(v.toFixed(1)))) : 0);
-/** The company's own figure for each input that has one (the FinLit model's answer): where every slider starts. */
+/** The company's own figure for each input that has one (the FinLit model's answer): where every box starts. */
 export const companyValues = (d: Outlook | null | undefined): Values =>
   Object.fromEntries((d?.rate.rows ?? []).filter((r) => r.status === "ok" && r.valuePct != null).map((r) => [r.key, r.valuePct as number]));
-/** Only the inputs the user moved away from the company's figure (what is sent; the others keep the company's figure on the server). */
+/** Only the inputs the user changed from the company's figure (what is sent; the others keep the company's figure on the server). */
 export const changedValues = (base: Values, mine: Values): Values =>
   Object.fromEntries(Object.entries(mine).filter(([k, v]) => base[k] == null || Math.abs(base[k] - v) >= VALUE_STEP / 2).map(([k, v]) => [k, clampValue(v)]));
+/** What the user typed in a rate box, as a rate: a number (a comma decimal or a "%" are accepted) within the range, or null while it is not one yet. */
+export const parseRate = (text: string): number | null => {
+  const t = text.trim().replace(/%$/, "").replace(",", ".").replace(/^\+/, "");
+  if (!/^-?\d+(\.\d*)?$|^-?\.\d+$/.test(t)) return null;
+  const v = Number(t);
+  return Number.isFinite(v) && v >= VALUE_MIN && v <= VALUE_MAX ? Number(v.toFixed(1)) : null;
+};
 export const signedPct = (v: number, d = 1) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d)}%`;
 
 /** One estimate: the FinLit model's (values null), or the user's own growth rates combined by the model's weights. */

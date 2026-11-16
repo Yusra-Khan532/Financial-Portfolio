@@ -42,14 +42,10 @@ try:
     from backend.email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
     from backend.portfolio_report import read_current_portfolio_report, save_portfolio_upload
     from backend.market_data import ENDPOINTS as MARKET_ENDPOINTS, market_params, normalize_market_payload
-    from backend import mcp_tools
-    from backend import question_matcher
 except ModuleNotFoundError:
     from email_service import send_lead_emails, send_service_enquiry_email, EmailNotConfigured
     from portfolio_report import read_current_portfolio_report, save_portfolio_upload
     from market_data import ENDPOINTS as MARKET_ENDPOINTS, market_params, normalize_market_payload
-    import mcp_tools
-    import question_matcher
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -183,7 +179,6 @@ FORM_MAX_REQUESTS_PER_HOUR = 8
 FORM_RATE_WINDOW_SECONDS = 60 * 60
 DUMMY_ADMIN_PASSWORD_HASH = b"$2b$12$6rJnDqVrVjleCmwVwqpAtuZd0nrne.uqw48RnqI7PX7LS60kFIY1C"
 _login_attempts = {}
-_chat_attempts = {}
 _form_attempts = {}
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -260,21 +255,6 @@ class ServiceEnquiryCreate(BaseModel):
 class AdminLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=256)
-
-
-class ChatTurn(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=4000)
-
-
-class ChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=2000)
-    history: List[ChatTurn] = Field(default_factory=list, max_length=12)
-
-
-class ChatResponse(BaseModel):
-    response: str
-    question_id: Optional[str] = None      # the FinLit question-bank question this message was recognised as, when it was recognised with confidence
 
 
 class ContentInput(BaseModel):
@@ -440,10 +420,6 @@ def login_rate_limit_key(email: str, request: Request) -> str:
 
 def form_rate_limit_key(form_name: str, request: Request) -> str:
     return hashed_identifier(form_name, client_identifier(request))
-
-
-def chat_rate_limit_exceeded(client_ip: str, now: float) -> bool:
-    return rate_limit_exceeded(_chat_attempts, client_ip, now, CHAT_MAX_REQUESTS_PER_MINUTE, CHAT_RATE_WINDOW_SECONDS)
 
 
 async def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
@@ -627,6 +603,9 @@ class PremiumReportRequest(BaseModel):
     keep: bool = True                                                            # ...and in it the packed inputs of a fresh fetch, for the caller to keep
     # FinLit addition: Dhan daily candles from the research API (premium_supplied_candles.py); validated there, a bad value just means the usual providers.
     suppliedCandles: Optional[Dict[str, Any]] = None
+    # FinLit addition (task #160): the industry median P/E and P/B from the research API's own company table. Used only where FinEdge, Upstox and
+    # the FinEdge peer median give no benchmark; premium_benchmarks.finlit_fallbacks validates every field.
+    sectorBenchmarks: Optional[List[Dict[str, Any]]] = Field(default=None, max_length=4)
 
     @field_validator("suppliedCandles", mode="before")
     @classmethod
@@ -804,9 +783,29 @@ def _premium_inputs_loader(kept, fresh, observations, supplied_candles=None):
             current = _premium_kept_with_current_technical(kept, now, supplied_candles)
             if current is not None:
                 return current, kept["sources"], kept["effective"], kept["sourcing"]
-        raw, sources, effective, sourcing = _premium_dashboard_inputs(symbol, statement_type, now, supplied_candles, observations)
+        failures = []
+        token = _provider_failures.set(failures)
+        try:
+            raw, sources, effective, sourcing = _premium_dashboard_inputs(symbol, statement_type, now, supplied_candles, observations)
+        finally:
+            _provider_failures.reset(token)
+        own_path = f"/{_stock_symbol_path(symbol)}"
+        # The company's own endpoints the score depends on. Ratio endpoints (/ratios, /financial-metrics, /basic-financials) are left out: the model
+        # has calculated fallbacks for them, and a provider that errors on one of them for a company must not block that company for good.
+        critical = ("/financials/", "/company-profile/", "/quote", "/daily-quotes/", "/daily-price-ratios/", "/shareholdings/")
+        own = [f for f in failures if f["path"].startswith(critical) and (f["path"].endswith(own_path) or f["symbol"] == symbol)]
+        if own:
+            # The company's own statements, quote, prices, ratios or filings could not be read: a rating built on empty answers would replace the
+            # stored one with estimates. Stop; nothing is stored, the last report stays and the next run tries again. (Peers' data is not the
+            # company's: a peer that cannot be read only leaves that peer out of the industry benchmark, as before.)
+            logger.warning("Prism inputs for %s stopped: provider did not answer %s", symbol, sorted({f["path"] for f in own}))
+            raise HTTPException(status_code=503, detail="The data provider did not answer for this company's data. Please try again in a few minutes.")
+        try:
+            from backend import premium_cache
+        except ImportError:
+            import premium_cache
         fresh.update({"symbol": symbol, "requested": statement_type, "fetchedAt": now.isoformat(), "raw": raw, "sources": sources,
-                      "effective": effective, "sourcing": sourcing})
+                      "effective": effective, "sourcing": sourcing, "inputsVersion": premium_cache.INPUTS_VERSION})
         return raw, sources, effective, sourcing
     return load
 
@@ -821,18 +820,70 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         effective = quarterly_view["statementType"]
         annual = {}
         yearly = _fetch_stock_fundamentals(symbol, effective, "yearly", annual, _lean=lean)
+    # Short consolidated history (owner, 15 November 2026; model 3.6.16): FinEdge's consolidated statements for some companies cover only the latest
+    # one or two years (ABB: 2024-2025 after a gap since 2012; Nestle: two years), so every factor that needs history (growth over 3-5 years, PEG,
+    # margin change, cash conversion, the quarterly streaks) failed or fell back to a one-year view. When the latest unbroken run of consolidated
+    # full years is too short for a 3-year comparison (fewer than 4 years) and the standalone statements have that run and are as recent, the whole
+    # report uses the standalone statements, and says why.
+    basis_note = None
+    if effective == "consolidated":
+        try:
+            from backend.premium_data import recent_annual_run, latest_reported_end
+        except ImportError:
+            from premium_data import recent_annual_run, latest_reported_end
+        today = now.date() if hasattr(now, "date") else None
+
+        def standalone_read(capture, finedge_period):
+            """The standalone P&L rows the basis decision rests on. A failed call is not "no statements": it is made again (with the provider's
+            retries) and, if FinEdge still does not answer, the calculation stops instead of rating the wrong statements; the stored report stays."""
+            if capture.get("standaloneIncomeFailed") or "standaloneIncome" not in capture:
+                try:
+                    capture["standaloneIncome"] = _payload_items(_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+                        {"statement_type": "s", "statement_code": "pl", "period": finedge_period}), ["financials", "data", "results", "items"])
+                except Exception as exc:
+                    raise HTTPException(status_code=503, detail="The standalone statements could not be read from the data provider, so the "
+                                        "statement basis cannot be decided. Please try again in a few minutes.") from exc
+                capture["standaloneIncomeFailed"] = False
+            return capture.get("standaloneIncome") or []
+
+        con_n, con_end = recent_annual_run((annual.get("income") or {}).get("financials"), today)
+        sa_n, sa_end = recent_annual_run(standalone_read(annual, "annual"), today)
+        cq = latest_reported_end((quarterly.get("income") or {}).get("financials"), today)
+        sq = latest_reported_end(standalone_read(quarterly, "quarterly"), today)
+        # Short (3.6.16): the latest unbroken run of consolidated full years is too short for a 3-year comparison and standalone has one, as recent.
+        short = con_n < 4 and sa_n >= 4 and sa_end is not None and (con_end is None or (con_end - sa_end).days <= 31)
+        # Stale (3.6.17, the main site's rule in finlit/finedge.py stale_reason): the consolidated statements stopped while the standalone ones
+        # went on: standalone's latest year at least ~a year newer, or its latest quarter at least ~two quarters newer (SBFC).
+        stale_year = bool(con_end and sa_end and (sa_end - con_end).days >= 360)
+        stale_quarter = bool(cq and sq and (sq - cq).days >= 170)
+        if short or stale_year or stale_quarter:
+            annual, quarterly = {}, {}
+            yearly = _fetch_stock_fundamentals(symbol, "standalone", "yearly", annual, _lean=lean)
+            quarterly_view = _fetch_stock_fundamentals(symbol, "standalone", "quarterly", quarterly, _lean=lean)
+            effective = "standalone"
+            if short:
+                basis_note = (f"The consolidated statements cover only {con_n} recent full year{'s' if con_n != 1 else ''} (to {con_end.isoformat() if con_end else 'no date'}), "
+                              f"too few for growth over 3 to 5 years; this report uses the standalone statements, which cover {sa_n} consecutive years to {sa_end.isoformat()}.")
+            else:
+                basis_note = (f"The consolidated statements stop earlier (latest year {con_end.isoformat() if con_end else 'none'}, latest quarter {cq.isoformat() if cq else 'none'}) "
+                              f"than the standalone ones (latest year {sa_end.isoformat() if sa_end else 'none'}, latest quarter {sq.isoformat() if sq else 'none'}); "
+                              "this report uses the standalone statements, which are current.")
     quote_data = yearly.get("quote", {})
     raw = {"profile": annual.get("profile", {}), "annual": annual.get("income", {}),
         "quarterly": quarterly.get("income", {}), "balance": annual.get("balance", {}),
         "balance_recent": quarterly.get("balance", {}), "cashflow": annual.get("cashflow", {}),
         "prices": annual.get("prices", {}), "summary": annual.get("summary", {}),
         "distribution": annual.get("distribution", {}), "declaration": annual.get("declaration", {}),
+        "annual_standalone": {"financials": annual.get("standaloneIncome", [])},
+        "cashflow_standalone": {"financials": annual.get("standaloneCashflow", [])},
         "asset_quality": {"financials": quarterly.get("assetQualityRows", [])},
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "benchmarkObservations": annual.get("benchmarkObservations", []),
         "leverage": annual.get("leverage", {}), "secondaryLeverage": annual.get("secondaryLeverage"),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
+    if basis_note:
+        raw["basis_note"] = basis_note
     resolved_profile = yearly.get("profile", {})
     if isinstance(raw["profile"], dict):
         raw["profile"] = {**raw["profile"], **{key: value for key, value in {
@@ -856,6 +907,8 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
     # the dashboard's separate quarterly-CF availability into a model warning.
     quarterly_notes = [note for note in quarterly.get("resolutionNotes", []) if "cashflow" not in note.lower()]
     notes = list(dict.fromkeys(annual.get("resolutionNotes", []) + quarterly_notes))
+    if basis_note:
+        notes.append(basis_note)
     # Technical candles must precede the dashboard's close-only display defaults.
     # Keep their source and any fallback separate from financial-health inputs.
     try:
@@ -944,7 +997,8 @@ async def create_premium_report(payload: PremiumReportRequest, background_tasks:
             fresh = {}
             async with _premium_generation_slots:
                 report = await asyncio.to_thread(generate_report, _finedge_get, symbol, instrument.get("name"), payload.statement_type, report_id, created_at,
-                                                 _premium_inputs_loader(kept, fresh, observations, payload.suppliedCandles), observations)
+                                                 _premium_inputs_loader(kept, fresh, observations, payload.suppliedCandles), observations,
+                                                 payload.sectorBenchmarks)
             snapshot = issue(report, _admin["sub"], token_secret())
             report_cache = {"observations": premium_cache.flatten(observations.new), "universe": observations.universe(), "inputsReused": kept is not None and not fresh,
                             "seconds": round(monotonic() - started, 1)}
@@ -1675,6 +1729,21 @@ class _CallMemo:
 
 
 _call_memo = contextvars.ContextVar("finedge_call_memo", default=None)
+# Provider failures during ONE Prism input fetch (a list, or None outside one). _safe_finedge_get turns a failure into an empty answer, which is
+# right for the dashboard but wrong for a rating: a rate limit during the nightly run made Nestle's report lose its standalone statements and
+# overwrite a good report. Each temporary failure (after the provider's retries) is noted here and the loader stops the calculation if any concerns
+# the company's own data. A "no data" answer (404) is not a failure.
+_provider_failures = contextvars.ContextVar("finedge_provider_failures", default=None)
+
+
+def _note_provider_failure(path, params, exc):
+    failures = _provider_failures.get()
+    if failures is None:
+        return
+    status = getattr(exc, "status_code", None)
+    if isinstance(exc, HTTPException) and status not in (429, 500, 502, 503, 504):
+        return
+    failures.append({"path": path, "symbol": (params or {}).get("symbol"), "status": status, "error": type(exc).__name__})
 
 
 def _finedge_get(path: str, params: Optional[Dict[str, Any]] = None):
@@ -1731,11 +1800,13 @@ def _finedge_get_once(path: str, params: Optional[Dict[str, Any]] = None):
 def _safe_finedge_get(path: str, params: Optional[Dict[str, Any]] = None, default=None):
     try:
         return _finedge_get(path, params)
-    except HTTPException:
+    except HTTPException as exc:
         logger.info("Optional FinEdge endpoint failed: %s", path)
+        _note_provider_failure(path, params, exc)
         return default if default is not None else {}
-    except Exception:
+    except Exception as exc:
         logger.warning("Optional FinEdge endpoint errored: %s", path)
+        _note_provider_failure(path, params, exc)
         return default if default is not None else {}
 
 
@@ -3611,12 +3682,16 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "quote": "finedge",
     }
     data_quality = []
+    standalone_income_failed = False
     if statement_type == "consolidated":
-        standalone_income_rows = _safe_finedge_get(
-            f"/financials/{_stock_symbol_path(symbol)}",
-            {"statement_type": "s", "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"},
-            default={},
-        )
+        # Not _safe_finedge_get: a failure must be told apart from "no standalone statements", because Prism decides the report's basis on it
+        # (a silently empty answer during a busy nightly run stored consolidated-only reports for ABB and Nestle).
+        try:
+            standalone_income_rows = _finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+                {"statement_type": "s", "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"})
+        except Exception:
+            logger.info("Standalone statements not read for %s (%s)", symbol, period)
+            standalone_income_rows, standalone_income_failed = {}, True
         standalone_income_rows = _payload_items(standalone_income_rows, ["financials", "data", "results", "items"])
         revenue_aliases = {
             "netSales": ("revenue", 10), "sales": ("revenue", 10),
@@ -3670,6 +3745,18 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
     quarterly_income_rows = shared_raw.get("quarterly", {}).get("financials", quarterly_income_rows)
     balance_rows = shared_raw.get("balance", {}).get("financials", [])
     cash_rows = shared_raw.get("cashflow", {}).get("financials", [])
+    # Prism's cash conversion needs three years of operating cash flow. FinEdge's consolidated history can start years after the standalone one
+    # (ABB: consolidated 2024-2025 only), so when the consolidated cash flow has fewer than three annual rows, the standalone cash flow is fetched
+    # (one extra call, only in that case) and the model may use it, saying so (3.6.15).
+    standalone_cash_rows = []
+    try:
+        from backend.premium_data import recent_annual_run, OCF_FIELDS
+    except ImportError:
+        from premium_data import recent_annual_run, OCF_FIELDS
+    # the latest unbroken run of years, not a plain row count: ABB's consolidated cash flow has 2011, 2012, 2024 and 2025
+    if period == "yearly" and effective_statement_type == "consolidated" and recent_annual_run(cash_rows, None, OCF_FIELDS)[0] < 3:
+        standalone_cash_rows = _payload_items(_safe_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+            {"statement_type": "s", "statement_code": "cf", "period": "annual"}, default={}), ["financials", "data", "results", "items"])
     for note in resolution_notes:
         if note.startswith("Upstox") and "recovered periods" in note:
             data_sources["cashFlow" if "cashflow" in note else "balanceSheet" if "Upstox balance " in note else "incomeStatement"] = "finedge+upstox:fallback"
@@ -4000,6 +4087,10 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "distribution": ownership_distribution, "declaration": ownership_declaration,
         "assetQualityRows": standalone_income_rows if bank_asset_quality_statement_type == "standalone" else income_rows,
         "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes,
+        # Yearly standalone P&L rows (already fetched above for the revenue check): PEG's growth may use them when the consolidated history is too short.
+        "standaloneIncome": standalone_income_rows if effective_statement_type == "consolidated" else [],
+        "standaloneIncomeFailed": standalone_income_failed,
+        "standaloneCashflow": standalone_cash_rows,
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})
     model_inputs["leverage"] = ratio_payloads[1]
@@ -4118,270 +4209,20 @@ async def market_ticker():
     return {"items": items, "cached": False, "timestamp": int(time())}
 
 
-FINLIT_CHAT_SYSTEM_INSTRUCTION = """You are FinLit AI, FinLit Ventures' knowledgeable, professional financial education assistant.
-
-  Communication: answer the user's actual question immediately in clear, conversational language. Be intelligent but approachable, concise without being superficial, and financially accurate. Avoid greetings, congratulations, filler, repeated introductions, and opening with a generic disclaimer. The chat already displays a permanent financial disclaimer; add only a brief qualification when an example could otherwise be mistaken for a personal recommendation. Use short paragraphs and, when useful, simple Markdown with bold emphasis and concise numbered or bulleted lists. Do not use Markdown tables; use a short bulleted comparison instead. Do not output HTML.
-
-Explain concepts with simple, realistic Indian examples when useful. When a user provides salary or other personal figures, use them only to build a clearly illustrative example. Do not imply that sample expenses, savings, or investment allocations are a recommendation for that person.
-
-  Safety and accuracy: provide general financial education, not personalized buy/sell recommendations. Never guarantee returns or make overly confident claims about investment outcomes. Do not invent live market data, company services, credentials, published pricing, or FinLit performance figures. Do not quote current savings-account rates, fixed-deposit rates, returns, inflation figures, or market statistics unless they are supplied by an approved, verified data source. If asked for current market or performance data and no such source is available, say you cannot verify live figures and direct the visitor to the Portfolio page. Clearly label hypothetical figures as illustrative, not forecasts or recommendations. Explain liquidity accurately: savings-account balances are generally available subject to account terms and transaction limits; fixed deposits are designed for a chosen term and ordinarily pay at maturity. Premature FD withdrawal may be restricted or subject to a penalty or reduced interest under the bank's terms, so do not describe an FD as instantly accessible. If asked what they personally should buy or sell, explain general evaluation factors and invite them to contact the team.
-
-Verified FinLit services: 0 → 1 Investing (help understanding stocks, ETFs, mutual funds and other options, with a strategy aligned to goals and risk); Wealth Planning (strategies to grow, diversify and protect wealth across life stages); Family Financial Planning (a roadmap covering family goals, investments, insurance and future needs); Global Investing (understanding global opportunities alongside the overall portfolio and risk appetite); Portfolio Review & Stock Selection (review of diversification, risk, performance and holdings). Service prices are not published yet: tell visitors prices will be announced soon and that they can send an enquiry from the Services page. Never quote a price. For company-specific enquiries, guide visitors to the website Contact form or Services enquiry form."""
-CHAT_STYLE_RULES = (
-    "\n\nFormat rules (strict): reply in plain text only, no markdown symbols (no asterisks, no # headings, no tables). "
-    "Keep every answer under 110 words: a direct answer in 2-4 short sentences, then at most 3 short lines starting with '- ' if a list helps. "
-    "Offer to go deeper instead of covering everything."
-)
+# FinLit AI (task #138, founder, 14 Nov 2026): no language model. The website answers its listed questions itself, at once: general ones from written text,
+# company ones from the company's own FinLit figures (frontend/src/lib/askAnswers.ts). The old model chat is switched off here, so nothing can spend the
+# Gemini key's quota through it (the nightly earnings-call and company-brief jobs keep their own use of that key).
+CHAT_OFF = "FinLit AI now answers its listed questions on the website directly, from FinLit's own figures; this address no longer answers."
 
 
-def plain_chat_text(text: str) -> str:
-    """Gemini sometimes ignores the no-markdown rule; the chat bubble shows plain text, so strip the symbols."""
-    import re
-    text = re.sub(r"^\s{0,3}#{1,6}\s*", "", text, flags=re.M)
-    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text, flags=re.S)
-    text = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"\1", text)
-    text = re.sub(r"^(\s*)[*\u2022]\s+", r"\1- ", text, flags=re.M)
-    text = text.replace("`", "")
-    return re.sub(r"\n{3,}", "\n\n", text).strip()
+@api_router.post("/chat")
+async def chat_switched_off():
+    raise HTTPException(status_code=410, detail=CHAT_OFF)
 
 
-CHAT_TOOL_RULES = (
-    "\n\nFinLit data tools: you can call tools that return verified figures from FinLit's database (prices, financial statements, ratios, shareholding, results, "
-    "screener, index levels, institutional flows, IPOs, funds, ETFs). These tools are the approved, verified data source for the rule above about market figures. "
-    "Use a tool for EVERY number about a company, fund, ETF, index or the market. Never invent, estimate or recall a figure from memory. Answer only from what the tools returned. "
-    "If a figure is null, missing, locked or a tool returns an error, say plainly that it is not available; never write zero or a guess in its place. "
-    "Give the as-of date (asOf) from the result next to the figures. If you only know a company's name, call search_stocks first. Use as few calls as needed. "
-    "A locked FinLit IQ is a Silver plan feature on the website: say so. "
-    "Describe the data neutrally. Never say or imply that anyone should buy, sell, hold, reduce, avoid or accumulate a security, and never give a price target or a prediction."
-)
-CHAT_TOOL_FALLBACK = "I couldn't finish looking that up. Please ask a narrower question, for example about one company or one figure."
-_RECOMMENDATION_PATTERNS = (
-    re.compile(r"\b(should|could|can|would|must|ought to|better to|recommend\w*|suggest\w*|advis\w*|consider|time to|good time to)\b[^.!?\n]{0,50}\b(buy|buying|sell|selling|hold|holding|accumulate|accumulating|reduce|reducing|avoid|avoiding)\b", re.I),
-    re.compile(r"\b(price target|target price|buy rating|sell rating|hold rating|strong buy|a buy|a sell|worth buying|good buy|buying opportunity|accumulate)\b", re.I),
-)
-
-
-def strip_recommendations(text: str) -> str:
-    """Safety net for answers built from tool data: any sentence that reads as advice to buy, sell, hold, reduce, avoid or accumulate, or as a target, is dropped."""
-    lines = []
-    for line in text.split("\n"):
-        kept = [x for x in re.split(r"(?<=[.!?])\s+", line) if x.strip() and not any(p.search(x) for p in _RECOMMENDATION_PATTERNS)]
-        if kept or not line.strip():
-            lines.append(" ".join(kept))
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
-
-
-CHAT_MAX_REQUESTS_PER_MINUTE = 10
-CHAT_RATE_WINDOW_SECONDS = 60
-CHAT_INITIAL_OUTPUT_TOKENS = 700
-CHAT_RETRY_OUTPUT_TOKENS = 1600
-
-
-def gemini_finish_reason(response) -> str:
-    candidates = getattr(response, "candidates", None) or []
-    if not candidates:
-        return "UNKNOWN"
-    reason = getattr(candidates[0], "finish_reason", None)
-    if reason is None:
-        return "UNKNOWN"
-    return str(getattr(reason, "name", reason)).rsplit(".", 1)[-1].upper()
-
-
-CHAT_CALL_SECONDS = 12      # one Gemini call; a slower one moves on to the next model (25 s made a slow first model cost the visitor 48 s: 25 + the next model)
-CHAT_MODEL_COOLDOWN_SECONDS = 600   # a model that was busy or slow is skipped for this long, so the next visitor goes straight to a model that answers
-_chat_model_cooldown: dict = {}
-CHAT_TOTAL_SECONDS = 60     # the whole answer
-
-
-@api_router.post("/chat", response_model=ChatResponse)
-async def chat(payload: ChatRequest, request: Request):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    logger.info(
-        "FinLit AI chat handler reached (gemini_api_key_configured=%s, app_version=%s)",
-        bool(api_key),
-        os.environ.get("APP_VERSION", "unknown"),
-    )
-    if not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Please enter a message.")
-    client_ip = client_identifier(request)
-    if rate_limit_exceeded(_chat_attempts, client_ip, monotonic(), CHAT_MAX_REQUESTS_PER_MINUTE, CHAT_RATE_WINDOW_SECONDS):
-        raise HTTPException(status_code=429, detail="You’ve sent several messages. Please wait a minute and try again.")
-
-    if not api_key:
-        logger.warning("FinLit AI unavailable: GEMINI_API_KEY is not configured")
-        raise HTTPException(status_code=503, detail="FinLit AI is temporarily unavailable. Please try again later.")
-
-    model_id = os.environ.get("GEMINI_MODEL", "").strip() or "gemini-3.8-flash"   # GEMINI_MODEL lets the model be changed without editing code
-    chat_models = [model_id] + [m for m in (x.strip() for x in os.environ.get("GEMINI_MODEL_FALLBACKS", "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash").split(",")) if m and m != model_id]
-    bounded_history_length = sum(1 for turn in payload.history[-12:] if turn.content.strip())
-    logger.info(
-        "FinLit AI Gemini request (model_id=%s, bounded_history_length=%s)",
-        model_id,
-        bounded_history_length,
-    )
-    try:
-        from google import genai
-        from google.genai import types
-
-        contents = [
-            {"role": "model" if turn.role == "assistant" else "user", "parts": [{"text": turn.content.strip()}]}
-            for turn in payload.history[-12:]
-            if turn.content.strip()
-        ]
-        contents.append({"role": "user", "parts": [{"text": payload.message.strip()}]})
-        client = genai.Client(api_key=api_key)
-
-        # FinLit data tools (through the research API's MCP endpoint). Any problem here leaves the chat working as it always did, without tools.
-        tool_config = None
-        try:
-            offered = await run_in_threadpool(mcp_tools.get_tools, client_ip)
-            if offered:
-                tool_config = [types.Tool(function_declarations=[types.FunctionDeclaration(**d) for d in mcp_tools.declarations(offered)])]
-        except Exception as exc:
-            logger.warning("FinLit AI tools not attached (event=chat_tools_unavailable, exception_type=%s)", type(exc).__name__)
-            tool_config = None
-        # The FinLit question bank: when the message is one of the predefined questions (in the user's own words), tell the assistant exactly which one, so it answers that question in full from the data tools.
-        bank_note, bank_id = "", None
-        try:
-            found = question_matcher.bank().match(payload.message)
-            bank_note = question_matcher.directive(found) if tool_config or found.best and found.best.group == "FinLit" else ""
-            if found.confidence == "high" and found.best: bank_id = found.best.id
-            if found.best:
-                logger.info("FinLit AI question bank (event=question_bank_match, question_id=%s, confidence=%s, score=%s)", found.best.id, found.confidence, found.best.score)
-        except Exception as exc:   # the bank is an addition: any problem leaves the chat as it was
-            logger.warning("FinLit AI question bank skipped (event=question_bank_error, exception_type=%s)", type(exc).__name__)
-        system_instruction = FINLIT_CHAT_SYSTEM_INSTRUCTION + CHAT_STYLE_RULES + (CHAT_TOOL_RULES if tool_config else "") + bank_note
-
-        chat_deadline = monotonic() + CHAT_TOTAL_SECONDS   # the whole answer, tool rounds included, stays inside the site's 75 s proxy limit
-
-        async def generate(output_limit, with_tools=True):
-            options = {"system_instruction": system_instruction, "max_output_tokens": output_limit}
-            thinking = getattr(types, "ThinkingConfig", None)
-            if thinking:
-                options["thinking_config"] = thinking(thinking_level="low")   # a chat answer does not need long hidden reasoning (it took minutes)
-            if tool_config and with_tools:
-                options["tools"] = tool_config
-                options["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(disable=True)   # this code runs the tools, to count and limit them
-            # Google answers 429/500/503 when a model is busy: the next model in the list takes the question, so the chat keeps working.
-            now_m = monotonic()
-            usable = [m for m in chat_models if _chat_model_cooldown.get(m, 0) <= now_m] or list(chat_models)   # all cooling down: try them all rather than none
-            for position, name in enumerate(usable):
-                remaining = chat_deadline - monotonic()
-                if remaining < 4:
-                    raise TimeoutError("FinLit AI answer deadline reached")
-                call_options = dict(options)
-                http_options = getattr(types, "HttpOptions", None)
-                if http_options:
-                    call_options["http_options"] = http_options(timeout=int(min(CHAT_CALL_SECONDS, remaining) * 1000))
-                call_started = monotonic()
-                try:
-                    reply = await run_in_threadpool(
-                        client.models.generate_content,
-                        model=name,
-                        contents=contents,
-                        config=types.GenerateContentConfig(**call_options),
-                    )
-                    logger.info("FinLit AI model answered (event=gemini_call_ok, model_id=%s, seconds=%.1f)", name, monotonic() - call_started)
-                    return reply
-                except Exception as exc:
-                    slow = "timeout" in type(exc).__name__.lower() or getattr(exc, "code", None) in (408, 504)
-                    busy = getattr(exc, "code", None) in (429, 500, 503) or slow
-                    logger.info("FinLit AI model call failed (event=gemini_call_failed, model_id=%s, seconds=%.1f, provider_status=%s)", name, monotonic() - call_started, getattr(exc, "code", None))
-                    if busy:
-                        _chat_model_cooldown[name] = monotonic() + CHAT_MODEL_COOLDOWN_SECONDS
-                    if not busy or position == len(usable) - 1:
-                        raise
-                    logger.warning("FinLit AI model busy or slow, trying the next one (event=gemini_model_fallback, provider_status=%s, slow=%s, model_id=%s)", getattr(exc, "code", None), slow, name)
-
-        async def complete(with_tools=True):
-            result = await generate(CHAT_INITIAL_OUTPUT_TOKENS, with_tools)
-            attempt = 1
-            finish_reason = gemini_finish_reason(result)
-            if finish_reason == "MAX_TOKENS":
-                logger.warning(
-                    "FinLit AI generation truncated (event=gemini_max_tokens, finish_reason=%s, attempt=%s, "
-                    "output_token_limit=%s, model_id=%s, bounded_history_length=%s)",
-                    finish_reason,
-                    attempt,
-                    CHAT_INITIAL_OUTPUT_TOKENS,
-                    model_id,
-                    bounded_history_length,
-                )
-                attempt = 2
-                result = await generate(CHAT_RETRY_OUTPUT_TOKENS, with_tools)
-                finish_reason = gemini_finish_reason(result)
-            if finish_reason == "MAX_TOKENS":
-                logger.warning(
-                    "FinLit AI generation truncated (event=gemini_max_tokens, finish_reason=%s, attempt=%s, "
-                    "output_token_limit=%s, model_id=%s, bounded_history_length=%s)",
-                    finish_reason,
-                    attempt,
-                    CHAT_RETRY_OUTPUT_TOKENS,
-                    model_id,
-                    bounded_history_length,
-                )
-                raise HTTPException(
-                    status_code=502,
-                    detail="FinLit AI couldn’t complete that response. Please try a more focused question.",
-                )
-            return result, finish_reason
-
-        result, finish_reason = await complete()
-        tools_used, tool_rounds, gave_up = [], 0, False
-        while tool_config:
-            wanted = list(getattr(result, "function_calls", None) or [])
-            if not wanted:
-                break
-            if tool_rounds >= mcp_tools.MAX_TOOL_ROUNDS:    # the round limit: no more tools, the model must answer with what it has
-                gave_up = True
-                break
-            tool_rounds += 1
-            candidates = getattr(result, "candidates", None) or []
-            model_turn = getattr(candidates[0], "content", None) if candidates else None
-            contents.append(model_turn or {"role": "model", "parts": [{"function_call": {"name": c.name, "args": dict(c.args or {})}} for c in wanted]})
-            replies = []
-            for position, call in enumerate(wanted):
-                if position < mcp_tools.MAX_CALLS_PER_ROUND:
-                    succeeded, output = await run_in_threadpool(mcp_tools.call_tool, call.name, dict(call.args or {}), client_ip)
-                    if succeeded and call.name not in tools_used:
-                        tools_used.append(call.name)
-                else:
-                    output = {"error": "Too many tool calls at once; ask for fewer."}
-                replies.append({"function_response": {"name": call.name, "response": output}})
-            contents.append({"role": "user", "parts": replies})
-            result, finish_reason = await complete()
-        if gave_up:
-            logger.warning("FinLit AI tool round limit reached (event=chat_tool_round_limit, tool_rounds=%s)", tool_rounds)
-            contents.append({"role": "user", "parts": [{"text": "Answer now from the tool results you already have; say what could not be found."}]})
-            result, finish_reason = await complete(with_tools=False)
-        answer = plain_chat_text(getattr(result, "text", None) or "")
-        if gave_up and not answer:
-            answer = CHAT_TOOL_FALLBACK
-        if tool_config and tools_used:
-            answer = strip_recommendations(answer) or CHAT_TOOL_FALLBACK
-        if not answer:
-            raise RuntimeError("Gemini returned an empty response")
-        if tools_used:
-            answer += "\n\nData from FinLit tools: " + ", ".join(tools_used)
-        logger.info("FinLit AI response ready (finish_reason=%s, response_chars=%s, tool_rounds=%s, tools_used=%s)", finish_reason, len(answer), tool_rounds, ",".join(tools_used) or "none")
-        return ChatResponse(response=answer, question_id=bank_id)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        provider_status = getattr(exc, "code", None)
-        if not isinstance(provider_status, int):
-            provider_status = getattr(getattr(exc, "response", None), "status_code", None)
-        if not isinstance(provider_status, int):
-            provider_status = "unknown"
-        logger.warning(
-            "FinLit AI request failed (event=gemini_request_error, exception_type=%s, provider_status=%s, "
-            "model_id=%s, bounded_history_length=%s)",
-            type(exc).__name__,
-            provider_status,
-            model_id,
-            bounded_history_length,
-        )
-        raise HTTPException(status_code=502, detail="FinLit AI couldn’t respond just now. Please try again.")
+@api_router.post("/chat/stream")
+async def chat_stream_switched_off():
+    raise HTTPException(status_code=410, detail=CHAT_OFF)
 
 
 @api_router.post("/contact", response_model=ContactMessage)

@@ -361,25 +361,31 @@ async def test_status_shows_a_job_too_big_for_the_server_as_disabled_never_overd
     assert "sectors" not in body["overdue"] and any(d["name"] == "sectors" for d in body["disabledByConfig"])
 
 
-async def test_status_judges_job_size_by_the_jobs_container_not_the_website(store, monkeypatch):  # noqa: F811
-    """14 Nov 2026, after the jobs moved to their own container: the status page (built by the 500 MB website container) showed ingest and prism as
-    "disabled: can never start", while the 800 MB jobs container ran them. The supervisor now reports its own container's limit with its heartbeat."""
+async def test_status_judges_job_memory_by_the_jobs_container_not_the_website(store, monkeypatch):
+    """14 Nov 2026: the jobs moved to their own 800 MB container, but the status page (served by the 500 MB website container) judged them by the website's
+    limit and called ingest and prism 'can never start here'. The supervisor now sends its own container's limit with its heartbeat, and that is the one used."""
+    import json
     from finlit.jobs import resources
+    from finlit.jobs.status import BEAT_KEY
     await clean(store)
-    monkeypatch.setattr(resources, "container_limit_mb", lambda root="/sys/fs/cgroup": 500)   # the website container this page runs in
+    resources._LIMIT_CACHE.clear()
+    monkeypatch.setattr(resources, "container_limit_mb", lambda root="/sys/fs/cgroup": 500)   # this process: the 500 MB website container
+    await store.redis.delete(BEAT_KEY)
+    body = await jobs_status.build(store, store.redis, NOW, None)
+    assert {j["name"]: j for j in body["jobs"]}["ingest"]["state"] == "disabled"           # no heartbeat: the only limit known is this container's
     await store.redis.set(BEAT_KEY, json.dumps({"at": NOW.timestamp(), "running": [], "startedAt": NOW.timestamp(), "capacityMb": 800}))
     body = await jobs_status.build(store, store.redis, NOW, None)
     rows = {j["name"]: j for j in body["jobs"]}
-    assert rows["ingest"]["state"] != "disabled" and rows["ingest"]["disabledReason"] is None      # 450 + 100 reserve fits in 800
-    assert all(d["name"] != "ingest" for d in body["disabledByConfig"])
-    # with no capacity in the heartbeat (an older supervisor), the page still reads its own container, as before
-    await store.redis.set(BEAT_KEY, json.dumps({"at": NOW.timestamp(), "running": [], "startedAt": NOW.timestamp()}))
+    assert rows["ingest"]["state"] != "disabled" and rows["prism"]["state"] != "disabled"
+    assert not any(d["name"] in ("ingest", "prism") for d in body["disabledByConfig"])
+    await store.redis.set(BEAT_KEY, json.dumps({"at": NOW.timestamp(), "running": [], "startedAt": NOW.timestamp(), "capacityMb": 400}))
     body = await jobs_status.build(store, store.redis, NOW, None)
-    assert {j["name"]: j for j in body["jobs"]}["ingest"]["state"] == "disabled"
+    assert {j["name"]: j for j in body["jobs"]}["ingest"]["state"] == "disabled"           # a jobs container really too small still says so
     await store.redis.delete(BEAT_KEY)
 
 
-def test_the_heartbeat_carries_the_supervisors_own_memory_limit():
-    import inspect
-    from finlit.jobs import supervisor
-    assert '"capacityMb": _own_capacity_mb()' in inspect.getsource(supervisor)
+async def test_the_supervisor_heartbeat_carries_its_container_memory(monkeypatch):
+    from finlit.jobs import resources, supervisor
+    resources._LIMIT_CACHE.clear()
+    monkeypatch.setattr(resources, "container_limit_mb", lambda root="/sys/fs/cgroup": 800)
+    assert supervisor._capacity_mb() == 800

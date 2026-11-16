@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Mutual Fund Health Score upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
+// FinLit FundPulse upgrades in a DOM: history chart, breakdown + radar, screener (filters, URL state, CSV columns, locked page, no request below Gold),
 // leaderboard, compare, chip, admin panel and the wording scan.
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -103,14 +103,16 @@ describe("breakdown", () => {
     pillars: [{ key: "performance", name: "Performance", reading: "Strong" }, { key: "risk", name: "Risk", reading: "Fair" }, { key: "cost", name: "Cost", reading: "Fair" }, { key: "quality", name: "Quality", reading: "Weak" }],
     metrics: [m("A_ONE", "performance", "A", 12, 90), m("F_TWO", "cost", "F", null, 35, { whyText: "expense ratio not reported", why: "ter_missing" }), m("N_THREE", "quality", "N", null, null)],
     categoryMedian: { performance: "Fair", risk: "Fair", cost: "Fair", quality: "Fair", final: 52, n: 40, plan: "Direct", categoryLabel: "Large Cap" } } as never;
-  it("shows the radar, the data gaps box and the table with state explanations", () => {
+  it("shows the four parts against the category median as a table (task #132: no radar), the data gaps box and the measure table", () => {
     render(<ScoreBreakdown s={s} />);
-    expect(screen.getByRole("img", { name: /Category median \(40 funds\)/ })).toBeTruthy();
+    expect(screen.queryByRole("img")).toBeNull();
+    const parts = screen.getAllByRole("table")[0];
+    expect(within(parts).getByRole("columnheader", { name: "Category median (40 funds)" })).toBeTruthy();
+    expect([...parts.querySelectorAll("tbody tr")].map((r) => [...r.children].map((c) => c.textContent))).toEqual([["Performance", "Strong", "Fair"], ["Risk", "Fair", "Fair"], ["Cost", "Fair", "Fair"], ["Quality", "Weak", "Fair"]]);
     const gaps = screen.getByLabelText("Data gaps");
     expect(gaps.textContent).toMatch(/1 measure\(s\) used the group value/); expect(gaps.textContent).toMatch(/expense ratio not reported/);
-    expect(screen.getByText(/74 months/)).toBeTruthy(); expect(screen.getByText(/31 funds · widened/)).toBeTruthy();
     fireEvent.click(screen.getByText("Show the measure-by-measure table"));
-    const t = screen.getByRole("table");
+    const t = screen.getAllByRole("table")[1];
     expect(within(t).getAllByText("Filled").length).toBe(1); expect(within(t).getByText(/does not apply to this kind of fund/)).toBeTruthy();
     expect(within(t).getAllByRole("row").length).toBe(1 + 4 + 3);
   });
@@ -135,7 +137,7 @@ describe("screener", () => {
     expect(document.querySelector("[data-fgx=parts]")).toBeNull();
     const panel = document.querySelector("[data-fgx=score]") as HTMLElement;
     expect(panel.querySelector(".fgx-hb")!.textContent).toMatch(/Score & analytics filters.*1 active/);
-    for (const t of ["Overall Health Score", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
+    for (const t of ["Overall FundPulse", "Score Breakdown Filters"]) expect(within(panel).getByText(t)).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Total Score, exact range" })).toBeTruthy();
     for (const g of ["Performance", "Risk", "Cost", "Quality"]) expect(within(panel).getByRole("group", { name: `${g}, band` })).toBeTruthy();
     expect((within(panel).getByRole("button", { name: "Apply filters" }) as HTMLButtonElement).disabled).toBe(true);
@@ -270,9 +272,9 @@ describe("wording", () => {
 });
 
 
-describe("exchange-traded funds get no Health Score", () => {
+describe("exchange-traded funds get no FundPulse", () => {
   it("the card disappears when the server says the score is not offered (an ETF-category scheme opened as a fund)", async () => {
-    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "The Health Score is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
+    st.routes = { "/api/mf/45678/score": { locked: false, notOffered: true, final: null, status: "NOT SCORED", reason: "FinLit FundPulse is not given for exchange-traded funds.", pillars: [], reasons: {}, metrics: [] } };
     wrap(<FundScoreCard code={45678} />, "/funds/45678");
     await waitFor(() => expect(screen.queryByLabelText(MF_SCORE_NAME)).toBeNull());
     expect(st.calls.some((c) => c.startsWith("/api/mf/45678/score"))).toBe(true);

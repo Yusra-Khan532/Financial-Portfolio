@@ -1,0 +1,261 @@
+{
+"plan": "gold",
+"limit": 15,
+"count": 5,
+"items": [
+{
+"symbol": "NIFTYBEES",
+"name": "Nippon India ETF Nifty 50 BeES",
+"gone": false,
+"isin": "INF204KB14I2",
+"fundHouse": "Nippon India",
+"assetClass": "equity",
+"group": "Equity",
+"category": "nifty50",
+"categoryLabel": "Nifty 50",
+"benchmark": "Nifty 50 TRI",
+"tracks": {
+"key": "idx:nifty50",
+"label": "Nifty 50",
+"basis": "index"
+},
+"qty": null,
+"price": 286.64,
+"previousClose": 288.22,
+"changePct": -0.55,
+"priceDate": "2026-11-13",
+"ret1y": -1.97,
+"ret1yWhy": null,
+"ret5y": 46.65,
+"ret5yWhy": null,
+"nav": 286.9894,
+"navDate": "2026-11-13",
+"premium": -0.12,
+"premiumWhy": null,
+"avgTurnover": 2740369172.0,
+"avgTurnoverWhy": null,
+"ter": {
+"value": 0.05,
+"asOf": "2026-10-31",
+"source": "Nippon India Mutual Fund, scheme-wise TER (mf.nipponindiaim.com)",
+"why": null
+},
+"firstDate": null,
+"tracking": {
+"value": 0.87,
+"why": null,
+"from": "2025-11-13",
+"to": "2026-11-13"
+},
+"weight": 20.0,
+"value": null,
+"twice": true
+},
+{
+"symbol": "SBINIFTY50",
+"name": "SBI Nifty 50 ETF",
+"gone": false,
+"isin": "INF200KA1FS1",
+"fundHouse": "SBI",
+"assetClass": "equity",
+"group": "Equity",
+"category": "nifty50",
+"categoryLabel": "Nifty 50",
+"benchmark": "NIFTY 50 TRI",
+"tracks": {
+"key": "idx:nifty50",
+"label": "Nifty 50",
+"basis": "index"
+},
+"qty": null,
+"price": 271.04,
+"previousClose": 272.42,
+"changePct": -0.51,
+"priceDate": "2026-11-13",
+"ret1y": -1.9,
+"ret1yWhy": null,
+"ret5y": 46.65,
+"ret5yWhy": null,
+"nav": 271.2118,
+"navDate": "2026-11-13",
+"premium": -0.06,
+"premiumWhy": null,
+"avgTurnover": 326530525.0,
+"avgTurnoverWhy": null,
+"ter": {
+"value": 0.05,
+"asOf": "2026-11-05",
+"source": "AMFI, TER of mutual fund schemes",
+"why": null
+},
+"firstDate": null,
+"tracking": {
+"value": 0.94,
+"why": null,
+"from": "2025-11-13",
+"to": "2026-11-13"
+},
+"weight": 20.0,
+"value": null,
+"twice": true
+},
+{
+"symbol": "GOLDBEES",
+"name": "Nippon India ETF Gold BeES",
+"gone": false,
+"isin": "INF204KB17I5",
+"fundHouse": "Nippon India",
+"assetClass": "gold",
+"group": "Gold",
+"category": "gold",
+"categoryLabel": "Gold",
+"benchmark": "Domestic Price of Gold",
+"tracks": {
+"key": "cat:gold",
+"label": "Gold",
+"basis": "kind"
+},
+"qty": null,
+"price": 111.91,
+"previousClose": 112.71,
+"changePct": -0.71,
+"priceDate": "2026-11-13",
+"ret1y": 6.21,
+"ret1yWhy": null,
+"ret5y": 163.63,
+"ret5yWhy": null,
+"nav": 111.729,
+"navDate": "2026-11-13",
+"premium": 0.16,
+"premiumWhy": null,
+"avgTurnover": 3617180521.0,
+"avgTurnoverWhy": null,
+"ter": {
+"value": 0.81,
+"asOf": "2026-10-31",
+"source": "Nippon India Mutual Fund, scheme-wise TER (mf.nipponindiaim.com)",
+"why": null
+},
+"firstDate": null,
+"tracking": {
+"value": null,
+"why": "No daily level of the price it follows is on file, so there is nothing to measure it against."
+},
+"weight": 20.0,
+"value": null,
+"twice": false
+},
+{
+"symbol": "MON100",
+"name": "Motilal Oswal Nasdaq 100 ETF",
+"gone": false,
+"isin": "INF247L01AP3",
+"fundHouse": "Motilal Oswal",
+"assetClass": "international",
+"group": "International",
+"category": "intl",
+"categoryLabel": "International",
+"benchmark": "NASDAQ - 100 TRI",
+"tracks": {
+"key": "bm:nasdaq100",
+"label": "NASDAQ-100",
+"basis": "benchmark"
+},
+"qty": null,
+"price": 302.35,
+"previousClose": 305.2,
+"changePct": -0.93,
+"priceDate": "2026-11-13",
+"ret1y": 25.81,
+"ret1yWhy": null,
+"ret5y": 156.66,
+"ret5yWhy": null,
+"nav": 259.9327,
+"navDate": "2026-11-12",
+"premium": 17.42,
+"premiumWhy": null,
+"avgTurnover": 310936297.0,
+"avgTurnoverWhy": null,
+"ter": {
+"value": 0.6,
+"asOf": "2026-11-06",
+"source": "AMFI, TER of mutual fund schemes",
+"why": null
+},
+"firstDate": null,
+"tracking": {
+"value": null,
+"why": "No daily level of the price it follows is on file, so there is nothing to measure it against."
+},
+"weight": 20.0,
+"value": null,
+"twice": false
+},
+{
+"symbol": "LIQUIDCASE",
+"name": "Zerodha CASE Nifty 1D Rate Liquid ETF",
+"gone": false,
+"isin": "INF0R8F01034",
+"fundHouse": "Zerodha CASE",
+"assetClass": "debt",
+"group": "Debt",
+"category": "liquid",
+"categoryLabel": "Liquid / overnight",
+"benchmark": null,
+"tracks": {
+"key": "cat:liquid",
+"label": "Liquid / overnight",
+"basis": "kind"
+},
+"qty": null,
+"price": 116.91,
+"previousClose": 116.86,
+"changePct": 0.04,
+"priceDate": "2026-11-13",
+"ret1y": 4.99,
+"ret1yWhy": null,
+"ret5y": null,
+"ret5yWhy": "Listed less than 5 years",
+"nav": 116.8802,
+"navDate": "2026-11-13",
+"premium": 0.03,
+"premiumWhy": null,
+"avgTurnover": 3233801927.0,
+"avgTurnoverWhy": null,
+"ter": {
+"value": 0.28,
+"asOf": "2026-11-06",
+"source": "AMFI, TER of mutual fund schemes",
+"why": null
+},
+"firstDate": null,
+"tracking": {
+"value": null,
+"why": "No daily level of the price it follows is on file, so there is nothing to measure it against."
+},
+"weight": 20.0,
+"value": null,
+"twice": false
+}
+],
+"basis": "equal",
+"repeats": [
+{
+"key": "idx:nifty50",
+"label": "Nifty 50",
+"symbols": [
+"NIFTYBEES",
+"SBINIFTY50"
+]
+}
+],
+"asOf": "2026-11-13",
+"missingQty": [
+"NIFTYBEES",
+"SBINIFTY50",
+"GOLDBEES",
+"MON100",
+"LIQUIDCASE"
+],
+"disclaimer": "x"
+}

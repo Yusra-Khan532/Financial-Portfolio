@@ -5,10 +5,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Assistant, OPEN_AI } from "./Assistant";
 import { bankGroups, STARTERS } from "../lib/questionBank";
+import { MARKET_ANSWERS, MARKET_QUESTIONS } from "../lib/askFlow";
 import { CATEGORIES, QUARTERS, SEGMENTS, TABS, quarterQuestion, related, tabQuestions } from "../lib/askFlow";
 
-const ask = vi.fn(async (q: string, _h?: unknown) => ({ response: "answer to " + q }));
-vi.mock("../lib/siteApi", () => ({ askAssistant: (q: string, h: unknown) => ask(q, h) }));
+// Task #138: no language model; a company question is answered by answerCompany from the company's FinLit figures (tested in lib/askAnswers.test.ts).
+const ask = vi.fn(async (id: string, sym: string, _extra?: unknown): Promise<{ text: string; link?: { to: string; label: string } }> => ({ text: `answer to ${id} for ${sym}`, link: { to: `/stocks/${sym}#financials`, label: "See the Profit & Loss" } }));
+vi.mock("../lib/askAnswers", async (orig) => ({ ...(await orig<typeof import("../lib/askAnswers")>()), answerCompany: (id: string, sym: string, extra?: unknown) => ask(id, sym, extra) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: async () => ({ fields: [], rows: [["RELIANCE", "Reliance Industries Ltd", null, 1], ["TCS", "Tata Consultancy Services Ltd", null, 1]] }) }));
 beforeAll(() => { Element.prototype.scrollIntoView = () => {}; });
 afterEach(() => { cleanup(); ask.mockClear(); });
@@ -53,7 +55,7 @@ describe("Assistant on a company page", () => {
     expect(screen.getByRole("tab", { name: "Suggested questions" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("button", { name: /What is RELIANCE's YoY and QoQ revenue growth/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Change company" })).toBeTruthy();
-    expect((screen.getByLabelText("Your question") as HTMLInputElement).placeholder).toBe("Ask a follow-up about RELIANCE");
+    expect((screen.getByLabelText("Search the listed questions") as HTMLInputElement).placeholder).toBe("Search RELIANCE's questions (e.g. debt, dividend, P/E)");
   });
   it("a tab shows its own questions; Financials also shows Q1 to Q4", () => {
     open();
@@ -69,8 +71,8 @@ describe("Assistant on a company page", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Q2/ })); });
-    expect(ask).toHaveBeenCalledWith(expect.stringContaining("Q2 (Jul–Sep)"), expect.anything());
-    expect(await screen.findByText(/answer to .*Q2 \(Jul–Sep\)/)).toBeTruthy();
+    expect(ask).toHaveBeenCalledWith("quarter", "RELIANCE", expect.objectContaining({ quarter: 2 }));
+    expect(await screen.findByText(/answer to quarter for RELIANCE/)).toBeTruthy();
     expect(screen.getByText("Related questions")).toBeTruthy();
     expect(within(screen.getByRole("list", { name: "Related questions" })).getAllByRole("button").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "← More about RELIANCE" }));
@@ -80,14 +82,28 @@ describe("Assistant on a company page", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "Financials" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What are RELIANCE's 3-year and 5-year profit CAGRs?" })); });
-    expect(ask).toHaveBeenCalledWith("What are RELIANCE's 3-year and 5-year profit CAGRs?", expect.anything());
+    expect(ask).toHaveBeenCalledWith("C.2.Q7", "RELIANCE", expect.anything());   // the listed question, answered from RELIANCE's own figures
+    expect(screen.getByRole("link", { name: /See the Profit & Loss/ }).getAttribute("href")).toBe("/stocks/RELIANCE#financials");   // and a link to where the figures come from
   });
-  it("a typed follow-up keeps the company in context", async () => {
+  it("the box searches the listed questions as you type, for this company too, and a pick is answered at once (task #138)", async () => {
     open();
-    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "How is the debt trend?" } });
-    await act(async () => { fireEvent.submit(screen.getByLabelText("Your question").closest("form")!); });
-    expect(ask).toHaveBeenCalledWith("About RELIANCE: How is the debt trend?", expect.anything());
-    expect(screen.getByText("How is the debt trend?")).toBeTruthy();   // the user sees what they typed
+    fireEvent.change(screen.getByLabelText("Search the listed questions"), { target: { value: "borrowings" } });
+    const hits = screen.getByRole("list", { name: "Listed questions that match" });
+    expect(within(hits).getAllByRole("button").map((b) => b.textContent)).toContain("How have RELIANCE's total borrowings and debt-to-equity ratio changed over the last 5 years?");
+    await act(async () => { fireEvent.click(within(hits).getByRole("button", { name: /RELIANCE's total borrowings/ })); });
+    expect(ask).toHaveBeenCalledWith("C.3.Q10", "RELIANCE", expect.anything());
+  });
+  it("a typed sentence that is not listed offers the closest listed ones, or says none matches; nothing is sent to any model (task #138)", async () => {
+    open();
+    const box = () => screen.getByLabelText("Search the listed questions");
+    fireEvent.change(box(), { target: { value: "Will the dividend rise much higher next year, do you think?" } });
+    await act(async () => { fireEvent.submit(box().closest("form")!); });
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByText(/FinLit AI answers its listed questions/)).toBeTruthy();
+    expect(within(screen.getByRole("list", { name: "Closest listed questions" })).getAllByRole("button").map((b) => b.textContent).join(" ")).toMatch(/dividend/i);
+    fireEvent.change(box(), { target: { value: "xyzzy plugh" } });
+    await act(async () => { fireEvent.submit(box().closest("form")!); });
+    expect(screen.getByText(/none matches “xyzzy plugh”/)).toBeTruthy();
   });
   it("shows the banks question only when the page knows the company is a lender", () => {
     const { unmount } = open();
@@ -102,7 +118,7 @@ describe("Assistant on a company page", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "Business" }));
     fireEvent.click(screen.getByRole("button", { name: /compare with XYZ/ }));
-    const input = screen.getByLabelText("Your question") as HTMLInputElement;
+    const input = screen.getByLabelText("Search the listed questions") as HTMLInputElement;
     expect(ask).not.toHaveBeenCalled();
     expect(input.value).toBe("How does RELIANCE compare with XYZ on growth, margins, returns and valuation?");
     expect(input.value.slice(input.selectionStart!, input.selectionEnd!)).toBe("XYZ");
@@ -121,7 +137,7 @@ describe("Assistant away from a company page", () => {
     open("/about");
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
     expect(within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button")).toHaveLength(4);
-    expect((screen.getByLabelText("Your question") as HTMLInputElement).placeholder).toBe("Ask a question or choose a topic");
+    expect((screen.getByLabelText("Search the listed questions") as HTMLInputElement).placeholder).toBe("Search the questions (e.g. P/E, cash flow, debt)");
   });
   it("Explore a company -> segment -> search a company -> that company's tab", async () => {
     open("/about");
@@ -139,11 +155,14 @@ describe("Assistant away from a company page", () => {
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/ETF trades on the stock exchange/)).toBeTruthy();
   });
-  it("Market & economy questions go to the assistant", async () => {
+  it("Market & economy questions answer at once from written text, with no model call (task #138)", async () => {
     open("/about");
     fireEvent.click(screen.getByRole("button", { name: /Market & economy/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /FII and DII flows/ })); });
-    expect(ask).toHaveBeenCalledWith("What do FII and DII flows tell us about the market?", expect.anything());
+    expect(ask).not.toHaveBeenCalled();
+    expect(screen.getByText(/net amounts these groups put into or took out of Indian shares/)).toBeTruthy();
+    for (const a of Object.values(MARKET_ANSWERS)) { expect(a).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i); expect(a).toMatch(/not investment advice/); }
+    expect(Object.keys(MARKET_ANSWERS)).toEqual(MARKET_QUESTIONS.map((q) => q.text));   // every market question has its written answer
   });
   it("the back arrow returns one step", () => {
     open("/about");

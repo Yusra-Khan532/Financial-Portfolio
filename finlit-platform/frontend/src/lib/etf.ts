@@ -18,6 +18,8 @@ export type EtfItem = {
   vol1y: number | null; mdd1y: number | null; mdd3y: number | null; mdd5y: number | null; high52: number | null; low52: number | null; from52: number | null;
   rangeFrom: string | null; firstDate: string | null; points: number; breakDate: string | null;
   nav: number | null; navDate: string | null; premium: number | null; premiumWide: boolean; why: Why; rank: number | null; hot: boolean;
+  /** Expense ratio (TER), percent a year: AMFI's TER file, else the fund house's own TER page (task #133). why.ter says why when null. */
+  ter?: number | null; terDate?: string | null; terSource?: string | null;
 };
 export type Facet = { key: string; label: string; group: string; count: number };
 export type EtfList = {
@@ -77,7 +79,7 @@ export function stamp(iso: string | null | undefined): string {
 export const tone = (v: number | null | undefined): "up" | "down" | "flat" => (v == null || v === 0 ? "flat" : v > 0 ? "up" : "down");
 
 // ------------------------------------------------------------------------------------------------ columns of the list
-export type ColKey = "category" | "price" | "change" | "ret1y" | "ret5y" | "turnover" | "premium" | "fundHouse";
+export type ColKey = "category" | "price" | "change" | "ret1y" | "ret5y" | "ter" | "premium" | "turnover" | "fundHouse";
 export type Col = {
   key: ColKey; label: string; short: string; sort: string | null; get: (i: EtfItem) => number | string | null; text: (i: EtfItem) => string;
   why?: string; term?: GlossName; def: boolean; help: string; num: boolean;
@@ -90,8 +92,10 @@ export const COLUMNS: Col[] = [
   { key: "change", label: "1-day change", short: "1 day", sort: "change", def: true, num: true, help: "Change from the previous close to the last close.", ...num((i) => i.changePct, (v) => move(v), "change") },
   { key: "ret1y", label: "1-year price return", short: "1 year", sort: "ret1y", def: true, num: true, help: "Price change over 1 year. Dividends are not included.", term: "Price return", ...num((i) => i.ret1y, (v) => pct(v), "ret_1y") },
   { key: "ret5y", label: "5-year price return (total)", short: "5 years", sort: "ret5y", def: true, num: true, help: "Total price change over 5 years, not a yearly rate. Dividends are not included.", term: "Price return", ...num((i) => i.ret5y, (v) => pct(v), "ret_5y") },
-  { key: "turnover", label: "Traded value a day", short: "Traded/day", sort: "turnover", def: false, num: true, help: "Average rupees traded each day over the last 20 sessions.", term: "Traded value (turnover)", ...num((i) => i.avgTurnover, traded) },
-  { key: "premium", label: "Premium / discount to NAV", short: "vs NAV", sort: "premium", def: false, num: true, help: "Exchange close against AMFI's NAV of the same day.", term: "Premium and discount to NAV", ...num((i) => i.premium, (v) => pct(v), "nav_premium") },
+  // task #133: three columns on by default, the same figures each ETF's page shows
+  { key: "ter", label: "Expense ratio (a year)", short: "Expense ratio", sort: "ter", def: true, num: true, help: "Total expense ratio (TER), percent a year: AMFI's TER file, or the fund house's own figure when AMFI has none. Already inside the price.", term: "Expense ratio", ...num((i) => i.ter ?? null, (v) => pct(v), "ter") },
+  { key: "premium", label: "Price vs NAV (premium or discount)", short: "Price vs NAV", sort: "premium", def: true, num: true, help: "The last close on the NSE against AMFI's NAV of the same day. Plus: the price is above the NAV.", term: "Premium and discount to NAV", ...num((i) => i.premium, (v) => pct(v), "nav_premium") },
+  { key: "turnover", label: "Traded a day (20-session average)", short: "Traded a day", sort: "turnover", def: true, num: true, help: "Average rupees traded each day over the last 20 sessions on the NSE.", term: "Traded value (turnover)", ...num((i) => i.avgTurnover, traded) },
   { key: "fundHouse", label: "Fund house", short: "Fund house", sort: null, def: false, num: false, help: "From AMFI's register.", get: (i) => i.fundHouse, text: (i) => i.fundHouse ?? "—" },
 ];
 export const DEFAULT_COLS: ColKey[] = COLUMNS.filter((c) => c.def).map((c) => c.key);
@@ -103,8 +107,29 @@ export function whyBlank(i: EtfItem, c: Col): string {
   if (c.key === "category") return "The fund's name does not say clearly what it follows";
   if (c.key === "fundHouse") return "Not found in AMFI's register";
   if (c.key === "turnover") return "Too few trading days to average";
+  if (c.key === "ter") return i.why?.ter || "Not in AMFI's expense ratio (TER) file";
   if (c.key === "change") return (c.why && i.why?.[c.why]) || "No previous close to compare with";
   return (c.why && i.why?.[c.why]) || "Not enough price history";
+}
+
+/** The word or two shown under a "—" in the list (task #133); the full reason stays in the tooltip and for screen readers. */
+export function shortWhy(full: string): string {
+  const f = full.toLowerCase();
+  const dt = full.match(/(\d{1,2} [A-Z][a-z]{2} \d{4})/)?.[1];
+  if (f.includes("pays out")) return "Pays out";
+  if (f.includes("break") || f.includes("jumped")) return dt ? `Price break, ${dt}` : "Price break";
+  const listed = full.match(/Listed less than (\d+) years?/i);
+  if (listed) return `Under ${listed[1]} year${listed[1] === "1" ? "" : "s"}`;
+  if (f.includes("too few trades")) return "Few trades";
+  if (f.includes("last traded")) return dt ? `Last traded ${dt}` : "Not traded lately";
+  if (f.includes("no nav")) return "No NAV";
+  if (f.includes("expense ratio") || f.includes("ter file") || f.includes("list of schemes")) return f.includes("could not") ? "Not read now" : "Not in AMFI file";
+  if (f.includes("trading days")) return "Few trading days";
+  if (f.includes("previous close")) return "No previous close";
+  if (f.includes("name does not say")) return "Name unclear";
+  if (f.includes("register")) return "Not in AMFI";
+  if (f.includes("not enough price history")) return "Too new";
+  return "Not available";
 }
 
 // ------------------------------------------------------------------------------------------------ glossary words used on the pages
@@ -232,6 +257,20 @@ export const useEtfCompare = (symbols: string[], range: RangeKey) => useQuery<Et
 });
 export const useEtfFacts = (symbol: string) => useQuery<EtfFacts, ApiError>({
   queryKey: ["etf", "facts", symbol], queryFn: () => etfGet<EtfFacts>(`/api/etf/${encodeURIComponent(symbol)}/facts`), staleTime: 300_000, retry,
+});
+/** One ETF page's "How closely it follows the index" (task #134): the index it follows, the 1-year tracking difference and tracking error with their dates, and
+ *  every ETF and Direct index fund on the same index (finlit/etf_vs_index.py, /api/etf-vs-index/for/{symbol}). Every blank comes with its reason. */
+export type Fig = { value: number | null; why?: string | null; etfReturn?: number | null; indexReturn?: number | null; days?: number };
+export type TrackPeer = { kind: "etf" | "fund"; id: string; name: string; house: string | null; self: boolean; ter: { value: string | null; why?: string; asOf?: string | null; source?: string | null };
+  terPct: number | null; traded: number | null; tradedWhy: string | null; premium: number | null; premiumWhy: string | null; navDate?: string | null };
+export type EtfTracking = {
+  symbol: string; index: { key: string; label: string; code: string | null; basis?: string | null; returnType?: string | null } | null; why?: string;
+  tracking?: { difference: Fig; error: Fig; from: string | null; to: string | null; basis: string; index: string };
+  ter?: { value: string | null; why?: string; asOf?: string | null; source?: string | null }; terPct?: number | null;
+  peers?: TrackPeer[]; counts?: { etfs: number; funds: number }; source?: string; disclaimer: string;
+};
+export const useEtfTracking = (symbol: string) => useQuery<EtfTracking, ApiError>({
+  queryKey: ["etf", "tracking", symbol], queryFn: () => etfGet<EtfTracking>(`/api/etf-vs-index/for/${encodeURIComponent(symbol)}`), staleTime: 300_000, retry, enabled: !!symbol,
 });
 /** The portfolio, or { unavailable } with the reason: exactly what the shared HoldingsSection takes. */
 export const useEtfPortfolio = (symbol: string) => useQuery<PortfolioResult, ApiError>({

@@ -8,7 +8,7 @@ import { Icon } from "../lib/icons";
 import type { Table } from "../lib/api";
 import { DUPONT_LIMITS as LIM } from "../lib/dupontRules";
 import {
-  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRoe, simStart, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
@@ -57,7 +57,8 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
   // what-if state starts at the latest year's values, and restarts when the year (or the balance basis) behind them changes
   const [sim, setSim] = useState<{ key: string; m: number; t: number; e: number } | null>(null);
   const simKey = start ? `${start.year.period}|${basis}` : "";
-  const cur = start && sim?.key === simKey ? sim : start ? { key: simKey, m: start.margin, t: start.turnover, e: start.multiplier } : null;
+  const rng = useMemo(() => (start ? simRanges(start) : null), [start]);
+  const cur = start && rng ? (sim?.key === simKey ? sim : { key: simKey, m: clampTo(start.margin, rng.m), t: clampTo(start.turnover, rng.t), e: clampTo(start.multiplier, rng.e) }) : null;
   const chosen = years.find((y) => y.period === pick) ?? start?.year ?? years[years.length - 1];
 
   if (!years.length) return null;
@@ -195,11 +196,11 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
 
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>What-if calculator</h3><span className="s">{start ? `Starts at ${start.year.label} · ${basis === "average" ? "average" : "year-end"} balances` : "Needs a year with all three factors"}</span></div>
-        {cur && start ? (<>
+        {cur && start && rng ? (<>
           <div className="dp-sliders">
-            <Slider id={uid + "-m"} label="Net margin" value={cur.m} min={0} max={Math.ceil(Math.max(40, cur.m * 2, start.margin * 1.5))} step={0.1} fmt={(v) => `${nf(v, 1)}%`} onChange={(v) => setSim({ ...cur, m: v })} />
-            <Slider id={uid + "-t"} label="Asset turnover" value={cur.t} min={0} max={Math.ceil(Math.max(3, start.turnover * 2.5) * 2) / 2} step={0.01} fmt={(v) => `${nf(v, 2)}×`} onChange={(v) => setSim({ ...cur, t: v })} />
-            <Slider id={uid + "-e"} label="Equity multiplier" value={cur.e} min={1} max={Math.ceil(Math.max(6, start.multiplier * 1.6))} step={0.01} fmt={(v) => `${nf(v, 2)}×`} onChange={(v) => setSim({ ...cur, e: v })} />
+            <Slider id={uid + "-m"} label="Net margin" value={cur.m} min={rng.m[0]} max={rng.m[1]} step={0.1} fmt={(v) => `${nf(v, 1)}%`} onChange={(v) => setSim({ ...cur, m: clampTo(v, rng.m) })} />
+            <Slider id={uid + "-t"} label="Asset turnover" value={cur.t} min={rng.t[0]} max={rng.t[1]} step={0.01} fmt={(v) => `${nf(v, 2)}×`} onChange={(v) => setSim({ ...cur, t: clampTo(v, rng.t) })} />
+            <Slider id={uid + "-e"} label="Equity multiplier" value={cur.e} min={rng.e[0]} max={rng.e[1]} step={0.01} fmt={(v) => `${nf(v, 2)}×`} onChange={(v) => setSim({ ...cur, e: clampTo(v, rng.e) })} />
           </div>
           <p className="dp-simout" aria-live="polite" role="status"><b>{nf(simRoe(cur.m, cur.t, cur.e), 1)}%</b> ROE = {nf(cur.m, 2)}% × {nf(cur.t, 2)} × {nf(cur.e, 2)}
             {start.year.roe != null && <small> ({(() => { const d = simRoe(cur.m, cur.t, cur.e) - (start.year.roe as number); return Math.abs(d) < 0.05 ? "same as" : `${d > 0 ? "▲ +" : "▼ " + MINUS}${nf(Math.abs(d), 1)} pp against`; })()} {nf(start.year.roe, 1)}% in {start.year.label})</small>}</p>
@@ -244,6 +245,6 @@ const SHORT: Record<string, [[string, string], [string, string]]> = { taxBurden:
 function Slider({ id, label, value, min, max, step, fmt, onChange }: { id: string; label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) {
   return (
     <div className="dp-sl"><label htmlFor={id}>{label}</label><output htmlFor={id} aria-live="off">{fmt(value)}</output>
-      <input id={id} type="range" min={min} max={Math.max(max, value)} step={step} value={value} aria-valuetext={fmt(value)} onChange={(e) => onChange(Number(e.target.value))} /></div>
+      <input id={id} type="range" min={min} max={max} step={step} value={value} aria-valuetext={fmt(value)} onChange={(e) => onChange(Number(e.target.value))} /></div>
   );
 }

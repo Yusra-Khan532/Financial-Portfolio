@@ -5,14 +5,13 @@ import { useDocTitle } from "../lib/title";
 import { PlansBand } from "./Plans";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
 import { PrismShowcase } from "../components/PrismShowcase";
-import { TOUR_CHOICE_KEY, asChoice, tourLook, type Choice, type Look } from "../lib/tourTheme";
+import { tourLook, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
-const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · Fund Health Score · Portfolio";
+const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · FinLit FundPulse · Portfolio";
 const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const src = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-720p.mp4" : "finlit-tour-720p.mp4"}`;
 const poster = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-poster.jpg" : "finlit-tour-poster.jpg"}`;
-const read = (): Choice => { try { return asChoice(localStorage.getItem(TOUR_CHOICE_KEY)); } catch { return "auto"; } };
 
 /** The page's theme, kept up to date when the visitor switches it. */
 function useSiteLook(): Look {
@@ -22,17 +21,17 @@ function useSiteLook(): Look {
   return look;
 }
 
-/** The product tour in a browser-style frame. By default it is shown in the opposite theme to the page, so it stands out; Light / Dark buttons under it switch
- *  the look (and are remembered). It starts by itself, muted and looping, with controls so anyone can pause it; people who ask their device for less motion get the
- *  still poster. Only 720p files are shipped, so phones never download the large one. Switching keeps the place in the video. */
-function Tour() {
+/** The product tour in a browser-style frame, always in the opposite theme to the page so it stands out (task #152 removed the Show in Light / Dark buttons; when the
+ *  visitor switches the site's theme the video follows and keeps its place). It starts by itself, muted and looping, with controls so anyone can pause it; people
+ *  who ask their device for less motion get the still poster. Only 720p files are shipped, so phones never download the large one. */
+export function Tour() {
   const v = useRef<HTMLVideoElement>(null);
   const site = useSiteLook();
-  const [choice, setChoice] = useState<Choice>(read);
-  const look = tourLook(site, choice);
+  const look = tourLook(site);
   const at = useRef(0);
+  const was = useRef(look);
+  if (was.current !== look) { at.current = v.current?.currentTime ?? 0; was.current = look; }   // the site's theme changed: keep the place in the video
   useEffect(() => { if (reduced()) v.current?.pause(); }, []);
-  const pick = (c: Choice) => { at.current = v.current?.currentTime ?? 0; setChoice(c); try { localStorage.setItem(TOUR_CHOICE_KEY, c); } catch { /* private window: the choice lasts for this visit */ } };
   const resume = () => { const el = v.current; if (!el) return; if (at.current > 0 && Number.isFinite(at.current)) { el.currentTime = Math.min(at.current, Math.max(0, (el.duration || at.current) - 0.1)); at.current = 0; } if (!reduced()) void el.play().catch(() => undefined); };
   return (
     <figure className="hh-tour" id="tour" data-look={look}>
@@ -41,10 +40,6 @@ function Tour() {
         autoPlay={!reduced()} muted loop playsInline controls preload="metadata" width={1280} height={720} aria-label={`A tour of FinLit in ${look} mode: screeners, company report, FinLit Prism, sector pages, fund health score and portfolio`} />
       <figcaption>
         <div className="hh-cap"><b>Product tour</b><span>{TOUR}</span></div>
-        <div className="hh-look" role="group" aria-label="Show the tour in">
-          <span>Show in</span>
-          {(["light", "dark"] as const).map((l) => <button key={l} type="button" aria-pressed={look === l} onClick={() => pick(l)}>{l === "light" ? "Light" : "Dark"}</button>)}
-        </div>
       </figcaption>
     </figure>
   );

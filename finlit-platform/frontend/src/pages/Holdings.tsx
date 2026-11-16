@@ -14,9 +14,10 @@ import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
 import { RemoveAll } from "../components/RemoveAll";
 import { saveFile } from "../stock/derive";
 import { PdfImport } from "../components/PdfImport";
-import { ACCEPT, namesFromFile } from "../lib/holdingsFile";
+import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
 import { isPdf } from "../lib/holdingsPdf";
-import { makeMatcher, matchNames, namesFrom } from "../lib/holdingsMatch";
+import { entriesFrom, entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
+import { resolveIsins, sourcesLine } from "../lib/isin";
 import { csvName, modelFor, parsePeriod, parseTab, toCsv, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { ScoreCard, ScoreInputs } from "../portfolio/ScoreCard";
@@ -62,6 +63,7 @@ export function HoldingsPage() {
   const index = idx.data?.rows || [];
   const cap = limitsFor(plan).holdings;
   const [one, setOne] = useState(""), [text, setText] = useState(""), [pasting, setPasting] = useState(false), [missing, setMissing] = useState<string[]>([]);
+  const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
   const [undo, setUndo] = useState<{ before: PState; n: number } | null>(null);   // after "Remove all": the list as it was, for Undo (task #127)
   useEffect(() => { if (st.holdings.length) setUndo(null); }, [st.holdings.length]);   // once the list has shares again, Undo would throw them away: it goes
@@ -94,15 +96,28 @@ export function HoldingsPage() {
   const ids = data?.symbols ?? symbols;
   const state: "loading" | "ready" | "error" | "none" = DEMO ? "none" : pg.isError ? "error" : pg.isPending && symbols.length ? "loading" : "ready";
 
-  const add = (names: string[], from?: string) => {
-    if (!names.length) { toast(from ? `No share names found in ${from}. It should have a column with the share names (Symbol, Stock, Instrument or Company).` : "No share names found. Put one name or ticker per line, or paste the Name column from your broker."); return; }
+  // Task #128: every line is matched by its ISIN when it has one (the company list's ISINs, then POST /api/isin/resolve); its name is used only when it has none.
+  const add = async (entries: Entry[], from?: string) => {
+    if (!entries.length) { toast(from ? `No shares found in ${from}. It should have a column with the ISINs or the share names (ISIN, Symbol, Stock, Instrument or Company).` : "No share names found. Put one ISIN, name or ticker per line, or paste the ISIN or Name column from your broker."); return; }
     if (!index.length) { toast("The company list is still loading. Try again in a moment."); return; }
-    const { found, missing: miss } = matchNames(names, index);
+    const isins = entries.flatMap((e) => (e.isin ? [e.isin] : []));
+    if (isins.length) setBusy(true);
+    const res = isins.length ? await resolveIsins(isins, idx.data) : null;
+    setBusy(false);
+    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null);
     const fresh = [...new Map(found.filter((f) => !symbols.includes(f.symbol)).map((f) => [f.symbol, f])).values()];
     const room = Math.max(0, cap - symbols.length), take = fresh.slice(0, room);
     if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0 })));
-    setMissing(miss);
-    toast([take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add", miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
+    const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
+    setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
+    setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${entries.length > isins.length ? ` ${entries.length - isins.length} without an ISIN matched by name.` : ""}` : null);
+    toast([take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add", check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
+      miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
+  };
+  const addChecked = (c: ToCheck) => {
+    if (symbols.includes(c.symbol)) { setChecks((xs) => xs.filter((x) => x !== c)); return; }
+    if (symbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
+    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0 }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
   };
   const exportCsv = () => model && saveFile(csvName(tab, period), toCsv(lines, tab, model, period), "text/csv;charset=utf-8");
   const empty = !lines.length;
@@ -143,26 +158,32 @@ export function HoldingsPage() {
             <p className="sp-desc">How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money. Nothing is sent to a broker.</p>
             <nav className="eq-links" aria-label="Related pages"><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/watchlist">Watchlists →</Link><Link className="sp-link" to="/alerts">Alerts →</Link><Link className="sp-link" to="/learn/portfolio">Learn more →</Link></nav></div>
         <section className="eq-addbar" aria-label="Add shares">
-          <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); add([one.trim()].filter(Boolean)); setOne(""); }}>
-            <label className="pfx-input"><span className="sr-only">Add a share by name or ticker</span><Icon name="search" />
-              <input list="pf-names" value={one} onChange={(e) => setOne(e.target.value)} placeholder="Add a share by name or ticker" autoComplete="off" maxLength={80} /></label>
+          <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); void add(one.trim() ? [entryOf(one)] : []); setOne(""); }}>
+            <label className="pfx-input"><span className="sr-only">Add a share by name, ticker or ISIN</span><Icon name="search" />
+              <input list="pf-names" value={one} onChange={(e) => setOne(e.target.value)} placeholder="Add a share by name, ticker or ISIN" autoComplete="off" maxLength={80} /></label>
             <datalist id="pf-names">{index.slice(0, 500).map((r) => <option key={r[0]} value={r[0]}>{r[1]}</option>)}</datalist>
             <button className="pfx-solid">Add</button>
             <span className="eq-add2"><button type="button" className="pfx-btn" aria-expanded={pasting} onClick={() => setPasting((v) => !v)}>Paste a list</button>
             <button type="button" className="pfx-btn" onClick={() => file.current?.click()} disabled={busy}>{busy ? "Reading…" : "Upload broker file"}</button>
             <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (isPdf(f)) { setPdf(f); return; } setBusy(true);
-              try { add(await namesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
+              try { await add(await entriesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
             <RemoveAll count={symbols.length} noun="share" className="pfx-btn" note={qtyBySymbol.size ? "The quantities you typed go too." : undefined}
               onConfirm={() => { const n = symbols.length, before = portfolio.clear(); setUndo({ before, n }); }} />
             <span className="pfx-cap">{symbols.length} of {cap} shares</span></span>
           </form>
           <p className="pfx-note sr-only">{ADD_NOTE}</p>
           {undo && <p className="pfx-note rma-done" role="status">All {undo.n} {undo.n === 1 ? "share was" : "shares were"} removed. <button type="button" className="pfx-btn" onClick={() => { portfolio.restore(undo.before); setUndo(null); }}>Undo</button></p>}
-          {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"RELIANCE\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="Share names to add, one per line" />
-            <button className="pfx-solid" onClick={() => { add(namesFrom(text, matcher)); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
-          {pdf && <PdfImport file={pdf} index={index} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
+          {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
+            <button className="pfx-solid" onClick={() => { void add(entriesFrom(text, matcher)); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
+          {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
             onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0 }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
-          {missing.length > 0 && <p className="pf-miss" role="status"><b>Not recognised:</b> {missing.slice(0, 20).join(", ")}{missing.length > 20 ? ` and ${missing.length - 20} more` : ""}. Check the spelling or use the NSE ticker.</p>}
+          {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
+          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>
+            <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b>{c.symbol}</b> {c.name}. <small>{c.note}.</small></span>
+              <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
+          {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
+            <ul>{skipped.slice(0, 20).map((x) => <li key={x.isin}><span>{x.input}{x.input !== x.isin ? ` (${x.isin})` : ""}: {x.note}</span></li>)}</ul>{skipped.length > 20 && <small>and {skipped.length - 20} more.</small>}</div>}
+          {missing.length > 0 && <p className="pf-miss" role="status"><b>Not recognised:</b> {missing.slice(0, 20).join(", ")}{missing.length > 20 ? ` and ${missing.length - 20} more` : ""}. Check the spelling, or use the NSE ticker or the ISIN.</p>}
         </section>
         </header>
 

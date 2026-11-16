@@ -47,3 +47,32 @@ describe("Earnings & cash: each verdict tile in its colour (task #129)", () => {
     expect(css).toMatch(/:root:not\(\[data-theme="light"\]\) \.ec \{[^}]*--ck-watch: #FDBA74;[^}]*--ck-solid-watch: #EA580C;/);
   });
 });
+
+// Task #129, the team's second note (14 Nov 2026): "in this mention what each color signifies and create uniformity with above symbols. follow - green, orange and red color only".
+describe("Earnings & cash: a colour key, the Six checks' marks, and green, orange and red only (task #129, second note)", () => {
+  const src = readFileSync(join(__dirname, "EarningsCash.tsx"), "utf8");
+  const css = readFileSync(join(__dirname, "..", "styles", "earningscash.css"), "utf8");
+  it("says what each colour means, once, at the top of the section, in describing words", async () => {
+    const { COLOUR_KEY } = await import("./EarningsCash");
+    expect(COLOUR_KEY.map((c) => [c.t, c.word])).toEqual([["s", "Green"], ["w", "Orange"], ["f", "Red"]]);
+    expect(COLOUR_KEY.map((c) => c.says).join(" ")).not.toMatch(/\b(buy|sell|hold|avoid|target|best)\b/i);
+    expect(src.indexOf('className="ec-legend"')).toBeLessThan(src.indexOf('className="ec-tiles"'));
+  });
+  it("uses the Six checks' own marks: ✓ green, ! orange, ⚑ red (the same as their pills)", async () => {
+    const { MARK3 } = await import("./EarningsCash");
+    const intel = readFileSync(join(__dirname, "EarningsIntel.tsx"), "utf8");
+    expect(MARK3).toEqual({ s: "✓", w: "!", f: "⚑" });
+    expect(intel).toContain('const MARK: Record<Tone, string> = { ok: "✓", watch: "!", alert: "⚑"');
+  });
+  it("the read takes the verdict's colour, a red flag is red, watch and investigate are orange: no gold, no grey card left", () => {
+    expect(src).toContain('"ins ec-c v " + verdictTone(pr.verdict)');
+    expect(src).toContain('className="ins ec-c f"');
+    expect((src.match(/className="ins ec-c w"/g) || []).length).toBe(2);                 // Watch and Investigate
+    expect(src).not.toMatch(/className="ins (v|i|w|f)"/);                                  // the old gold read, grey investigate, plain watch
+    expect(css).toMatch(/\.ec \.ins\.ec-c\.s \{ --ic: var\(--ck-solid-ok\); \} \.ec \.ins\.ec-c\.w \{ --ic: var\(--ck-solid-watch\); \} \.ec \.ins\.ec-c\.f \{ --ic: var\(--ck-solid-alert\); \}/);
+  });
+  it("the verdict tiles carry the same marks as their colour", () => {
+    expect(src).toContain('<b><Mk t={verdictTone(pr.verdict)} />{pr.verdict ?? "Not enough data"}</b>');
+    expect(src).toContain('<b><Mk t={verdictTone(ok?.status)} />');
+  });
+});

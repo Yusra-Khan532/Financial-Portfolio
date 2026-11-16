@@ -141,6 +141,23 @@ def detect(text: Optional[str]) -> Optional[str]:
     return next(iter(found)) if len(found) == 1 else None
 
 
+_FAMILY = re.compile(r"(?<![A-Z0-9])(NIFTY|SENSEX|BSE)(?![A-Z0-9])")
+
+
+def names_other_index(text: Optional[str]) -> bool:
+    """True when a name names a Nifty or BSE index that is none of ours: 'Groww Nifty EV & New Age Automotive ETF', 'Nifty India Railways PSU'. Task #134,
+    15 Nov 2026: three such Groww ETFs carried 'Nifty 50 TRI' as their stored benchmark (the fund-house file's additional benchmark) and were listed as
+    Nifty 50 products. A bare 'Nifty' name (Nifty BeES, SBI Nifty Index Fund) is not another index."""
+    n = norm(text)
+    if not n or _scan(text)[0]:
+        return False
+    for m in _FAMILY.finditer(n):
+        rest = [w for w in n[m.end():].split() if w not in _NOISE]
+        if rest:
+            return True
+    return False
+
+
 def classify(benchmark: Optional[str], names: Sequence[Optional[str]]) -> dict:
     """{key, basis, returnType, conflict}: the benchmark the fund house states decides; the name decides when none is stored; if they disagree, or
     either one names a variant index, the product is not classified (conflict True)."""
@@ -150,7 +167,8 @@ def classify(benchmark: Optional[str], names: Sequence[Optional[str]]) -> dict:
     nkey = next((next(iter(f)) for f, _v in scans if len(f) == 1), None)
     nvar = any(v for _f, v in scans)
     rtype = return_type(benchmark) if benchmark else None
-    if (bkey and nkey and bkey != nkey) or (bkey and nvar) or (nkey and bvar):
+    nother = not nkey and any(names_other_index(x) for x in names if x)   # the name points at another index: a stated benchmark of ours cannot override it
+    if (bkey and nkey and bkey != nkey) or (bkey and nvar) or (nkey and bvar) or (bkey and nother):
         return {"key": None, "basis": None, "returnType": rtype, "conflict": True}
     if bkey:
         return {"key": bkey, "basis": "benchmark", "returnType": rtype, "conflict": False}
@@ -515,17 +533,22 @@ async def build_options(app, plan: str) -> dict:
             "source": "Index of each product: the benchmark in fund-house and AMFI disclosures we have, else the index named in the scheme's registered name.", "disclaimer": DISCLAIMER}
 
 
-@router.get("/options")
-async def options(request: Request, plan: str = Query("Direct", pattern="^(Direct|All)$")) -> Response:
-    """The benchmark indices that ETFs and index funds in our data follow, with the products of each. Direct plans by default."""
-    app = request.app
+async def cached_options(app, plan: str = "Direct") -> dict:
+    """build_options, kept for OPT_TTL seconds (the same copy /options serves)."""
     c = getattr(app.state, "evi_opts", None) or {}
     hit = c.get(plan)
     if not hit or time.time() - hit[0] > OPT_TTL:
         hit = (time.time(), json.dumps(await build_options(app, plan), default=etf._default, separators=(",", ":")))
         c[plan] = hit
         app.state.evi_opts = c
-    return Response(content=hit[1], media_type="application/json", headers={"Cache-Control": f"public, max-age={OPT_TTL // 3}"})
+    return json.loads(hit[1])
+
+
+@router.get("/options")
+async def options(request: Request, plan: str = Query("Direct", pattern="^(Direct|All)$")) -> Response:
+    """The benchmark indices that ETFs and index funds in our data follow, with the products of each. Direct plans by default."""
+    body = await cached_options(request.app, plan)
+    return Response(content=json.dumps(body, separators=(",", ":")), media_type="application/json", headers={"Cache-Control": f"public, max-age={OPT_TTL // 3}"})
 
 
 # ====================================================================================== data: series and facts
@@ -845,3 +868,76 @@ async def compare(request: Request, index: str = Query(..., pattern="^[a-z0-9]{3
         raise fail(400, "bad_request", "The start date is out of range.")
     key = f"{index}|{','.join(syms)}|{','.join(map(str, codes))}|{plan}|{sip}|{lump}|{start}"
     return await mf_compare._cached(request, "evi", key, lambda: compare_payload(request, index, syms, codes, plan, sip, lump, start), COMPARE_TTL)
+
+
+# ====================================================================================== one ETF page: how closely it follows its index (task #134)
+FOR_TTL = 1800
+NOT_TOLD = "The index this ETF follows could not be told from its stated benchmark or its name, so it is not compared with others."
+
+
+def tracking_1y(days: Sequence[int], etf_vals: Sequence[float], idx_vals: Sequence[float]) -> dict:
+    """Tracking difference and tracking error over the last year of common days. Difference: the ETF's price return less the index's, in percentage points
+    (against the PRICE index, so dividends the index does not count sit in it). Error: how much the daily gap moved about (tracking_error). Each figure with its dates."""
+    d, v, why = slice_from(days, {"e": list(etf_vals), "i": list(idx_vals)}, 12) if len(days) >= 2 else (None, {}, "Not enough common dates.")
+    if d is None:
+        return {"difference": {"value": None, "why": why}, "error": {"value": None, "why": why}, "from": None, "to": None}
+    re_, ri = period_return(d, v["e"], None), period_return(d, v["i"], None)
+    diff = rnd(re_["value"] - ri["value"]) if re_["value"] is not None and ri["value"] is not None else None
+    te, n, te_why = tracking_error(v["e"], v["i"])
+    return {"difference": {"value": diff, "etfReturn": re_["value"], "indexReturn": ri["value"], "why": None if diff is not None else (re_["why"] or ri["why"])},
+            "error": {"value": te, "days": n, "why": te_why}, "from": iso(d[0]), "to": iso(d[-1])}
+
+
+async def for_payload(request: Request, sym: str) -> dict:
+    app = request.app
+    cache = await etf._load(app)
+    r = cache["by"].get(sym)
+    if not r:
+        raise fail(404, "unknown_etf", f"No ETF with the symbol {sym}.")
+    opts = await cached_options(app, "Direct")
+    me = next((e for e in opts["etfs"] if e["symbol"] == sym), None)
+    base = {"symbol": sym, "disclaimer": DISCLAIMER, "generatedAt": datetime.now(timezone.utc).isoformat()}
+    if not me:
+        return {**base, "index": None, "why": NOT_TOLD}
+    key = me["index"]
+    label, code = INDEX_BY[key][1], INDEX_BY[key][2]
+    pool = app.state.store.pool
+    etfs = [e for e in opts["etfs"] if e["index"] == key]
+    funds = [f for f in opts["funds"] if f["index"] == key]
+    rows = [cache["by"].get(e["symbol"]) for e in etfs]
+    facts = await asyncio.gather(*[facts_of(pool, x["isin"]) if x else asyncio.sleep(0, {}) for x in rows], *[facts_of(pool, f["code"]) for f in funds])
+    peers = []
+    for e, x, f in zip(etfs, rows, facts[:len(etfs)]):
+        ter = _fact(f.get("ter"), "Not published in the sources loaded for this scheme.")
+        v = etf.row_view(x) if x else {}
+        peers.append({"kind": "etf", "id": e["symbol"], "name": e["name"], "house": e.get("fundHouse"), "self": e["symbol"] == sym, "ter": ter, "terPct": _pct_of(ter.get("value")),
+                      "traded": v.get("avgTurnover"), "tradedWhy": None if v.get("avgTurnover") is not None else "No traded value in the last 20 sessions.",
+                      "premium": v.get("premium"), "premiumWhy": None if v.get("premium") is not None else "No NAV for the day of the last close.", "navDate": v.get("navDate")})
+    for fd, f in zip(funds, facts[len(etfs):]):
+        ter = _fact(f.get("terDirect"), "Not published in the sources loaded for this scheme.")
+        peers.append({"kind": "fund", "id": str(fd["code"]), "name": fd["name"], "house": fd.get("amc"), "self": False, "ter": ter, "terPct": _pct_of(ter.get("value")),
+                      "traded": None, "tradedWhy": "An index fund is not traded on the exchange.", "premium": None, "premiumWhy": "An index fund is bought at its NAV: no price against NAV."})
+    peers.sort(key=lambda p: (not p["self"], p["kind"] != "etf", -(p["traded"] or 0), p["name"].lower()))
+    (ed, ev, basis, note), il = await asyncio.gather(etf_series(app, r), index_levels(app, key))
+    if len(ed) >= 2 and il[0]:
+        days, vals = align({"e": (ed, ev), "i": (il[0], il[1])})
+        track = tracking_1y(days, vals["e"], vals["i"])
+    else:
+        why = il[2] if not il[0] else (note or "No price history for this ETF.")
+        track = {"difference": {"value": None, "why": why}, "error": {"value": None, "why": why}, "from": None, "to": None}
+    track["basis"] = "AMFI NAV" if basis == "nav" else "NSE closing price"
+    track["index"] = "price index: dividends are not included, so they sit in the difference"
+    me_ter = next((p for p in peers if p["self"]), None)
+    return {**base, "index": {"key": key, "label": label, "code": code, "basis": me.get("indexBasis"), "returnType": me.get("returnType")}, "tracking": track,
+            "ter": me_ter["ter"] if me_ter else {"value": None, "why": "Not published in the sources loaded for this scheme."}, "terPct": me_ter["terPct"] if me_ter else None,
+            "peers": peers, "counts": {"etfs": len(etfs), "funds": len(funds)},
+            "source": "Expense ratios: AMFI's TER file or the fund house's TER page. Index levels: the index data provider's daily closes (price index). Prices: NSE closing prices; NAV: AMFI."}
+
+
+@router.get("/for/{symbol}")
+async def for_etf(request: Request, symbol: str) -> Response:
+    """For one ETF's page: the index it follows, how closely it tracked it over the last year, and every ETF and Direct index fund on the same index."""
+    sym = symbol.strip().upper()
+    if not etf.SYMBOL_RE.match(sym):
+        raise fail(400, "bad_request", "Unknown ETF symbol.")
+    return await mf_compare._cached(request, "evi-for", sym, lambda: for_payload(request, sym), FOR_TTL)

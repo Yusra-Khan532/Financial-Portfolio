@@ -247,3 +247,28 @@ async def test_the_gold_universe_carries_the_peer_label_only_while_it_is_switche
         await store.pool.execute("UPDATE feature_flags SET enabled = false WHERE name = 'leadership'")
         await store.pool.execute("DELETE FROM leadership")
         leadership_api._flag["at"] = 0.0
+
+
+# Task #153 (14 Nov 2026): the landing page's FinLit Prism card shows the showcase company's live reading (RELIANCE on the site, TCS in this app).
+async def test_the_showcase_reading_is_open_to_visitors_with_its_figures_dates_and_name_only(app):
+    async with new_client(app) as visitor:
+        none = await visitor.get("/api/prism/showcase")
+        assert none.status_code == 404 and none.json()["status"] == "none"          # nothing stored yet: the page shows its dated example
+        await put(app.state.store, "TCS", final=59.05, label="AVERAGE", st=(26.6, "Buy"), lt=(-41.8, "Sell"))
+        await put(app.state.store, "INFY", final=88.0, label="STRONG")             # not the showcase company: never sent
+        r = await visitor.get("/api/prism/showcase")
+    assert r.status_code == 200 and "public" in r.headers["cache-control"]
+    b = r.json()
+    assert b["symbol"] == "TCS" and b["name"] and b["final"] == 59.05 and b["label"] == "AVERAGE" and b["status"] == "RATED"
+    assert b["parts"] == {"fundamental": 70.1, "valuation": 40.2, "quality": 80.3, "risk": 65.4}
+    assert b["st"] == {"score": 26.6, "word": "Uptrend"} and b["lt"]["score"] == -41.8 and b["lt"]["word"]
+    assert b["at"] and set(b) == {"symbol", "name", "final", "label", "status", "at", "techAt", "parts", "st", "lt"}       # no report, no other company
+    assert not {"buy", "sell", "hold"} & {str(v).lower() for v in (b["st"]["word"], b["lt"]["word"])}
+
+
+async def test_no_showcase_company_set_answers_404(ingested):  # noqa: F811
+    app = create_app(make_settings(showcase_symbols=[]), store=ingested)
+    async with app.router.lifespan_context(app):
+        async with new_client(app) as visitor:
+            r = await visitor.get("/api/prism/showcase")
+    assert r.status_code == 404 and r.json()["status"] == "none"

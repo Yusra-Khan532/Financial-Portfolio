@@ -497,3 +497,53 @@ async def test_compare_without_index_levels_keeps_the_products_comparison(api, m
 def test_a_variant_named_in_either_place_is_a_conflict():
     assert ev.classify("Nifty 50 Equal Weight TRI", ["Some Nifty 50 Index Fund"])["conflict"] is True
     assert ev.classify("Nifty 50 TRI", ["Some Nifty 50 Equal Weight Index Fund"])["conflict"] is True
+
+
+# ---- task #134: one ETF page, "How closely it follows the index"
+def test_tracking_over_the_last_year_with_its_dates():
+    days = list(range(738000, 738000 + 400))
+    idx = [100 * (1.0004 ** i) for i in range(400)]
+    etf_ = [v * (1 - 0.0000002 * i) for i, v in enumerate(idx)]            # trails the index a little, every day
+    t = ev.tracking_1y(days, etf_, idx)
+    want_from = ev.at_or_before(days, ev.back(days[-1], 12))
+    assert t["from"] == ev.iso(days[want_from]) and t["to"] == ev.iso(days[-1])
+    e, i = etf_[want_from:], idx[want_from:]
+    assert t["difference"]["value"] == round((e[-1] / e[0] - i[-1] / i[0]) * 100, 2) and t["difference"]["value"] < 0
+    assert t["error"]["value"] is not None and t["error"]["days"] >= ev.MIN_TE
+    short = ev.tracking_1y(days[:100], etf_[:100], idx[:100])                 # under a year: both blanks say why
+    assert short["difference"]["value"] is None and "starts on" in short["difference"]["why"] and short["error"]["why"]
+
+
+@pytest.mark.integration
+async def test_an_etf_page_gets_its_index_tracking_and_every_product_on_the_same_index(api):
+    r = await api.get("/api/etf-vs-index/for/sampleetf")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["index"]["key"] == "nifty50" and d["index"]["label"] == "Nifty 50"
+    t = d["tracking"]
+    assert t["from"] and t["to"] == date.fromordinal(END).isoformat() and t["difference"]["value"] is not None and t["error"]["value"] is not None
+    assert t["basis"] == "NSE closing price" and "dividends are not included" in t["index"]
+    ids = [(p["kind"], p["id"], p["self"]) for p in d["peers"]]
+    assert ids[0] == ("etf", "SAMPLEETF", True)                                  # this ETF first
+    assert ("fund", "910001", False) in ids and all(p[1] != "NEXTETF" for p in ids)   # the Direct index fund on the Nifty 50; never the Next 50 ETF
+    assert d["counts"] == {"etfs": 1, "funds": 1} and d["terPct"] == 0.05
+    fund = next(p for p in d["peers"] if p["kind"] == "fund")
+    assert fund["traded"] is None and fund["tradedWhy"] and fund["premium"] is None and fund["premiumWhy"]   # every blank says why
+    assert "Dhan" not in r.text and "Upstox" not in r.text and "via our" not in r.text
+    assert (await api.get("/api/etf-vs-index/for/NOPE")).status_code == 404
+    assert (await api.get("/api/etf-vs-index/for/bad%20sym")).status_code == 400
+
+
+def test_the_etf_pages_never_name_the_price_provider():
+    assert etf.SOURCE == "NAV, scheme names and fund houses: AMFI." and "Dhan" not in etf.SOURCE and "Upstox" not in etf.SOURCE
+
+
+def test_a_name_that_names_another_index_is_never_listed_under_a_stated_benchmark_of_ours():
+    """15 Nov 2026, live: three Groww thematic ETFs carried 'Nifty 50 TRI' as their stored benchmark (the fund-house file's additional benchmark) and were
+    listed with the Nifty 50 ETFs; a Tourism ETF sat under the Nifty Smallcap 250. A name that points at another Nifty or BSE index wins over that."""
+    for name in ("Groww Nifty EV & New Age Automotive ETF", "Groww Nifty India Internet ETF", "Groww Nifty India Railways PSU ETF", "Motilal Oswal Nifty India Tourism ETF"):
+        c = ev.classify("Nifty 50 TRI", [name])
+        assert c["key"] is None and c["conflict"] is True, name
+    for name in ("SBI Nifty Index Fund", "Nippon India ETF Nifty BeES", "JioBlackRock Nifty 50 ETF", "UTI Nifty 50 Index Fund - Direct Plan"):
+        assert ev.classify("Nifty 50 TRI", [name])["key"] == "nifty50", name
+    assert ev.names_other_index("Groww Nifty India Railways PSU ETF") and not ev.names_other_index("SBI Nifty Index Fund") and not ev.names_other_index("Nifty 50 ETF")

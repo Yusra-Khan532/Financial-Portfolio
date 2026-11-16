@@ -96,9 +96,13 @@
    cream tile in bold; the expand button on top. Markup: components/SideRail.tsx. The full menu's own markup is hidden while the rail shows. ---- */
 .side-rail, .side-fly { display: none; }
 @media (min-width: 961px) {
-  .is-collapsed .side { width: 76px; overflow: visible; }
+  /* The rail stays inside its card on any screen height (a signed-in reader has one more group, Account, that used to hang below the card):
+     the card keeps its max height and the rail scrolls inside it. The group menus open in a portal, so nothing is clipped. */
+  .is-collapsed .side { width: 76px; overflow: hidden; }
   .is-collapsed .side-top, .is-collapsed .side-body { display: none; }
-  .is-collapsed .side-rail { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+  .is-collapsed .side-rail { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .is-collapsed .side-rail::-webkit-scrollbar { display: none; }
+  @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 2px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
   .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); cursor: pointer; }
   :root[data-theme="light"] .side-rail-x { background: #fff; }
   .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
@@ -132,3 +136,5 @@
   .side, .side *, .side-tip { transition-duration: .01ms !important; transition-delay: 0s !important; animation: none !important; }
   .side-i:hover .side-ic, .side-i:hover .side-l { transform: none; }
 }
+/* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
+.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 11px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }

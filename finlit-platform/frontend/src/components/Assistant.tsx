@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
-import { askAssistant } from "../lib/siteApi";
+import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import {
-  CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions, writtenAnswer,
+  CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
   type CategoryId, type Q, type TabId,
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
@@ -16,7 +16,7 @@ import "../styles/ask-ai.css";
 
 /** Fired by the header button; the assistant panel listens for it. */
 export const OPEN_AI = "finlit:open-ai";
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; suggest?: Q[] };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -35,7 +35,7 @@ async function findCompanies(q: string): Promise<{ symbol: string; name: string 
 const companyOf = (pathname: string) => { const m = /^\/stocks\/([A-Za-z0-9&.\-]{1,20})\/?$/.exec(pathname); return m ? decodeURIComponent(m[1]).toUpperCase() : null; };
 
 /** Ask FinLit AI. The flow: a general landing, a choice of segment, a company with its question tabs (Q1 to Q4 for results), then answers with related
- *  questions, the company kept in context. Chosen questions answer from the written starters or the site's language model; nothing here is advice. */
+ *  questions, the company kept in context. Chosen questions answer from written text or the company's own FinLit figures (task #138: no language model); nothing here is advice. */
 export function Assistant({ sector }: { sector?: string | null } = {}) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("home");
@@ -97,22 +97,32 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const relatedQs = related(pool, asked);
 
   const goCompany = (sym: string, t: TabId) => { setCompany(sym); setTab(t); setFind(""); setFound([]); setView("company"); };
-  const ask = async (q: string, via: View) => {
+  /** Task #138 (founder, 14 Nov 2026): no language model. A listed question answers at once: a general one from its written answer, a company one from
+   *  that company's own FinLit figures. Anything else typed is matched against the listed questions and the closest ones are offered. */
+  const ask = async (q: string, via: View, meta?: Partial<Match>) => {
     if (!q || busy) return;
     setBack(via === "chat" ? back : via); setView("chat"); setText(""); setRecent((r) => pushRecent(r, q));
-    const written = writtenAnswer(q);
-    const history = msgs.filter((m) => m.content);
     setMsgs((m) => [...m, { role: "user", content: q }]);
+    const written = generalAnswer(q);
     if (written) { setMsgs((m) => [...m, { role: "assistant", content: written }]); return; }
+    const found = meta?.id && meta.sym ? (meta as Match) : matchQuestion(q, company);
+    if (!found) {
+      const close = searchListed(q, company, 6, true);
+      setMsgs((m) => [...m, { role: "assistant", content: close.length ? "FinLit AI answers its listed questions. These are the closest to yours; pick one for its answer:" : `FinLit AI answers its listed questions, and none matches “${q}”. Choose a topic or a company to see them all.`, suggest: close }]);
+      return;
+    }
     setBusy(true);
-    const withContext = company && !q.toUpperCase().includes(company) ? `About ${company}: ${q}` : q;   // the company stays in context for a follow-up
-    try { const r = await askAssistant(withContext, history); setMsgs((m) => [...m, { role: "assistant", content: r.response }]); }
-    catch (er) { setMsgs((m) => [...m, { role: "assistant", content: (er as Error).message || "I couldn't answer that just now. Please try again or use the contact form." }]); }
+    try {
+      let second = found.second;
+      if (found.id === "C.11.Q39" && second) { const hit = (await findCompanies(second).catch(() => []))[0]; second = hit ? hit.symbol : second.toUpperCase(); }
+      const a = await answerCompany(found.id, found.sym, { second, quarter: found.quarter, fy: found.fy });
+      setMsgs((m) => [...m, { role: "assistant", content: a.text, link: a.link }]);
+    } catch { setMsgs((m) => [...m, { role: "assistant", content: "This answer could not be put together just now. Please try again, or open the company report." }]); }
     finally { setBusy(false); }
   };
   const tapQ = (q: Q) => {
     if (q.needsSecondCompany) { setText(q.text); setPick((n) => n + 1); return; }   // the second company is the user's to name: nothing is sent yet
-    void ask(q.text, view);
+    void ask(q.text, view, company && /^C\./.test(q.id) && q.text.toUpperCase().includes(company) ? { id: q.id, sym: company } : undefined);
   };
   const askPage = (q: string, a: string) => { setBack(view); setView("chat"); setMsgs((m) => [...m, { role: "user", content: q }, { role: "assistant", content: a }]); };
   const goBack = () => {
@@ -123,7 +133,9 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
   const pageFaq = faqForPath(loc.pathname);
   const sub = view === "company" || (view === "chat" && company) ? company : null;
   const row = (q: Q) => <li key={q.id}><button type="button" className="aif-q" onClick={() => tapQ(q)} title={q.needsSecondCompany ? `Replace ${SECOND} with the second company, then send` : undefined}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>;
-  const send = (e: React.FormEvent) => { e.preventDefault(); void ask(text.trim(), view === "chat" ? back : view); };
+  // the box: a few search words ask their best listed question; a sentence that matches none exactly is offered the closest listed ones
+  const send = (e: React.FormEvent) => { e.preventDefault(); const t = text.trim(); if (!t) return; const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || !top ? t : top.text, view === "chat" ? back : view); };
+  const typed = text.trim().length >= 2 && !text.includes(SECOND) ? searchListed(text, company, 5) : [];   // the typing box searches the listed questions
 
   return (
     <>
@@ -170,7 +182,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
               <div className="aif-ex">
                 <div className="aif-exh"><h3><Icon name="spark" /> Choose a question to ask</h3>
                   <label className="aif-exs"><Icon name="search" /><span className="sr-only">Search questions</span><input type="search" value={exq} onChange={(e) => setExq(e.target.value)} placeholder="Search questions (e.g., P/E, cash flow, DuPont)" autoComplete="off" /></label></div>
-                {exq.trim() ? (() => { const hits = searchQuestions(exq); return hits.length ? <ul className="aif-exq" aria-label="Matching questions">{hits.map(({ topic, q }) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}<small>{topic.title}</small></span><Icon name="arrow" /></button></li>)}</ul> : <p className="aif-none">No question matches “{exq.trim()}”. Try a single word, or type your own question below.</p>; })() : (
+                {exq.trim() ? (() => { const hits = searchQuestions(exq); return hits.length ? <ul className="aif-exq" aria-label="Matching questions">{hits.map(({ topic, q }) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}<small>{topic.title}</small></span><Icon name="arrow" /></button></li>)}</ul> : <p className="aif-none">No question matches “{exq.trim()}”. Try a single word, or pick a topic on the left.</p>; })() : (
                   <div className="aif-expane">
                     <div className="aif-ext" role="tablist" aria-label="Question topics" aria-orientation="vertical">{TOPICS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={topicId === t.id} className={topicId === t.id ? "on" : ""} onClick={() => setTopicId(t.id)}><Icon name={t.icon} />{t.title}</button>)}</div>
                     <ul className="aif-exq" role="tabpanel" aria-label={TOPICS.find((t) => t.id === topicId)!.title}>{TOPICS.find((t) => t.id === topicId)!.questions.map((q) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>)}</ul>
@@ -206,7 +218,7 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
               {big && <ol className="aif-steps" aria-label="How it works">
                 <li className={company ? "done" : ""}><i>1</i><span><b>Pick a company</b><small>Search below for Reliance, TCS or any listed stock</small></span></li>
                 <li><i>2</i><span><b>Choose the period</b><small>Set the quarter and financial year in the company box once a company is chosen</small></span></li>
-                <li><i>3</i><span><b>Pick a question</b><small>Choose from the curated questions, or type your own</small></span></li>
+                <li><i>3</i><span><b>Pick a question</b><small>Choose from the listed questions, or search them below</small></span></li>
               </ol>}
               <ul className="aif-segs" aria-label="Choose a segment">
                 {SEGMENTS.map((s) => (
@@ -237,16 +249,16 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
                 </div>
                 <label className="aif-label" htmlFor="aif-fy">Financial year</label>
                 <select id="aif-fy" value={fy} onChange={(e) => setFy(e.target.value)}>{financialYears().map((y) => <option key={y} value={y}>{y} (Apr {2000 + Number(y.slice(2)) - 1} to Mar {2000 + Number(y.slice(2))})</option>)}</select>
-                <button type="button" className="btn primary aif-askq" disabled={qtr == null || busy} onClick={() => { const q = QUARTERS.find((x) => x.n === qtr); if (q) void ask(quarterQuestion(company, q, fy), "company"); }}>{qtr == null ? "Choose a quarter to ask" : `Ask about Q${qtr} ${fy}`}</button>
-                <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company")}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
+                <button type="button" className="btn primary aif-askq" disabled={qtr == null || busy} onClick={() => { const q = QUARTERS.find((x) => x.n === qtr); if (q) void ask(quarterQuestion(company, q, fy), "company", { id: "quarter", sym: company, quarter: q.n, fy }); }}>{qtr == null ? "Choose a quarter to ask" : `Ask about Q${qtr} ${fy}`}</button>
+                <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company", { id: "quarter-trend", sym: company })}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
                 <p className="aif-note">Answers are general information drawn from the company's reported figures, filings and prices. They are not investment advice.</p>
               </aside>
               <div className="aif-cm">
-                <div className="aif-h"><h2>What do you want to understand about {company}?</h2><p>Pick a group, then one of the questions. Or type your own below.</p></div>
+                <div className="aif-h"><h2>What do you want to understand about {company}?</h2><p>Pick a group, then one of the questions. Or search them below.</p></div>
                 <ol className="aif-steps" aria-label="How it works">
                   <li className="done"><i>1</i><span><b>Company</b><small>{company} is chosen</small></span></li>
                   <li className={qtr != null ? "done" : ""}><i>2</i><span><b>Period (optional)</b><small>Set the quarter and year in the company box</small></span></li>
-                  <li><i>3</i><span><b>Question</b><small>Choose below, or type your own</small></span></li>
+                  <li><i>3</i><span><b>Question</b><small>Choose below, or search them</small></span></li>
                 </ol>
                 <div className="aif-tabs" role="tablist" aria-label="Question groups">
                   {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}
@@ -263,17 +275,19 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
                 {tab === "financials" && <div className="aif-qtr">
                   <p className="aif-label">Results by quarter</p>
                   <div className="aif-qchips" role="group" aria-label="Ask about a quarter of the financial year">
-                    {QUARTERS.map((q) => <button key={q.n} type="button" onClick={() => void ask(quarterQuestion(company, q), "company")}><b>Q{q.n}</b><small>{q.months}</small></button>)}
+                    {QUARTERS.map((q) => <button key={q.n} type="button" onClick={() => void ask(quarterQuestion(company, q), "company", { id: "quarter", sym: company, quarter: q.n })}><b>Q{q.n}</b><small>{q.months}</small></button>)}
                   </div>
-                  <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company")}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
+                  <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company", { id: "quarter-trend", sym: company })}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
                 </div>}
                 <ul className="aif-qs" aria-label="Questions about this company">{tabQuestions(tab, company, lender).map((q) => row(q))}</ul>
               </div>
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}</div>)}
-              {busy && <div className="bub bot typing"><i /><i /><i /></div>}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
+                {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
+                {m.suggest && m.suggest.length > 0 && <ul className="aif-qs aif-sugq" aria-label="Closest listed questions">{m.suggest.map((q) => row(q))}</ul>}</div>)}
+              {busy && <div className="bub bot typing" role="status" aria-label="Putting the answer together from FinLit's figures"><i /><i /><i /></div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
                 <ul className="aif-qs" aria-label="Related questions">{relatedQs.map((q) => row(q))}</ul></div>}
               {!busy && msgs.length > 0 && <div className="chips"><button type="button" className="back" onClick={() => setView(company ? "company" : "home")}>{company ? `← More about ${company}` : "← Main menu"}</button>
@@ -281,9 +295,10 @@ export function Assistant({ sector }: { sector?: string | null } = {}) {
             </>}
             <div ref={end} />
           </div>
+          {typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
           <form onSubmit={send}>
-            <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000}
-              placeholder={company && view !== "home" ? `Ask a follow-up about ${company}` : "Ask a question or choose a topic"} aria-label="Your question" />
+            <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={300}
+              placeholder={company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"} aria-label="Search the listed questions" />
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>
           <p className="ai-fine">General information, not investment advice.</p>

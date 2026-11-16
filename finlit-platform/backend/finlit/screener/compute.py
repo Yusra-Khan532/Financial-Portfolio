@@ -212,8 +212,6 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     out["graham_upside"] = _div(_sub(graham, price), price, 100) if graham and price else None
     out["earnings_yield"] = _div(1.0, pe, 100) if pe and pe > 0 else None
     out["fcf_yield"] = _div(fcf0, market_cap, 100)
-    pcagr = latest.get("profit_cagr_5y") or latest.get("profit_cagr")
-    out["peg"] = _div(pe, pcagr) if pe and pe > 0 and pcagr and pcagr > 0 else None
     vh = (ratios.get("valuationHistory") or {}).get("rows") or {}
     # yearly readings of P/E, P/B and P/S (newest last): averages over the last 3, 5 and 7 years, and the 5-year median
     medians: Dict[str, Num] = {}
@@ -253,6 +251,12 @@ def compute(sections: Dict[str, dict], today: Optional[date] = None) -> Dict[str
     out["sales_cagr_5y"] = latest.get("revenue_cagr_5y") if latest.get("revenue_cagr_5y") is not None else (latest.get("sales_cagr") if latest.get("sales_cagr") is not None and spans.get("sales_cagr") in (None, "5Y") else _cagr(rev0, _last(rev, 5), 5))
     out["profit_cagr_3y"] = latest.get("profit_cagr_3y") if latest.get("profit_cagr_3y") is not None else _cagr(np0, _last(np_, 3), 3)
     out["profit_cagr_5y"] = latest.get("profit_cagr_5y") if latest.get("profit_cagr_5y") is not None else (latest.get("profit_cagr") if latest.get("profit_cagr") is not None and spans.get("profit_cagr") in (None, "5Y") else _cagr(np0, _last(np_, 5), 5))
+    # PEG: P/E over a profit growth that really covers 3 or more years (the 5-year CAGR, else the 3-year one; a growth rate of FinEdge's that spans only one
+    # or two years is not a long-term growth rate and gives no PEG).
+    span = spans.get("profit_cagr")
+    pcagr = out["profit_cagr_5y"] if out["profit_cagr_5y"] is not None else out["profit_cagr_3y"] if out["profit_cagr_3y"] is not None else (
+        latest.get("profit_cagr") if span in ("3Y", "4Y") else None)
+    out["peg"] = _div(pe, pcagr) if pe and pe > 0 and pcagr and pcagr > 0 else None
     # operating profit, ANNUAL (the quarterly one is q_operating_profit): straight from the yearly P&L, so it agrees with the report
     out["op_profit"] = op0
     out["op_profit_growth"] = _growth(op0, _last(op, 1))

@@ -2,11 +2,14 @@
 // so a page is named, grouped and ordered the same way everywhere. Each entry is [path, label, one line about it, icon].
 // `gold` marks tools that need the Gold plan (shown as a small tag, never hidden: locked tools stay visible behind an unlock card).
 
-export type NavItem = { to: string; label: string; sub: string; icon: string; gold?: boolean; end?: boolean; not?: string };
+export type NavItem = { to: string; label: string; sub: string; icon: string; gold?: boolean; end?: boolean; not?: string; newUntil?: string };
 export type NavGroup = { title?: string; items: NavItem[] };
 export type NavSection = { id: string; label: string; wide?: boolean; groups: NavGroup[] };
 
-const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boolean; end?: boolean; not?: string } = {}): NavItem => ({ to, label, sub, icon, ...o });
+const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boolean; end?: boolean; not?: string; newUntil?: string } = {}): NavItem => ({ to, label, sub, icon, ...o });
+
+/** A page carries a "New" tag in the menus until its `newUntil` day (task #136: 30 days from launch). */
+export const isNew = (n: { newUntil?: string }, now: number = Date.now()) => !!n.newUntil && now < Date.parse(n.newUntil + "T00:00:00+05:30");
 
 /** Pages a Gold member does not get (founder, 13 Nov 2026, task #100): Gold screens with FinLit Prism only, so the Basic stock screener (built on the FinLit IQ)
  *  is not offered to Gold. Menus, the left rail, page links and tool cards leave it out for Gold, and its address opens the Advanced stock screener. */
@@ -18,8 +21,10 @@ export const SECTIONS: NavSection[] = [
   { id: "myfinlit", label: "Workspace", groups: [{ items: [
     i("/dashboard", "Dashboard", "Your stocks, alerts and scores in one place", "table"),
     i("/watchlist", "Watchlists", "Follow stocks in named lists", "wallet"),
+    i("/my-investments", "All my investments", "Your shares and mutual funds together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
     i("/holdings", "Equity portfolio", "Score and mix of the shares you hold", "pie"),
     i("/mf-portfolio", "MF portfolio", "Score, value and returns of the mutual funds you hold", "pie"),
+    i("/etf-portfolio", "ETF portfolio", "What your ETFs track and cost, what sits inside them and how risky they are together", "pie", { newUntil: "2026-12-15" }),
     i("/alerts", "Alerts", "Price, signals, scores and filings", "bell"),
   ] }] },
   { id: "research", label: "Research", wide: true, groups: [
@@ -33,11 +38,11 @@ export const SECTIONS: NavSection[] = [
       i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
       i("/compare", "Compare companies", "Two to four companies side by side, in charts", "compare"),
       i("/prism", "FinLit Prism", "A company's financial health rated in four parts, with a PDF", "layers", { gold: true }),
-      i("/outlook", "Profit and revenue outlook", "Revenue and profit estimates from a company's own history and its sector", "activity", { gold: true }),
+      i("/outlook", "Profit and revenue forecasting", "Revenue and profit estimates from a company's own history and its sector", "activity", { gold: true }),
       i("/research/stress-lab", "Stress Lab", "How a shock to crude, the rupee or rates would move a company's earnings", "gauge"),
     ] },
     { title: "Investment calculators", items: [
-      i("/eps-calculator", "EPS & P/E calculator", "Estimate earnings per share and explore valuation multiples.", "gauge"),
+      i("/eps-calculator", "P/E, EPS & PEG calculator", "Estimate earnings per share and explore P/E and PEG.", "gauge"),
       i("/dcf", "DCF valuation calculator", "Estimate intrinsic value using projected future cash flows.", "rupee", { gold: true }),
       i("/reverse-valuation", "Reverse valuation", "Solve for the growth, margin, exit multiple or return today's price assumes.", "gauge", { gold: true }),
       i("/sip-calculator", "SIP calculator", "Project potential wealth creation through monthly investments.", "spark"),

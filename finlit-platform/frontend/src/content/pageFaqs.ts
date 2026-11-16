@@ -13,7 +13,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What does the dashboard show?",
-    "a": "The top half is the market: index levels (Nifty 50, Sensex, Nifty Bank, Midcap 100, Smallcap 100, Nifty IT and India VIX), a Nifty 50 / Sensex chart, market breadth, top gainers and decliners, sectors today, FII/DII flows, an index heatmap and sectoral activity. Below that are widgets about the stocks you follow: latest quarter results, results dates, news, IPOs, watchlist movers, stocks worth a second look, your saved screens and more."
+    "a": "At the top, Your investments today: your shares, watchlist and mutual funds in one table (All, Watchlist, Shares, Mutual funds and ETFs), with price or NAV, the day's move, 1 year and the FinLit reading, then What your stocks say and the three at a glance panels for your shares, mutual funds and ETFs. Below them is the market: index levels and chart, prices and rates, breadth, sectors, FII/DII flows, the heatmap, then results, filings, IPOs, alerts and more."
    },
    {
     "q": "How do I change the layout or colours?",
@@ -63,11 +63,11 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What can I filter on?",
-    "a": "Every listed company, with close to 200 filters grouped as FinLit model (Gold), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
+    "a": "Every listed company, with close to 200 filters grouped as the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
    },
    {
     "q": "What are Quick screens?",
-    "a": "Ready-made sets of filters you can apply in one click: basic ones such as Low debt or Dividend payers, Silver screens such as Value picks, Steady compounders or No red flags, and Gold screens built on the FinLit model such as FinLit Strong (score 78 or more) or Improving scores."
+    "a": "Ready-made sets of filters you can apply in one click, such as Low debt, Dividend payers, Steady compounders or No red flags, and screens on the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum). Every screen here is open to every plan that has this page, and several can be on at once."
    },
    {
     "q": "Can I filter on a ratio's past average?",
@@ -79,7 +79,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What do the green and red cells mean?",
-    "a": "Green cells are in the best quarter of all listed companies on that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
+    "a": "Green cells are in the strongest quarter of all listed companies on that column and red cells in the weakest. Strongest means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
    },
    {
     "q": "How do I add columns or save my results?",
@@ -141,7 +141,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What is FinLit Prism?",
-    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor under 35."
+    "a": "FinLit's advanced rating (Gold). It splits a company into four parts, Growth & Profitability, Valuation, Quality and Risk, and weighs them into one score from 0 to 100 with a label: Strong, Healthy, Average, Weak or Poor."
    },
    {
     "q": "What does each Prism part measure?",
@@ -149,7 +149,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What are the short-term and long-term technical views?",
-    "a": "Prism's reading of the price trend, from −100 to +100: short term covers 5 to 20 sessions and long term 6 to 18 months. Positive is +20 and above, Neutral is above −20 up to +20, Negative is −20 and below. They describe the trend only and are not part of the Prism score."
+    "a": "Prism's reading of the price trend, from −100 to +100, over a short and a long period. Each view reads as Uptrend, Sideways or Downtrend. They describe the trend only and are not part of the Prism score."
    },
    {
     "q": "What do Rated, Provisional and Not rated mean?",
@@ -161,7 +161,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "How is this different from the Basic stock screener?",
-    "a": "The Basic stock screener uses the FinLit IQ (five pillars, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
+    "a": "The Basic stock screener uses the FinLit IQ (five parts, Silver). This page uses the FinLit Prism rating with its four parts and two technical views (Gold)."
    },
    {
     "q": "What do the Quick views do?",
@@ -342,7 +342,7 @@ export const PAGE_FAQS: PageFaq[] = [
  },
  {
   "id": "profit-and-revenue-outlook",
-  "title": "Profit and revenue outlook",
+  "title": "Profit and revenue forecasting",
   "section": "Analyse a company",
   "routes": [
    "/outlook",
@@ -352,23 +352,23 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What does this page show?",
-    "a": "Pick a company to see how its own reported history points for profit and for revenue: an outlook score and an indicative range for the next four quarters. It is a scenario from the company's numbers, not a forecast."
+    "a": "Pick a company to see how its own reported history points for profit and for revenue: a forecasting score and an indicative range for the next four quarters. It is a scenario from the company's numbers, not a forecast."
    },
    {
-    "q": "How is the outlook score built?",
+    "q": "How is the forecasting score built?",
     "a": "From areas with set weights: profitability and margins (25%), historical profit growth (15%), cost efficiency and operating leverage (15%), cash conversion (10%), leverage and interest (10%), capital and asset efficiency (10%), and tax and exceptional items, earnings volatility, and capex and depreciation (5% each). Each area shows how many of its measures could be worked out."
    },
    {
     "q": "What is the indicative range?",
-    "a": "Low, middle and high figures for the next four quarters' total net profit, against the same four quarters a year earlier. It is built from the trailing four quarters, the 3-year growth rate and how much the company's own quarterly growth has varied, nudged by the outlook score."
+    "a": "Low, middle and high figures for the next four quarters' total net profit, against the same four quarters a year earlier. It is built from the trailing four quarters, the 3-year growth rate and how much the company's own quarterly growth has varied, nudged by the forecasting score."
    },
    {
     "q": "Can I change the weights?",
     "a": "Yes. Choose Set your own and give each area a weight in percent (they must add up to 100%). Reset to our model brings back the default weights."
    },
    {
-    "q": "Is there a revenue outlook too?",
-    "a": "Yes. Switch between Profit outlook and Revenue outlook at the top."
+    "q": "Is there a revenue forecast too?",
+    "a": "Yes. Switch between Profit estimate and Revenue estimate at the top."
    },
    {
     "q": "Which figures does it use?",
@@ -410,7 +410,7 @@ export const PAGE_FAQS: PageFaq[] = [
  },
  {
   "id": "eps-p-e-calculator",
-  "title": "EPS & P/E calculator",
+  "title": "P/E, EPS & PEG calculator",
   "section": "Investment calculators",
   "routes": [
    "/eps-calculator"
@@ -431,7 +431,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What are Bear, Base and Bull?",
-    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 2; Bear and Bull are yours to set."
+    "a": "Three scenarios side by side. Base uses the growth and target P/E you entered in section 3; Bear and Bull are yours to set."
    },
    {
     "q": "How do I read the sensitivity table?",
@@ -439,11 +439,11 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What is PEG here?",
-    "a": "P/E ÷ the growth rate you assumed. It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
+    "a": "P/E ÷ the 5-year EPS growth rate you assumed (section 2). It says nothing when growth is zero or negative. FinLit's PEG on company pages uses 5-year profit growth instead."
    },
    {
-    "q": "Can I work backwards from a target price?",
-    "a": "Yes. Enter a target price and the calculator shows the EPS growth needed each year, using your target P/E and period."
+    "q": "What do the two scenario tables show?",
+    "a": "EPS growth and PEG: the EPS in 5 years and the PEG at 5%, 10%, 15%, 20% and 25% growth plus your own rate, with the P/E held at today's. P/E and implied price: today's EPS × 15x to 35x and today's P/E, with the difference from today's price. Both are arithmetic on your inputs, not forecasts."
    },
    {
     "q": "Can I save or share my numbers?",
@@ -931,7 +931,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which ETFs are listed?",
-    "a": "Every ETF found on the NSE, with price and 1-day, 1-year and 5-year returns. Search by name, symbol, fund house or ISIN, filter, sort, and compare up to four."
+    "a": "Every ETF found on the NSE, with price, 1-day, 1-year and 5-year returns, the expense ratio, the price against the NAV and the value traded a day. Search by name, symbol, fund house or ISIN, filter, sort, and tick up to four to compare."
    },
    {
     "q": "Do the returns include dividends?",
@@ -1041,11 +1041,11 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "How do I add my shares?",
-    "a": "Type a name or ticker, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work."
+    "a": "Type a name, ticker or ISIN, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). When a line has an ISIN, the ISIN decides which company it is, because a company's name can be written differently from one file to another; the name is used only for a line without an ISIN. Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work."
    },
    {
     "q": "Does FinLit use my quantities or connect to my broker?",
-    "a": "No. Only the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. So every share counts equally and no money-weighted totals are shown."
+    "a": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. So every share counts equally and no money-weighted totals are shown."
    },
    {
     "q": "Which scores does this page use?",

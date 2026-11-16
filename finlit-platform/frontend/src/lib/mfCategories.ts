@@ -91,14 +91,17 @@ export function keyLabel(key: string): string {
 
 /** The six quick cards above the tabs. Clicking one shows just that sub-category. */
 export type Card = { key: string; tab: TabKey; title: string; lines: [string, string]; icon: string; note?: string };
+/** Task #130 (14 Nov 2026, mutual funds page): the cards describe the risk, never promise a return ("consistent returns", "high growth potential" and
+ *  "higher return than FD" are gone); the ELSS tax note is one footnote beside the section heading (ELSS_FOOTNOTE). */
+export const ELSS_FOOTNOTE = "* Old tax regime: 30% tax plus 4% cess on the ₹1.5 lakh 80C limit. The new regime has no 80C deduction.";
 export const CARDS: Card[] = [
-  { key: "elss", tab: "equity", title: "ELSS (Tax Savings)", lines: ["Lock-in for three years", "Tax savings of up to Rs. 46,800 under 80C"], icon: "percent",
+  { key: "elss", tab: "equity", title: "ELSS (Tax Savings)", lines: ["Lock-in for three years.", "Tax savings of up to ₹46,800 under 80C"], icon: "percent",
     note: "Under the old tax regime: 30% tax plus 4% cess on the ₹1.5 lakh Section 80C limit is ₹46,800. The new tax regime has no 80C deduction." },
-  { key: "large-cap", tab: "equity", title: "Large-Cap Funds", lines: ["Established companies", "Lower risk with consistent returns"], icon: "building" },
-  { key: "flexi-cap", tab: "equity", title: "Flexi Cap Funds", lines: ["Moderate risk", "Long-term (> 5 years) investments"], icon: "layers" },
-  { key: "small-cap", tab: "equity", title: "Small-Cap Funds", lines: ["High growth potential", "Higher volatility & risk"], icon: "sprout" },
-  { key: "money-market", tab: "debt", title: "Money Market Funds", lines: ["Low risk", "Higher liquidity"], icon: "coins" },
-  { key: "corporate-bond", tab: "debt", title: "Corporate Bonds", lines: ["Higher risk & return than FD", "Medium-term (1–5 years) investments"], icon: "wallet" },
+  { key: "large-cap", tab: "equity", title: "Large-Cap Funds", lines: ["Established companies.", "Usually swing less than smaller companies."], icon: "building" },
+  { key: "flexi-cap", tab: "equity", title: "Flexi Cap Funds", lines: ["Moderate risk.", "Long-term (over 5 years) investments."], icon: "layers" },
+  { key: "small-cap", tab: "equity", title: "Small-Cap Funds", lines: ["Bigger ups and downs than large caps.", "Higher volatility and risk."], icon: "sprout" },
+  { key: "money-market", tab: "debt", title: "Money Market Funds", lines: ["Low risk.", "Higher liquidity."], icon: "coins" },
+  { key: "corporate-bond", tab: "debt", title: "Corporate Bonds", lines: ["More risk than a fixed deposit; returns are not fixed.", "Medium-term (1 to 5 years) investments."], icon: "wallet" },
 ];
 
 /** "Large Cap & Mid Cap" (up to three names), "Large Cap, Mid Cap & 4 more"; the tab's own name when all or none are chosen. */

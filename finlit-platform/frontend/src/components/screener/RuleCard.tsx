@@ -52,17 +52,18 @@ export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count
   const id = useId();
   const tabs = m.variants ? Object.entries(m.variants) : null;
   const st = cur.stats, unit = UNIT_SUFFIX[cur.unit] ?? "";
-  const num = (raw: string) => (raw.trim() === "" ? undefined : Number.isFinite(Number(raw)) ? Number(raw) : undefined);
+  // a typed figure; on a score with a fixed scale (task #144: 0 to 100, the technical views -100 to +100) it is kept inside the scale, never past it
+  const [lo, hi] = cur.scale ?? [-Infinity, Infinity];
+  const num = (raw: string) => { if (raw.trim() === "" || !Number.isFinite(Number(raw))) return undefined; return Math.min(hi, Math.max(lo, Number(raw))); };
   const head = (
     <div className="ssr-rt">
       <b id={id}>{m.label}</b>
-      {m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}
       <button type="button" className="ssr-x" onClick={remove} aria-label={`Remove the rule on ${m.label}`}>×</button>
     </div>
   );
   if (cur.locked) {
     return (
-      <div className="ssr-rule is-locked" role="group" aria-labelledby={id}>{head}
+      <div className="ssr-rule is-locked" role="group" aria-labelledby={id} data-rule={m.key}>{head}
         <p className="ssr-say">{m.say}</p>
         <button type="button" className="btn" onClick={() => ask(cur.tier, `${cur.label} is part of the ${TIER[cur.tier].n} plan.`)}>Unlock with {TIER[cur.tier].n}</button>
       </div>
@@ -95,9 +96,10 @@ export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count
           <span className="ssr-tr" aria-hidden="true"><i style={{ left: `${(a / STEPS) * 100}%`, right: `${100 - (b / STEPS) * 100}%` }} /></span>
         </div>
         <div className="ssr-mm">
-          <label>From <input type="number" inputMode="decimal" placeholder="any" value={r.min ?? ""} onChange={(e) => set({ ...r, min: num(e.target.value) })} aria-label={`${cur.label} from`} /></label>
-          <label>to <input type="number" inputMode="decimal" placeholder="any" value={r.max ?? ""} onChange={(e) => set({ ...r, max: num(e.target.value) })} aria-label={`${cur.label} to`} /></label>
+          <label>From <input type="number" inputMode="decimal" placeholder="any" min={cur.scale?.[0]} max={cur.scale?.[1]} value={r.min ?? ""} onChange={(e) => set({ ...r, min: num(e.target.value) })} aria-label={`${cur.label} from`} /></label>
+          <label>to <input type="number" inputMode="decimal" placeholder="any" min={cur.scale?.[0]} max={cur.scale?.[1]} value={r.max ?? ""} onChange={(e) => set({ ...r, max: num(e.target.value) })} aria-label={`${cur.label} to`} /></label>
           {unit.trim() && <span className="ssr-u">{unit.trim()}</span>}
+          {cur.scale && <span className="ssr-scale">{cur.scale[0] < 0 ? `\u2212${Math.abs(cur.scale[0])} to +${cur.scale[1]}` : `${cur.scale[0]} to ${cur.scale[1]}`}</span>}
         </div>
         {quickRanges(cur).length > 0 && <div className="ssr-pre" role="group" aria-label={`Quick ranges for ${cur.label}`}>{quickRanges(cur).map((q) => (
           <button key={q.id} type="button" aria-pressed={same(r, q.r)} onClick={() => set(q.r)}>{q.label}</button>))}</div>}
@@ -105,7 +107,7 @@ export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count
     );
   }
   return (
-    <div className={"ssr-rule" + (hot ? " hot" : "")} role="group" aria-labelledby={id}>
+    <div className={"ssr-rule" + (hot ? " hot" : "")} role="group" aria-labelledby={id} data-rule={m.key}>
       {head}
       <p className="ssr-say" title={m.say}>{m.say}</p>
       {tabs && <div className="ssr-vars" role="group" aria-label={`${m.label}: which figure`}>{tabs.map(([t]) => (

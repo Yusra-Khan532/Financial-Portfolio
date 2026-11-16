@@ -8,7 +8,7 @@ import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
 import { OpenAccess } from "../components/Gate";
 import { toWeekly, usePrismHistory, valueOf, type HistPoint, type Series } from "../lib/prismHistory";
-import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, dotRadius, figureOn, inPeriod, monotonePath, moveSentence, movesOf, readingNow, reRated, seriesFor, stepPath, type Move, type Period, type Show } from "../lib/scoreMoves";
+import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, bizMove, dotRadius, figureOn, inPeriod, monotonePath, moveSentence, movesOf, readingNow, reRated, seriesFor, stepPath, type Move, type Period, type Show } from "../lib/scoreMoves";
 import "../styles/scoremoves.css";
 import { ChartZoom } from "../components/ChartZoom";
 
@@ -57,7 +57,7 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
           if (!v.length) return null; const end = v[v.length - 1];
           const xy = v.map((d) => [x(d.p.day), y(d.f.value)] as [number, number]);
           // business scores move in steps (flat until the day of a new rating); the technical views, read every evening, as a smooth line through every reading
-          return <g key={s} className="scm-line" data-series={s}><path d={signed ? monotonePath(xy) : stepPath(xy)} fill="none" stroke={COLOR[s]} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={DASHED.has(s) ? "6 4" : undefined} />
+          return <g key={s} className="scm-line" data-series={s}><path d={signed ? monotonePath(xy) : stepPath(xy)} fill="none" stroke={COLOR[s]} strokeWidth={s === "final" ? 2.8 : 1.8} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={DASHED.has(s) ? "6 4" : undefined} />
             {v.map((d) => <circle key={d.p.day} className={"scm-dot" + (d.f.exact ? "" : " carried")} cx={x(d.p.day)} cy={y(d.f.value)} r={hp && hp.day === d.p.day ? dr + 2 : dr} fill={d.f.exact ? COLOR[s] : "var(--bg)"} stroke={d.f.exact ? "var(--bg)" : COLOR[s]} strokeWidth={d.f.exact ? 1.3 : 1.8}><title>{`${NAME[s]} ${fmt(d.f.value, signed)} on ${dateIN(d.p.day)}${d.f.exact ? "" : `, the rating from ${dateIN(d.f.day)} still in force`}`}</title></circle>)}
             <circle cx={x(end.p.day)} cy={y(end.f.value)} r={dr + 2.4} fill="none" stroke={COLOR[s]} strokeWidth="1.4" /></g>; })}
         {axis.map((i, k) => <text key={points[i].day} x={x(points[i].day)} y={h - 5} textAnchor={axis.length > 1 && k === 0 ? "start" : axis.length > 1 && k === last ? "end" : "middle"} className="scm-ax">{dateIN(points[i].day, { day: "numeric", month: "short" })}</text>)}
@@ -80,9 +80,9 @@ const GROUP = {
 
 /** One key chip: the line's colour (dashed where the line is), its name, the latest figure and how far it moved in the period on screen ("−20.8 since 5 Nov").
  *  A line with only one figure in the period says so instead of leaving the change blank. Pressing it hides or shows the line. */
-function Key({ s, now, move, off, onToggle }: { s: Series; now: number | null; move: Move | undefined; off: boolean; onToggle: () => void }) {
+function Key({ s, now, move, from, off, onToggle }: { s: Series; now: number | null; move: Move | undefined; from?: string | null; off: boolean; onToggle: () => void }) {
   const signed = TECHNICAL.includes(s);
-  const chg = move ? (move.delta === 0 ? `unchanged since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}` : `${fmt(move.delta, true)} since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}`) : "only one figure in this period";
+  const chg = move ? (move.delta === 0 ? `unchanged since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}` : `${fmt(move.delta, true)} since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}`) : from ? `recorded from ${dateIN(from, { day: "numeric", month: "short" })}` : "only one figure in this period";
   return <button type="button" className={"scm-key" + (off ? " off" : "")} aria-pressed={!off} onClick={onToggle}><i style={{ background: swatch(s) }} />{NAME[s]} <b>{fmt(now, signed)}</b> <span className="scm-chg">{chg}</span></button>;
 }
 
@@ -96,14 +96,24 @@ export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
   const toggle = (s: Series) => setOff((o) => (o.includes(s) ? o.filter((x) => x !== s) : [...o, s]));
   const pick = (k: Show) => { setShow(k); setOff([]); };
   const bizOn = BUSINESS.some((s) => chosen.includes(s)), techOn = TECHNICAL.some((s) => chosen.includes(s)), few = base.length < 2;
+  // task #126: when the business scores were first recorded after the period on screen begins (the rating that held before was replaced, so it is not known), say so
+  const bizFrom = useMemo(() => { const f = all.find((p) => BUSINESS.some((s) => valueOf(p, s) != null))?.day ?? null; return f && base.length && f > base[0].day ? f : null; }, [all, base]);
+  const bizSentence = (txt: string) => {
+    if (!bizFrom) return txt;
+    const d = dateIN(bizFrom, { day: "numeric", month: "short" });
+    if (/^There are not enough recorded days/.test(txt)) return `The business scores are recorded from ${d}, with one rating so far: no change to show yet.`;
+    return txt.replace(/^Over the last [^,]+,/, `Since ${d}, when the business scores were first recorded,`);
+  };
   const group = (k: "biz" | "tech", members: Series[], drawn: Series[]) => {
     const g = GROUP[k];
     return (
       <section className={"scm-grp scm-g-" + k} aria-label={g.aria}>
         <header className="scm-gh"><span className="scm-tag">{g.tag}</span><h4>{g.title}</h4></header>
         <p className="scm-pat"><svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d={g.icon} /></svg>{g.pattern}</p>
+        {k === "biz" && bizFrom && <p className="scm-note scm-from" role="note"><Icon name="info" /><span>The business scores are recorded from {dateIN(bizFrom)}. Earlier days in this period have no business scores: the rating that held then was replaced when Prism re-rated the company, and it is not estimated.</span></p>}
         <div className="scm-keys" role="group" aria-label={g.aria}>
-          {members.filter((s) => chosen.includes(s)).map((s) => <Key key={s} s={s} now={latest ? valueOf(latest, s) : null} move={keyMoves.find((m) => m.s === s)} off={off.includes(s)} onToggle={() => toggle(s)} />)}
+          {members.filter((s) => chosen.includes(s)).map((s) => { const bm = k === "biz" ? bizMove(all, base, s) : null;   // business: from the rating in force at the start (task #126)
+            return <Key key={s} s={s} now={latest ? (k === "biz" ? figureOn(all, s, latest.day)?.value ?? null : valueOf(latest, s)) : null} move={bm ? bm.move ?? undefined : keyMoves.find((m) => m.s === s)} from={bm?.from} off={off.includes(s)} onToggle={() => toggle(s)} />; })}
         </div>
         {few ? null : drawn.length === 0 ? <p className="faint scm-empty">No line is selected here. Press a score above to draw it.</p>
           : k === "biz" ? <Panel points={base} history={all} series={drawn} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={techOn ? 210 : 250} marks={marks} label="Business scores over time" signed={false} />
@@ -120,11 +130,11 @@ export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
     <div className="scm">
       <ChartZoom label={"Score moves"} className="cz-r">
       <div className="scm-ctl">
-        <div className="seg" role="group" aria-label="Show">{([["all", "All six"], ["business", "Business only"], ["technical", "Technical only"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => pick(k)}>{l}</button>)}</div>
+        <div className="seg" role="group" aria-label="Show">{([["all", "All"], ["business", "Business only"], ["technical", "Technical only"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => pick(k)}>{l}</button>)}</div>
         <div className="seg" role="group" aria-label="Points">{([["day", "Daily"], ["week", "Weekly"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={step === k} onClick={() => setStep(k)}>{l}</button>)}</div>
         <div className="seg" role="group" aria-label="Period">{PERIODS.map((p) => <button key={p.id} type="button" aria-pressed={period === p.id} onClick={() => setPeriod(p.id)}>{p.id}</button>)}</div>
       </div>
-      <p className="scm-sum" aria-live="polite">{biz.length && tech.length ? `${moveSentence(base, biz, period)} ${moveSentence(base, tech, period).replace(/^Over the last [^,]+, the/, "The")}` : moveSentence(base, visible, period)}</p>
+      <p className="scm-sum" aria-live="polite">{biz.length && tech.length ? `${bizSentence(moveSentence(bizFrom ? base.filter((p) => p.day >= bizFrom) : base, biz, period))} ${moveSentence(base, tech, period).replace(/^Over the last [^,]+, the/, "The")}` : biz.length ? bizSentence(moveSentence(bizFrom ? base.filter((p) => p.day >= bizFrom) : base, visible, period)) : moveSentence(base, visible, period)}</p>
       {few && <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p>}
       {bizOn && group("biz", BUSINESS, biz)}
       {techOn && group("tech", TECHNICAL, tech)}

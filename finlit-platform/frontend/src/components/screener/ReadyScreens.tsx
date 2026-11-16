@@ -1,5 +1,5 @@
-// "Ready-made screens" on the Stock screener (task #64, file 04 §2 and §8; 13 Nov P-4): four groups (Everyday, Silver screens, On the plan's score, My screens),
-// cards with the name, the plain rule text, the tier and today's count (each card's count is for that screen on its own, so cards compare). Screens STACK: several can
+// "Ready-made screens" on the Stock screener (task #64, file 04 §2 and §8; 13 Nov P-4): four groups (Everyday, More screens, On the plan's score, My screens),
+// cards with the name, the plain rule text and today's count. No plan tags (14 Nov, N-10): every screen here is open to every plan that has the page (each card's count is for that screen on its own, so cards compare). Screens STACK: several can
 // be on, each adds its filters to the reader's and to the other screens', and a company must pass all of them. A screen on the plan's score (FinLit IQ or FinLit Prism) is words only and runs on
 // the server (FinLit Prism for Gold, the FinLit IQ below).
 import { useState } from "react";
@@ -9,8 +9,8 @@ import type { SavedScreen } from "../../lib/screens";
 import { TIER, type Plan } from "../../lib/ui";
 
 const ORDER: Plan[] = ["basic", "silver", "gold"];
-const GROUPS: { id: "everyday" | "silver" | "model" | "mine"; label: string; tier?: string }[] = [
-  { id: "everyday", label: "Everyday" }, { id: "silver", label: "Silver screens", tier: "SILVER" }, { id: "model", label: "On the FinLit model", tier: "GOLD" }, { id: "mine", label: "My screens" },
+const GROUPS: { id: "everyday" | "silver" | "model" | "mine"; label: string }[] = [
+  { id: "everyday", label: "Everyday" }, { id: "silver", label: "More screens" }, { id: "model", label: "On the FinLit model" }, { id: "mine", label: "My screens" },
 ];
 
 export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOff, saved, onOpenSaved, onDeleteSaved, ask, onNotify }: {
@@ -22,7 +22,7 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
   const [grp, setGrp] = useState<(typeof GROUPS)[number]["id"]>("everyday");
   const can = (t: Plan) => ORDER.indexOf(plan) >= ORDER.indexOf(t);
   const all = ready.data?.screens ?? [];
-  const groups = GROUPS.map((g) => (g.id === "model" ? { ...g, label: prism ? "On FinLit Prism" : "On the FinLit IQ", tier: prism ? "GOLD" : "SILVER" } : g));
+  const groups = GROUPS.map((g) => (g.id === "model" ? { ...g, label: prism ? "On FinLit Prism" : "On the FinLit IQ" } : g));
   const list = all.filter((s) => s.group === grp);
   const nOn = on.length;
   return (
@@ -38,7 +38,7 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
           const n = all.filter((s) => s.group === g.id && on.includes(s.id)).length;
           return (
             <button key={g.id} type="button" role="tab" aria-selected={grp === g.id} onClick={() => setGrp(g.id)}>
-              {g.label}{g.tier && <span className={"ssr-tier " + g.tier.toLowerCase()}>{g.tier}</span>}{g.id === "mine" && <span className="ssy-n">{saved.length}</span>}{n > 0 && <span className="ssy-n is-on">{n} on</span>}
+              {g.label}{g.id === "mine" && <span className="ssy-n">{saved.length}</span>}{n > 0 && <span className="ssy-n is-on">{n} on</span>}
             </button>);
         })}
       </div>
@@ -60,7 +60,7 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
                 aria-label={`${s.label}: ${s.says}${s.count != null ? `, ${s.count} companies today` : ""}${lock ? `, part of ${TIER[s.tier].n}` : isOn ? ", on" : ""}`}
                 onClick={() => (lock ? ask(s.tier, `“${s.label}” is part of the ${TIER[s.tier].n} plan.`) : onToggle(s))}>
                 <b>{isOn && <i className="ssy-tick" aria-hidden="true">✓</i>}{s.label}</b><span className="ssy-d">{s.says}</span>
-                <span className="ssy-f">{s.tier !== "basic" ? <span className={"ssr-tier " + s.tier}>{TIER[s.tier].n.toUpperCase()}</span> : <span />}
+                <span className="ssy-f"><span />
                   <span className="ssy-cnt">{s.count == null ? "–" : `${nf(s.count, 0)} ${s.count === 1 ? "company" : "companies"}`}</span></span>
               </button>);
           })}</div>)}

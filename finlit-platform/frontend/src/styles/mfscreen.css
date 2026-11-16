@@ -26,17 +26,10 @@
 .mfs-active { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 14px; font-size: var(--fs-14); }
 .mfs-active .fchip { margin: 0; cursor: pointer; }
 .mfs-active .fchip:hover { border-color: var(--gold); }
-@media (max-width: 900px) {
+@media (max-width: 900px) {   /* task #131: on a phone the panel sits in place above the results, its groups folded behind one button */
   .mfs-layout { grid-template-columns: minmax(0, 1fr); }
-  .mfs-side { display: none; }
-  .mfs-layout.is-sheet .mfs-side { display: block; position: fixed; z-index: var(--z-drawer, 320); left: 0; right: 0; bottom: 0; top: auto; height: auto; max-height: 90dvh; border-radius: 20px 20px 0 0;
-    padding: 6px 16px 0; background: var(--ov-surface, var(--s1)); border: 1px solid var(--ov-border, var(--border-strong)); box-shadow: var(--ov-shadow, 0 -12px 40px rgba(0, 0, 0, .35)); overflow: auto; animation: mfs-up .22s ease-out; }
-  .mfs-back { position: fixed; inset: 0; z-index: var(--z-backdrop, 300); background: var(--ov-backdrop, rgba(10, 9, 7, .6)); }
-  .mfs-grab { display: block; width: 44px; height: 4px; border-radius: 4px; background: var(--border-strong); margin: 4px auto 10px; }
-  .mfs-sh-top { position: sticky; top: 0; z-index: 2; background: var(--ov-surface, var(--s1)); padding-top: 4px; }
-  .mfs-foot { display: flex; gap: 10px; position: sticky; bottom: 0; z-index: 2; margin: 8px -16px 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--ov-surface, var(--s1)); border-top: 1px solid var(--border); }
-  .mfs-foot .btn { flex: 1; justify-content: center; min-height: 44px; }
-  .mfs-hide { display: none; }
+  .mfs-side { position: static; max-height: none; overflow: visible; padding: 12px; }
+  .mfs-foot { display: flex; margin: 10px 0 4px; } .mfs-foot .btn { flex: 1; justify-content: center; min-height: 44px; }
 }
 @keyframes mfs-up { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mfs-layout.is-sheet .mfs-side { animation: none; } }
@@ -131,27 +124,87 @@
 .mfs-fig { margin: 0; } .mfs-fig figcaption { font-size: 12px; line-height: 1.45; margin-top: 4px; }
 .mfs-sc { width: 100%; height: auto; display: block; overflow: visible; }
 .mfs-sc text { fill: var(--muted); font: 11px var(--sans); } .mfs-sc .ttl { fill: var(--faint); font-size: var(--fs-11); }
-.mfs-sc .gr { stroke: var(--border); stroke-width: 1; } .mfs-sc .ax0 { stroke: var(--border-strong); stroke-width: 1.2; }
-.mfs-sc .dot { fill: var(--gold); fill-opacity: .5; stroke: var(--gold); stroke-width: .8; transition: fill-opacity .12s; } .mfs-sc a:hover .dot, .mfs-sc a:focus-visible .dot { fill-opacity: 1; }
+.mfs-sc .gr { stroke: var(--border); stroke-width: 1; } .mfs-sc .ax0 { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }   /* task #131: the 0% line, dashed */
 .mfs-sc a:focus-visible { outline: none; } .mfs-sc a:focus-visible .dot { stroke: var(--text); stroke-width: 2; }
 .mfs-gl-none { margin: 0; font-size: 13px; }
 .mfs-flows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .mfs-glance > div { min-width: 0; }
-.mfs-flows li { display: grid; grid-template-columns: minmax(96px, 1fr) minmax(56px, 100px) minmax(66px, auto); gap: 10px; align-items: center; font-size: var(--fs-13); }
 .mfs-fl-n { overflow-wrap: break-word; color: var(--muted); } .mfs-fl { width: 100%; height: 34px; }
-.mfs-fl .ax0 { stroke: var(--border-strong); } .mfs-fl .up { fill: var(--gold); } .mfs-fl .down { fill: var(--faint); }
-.mfs-fl-v { text-align: right; font: 600 12px var(--mono); } .mfs-fl-v small { display: block; color: var(--faint); font: 400 11px var(--sans); }
 .mfs-side .mfs-flows { margin-top: 4px; }
-.mfs-panel .mfs-flows li { grid-template-columns: minmax(60px, 1fr) 90px auto; }
 
 .mfs-demo { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 12px; padding: 10px 14px; border: 1px dashed var(--gold); border-radius: 12px; background: var(--gold-soft); font-size: 13px; line-height: 1.45; }
 .mfs-demo .ico { width: 16px; height: 16px; flex: none; margin-top: 2px; }
 
 @media (max-width: 640px) {
   .mfs-presets { padding: 12px; }
-  .mfs-prow { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 6px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
-  .mfs-prow > * { flex: none; scroll-snap-align: start; }
   .mfs-main { padding: 12px; }
   .mfs-table th.mfs-n { min-width: 190px; max-width: 220px; }
   .mfs-box { width: 84px; }
 }
+
+/* Task #140 (team note): the sliding bar between the filters and the results, as on the advanced screeners (components/SplitDivider, .scr-split in tools.css). */
+@media (min-width: 1001px) {
+  .mfs-layout:not(.is-collapsed) { grid-template-columns: min(var(--side-w, 330px), max(240px, calc(100% - 448px))) 28px minmax(0, 1fr); gap: 0; }
+}
+
+/* ---- task #131: Result at a glance as the team's 14 Nov design. Scatter dots by fund type, a legend and a hover / focus label; flow bars that
+   diverge from a centre line on one shared scale, with "bar cut" on a category far above the rest. */
+.mfs-glance-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mfs-glance-h h2 { margin: 0; font: 600 20px var(--serif, Georgia, serif); color: var(--text); }
+.mfs-glance-h .btn { min-height: 36px; }
+.mfs-glance { --t-equity: #3B5A86; --t-hybrid: #2E7D5B; --t-debt: #C9A24E; --t-other: #8A8F98; }
+:root[data-theme="dark"] .mfs-glance { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mfs-glance { --t-equity: #8FAEDB; --t-hybrid: #6CC79A; --t-debt: #E2C27A; --t-other: #A4A9B2; } }
+.mfs-sc-cap { margin: 0 0 6px; font-size: 13px; }
+.mfs-sc-box { position: relative; }
+.mfs-sc .dot { fill-opacity: .72; stroke-width: .8; transition: r .12s, fill-opacity .12s; }
+.mfs-sc .dot.t-equity { fill: var(--t-equity); stroke: var(--t-equity); } .mfs-sc .dot.t-hybrid { fill: var(--t-hybrid); stroke: var(--t-hybrid); }
+.mfs-sc .dot.t-debt { fill: var(--t-debt); stroke: var(--t-debt); } .mfs-sc .dot.t-other { fill: var(--t-other); stroke: var(--t-other); }
+.mfs-sc a:hover .dot, .mfs-sc a:focus-visible .dot { fill-opacity: 1; }
+.mfs-sc-tip { position: absolute; z-index: 3; transform: translate(-50%, calc(-100% - 10px)); width: max-content; max-width: 240px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--s1); box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .45); font-size: 12px; line-height: 1.4; pointer-events: none; display: grid; gap: 1px; }
+.mfs-sc-tip b { font: 600 13px var(--sans); color: var(--text); white-space: normal; } .mfs-sc-tip span { color: var(--muted); }
+.mfs-sc-key { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.mfs-sc-key li { display: inline-flex; align-items: center; gap: 6px; } .mfs-sc-key i { width: 10px; height: 10px; border-radius: 50%; }
+.mfs-sc-key .t-equity { background: var(--t-equity); } .mfs-sc-key .t-hybrid { background: var(--t-hybrid); } .mfs-sc-key .t-debt { background: var(--t-debt); } .mfs-sc-key .t-other { background: var(--t-other); }
+.mfs-flows li { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(90px, 1.3fr) minmax(84px, auto); gap: 10px; align-items: center; font-size: var(--fs-13); }
+.mfs-fl-track { position: relative; display: block; height: 14px; }
+.mfs-fl-track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border-strong); }
+.mfs-fl-track i { position: absolute; top: 2px; height: 10px; border-radius: 3px; }
+.mfs-fl-track i.up { left: 50%; background: var(--gain); } .mfs-fl-track i.down { right: 50%; background: var(--loss); }
+.mfs-fl-track em { position: absolute; top: -14px; font: 600 11px var(--sans); letter-spacing: .02em; color: var(--muted); font-style: normal; white-space: nowrap; }
+.mfs-fl-track em.up { right: 0; } .mfs-fl-track em.down { left: 0; }
+.mfs-fl-v { text-align: right; font: 600 13px var(--mono); } .mfs-fl-v.up { color: var(--gain); } .mfs-fl-v.down { color: var(--loss); }
+.mfs-fl-note { margin: 8px 0 0; font-size: 12px; line-height: 1.45; }
+.mfs-flows li + li { margin-top: 4px; }
+
+/* ---- task #131: the rest of the team's 14 Nov design */
+.mfs-preset.is-on { background: var(--text); border-color: var(--text); color: var(--bg, var(--s1)); }   /* the preset that is on is dark */
+.mfs-preset.is-on i { color: inherit; }
+.mfs-sh-top .btn.sm { min-height: 32px; }
+.mfs-find { margin: 0 0 10px; }
+.mfs-find-in { width: 100%; min-height: 40px; padding: 0 12px; border-radius: 10px; font: 400 14px var(--sans); }
+.mfs-find-say { margin: 6px 2px 0; font-size: 12px; color: var(--muted); min-height: 0; } .mfs-find-say:empty { display: none; }
+.mfs-fold { width: 100%; justify-content: center; min-height: 44px; margin: 0 0 8px; }
+.mfs-soon-n { font: 500 12px var(--sans); color: var(--muted); }
+.mfs-active .mfs-dv { font: 600 13px var(--sans); color: var(--muted); margin-right: 2px; }
+.mfs-active .mfs-dchip { background: var(--s2); }
+.mfs-glance-wrap { margin: 0 0 18px; }
+.mfs-glance-wrap .mfs-glance-h { margin: 0 0 10px; }
+.mfs-table .mfs-nh { display: inline-flex; align-items: center; gap: 10px; } .mfs-tick-h { font: 500 11px var(--sans); color: var(--faint); }
+.mfs-table .mfs-nrow { display: flex; gap: 10px; align-items: flex-start; } .mfs-nm { min-width: 0; display: block; }
+.mfs-tick { flex: none; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--text); cursor: pointer; }
+.mfs-table th.mfs-hs, .mfs-table td.mfs-hs { text-align: left; }
+.mfs-table td.mfs-hs .mfs-cell { align-items: flex-start; }
+.mfs-table td.mfs-hs .mfs-pv { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 13px; background: color-mix(in srgb, currentColor 14%, transparent); }
+.mfs-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--text); color: var(--bg, var(--s1)); }
+.mfs-tray > b { font: 600 14px var(--sans); }
+.mfs-tray-l { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 260px; min-width: 0; }
+.mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bg, #fff) 16%, transparent); font-size: 13px; }
+.mfs-tray-c button { border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; padding: 0 4px; cursor: pointer; min-width: 24px; min-height: 24px; }
+.mfs-tray-b { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; } .mfs-tray-b small { font-size: 12px; opacity: .8; }
+.mfs-tray .btn:not(.primary) { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg, #fff) 40%, transparent); }
+@media (max-width: 640px) { .mfs-tray .btn { min-height: 44px; } .mfs-tick { width: 22px; height: 22px; } }
+/* the fund's name and its line in normal case, as the design draws them (a site-wide table rule set row headings in capitals) */
+.mfs-table tbody th.mfs-n, .mfs-table tbody th.mfs-n * { text-transform: none; letter-spacing: normal; }
+.mfs-table tbody th.mfs-n a { font-size: 14px; }

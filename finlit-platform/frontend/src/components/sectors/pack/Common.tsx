@@ -31,8 +31,8 @@ export function Tip({ text, label = "What does this mean?" }: { text: string; la
   );
 }
 
-const KIND_WORD = { good: "Good sign", watch: "Watch out", insight: "Insight", warning: "Warning" } as const;
-const KIND_ICON: Record<Card["kind"], ReactNode> = {
+export const KIND_WORD = { good: "Good sign", watch: "Watch out", insight: "Insight", warning: "Warning" } as const;
+export const KIND_ICON: Record<Card["kind"], ReactNode> = {
   good: <path d="M4 14l4-4 3 3 5-6M12 7h4v4" />, watch: <><path d="M10 3l8 14H2z" /><path d="M10 8v4M10 14.5v.5" /></>,
   insight: <><path d="M10 3a5 5 0 0 0-3 9v2h6v-2a5 5 0 0 0-3-9z" /><path d="M8 17h4" /></>, warning: <><circle cx="10" cy="10" r="7" /><path d="M10 6v5M10 13.5v.5" /></>,
 };

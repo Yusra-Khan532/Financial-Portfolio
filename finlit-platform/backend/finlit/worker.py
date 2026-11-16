@@ -616,20 +616,75 @@ async def drain_queue(client: FinEdgeClient, store: Store, loop: bool = False, i
             t.cancel()
 
 
+INGEST_COMPANY_TIMEOUT_S = 150.0   # one company never holds ingest-all longer than this (as score-all)
+
+
 async def ingest_all(client: FinEdgeClient, store: Store, statement: str = "consolidated", hours: int = 24, limit: Optional[int] = None,
-                     parallel: int = 3, chunk: int = 30) -> dict:
+                     parallel: int = 3, chunk: int = 30, max_minutes: Optional[float] = None) -> dict:
     """Fill (or refresh) every company in the universe, in chunks, so a long run can be stopped and restarted safely:
-    each restart picks up whatever has no snapshot yet. Never-loaded companies go first."""
+    each restart picks up whatever has no snapshot yet. Never-loaded companies go first.
+
+    With `max_minutes` the run stops itself at that budget (looked at before every company, each company capped at INGEST_COMPANY_TIMEOUT_S) and
+    ends normally, so the job is recorded as finished and the rest is taken by the next run. Without it (14 Nov 2026) every night's run tried all
+    ~5,800 stale companies, reached the job's hard limit, was killed mid-chunk and never recorded a success, so the job showed overdue for days."""
     pending = await store.pending_symbols(statement, hours, limit)
     log.info("ingest-all: %d companies to load (%s)", len(pending), statement)
     done = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0}
+    deadline = time.monotonic() + max_minutes * 60 if max_minutes is not None else None
+    tried = 0
     for i in range(0, len(pending), chunk):
+        if deadline is not None and time.monotonic() > deadline:
+            log.info("ingest-all: time budget used, the rest waits for the next run")
+            break
         batch = pending[i:i + chunk]
-        for r in await ingest_many(client, store, [(s, statement) for s in batch], parallel=parallel, yield_to_readers=True):
+        skipped = 0
+        kw = {"deadline": deadline, "company_timeout_s": INGEST_COMPANY_TIMEOUT_S} if deadline is not None else {}
+        for r in await ingest_many(client, store, [(s, statement) for s in batch], parallel=parallel, yield_to_readers=True, **kw):
+            if r["status"] == "skipped":
+                skipped += 1
+                continue
             done[r["status"]] = done.get(r["status"], 0) + 1
-        log.info("ingest-all: %d / %d  %s  (%d upstream calls)", min(i + chunk, len(pending)), len(pending), done, client.calls)
+        tried += len(batch) - skipped
+        log.info("ingest-all: %d / %d  %s  (%d upstream calls)", tried, len(pending), done, client.calls)
     await store.invalidate_search()   # once at the end: each drop makes the next visitor read the whole name list from Postgres again
-    return done
+    return {**done, "tried": tried, "waiting": len(pending) - tried}
+
+
+# The date check runs first (MATERIALIZED), so only reports not reloaded lately are parsed: parsing every stored report took longer than the pool's
+# 10-second query limit on the server (15 Nov 2026, TimeoutError on the first run after the fix below).
+SHORT_HISTORY_SQL = ("WITH stale AS MATERIALIZED (SELECT symbol, statement, generated_at, body FROM snapshots WHERE section = 'financials' "
+                     "AND generated_at < now() - make_interval(secs => $1)) "
+                     "SELECT symbol, statement, generated_at FROM stale "
+                     "WHERE jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
+                     "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4 "
+                     "ORDER BY generated_at, symbol, statement LIMIT $2")
+SHORT_HISTORY_QUERY_S = 120.0     # this one query's own limit (the pool's default is 10 s)
+SHORT_HISTORY_MAX = 2000          # a 45-minute run reloads well under this many; the rest are taken next run, oldest first
+
+
+async def refresh_short_history(client: FinEdgeClient, store: Store, days: float = 7.0, max_minutes: Optional[float] = None, parallel: int = 2) -> dict:
+    """Reload the stored reports whose yearly statements cover four years or fewer, so the second source can add older years.
+
+    Only reports not reloaded in the last `days` days are taken, oldest first, and a reload stamps the report's time, so each run carries on where
+    the last one stopped. With `max_minutes` no company starts after that budget and each company is capped at INGEST_COMPANY_TIMEOUT_S, so the run
+    ends normally and is recorded as finished. Before 15 Nov 2026 every run reloaded the whole list in name order with no budget: many companies
+    listed recently really have four years or fewer, so the list never shrank, each run reached the job's 60-minute limit, was killed and started
+    again at A, and the job had not finished since 31 Oct."""
+    async with store.pool.acquire() as conn:
+        due = await conn.fetch(SHORT_HISTORY_SQL, days * 86400.0, SHORT_HISTORY_MAX, timeout=SHORT_HISTORY_QUERY_S)
+    log.info("short-history: %d reports with a short history not reloaded in %g days (oldest first, at most %d)", len(due), days, SHORT_HISTORY_MAX)
+    deadline = time.monotonic() + max_minutes * 60 if max_minutes is not None else None
+    kw = {"deadline": deadline, "company_timeout_s": INGEST_COMPANY_TIMEOUT_S} if deadline is not None else {}
+    done: dict = {"ok": 0, "warnings": 0, "rejected": 0, "failed": 0, "skipped": 0}
+    results = await ingest_many(client, store, [(r["symbol"], r["statement"]) for r in due], parallel=parallel, **kw) if due else []
+    for r in results:
+        done[r["status"]] = done.get(r["status"], 0) + 1
+        if r["status"] != "skipped":
+            log.info("%-14s %-7s %6s ms  %s", r["symbol"], r["status"], r.get("ms", ""), r.get("errors") or r.get("error") or "")
+    if results:
+        await store.invalidate_search()
+    waiting = done.pop("skipped")
+    return {"due": len(due), **done, "waiting": waiting}
 
 
 SCORE_COMPANY_TIMEOUT_S = 150.0   # one company (~21 provider calls) never holds score-all longer than this (as results_run.COMPANY_TIMEOUT_S)
@@ -951,8 +1006,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finlit.worker")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate")
+    p_isin = sub.add_parser("load-isin-list", help="load a newer NSDL ISIN list (the .zip NSDL sends, or its .csv) into isin_master (task #128)")
+    p_isin.add_argument("--file", required=True)
     sub.add_parser("refresh-universe")
-    sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
+    p_short = sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
+    p_short.add_argument("--days", type=float, default=7.0, help="only reports not reloaded in this many days, oldest first")
+    p_short.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
     p_ingest = sub.add_parser("ingest")
     p_ingest.add_argument("symbols", nargs="+")
     p_ingest.add_argument("--statement", default="consolidated", choices=["consolidated", "standalone"])
@@ -963,6 +1022,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_all.add_argument("--hours", type=int, default=24, help="reload snapshots older than this")
     p_all.add_argument("--limit", type=int, default=None)
     p_all.add_argument("--parallel", type=int, default=3)
+    p_all.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
     p_probe = sub.add_parser("probe", help="check the FinEdge key and every endpoint for one symbol")
     p_probe.add_argument("symbol", nargs="?", default="RELIANCE")
     p_alerts = sub.add_parser("check-alerts", help="evaluate members' alerts and watchlist targets; notify in the app and by email")
@@ -1073,13 +1133,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_dc.add_argument("--skip", nargs="*", default=None, help="steps or fund-house keys to leave out")
     p_dc.add_argument("--months", type=int, default=None, help="month-ends to read per fund house (default: the latest 3)")
     p_dc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran in the last N hours")
-    p_sc = sub.add_parser("score-mf", help="daily, after refresh-portfolios: FinLit Mutual Fund Health Score of every Growth scheme; exchange-traded funds are not scored (finlit/mfscore; one transaction, idempotent); recorded at /api/mf/status (run:score-mf)")
+    p_sc = sub.add_parser("score-mf", help="daily, after refresh-portfolios: FinLit FundPulse of every Growth scheme; exchange-traded funds are not scored (finlit/mfscore; one transaction, idempotent); recorded at /api/mf/status (run:score-mf)")
     p_sc.add_argument("--symbols", nargs="*", default=None, help="AMFI scheme codes or ETF symbols: the whole universe is scored (peer medians need it) but only these are written")
     p_sc.add_argument("--limit", type=int, default=None, help="testing only: score just the first N schemes and N ETFs (their peer sets are then not the real ones); never removes other rows")
     p_sc.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_ms = sub.add_parser("refresh-mf-screen", help="nightly, after refresh-facts / refresh-industry / refresh-portfolios: the Mutual Fund Screener's figures (volatility, worst month, downside capture, ranks in category, exit load, portfolio and category-flow summaries, theme tags) from tables already held; one transaction, idempotent, no network (finlit/mfscreen); recorded at /api/mf/status (run:refresh-mf-screen)")
     p_ms.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
-    p_bf = sub.add_parser("backfill-mf", help="one-off, resumable: 5 years of NAV history from AMFI, one fund house at a time (run once after the first refresh-mf)")
+    p_bf = sub.add_parser("backfill-mf", help="resumable: the full NAV history from AMFI (since April 2006), one fund house at a time; houses loaded with five years get only the missing older years")
     p_bf.add_argument("--amc", default="all", help="AMFI fund house id or name, or all")
     p_bf.add_argument("--force", action="store_true")
     p_lg = sub.add_parser("refresh-logos", help="nightly: company and fund-house logos from their own websites (robots.txt obeyed; blocked sites are left alone)")
@@ -1190,7 +1250,15 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
     beat = _start_job_heartbeat()
     try:
         if args.cmd == "migrate":
-            print("migrated; timescale =", store.timescale)
+            from .isin import ensure_shipped
+            meta = await ensure_shipped(store)   # the depository's ISIN list shipped with the code, when newer than the stored one (task #128)
+            await store.invalidate_search()      # the search list carries each company's ISIN: rebuilt once after a deploy
+            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"))
+            return 0
+        if args.cmd == "load-isin-list":
+            from pathlib import Path
+            from .isin import load_master
+            print(json.dumps(await load_master(store, Path(args.file))))
             return 0
         if args.cmd == "canary":
             from .jobs.cli import run_canary
@@ -1380,13 +1448,14 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
         if args.cmd == "backfill-mf":
             from .mf import backfill, record_run
             try:
-                result = await backfill(store, settings, args.amc, force=args.force)
+                from .mf import MONTH_DEEP_SECONDS
+                result = await backfill(store, settings, args.amc, force=args.force, monthly_seconds=MONTH_DEEP_SECONDS)
             except Exception as exc:
                 await record_run(store, args.cmd, {"status": "error", "error": f"{exc.__class__.__name__}: {exc}"[:300]})
                 raise
             await record_run(store, args.cmd, {"status": result.get("status"), "done": len(result.get("done", [])), "failed": len(result.get("failed", []))})
             print(result)
-            return 0 if result.get("status") == "ok" else 1
+            return 0 if result.get("status") in ("ok", "partial") else 1   # partial: houses left for the next run, by design (the run stays inside its limit)
         if args.cmd in ("refresh-etf", "refresh-mf"):
             if args.cmd == "refresh-etf":
                 from .etf import refresh as refresh_funds
@@ -1551,17 +1620,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 await record_run(store, args.cmd, {"status": "ok", "companies": res})
                 print(res)
             elif args.cmd == "refresh-short-history":
-                async with store.pool.acquire() as conn:
-                    short = [(r["symbol"], r["statement"]) for r in await conn.fetch(
-                        "SELECT symbol, statement FROM snapshots WHERE section = 'financials' "
-                        "AND (jsonb_array_length(body::jsonb #> '{yearly,pl,periods}') BETWEEN 1 AND 4 OR jsonb_array_length(body::jsonb #> '{yearly,cf,periods}') BETWEEN 1 AND 3 "
-                        "OR jsonb_array_length(body::jsonb #> '{yearly,bs,periods}') BETWEEN 1 AND 4) "
-                        "ORDER BY symbol, statement")]
-                print(len(short), "reports with a short history", short[:30])
-                results = await ingest_many(client, store, short, parallel=2) if short else []
-                await store.invalidate_search()
-                for r in results:
-                    print(f"{r['symbol']:<14} {r['status']:<7} {r['ms']:>6} ms  {r['errors'] or ''}")
+                print(await refresh_short_history(client, store, days=args.days, max_minutes=args.max_minutes))
             elif args.cmd == "ingest":
                 results = await ingest_many(client, store, [(s, args.statement) for s in args.symbols])
                 await store.invalidate_search()
@@ -1569,7 +1628,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     print(f"{r['symbol']:<14} {r['status']:<7} {r['ms']:>6} ms  {r['errors'] or ''}")
                 return 0 if all(r["status"] in ("ok", "warnings") for r in results) else 1
             elif args.cmd == "ingest-all":
-                print(await ingest_all(client, store, args.statement, args.hours, args.limit, args.parallel))
+                print(await ingest_all(client, store, args.statement, args.hours, args.limit, args.parallel, max_minutes=args.max_minutes))
             elif args.cmd == "probe":
                 results = await probe(client, args.symbol)
                 for key, state, ms in results:

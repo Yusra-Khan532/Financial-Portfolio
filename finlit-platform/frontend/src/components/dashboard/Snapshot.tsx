@@ -13,7 +13,8 @@ import { CoLogo } from "../CoLogo";
 import { useIndices } from "../../lib/indices";
 import { snapshotCard } from "../../lib/dashPack";
 import { useNiftyDay } from "./MarketRead";
-import { Cards, Tip } from "../sectors/pack/Common";
+import { Tip } from "../sectors/pack/Common";
+import { DashCards } from "./DashCards";
 
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 const SCOPES = [["n50", "Nifty 50"], ["n500", "Nifty 500"], ["all", "All stocks"]] as const;
@@ -47,7 +48,7 @@ export function Snapshot({ rows, loading }: { rows: Row[]; loading: boolean }) {
         <div className="dsh-scope"><Seg label="Stocks to rank" value={scope} options={SCOPES} onChange={setScope} /></div>
         <div className="dsh-two">{col("gainers", up, "up")}{col("decliners", down, "down")}</div>
         {pick.note && (up.length || down.length) ? <p className="dsh-foot">{pick.note}</p> : null}
-        {card && <div className="sp dsh-cards dsh-cards-after"><Cards items={[card]} /></div>}
+        {card && <div className="sp dsh-cards dsh-cards-after"><DashCards items={[card]} scope="snapshot" /></div>}
       </>}
     </Card>
   );

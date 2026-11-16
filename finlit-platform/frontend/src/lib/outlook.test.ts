@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WEIGHTS, HORIZONS, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, type Horizon, type Kind, type Outlook } from "./outlook";
+import { DEFAULT_WEIGHTS, HORIZONS, PARAM_LABELS, VALUE_MAX, VALUE_MIN, VALUE_STEP, changedValues, clampValue, companyValues, signedPct, type Horizon, type Kind, type Outlook, parseRate } from "./outlook";
 
-describe("Set your own model: each input's own growth rate (task #146)", () => {
+describe("Build your own growth model: each input's own growth rate (task #146)", () => {
   const model = { rate: { rows: [
     { key: "co_1y", status: "ok", valuePct: 12.34 }, { key: "co_3y", status: "ok", valuePct: -3 }, { key: "sec_1y", status: "unavailable", valuePct: null },
   ] } } as unknown as Outlook;
@@ -16,9 +16,11 @@ describe("Set your own model: each input's own growth rate (task #146)", () => {
     expect(changedValues(base, { co_1y: 12.3 })).toEqual({});                                      // back on the company's figure (as shown, one decimal): nothing changed
     expect(changedValues(base, { sec_1y: 8 })).toEqual({ sec_1y: 8 });                             // a blank input the user sets is used
   });
-  it("keeps every rate within the model's limit, in tenths of a point (the knob sits on the figure shown)", () => {
-    expect([clampValue(73), clampValue(-80), clampValue(12.26), clampValue(7.39), clampValue(NaN)]).toEqual([VALUE_MAX, VALUE_MIN, 12.3, 7.4, 0]);
-    expect([VALUE_MIN, VALUE_MAX, VALUE_STEP]).toEqual([-50, 50, 0.1]);
+  it("task #166: a typed rate may be anything from -99% to +999% a year, in tenths of a point", () => {
+    expect([VALUE_MIN, VALUE_MAX, VALUE_STEP]).toEqual([-99, 999, 0.1]);
+    expect([clampValue(73), clampValue(1500), clampValue(-150), clampValue(12.26), clampValue(NaN)]).toEqual([73, VALUE_MAX, VALUE_MIN, 12.3, 0]);
+    expect([parseRate("73"), parseRate("120.57"), parseRate("+8"), parseRate("-12%"), parseRate("7,5"), parseRate(" 999 ")]).toEqual([73, 120.6, 8, -12, 7.5, 999]);
+    expect([parseRate(""), parseRate("-"), parseRate("abc"), parseRate("1000"), parseRate("-100"), parseRate("1e3")]).toEqual([null, null, null, null, null, null]);
   });
   it("every weight column (FinLit's, which combines the rates) adds to 100 and names every input, per horizon", () => {
     for (const kind of ["profit", "revenue"] as Kind[]) for (const h of HORIZONS) {

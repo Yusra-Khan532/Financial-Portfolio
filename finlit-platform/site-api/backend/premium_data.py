@@ -20,11 +20,56 @@ except ImportError:
     from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
 
 
+PROFIT_FIELDS = ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent",
+                 "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems",
+                 "profitLossAfterTaxBeforeExtraordinaryItems")
+OCF_FIELDS = ("netCashFromOperatingActivities", "cashFromOperatingActivity", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")
+EPS_FIELDS = ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr")
+
+
+def latest_reported_end(rows, as_of=None):
+    """The latest period end among rows that report a profit (a placeholder row with no figures does not count), or None."""
+    ends = [field_date(r) for r in rows or [] if isinstance(r, dict) and first(r, *PROFIT_FIELDS) is not None]
+    ends = [e for e in ends if e and (as_of is None or e <= as_of)]
+    return max(ends) if ends else None
+
+
+def recent_annual_run(rows, as_of=None, fields=None):
+    """(number of periods, latest period end) of the latest run of consecutive full-year results (330 to 400 days long, each ending 300 to 490 days
+    after the one before) that report a profit. FinEdge's consolidated history can stop and start again years later (ABB: 2011, 2012, then 2024,
+    2025), so a plain count of rows overstates it; only the latest unbroken run can give a 3- or 5-year comparison."""
+    ends = []
+    for row in rows or []:
+        if not isinstance(row, dict) or first(row, *(fields or PROFIT_FIELDS)) is None:
+            continue
+        end, start = field_date(row), row.get("period_start") or row.get("periodStart")
+        start_day = field_date({"period_end": start}) if start else None
+        if not end or (as_of and end > as_of) or (start_day and not 330 <= (end - start_day).days + 1 <= 400):
+            continue
+        ends.append(end)
+    ends = sorted(set(ends))
+    if not ends:
+        return 0, None
+    # Two "full years" ending less than 300 days apart overlap: FinEdge labels Nestle's 15-month period to March 2024 as a year, next to calendar 2023.
+    # They fill one slot (the later is kept), not a break in the run.
+    n, current, j = 1, ends[-1], len(ends) - 2
+    while j >= 0:
+        gap = (current - ends[j]).days
+        if gap < 300:
+            j -= 1
+            continue
+        if gap > 490:
+            break
+        n, current, j = n + 1, ends[j], j - 1
+    return n, ends[-1]
+
+
 def adapt_inputs(raw, symbol, as_of, statement_type):
     profile = profile_from(raw)
     group, defaulted = resolve_group(profile)
     warnings = []
     if defaulted: warnings.append("No model group matched the industry label; the manufacturing default was used only to compute the inputs.")
+    if raw.get("basis_note"): warnings.append(raw["basis_note"])
     provenance = {}
     qrows = items(raw.get("quarterly"), "financials", "data")
     arows = items(raw.get("annual"), "financials", "data")
@@ -84,7 +129,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
-        return record(row, "net_profit", ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent", "profitLossForPeriod", "profitLossForThePeriod", "netProfitAfterTax", "profitAfterTax", "netProfit", "profitLossAfterTaxAndExtraordinaryItems", "profitLossAfterTaxBeforeExtraordinaryItems"))
+        return record(row, "net_profit", PROFIT_FIELDS)
     def ebitda(row):
         value = record(row, "operating_profit", ("ebitda", "EBITDA", "earningsBeforeInterestTaxesDepreciationAndAmortization"))
         if value is not None: return value
@@ -96,7 +141,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         interest = record(row, "operating_profit", INTEREST_COST_FIELDS)
         other = record(row, "operating_profit", ("otherIncome",))
         return pbt + interest + depreciation - other if all(v is not None for v in (pbt, interest, depreciation, other)) else None
-    def eps(row): return record(row, "eps", ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr"), 1)
+    def eps(row): return record(row, "eps", EPS_FIELDS, 1)
     def net_worth(row, target="net_worth"):
         # Model specification section 2 names Total equity, including non-controlling interests.
         value = record(row, target, ("totalEquity", "shareholdersEquity", "netWorth", "equity"))
@@ -134,6 +179,29 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         "interest_cost": record(current_a, "interest_cost", INTEREST_COST_FIELDS),
         "total_assets": record(current_b, "total_assets", ("totalAssets", "totalAsset", "assets")),
     }
+    # PEG growth fallback (3.6.14, owner 15 November 2026): FinEdge's consolidated history can start years after the standalone one (Nestle, ABB: one or two
+    # consolidated years against eight or nine standalone). The yearly standalone EPS and profit are kept beside the consolidated ones so the engine can
+    # measure EPS growth on them when the consolidated EPS history is too short for a 3- or 5-year window. Only PEG's growth uses them, and the report says so.
+    # Kept as the reported annual periods in order (not calendar slots) with their end dates, so a change of year-end (Nestle: December 2023, then
+    # March 2025, the 15-month period between being dropped as non-comparable) does not break the run of years; the engine uses the real time between ends.
+    d["eps_y_standalone"], d["net_profit_y_standalone"], d["standalone_period_ends"], d["operating_cash_flow_y_standalone"] = [], [], [], []
+    if statement_type == "consolidated":
+        kept = len(warnings)
+        sa = dated(comparable(items(raw.get("annual_standalone"), "financials", "data"), 330, 400, "annual"))
+        del warnings[kept:]             # standalone periods are not the report's statements; their exclusions are not report warnings
+        sa_ends = sorted(sa)[-(CAGR_MAX_YEARS + 3):]
+        def plain(row, names, scale):
+            value = first(row, *names)
+            return value / scale if value is not None else None
+        d["eps_y_standalone"] = [plain(sa[day], EPS_FIELDS, 1) for day in sa_ends]
+        d["net_profit_y_standalone"] = [plain(sa[day], PROFIT_FIELDS, CR) for day in sa_ends]
+        d["standalone_period_ends"] = [day.isoformat() for day in sa_ends]
+        # Standalone operating cash flow on the same periods (fetched only when the consolidated cash flow has fewer than three years).
+        kept = len(warnings)
+        sa_cf = dated(comparable(items(raw.get("cashflow_standalone"), "financials", "data"), 330, 400, "cash-flow"))
+        del warnings[kept:]
+        d["operating_cash_flow_y_standalone"] = [plain(sa_cf.get(day, {}), OCF_FIELDS, CR) for day in sa_ends] if sa_cf else []
+    d["consolidated_years"] = ykeys
     # Cash and other bank balances are disjoint provider fields. Do not assume all investments are liquid.
     other_bank = record(current_b, "cash", ("otherBankBalances",))
     if d["cash"] is not None and other_bank is not None and num(current_b.get("cashAndBankBalances")) is None:
@@ -143,7 +211,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         long = record(current_b, "total_debt", ("longTermBorrowings", "borrowingsNoncurrent"))
         if short is not None and long is not None: d["total_debt"] = short + long
     cfmap = {day.year: row for day, row in cf.items()}
-    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", ("netCashFromOperatingActivities", "cashFromOperatingActivity", "cashFlowsFromOperatingActivities", "cashFlowFromOperatingActivities", "operatingCashFlow")) for year in ykeys]
+    d["operating_cash_flow_y"] = [record(cfmap.get(year, {}), "operating_cash_flow", OCF_FIELDS) for year in ykeys]
     def loans(row):
         value = record(row, "loans", ("advances", "loansAndAdvances", "loans", "advancesToCustomers"))
         if value is None:
@@ -184,7 +252,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
                     if raw.get("asset_quality_basis") != statement_type:
                         warnings.append(f"The dashboard's bank asset-quality disclosures use {raw.get('asset_quality_basis')} statements dated {quality_day}; NPA inputs use that explicitly disclosed basis. Financial statements remain {statement_type}.")
     d["solvency_ratio"] = record(latest_q, "solvency_ratio", ("solvencyRatio",), 1)
-    if group == "INSURANCE":
+    if group in ("INSURANCE", "NBFC"):
         leverage_rows = [row for row in items(raw.get('leverage'),'ratios','data') if field_date(row) and field_date(row)<=as_of]
         # Same provider ordering as the dashboard: TTM precedes annual rows.
         reported = next((first(row,'financialLeverage') for row in leverage_rows if first(row,'financialLeverage') is not None and first(row,'financialLeverage')>0),None)

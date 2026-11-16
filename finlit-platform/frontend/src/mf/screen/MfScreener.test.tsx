@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The Mutual Fund Screener page in a DOM: one call for the counts, filters editing the address, the no-data line, honest disabled groups and the wording scan.
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -44,7 +44,7 @@ describe("Mutual Fund Screener page", () => {
   it("ticking a sub-category edits the address and asks again", async () => {
     mount();
     await screen.findByText("Alpha Mid Cap Fund");
-    fireEvent.click(await screen.findByLabelText(/Mid Cap/, { selector: "input" }));
+    fireEvent.click(await within(screen.getByRole("complementary", { name: "Filters" })).findByLabelText(/Mid Cap/, { selector: "input" }));   // the panel's box (the table now has a "Compare … Mid Cap Fund" tick box too)
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("subs=mid-cap"));
     await waitFor(() => expect(st.calls.some((c) => c.includes("subs=mid-cap"))).toBe(true));
     expect(screen.getByRole("button", { name: /Remove filter: Mid Cap/ })).toBeTruthy();
@@ -56,7 +56,7 @@ describe("Mutual Fund Screener page", () => {
     fireEvent.click(p);
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).getAttribute("aria-pressed")).toBe("true");
-    expect((screen.getByRole("button", { name: /Health score 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /FundPulse 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("shows the no-data count and the groups that need a data source, disabled and explained", async () => {
     mount("/funds/screener?rng=ter:0:1");

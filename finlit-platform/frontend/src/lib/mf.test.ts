@@ -5,7 +5,7 @@ import {
   parseIds, parseQuery, pctText, queryToParams, readCols, rowSortValue, searchOptions, subCats, terText, toggleAll, toggleCat, tone, trayToggle,
   type FilterCategory, type FundRow,
 } from "./mf";
-import { CARDS, TABS, classify, keyLabel, selectionTitle, tabLabel, type TabKey } from "./mfCategories";
+import { CARDS, ELSS_FOOTNOTE, TABS, classify, keyLabel, selectionTitle, tabLabel, type TabKey } from "./mfCategories";
 
 describe("number text", () => {
   it("NAV keeps at least 2 and at most 4 decimals, Indian grouping", () => {
@@ -164,10 +164,15 @@ describe("category map", () => {
   it("the six cards: categories, tabs and the owner's descriptor lines", () => {
     expect(CARDS.map((c) => [c.key, c.tab])).toEqual([["elss", "equity"], ["large-cap", "equity"], ["flexi-cap", "equity"], ["small-cap", "equity"], ["money-market", "debt"], ["corporate-bond", "debt"]]);
     const elss = CARDS[0];
-    expect(elss.lines).toEqual(["Lock-in for three years", "Tax savings of up to Rs. 46,800 under 80C"]);
+    expect(elss.lines).toEqual(["Lock-in for three years.", "Tax savings of up to ₹46,800 under 80C"]);
     expect(elss.note).toMatch(/old tax regime/);
     expect(Math.round(150000 * 0.3 * 1.04)).toBe(46800);   // ₹1.5 lakh at the 30% slab plus 4% cess
-    expect(CARDS.find((c) => c.key === "corporate-bond")!.lines).toEqual(["Higher risk & return than FD", "Medium-term (1–5 years) investments"]);
+    // task #130 C-2: the three lines that promised returns now describe the risk
+    expect(CARDS.find((c) => c.key === "corporate-bond")!.lines[0]).toBe("More risk than a fixed deposit; returns are not fixed.");
+    expect(CARDS.find((c) => c.key === "large-cap")!.lines[1]).toBe("Usually swing less than smaller companies.");
+    expect(CARDS.find((c) => c.key === "small-cap")!.lines[0]).toBe("Bigger ups and downs than large caps.");
+    for (const c of CARDS) expect(c.lines.join(" ")).not.toMatch(/consistent returns|growth potential|return than FD/i);
+    expect(ELSS_FOOTNOTE).toBe("* Old tax regime: 30% tax plus 4% cess on the ₹1.5 lakh 80C limit. The new regime has no 80C deduction.");
     for (const c of CARDS) expect(REAL.some(([, tab, key]) => tab === c.tab && key === c.key)).toBe(true);   // a card always matches real AMFI names
   });
   it("the heading names the chosen categories", () => {
@@ -271,6 +276,7 @@ describe("compare tray", () => {
     for (const c of [1, 2, 3, 4]) l = trayToggle(l, c).list;
     expect(l).toEqual([1, 2, 3, 4]);
     expect(trayToggle(l, 5)).toEqual({ list: [1, 2, 3, 4], full: true });
+    expect(trayToggle(l, 5, 4, true)).toEqual({ list: [2, 3, 4, 5], full: false });   // task #130 C-9: on the funds list a fifth replaces the oldest
     expect(trayToggle(l, 2)).toEqual({ list: [1, 3, 4], full: false });
   });
   it("addresses carry distinct valid codes only, at most four", () => {

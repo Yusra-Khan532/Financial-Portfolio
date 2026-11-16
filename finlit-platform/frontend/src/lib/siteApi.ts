@@ -65,5 +65,3 @@ export const assetUrl = (key: string) => apiUrl(`/api/content/assets/${encodeURI
 export type ContactPayload = { name: string; email: string; phone?: string; investment_size?: string; subject?: string; message?: string };
 export const sendContact = (p: ContactPayload) => send<{ id?: string }>("/api/contact", p);
 export const sendEnquiry = (p: { name: string; email: string; phone: string; services: string[]; message?: string }) => send<{ id?: string }>("/api/service-enquiry", p);
-export const askAssistant = (message: string, history: { role: "user" | "assistant"; content: string }[]) =>
-  send<{ response: string }>("/api/chat", { message, history: history.slice(-12) });

@@ -24,6 +24,7 @@
 .mf-seg-w { display: grid; gap: 4px; justify-items: start; }
 .mf-seg-w .seg { max-width: 100%; flex-wrap: wrap; }
 .mf .card-h .seg { max-width: 100%; overflow-x: auto; }
+@media (max-width: 560px) { .mf .card-h .seg { flex-wrap: wrap; overflow-x: visible; } }   /* phones: every range button stays in view (task #162 added 10Y and "Since 2006") */
 .mf-pick { position: relative; display: grid; gap: 4px; min-width: 0; }
 .mf-pick-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; text-align: left; min-width: 0; }
 .mf-pick-b span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -417,3 +418,97 @@
 .mp-t td.l { min-width: 200px; max-width: 300px; }
 .mp-t th, .mp-t td { padding-left: 8px; padding-right: 8px; }
 .mp-t thead th { white-space: normal; line-height: 1.2; } .mp-t thead th .mp-sortb { white-space: normal; text-align: right; }
+/* Task #132: the Health Score opens with one plain line; rank and the data behind the score sit in one list beside the parts */
+.mfs-card .mfs-one { margin: 4px 0 14px; font: 600 var(--fs-18, 18px)/1.4 var(--serif); color: var(--text); }
+.mfs-card .mfs-top:has(.mfs-dl) { grid-template-columns: auto minmax(0, 1fr) minmax(220px, 300px); }
+.mfs-dl { display: grid; gap: 6px; margin: 0; font-size: var(--fs-14); }
+.mfs-dl > div { display: flex; justify-content: space-between; gap: 12px; } .mfs-dl dt { color: var(--muted); } .mfs-dl dd { margin: 0; font-weight: 600; text-align: right; }
+@media (max-width: 900px) { .mfs-card .mfs-top:has(.mfs-dl) { grid-template-columns: auto minmax(0, 1fr); } .mfs-card .mfs-dl { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .mfs-card .mfs-top:has(.mfs-dl) { grid-template-columns: 1fr; } }
+/* Task #132: the facts we do not have yet, together in one box */
+.mf-notyet { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); font-size: var(--fs-14); }
+.mf-notyet .label { display: block; margin-bottom: 4px; } .mf-notyet p { margin: 0; color: var(--muted); line-height: 1.5; }
+.mf-notyet details { margin-top: 6px; font-size: 13px; color: var(--muted); } .mf-notyet summary { cursor: pointer; font-weight: 600; color: var(--text); min-height: 32px; display: flex; align-items: center; }
+.mf-notyet ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; } .mf-notyet li b { color: var(--text); }
+/* Task #132: a fund's page opens with an "at a glance" row and links to each section */
+.mf-detail .fd-glance { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 16px 0 10px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); overflow: hidden; }
+.fd-cell { display: grid; align-content: start; gap: 4px; padding: 14px 16px; min-width: 0; border-left: 1px solid var(--border); }
+.fd-cell:first-child { border-left: 0; }
+.fd-k { font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.fd-v { font: 600 24px/1.2 var(--serif); color: var(--text); overflow-wrap: anywhere; }
+.fd-s { font-size: var(--fs-13); line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.mf-detail .fd-nav { display: flex; gap: 4px; margin: 0 0 16px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); overflow-x: auto; scrollbar-width: thin; }
+.fd-nav a { flex: none; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 10px; color: var(--text); font: 600 14px var(--sans); text-decoration: none; white-space: nowrap; }
+.fd-nav a:hover { background: var(--s2); } .fd-nav a[aria-current] { background: color-mix(in srgb, var(--gold) 18%, var(--s2)); }
+.mf-detail .fd-anchor { scroll-margin-top: 84px; } .mf-grid > .fd-anchor { display: grid; } .mf-grid > .fd-anchor > .card { height: 100%; }
+@media (max-width: 1100px) { .mf-detail .fd-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); } .fd-cell:nth-child(3n + 1) { border-left: 0; } .fd-cell:nth-child(n + 4) { border-top: 1px solid var(--border); } }
+@media (max-width: 640px) {
+  .mf-detail .fd-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fd-cell:nth-child(n) { border-left: 1px solid var(--border); border-top: 0; } .fd-cell:nth-child(odd) { border-left: 0; } .fd-cell:nth-child(n + 3) { border-top: 1px solid var(--border); }
+  .fd-v { font-size: var(--fs-20); } .fd-nav a { min-height: 44px; }
+}
+
+/* ---- Task #130 (14 Nov 2026, the mutual funds page redesign): the design pack finlit-01-mutual-funds-14nov, on the site's own tokens (light and dark). ---- */
+/* the six category cards: a heading with the ELSS footnote beside it; the scored-fund count at the top right; the bar's bands named in words */
+.mf-cats { display: grid; gap: 12px; }
+.mf-cats-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 18px; }
+.mf-cats-h h2 { margin: 0; font: 400 var(--fs-24)/1.2 var(--serif); }
+.mf-cats-h p { margin: 0; font-size: var(--fs-12); max-width: 62ch; }
+.mf-qcard .mf-qcount { position: absolute; top: 14px; right: 14px; font-size: var(--fs-12); color: var(--muted); }
+.mf-qcard:has(.mf-qcount) b { padding-right: 92px; }
+.mf-qcard[aria-pressed="true"] .mf-qcount { right: 40px; }
+.mf-qs-h { display: flex; align-items: baseline; gap: 8px; }
+.mf-qs-h .mf-qs-n { font: 600 var(--fs-24)/1 var(--sans); }
+.mf-qdist-l { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; font-size: var(--fs-12); color: var(--muted); }
+.mf-qs-go { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--fs-13); font-weight: 600; color: var(--accent, var(--gold)); min-height: 32px; display: inline-flex; align-items: center; }
+.mf-qs-go:hover, .mf-qs-go:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.mf-qs-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+
+/* one filter bar that wraps: search, fund house, Plan and Option segments, Return range, the stopped-schemes tick */
+.mf-fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.mf-fbar .mf-search { flex: 1 1 280px; min-width: 0; }
+.mf-fbar .mf-seg-w { display: flex; }
+.mf-fbar .mf-stopck { flex-basis: 100%; }
+.mf-rangebtn.on { border-color: var(--gold); color: var(--gold); }
+
+/* the summary tiles in words, on the soft tile colours of the MF portfolio */
+.mf-sc.t-blue { background: color-mix(in srgb, #6b8db5 14%, var(--s1)); }
+.mf-sc.t-green { background: color-mix(in srgb, var(--gain) 13%, var(--s1)); }
+.mf-sc.t-amber { background: color-mix(in srgb, var(--gold) 16%, var(--s1)); }
+.mf-sc.t-teal { background: color-mix(in srgb, #2f5f66 14%, var(--s1)); }
+.mf-sc.t-grey { background: color-mix(in srgb, var(--muted) 10%, var(--s1)); }
+.mf-sc b em { font-style: normal; font-size: var(--fs-14); color: var(--muted); font-weight: 500; }
+
+/* the frozen Scheme column casts a soft edge while the table scrolls sideways (no column slider) */
+.mf-table tbody th.mf-name, .mf-table thead th:first-child { box-shadow: 6px 0 8px -6px rgba(0, 0, 0, .28), 1px 0 0 var(--border); }
+.mf-table thead th:first-child { position: sticky; left: 0; z-index: 3; background: var(--s1); }
+
+/* the compare bar under the table */
+.mf-cmpbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 4px; padding: 12px 14px; border-radius: 14px; background: #14211c; color: #f3eee2; }
+.mf-cmpbar-l { font-weight: 600; }
+.mf-cmpbar-n { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.mf-cmpbar-n li { padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); font-size: var(--fs-13); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-cmpbar-sp { flex: 1 1 auto; }
+.mf-cmpbar-hint { font-size: var(--fs-13); color: rgba(243, 238, 226, .8); }
+.mf-cmpbar-clear { all: unset; cursor: pointer; font-size: var(--fs-13); color: rgba(243, 238, 226, .85); text-decoration: underline; text-underline-offset: 3px; min-height: 32px; display: inline-flex; align-items: center; }
+.mf-cmpbar-go { background: #e9cf8f; color: #14211c; border-color: transparent; }
+.mf-cmpbar-go:disabled { opacity: .55; }
+.mf-cmpbar :focus-visible { outline: 2px solid #e9cf8f; outline-offset: 2px; }
+
+/* "How to read this table": nine short cards, each opening its full text */
+.mf-legend { max-width: none; font-size: var(--fs-14); }
+.mf-legend h2 { margin: 6px 0 12px; font: 400 var(--fs-24)/1.2 var(--serif); }
+.mf-note-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.mf-note-card { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
+.mf-note-card h3 { margin: 0 0 6px; font-size: var(--fs-14); font-weight: 600; }
+.mf-note-card > p { margin: 0 0 8px; color: var(--muted); font-size: var(--fs-13); line-height: 1.45; }
+.mf-note-card summary { cursor: pointer; font-size: var(--fs-13); font-weight: 600; color: var(--accent, var(--gold)); min-height: 28px; display: inline-flex; align-items: center; }
+.mf-note-full { margin-top: 8px; font-size: var(--fs-13); line-height: 1.5; }
+.mf-note-full p { margin: 0 0 8px; }
+@media (max-width: 1000px) { .mf-note-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .mf-note-cards { grid-template-columns: minmax(0, 1fr); }
+  .mf-fbar .mf-search { flex-basis: 100%; }
+  .mf-cmpbar-go { width: 100%; justify-content: center; }
+  .mf-qs-go, .mf-cmpbar-clear, .mf-note-card summary { min-height: 44px; }
+}

@@ -625,7 +625,8 @@ async def test_list_counts_are_honest_and_carry_the_required_notes(api):
     b = r.json()
     assert r.status_code == 200 and b["total"] == 17 and b["universe"] == 17 and len(b["items"]) == 17 and b["asOf"] == "2026-10-21"
     assert b["disclaimer"] == "Information only. Not investment advice. Past returns do not guarantee future returns."
-    assert "Upstox" in b["source"] and "AMFI" in b["source"] and b["updatedAt"]
+    assert "AMFI" in b["source"] and b["updatedAt"]
+    assert not any(w in json.dumps(b) for w in ("Dhan", "Upstox", "market-data provider"))      # task #133: the price provider is never named
     assert r.headers["cache-control"].startswith("public")
     assert b["items"][0]["symbol"] == "LIQUIDBEES" and b["items"][1]["symbol"] == "SILVERBEES"      # most rupees traded a day first (20-session average)
     have = [i["avgTurnover"] for i in b["items"] if i["avgTurnover"] is not None]
@@ -709,7 +710,7 @@ async def test_compare(api):
     assert [i["symbol"] for i in b["items"]] == ["NIFTYBEES", "GOLDBEES"] and b["items"][1]["ret1y"] is not None
     assert b["series"]["NIFTYBEES"][0] == ["2025-10-21", 100.0] and b["series"]["GOLDBEES"][0][1] == 100.0
     assert b["series"]["NIFTYBEES"][-1][1] == pytest.approx(259.57 / 291.87 * 100, abs=0.01)
-    assert b["disclaimer"].startswith("Information only") and "Upstox" in b["source"]
+    assert b["disclaimer"].startswith("Information only") and "Upstox" not in b["source"] and "Dhan" not in b["source"] and "AMFI" in b["source"]   # task #134 C-6: the price provider is never named
     young = (await api.get("/api/etf/compare?symbols=NIFTYBEES,GROWWMOM50,HDFCVALUE,SILVERBEES&range=MAX")).json()
     assert young["start"] == max(young["series"][s][0][0] for s in young["series"])               # starts where the newest of them begins
     assert any("chart starts on" in n and "GROWWMOM50" in n for n in young["notes"]) and any("29 Sep 2022" in n for n in young["notes"])
@@ -751,3 +752,42 @@ def test_flat_price_return_is_withheld_with_a_reason():
     base = {"symbol": "X", "display_name": "X", "isin": "INF000000000", "category": None, "reasons": {}, "ret_1y": 0.001, "ret_5y": -0.002, "ret_3y": 12.5, "points": 10}
     out = etf.row_view(base)
     assert out["ret1y"] is None and out["ret5y"] is None and out["ret3y"] == 12.5
+
+
+# ------------------------------------------------------------------------------------------------------------ task #133: expense ratio in the list
+async def _scheme(conn, code: int, isin: str, family: str, key: str):
+    await conn.execute("INSERT INTO mf_schemes (code, name, isin, amc, scheme_type, category, plan, option_class, family) "
+                       "VALUES ($1, $2, $3, 'Test AMC', 'Open Ended', 'Other Scheme - Other ETFs', 'Unspecified', 'Other', $4) ON CONFLICT (code) DO NOTHING",
+                       code, key, isin, family)
+    await conn.execute("INSERT INTO mf_facts (code, base_name, name_key) VALUES ($1, $2, $3) ON CONFLICT (code) DO UPDATE SET name_key = $3", code, key, key)
+
+
+async def test_the_list_carries_each_etfs_expense_ratio_with_its_date_and_sorts_by_it(api, store):
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM mf_ter WHERE name_key IN ('niftybeestest', 'goldbeestest')")
+        await conn.execute("DELETE FROM disclosure_facts WHERE fkey = 'fam-gold-133'")
+        await _scheme(conn, 913301, "INF204KB14I2", "fam-nifty-133", "niftybeestest")                  # NIFTYBEES: AMFI's TER file, filed under Direct
+        await conn.execute("INSERT INTO mf_ter (name_key, name, ter_regular, ter_direct, ter_date) VALUES ('niftybeestest', 'x', NULL, 0.04, '2026-10-21')")
+        gold = await conn.fetchval("SELECT isin FROM etf_funds WHERE symbol = 'GOLDBEES'")
+        await _scheme(conn, 913302, gold, "fam-gold-133", "goldbeestest")                              # GOLDBEES: only the fund house's own page has it
+        await conn.execute("INSERT INTO disclosure_facts (fkey, kind, as_of, value, source) VALUES ('fam-gold-133', 'ter', '2026-11-13', $1::jsonb, 'Fund house TER page')",
+                           json.dumps({"regular": 0.79, "direct": None}))
+    try:
+        items = (await api.get("/api/etf")).json()["items"]                                             # the ready-made default page
+        nb = next(i for i in items if i["symbol"] == "NIFTYBEES")
+        assert nb["ter"] == 0.04 and nb["terDate"] == "2026-10-21" and "AMFI" in nb["terSource"]
+        gb = next(i for i in items if i["symbol"] == "GOLDBEES")
+        assert gb["ter"] == 0.79 and gb["terDate"] == "2026-11-13" and gb["terSource"] == "Fund house TER page"
+        other = next(i for i in items if i["symbol"] not in ("NIFTYBEES", "GOLDBEES"))
+        assert other["ter"] is None and other["why"]["ter"]                                              # a blank always says why
+        assert all(i.get("premium") is None or "navDate" in i for i in items) and all("avgTurnover" in i for i in items)
+        srt = (await api.get("/api/etf?sort=ter&order=asc")).json()["items"]
+        assert [i["symbol"] for i in srt[:2]] == ["NIFTYBEES", "GOLDBEES"] and all(i["ter"] is None for i in srt[2:])   # blanks last
+        assert [i["symbol"] for i in (await api.get("/api/etf?sort=ter")).json()["items"][:2]] == ["GOLDBEES", "NIFTYBEES"]
+        assert (await api.get("/api/etf?terMin=1")).json()["total"] == 17                                 # not a range filter: ignored
+    finally:
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM mf_ter WHERE name_key IN ('niftybeestest', 'goldbeestest')")
+            await conn.execute("DELETE FROM disclosure_facts WHERE fkey = 'fam-gold-133'")
+            await conn.execute("DELETE FROM mf_facts WHERE code IN (913301, 913302)")
+            await conn.execute("DELETE FROM mf_schemes WHERE code IN (913301, 913302)")

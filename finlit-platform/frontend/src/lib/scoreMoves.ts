@@ -10,7 +10,8 @@ export const PERIODS: { id: Period; days: number; words: string }[] = [
   { id: "1M", days: 31, words: "month" }, { id: "3M", days: 92, words: "3 months" }, { id: "6M", days: 183, words: "6 months" }, { id: "1Y", days: 366, words: "year" },
 ];
 export type Show = "all" | "business" | "technical";
-export const BUSINESS: Series[] = ["fundamental", "valuation", "quality", "risk"];
+// task #126 (team, 15 Nov): the cumulative fundamental score (the Prism score the four pillars add up to) is drawn with the four pillars
+export const BUSINESS: Series[] = ["final", "fundamental", "valuation", "quality", "risk"];
 export const TECHNICAL: Series[] = ["shortTerm", "longTerm"];
 export const seriesFor = (show: Show): Series[] => (show === "business" ? BUSINESS : show === "technical" ? TECHNICAL : [...BUSINESS, ...TECHNICAL]);
 export const isTechnical = (s: Series) => s === "shortTerm" || s === "longTerm";
@@ -41,7 +42,7 @@ export function movesOf(points: HistPoint[], series: Series[]): Move[] {
   return out;
 }
 
-export const NAME: Record<Series, string> = { final: "Prism", ["fundamental"]: "Growth & Profitability", valuation: "Valuation", quality: "Quality", risk: "Risk", shortTerm: "Short-term view", longTerm: "Long-term view" };
+export const NAME: Record<Series, string> = { final: "Cumulative fundamental score", ["fundamental"]: "Growth & Profitability", valuation: "Valuation", quality: "Quality", risk: "Risk", shortTerm: "Short-term view", longTerm: "Long-term view" };
 const num = (v: number) => (v < 0 ? "−" : "") + String(Math.abs(Math.round(v * 10) / 10));
 const pts = (n: number) => `${num(Math.abs(n))} point${Math.abs(n) === 1 ? "" : "s"}`;
 
@@ -87,6 +88,17 @@ export function inForce(points: HistPoint[], s: Series, i: number): { value: num
 /** The figure of a series on `day`, looking back through the WHOLE recorded history (not only the period on screen, so the first day of a period is never blank):
  *  its own figure when that day has one (exact), else the latest earlier one, which is the figure still in force (the four business scores change only when Prism
  *  re-rates the company). Null when nothing was recorded on or before that day. `history` is oldest first. */
+/** A business score's move over the period on screen, from the rating IN FORCE on the period's first day to the one in force on its last (task #126):
+ *  between re-ratings a day has no rating of its own, so the period's own points alone would show one figure. Null with the first day it was recorded
+ *  when the score has no rating in force at the start of the period (recording began later), or with no figure at all. */
+export function bizMove(history: HistPoint[], period: HistPoint[], s: Series): { move: Move | null; from: string | null } {
+  if (!period.length) return { move: null, from: null };
+  const a = figureOn(history, s, period[0].day), b = figureOn(history, s, period[period.length - 1].day);
+  const first = history.find((p) => valueOf(p, s) != null)?.day ?? null;
+  if (!a || !b) return { move: null, from: first };
+  return { move: { s, from: a.value, to: b.value, delta: Math.round((b.value - a.value) * 10) / 10, fromDay: period[0].day, toDay: period[period.length - 1].day }, from: first };
+}
+
 export function figureOn(history: HistPoint[], s: Series, day: string): { value: number; day: string; exact: boolean } | null {
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i].day > day) continue;

@@ -28,7 +28,7 @@ def rules_of(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] = None) -> bool:
+def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] = None, prism: bool = False) -> bool:
     """Does one company (a `scores` row with its metrics) match a saved screen? Same rules as the screener page."""
     raw = row.get("metrics")
     metrics = json.loads(raw) if isinstance(raw, str) else (raw or {})
@@ -58,7 +58,9 @@ def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] 
     if state.get("indices") and members is not None and not any(row["symbol"] in members.get(c, ()) for c in state["indices"]):
         return False
     bands = state.get("bands") or []
-    if bands and row.get("band") not in bands:
+    # the rating words are the plan's score, as on the screener page: FinLit Prism's word for a Gold member (task #142; it was compared with FinLit IQ's
+    # word, so a Gold screen on Average, Weak or Poor never matched), FinLit IQ's below Gold
+    if bands and row.get("pband" if prism else "band") not in bands:
         return False
     return True
 
@@ -103,6 +105,13 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
             f"SELECT DISTINCT ON (symbol) symbol, name, sector, macro_sector, industry, band, {cols}, "  # nosec B608 - fixed column names
             "(SELECT jsonb_object_agg(e.key, e.value) FROM jsonb_each(metrics) e WHERE e.key = ANY($1::text[])) AS metrics "
             "FROM scores WHERE model = 'v1' ORDER BY symbol, updated_at DESC", used)]
+        # FinLit Prism's rating word of every company, read as the screener reads it (screener.data: no word for an unrated company)
+        if any(u["plan"] == "gold" and any((sc.get("state") or {}).get("bands") for sc in ((json.loads(u["screens"]) if isinstance(u["screens"], str) else u["screens"]) or [])) for u in users):
+            pb = {r["symbol"]: r["label"].lower() for r in await conn.fetch(
+                "SELECT DISTINCT ON (symbol) symbol, final, label, status FROM prism_reports ORDER BY symbol, (statement = 'consolidated') DESC, generated_at DESC")
+                if isinstance(r["label"], str) and r["final"] is not None and r["status"] != "NOT RATED"}
+            for r in universe:
+                r["pband"] = pb.get(r["symbol"])
         members: Dict[str, set] = {}
         for r in await conn.fetch("SELECT index_code, symbol FROM index_members"):
             members.setdefault(r["index_code"], set()).add(r["symbol"])
@@ -121,7 +130,7 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
                 # members only get alerts for filters their plan includes; never reveal locked data through an email
                 if not all(k in BY_KEY and allowed(u["plan"], BY_KEY[k].tier) for k in keys) or ((state.get("bands") or state.get("model")) and not gold):
                     continue
-                hit = [r for r in universe if matches(r, state, members)]
+                hit = [r for r in universe if matches(r, state, members, prism=gold)]
                 seen = await conn.fetchval("SELECT seen FROM screen_state WHERE user_id = $1 AND screen_name = $2", u["id"], sc["name"])
                 now = [r["symbol"] for r in hit]
                 if seen is not None:

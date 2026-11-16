@@ -274,7 +274,8 @@ async def test_ingest_all_works_through_the_universe_in_chunks_and_skips_fresh(s
         assert "RELIANCE" not in await store.pending_symbols(limit=50)  # fresh snapshots are skipped
         result = await worker.ingest_all(client, store, limit=5, chunk=2)
         # limit is the size of the whole set kept loaded: RELIANCE (biggest, already fresh) is one of the five, so four are attempted
-        assert sum(result.values()) == 4 and result["failed"] == 4  # none aborted the batch
+        assert sum(result[k] for k in ("ok", "warnings", "rejected", "failed")) == 4 and result["failed"] == 4  # none aborted the batch
+        assert result["tried"] == 4 and result["waiting"] == 0                                 # no time budget given: every pending company is tried
         assert len(await store.pending_symbols()) > 5000
         assert await store.pending_symbols(limit=5) == (await store.pending_symbols(limit=5))[:4]   # never more than the cap
 

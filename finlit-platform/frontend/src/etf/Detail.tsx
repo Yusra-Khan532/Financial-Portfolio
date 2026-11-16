@@ -14,6 +14,8 @@ import { EtfChart } from "./EtfChart";
 import { EtfHoldings } from "./Holdings";
 import { ReturnsBlock } from "./Returns";
 import { ChartZoom } from "../components/ChartZoom";
+import { Glance, SectionLinks, TrackingSection } from "./Tracking";
+import { useEtfTracking } from "../lib/etf";
 
 const isRange = (v: string | null): v is RangeKey => !!v && (RANGES as readonly string[]).includes(v);
 
@@ -26,6 +28,7 @@ export function EtfDetailPage() {
   const { data, isLoading, isError, error, refetch } = useEtf(sym, range);
   useDocTitle(data ? `${data.name} (${data.symbol})` : `${sym} ETF`, data ? `${data.name}: price, returns and risk. Information only, not investment advice.` : undefined);
   const tray = useTray();
+  const tq = useEtfTracking(sym);   // task #134: the index it follows, tracking and the others on that index
   useEffect(() => { if (data?.symbol) visits.add({ k: "etf", id: data.symbol, name: data.name, sub: data.fundHouse || undefined }); }, [data?.symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isError && (error as { status?: number }).status === 404) {
@@ -58,6 +61,9 @@ export function EtfDetailPage() {
         </div>
       </header>
 
+      <Glance d={d} t={tq.data} failed={tq.isError} />
+      <SectionLinks hasTracking={tq.isLoading || !!tq.data} />
+
       <ReturnsBlock head={d.headline} asOf={d.priceDate} />
 
 
@@ -77,6 +83,8 @@ export function EtfDetailPage() {
         {d.breakNote && <p className="etf-warn" role="note"><Icon name="alert" /><span>{d.breakNote}</span></p>}
         </ChartZoom>
       </section>
+
+      <TrackingSection d={d} t={tq.data} loading={tq.isLoading} />
 
       <EtfHoldings symbol={d.symbol} />
 

@@ -208,6 +208,11 @@ def test_missing_sections_fall_back_to_the_provider_and_a_failed_call_is_retried
     assert premium_cache.usable_inputs(packed[:-8] + "AAAAAAAA", "TCS", "consolidated", now=now) is None
     assert premium_cache.usable_inputs("not base64 !", "TCS", "consolidated", now=now) is None
     assert premium_cache.usable_inputs(None, "TCS", "consolidated", now=now) is None
+    # inputs kept by older code (before the yearly standalone rows were added) carry no inputsVersion: refused, so the provider is asked afresh
+    assert fresh["inputsVersion"] == premium_cache.INPUTS_VERSION and "annual_standalone" in fresh["raw"]
+    old_shape = {k: v for k, v in fresh.items() if k != "inputsVersion"}
+    assert premium_cache.usable_inputs(premium_cache.pack(old_shape), "TCS", "consolidated", now=now + timedelta(hours=1)) is None
+    assert premium_cache.usable_inputs(premium_cache.pack({**fresh, "inputsVersion": premium_cache.INPUTS_VERSION - 1}), "TCS", "consolidated", now=now + timedelta(hours=1)) is None
     bomb = premium_cache.pack({"raw": "0" * 30_000_000})
     assert premium_cache.unpack(bomb) is None
 
@@ -286,8 +291,9 @@ def test_the_nightly_job_gives_way_to_a_member_and_the_cache_block_is_only_sent_
     from backend.tests.test_premium_reports import asgi_request, auth, sample_report, example  # noqa: F401
     seen = {}
 
-    def fake_generate(get, symbol, name, statement, report_id, created, loader, observations):
+    def fake_generate(get, symbol, name, statement, report_id, created, loader, observations, fallback_benchmarks=None):
         seen["observations"] = observations
+        seen["fallback"] = fallback_benchmarks
         return report_for_route
     import backend.tests.test_premium_reports as shared
     report_for_route = None
@@ -301,6 +307,10 @@ def test_the_nightly_job_gives_way_to_a_member_and_the_cache_block_is_only_sent_
     status, rich = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "cache": True, "observations": {"consolidated|2026-10-26|pr:pb,pe|ABB": {"pe": 1}}}, shared.auth())
     assert status == 200 and set(rich["cache"]) >= {"observations", "universe", "inputsReused", "seconds"} and rich["cache"]["inputsReused"] is False
     assert ("consolidated", "2026-10-26", "pr:pb,pe", "ABB") in seen["observations"].rows
+    assert seen["fallback"] is None
+    medians = [{"key": "pe", "value": 21.5, "count": 38, "scope": "industry", "group": "NBFC", "asOf": "2026-11-15"}]
+    status, _ = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "sectorBenchmarks": medians}, shared.auth())
+    assert status == 200 and seen["fallback"] == medians              # task #160: FinLit's industry medians reach the model
     monkeypatch.setattr(server, "_premium_interactive", 1)               # a member's calculation is running
     status, refused = asgi_request(server.app, "POST", "/api/premium-reports", {**body, "priority": "background"}, shared.auth())
     assert status == 429 and "member is waiting" in refused["detail"]

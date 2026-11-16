@@ -73,7 +73,9 @@ const NewsPage = lazy(() => import("./pages/News").then((m) => ({ default: m.New
 const DocumentsPage = lazy(() => import("./pages/Documents").then((m) => ({ default: m.DocumentsPage })));
 const AlertsPage = lazy(() => import("./pages/Alerts").then((m) => ({ default: m.AlertsPage })));
 const MfPortfolioPage = lazy(() => import("./pages/MfPortfolio").then((m) => ({ default: m.MfPortfolioPage })));
+const EtfPortfolioPage = lazy(() => import("./pages/EtfPortfolio").then((m) => ({ default: m.EtfPortfolioPage })));
 const HoldingsPage = lazy(() => import("./pages/Holdings").then((m) => ({ default: m.HoldingsPage })));
+const MyInvestmentsPage = lazy(() => import("./pages/MyInvestments").then((m) => ({ default: m.MyInvestmentsPage })));   // task #137
 const ForumPage = lazy(() => import("./pages/Forum").then((m) => ({ default: m.ForumPage })));
 const EtfListPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfListPage })));
 const EtfDetailPage = lazy(() => import("./pages/Etfs").then((m) => ({ default: m.EtfDetailPage })));
@@ -139,8 +141,10 @@ export default function App() {
             <Route path="research/stress-lab/:symbol" element={<StressLabPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="sip-calculator" element={<SipCalculator />} />
+            <Route path="my-investments" element={<MyInvestmentsPage />} />
             <Route path="holdings" element={<HoldingsPage />} />
             <Route path="mf-portfolio" element={<MfPortfolioPage />} />
+            <Route path="etf-portfolio" element={<EtfPortfolioPage />} />
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="forum/*" element={<ForumPage />} />
             <Route path="ipo" element={<IpoPage />} />

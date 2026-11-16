@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
-from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, VARIANTS, allowed, family, offered, ratioable
+from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, SCALE, VARIANTS, allowed, family, offered, ratioable
 from .data import get_table
 from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
@@ -25,6 +25,10 @@ STANDARD_COLUMNS = ["market_cap"]
 GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
 IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
+BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]   # every word of either score (IQ_BANDS + PRISM_BANDS)
+
+
+RATIO_PLAN_LINE = "Custom ratios come with Gold and Platinum."
 
 
 def is_gold(plan: str) -> bool:
@@ -47,7 +51,9 @@ class Cats(BaseModel):
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
     cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
-    band: List[Literal["strong", "healthy", "mixed", "watch"]] = Field(default_factory=list, max_length=4)
+    # the rating words of the plan's score: FinLit IQ's below Gold (strong, healthy, mixed, watch), FinLit Prism's for Gold (strong, healthy, average, weak, poor).
+    # Task #142: only the IQ words were accepted, so a Gold member who picked Average, Weak or Poor got a refused request ("The screener is unavailable").
+    band: List[BandWord] = Field(default_factory=list, max_length=5)
 
 
 class Sort(BaseModel):
@@ -144,7 +150,7 @@ async def catalog(request: Request):
         groups.append({"id": gid, "label": label, "tier": GROUP_TIER.get(gid, "basic"), "metrics": [
             {"key": m.key, "label": m.label, "unit": m.unit, "better": m.better, "tier": m.tier, "say": m.say, "digits": m.digits,
              "locked": not allowed(plan, m.tier), "stats": t.stats.get(m.key), "hidden": m.key in HIDDEN, "variants": VARIANTS.get(m.key),
-             "ratioable": ratioable(m), "family": family(m)} for m in ms]})
+             "ratioable": ratioable(m), "family": family(m), "scale": list(SCALE[m.key]) if m.key in SCALE else None} for m in ms]})
     body = {
         "plan": plan, "total": t.n, "withReport": t.n_full, "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "pricesAt": (t.sig or {}).get("lat"), "scoresAt": (t.sig or {}).get("at"),
         "groups": groups,
@@ -211,6 +217,8 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
 async def ratio_stats_api(request: Request, num: str, den: str, show: Literal["pct", "times"] = "times", first: str = ""):
     """The spread of a custom ratio for the drawer, and the worked example: the first company of `first` (the reader's current list, comma separated) that has both figures."""
     plan = _plan(await current(request))
+    if not is_gold(plan):
+        raise fail(403, "plan_required", RATIO_PLAN_LINE, plan="gold")
     if num == den or num not in BY_KEY or den not in BY_KEY or not ratioable(BY_KEY[num]) or not ratioable(BY_KEY[den]):
         raise fail(400, "bad_request", "A ratio needs two different figures that can be divided: no FinLit score and no yes-or-no filter.")
     if _locked(plan, [num, den]):
@@ -297,6 +305,8 @@ def _run(t, body: Query_, plan: str):
     bad = [c for c in cols if c not in BY_KEY]
     if bad:
         raise fail(400, "bad_request", "Unknown column.")
+    if body.ratios and not is_gold(plan):        # task #64, CR-0 (13 Nov): custom ratios are Gold and Platinum only; the page leaves them out on Silver
+        raise fail(403, "plan_required", RATIO_PLAN_LINE, plan="gold")
     for rt in body.ratios:
         if rt.num not in BY_KEY or rt.den not in BY_KEY or not ratioable(BY_KEY[rt.num]) or not ratioable(BY_KEY[rt.den]):
             raise fail(400, "bad_request", "A ratio needs two figures that can be divided: no FinLit score and no yes-or-no filter.")

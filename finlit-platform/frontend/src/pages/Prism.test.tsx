@@ -252,3 +252,14 @@ describe("Prism report: the technical score tables sit below the Risk table (tas
     expect(plain).not.toMatch(/\b(strong buy|reduce|accumulate on dips|bounce only|don't invest|sell \/ avoid)\b/i);
   });
 });
+
+describe("Prism page header names the basis the report really uses (model 3.6.16+)", () => {
+  it("says Standalone when the report switched to the standalone statements, Consolidated otherwise", () => {
+    state.latest = { ...R, statementType: "standalone" };
+    expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Standalone statements.");
+    state.latest = { ...R, statementType: "consolidated" };
+    expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
+    state.latest = null;
+    expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
+  });
+});

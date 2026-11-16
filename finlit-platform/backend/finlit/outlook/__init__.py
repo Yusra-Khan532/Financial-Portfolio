@@ -1,1 +1,1 @@
-"""Profit and revenue outlook (Gold). See docs/OUTLOOK.md. Information only, never advice."""
+"""Profit and revenue forecasting (Gold). See docs/OUTLOOK.md. Information only, never advice."""

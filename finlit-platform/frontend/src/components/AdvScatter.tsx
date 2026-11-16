@@ -96,6 +96,7 @@ function AdvScatterBody({ cloud, series, fits, sx, sy, xLabel, yLabel, fmtX, fmt
     <div className="adv-plot" onPointerLeave={() => setHi(null)}>
       <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" tabIndex={0} aria-label={summary} aria-describedby={`${clip}-live`} onPointerMove={onMove} onKeyDown={onKey} onBlur={() => setHi(null)}>
         <defs><clipPath id={clip}><rect x={M.l} y={M.t} width={pw} height={ph} /></clipPath></defs>
+        <rect data-plot="" x={M.l} y={M.t} width={pw} height={ph} fill="none" pointerEvents="none" />{/* the plotting area: chart drawings stay inside it (task #124) */}
         {yt.map((t) => <g key={"y" + t}><line className="adv-gl" x1={M.l} x2={M.l + pw} y1={Y(t)} y2={Y(t)} /><text className="adv-tick" x={M.l - 6} y={Y(t) + 4} textAnchor="end">{tickY(yv(t))}</text></g>)}
         {xt.map((t) => <g key={"x" + t}><line className="adv-gl" x1={X(t)} x2={X(t)} y1={M.t} y2={M.t + ph} /><text className="adv-tick" x={X(t)} y={M.t + ph + 16} textAnchor="middle">{tickX(xv(t))}</text></g>)}
         {dy[0] < 0 && dy[1] > 0 && sy === "lin" && <line className="adv-zero" x1={M.l} x2={M.l + pw} y1={Y(0)} y2={Y(0)} />}

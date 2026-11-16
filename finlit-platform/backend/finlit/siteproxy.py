@@ -13,7 +13,7 @@ import posixpath
 
 import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 log = logging.getLogger("finlit.siteproxy")
 
@@ -52,15 +52,36 @@ async def forward(request: Request, base_url: str) -> Response:
         headers["x-forwarded-for"] = ip
     headers["x-forwarded-proto"] = request.headers.get("x-forwarded-proto", request.url.scheme)
     body = await request.body()
+    client = _client(request.app, base_url)
     try:
-        upstream = await _client(request.app, base_url).request(request.method, request.url.path + (f"?{request.url.query}" if request.url.query else ""),
-                                                                headers=headers, content=body or None)
+        upstream = await client.send(client.build_request(request.method, request.url.path + (f"?{request.url.query}" if request.url.query else ""),
+                                                          headers=headers, content=body or None), stream=True)
     except httpx.HTTPError as exc:
         log.warning("site backend unreachable: %s", type(exc).__name__)
         return JSONResponse({"status": "site_unavailable", "detail": "This part of the site is waking up. Please try again in a moment."},
                             status_code=502, headers={"Cache-Control": "no-store", "Retry-After": "5"})
     out = {k: v for k, v in upstream.headers.items() if k.lower() not in SKIP_RESPONSE_HEADERS}
-    return Response(content=upstream.content, status_code=upstream.status_code, headers=out)
+    if upstream.headers.get("content-type", "").startswith("text/event-stream"):
+        # A streamed answer (FinLit AI's steps, task #138) is passed on piece by piece as it arrives, not held until the end.
+        async def pieces():
+            try:
+                async for chunk in upstream.aiter_bytes():   # the site backend is asked for no compression (accept-encoding identity)
+                    yield chunk
+            except httpx.HTTPError as exc:
+                log.warning("site backend stream cut: %s", type(exc).__name__)
+            finally:
+                await upstream.aclose()
+        out["X-Accel-Buffering"] = "no"
+        return StreamingResponse(pieces(), status_code=upstream.status_code, headers=out)
+    try:
+        content = await upstream.aread()
+    except httpx.HTTPError as exc:
+        log.warning("site backend reply cut: %s", type(exc).__name__)
+        return JSONResponse({"status": "site_unavailable", "detail": "This part of the site is waking up. Please try again in a moment."},
+                            status_code=502, headers={"Cache-Control": "no-store", "Retry-After": "5"})
+    finally:
+        await upstream.aclose()
+    return Response(content=content, status_code=upstream.status_code, headers=out)
 
 
 def register_stock_admin(app: FastAPI, base_url: str) -> None:

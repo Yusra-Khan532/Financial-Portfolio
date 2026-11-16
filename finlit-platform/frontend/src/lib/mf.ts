@@ -11,6 +11,8 @@ import { TAB_KEYS, classify, type TabKey } from "./mfCategories";
 import type { PortfolioResult } from "../holdings/types";
 
 export const DISCLAIMER = "Information only. Not investment advice. Past returns do not guarantee future returns.";
+/** The AMFI risk line every mutual fund page carries (task #130, the design pack's common rules). */
+export const AMFI_RISK_LINE = "Mutual fund investments are subject to market risks; read all scheme-related documents carefully.";
 export const MIRROR_LABEL = "NAV history: third-party mirror of AMFI data (api.mfapi.in)";
 
 export type Facts = { dataDate: string | null; updatedAt: string | null; source: string; disclaimer: string; excludedAmcs?: string[] };
@@ -41,7 +43,7 @@ export type Risk = {
   vol1y: { value: number | null; why: string | null }; vol3y: { value: number | null; why: string | null };
   maxDrawdown: { value: number | null; why: string | null; peak: string | null; trough: string | null; since: string | null };
 };
-export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "MAX";
+export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "MAX";
 export type Points = { t: string[]; v: number[] };
 export type Change = { abs: number; pct: number; since: string | null };
 export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null };
@@ -144,7 +146,7 @@ export const COL_GROUPS = { ret: "Returns", sip: "SIP returns (XIRR)" } as const
 export const COLUMNS: ColDef[] = [
   { id: "amc", label: "Fund house", hint: "The company that runs the scheme (also shown under the scheme's name)", sort: "amc", num: false },
   { id: "category", label: "Category", hint: "The group AMFI files the scheme in", sort: "category", num: false },
-  { id: "score", label: "Health score", hint: "FinLit Mutual Fund Health Score, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
+  { id: "score", label: "FundPulse", hint: "FinLit FundPulse, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
   { id: "plan", label: "Plan", hint: "Direct or Regular", sort: null, num: false },
   { id: "option", label: "Option", hint: "Growth or IDCW (payout)", sort: null, num: false },
   { id: "nav", label: "NAV", hint: "Net asset value of one unit, latest", sort: "nav", num: true },
@@ -160,7 +162,7 @@ export const COLUMNS: ColDef[] = [
   { id: "checklist", label: "Checklist", hint: "How many of five plain checks the scheme passes against its category (see the legend below the table)", sort: "checklist", num: true },
 ];
 export const DEFAULT_COLS: ColId[] = ["category", "score", "nav", "r1y", "r3y", "r5y", "sip3y", "sip5y", "aum", "ter", "checklist"];
-const COLS_KEY = "mf-cols";   // v4: the Health score column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
+const COLS_KEY = "mf-cols";   // v4: FundPulse column moved up next to the scheme; older saved choices are not carried over, so everyone sees it where the eye lands
 const ALL_IDS = new Set<string>(COLUMNS.map((c) => c.id));
 
 /** Saved column choice, cleaned of anything unknown; the default when nothing valid is saved (storage can be blocked). */
@@ -335,9 +337,10 @@ export function searchOptions<T>(items: T[], query: string, label: (t: T) => str
 
 export const TRAY_MAX = 4;
 const TRAY_KEY = "finlit-mf-compare-v1";
-export function trayToggle(list: number[], code: number, max = TRAY_MAX): { list: number[]; full: boolean } {
+/** `replace` (the funds list, task #130 C-9): when the tray is full, a new fund replaces the oldest one instead of being refused. */
+export function trayToggle(list: number[], code: number, max = TRAY_MAX, replace = false): { list: number[]; full: boolean } {
   if (list.includes(code)) return { list: list.filter((c) => c !== code), full: false };
-  if (list.length >= max) return { list, full: true };
+  if (list.length >= max) return replace ? { list: [...list.slice(list.length - max + 1), code], full: false } : { list, full: true };
   return { list: [...list, code], full: false };
 }
 let tray: number[] | null = null;
@@ -349,9 +352,17 @@ function loadTray(): number[] {
 }
 function setTray(next: number[]) { tray = next; try { localStorage.setItem(TRAY_KEY, JSON.stringify(next)); } catch { /* private mode */ } listeners.forEach((l) => l()); }
 /** The funds chosen for comparison (2 to 4 are compared). Returns [list, toggle, clear]; toggle answers false when the tray is full. */
-export function useTray(): [number[], (code: number) => boolean, () => void] {
+export function useTray(replace = false): [number[], (code: number) => boolean, () => void] {
   const list = useSyncExternalStore((cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; }, loadTray, () => []);
-  return [list, (code) => { const r = trayToggle(loadTray(), code); if (!r.full) setTray(r.list); return !r.full; }, () => setTray([])];
+  return [list, (code) => { const r = trayToggle(loadTray(), code, TRAY_MAX, replace); if (!r.full) setTray(r.list); return !r.full; }, () => setTray([])];
+}
+/** The names of the funds ticked for comparison (task #130 C-9: the compare bar names them), kept for the visit as they are ticked. */
+const TRAY_NAMES_KEY = "finlit-mf-compare-names-v1";
+export function rememberName(code: number, name: string) {
+  try { const m = JSON.parse(sessionStorage.getItem(TRAY_NAMES_KEY) || "{}"); m[code] = name; sessionStorage.setItem(TRAY_NAMES_KEY, JSON.stringify(m)); } catch { /* private mode */ }
+}
+export function trayName(code: number): string | null {
+  try { const m = JSON.parse(sessionStorage.getItem(TRAY_NAMES_KEY) || "{}"); return typeof m[code] === "string" ? m[code] : null; } catch { return null; }
 }
 export const compareUrl = (codes: number[]) => `/funds/compare?ids=${codes.join(",")}`;
 /** ?ids=1,2,3 -> up to 4 distinct positive whole numbers. */
@@ -387,7 +398,7 @@ export function buildLines(series: LineSeries[], W: number, H: number, pad = { l
     return { key: s.key, d: xy.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(""), xy };
   });
   const span = x1 - x0, xt: Tick[] = [];
-  const fmt = (d: number) => dateIN(new Date(d * 86_400_000).toISOString().slice(0, 10), span > 200 ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" });
+  const fmt = (d: number) => dateIN(new Date(d * 86_400_000).toISOString().slice(0, 10), span > 1100 ? { year: "numeric" } : span > 200 ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" });   // over 3 years: the year alone (5 labels like "Sept 2021" ran into each other on a phone)
   for (let k = 0; k <= 4; k++) { const d = x0 + (span * k) / 4; xt.push({ at: X(d), label: fmt(Math.round(d)) }); }
   return { lines, yTicks: yt.map((v) => ({ at: Y(v), v })), xTicks: xt, X, Y, lo, hi, x0, x1, pad };
 }

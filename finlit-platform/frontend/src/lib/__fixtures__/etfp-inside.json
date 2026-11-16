@@ -1,0 +1,223 @@
+{
+"count": 5,
+"basis": "equal",
+"files": [
+{
+"symbol": "NIFTYBEES",
+"asOf": "2026-10-31",
+"source": "Nippon India Mutual Fund, monthly portfolio disclosure",
+"why": null
+},
+{
+"symbol": "SBINIFTY50",
+"asOf": "2026-10-31",
+"source": "SBI Mutual Fund, monthly portfolio disclosure",
+"why": null
+},
+{
+"symbol": "GOLDBEES",
+"asOf": "2026-10-31",
+"source": "Nippon India Mutual Fund, monthly portfolio disclosure",
+"why": null
+},
+{
+"symbol": "MON100",
+"asOf": "2026-10-31",
+"source": "Motilal Oswal Mutual Fund, monthly portfolio disclosure",
+"why": null
+},
+{
+"symbol": "LIQUIDCASE",
+"asOf": null,
+"source": null,
+"why": "No disclosure has been published or found for this ETF yet"
+}
+],
+"asOf": "2026-10-31",
+"mix": {
+"indian": 40.0,
+"abroad": 20.0,
+"gold": 19.7,
+"silver": 0.0,
+"debt": 20.4
+},
+"mixFromType": [],
+"size": {
+"Large": 100.0,
+"Mid": 0.0,
+"Small": 0.0,
+"Not sized": 0.0
+},
+"overlap": {
+"symbols": [
+"NIFTYBEES",
+"SBINIFTY50",
+"MON100"
+],
+"pairs": [
+{
+"a": "NIFTYBEES",
+"b": "SBINIFTY50",
+"pct": 100.0,
+"n": 50
+},
+{
+"a": "NIFTYBEES",
+"b": "MON100",
+"pct": 0,
+"n": 0
+},
+{
+"a": "SBINIFTY50",
+"b": "MON100",
+"pct": 0,
+"n": 0
+}
+]
+},
+"top": [
+{
+"name": "HDFC Bank Limited",
+"isin": "INE040A01034",
+"symbol": "HDFCBANK",
+"sector": "Banks",
+"w": 3.98,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+},
+{
+"name": "ICICI Bank Limited",
+"isin": "INE090A01021",
+"symbol": "ICICIBANK",
+"sector": "Banks",
+"w": 3.76,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+},
+{
+"name": "Reliance Industries Limited",
+"isin": "INE002A01018",
+"symbol": "RELIANCE",
+"sector": "Petroleum Products",
+"w": 2.92,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+},
+{
+"name": "Bharti Airtel Limited",
+"isin": "INE397D01024",
+"symbol": "BHARTIARTL",
+"sector": "Telecom - Services",
+"w": 2.25,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+},
+{
+"name": "Larsen & Toubro Limited",
+"isin": "INE018A01030",
+"symbol": "LT",
+"sector": "Construction",
+"w": 1.7,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+},
+{
+"name": "Apple Inc",
+"isin": "US0378331005",
+"symbol": null,
+"sector": "Technology Hardware, Storage & Peripherals",
+"w": 1.64,
+"etfs": [
+"MON100"
+],
+"abroad": true,
+"size": null,
+"score": null,
+"scoreWhy": "Not compared: listed abroad"
+},
+{
+"name": "Nvidia Corp Com",
+"isin": "US67066G1040",
+"symbol": null,
+"sector": "Semiconductors",
+"w": 1.6,
+"etfs": [
+"MON100"
+],
+"abroad": true,
+"size": null,
+"score": null,
+"scoreWhy": "Not compared: listed abroad"
+},
+{
+"name": "Infosys Limited",
+"isin": "INE009A01021",
+"symbol": "INFY",
+"sector": "IT - Software",
+"w": 1.57,
+"etfs": [
+"NIFTYBEES",
+"SBINIFTY50"
+],
+"abroad": false,
+"size": "Large",
+"score": {
+"model": "prism",
+"score": 70,
+"label": "HEALTHY"
+},
+"scoreWhy": null
+}
+],
+"scoreModel": "prism"
+}

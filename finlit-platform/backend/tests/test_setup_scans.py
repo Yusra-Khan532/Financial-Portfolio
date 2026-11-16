@@ -70,7 +70,7 @@ def test_a_term_with_a_minus_ranks_the_lower_figure_higher():
 
 
 def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
-    assert ("setups", "Breakouts") in GROUPS
+    assert ("setups", "New highs") in GROUPS            # task #64, 14 Nov N-12: FinLit does not use "breakout", "setup" or "entry"
     ids = [p.id for p in PRESETS if p.group == "setups"]
     assert ids == ["setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
     for i in ids:
@@ -82,6 +82,30 @@ def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
         for rule, _ in p.derived:
             expr.parse(rule)               # every rule reads
     assert BY_ID["basic-setup-ema9-consolidation"].tab == "basic"
+
+
+def test_no_breakout_setup_or_entry_in_anything_a_reader_sees_on_the_screeners():
+    """Task #64, 14 Nov N-12: the group is New highs and the nine filters are renamed as in the mock-up; the keys (breakout_age and so on) can stay."""
+    import re
+    from finlit.screener.catalog import CATALOG as METRICS
+    from finlit.presets.registry import _PLAIN
+    plain_for = _PLAIN.get
+    banned = re.compile(r"\b(breakout|breakouts|setup|setups|entry)\b", re.I)
+    for _, label in GROUPS:
+        assert not banned.search(label), label
+    for p in PRESETS:
+        words = [p.name, p.card_text, *p.how_it_works, *(c.label for c in p.columns), *(t for _, t in p.derived)]
+        words += [x for x in (plain_for(p.id) or {}).get("how", [])] + [(plain_for(p.id) or {}).get("text") or ""]
+        for w in words:
+            assert not banned.search(w or ""), (p.id, w)
+    names = {m.key: m.label for m in METRICS}
+    assert names["breakout_age"] == "Sessions since it last closed above its range" and names["breakout_level"] == "Top of the range it closed above"
+    assert names["vs_breakout"] == "Price against that range top" and names["breakout_vol_ratio"] == "Volume on the day it closed above its range"
+    assert names["b2_age"] == "Sessions since a recent close above its range" and names["b2_level"] == "Range top it closed above, recent 25 sessions"
+    assert names["b2_vs_level"] == "Price against that recent range top" and names["b2_pullback"] == "Below the highest close since then"
+    assert names["b2_vol_x"] == "Volume on that day, recent 25 sessions"
+    for m in METRICS:
+        assert not banned.search(m.label) and not banned.search(m.say or ""), m.key
 
 
 # ---- the cards run through the real engine

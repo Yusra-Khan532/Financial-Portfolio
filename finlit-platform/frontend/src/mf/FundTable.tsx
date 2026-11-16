@@ -101,7 +101,7 @@ function shortWhy(code: FundRow["noReturns"], young: string): string {
 }
 
 export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
-  rows: FundRow[]; cols: ColId[]; q: ListQuery; onSort: (s: SortKey) => void; picked: number[]; onPick: (code: number) => void; peers?: Record<string, PeerStats>;
+  rows: FundRow[]; cols: ColId[]; q: ListQuery; onSort: (s: SortKey) => void; picked: number[]; onPick: (code: number, name?: string) => void; peers?: Record<string, PeerStats>;
 }) {
   const defs = COLUMNS.filter((c) => cols.includes(c.id));
   const { has } = useUI();
@@ -121,7 +121,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
   return (
-    <HScroll label="schemes table">
+    <HScroll label="schemes table" controls={false}>
       <table className="mf-table">
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
         <thead>
@@ -140,7 +140,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
-                  <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code)} aria-label={`Compare ${r.name}`} />
+                  <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code, r.name)} aria-label={`Compare ${r.name}`} />
                 </label>
                 <span className="mf-nm">
                   <Link to={`/funds/${r.code}`}>{r.name}</Link>{has("gold") && <ScoreChip item={scores.map.get(r.code)} />}

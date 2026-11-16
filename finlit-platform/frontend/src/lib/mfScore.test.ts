@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FLAG_TEXT, MF_SCORE_COMPLIANCE, PILLAR_HELP, STATE_TEXT, STATUS_TEXT, confidenceText, filledText, partWord, rankText } from "./mfScore";
+import type { FundScore } from "./mfScore";
+import { FLAG_TEXT, MF_SCORE_COMPLIANCE, PILLAR_HELP, STATE_TEXT, STATUS_TEXT, builtOnText, filledText, ordinal, scoreSentence, partWord, rankText } from "./mfScore";
 import { MfScoreMethodPage } from "../pages/MfScoreMethod";
 import * as mfScoreModule from "./mfScore";
 import { createElement } from "react";
@@ -10,7 +11,7 @@ import { resolve } from "node:path";
 
 const BANNED = /\b(buy|sell|hold|recommended|recommend|best[- ]to[- ]buy|should|invest in)\b/i;
 
-describe("Mutual Fund Health Score wording", () => {
+describe("FinLit FundPulse wording", () => {
   it("has the exact compliance line", () => {
     expect(MF_SCORE_COMPLIANCE).toBe("Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.");
   });
@@ -34,8 +35,23 @@ describe("Mutual Fund Health Score wording", () => {
   it("writes the rank line", () => {
     expect(rankText({ rank: 12, of: 48, scope: "sub", percentile: 77, categoryLabel: "Large Cap", plan: "Direct" })).toBe("12 of 48 in Large Cap (Direct plan)");
     expect(rankText({ rank: 2, of: 14, scope: "fam", percentile: 92, categoryLabel: null, plan: "Regular" }, { key: "nifty50", index: "NIFTY 50 TRI" })).toBe("2 of 14 funds tracking NIFTY 50 TRI (Regular plan)");
-    expect(confidenceText(0.83)).toBe("83% of the weight behind this score rests on real data.");
+    expect(builtOnText({ n: 1, of: 19 })).toBe("Built on real data: 18 of 19 measures");          // task #132: measures, never weights
+    expect(builtOnText(undefined)).toBe("");
     expect(filledText({ n: 3, of: 19 })).toBe("3 of 19 measures used the group value because data was missing.");
     expect(filledText({ n: 0, of: 19 })).toBe("");
   });
+});
+
+describe("FundPulse in one line (task #132)", () => {
+  const P = (perf: string, risk: string, cost: string, qual: string) => [["performance", "Performance", perf], ["risk", "Risk", risk], ["cost", "Cost", cost], ["quality", "Quality", qual]].map(([key, name, reading]) => ({ key, name, reading })) as FundScore["pillars"];
+  const rank = { rank: 14, of: 36, scope: "sub", percentile: 63, categoryLabel: "Flexi Cap", plan: "Direct" };
+  it("builds the team's sentence from the part words and the rank", () => {
+    expect(scoreSentence({ final: 60.3, label: "Average", pillars: P("Weak", "Strong", "Strong", "Weak"), rank, family: null })).toBe("Strong on risk and cost, weak on performance and quality: 60.3, Average, 14th of 36 Flexi Cap funds (Direct plan).");
+  });
+  it("names fair parts, all-equal parts and a missing rank in plain words", () => {
+    expect(scoreSentence({ final: 71, label: "Healthy", pillars: P("Strong", "Fair", "Strong", "Weak"), rank: null, family: null })).toBe("Strong on performance and cost, fair on risk, weak on quality: 71.0, Healthy.");
+    expect(scoreSentence({ final: 80, label: "Strong", pillars: P("Strong", "Strong", "Strong", "Strong"), rank: { ...rank, rank: 1 }, family: null })).toBe("Strong on all four parts: 80.0, Strong, 1st of 36 Flexi Cap funds (Direct plan).");
+    expect(scoreSentence({ final: null, label: null, pillars: P("Weak", "Weak", "Weak", "Weak"), rank: null, family: null })).toBeNull();
+  });
+  it("writes ordinals", () => { expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 103].map(ordinal)).toEqual(["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "103rd"]); });
 });

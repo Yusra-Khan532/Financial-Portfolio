@@ -17,8 +17,8 @@ export function GlossInfo({ name, fallback }: { name: GlossName; fallback: strin
 }
 
 /** A figure that is genuinely unavailable: a dash that says why to a mouse (title) and to a screen reader (hidden text). */
-export function Blank({ why }: { why: string }) {
-  return <span className="etf-blank" title={why}>—<span className="sr-only"> (not available: {why})</span></span>;
+export function Blank({ why, short }: { why: string; short?: string }) {
+  return <span className="etf-blank" title={why}>—{short && <small className="etf-bwhy" aria-hidden="true">{short}</small>}<span className="sr-only"> (not available: {why})</span></span>;
 }
 
 export function Tone({ v, children }: { v: number | null | undefined; children: ReactNode }) {
@@ -30,7 +30,7 @@ export function DataNote({ asOf, updatedAt, source }: { asOf: string | null | un
   return (
     <aside className="etf-note" aria-label="About this data">
       <p><b>{DISCLAIMER}</b></p>
-      <p>Prices are closing prices on the NSE as of <b>{day(asOf)}</b>. Last updated {stamp(updatedAt)}. {source ?? "Prices: NSE, via our market-data providers (Dhan, Upstox). NAV, scheme names and fund houses: AMFI."}</p>
+      <p>Prices are NSE closing prices as of <b>{day(asOf)}</b>; {source ?? "NAV, scheme names and fund houses: AMFI."} Last updated {stamp(updatedAt)}.</p>   {/* never the price provider's name (task #134, C-6) */}
       <p>Every return here is a <b>price return</b>: dividends and other payouts are not included. Figures marked — are not available; the reason is shown beside them. See the <Link to="/glossary">glossary</Link> for the words used.</p>
     </aside>
   );

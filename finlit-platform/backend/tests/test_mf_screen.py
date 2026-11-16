@@ -521,7 +521,8 @@ async def test_scatter_flows_and_build_info(world):
     s = await fac(c, ("subs", "mid-cap"), ("plans", "Direct"))
     pts = s["scatter"]
     assert pts["shown"] == len(pts["points"]) <= 400 and pts["eligible"] >= pts["shown"] > 0
-    assert all(len(p) == 4 and p[3] > 0 for p in pts["points"])
+    assert all(len(p) == 5 and p[3] > 0 and p[4] in ("equity", "hybrid", "debt", "other") for p in pts["points"])   # task #131: the fund type colours the dot
+    assert {p[4] for p in pts["points"]} == {"equity"}                                                                    # mid caps are equity funds
     assert s["flows"] and s["flows"][0]["key"] == "mid-cap" and len(s["flows"][0]["net"]) == len(s["flows"][0]["months"]) <= 6
     assert s["built"]["rows"] == len(c.funds) * 3 and s["built"]["tagged"] > 0 and s["built"]["indexTagged"] > 0 and s["built"]["run"]
 
@@ -559,3 +560,9 @@ async def test_a_stopped_scheme_and_a_scheme_missing_from_the_job_do_not_break_t
     assert s["total"] == d["total"]
     r = await lst(c, ("rng", "ter:0:100"), ("extra", "true"))        # the unjoined scheme has no figures and stays out of every range, but is in the plain list
     assert r["total"] < d["total"]
+
+
+def test_the_scatter_type_comes_from_amfis_category_heading():   # task #131
+    from finlit.mfscreen.facets import fund_type
+    assert [fund_type(c) for c in ("Equity Scheme - Mid Cap Fund", "Hybrid Scheme - Balanced Advantage", "Debt Scheme - Liquid Fund",
+                                  "Other Scheme - Index Funds", "Solution Oriented Scheme - Retirement Fund", None, "")] == ["equity", "hybrid", "debt", "other", "other", "other", "other"]

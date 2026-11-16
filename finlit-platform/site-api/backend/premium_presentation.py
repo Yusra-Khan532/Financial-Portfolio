@@ -18,7 +18,7 @@ REASONS = {
     "NETWORTH_GROWTH": ("Strong growth in net worth.", "Net-worth growth is weak."),
     "DEBT_TO_EQUITY": ("Low borrowing relative to equity.", "High borrowing relative to equity."),
     "INTEREST_COVER": ("Earnings provide a strong cushion for interest payments.", "Earnings provide a limited cushion for interest payments."),
-    "FINANCIAL_LEVERAGE": ("Lower assets relative to equity support the insurer's capital position.", "High assets relative to equity indicate elevated financial leverage."),
+    "FINANCIAL_LEVERAGE": ("Lower assets relative to equity support the capital position.", "High assets relative to equity indicate elevated financial leverage."),
     "ROE": ("Strong returns on shareholder equity.", "Low returns on shareholder equity."),
     "CASH_CONVERSION": ("Profits are well supported by operating cash flow.", "Operating cash flow provides weak support for reported profits."),
     "GROSS_NPA": ("Low gross non-performing loans support asset quality.", "High gross non-performing loans weaken asset quality."),
@@ -74,11 +74,16 @@ def factor(row, group):
     if metric=='FINANCIAL_LEVERAGE' and row.get('details',{}).get('source'):
         item['comparisonText'] = 'Source: ' + row['details']['source'] + '.'
     if state == "N":
+        if row.get("details", {}).get("shownNotScored"):
+            return "notApplicable", dict(item, summary="Shown for information; not scored because debt / equity is below 0.1 (borrowing is too small for interest cover to matter).")
         return "notApplicable", dict(item, summary="Not applicable to this assessment.")
     if state in ("F", "L") or row.get("points") is None:
         if row.get("details",{}).get("invalid"):
             return "unavailable", dict(item,valueText="Invalid",summary=row['details']['note'])
         summary = "Not reported; an estimate is used in the assessment." if state == "F" else "Not reported; not assessed."
+        if metric in ("GROSS_NPA", "NET_NPA") and group == "NBFC":   # task #160: why an NBFC's NPA is blank while a bank's is shown
+            summary = (f"{'Gross' if metric == 'GROSS_NPA' else 'Net'} NPA is not in the provider's data for NBFCs: banks report NPA ratios in their quarterly "
+                       "results, while NBFCs disclose stage 3 loans only in the notes to their results. " + ("An estimate is used in the assessment." if state == "F" else "Not assessed."))
         return "unavailable", dict(item, valueText="Not available", summary=summary)
     points = row["points"]
     bucket = "pros" if points >= FLAG_GREEN else "cons" if points < FLAG_RED else "mixed"
@@ -133,6 +138,9 @@ def factor(row, group):
     if row.get("fallbackFor") == "CAPITAL_ADEQUACY":
         label = "Interest coverage (capital adequacy unavailable)"
         reason += " Used in place of unavailable capital adequacy."
+    if row.get("fallbackFor") == "GROSS_NPA,NET_NPA":
+        label = "Financial leverage (NPA ratios unavailable)"
+        reason += " Used in place of Gross NPA and Net NPA, which the data provider does not report for NBFCs."
     return bucket, dict(item, label=label, summary=reason)
 
 
@@ -178,6 +186,8 @@ def benchmark_disclosure(row, item, report):
             reason = f"The {ratio} benchmark is available, but the company's comparable ratio could not be calculated."
         elif history and info:
             reason = f"Only {info['positiveCount']} positive historical observations are available; at least {info['minimumCount']} are required."
+        elif info.get("peerSet") == "none":
+            reason = f"The provider's industry list has {info['industryUniverseCount']} companies, too many to look up on demand, and no shorter close-peer list was available."
         elif info.get("positiveCount") is not None:
             reason = f"Only {info['positiveCount']} positive peer observations are available; at least 5 are required."
         item["summary"] = reason + " A group estimate is used in the assessment."
@@ -193,8 +203,14 @@ def benchmark_disclosure(row, item, report):
     current_text = f"Company {ratio}: {current:.2f}x. " if current is not None else ""
     benchmark_label = "Own-history median" if history else "Sector benchmark" if scope == "sector" else "Industry peer median"
     description = f"{current_text}{benchmark_label}: {value:.2f}x. Source: {provider}."
+    if info.get("method") == "FinLit industry median":
+        benchmark_label = "Industry median" if scope == "industry" else "Sector median"
+        description = (f"{current_text}{benchmark_label}: {value:.2f}x across {info['positiveCount']} companies in {info['group']} with a positive {ratio}. "
+                       f"Source: FinLit company data (FinEdge and Upstox had no {ratio} benchmark for this company).")
     if info.get("method") == "available peer median":
         description += f" Uses {info['positiveCount']} positive multiples; {info['observedCount']} of {info['universeCount']} peer records available."
+        if info.get("peerSet") == "close":
+            description += f" Peers: the company's close peers (the full industry list of {info['industryUniverseCount']} companies is too long to look up on demand)."
     if row["status"] == "S":
         own = inputs.get("benchmark_details", {}).get("own_5y_median_" + prefix, {})
         if own:
@@ -233,7 +249,9 @@ def build_report_review(report):
         notes.append("The industry P/B comparison is unavailable; the Valuation assessment uses return on equity instead.")
     if any(row.get("fallbackFor") == "CAPITAL_ADEQUACY" for row in rating["metrics"]):
         notes.append("Capital adequacy is unavailable; the Quality assessment uses interest coverage instead.")
-    if any(row['metric']=='FINANCIAL_LEVERAGE' for row in rating['metrics']):
+    if any(row.get("fallbackFor") == "GROSS_NPA,NET_NPA" for row in rating["metrics"]):
+        notes.append("Gross NPA and Net NPA are not reported by the data provider for NBFCs; the Quality assessment uses financial leverage (assets divided by equity, 10x or more scores 0, 4x or less scores 100) in their place.")
+    if rating.get("group") == "INSURANCE" and any(row['metric']=='FINANCIAL_LEVERAGE' for row in rating['metrics']):
         notes.append("Insurance financial leverage uses assets divided by equity. Its 5x–20x scoring range is provisional, pending calibration against insurers' historical data.")
     missing = [r["label"] for p in parts for r in p["unavailable"]]
     if missing: notes.append("Unavailable information: " + ", ".join(missing) + ". Estimates are not presented as company strengths or weaknesses.")

@@ -11,13 +11,13 @@ describe("site map", () => {
     const names = (id: string) => SECTIONS.find((s) => s.id === id)!.groups.flatMap((g) => g.items.map((i) => i.label));
     expect(RESEARCH.groups.map((g) => g.title)).toEqual(["Find stocks", "Analyse a company", "Investment calculators", "Charts"]);
     expect(RESEARCH.groups[0].items.map((i) => i.label)).toEqual(["Stock screener", "Basic stock screener", "Advanced stock screener", "Query builder"]);
-    expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue outlook", "Stress Lab"]);
-    expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["EPS & P/E calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
+    expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue forecasting", "Stress Lab"]);
+    expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["P/E, EPS & PEG calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
     expect(RESEARCH.groups[3].items.map((i) => i.label)).toEqual(["Chart builder", "Correlation charts"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);
     expect(names("news")).toEqual(["Results calendar", "Latest results", "IPO calendar", "News & filings"]);
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
-    expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "Equity portfolio", "MF portfolio", "Alerts"]);
+    expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Alerts"]);   // task #137: All my investments after Watchlists, as the pack draws it; task #136: ETF portfolio after MF portfolio
   });
   it("marks the Gold tools of the Research menu", () => {
     expect(RESEARCH.groups.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/prism", "/reverse-valuation"]);

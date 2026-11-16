@@ -122,3 +122,14 @@
 .aif.full > header.aif-hd .aif-back { margin-right: auto; }
 .aif.full > header.aif-hd { justify-content: flex-end; }
 .aif.full > header.aif-hd { padding-left: 24px; padding-right: 24px; }
+
+/* Task #138: answers come from written text and FinLit's figures (no model). A link under an answer to the page it comes from; the listed questions that
+   match what is typed, above the box; the closest questions offered when a typed text matches none exactly. */
+.aif-ans-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--fs-13); font-weight: 600; color: var(--aif-g, var(--gold)); text-decoration: none; white-space: normal; }
+.aif-ans-link:hover, .aif-ans-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.aif-ans-link svg { width: 14px; height: 14px; }
+.aif-sugq { margin: 10px 0 0; white-space: normal; }
+.aif-typed { list-style: none; margin: 0; padding: 6px 10px 0; display: grid; gap: 4px; max-height: 210px; overflow: auto; border-top: 1px solid var(--border); }
+.aif-typed button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 10px; font-size: var(--fs-13); line-height: 1.35; color: var(--text); }
+.aif-typed button:hover, .aif-typed button:focus-visible { background: var(--s2); outline: none; }
+.aif-typed svg { flex: none; width: 14px; height: 14px; color: var(--muted); }

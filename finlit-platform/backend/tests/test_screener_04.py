@@ -198,7 +198,7 @@ def test_a_zero_or_negative_bottom_figure_gives_a_dash_and_pct_is_times_100(tabl
 
 @pytest.mark.asyncio
 async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_spread(app, table):  # noqa: F811
-    silver = await signed_in(app, "s04r@example.com", plan="silver")
+    silver = await signed_in(app, "s04r@example.com", plan="gold")       # custom ratios are Gold and Platinum only (CR-0); the Silver refusal is tested below
     base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5, "funnel": True}
     bad = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "pe", "den": "pe"}]})
     assert bad.status_code in (400, 422)
@@ -211,3 +211,68 @@ async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_sp
     assert st["have"] == 24 and st["total"] == 25 and len(st["hist30"]) == 30 and st["values"] == sorted(st["values"])
     assert st["example"]["symbol"] == "S03" and st["example"]["value"] == round(4000 / 103, 4)
     assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_custom_ratios_are_refused_below_gold_with_the_plain_line_and_the_rest_still_runs(app, table):  # noqa: F811
+    """Task #64, N-2 (CR-0 of 13 Nov): Silver could open and use the Custom ratio builder. The server now refuses `ratios` and the drawer's spread
+    from Silver with 403 plan_required and "Custom ratios come with Gold and Platinum."; the same query without the ratio runs as before."""
+    silver = await signed_in(app, "s04cr@example.com", plan="silver")
+    base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5}
+    r = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "ret_1y", "show": "times", "min": 1000}]})
+    assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_required" and r.json()["detail"]["plan"] == "gold"
+    assert "Custom ratios come with Gold and Platinum." in r.text
+    st = await silver.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price", "show": "times"})
+    assert st.status_code == 403 and "Custom ratios come with Gold and Platinum." in st.text
+    assert (await silver.post("/api/screener/query", json=base)).status_code == 200          # everything else on the page is open to Silver
+    gold = await signed_in(app, "g04cr@example.com", plan="gold")
+    assert (await gold.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "price", "show": "times"}]})).status_code == 200
+    assert (await gold.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price", "show": "times"})).status_code == 200
+
+
+@pytest.mark.integration
+async def test_gold_two_sectors_and_prism_average_returns_the_companies_not_an_error(app):  # noqa: F811
+    """Task #142: two sectors and the Prism rating Average (or Weak, Poor) gave "The screener is unavailable" for Gold: the request only accepted
+    FinLit IQ's words (strong, healthy, mixed, watch) and at most four of them, so Prism's own words were refused before any filtering."""
+    labels = ["AVERAGE", "AVERAGE", "WEAK", "POOR", "STRONG", "AVERAGE"]
+    rows = [_row(f"S{i}", macro=("Oil, Gas & Consumable Fuels" if i < 3 else "Fast Moving Consumer Goods" if i < 5 else "Information Technology"),
+                 industry=("Oil" if i < 3 else "Agricultural Food & other Products" if i < 5 else "IT - Software"), band="mixed", market_cap=1000 * (i + 1), price=100) for i in range(6)]
+    prism = {f"S{i}": {"prism_final": 50, "prism_label": labels[i], "prism_status": "RATED"} for i in range(6)}
+    data._table = Table(rows, {}, {}, None, prism)
+    try:
+        gold = await signed_in(app, "g142@example.com", plan="gold")
+        two = ["Oil, Gas & Consumable Fuels", "Fast Moving Consumer Goods"]
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"sector": two, "band": ["average"]}, "limit": 50})
+        assert r.status_code == 200, r.text                                              # was 422: Input should be 'strong', 'healthy', 'mixed' or 'watch'
+        assert {x["symbol"] for x in r.json()["rows"]} == {"S0", "S1"}                    # in one of the two sectors and rated Average (S5 is Average but in IT)
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"industry": ["Oil", "Agricultural Food & other Products"], "band": ["weak", "poor"]}, "limit": 50})
+        assert r.status_code == 200 and {x["symbol"] for x in r.json()["rows"]} == {"S2", "S3"}
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["strong", "healthy", "average", "weak", "poor"]}, "limit": 50})
+        assert r.status_code == 200 and r.json()["total"] == 6                            # all five Prism words at once (it allowed four)
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["average"], "sector": ["Information Technology"]}, "limit": 50})
+        assert r.status_code == 200 and [x["symbol"] for x in r.json()["rows"]] == ["S5"]
+        r = await gold.post("/api/screener/query", json={"columns": ["prism_final"], "cats": {"band": ["nonsense"]}, "limit": 50})
+        assert r.status_code == 422                                                       # a word of neither score is still refused
+    finally:
+        data._table = None
+
+
+@pytest.mark.integration
+async def test_the_catalog_names_the_prism_total_and_sends_each_scores_scale(app):  # noqa: F811
+    """Task #144: Gold's Prism total is called "Fundamental Prism score" (task #141's name, kept at the founder's choice), and every score carries its fixed
+    scale (0 to 100; the technical views -100 to +100) so the page's From and To boxes keep a value inside it. A figure with no fixed scale has none."""
+    rows = [_row(f"C{i}", macro="Energy", industry="Oil", market_cap=1000 * (i + 1), price=100) for i in range(5)]
+    prism = {f"C{i}": {"prism_final": 40 + 5 * i, "prism_label": "AVERAGE", "prism_status": "RATED", "prism_st_score": -20 + 10 * i} for i in range(5)}
+    data._table = Table(rows, {}, {}, None, prism)
+    try:
+        gold = await signed_in(app, "g144@example.com", plan="gold")
+        ms = {m["key"]: m for g in (await gold.get("/api/screener/catalog")).json()["groups"] for m in g["metrics"]}
+        assert ms["prism_final"]["label"] == "Fundamental Prism score" and ms["prism_final"]["scale"] == [0.0, 100.0]
+        assert ms["prism_st_score"]["scale"] == [-100.0, 100.0] and ms["prism_lt_score"]["scale"] == [-100.0, 100.0]
+        assert all(ms[k]["scale"] == [0.0, 100.0] for k in ("prism_fundamental", "prism_valuation", "prism_quality", "prism_risk"))
+        assert ms["market_cap"]["scale"] is None
+        silver = await signed_in(app, "s144@example.com", plan="silver")
+        sm = {m["key"]: m for g in (await silver.get("/api/screener/catalog")).json()["groups"] for m in g["metrics"]}
+        assert sm["overall"]["scale"] == [0.0, 100.0] and "prism_final" not in sm   # Silver keeps FinLit IQ, with its scale; Prism stays Gold
+    finally:
+        data._table = None

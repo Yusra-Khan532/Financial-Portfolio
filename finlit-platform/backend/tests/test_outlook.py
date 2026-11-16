@@ -193,7 +193,11 @@ def test_own_growth_rates_replace_the_inputs_one_by_one_and_the_model_weights_co
     frow = {x["key"]: x for x in filled["rate"]["rows"]}
     assert frow["sec_1y"]["status"] == "ok" and frow["sec_1y"]["detail"] == "no figure for this company" and frow["sec_3y"]["status"] == "unavailable"
     assert M.validate_values("revenue", None) is None and M.validate_values("profit", {"margin": -50}) == {"margin": -50.0}
-    for bad in ({"co_1y": 50.5}, {"co_1y": float("nan")}, {"margin": 3}, {"co_1y": True}):
+    # task #166: the user may type any rate from -99% to +999% a year (the model's own inputs keep the +/-50% cap)
+    assert M.validate_values("revenue", {"co_1y": 50.5, "co_3y": 120, "sec_1y": -99}) == {"co_1y": 50.5, "co_3y": 120.0, "sec_1y": -99.0}
+    big = M.forecast("revenue", h, "mid", w, sec, {"co_3y": 120.0})
+    assert {x["key"]: x for x in big["rate"]["rows"]}["co_3y"]["valuePct"] == 120.0 and big["userRangePct"] == [-99.0, 999.0] and big["inputCapPct"] == 50.0
+    for bad in ({"co_1y": 999.5}, {"co_1y": -100}, {"co_1y": float("nan")}, {"margin": 3}, {"co_1y": True}):
         with pytest.raises(M.WeightError):
             M.validate_values("revenue", bad)
 
@@ -243,7 +247,7 @@ async def test_outlook_is_gold_only_and_validates(app, anon):  # noqa: F811
     assert (await anon.post("/api/outlook/RELIANCE", json=body)).status_code == 401
     silver = await signed_in(app, "s@example.com", plan="silver")
     r = await silver.post("/api/outlook/RELIANCE", json=body)
-    assert r.status_code == 403 and r.json()["detail"]["plan"] == "gold" and "forecast" not in r.text
+    assert r.status_code == 403 and r.json()["detail"]["plan"] == "gold" and '"forecast"' not in r.text and "years" not in r.text   # no forecast data below Gold (the message itself says "forecasting", task #170)
     gold = await signed_in(app, "g@example.com", plan="gold")
     ok = await gold.post("/api/outlook/reliance", json=body)
     assert ok.status_code == 200 and ok.headers["cache-control"] == "private, no-store"
@@ -260,7 +264,10 @@ async def test_outlook_is_gold_only_and_validates(app, anon):  # noqa: F811
     oj = own.json()
     assert own.status_code == 200 and oj["mode"] == "custom" and oj["weights"] == d and oj["values"] == {"co_1y": 12.5, "sec_3y": -4.0}
     assert {r["key"]: r["valuePct"] for r in oj["rate"]["rows"]}["co_1y"] == 12.5 and oj["rate"]["ratePct"] != j["rate"]["ratePct"]
-    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 51}})).status_code == 422
+    big = await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 51}})            # task #166: a typed rate above the old 50% is accepted
+    assert big.status_code == 200 and {r["key"]: r["valuePct"] for r in big.json()["rate"]["rows"]}["co_1y"] == 51
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": 1000}})).status_code == 422   # beyond +999% a year
+    assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"co_1y": -100}})).status_code == 422   # a fall of 100% or more is not a rate
     assert (await gold.post("/api/outlook/RELIANCE", json={**body, "values": {"Q": 1}})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "other"})).status_code == 422
     assert (await gold.post("/api/outlook/RELIANCE", json={"kind": "profit", "horizon": "decade"})).status_code == 422

@@ -14,9 +14,10 @@ os.environ["CMS_ADMIN_EMAIL"] = "admin@example.test"
 os.environ["CMS_ADMIN_PASSWORD_HASH"] = "not-used-by-these-tests"
 os.environ["RESEND_API_KEY"] = "test-resend-key"
 os.environ["CONTACT_RECIPIENT_EMAIL"] = "owner@example.com"
-os.environ["MCP_INTERNAL_URL"] = "off"   # the chat never reaches for a data endpoint unless a test supplies one
 
 from backend import server
+
+
 
 
 class FakeCursor:
@@ -115,11 +116,3 @@ def asgi_request(app, method, path, payload=None, headers=None):
         except json.JSONDecodeError:
             response_data = {"_non_json": True, "text": response_text}
     return response["status"], response_data
-
-
-@pytest.fixture(autouse=True)
-def _fresh_chat_model_cooldown():
-    """A model that was busy in one test must not be skipped in the next."""
-    server._chat_model_cooldown.clear()
-    yield
-    server._chat_model_cooldown.clear()

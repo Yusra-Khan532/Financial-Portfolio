@@ -1,11 +1,11 @@
-// FinLit Mutual Fund Health Score: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
+// FinLit FundPulse: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
 // The score DESCRIBES a fund's health from its past NAVs, costs and holdings. It never advises: no buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";
 import { scoreBand, type ScoreBand } from "./scoreBands";
 import { nf } from "./format";
 
-export const MF_SCORE_NAME = "FinLit Mutual Fund Health Score";
+export const MF_SCORE_NAME = "FinLit FundPulse";
 export const MF_SCORE_COMPLIANCE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.";
 export const MF_METHOD_URL = "/methodology/mf-score";
 export const PILLAR_HELP: Record<string, string> = {
@@ -80,7 +80,23 @@ export const STATUS_TEXT: Record<string, string> = {
   "NOT RATED": "Not rated.",
 };
 /** The one line that says what share of the measures had real data. */
-export const confidenceText = (c: number | null | undefined) => (c == null ? "" : `${Math.round(c * 100)}% of the weight behind this score rests on real data.`);
+/** How much of the score rests on the fund's own figures, in measures (task #132: the site never speaks of weights): "Built on real data: 18 of 19 measures". */
+export const builtOnText = (f?: { n: number; of: number }) => (!f || !f.of ? "" : `Built on real data: ${f.of - f.n} of ${f.of} measures`);
+export const ordinal = (n: number) => { const t = n % 100, u = n % 10; return `${n}${t >= 11 && t <= 13 ? "th" : u === 1 ? "st" : u === 2 ? "nd" : u === 3 ? "rd" : "th"}`; };
+const WORD_ORDER = ["Strong", "Fair", "Weak"];
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** FinLit FundPulse in one plain line, from the four part words and the rank (task #132):
+ *  "Strong on risk and cost, weak on performance and quality: 60.3, Average, 14th of 36 Flexi Cap funds (Direct plan)." */
+export function scoreSentence(s: Pick<FundScore, "final" | "label" | "pillars" | "rank" | "family">): string | null {
+  if (s.final == null) return null;
+  const by = new Map<string, string[]>();
+  for (const p of s.pillars) if (p.reading && WORD_ORDER.includes(p.reading)) by.set(p.reading, [...(by.get(p.reading) ?? []), p.name.toLowerCase()]);
+  const words = WORD_ORDER.filter((w) => by.has(w));
+  const parts = words.length === 1 && by.get(words[0])!.length === 4 ? `${words[0]} on all four parts` : words.map((w, i) => `${i ? w.toLowerCase() : w} on ${andList(by.get(w)!)}`).join(", ");
+  const r = s.rank;
+  const rank = !r ? "" : r.scope === "fam" ? `, ${ordinal(r.rank)} of ${r.of} funds tracking ${s.family?.index || "the same index"}` : `, ${ordinal(r.rank)} of ${r.of} ${r.categoryLabel || "similar"} funds (${r.plan} plan)`;
+  return `${parts ? parts + ": " : ""}${scoreText(s.final)}${s.label ? `, ${s.label}` : ""}${rank}.`;
+}
 export const filledText = (f?: { n: number; of: number }) =>
   !f || f.n === 0 ? "" : `${f.n} of ${f.of} measures used the group value because data was missing.`;
 export const FLAG_TEXT: Record<string, string> = {

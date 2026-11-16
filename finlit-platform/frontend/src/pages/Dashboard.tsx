@@ -21,12 +21,14 @@ import { Snapshot, Sectors } from "../components/dashboard/Snapshot";
 import { MarketRead } from "../components/dashboard/MarketRead";
 import { Flows } from "../components/dashboard/Flows";
 import { PortfolioGlance } from "../components/dashboard/Portfolio";
+import { EtfsGlance, FundsGlance } from "../components/dashboard/FundsGlance";
 import { Stress } from "../components/dashboard/Stress";
 import { IndexHeatmap } from "../components/dashboard/Heatmap";
 import { AlertsScreens, Filings, Ipos, Learn, ResultsToday } from "../components/dashboard/NewsBlocks";
 import { Buckets, CommoditiesW, DcfW, Locked, Movers, Results, SecondLook } from "../components/dashboard/Legacy";
 import { SetupChip, useSetup } from "../components/dashboard/Setup";
 import { Customise } from "../components/dashboard/Customise";
+import { DashCardsProvider } from "../components/dashboard/DashCards";
 import { PageFaqs } from "../components/PageFaqs";
 import "../styles/sectors-pack.css";
 import "../styles/dashboard.css";
@@ -58,6 +60,8 @@ export function Dashboard() {
   const items = followed.map((f) => bySym.get(f.symbol)).filter((r): r is Row => !!r);
   const sectors = useMemo(() => new Map(rows.map((r) => [r.symbol, r.sector])), [rows]);
   const caps = useMemo(() => new Map(rows.map((r) => [r.symbol, r.market_cap])), [rows]);
+  const oneYear = useMemo(() => new Map(rows.map((r) => [r.symbol, r.return_1y ?? null])), [rows]);   // task #135: the 1 year column
+  const qty = useMemo(() => { const m = new Map<string, number>(); for (const h of pf.holdings) m.set(h.symbol.toUpperCase(), (m.get(h.symbol.toUpperCase()) ?? 0) + h.qty); return m; }, [pf.holdings]);
   const names = useMemo(() => new Map(rows.map((r) => [r.symbol, r.name])), [rows]);
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);
@@ -79,13 +83,15 @@ export function Dashboard() {
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;
     const legacy = (el: React.ReactNode) => <Card id={id} title={w.label}>{el}</Card>;
     switch (id) {
-      case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} watch={watchSet} held={heldSet} caps={caps} />;
+      case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} watch={watchSet} held={heldSet} caps={caps} oneYear={oneYear} qty={qty} />;
       case "market": return <MarketToday />;
       case "snapshot": return <Snapshot rows={rows} loading={loadingRows} />;
       case "sectors": return <Sectors rows={rows} loading={loadingRows} />;
       case "marketread": return <MarketRead rows={rows} loading={loadingRows} />;
       case "flows": return <Flows />;
       case "portfolio": return <PortfolioGlance held={[...heldSet]} rows={rows} loading={loadingRows} />;
+      case "mfglance": return <FundsGlance />;
+      case "etfglance": return <EtfsGlance />;
       case "stress": return <Stress followed={followed} loading={loadingFollowed} sectors={sectors} />;
       case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} />;
       case "resultstoday": return <ResultsToday symbols={symbols} />;
@@ -107,6 +113,7 @@ export function Dashboard() {
   const state = idx.data ? marketWhen(new Date(), idx.data.marketOpen, idx.data.asOf ?? null) : [];   // pack 04: "Market opens at 9:15 · Figures from Friday's close"
   const sub = [longDay(), ...state, followed.length ? `You follow ${followed.length} stock${followed.length === 1 ? "" : "s"}` : loadingFollowed ? null : "You follow no stocks yet"].filter(Boolean).join(" · ");
   return (
+    <DashCardsProvider userId={user.id}>
     <div className="wrap dsh" data-tab={tab}>
       <header className="dsh-head">
         <div><div className="dsh-kicker">Dashboard</div><h1>{greetingWord(istHour())}{name ? `, ${name}` : ""}</h1><p className="dsh-meta">{sub}</p></div>
@@ -122,5 +129,6 @@ export function Dashboard() {
       <PageFaqs inline />
       <p className="dsh-fine">Describes prices, flows and company health from filings and prices; not a recommendation. Information only, not investment advice.</p>
     </div>
+    </DashCardsProvider>
   );
 }

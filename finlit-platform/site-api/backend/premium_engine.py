@@ -119,6 +119,36 @@ def cagr_window(annual):
     return list(reversed(available[:years + 1])), years, span
 
 
+def dated_cagr_window(values, ends):
+    """The latest run of consecutive reported annual periods (each end 300 to 490 days after the one before, so a change of year-end with its odd-length
+    period dropped still counts as consecutive), newest last. Prefers 5 periods back, then 3, then what exists (at least 1); the start must be positive.
+    Returns (index of the starting period, years between the two period ends) or (None, 0)."""
+    from datetime import date as _date
+    days = [_date.fromisoformat(e[:10]) for e in ends]
+    if not values or num(values[-1]) is None:
+        return None, 0
+    # Periods ending less than 300 days apart overlap (FinEdge labels Nestle's 15-month period to March 2024 as a year next to calendar 2023): they
+    # fill one slot and the later one is kept, so the overlap is not a break in the run.
+    chain, j = [len(values) - 1], len(values) - 2
+    while j >= 0 and num(values[j]) is not None:
+        gap = (days[chain[-1]] - days[j]).days
+        if gap < 300:
+            j -= 1
+            continue
+        if gap > 490:
+            break
+        chain.append(j)
+        j -= 1
+    span = len(chain) - 1
+    if span < CAGR_MIN_YEARS:
+        return None, 0
+    back = next((n for n in CAGR_PREFERRED_YEARS if span >= n), span)
+    i = chain[back]
+    if num(values[i]) is None or num(values[i]) <= 0:
+        return None, 0
+    return i, (days[-1] - days[i]).days / 365.25
+
+
 def split_adjusted_eps(eps_y, profit_y):
     """Yearly EPS (oldest to newest) put on the share basis of the newest year, for stock splits and bonus issues only.
 
@@ -335,21 +365,37 @@ def score_company(d, group):
             put("MARGIN_CHANGE", (now - before) * 100, "Z", {"note": "Current operating margin is non-positive", "operatingLoss": True, "opMarginNow": now * 100}, 0.)
         de = ratio(debt, nw)
         put("DEBT_TO_EQUITY", de, explicit_points=0. if nw is not None and nw <= 0 else None)
+        interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
+        cover = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
         if de is not None and de < IC_NOT_APPLICABLE_DE:
+            # Not scored (owner's v3.6 rule) but still worked out and shown, so the report agrees with the company page's interest coverage (3.6.14).
             statuses["INTEREST_COVER"] = "N"
-            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}"}
+            values["INTEREST_COVER"] = cover
+            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}, so interest cover is shown for information and not scored",
+                                         "shownNotScored": cover is not None}
         else:
-            interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
-            put("INTEREST_COVER", (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None,
-                explicit_points=100. if interest == 0 else None)
+            put("INTEREST_COVER", cover, explicit_points=100. if interest == 0 else None)
         value = ratio(annual_profit, annual_nw)
         put("ROE", value * 100 if value is not None else None, explicit_points=0. if annual_nw is not None and annual_nw <= 0 else None)
         p3 = complete_sum(d.get("net_profit_y", []), 3)
         c3 = complete_sum(d.get("operating_cash_flow_y", []), 3)
+        cash_detail = None
+        if p3 is None or c3 is None:
+            # 3.6.15 (owner, 15 November 2026): a consolidated history too short for three years is measured on the standalone statements, when
+            # their latest three annual periods are consecutive, complete and reach the same latest year.
+            sa_ends, sa_np, sa_cf = d.get("standalone_period_ends") or [], d.get("net_profit_y_standalone") or [], d.get("operating_cash_flow_y_standalone") or []
+            con = d.get("consolidated_years") or []
+            if len(sa_ends) >= 3 and len(sa_np) == len(sa_ends) == len(sa_cf) and (not con or int(sa_ends[-1][:4]) >= con[-1]):
+                start, _ = dated_cagr_window([1.] * 3, sa_ends[-3:])        # only to check that the three periods are consecutive
+                sp3, sc3 = complete_sum(sa_np, 3), complete_sum(sa_cf, 3)
+                if start == 0 and sp3 is not None and sc3 is not None:
+                    p3, c3 = sp3, sc3
+                    cash_detail = {"basis": "standalone", "note": f"Standalone statements, {sa_ends[-3]} to {sa_ends[-1]} (consolidated history too short)",
+                                   "operatingCashFlow3y": sc3, "netProfit3y": sp3}
         if p3 is not None and p3 <= 0 and c3 is not None:
-            put("CASH_CONVERSION", None, "Z", {"note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, float(CASH_LOSS_POINTS["cash_positive" if c3 > 0 else "cash_negative"]))
+            put("CASH_CONVERSION", None, "Z", {**(cash_detail or {}), "note": "Three-year loss; operating cash flow " + ("positive" if c3 > 0 else "non-positive")}, float(CASH_LOSS_POINTS["cash_positive" if c3 > 0 else "cash_negative"]))
         else:
-            put("CASH_CONVERSION", ratio(c3, p3))
+            put("CASH_CONVERSION", ratio(c3, p3), detail=cash_detail)
 
     if group in ("BANK", "NBFC"):
         # Calculate the conditional capital-adequacy fallback. It is weighted
@@ -384,6 +430,20 @@ def score_company(d, group):
     if eps_years and eps_window[0] is not None and eps_window[0] > 0:
         g = ((eps_window[-1] / eps_window[0]) ** (1 / eps_years) - 1) * 100 if eps_window[-1] > 0 else -100.
         g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years", "years": eps_years}
+    # 3.6.14 (owner, 15 November 2026): a consolidated EPS history too short for a 3-year window is measured on the standalone statements instead, when they
+    # reach the same latest year and give a longer usable window. Only PEG's growth changes; P/E and every other factor stay on the report's own basis.
+    sa_eps, sa_ends = d.get("eps_y_standalone") or [], d.get("standalone_period_ends") or []
+    con_years_list = d.get("consolidated_years") or []
+    if (g is None or eps_years < 3) and sa_eps and len(sa_ends) == len(sa_eps) and (not con_years_list or int(sa_ends[-1][:4]) >= con_years_list[-1]):
+        sa_adj, sa_adjustments = split_adjusted_eps(sa_eps, d.get("net_profit_y_standalone", []))
+        first_i, sa_years = dated_cagr_window(sa_adj, sa_ends)
+        if first_i is not None and sa_years > (eps_years if g is not None else 0):
+            start, end = sa_adj[first_i], sa_adj[-1]
+            g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+            periods = len(sa_adj) - 1 - first_i
+            g_basis = {"kind": "eps_standalone", "text": f"standalone EPS growth over {sa_years:.1f} years, {sa_ends[first_i]} to {sa_ends[-1]} (consolidated history too short)",
+                       "years": round(sa_years, 2), "periods": periods, "consolidatedYears": eps_years or None}
+            eps_adjustments = sa_adjustments
     if g is None:
         g = values.get("PROFIT_CAGR")
         if g is not None:
@@ -394,10 +454,12 @@ def score_company(d, group):
             g_basis = {"kind": "profit_12m", "text": "12-month net profit growth (no usable EPS or profit CAGR)", "years": None}
     core = group in PEG_CORE_GROUPS
     if loss or (pe is not None and g is not None and g <= 0):
-        put("PEG", None, "Z", {"note": "Loss-making or non-positive earnings growth", "growthBasis": g_basis and g_basis["text"], "growthKind": g_basis and g_basis["kind"]}, 0.)
+        note = "Loss-making (EPS over the last four quarters is zero or negative)" if loss else f"Earnings growth is not positive ({g:.1f}% a year, {g_basis['text']})"
+        put("PEG", None, "Z", {"note": note, "growthBasis": g_basis and g_basis["text"], "growthKind": g_basis and g_basis["kind"], "growthRaw": g}, 0.)
     elif pe is not None and g is not None and g > 0 and (core or details["PROFIT_STREAK"]["good"] >= PEG_MIN_PROFIT_STREAK):
         put("PEG", pe / min(g, PEG_GROWTH_CAP), detail={"growthUsed": min(g, PEG_GROWTH_CAP), "growthRaw": g, "growthBasis": g_basis["text"], "growthKind": g_basis["kind"],
                                                         "growthYears": g_basis["years"], "epsSplitAdjustments": eps_adjustments or None,
+                                                        **({"consolidatedYears": g_basis["consolidatedYears"]} if "consolidatedYears" in g_basis else {}),
                                                         "note": "Core group" if core else f"At least {PEG_MIN_PROFIT_STREAK} actual good profit quarters"})
     elif not core:
         statuses["PEG"] = "N"
@@ -427,6 +489,27 @@ def score_company(d, group):
             for metric, weight in effective_weights["quality"].items()
         }
         fallbacks["INTEREST_COVER"] = "CAPITAL_ADEQUACY"
+    # Owner-requested NBFC replacement (3.6.13, 15 November 2026): FinEdge sends no NPA ratios for NBFCs, so when Gross NPA and Net NPA are BOTH
+    # missing, financial leverage (total assets / equity, lower is better) takes their two slots (their weights added together). If either NPA arrives, it is used.
+    if group == "NBFC" and points.get("GROSS_NPA") is None and points.get("NET_NPA") is None:
+        assets = num(d.get("total_assets"))
+        if nw is not None and nw <= 0:
+            statuses["FINANCIAL_LEVERAGE"] = "L"
+            details["FINANCIAL_LEVERAGE"] = {"invalid": True, "note": "Financial leverage is invalid: equity is zero or negative (financial distress)."}
+        else:
+            leverage = num(d.get("financial_leverage"))
+            source = d.get("financial_leverage_source")
+            if leverage is None:
+                leverage = ratio(assets, nw)
+                source = "Calculated from total assets and equity on the same balance-sheet date" if leverage is not None else None
+            put("FINANCIAL_LEVERAGE", leverage, detail={"assets": assets, "equity": nw, "source": source, "note": "Used in place of Gross NPA and Net NPA, which the data provider does not report for NBFCs."})
+        if points.get("FINANCIAL_LEVERAGE") is not None or statuses.get("FINANCIAL_LEVERAGE") == "L":
+            quality = {}
+            for metric, weight in effective_weights["quality"].items():
+                key = "FINANCIAL_LEVERAGE" if metric in ("GROSS_NPA", "NET_NPA") else metric
+                quality[key] = quality.get(key, 0) + weight
+            effective_weights["quality"] = quality
+            fallbacks["FINANCIAL_LEVERAGE"] = "GROSS_NPA,NET_NPA"
     # Owner-requested BANK overrides: replace the original slot rather than add
     # a second contribution. A genuine zero/loss score is available data.
     if group == "BANK" and points.get("PE_VS_INDUSTRY") is None and points.get("PE_VS_HISTORY") is not None:
@@ -513,7 +596,7 @@ def score_company(d, group):
     if negative_nw: alerts.append("Net worth is zero or negative.")
     if details.get("FINANCIAL_LEVERAGE",{}).get("invalid"):
         alerts.append(details["FINANCIAL_LEVERAGE"]["note"])
-    if any(row['metric']=='INTEREST_COVER' for row in rows) and values.get("INTEREST_COVER") is not None and values["INTEREST_COVER"] < 1.5:
+    if any(row['metric']=='INTEREST_COVER' and row['status'] != "N" for row in rows) and values.get("INTEREST_COVER") is not None and values["INTEREST_COVER"] < 1.5:
         alerts.append("Interest cover is below 1.5 times.")
     if loss_capped: alerts.append(f"Loss rule ({tier}) capped Fundamental at {fundamental_cap} (before cap: {raw_fundamental:.1f}).")
     if valuation_capped: alerts.append(f"Weak-business rule capped Valuation at {VALUE_TRAP['cap']:g}.")

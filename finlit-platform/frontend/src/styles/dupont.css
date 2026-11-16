@@ -32,7 +32,7 @@
 .dp-insc { border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; } .dp-insc p { margin: 0; } .dp-insc ul { margin: 0; padding-left: 16px; font-size: var(--fs-13); color: var(--muted); }
 .dp-eq { flex-wrap: wrap; }
 .dp-sliders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 4px 0 12px; } @media (max-width: 700px) { .dp-sliders { grid-template-columns: 1fr; } }
-.dp-sl { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: baseline; } .dp-sl label { font-size: 13px; color: var(--muted); } .dp-sl output { font: 600 14px var(--mono); } .dp-sl input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); } .dp-sl input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.dp-sl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; min-width: 0; } .dp-sl label { font-size: 13px; color: var(--muted); } .dp-sl output { font: 600 14px var(--mono); } .dp-sl input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); } .dp-sl input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .dp-simout { margin: 6px 0; font-size: var(--fs-16); } .dp-simout b { font: 600 20px var(--serif); } .dp-simout small { font-size: var(--fs-13); color: var(--muted); }
 .dp-need { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); } .dp-need label { font-size: 14px; } .dp-goal { width: 5.5ch; margin: 0 4px; padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--s2); color: var(--text); font: 600 14px var(--mono); }
 .dp-how { display: flex; width: 100%; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: var(--text); font: 600 16px var(--sans); cursor: pointer; text-align: left; } .dp-how svg { width: 16px; height: 16px; color: var(--gold); } .dp-how span:last-child { margin-left: auto; font: 600 18px var(--mono); } .dp-how:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
@@ -111,3 +111,6 @@
 .dp-gz { height: 100%; } .dp-gz.lo { width: 50%; background: var(--band-lo); border-radius: 999px 0 0 999px; opacity: .55; } .dp-gz.mid { width: 20%; background: var(--band-mid); opacity: .55; } .dp-gz.hi { width: 30%; background: var(--band-hi); border-radius: 0 999px 999px 0; opacity: .55; }
 .dp-gp { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--s1); }
 .dp-gauge em { position: absolute; top: 14px; transform: translateX(-50%); font: 500 var(--fs-11) var(--mono); font-style: normal; color: var(--muted); }
+
+/* the what-if values never push into the next slider: the label keeps its line, the value stays in its column (team report, 14 Nov 2026) */
+.dp-sl label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dp-sl output { text-align: right; overflow-wrap: anywhere; }

@@ -1,4 +1,4 @@
-"""GET /api/mf/{code}/score, GET /api/mf/etf/{symbol}/score and GET /api/mf/scores: the Mutual Fund Health Score, read from mf_scores.
+"""GET /api/mf/{code}/score, GET /api/mf/etf/{symbol}/score and GET /api/mf/scores: the FinLit FundPulse, read from mf_scores.
 
 Plan gating, enforced here and not only on the page: the score is a Gold feature. A Basic or Silver account (or a visitor) gets
 a locked answer with no value, no pillar, no breakdown, no rank and no order: a locked field is present and null, so the browser cannot tell a locked value from a
@@ -40,7 +40,7 @@ NOT_SCORED = {
     "inactive": "Not scored: this scheme has stopped publishing NAVs.",
     "no_plan": "Not scored: the plan (Direct or Regular) is not stated for this scheme.",
     "etf_no_price": "Not scored: this exchange-traded fund has no exchange price history loaded yet.",
-    "etf_not_offered": "The Health Score is not given for exchange-traded funds.",
+    "etf_not_offered": "FinLit FundPulse is not given for exchange-traded funds.",
     "not_yet": "Not scored yet: the daily score run has not reached this scheme.",
 }
 
@@ -60,7 +60,7 @@ async def may_see(request: Request, code: Optional[int] = None) -> bool:
 async def require_score_plan(request: Request) -> None:
     """For routes whose ORDER would say what the value says (the fund list sorted by score)."""
     if not await may_see(request):
-        raise fail(403, "plan_required", "The Mutual Fund Health Score is part of the Gold plan.", plan="gold")
+        raise fail(403, "plan_required", "The FinLit FundPulse is part of the Gold plan.", plan="gold")
 
 
 def _load(v: Any) -> Any:
@@ -79,7 +79,7 @@ def pillars_view(group: str, r: Dict[str, Any], values: bool = True) -> List[Dic
 
 def locked_payload(group: Optional[str], plan: Optional[str], **extra: Any) -> Dict[str, Any]:
     """What a plan below Gold gets: the four part names and nothing a fund scored (no weights, no readings)."""
-    return {"locked": True, "plan": "gold", "detail": "The FinLit Mutual Fund Health Score is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
+    return {"locked": True, "plan": "gold", "detail": "The FinLit FundPulse is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
             "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "reading": None} for p in PILLARS] if group in WEIGHTS else [],
             "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION, **extra}
 
@@ -105,6 +105,23 @@ PEER_TEXT = texts()["peerSets"]
 PRIVATE_METRIC_KEYS = ("weight", "pillarWeight")
 
 
+
+# Task #132 (and the site rule "no cut-offs, weights, formulas or look-back lengths on pages"): reasons.json no longer names a look-back window, but texts
+# written before that by the nightly scoring run are stored with it. They are cleaned on the way out, so the page never shows one; the next run stores clean text.
+_LOOKBACK = [(re.compile(r" of the months compared \(\d+ months compared\)"), " of months"), (re.compile(r" \(\d+ (?:months compared|down months)\)"), ""),
+             (re.compile(r" over three years"), ""), (re.compile(r" in the last three years"), ""), (re.compile(r" of the last three years"), " of the time")]
+
+
+def plain_text(text: str) -> str:
+    for rx, rep in _LOOKBACK:
+        text = rx.sub(rep, text)
+    return text
+
+
+def _plain_lines(lines):
+    return [{**x, "text": plain_text(x["text"])} if isinstance(x, dict) and isinstance(x.get("text"), str) else x for x in lines or []]
+
+
 def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """One stored score row -> the answer of /api/mf/{code}/score (values included: the caller has checked the plan)."""
     b = _load(r["breakdown"]) or {}
@@ -127,7 +144,7 @@ def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) ->
         "months": r["months"], "flags": list(r["flags"] or []), "rank": rank_view(r) if rated else None,
         "peers": {"kind": r["peer_kind"], "n": r["peer_n"], "text": PEER_TEXT.get(r["peer_kind"] or "", None)},
         "family": b.get("family"), "nearIdentical": "NEAR_IDENTICAL" in (r["flags"] or []),
-        "reasons": {"strengths": reasons.get("strengths", []), "watchouts": reasons.get("watchouts", []), "gaps": reasons.get("gaps", []),
+        "reasons": {"strengths": _plain_lines(reasons.get("strengths", [])), "watchouts": _plain_lines(reasons.get("watchouts", [])), "gaps": reasons.get("gaps", []),
                     "notApplicable": reasons.get("notApplicable", []), "substitutions": reasons.get("substitutions", [])},
         "filled": {"n": n_f, "of": n_all}, "metrics": metrics if rated else [], "inherited": inherited, "model": r["model"], "disclaimer": DISCLAIMER, "method": METHOD_URL,
     }
@@ -138,7 +155,7 @@ def _json(body: Dict[str, Any], status: int = 200) -> JSONResponse:
 
 
 async def _row(conn, key: str):
-    if key.startswith("etf:"):   # the Health Score is not given for exchange-traded funds: nothing about one leaves the server (the score run still reads them as peers)
+    if key.startswith("etf:"):   # FundPulse is not given for exchange-traded funds: nothing about one leaves the server (the score run still reads them as peers)
         return None
     r = await conn.fetchrow("SELECT * FROM mf_scores WHERE key = $1", key)
     return dict(r) if r else None
@@ -226,7 +243,7 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
 
 @router.get("/scores/categories")
 async def category_scores(request: Request) -> JSONResponse:
-    """The Funds dashboard: median Health score, number scored and band counts per sub-category, over scored Direct-plan mutual funds. Gold only; a
+    """The Funds dashboard: median FundPulse, number scored and band counts per sub-category, over scored Direct-plan mutual funds. Gold only; a
     plan below that gets `locked` and no number at all (the cards would otherwise show what the list hides). `runDate` is null until the score job has run."""
     if not await may_see(request):
         return _json({"locked": True, "plan": "gold", "items": {}, "runDate": None, "disclaimer": DISCLAIMER, "method": METHOD_URL})
@@ -258,7 +275,7 @@ async def resolve_mf(conn, code: int):
         return None, None, "inactive"
     if s["plan"] not in ("Direct", "Regular"):
         return None, None, "no_plan"
-    # an ETF category scheme: no Health Score is given
+    # an ETF category scheme: no FundPulse is given
     from ..mf import classify
     from .groups import ETF_SUBS
     if classify(s["category"])[1] in ETF_SUBS:

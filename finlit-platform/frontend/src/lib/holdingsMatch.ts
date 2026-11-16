@@ -1,6 +1,7 @@
 import type { SearchRow } from "./api";
 import { SPLIT_NAMES, canon } from "./aliases";
-import { gridFromText, namesFromGrid, tidy, type NameMatcher } from "./holdingsFile";
+import { entriesFromGrid, gridFromText, namesFromGrid, tidy, type Entry, type NameMatcher } from "./holdingsFile";
+import { ISIN_RX, isinValid, type IsinAnswer } from "./isin";
 
 /** Turning what a person typed, pasted or exported into listed companies. */
 
@@ -11,8 +12,25 @@ export function namesFrom(text: string, matches?: NameMatcher): string[] {
   return namesFromGrid(gridFromText(text), matches);
 }
 
-export type How = "exact" | "close" | "split" | "alias" | "scan";   // how sure a match is: exact ticker, code or full name, a name that only starts the same way, a demerged company, a retired ticker, or found inside running text
-export type Found = { input: string; symbol: string; name: string; how: How };
+/** The lines of pasted text or a CSV as ISIN + name (task #128): see `entriesFromGrid`. */
+export function entriesFrom(text: string, matches?: NameMatcher): Entry[] {
+  return entriesFromGrid(gridFromText(text), matches);
+}
+
+/** What one typed line means: an ISIN when it is one ("INE002A01018"), else a name or ticker. */
+export function entryOf(typed: string): Entry {
+  const t = typed.trim(), u = t.toUpperCase();
+  return isinValid(u) || (ISIN_RX.test(u) && (u.match(/\d/g) || []).length >= 4) ? { isin: u, name: "" } : { name: t };
+}
+
+// how sure a match is: exact ticker, code or full name, a name that only starts the same way, a demerged company, a retired ticker, found inside running text;
+// or, by ISIN (task #128): the company's current ISIN, an older ISIN of it, another ISIN of the same issuer, or the depository's issuer name
+export type How = "exact" | "close" | "split" | "alias" | "scan" | "isin" | "old_isin" | "issuer" | "issuer_name";
+export type Found = { input: string; symbol: string; name: string; how: How; isin?: string };
+/** A match that is not added until the member says so, with the reason. */
+export type ToCheck = Found & { note: string };
+/** A line that is not a listed company's share, with the reason (a fund unit, a bond, an unlisted share, an ISIN no list knows, a wrong check digit). */
+export type Skipped = { input: string; isin: string; note: string };
 
 /** One lookup, built once per search list: ticker, NSE or BSE code, and the company name without Ltd/Limited/&.
  *  `exact` uses hash lookups only (safe to call on every word window of a document); `find` also accepts a name that starts the same way. */
@@ -59,4 +77,31 @@ export function matchNames(names: string[], index: SearchRow[]): { found: Found[
     if (old) found.push({ input, symbol: old[0], name: old[1], how: "alias" }); else missing.push(input);
   }
   return { found, missing };
+}
+
+/** Task #128: each line to a listed company BY ITS ISIN; a line's name is used only when the line has no ISIN. `answers` holds the ISIN answers
+ *  (lib/isin.ts `resolveIsins`); an ISIN without an answer (the server could not be asked) falls back to the line's name, and that match is only offered
+ *  to check, never added on its own. */
+export function matchEntries(entries: Entry[], index: SearchRow[], answers: ReadonlyMap<string, IsinAnswer> | null):
+  { found: Found[]; check: ToCheck[]; skipped: Skipped[]; missing: string[]; byIsin: number } {
+  const found: Found[] = [], check: ToCheck[] = [], skipped: Skipped[] = [];
+  const named = entries.filter((e) => !e.isin).map((e) => e.name);
+  const unanswered: Entry[] = [];
+  let byIsin = 0;
+  for (const e of entries) {
+    if (!e.isin) continue;
+    const a = answers?.get(e.isin), input = e.name || e.isin;
+    if (!a) { unanswered.push(e); continue; }
+    if (a.status === "matched" && a.symbol) { found.push({ input, symbol: a.symbol, name: a.name || a.symbol, how: a.how || "isin", isin: e.isin }); byIsin++; }
+    else if (a.status === "check" && a.symbol) check.push({ input, symbol: a.symbol, name: a.name || a.symbol, how: a.how || "issuer", isin: e.isin, note: a.note || "Please check" });
+    else skipped.push({ input, isin: e.isin, note: a.note || "Not a listed company's share." });
+  }
+  const byName = matchNames(named, index);
+  found.push(...byName.found);
+  for (const e of unanswered) {
+    const hit = e.name ? matchNames([e.name], index).found : [];
+    if (hit.length) hit.forEach((h) => check.push({ ...h, isin: e.isin, note: `Its ISIN ${e.isin} could not be checked just now, so this is matched by the name in your file: please check` }));
+    else skipped.push({ input: e.name || e.isin!, isin: e.isin!, note: "Its ISIN could not be checked just now. Try again in a moment." });
+  }
+  return { found, check, skipped, missing: byName.missing, byIsin };
 }

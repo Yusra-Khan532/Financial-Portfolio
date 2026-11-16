@@ -128,7 +128,7 @@ export const SORTS: { v: string; dir: "asc" | "desc"; label: string; gold?: bool
   { v: "aum", dir: "desc", label: "Fund size, largest first" }, { v: "r1y", dir: "desc", label: "1 year return, high to low" }, { v: "r3y", dir: "desc", label: "3 year return, high to low" },
   { v: "r5y", dir: "desc", label: "5 year return, high to low" }, { v: "sip3y", dir: "desc", label: "SIP return (3 years), high to low" }, { v: "sip5y", dir: "desc", label: "SIP return (5 years), high to low" },
   { v: "ter", dir: "asc", label: "Expense ratio, low to high" }, { v: "fall", dir: "asc", label: "Biggest fall, smallest first" }, { v: "rank3y", dir: "asc", label: "Rank in category (3 years), top first" },
-  { v: "age", dir: "desc", label: "Age, oldest first" }, { v: "name", dir: "asc", label: "Name, A to Z" }, { v: "score", dir: "desc", label: "Health score, high to low (Gold)", gold: true },
+  { v: "age", dir: "desc", label: "Age, oldest first" }, { v: "name", dir: "asc", label: "Name, A to Z" }, { v: "score", dir: "desc", label: "FundPulse, high to low", gold: true }   /* task #131: no Gold tag on the label; Gold only, as the server allows */,
 ];
 
 /** Groups the spec lists that need data we do not hold. Shown, never hidden, never faked: each says why and which free route would fill it (spec section 15). */
@@ -141,6 +141,6 @@ export const COMING: { id: string; label: string; why: string; route: string }[]
   { id: "capmix", label: "Large, mid and small cap share of holdings", why: "Needs the half-yearly AMFI large / mid / small list joined to holdings by ISIN.", route: "AMFI half-yearly cap list (F-D), or Nifty 100 / Midcap 150 / Smallcap 250 constituents (F-E)." },
   { id: "pe", label: "Portfolio P/E, P/B, quality and health", why: "Needs holdings joined to the stock database's ratios by ISIN.", route: "Join disclosure holdings to company ratios (F-E where a stock has none)." },
   { id: "moves", label: "Recent moves in a stock", why: "Needs two stored month-ends of holdings; only the latest is kept per fund today.", route: "Keep every month's holdings from now on (F-G)." },
-  { id: "score", label: "Health score, pillar scores and rank inside group", why: "The Mutual Fund Health Score is a Gold feature with its own screener.", route: "Use the Fund score screener (Gold)." },
+  { id: "score", label: "Pillar scores and rank inside group", why: "The FinLit FundPulse has its own column in the table for Gold members; its pillar scores and its rank inside the group are on the Fund score screener.", route: "Use the Fund score screener." },
   { id: "etfpanel", label: "ETF panel: traded value, premium or discount, 52-week range", why: "ETF price data exists but the panel is not built yet.", route: "Already stored in the ETF tables; next build." },
 ];

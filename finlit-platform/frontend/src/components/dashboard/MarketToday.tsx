@@ -6,7 +6,7 @@ import { useIndices } from "../../lib/indices";
 import { useMacro } from "../../lib/macro";
 import { rateTiles } from "../../lib/dashMacro";
 import { inflationCard } from "../../lib/dashPack";
-import { Cards } from "../sectors/pack/Common";
+import { DashCards } from "./DashCards";
 import { dayMonth, monthYear, pickIndices } from "../../lib/dashboard";
 import { MINUS, dateIN, nf } from "../../lib/format";
 import { niceTicks } from "../../lib/etf";
@@ -93,7 +93,7 @@ export function MarketToday() {
         <div className="dsh-rates"><div className="dsh-rates-h">Prices and rates that move company profits</div>
           {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 12 }} />)}</div> :
             <div className="dsh-rates-g">{tiles.map((t) => <div key={t.key} className="dsh-rate"><div className="n">{t.name}</div><div className="v">{t.value ?? "—"}</div><div className={"nt " + (t.tone ?? "")}>{t.note}</div></div>)}</div>}
-          {infl && <div className="sp dsh-cards"><Cards items={[infl]} /></div>}
+          {infl && <div className="sp dsh-cards"><DashCards items={[infl]} scope="market" /></div>}
           <p className="dsh-foot">Sources: U.S. EIA (Brent), FBIL (USD/INR), RBI (repo), MoSPI (CPI, WPI). Brent is compared with its average over the last four finished quarters, the period behind companies' latest results.</p></div>
       </div>
     </Card>

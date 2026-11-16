@@ -16,13 +16,16 @@ export const DASH_TABS: { id: DashTab; label: string }[] = [{ id: "stocks", labe
  *  default layout (the Gold & silver card needs a licensed price source; the DCF promo is already in the menu; the quarter-results cards are now part of "Your stocks today").
  *  Ids are lower-case letters and digits: the server stores them as written. */
 export const WIDGETS: { id: string; label: string; blurb: string; min: "basic" | "silver" | "gold"; size: WidgetSize; tab: DashTab; off?: boolean }[] = [
-  { id: "mystocks", label: "Your stocks today", blurb: "Price, today's move, FinLit IQ, latest results and alert for each stock you follow.", min: "basic", size: "full", tab: "stocks" },
+  { id: "mystocks", label: "Your investments today", blurb: "Your shares, watchlist and mutual funds: price or NAV, the day's move, 1 year, the FinLit reading and alerts.", min: "basic", size: "full", tab: "stocks" },
+  // task #135: the "at a glance" row (shares, mutual funds, ETFs) sits right under the table in the default order; a layout saved earlier keeps its order
+  { id: "portfolio", label: "Your shares at a glance", blurb: "Average FinLit Prism score, score bands, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "third", tab: "stocks" },
+  { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average FundPulse, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "third", tab: "stocks" },
+  { id: "etfglance", label: "Your ETFs at a glance", blurb: "What your ETFs track, their yearly cost and price against NAV. Opens with the ETF portfolio.", min: "basic", size: "third", tab: "stocks" },
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", tab: "market" },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", tab: "market" },
   { id: "sectors", label: "Sectors today", blurb: "Every sector's move today, ranked.", min: "basic", size: "half", tab: "market" },
   { id: "marketread", label: "The market: what it adds up to", blurb: "Six readings of the day (breadth, big moves, which sizes lead, short and bigger trends, industries) and what they add up to.", min: "basic", size: "full", tab: "market" },
   { id: "flows", label: "FII / DII flows", blurb: "Net buying and selling by foreign and domestic institutions.", min: "basic", size: "half", tab: "market" },
-  { id: "portfolio", label: "Your portfolio at a glance", blurb: "Average FinLit Prism score, score colours, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", tab: "stocks" },
   { id: "stress", label: "Stress Lab: today's conditions", blurb: "How today's crude, rupee, inflation and rate conditions would touch the stocks you follow.", min: "basic", size: "half", tab: "stocks", off: true },
   { id: "heatmap", label: "Index heatmap", blurb: "Stocks of an index as a map or a list, coloured by today's move.", min: "basic", size: "full", tab: "market" },
   { id: "resultstoday", label: "Results today", blurb: "Companies that have filed, or are due to report, results.", min: "basic", size: "half", tab: "news" },
@@ -47,6 +50,8 @@ export function normaliseLayout(saved: WidgetPref[] | undefined | null): WidgetP
   if (!(saved ?? []).some((w) => w?.id === "mystocks")) return defaultLayout();
   // A layout saved before the final pages pack (13 Nov 2026) has no "marketread": the pack's dashboard has no Stress Lab block, so it is switched off once (it stays in Customise).
   if (!(saved ?? []).some((w) => w?.id === "marketread")) saved = (saved ?? []).map((w) => (w?.id === "stress" ? { ...w, on: false } : w));
+  // A layout saved before task #135 (15 Nov 2026) has no "mfglance": its shares panel turns third-width once, so the three "at a glance" panels share one row.
+  if (!(saved ?? []).some((w) => w?.id === "mfglance")) saved = (saved ?? []).map((w) => (w?.id === "portfolio" ? { ...w, size: "third" } : w));
   const seen = new Set<string>();
   const dash: WidgetPref[] = [];
   for (const w of saved ?? []) if (w && known.has(w.id) && !seen.has(w.id)) { seen.add(w.id); dash.push({ id: w.id, on: !!w.on, size: w.size === "full" ? "full" : w.size === "third" ? "third" : "half" }); }
