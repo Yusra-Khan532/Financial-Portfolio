@@ -54,7 +54,7 @@ export function RulePicker({ groups, byKey, has, add, go, ask, onClose, startGro
           <nav className="ssk-groups" aria-label="Filter groups">
             {[{ id: "popular", label: "Popular", n: POPULAR.filter((k) => byKey.has(k)).length, tier: "basic" as Plan }, ...groups.map((g) => ({ id: g.id, label: g.label, n: g.metrics.filter(visible).length, tier: g.tier }))].map((g) => (
               <button key={g.id} type="button" aria-pressed={!q.trim() && grp === g.id} onClick={() => { setGrp(g.id); setQ(""); }}>
-                <span>{g.label}</span>{g.tier === "gold" && <span className="ssr-tier gold">GOLD</span>}<small>{g.n}</small>
+                <span>{g.label}</span><small>{g.n}</small>
               </button>))}
           </nav>
           <ul className="ssk-list" aria-label={q.trim() ? `Filters matching ${q}` : "Filters"}>
@@ -62,7 +62,7 @@ export function RulePicker({ groups, byKey, has, add, go, ask, onClose, startGro
               const on = has(m.key) || !!(m.variants && Object.values(m.variants).some(has));
               return (
                 <li key={m.key}>
-                  <div className="ssk-t"><b>{m.label}</b>{m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}</div>
+                  <div className="ssk-t"><b>{m.label}</b></div>
                   <p>{m.say}{m.stats && m.unit !== "flag" ? <> Most companies: {fmtMetric(m, m.stats.p10)} to {fmtMetric(m, m.stats.p90)}.</> : null}</p>
                   <div className="ssk-a">{on ? (go ? <button type="button" className="ssk-added ssk-go" onClick={() => go(m)} aria-label={`${m.label} is added: go to its rule`}>Added · Edit</button> : <span className="ssk-added">Added</span>)
                     : m.locked ? <button type="button" className="btn" onClick={() => ask(m.tier, `${m.label} is part of the ${TIER[m.tier].n} plan.`)}>Part of {TIER[m.tier].n}</button>

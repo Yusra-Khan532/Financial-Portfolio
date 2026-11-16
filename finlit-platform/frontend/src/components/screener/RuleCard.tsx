@@ -58,7 +58,6 @@ export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count
   const head = (
     <div className="ssr-rt">
       <b id={id}>{m.label}</b>
-      {m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}
       <button type="button" className="ssr-x" onClick={remove} aria-label={`Remove the rule on ${m.label}`}>×</button>
     </div>
   );

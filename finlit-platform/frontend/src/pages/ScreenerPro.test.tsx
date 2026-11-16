@@ -103,6 +103,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
 
   it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
+    st.cat = catalog(false, "gold");                                                                 // Gold and Platinum only (CR-0)
     mount(); await ready();
     const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
     expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
@@ -125,7 +126,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
   it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
     const panel = rulesPanel();
@@ -141,7 +142,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("screens stack: each adds its rules to the reader's, the stricter range wins, and turning one off takes away only its own (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));              // P/E 0.1 to 15
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
     fireEvent.change(within(rulesPanel()).getByLabelText("P/E to"), { target: { value: "10" } });   // the reader tightens it: it becomes the reader's own
@@ -202,7 +203,8 @@ describe("task #64 Part 4: the panel and the header", () => {
     mount(); await ready();
     const box = screen.getByRole("group", { name: "Every filter, by group" });
     expect(box.querySelector(".ssw-size-n")?.textContent).toBe("12 filters in 7 groups");          // hidden period variants are not counted
-    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model", "Custom ratio"]);
+    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model"]);
+    expect(within(box).getByRole("link", { name: /Custom ratio: comes with Gold and Platinum/ }).getAttribute("href")).toBe("/plans#gold");   // Silver: locked (N-2)
     fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
     const dlg = await screen.findByRole("dialog");
     expect(within(dlg).getByRole("button", { name: /Profitability/, pressed: true })).toBeTruthy();
@@ -518,6 +520,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
   });
   it("Clear all takes away rules, a custom ratio's filter (the ratio stays as a column) and the name search (task #154)", async () => {
     const cr = encodeRatios([{ id: "r1", num: "pe", den: "roe", show: "times", op: "gt", a: 1.5, name: "PE to ROE" }]);
+    st.cat = catalog(false, "gold");
     mount("?s=" + encodeState({ ...norm({ ranges: { roe: { min: 40 } } }), caps: ["Large"] }, "market_cap", "desc") + "&cr=" + encodeURIComponent(cr)); await ready();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search the results by name or symbol" }), { target: { value: "tata" } });
     const row = document.querySelector(".ssw-actv") as HTMLElement;
@@ -747,5 +750,47 @@ describe("task #140 (team note): the sliding bar beside Your rules, as on the ad
     fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
     await waitFor(() => expect(work().className).not.toContain("rules-min"));
     expect(work().style.getPropertyValue("--side-w")).toBe("240px");                 // reopens at the last width it had
+  });
+});
+
+describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)", () => {
+  const tags = () => Array.from(document.querySelectorAll(".ssr-tier")).map((t) => t.textContent);
+  it("N-2: Silver sees Custom ratio locked: one GOLD tag, the one line, See what Gold adds; no builder, no examples, no My ratios", async () => {
+    mount(); await ready();
+    const sec = screen.getByRole("group", { name: "Custom ratio, comes with Gold and Platinum" });
+    expect(within(sec).getByText("GOLD")).toBeTruthy();
+    expect(sec.textContent).toContain("Divide one figure by another, such as cash by market cap or borrowings by market cap, and screen on the result. Custom ratios come with Gold and Platinum.");
+    expect(within(sec).getByRole("link", { name: "See what Gold adds" }).getAttribute("href")).toBe("/plans#gold");
+    expect(screen.queryByRole("button", { name: /\+ Build a ratio/ })).toBeNull();
+    expect(sec.textContent).not.toMatch(/Examples|My ratios/);
+    expect(screen.queryByRole("dialog", { name: "Build a custom ratio" })).toBeNull();
+  });
+  it("N-2: a page address holding a ratio opens on Silver with the ratio left out and the note; the rest of its rules still run", async () => {
+    const cr = encodeRatios([{ id: "r1", num: "pe", den: "roe", show: "times", op: "gt", a: 1.5, name: "PE to ROE" }]);
+    mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc") + "&cr=" + encodeURIComponent(cr)); await ready();
+    expect(screen.getByText("This screen uses a custom ratio, which comes with Gold and Platinum. The rest of its rules are applied.")).toBeTruthy();
+    await waitFor(() => expect(last().filters).toMatchObject({ roe: { min: 15 } }));
+    expect(st.bodies.every((b) => !b.ratios || b.ratios.length === 0)).toBe(true);               // never sent to the server, which would refuse it
+    expect(screen.queryByText("PE to ROE (column)")).toBeNull();
+    expect(loc()).toContain("cr=");                                                                // kept, not deleted: it comes back on Gold
+  });
+  it("N-10: no plan tag on the page for Silver or Gold except the locked Custom ratio section; screens and filters carry none", async () => {
+    mount(); await ready();
+    expect(tags()).toEqual(["GOLD"]);                                                             // only Custom ratio, locked
+    expect(screen.queryByRole("tab", { name: /Silver screens/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
+    const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
+    expect(dlg.querySelector(".ssr-tier")).toBeNull();
+    fireEvent.keyDown(dlg, { key: "Escape" });
+    cleanup();
+    st.cat = catalog(false, "gold");
+    mount(); await ready();
+    expect(tags()).toEqual([]);                                                                   // Gold: no tag at all
+    const page = document.body.cloneNode(true) as HTMLElement;
+    page.querySelector('nav[aria-label="Find stocks"]')?.remove();                              // the Find stocks tabs name each page's plan, as the mock-up does
+    expect(page.textContent).not.toMatch(/SILVER|Silver screens/);
+    fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
+    expect((await screen.findByRole("dialog", { name: "Add a rule" })).textContent).not.toMatch(/SILVER|GOLD/);
   });
 });

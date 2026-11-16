@@ -28,6 +28,9 @@ PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
 BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]   # every word of either score (IQ_BANDS + PRISM_BANDS)
 
 
+RATIO_PLAN_LINE = "Custom ratios come with Gold and Platinum."
+
+
 def is_gold(plan: str) -> bool:
     return plan in ("gold", "admin", "platinum")
 
@@ -214,6 +217,8 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
 async def ratio_stats_api(request: Request, num: str, den: str, show: Literal["pct", "times"] = "times", first: str = ""):
     """The spread of a custom ratio for the drawer, and the worked example: the first company of `first` (the reader's current list, comma separated) that has both figures."""
     plan = _plan(await current(request))
+    if not is_gold(plan):
+        raise fail(403, "plan_required", RATIO_PLAN_LINE, plan="gold")
     if num == den or num not in BY_KEY or den not in BY_KEY or not ratioable(BY_KEY[num]) or not ratioable(BY_KEY[den]):
         raise fail(400, "bad_request", "A ratio needs two different figures that can be divided: no FinLit score and no yes-or-no filter.")
     if _locked(plan, [num, den]):
@@ -300,6 +305,8 @@ def _run(t, body: Query_, plan: str):
     bad = [c for c in cols if c not in BY_KEY]
     if bad:
         raise fail(400, "bad_request", "Unknown column.")
+    if body.ratios and not is_gold(plan):        # task #64, CR-0 (13 Nov): custom ratios are Gold and Platinum only; the page leaves them out on Silver
+        raise fail(403, "plan_required", RATIO_PLAN_LINE, plan="gold")
     for rt in body.ratios:
         if rt.num not in BY_KEY or rt.den not in BY_KEY or not ratioable(BY_KEY[rt.num]) or not ratioable(BY_KEY[rt.den]):
             raise fail(400, "bad_request", "A ratio needs two figures that can be divided: no FinLit score and no yes-or-no filter.")

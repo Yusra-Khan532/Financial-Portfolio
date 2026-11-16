@@ -198,7 +198,7 @@ def test_a_zero_or_negative_bottom_figure_gives_a_dash_and_pct_is_times_100(tabl
 
 @pytest.mark.asyncio
 async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_spread(app, table):  # noqa: F811
-    silver = await signed_in(app, "s04r@example.com", plan="silver")
+    silver = await signed_in(app, "s04r@example.com", plan="gold")       # custom ratios are Gold and Platinum only (CR-0); the Silver refusal is tested below
     base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5, "funnel": True}
     bad = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "pe", "den": "pe"}]})
     assert bad.status_code in (400, 422)
@@ -211,6 +211,23 @@ async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_sp
     assert st["have"] == 24 and st["total"] == 25 and len(st["hist30"]) == 30 and st["values"] == sorted(st["values"])
     assert st["example"]["symbol"] == "S03" and st["example"]["value"] == round(4000 / 103, 4)
     assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_custom_ratios_are_refused_below_gold_with_the_plain_line_and_the_rest_still_runs(app, table):  # noqa: F811
+    """Task #64, N-2 (CR-0 of 13 Nov): Silver could open and use the Custom ratio builder. The server now refuses `ratios` and the drawer's spread
+    from Silver with 403 plan_required and "Custom ratios come with Gold and Platinum."; the same query without the ratio runs as before."""
+    silver = await signed_in(app, "s04cr@example.com", plan="silver")
+    base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5}
+    r = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "ret_1y", "show": "times", "min": 1000}]})
+    assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_required" and r.json()["detail"]["plan"] == "gold"
+    assert "Custom ratios come with Gold and Platinum." in r.text
+    st = await silver.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price", "show": "times"})
+    assert st.status_code == 403 and "Custom ratios come with Gold and Platinum." in st.text
+    assert (await silver.post("/api/screener/query", json=base)).status_code == 200          # everything else on the page is open to Silver
+    gold = await signed_in(app, "g04cr@example.com", plan="gold")
+    assert (await gold.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "price", "show": "times"}]})).status_code == 200
+    assert (await gold.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price", "show": "times"})).status_code == 200
 
 
 @pytest.mark.integration
