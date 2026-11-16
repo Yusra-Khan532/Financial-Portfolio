@@ -748,6 +748,19 @@ async def _calculate(request: Request, ctx: Ctx, symbol: str, statement: str, re
 
 async def _execute(app, sub: str, symbol: str, statement: str, counter: Optional[str], refresh: bool, *, keep: bool = True,
                    background: bool = False, kept_seconds: Optional[float] = None) -> Tuple[int, Dict[str, Any], Optional[int]]:
+    """A member's calculation is counted in Redis while it runs (MEMBER_CALC_KEY), so the jobs' calculations, which since 16 Nov 2026 go to their OWN
+    site backend in the jobs container and cannot see this one's queue, wait until it is done (calculate_and_store)."""
+    if background:
+        return await _execute_one(app, sub, symbol, statement, counter, refresh, keep=keep, background=True, kept_seconds=kept_seconds)
+    await _member_calc(app.state.store.redis, +1)
+    try:
+        return await _execute_one(app, sub, symbol, statement, counter, refresh, keep=keep, background=False, kept_seconds=kept_seconds)
+    finally:
+        await _member_calc(app.state.store.redis, -1)
+
+
+async def _execute_one(app, sub: str, symbol: str, statement: str, counter: Optional[str], refresh: bool, *, keep: bool = True,
+                       background: bool = False, kept_seconds: Optional[float] = None) -> Tuple[int, Dict[str, Any], Optional[int]]:
     """One calculation through the site backend, stored. (200, the report, None) or (status, an error body, Retry-After); a failure gives the
     member's counted calculation back. `background` is the nightly job: it yields to members and its failures are not remembered."""
     redis = app.state.store.redis
@@ -1056,6 +1069,29 @@ WIDEN_REFRESH_DAYS = 30             # a widened rating older than this is calcul
 WIDEN_ZONE = "Asia/Kolkata"
 
 
+MEMBER_CALC_KEY = "prism:member:calculating"   # how many members' calculations are running right now (the jobs wait while above zero)
+MEMBER_CALC_SECONDS = 180                      # a crashed process cannot leave it up for long
+MEMBER_WAIT_TRIES = 40                         # a job calculation waits at most this many RETRY_AFTER_BACKGROUND steps (2 minutes) for members, then goes on
+
+
+async def _member_calc(redis, step: int) -> None:
+    try:
+        n = await redis.incrby(MEMBER_CALC_KEY, step)
+        if int(n) <= 0:
+            await redis.delete(MEMBER_CALC_KEY)
+        else:
+            await redis.expire(MEMBER_CALC_KEY, MEMBER_CALC_SECONDS)
+    except Exception:   # nosec B110 - best effort: without it the jobs only lose the courtesy wait, members still have their own backend
+        pass
+
+
+async def _member_calculating(redis) -> bool:
+    try:
+        return int(await redis.get(MEMBER_CALC_KEY) or 0) > 0
+    except Exception:
+        return False
+
+
 async def _members_active(redis) -> None:
     """Note that a member is using Prism right now (a calculation started for them). Best effort."""
     try:
@@ -1166,6 +1202,11 @@ async def calculate_and_store(app, symbol: str, statement: str, sub: str, *, kep
     refresh (scorelive.py) both run exactly this."""
     store, redis = app.state.store, app.state.store.redis
     code, r, paused = 0, None, 0
+    for _ in range(MEMBER_WAIT_TRIES):   # a member's calculation is running (on the website's site backend): it goes first, also with the data provider
+        if not await _member_calculating(redis):
+            break
+        paused += 1
+        await asyncio.sleep(RETRY_AFTER_BACKGROUND)
     for _ in range(PRE_PAUSE_TRIES):
         try:
             payload = await _site_payload(app, symbol, statement, background=True, keep=False, kept_seconds=kept_seconds)

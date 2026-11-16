@@ -1118,3 +1118,50 @@ async def test_history_route_is_gold_only_ordered_and_honest_about_its_start(env
     assert refused.status_code == 403 and refused.json()["status"] == "plan_required" and "points" not in refused.text     # the server enforces the plan
     assert (await gold.get("/api/prism/history?symbol=bad%20symbol")).status_code == 422      # the module's own answer for a bad symbol
     assert (await client(app).get("/api/prism/history?symbol=HISTRT")).status_code in (401, 403)
+
+
+async def test_a_job_calculation_waits_while_a_members_runs_on_the_other_site_backend(store, monkeypatch):  # noqa: F811
+    """16 Nov 2026: the jobs got their own site backend (deploy/jobs.sh), so the website's one can no longer turn them away while a member waits. A
+    member's calculation is counted in Redis while it runs, and a job calculation waits for it, then carries on."""
+    await _seed_summaries(store, ["PZ03"])
+    monkeypatch.setattr(prism, "RETRY_AFTER_BACKGROUND", 0.01)
+    await store.redis.delete(prism.MEMBER_CALC_KEY)
+    settings = make_settings(site_api_url="http://site", cms_jwt_secret=SECRET)
+    fake = FakeSite()
+    http = httpx.AsyncClient(transport=httpx.MockTransport(fake), base_url="http://site")
+    await prism._member_calc(store.redis, +1)                       # a member's calculation is running
+    assert await prism._member_calculating(store.redis)
+
+    async def member_finishes():
+        await asyncio.sleep(0.15)
+        await prism._member_calc(store.redis, -1)
+    waiter = asyncio.create_task(member_finishes())
+    out = await prism.precompute(store, settings, client=http)
+    await waiter
+    assert out["calculated"] == 1 and out["paused_for_members"] > 0 and out["failed"] == []
+    assert not await prism._member_calculating(store.redis) and await store.redis.get(prism.MEMBER_CALC_KEY) is None
+    await _drop_seeded(store)
+
+
+async def test_a_members_calculation_is_counted_only_while_it_runs_even_when_it_fails(store, monkeypatch):  # noqa: F811
+    from types import SimpleNamespace
+    await store.redis.delete(prism.MEMBER_CALC_KEY)
+    seen = []
+
+    async def one(app, *a, **k):
+        seen.append(await prism._member_calculating(store.redis))
+        if k.get("refresh_fail"):
+            raise RuntimeError("boom")
+        return 200, {}, None
+    monkeypatch.setattr(prism, "_execute_one", one)
+    app = SimpleNamespace(state=SimpleNamespace(store=store))
+    await prism._execute(app, "m", "TCS", "consolidated", None, False)
+    await prism._execute(app, "job", "TCS", "consolidated", None, False, background=True)   # the nightly job is not counted
+    assert seen == [True, False] and not await prism._member_calculating(store.redis)
+
+    async def boom(app, *a, **k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(prism, "_execute_one", boom)
+    with pytest.raises(RuntimeError):
+        await prism._execute(app, "m", "TCS", "consolidated", None, False)
+    assert not await prism._member_calculating(store.redis)                                   # a failure never leaves the jobs waiting

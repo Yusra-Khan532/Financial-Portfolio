@@ -45,7 +45,7 @@ def test_swap_is_created_only_when_missing_and_jobs_are_the_first_oom_victims():
     assert "vm.swappiness=10" in boot and "SWAP_GB" in boot
     compose = (ROOT / "deploy/aws/docker-compose.aws.yml").read_text()
     assert compose.count("oom_score_adj: -300") == 3                                                          # db, redis, caddy protected
-    assert "mem_limit: ${APP_MEM_LIMIT:-500m}" in compose and "mem_limit: ${JOBS_MEM_LIMIT:-800m}" in compose    # the website and the jobs each have their own limit
+    assert "mem_limit: ${APP_MEM_LIMIT:-500m}" in compose and "mem_limit: ${JOBS_MEM_LIMIT:-1000m}" in compose    # the website and the jobs each have their own limit
     runner = (ROOT / "backend/finlit/jobs/runner.py").read_text()
     assert "/proc/self/oom_score_adj" in runner and "oom_adj: int = 500" in runner and "start_new_session=True" in runner
 
@@ -71,14 +71,17 @@ def test_jobs_run_in_their_own_container_so_a_website_deploy_never_stops_one():
     compose_text = (ROOT / "deploy/aws/docker-compose.aws.yml").read_text()
     svc = yaml.safe_load(compose_text)["services"]
     app, jobs = svc["app"], svc["jobs"]
-    assert app["environment"]["JOBS_IN_APP"] == "0" and app["environment"]["SITE_API_HOST"] == "0.0.0.0"
+    assert app["environment"]["JOBS_IN_APP"] == "0" and "SITE_API_HOST" not in app["environment"]   # the members' site backend stays inside the website container
     assert jobs["image"] == app["image"] == "finlit-app:current" and jobs["env_file"] == app["env_file"] and jobs["volumes"] == app["volumes"]
     assert "./jobs.sh" in " ".join(jobs["command"]) and "sleep infinity" in " ".join(jobs["command"])   # an older image (no jobs.sh) just waits
     assert "ports" not in jobs and "ports" not in app
     start = (ROOT / "deploy/start.sh").read_text()
     assert 'if [ "${JOBS_IN_APP:-1}" != "0" ]; then' in start and "scheduler.sh" in start.split('if [ "${JOBS_IN_APP:-1}" != "0" ]; then')[1].split("\nelse\n")[0]
     jobs_sh = (ROOT / "deploy/jobs.sh").read_text()
-    assert "finlit.worker migrate" in jobs_sh and "./scheduler.sh" in jobs_sh and "SITE_API_PEER:-app" in jobs_sh
+    assert "finlit.worker migrate" in jobs_sh and "./scheduler.sh" in jobs_sh
+    # the jobs' own site backend, at a lower CPU priority, on this container's loopback (16 Nov 2026: members' Prism waited behind the jobs)
+    assert 'nice -n "${JOBS_SITE_API_NICE:-10}"' in jobs_sh and 'SITE_API_URL="http://127.0.0.1:8001"' in jobs_sh and "server:app --host 127.0.0.1 --port 8001" in jobs_sh
+    assert "SITE_API_PEER" not in jobs_sh and "app:8001" not in jobs_sh
     assert "deploy/jobs.sh" in (ROOT / "Dockerfile").read_text()
     deploy = (ROOT / "deploy/aws/deploy.sh").read_text()
     assert "dc up -d --remove-orphans db redis app caddy backup" in deploy and "dc up -d --remove-orphans\n" not in deploy
