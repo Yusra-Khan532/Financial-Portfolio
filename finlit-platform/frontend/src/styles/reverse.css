@@ -43,3 +43,24 @@
 .rv-dr details { margin-bottom: 12px; } .rv-dr table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: var(--fs-14); } .rv-dr th, .rv-dr td { padding: 8px 10px; border-top: 1px solid var(--border); text-align: left; } .rv-dr .r { text-align: right; }
 .rv-share { display: flex; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 720px) { .rv-info { margin-left: 0; } .rv-tor li { grid-template-columns: minmax(0, 1fr) 60px; } .rv-tor li > i { grid-column: 1 / -1; grid-row: 2; } }
+/* Task #188: the section bar under the header. It sticks under the site header (64px); the section in view is marked in emerald. */
+.rv .gate, .rv .gate > div { min-width: 0; }   /* the gate wraps the bar: without this the bar's row of buttons widens the page on a phone */
+.rv-sn { position: sticky; top: 64px; z-index: 6; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); box-shadow: 0 8px 18px -16px #000; min-width: 0; }
+.rv-sn-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.rv-sn-row::-webkit-scrollbar { display: none; }
+.rv-sni { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 2px; padding-right: 6px; border: 1px solid transparent; border-radius: 10px; transition: background .18s ease, border-color .18s ease; }
+.rv-sni:hover { background: var(--s2); }
+.rv-snb { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 4px 0 10px; border: 0; background: transparent; color: var(--muted); font: 600 var(--fs-13)/1.2 var(--sans); white-space: nowrap; cursor: pointer; }
+.rv-snb svg { width: 16px; height: 16px; flex: none; }
+.rv-snb:hover { color: var(--text); }
+.rv-snb:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: 8px; }
+.rv-sni.on { background: var(--gain-soft); border-color: var(--gain); }
+.rv-sni.on .rv-snb { color: var(--gain); }
+.rv-sni.off .rv-snb { opacity: .5; cursor: not-allowed; }
+.rv-sn-row.fr { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.rv-sn-row.fl { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px); mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.rv-sn-row.fl.fr { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+@media (max-width: 1180px) { .rv-sni { flex: none; } }
+@media (max-width: 760px) { .rv-sn { padding: 4px; } .rv-snb { gap: 6px; min-height: 36px; padding: 0 2px 0 8px; } .rv-snb svg { width: 14px; height: 14px; } }
+@media (prefers-reduced-motion: reduce) { .rv-sni { transition: none; } }
+@media print { .rv-sn { display: none !important; } }
