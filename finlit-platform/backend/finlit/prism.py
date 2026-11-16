@@ -303,7 +303,8 @@ CLASSIFICATION_VERSION = 3
 # 3.6.15: cash conversion uses standalone statements when the consolidated history has fewer than three complete years.
 # 3.6.16: a consolidated history too short for a 3-year comparison switches the whole report to the standalone statements.
 # 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
-REQUIRED_MODEL_VERSION = "3.6.17"
+# 3.6.18: out-of-date consolidated statements switch to standalone; provider failures on the company's own data stop the calculation.
+REQUIRED_MODEL_VERSION = "3.6.18"
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 
 

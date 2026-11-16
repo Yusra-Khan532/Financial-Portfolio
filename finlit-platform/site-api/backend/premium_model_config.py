@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.17"
+MODEL_VERSION = "3.6.18"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -110,6 +110,9 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.18 (16 November 2026): consolidated statements that stop earlier than the standalone ones (standalone latest year >= 360 days or latest
+# quarter >= 170 days newer; the main site's rule) also switch the report to standalone; a provider failure on the company's own statements, quote,
+# prices, P/E history or ownership filings stops the calculation instead of rating empty answers.
 # 3.6.17 (16 November 2026): no model change; reports stored by 3.6.16 when the standalone statements could not be read (a silently empty
 # provider answer) are rebuilt. The resolver now reads them again and stops rather than rating a too-short consolidated history.
 # 3.6.16 (owner, 15 November 2026): when the latest unbroken run of consolidated full years is shorter than 4 (too short for a 3-year comparison)

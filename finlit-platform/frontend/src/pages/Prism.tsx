@@ -130,13 +130,17 @@ export function PrismPage() {
   const { symbol: raw } = useParams();
   const gold = useGold(), { showcase } = useAuth();
   const symbol = cleanSymbol(raw);
-  const statement: Statement = "consolidated";   // FinLit Prism is calculated from consolidated statements only: there is no standalone choice (an old ?statement=standalone link opens the consolidated report)
+  const statement: Statement = "consolidated";   // FinLit Prism is requested on consolidated statements: there is no standalone choice (an old ?statement=standalone link opens the consolidated report)
+  // The report itself may use the standalone statements (consolidated history too short or out of date, model 3.6.16+): the header names the basis
+  // the shown report really uses, read from the same cached query the report view loads (no extra request).
+  const shown = useLatestPrism(symbol || "", statement, !!symbol && (gold || showcase.includes(symbol))).data;
+  const basis: Statement = shown?.statementType === "standalone" ? "standalone" : statement;
   if (!raw) return gold ? <Landing /> : <Locked />;
   if (!symbol) return <><Head /><div className="wrap" style={{ paddingBottom: 56 }}><div className="pm-empty"><b>That is not a company symbol.</b><p><Link to="/prism">Search for a company</Link></p></div></div></>;
   if (!gold && !showcase.includes(symbol)) return <Locked symbol={symbol} />;
   return (
     <>
-      <Head>{symbol} · {statementWord(statement)} statements. <Link to="/prism">Another company</Link></Head>
+      <Head>{symbol} · {statementWord(basis)} statements. <Link to="/prism">Another company</Link></Head>
       <div className="wrap pzr-page" style={{ paddingBottom: 56 }}>
         <CompanyView key={symbol + statement} symbol={symbol} statement={statement}
           picker={<Picker statement={statement} />} />
