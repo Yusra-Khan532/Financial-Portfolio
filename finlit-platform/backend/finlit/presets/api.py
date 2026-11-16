@@ -15,7 +15,7 @@ from ..auth.service import current
 from datetime import date as _date
 
 from ..screener.data import get_table
-from . import engine, history, service
+from . import engine, glance, history, service
 from .registry import ALL, BY_ID, DISCLAIMER, GROUPS, Preset, render_card
 
 router = APIRouter(prefix="/api/screener/presets")
@@ -173,6 +173,7 @@ async def listing(request: Request):
     store = request.app.state.store
     by_group = {g: [] for g, _ in GROUPS}
     as_of = None
+    pending = []
     for p in ALL:
         if p.tab != tab:
             continue
@@ -180,8 +181,57 @@ async def listing(request: Request):
         if gold and p.status == "live" and p.kind != "quickview":
             cached = await service.read_cached(store, p.id, engine.chip_key([c.id for c in p.chips if c.default]))
             as_of = max(filter(None, [as_of, (cached or {}).get("asOf")]), default=as_of)
-        by_group[p.group].append(_card(p, gold, cached))
+        card = _card(p, gold, cached)
+        if gold and p.status == "live" and p.kind != "quickview":
+            pending.append((p, card, cached))
+        by_group[p.group].append(card)
+    if pending:
+        try:
+            await _glance(store, tab, pending)
+        except Exception:           # the cards keep their name and count; only the extras are left out
+            pass
     return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
+
+
+async def _glance(store, tab: str, pending) -> None:
+    """The Ready-made screens cards (N-38): "+3 joined since yesterday", and the first three companies with the card's figure, from the stored lists."""
+    t = await get_table(store)
+
+    def lookup(sym: str, key: str):
+        i = t.pos.get(sym)
+        if i is None:
+            return None
+        if key == "name":
+            return t.name[i]
+        col = t.cols.get(key)
+        return col[i] if col is not None else None
+
+    base = await history.baseline_session(store)
+    async with store.pool.acquire() as conn:
+        spells = await conn.fetch("SELECT preset_id, chips, added_on, count(*) AS n FROM screen_spells WHERE left_on IS NULL AND added_on >= CURRENT_DATE - 14 GROUP BY 1, 2, 3")
+    added: dict = {}
+    for r in spells:
+        added.setdefault((r["preset_id"], r["chips"]), {})[r["added_on"].isoformat()] = int(r["n"])
+    gainers: dict = {}
+    for p, card, cached in pending:
+        if p.kind == "gainers":
+            win = p.id.rsplit("-", 1)[-1]
+            if win not in gainers:
+                gainers[win] = await history.gainers_for(store, tab, win, None)
+            got = gainers[win] or {}
+            card["first"] = glance.first_three(got.get("rows") or [], p.group, tab, lookup)
+            card["figure"] = glance.FIGURE_SINCE
+            card["joined"] = None
+            if got.get("session"):
+                card["asOf"] = card.get("asOf") or got["session"]
+                card["count"] = card["count"] if card.get("count") is not None else len(got.get("rows") or [])
+            continue
+        if not cached:
+            continue
+        ckey = engine.chip_key([c.id for c in p.chips if c.default])
+        card["first"] = glance.first_three(cached.get("rows") or cached.get("exportRows") or [], p.group, tab, lookup)
+        card["figure"] = glance.figure_of(p.group)
+        card["joined"] = glance.joined_count(added.get((p.id, ckey), {}), cached.get("asOf"), base)
 
 
 BADGE_GROUPS = ("top-rated", "themes")      # the screens a company page names: the highest-rated lists and the themes (a value or safety screen would read as a verdict on one company)

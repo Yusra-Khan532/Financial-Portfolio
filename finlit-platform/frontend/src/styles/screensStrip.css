@@ -1,0 +1,84 @@
+/* Ready-made screens strip on the Basic and Advanced stock screeners (task #64, 14 Nov file v4, N-38). Every class starts with rms- and lives only here.
+   Top rated and the Top 10 lists use the site's deep green and gold (#34493E to #22332A, gold text #EBD59F); every other group's screens are plain cards. */
+.rms { --rms-deep: linear-gradient(160deg, #34493E, #22332A); --rms-goldtx: #EBD59F; --rms-gold: #C9A55A; --rms-cream: #F6EBD3;
+  position: relative; margin: 0 0 14px; padding: 18px 20px 20px; border: 1.5px solid var(--rms-gold); border-radius: 16px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--rms-gold) 16%, transparent), 0 8px 24px rgba(30, 40, 30, .08); }
+.rms-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rms-head > div { flex: 1 1 0; min-width: 220px; }
+.rms-head h3 { margin: 0; font: 600 var(--fs-20, 20px) var(--serif); color: var(--text); }
+.rms-head p, .rms-note { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.rms-hcrown { display: inline-grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 12px; background: var(--rms-deep); border: 1.5px solid var(--rms-gold); color: var(--rms-goldtx); }
+.rms-crown { display: inline-grid; place-items: center; flex: none; color: inherit; }
+.rms-crown svg { width: 100%; height: 100%; }
+.rms-hcrown .rms-crown { animation: rms-nod 6s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes rms-nod { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-9deg); } 94% { transform: rotate(7deg); } 97% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .rms-hcrown .rms-crown { animation: none; } .rms-card { transition: none; } .rms-card:hover, .rms-card:focus-visible { transform: none; } }
+.rms-upd { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--s2); color: var(--muted); font: 600 13px var(--sans); white-space: nowrap; }
+.rms-upd i { width: 9px; height: 9px; border-radius: 50%; background: var(--gain); }
+
+.rms-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 14px; padding: 3px; }
+.rms-tab { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 13px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font: 600 14px var(--sans); white-space: nowrap; cursor: pointer; }
+.rms-tab small { color: var(--muted); font-weight: 500; font-size: 13px; }
+.rms-tab:hover { background: var(--s2); }
+.rms-tab[aria-selected="true"] { background: var(--s3); }
+.rms-tab:focus-visible, .rms-card:focus-visible { outline: 2px solid var(--rms-gold); outline-offset: 3px; }
+.rms-ti { display: inline-grid; place-items: center; color: var(--muted); }
+.rms-tab[aria-selected="true"] .rms-ti { color: var(--text); }
+.rms-tab.is-top { background: var(--rms-deep); color: var(--rms-goldtx); border-color: var(--rms-gold); }
+.rms-tab.is-top small { color: var(--rms-goldtx); opacity: .85; }
+.rms-tab.is-top[aria-selected="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--rms-gold) 45%, transparent); }
+.rms-tab.has-open:not(.is-top)::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--rms-gold); }
+
+.rms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(222px, 1fr)); gap: 14px; padding-top: 14px; }
+.rms-card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; padding: 16px 16px; border: 1px solid var(--border-strong, var(--border)); border-radius: 14px;
+  background: var(--s1); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.rms-card:hover, .rms-card:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(20, 30, 20, .12); }
+.rms-card.is-blocked { opacity: .6; cursor: not-allowed; }
+.rms-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rms-name b { font: 700 16px var(--sans); line-height: 1.25; }
+.rms-gi { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; background: var(--gain-soft); color: var(--gain); }
+.rms-star { color: var(--rms-gold); font-size: 18px; line-height: 1; }
+.rms-count { color: var(--muted); font-size: 14px; } .rms-count b { color: var(--text); font-weight: 700; }
+.rms-joined { align-self: flex-start; padding: 3px 10px; border-radius: 999px; background: var(--gain-soft); color: var(--gain); font: 600 13px var(--sans); }
+.rms-first { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; padding-top: 10px; border-top: 1px dashed var(--border-strong, var(--border)); }
+.rms-fh { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; color: var(--muted); font: 700 12px var(--sans); letter-spacing: .02em; text-transform: uppercase; }
+.rms-fh span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rms-fr { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
+.rms-fn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rms-fv { flex: none; padding: 1px 7px; border-radius: 6px; background: var(--s2); font: 700 13px var(--mono); }
+.rms-fv.is-up { background: var(--gain-soft); color: var(--gain); } .rms-fv.is-down { background: var(--loss-soft); color: var(--loss); } .rms-fv.is-none { background: transparent; color: var(--muted); }
+.rms-call { margin-top: auto; padding-top: 6px; color: #8A6A2A; font: 700 14px var(--sans); }
+.rms-tag { position: absolute; top: -11px; right: 14px; padding: 3px 9px; border-radius: 7px; background: var(--rms-goldtx); color: #22332A; font: 800 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+.rms-card.is-on { border-width: 3px; border-color: var(--rms-gold); padding: 14px 16px; }
+
+/* the other Top rated screens: cream-gold with a gold star */
+.rms-card.is-toprated { background: var(--rms-cream); border-color: color-mix(in srgb, var(--rms-gold) 70%, transparent); color: #2B2A22; }
+.rms-card.is-toprated .rms-count, .rms-card.is-toprated .rms-fh { color: #6D664F; } .rms-card.is-toprated .rms-count b { color: #2B2A22; }
+.rms-card.is-toprated .rms-fv.is-score { background: #fff; color: #2B2A22; }
+
+/* every Top 10 and Highest-rated list: deep green and gold, the large crown badge and the TOP 10 tag */
+.rms-card.is-top10 { margin-top: 10px; padding-top: 22px; background: var(--rms-deep); border-color: var(--rms-gold); color: var(--rms-goldtx); box-shadow: 0 6px 16px rgba(20, 30, 20, .22); }
+.rms-card.is-top10.is-on { padding-top: 20px; }
+.rms-card.is-top10 .rms-name b { font: 600 16px var(--serif); color: var(--rms-goldtx); }
+.rms-card.is-top10 .rms-count, .rms-card.is-top10 .rms-fh, .rms-card.is-top10 .rms-fn { color: #E6DCC2; } .rms-card.is-top10 .rms-count b { color: var(--rms-goldtx); }
+.rms-card.is-top10 .rms-first { border-top-color: rgba(235, 213, 159, .35); }
+.rms-card.is-top10 .rms-joined { background: rgba(120, 190, 140, .18); color: #A9E2B8; }
+.rms-card.is-top10 .rms-fv.is-score { background: var(--rms-goldtx); color: #22332A; }
+.rms-card.is-top10 .rms-call { align-self: flex-start; margin-top: 6px; padding: 8px 14px; border-radius: 9px; background: var(--rms-goldtx); color: #22332A; }
+.rms-badge { position: absolute; top: -18px; left: 14px; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #FBF4E2; border: 2px solid var(--rms-gold); color: #A7802F; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+
+/* dark mode: the plain cards' gold call stays legible on the dark surface; the deep green and cream cards keep their own colours */
+[data-theme="dark"] .rms-card.is-plain .rms-call { color: var(--rms-goldtx); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rms-card.is-plain .rms-call { color: var(--rms-goldtx); } }
+
+/* phone: the cards scroll sideways, each about 78% of the screen, snapping card by card */
+@media (max-width: 640px) {
+  .rms { padding: 14px 14px 16px; }
+  .rms-hcrown { width: 44px; height: 44px; }
+  .rms-head { gap: 10px 12px; }
+  .rms-head > div { flex: 1 1 calc(100% - 60px); min-width: 0; }
+  .rms-head h3 { font-size: 18px; }
+  .rms-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; }
+  .rms-cards { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding: 18px 2px 6px; overscroll-behavior-x: contain; }
+  .rms-card { flex: 0 0 78%; scroll-snap-align: start; }
+}

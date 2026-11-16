@@ -43,7 +43,7 @@ const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSil
 const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "large", label: "Large, established companies", says: "Market cap above ₹1,00,000 Cr", tier: "basic", group: "everyday", count: 123, state: { ranges: { market_cap: { min: 100000 } } } },
   { id: "lowdebt", label: "Low debt", says: "Debt to equity below 0.5×", tier: "basic", group: "everyday", count: 3552, state: { ranges: { debt_to_equity: { max: 0.5 } } } },
-  { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", tier: "silver", group: "silver", count: 1265, state: { ranges: { pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } } } },
+  { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", tier: "silver", group: "value", count: 1265, state: { ranges: { pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } } } },
   { id: "strong", label: "FinLit IQ Strong", says: "Companies the FinLit IQ rates Strong", tier: "silver", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
   { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
 ] };
@@ -103,6 +103,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
 
   it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
+    st.cat = catalog(false, "gold");             // Custom ratio is Gold and Platinum (14 Nov file, N-2)
     mount(); await ready();
     const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
     expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
@@ -125,7 +126,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
   it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Value/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
     const panel = rulesPanel();
@@ -141,7 +142,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("screens stack: each adds its rules to the reader's, the stricter range wins, and turning one off takes away only its own (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /Silver screens/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Value/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));              // P/E 0.1 to 15
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
     fireEvent.change(within(rulesPanel()).getByLabelText("P/E to"), { target: { value: "10" } });   // the reader tightens it: it becomes the reader's own
@@ -159,7 +160,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("a screen on the plan's score sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /FinLit model/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Quality compounders \(model\):/ }));
     await waitFor(() => expect(last().model_screens).toEqual(["modelcompound"]));
     expect(last().filters).toEqual({});
@@ -173,7 +174,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("the rating-word screen and a screen above the plan: Basic is asked to upgrade instead of running", async () => {
     st.cat = catalog(true); mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /FinLit model/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^FinLit IQ Strong:.*part of Silver/ }));
     expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/FinLit IQ Strong/));
     expect(st.bodies.some((b) => b.cats?.band?.length)).toBe(false);
@@ -283,7 +284,7 @@ describe("the table (file 04 §5)", () => {
     for (const c of tech) { expect(c.querySelector(".ssw-sc")!.textContent).toBe("+12"); expect((c.querySelector("small")!.textContent ?? "").length).toBeGreaterThan(2); }
     expect(within(rulesPanel()).queryByRole("group", { name: "FinLit Prism rating" })).toBeNull();   // task #143: the rating box is gone from Your rules
     for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
-    expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /FinLit model/ })).toBeTruthy();
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
@@ -516,8 +517,32 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     await waitFor(() => expect(last().cats!.cap).toEqual([]));
     expect(row()).toBeNull();                                                                       // no chips left: the normal screen
   });
+  it("Silver sees Custom ratio locked: the GOLD tag, one line and See what Gold adds; no builder, examples or My ratios; a link with a ratio opens with the note and sends none (N-2)", async () => {
+    const cr = encodeRatios([{ id: "r1", num: "pe", den: "roe", show: "times", op: "gt", a: 1.5, name: "PE to ROE" }]);
+    mount("?cr=" + encodeURIComponent(cr)); await ready();
+    const box = screen.getByRole("group", { name: "Custom ratio, part of Gold" });
+    expect(box.querySelector(".ssr-tier.gold")?.textContent).toBe("GOLD");
+    expect(box.textContent).toContain("Divide one company figure by another and filter on the result.");
+    expect(box.textContent).toContain("This link holds a custom ratio. Custom ratio is part of Gold, so the screen runs without it.");
+    expect(screen.queryByRole("button", { name: /\+ Build a ratio/ })).toBeNull();
+    expect(box.textContent).not.toMatch(/Examples|My ratios/);
+    fireEvent.click(within(box).getByRole("button", { name: "See what Gold adds" }));
+    expect(ui.upgrade).toHaveBeenCalledWith("gold", expect.stringMatching(/Divide one company figure/));
+    expect(st.bodies.every((b) => !(b as { ratios?: unknown[] }).ratios?.length)).toBe(true);        // nothing the server would refuse
+    expect(document.querySelectorAll(".ssr-tier").length).toBe(1);                                    // the one plan tag on the page (N-10)
+  });
+  it("no plan tag anywhere on the page for Silver or Gold: ready-made screens by topic, the rule picker and the rule cards (N-10, N-11)", async () => {
+    for (const plan of ["silver", "gold"] as const) {
+      cleanup(); st.cat = catalog(false, plan); mount(); await ready();
+      expect([...screen.getAllByRole("tab")].map((t) => t.textContent?.replace(/\d+.*$/, "").trim()).filter(Boolean)).toEqual(expect.arrayContaining(["Everyday", "Value", "FinLit model", "My screens"]));
+      expect(document.body.textContent).not.toMatch(/Silver screens|On the FinLit IQ|On FinLit Prism/);
+      fireEvent.click(screen.getByRole("button", { name: /\+ Add a rule/ }));
+      expect(document.querySelectorAll(".ssr-tier").length).toBe(plan === "silver" ? 1 : 0);        // Silver: only the locked Custom ratio's GOLD
+    }
+  });
   it("Clear all takes away rules, a custom ratio's filter (the ratio stays as a column) and the name search (task #154)", async () => {
     const cr = encodeRatios([{ id: "r1", num: "pe", den: "roe", show: "times", op: "gt", a: 1.5, name: "PE to ROE" }]);
+    st.cat = catalog(false, "gold");
     mount("?s=" + encodeState({ ...norm({ ranges: { roe: { min: 40 } } }), caps: ["Large"] }, "market_cap", "desc") + "&cr=" + encodeURIComponent(cr)); await ready();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search the results by name or symbol" }), { target: { value: "tata" } });
     const row = document.querySelector(".ssw-actv") as HTMLElement;

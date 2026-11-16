@@ -19,7 +19,7 @@ class Ready:
     label: str
     says: str
     tier: str                       # basic | silver | gold: the plan that may run it
-    group: str                      # everyday | silver | model: the tab it is listed under
+    group: str                      # the topic it is listed under (task #64, 14 Nov file, N-10 / N-11): everyday | value | quality | results | dividends | ownership | price | model
     rules: Rules = field(default_factory=dict)
     caps: Tuple[str, ...] = ()
     bands: Tuple[str, ...] = ()     # a FinLit rating word (strong, healthy, mixed, watch): shown, since the user filters by the word
@@ -37,33 +37,33 @@ READY: List[Ready] = [
     Ready("lowdebt", "Low debt", "Debt to equity below 0.5×", "basic", "everyday", _r(debt_to_equity=(None, 0.5))),
     Ready("div", "Dividend payers", "Dividend yield above 2%", "basic", "everyday", _r(dividend_yield=(2, None))),
     Ready("roe", "High return on equity", "ROE above 15% and ROCE above 15%", "basic", "everyday", _r(roe=(15, None), roce=(15, None))),
-    # Silver
-    Ready("value", "Value picks", "P/E under 15× and P/B under 2×", "silver", "silver", _r(pe=(0.1, 15), pb=(0.1, 2))),
-    Ready("garp", "Growth at a fair price", "PEG under 1.5, profit growth 5Y above 15%, ROE above 15%", "silver", "silver",
+    # By topic (14 Nov file N-11): Value, Quality & cash, Results, Dividends, Ownership, Price & volume. Open to every plan that has the page (Silver and up)
+    Ready("value", "Value picks", "P/E under 15× and P/B under 2×", "silver", "value", _r(pe=(0.1, 15), pb=(0.1, 2))),
+    Ready("garp", "Growth at a fair price", "PEG under 1.5, profit growth 5Y above 15%, ROE above 15%", "silver", "value",
           _r(peg=(0.01, 1.5), profit_cagr_5y=(15, None), roe=(15, None))),
-    Ready("cheap_own", "Cheap against its own history", "P/E at least 15% below its own average, profit still growing", "silver", "silver",
+    Ready("cheap_own", "Cheap against its own history", "P/E at least 15% below its own average, profit still growing", "silver", "value",
           _r(pe_vs_median_5y=(None, -15), profit_growth=(0, None), pe=(0.1, None))),
-    Ready("cheap_sector", "Cheaper than its sector", "P/E 20% below the sector median with ROE above 12%", "silver", "silver", _r(pe_vs_sector=(None, -20), roe=(12, None))),
-    Ready("netcash", "Net cash balance sheet", "More cash and investments than debt, interest cover above 5×", "silver", "silver", _r(net_debt=(None, 0), interest_coverage=(5, None))),
-    Ready("cashrich", "Profits backed by cash", "Operating cash above 90% of profit, free cash flow positive", "silver", "silver",
+    Ready("cheap_sector", "Cheaper than its sector", "P/E 20% below the sector median with ROE above 12%", "silver", "value", _r(pe_vs_sector=(None, -20), roe=(12, None))),
+    Ready("netcash", "Net cash balance sheet", "More cash and investments than debt, interest cover above 5×", "silver", "quality", _r(net_debt=(None, 0), interest_coverage=(5, None))),
+    Ready("cashrich", "Profits backed by cash", "Operating cash above 90% of profit, free cash flow positive", "silver", "quality",
           _r(cfo_to_pat=(90, None), fcf=(0.01, None), net_profit=(0.01, None))),
-    Ready("compounder", "Steady compounders", "Sales and profit growth above 12% for 5 years, ROCE above 15%", "silver", "silver",
+    Ready("compounder", "Steady compounders", "Sales and profit growth above 12% for 5 years, ROCE above 15%", "silver", "quality",
           _r(sales_cagr_5y=(12, None), profit_cagr_5y=(12, None), roce=(15, None))),
-    Ready("surge", "Quarterly profit surge", "Profit up 25%+ on last year's quarter, sales also rising", "silver", "silver", _r(q_profit_yoy=(25, None), q_sales_yoy=(5, None))),
-    Ready("steadyq", "Four strong quarters", "Sales and profit beat the year-ago quarter in each of the last four", "silver", "silver", _r(q_sales_up=(4, None), q_profit_up=(4, None))),
-    Ready("divgrow", "Reliable dividend growers", "Paid dividends in 6 of 6 years, growing, yield above 1%", "silver", "silver",
+    Ready("surge", "Quarterly profit surge", "Profit up 25%+ on last year's quarter, sales also rising", "silver", "results", _r(q_profit_yoy=(25, None), q_sales_yoy=(5, None))),
+    Ready("steadyq", "Four strong quarters", "Sales and profit beat the year-ago quarter in each of the last four", "silver", "results", _r(q_sales_up=(4, None), q_profit_up=(4, None))),
+    Ready("divgrow", "Reliable dividend growers", "Paid dividends in 6 of 6 years, growing, yield above 1%", "silver", "dividends",
           _r(div_years=(6, None), dps_cagr=(5, None), dividend_yield=(1, None))),
-    Ready("buying", "Promoters and funds buying", "Promoters and institutions both added to their stake this year", "silver", "silver",
+    Ready("buying", "Promoters and funds buying", "Promoters and institutions both added to their stake this year", "silver", "ownership",
           _r(own_promoters_chg_1y=(0.25, None), own_inst_chg_1y=(0.5, None))),
-    Ready("resultsseason", "Results-season standouts", "Latest quarter: sales up 20%+ and profit up 25%+ on the year-ago quarter, market cap ₹1,000 Cr or more", "silver", "silver",
+    Ready("resultsseason", "Results-season standouts", "Latest quarter: sales up 20%+ and profit up 25%+ on the year-ago quarter, market cap ₹1,000 Cr or more", "silver", "results",
           _r(q_sales_yoy=(20, None), q_profit_yoy=(25, None), market_cap=(1000, None))),
-    Ready("steadydiv", "Steady dividend payers", "Yield 2.5%+, paid in all of the last 6 years, payout 75% or less, at most 1 red flag, market cap ₹1,000 Cr or more", "silver", "silver",
+    Ready("steadydiv", "Steady dividend payers", "Yield 2.5%+, paid in all of the last 6 years, payout 75% or less, at most 1 red flag, market cap ₹1,000 Cr or more", "silver", "dividends",
           _r(dividend_yield=(2.5, None), div_years=(6, None), dividend_payout=(None, 75), flag_count=(None, 1), market_cap=(1000, None))),
-    Ready("instbuying", "Institutions buying", "Foreign and domestic institutions each added 0.5 point or more last quarter; promoters down no more than 1 point in a year", "silver", "silver",
+    Ready("instbuying", "Institutions buying", "Foreign and domestic institutions each added 0.5 point or more last quarter; promoters down no more than 1 point in a year", "silver", "ownership",
           _r(own_fii_chg_1q=(0.5, None), own_dii_chg_1q=(0.5, None), own_promoters_chg_1y=(-1, None))),
-    Ready("newhigh", "Near a 52-week high with volume", "Within 3% of the high and trading 1.5× average volume", "silver", "silver", _r(near_high=(1, None), volume_vs_avg=(1.5, None))),
-    Ready("oversold", "Oversold quality", "RSI under 35 but ROE above 12% and debt under 1×", "silver", "silver", _r(rsi14=(None, 35), roe=(12, None), debt_to_equity=(None, 1))),
-    Ready("clean", "No red flags", "None of the eight warnings apply, large and mid companies", "silver", "silver", _r(flag_count=(None, 0)), caps=("Large", "Mid")),
+    Ready("newhigh", "Near a 52-week high with volume", "Within 3% of the high and trading 1.5× average volume", "silver", "price", _r(near_high=(1, None), volume_vs_avg=(1.5, None))),
+    Ready("oversold", "Oversold quality", "RSI under 35 but ROE above 12% and debt under 1×", "silver", "price", _r(rsi14=(None, 35), roe=(12, None), debt_to_equity=(None, 1))),
+    Ready("clean", "No red flags", "None of the eight warnings apply, large and mid companies", "silver", "quality", _r(flag_count=(None, 0)), caps=("Large", "Mid")),
     # On the FinLit IQ (Silver): words only
     Ready("strong", "FinLit IQ Strong", "Companies the FinLit IQ rates Strong", "silver", "model", bands=("strong",), score="iq"),
     Ready("modelcompound", "Quality compounders (model)", "Companies the FinLit IQ rates high on both quality and growth", "silver", "model",

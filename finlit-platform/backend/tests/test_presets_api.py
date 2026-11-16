@@ -230,3 +230,19 @@ async def test_the_selfcheck_says_why_in_counts_and_dates_and_the_night_keeps_it
     assert {"asOf", "checked", "leftOut", "candlesEnd"} <= set(d["patterns"]) or "error" in d["patterns"]
     assert "days" in d["nifty500"]
     assert not any(f"S{i:02d}" in json.dumps(d) for i in range(30))                          # still never a company
+
+
+async def test_the_ready_made_cards_carry_the_first_three_and_the_joined_count_for_the_plan_only(app, anon, store):  # noqa: F811
+    """Task #64, 14 Nov file, N-38: each computed card names its first three companies with the card's figure, and how many joined at the latest close."""
+    await wipe(store)
+    await service.refresh_presets(store)
+    gold = await signed_in(app, "rm@example.com", plan="gold")
+    cards = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"]]
+    computed = [c for c in cards if c["computed"]]
+    assert computed and all(set(c) >= {"first", "figure", "joined"} for c in computed)
+    et = next(c for c in cards if c["id"] == "emerging-tech")
+    assert 1 <= len(et["first"]) <= 3 and all(set(f) == {"symbol", "name", "value"} for f in et["first"]) and et["figure"] == "score"
+    assert isinstance(et["joined"], int) and et["joined"] >= 0
+    locked = [c for g in (await anon.get("/api/screener/presets")).json()["groups"] for c in g["presets"]]
+    assert not any("first" in c or "joined" in c for c in locked)          # no values above the plan
+    await gold.aclose()

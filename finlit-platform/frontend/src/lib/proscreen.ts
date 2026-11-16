@@ -123,7 +123,7 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
 };
 
 /** One ready-made screen of the Stock screener (task #64, file 04), as the server sends it: a metric screen's rules come in `state`; a screen on the FinLit model has none. */
-export type ReadyScreen = { id: string; label: string; says: string; tier: Plan; group: "everyday" | "silver" | "model"; count: number | null; state?: Partial<PState> };
+export type ReadyScreen = { id: string; label: string; says: string; tier: Plan; group: "everyday" | "value" | "quality" | "results" | "dividends" | "ownership" | "price" | "model"; count: number | null; state?: Partial<PState> };
 export const useReady = () => useQuery<{ asOf: string; total: number; screens: ReadyScreen[] }, ApiError>({ queryKey: ["screener-ready"], queryFn: () => apiGet("/api/screener/ready"), staleTime: 300_000, retry: 1 });
 /** The columns the table opens with (task #145: the company and its market cap) that the visitor's plan shows, else the older default set. */
 export const standardColumns = (cat: Pick<Catalog, "defaultColumns" | "groups" | "standardColumns"> | undefined): string[] =>

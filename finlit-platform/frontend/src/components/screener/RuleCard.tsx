@@ -45,7 +45,8 @@ const same = (a: Range, b: Range) => (a.min ?? null) === (b.min ?? null) && (a.m
 
 export type RuleCount = { before: number; after: number; missing: number } | undefined;
 
-export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count, hot }: {
+export function RuleCard({ tags = false, m, cur, r, set, remove, ask, period, setPeriod, count, hot }: {
+  /** Plan tags: only for a visitor below the page's plans (14 Nov file, N-10). */ tags?: boolean;
   m: MetricInfo; cur: MetricInfo; r: Range; set: (r: Range) => void; remove: () => void; ask: (tier: Plan, why: string) => void;
   period: string; setPeriod: (p: string) => void; count: RuleCount; hot?: boolean;
 }) {
@@ -58,7 +59,7 @@ export function RuleCard({ m, cur, r, set, remove, ask, period, setPeriod, count
   const head = (
     <div className="ssr-rt">
       <b id={id}>{m.label}</b>
-      {m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}
+      {tags && m.tier !== "basic" && <span className={"ssr-tier " + m.tier}>{TIER[m.tier].n.toUpperCase()}</span>}
       <button type="button" className="ssr-x" onClick={remove} aria-label={`Remove the rule on ${m.label}`}>×</button>
     </div>
   );

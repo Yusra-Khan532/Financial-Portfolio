@@ -10,7 +10,12 @@ export type Preset = {
   /** "Top 10 of 40 that pass" or "First 25 of 129 that pass", as the card says it; null when the whole match is listed. */
   listText?: string | null;
   chips: PresetChip[]; howItWorks: string[]; locked: boolean; tab?: PresetTab; kind?: string;
+  /** The Ready-made screens card (task #64, N-38), sent for the reader's own plan only: the first three companies on the stored list with one figure each,
+   *  which figure that is (the page's score, the distance from the 52-week high on New highs, the change since joining on Top gainers), and how many joined at the latest close. */
+  first?: PresetFirst[]; figure?: PresetFigure; joined?: number | null;
 };
+export type PresetFigure = "score" | "from_high" | "since";
+export type PresetFirst = { symbol: string; name: string; value: number | null };
 /** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
 export type PresetTab = "advanced" | "basic";
 export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold", basic: "silver" };

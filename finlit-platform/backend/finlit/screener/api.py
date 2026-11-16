@@ -210,10 +210,20 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
     return out
 
 
+def ratio_plan(plan: str) -> bool:
+    """Custom ratio: Gold, Platinum and admins (the same plans that see FinLit Prism)."""
+    return plan in ("gold", "platinum", "admin")
+
+
+RATIO_GOLD = "Custom ratio is part of the Gold plan: divide one company figure by another and filter on the result."
+
+
 @router.get("/ratio-stats")
 async def ratio_stats_api(request: Request, num: str, den: str, show: Literal["pct", "times"] = "times", first: str = ""):
     """The spread of a custom ratio for the drawer, and the worked example: the first company of `first` (the reader's current list, comma separated) that has both figures."""
     plan = _plan(await current(request))
+    if not ratio_plan(plan):
+        raise fail(403, "plan_required", RATIO_GOLD, plan="gold")
     if num == den or num not in BY_KEY or den not in BY_KEY or not ratioable(BY_KEY[num]) or not ratioable(BY_KEY[den]):
         raise fail(400, "bad_request", "A ratio needs two different figures that can be divided: no FinLit score and no yes-or-no filter.")
     if _locked(plan, [num, den]):
@@ -295,6 +305,8 @@ async def ready(request: Request):
 
 
 def _run(t, body: Query_, plan: str):
+    if body.ratios and not ratio_plan(plan):         # Custom ratio is Gold and Platinum (task #64, 14 Nov file, N-2 / CR-0)
+        raise fail(403, "plan_required", RATIO_GOLD, plan="gold")
     filters = {k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}
     cols = [c for c in (body.columns or DEFAULT_COLUMNS)]
     bad = [c for c in cols if c not in BY_KEY]

@@ -198,7 +198,7 @@ def test_a_zero_or_negative_bottom_figure_gives_a_dash_and_pct_is_times_100(tabl
 
 @pytest.mark.asyncio
 async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_spread(app, table):  # noqa: F811
-    silver = await signed_in(app, "s04r@example.com", plan="silver")
+    silver = await signed_in(app, "s04r@example.com", plan="gold")          # Custom ratio is Gold and Platinum (N-2); the name is kept for the lines below
     base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5, "funnel": True}
     bad = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "pe", "den": "pe"}]})
     assert bad.status_code in (400, 422)
@@ -211,6 +211,21 @@ async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_sp
     assert st["have"] == 24 and st["total"] == 25 and len(st["hist30"]) == 30 and st["values"] == sorted(st["values"])
     assert st["example"]["symbol"] == "S03" and st["example"]["value"] == round(4000 / 103, 4)
     assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_custom_ratio_is_gold_only_silver_gets_403_plan_required(app, table):  # noqa: F811
+    """Task #64, 14 Nov file, N-2 / CR-0: the server refuses `ratios` from Silver, on the query and on the drawer's spread."""
+    silver = await signed_in(app, "s04n2@example.com", plan="silver")
+    base = {"filters": {}, "cats": {}, "sort": {"key": "market_cap", "dir": "desc"}, "columns": ["market_cap"], "limit": 5}
+    q = await silver.post("/api/screener/query", json={**base, "ratios": [{"id": "r1", "num": "market_cap", "den": "price"}]})
+    assert q.status_code == 403 and q.json()["detail"]["status"] == "plan_required" and q.json()["detail"]["plan"] == "gold"
+    st = await silver.get("/api/screener/ratio-stats", params={"num": "market_cap", "den": "price"})
+    assert st.status_code == 403 and st.json()["detail"]["status"] == "plan_required"
+    plain = await silver.post("/api/screener/query", json=base)                      # the rest of the page is Silver's
+    assert plain.status_code == 200
+    from finlit.screener.api import ratio_plan
+    assert [ratio_plan(x) for x in ("basic", "silver", "gold", "platinum", "admin")] == [False, False, True, True, True]
 
 
 @pytest.mark.integration
@@ -259,3 +274,13 @@ async def test_the_catalog_names_the_prism_total_and_sends_each_scores_scale(app
         assert sm["overall"]["scale"] == [0.0, 100.0] and "prism_final" not in sm   # Silver keeps FinLit IQ, with its scale; Prism stays Gold
     finally:
         data._table = None
+
+
+def test_the_26_ready_made_screens_are_grouped_by_topic_not_by_plan():
+    """Task #64, 14 Nov file, N-10 / N-11: Everyday, Value, Quality & cash, Results, Dividends, Ownership, Price & volume and FinLit model; no "Silver screens" group."""
+    from collections import Counter
+    from finlit.screener.ready import READY
+    shown_silver = [r for r in READY if not r.score or r.score == "iq"]                  # what Silver sees (Gold sees the Prism five instead of the IQ five)
+    assert len(shown_silver) == 26
+    assert Counter(r.group for r in shown_silver) == {"everyday": 4, "value": 4, "quality": 4, "results": 3, "dividends": 2, "ownership": 2, "price": 2, "model": 5}
+    assert not any(r.group == "silver" for r in READY)
