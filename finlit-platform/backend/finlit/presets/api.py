@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 import re
 from typing import List
 
@@ -165,6 +166,48 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
     return body
 
 
+FIGURE = {"setups": ("From 52-week high", "pct_from_high"), "top-gainers": ("Since it joined", "since")}
+
+
+def _score_figure(tab: str) -> tuple:
+    return ("FinLit IQ", "overall") if tab == "basic" else ("FinLit Prism", "prism_final")
+
+
+def _num(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
+
+
+async def _joined_counts(store, keys: List[tuple]) -> dict:
+    """{(preset_id, chips): companies on the list now whose Added date is that screen's latest close}. Lists built on the first stored close count none:
+    every company on them was already there when FinLit began storing lists, so 'joined since yesterday' would not be true."""
+    if not keys:
+        return {}
+    base = await history.baseline_session(store)
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT preset_id, chips, added_on, count(*) AS n FROM screen_spells WHERE left_on IS NULL AND preset_id = ANY($1::text[]) "
+                                "AND added_on >= CURRENT_DATE - 14 GROUP BY preset_id, chips, added_on", list({k[0] for k in keys}))
+    out = {}
+    for r in rows:
+        if base is not None and r["added_on"] == base:
+            continue
+        out[(r["preset_id"], r["chips"], r["added_on"].isoformat())] = r["n"]
+    return out
+
+
+def _first3(p: Preset, cached: dict | None, table) -> List[dict]:
+    """The first three companies on the stored list, in the list's own order, each with the figure the card names (the score, the distance from the
+    52-week high, or for Top gainers the change since it joined). Values come from the stored rows or the screener table; a missing one stays None."""
+    rows = (cached or {}).get("rows") or (cached or {}).get("exportRows") or []
+    _, key = FIGURE.get(p.group, _score_figure(p.tab))
+    out = []
+    for r in rows[:3]:
+        v = _num(r.get(key))
+        if v is None and table is not None and key in table.cols and r.get("symbol") in table.pos:
+            v = _num(table.cols[key][table.pos[r["symbol"]]])
+        out.append({"symbol": r.get("symbol"), "name": r.get("name") or r.get("symbol"), "value": None if v is None else round(float(v), 2)})
+    return out
+
+
 @router.get("")
 async def listing(request: Request):
     ctx = await current(request)
@@ -173,14 +216,44 @@ async def listing(request: Request):
     store = request.app.state.store
     by_group = {g: [] for g, _ in GROUPS}
     as_of = None
+    found = []
     for p in ALL:
         if p.tab != tab:
             continue
         cached = None
-        if gold and p.status == "live" and p.kind != "quickview":
+        if gold and p.kind == "gainers" and p.status == "live":
+            try:      # Top gainers are stored per close, not as a screen result: the card reads the latest stored list
+                g = await history.gainers_for(store, p.tab, p.id.rsplit("-", 1)[-1], None)
+            except Exception:
+                g = None
+            if g is not None:
+                cached = {"count": len(g["rows"]), "asOf": g["session"], "rows": g["rows"]}
+        elif gold and p.status == "live" and p.kind != "quickview":
             cached = await service.read_cached(store, p.id, engine.chip_key([c.id for c in p.chips if c.default]))
             as_of = max(filter(None, [as_of, (cached or {}).get("asOf")]), default=as_of)
-        by_group[p.group].append(_card(p, gold, cached))
+        card = _card(p, gold, cached)
+        found.append((p, card, cached))
+        by_group[p.group].append(card)
+    if gold:      # the strip's cards (task #64, N-38): pass count, how many joined at the latest close, the first three with their figure
+        try:
+            table = await get_table(store)
+        except Exception:      # the cards then show the figures the stored rows carry, and a dash with its reason for the rest
+            table = None
+        keys = [(p.id, engine.chip_key([c.id for c in p.chips if c.default])) for p, _, cached in found if cached and p.kind != "gainers"]
+        try:
+            joined = await _joined_counts(store, keys)
+        except Exception:
+            joined = None
+        for p, card, cached in found:
+            card["top10"] = bool(p.top10)
+            card["figure"] = FIGURE.get(p.group, _score_figure(p.tab))[0]
+            if not cached:
+                continue
+            if p.kind == "gainers":
+                card["count"], card["asOf"] = cached["count"], cached["asOf"]
+            card["first"] = _first3(p, cached, table)
+            if joined is not None and p.kind != "gainers" and cached.get("asOf"):
+                card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
     return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
 
 
