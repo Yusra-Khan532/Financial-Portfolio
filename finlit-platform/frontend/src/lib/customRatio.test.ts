@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeFilter, convert, countPass, defaultShow, presets, suggestName, unitCheck, unitTag, valueText, type Stats } from "./customRatio";
+import { closeFilter, convert, countPass, defaultShow, presets, roundStep, signed, suggestName, unitCheck, unitTag, valueText, type Stats } from "./customRatio";
 import type { MetricInfo } from "./proscreen";
 
 const M = (key: string, label: string, unit: string, family: MetricInfo["family"] = null): MetricInfo =>
@@ -38,3 +38,16 @@ describe("Custom ratio rules", () => {
     expect(valueText({ op: "gt", a: 14.2, show: "pct" })).toBe("≥ 14.2%"); expect(valueText({ op: "none", show: "times" })).toBe("Column");
   });
 });
+
+describe("14 Nov N-4 and N-7", () => {
+  it("a value keeps its sign, with three significant figures", () => {
+    expect([signed(-857), signed(-0.0131), signed(12.5), signed(0)]).toEqual(["−857", "−0.0131", "12.5", "0"]);
+  });
+  it("a preset is rounded to the chart's step, so a ratio around 1% never reads 0.0131", () => {
+    const st = { p2: 0.1, p98: 3.1, scale: "linear" as const };            // step 0.1: one decimal
+    expect(roundStep(0.93427, st)).toBe(0.9); expect(roundStep(12.567, { p2: 0, p98: 300, scale: "linear" })).toBe(13);
+    expect(roundStep(0.0131234, { p2: 0, p98: 1, scale: "log" })).toBe(0.0131);         // log: three significant figures
+    expect(convert(0.05, "pct")).toBe(5); expect(convert(5, "times")).toBe(0.05);
+  });
+});
+

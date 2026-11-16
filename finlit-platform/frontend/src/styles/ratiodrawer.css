@@ -21,9 +21,16 @@
 .rd-tag { justify-self: end; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; white-space: nowrap; }
 .rd-list { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--s2); }
 .rd-find input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 16px var(--sans); }
-.rd-all { display: flex; align-items: center; gap: 8px; margin: 8px 2px; font-size: 14px; color: var(--muted); }
-.rd-more { margin: 4px 2px 8px; font-size: 13px; color: var(--muted); }
-.rd-opts { max-height: 300px; overflow: auto; }
+/* 14 Nov CR-2: every figure listed at once, in two parts whose headings stay at the top while their part scrolls; 440 px on a computer, about half the screen on a phone */
+.rd-cnt { margin: 8px 2px; font-size: 13px; color: var(--muted); } .rd-cnt b { color: var(--text); }
+.rd-opts { height: 440px; max-height: 60vh; overflow: auto; overscroll-behavior: contain; }
+.rd-part { position: relative; }
+.rd-ph { position: sticky; top: 0; z-index: 1; display: grid; gap: 2px; padding: 8px 6px 7px; background: var(--s2); border-bottom: 1px solid var(--border); }
+.rd-ph b { font: 700 14px var(--sans); color: var(--text); } .rd-ph small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.rd-lead { margin: 4px 0 8px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.rd-exs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; } .rd-exs > small { color: var(--muted); font-size: 13px; margin-right: 2px; }
+/* 14 Nov N-3: steps 2 to 4 are named from the start and wait, greyed, until both figures are picked */
+.rd-body .rd-sec.is-wait h3 { opacity: .5; } .rd-wait { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .rd-g { margin: 8px 4px 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .rd-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer; }
 .rd-opt:hover:not(:disabled), .rd-opt:focus-visible { background: var(--s1); }
@@ -57,6 +64,6 @@
 .rd-name { width: 100%; box-sizing: border-box; padding: 9px 10px; margin-bottom: 4px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 16px var(--sans); }
 .rd-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--s1); }
 .rd-foot-n { flex: 1 1 220px; font-size: 13px; color: var(--muted); }
-@media (max-width: 640px) { .rd { width: 100vw; } .rd-foot .btn { flex: 1 1 auto; } }
+@media (max-width: 640px) { .rd { width: 100vw; } .rd-foot .btn { flex: 1 1 auto; } .rd-opts { height: 50vh; } }
 .rd > .rd-head, .rd > .rd-foot { width: auto; max-width: none; margin: 0; box-sizing: border-box; text-align: left; } .rd > .rd-head h2 { text-align: left; }
 .rd { align-items: stretch; text-align: left; } .rd > * { align-self: stretch; } .rd-body { width: 100%; box-sizing: border-box; }

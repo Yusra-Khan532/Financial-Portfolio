@@ -191,18 +191,24 @@ def ratio_stats(t, num: str, den: str, show: str) -> dict:
         q = _pct_of(v, p)
         out[name] = None if q is None else round(q, 6)
     lo, hi = out["p2"], out["p98"]
-    scale, bars = "linear", [0] * 30
+    scale, bars, c = "linear", [0] * 30, None
     if v and lo is not None and hi is not None and hi > lo:
+        import math
+        p25, p75 = out["p25"], out["p75"]
+        iqr = (p75 - p25) if p25 is not None and p75 is not None else 0
         if lo > 0 and hi / lo >= 50:          # a wide, positive spread reads better on a log scale
-            import math
-            scale, a, b = "log", math.log(lo), math.log(hi)
-            for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((math.log(x) - a) / (b - a) * 30))] += 1
+            scale, f = "log", math.log
+        elif iqr > 0 and (hi - lo) / iqr >= 20:     # task #64, 14 Nov N-5: a wide spread that crosses zero: a signed log (asinh) keeps the middle readable
+            c = round(max(iqr / 2, abs(out["p50"] or 0) / 2, 1e-9), 6)
+            scale, f = "symlog", (lambda x, c=c: math.asinh(x / c))
         else:
-            for x in v:
-                if lo <= x <= hi:
-                    bars[min(29, int((x - lo) / (hi - lo) * 30))] += 1
+            f = None
+        ta, tb = (f(lo), f(hi)) if f else (lo, hi)
+        for x in v:                            # N-5: companies outside the drawn range go in the end bars, so none is left out
+            tx = f(min(max(x, lo), hi)) if f else min(max(x, lo), hi)
+            bars[min(29, max(0, int((tx - ta) / (tb - ta) * 30)))] += 1
+    if c is not None:
+        out["symC"] = c
     out.update(hist30=bars, scale=scale, values=[round(x, 6) for x in v])
     if len(_ratio_stats) > 200:
         _ratio_stats.clear()

@@ -61,15 +61,31 @@ export function roundNice(v: number): number {
 }
 
 /** CR-4: the presets from the ratio's own spread (market spreads, not FinLit cut-offs). */
-export type Stats = { have: number; total: number; p2: number | null; p5: number | null; p25: number | null; p50: number | null; p75: number | null; p95: number | null; p98: number | null; hist30: number[]; scale: "linear" | "log"; values: number[];
+export type Stats = { have: number; total: number; p2: number | null; p5: number | null; p25: number | null; p50: number | null; p75: number | null; p95: number | null; p98: number | null; hist30: number[]; scale: "linear" | "log" | "symlog"; symC?: number; values: number[];
   example: { symbol: string; name: string | null; num: number; den: number; value: number } | null };
 export type Preset = { id: string; label: string; op: "gt" | "lt"; a: number };
 export function presets(s: Stats | undefined): Preset[] {
   if (!s || s.p25 == null || s.p50 == null || s.p75 == null) return [];
+  const r = (v: number) => roundStep(v, s);
   return [
-    { id: "top", label: "Top quarter", op: "gt", a: roundNice(s.p75) }, { id: "above", label: "Above the middle", op: "gt", a: roundNice(s.p50) },
-    { id: "below", label: "Below the middle", op: "lt", a: roundNice(s.p50) }, { id: "low", label: "Lowest quarter", op: "lt", a: roundNice(s.p25) },
+    { id: "top", label: "Top quarter", op: "gt", a: r(s.p75) }, { id: "above", label: "Above the middle", op: "gt", a: r(s.p50) },
+    { id: "below", label: "Below the middle", op: "lt", a: r(s.p50) }, { id: "low", label: "Lowest quarter", op: "lt", a: r(s.p25) },
   ];
+}
+
+/** 14 Nov N-7: a value a preset or a mode puts in the box is rounded to the chart's step (a 30th of the drawn range on a straight scale), never to more
+ *  digits than the chart can show; on a log scale, to three significant figures. "At least 0.0131 %" can no longer appear for a ratio around 1%. */
+export function roundStep(v: number, s: Pick<Stats, "p2" | "p98" | "scale">): number {
+  if (!Number.isFinite(v)) return v;
+  if (s.scale !== "linear" || s.p2 == null || s.p98 == null || s.p98 <= s.p2) return roundNice(v);
+  const step = (s.p98 - s.p2) / 30, d = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step))));
+  return Number(v.toFixed(d));
+}
+
+/** 14 Nov N-4: a value as the chart and the lines under it show it, with its sign ("−857%"), three significant figures and no padded zeros. */
+export function signed(v: number): string {
+  const r = roundNice(v), d = (String(Math.abs(r)).split(".")[1] ?? "").length;
+  return (r < 0 ? "−" : "") + Math.abs(r).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 /** CR-4: how many companies pass a condition, counted on the sorted values (exact, as typed). */

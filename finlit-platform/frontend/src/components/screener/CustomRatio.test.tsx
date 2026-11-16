@@ -9,6 +9,9 @@ const api = vi.hoisted(() => ({ calls: [] as string[] }));
 vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), apiGet: vi.fn(async (path: string) => {
   api.calls.push(path);
   const pct = path.includes("show=pct"), k = pct ? 100 : 1;
+  if (path.includes("num=net_profit") && path.includes("den=total_assets"))      // 14 Nov N-4 / N-5: a wide spread that crosses zero, as in the team's screenshot
+    return { have: 6, total: 6, p2: -857, p5: -40, p25: 0.9, p50: 1.2, p75: 2.5, p95: 12.5, p98: 30, hist30: Array.from({ length: 30 }, (_, i) => (i === 0 ? 3 : i > 22 ? 5 : 0)), scale: "symlog", symC: 1,
+      values: [-900, -857, 0.9, 1.2, 2.5, 30], example: null };
   return { have: 6, total: 8, p2: 0.01 * k, p5: 0.02 * k, p25: 0.03 * k, p50: 0.05 * k, p75: 0.1 * k, p95: 0.2 * k, p98: 0.3 * k, hist30: Array.from({ length: 30 }, (_, i) => i % 5), scale: "linear",
     values: [0.01, 0.03, 0.05, 0.08, 0.12, 0.3].map((x) => x * k), example: { symbol: "AAA", name: "Alpha Ltd", num: 100, den: 2000, value: 0.05 * k } };
 }) }));
@@ -33,15 +36,32 @@ const open = (p: Partial<Parameters<typeof RatioDrawer>[0]> = {}) => {
 const opts = () => [...document.querySelectorAll(".rd-opt span:first-child")].map((e) => e.textContent);
 
 describe("Custom ratio drawer", () => {
-  it("CR-2: the list never has a FinLit IQ, a Prism figure or a yes-or-no filter; amounts first, the rest behind the tick box; search says what is hidden", () => {
+  it("CR-2 (14 Nov N-1): every figure listed at once, no tick box: Amounts first, then Ratios, percentages and counts; the count line; search filters both parts; never a FinLit IQ, Prism figure or yes-or-no filter", () => {
     open();
-    expect(opts()).toEqual(["Market cap", "Share price", "Total assets", "Net profit (latest year)", "Cash and equivalents"]);
-    fireEvent.change(screen.getByPlaceholderText(/Search figures/), { target: { value: "return" } });
-    expect(screen.getByText(/1 more figure matches among ratios and percentages/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Show them" }));
-    expect(opts()).toEqual(["Return on assets"]);
+    expect(opts()).toEqual(["Market cap", "Share price", "Total assets", "Net profit (latest year)", "Cash and equivalents", "Cash to debt", "Return on assets"]);
+    expect(screen.queryByRole("checkbox")).toBeNull(); expect(screen.queryByRole("button", { name: "Show them" })).toBeNull();
+    const parts = [...document.querySelectorAll(".rd-part .rd-ph b")].map((e) => e.textContent);
+    expect(parts).toEqual(["Amounts · 5", "Ratios, percentages and counts · 2"]);
+    expect(document.querySelector(".rd-cnt")!.textContent).toBe("All 7 figures are listed: 5 amounts first, then 2 ratios, percentages and counts. Scroll, or search.");
+    expect(document.querySelectorAll(".rd-opt").length).toBe(7);                                  // the count line matches the rows
+    expect([...document.querySelectorAll(".rd-opt .rd-tag")].map((e) => e.textContent)).toEqual(["₹ Cr", "₹ per share", "₹ Cr", "₹ Cr", "₹ Cr", "×", "%"]);    // N-8: a unit tag on every row
+    fireEvent.change(screen.getByPlaceholderText(/Search figures/), { target: { value: "cash" } });
+    expect(opts()).toEqual(["Cash and equivalents", "Cash to debt"]);                             // both parts at once
+    expect(document.querySelector(".rd-cnt")!.textContent).toBe("2 of 7 figures match: 1 amount, 1 other.");
     fireEvent.change(screen.getByPlaceholderText(/Search figures/), { target: { value: "" } });
     expect(opts()).not.toContain("FinLit IQ"); expect(opts()).not.toContain("Promoter pledge");
+  });
+
+  it("14 Nov N-3: the opening line, four examples, and all four step titles from the start with 2 to 4 greyed until both figures are picked", () => {
+    const groups2 = [...groups, { id: "more", label: "More", tier: "basic" as const, metrics: [M("borrowings", "Total borrowings", "Cr", "cr"), M("op_profit", "Operating profit", "Cr", "cr"), M("turnover20_cr", "Daily trading value", "Cr", "cr")] }];
+    open({ groups: groups2, byKey: new Map(groups2.flatMap((g) => g.metrics).map((m) => [m.key, m])) });
+    expect(screen.getByText("Divide one company figure by another. The result becomes a column in the table, and a filter too if you set a condition.")).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Examples" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Cash to market cap", "Borrowings to market cap", "Net profit to operating profit", "Daily trading to market cap"]);
+    expect([...document.querySelectorAll(".rd-sec h3")].map((h) => h.textContent)).toEqual(["1 Pick two figures", "2 Check what it gives", "3 Set a condition", "4 Name it"]);
+    expect(document.querySelectorAll(".rd-sec.is-wait").length).toBe(3);
+    fireEvent.click(screen.getByRole("button", { name: "Cash to market cap" }));
+    expect(document.querySelectorAll(".rd-sec.is-wait").length).toBe(0);
+    expect((screen.getByLabelText("Ratio name") as HTMLInputElement).value).toBe("Cash to market cap");
   });
 
   it("CR-2/CR-5: after Top the list moves to Bottom and greys the top figure; the name follows the figures until one is typed", async () => {
@@ -74,7 +94,8 @@ describe("Custom ratio drawer", () => {
     const box = screen.getByLabelText("At least") as HTMLInputElement;
     await waitFor(() => expect(box.value).toBe("5"));
     await waitFor(() => expect(screen.getByText(/For example, Alpha Ltd/).textContent).toMatch(/= 5%/));
-    expect(screen.getByText(/Most companies: 3% to 10%/).textContent).toMatch(/6 of 8 have both figures\. The other 2 are missing one, or the bottom figure is zero or less/);
+    expect(screen.getByText(/Most companies: 2% to 20%/).textContent)        // 14 Nov N-6: p5 to p95, not the quarter marks the presets use
+    expect(screen.getByText(/Most companies: 2% to 20%/).textContent).toMatch(/6 of 8 have both figures\. The other 2 are missing one, or the bottom figure is zero or less/);
     expect(document.querySelector(".rd-count")!.textContent).toMatch(/^4 of 8 companies pass this ratio\./);
     await waitFor(() => expect(document.querySelector(".rd-count")!.textContent).toMatch(/With your other filters, 11 of the 38 left\./));
     fireEvent.change(box, { target: { value: "10" } });
@@ -106,5 +127,12 @@ describe("Custom ratio drawer", () => {
     expect(document.querySelector(".rd-list")).toBeNull(); expect(p.onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(p.onClose).toHaveBeenCalled();
+  });
+  it("14 Nov N-4 / N-5 / N-6: the chart's labels keep their sign, a wide spread across zero is on a log scale with the extremes in the end bars, and Most companies is p5 to p95", async () => {
+    open({ start: { name: "", num: "net_profit", den: "total_assets", op: "gt", show: "pct" } });
+    const cap = await waitFor(() => { const c = document.querySelector(".rd-chart figcaption"); if (!c) throw new Error("no chart"); return c; });
+    expect(cap.textContent).toContain("−857% or less"); expect(cap.textContent).toContain("30% or more"); expect(cap.textContent).toContain("log scale");
+    expect(screen.getByText(/Most companies: −40% to 12.5%/)).toBeTruthy();
+    expect(document.querySelectorAll(".rd-chart rect").length).toBe(30);
   });
 });

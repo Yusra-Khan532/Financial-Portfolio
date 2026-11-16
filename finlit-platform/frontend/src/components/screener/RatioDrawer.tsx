@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../../lib/api";
 import { nf } from "../../lib/format";
 import { MAX_RATIOS, type CustomRatio, type GroupInfo, type MetricInfo } from "../../lib/proscreen";
-import { closeFilter, convert, countPass, defaultShow, presets, roundNice, suggestName, unitCheck, unitTag, valueText, type Stats } from "../../lib/customRatio";
+import { EXAMPLES, closeFilter, convert, countPass, defaultShow, presets, signed, suggestName, unitCheck, unitTag, valueText, type Stats } from "../../lib/customRatio";
 import { useFocusTrap } from "../../lib/focusTrap";
 import "../../styles/ratiodrawer.css";
 
@@ -22,14 +22,14 @@ type Props = {
 };
 
 const BAR_W = 100 / 30;
-/** A ratio value as a person would read it: three significant figures, no padded zeros (5%, 0.05×, 17.6%). */
-const nice = (v: number) => { const r = roundNice(v), d = (String(r).split(".")[1] ?? "").length; return nf(r, d); };
+/** A ratio value as a person would read it, with its sign: three significant figures, no padded zeros (5%, 0.05×, −857%). */
+const nice = signed;
 
 export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, countWith, currentTotal, onAdd, onSave, onUseFilter, onClose }: Props) {
   const editing = !!start?.id;
   const [num, setNum] = useState(start?.num ?? ""), [den, setDen] = useState(start?.den ?? "");
   const [field, setField] = useState<"num" | "den" | null>(start?.num ? null : "num");
-  const [q, setQ] = useState(""), [all, setAll] = useState(false);
+  const [q, setQ] = useState("");
   const [show, setShow] = useState<"pct" | "times">(start?.show ?? "times"), [showTouched, setShowTouched] = useState(!!start?.show);
   const [op, setOp] = useState<CustomRatio["op"]>(start?.op ?? "gt"), [a, setA] = useState<string>(start?.a != null ? String(start.a) : ""), [b, setB] = useState<string>(start?.b != null ? String(start.b) : "");
   const [presetTouched, setPresetTouched] = useState(start?.a != null || start?.op === "none");
@@ -57,7 +57,9 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
   useEffect(() => {
     if (showTouched || !st || show !== "times") return;
     const want = defaultShow(top, bottom, st.p50);
-    if (want !== show) setShow(want);
+    if (want !== show) {        // 14 Nov N-7: the value already in the box moves with the unit (0.05× is 5%)
+      setA((x) => (x.trim() === "" ? x : String(convert(Number(x), want)))); setB((x) => (x.trim() === "" ? x : String(convert(Number(x), want)))); setShow(want);
+    }
   }, [st]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // CR-4: start on "Above the middle", so the box is never empty
@@ -83,6 +85,12 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
   const unit = unitCheck(top, bottom);
   const u = show === "pct" ? "%" : "×";
   const switchShow = (to: "pct" | "times") => { if (to === show) return; setShowTouched(true); setA((x) => (x.trim() === "" ? x : String(convert(Number(x), to)))); setB((x) => (x.trim() === "" ? x : String(convert(Number(x), to)))); setShow(to); };
+  const useExample = (x: (typeof EXAMPLES)[number]) => {
+    setNum(x.num); setDen(x.den); setField(null); setQ(""); setPresetTouched(false); setShow(x.show); setShowTouched(true);
+    setNameTyped(true); setName(x.name);         // an example comes with its own name
+  };
+  const examples = EXAMPLES.filter((x) => byKey.has(x.num) && byKey.has(x.den)).slice(0, 4);
+  const ready = !!top && !!bottom && num !== den;
   const pick = (k: string) => {
     if (field === "num") { setNum(k); setField(den ? null : "den"); } else if (field === "den") { setDen(k); setField(num ? null : "num"); }
     setQ(""); setPresetTouched(false); setShowTouched(false); setShow("times");
@@ -94,16 +102,23 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
       <div className="rd" role="dialog" aria-modal="true" aria-labelledby="rd-h" ref={box}>
         <div className="rd-head"><h2 id="rd-h">{editing ? "Change this ratio" : "Build a custom ratio"}</h2><button type="button" className="rd-x" onClick={onClose} aria-label="Close">×</button></div>
         <div className="rd-body">
+          <p className="rd-lead">Divide one company figure by another. The result becomes a column in the table, and a filter too if you set a condition.</p>
+          {!editing && examples.length > 0 && <div className="rd-exs" role="group" aria-label="Examples"><small>Examples:</small>{examples.map((x) => (
+            <button key={x.name} type="button" className="rd-chip" onClick={() => useExample(x)}>{x.name}</button>))}</div>}
           <div className="rd-sec" role="group" aria-labelledby="rd-s1"><h3 id="rd-s1"><span>1</span> Pick two figures</h3>
             <div className="rd-frac">
               <FieldBtn label="Top" m={top} on={field === "num"} onClick={() => setField(field === "num" ? null : "num")} />
               <div className="rd-line"><button type="button" className="rd-swap" onClick={() => { setNum(den); setDen(num); setPresetTouched(false); setShowTouched(false); setShow("times"); }} disabled={!num && !den} aria-label="Swap top and bottom">⇅</button></div>
               <FieldBtn label="Bottom" m={bottom} on={field === "den"} onClick={() => setField(field === "den" ? null : "den")} />
             </div>
-            {field && <FigureList groups={groups} q={q} setQ={setQ} all={all} setAll={setAll} other={field === "num" ? den : num} onPick={pick} which={field === "num" ? "top" : "bottom"} />}
+            {field && <FigureList groups={groups} q={q} setQ={setQ} other={field === "num" ? den : num} onPick={pick} which={field === "num" ? "top" : "bottom"} />}
           </div>
 
-          {top && bottom && num !== den && <>
+          {!ready && <>          {/* 14 Nov N-3: all four steps are named from the start; 2 to 4 wait, greyed, until both figures are picked */}
+            {[["2", "Check what it gives"], ["3", "Set a condition"], ["4", "Name it"]].map(([n, t]) => (
+              <div key={n} className="rd-sec is-wait" aria-disabled="true"><h3><span>{n}</span> {t}</h3><p className="rd-wait">Pick both figures first.</p></div>))}
+          </>}
+          {ready && top && bottom && <>
             <div className="rd-sec" role="group" aria-labelledby="rd-s2"><h3 id="rd-s2"><span>2</span> Check what it gives</h3>
               <p className="rd-formula"><b>{top.label}</b> ÷ <b>{bottom.label}</b></p>
               {st?.example ? <p className="rd-ex">For example, {st.example.name || st.example.symbol}: {fmtFig(st.example.num, top)} ÷ {fmtFig(st.example.den, bottom)} = <b>{nice(st.example.value)}{u}</b></p>
@@ -124,7 +139,7 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
               {stats.isLoading && <div className="skeleton" style={{ height: 96 }} />}
               {stats.isError && <p className="rd-note warn">The spread of this ratio could not be loaded. You can still set a value.</p>}
               {st && <Spread st={st} op={op} a={av} b={bv} u={u} />}
-              {st && <p className="rd-spread">{st.p25 != null && st.p75 != null ? <>Most companies: {nice(st.p25)}{u} to {nice(st.p75)}{u} · </> : null}{nf(st.have, 0)} of {nf(st.total, 0)} have both figures.{st.total > st.have ? ` The other ${nf(st.total - st.have, 0)} are missing one, or the bottom figure is zero or less; they show a dash and are left out by a condition.` : ""}</p>}
+              {st && <p className="rd-spread">{st.p5 != null && st.p95 != null ? <>Most companies: {nice(st.p5)}{u} to {nice(st.p95)}{u} · </> : null}{nf(st.have, 0)} of {nf(st.total, 0)} have both figures.{st.total > st.have ? ` The other ${nf(st.total - st.have, 0)} are missing one, or the bottom figure is zero or less; they show a dash and are left out by a condition.` : ""}</p>}
               {op !== "none" && <div className="rd-vals">
                 <label>{op === "gt" ? "At least" : op === "lt" ? "At most" : "From"} <input type="number" inputMode="decimal" value={a} onChange={(e) => { setA(e.target.value); setPresetTouched(true); }} aria-label={op === "between" ? "From" : op === "gt" ? "At least" : "At most"} /> <span>{u}</span></label>
                 {op === "between" && <label>to <input type="number" inputMode="decimal" value={b} onChange={(e) => { setB(e.target.value); setPresetTouched(true); }} aria-label="To" /> <span>{u}</span></label>}
@@ -163,48 +178,61 @@ function FieldBtn({ label, m, on, onClick }: { label: string; m?: MetricInfo; on
     </button>);
 }
 
-/** CR-2: the searchable list of figures, grouped, every row with its unit tag. Amounts first; ratios, percentages and counts behind a tick box. */
-function FigureList({ groups, q, setQ, all, setAll, other, onPick, which }: { groups: GroupInfo[]; q: string; setQ: (v: string) => void; all: boolean; setAll: (v: boolean) => void; other: string; onPick: (k: string) => void; which: "top" | "bottom" }) {
+/** CR-2 (14 Nov): every figure that can be divided, listed at once with no tick box, in two parts with headings that stay at the top while their part scrolls:
+ *  the amounts first, then the ratios, percentages and counts. Grouped by the catalog's groups, every row with its unit tag. Search filters both parts. */
+export function FigureList({ groups, q, setQ, other, onPick, which }: { groups: GroupInfo[]; q: string; setQ: (v: string) => void; other: string; onPick: (k: string) => void; which: "top" | "bottom" }) {
   const find = useRef<HTMLInputElement>(null);
   useEffect(() => { find.current?.focus(); }, [which]);
   const t = q.trim().toLowerCase();
-  const hit = (m: MetricInfo) => !t || m.label.toLowerCase().includes(t) || m.key.toLowerCase().includes(t);
   const usable = (m: MetricInfo) => m.ratioable !== false && !m.hidden && !m.locked;
-  const lists = useMemo(() => groups.map((g) => ({ g, ms: g.metrics.filter((m) => usable(m) && hit(m) && (all || !!m.family)) })).filter((x) => x.ms.length), [groups, t, all]); // eslint-disable-line react-hooks/exhaustive-deps
-  const hiddenHits = all || !t ? 0 : groups.reduce((n, g) => n + g.metrics.filter((m) => usable(m) && hit(m) && !m.family).length, 0);
+  const hit = (m: MetricInfo) => !t || m.label.toLowerCase().includes(t) || m.key.toLowerCase().includes(t);
+  const part = (amount: boolean) => groups.map((g) => ({ g, ms: g.metrics.filter((m) => usable(m) && !!m.family === amount) })).filter((x) => x.ms.length);
+  const amounts = useMemo(() => part(true), [groups]), others = useMemo(() => part(false), [groups]); // eslint-disable-line react-hooks/exhaustive-deps
+  const n = (p: typeof amounts, f = (_: MetricInfo) => true) => p.reduce((k, x) => k + x.ms.filter(f).length, 0);
+  const nA = n(amounts), nO = n(others), hA = n(amounts, hit), hO = n(others, hit);
+  const Part = ({ title, line, p, count }: { title: string; line: string; p: typeof amounts; count: number }) => count === 0 ? null : (
+    <section className="rd-part" aria-label={`${title}: ${count}`}>
+      <div className="rd-ph"><b>{title} · {count}</b><small>{line}</small></div>
+      {p.map(({ g, ms }) => { const shown = ms.filter(hit); return shown.length ? <div key={g.id}><div className="rd-g">{g.label}</div>{shown.map((m) => (
+        <button key={m.key} type="button" className="rd-opt" disabled={m.key === other} onClick={() => onPick(m.key)}><span>{m.label}</span><span className="rd-tag">{unitTag(m)}</span></button>))}</div> : null; })}
+    </section>);
   return (
     <div className="rd-list" role="group" aria-label={`Pick the ${which} figure`}>
       <label className="rd-find"><span className="sr">Search figures</span><input ref={find} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search figures, e.g. cash, borrowings, sales" /></label>
-      <label className="rd-all"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Also show ratios, percentages and counts</label>
-      {hiddenHits > 0 && <p className="rd-more">{hiddenHits} more {hiddenHits === 1 ? "figure matches" : "figures match"} among ratios and percentages. <button type="button" className="lnk" onClick={() => setAll(true)}>Show them</button></p>}
-      <div className="rd-opts">{lists.map(({ g, ms }) => (
-        <div key={g.id}><div className="rd-g">{g.label}</div>{ms.map((m) => (
-          <button key={m.key} type="button" className="rd-opt" disabled={m.key === other} onClick={() => onPick(m.key)}><span>{m.label}</span><span className="rd-tag">{unitTag(m)}</span></button>))}</div>))}
-        {!lists.length && <p className="muted rd-none">No figure matches “{q}”.</p>}</div>
+      <p className="rd-cnt" aria-live="polite">{t
+        ? <><b>{hA + hO}</b> of {nA + nO} figures match: {hA} {hA === 1 ? "amount" : "amounts"}, {hO} {hO === 1 ? "other" : "others"}.</>
+        : <><b>All {nA + nO} figures</b> are listed: {nA} amounts first, then {nO} ratios, percentages and counts. Scroll, or search.</>}</p>
+      <div className="rd-opts">
+        <Part title="Amounts" line="₹ Cr, ₹ per share, shares and people. Two of the same kind give a ratio that reads plainly." p={amounts} count={hA} />
+        <Part title="Ratios, percentages and counts" line="Already a ratio or a rate. You can still use them; Step 2 says how the result reads." p={others} count={hO} />
+        {hA + hO === 0 && <p className="muted rd-none">No figure matches “{q}”.</p>}</div>
     </div>);
 }
 
-/** CR-4: the spread chart: 30 bars (log scale when the spread is wide), the chosen range in gold, and the low, middle and high values under it. */
+/** CR-4: the spread chart: 30 bars from p2 to p98 (log scale when the spread is wide; a signed log when it also crosses zero), companies outside the range in the end bars,
+ *  the chosen range in gold, and the low, middle and high values under it, each with its sign. */
 function Spread({ st, op, a, b, u }: { st: Stats; op: CustomRatio["op"]; a?: number; b?: number; u: string }) {
   const lo = st.p2, hi = st.p98, max = Math.max(1, ...st.hist30);
   if (lo == null || hi == null || hi <= lo) return null;
-  const log = st.scale === "log" && lo > 0;
-  const x = (v: number) => (log ? (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo));
+  const log = st.scale === "log" && lo > 0, sym = st.scale === "symlog" && !!st.symC;
+  const c = st.symC || 1;
+  const T = (v: number) => (log ? Math.log(Math.max(v, lo)) : sym ? Math.asinh(v / c) : v), inv = (y: number) => (log ? Math.exp(y) : sym ? Math.sinh(y) * c : y);
+  const x = (v: number) => Math.min(1, Math.max(0, (T(Math.min(Math.max(v, lo), hi)) - T(lo)) / (T(hi) - T(lo))));
   const keepLo = op === "gt" ? a : op === "between" && a != null && b != null ? Math.min(a, b) : op === "lt" ? -Infinity : undefined;
   const keepHi = op === "lt" ? a : op === "between" && a != null && b != null ? Math.max(a, b) : op === "gt" ? Infinity : undefined;
   const kept = (i: number) => {
     if (op === "none") return true;
     if (keepLo == null || keepHi == null) return false;
-    const c = log ? Math.exp(Math.log(lo) + ((i + 0.5) / 30) * (Math.log(hi) - Math.log(lo))) : lo + ((i + 0.5) / 30) * (hi - lo);
-    return c >= keepLo && c <= keepHi;
+    const mid = inv(T(lo) + ((i + 0.5) / 30) * (T(hi) - T(lo)));
+    return mid >= keepLo && mid <= keepHi;
   };
   return (
-    <figure className="rd-chart" aria-label={`Spread of this ratio across ${st.have} companies${log ? ", on a log scale" : ""}`}>
+    <figure className="rd-chart" aria-label={`Spread of this ratio across ${st.have} companies${log || sym ? ", on a log scale" : ""}`}>
       <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">{st.hist30.map((n, i) => (
         <rect key={i} x={i * BAR_W + 0.3} width={BAR_W - 0.6} y={40 - (n / max) * 38} height={(n / max) * 38} className={kept(i) ? "on" : ""} />))}
         {op !== "none" && a != null && Number.isFinite(a) && <line x1={x(a) * 100} x2={x(a) * 100} y1={0} y2={40} />}
       </svg>
-      <figcaption><span>{nice(lo)}{u}</span><span>middle {st.p50 != null ? nice(st.p50) : "–"}{u}</span><span>{nice(hi)}{u}</span>{log && <em>log scale</em>}</figcaption>
+      <figcaption><span>{nice(lo)}{u}{st.have > 0 ? " or less" : ""}</span><span>middle {st.p50 != null ? nice(st.p50) : "–"}{u}</span><span>{nice(hi)}{u}{st.have > 0 ? " or more" : ""}</span>{(log || sym) && <em>log scale</em>}</figcaption>
     </figure>);
 }
 

@@ -284,3 +284,25 @@ def test_the_26_ready_made_screens_are_grouped_by_topic_not_by_plan():
     assert len(shown_silver) == 26
     assert Counter(r.group for r in shown_silver) == {"everyday": 4, "value": 4, "quality": 4, "results": 3, "dividends": 2, "ownership": 2, "price": 2, "model": 5}
     assert not any(r.group == "silver" for r in READY)
+
+
+def test_the_spread_counts_every_company_and_a_wide_spread_across_zero_uses_a_signed_log():
+    """Task #64, 14 Nov N-5: one extreme company squashed the chart into one bar; companies outside p2 to p98 were dropped. Now they sit in the end bars,
+    and a spread that crosses zero and is wide against its middle half is drawn on a signed log (asinh) scale."""
+    from finlit.screener.api import ratio_stats
+
+    class T:
+        n = 102
+        loaded = 1.0
+
+        def ratio(self, num, den, show):
+            return [-857.0 - i for i in range(6)] + [0.5 + i * 0.1 for i in range(100)] + [9000.0] + [float("nan")]       # a few extreme companies, as in the 14 Nov screenshot
+    st = ratio_stats(T(), "a", "b", "pct")
+    assert st["p2"] < -800 and sum(st["hist30"]) == st["have"] == 107                       # every company with a value is in a bar
+    assert st["scale"] == "symlog" and st["symC"] > 0 and max(st["hist30"]) < 101
+
+    class L(T):
+        def ratio(self, num, den, show):
+            return [1.0 + i for i in range(100)]
+    lin = ratio_stats(L(), "c", "d", "times")
+    assert lin["scale"] == "linear" and sum(lin["hist30"]) == 100 and "symC" not in lin

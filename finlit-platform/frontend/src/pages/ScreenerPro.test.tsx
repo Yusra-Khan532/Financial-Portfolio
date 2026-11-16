@@ -111,8 +111,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(b);
     const dlg = screen.getByRole("dialog", { name: "Build a custom ratio" });
     expect(document.getElementById("scr-ratio")).toBeNull();                                         // a drawer, not a section that pushes the table down
-    expect(within(dlg).queryByRole("button", { name: /^P\/E/ })).toBeNull();                         // P/E is behind the tick box (a ratio already)
-    fireEvent.click(within(dlg).getByRole("checkbox", { name: /Also show ratios, percentages and counts/ }));
+    expect(within(dlg).queryByRole("checkbox")).toBeNull();                                          // every figure is listed at once (14 Nov N-1)
     fireEvent.click(within(dlg).getByRole("button", { name: /^P\/E/ }));
     fireEvent.click(within(dlg).getByRole("button", { name: /^Return on equity/ }));
     fireEvent.click(await within(dlg).findByRole("radio", { name: "No condition, just the column" }));
