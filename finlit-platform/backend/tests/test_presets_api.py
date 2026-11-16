@@ -230,3 +230,33 @@ async def test_the_selfcheck_says_why_in_counts_and_dates_and_the_night_keeps_it
     assert {"asOf", "checked", "leftOut", "candlesEnd"} <= set(d["patterns"]) or "error" in d["patterns"]
     assert "days" in d["nifty500"]
     assert not any(f"S{i:02d}" in json.dumps(d) for i in range(30))                          # still never a company
+
+
+async def test_the_list_gives_each_card_its_first_three_its_figure_and_who_joined_at_the_latest_close(app, store, anon):  # noqa: F811
+    """Task #64, N-38: the strip's cards show the pass count, '+N joined since yesterday' (Added = the latest close; none on the first stored close)
+    and the first three names with their figure. Below the plan the list still carries names only."""
+    await wipe(store)
+    async with store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE screen_spells, screen_runs, screen_snapshots")
+    from finlit.presets.registry import BY_ID
+    p = BY_ID["emerging-tech"]
+    active = [c.id for c in p.chips if c.default]
+    body = await service.get_result(store, p, active)
+    from datetime import date
+    ckey, session = engine.chip_key(active), date.fromisoformat(str(body["asOf"])[:10])
+    syms = [r["symbol"] for r in body.get("exportRows") or body["rows"]]
+    gold = await signed_in(app, "strip@example.com", plan="gold")
+    card = lambda b: [c for g in b["groups"] for c in g["presets"] if c["id"] == p.id][0]      # noqa: E731
+    first = card((await gold.get("/api/screener/presets")).json())
+    assert first["joined"] == 0                         # the first stored close: every company was already there, nobody "joined"
+    assert [f["symbol"] for f in first["first"]] == syms[:3] and all(f["name"] for f in first["first"]) and first["figure"] == "FinLit Prism" and first["top10"] is False
+    async with store.pool.acquire() as conn:            # an earlier close on record, and two companies added at the latest one
+        await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ($1, $2, $3::date - 1, 1, 1, 'x')", p.id, ckey, session)
+        await conn.execute("UPDATE screen_spells SET added_on = $3::date - 1 WHERE preset_id = $1 AND chips = $2 AND symbol <> ALL($4::text[])", p.id, ckey, session, syms[:2])
+    again = card((await gold.get("/api/screener/presets")).json())
+    assert again["joined"] == 2
+    top = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"] if c["id"] == "highest-rated-large"][0]
+    assert top["top10"] is True and top["figure"] == "FinLit Prism"
+    locked = card((await anon.get("/api/screener/presets")).json())
+    assert "first" not in locked and "joined" not in locked and locked["count"] is None
+    await gold.aclose()
