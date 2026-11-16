@@ -99,3 +99,55 @@
 .eps .eps-chosen > span { min-width: 0; overflow-wrap: anywhere; }
 .eps .eps-desel { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; }
 .eps .eps-desel span { font-size: 18px; line-height: 1; }
+/* Task #184: five tabs under a sticky bar, a key-results strip under it, and "How to use" beside the title */
+.eps .eps-anchor { height: 0; margin-bottom: -18px; scroll-margin-top: var(--eps-stick, 64px); }
+.eps .eps-tabs { position: sticky; top: var(--eps-stick, 64px); z-index: 6; display: flex; gap: 4px; padding: 5px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); box-shadow: 0 8px 18px -16px #000; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.eps .eps-tabs::-webkit-scrollbar { display: none; }
+.eps .eps-tab { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 2px; padding-right: 6px; border-radius: 10px; transition: background .18s ease, color .18s ease; }
+.eps .eps-tab > button[role="tab"] { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 6px 0 10px; border: 0; background: transparent; color: var(--muted); font: 600 var(--fs-14)/1.2 var(--sans); white-space: nowrap; cursor: pointer; }
+.eps .eps-tab > button[role="tab"]:hover { color: var(--text); }
+.eps .eps-tab > button[role="tab"]:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: 8px; }
+.eps .eps-tn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); font: 600 var(--fs-12)/1 var(--sans); }
+.eps .eps-tab.on { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); }
+.eps .eps-tab.on > button[role="tab"] { color: var(--text); }
+.eps .eps-tab.on .eps-tn { background: var(--gain); border-color: var(--gain); color: var(--bg); }
+.eps .eps-kpis { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.eps .eps-kpis li { display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); min-width: 0; }
+.eps .eps-kpis span { color: var(--muted); font-size: var(--fs-12); font-weight: 600; letter-spacing: .02em; }
+.eps .eps-kpis b { font: 600 var(--fs-20)/1.2 var(--sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.eps .eps-kpis b.down { color: var(--loss); }
+.eps .eps-kpis b.na small { display: block; color: var(--muted); font-size: var(--fs-12); font-weight: 400; }
+.eps .eps-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
+.eps .eps-panel[hidden] { display: none; }
+.eps .eps-panel:not([hidden]) { animation: eps-in .2s ease-out; }
+@keyframes eps-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .eps .eps-panel:not([hidden]) { animation: none; } .eps .eps-tab { transition: none; } }
+.eps-howto { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 99px; background: var(--s1); color: var(--text); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.eps-howto svg { width: 16px; height: 16px; color: var(--gain); }
+.eps-howto:hover, .eps-howto.on { border-color: var(--gain); }
+.eps-howto:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; }
+.eps-caret { display: inline-block; transition: transform .18s ease; color: var(--muted); }
+.eps-howto.on .eps-caret { transform: rotate(180deg); }
+.eps-howp { flex: 1 1 100%; list-style: none; margin: 0; padding: 12px 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); }
+.eps-howp[hidden] { display: none; }
+.eps-howp li { display: flex; gap: 10px; align-items: flex-start; min-width: 0; font-size: var(--fs-13); line-height: 1.4; }
+.eps-howp li > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.eps-howp b { font-size: var(--fs-14); }
+.eps-howp li > span:last-child > span { color: var(--muted); }
+.eps-hn { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gain); color: var(--bg); font: 600 var(--fs-12)/1 var(--sans); }
+@media (prefers-reduced-motion: reduce) { .eps-caret { transition: none; } }
+.eps .eps-tabs.fr { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.eps .eps-tabs.fl { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px); mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.eps .eps-tabs.fl.fr { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+@media (max-width: 760px) {
+  .eps .eps-tab { flex: none; padding-right: 4px; }
+  .eps .eps-tab > button[role="tab"] { gap: 6px; min-height: 40px; padding: 0 4px 0 8px; font-size: var(--fs-13); }
+  .eps .eps-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .eps .eps-kpis b { font-size: var(--fs-18); }
+  .eps-howp { grid-template-columns: minmax(0, 1fr); }
+}
+@media print {
+  .eps .eps-tabs, .eps-howto, .eps-howp { display: none !important; }
+  .eps .eps-panel[hidden] { display: grid !important; }
+  .eps .eps-panel { animation: none !important; }
+}

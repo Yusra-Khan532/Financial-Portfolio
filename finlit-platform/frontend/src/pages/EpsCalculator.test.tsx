@@ -38,6 +38,7 @@ describe("EPS calculator top part (task #155)", () => {
 
   it("builds the growth/PEG table from the quick picks plus the user's own rate, and the P/E/price table around today's P/E", () => {
     open();
+    fireEvent.click(screen.getByRole("tab", { name: /Valuation/ }));   // task #184: the scenario tables are in the Valuation tab
     expect(rows("EPS growth and PEG")).toEqual([
       ["5%", "14.04", "5.45x"], ["10%", "17.72", "2.73x"], ["14% (Base)", "21.18", "1.95x"], ["15%", "22.12", "1.82x"], ["20%", "27.37", "1.36x"], ["25%", "33.57", "1.09x"],
     ]);
@@ -69,6 +70,6 @@ describe("EPS calculator top part (task #155)", () => {
     expect(screen.queryByText(/Growth, PEG and the reverse question/)).toBeNull();
     expect(screen.queryByLabelText(/Target price/)).toBeNull();
     expect(screen.queryByText(/EPS growth needed a year/)).toBeNull();
-    expect(screen.getByRole("heading", { name: /3\. Future EPS & valuation/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /3\. Future EPS & valuation/, hidden: true })).toBeTruthy();
   });
 });
