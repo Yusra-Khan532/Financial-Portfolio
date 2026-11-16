@@ -142,3 +142,23 @@ describe("PDF statements: the ISIN on the line decides", () => {
     expect(f.missing.join(" ")).toMatch(/NIPPON INDIA ETF NIFTY BEES \(INF204KB14I2\): An exchange-traded fund/);
   });
 });
+
+describe("task #183: a file's lines without an ISIN are offered to confirm, never added on their own", () => {
+  it("from a file, the ISIN lines are added and the name-only lines wait for the member", () => {
+    const r = matchEntries([{ name: "x", isin: "INE002A01018" }, { name: "HDFC Bank Ltd" }], ROWS, answers(), true);
+    expect(r.found.map((f) => f.symbol)).toEqual(["RELIANCE"]);
+    expect(r.check).toHaveLength(1);
+    expect(r.check[0]).toMatchObject({ symbol: "HDFCBANK" });
+    expect(r.check[0].note).toMatch(/^No ISIN on this line, so it is matched by its name or symbol: please check/);
+  });
+  it("a share typed by name in the add box is the member's own choice and is added at once", () => {
+    expect(matchEntries([{ name: "HDFC Bank Ltd" }], ROWS, answers()).found.map((f) => f.symbol)).toEqual(["HDFCBANK"]);
+  });
+  it("a renamed share is found by its ISIN whatever the file calls it (ZOMATO is ETERNAL, Tata Motors' old share is TMPV)", () => {
+    const rows: SearchRow[] = [["ETERNAL", "ETERNAL Ltd", "543320", 1], ["TMPV", "Tata Motors Passenger Vehicles Ltd", "500570", 1], ["TMCV", "Tata Motors Ltd", null, 1]];
+    const idx: SearchIndex = { fields: ["symbol", "name", "bse", "ready", "nse"], rows, isin: ["INE758T01015", "INE155A01022", "INE1TAE01010"] };
+    const r = matchEntries([{ name: "ZOMATO LIMITED", isin: "INE758T01015" }, { name: "TATA MOTORS LIMITED", isin: "INE155A01022" }], rows, localAnswers(["INE758T01015", "INE155A01022"], idx), true);
+    expect(r.found.map((f) => [f.symbol, f.isin])).toEqual([["ETERNAL", "INE758T01015"], ["TMPV", "INE155A01022"]]);
+    expect(r.check).toEqual([]);
+  });
+});

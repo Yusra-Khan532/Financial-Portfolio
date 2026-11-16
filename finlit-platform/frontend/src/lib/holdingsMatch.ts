@@ -82,7 +82,8 @@ export function matchNames(names: string[], index: SearchRow[]): { found: Found[
 /** Task #128: each line to a listed company BY ITS ISIN; a line's name is used only when the line has no ISIN. `answers` holds the ISIN answers
  *  (lib/isin.ts `resolveIsins`); an ISIN without an answer (the server could not be asked) falls back to the line's name, and that match is only offered
  *  to check, never added on its own. */
-export function matchEntries(entries: Entry[], index: SearchRow[], answers: ReadonlyMap<string, IsinAnswer> | null):
+/** confirmNames (task #183): lines of a file or a pasted list that have no ISIN are matched by name or symbol and put up for the member to confirm, never added on their own. */
+export function matchEntries(entries: Entry[], index: SearchRow[], answers: ReadonlyMap<string, IsinAnswer> | null, confirmNames = false):
   { found: Found[]; check: ToCheck[]; skipped: Skipped[]; missing: string[]; byIsin: number } {
   const found: Found[] = [], check: ToCheck[] = [], skipped: Skipped[] = [];
   const named = entries.filter((e) => !e.isin).map((e) => e.name);
@@ -97,7 +98,8 @@ export function matchEntries(entries: Entry[], index: SearchRow[], answers: Read
     else skipped.push({ input, isin: e.isin, note: a.note || "Not a listed company's share." });
   }
   const byName = matchNames(named, index);
-  found.push(...byName.found);
+  if (confirmNames) byName.found.forEach((f) => check.push({ ...f, note: "No ISIN on this line, so it is matched by its name or symbol: please check" }));
+  else found.push(...byName.found);
   for (const e of unanswered) {
     const hit = e.name ? matchNames([e.name], index).found : [];
     if (hit.length) hit.forEach((h) => check.push({ ...h, isin: e.isin, note: `Its ISIN ${e.isin} could not be checked just now, so this is matched by the name in your file: please check` }));

@@ -100,3 +100,6 @@
 .eq-isin li > span { flex: 1 1 260px; min-width: 0; } .eq-isin small { color: var(--sp-mute); }
 .eq-isin .pfx-btn { min-height: 36px; padding: 0 12px; font-size: 13px; }
 .eq-isin-src { margin: 8px 0 0; }
+/* Task #183 (ISIN is the key): the upload note shows under the add row; "Add all N" confirms every line matched by name in one go. */
+.eq-addbar .eq-addnote { margin: 6px 0 0; font-size: 13px; color: var(--sp-mute, var(--muted)); }
+.eq-addbar .eq-addall { margin-left: 10px; }

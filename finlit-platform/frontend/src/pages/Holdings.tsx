@@ -9,6 +9,7 @@ import { TIER, useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useSearchIndex } from "../lib/api";
+import { isinMap } from "../lib/searchFilters";
 import { useUniverse } from "../lib/screener";
 import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
 import { RemoveAll } from "../components/RemoveAll";
@@ -96,17 +97,27 @@ export function HoldingsPage() {
   const state: "loading" | "ready" | "error" | "none" = DEMO ? "none" : pg.isError ? "error" : pg.isPending && symbols.length ? "loading" : "ready";
 
   // Task #128: every line is matched by its ISIN when it has one (the company list's ISINs, then POST /api/isin/resolve); its name is used only when it has none.
-  const add = async (entries: Entry[], from?: string) => {
+  const isinOf = useMemo(() => isinMap(idx.data), [idx.data]);
+  // Task #183 (ISIN is the key): every saved share carries its ISIN; a share whose symbol changed (ZOMATO → ETERNAL) follows its ISIN to the new one.
+  useEffect(() => {
+    if (!isinOf?.size) return;
+    const bySymbol = new Set(index.map((r) => r[0])), symbolOf = new Map([...isinOf].map(([sym, i]) => [i, sym]));
+    for (const h of st.holdings) {
+      if (!h.isin && isinOf.get(h.symbol)) portfolio.update(h.id, { isin: isinOf.get(h.symbol) });
+      else if (h.isin && !bySymbol.has(h.symbol) && symbolOf.get(h.isin)) portfolio.update(h.id, { symbol: symbolOf.get(h.isin)! });
+    }
+  }, [isinOf, st.holdings, index]);
+  const add = async (entries: Entry[], from?: string, confirmNames = !!from) => {
     if (!entries.length) { toast(from ? `No shares found in ${from}. It should have a column with the ISINs or the share names (ISIN, Symbol, Stock, Instrument or Company).` : "No share names found. Put one ISIN, name or ticker per line, or paste the ISIN or Name column from your broker."); return; }
     if (!index.length) { toast("The company list is still loading. Try again in a moment."); return; }
     const isins = entries.flatMap((e) => (e.isin ? [e.isin] : []));
     if (isins.length) setBusy(true);
     const res = isins.length ? await resolveIsins(isins, idx.data) : null;
     setBusy(false);
-    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null);
+    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null, confirmNames);
     const fresh = [...new Map(found.filter((f) => !symbols.includes(f.symbol)).map((f) => [f.symbol, f])).values()];
     const room = Math.max(0, cap - symbols.length), take = fresh.slice(0, room);
-    if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0 })));
+    if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0, isin: f.isin || isinOf?.get(f.symbol) })));
     const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
     setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
     setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${entries.length > isins.length ? ` ${entries.length - isins.length} without an ISIN matched by name.` : ""}` : null);
@@ -116,7 +127,7 @@ export function HoldingsPage() {
   const addChecked = (c: ToCheck) => {
     if (symbols.includes(c.symbol)) { setChecks((xs) => xs.filter((x) => x !== c)); return; }
     if (symbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
-    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0 }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
+    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol) }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
   };
   const empty = !lines.length;
   const common = page && model ? { page, meta, symbols: ids, mode, colors, model, ov: ovMap } : null;
@@ -169,14 +180,14 @@ export function HoldingsPage() {
               onConfirm={() => { const n = symbols.length, before = portfolio.clear(); setUndo({ before, n }); }} />
             <span className="pfx-cap">{symbols.length} of {cap} shares</span></span>
           </form>
-          <p className="pfx-note sr-only">{ADD_NOTE}</p>
+          <p className="pfx-note eq-addnote">{ADD_NOTE}</p>
           {undo && <p className="pfx-note rma-done" role="status">All {undo.n} {undo.n === 1 ? "share was" : "shares were"} removed. <button type="button" className="pfx-btn" onClick={() => { portfolio.restore(undo.before); setUndo(null); }}>Undo</button></p>}
           {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
-            <button className="pfx-solid" onClick={() => { void add(entriesFrom(text, matcher)); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
+            <button className="pfx-solid" onClick={() => { const es = entriesFrom(text, matcher); void add(es, undefined, es.length > 1); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
           {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
-            onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0 }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
+            onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0, isin: isinOf?.get(sym) }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
-          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>
+          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - symbols.length), take = checks.filter((c) => !symbols.includes(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
             <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b>{c.symbol}</b> {c.name}. <small>{c.note}.</small></span>
               <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
           {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
