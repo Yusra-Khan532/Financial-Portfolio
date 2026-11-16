@@ -61,11 +61,11 @@
    },
    {
     "q": "What can I filter on?",
-    "a": "Every listed company, with close to 200 filters grouped as FinLit model (Gold), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
+    "a": "Every listed company, with close to 200 filters grouped as the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum), Sector, Index, Size & price, Returns, Valuation, Profitability, Growth, Quarterly results, Financial health, Liquidity, Solvency, Efficiency, Ownership, Company events, Red flags, Banks & lenders and Volume, range & trend. Type in “Search for a filter” to jump to one, for example ROE or promoter."
    },
    {
     "q": "What are Quick screens?",
-    "a": "Ready-made sets of filters you can apply in one click: basic ones such as Low debt or Dividend payers, Silver screens such as Value picks, Steady compounders or No red flags, and Gold screens built on the FinLit model such as FinLit Strong (score 78 or more) or Improving scores."
+    "a": "Ready-made sets of filters you can apply in one click, such as Low debt, Dividend payers, Steady compounders or No red flags, and screens on the FinLit model (the FinLit IQ on Silver, FinLit Prism on Gold and Platinum). Every screen here is open to every plan that has this page, and several can be on at once."
    },
    {
     "q": "Can I filter on a ratio's past average?",
@@ -77,7 +77,7 @@
    },
    {
     "q": "What do the green and red cells mean?",
-    "a": "Green cells are in the best quarter of all listed companies on that column and red cells in the weakest. Best means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
+    "a": "Green cells are in the strongest quarter of all listed companies on that column and red cells in the weakest. Strongest means lower for P/E, P/B and debt, and higher for returns and profitability. Hover a column name to see what it means."
    },
    {
     "q": "How do I add columns or save my results?",
