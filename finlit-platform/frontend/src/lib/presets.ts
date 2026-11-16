@@ -10,6 +10,9 @@ export type Preset = {
   /** "Top 10 of 40 that pass" or "First 25 of 129 that pass", as the card says it; null when the whole match is listed. */
   listText?: string | null;
   chips: PresetChip[]; howItWorks: string[]; locked: boolean; tab?: PresetTab; kind?: string;
+  /** The strip's card (task #64, N-38), on the plan's own page only: a "Top 10 …" / "Highest-rated …" list; the figure the first three show;
+   *  the first three companies on the stored list with that figure (null when the company has none); how many joined at the latest close. */
+  top10?: boolean; figure?: string; first?: { symbol: string; name: string; value: number | null }[]; joined?: number;
 };
 /** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
 export type PresetTab = "advanced" | "basic";

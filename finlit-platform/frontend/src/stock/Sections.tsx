@@ -10,7 +10,7 @@ import { FinChart, type FinKind } from "../charts/FinChart";
 import { RsiGauge, Spark } from "../charts/Small";
 import { ChartHelp } from "../components/ChartHelp";
 import { MINUS, cr, dateIN, nf, signed } from "../lib/format";
-import { useBasis, setBasis, wasAutomatic, wasChosen } from "../lib/basis";
+import { useBasis, setBasis, wasAutomatic, wasChosen, type Basis } from "../lib/basis";
 import { useIntraday, usePrice, useSection, type ApiError, type Financials, type Intraday, type IntradayRange, type Ratios, type Summary, type Table } from "../lib/api";
 import { barSpan, changePct, istDay, status as intradayStatus } from "../lib/intraday";
 import { useAuth } from "../lib/auth";
@@ -139,16 +139,69 @@ function ReturnBars({ rows }: { rows: Summary["returns"] }) {
 }
 
 /* ---------------- Financials ---------------- */
-export function FinancialsSection({ f }: { f?: Financials }) {
+/** Missing financial years between the shown ones ("FY14 to FY24"), so columns that are not consecutive are never read as if they were (task #190). */
+export function yearGaps(periods: string[]): string[] {
+  const ys = periods.map((p) => /^FY(\d{2})$/.exec(p)).map((m) => (m ? Number(m[1]) : NaN));
+  const out: string[] = [];
+  for (let i = 1; i < ys.length; i++) {
+    const a = ys[i - 1], b = ys[i];
+    if (Number.isFinite(a) && Number.isFinite(b) && b - a > 1) out.push(b - a === 2 ? `FY${String(a + 1).padStart(2, "0")}` : `FY${String(a + 1).padStart(2, "0")} to FY${String(b - 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+export function FinancialsSection({ f: page }: { f?: Financials }) {
   const [kind, setKind] = useState<FinKind>("pl");
-  const basis = useBasis(f?.meta.symbol ?? ""), sym = f?.meta.symbol ?? "";
+  const basis = useBasis(page?.meta.symbol ?? ""), sym = page?.meta.symbol ?? "";
+  // Task #190: the reader can switch THIS section between consolidated and standalone accounts (the rest of the page keeps its own basis).
+  // The other basis is asked for only when its button is pressed (asking for an unstored basis makes the server build it). Its figures are shown only
+  // once an answer for exactly that basis is here: never the previous basis's numbers under the new label (the reason the old switch was removed).
+  const [pick, setPick] = useState<{ sym: string; b: Basis } | null>(null);
+  const chosen: Basis | null = pick && pick.sym === sym ? pick.b : null;
+  const wantOther = !!page && chosen != null && chosen !== page.meta.statement;
+  const other = useSection<Financials>(sym, "financials", wantOther, chosen ?? undefined);
+  const otherReady = wantOther && other.data?.meta.symbol === sym && other.data.meta.statement === chosen ? other.data : undefined;
+  const f = wantOther ? otherReady : page;
+  const shownBasis: Basis | undefined = f?.meta.statement;
+  const empty = (x?: Financials) => !!x && x.yearly.pl.periods.length === 0 && x.quarterly.pl.periods.length === 0;
+  // a basis found to have no statements stays greyed out (with its reason) for this company, also after switching back
+  const [none, setNone] = useState<string[]>([]);
+  useEffect(() => { if (otherReady && empty(otherReady) && chosen && !none.includes(sym + ":" + chosen)) setNone((n) => [...n, sym + ":" + chosen]); }, [otherReady, chosen, sym, none]);
+  const isNone = (b: Basis) => none.includes(sym + ":" + b) || (b === chosen && !!otherReady && empty(otherReady));
+  const noneFor: Basis | null = chosen && isNone(chosen) ? chosen : null;
   // A company whose consolidated accounts are short (an insurer that began consolidating lately, a merger) often has a longer standalone history:
   // look at it quietly, and switch to it unless the reader has chosen. The switch is shown on the page and one press undoes it.
-  const years = f?.yearly.pl.periods.length ?? 0;
-  const alt = useSection<Financials>(sym, "financials", !!f && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
+  const years = page?.yearly.pl.periods.length ?? 0;
+  const alt = useSection<Financials>(sym, "financials", !!page && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!f) return <section className="block"><SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!page) return <section className="block"><SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  const name = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
+  const active: Basis = chosen ?? page.meta.statement;
+  const basisSeg = (
+    <div className="seg" role="group" aria-label="Accounts: consolidated or standalone">
+      {(["consolidated", "standalone"] as Basis[]).map((b) => {
+        const off = isNone(b);
+        return <button key={b} type="button" aria-pressed={active === b} disabled={off && active !== b}
+          title={b === "consolidated" ? "The group: the company and its subsidiaries together" + (off ? ". Not available for this company." : "") : "The parent company alone, without its subsidiaries" + (off ? ". Not available for this company." : "")}
+          onClick={() => setPick(b === page.meta.statement ? null : { sym, b })}>{name(b)}</button>;
+      })}
+    </div>);
+  // the chosen basis is still loading, failed, or has no statements: the section says which, with the switch still there to go back
+  if (!f || noneFor) {
+    const why = noneFor ? `${name(noneFor)} statements are not available for this company in our data sources, so this section can only show ${page.meta.statement} accounts.`
+      : other.isError ? `${name(chosen as Basis)} accounts could not be loaded right now (${other.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${page.meta.statement} accounts are still here: press ${name(page.meta.statement)}.`
+        : `Loading ${(chosen as Basis)} accounts…`;
+    return (
+      <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
+        <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
+        <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
+          <div className="tools"><span className="faint" style={{ fontSize: 13 }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
+          <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: 14, margin: "6px 0 0" }}>{why}</p>
+          {!noneFor && !other.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
+        </div>
+      </section>);
+  }
   const tiles = finTiles(f), tbl: Table = kind === "q" ? f.quarterly.pl : f.yearly[kind];
   const ROWS: Record<string, [string, string, boolean?][]> = {
     pl: [["revenue", "Revenue"], ["other_income", "Other income"], ["expenses", "Expenses"], ["operating_profit", "Operating profit", true], ["finance_costs", "Interest"], ["depreciation", "Depreciation"], ["profit_before_tax", "Profit before tax", true], ["tax", "Tax"], ["net_profit", "Net profit", true], ["eps", "EPS (₹)"]],
@@ -170,14 +223,17 @@ export function FinancialsSection({ f }: { f?: Financials }) {
           </div>
         ))}
       </div>
-      {wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer.</p>}
-      {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && !wasAutomatic(sym) && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {basis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
+      {!chosen && wasAutomatic(sym) && basis === "standalone" && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Showing standalone accounts ({f.yearly.pl.periods.length} years) because this company's consolidated accounts cover far fewer. Press Consolidated to see the group's accounts.</p>}
+      {shownBasis && shownBasis !== basis && chosen && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>This section now shows {shownBasis} accounts; the rest of this page uses {basis} accounts.</p>}
+      {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
+      {kind !== "q" && yearGaps(tbl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>No {shownBasis} figures for {g} in our data sources: the columns on either side are not consecutive years.</p>)}
       {(kind === "bs" || kind === "cf") && tbl.periods.length > 0 && tbl.periods.length < f.yearly.pl.periods.length && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Our data sources hold {tbl.periods.length} year{tbl.periods.length === 1 ? "" : "s"} of this statement for this company, against {f.yearly.pl.periods.length} years of profit and loss.</p>}
       <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
         <ChartZoom label="Financial statements chart" className="cz-r">
         <div className="tools">
           <div className="seg" role="group" aria-label="Statement">{([["pl", "Profit & loss"], ["bs", "Balance sheet"], ["cf", "Cash flow"]] as const).map(([k, l]) => <button key={k} aria-pressed={kind === k || (k === "pl" && kind === "q")} onClick={() => setKind(k)}>{l}</button>)}</div>
           <div className="tools-r">
+            {basisSeg}
             <div className="seg seg-period" role="group" aria-label="Period: quarterly or yearly"><button aria-pressed={kind === "q"} onClick={() => setKind("q")} title="Profit and loss for each quarter">Quarterly</button><button aria-pressed={kind !== "q"} onClick={() => { if (kind === "q") setKind("pl"); }} title="Each financial year (April to March)">Yearly</button></div>
             <span className="chip ghost">{tbl.periods[0]} – {tbl.periods[last]}</span>
           </div>

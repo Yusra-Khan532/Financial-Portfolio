@@ -164,17 +164,7 @@ button.psx-i:hover, button.psx-i[aria-expanded="true"] { color: var(--text); bor
 .psx-ason { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 /* phone: the option chips sit in one wrapping row (their explanations stay available to screen readers and as a tooltip) */
 @media (max-width: 700px) { .psx-chips { display: flex; flex-wrap: wrap; gap: 8px; } .psx-chipw { display: block; } .psx-chipw small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
-/* the screens above the table */
-.psx-strip { padding: 14px 18px; margin: 0 0 14px; }
-.psx-stt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 8px; } .psx-stt h3 { margin: 0; font: 600 16px var(--sans); } .psx-stt p, .psx-strip > .psx-note { margin: 0; color: var(--muted); font-size: 13px; }
-.psx-gtabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-.psx-gtab { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
-.psx-gtab small { color: var(--muted); font-weight: 500; font-size: 12px; } .psx-gtab:hover { background: var(--s2); } .psx-gtab[aria-selected="true"] { background: var(--s3); } .psx-gtab:focus-visible, .psx-gs:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.psx-gtab.has-open::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
-.psx-gscreens { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; }
-.psx-gs { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; text-align: left; }
-.psx-gs b { font: 600 13px var(--sans); } .psx-gs small { color: var(--muted); font: 500 12px var(--mono); } .psx-gs:hover { border-color: var(--gold); }
-.psx-gs.is-on { border-color: var(--gold); background: var(--gold-soft); } .psx-gs.is-blocked { opacity: .6; cursor: not-allowed; }
+
 /* the bands over the columns, the score pills, the actions */
 .psx-bh th { font: 700 var(--fs-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 8px 10px; border-bottom: 1px solid var(--col-line); background: var(--s2); }
 .psx-bh th + th { border-left: 1px solid var(--col-line); } .psx-bh th.psx-b-this-screen { color: var(--gold); } .psx-bh .psx-ib { text-transform: none; }
