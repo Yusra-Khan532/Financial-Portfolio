@@ -27,6 +27,13 @@ OCF_FIELDS = ("netCashFromOperatingActivities", "cashFromOperatingActivity", "ca
 EPS_FIELDS = ("basicEPS", "basicEps", "basicReInr", "basicREInr", "basicEPSInRs", "eps", "dilutedEPS", "dilutedReInr")
 
 
+def latest_reported_end(rows, as_of=None):
+    """The latest period end among rows that report a profit (a placeholder row with no figures does not count), or None."""
+    ends = [field_date(r) for r in rows or [] if isinstance(r, dict) and first(r, *PROFIT_FIELDS) is not None]
+    ends = [e for e in ends if e and (as_of is None or e <= as_of)]
+    return max(ends) if ends else None
+
+
 def recent_annual_run(rows, as_of=None, fields=None):
     """(number of periods, latest period end) of the latest run of consecutive full-year results (330 to 400 days long, each ending 300 to 490 days
     after the one before) that report a profit. FinEdge's consolidated history can stop and start again years later (ABB: 2011, 2012, then 2024,

@@ -783,7 +783,23 @@ def _premium_inputs_loader(kept, fresh, observations, supplied_candles=None):
             current = _premium_kept_with_current_technical(kept, now, supplied_candles)
             if current is not None:
                 return current, kept["sources"], kept["effective"], kept["sourcing"]
-        raw, sources, effective, sourcing = _premium_dashboard_inputs(symbol, statement_type, now, supplied_candles, observations)
+        failures = []
+        token = _provider_failures.set(failures)
+        try:
+            raw, sources, effective, sourcing = _premium_dashboard_inputs(symbol, statement_type, now, supplied_candles, observations)
+        finally:
+            _provider_failures.reset(token)
+        own_path = f"/{_stock_symbol_path(symbol)}"
+        # The company's own endpoints the score depends on. Ratio endpoints (/ratios, /financial-metrics, /basic-financials) are left out: the model
+        # has calculated fallbacks for them, and a provider that errors on one of them for a company must not block that company for good.
+        critical = ("/financials/", "/company-profile/", "/quote", "/daily-quotes/", "/daily-price-ratios/", "/shareholdings/")
+        own = [f for f in failures if f["path"].startswith(critical) and (f["path"].endswith(own_path) or f["symbol"] == symbol)]
+        if own:
+            # The company's own statements, quote, prices, ratios or filings could not be read: a rating built on empty answers would replace the
+            # stored one with estimates. Stop; nothing is stored, the last report stays and the next run tries again. (Peers' data is not the
+            # company's: a peer that cannot be read only leaves that peer out of the industry benchmark, as before.)
+            logger.warning("Prism inputs for %s stopped: provider did not answer %s", symbol, sorted({f["path"] for f in own}))
+            raise HTTPException(status_code=503, detail="The data provider did not answer for this company's data. Please try again in a few minutes.")
         try:
             from backend import premium_cache
         except ImportError:
@@ -812,31 +828,46 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
     basis_note = None
     if effective == "consolidated":
         try:
-            from backend.premium_data import recent_annual_run
+            from backend.premium_data import recent_annual_run, latest_reported_end
         except ImportError:
-            from premium_data import recent_annual_run
+            from premium_data import recent_annual_run, latest_reported_end
         today = now.date() if hasattr(now, "date") else None
+
+        def standalone_read(capture, finedge_period):
+            """The standalone P&L rows the basis decision rests on. A failed call is not "no statements": it is made again (with the provider's
+            retries) and, if FinEdge still does not answer, the calculation stops instead of rating the wrong statements; the stored report stays."""
+            if capture.get("standaloneIncomeFailed") or "standaloneIncome" not in capture:
+                try:
+                    capture["standaloneIncome"] = _payload_items(_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+                        {"statement_type": "s", "statement_code": "pl", "period": finedge_period}), ["financials", "data", "results", "items"])
+                except Exception as exc:
+                    raise HTTPException(status_code=503, detail="The standalone statements could not be read from the data provider, so the "
+                                        "statement basis cannot be decided. Please try again in a few minutes.") from exc
+                capture["standaloneIncomeFailed"] = False
+            return capture.get("standaloneIncome") or []
+
         con_n, con_end = recent_annual_run((annual.get("income") or {}).get("financials"), today)
-        standalone_rows = annual.get("standaloneIncome") or []
-        if con_n < 4 and (annual.get("standaloneIncomeFailed") or "standaloneIncome" not in annual):
-            # The standalone statements decide this report's basis, so they must really be read: fetched again here (with the provider's
-            # retries). If FinEdge still does not answer, the calculation stops instead of storing a report on a too-short consolidated
-            # history; the last stored report stays and the next run tries again.
-            try:
-                standalone_rows = _payload_items(_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
-                    {"statement_type": "s", "statement_code": "pl", "period": "annual"}), ["financials", "data", "results", "items"])
-            except Exception as exc:
-                raise HTTPException(status_code=503, detail="The standalone statements could not be read from the data provider, and the "
-                                    "consolidated history is too short to rate on its own. Please try again in a few minutes.") from exc
-            annual["standaloneIncome"], annual["standaloneIncomeFailed"] = standalone_rows, False
-        sa_n, sa_end = recent_annual_run(standalone_rows, today)
-        if con_n < 4 and sa_n >= 4 and sa_end is not None and (con_end is None or (con_end - sa_end).days <= 31):
+        sa_n, sa_end = recent_annual_run(standalone_read(annual, "annual"), today)
+        cq = latest_reported_end((quarterly.get("income") or {}).get("financials"), today)
+        sq = latest_reported_end(standalone_read(quarterly, "quarterly"), today)
+        # Short (3.6.16): the latest unbroken run of consolidated full years is too short for a 3-year comparison and standalone has one, as recent.
+        short = con_n < 4 and sa_n >= 4 and sa_end is not None and (con_end is None or (con_end - sa_end).days <= 31)
+        # Stale (3.6.17, the main site's rule in finlit/finedge.py stale_reason): the consolidated statements stopped while the standalone ones
+        # went on: standalone's latest year at least ~a year newer, or its latest quarter at least ~two quarters newer (SBFC).
+        stale_year = bool(con_end and sa_end and (sa_end - con_end).days >= 360)
+        stale_quarter = bool(cq and sq and (sq - cq).days >= 170)
+        if short or stale_year or stale_quarter:
             annual, quarterly = {}, {}
             yearly = _fetch_stock_fundamentals(symbol, "standalone", "yearly", annual, _lean=lean)
             quarterly_view = _fetch_stock_fundamentals(symbol, "standalone", "quarterly", quarterly, _lean=lean)
             effective = "standalone"
-            basis_note = (f"The consolidated statements cover only {con_n} recent full year{'s' if con_n != 1 else ''} (to {con_end.isoformat() if con_end else 'no date'}), "
-                          f"too few for growth over 3 to 5 years; this report uses the standalone statements, which cover {sa_n} consecutive years to {sa_end.isoformat()}.")
+            if short:
+                basis_note = (f"The consolidated statements cover only {con_n} recent full year{'s' if con_n != 1 else ''} (to {con_end.isoformat() if con_end else 'no date'}), "
+                              f"too few for growth over 3 to 5 years; this report uses the standalone statements, which cover {sa_n} consecutive years to {sa_end.isoformat()}.")
+            else:
+                basis_note = (f"The consolidated statements stop earlier (latest year {con_end.isoformat() if con_end else 'none'}, latest quarter {cq.isoformat() if cq else 'none'}) "
+                              f"than the standalone ones (latest year {sa_end.isoformat() if sa_end else 'none'}, latest quarter {sq.isoformat() if sq else 'none'}); "
+                              "this report uses the standalone statements, which are current.")
     quote_data = yearly.get("quote", {})
     raw = {"profile": annual.get("profile", {}), "annual": annual.get("income", {}),
         "quarterly": quarterly.get("income", {}), "balance": annual.get("balance", {}),
@@ -1698,6 +1729,21 @@ class _CallMemo:
 
 
 _call_memo = contextvars.ContextVar("finedge_call_memo", default=None)
+# Provider failures during ONE Prism input fetch (a list, or None outside one). _safe_finedge_get turns a failure into an empty answer, which is
+# right for the dashboard but wrong for a rating: a rate limit during the nightly run made Nestle's report lose its standalone statements and
+# overwrite a good report. Each temporary failure (after the provider's retries) is noted here and the loader stops the calculation if any concerns
+# the company's own data. A "no data" answer (404) is not a failure.
+_provider_failures = contextvars.ContextVar("finedge_provider_failures", default=None)
+
+
+def _note_provider_failure(path, params, exc):
+    failures = _provider_failures.get()
+    if failures is None:
+        return
+    status = getattr(exc, "status_code", None)
+    if isinstance(exc, HTTPException) and status not in (429, 500, 502, 503, 504):
+        return
+    failures.append({"path": path, "symbol": (params or {}).get("symbol"), "status": status, "error": type(exc).__name__})
 
 
 def _finedge_get(path: str, params: Optional[Dict[str, Any]] = None):
@@ -1754,11 +1800,13 @@ def _finedge_get_once(path: str, params: Optional[Dict[str, Any]] = None):
 def _safe_finedge_get(path: str, params: Optional[Dict[str, Any]] = None, default=None):
     try:
         return _finedge_get(path, params)
-    except HTTPException:
+    except HTTPException as exc:
         logger.info("Optional FinEdge endpoint failed: %s", path)
+        _note_provider_failure(path, params, exc)
         return default if default is not None else {}
-    except Exception:
+    except Exception as exc:
         logger.warning("Optional FinEdge endpoint errored: %s", path)
+        _note_provider_failure(path, params, exc)
         return default if default is not None else {}
 
 

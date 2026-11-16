@@ -116,3 +116,60 @@ def test_standalone_that_cannot_be_read_stops_the_calculation(replay, monkeypatc
 def test_inputs_kept_before_version_4_are_refused():
     from backend import premium_cache
     assert premium_cache.INPUTS_VERSION == 4
+
+
+def failing_path(provider, match, times=99):
+    real, left = provider.once, {"n": times}
+    def once(path, params=None):
+        if match(path, params or {}) and left["n"] > 0:
+            left["n"] -= 1
+            raise server.HTTPException(status_code=503, detail="busy")
+        return real(path, params)
+    return once
+
+
+@pytest.mark.parametrize("what,match", [
+    ("quote", lambda p, q: p == "/quote" and q.get("symbol") == "TCS"),
+    ("ownership", lambda p, q: p == "/shareholdings/summary/TCS"),
+    ("price history", lambda p, q: p == "/daily-quotes/TCS"),
+])
+def test_a_provider_failure_on_the_companys_own_data_stops_instead_of_storing_estimates(replay, monkeypatch, what, match):  # noqa: F811
+    fixture, provider = replay("TCS")
+    monkeypatch.setattr(server, "_finedge_get_once", failing_path(provider, match))
+    monkeypatch.setattr(server, "_finedge_get", lambda path, params=None: server._finedge_get_once(path, params))
+    with pytest.raises(server.HTTPException) as err:
+        new_report(fixture)
+    assert err.value.status_code == 503 and "did not answer for this company" in err.value.detail
+
+
+def test_a_no_data_answer_is_not_a_failure(replay):  # noqa: F811
+    # the recording answers 404 for every request it never saw (dividends, segments, ...): those are "no data", the report is made
+    fixture, _ = replay("TCS")
+    report, _, _ = new_report(fixture)
+    assert report["rating"]["final"] is not None
+
+
+def test_a_peer_that_cannot_be_read_does_not_stop_the_report(replay, monkeypatch):  # noqa: F811
+    fixture, provider = replay("TCS")
+    monkeypatch.setattr(server, "_finedge_get_once", failing_path(provider, lambda p, q: p.startswith("/daily-price-ratios/") and not p.endswith("/TCS")))
+    report, _, _ = new_report(fixture)
+    assert report["rating"]["final"] is not None
+
+
+def test_stale_consolidated_switches_to_standalone(replay):  # noqa: F811
+    """SBFC-type: the consolidated statements stop a year and more before the standalone ones."""
+    fixture, provider = replay("TCS")
+    rec = short_consolidated(fixture)["recorded"]
+    for key in list(rec):
+        path, params = json.loads(key)
+        if path == "/financials/TCS" and params.get("statement_type") == "c" and params.get("statement_code") == "pl":
+            original = json.loads(json.dumps(fixture["recorded"][key]))
+            rows = original.get("financials") if isinstance(original, dict) else original
+            newest = sorted({r["period_end"] for r in rows}, reverse=True)[:2 if params["period"] == "annual" else 6]
+            cut = [r for r in rows if r["period_end"] not in newest]                  # consolidated stops two years / six quarters earlier
+            if isinstance(original, dict):
+                original["financials"] = cut
+            rec[key] = original if isinstance(original, dict) else cut
+    provider.recorded = rec
+    report, _, _ = new_report(fixture)
+    assert report["statementType"] == "standalone" and any("stop earlier" in w for w in report["warnings"])
