@@ -212,7 +212,7 @@ def test_missing_sections_fall_back_to_the_provider_and_a_failed_call_is_retried
     assert fresh["inputsVersion"] == premium_cache.INPUTS_VERSION and "annual_standalone" in fresh["raw"]
     old_shape = {k: v for k, v in fresh.items() if k != "inputsVersion"}
     assert premium_cache.usable_inputs(premium_cache.pack(old_shape), "TCS", "consolidated", now=now + timedelta(hours=1)) is None
-    assert premium_cache.usable_inputs(premium_cache.pack({**fresh, "inputsVersion": 1}), "TCS", "consolidated", now=now + timedelta(hours=1)) is None
+    assert premium_cache.usable_inputs(premium_cache.pack({**fresh, "inputsVersion": premium_cache.INPUTS_VERSION - 1}), "TCS", "consolidated", now=now + timedelta(hours=1)) is None
     bomb = premium_cache.pack({"raw": "0" * 30_000_000})
     assert premium_cache.unpack(bomb) is None
 

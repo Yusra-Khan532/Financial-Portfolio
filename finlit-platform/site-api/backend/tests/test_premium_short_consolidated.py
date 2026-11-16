@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from backend.premium_data import recent_annual_run
 from backend.premium_engine import dated_cagr_window, score_company
+from backend import server
 
 sys.path.insert(0, str(Path(__file__).parent))
 from test_premium_input_assembly import replay, new_report  # noqa: F401,E402
@@ -77,3 +78,41 @@ def test_full_consolidated_history_keeps_consolidated(replay):  # noqa: F811
     fixture, _ = replay("TCS")
     report, _, _ = new_report(fixture)
     assert report["statementType"] == "consolidated" and not any("standalone statements" in w for w in report["warnings"])
+
+
+SA_ANNUAL = json.dumps(["/financials/TCS", {"statement_type": "s", "statement_code": "pl", "period": "annual"}], sort_keys=True)
+
+
+def failing(provider, times):
+    """The standalone yearly P&L request fails `times` times (as during a busy nightly run), then answers."""
+    real, left = provider.once, {"n": times}
+    def once(path, params=None):
+        if json.dumps([path, params or {}], sort_keys=True) == SA_ANNUAL and left["n"] > 0:
+            left["n"] -= 1
+            raise server.HTTPException(status_code=503, detail="busy")
+        return real(path, params)
+    return once
+
+
+def test_a_failed_standalone_fetch_is_fetched_again_not_ignored(replay, monkeypatch):  # noqa: F811
+    fixture, provider = replay("TCS")
+    provider.recorded = short_consolidated(fixture)["recorded"]
+    monkeypatch.setattr(server, "_finedge_get_once", failing(provider, 1))
+    monkeypatch.setattr(server, "_finedge_get", lambda path, params=None: server._finedge_get_once(path, params))   # no provider-level retry
+    report, _, _ = new_report(fixture)
+    assert report["statementType"] == "standalone"
+
+
+def test_standalone_that_cannot_be_read_stops_the_calculation(replay, monkeypatch):  # noqa: F811
+    fixture, provider = replay("TCS")
+    provider.recorded = short_consolidated(fixture)["recorded"]
+    monkeypatch.setattr(server, "_finedge_get_once", failing(provider, 99))
+    monkeypatch.setattr(server, "_finedge_get", lambda path, params=None: server._finedge_get_once(path, params))
+    with pytest.raises(server.HTTPException) as err:
+        new_report(fixture)
+    assert err.value.status_code == 503 and "standalone statements could not be read" in err.value.detail
+
+
+def test_inputs_kept_before_version_4_are_refused():
+    from backend import premium_cache
+    assert premium_cache.INPUTS_VERSION == 4
