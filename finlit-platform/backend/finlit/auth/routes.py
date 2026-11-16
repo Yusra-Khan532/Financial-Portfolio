@@ -182,6 +182,7 @@ class Holding(BaseModel):
     date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     note: Optional[str] = Field(default=None, max_length=200)
     owned: Optional[bool] = None  # true once the member typed a real quantity (a name added without one is kept with qty 1 and no amount)
+    isin: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")  # task #183: the share's ISIN, the key that survives a rename
 
     @field_validator("symbol")
     @classmethod
@@ -698,6 +699,42 @@ async def put_portfolio(request: Request, body: PortfolioIn, ctx: Ctx = Depends(
         raise fail(422, "duplicate_holding")
     await save_state(request, ctx, "portfolio", {"holdings": [h.model_dump() for h in body.holdings]})
     return {"status": "saved"}
+
+
+# ---- Task #183: Clear portfolio. The cleared list (rows by ISIN with their quantities) is held on the server for the Undo window, then the clear is final.
+CLEAR_UNDO_SECONDS = 10
+CLEAR_HOLD_SECONDS = CLEAR_UNDO_SECONDS + 5    # a little longer than the Undo button shows, so a click in its last second still lands
+
+
+def _clear_key(user_id: str) -> str:
+    return f"pfclear:{user_id}"
+
+
+@router.post("/me/portfolio/clear")
+async def clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """Empty the member's equity portfolio, holding what was there for the Undo window. Watchlists, alerts and the other portfolios are not touched."""
+    need_plan(ctx, "silver")
+    pool, redis = request.app.state.store.pool, request.app.state.store.redis
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+    before = row["portfolio"] if row and row["portfolio"] is not None else {"holdings": []}
+    before = json.loads(before) if isinstance(before, str) else before
+    await redis.set(_clear_key(ctx.user_id), json.dumps(before), ex=CLEAR_HOLD_SECONDS)
+    await save_state(request, ctx, "portfolio", {"holdings": []})
+    return {"status": "cleared", "removed": len((before or {}).get("holdings") or []), "undoSeconds": CLEAR_UNDO_SECONDS}
+
+
+@router.post("/me/portfolio/undo-clear")
+async def undo_clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """Put back exactly what Clear portfolio removed, while the Undo window is open; after it the clear is final."""
+    need_plan(ctx, "silver")
+    redis = request.app.state.store.redis
+    held = await redis.getdel(_clear_key(ctx.user_id))
+    if held is None:
+        raise fail(410, "undo_expired", "The clear is final: Undo is only possible for 10 seconds.")
+    before = json.loads(held)
+    await save_state(request, ctx, "portfolio", before)
+    return {"status": "restored", "holdings": before.get("holdings") or []}
 
 
 @router.put("/me/screens")

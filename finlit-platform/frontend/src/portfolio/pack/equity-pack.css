@@ -103,3 +103,4 @@
 /* Task #183 (ISIN is the key): the upload note shows under the add row; "Add all N" confirms every line matched by name in one go. */
 .eq-addbar .eq-addnote { margin: 6px 0 0; font-size: 13px; color: var(--sp-mute, var(--muted)); }
 .eq-addbar .eq-addall { margin-left: 10px; }
+.dw-empty .eq-empty-go { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
