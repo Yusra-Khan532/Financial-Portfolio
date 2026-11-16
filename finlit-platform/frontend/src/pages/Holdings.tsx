@@ -38,8 +38,10 @@ import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
 import { Cards } from "../components/sectors/pack/Common";
 import type { Leadership } from "../lib/leadership";
-import { scoreTiles, sharesCards, type Share, type Size } from "../lib/equityPack";
-import { EachRisk, InShort, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, RiskGlance, ScoreGrid, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
+import { sharesCards, type Share, type Size } from "../lib/equityPack";
+import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
+import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { EachRisk, InShort, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, RiskGlance, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
@@ -48,6 +50,13 @@ import "../portfolio/pack/equity-pack.css";
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names only: quantities, prices and dates are never asked for.
  *  Every figure and every sentence comes from POST /api/portfolio/page (the handover pack's engine) and POST /api/portfolio/overview (live price and the plan's scores). */
+
+/** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
+const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"]] },
+  diversification: { label: "Diversification analytics", secs: [["eq-spread", "Spread"], ["eq-where", "Where it sits"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
+  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
+};
 
 export function HoldingsPage() {
   useDocTitle("Equity portfolio", "Add the shares you own, by name or from a broker file, and see how strong each one is, how spread out the list is, what moves together and where the risk comes from.");
@@ -144,7 +153,7 @@ export function HoldingsPage() {
     const size = (capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.label.replace(" cap", "") ?? null) as Size | null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.peerGroup.ranked, group: ld.peerGroup.short || ld.peerGroup.name, vs: ld.rel.w52 == null ? null : ld.rel.w52 * 100, bench: ld.benchmarks.sector.kind === "index" ? ld.benchmarks.sector.name : "peer average", direction: ld.direction } : null;
     return { symbol: l.symbol, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
-      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
+      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [lines, by, leads, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const secW = page?.sector_weight.eq ?? {}, secR = page?.sector_risk.eq ?? {};
@@ -152,8 +161,7 @@ export function HoldingsPage() {
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
   const sizes = (["Large", "Mid", "Small"] as Size[]).map((k) => ({ k, pct: shares.length ? (sizeCount[k] / shares.length) * 100 : 0, who: shares.filter((x) => x.size === k).map((x) => x.symbol) }));
   const packs = useMemo(() => (page?.groups ?? []).map((g) => { const tally = new Map<string, number>(); g.members.forEach((m) => { const k = meta[m]?.sector || ""; tally.set(k, (tally.get(k) ?? 0) + 1); }); const name = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0] || "Mixed"; return { members: g.members, avg: g.avg_corr, name }; }), [page, meta]);
-  const bigPack = packs.filter((x) => x.members.length >= 3).sort((a, b) => b.members.length - a.members.length)[0];
-  const tiles = scoreTiles(shares, sc.data?.readings as never, page as never, Object.keys(counts).length, (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length, bigPack ? { n: bigPack.members.length, name: bigPack.name } : null);
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { industries: Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
   const sr = page?.share_risk.eq ?? {}, sw = page?.share_weight.eq ?? {};
   const top3 = (() => { const xs = Object.keys(sr).sort((a, b) => sr[b] - sr[a]).slice(0, 3); return xs.length === 3 ? { symbols: xs, risk: xs.reduce((a, k) => a + sr[k], 0), money: xs.reduce((a, k) => a + (sw[k] ?? 0), 0) } : null; })();
   const [showChoices, setShowChoices] = useState(false);
@@ -200,8 +208,9 @@ export function HoldingsPage() {
         </header>
 
         {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span></div> : model && <>
-          {scoreOn ? (sc.data && !sc.data.locked ? <ScoreGrid total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} tiles={tiles} onAddQty={() => { setView("portfolio"); setTimeout(() => document.querySelector<HTMLInputElement>(".x-qty input")?.focus(), 50); }} onGo={(t) => setView(t === "shares" ? "portfolio" : t, true)} />
-            : <ScoreCard a={sc.data} state={sc.isError ? "error" : sc.isPending ? "loading" : "ready"} error={sc.error?.body?.detail} />) : null}
+          <TopGrid tiles={top} onOpen={(t) => setView(t, true)}
+            score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} onAddQty={() => { setView("portfolio"); setTimeout(() => document.querySelector<HTMLInputElement>(".x-qty input")?.focus(), 50); }} />
+              : <ScoreCard a={sc.data} state={sc.isError ? "error" : sc.isPending ? "loading" : "ready"} error={sc.error?.body?.detail} />) : <ScoreLocked />} />
           {scoreOn && <details className="sp-sec sp-fold" open={showChoices} onToggle={(e) => setShowChoices((e.currentTarget as HTMLDetailsElement).open)}>
             <summary><span><b className="sp-ft">Make the score yours</b><small>All optional: horizon, risk comfort, goal and the index to compare with. They stay in this browser.</small></span><span className="sp-show">{showChoices ? "Hide ▴" : "Show ▾"}</span></summary>
             <ScoreInputs c={choices} onChange={pick} /></details>}
@@ -210,15 +219,17 @@ export function HoldingsPage() {
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
           <div id="eq-tabs"><ViewTabs view={view} onView={(v) => setView(v)} n={lines.length} /></div>
+          <SectionsBar tab={view} all={SECS} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
+          {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} />}
           {view === "portfolio" && <>
             <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SizeFold counts={sizeCount} />
-            {tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
-            {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}
+            <div id="eq-trend">{tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
+            {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}</div>
             <PeersSection shares={shares} />
           </>}
           {view === "diversification" && (page && common ? <>
