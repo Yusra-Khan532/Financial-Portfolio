@@ -817,7 +817,19 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
             from premium_data import recent_annual_run
         today = now.date() if hasattr(now, "date") else None
         con_n, con_end = recent_annual_run((annual.get("income") or {}).get("financials"), today)
-        sa_n, sa_end = recent_annual_run(annual.get("standaloneIncome"), today)
+        standalone_rows = annual.get("standaloneIncome") or []
+        if con_n < 4 and (annual.get("standaloneIncomeFailed") or "standaloneIncome" not in annual):
+            # The standalone statements decide this report's basis, so they must really be read: fetched again here (with the provider's
+            # retries). If FinEdge still does not answer, the calculation stops instead of storing a report on a too-short consolidated
+            # history; the last stored report stays and the next run tries again.
+            try:
+                standalone_rows = _payload_items(_finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+                    {"statement_type": "s", "statement_code": "pl", "period": "annual"}), ["financials", "data", "results", "items"])
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail="The standalone statements could not be read from the data provider, and the "
+                                    "consolidated history is too short to rate on its own. Please try again in a few minutes.") from exc
+            annual["standaloneIncome"], annual["standaloneIncomeFailed"] = standalone_rows, False
+        sa_n, sa_end = recent_annual_run(standalone_rows, today)
         if con_n < 4 and sa_n >= 4 and sa_end is not None and (con_end is None or (con_end - sa_end).days <= 31):
             annual, quarterly = {}, {}
             yearly = _fetch_stock_fundamentals(symbol, "standalone", "yearly", annual, _lean=lean)
@@ -3622,12 +3634,16 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "quote": "finedge",
     }
     data_quality = []
+    standalone_income_failed = False
     if statement_type == "consolidated":
-        standalone_income_rows = _safe_finedge_get(
-            f"/financials/{_stock_symbol_path(symbol)}",
-            {"statement_type": "s", "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"},
-            default={},
-        )
+        # Not _safe_finedge_get: a failure must be told apart from "no standalone statements", because Prism decides the report's basis on it
+        # (a silently empty answer during a busy nightly run stored consolidated-only reports for ABB and Nestle).
+        try:
+            standalone_income_rows = _finedge_get(f"/financials/{_stock_symbol_path(symbol)}",
+                {"statement_type": "s", "statement_code": "pl", "period": "annual" if period == "yearly" else "quarterly"})
+        except Exception:
+            logger.info("Standalone statements not read for %s (%s)", symbol, period)
+            standalone_income_rows, standalone_income_failed = {}, True
         standalone_income_rows = _payload_items(standalone_income_rows, ["financials", "data", "results", "items"])
         revenue_aliases = {
             "netSales": ("revenue", 10), "sales": ("revenue", 10),
@@ -4025,6 +4041,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "assetQualityBasis": bank_asset_quality_statement_type, "resolutionNotes": resolution_notes,
         # Yearly standalone P&L rows (already fetched above for the revenue check): PEG's growth may use them when the consolidated history is too short.
         "standaloneIncome": standalone_income_rows if effective_statement_type == "consolidated" else [],
+        "standaloneIncomeFailed": standalone_income_failed,
         "standaloneCashflow": standalone_cash_rows,
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})

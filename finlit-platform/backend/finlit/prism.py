@@ -302,7 +302,8 @@ CLASSIFICATION_VERSION = 3
 # 3.6.14: PEG growth uses standalone EPS history when the consolidated one is too short for a 3-year window.
 # 3.6.15: cash conversion uses standalone statements when the consolidated history has fewer than three complete years.
 # 3.6.16: a consolidated history too short for a 3-year comparison switches the whole report to the standalone statements.
-REQUIRED_MODEL_VERSION = "3.6.16"
+# 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
+REQUIRED_MODEL_VERSION = "3.6.17"
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 
 

@@ -1,7 +1,7 @@
 # FinLit Prism: integration contract
 
 **FinLit Prism** is the Gold plan's advanced financial-health rating. It is the model merged from
-`Yusra-Khan532/financial-portfolio` (engine 3.6.16 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
+`Yusra-Khan532/financial-portfolio` (engine 3.6.17 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
 The name is in one place on each side: `PRISM_NAME` in `backend/finlit/prism.py` and in `frontend/src/lib/prism.ts`.
 
 A prism splits light into its bands: the rating splits a company into its four parts (Growth & Profitability, Valuation, Quality, Risk).
@@ -46,7 +46,7 @@ or `standalone`.
 
 ### Scoring-version freshness
 
-Stored reports must match the current financial model version, 3.6.16. An older
+Stored reports must match the current financial model version, 3.6.17. An older
 calculation is not returned as the latest report or reused by generation just
 because it was created recently. The page starts a fresh calculation when the
 latest endpoint returns no current-model report. The nightly precompute queue
@@ -60,7 +60,9 @@ latest consecutive annual window, 5 years, then 3, then what exists, with splits
 3-year window and the standalone history reaches the same latest year with a longer window (the growth basis says so). Version 3.6.15 measures cash conversion on the standalone statements when the consolidated history has fewer
 than three complete years and the standalone latest three annual periods are consecutive and complete. Version 3.6.16 switches the whole report to the
 standalone statements when the latest unbroken run of consolidated full years is shorter than 4 and the standalone run is at least 4 and as recent
-(ABB, Nestle); the report states the reason in its warnings. Reports of an older version are rebuilt.
+(ABB, Nestle); the report states the reason in its warnings. Version 3.6.17 makes that decision safe: the standalone statements must really be read (a failed
+provider call is retried, and if it still fails the calculation stops and the stored report stays) instead of a silent empty answer leading to a
+consolidated-only report. Reports of an older version are rebuilt.
 
 ### Storage
 
