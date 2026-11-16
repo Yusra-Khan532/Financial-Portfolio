@@ -10,11 +10,12 @@ import { FilterNote, SearchFilters, useIndexFilter } from "../components/SearchF
 import { Icon } from "../lib/icons";
 import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
-import { apiGet, useSection, type ApiError, type Financials } from "../lib/api";
+import { apiGet, useSection, type ApiError, type Financials, type Glossary } from "../lib/api";
 import { nf } from "../lib/format";
 import { around, enterpriseValue, expectedValue, fairValue, growthMarginGrid, marketEv, missScenarios, priceOf, scenario, solve, terminalShare, tornado, upsideScenarios, validateInputs, type Miss, type RvInputs, type SolveMode } from "../lib/reverseVal";
 import "../styles/dcf.css";   // the company search bar and its result list are the DCF page's (task #111): this page showed them unstyled when opened first
 import "../styles/reverse.css";
+import { Info } from "../components/Info";
 
 type Company = { symbol: string; name: string | null; sector: string | null; price: number | null; priceAsOf: string | null; marketCap: number | null; shares: { diluted: number | null; implied: number | null }; netDebt: { value: number | null; period: string | null } };
 const MODES: { id: SolveMode; label: string; field: keyof RvInputs }[] = [
@@ -51,6 +52,75 @@ function Field({ label, hint, value, onChange, unit, solved, error }: { label: s
 const HOW = ["Pick what to solve for: the revenue growth, the final-year margin, the exit multiple or the return. The other assumptions stay as you set them.", "The tool projects revenue, margin and free cash flow for 5 or 10 years, adds the value after the last year, and discounts it all to today.", "It then finds the one number that makes that value equal what the market is paying now, and shows it next to what the company has done."];
 const WHY = ["Whether a share is cheap or expensive has no testable answer. What the price needs to come true does: you can check it against the company's history.", "It shows how much of today's price rests on each assumption, and what a miss would do to the value and the return."];
 const METHOD = ["Revenue grows at the rate you set (or fades towards a long-run rate); the EBITDA margin moves from today's level to the target in a straight line or an S-curve.", "Free cash flow is EBITDA less tax on operating profit, capital spending and working capital, each set as a share of revenue.", "The value after the last year is the exit multiple times final-year EBITDA, or growth in perpetuity if you choose it. The value is divided by shares after taking away net debt.", "The solver is a bracketed bisection: value rises with growth, margin and multiple and falls with the discount rate, so each solve has one answer or says plainly that none exists.", "Net debt is the latest reported borrowings less cash. Revenue and operating profit are the company's reported figures. The result describes what the price assumes. It is not a forecast, a target price or a recommendation."];
+
+
+// ------------------------------------------------------------------------------------------------------------- section bar (task #188)
+// Seven buttons under the header that scroll to the page's sections. Nothing is hidden or moved: a button only scrolls. The bar sticks under the
+// site header, and the section in view is marked. A section that is not on the page yet (no company chosen, or no price solution) has its button
+// greyed out, saying why.
+type NavItem = { id: string; label: string; icon: string; sel: string; need: "company" | "solved"; about: string };
+const NAV: NavItem[] = [
+  { id: "as", label: "Assumptions", icon: "pencil", sel: ".rv-as", need: "company", about: "Choose what to solve for and set growth, margin, exit multiple, discount rate and the other inputs. Each field shows the company's own history beside it." },
+  { id: "res", label: "Required Growth", icon: "growth", sel: ".rv-res", need: "company", about: "The answer: the revenue growth (or margin, multiple or return, if you solve for that) today's price needs, then how it compares with the company's own record and the implied return." },
+  { id: "miss", label: "Miss Scenarios", icon: "decline", sel: ".rv-miss", need: "solved", about: "How the value per share and the return change if growth, margin, the exit multiple or the discount rate comes in below (or above) what the price needs." },
+  { id: "torn", label: "Price Drivers", icon: "bars", sel: ".rv-torn", need: "solved", about: "Which assumption the value depends on most: one shock at a time, ranked by how far it moves the value per share." },
+  { id: "ev", label: "Weighted Outcome", icon: "balance", sel: ".rv-ev", need: "solved", about: "A value per share weighted by how likely you think each case is. The weights are yours; the tool does not know the odds." },
+  { id: "gr", label: "Sensitivity Grid", icon: "grid", sel: ".rv-gr", need: "solved", about: "Value per share for each pair of revenue growth and final EBITDA margin, with the cell the price needs outlined." },
+  { id: "dr", label: "Save & Export", icon: "download", sel: ".rv-dr", need: "company", about: "Every assumption with its source and date, a link that opens this exact view, and the working as a CSV." },
+];
+const NAV_TOP = 64;   // the site header's height: the bar sticks just under it
+const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export function SectionNav({ company, solved, why }: { company: boolean; solved: boolean; why: string }) {
+  const bar = useRef<HTMLElement>(null), row = useRef<HTMLDivElement>(null), lock = useRef(0);
+  const [on, setOn] = useState<string | null>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const ok = (n: NavItem) => (n.need === "company" ? company : solved);
+  const off = (n: NavItem) => (ok(n) ? null : n.need === "company" || !company ? "Choose a company first." : why);
+  const offset = () => NAV_TOP + (bar.current?.offsetHeight ?? 56) + 12;
+  // the marked section: the last one whose top has passed under the bar (the last one when the page is scrolled to the end)
+  useEffect(() => {
+    let raf = 0;
+    const spy = () => { raf = 0; if (Date.now() < lock.current) return;
+      const live = NAV.filter(ok).map((n) => ({ n, el: document.querySelector<HTMLElement>(".rv " + n.sel) })).filter((x) => x.el);
+      if (!live.length) { setOn(null); return; }
+      const end = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      let cur: string | null = null;
+      for (const x of live) if (x.el!.getBoundingClientRect().top <= offset() + 8) cur = x.n.id;
+      if (end && cur) cur = live[live.length - 1].n.id;
+      setOn(cur);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(spy); };
+    spy(); window.addEventListener("scroll", onScroll, { passive: true }); window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [company, solved]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // on a phone the row scrolls sideways: keep the marked button in view and fade an edge that has more buttons past it
+  const edges = () => { const el = row.current; if (el) setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 }); };
+  useEffect(() => {
+    const el = row.current, b = on ? el?.querySelector<HTMLElement>(`[data-id="${on}"]`) : null;
+    if (el && b && el.scrollWidth > el.clientWidth) { const l = b.offsetLeft - el.offsetLeft; if (l < el.scrollLeft || l + b.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, l - 24); }
+    edges();
+  }, [on]);
+  const go = (n: NavItem) => {
+    const el = document.querySelector<HTMLElement>(".rv " + n.sel);
+    if (!el) return;
+    lock.current = Date.now() + (reduced() ? 100 : 900);
+    setOn(n.id);
+    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - offset()), behavior: reduced() ? "auto" : "smooth" });
+  };
+  return (
+    <nav ref={bar} className="rv-sn" aria-label="Sections of this page">
+      <div ref={row} className={"rv-sn-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} onScroll={edges}>
+        {NAV.map((n) => { const why0 = off(n); return (
+          <div key={n.id} className={"rv-sni" + (on === n.id ? " on" : "") + (why0 ? " off" : "")} data-id={n.id}>
+            <button type="button" className="rv-snb" data-target={".rv " + n.sel} aria-current={on === n.id ? "true" : undefined} aria-disabled={why0 ? true : undefined}
+              title={why0 ?? `Go to ${n.label}`} onClick={() => (why0 ? undefined : go(n))}><Icon name={n.icon} /><span>{n.label}</span></button>
+            <Info g={{ key: "rvsn-" + n.id, label: n.label, what: n.about, note: why0 ?? undefined } as Glossary} />
+          </div>); })}
+      </div>
+    </nav>
+  );
+}
 
 export function ReverseValuationPage() {
   useDocTitle("Reverse valuation", "What must happen for today's price to be justified? Solve for the revenue growth, margin, exit multiple or return a company's share price already assumes.");
@@ -136,6 +206,7 @@ export function ReverseValuationPage() {
           <span className="rv-info" role="group" aria-label="About this tool">{([["how", "How it works"], ["why", "Why use it?"], ["method", "Methodology"]] as const).map(([k, l]) => <button key={k} type="button" aria-expanded={info === k} className={info === k ? "on" : ""} onClick={() => setInfo(info === k ? null : k)}>{l}</button>)}</span></nav>
         {info && <section className="card rv-ip" aria-label={info === "how" ? "How it works" : info === "why" ? "Why use it" : "Methodology"}><ul>{(info === "how" ? HOW : info === "why" ? WHY : METHOD).map((t) => <li key={t}>{t}</li>)}</ul></section>}
         <Gate tier="gold" title="Reverse valuation" points={["Solve for the growth, margin, exit multiple or return a price assumes", "Miss scenarios and a growth × margin grid", "Every assumption on screen"]}>
+          <SectionNav company={!!(inputs && hist)} solved={!!solvedInputs} why={out?.why ?? (problems.length ? "Fix the assumptions to see this section." : "Shown once today's price can be solved.")} />
           <section className="card rv-co" aria-label="Choose a company">
             <label className="dcf-search"><Icon name="search" /><span className="sr-only">Search a company</span>
               <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name or NSE symbol" autoComplete="off" spellCheck={false} maxLength={60} onKeyDown={(e) => { if (e.key === "Enter" && hits[0]) { e.preventDefault(); setSym(hits[0][0]); setQ(""); } }} /></label>
