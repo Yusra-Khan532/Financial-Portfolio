@@ -65,6 +65,7 @@ describe("older answers and other kinds of group", () => {
   it("words for the benchmark and the source line", () => {
     expect(sectorBench(LEAD)).toBe("Nifty IT");
     expect(groupSourceLine({ peerGroup: { ...LEAD.peerGroup, source: "industry", kind: "sector", name: "Finance", ranked: 20 } })).toBe("Peer group: companies in the same sector (Finance), 20 ranked.");
+    expect(groupSourceLine({ peerGroup: { ...LEAD.peerGroup, source: "industry", kind: "basic_industry", name: "Private Sector Bank", ranked: 18 } })).toBe("Peer group: companies in the same basic industry (Private Sector Bank), 18 ranked.");   // task #192: banks split by NSE basic industry
   });
   it("the status block alone", () => { expect(strip(renderToStaticMarkup(<MemoryRouter><RankingStatus lead={LEAD} /></MemoryRouter>))).toContain("Leader 6th of 11 IT peers"); });
 });
