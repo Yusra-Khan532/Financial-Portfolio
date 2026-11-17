@@ -83,7 +83,8 @@ export function statesAt(h: SectorHistory | undefined, back: number): Record<Sta
 
 // ------------------------------------------------------------------------------------------------ "Today in one minute"
 /** A chip in an opened dashboard card (task #135): a company that opens its report, with an optional figure (its % move or profit change). */
-export type CardChip = { symbol: string; label: string; note?: string };
+/** `to`: where the chip opens (default: the company report of `symbol`); e.g. an industry chip opens that industry's results (task #194). */
+export type CardChip = { symbol: string; label: string; note?: string; to?: string };
 /** A labelled group of chips ("Lead · 16" in green, "Lag · 11" in red). */
 export type CardGroup = { label: string; tone?: "up" | "down"; chips: CardChip[] };
 export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string };

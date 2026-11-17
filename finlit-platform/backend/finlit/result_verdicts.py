@@ -66,6 +66,13 @@ def _sector_groups() -> Tuple[Dict[str, str], Dict[str, str]]:
     return _BOARD["ind"], _BOARD["sec"]
 
 
+def nse_spelling(name: str) -> str:
+    """NSE's own spelling of one of its 59 industries ("Paper Forest & Jute Products" -> "Paper, Forest & Jute Products"); a name that is not one of them is kept."""
+    from . import taxonomy
+    hit = taxonomy.tree()["by"]["industry"].get(taxonomy.key(name))
+    return hit["industry"] if hit else name
+
+
 def industry_of(symbol: str, sector: Optional[str], cls: Optional[dict] = None) -> Tuple[Optional[str], Optional[str]]:
     """(the industry shown, the group behind it for too-small industries): the company's Sector Pulse group (the same 38 groups as Sector Pulse and Sector Rotation);
     with no group, its NSE industry; with no NSE industry, the known higher level with its label. The group behind is the company's NSE macro sector.
@@ -76,8 +83,8 @@ def industry_of(symbol: str, sector: Optional[str], cls: Optional[dict] = None) 
     group = f"Macro sector: {macro}" if macro else None
     ind, sec = _sector_groups()
     c = _classes().get(symbol.upper())
-    if c:
-        return _lookup(ind, c[0]) or _lookup(sec, c[1]) or c[0], group
+    if c:   # Sector Pulse's own list writes NSE's names without their commas: with no Sector Pulse group, use NSE's spelling, so one industry is one row (task #194)
+        return _lookup(ind, c[0]) or _lookup(sec, c[1]) or nse_spelling(c[0]), group
     if k.get("industry"):
         return _lookup(ind, k["industry"]) or _lookup(sec, k.get("sector")) or k["industry"], group
     if k.get("sector"):
