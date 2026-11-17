@@ -148,7 +148,7 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
   const showImpact = !!c && (c.status === "ok" || c.status === "insufficient_data");
   const imp = useSectorImpact(showImpact && c?.mapping?.basis === "revenue_weighted");   // the full sector table is read only for a company that spans several sectors
 
-  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's outlook group" sub="Backdrop, sector impact, indicator signals and what they mean." color="--p-growth" />;
+  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's outlook group" sub="Backdrop, indicator signals and what they mean; sector impact when the company spans several sectors." color="--p-growth" />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;
@@ -162,7 +162,8 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
         <Meta c={c} />
         {c.mapping && <p className="mo-map"><Icon name="layers" />{c.mapping.note} {c.segments && <span>{c.segments.map((s) => `${s.name} ${Math.round(s.weight * 100)}%`).join(" · ")}</span>}</p>}
         {c.status === "insufficient_data" && <p className="mo-note" role="status"><Icon name="info" />{insufficientText(c)}. No score is shown rather than a guess.</p>}
-        {rows.length > 0 && <SectorTable rows={rows} />}
+        {/* task #216: one row repeats the backdrop above (its score, word and the same reason pills), so the panel shows only for a company in several sectors */}
+        {rows.length > 1 && <SectorTable rows={rows} />}
         <Indicators c={c} reasons={reasons} />
         <div className="mo-two"><Interpretation c={c} /><HistoryPanel c={c} /></div>
         <p className="mo-disc">{c.disclaimer}</p>

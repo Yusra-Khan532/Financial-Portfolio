@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { TILE_COLOURS, contrast, pickIndices, scopeStocks, dedupeFilings, filingLine, filingTag, firstName, greetingWord, moveBlock, readTab, resultLines, shortDay, shorten, tileColour, tileLabel, titleCase, writeTab, yoyLabel, yoyOf } from "./dashboard";
-import { WIDGETS, normaliseLayout } from "./prefs";
+import { describe, expect, it } from "vitest";
+import { TILE_COLOURS, contrast, pickIndices, scopeStocks, dedupeFilings, filingLine, filingTag, firstName, greetingWord, moveBlock, resultLines, shortDay, shorten, tileColour, tileLabel, titleCase, yoyLabel, yoyOf } from "./dashboard";
+import { DASH_STEPS, WIDGETS, migrateLayout, normaliseLayout, stepGroups } from "./prefs";
 import type { FeedItem } from "./feed";
 import type { IndexRow } from "./indices";
 import type { Row } from "./screener";
@@ -99,56 +99,50 @@ describe("filings", () => {
   it("title-cases IPO names in capitals only", () => { expect(titleCase("ANTALA INDUSTRIES LTD")).toBe("Antala Industries Ltd"); expect(titleCase("Vedant Poly Fabs")).toBe("Vedant Poly Fabs"); });
 });
 
-describe("phone tab memory", () => {
-  const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }; };
-  let s: ReturnType<typeof mem>;
-  beforeEach(() => { s = mem(); });
-  it("remembers the last tab per member", () => {
-    expect(readTab("u1", s)).toBe("stocks");
-    writeTab("u1", "news", s); writeTab("u2", "market", s);
-    expect([readTab("u1", s), readTab("u2", s)]).toEqual(["news", "market"]);
-  });
-  it("ignores a stored value that is not a tab and a store that throws", () => {
-    s.setItem("finlit-dash-tab:u1", "bogus"); expect(readTab("u1", s)).toBe("stocks");
-    const bad = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
-    expect(readTab("u1", bad)).toBe("stocks"); expect(() => writeTab("u1", "news", bad)).not.toThrow();
-  });
-});
-
-describe("customise layout", () => {
-  it("starts with the new default order, the three optional old blocks off, and no Gold & silver or DCF", () => {
+describe("customise layout (task #195: five numbered steps)", () => {
+  const ids = (l: { id: string }[]) => l.map((w) => w.id);
+  it("starts in the order of the pack's flow table, every block on except Gold & silver", () => {
     const d = normaliseLayout(null);
-    expect(d.slice(0, 5).map((w) => w.id)).toEqual(["mystocks", "portfolio", "mfglance", "etfglance", "market"]);   // task #135: the "at a glance" row under the table
-    expect(d.slice(1, 4).every((w) => w.size === "third")).toBe(true);
-    const off = d.filter((w) => !w.on).map((w) => w.id);
-    expect(off).toEqual(expect.arrayContaining(["commodities", "dcf", "results"]));
-    expect(d.filter((w) => w.on).map((w) => w.id)).not.toContain("commodities");
+    expect(ids(d)).toEqual(["mystocks", "say", "portfolio", "mfglance", "etfglance", "movers", "second", "buckets", "market", "marketread", "snapshot", "sectors", "flows", "heatmap",
+      "resultstoday", "filings", "results", "ipos", "alerts", "stress", "dcf", "learn", "commodities"]);
+    expect(d.filter((w) => !w.on).map((w) => w.id)).toEqual(["commodities"]);
     expect(d).toHaveLength(WIDGETS.length);
   });
-  it("replaces a layout saved before the refresh", () => { expect(normaliseLayout([{ id: "movers", on: true, size: "half" }, { id: "learn", on: false, size: "full" }])[0].id).toBe("mystocks"); });
-  it("keeps a member's own order, hidden blocks and widths, drops unknown blocks and adds new ones", () => {
-    const mine = normaliseLayout([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "half" }, { id: "nope", on: true, size: "half" }, { id: "filings", on: false, size: "half" }]);
-    const saved = mine.filter((w) => w.id === "filings" || w.id === "mystocks");
-    expect(saved).toEqual([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "half" }]);   // the member's order and settings stay
-    expect(mine.map((w) => w.id)).not.toContain("nope");
-    expect(new Set(mine.map((w) => w.id)).size).toBe(WIDGETS.length);
+  it("gives each block the pack's width: glance halves, strips and FII / DII full, four quarter tools", () => {
+    const size = Object.fromEntries(normaliseLayout(null).map((w) => [w.id, w.size]));
+    expect([size.portfolio, size.mfglance, size.movers, size.second, size.snapshot, size.sectors, size.resultstoday, size.filings]).toEqual(Array(8).fill("half"));
+    expect([size.etfglance, size.ipos, size.flows, size.buckets, size.say, size.marketread]).toEqual(Array(6).fill("full"));
+    expect([size.alerts, size.stress, size.dcf, size.learn]).toEqual(Array(4).fill("quarter"));
   });
-  it("puts a block added later right after the block it follows by default (the two new panels after Your shares at a glance, wherever the member put it)", () => {
-    const old = [{ id: "mystocks", on: true, size: "full" as const }, { id: "market", on: true, size: "full" as const }, { id: "flows", on: true, size: "half" as const }, { id: "portfolio", on: true, size: "half" as const }, { id: "marketread", on: true, size: "full" as const }];
-    const ids = normaliseLayout(old).map((w) => w.id);
-    expect(ids.indexOf("mfglance")).toBe(ids.indexOf("portfolio") + 1); expect(ids.indexOf("etfglance")).toBe(ids.indexOf("portfolio") + 2);
-    expect(ids.indexOf("market")).toBeLessThan(ids.indexOf("flows")); expect(ids.indexOf("flows")).toBeLessThan(ids.indexOf("portfolio"));   // the member's own order stays
-    expect(normaliseLayout(old).find((w) => w.id === "portfolio")!.size).toBe("third");          // once, so the three panels share a row
-    const later = normaliseLayout([...normaliseLayout(old).map((w) => (w.id === "portfolio" ? { ...w, size: "half" as const } : w))]);
-    expect(later.find((w) => w.id === "portfolio")!.size).toBe("half");                          // a width the member picks afterwards stays
+  it("groups blocks into the five steps in the flow's order, leaves out an empty step and keeps the member's order inside a step", () => {
+    const g = stepGroups([{ id: "learn" }, { id: "flows" }, { id: "market" }, { id: "mystocks" }]);
+    expect(g.map((x) => x.step.title)).toEqual(["Your money", "The market", "Tools"]);
+    expect(ids(g[1].blocks)).toEqual(["flows", "market"]);
+    expect(DASH_STEPS.map((s) => `${s.n} ${s.title}`)).toEqual(["1 Your money", "2 Your watchlist", "3 The market", "4 Results and news", "5 Tools"]);
+    expect(WIDGETS.every((w) => DASH_STEPS.some((s) => s.n === w.step))).toBe(true);
+  });
+  it("replaces a layout saved before the refresh", () => { expect(normaliseLayout([{ id: "movers", on: true, size: "half" }, { id: "learn", on: false, size: "full" }])[0].id).toBe("mystocks"); });
+  it("keeps a member's own order, hidden blocks and widths (quarter too), drops unknown blocks and adds new ones", () => {
+    const mine = normaliseLayout([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "quarter" }, { id: "nope", on: true, size: "half" }, { id: "filings", on: false, size: "half" }]);
+    expect(mine.filter((w) => w.id === "filings" || w.id === "mystocks")).toEqual([{ id: "filings", on: true, size: "full" }, { id: "mystocks", on: false, size: "quarter" }]);
+    expect(ids(mine)).not.toContain("nope");
+    expect(new Set(ids(mine)).size).toBe(WIDGETS.length);
+  });
+  it("moves a saved layout to the pack once: its order and widths, the old optional blocks on, a block the member switched off stays off", () => {
+    const old = [{ id: "flows", on: true, size: "half" as const }, { id: "mystocks", on: true, size: "full" as const }, { id: "heatmap", on: false, size: "full" as const },
+      { id: "movers", on: false, size: "half" as const }, { id: "stress", on: false, size: "half" as const }, { id: "portfolio", on: true, size: "third" as const }];
+    const m = migrateLayout(old);
+    expect(ids(m)).toEqual(ids(normaliseLayout(null)));
+    expect(m.find((w) => w.id === "heatmap")!.on).toBe(false);                       // the member's own choice
+    expect(m.find((w) => w.id === "movers")!.on && m.find((w) => w.id === "stress")!.on).toBe(true);   // off only by the old default
+    expect(m.find((w) => w.id === "portfolio")!.size).toBe("half");
   });
   it("moves a block up, down or to a dragged place", () => {
     const l = normaliseLayout(null).slice(0, 4);
-    expect(moveBlock(l, 1, 0).map((w) => w.id).slice(0, 2)).toEqual(["portfolio", "mystocks"]);
-    expect(moveBlock(l, 0, 3).map((w) => w.id)).toEqual(["portfolio", "mfglance", "etfglance", "mystocks"]);
+    expect(moveBlock(l, 1, 0).map((w) => w.id).slice(0, 2)).toEqual(["say", "mystocks"]);
+    expect(moveBlock(l, 0, 3).map((w) => w.id)).toEqual(["say", "portfolio", "mfglance", "mystocks"]);
     expect(moveBlock(l, 0, 0)).toEqual(l); expect(moveBlock(l, 0, -1)).toEqual(l); expect(moveBlock(l, 9, 0)).toEqual(l);
   });
-  it("gives every block a phone tab", () => { expect(new Set(WIDGETS.map((w) => w.tab))).toEqual(new Set(["stocks", "market", "news"])); });
 });
 
 

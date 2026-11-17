@@ -4,6 +4,7 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
+import { groupsSplit } from "../lib/pulsePack";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";
@@ -38,7 +39,7 @@ export function SectorPulsePage() {
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
   const b = q.data, h = hq.data;
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
-  const meta = b ? <>After the close, {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {b.rows.length} industries, as NSE groups them</> : null;
+  const meta = b ? <>After the close, {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text="Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group." /></> : null;
   return (
     <div className="wrap sx sp" data-testid="sector-pulse">
       <PackHead page="pulse" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={b?.rows ?? []}

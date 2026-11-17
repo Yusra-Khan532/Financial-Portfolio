@@ -34,7 +34,7 @@ describe("Sector Pulse, the pack's header", () => {
     at();
     expect(screen.getByRole("heading", { level: 1, name: "Sector Pulse" })).toBeTruthy();
     expect(document.body.textContent).toContain("After the close, Fri 6 Nov 2026 · 1,202 actively traded stocks");
-    expect(document.body.textContent).toContain("38 industries, as NSE groups them");
+    expect(document.body.textContent).toContain("38 groups: 33 industries and 5 sectors, as NSE groups them");
     const tabs = screen.getByRole("navigation", { name: "Sector pages" });
     expect(within(tabs).getByRole("link", { name: "Sector Rotation" })).toBeTruthy();
     const view = screen.getByRole("group", { name: "View" });
@@ -48,8 +48,8 @@ describe("Sector Pulse, the pack's header", () => {
 describe("Sector Pulse, Simple view (pack 05)", () => {
   it("shows the pack's sections in its order, each title once", () => {
     at();
-    expect(h2()).toEqual(expect.arrayContaining(["The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 industries, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted", "Too small for a reading"]));
-    const order = ["Today in one minute", "The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 industries, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+    expect(h2()).toEqual(expect.arrayContaining(["The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted", "Too small for a reading"]));
+    const order = ["Today in one minute", "The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(said()).not.toMatch(ADVICE);
   });
@@ -79,8 +79,8 @@ describe("Sector Pulse, Full table view (pack 06)", () => {
     expect(within(screen.getByRole("group", { name: "View" })).getByRole("button", { name: "Full table" }).getAttribute("aria-pressed")).toBe("true");
     const text = document.body.textContent ?? "";
     expect(text).toContain("Breadth is improving fast");
-    expect(text).toContain("32 industries now have more than half their stocks above the short trend.");
-    expect(text).toContain("In 29 of 38 industries half or fewer of the stocks are above their longer trend.");
+    expect(text).toContain("32 groups now have more than half their stocks above the short trend.");
+    expect(text).toContain("In 29 of 38 groups half or fewer of the stocks are above their longer trend.");
     expect(h2()).toEqual(expect.arrayContaining(["Every industry, every number", "Too small for a reading", "Six months of every industry"]));
     expect(said()).not.toMatch(ADVICE);
   });

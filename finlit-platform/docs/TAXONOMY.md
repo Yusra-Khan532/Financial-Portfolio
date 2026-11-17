@@ -61,6 +61,12 @@ The API gives each line `industry`, `sector` (NSE's 22), `macroSector`, `industr
 `industries`, `sectors` (NSE's 22) and `macroSectors` (Diversified is the 12th macro sector). `sector` used to hold the fund house's industry
 name; it now holds only NSE's 22-level sector.
 
+## Sector Pulse and Sector Rotation names (round 4a)
+The board's groups mix NSE industries and sector groups (small industries of one NSE sector read together), so every count on those pages says
+"groups" and names its two levels ("38 groups: 33 industries and 5 sectors"); the yardstick is "the average group". Group names are NSE's own in full,
+with NSE's commas (`frontend/src/lib/groupNames.ts`, checked against `nse_classification.json` by a test); the two home-made short-name lists are gone.
+The Too small section names the industries inside a too-small sector group and accounts for all 59 industries.
+
 ## Rounds of task #192
 1. This data layer (nothing on the pages changes yet).
 2. Every page named in the pack's section 3 reads these fields and labels each list by its level; the old mixed `sector` column goes when no

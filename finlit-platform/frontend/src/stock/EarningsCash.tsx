@@ -15,6 +15,7 @@ import { DISCLAIMER, Tile, Trend, gapLine, useRevenueCashModel } from "./Revenue
 import { Pill } from "./EarningsIntel";
 import "../styles/insights.css";
 import "../styles/earningscash.css";
+import { DropChev } from "../components/DropChev";
 
 /** The colour of a verdict tile (task #129): green ("s") for the good verdict, orange ("w") for the one to watch, red ("f") for the alarm, none when there is no verdict.
  *  One map for the three tiles: Earnings quality (Strong / Mixed / Needs a closer look), Cash backing (the pill's ok / watch / alert) and Cash conversion
@@ -105,7 +106,7 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
           <li key={mo.key}><details><summary><span className="ci"><Icon name={mo.icon} /></span><span className="nm">{mo.name}</span><Pill tone={mo.tone}>{mo.badge}</Pill></summary>
             <ul className="ei-facts">{mo.facts.map((t, i) => <li key={i}>{t}</li>)}</ul></details></li>))}</ul></section>)}
 
-      {intel && <details className="ec-fold"><summary>Investor interpretation</summary>
+      {intel && <details className="ec-fold xdd"><summary>Investor interpretation<DropChev /></summary>
         <dl><dt>Why it matters</dt><dd>{intel.meaning.why}</dd>
           {intel.meaning.risks.length > 0 && <><dt>Possible risks</dt><dd><ul>{intel.meaning.risks.map((t, i) => <li key={i}>{t}</li>)}</ul></dd></>}
           <dt>What to investigate next</dt><dd>{intel.meaning.where}</dd></dl></details>}

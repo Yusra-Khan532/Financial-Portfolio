@@ -368,7 +368,9 @@ export const transient = (e: { status?: number } | null | undefined) => !e?.stat
 /** 2.5 s, 5 s, 10 s, then every 15 s. */
 export const backoff = (failures: number, intervalMs = 2500) => Math.min(intervalMs * 2 ** failures, 15000);
 
-export type Problem = { kind: "locked" | "missing" | "limit" | "unavailable" | "invalid" | "expired" | "offline" | "other"; title: string; text: string; retryAt?: Date };
+export type Problem = { kind: "locked" | "missing" | "limit" | "unavailable" | "invalid" | "expired" | "offline" | "other"; title: string; text: string; retryAt?: Date;
+  /** The visitor is not signed in: the page offers to sign in or sign up (free) and come back here, not "Try again" (task #207). */
+  signIn?: boolean };
 const waitWords = (s: number) => (s < 60 ? "less than a minute" : s < 5400 ? `about ${Math.round(s / 60)} minute${Math.round(s / 60) === 1 ? "" : "s"}` : `about ${Math.round(s / 3600)} hours`);
 const clock = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 /** What to tell the member for a failed Prism request, in words. */
@@ -376,7 +378,7 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
   const e = err instanceof ApiError ? err : null;
   const status = e?.status ?? 0;
   const detail = e?.body.detail;
-  if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company." };
+  if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company.", signIn: true };
   if (status === 403) return { kind: "locked", title: `${PRISM_NAME} is part of Gold`, text: "Sign in with a Gold plan to open and calculate Prism ratings." };
   if (status === 404) return { kind: "missing", title: "We could not find this company", text: "Check the symbol, or choose the company from the search box." };
   if (status === 410) return { kind: "expired", title: "This PDF is not available", text: "The PDF of this report could not be found. Recalculate to create a fresh report, then download it." };

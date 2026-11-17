@@ -262,7 +262,7 @@ class ScreensIn(BaseModel):
 class Widget(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9_]{1,24}$")
     on: bool = True
-    size: Literal["third", "half", "full"] = "half"
+    size: Literal["quarter", "third", "half", "full"] = "half"   # quarter: the dashboard's tools row (task #195)
 
 
 class PrefsIn(BaseModel):
@@ -276,6 +276,7 @@ class PrefsIn(BaseModel):
     rotationRank: bool = False
     digest: bool = False
     dashboard: List[Widget] = Field(default_factory=list, max_length=30)
+    dashV: int = Field(default=0, ge=0, le=99)   # the dashboard layout version the member's layout follows (task #195: 2); the site moves an older layout once
     # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
     sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
 

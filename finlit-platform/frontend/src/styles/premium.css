@@ -174,7 +174,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .card, .feat, .term, .bk, .spc, .bs, .pay, .bt .spot { background: var(--s1); box-shadow: none; }
 .kpi, .know > div { background: var(--s1); }
 .ptile { background: color-mix(in srgb, var(--pc) 7%, transparent); }
-.card.acc::before { height: 2px; left: 0; right: 0; border-radius: 0; background: var(--ac, var(--gold)); }
+.card.acc { border-top-color: var(--ac, var(--gold)) !important; }   /* task #216: the accent as the top border (see finlit.css) */
 .sec.alt { background: var(--s2); border-block: 1px solid var(--border); }
 .term { transform: none !important; }
 .feat::before, .bt .spot::before { display: none; }

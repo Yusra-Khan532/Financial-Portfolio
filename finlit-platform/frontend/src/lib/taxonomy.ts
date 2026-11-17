@@ -58,11 +58,15 @@ export function useClassifications(symbols: string[]) {
 /** One spelling for matching, as the server's finlit/taxonomy.py `key`: lower case, "and" as "&", only letters, digits and "&". */
 export const nameKey = (name: string | null | undefined) => String(name ?? "").toLowerCase().replace(/ and /g, " & ").replace(/[^a-z0-9&]/g, "");
 
-type TaxonomyIndex = { macro_sectors: { macro_sector: string }[]; sectors: { sector: string }[]; industries: { industry: string }[]; basic_industries: { basic_industry: string }[] };
+export type TaxonomyIndex = { macro_sectors: { macro_sector: string }[]; sectors: { sector: string }[]; industries: { industry: string; sector?: string; companies?: number }[]; basic_industries: { basic_industry: string }[] };
+/** NSE's four lists, with the number of listed companies under each name (GET /api/taxonomy, cached). */
+export function useTaxonomyIndex() {
+  return useQuery<TaxonomyIndex, ApiError>({ queryKey: ["taxonomy-index"], staleTime: 30 * 60_000, retry: 1, queryFn: () => apiGet<TaxonomyIndex>("/api/taxonomy") });
+}
 /** A name in NSE's own spelling, whatever its commas or case ("Oil Gas & Consumable Fuels" -> "Oil, Gas & Consumable Fuels"); a name NSE's lists do not have stays as
  *  it is. Pages that receive group names from Sector Pulse (which drops NSE's commas) show them through this (task #192, rule T3: one spelling per name). */
 export function useNseName(): (name: string) => string {
-  const q = useQuery<TaxonomyIndex, ApiError>({ queryKey: ["taxonomy-index"], staleTime: 30 * 60_000, retry: 1, queryFn: () => apiGet<TaxonomyIndex>("/api/taxonomy") });
+  const q = useTaxonomyIndex();
   const d = q.data;
   const map = new Map<string, string>();
   if (d) for (const n of [...d.macro_sectors.map((x) => x.macro_sector), ...d.sectors.map((x) => x.sector), ...d.industries.map((x) => x.industry), ...d.basic_industries.map((x) => x.basic_industry)])

@@ -327,7 +327,8 @@ h2 { font-family: var(--serif); font-weight: 400; font-size: var(--fs-32); line-
 .sh-r { display: flex; flex-direction: column; align-items: flex-end; align-self: flex-start; gap: 10px; text-align: right; } .sh-r p { margin: 0; }
 .sh p { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
 .card { position: relative; background: linear-gradient(180deg, color-mix(in srgb, var(--ac, var(--gold)) 5%, var(--s1)), var(--s1) 160px); border: 1px solid var(--border); border-radius: 20px; padding: 22px 24px; box-shadow: var(--shadow); min-width: 0; }
-.card.acc::before { content: ""; position: absolute; left: 22px; right: 22px; top: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--ac, var(--gold)), transparent); }
+/* task #216 (pack 1.7): the accent is a 2 px top border, so it follows the rounded corners (the old straight bar ran past them on every accented card) */
+.card.acc { border-top: 2px solid color-mix(in srgb, var(--ac, var(--gold)) 80%, var(--border)) !important; }   /* !important: theme rules set the whole card border in dark mode */
 .card-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .card-h h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .ci { width: 30px; height: 30px; flex: none; border-radius: 9px; display: grid; place-items: center; color: var(--ac); background: color-mix(in srgb, var(--ac) 15%, transparent); }

@@ -11,10 +11,10 @@ import { useSectorHistory, type SectorHistory, type StateKey } from "../../../li
 import { useIndustryMap, type IndustryMap } from "../../../lib/sectorExtra";
 import type { Board, GroupRow } from "../../../lib/sectors";
 import {
-  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayCards, yourCards, yourOrder,
+  BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayCards, yourCards, yourOrder,
   type Card, type Holding,
 } from "../../../lib/pulsePack";
-import { BoxChip, Cards, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip } from "./Common";
+import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 
@@ -48,8 +48,8 @@ export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }
       {hd.sub && <p className="sp-lead-sub">{hd.sub}</p>}
       <div className="sp-today">
         <div>
-          <p className="sp-cap">All {rows.length} industries, one square each</p>
-          <ul className="sp-squares" aria-label={`All ${rows.length} industries, coloured by their state`}>
+          <p className="sp-cap">All {groupsSplit(rows)}, one square each</p>
+          <ul className="sp-squares" aria-label={`All ${groupsN(rows.length)}, coloured by their state`}>
             {squares.map((r) => <li key={r.slug}><Link to={`/sectors/${r.slug}`} style={{ background: COLOUR[keyOf(r)] }} title={`${short(r.name)}: ${WORD[keyOf(r)]}`} aria-label={`${short(r.name)}: ${WORD[keyOf(r)]}`} /></li>)}
           </ul>
           <table className="sp-stt">
@@ -93,8 +93,8 @@ export function Mood({ h }: { h: SectorHistory }) {
   ];
   const weeks = [...(h.weeks ?? [])].reverse();
   return (
-    <Section id="sp-mood" hide title="The market's mood, day by day" help={`The market's mood. Every trading day each of the ${total} industries has one state. The chart stacks how many were in each state, so the colours always add up to ${total}. Hover a day to read it.`}
-      sub={`All ${total} industries stacked: each colour is how many were in that state on the day. Read it like weather for the whole market.`}>
+    <Section id="sp-mood" hide title="The market's mood, day by day" help={`The market's mood. Every trading day each of the ${groupsN(total)} has one state. The chart stacks how many were in each state, so the colours always add up to ${total}. Hover a day to read it.`}
+      sub={`All ${groupsN(total)} stacked: each colour is how many were in that state on the day. Read it like weather for the whole market.`}>
       <ul className="sp-lgd">{MOOD_ORDER.map((k) => <li key={k}><Swatch k={k} />{WORD[k]}</li>)}</ul>
       <div className="sp-chartw">
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Industries in each state, ${dayMon(h.dates[0])} to ${dayMon(h.dates[n - 1])}. Today: ${MOOD_ORDER.filter((k) => now[k]).map((k) => `${now[k]} ${WORD[k].toLowerCase()}`).join(", ")}.`}>
@@ -113,7 +113,7 @@ export function Mood({ h }: { h: SectorHistory }) {
             <thead><tr><th scope="col">Friday</th>{MOOD_ORDER.map((k) => <th key={k} scope="col" className="r">{k === "crash" ? "Bounce after a crash" : WORD[k]}</th>)}</tr></thead>
             <tbody>{weeks.map((w) => <tr key={w.date}><td>{dayMon(w.date)}</td>{MOOD_ORDER.map((k) => <td key={k} className="r">{w.counts[k] ? w.counts[k] : "·"}</td>)}</tr>)}</tbody>
           </table></Scroll>
-          <p className="sp-note">How many of the {total} industries were in each state at each Friday's close, newest first.</p>
+          <p className="sp-note">How many of the {groupsN(total)} were in each state at each Friday's close, newest first.</p>
         </details>)}
     </Section>
   );
@@ -138,7 +138,7 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
           <Cards items={yourCards(b.rows, held)} />
           <Scroll label="your industries"><table className="sp-tb sp-yours">
             <thead><tr><th scope="col">Industry and your shares</th><th scope="col">Its state today<Tip text="The industry's state at the latest close: sold off, bouncing back, rising together or losing steam." /></th>
-              <th scope="col">Against other industries<Tip text="Its Sector Rotation box and rank: how it has done against the average industry over recent months and weeks." /></th>
+              <th scope="col">Against other industries<Tip text="Its Sector Rotation box and rank: how it has done against the average group over recent months and weeks." /></th>
               <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th></tr></thead>
             <tbody>{mine.map((r) => {
               const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => x.symbol), up = risingOf(r);
@@ -200,7 +200,7 @@ export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
   const fin = b.rows.find((r) => keyOf(r) === "crash" || keyOf(r) === "bouncing") ?? b.rows[0];
   const early = g.flatMap((x) => x.rows).filter(isEarly);          // in the group's own order (most stocks rising first)
   return (
-    <Section id="sp-bystate" title={`All ${b.rows.length} industries, by state`} sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
+    <Section id="sp-bystate" title={`All ${groupsN(b.rows.length)}, by state`} sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
       {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
       <div className="sp-two">
@@ -238,7 +238,7 @@ export function IndustryMapPack({ m }: { m: IndustryMap }) {
   const near = m.rows.filter((r) => r.rising >= 50 && r.below_high > -15), far = m.rows.filter((r) => r.rising >= 50 && r.below_high <= -15), soldRising = m.rows.filter((r) => r.rising >= 50 && r.state === "sold_off");
   const keys = ORDER.filter((k) => k === "no_signal" || m.rows.some((r) => r.state === k));       // the pack's key always names No clear signal
   const cards: Card[] = [
-    { kind: "good", title: `${near.length} industries rising and near their highs`, text: "Top-right corner: half or more of their stocks are rising and the typical stock is close to its 1-year high." },
+    { kind: "good", title: `${groupsN(near.length)} rising and near their highs`, text: "Top-right corner: half or more of their stocks are rising and the typical stock is close to its 1-year high." },
     { kind: "insight", title: `${far.length} rising but still far below their highs`, text: "Bottom-right corner: most stocks have turned up, but the typical stock is still well under its 1-year high." },
     { kind: "watch", title: `${soldRising.length} still marked Sold off`, text: "Half or more of their stocks are rising, but the state has not changed yet; it changes more slowly than the count." },
   ];
@@ -247,7 +247,7 @@ export function IndustryMapPack({ m }: { m: IndustryMap }) {
       sub="Each dot is an industry. Right means more of its stocks are rising; lower means its typical stock is further below its 1-year high. Colour is its state.">
       <ul className="sp-lgd">{keys.map((k) => <li key={k}><Swatch k={k} />{WORD[k]}</li>)}</ul>
       <div className="sp-chartw">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" data-testid="map-chart" aria-label={`${m.rows.length} industries by stocks rising and distance below their 1-year high.`}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" data-testid="map-chart" aria-label={`${groupsN(m.rows.length)} by stocks rising and distance below their 1-year high.`}>
           <rect className="sp-zone-up" x={x(50)} y={y(0)} width={x(100) - x(50)} height={y(-15) - y(0)} />
           <rect className="sp-zone-dn" x={x(0)} y={y(-15)} width={x(50) - x(0)} height={y(lo) - y(-15)} />
           {[0, 25, 50, 75, 100].map((v) => <g key={v}><line className={v === 50 ? "sp-mid" : "sp-grd"} x1={x(v)} x2={x(v)} y1={T} y2={H - B} /><text className="sp-ax" x={x(v)} y={H - B + 18} textAnchor="middle">{v}</text></g>)}
@@ -280,7 +280,7 @@ export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
       <Cards items={cards} />
       <Scroll label="momentum and strength"><div className="sp-mx" style={{ gridTemplateColumns: `minmax(230px, auto) repeat(${BOX_ORDER.length}, minmax(150px, 1fr))` }}>
         <div className="sp-mx-c sp-mx-corner">Stocks turning up? ↓ · Beating other industries? →</div>
-        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip text="A Sector Rotation box: how the industry has done against the average industry over recent months and weeks." /></div>)}
+        {BOX_ORDER.map((c) => <div key={c} className={"sp-mx-c sp-mx-col sp-box-" + BOX[c].tone}><b aria-hidden="true">{BOX[c].arrow}</b> {BOX[c].word}<Tip text="A Sector Rotation box: how the industry has done against the average group over recent months and weeks." /></div>)}
         {mx.states.map((k) => <>
           <div key={k} className="sp-mx-c sp-mx-row"><StateChip k={k} help /></div>
           {BOX_ORDER.map((c) => { const cell = mx.cells[k + ":" + c]; return (
@@ -328,7 +328,7 @@ function SmallList({ slug, name }: { slug: string; name: string }) {
   return <span className="sp-smalls" aria-label={`Stocks in ${name}`}>{q.data.stocks.map((s) => <Link key={s.symbol} to={`/stocks/${s.symbol}`} className="sp-sym"><CoLogo symbol={s.symbol} size={16} inline />{s.symbol}</Link>)}</span>;
 }
 export function CountedAndSmall({ b }: { b: Board }) {
-  const u = b.universe, few = b.too_few_stocks ?? [], total = few.reduce((s, x) => s + x.stocks_counted, 0);
+  const u = b.universe, few = b.too_few_stocks ?? [], total = few.reduce((s, x) => s + x.stocks_counted, 0), acc = useAccount(b);
   const day = u ? `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(u.date + "T00:00:00Z").getUTCDay()]} ${dayMon(u.date)}` : "";
   return (
     <div className="sp-two sp-two-tight">
@@ -336,14 +336,15 @@ export function CountedAndSmall({ b }: { b: Board }) {
         <div className="sp-tiles">
           <div><small>NSE stocks with an industry</small><b>{n0(u.stocks_with_industry_traded)}</b><span>traded on {day}</span></div>
           <div><small>Actively traded and established</small><b>{n0(u.meet_rules)}</b><span>pass our checks</span></div>
-          <div><small>Counted in an industry reading</small><b>{n0(u.counted_in_groups_with_reading)}</b><span>in the {b.rows.length} industries below</span></div>
+          <div><small>Counted in an industry reading</small><b>{n0(u.counted_in_groups_with_reading)}</b><span>in the {groupsN(b.rows.length)} below</span></div>
         </div>
         <p className="sp-note">The list is reviewed once a month. Stocks left out still appear on each industry's page, marked "not counted".</p>
       </Section>}
-      {few.length > 0 && <Section id="sp-small" title="Too small for a reading" sub={`${few.length} industries have too few counted stocks for a steady reading, ${total} stocks between them.`}>
-        <details className="sp-more"><summary>Show the {few.length} industries ▾</summary>
-          <ul className="sp-smalllist">{few.map((g) => <li key={g.slug}><details><summary><b>{g.name}</b> <small>{g.stocks_counted} stocks</small></summary><SmallList slug={g.slug} name={g.name} /></details></li>)}</ul>
+      {few.length > 0 && <Section id="sp-small" title="Too small for a reading" sub={`${groupsSplit(few)} have too few counted stocks for a steady reading, ${total} stocks between them.`}>
+        <details className="sp-more"><summary>Show the {groupsN(few.length)} ▾</summary>
+          <ul className="sp-smalllist">{few.map((g) => <li key={g.slug}><details><summary><b>{short(g.name)}</b> <small>{g.stocks_counted} stocks</small>{g.kind === "sector" && <InsideLine list={acc?.inside[g.slug]} />}</summary><SmallList slug={g.slug} name={g.name} /></details></li>)}</ul>
         </details>
+        {acc && <p className="sp-note" data-testid="all-59">{acc.line}</p>}
         {few.some((g) => g.name === "Diversified") && <p className="sp-note"><b>Diversified</b> is NSE's name for conglomerates, companies that run several unrelated businesses. It has nothing to do with diversifying your portfolio.</p>}
       </Section>}
     </div>
@@ -363,7 +364,7 @@ const WORDS: [string, string][] = [
   ["Longer trend", "How many are above their average price of the last few months. It moves slowly and shows the bigger picture."],
   ["Below its 1-year high", "How far the industry (all its stocks averaged equally) is from its highest point of the past year. 0% means it is at the top."],
   ["Standout stocks", "Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours."],
-  ["Box (Sector Rotation)", "Each week every industry is compared with the average industry over the last few months and over recent weeks. The two answers put it in one of four boxes: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping."],
+  ["Box (Sector Rotation)", "Each week every industry is compared with the average group over the last few months and over recent weeks. The two answers put it in one of four boxes: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping."],
   ["Market backdrop", "Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend."],
 ];
 export function Words({ items = WORDS }: { items?: [string, string][] }) {

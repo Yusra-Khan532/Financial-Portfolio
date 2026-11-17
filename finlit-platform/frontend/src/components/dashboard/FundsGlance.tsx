@@ -1,12 +1,13 @@
 // Task #135 (dashboard pack 06, section 3): "Your mutual funds at a glance" and "Your ETFs at a glance", beside "Your shares at a glance". The fund figures are the
-// MF portfolio page's own (its holdings, FundPulse scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Members cannot hold
-// ETFs yet (the ETF portfolio is task #136), so the ETF panel shows its empty state until then. Descriptive only; information only.
+// MF portfolio page's own (its holdings, FundPulse scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Task #195: the ETF
+// panel is a one-line strip with an empty ring until ETFs are added. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "../../lib/api";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, useMfSpread } from "../../lib/mfPortfolio";
+import { useEtfPortfolio } from "../../lib/etfPortfolio";
 import { shortFund, type MfRisk } from "../../lib/mfPack";
 import { fundBandLine, mfGlance } from "../../lib/dashInvest";
 import { MINUS, nf } from "../../lib/format";
@@ -14,9 +15,9 @@ import { dayMonth } from "../../lib/dashboard";
 import { Tip } from "../sectors/pack/Common";
 import { Card, Rows } from "./parts";
 import { DashCards } from "./DashCards";
+import { ScoreRing } from "../ScoreRing";
 
 const signed = (v: number | null | undefined, d = 1) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
-const ringBand = (label: string | null) => { const l = (label || "").toLowerCase(); return /strong|healthy/.test(l) ? "g" : /average/.test(l) ? "o" : /weak|poor/.test(l) ? "r" : "n"; };
 
 export function FundsGlance() {
   const { has } = useUI();
@@ -50,7 +51,8 @@ export function FundsGlance() {
       sub={`${n} ${n === 1 ? "fund" : "funds"}${d.dataDate ? ` · NAVs of ${dayMonth(d.dataDate)}` : ""}`}>
       {g.locked ? <p className="dsh-note">FinLit FundPulse of each fund is part of Gold. <Link to="/plans">See plans</Link>.</p> : (
         <div className="dsh-pg-top">
-          <div className={"dsh-pg-ring " + ringBand(g.avgLabel)} role="img" aria-label={`Average FundPulse ${g.avg ?? "not available"} out of 100${g.avgLabel ? `, ${g.avgLabel}` : ""}`} style={{ ["--v" as string]: g.avg ?? 0 }}><b>{g.avg ?? "—"}</b></div>
+          <div className="dsh-pg-ringw" role="img" aria-label={`Average FundPulse ${g.avg ?? "not available"} out of 100${g.avgLabel ? `, ${g.avgLabel}` : ""}; one arc per fund`}>
+            <ScoreRing parts={d.holdings.map((h) => ({ key: String(h.id ?? h.code), value: h.score.final }))} score={g.avg} word={g.avgLabel} /></div>
           <div>
             <p className="dsh-lh first">FundPulse{g.avgLabel ? ` · ${g.avgLabel}` : ""}</p>
             <div className="dsh-pg-mix" role="img" aria-label={fundBandLine(g.bands)}>
@@ -71,11 +73,19 @@ export function FundsGlance() {
   );
 }
 
-/** Members cannot add ETFs yet: the ETF portfolio is its own task (#136). Until it exists this panel is its empty state, with the way to every ETF on the NSE. */
+/** Task #195: "Your ETFs at a glance" as a one-line strip with an empty ring ("— NONE YET") until ETFs are added. ETFs have no score of their own yet, so with ETFs
+ *  in the ETF portfolio the strip says how many there are and opens that page. */
 export function EtfsGlance() {
+  const { has } = useUI();
+  const q = useEtfPortfolio(has("silver"));
+  const n = q.data?.count ?? 0;
   return (
-    <Card id="etfglance" title="Your ETFs at a glance">
-      <div className="dsh-empty"><b>No ETFs added yet</b><p>Add your ETFs to see what they track, their yearly cost and their price against NAV here. The ETF portfolio opens soon; every ETF on the NSE is on the ETFs page now.</p><Link className="dsh-btn" to="/etfs">See ETFs →</Link></div>
-    </Card>
+    <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-etfglance">
+      <ScoreRing parts={[]} score={null} size={56} />
+      <h2 id="dsh-etfglance" className="t">Your ETFs at a glance</h2>
+      <p className="m">{n > 0 ? `${n} ${n === 1 ? "ETF" : "ETFs"} in your ETF portfolio. ETFs have no score of their own yet; what they track, their yearly cost and their price against NAV are on the ETF portfolio page.`
+        : "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV."}</p>
+      <Link className="dsh-btn" to={n > 0 || has("silver") ? "/etf-portfolio" : "/etfs"}>{n > 0 ? "Open the ETF portfolio →" : has("silver") ? "Add ETFs →" : "See ETFs →"}</Link>
+    </section>
   );
 }

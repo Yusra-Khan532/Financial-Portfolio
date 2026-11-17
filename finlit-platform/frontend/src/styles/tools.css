@@ -281,7 +281,10 @@ main#main { min-height: 90vh; }
 .cov-note { margin-top: 6px; font-size: 13px; color: var(--muted); max-width: 46ch; }
 
 /* Trends section: larger tab and period controls and chart titles (founder request) */
-.tr-bar .seg, .sh-r .seg { padding: 4px; border-radius: 12px; } .tr-bar .seg button, .sh-r .seg button { font-size: 16px; padding: 11px 20px; min-height: 46px; border-radius: 9px; }
+.tr-bar .seg { padding: 4px; border-radius: 12px; } .tr-bar .seg button { font-size: 16px; padding: 11px 20px; min-height: 46px; border-radius: 9px; }
+/* task #216 (pack 1.5): toggles in a section heading row (07's two) share the report's one toggle look: 33 px, not 46 */
+.sh-r .seg { padding: 2px; border: 1px solid var(--border-strong); border-radius: 6px; gap: 0; } .sh-r .seg button { min-width: 0; min-height: 33px; padding: 6px 12px; font-size: var(--fs-13, 13px); font-weight: 600; line-height: 1.4; color: var(--muted); border-radius: 4px; box-shadow: none; background: transparent; } .sh-r .seg button[aria-pressed="true"] { background: var(--s3); color: var(--text); } @media (pointer: coarse) { .sh-r .seg button { min-height: 40px; } }
+.sh-r:has(.seg + .seg), .sh-r:has(.seg ~ .seg) { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 @media (max-width: 700px) { .tr-bar .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; } .tr-bar .seg::-webkit-scrollbar { display: none; } .tr-bar .seg button { font-size: var(--fs-16); padding: 10px 14px; } }
 
 .pr-sort { all: unset; cursor: pointer; text-align: right; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; } .pr-sort:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; } .pr-sort.desc::before { content: "↓ "; } .pr-sort.asc::before { content: "↑ "; }

@@ -1,0 +1,38 @@
+/* The shared callout card with a dropdown (components/Callout.tsx), classes cl-*. Kinds: good (green), insight (teal), watch (gold), warning (red).
+   Sizes from the one type scale: headline --fs-reading, line --fs-small, labels --fs-label, chips and counts --fs-caption. Light and dark use the site tokens. */
+.cl { --cl-c: var(--gain); display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--cl-c) 30%, var(--border)); background: color-mix(in srgb, var(--cl-c) 7%, var(--s1)); }
+.cl-insight { --cl-c: #12727a; }
+.cl-watch { --cl-c: var(--gold-2); background: color-mix(in srgb, var(--cl-c) 12%, var(--s1)); border-color: color-mix(in srgb, var(--cl-c) 40%, var(--border)); }
+.cl-warning { --cl-c: var(--loss); }
+:root[data-theme="dark"] .cl-insight { --cl-c: #3fb6bf; }
+.cl header { display: flex; align-items: center; gap: 8px; }
+.cl-ic { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--cl-c); color: #fff; }
+.cl-k { font: 700 var(--fs-label)/16px var(--font-sans, Inter, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: var(--cl-c); }
+.cl-watch .cl-k { color: var(--gold); }
+.cl h3 { margin: 2px 0 0; font: 600 var(--fs-reading)/22px var(--font-sans, Inter, sans-serif); color: var(--text); }
+.cl-x { margin: 0; font: 400 var(--fs-small)/18px var(--font-sans, Inter, sans-serif); color: var(--muted); }
+.cl-meter { display: flex; height: 8px; margin-top: 6px; border-radius: 99px; overflow: hidden; background: var(--s2); }
+.cl-meter i { display: block; height: 100%; flex-basis: 0; }
+.cl-meter .up { background: var(--gain); } .cl-meter .down { background: var(--loss); } .cl-meter .none { background: var(--border-strong); }
+.cl-ml { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font: 400 var(--fs-caption)/16px var(--font-sans, Inter, sans-serif); color: var(--muted); }
+.cl-ml b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cl-dd { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin-top: 6px; padding: 0 12px; border: 1px solid var(--border);
+  border-radius: 999px; background: transparent; font: 600 var(--fs-caption)/1 var(--font-sans, Inter, sans-serif); color: var(--text); cursor: pointer; }
+.cl-dd:hover { background: var(--s2); } .cl-dd:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cl-body { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.cl-body[hidden] { display: none; }
+.cl-g + .cl-g { margin-top: 8px; }
+.cl-gl { margin: 0 0 6px; font: 600 var(--fs-caption)/16px var(--font-sans, Inter, sans-serif); color: var(--muted); }
+.cl-g.up .cl-gl { color: var(--gain); } .cl-g.down .cl-gl { color: var(--loss); }
+.cl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.cl-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border-strong); background: var(--s1);
+  font: 600 var(--fs-caption)/1.2 var(--font-sans, Inter, sans-serif); color: var(--text) !important; text-decoration: none !important; }
+.cl-chip small { font: 500 var(--fs-label)/1 var(--font-sans, Inter, sans-serif); color: var(--muted); }
+.cl-g.up .cl-chip { border-color: color-mix(in srgb, var(--gain) 45%, transparent); background: var(--gain-soft); }
+.cl-g.down .cl-chip { border-color: color-mix(in srgb, var(--loss) 45%, transparent); background: var(--loss-soft); }
+.cl-g.down .cl-chip small { color: var(--loss); } .cl-g.up .cl-chip small { color: var(--gain); }
+.cl-chip:hover { border-color: var(--gold); }
+.cl-chipmore { min-height: 30px; padding: 3px 10px; border-radius: 99px; border: 1px dashed var(--border-strong); background: transparent; font: 600 var(--fs-caption)/1 var(--font-sans, Inter, sans-serif); color: var(--gold); cursor: pointer; }
+.cl-nt { margin: 8px 0 0; font: 400 var(--fs-caption)/16px var(--font-sans, Inter, sans-serif); color: var(--muted); }
+@media (max-width: 759px) { .cl-dd, .cl-chip, .cl-chipmore { min-height: 40px; } }

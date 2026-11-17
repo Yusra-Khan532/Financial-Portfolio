@@ -26,7 +26,7 @@ const ZOOM = [
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
   "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
-  "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/QrGrowth.tsx", "components/TableZoom.tsx",
+  "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
 ];
 
 /** Charts that already had their own enlarge arrow before the shared one: the file must still carry it. */
@@ -42,6 +42,7 @@ const EXEMPT: Record<string, string> = {
   "components/screener/presets/ScreensStrip.tsx": "the Ready-made screens strip's crown and group icons (task #64, N-38); no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
   "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
+  "components/results/pack/QuarterTop.tsx": "only the chevron of the quarter dropdown (task #194); no data",
   "components/dashboard/DashCards.tsx": "only the round icon and the chevron of the dashboard's insight cards (task #135); no data",
   "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
   "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",
@@ -67,7 +68,8 @@ const EXEMPT: Record<string, string> = {
   "components/prism/shared/PrismGlyph.tsx": "glyph", "components/rotation/Parts.tsx": "corner glyphs and a sparkline in a table row",
   "mf/ScoreCard.tsx": "score ring: one figure", "pages/Blog.tsx": "icons", "pages/Compare.tsx": "score ring; its radar charts carry the arrow (charts/Radar.tsx)", "pages/FundScoreScreener.tsx": "score ring",
   "pages/Forum.tsx": "icons", "components/forum/ForumParts.tsx": "icons (vote arrow, comment bubble, pencil)", "pages/Home.tsx": "FinLit IQ dial: one figure", "pages/Plans.tsx": "icons", "stock/Hero.tsx": "price sparkline in the header", "stock/PlFlagsLayer.tsx": "icons and small revenue-against-profit gap bars",
-  "stock/PrismCardView.tsx": "score rings, scale bar and info icon", "components/prism/pzr/Technical.tsx": "technical gauges: one figure each",
+  "stock/PrismCardView.tsx": "score rings, scale bar and info icon", "components/ScoreRing.tsx": "one score ring on a card; the figures are written beside it",
+  "components/Callout.tsx": "a small count bar inside a callout card; its counts are written under it", "components/StepsBar.tsx": "icons of the sections bar, no chart", "components/DropChev.tsx": "the drop-down arrow icon, no chart", "components/TabGroup.tsx": "the Key view crown icon, no chart", "components/prism/pzr/Technical.tsx": "technical gauges: one figure each",
   "components/dashboard/Legacy.tsx": "six-bar spark inside a link card", "components/dashboard/Snapshot.tsx": "one breadth bar", "components/FlowsPanel.tsx": "46px bars under two figures (the full charts are on the FII/DII page)",
   "pages/ScreenerPro.tsx": "small distribution histogram inside a filter and a completeness ring", "pages/ScoreScreener.tsx": "completeness ring", "pages/AdvancedScoreScreener.tsx": "completeness ring",
   "pages/Watchlist.tsx": "one stacked industry strip", "stock/DuPont.tsx": "per-factor mini bars inside a table", "stock/CompanyBrief.tsx": "inline progress bars", "pages/PremiumReport.tsx": "inline score bars",

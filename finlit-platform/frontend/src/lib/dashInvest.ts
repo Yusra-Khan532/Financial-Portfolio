@@ -47,11 +47,14 @@ export function navText(p: number | null | undefined): string {
 }
 
 /** The line under the heading: "4 on your watchlist · 14 shares · 3 mutual funds · prices and NAVs of 13 Nov". */
-export function investSub(n: { watch: number; shares: number; funds: number; etfs: number }, when: string | null): string {
-  const parts = [`${n.watch} on your watchlist`, `${n.shares} ${n.shares === 1 ? "share" : "shares"}`];
-  if (n.funds) parts.push(`${n.funds} mutual ${n.funds === 1 ? "fund" : "funds"}`);
-  if (n.etfs) parts.push(`${n.etfs} ${n.etfs === 1 ? "ETF" : "ETFs"}`);
-  if (when) parts.push(n.funds ? `prices and NAVs of ${when}` : `prices of ${when}`);
+/** Task #195: the rows by the size of the last day's move, largest first (a rise or a fall); rows with no move yet go last, in their earlier order. */
+export function byMove<T extends { day: number | null }>(rows: readonly T[]): T[] {
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => (b.r.day == null ? -1 : Math.abs(b.r.day)) - (a.r.day == null ? -1 : Math.abs(a.r.day)) || a.i - b.i).map((x) => x.r);
+}
+/** The card's sub-line (task #195): "18 investments · biggest moves on Friday first · prices and NAVs of 13 Nov". */
+export function investLine(n: number, noun: [string, string], day: string, when: string | null, navs: boolean): string {
+  const parts = [`${n} ${n === 1 ? noun[0] : noun[1]}`, `biggest moves ${day === "Today" ? "today" : `on ${day}`} first`];
+  if (when) parts.push(navs ? `prices and NAVs of ${when}` : `prices of ${when}`);
   return parts.join(" · ");
 }
 

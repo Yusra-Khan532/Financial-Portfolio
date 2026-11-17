@@ -1,14 +1,17 @@
 // The Results calendar (and the shared top of Latest results) as the "FinLit final pages" pack draws them (docs/design/finlit-final-pages/10 and 11): the header with
-// the Calendar / Industries / Companies switch, six KPI tiles, the month calendar with each day's declared or due count, one day's declared results with their verdicts,
-// and the week ahead with each company's industry so far. Figures and verdicts are the server's (GET /api/results/quarter); words from lib/resultsPack. Never advice.
+// the Calendar / Industries / Companies switch, the KPI tiles Latest results keeps (the calendar has its own four, CalendarTiles.tsx, task #193), the month calendar
+// with each day's declared or due count, one day's declared results with their own day picker and verdicts, and every company due in the next seven days with its
+// industry so far. Figures and verdicts are the server's (GET /api/results/quarter, /api/results/calendar); words from lib/resultsPack. Never advice.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { CoLogo } from "../../CoLogo";
-import { Cards, Scroll, Section, Tip } from "../../sectors/pack/Common";
+import { Scroll, Section, Tip } from "../../sectors/pack/Common";
+import { DashCards, OpenAll } from "../../dashboard/DashCards";
 import { LockedBlock } from "../../sectors/Parts";
-import { dayCards, dayShort, kpiTiles, longDate, monthName, soFar, sp, VERDICTS, weekCards, type IndustrySoFar, type VRow, type VSummary, type Verdict, type Check } from "../../../lib/resultsPack";
+import { dayCards, dayShort, kpiTiles, longDate, monthName, sp, VERDICTS, weekCards, type IndustrySoFar, type VRow, type VSummary, type Verdict, type Check } from "../../../lib/resultsPack";
 import type { QResp } from "../../../lib/qresults";
 import { useNseName } from "../../../lib/taxonomy";
+import { growthTone, industryLines } from "../../../lib/resultsCalendar";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const cr = (v: number | null | undefined) => (v == null ? "–" : Math.abs(v) >= 100 ? n0(Math.round(v)) : v.toFixed(1));
@@ -54,7 +57,7 @@ export function MonthCalendar({ month, setMonth, days, today, pick, onPick, only
   const first = new Date(month.getFullYear(), month.getMonth(), 1), pad = (first.getDay() + 6) % 7, nDays = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const cells = Array.from({ length: Math.ceil((pad + nDays) / 7) * 7 }, (_, i) => (i < pad || i >= pad + nDays ? null : new Date(month.getFullYear(), month.getMonth(), i - pad + 1)));
   return (
-    <section className="sp-sec" aria-labelledby="rs-cal">
+    <section className="sp-sec" aria-labelledby="rs-cal" id="rsc-cal">
       <div className="sp-sec-h"><div><h2 id="rs-cal">{month.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</h2><p className="sp-sub">Board-meeting dates for quarterly results, as announced to the exchanges. Select a day to see its companies.</p></div>
         <div className="rs-calnav"><label className="sw"><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /><span aria-hidden="true" /><b>Only my watchlist{mineCount ? ` (${mineCount})` : ""}</b></label>
           <button type="button" className="sp-fbtn" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>←</button>
@@ -102,9 +105,9 @@ export const HOW_JUDGED = "Revenue growth, profit growth and margin change on a 
 const YOY = "On a year ago (YoY). This quarter compared with the same quarter last year. It removes seasonal effects, so it is the main yardstick.";
 export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: string; mine?: Set<string> }) {
   return (
-    <Scroll label={label}><table className="sp-tb rs-t">
+    <Scroll label={label}><table className="sp-tb rs-t rsc-grid">
       <thead>
-        <tr className="rp-bands"><th colSpan={3} /><th colSpan={3} className="rp-band"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} className="rp-band"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} className="rp-band"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th className="rp-band"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
+        <tr className="rp-bands rsc-groups"><th colSpan={3} className="rsc-g0" /><th colSpan={3} scope="colgroup" className="rp-band rsc-g rsc-g-rev"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} scope="colgroup" className="rp-band rsc-g rsc-g-np"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} scope="colgroup" className="rp-band rsc-g rsc-g-pm"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th scope="colgroup" className="rp-band rsc-g rsc-g-vs"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
         <tr><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
           <th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">Now</th><th scope="col" className="r">Change</th><th scope="col">Verdict</th></tr>
       </thead>
@@ -119,21 +122,44 @@ export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: strin
 }
 
 // ------------------------------------------------------------------------------------------------ one day's declared results
-export function DayResults({ day, resp, week, locked, mine }: { day: string; resp: QResp | undefined; week: { date: string; n: number }[]; locked: boolean; mine: Set<string> }) {
+export type PickDay = { date: string; label: string };
+/** The declared table's own day picker (task #193, B1): ← older day, every day of the quarter with its count, newer day →, Today, and back up to the calendar. */
+export function DayPicker({ day, days, today, onDay }: { day: string; days: PickDay[]; today: string; onDay: (d: string) => void }) {
+  const list = days.some((d) => d.date === day) ? days : [{ date: day, label: `${dayShort(day)} · ${day > today ? "still to come" : "none declared"}` }, ...days].sort((a, b) => b.date.localeCompare(a.date));
+  const i = list.findIndex((d) => d.date === day);
+  const older = list[i + 1]?.date, newer = list[i - 1]?.date;
+  return (
+    <div className="rsc-pick" role="group" aria-label="Pick a day">
+      <button type="button" className="sp-fbtn" aria-label="Previous day with results" disabled={!older} onClick={() => older && onDay(older)}>←</button>
+      <label className="rsc-pick-sel"><span className="sr-only">Day</span>
+        <select value={day} onChange={(e) => onDay(e.target.value)}>{list.map((d) => <option key={d.date} value={d.date}>{d.label}</option>)}</select></label>
+      <button type="button" className="sp-fbtn" aria-label="Next day with results" disabled={!newer} onClick={() => newer && onDay(newer)}>→</button>
+      <button type="button" className="sp-fbtn" aria-pressed={day === today} onClick={() => onDay(today)}>Today</button>
+      <a className="sp-link rsc-up" href="#rsc-cal" onClick={(e) => { e.preventDefault(); document.getElementById("rsc-cal")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Calendar ↑</a>
+    </div>
+  );
+}
+
+export function DayResults({ day, resp, week, locked, mine, picker, today, onDay }: { day: string; resp: QResp | undefined; week: { date: string; n: number }[]; locked: boolean; mine: Set<string>;
+  picker: PickDay[]; today: string; onDay: (d: string) => void }) {
   const [f, setF] = useState<"all" | Verdict>("all"), [all, setAll] = useState(false);
   const rows = (resp?.rows ?? []) as VRow[], counts = (resp?.summary as VSummary | undefined)?.verdicts ?? null, total = resp?.total ?? 0;
   const shown = useMemo(() => rows.filter((r) => f === "all" || r.verdict === f), [rows, f]);
   const past = day <= (resp?.today ?? day);
+  const cards = dayCards(rows, counts, total, day, week);
   return (
-    <section className="sp-sec" aria-labelledby="rs-day">
-      <h2 id="rs-day">{dayShort(day)} · {n0(total)} {total === 1 ? "company" : "companies"} {past ? "declared" : "due"}</h2>
+    <section className="sp-sec" aria-labelledby="rs-day" id="rsc-day">
+      <div className="rsc-dayhead">
+        <h2 id="rs-day">{dayShort(day)} · {n0(total)} {total === 1 ? "company" : "companies"} {past ? "declared" : "due"}</h2>
+        <DayPicker day={day} days={picker} today={today} onDay={(d) => { setF("all"); setAll(false); onDay(d); }} />
+      </div>
       <p className="sp-sub">Biggest companies first. Each verdict compares the company with similar companies in its industry.</p>
-      {!resp ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the day's results" /> : !total ? <p className="sp-empty">No company declared on this day.</p> : <>
+      {!resp ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the day's results" /> : !total ? <p className="sp-empty">{day > today ? "This day is still to come; its companies are in the calendar and in Coming up." : "No company declared on this day. Pick another day above."}</p> : <>
         {counts && <div className="sp-filters" role="group" aria-label="Show">
           <button type="button" className={"sp-fbtn" + (f === "all" ? " on" : "")} aria-pressed={f === "all"} onClick={() => setF("all")}>All {n0(total)}</button>
           {VERDICTS.map((v) => <button key={v} type="button" className={"sp-fbtn rs-fv-" + v.toLowerCase().replace(" ", "") + (f === v ? " on" : "")} aria-pressed={f === v} disabled={!counts[v]} onClick={() => setF(v)}>{v} · {counts[v]}</button>)}
         </div>}
-        <Cards items={dayCards(rows, counts, total, day, week)} />
+        {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-day" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-day" /></div>}
         <details className="sp-more rs-how"><summary>How we judge a result ▾</summary>
           <ol className="sp-steps">
             <li><b>Three checks.</b> Revenue growth from a year ago, profit growth from a year ago, and the change in profit margin.</li>
@@ -153,22 +179,40 @@ export function DayResults({ day, resp, week, locked, mine }: { day: string; res
 }
 
 // ------------------------------------------------------------------------------------------------ coming up this week
-export function ComingUp({ resp, inds, dueMine, followed, mine }: { resp: QResp | undefined; inds: IndustrySoFar[]; dueMine: number; followed: { held: number; watched: number }; mine: Set<string> }) {
+/** "Industry not set" with the level that is known underneath (pack B2; the provider's "X (broad group)" never shows). */
+function ComingIndustry({ name }: { name: string | null | undefined }) {
+  const nse = useNseName(), x = industryLines(name);
+  if (x.set) return <>{nse(x.main)}</>;
+  return <span className="rsc-ind-ns"><b>{x.main}</b><small title={x.under === "No NSE classification" ? "This company is not in NSE's classification lists" : "Only this higher NSE level is known for the company"}>{x.under}</small></span>;
+}
+
+export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp: QResp | undefined; inds: IndustrySoFar[]; dueMine: number; followed: { held: number; watched: number }; mine: Set<string>; locked: boolean }) {
   const rows = (resp?.rows ?? []) as VRow[], days = useMemo(() => { const m = new Map<string, number>(); for (const d of resp?.days ?? []) m.set(d.date, d.n); return [...m].map(([date, n]) => ({ date, n })); }, [resp]);
   const by = new Map(inds.map((x) => [x.name, x]));
   const shown = rows.slice(0, 14).sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || (b.marketCap ?? 0) - (a.marketCap ?? 0));   // the largest due, then by day as the sub-title says
+  const cards = weekCards(dueMine, followed, days, rows), total = resp?.total ?? 0;
   return (
-    <Section id="rs-week" title={`Coming up this week · ${n0(resp?.total ?? 0)} companies`} help="Coming up this week. The companies whose board meets on results in the next seven days, as announced to the exchanges."
-      sub={`The ${shown.length} largest companies due, by day. The last column shows how their industry has done so far: a yardstick for what to expect.`}
-      right={<Link to="/results/quarter?status=due" className="sp-link">See all {n0(resp?.total ?? 0)} →</Link>}>
+    <Section id="rs-week" title={`Coming up this week · ${n0(total)} ${total === 1 ? "company" : "companies"}`} help="Coming up this week. Every company whose board meets on results in the next seven days, as announced to the exchanges: the same companies the calendar shows as due."
+      sub={`The largest companies due, by day. The last two columns show how their industry has done so far: a yardstick for what to expect.${total > shown.length ? ` The ${shown.length} largest of ${n0(total)} are listed.` : ""}`}
+      right={<Link to="/results/quarter?status=due" className="sp-link">See all {n0(total)} →</Link>}>
       {!resp ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the week ahead" /> : !shown.length ? <p className="sp-empty">No board meetings on results are announced for the next seven days.</p> : <>
-        <Cards items={weekCards(dueMine, followed, days, rows)} />
-        <Scroll label="results due this week"><table className="sp-tb rs-t">
+        {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-week" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-week" /></div>}
+        <Scroll label="results due this week"><table className="sp-tb rs-t rsc-grid rsc-week-t">
+          <colgroup><col style={{ width: 112 }} /><col /><col style={{ width: 200 }} /><col style={{ width: 72 }} /><col style={{ width: 120 }} /><col style={{ width: 230 }} /><col style={{ width: 150 }} /></colgroup>
           <thead><tr><th scope="col">Day</th><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
-            <th scope="col" className="r">Market value<Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." /></th><th scope="col">Its industry so far<Tip text="So far. Counts only the companies of the industry that have already declared this quarter. The picture can change as more of them report." /></th></tr></thead>
-          <tbody>{shown.map((r) => <tr key={r.symbol}><td className="rs-day">{dayShort(r.date)}</td>
-            <td><Link to={`/stocks/${r.symbol}`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
-            <td className="rs-ind"><IndustryCell name={r.industry} /></td><td>{r.cap ?? "–"}</td><td className="r">{r.marketCap == null ? "–" : `₹${n0(Math.round(r.marketCap))} Cr`}</td><td className="rs-sofar">{soFar(by.get(r.industry ?? ""))}</td></tr>)}</tbody>
+            <th scope="col" className="r">Market value<Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." /></th>
+            <th scope="col">Industry so far<Tip text="So far. How many of the industry's companies have already declared this quarter. The picture can change as more of them report." /></th>
+            <th scope="col" className="r">Typical profit growth<Tip text="The middle company of the industry's declared results (the median), net profit against a year ago. Green above +0.5%, red below −0.5%, grey between." /></th></tr></thead>
+          <tbody>{shown.map((r) => {
+            const x = industryLines(r.industry).set ? by.get(r.industry ?? "") : undefined;
+            const v = x?.medianProfitYoY;
+            return <tr key={r.symbol}><td className="rs-day">{dayShort(r.date)}</td>
+              <td><Link to={`/stocks/${r.symbol}`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine.has(r.symbol) && <em className="rp-yours"> · Yours</em>}
+                {r.hasNumbers && <small className="rsc-early" title="The company's figures for the quarter are already filed, ahead of the board-meeting date it announced">Figures already filed</small>}</td>
+              <td className="rs-ind"><ComingIndustry name={r.industry} /></td><td>{r.cap ?? <span className="sp-nil" title="The size follows the market value, which is not known for this company yet">–</span>}</td><td className="r">{!r.marketCap ? <span className="sp-nil" title="No market value is known for this company yet (no traded price in our data)">–</span> : `₹${n0(Math.round(r.marketCap))} Cr`}</td>
+              <td className="rs-sofar">{x && x.companies ? <span className="rsc-sofar"><i aria-hidden="true"><u style={{ width: `${Math.min(100, (x.declared / x.companies) * 100)}%` }} /></i>{n0(x.declared)} of {n0(x.companies)} reported</span> : <span className="sp-nil">Too few results to compare yet</span>}</td>
+              <td className="r">{v != null ? <span className={"rsc-chip " + growthTone(v)}>{sp(v)}</span> : x && locked ? <span className="sp-nil" title="The industry's typical growth is part of the Silver plan">Silver plan</span> : <span className="sp-nil" title={x ? "Too few of the industry's results have figures yet" : "No industry to compare with"}>—</span>}</td></tr>;
+          })}</tbody>
         </table></Scroll>
       </>}
     </Section>

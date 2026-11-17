@@ -6,6 +6,7 @@ import { dupont, dupontSummary, shareText, shareTitle, roeMoveText } from "../li
 import { MINUS, nf } from "../lib/format";
 import { DecodeRoe } from "./DecodeRoe";
 import "../styles/dupont.css";
+import { DropChev } from "../components/DropChev";
 
 const fy = (p: string) => (/^FY\d{2}$/.test(p) ? `Mar 20${p.slice(2)}` : p);
 const arrow = (v: "up" | "down" | "flat") => (v === "up" ? "▲" : v === "down" ? "▼" : "▬");
@@ -77,7 +78,7 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
           </HScroll>
           {canFive && <button type="button" className="alx-link dp-more" aria-pressed={five} onClick={() => setFive(!five)}>{five ? "Show the simple three-factor view" : "Split net margin further (tax, interest, operating)"}</button>}
           {d.factors.length > 0 && (
-            <details className="dp-fold"><summary><b>Each factor explained</b><small>{d.factors.length} factors, with the last five years of each</small></summary>
+            <details className="dp-fold xdd"><summary><b>Each factor explained</b><small>{d.factors.length} factors, with the last five years of each</small><DropChev /></summary>
             <div className="dp-tiles" role="list">{d.factors.map((x) => {
               const sh = shareText(x), spark = years.filter((y) => y[x.key] != null).slice(-5), top = Math.max(...spark.map((y) => Math.abs(y[x.key] as number)), 0);
               const dig = x.key === "netMargin" ? 1 : 2, unit = x.key === "netMargin" ? "%" : "×";
@@ -98,7 +99,7 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
           {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}
           {flagged.map((y) => <p className="dp-find" key={y.period}><Icon name="alert" /><span><b>Unusual year, {fy(y.period)}:</b> {y.flag}</span></p>)}
           <p className="faint dp-note">Worked out from the company's own statements, using each year-end balance sheet. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
-          <DecodeRoe symbol={symbol} pl={f.data?.yearly.pl} bs={f.data?.yearly.bs} lender={lender} said={d.words} />
+          <DecodeRoe pl={f.data?.yearly.pl} bs={f.data?.yearly.bs} lender={lender} said={d.words} />
         </div>
       )}
     </div>

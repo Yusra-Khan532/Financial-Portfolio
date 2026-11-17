@@ -1,18 +1,23 @@
-/* Task #161 (15 Nov 2026): the landing page's deep green (task #150) is the dark-mode background of the whole site, end to end: the workspace, every
-   tool and every page sit on the same green, held still while the page scrolls, and the cards, menus and bars are a lighter shade of the same green
-   so nothing reads as the old near-black. Light mode is unchanged. Loaded after the theme layers (finlit.css, luxe.css, design-system.css, calm.css), so these tokens win; overlay.css, which only reads them, stays last. */
+/* Task #161 (15 Nov 2026): one green is the dark-mode background of the whole site, end to end: the workspace, every tool and every page sit on the same
+   green, held still while the page scrolls, and the cards, menus and bars are a lighter shade of the same green. Light mode is unchanged.
+   Task #206 (18 Nov 2026, the founder's choice): that green is now the sage of the team's photo, #5D997F (hue 154, saturation 24%), instead of the deep
+   green-black #0C2619. The photo's own colour is too light to carry text (white on it is 3.1:1, the muted grey 1.5:1), so the page and the cards use
+   darker steps of the same sage, chosen so every dark-mode text colour stays readable (WCAG AA, at least 4.5:1, on the lightest surface; checked in
+   site-green.test.ts), and the photo's exact colour is the glow at the top of the page and the control borders, where no text sits.
+   Loaded after the theme layers (finlit.css, luxe.css, design-system.css, calm.css), so these tokens win; overlay.css, which only reads them, stays last. */
 :root[data-theme="dark"] {
-  --bg-page: #0C2619; --bg-surface: #10301F; --bg-subtle: #143826; --bg-elevated: #19422E; --bg-selected: #1F4D37;
-  --border-subtle: #2B5A43; --border-control: #5E8A72;
-  --action-on-primary: #0C2619; --action-disabled-bg: #1F4D37;
-  --bg: #0C2619; --s1: #10301F; --s2: #143826; --s3: #19422E; --border: #24503A; --border-strong: #3F6E56;   /* luxe.css sets these for every non-light theme, with the same weight */
-  --header: #0C2619;
-  --rep-a: #12341F; --rep-b: #0C2619; --rep-border: #2B5A43; --band-a: #12341F; --band-b: #0A2116; --foot-a: #0E2B1C; --foot-b: #0A2116; --pop-bg: #16402C; --tape-bg: #081B11;
-  --glow: radial-gradient(110% 120% at 80% 0%, #1B4A34, rgba(12, 38, 25, 0) 72%);
+  --sage: #5D997F;   /* the photo (task #206) */
+  --bg-page: #23392F; --bg-surface: #273F35; --bg-subtle: #2A4439; --bg-elevated: #2A453A; --bg-selected: #2E4A3E;
+  --border-subtle: #3A5F4F; --border-control: #5D997F;
+  --action-on-primary: #1D2F27; --action-disabled-bg: #2E4A3E;
+  --bg: #23392F; --s1: #273F35; --s2: #2A4439; --s3: #2A453A; --border: #36594A; --border-strong: #46725F;   /* luxe.css sets these for every non-light theme, with the same weight */
+  --header: #23392F;
+  --rep-a: #284136; --rep-b: #23392F; --rep-border: #3A5F4F; --band-a: #284136; --band-b: #1F332A; --foot-a: #253C32; --foot-b: #1F332A; --pop-bg: #2C473B; --tape-bg: #172620;
+  --glow: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), rgba(35, 57, 47, 0) 72%);
   --page-glow: var(--glow);
 }
-:root[data-theme="dark"] body { background: #0C2619 radial-gradient(110% 120% at 80% 0%, #1B4A34, #0C2619 72%) fixed; background-color: #0C2619; }
-/* The few dark blocks with their own near-black colours: the Prism cards (company page and Prism report) and the dashboard's market summary. */
-:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #15382A; --dk-b: #10301F; --dk-border: #2B5A43; --dk-sep: #10301F; --dk-tick-off: #4F7A63;
-  --dk-disc-1: #245A42; --dk-disc-2: #1A4532; --dk-disc-3: #123423; }
-:root[data-theme="dark"] .dsh-mr-sum { background: #10301F; }
+:root[data-theme="dark"] body { background: #23392F radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), #23392F 72%) fixed; background-color: #23392F; }
+/* The few dark blocks with their own colours: the Prism cards (company page and Prism report) and the dashboard's market summary. */
+:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #2A4439; --dk-b: #273F35; --dk-border: #3A5F4F; --dk-sep: #273F35; --dk-tick-off: #5D997F;
+  --dk-disc-1: #3A5F4F; --dk-disc-2: #325244; --dk-disc-3: #2B463A; }
+:root[data-theme="dark"] .dsh-mr-sum { background: #273F35; }

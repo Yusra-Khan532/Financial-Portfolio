@@ -155,9 +155,9 @@ function Zoomable({ label, children, className, kind }: { label: string; childre
   }, [open, close]);
   useFocusTrap(dlg, open);
 
-  if (server || !host) return <div className={"cz " + className}><div className="cz-slot"><div className="cz-host">{children}</div></div></div>;
+  if (server || !host) return <div className={"cz " + (kind === "table" ? "cz-table " : "") + className}><div className="cz-slot"><div className="cz-host">{children}</div></div></div>;
   return (
-    <div ref={root} className={"cz " + className + (at ? (at.strip ? " cz-boxed cz-strip" : " cz-boxed") : "")}>
+    <div ref={root} className={"cz " + (kind === "table" ? "cz-table " : "") + className + (at ? (at.strip ? " cz-boxed cz-strip" : " cz-boxed") : "")}>
       <Ctx.Provider value={{ inside: true, zoomed: open }}>
         <div className="cz-slot" ref={slot} />
         {createPortal(children, host)}

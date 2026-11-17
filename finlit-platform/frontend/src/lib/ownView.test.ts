@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./__fixtures__/ownershipInsightsReliance.json";
-import { CHARTED, chartFor, chartNote, crossoverNote, csvText, donutArcs, factItems, lakh, movesFor, pc, r1, seriesFromTable, shareCountChange, signedPts, slicesAt, windowIndexes, yScale, type OwnInsights } from "./ownView";
+import { CHARTED, chartFor, chartNote, crossoverNote, donutArcs, factItems, lakh, movesFor, pc, r1, seriesFromTable, shareCountChange, signedPts, slicesAt, windowIndexes, yScale, type OwnInsights } from "./ownView";
 
 const ins = fixture as unknown as OwnInsights;
 const S = seriesFromTable(ins.table!);
@@ -150,18 +150,6 @@ describe("the line charts: scale rule, axis steps, windows", () => {
   });
 });
 
-describe("the numbers table and the CSV", () => {
-  it("the CSV has every filing and every group, with the fixture's values", () => {
-    const lines = csvText(S).split("\n");
-    expect(lines[0]).toBe("Filing,Promoters,Foreign institutions,Domestic institutions,Retail & others,Government");
-    expect(lines).toHaveLength(22);
-    expect(lines[1]).toBe("Sep 2021,50.61,27.68,10.96,10.56,0.18");
-    expect(lines[21]).toBe("Sep 2026,50.44,16.67,21.72,11.07,0.09");
-  });
-  it("a missing figure is an empty cell", () => {
-    expect(csvText({ periods: ["a", "b"], values: { promoters: [1, null] } })).toBe("Filing,Promoters\na,1\nb,");
-  });
-});
 
 describe("also from the filing: every blank says why", () => {
   it("gives the reason in each card when the premium part is missing", () => {

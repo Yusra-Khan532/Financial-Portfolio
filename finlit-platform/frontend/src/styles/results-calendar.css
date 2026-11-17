@@ -1,0 +1,77 @@
+/* The Results calendar (/results) after the 15 Nov pack (task #193). Every rule is scoped to .rsc, the calendar page's own root, so Latest results (which shares
+   the rs- classes and the header) and the Sector Pulse pages (which share the sp- classes) do not change. New classes start with rsc-. Sizes from the site's
+   type scale only (styles/typescale.css, START-HERE "One type scale"). */
+
+/* ---- type: h1 32, section titles 20 serif, subtitles and links 14, filter buttons 13, tile values 24, callout titles 15 */
+.rsc .sp-head h1 { font: 400 var(--fs-page-title)/var(--lh-32) var(--serif); }
+.rsc .sp-sec h2 { font: 400 var(--fs-section-title)/var(--lh-20) var(--serif); }
+.rsc .sp-desc, .rsc .sp-sub { font-size: var(--fs-body); line-height: var(--lh-14); }
+.rsc .sp-link, .rsc .rs-links .sp-link { font-size: var(--fs-body); }
+.rsc .sp-fbtn { min-height: 34px; padding: 0 12px; font: 600 var(--fs-small)/1 var(--sans); }
+.rsc .sp-vbtn { font-size: var(--fs-small); }
+.rsc .sp-ct { font-size: var(--fs-body); }   /* pack B5 says 15, between the scale's 14 and 16; START-HERE allows only the scale, so the step below 16 */
+@media (max-width: 760px) {
+  .rsc .sp-head h1 { font-size: var(--fs-page-title); line-height: var(--lh-28); } .rsc .sp-fbtn { min-height: 44px; }
+  /* luxe.css sets every h2 to 24px on phones with !important (site-wide); the pack's section titles are 20, so this page's own titles say so the same way */
+  .rsc .sp-sec h2 { font-size: var(--fs-section-title) !important; }
+}
+
+/* ---- the four tiles: one row of equal height; the dropdowns float over the page (components/DropTile) */
+.rsc .rsc-tiles-sec { margin: 0 0 18px; }
+.rsc .rsc-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin-bottom: 10px; }
+.rsc .rsc-bar { display: block; height: 6px; border-radius: 3px; background: var(--s2); overflow: hidden; } .rsc .rsc-bar u { display: block; height: 100%; background: var(--gain); }
+.rsc .rsc-vbar { display: flex; gap: 2px; height: 8px; border-radius: 3px; overflow: hidden; } .rsc .rsc-vbar u { display: block; min-width: 2px; border-radius: 0; padding: 0; }
+.rsc .rsc-vbar u.rs-v-strong { background: #1F7A4A; } .rsc .rsc-vbar u.rs-v-good { background: #7FB894; } .rsc .rsc-vbar u.rs-v-inline { background: #C9C2B0; }
+.rsc .rsc-vbar u.rs-v-weak { background: #D9A441; } .rsc .rsc-vbar u.rs-v-poor { background: #C2453B; } .rsc .rsc-vbar u.rs-v-loss { background: #7A1620; } .rsc .rsc-vbar u.rsc-vnone { background: var(--s2); }
+.rsc .rsc-qline { margin: 0 0 4px; font: 400 var(--fs-body)/var(--lh-14) var(--sans); color: var(--text); } .rsc .rsc-qline .sp-link { display: inline; margin: 0 0 0 4px; }
+.rsc .rsc-upd { margin: 0; font: 400 var(--fs-small)/var(--lh-13) var(--sans); color: var(--muted); }
+@media (max-width: 1100px) { .rsc .rsc-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .rsc .rsc-tiles { grid-template-columns: minmax(0, 1fr); } }   /* phone: one tile per row */
+
+/* ---- the declared day: its own day picker in the header row */
+.rsc .rsc-dayhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.rsc .rsc-dayhead h2 { margin: 0; }
+.rsc .rsc-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rsc .rsc-pick-sel select { min-height: 36px; max-width: 100%; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font-weight: 600; }
+.rsc .rsc-pick .sp-fbtn:disabled { opacity: .45; cursor: default; }
+.rsc .rsc-up { margin: 0; white-space: nowrap; }
+@media (max-width: 640px) { .rsc .rsc-pick { width: 100%; } .rsc .rsc-pick-sel { flex: 1 1 100%; order: -1; } .rsc .rsc-pick-sel select { width: 100%; } }
+
+/* ---- callouts with a dropdown (the shared DashCard, components/dashboard/DashCards), and one Open all / Close all */
+.rsc .rsc-cards { margin: 0 0 12px; }
+.rsc .rsc-openall { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.rsc .dsh-openall { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 99px; background: var(--s1); color: var(--text); font: 600 var(--fs-small)/1 var(--sans); cursor: pointer; }
+.rsc .dsh-openall:hover { border-color: var(--gold); } .rsc .dsh-openall:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rsc .dsh-ics { align-items: start; }
+.rsc .dsh-ic { display: block; padding: 0; }
+.rsc .dsh-ic-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 32px; gap: 12px; align-items: center; width: 100%; padding: 13px 14px 13px 16px; border: 0; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.rsc .dsh-ic-row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.rsc .dsh-ic-t { display: grid; min-width: 0; } .rsc .dsh-ic-t .sp-kind { margin: 0 0 3px; } .rsc .dsh-ic-t .sp-ct { margin: 0; font-weight: 600; line-height: 1.3; }
+.rsc .dsh-ic-chev { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); background: var(--s1); color: var(--muted); }
+.rsc .dsh-ic-row:hover .dsh-ic-chev { color: var(--text); }
+.rsc .dsh-ic-body { padding: 0 16px 14px 58px; } .rsc .dsh-ic-body .sp-cx { margin: 0; }
+@media (max-width: 640px) { .rsc .dsh-ic-body { padding-left: 16px; } }
+
+/* ---- tables: header rows on a light band, coloured group headers (tinted, not filled), a line on every column and row (START-HERE "Table headers and lines") */
+.rsc .rsc-grid { border-collapse: collapse; }
+.rsc .rsc-grid thead tr:last-child th { background: var(--s2); border-bottom: 2px solid var(--border-strong); font: 700 var(--fs-caption)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }   /* pack: 11.5px; the scale's nearest, 12 */
+.rsc .rsc-grid th, .rsc .rsc-grid td { border-right: 1px solid var(--border); }
+.rsc .rsc-grid th:last-child, .rsc .rsc-grid td:last-child { border-right: 0; }
+.rsc .rsc-grid tbody tr { border-bottom: 1px solid var(--border); }
+.rsc .rsc-grid tbody td { border-bottom: 1px solid var(--border); }
+.rsc .rsc-groups th { padding: 0; border-bottom: 0; background: none; }
+.rsc .rsc-groups .rsc-g { --g: var(--text); border-top: 3px solid var(--g); background: color-mix(in srgb, var(--g) 8%, transparent); }
+.rsc .rsc-groups .rsc-g span { justify-content: center; padding: 6px 0; border-bottom: 0; color: var(--g); font: 800 var(--fs-caption)/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
+.rsc .rsc-groups .rsc-g-rev { --g: #2F5A9E; } .rsc .rsc-groups .rsc-g-np { --g: #1F7A4A; } .rsc .rsc-groups .rsc-g-pm { --g: #A5741A; } .rsc .rsc-groups .rsc-g-vs { --g: #2B2B2B; }
+:root[data-theme="dark"] .rsc .rsc-groups .rsc-g-rev { --g: #9DB8E6; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-np { --g: #7FD8A6; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-pm { --g: #E9C46A; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-vs { --g: #E8E4DA; }
+
+/* ---- Coming up this week: set column widths (the spare width goes to Company), Industry not set, the industry so far, the typical profit chip */
+.rsc .rsc-week-t { table-layout: fixed; width: 100%; min-width: 1004px; }
+.rsc .rsc-week-t td { overflow-wrap: anywhere; }
+.rsc .rsc-week-t thead th { white-space: normal; vertical-align: bottom; }   /* the set widths keep every header whole by wrapping it, never cutting it */
+.rsc .rsc-ind-ns { display: grid; gap: 2px; } .rsc .rsc-ind-ns b { font-weight: 600; } .rsc .rsc-ind-ns small { font-size: var(--fs-caption); color: var(--muted); }
+.rsc .rsc-early { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--muted); }
+.rsc .rsc-sofar { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.rsc .rsc-sofar i { display: block; flex: none; width: 56px; height: 6px; border-radius: 3px; background: var(--s2); overflow: hidden; } .rsc .rsc-sofar u { display: block; height: 100%; background: var(--gain); }
+.rsc .rsc-chip { display: inline-block; padding: 2px 8px; border-radius: 6px; font: 700 var(--fs-small)/1.3 var(--sans); font-variant-numeric: tabular-nums; }
+.rsc .rsc-chip.up { background: var(--gain-soft); color: var(--gain); } .rsc .rsc-chip.down { background: var(--loss-soft); color: var(--loss); } .rsc .rsc-chip.flat { background: var(--s2); color: var(--muted); }

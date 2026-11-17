@@ -208,7 +208,7 @@
 .sp-early-q { background: #F7DFA9; color: #5E4100; }
 .sp-fri { display: block; width: 100%; height: auto; min-width: 1100px; }   /* on a narrower screen the picture keeps the pack's size and the box scrolls sideways */
 /* Sizes as seen on screen (lib/svgText keeps chart text at its on-screen size): the pack draws the dates at 17px and the names at 19px on a 1440px screen. */
-.sp-fri-d { font: 18px var(--sans); fill: var(--sp-mute); } .sp-fri-n { font: 20px var(--sans); fill: var(--sp-ink); }
+.sp-fri-d { font: 18px var(--sans); fill: var(--sp-mute); } .sp-fri-n { font: 16px var(--sans); fill: var(--sp-ink); }   /* 16, not 20: every NSE name fits in full (task #192) */
 @media (max-width: 760px) { .sp-fri { min-width: 720px; } .sp-fri-d { font-size: 12px; } .sp-fri-n { font-size: 13px; } }   /* a phone: the whole six months in a short sideways scroll */ .sp-fri a:hover .sp-fri-n, .sp-fri a:focus-visible .sp-fri-n { text-decoration: underline; }
 .sp-fri a:focus-visible { outline: 2px solid var(--gold); } .sp-fri-now { stroke: var(--sp-ink); stroke-width: 1.5; }
 .sp-changed { margin: 0; padding-left: 18px; columns: 2; font-size: 14px; } .sp-changed li { padding: 3px 0; }
@@ -227,3 +227,4 @@
 .sp-scroll { overflow-x: auto; max-width: 100%; } .sp-scroll:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 /* A section with Hide: the pill sits in the top-right corner, so the title keeps clear of it (on a phone the title wraps before the pill instead of under it). */
 .hz > .sp-sec .sp-sec-h > div:first-child { padding-right: 88px; }
+.sp-inside { display: block; font-size: 12px; color: var(--sp-mute); font-weight: 400; margin-top: 2px; }

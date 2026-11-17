@@ -22,7 +22,7 @@ describe("Finance, 6 Nov 2026", () => {
     const c = topCards(P, Y, R);
     expect(c[0]).toEqual({ kind: "good", title: "The bounce is broad", text: "58 of the 67 counted stocks are above their short trend: almost the whole industry turned up." });
     expect(c[1]).toEqual({ kind: "watch", title: "Earlier bounces faded", text: "Finance bounced in April and June too. Both times the rise lost support within five weeks." });
-    expect(c[2]).toEqual({ kind: "warning", title: "Still behind other industries", text: "Over the longer run Finance is behind the average industry and ranks 27 of 37. The bounce has not changed that yet." });
+    expect(c[2]).toEqual({ kind: "warning", title: "Still behind other groups", text: "Over the longer run Finance is behind the average group and ranks 27 of 37 ranked groups. The bounce has not changed that yet." });
   });
   it("places it in the cycle", () => {
     expect(cycleNotes(P)).toEqual({ bouncing: "FINANCE IS HERE", rising: "next in the cycle", losing: "if the bounce breaks" });
@@ -44,7 +44,7 @@ describe("Finance, 6 Nov 2026", () => {
     expect(c.bottom[1].text).toBe("Both earlier bounces ran for about a month before the industry lost steam or was sold off again.");
   });
   it("compares it with other industries", () => {
-    expect(rotationTiles(R, P.stocks_counted).map((t) => [t.v, t.sub])).toEqual([["27 of 37", "▲3 on the week · ▲3 in 4 weeks"], ["−4.1", "points behind the average industry"], ["+2.1", "points ahead last month"], ["Some", "30 of 67 in an uptrend"]]);
+    expect(rotationTiles(R, P.stocks_counted).map((t) => [t.v, t.sub])).toEqual([["27 of 37 ranked groups", "▲3 on the week · ▲3 in 4 weeks"], ["−4.1", "points behind the average group"], ["+2.1", "points ahead last month"], ["Some", "30 of 67 in an uptrend"]]);
     expect(twoPages(P, R).text).toBe("Sector Pulse says Finance stocks have just bounced; Sector Rotation says the industry is still behind. A bounce that also lifts its rank would be the sign of a real turn.");
   });
 });

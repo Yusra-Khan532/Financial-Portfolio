@@ -1,0 +1,53 @@
+/* Company report, task #216 round 2a (handover of 17 Nov 2026, README section 1): the compact section heading with count chips (1.1), the one drop-down arrow
+   (1.3), the enlarge-button rules (1.6) and the phone rules (1.9). Loaded by the report after report-polish.css; every rule is scoped to the report's own
+   classes (.sh, section.block, .xdd, .cz) so nothing leaks to other pages. The toggle look (1.5) is in stock2.css and tools.css; the card accent (1.7) in finlit.css. */
+
+/* ---- 1.1 compact section heading: number 40 / title 24 / line 13 (phones 32 / 20); 44 px above each section ---- */
+:root { --fs-num: 40px; --fs-h2: 24px; --section-gap: 44px; }
+@media (max-width: 760px) {
+  :root { --fs-num: 32px; --fs-h2: 20px; --section-gap: 44px; }   /* the pack's 21 px phone title, on the site's type scale */
+  .sh h2, .sh-l:has(.sh-n) h2 { font-size: var(--fs-h2) !important; }   /* !important: luxe.css sets every phone h2 to 24 px with !important */
+}
+.sh { margin-bottom: 16px; align-items: flex-start; }
+.sh-l, .sh-l:has(.sh-n) { align-items: flex-start; }
+.sh .sh-rule { min-height: 40px; }
+.sh .sh-desc { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0 0; max-width: 92ch; font: 400 var(--fs-13, 13px)/1.45 var(--sans); color: var(--muted); }
+.sh .sh-desc .sh-dot { color: var(--faint); }
+/* counts as coloured chips (03 and 11): red flags red, to watch / to investigate amber, positives green, a count of 0 grey */
+.cchips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cchip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid; font: 600 var(--fs-12, 12px)/1.3 var(--sans); }
+.cchip b { font-weight: 800; }
+.cchip.red { color: var(--loss); background: color-mix(in srgb, var(--loss) 12%, var(--s1)); border-color: color-mix(in srgb, var(--loss) 40%, transparent); }
+.cchip.amb { color: var(--band-mid-ink, #8a5a10); background: color-mix(in srgb, var(--band-mid, #cc7a00) 14%, var(--s1)); border-color: color-mix(in srgb, var(--band-mid, #cc7a00) 40%, transparent); }
+.cchip.pos { color: var(--gain); background: color-mix(in srgb, var(--gain) 12%, var(--s1)); border-color: color-mix(in srgb, var(--gain) 40%, transparent); }
+.cchip.zero { color: var(--muted); background: var(--s1); border-color: var(--border); }
+
+/* ---- 1.3 the drop-down arrow: 24 px round, thin border, turns when open; keyboard focus ring; "notes" kind dashed when closed ---- */
+details.xdd > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+details.xdd > summary::-webkit-details-marker { display: none; }
+details.xdd > summary > .xdd-chev { margin-left: auto; }
+.xdd-chev { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); color: var(--muted); background: var(--s1); transition: transform .2s; }
+details.xdd[open] > summary > .xdd-chev { transform: rotate(180deg); }
+details.xdd > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 8px; }
+details.dp-fold.xdd > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+details.dp-fold.xdd > summary > .xdd-chev { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+details.xdd.notes > summary, details.ec-fold.xdd > summary, details.ld-nr.xdd > summary { padding: 10px 14px; border: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent); border-radius: 12px; background: var(--s1); font: 600 var(--fs-14, 14px) var(--sans); }
+details.xdd.notes[open] > summary, details.ec-fold.xdd[open] > summary, details.ld-nr.xdd[open] > summary { border-style: solid; margin-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .xdd-chev { transition: none; } }
+
+/* ---- 1.6 the enlarge button never covers text: a table outside a boxed card makes room for it ---- */
+section.block .cz.cz-table:not(.cz-boxed) :is(th, td):last-child { padding-right: 46px; }
+@media (max-width: 1199px) {
+  section.block .cz.cz-table:not(.cz-boxed) { padding-top: 40px; }
+  section.block .cz.cz-table:not(.cz-boxed) :is(th, td):last-child { padding-right: revert-layer; }
+}
+
+/* ---- 1.9 phones: a wide chart (drawn 720, 760 or 1000 units across) keeps a readable size and scrolls inside its box; the page never scrolls sideways ---- */
+@media (max-width: 640px) {
+  section.block :has(> svg:is([viewBox^="0 0 720 "], [viewBox^="0 0 760 "], [viewBox^="0 0 1000 "])) { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  section.block svg:is([viewBox^="0 0 720 "], [viewBox^="0 0 760 "], [viewBox^="0 0 1000 "]) { min-width: 680px; max-width: none; height: auto; }
+}
+
+/* ---- 1.8 sections bar: each chip and "All sections" line starts with its section number ---- */
+.sn-no { display: inline-block; margin-right: 6px; font: 700 var(--fs-11, 11px)/1 var(--sans); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.secnav a.active .sn-no, .secnav a[aria-current="true"] .sn-no { color: inherit; }

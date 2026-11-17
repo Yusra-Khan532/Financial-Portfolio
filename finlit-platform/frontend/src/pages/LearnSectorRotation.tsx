@@ -23,12 +23,12 @@ export function LearnSectorRotationPage() {
       <div className="sx-learn">
         <section className="rt-card sx-sec" aria-labelledby="lr-what">
           <h2 id="lr-what">What Sector Rotation shows</h2>
-          <p>Which NSE industries have been pulling ahead of the rest, and which have been falling behind? Sector Rotation compares every industry with the <b>average industry</b>: all NSE industries and sector groups with a reading, each counted equally, so a few large companies do not set the bar.</p>
+          <p>Which NSE industries have been pulling ahead of the rest, and which have been falling behind? Sector Rotation compares every industry with the <b>average group</b>: all NSE industries and sector groups with a reading, each counted equally, so a few large companies do not set the bar.</p>
         </section>
         <section className="rt-card sx-sec" aria-labelledby="lr-three">
           <h2 id="lr-three">The three things to read</h2>
           <h3>1. The corner</h3>
-          <p>Each industry is compared with the average industry twice: over 6 months (ahead or behind) and over the last month (gaining or slowing). The two answers place it in one of four corners.</p>
+          <p>Each industry is compared with the average group twice: over 6 months (ahead or behind) and over the last month (gaining or slowing). The two answers place it in one of four corners.</p>
           <dl className="sx-states">{CORNERS.map(([c, t]) => <div key={c}><dt><CornerBadge corner={c as never} /></dt><dd>{t}</dd></div>)}</dl>
           <p>Corners change slowly, so one noisy week does not move an industry.</p>
           <h3>2. Breadth</h3>
@@ -54,7 +54,7 @@ export function LearnSectorRotationPage() {
           <p style={{ marginTop: 14 }}><Link className="btn primary" to="/sectors/rotation">Open Sector Rotation</Link></p>
         </section>
       </div>
-      <footer className="sx-footer"><p>Describes past prices of NSE industry groups against the average industry. Not a recommendation to buy, sell or hold any security.</p></footer>
+      <footer className="sx-footer"><p>Describes past prices of NSE industry groups against the average group. Not a recommendation to buy, sell or hold any security.</p></footer>
     </div>
   );
 }
