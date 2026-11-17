@@ -13,23 +13,30 @@ import type { StateKey } from "../../../lib/sectorHistory";
 
 /** The pack's (i): a small round button that opens a short explanation on hover, focus or tap; Escape or a click elsewhere closes it. */
 export function Tip({ text, label = "What does this mean?" }: { text: string; label?: string }) {
-  const [open, setOpen] = useState(false), [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [open, setOpen] = useState(false), [pos, setPos] = useState<{ left: number; top: number; maxH: number } | null>(null);
+  const leave = useRef(0);
   const btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null), id = "sp-tip-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const place = useCallback(() => { if (btn.current && pop.current) { const p = placeFloating(btn.current, pop.current); setPos({ left: p.left, top: p.top }); } }, []);
+  const place = useCallback(() => { if (btn.current && pop.current) { const p = placeFloating(btn.current, pop.current); setPos({ left: p.left, top: p.top, maxH: p.maxH }); } }, []);
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(place);
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); btn.current?.focus(); } };
     const away = (e: MouseEvent) => { const t = e.target as Node; if (!btn.current?.contains(t) && !pop.current?.contains(t)) setOpen(false); };
-    const off = () => setOpen(false);
-    addEventListener("keydown", key); addEventListener("mousedown", away); addEventListener("scroll", off, true); addEventListener("resize", off);
-    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); removeEventListener("scroll", off, true); removeEventListener("resize", off); };
+    const off = (e: Event) => { if (!pop.current?.contains(e.target as Node)) setOpen(false); };   // scrolling the tip itself keeps it open (task #204)
+    const shut = () => setOpen(false);
+    addEventListener("keydown", key); addEventListener("mousedown", away); addEventListener("scroll", off, true); addEventListener("resize", shut);
+    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); removeEventListener("scroll", off, true); removeEventListener("resize", shut); };
   }, [open, place]);
+  useEffect(() => () => window.clearTimeout(leave.current), []);
+  // task #204: a short wait before closing, cancelled while the pointer is on the tip, so it can be reached and scrolled
+  const hold = () => { window.clearTimeout(leave.current); setOpen(true); };
+  const release = () => { window.clearTimeout(leave.current); leave.current = window.setTimeout(() => setOpen(false), 160); };
   return (
     <>
       <button type="button" ref={btn} className="sp-i" aria-label={label} aria-expanded={open} aria-describedby={open ? id : undefined}
-        onClick={() => setOpen((v) => !v)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>i</button>
-      {open && createPortal(<div ref={pop} id={id} role="tooltip" className="sp-pop" style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}>{text}</div>, document.body)}
+        onClick={() => setOpen((v) => !v)} onMouseEnter={hold} onMouseLeave={release} onFocus={hold} onBlur={release}>i</button>
+      {open && createPortal(<div ref={pop} id={id} role="tooltip" className="sp-pop" onMouseEnter={hold} onMouseLeave={release}
+        style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxH } : { visibility: "hidden" }}>{text}</div>, document.body)}
     </>
   );
 }

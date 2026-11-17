@@ -39,9 +39,10 @@ function LeadTip({ text }: { text: string }) {
     const away = (e: MouseEvent) => { const t = e.target as Node; if (!box.current?.contains(t) && !tip.current?.contains(t)) setOpen(false); };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     const shut = () => setOpen(false);
+    const scrolled = (e: Event) => { if (!tip.current?.contains(e.target as Node)) setOpen(false); };   // scrolling the tip itself keeps it open (task #204)
     document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
-    addEventListener("scroll", shut, true); addEventListener("resize", shut);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); removeEventListener("scroll", shut, true); removeEventListener("resize", shut); };
+    addEventListener("scroll", scrolled, true); addEventListener("resize", shut);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); removeEventListener("scroll", scrolled, true); removeEventListener("resize", shut); };
   }, [open]);
   useEffect(() => () => clearTimeout(leave.current), []);
   const hold = () => { clearTimeout(leave.current); setOpen(true); };
@@ -51,7 +52,7 @@ function LeadTip({ text }: { text: string }) {
       <button ref={btn} type="button" className="info" aria-label="What does this label mean?" aria-expanded={open} onClick={() => setOpen((o) => !o)} onFocus={hold}>i</button>
       {open && createPortal(
         <span ref={tip} className="ld-tip" role="tooltip" onMouseEnter={hold} onMouseLeave={release}
-          style={{ position: "fixed", left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, overflowY: "auto", visibility: pos ? "visible" : "hidden" }}>
+          style={{ position: "fixed", left: pos?.left ?? 0, top: pos?.top ?? 0, maxHeight: pos?.maxH, overflowY: "auto", overscrollBehavior: "contain", visibility: pos ? "visible" : "hidden" }}>
           {text} <Link to={EXPLAINER} onClick={() => setOpen(false)}>What the labels mean →</Link>
         </span>, document.body)}
     </span>

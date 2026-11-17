@@ -9,15 +9,26 @@ const Ctx = createContext<(g: Glossary | null, anchor?: HTMLElement) => void>(()
 export function InfoProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PopState>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const show = useCallback((g: Glossary | null, anchor?: HTMLElement) => setState(g && anchor ? { g, anchor } : null), []);
+  // Task #204: leaving the (i) used to close the popover at once, so the pointer could never reach it to scroll a long explanation. Now a close waits a
+  // moment and is cancelled while the pointer is over the popover; it closes when the pointer leaves the popover too.
+  const leave = useRef(0), over = useRef(false);
+  const show = useCallback((g: Glossary | null, anchor?: HTMLElement) => {
+    window.clearTimeout(leave.current);
+    if (g && anchor) { setState({ g, anchor }); return; }
+    leave.current = window.setTimeout(() => { if (!over.current) setState(null); }, 160);
+  }, []);
+  const enter = () => { over.current = true; window.clearTimeout(leave.current); };
+  const exit = () => { over.current = false; show(null); };
+  useEffect(() => () => window.clearTimeout(leave.current), []);
+  useEffect(() => { if (!state) over.current = false; }, [state]);
 
   useEffect(() => {
     if (!state || !ref.current) return;
     const pl = placeFloating(state.anchor, ref.current);
-    ref.current.style.left = pl.left + "px"; ref.current.style.top = pl.top + "px"; ref.current.style.maxHeight = pl.maxH + "px"; ref.current.style.overflowY = "auto";
+    ref.current.style.left = pl.left + "px"; ref.current.style.top = pl.top + "px"; ref.current.style.maxHeight = pl.maxH + "px"; ref.current.style.overflowY = "auto"; ref.current.style.overscrollBehavior = "contain";   // the wheel scrolls the popover, not the page behind it
   }, [state]);
   useEffect(() => {
-    const close = () => setState(null);
+    const close = () => { window.clearTimeout(leave.current); setState(null); };
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     addEventListener("scroll", close, { passive: true });
     addEventListener("keydown", key);
@@ -27,7 +38,7 @@ export function InfoProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={show}>
       {children}
-      <div className="pop" role="tooltip" ref={ref} hidden={!state}>
+      <div className="pop" role="tooltip" ref={ref} hidden={!state} onMouseEnter={enter} onMouseLeave={exit}>
         {state && (<>
           <b>{state.g.label}</b>{state.g.what}
           {state.g.lines && <ul className="pop-lines">{state.g.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>}
