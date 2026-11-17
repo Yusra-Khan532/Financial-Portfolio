@@ -431,8 +431,8 @@ def compute(stock_daily: pd.DataFrame, daily: Dict[str, pd.DataFrame], group: Gr
     if len(stock) == 0:
         return PeerResult(_tk(syms[0]), group, p, None, [], None, None, False, [], notes + ["no prices for the stock"])
     first_day = pd.Series(stock.index, index=pd.DatetimeIndex(stock.index)).groupby(
-        stock.index - pd.to_timedelta(stock.index.weekday, unit="D")).first()
-    first_close = stock["close"].groupby(stock.index - pd.to_timedelta(stock.index.weekday, unit="D")).first()
+        stock.index - pd.to_timedelta(stock.index.day_of_week, unit="D")).first()
+    first_close = stock["close"].groupby(stock.index - pd.to_timedelta(stock.index.day_of_week, unit="D")).first()
     sh0 = shares.get(syms[0])
     n_sym = len(syms)
     for j in range(1, len(sw.weeks)):
