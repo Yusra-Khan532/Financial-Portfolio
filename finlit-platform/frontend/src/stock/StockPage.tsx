@@ -25,6 +25,7 @@ import { CompanyBriefSection } from "./CompanyBrief";
 import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
+import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";

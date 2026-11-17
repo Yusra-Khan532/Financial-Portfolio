@@ -4,6 +4,7 @@ import { placeFloating, type Placement } from "../lib/floating";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { HScroll } from "../components/HScroll";
+import { DropChev } from "../components/DropChev";
 import {
   LABEL_WORD, groupSourceLine, monthYear, pts, sectorBench, tone, useLeadership,
   type Direction, type LeadLabel, type LeadershipOn,
@@ -159,8 +160,8 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
       </HScroll>
       {rows.length > LIMIT && <button type="button" className="btn ld-more" onClick={() => setAll((a) => !a)}>{all ? "Show fewer" : `Show all ${rows.length} companies`}</button>}
       {(lead.notRanked?.length ?? 0) > 0 && (
-        <details className="ld-nr">
-          <summary>Not ranked this week ({lead.notRanked!.length})</summary>
+        <details className="ld-nr xdd">
+          <summary>Not ranked this week ({lead.notRanked!.length})<DropChev /></summary>
           <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{n.symbol}</span>}<span className="why">{n.text}</span></li>)}</ul>
         </details>
       )}

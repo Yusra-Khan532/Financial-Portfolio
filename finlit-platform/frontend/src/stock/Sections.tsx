@@ -21,18 +21,25 @@ import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
 
 const css = (v: string) => `var(${v})`;
-/** Section header. A numbered section ("01 · Company overview") shows its number large, a thin rule, then the small label and the title; a section
- *  without a number (Chart lab, Leadership) keeps its icon tile. */
+/** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
+ *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
+ *  A section without a number (Chart lab) keeps its icon tile. */
 import "../styles/insights.css";
-export function SectionHead({ id, no, icon, tier, title, sub, color, aside }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode }) {
+export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
+export function CountChips({ counts }: { counts: HeadCount[] }) {
+  return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
+}
+export function SectionHead({ id, no, icon, tier, title, sub, color, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
   const m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no);
   return (
     <div className="sh" id={id} style={{ "--sc": `var(${color})` } as React.CSSProperties}>
       <div className="sh-l">
         {m ? <><span className="sh-n" aria-hidden="true">{m[1]}</span><span className="sh-rule" aria-hidden="true" /></> : <div className="sh-ic"><Icon name={icon} /></div>}
-        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2></div>
+        <div><div className="no">{m ? m[2] : no} {tier && <TierChip tier={tier} />}</div><h2>{title}</h2>
+          {(counts?.length || sub) ? <p className="sh-desc">{counts?.length ? <CountChips counts={counts} /> : null}{counts?.length && sub ? <span className="sh-dot" aria-hidden="true">·</span> : null}{sub ? <span>{sub}</span> : null}</p> : null}
+        </div>
       </div>
-      {aside ? <div className="sh-r">{aside}{sub && <p className="hide-sm">{sub}</p>}</div> : sub && <p className="hide-sm">{sub}</p>}
+      {aside ? <div className="sh-r">{aside}</div> : null}
     </div>
   );
 }
