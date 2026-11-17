@@ -7,7 +7,7 @@ import { ApiError, apiGet } from "../../../lib/api";
 import { Hideable } from "../../Hideable";
 import { Cards, Scroll, Section, StateChip, Tip, BoxChip } from "../../sectors/pack/Common";
 import { LockedBlock } from "../../sectors/Parts";
-import { BOX, keyOf, short } from "../../../lib/pulsePack";
+import { BOX, groupsN, keyOf, short } from "../../../lib/pulsePack";
 import type { RotationMap, RotationRow } from "../../../lib/rotation";
 import type { GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import { BOXES, BOX_HELP, BOX_MEANING, breadthWord, byBox, climbers26, fullCards, inRotFilter, lastMonth, move, nextBox, pc, rankAgo, rotationCsv, rowSummary, sixMonthRankCards, sixMonths, threeMonths, twelveWeekCards, type Box, type RotFilter } from "../../../lib/rotationPack";
@@ -45,8 +45,8 @@ export function RankingRot({ m, mine, pulse }: { m: RotationMap; mine: Set<strin
       <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
       <Scroll label="ranking of every industry"><table className="sp-tb rp-full">
         <thead>
-          <tr className="rp-bands"><th colSpan={3} className="rp-band"><span>Ranking<Tip text="Its place among all ranked industries this week, 1 the strongest, and the places moved in 1 and 4 weeks." /></span></th><th colSpan={2} className="rp-band rp-band-box"><span>Box<Tip text="Its box and how many weekly closes it has been there." /></span></th>
-            <th colSpan={3} className="rp-band rp-band-vs"><span>Vs the average industry<Tip text="How much better (+) or worse (−) the industry did than the average industry over 1, 3 and 6 months." /></span></th><th colSpan={2} className="rp-band rp-band-br"><span>Breadth<Tip text="Taking part: how many of its stocks are above their 50-day average (Most, Some, Few). Sector Pulse: its state there today." /></span></th>
+          <tr className="rp-bands"><th colSpan={3} className="rp-band"><span>Ranking<Tip text="Its place among all ranked groups this week, 1 the strongest, and the places moved in 1 and 4 weeks." /></span></th><th colSpan={2} className="rp-band rp-band-box"><span>Box<Tip text="Its box and how many weekly closes it has been there." /></span></th>
+            <th colSpan={3} className="rp-band rp-band-vs"><span>Vs the average group<Tip text="How much better (+) or worse (−) the industry did than the average group over 1, 3 and 6 months." /></span></th><th colSpan={2} className="rp-band rp-band-br"><span>Breadth<Tip text="Taking part: how many of its stocks are above their 50-day average (Most, Some, Few). Sector Pulse: its state there today." /></span></th>
             <th className="rp-band rp-band-26"><span>26 weeks<Tip text="Its rank at each of the last 26 weekly closes, with its highest and lowest." /></span></th></tr>
           <tr><th scope="col" className="rp-w">Now</th><th scope="col">1W / 4W</th><th scope="col">Industry</th><th scope="col">Box now</th><th scope="col" className="r">Weeks</th><th scope="col" className="r">1 month</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col">Taking part</th><th scope="col">Sector Pulse</th><th scope="col">Rank line</th></tr>
         </thead>
@@ -88,7 +88,8 @@ const HEAT = (rank: number | null, n: number) => {
 const dm = (d: string) => { const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; return `${+d.slice(8, 10)} ${M[+d.slice(5, 7) - 1]}`; };
 export function SixMonthRanks({ m }: { m: RotationMap }) {
   const rows = m.rows.filter((r) => r.rank != null).sort((a, b) => a.rank! - b.rank!), weeks = m.rank_weeks, n = rows[0]?.ranked ?? 37, cols = weeks.length;
-  const FX = 160, FS = 22, FR = 15, FT = 22, W = FX + cols * FS + 70, H = FT + rows.length * FR + 4;
+  // the name column fits the longest NSE name in full (task #192, T12: no shortened names), about 6.6 px a letter at 12 px
+  const FX = Math.max(160, Math.ceil(Math.max(0, ...rows.map((r) => short(r.name).length)) * 6.6) + 12), FS = 22, FR = 15, FT = 22, W = FX + cols * FS + 70, H = FT + rows.length * FR + 4;
   const c26 = climbers26(m);
   return (
     <Hideable id="pack.rp-six" title="Six months of ranks">
@@ -96,7 +97,7 @@ export function SixMonthRanks({ m }: { m: RotationMap }) {
         <div className="sp-sec-h"><div><h2 id="rp-six">Six months of ranks<Tip text="Each industry's rank at every weekly close for six months. Dark green is near the top of the ranking, dark red near the bottom." /></h2>
           <p className="sp-sub">Each row is an industry, each square a week. Dark green is near the top of the ranking, dark red near the bottom. Sorted by this week's rank.</p></div></div>
         <p className="rp-heatkey"><span>Rank 1 (strongest)</span><i aria-hidden="true" /><span>Rank {n} (weakest)</span></p>
-        <Scroll label="six months of ranks"><svg className="rp-heat" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Ranks of ${rows.length} industries at ${cols} weekly closes`}>
+        <Scroll label="six months of ranks"><svg className="rp-heat" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Ranks of ${groupsN(rows.length)} at ${cols} weekly closes`}>
           {weeks.map((d, j) => (cols - 1 - j) % 4 === 0 && <text key={d} x={FX + j * FS + 10} y={14} className="rp-hd" textAnchor="middle">{dm(d)}</text>)}
           <text x={FX + cols * FS + 40} y={14} className="rp-hd" textAnchor="middle">4 wks</text>
           {rows.map((r, k) => { const y = FT + k * FR, by = new Map(r.rank_history.map((p) => [p.date, p.rank])); return (

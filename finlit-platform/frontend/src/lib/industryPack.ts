@@ -45,12 +45,17 @@ export function tiles(p: IndustryPage): { k: string; help: string; v: string; su
     { k: "Below its 1-year high", help: "How far the industry's typical stock (the equal-weighted industry index) is below its highest close of the last year.", v: p.index_vs_52w_high == null ? "–" : `${Math.abs(p.index_vs_52w_high).toFixed(1)}%`, sub: `the typical ${lc} stock` },
   ];
 }
+/** What the page calls its group: an NSE industry, or a sector group (small industries of one NSE sector read together; task #192, P16). */
+export const unitOf = (p: Pick<IndustryPage, "kind">): "industry" | "sector" => (p.kind === "sector" ? "sector" : "industry");
+/** Its rank among the groups Sector Rotation ranks this week: "33 of 37 ranked groups" (P16: the groups mix industries and sectors). */
+export const rankOf = (rank: number, ranked: number) => `${rank} of ${ranked} ranked groups`;
+
 /** The earlier bounces of the year (not the one going on now). */
 const earlier = (y: IndustryYear | undefined) => { const b = y?.bounces ?? []; const last = y?.dates[y.dates.length - 1]; return b.filter((x) => x.to !== last); };
 export function topCards(p: IndustryPage, y: IndustryYear | undefined, rot: RotationCard | undefined): Card[] {
   const out: Card[] = [], k = keyOf(p), n = p.stocks_counted, s = of(p.breadth.above_9, n), name = short(p.name);
   if (isBounce(k) && s != null) out.push(s * 100 >= n * 80
-    ? { kind: "good", title: "The bounce is broad", text: `${s} of the ${n} counted stocks are above their short trend: almost the whole industry turned up.` }
+    ? { kind: "good", title: "The bounce is broad", text: `${s} of the ${n} counted stocks are above their short trend: almost the whole ${unitOf(p)} turned up.` }
     : { kind: "insight", title: "The bounce", text: `${s} of the ${n} counted stocks are above their short trend.` });
   const e = earlier(y);
   if (isBounce(k) && e.length) {
@@ -58,8 +63,8 @@ export function topCards(p: IndustryPage, y: IndustryYear | undefined, rot: Rota
     const wk = Math.max(...e.map((x) => Math.ceil(days(x.from, x.to) / 7)));
     out.push({ kind: "watch", title: e.length === 1 ? "An earlier bounce faded" : "Earlier bounces faded", text: `${name} bounced in ${list(months)} too. ${e.length === 1 ? "The rise" : e.length === 2 ? "Both times the rise" : "Each time the rise"} lost support within ${NUM[wk] ?? wk} weeks.` });
   }
-  if (rot && rot.rank != null && (rot.corner === "behind_slipping" || rot.corner === "behind_gaining")) out.push({ kind: "warning", title: "Still behind other industries", text: `Over the longer run ${name} is behind the average industry and ranks ${rot.rank} of ${rot.ranked}.${isBounce(k) ? " The bounce has not changed that yet." : ""}` });
-  else if (rot && rot.rank != null && (rot.corner === "ahead_gaining" || rot.corner === "ahead_slowing")) out.push({ kind: "good", title: "Ahead of other industries", text: `Over the longer run ${name} is ahead of the average industry and ranks ${rot.rank} of ${rot.ranked}.` });
+  if (rot && rot.rank != null && (rot.corner === "behind_slipping" || rot.corner === "behind_gaining")) out.push({ kind: "warning", title: "Still behind other groups", text: `Over the longer run ${name} is behind the average group and ranks ${rankOf(rot.rank, rot.ranked)}.${isBounce(k) ? " The bounce has not changed that yet." : ""}` });
+  else if (rot && rot.rank != null && (rot.corner === "ahead_gaining" || rot.corner === "ahead_slowing")) out.push({ kind: "good", title: "Ahead of other groups", text: `Over the longer run ${name} is ahead of the average group and ranks ${rankOf(rot.rank, rot.ranked)}.` });
   return out;
 }
 
@@ -87,7 +92,7 @@ function runs(y: IndustryYear): Run[] {
 export type Moment = { n: number; label: string; text: string; i: number };
 const LONG = 15;   // a sell-off or a slide of three weeks of trading or more is a moment of its own
 /** The year told in order, the pack's way: each long sell-off or slide, and each bounce with what became of it. `i` is the day its number sits on in the chart. */
-export function story(y: IndustryYear): Moment[] {
+export function story(y: IndustryYear, unit: "industry" | "sector" = "industry"): Moment[] {
   const R = runs(y), d = y.dates, r = y.rising, last = d.length - 1, out: Moment[] = [];
   const val = (i: number) => r[i] ?? 0;
   const argmin = (a: number, b: number) => { let m = a; for (let i = a; i <= b; i++) if (val(i) < val(m)) m = i; return m; };
@@ -128,7 +133,7 @@ export function story(y: IndustryYear): Moment[] {
     soldOffs++;
     const lo = argmin(x.a, x.b), cal = days(d[x.a], d[x.b]), months = Math.round(cal / 30.4);
     const head = months >= 3 ? `${cap(NUM[months] ?? String(months))} months sold off.` : `Sold off${soldOffs > 1 ? " again" : ""} for about ${Math.max(1, Math.round(cal / 7))} weeks.`;
-    const deep = lo === lowAll && val(lo) <= 5 ? ` On ${dm(d[lo])} only ${Math.round(val(lo))} stock${Math.round(val(lo)) === 1 ? "" : "s"} in 100 ${Math.round(val(lo)) === 1 ? "was" : "were"} rising: almost the whole industry was falling.` : "";
+    const deep = lo === lowAll && val(lo) <= 5 ? ` On ${dm(d[lo])} only ${Math.round(val(lo))} stock${Math.round(val(lo)) === 1 ? "" : "s"} in 100 ${Math.round(val(lo)) === 1 ? "was" : "were"} rising: almost the whole ${unit} was falling.` : "";
     out.push({ n: 0, label: lab(x.a, x.b), i: lo, text: head + deep });
   }
   return out.map((m, i) => ({ ...m, n: i + 1 }));
@@ -149,19 +154,19 @@ export function yearCards(p: IndustryPage, y: IndustryYear): { top: Card[]; bott
   const total = y.dates.length, d = y.days_in_state, keys = Object.keys(d) as StateKey[];
   const most = keys.sort((a, b) => d[b] - d[a])[0], least = (["rising", "bouncing", "crash"] as StateKey[]).filter((x) => x !== most).sort((a, b) => d[a] - d[b])[0];
   if (most) bottom.push({ kind: most === "sold_off" || most === "losing" ? "warning" : "insight", title: `${WORD[most]} on ${d[most]} of ${total} days`, text: `${name} spent more of the year ${WORD[most].toLowerCase()} than in any other state; it was ${WORD[least].toLowerCase()} on only ${d[least]} ${d[least] === 1 ? "day" : "days"}.` });
-  if (e.length) { const avg = e.reduce((s, b) => s + b.days, 0) / e.length; bottom.push({ kind: "insight", title: avg <= 25 ? "Bounces have been short" : "How long bounces lasted", text: `${e.length === 1 ? "The earlier bounce" : e.length === 2 ? "Both earlier bounces" : "The earlier bounces"} ran for about ${avg <= 25 ? "a month" : `${Math.round(avg / 5)} weeks`} before the industry lost steam or was sold off again.` }); }
+  if (e.length) { const avg = e.reduce((s, b) => s + b.days, 0) / e.length; bottom.push({ kind: "insight", title: avg <= 25 ? "Bounces have been short" : "How long bounces lasted", text: `${e.length === 1 ? "The earlier bounce" : e.length === 2 ? "Both earlier bounces" : "The earlier bounces"} ran for about ${avg <= 25 ? "a month" : `${Math.round(avg / 5)} weeks`} before the ${unitOf(p)} lost steam or was sold off again.` }); }
   return { top, bottom };
 }
 
 // ------------------------------------------------------------------------------------------------ Against other industries
-export function rotationTiles(r: RotationCard, counted: number): {   // `counted`: the industry page's counted stocks (the rotation answer does not carry it)
+export function rotationTiles(r: RotationCard, counted: number, unit: "industry" | "sector" = "industry"): {   // `counted`: the industry page's counted stocks (the rotation answer does not carry it)
  k: string; help: string; v: string; sub: string }[] {
   const s = r.strength_pts, c = r.change_pts, b = r.breadth === "broad" ? "Most" : r.breadth === "between" ? "Some" : r.breadth === "narrow" ? "Few" : "–";
   const up = r.breadth_above_50 == null ? null : Math.round((r.breadth_above_50 * counted) / 100);
   const mv = (n: number | null | undefined, w: string) => (n == null ? null : n > 0 ? `▲${n} ${w}` : n < 0 ? `▼${-n} ${w}` : `same ${w}`);
   return [
-    { k: "Rank", help: "Its place among all ranked industries this week, 1 the strongest.", v: r.rank == null ? "Not ranked yet" : `${r.rank} of ${r.ranked}`, sub: [mv(r.rank_change_1w, "on the week"), mv(r.rank_change_4w, "in 4 weeks")].filter(Boolean).join(" · ") },
-    { k: "Longer run vs average", help: "How many percentage points better (+) or worse (−) the industry did than the average industry over the last several months.", v: s == null ? "–" : `${s >= 0 ? "+" : "−"}${Math.abs(s).toFixed(1)}`, sub: s == null ? "" : `points ${s >= 0 ? "ahead of" : "behind"} the average industry` },
+    { k: "Rank", help: "Its place among all ranked groups this week (NSE industries and sector groups), 1 the strongest.", v: r.rank == null ? "Not ranked yet" : rankOf(r.rank, r.ranked), sub: [mv(r.rank_change_1w, "on the week"), mv(r.rank_change_4w, "in 4 weeks")].filter(Boolean).join(" · ") },
+    { k: "Longer run vs average", help: `How many percentage points better (+) or worse (−) the ${unit} did than the average group over the last several months.`, v: s == null ? "–" : `${s >= 0 ? "+" : "−"}${Math.abs(s).toFixed(1)}`, sub: s == null ? "" : `points ${s >= 0 ? "ahead of" : "behind"} the average group` },
     { k: "Lately vs average", help: "The same over the last month.", v: c == null ? "–" : `${c >= 0 ? "+" : "−"}${Math.abs(c).toFixed(1)}`, sub: c == null ? "" : `points ${c >= 0 ? "ahead" : "behind"} last month` },
     { k: "Stocks taking part", help: "How many of its stocks are above their longer (50-day) average: Most, Some or Few. A lead most stocks share is broad.", v: b, sub: up == null ? "" : `${up} of ${counted} in an uptrend` },
   ];
@@ -169,7 +174,7 @@ export function rotationTiles(r: RotationCard, counted: number): {   // `counted
 export function twoPages(p: IndustryPage, r: RotationCard): Card {
   const k = keyOf(p), name = short(p.name), behind = r.corner === "behind_slipping" || r.corner === "behind_gaining";
   const pulse = isBounce(k) ? `Sector Pulse says ${name} stocks have just bounced` : k === "rising" ? `Sector Pulse says ${name} stocks are rising together` : k === "sold_off" ? `Sector Pulse says ${name} stocks are sold off` : k === "losing" ? `Sector Pulse says ${name} stocks are losing steam` : `Sector Pulse shows no clear signal for ${name} stocks`;
-  const rot = `Sector Rotation says the industry is ${behind ? "still behind" : "ahead"}`;
+  const rot = `Sector Rotation says the ${unitOf(p)} is ${behind ? "still behind" : "ahead"}`;
   const end = isBounce(k) && behind ? "A bounce that also lifts its rank would be the sign of a real turn." : !isBounce(k) && k !== "rising" && !behind ? "A lead that its stocks stop sharing can fade; watch both pages." : "When both pages point the same way, the picture is clearer.";
   return { kind: "insight", title: "Reading the two pages together", text: `${pulse}; ${rot}. ${end}` };
 }

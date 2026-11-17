@@ -1,6 +1,6 @@
 // Sector Rotation (/sectors/rotation) as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/08 and 09): the pack's header with The
 // yardstick, a Simple view and a Full table view (?view=full). Every figure is the server's (GET /api/rotation); "Does Sector Pulse agree?" reads the Sector Pulse board
-// (GET /api/sectors); your industries come from GET /api/sectors/membership. Describes how industries have done against the average industry; never advice.
+// (GET /api/sectors); your industries come from GET /api/sectors/membership. Describes how industries have done against the average group; never advice.
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { usePortfolio } from "../lib/portfolio";
 import { ApiError, apiGet } from "../lib/api";
 import { failureText, useRotationMap } from "../lib/rotation";
 import { useSectorBoard, type GroupRow } from "../lib/sectors";
-import { short } from "../lib/pulsePack";
+import { groupsN, short } from "../lib/pulsePack";
 import { Blank } from "../components/sectors/Parts";
 import { Tip } from "../components/sectors/pack/Common";
 import { PackHead, type View } from "../components/sectors/pack/PulseHead";
@@ -28,9 +28,9 @@ const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function Yardstick({ n }: { n: number }) {
   return (
     <aside className="sp-side rp-yard" aria-label="The yardstick">
-      <p className="sp-side-k">The yardstick<Tip text="The yardstick. Every industry is measured against the average industry: all the industries counted equally, so a large industry does not count for more than a small one." /></p>
-      <p className="rp-yard-t">The average industry</p>
-      <p className="sp-side-x">All {n} industries counted equally. Every figure on this page says how far an industry is ahead of (+) or behind (−) this average.</p>
+      <p className="sp-side-k">The yardstick<Tip text="The yardstick. Every group (an NSE industry, or a sector group of small industries) is measured against the average group: all the groups counted equally, so a large one does not count for more than a small one." /></p>
+      <p className="rp-yard-t">The average group</p>
+      <p className="sp-side-x">All {n} groups counted equally. Every figure on this page says how far an industry is ahead of (+) or behind (−) this average.</p>
     </aside>
   );
 }
@@ -57,8 +57,8 @@ export function SectorRotationPage() {
   const d = m?.date ? new Date(m.date + "T00:00:00Z") : null;
   const unranked = m?.rows.filter((r) => r.rank == null).map((r) => short(r.name)) ?? [];
   const nRanked = m?.rows.filter((r) => r.rank != null).length ?? 0;
-  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {nRanked} ranked industries<Tip text="Each week every industry with enough history is ranked, 1 the strongest. An industry that is too new has a box but no rank yet." />{unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "is" : "are"} too small to rank</>}</> : null;
-  const disclaimer = m ? `Describes past prices of NSE industry groups against the average industry; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.` : "";
+  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {groupsN(nRanked)} ranked<Tip text="Each week every group with enough history is ranked, 1 the strongest. An industry that is too new has a box but no rank yet." />{unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "is" : "are"} too small to rank</>}</> : null;
+  const disclaimer = m ? `Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.` : "";
   return (
     <div className="wrap sx sp rp" data-testid="sector-rotation">
       <PackHead page="rotation" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} findHint="An industry, e.g. Banks" side={m ? <Yardstick n={m.rows.length} /> : null} />
