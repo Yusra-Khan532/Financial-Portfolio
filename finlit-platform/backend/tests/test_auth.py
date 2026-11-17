@@ -124,11 +124,15 @@ async def test_repeated_failures_are_slowed_the_same_way_for_real_and_unknown_ac
     """No account-wide lock (an attacker could keep the owner out, and a 'locked' answer revealed which emails have accounts): the same budget
     applies per email and address, and a real and an unknown email are refused identically."""
     await signup(app, anon, "asha@example.com")
-    real = [await login(anon, "asha@example.com", f"wrong-password-{i}") for i in range(11)]
-    assert [r.status_code for r in real] == [401] * 10 + [429]
-    unknown = [await login(anon, "nobody@example.com", f"wrong-password-{i}") for i in range(11)]
-    assert {r.status_code for r in unknown} <= {401, 429} and unknown[-1].status_code == 429   # the per-address budget is shared, so it may end sooner
-    assert real[-1].json()["detail"]["status"] == unknown[-1].json()["detail"]["status"] == "rate_limited"
+    # owner, 17 November 2026: five wrong passwords for one account from one address pause sign-in there for 15 minutes, pointing to Forgot password
+    real = [await login(anon, "asha@example.com", f"wrong-password-{i}") for i in range(6)]
+    assert [r.status_code for r in real] == [401] * 4 + [429, 429]
+    unknown = [await login(anon, "nobody@example.com", f"wrong-password-{i}") for i in range(6)]
+    assert [r.status_code for r in unknown] == [401] * 4 + [429, 429]
+    assert [r.json() for r in real[:4]] == [r.json() for r in unknown[:4]]                     # tries left, word for word: nothing tells them apart
+    assert [r.json()["detail"]["triesLeft"] for r in real[:4]] == [4, 3, 2, 1]
+    assert real[-1].json()["detail"]["status"] == unknown[-1].json()["detail"]["status"] == "too_many_wrong"
+    assert "Forgot password" in real[-1].json()["detail"]["detail"] and real[-1].headers["Retry-After"]
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT locked_until IS NULL FROM users WHERE lower(email) = 'asha@example.com'")
 
@@ -639,3 +643,72 @@ async def test_login_with_plan_expiry(app):
         await conn.execute("UPDATE users SET plan_until = now() - interval '1 day' WHERE email = 'dated@example.com'")
     r = await login(new_client(app), "dated@example.com")
     assert r.status_code == 200 and r.json()["user"]["plan"] == "basic"
+
+
+
+# ------------------------------------------------------------------ owner, 17 November 2026: 5 wrong passwords, then Forgot password with an emailed code
+async def code_from_mail(app, email):
+    import re as _re
+    row = await last_mail(app, email)
+    found = _re.search(r"Your code: (\d{6})", row["body"] if row else "")
+    return found.group(1) if found else None
+
+
+async def test_the_right_password_is_refused_during_the_pause_and_works_after_a_reset_by_code(app, anon):
+    await signup(app, anon, "asha@example.com")
+    for i in range(5):
+        await login(anon, "asha@example.com", f"wrong-password-{i}")
+    assert (await login(anon, "asha@example.com")).status_code == 429                 # paused: even the right password waits
+    assert (await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)).status_code == 202
+    code = await code_from_mail(app, "asha@example.com")
+    assert code and len(code) == 6
+    new = "another-strong-phrase-77"
+    r = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": new}, headers=ORIGIN)
+    assert r.status_code == 200 and r.json()["status"] == "password_changed"
+    assert (await login(anon, "asha@example.com", new)).status_code == 200              # the pause is cleared by the reset
+
+
+async def test_the_code_works_once_and_cancels_the_link_in_the_same_email(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    code, token = await code_from_mail(app, "asha@example.com"), await token_from_mail(app, "asha@example.com")
+    new = "another-strong-phrase-77"
+    body = {"email": "asha@example.com", "code": f" {code[:3]} {code[3:]} ", "password": new}         # spaces typed by the member are fine
+    assert (await anon.post("/api/auth/reset-code", json=body, headers=ORIGIN)).status_code == 200
+    again = await anon.post("/api/auth/reset-code", json=body, headers=ORIGIN)
+    assert again.status_code == 400 and again.json()["detail"]["status"] == "invalid_code"
+    assert (await anon.post("/api/auth/reset", json={"token": token, "password": "yet-another-phrase-88"}, headers=ORIGIN)).status_code == 400
+
+
+async def test_five_wrong_codes_cancel_the_code_and_a_weak_password_keeps_it(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    code = await code_from_mail(app, "asha@example.com")
+    weak = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "short"}, headers=ORIGIN)
+    assert weak.status_code == 422                                                         # only a stronger password is needed; the code still works
+    wrong = f"{(int(code) + 1) % 10 ** 6:06d}"
+    answers = [await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": wrong, "password": "another-strong-phrase-77"},
+                               headers=ORIGIN) for _ in range(5)]
+    assert [a.json()["detail"]["status"] for a in answers] == ["invalid_code"] * 4 + ["code_cancelled"]
+    late = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    assert late.status_code == 400                                                         # the right code no longer works either
+
+
+async def test_a_code_for_an_unknown_email_gets_the_same_answer(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    a = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": "000000", "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    b = await anon.post("/api/auth/reset-code", json={"email": "ghost@example.com", "code": "000000", "password": "another-strong-phrase-77"}, headers=ORIGIN)
+    assert a.status_code == b.status_code == 400 and a.json() == b.json()
+    assert await app.state.store.redis.get("auth:resetcode:x") is None
+
+
+async def test_the_reset_email_carries_the_code_and_the_link_and_stores_no_code(app, anon):
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    body = (await last_mail(app, "asha@example.com"))["body"]
+    code = await code_from_mail(app, "asha@example.com")
+    assert "expires in 15 minutes" in body and "/reset-password?token=" in body and "Never share this code" in body
+    keys = [k async for k in app.state.store.redis.scan_iter(match="auth:resetcode:*")]
+    stored = [await app.state.store.redis.get(k) for k in keys]
+    assert stored and all(code.encode() not in (v or b"") for v in stored)                # only a keyed hash is kept
