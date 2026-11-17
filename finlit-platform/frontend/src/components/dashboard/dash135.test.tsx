@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DashCards, DashCardsProvider, OpenAll } from "./DashCards";
 import { bandLine } from "./Portfolio";
 import type { Card } from "../../lib/pulsePack";
-import { healthText, investRows, investSub, mfGlance, fundBandLine, navText, orderType, type InvRow } from "../../lib/dashInvest";
+import { healthText, byMove, investLine, investRows, mfGlance, fundBandLine, navText, orderType, type InvRow } from "../../lib/dashInvest";
 
 afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* jsdom */ } });
 
@@ -74,7 +74,11 @@ describe("Your investments today: rows and readings (task #135)", () => {
     expect(healthText({ score: null, label: null, locked: true }).text).toBe("FundPulse: Gold");
     expect(healthText({ score: null, label: null, locked: false, why: "Too new" })).toMatchObject({ text: "Not scored yet", title: "Too new" });
     expect([navText(-0.12), navText(0.18), navText(0), navText(null)]).toEqual(["0.12% below NAV", "0.18% above NAV", "At NAV", "—"]);
-    expect(investSub({ watch: 4, shares: 14, funds: 3, etfs: 0 }, "13 Nov")).toBe("4 on your watchlist · 14 shares · 3 mutual funds · prices and NAVs of 13 Nov");
+    expect(investLine(18, ["investment", "investments"], "Friday", "13 Nov", true)).toBe("18 investments · biggest moves on Friday first · prices and NAVs of 13 Nov");   // task #195
+    expect(investLine(1, ["stock", "stocks"], "Today", null, false)).toBe("1 stock · biggest moves today first");
+  });
+  it("sorts by the size of the last day's move, a fall as big as a rise, rows with no move last (task #195)", () => {
+    expect(byMove([r({ name: "a", day: 0.5 }), r({ name: "b", day: -4.1 }), r({ name: "c", day: null }), r({ name: "d", day: 2.67 }), r({ name: "e", day: -0.69 })]).map((x) => x.name)).toEqual(["b", "d", "e", "a", "c"]);
   });
 });
 

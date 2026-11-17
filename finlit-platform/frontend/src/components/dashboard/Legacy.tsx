@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { titleOf, subOf, codeNote } from "../../lib/companyLabel";
 import { apiGet, type ApiError, type Financials } from "../../lib/api";
-import { STATUS_TEXT, run, type DcfInputs } from "../../lib/dcf";
+import type { DcfInputs } from "../../lib/dcf";
 import { direction, inr, istTime, signedPct, useCommodities } from "../../lib/commodities";
 import { TIER, useUI, type Plan } from "../../lib/ui";
 import { BAND_LABEL, type Row } from "../../lib/screener";
@@ -96,15 +96,18 @@ export function CommoditiesW() {
 }
 
 type SavedDcf = { name: string; symbol: string | null; updatedAt: string; inputs: DcfInputs };
+/** Tools row (task #195): the DCF calculator as a tool card: what it does, and the member's saved scenarios by name (each reopens with its inputs). No verdict words. */
 export function DcfW() {
   const q = useQuery<{ scenarios: SavedDcf[] }, ApiError>({ queryKey: ["dcf-scenarios"], queryFn: () => apiGet("/api/dcf/scenarios"), retry: false, enabled: !DEMO });
-  const list = (q.data?.scenarios ?? []).slice(0, 5);
-  if (DEMO || q.isError || (q.data && !list.length)) return <Empty icon="rupee" title="Value a company" text="Work out the intrinsic value per share, the margin-of-safety price and what today's price implies." to="/dcf" cta="Open the DCF calculator" />;
-  if (!q.data) return <div className="skeleton" style={{ height: 120 }} />;
-  return <><ul className="sl">{list.map((s) => { const o = run(s.inputs), r = o.result;
-    return <li key={s.name}><Link to={dcfLink(s)}><b>{s.name}</b>{r && r.equity > 0 ? <span className={"chip " + (r.status === "buy" ? "up" : r.status === "overvalued" ? "down" : "gold")}>{STATUS_TEXT[r.status].label}</span> : null}</Link>
-      <span>{r && r.equity > 0 ? `Value ₹${nf(r.iv, 2)} · buy below ₹${nf(r.buyPrice, 2)} · price ₹${nf(s.inputs.price, 2)} when saved` : "Inputs need a fix"}</span></li>; })}</ul>
-    <p className="rcs-all"><Link to="/dcf">Open the DCF calculator <Icon name="arrow" /></Link></p></>;
+  const list = (q.data?.scenarios ?? []).slice(0, 3), n = q.data?.scenarios.length ?? 0;
+  return (
+    <section className="dsh-card dsh-tool" aria-labelledby="dsh-dcf">
+      <h2 id="dsh-dcf">DCF calculator</h2>
+      <p className="dsh-p">Work out the value per share, the margin-of-safety price, and what today's price implies.</p>
+      {n > 0 && <><div className="dsh-lh">Your saved scenarios · {n}</div><div className="dsh-lines">{list.map((s) => <Link key={s.name} to={dcfLink(s)} className="dsh-ipo"><b>{s.name}</b><span>{s.symbol ?? "Your own inputs"}</span></Link>)}</div></>}
+      <Link className="dsh-link foot" to="/dcf">Open the DCF calculator →</Link>
+    </section>
+  );
 }
 const dcfLink = (s: SavedDcf) => {
   const i = s.inputs, sp = new URLSearchParams({ fcf: String(i.fcf0), r: String(i.r), g1: String(i.g1), g2: String(i.g2), gt: String(i.gT), mc: String(i.marketCap), p: String(i.price), nd: String(i.netDebt), mos: String(i.mos) });

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import board from "./__fixtures__/pulse-board-6nov.json";
 import type { Board } from "./sectors";
 import type { Flows } from "./flows";
-import { dayWord, flowsCard, inflationCard, marketRead, marketWhen, myStockCards, portfolioCard, snapshotCard, type MyStock } from "./dashPack";
+import { dayWord, flowsCard, inflationCard, marketRead, marketWhen, myStockSignals, portfolioCard, snapshotCard, type MyStock } from "./dashPack";
 
 const B = board as unknown as Board;
 const st = (symbol: string, o: Partial<MyStock> = {}): MyStock => ({ symbol, chg: 0.5, size: "Large", profit: 20, profitText: null, reported: true, peer: "inline", ...o });
@@ -18,19 +18,36 @@ describe("the greeting line", () => {
   });
 });
 
-describe("Your stocks today", () => {
-  it("writes the pack's three cards", () => {
-    const items = [st("KINGFA", { chg: -12.6, size: "Small" }), st("MARINE", { chg: -11.0, size: "Small" }), st("AEROFLEX", { chg: -10.6, size: "Small", peer: "leader" }),
-      st("PERSISTENT", { profit: -25.4, peer: "leader" }), st("GLENMARK", { profit: -56.8, peer: "unranked" }), st("RELIANCE", { peer: "laggard" }), st("TECHM", { peer: "leader" })];
-    const c = myStockCards(items, "Friday", "2026-09-30");
-    expect(c[0]).toMatchObject({ kind: "warning", title: "Three of your stocks fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies. Check News & filings before reacting." });
-    expect(c[1]).toMatchObject({ kind: "good", title: "Profit grew at 5 of the 7 that reported", text: "September-quarter profit was higher than a year ago everywhere except PERSISTENT (−25.4%) and GLENMARK (−56.8%)." });
-    expect(c[2]).toMatchObject({ kind: "insight", title: "3 lead their peers, 1 lag", text: "AEROFLEX, PERSISTENT, TECHM lead; RELIANCE lag. 1 is not ranked (too new or too thinly traded)." });
-    // task #135: opened, the names show as chips grouped with a count (Lead green, Lag red), and the small note at the end
+describe("What your stocks say (task #195: one card per signal)", () => {
+  const items = [st("KINGFA", { chg: -12.6, size: "Small" }), st("MARINE", { chg: -11.0, size: "Small" }), st("AEROFLEX", { chg: -10.6, size: "Small", peer: "leader" }),
+    st("PERSISTENT", { chg: 1, profit: -25.4, peer: "leader" }), st("GLENMARK", { chg: 0.5, profit: -56.8, peer: "unranked" }), st("RELIANCE", { chg: -1, peer: "laggard" }), st("TECHM", { chg: 2, peer: "leader" })];
+  const c = myStockSignals(items, "Friday", "2026-09-30");
+  it("gives each card its kind, a short headline and one line of meaning", () => {
+    expect(c.map((x) => [x.kind, x.title, x.line])).toEqual([
+      ["warning", "3 of your stocks fell 10% or more on Friday", "A move of 10% or more in one session; all are small companies. News and filings often explain such moves."],
+      ["good", "Profit grew at 5 of 7", "of your shares that have reported the September quarter, against a year ago."],
+      ["insight", "3 lead their peers, 1 lag", "Price strength against companies in the same peer group, over the last 12 months."]]);
+  });
+  it("puts no list of symbols in the text: the names are only chips", () => {
+    for (const x of c) for (const s of ["KINGFA", "PERSISTENT", "RELIANCE", "TECHM"]) expect(x.title + x.line + (x.note ?? "")).not.toContain(s);
+  });
+  it("adds a count bar to each card (15 grew · 2 fell; 7 lead · 4 lag · 4 not ranked)", () => {
+    expect(c.map((x) => x.meter.map((m) => `${m.n} ${m.word}`).join(" · "))).toEqual(["3 fell 10% or more · 4 moved less", "5 grew · 2 fell", "3 lead · 1 lag · 1 not ranked"]);
+  });
+  it("groups and colours the chips in the dropdown, each with its figure (Profit fell red; Lead green, Lag red)", () => {
+    expect(c.map((x) => x.more)).toEqual(["See the 3", "See the 2 that fell", "See the names"]);
     expect(c[0].groups).toEqual([{ label: "Fell 10% or more · 3", tone: "down", chips: [{ symbol: "KINGFA", label: "KINGFA", note: "−12.6%" }, { symbol: "MARINE", label: "MARINE", note: "−11.0%" }, { symbol: "AEROFLEX", label: "AEROFLEX", note: "−10.6%" }] }]);
     expect(c[1].groups).toEqual([{ label: "Profit fell, against a year ago · 2", tone: "down", chips: [{ symbol: "PERSISTENT", label: "PERSISTENT", note: "−25.4%" }, { symbol: "GLENMARK", label: "GLENMARK", note: "−56.8%" }] }]);
-    expect(c[2].groups?.map((g) => [g.label, g.tone, g.chips.map((x) => x.symbol)])).toEqual([["Lead · 3", "up", ["AEROFLEX", "PERSISTENT", "TECHM"]], ["Lag · 1", "down", ["RELIANCE"]]]);
+    expect(c[2].groups.map((g) => [g.label, g.tone, g.chips.map((x) => x.symbol)])).toEqual([["Lead · 3", "up", ["AEROFLEX", "PERSISTENT", "TECHM"]], ["Lag · 1", "down", ["RELIANCE"]]]);
     expect(c[2].note).toBe("1 is not ranked: too new, or too thinly traded to compare fairly.");
+  });
+  it("words a rise, a profit fall and all-grew cases too, and says nothing when there is no signal", () => {
+    const r = myStockSignals([st("A", { chg: 12, profit: -3 }), st("B", { chg: 1, profit: -4 }), st("C", { chg: 0, profit: 5 })], "Today", null);
+    expect(r.map((x) => [x.kind, x.title, x.more])).toEqual([["good", "1 of your stocks rose 10% or more today", "See the 1"], ["watch", "Profit fell at 2 of 3", "See the 2 that fell"]]);
+    expect(r[1].groups.map((g) => g.label)).toEqual(["Profit fell, against a year ago · 2", "Profit grew, against a year ago · 1"]);
+    expect(myStockSignals([st("A", { chg: 1, profit: 3 })], "Today", null)[0]).toMatchObject({ more: "See the 1 that grew", line: "of your shares that have reported the latest quarter, against a year ago." });
+    expect(myStockSignals([st("A", { chg: 1, reported: false, profit: null })], "Today", null)).toEqual([]);
+    expect(myStockSignals([st("A", { chg: 1, profit: -8 })], "Today", null)[0].groups.map((g) => g.label)).toEqual(["Profit fell, against a year ago · 1"]);   // no empty "grew · 0" group
   });
 });
 
