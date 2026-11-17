@@ -145,7 +145,8 @@ async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_c
     from .. import prism_screen
     from ..mfportfolio import trend
     cards = prism_screen.cards(await request.app.state.store.prism_cards(body.symbols))
-    items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label")} for s in body.symbols]
+    items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label"),
+              "prism": cards.get(s, {}).get("prism_final")} for s in body.symbols]   # business = the Prism score (65+ strong, below 50 weak), the pack's rule
     per = {s: {"st": cards[s].get("prism_st"), "lt": cards[s].get("prism_lt")} for s in body.symbols if s in cards}
     return Response(orjson.dumps({"locked": False, "trend": trend.public(trend.portfolio_trend(items)), "perShare": per}), media_type="application/json", headers=NO_STORE)
 

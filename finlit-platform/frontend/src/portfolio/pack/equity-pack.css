@@ -104,3 +104,30 @@
 .eq-sizecard .eq-k { margin: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); }
 .eq-sizecard .eq-v { margin: 2px 0; font: 400 20px var(--serif); } .eq-sizecard .eq-x { margin: 0; font-size: 13px; color: var(--sp-mute, var(--muted)); }
 @media (max-width: 640px) { .eq-sizecards { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- task #183 W6: Trends, Peers and Group leaders (pack 01-equity-portfolio) ---- */
+/* "+N more ▾" and "Show all N ▾": a small inline control that shows the full list */
+.eq-more { display: inline; margin: 0; padding: 0 2px; border: 0; background: none; font: 600 var(--fs-caption)/1.4 var(--sans); color: var(--gold); cursor: pointer; white-space: nowrap; }
+.eq-more:hover { text-decoration: underline; } .eq-more:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+/* a section's "N things to know" (DashCards, closed on load) */
+.eq-ins { margin-top: 14px; } .eq-ins-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; } .eq-ins-h .sp-cap { margin: 0; }
+/* the dashed card Silver sees in place of a Gold-only section */
+.eq-lock { border: 1.5px dashed var(--border-strong); background: transparent; } .eq-lock h2 { margin: 2px 0 4px; } .eq-lock .sp-cap { margin: 0; }
+/* the trend matrix and Business and price, side by side; stacked below 1000px */
+.eq-tr { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .eq-tr { grid-template-columns: minmax(0, 1fr); } }
+.eq-tm-x, .eq-tm-y { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px 10px; border-radius: 8px; background: var(--s2); font: 700 var(--fs-caption)/var(--lh-12) var(--sans); letter-spacing: .04em; color: var(--sp-ink); }
+.eq-tm-x { justify-content: flex-end; }
+.eq-tg { width: 100%; min-width: 520px; border-collapse: separate; border-spacing: 6px; table-layout: fixed; }
+.eq-tg th { font: 700 var(--fs-caption)/var(--lh-12) var(--sans); color: var(--sp-mute); text-align: center; } .eq-tg th[scope="row"] { width: 86px; text-align: left; }
+.eq-tg-c { padding: 10px; border-radius: 10px; vertical-align: top; background: var(--s2); }
+.eq-tg-c b { display: block; font: 700 var(--fs-small)/var(--lh-13) var(--sans); } .eq-tg-c small { display: block; margin: 2px 0 6px; font-size: var(--fs-caption); color: var(--sp-mute); }
+.eq-tg-c em { display: block; font: 400 var(--fs-caption)/1.5 var(--sans); color: var(--sp-ink); }
+.eq-tg-c.t2 { background: var(--sp-good-bg); } .eq-tg-c.t1 { background: color-mix(in srgb, var(--sp-good-bg) 55%, var(--s1)); }
+.eq-tg-c.t-1 { background: color-mix(in srgb, var(--sp-bad-bg) 55%, var(--s1)); } .eq-tg-c.t-2 { background: var(--sp-bad-bg); }
+.eq-bp-h { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; } .eq-bp-h b { font: 700 var(--fs-body)/var(--lh-14) var(--sans); }
+/* Business and price: one row each, stacked (the pack's fix for the CSS clash that put them on one line) */
+.eq-bpr { display: block; padding: 10px 12px; margin: 0 0 8px; border-radius: 10px; border-left: 4px solid var(--sp-line); background: var(--s2); }
+.eq-bpr.g { border-left-color: var(--gain); } .eq-bpr.m { border-left-color: var(--gold); } .eq-bpr.b { border-left-color: var(--loss); }
+.eq-bpr-t { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: var(--fs-small); }
+.eq-bpr small { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--sp-mute); } .eq-bpr .eq-bpr-n { color: var(--sp-ink); }

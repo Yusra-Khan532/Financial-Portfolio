@@ -24,7 +24,6 @@ import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { ScoreCard, ScoreInputs } from "../portfolio/ScoreCard";
 import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
 import { usePortfolioTrend } from "../portfolio/usePortfolioTrend";
-import { TrendCard } from "../mf/Spread";
 import "../styles/mfspread.css";
 import { SharesTable } from "../portfolio/SharesTable";
 import { sectorColors, sectorOrder, plural } from "../portfolio/derive";
@@ -41,7 +40,7 @@ import type { Leadership } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
 import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { EachRisk, InShort, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, RiskGlance, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
+import { EachRisk, GoldLock, InShort, LeadersSection, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, TrendSection, RiskGlance, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
@@ -53,7 +52,7 @@ import "../portfolio/pack/equity-pack.css";
 
 /** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
-  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"]] },
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
   diversification: { label: "Diversification analytics", secs: [["eq-spread", "Spread"], ["eq-where", "Where it sits"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
   risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
@@ -82,7 +81,7 @@ export function HoldingsPage() {
   const symbols = useMemo(() => [...new Set(st.holdings.map((h) => h.symbol))], [st.holdings]);
   const ov = useOverview(symbols, !!model && !DEMO);
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
-  const tr = usePortfolioTrend(symbols, !!model && !DEMO);
+  const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);   // Gold only (FinLit Prism); Silver sees the lock card
   const [choices, setChoices] = useState<Choices>(() => loadChoices());
   const pick = (c: Choices) => { setChoices(c); saveChoices(c); };
   const qtyBySymbol = useMemo(() => { const m = new Map<string, number>(); st.holdings.forEach((h) => { if (h.owned && h.qty > 0) m.set(h.symbol, (m.get(h.symbol) ?? 0) + h.qty); }); return m; }, [st.holdings]);
@@ -228,9 +227,16 @@ export function HoldingsPage() {
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SizeFold counts={sizeCount} />
-            <div id="eq-trend">{tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
-            {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}</div>
-            <PeersSection shares={shares} />
+            {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
+            {model === "prism" ? <>
+              {tr.data?.trend ? <TrendSection t={tr.data.trend} shares={shares} /> : <section className="sp-sec" aria-labelledby="eq-trend"><h2 id="eq-trend">Short- and long-term trend</h2><p className="sp-note">{tr.isError ? "The trend readings could not be loaded. Try again in a moment." : "Loading the trend readings…"}</p></section>}
+              <PeersSection shares={shares} />
+              <LeadersSection shares={shares} />
+            </> : <>
+              <GoldLock id="eq-trend" title="Short- and long-term trend" text="Where each share's short-term trend sits against its long-term one, from FinLit Prism's technical view." />
+              <GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." />
+              <GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." />
+            </>}
           </>}
           {view === "diversification" && (page && common ? <>
             <SpreadSection page={page} weights={secW} counts={counts} sizeCount={sizeCount} packs={packs} />
