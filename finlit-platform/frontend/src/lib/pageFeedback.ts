@@ -12,7 +12,7 @@ export const RATING_WORDS = ["", "Poor", "Fair", "Good", "Very good", "Excellent
 export type PageTag = { page: string; pageName: string; context: Record<string, string> };
 
 /** The page the member is on, as the team should see it. Pure apart from reading the document: pass `doc` in tests. */
-export function pageTag(pathname: string, plan?: string | null, doc: Pick<Document, "title" | "querySelector"> | null = typeof document === "undefined" ? null : document,
+export function pageTag(pathname: string, plan?: string | null, doc: Pick<Document, "title" | "querySelector"> & { documentElement?: { dataset?: DOMStringMap } } | null = typeof document === "undefined" ? null : document,
   width: number = typeof window === "undefined" ? 1280 : window.innerWidth): PageTag {
   const page = ("/" + pathname.split(/[?#]/)[0].replace(/^\/+/, "")).replace(/(.)\/+$/, "$1");
   const h1 = doc?.querySelector("h1")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
@@ -21,6 +21,17 @@ export function pageTag(pathname: string, plan?: string | null, doc: Pick<Docume
   const context: Record<string, string> = {};
   const sym = /^\/(?:stocks|prism|outlook|premium\/report|etfs|funds)\/([^/]+)/.exec(page);
   if (sym) context.symbol = decodeURIComponent(sym[1]).slice(0, 24);
+  // task #214: more of what the member was looking at, within the facts the server keeps (finlit/page_feedback.py CONTEXT_KEYS): a company chosen in a tool
+  // (?sym=), the open tab (?tab= or the selected tab on screen) and the theme. Never a typed value from the page.
+  const q = new URLSearchParams(pathname.includes("?") ? pathname.slice(pathname.indexOf("?") + 1).split("#")[0] : "");
+  const qs = (q.get("sym") || q.get("symbol") || "").trim();
+  if (!context.symbol && /^[A-Za-z0-9&._-]{1,24}$/.test(qs)) context.symbol = qs.toUpperCase();
+  const onTab = doc?.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.replace(/^\d+/, "").replace(/\s+/g, " ").trim() ?? "";
+  const qt = (q.get("tab") || "").trim();
+  const tab = onTab || (/^[A-Za-z0-9 _-]{1,60}$/.test(qt) ? qt : "");
+  if (tab) context.tab = tab.slice(0, 60);
+  const theme = doc?.documentElement?.dataset?.theme;
+  if (theme === "dark" || theme === "light") context.theme = theme;
   if (title) context.title = title.slice(0, 120);
   if (h1 && h1 !== title) context.heading = h1.slice(0, 120);
   if (plan) context.plan = plan;
@@ -44,12 +55,8 @@ export const sendPageFeedback = (a: SendArgs) => apiSend<{ status: string; id: n
   message: a.message.trim(), ...(a.email?.trim() ? { email: a.email.trim() } : {}),
 });
 
-/** Where the dialogs open from. A tiny shared store: the banner's button, the feedback pill and the dialog never need to know about each other. */
+/** Where the dialogs open from. A tiny shared store: the buttons and the dialog never need to know about each other. */
 type Open = Kind | null;
 let current: Open = null;
 const subs = new Set<() => void>();
 export const panel = { get: (): Open => current, set: (k: Open) => { current = k; subs.forEach((f) => f()); }, sub: (f: () => void) => { subs.add(f); return () => { subs.delete(f); }; } };
-/** How many page banners are on screen: when none is, the dock carries its own "Raise a Query" button so no page is without one. */
-let banners = 0;
-const bsubs = new Set<() => void>();
-export const banner = { get: () => banners, add: () => { banners++; bsubs.forEach((f) => f()); return () => { banners--; bsubs.forEach((f) => f()); }; }, sub: (f: () => void) => { bsubs.add(f); return () => { bsubs.delete(f); }; } };
