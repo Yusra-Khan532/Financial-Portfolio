@@ -25,7 +25,9 @@ export type PrismBlock = {
   parts: { fundamental: number | null; valuation: number | null; quality: number | null; risk: number | null } | null;
   shortTerm: { score: number; word: string } | null; longTerm: { score: number; word: string } | null; at: string | null; reason: string | null;
 };
-export type FinlitBlock = { overall: number | null; band: string | null; word: string | null; pillars: Record<"quality" | "growth" | "profitability" | "balance" | "technical", number | null> };
+export type FinlitBlock = { overall: number | null; band: string | null; word: string | null; pillars: Record<"quality" | "growth" | "profitability" | "balance" | "technical", number | null>;
+  /** Task #183: each pillar's word as the report gives it (Strong, Healthy, Mixed, Watch); null when the pillar is not scored. */
+  pillarWords?: Partial<Record<"quality" | "growth" | "profitability" | "balance" | "technical", string | null>> };
 export type StatementCol = { available: boolean; why?: string; period: string | null; periodEnd: string | null } & Partial<Record<"revenue" | "other_income" | "operating_profit" | "finance_costs" | "net_profit" | "eps" | "tax_ratio", Fig>>;
 export type Ready = {
   symbol: string; status: "ready"; name: string | null; sector: string | null; industry: string | null; isBank: boolean; basis: "consolidated" | "standalone" | null; reportAt: string | null;
@@ -53,8 +55,11 @@ export function useOverview(symbols: string[], enabled: boolean) {
 
 // ---------------------------------------------------------------------------------------------------- tab state (address: ?tab=ratios&period=quarter)
 
-export type Tab = "overview" | "ratios" | "financials";
-export const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "ratios", label: "Ratios" }, { id: "financials", label: "Financials" }];
+/** Task #183: Overview is one flat list; By sector and By company size group the same columns; Ratios and Financials are unchanged. */
+export type Tab = "overview" | "sector" | "size" | "ratios" | "financials";
+export const TABS: { id: Tab; label: string }[] = [{ id: "overview", label: "Overview" }, { id: "sector", label: "By sector" }, { id: "size", label: "By company size" }, { id: "ratios", label: "Ratios" }, { id: "financials", label: "Financials" }];
+/** The views that show the Overview columns (score, parts, peers). */
+export const isOverviewLike = (t: Tab) => t === "overview" || t === "sector" || t === "size";
 export const parseTab = (v: string | null | undefined): Tab => (TABS.some((t) => t.id === v) ? (v as Tab) : "overview");
 export type Period = "year" | "quarter";
 export const parsePeriod = (v: string | null | undefined): Period => (v === "quarter" ? "quarter" : "year");
@@ -121,7 +126,7 @@ export function scoreWhy(h: OverviewHolding | undefined, model: Model): string |
   return p.reason || "Prism could not rate this company: its filed history or data is not enough for a rating.";
 }
 
-export const FINLIT_PILLARS = [["quality", "Quality"], ["growth", "Growth"], ["profitability", "Profit."], ["balance", "Balance"], ["technical", "Technical"]] as const;
+export const FINLIT_PILLARS = [["quality", "Quality"], ["growth", "Growth"], ["profitability", "Profitability"], ["balance", "Balance sheet"], ["technical", "Technical"]] as const;
 export const PRISM_FOUR = PRISM_PARTS.map((p) => ({ key: p.col.replace("prism_", "") as "fundamental" | "valuation" | "quality" | "risk", label: p.label, say: p.say }));
 export const PRISM_TECH = [["shortTerm", "Short term", "Prism's short term (5 to 20 sessions) price-trend reading, from −100 to +100"], ["longTerm", "Long term", "Prism's long term (6 to 18 months) price-trend reading, from −100 to +100"]] as const;
 
@@ -150,7 +155,7 @@ const priceCols: Col[] = [
 const capCol: Col = { id: "cap", label: "Market cap", num: true, hint: "Market value in rupees crore, and the size word (the site's own bands)", sort: (h) => h.marketCapCr, csv: (h) => h.marketCapCr };
 
 export function columnsFor(tab: Tab, model: Model, period: Period = "year"): Col[] {
-  if (tab === "overview") {
+  if (isOverviewLike(tab)) {
     const score = model === "prism"
       ? [...PRISM_FOUR.map((p): Col => ({ id: "p_" + p.key, label: p.label, num: true, hint: p.say, sort: (h) => h.prism?.parts?.[p.key] ?? null, csv: (h) => h.prism?.parts?.[p.key] ?? null })),
          ...PRISM_TECH.map(([k, label, hint]): Col => ({ id: "t_" + k, label, num: true, hint, sort: (h) => h.prism?.[k]?.score ?? null, csv: (h) => h.prism?.[k]?.score ?? null }))]

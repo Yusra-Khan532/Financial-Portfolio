@@ -17,17 +17,17 @@ describe("tab strip", () => {
   it("is an accessible tablist with the selected tab tabbable", () => {
     const html = renderToStaticMarkup(<TabStrip tab="ratios" onTab={noop} />);
     expect(html).toContain('role="tablist"');
-    expect((html.match(/role="tab"/g) || []).length).toBe(3);
+    expect((html.match(/role="tab"/g) || []).length).toBe(5);
     expect(html).toMatch(/id="pf-tab-ratios"[^>]*aria-selected="true"[^>]*aria-controls="pf-panel"[^>]*tabindex="0"/);
     expect(html).toMatch(/id="pf-tab-overview"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
-    expect(text(html)).toContain("Overview Ratios Financials");
+    expect(text(html)).toContain("Overview By sector By company size Ratios Financials");
   });
 });
 
 describe("Overview tab", () => {
   it("Silver: FinLit IQ with its word and the five pillars; nothing of Prism", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profit.", "Balance", "Technical"].forEach((x) => expect(t).toContain(x));
+    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profitability", "Balance sheet", "Technical"].forEach((x) => expect(t).toContain(x));
     expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap"); expect(t).toContain("Strong");
     expect(t).not.toMatch(/Prism|Growth & Profitability|Valuation|Risk|Rate now/);
     expect(t).toContain("Portfolio average"); expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
