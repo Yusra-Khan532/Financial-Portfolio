@@ -8,6 +8,7 @@
 - **One task at a time, start to finish.** Never work on two tasks together and never fold one task's points into another's PR: tasks done together before were not fixed effectively. Each task gets its own branch from the latest `main`, its own PR, its own live check and its own report.
 - **Every task follows `docs/TASK-PROMPT.md` in full** (Step 0 checklist word for word, Step 1 reproduce live with before screenshots, Step 2 plan, Step 3 implement, Step 4 prove every point in all 4 views, Step 5 upgrade, ship and verify live, report). A point without evidence is not done.
 - **When a task is completely done:** report it to the user in one message (cause, checklist table with evidence, tests, upgrades, what is open, links), and update the workspace: a done note on the task in the form `<what changed> | <where> | <PR link> | <how to check>` and the status set to done, plus a note with next ideas. Then start the next task.
+- **Waiting is not idling (17 Nov 2026):** when a task is blocked on a long wait (CI, a deploy, a weekly job's next run, a founder step such as `SECTORS_JOB=on`), start the next single task meanwhile, on its own branch and PR, then come back. Each task is still done fully and separately; nothing from one task goes into another's PR.
 
 ## The founder's five-step method (apply to EVERY issue, one issue at a time)
 
