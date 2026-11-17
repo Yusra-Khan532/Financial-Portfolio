@@ -1070,6 +1070,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_isin = sub.add_parser("load-isin-list", help="load a newer NSDL ISIN list (the .zip NSDL sends, or its .csv) into isin_master (task #128)")
     p_isin.add_argument("--file", required=True)
     sub.add_parser("refresh-universe")
+    p_cls = sub.add_parser("classify-companies", help="NSE's four levels (macro sector, sector, industry, basic industry) for every company (task #192)")
+    p_cls.add_argument("--force", action="store_true", help="place every company again, not only new ones and those placed by older rules")
     p_short = sub.add_parser("refresh-short-history", help="reload stored reports whose yearly statements cover 4 years or fewer, so the second source can add older years (reads a few KB)")
     p_short.add_argument("--days", type=float, default=7.0, help="only reports not reloaded in this many days, oldest first")
     p_short.add_argument("--max-minutes", type=float, default=None, help="stop by itself after this long (the rest waits for the next run)")
@@ -1315,7 +1317,15 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .isin import ensure_shipped
             meta = await ensure_shipped(store)   # the depository's ISIN list shipped with the code, when newer than the stored one (task #128)
             await store.invalidate_search()      # the search list carries each company's ISIN: rebuilt once after a deploy
-            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"))
+            try:   # NSE's four levels for every company not yet placed by the current rules (task #192): stored data only, a few seconds
+                placed = await store.classify_all()
+            except Exception as exc:   # never stops a deploy: the next start tries again, and every saved report places its company
+                log.exception("NSE classification not worked out at start")
+                placed = {"error": type(exc).__name__}
+            print("migrated; timescale =", store.timescale, "; ISIN list", (meta or {}).get("date"), (meta or {}).get("rows"), "; NSE classification", placed)
+            return 0
+        if args.cmd == "classify-companies":
+            print(json.dumps(await store.classify_all(force=args.force)))
             return 0
         if args.cmd == "load-isin-list":
             from pathlib import Path
