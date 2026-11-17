@@ -1,5 +1,7 @@
 # FinLit platform: working rules for Claude
 
+**Start here:** read `docs/MAINTAINER-MAP.md` first in every session. It is the one-page map of the code, the jobs, the hosting (AWS EC2 + Caddy; Cloudflare is DNS, email routing and the AMFI/exchange Worker relay, not a proxy), the release flow, the team workspace and the open questions, plus how every change is applied. Keep it current when any of those change.
+
 ## The founder's five-step method (apply to EVERY issue, one issue at a time)
 
 The founder (Pranshu) sends 4-5 issues at a time. Solve them one at a time, with full effort on each, in these five steps:
