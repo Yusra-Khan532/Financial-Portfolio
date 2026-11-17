@@ -136,6 +136,50 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
     return Response(orjson.dumps(result, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)
 
 
+@router.post("/risk")
+async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
+    """Risk analytics by company size (task #183 W8): each share against its own size index (Nifty 50, Midcap 150, Smallcap 250) from index closes, the
+    size-weighted, blended and Nifty 50 betas, each size against its index, and swing and worst fall over 3 years of daily closes. Silver and Gold."""
+    app = request.app
+    allowed, retry = await app.state.limiter.hit("portfolio_page", ip_of(request), 30, 60, fail_open=False)
+    if not allowed:
+        return Response(orjson.dumps({"status": "rate_limited", "detail": "Too many requests. Please wait and try again.", "retryAfter": retry}), status_code=429,
+                        media_type="application/json", headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
+    from ..indices import _cached, _fetch_levels, shape_levels
+    from . import risk_sizes
+    symbols = body.symbols
+    week = div.unfinished_week(div.now_ist())
+    key = "pfrisk:" + ":".join(["v1", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    redis = app.state.store.redis
+    try:
+        cached = await redis.get(key)
+    except Exception:
+        cached = None
+    if cached:
+        return Response(cached, media_type="application/json", headers=NO_STORE)
+    facts = div._facts(await app.state.store.diversification_facts(symbols))
+    known = [s for s in symbols if s in facts]
+    classes = await app.state.store.classifications(known) if known else {}
+    index_rows: Dict[str, Any] = {}
+    for code, _name in risk_sizes.SIZE_INDEX.values():
+        raw = await _cached(app, f"idx:px:{code}", 6 * 3600, lambda c=code: _fetch_levels(app, c))
+        index_rows[code] = shape_levels(raw, 5)["rows"] if raw else []
+    if not index_rows.get("NIF50"):
+        raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now, so the risk figures cannot be worked out. Please try again in a moment.")
+    missing = [name for code, name in risk_sizes.SIZE_INDEX.values() if not index_rows.get(code)]
+    prices = await div._prices(app, known) if known else {}
+    sizes = {s: risk_sizes.size_of(float(facts[s]["mcap"]) if facts[s].get("mcap") else None) for s in known}
+    sectors = {s: (classes.get(s.upper()) or {}).get("macro_sector") or facts[s].get("sector") or None for s in known}
+    out = await asyncio.to_thread(risk_sizes.build, prices, index_rows, sizes, sectors)
+    out.update({"week": week, "unknown": [s for s in symbols if s not in facts], "missingIndex": missing})
+    body_bytes = orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY)
+    try:
+        await redis.set(key, body_bytes, ex=CACHE_SECONDS)
+    except Exception:
+        pass
+    return Response(body_bytes, media_type="application/json", headers=NO_STORE)
+
+
 @router.post("/trend")
 async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
     """Short- and long-term trend of the listed shares (FinLit Prism technical scores). Names only; every share counts the same. Gold only (Prism), as the style

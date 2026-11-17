@@ -5,13 +5,11 @@ import { useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useQueries } from "@tanstack/react-query";
 import { apiGet } from "../../lib/api";
-import { CoLogo } from "../../components/CoLogo";
-import { Hideable } from "../../components/Hideable";
-import { Cards, Scroll, Section, Tip } from "../../components/sectors/pack/Common";
+import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import type { LeadHistory, Leadership } from "../../lib/leadership";
 import {
-  leaderCards, peerCards, trendCards, peerLine, peerSentence, riskCards, riskLead, riskTiles, riskWord, sp, standsOut, PEER_WORD,
-  type LeaderPair, type MarketFig, type Share, type Size,
+  leaderCards, peerCards, trendCards, peerLine, peerSentence, PEER_WORD,
+  type LeaderPair, type Share, type Size,
 } from "../../lib/equityPack";
 import type { Reading } from "../types";
 import type { StyleTilt } from "../../components/diversification/types";
@@ -191,68 +189,7 @@ export function StyleTiltPack({ tilt }: { tilt: StyleTilt | undefined }) {
   );
 }
 
-// ------------------------------------------------------------------------------------------------ Risk analytics
-export function RiskGlance({ m, top3, shares, risk, money, day, to }: { m: MarketFig; top3: { symbols: string[]; risk: number; money: number } | null; shares: Share[]; risk: Record<string, number>; money: Record<string, number>; day: string; to: string }) {
-  const l = riskLead(m, top3);
-  return (
-    <>
-      <section className="sp-sec" aria-labelledby="eq-rg">
-        <h2 id="eq-rg">Risk at a glance<Tip text="Risk at a glance. How the list has moved against the Nifty 50, from weekly prices over the last year, as if equal amounts were held." /></h2>
-        <p className="sp-sub">If equal amounts were held · weekly prices to {new Date(to + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-        <p className="sp-lead"><b>{l.lead}</b>{l.rest}</p><p className="sp-note">{l.more}</p>
-        <div className="eq-rtiles">{riskTiles(m).map((t) => <div key={t.k} className="ip-tile"><p className="sp-cap">{t.k}<Tip text={t.help} label={`About “${t.k}”`} /></p><b className="eq-rt-v">{t.v}<small>Nifty 50: {t.nifty}</small></b><small>{t.sub}</small></div>)}</div>
-      </section>
-      <Cards items={riskCards(shares, risk, money, day)} />
-    </>
-  );
-}
-export function MoneyRisk({ sw, sr, counts }: { sw: Record<string, number>; sr: Record<string, number>; counts: Record<string, string[]> }) {
-  const xs = Object.keys(sw).sort((a, b) => (sr[b] ?? 0) - (sr[a] ?? 0)), max = Math.max(1, ...xs.flatMap((k) => [sw[k] ?? 0, sr[k] ?? 0]));
-  return (
-    <Hideable id="portfolio.moneyrisk" title="Share of the money vs share of the risk">
-      <section className="sp-sec eq-half" aria-labelledby="eq-mr">
-        <h2 id="eq-mr">Share of the money vs share of the risk<Tip text="Share of the risk. How much of the list's ups and downs comes from each industry, against how much of the money is in it. Risky industries take more of the risk than of the money." /></h2>
-        <p className="sp-sub">Grey: share of the list. Colour: share of the ups and downs. Red rows carry far more risk than money.</p>
-        <table className="sp-tb eq-mrt"><thead><tr><th scope="col">Industry</th><th scope="col" /><th scope="col" className="r">Money</th><th scope="col" className="r">Risk</th></tr></thead>
-          <tbody>{xs.map((k) => { const a = sw[k] ?? 0, r = sr[k] ?? 0, hot = r > a * 1.4 && r - a >= 3; return (
-            <tr key={k} className={hot ? "hot" : ""}><th scope="row">{k}{(counts[k]?.length ?? 0) > 1 ? ` (${counts[k].length})` : ""}</th>
-              <td className="eq-mrb"><i className="m" style={{ width: `${(a / max) * 100}%` }} /><i className={"r" + (hot ? " hot" : "")} style={{ width: `${(r / max) * 100}%` }} /></td>
-              <td className="r">{a.toFixed(1)}%</td><td className={"r" + (hot ? " sp-red" : "")}><b>{r.toFixed(1)}%</b></td></tr>); })}</tbody></table>
-      </section>
-    </Hideable>
-  );
-}
-export function MarketFall({ beta }: { beta: number }) {
-  const v = beta * 10;
-  return (
-    <Hideable id="portfolio.fall" title="If the market fell 10%">
-      <section className="sp-sec eq-half" aria-labelledby="eq-fall">
-        <h2 id="eq-fall">If the market fell 10%<Tip text={`A rough guide from the list's beta: if the Nifty 50 fell 10%, a list with beta ${beta.toFixed(2)} would have tended to fall about ${v.toFixed(1)}%. Real falls are uneven.`} /></h2>
-        <p className="sp-sub">A rough guide from the list's beta, using past weekly prices.</p>
-        <ul className="eq-fall"><li><span>Nifty 50</span><span className="t"><i style={{ width: `${(10 / Math.max(10, v)) * 100}%` }} /></span><b>−10%</b></li>
-          <li><span>Your list</span><span className="t"><i className="me" style={{ width: `${(v / Math.max(10, v)) * 100}%` }} /></span><b className="sp-red">about −{v.toFixed(1)}%</b></li></ul>
-        <p className="sp-note">On ₹10 lakh, that is roughly ₹{(v / 10).toFixed(2)} lakh, against ₹1 lakh for the index. Real falls are uneven, so treat this as a size guide, not a forecast.</p>
-        <Cards items={[{ kind: "insight", title: "What lowers it", text: "Fewer shares from the same pack, or more large companies. The red rows on the left show where the risk sits." }]} />
-      </section>
-    </Hideable>
-  );
-}
-export function EachRisk({ shares, risk, money, day }: { shares: Share[]; risk: Record<string, number>; money: Record<string, number>; day: string }) {
-  const xs = [...shares].sort((a, b) => (a.risk ?? 101) - (b.risk ?? 101));
-  return (
-    <Section id="eq-each" title="Each share's risk" help="Each share's risk. FinLit Prism's Risk part for each share (0 to 100; higher means lower risk), how far it is below its 1-year high and its move over the last month." sub="Highest risk first. Prism Risk runs 0 to 100; higher means lower risk.">
-      <Scroll label="each share's risk"><table className="sp-tb eq-et">
-        <thead><tr><th scope="col">Share</th><th scope="col">Size<Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th><th scope="col">Prism risk<Tip text="FinLit Prism's Risk part: higher means lower risk. 70 and above reads as lower risk, below about 50 as higher risk." /></th>
-          <th scope="col" className="r">Below 1-yr high<Tip text="How far the latest price is below the highest price of the last year." /></th><th scope="col" className="r">1 month</th><th scope="col">What stands out</th></tr></thead>
-        <tbody>{xs.map((s) => { const w = riskWord(s.risk), big = risk[s.symbol] != null && money[s.symbol] != null && risk[s.symbol] > money[s.symbol] * 1.5; return (
-          <tr key={s.symbol}><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} size={24} inline /><span><b>{s.symbol}</b><small>{s.industry ?? ""}</small></span></Link></td>
-            <td>{s.size ?? "–"}</td><td>{s.risk == null ? <span className="sp-nil">Not scored</span> : <span className={"eq-rk " + (w === "Higher risk" ? "hi" : w === "Medium" ? "mid" : "lo")}>{Math.round(s.risk)} · {w}</span>}</td>
-            <td className="r">{s.below52 == null ? "–" : `${s.below52.toFixed(1)}%`}</td><td className={"r " + ((s.m1 ?? 0) >= 0 ? "sp-good" : "sp-red")}>{sp(s.m1)}</td><td className="eq-so">{standsOut(s, big, day)}</td></tr>); })}</tbody>
-      </table></Scroll>
-      <p className="sp-note">"What stands out" describes the figures; it is not advice.</p>
-    </Section>
-  );
-}
+// ------------------------------------------------------------------------------------------------ Risk analytics: RiskPack.tsx (task #183 W8)
 
 // ------------------------------------------------------------------------------------------------ What this means, in short
 const TAG: Record<Reading["section"], string> = { where: "Where it sits", together: "Moves together", risk: "Risk", market: "Market", data: "Data" };

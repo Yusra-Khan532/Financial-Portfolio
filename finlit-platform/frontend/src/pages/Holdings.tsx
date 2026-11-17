@@ -40,7 +40,8 @@ import type { Leadership } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
 import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { EachRisk, GoldLock, InShort, LeadersSection, MarketFall, MoneyRisk, StyleTiltPack, PeersSection, TrendSection, RiskGlance, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
+import { GoldLock, InShort, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
+import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
 import "../styles/sectors-pack.css";
@@ -56,7 +57,7 @@ import "../portfolio/pack/equity-pack.css";
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
   portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
-  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
+  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
 
 export function HoldingsPage() {
@@ -83,7 +84,8 @@ export function HoldingsPage() {
   const symbols = useMemo(() => [...new Set(st.holdings.map((h) => h.symbol))], [st.holdings]);
   const ov = useOverview(symbols, !!model && !DEMO);
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
-  const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);   // Gold only (FinLit Prism); Silver sees the lock card
+  const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);
+  const rk = usePortfolioRisk(symbols, !!model && !DEMO);   // Risk analytics by company size (task #183 W8)   // Gold only (FinLit Prism); Silver sees the lock card
   const [choices, setChoices] = useState<Choices>(() => loadChoices());
   const pick = (c: Choices) => { setChoices(c); saveChoices(c); };
   const qtyBySymbol = useMemo(() => { const m = new Map<string, number>(); st.holdings.forEach((h) => { if (h.owned && h.qty > 0) m.set(h.symbol, (m.get(h.symbol) ?? 0) + h.qty); }); return m; }, [st.holdings]);
@@ -157,11 +159,8 @@ export function HoldingsPage() {
       st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [lines, by, leads, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
-  const secW = page?.sector_weight.eq ?? {}, secR = page?.sector_risk.eq ?? {};
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
-  const sr = page?.share_risk.eq ?? {}, sw = page?.share_weight.eq ?? {};
-  const top3 = (() => { const xs = Object.keys(sr).sort((a, b) => sr[b] - sr[a]).slice(0, 3); return xs.length === 3 ? { symbols: xs, risk: xs.reduce((a, k) => a + sr[k], 0), money: xs.reduce((a, k) => a + (sw[k] ?? 0), 0) } : null; })();
   // Diversification analytics (task #183 W7): each share's NSE levels (stored classification, else its industry's place in NSE's tree), size and score band
   const div: DivInput | null = useMemo(() => {
     if (!page) return null;
@@ -177,6 +176,7 @@ export function HoldingsPage() {
   // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all three sizes"
   const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
   const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
+  const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
   const [showChoices, setShowChoices] = useState(false);
 
   return (
@@ -260,11 +260,15 @@ export function HoldingsPage() {
             <ShareGrid d={div} />
             {model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
-          {view === "risk" && (page ? <>
-            <RiskGlance m={page.market.eq} top3={top3} shares={shares} risk={sr} money={sw} day={day} to={page.to} />
-            <div className="eq-row"><MoneyRisk sw={secW} sr={secR} counts={counts} /><MarketFall beta={page.market.eq.beta} /></div>
-            <EachRisk shares={shares} risk={sr} money={sw} day={day} />
-          </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The risk figures need shares with a year of weekly prices."}</p>)}
+          {view === "risk" && (page && rk.data && riskSp ? <>
+            <KeyFigures tab="risk" sub="Where the list's risk sits" cards={riskKeys(rk.data, riskSp)} />
+            <RiskGlancePack r={rk.data} split={riskSp} />
+            <BetaBuild r={rk.data} />
+            <SizeBench r={rk.data} />
+            <RiskShareSection r={rk.data} split={riskSp} />
+            <Fall10 r={rk.data} />
+            <EachShareRisk r={rk.data} split={riskSp} shares={shares} gold={model === "prism"} />
+          </> : <p className="sp-note">{state === "loading" || rk.isPending ? "Working out the figures…" : rk.isError ? (rk.error?.body?.detail || "The risk figures could not be loaded. Try again in a moment.") : "The risk figures need shares with a year of weekly prices."}</p>)}
           </div>
           {page && <InShort items={page.summary.eq} />}
         </>}

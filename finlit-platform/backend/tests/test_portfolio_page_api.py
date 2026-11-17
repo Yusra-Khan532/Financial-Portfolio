@@ -122,3 +122,29 @@ async def test_score_is_gold_strict_and_never_returns_weights(app):  # noqa: F81
     assert "weight" not in text and "points" not in text and "blend" not in text
     # the names-only page endpoint is untouched
     assert (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+
+
+async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # noqa: F811
+    """POST /api/portfolio/risk (W8): Silver and Gold, never Basic; each share against its size index (index closes), the three list betas, 3-year swing and fall."""
+    import json as _json
+    import time as _time
+    from test_diversification_api import PRICES_MAX
+    await seed(app)
+    rows = [{"quote_date": r["d"], "close_price": r["c"]} for r in PRICES_MAX["__NIFTY"]["rows"]]
+    for code, k in (("NIFMID150", 1.1), ("NIFSMA250", 1.25)):
+        await app.state.store.redis.set(f"idx:px:{code}", _json.dumps({"t": _time.time(), "v": {"rows": [{**r, "close_price": r["close_price"] * k} for r in rows]}}))
+    basic = await signed_in(app, "rb@example.com", plan="basic")
+    assert (await basic.post("/api/portfolio/risk", json={"symbols": SAMPLE})).status_code == 403
+    silver = await signed_in(app, "rs@example.com", plan="silver")
+    assert (await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+    r = await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE + ["NEWCO", "ZZUNKNOWN"]})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["unknown"] == ["ZZUNKNOWN"] and j["missingIndex"] == []
+    by = {x["symbol"]: x for x in j["shares"]}
+    assert by["NEWCO"]["beta"] is None and by["NEWCO"]["why"] in ("Under a year of prices", "No size band yet")
+    counted = [x for x in j["shares"] if x["beta"] is not None]
+    assert counted and all(x["benchmark"] in ("Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250") and 0 <= x["explained"] <= 100 for x in counted)
+    assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
+    assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
+    assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0

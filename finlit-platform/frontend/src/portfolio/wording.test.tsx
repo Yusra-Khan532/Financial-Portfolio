@@ -10,7 +10,9 @@ vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 import { FAQ_BANNED, PAGE_BANNED } from "./wordingRules";
 import * as W from "./words";
 import { MY_PORTFOLIO_FAQ } from "../content/myPortfolioFaqs";
-import { InShort, MarketFall, MoneyRisk, StyleTiltPack } from "./pack/EquityPack";
+import { InShort, StyleTiltPack } from "./pack/EquityPack";
+import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit } from "./pack/RiskPack";
+import type { RiskAnswer } from "../lib/eqRisk";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "./pack/DivPack";
 import { SharesTable } from "./SharesTable";
 import { sectorColors, sectorOrder } from "./derive";
@@ -36,10 +38,20 @@ describe.each(cases)("the page text, %s", (_n, s) => {
   const SZ = { L: "Large", M: "Mid", S: "Small" } as const;
   const d: DivInput = { page, symbols: page.order, levelOf: (x, l) => (l === "industry" ? `${meta[x]?.sector ?? "Other"} industry` : meta[x]?.sector ?? "Not classified"), sizeOf: (x) => SZ[meta[x]?.size as "L" | "M" | "S"] ?? null,
     band: () => "g", gold: true, nameOf: (x) => meta[x]?.name ?? x };
+  // a risk answer for the same shares (the server's shape): sizes from the sample, betas spread across the six ranges
+  const betas = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0];
+  const B = (b: number | null) => (b == null ? null : b < 0.65 ? { key: "less" as const, word: "Less sensitive" } : b < 0.9 ? { key: "defensive" as const, word: "Defensive" } : b < 1.1 ? { key: "similar" as const, word: "Similar" } : b < 1.35 ? { key: "more" as const, word: "More sensitive" } : b < 1.75 ? { key: "high" as const, word: "High" } : { key: "very_high" as const, word: "Very high" });
+  const RISK: RiskAnswer = { to: "2026-11-13", from: "2025-11-14", counted: page.order.length, unknown: [], missingIndex: [],
+    shares: page.order.map((x, i) => ({ symbol: x, size: d.sizeOf(x), sector: meta[x]?.sector ?? null, benchmark: "Nifty 50", beta: betas[i % 6], explained: 40, band: B(betas[i % 6]), why: null, swing: 25, worstFall: -30, years: 3, oneYear: 12 })),
+    sizes: (["Large", "Mid", "Small"] as const).map((k) => ({ size: k, benchmark: k === "Large" ? "Nifty 50" : k === "Mid" ? "Nifty Midcap 150" : "Nifty Smallcap 250", n: page.order.filter((x) => d.sizeOf(x) === k).length, avgBeta: 1.1, band: B(1.1), listShare: 33.3, adds: 0.37, oneYear: 10, benchOneYear: 8, downPer100: 90, upPer100: 110 })),
+    betas: { weighted: 1.1, blended: 1.12, nifty: 0.95, weightedBand: B(1.1), blendedBand: B(1.12), niftyBand: B(0.95) },
+    glance: { list: { swing: 22, worstFall: -28 }, nifty: { swing: 13, worstFall: -15 }, worst10: { list: -3.9, nifty: -2.7 }, weighted: 1.1 },
+    ranges: [{ key: "less", word: "Less sensitive", below: 0.65 }, { key: "defensive", word: "Defensive", below: 0.9 }, { key: "similar", word: "Similar", below: 1.1 }, { key: "more", word: "More sensitive", below: 1.35 }, { key: "high", word: "High", below: 1.75 }, { key: "very_high", word: "Very high", below: null }] };
+  const sp = riskSplit(page, RISK, (x) => meta[x]?.sector ?? "Other");
   it.each(["eq", "mc"] as Mode[])("holds no advice wording in mode %s", (mode) => {
     const { container } = render(<MemoryRouter><div>
       <WhereSitsGrid d={d} /><SpreadPack d={d} /><DivSubTabs d={d} /><ShareGrid d={d} /><p>{divKeys(d).map((c) => `${c.k} ${c.v} ${c.text}`).join(" ")}</p><StyleTiltPack tilt={TILT} />
-      <MoneyRisk sw={page.sector_weight.eq} sr={page.sector_risk.eq} counts={counts} /><MarketFall beta={page.market.eq.beta} /><InShort items={page.summary[mode]} />
+      <RiskGlancePack r={RISK} split={sp} /><BetaBuild r={RISK} /><SizeBench r={RISK} /><RiskShareSection r={RISK} split={sp} /><Fall10 r={RISK} /><EachShareRisk r={RISK} split={sp} shares={[]} gold /><p>{riskKeys(RISK, sp).map((c) => `${c.k} ${c.v} ${c.text}`).join(" ")}</p><InShort items={page.summary[mode]} />
       <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} actions={() => null} />
     </div></MemoryRouter>);
     const text = container.textContent || "";
