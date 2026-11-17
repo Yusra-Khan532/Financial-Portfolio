@@ -119,6 +119,44 @@ def cagr_window(annual):
     return list(reversed(available[:years + 1])), years, span
 
 
+def growth_ladder(annual):
+    """PEG's growth (owner, 17 November 2026): the CAGR over 5 years, and when it cannot be worked out (a missing or non-positive start) or is
+    negative, over 4, then 3, then 2 years (then 1, the window that always existed). Only the latest unbroken run of annual figures is used, ending in
+    the latest year. Returns (growth %, years, [(years, why skipped)]); when no window gives a positive growth, the first one that could be worked out
+    (negative, so PEG is not meaningful) is returned; (None, 0, skipped) when none could."""
+    run = []
+    for value in reversed(annual[-(CAGR_MAX_YEARS + 1):]):
+        value = num(value)
+        if value is None:
+            break
+        run.append(value)
+    run.reverse()
+    span = len(run) - 1
+    skipped, first = [], None
+    for n in [y for y in CAGR_PREFERRED_YEARS if y <= span] + ([span] if 0 < span < min(CAGR_PREFERRED_YEARS) else []):
+        start, end = run[-1 - n], run[-1]
+        if start <= 0:
+            skipped.append((n, "start not positive"))
+            continue
+        g = ((end / start) ** (1 / n) - 1) * 100 if end > 0 else -100.
+        if g > 0:
+            return g, n, skipped
+        skipped.append((n, "negative"))
+        if first is None:
+            first = (g, n)
+    if first is None:
+        return None, 0, skipped
+    return first[0], first[1], [s for s in skipped if s != (first[1], "negative")]     # the window shown is not also listed as skipped
+
+
+def ladder_note(skipped, what):
+    """'; the 5-year EPS growth was negative' for the report's growth basis, or ''."""
+    if not skipped:
+        return ""
+    words = {"negative": "negative", "start not positive": "not measurable (the starting figure is zero or negative)"}
+    return "; " + ", ".join(f"the {n}-year {what} growth was {words[why]}" for n, why in skipped)
+
+
 def dated_cagr_window(values, ends):
     """The latest run of consecutive reported annual periods (each end 300 to 490 days after the one before, so a change of year-end with its odd-length
     period dropped still counts as consecutive), newest last. Prefers 5 periods back, then 3, then what exists (at least 1); the start must be positive.
@@ -424,12 +462,13 @@ def score_company(d, group):
             else:
                 put(metric, ratio(current, benchmark))
     # PEG growth (3.6.12): EPS growth first, because P/E is price per share and the growth must be per share too. Net profit growth only when there is no EPS CAGR.
+    # 3.6.19 (owner, 17 November 2026): each is a ladder: the 5-year CAGR, and when it is missing or negative the 4-year, then 3-year, then 2-year one.
     adj_eps, eps_adjustments = split_adjusted_eps(d.get("eps_y", []), d.get("net_profit_y", []))
-    eps_window, eps_years, _ = cagr_window(adj_eps)
-    g, g_basis = None, None
-    if eps_years and eps_window[0] is not None and eps_window[0] > 0:
-        g = ((eps_window[-1] / eps_window[0]) ** (1 / eps_years) - 1) * 100 if eps_window[-1] > 0 else -100.
-        g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years", "years": eps_years}
+    g, eps_years, eps_skipped = growth_ladder(adj_eps)
+    g_basis = None
+    if g is not None:
+        g_basis = {"kind": "eps", "text": f"EPS growth over {eps_years} years" + ladder_note(eps_skipped, "EPS"), "years": eps_years,
+                   **({"skipped": eps_skipped} if eps_skipped else {})}
     # 3.6.14 (owner, 15 November 2026): a consolidated EPS history too short for a 3-year window is measured on the standalone statements instead, when they
     # reach the same latest year and give a longer usable window. Only PEG's growth changes; P/E and every other factor stay on the report's own basis.
     sa_eps, sa_ends = d.get("eps_y_standalone") or [], d.get("standalone_period_ends") or []
@@ -437,17 +476,22 @@ def score_company(d, group):
     if (g is None or eps_years < 3) and sa_eps and len(sa_ends) == len(sa_eps) and (not con_years_list or int(sa_ends[-1][:4]) >= con_years_list[-1]):
         sa_adj, sa_adjustments = split_adjusted_eps(sa_eps, d.get("net_profit_y_standalone", []))
         first_i, sa_years = dated_cagr_window(sa_adj, sa_ends)
-        if first_i is not None and sa_years > (eps_years if g is not None else 0):
+        sa_g = None
+        if first_i is not None:
             start, end = sa_adj[first_i], sa_adj[-1]
-            g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+            sa_g = ((end / start) ** (1 / sa_years) - 1) * 100 if end > 0 else -100.
+        # the longer standalone window replaces a short consolidated one, but never turns a positive EPS growth into a negative one (3.6.19)
+        if sa_g is not None and sa_years > (eps_years if g is not None else 0) and (g is None or g <= 0 or sa_g > 0):
+            g = sa_g
             periods = len(sa_adj) - 1 - first_i
             g_basis = {"kind": "eps_standalone", "text": f"standalone EPS growth over {sa_years:.1f} years, {sa_ends[first_i]} to {sa_ends[-1]} (consolidated history too short)",
                        "years": round(sa_years, 2), "periods": periods, "consolidatedYears": eps_years or None}
             eps_adjustments = sa_adjustments
     if g is None:
-        g = values.get("PROFIT_CAGR")
+        g, profit_years, profit_skipped = growth_ladder(d.get("net_profit_y", []))
         if g is not None:
-            g_basis = {"kind": "profit_cagr", "text": "net profit growth (no usable EPS growth)", "years": (details.get("PROFIT_CAGR") or {}).get("years")}
+            g_basis = {"kind": "profit_cagr", "text": f"net profit growth over {profit_years} years (no usable EPS growth)" + ladder_note(profit_skipped, "net profit"),
+                       "years": profit_years, **({"skipped": profit_skipped} if profit_skipped else {})}
     if g is None:
         g = values.get("PROFIT_GROWTH")
         if g is not None:

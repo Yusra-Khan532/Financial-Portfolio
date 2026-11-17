@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.18"
+MODEL_VERSION = "3.6.19"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -82,7 +82,7 @@ MISS_PENALTY = 5
 STREAK_MAGNITUDE_SHARE = 0.20   # v3.2: share of streak points that depends on growth size (0 = v3.1)
 TRADING_VALUE_STEPS = [(25, 100), (10, 80), (2, 60), (0.5, 30), (0, 0)]
 CAGR_MAX_YEARS = 5
-CAGR_PREFERRED_YEARS = (5, 3)   # Owner preference: 5 years, then 3, then available.
+CAGR_PREFERRED_YEARS = (5, 4, 3, 2)   # Owner (17 November 2026): 5 years, then 4, then 3, then 2 as backups; then what exists (at least 1).
 CAGR_MIN_YEARS = 1              # At least two consecutive annual observations.
 PROFIT_TURNAROUND_POINTS = 70   # v3.6: only when the latest figure is a profit
 LOSS_NARROWED_POINTS = 30       # v3.6: still a loss, but smaller than before
@@ -110,6 +110,8 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.19 (owner, 17 November 2026): Sales and Profit CAGR use 5 years, then 4, 3, 2 (then what exists); PEG growth is the EPS CAGR over 5 years,
+# and when that is missing or negative over 4, 3, then 2; with no EPS at all the net profit CAGR the same way (premium_engine.growth_ladder).
 # Revenue names, version 2 (17 November 2026; inputMeta.revenueVersion, REVENUE_VERSION below): insurers. General and health insurers report their revenue as premium earned (FinEdge `premiumEarned`), which the
 # insurance group did not read, so they had no sales history and were NOT RATED (ICICIGI, NIACL, STARHEALTH). The standalone switch counted revenue
 # without any insurance names, so an insurer with no consolidated statements (SBILIFE, ICICIGI, STARHEALTH) was rated on empty consolidated
