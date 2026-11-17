@@ -8,6 +8,8 @@ import "../styles/steps-bar.css";
 
 export type StepSection = { id: string; label: string };
 export type Step = { id: string; n: number; title: string; line?: string; sections: StepSection[] };
+/** An optional menu for "All sections" grouped another way (all my investments: every tab's sections, grouped by tab); `go` runs instead of a scroll. */
+export type MenuGroup = { title: string; items: { id: string; label: string; go: () => void }[] };
 
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 /** The height of the site's sticky header (the bar sits right under it). 0 when there is none, or it does not stick. */
@@ -25,7 +27,7 @@ export function stepInView(tops: { id: string; top: number }[], line: number): s
   return cur;
 }
 
-export function StepsBar({ steps, label = "Sections" }: { steps: Step[]; label?: string }) {
+export function StepsBar({ steps, label = "Sections", menu }: { steps: Step[]; label?: string; menu?: MenuGroup[] }) {
   const [active, setActive] = useState<string | null>(steps[0]?.id ?? null);
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(0);
@@ -92,7 +94,12 @@ export function StepsBar({ steps, label = "Sections" }: { steps: Step[]; label?:
       </nav>
       {open && (
         <div className="stb-pop" id={popId} ref={pop} role="dialog" aria-label="All sections">
-          {steps.map((s) => (
+          {menu ? menu.map((g) => (
+            <div className="stb-grp" key={g.title}>
+              <h5>{g.title}</h5>
+              {g.items.map((x) => <button type="button" key={x.id} onClick={() => { setOpen(false); x.go(); }}>{x.label}</button>)}
+            </div>
+          )) : steps.map((s) => (
             <div className="stb-grp" key={s.id}>
               <h5>{s.n} · {s.title}</h5>
               {s.sections.map((x) => <button type="button" key={x.id} onClick={() => go(x.id, s.id)}>{x.label}</button>)}
