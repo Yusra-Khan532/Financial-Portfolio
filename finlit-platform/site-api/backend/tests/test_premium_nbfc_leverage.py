@@ -23,7 +23,7 @@ def run(d, group='NBFC'):
 
 
 def test_version():
-    assert MODEL_VERSION == "3.6.18"
+    assert MODEL_VERSION == "3.6.19"
 
 
 @pytest.mark.parametrize('assets,points', [(10000, 0), (12000, 0), (7000, 50), (4000, 100), (3000, 100), (5500, 75)])

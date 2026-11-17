@@ -1,7 +1,7 @@
 # FinLit Prism: integration contract
 
 **FinLit Prism** is the Gold plan's advanced financial-health rating. It is the model merged from
-`Yusra-Khan532/financial-portfolio` (engine 3.6.18 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
+`Yusra-Khan532/financial-portfolio` (engine 3.6.19 plus the additive ST/LT technical assessment; see `premium-model-implementation.md`), renamed for the website.
 The name is in one place on each side: `PRISM_NAME` in `backend/finlit/prism.py` and in `frontend/src/lib/prism.ts`.
 
 A prism splits light into its bands: the rating splits a company into its four parts (Growth & Profitability, Valuation, Quality, Risk).
@@ -46,7 +46,7 @@ or `standalone`.
 
 ### Scoring-version freshness
 
-Stored reports must match the current financial model version, 3.6.18. An older
+Stored reports must match the current financial model version, 3.6.19 (a 3.6.18 report stays on screen with its date while it is rebuilt; see SHOWN_WHILE_REBUILDING in finlit/prism.py). An older
 calculation is not returned as the latest report or reused by generation just
 because it was created recently. The page starts a fresh calculation when the
 latest endpoint returns no current-model report. The nightly precompute queue

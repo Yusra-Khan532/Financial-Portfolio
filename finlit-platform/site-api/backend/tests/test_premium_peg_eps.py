@@ -1,4 +1,4 @@
-"""PEG growth (model 3.6.12, current 3.6.18): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
+"""PEG growth (model 3.6.12, current 3.6.19): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
 import pytest
 from backend.premium_engine import score_company, split_adjusted_eps
 from backend.premium_model_config import MODEL_VERSION
@@ -19,7 +19,7 @@ def series(start, rate, n):
 
 
 def test_model_version_is_3_6_12():
-    assert MODEL_VERSION == "3.6.18"
+    assert MODEL_VERSION == "3.6.19"
 
 
 def test_peg_uses_eps_growth_not_profit_growth():
@@ -45,11 +45,42 @@ def test_growth_is_capped_at_40_percent():
 
 def test_falls_back_to_net_profit_cagr_when_eps_history_is_missing_or_unusable():
     profit = series(100, .25, 6)
-    for eps_y in ([], [10.0], [None, None, None, None, None, 10.0], [-1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [0.0, 2.0, 3.0, 4.0, 5.0, 6.0]):
+    for eps_y in ([], [10.0], [None, None, None, None, None, 10.0]):
         _, _, row = peg(eps_y, profit)
         assert row["details"]["growthKind"] == "profit_cagr", eps_y
         assert row["details"]["growthUsed"] == pytest.approx(25.0)
         assert "net profit" in row["details"]["growthBasis"]
+
+
+def test_an_eps_window_whose_start_is_not_positive_falls_back_to_the_4_year_eps_growth_not_to_profit():
+    # owner, 17 November 2026: the 5-year EPS CAGR cannot be worked out from a zero or negative start, so the 4-year one is used (2 to 6)
+    for eps_y in ([-1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [0.0, 2.0, 3.0, 4.0, 5.0, 6.0]):
+        _, _, row = peg(eps_y, series(100, .25, 6))
+        assert row["details"]["growthKind"] == "eps" and row["details"]["growthYears"] == 4, eps_y
+        assert row["details"]["growthUsed"] == pytest.approx(((6 / 2) ** (1 / 4) - 1) * 100)
+        assert "the 5-year EPS growth was not measurable" in row["details"]["growthBasis"]
+
+
+@pytest.mark.parametrize("eps_y,years", [
+    ([10.0, 12.0, 8.0, 9.0, 10.0, 11.0], 5),     # 5 years: 10 -> 11 is up; kept
+    ([20.0, 12.0, 8.0, 9.0, 10.0, 11.0], 3),     # 5 and 4 years down (20, 12 -> 11), 3 years up (8 -> 11)
+])
+def test_a_negative_eps_growth_falls_back_to_the_next_shorter_window(eps_y, years):
+    _, _, row = peg(eps_y, [e * 100 for e in eps_y])          # profit moves with EPS, so no share split or bonus is read into the history
+    assert row["details"]["growthKind"] == "eps" and row["details"]["growthYears"] == years
+    start = eps_y[-1 - years]
+    assert row["details"]["growthUsed"] == pytest.approx(((eps_y[-1] / start) ** (1 / years) - 1) * 100)
+    if years < 5:
+        assert "the 5-year EPS growth was negative" in row["details"]["growthBasis"]
+
+
+def test_with_no_eps_the_net_profit_growth_ladder_is_used_the_same_way():
+    # no EPS at all: net profit over 5 and 4 years is down, over 3 years up -> the 3-year net profit growth
+    profit = [679.36, 586.08, 562.03, 551.27, 517.09, 572.35]
+    _, _, row = peg([], profit)
+    assert row["details"]["growthKind"] == "profit_cagr" and row["details"]["growthYears"] == 3
+    assert row["details"]["growthUsed"] == pytest.approx(((572.35 / 562.03) ** (1 / 3) - 1) * 100)
+    assert "the 5-year net profit growth was negative" in row["details"]["growthBasis"]
 
 
 def test_non_positive_eps_growth_gives_no_peg_and_zero_points_and_does_not_fall_back_to_profit():
@@ -115,3 +146,11 @@ def test_trace_and_review_say_earnings_growth_and_name_the_basis():
     data, rating, row = peg(series(10, .2, 6), series(100, .5, 6))
     trace = next(r for r in build_calculation_trace(data, rating, {})["metrics"] if r["metric"] == "PEG")
     assert "earnings growth" in trace["valueCalculation"] and "EPS growth over 5 years" in trace["valueCalculation"]
+
+
+def test_eps_down_over_5_4_3_and_2_years_gives_no_peg_even_if_the_last_year_is_up():
+    # the ladder stops at 2 years (a 1-year figure is used only when no longer history exists); the 5-year figure is the one reported
+    eps_y = [20.0, 15.0, 14.0, 12.0, 10.0, 11.0]
+    _, _, row = peg(eps_y, [e * 100 for e in eps_y])
+    assert row["status"] == "Z" and row["points"] == 0 and row["value"] is None
+    assert "EPS growth over 5 years" in row["details"]["note"] and "the 4-year EPS growth was negative" in row["details"]["note"]

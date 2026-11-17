@@ -304,7 +304,12 @@ CLASSIFICATION_VERSION = 3
 # 3.6.16: a consolidated history too short for a 3-year comparison switches the whole report to the standalone statements.
 # 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
 # 3.6.18: out-of-date consolidated statements switch to standalone; provider failures on the company's own data stop the calculation.
-REQUIRED_MODEL_VERSION = "3.6.18"
+# 3.6.19: CAGR ladders (5, 4, 3, 2 years); PEG growth skips a missing or negative window (owner, 17 November 2026).
+REQUIRED_MODEL_VERSION = "3.6.19"
+# Reports of these older versions stay ON SCREEN (with their date) while they are rebuilt, instead of being hidden: a hidden report makes every page
+# open wait for a live calculation (as after 3.6.16-3.6.18). They are still out of date everywhere else (stale_model): a calculation never reuses
+# one, opening one rebuilds it in the background, and the nightly job rebuilds them. Older versions than these stay hidden.
+SHOWN_WHILE_REBUILDING = ("3.6.18",)
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 # Mirrors REVENUE_VERSION in site-api/backend/premium_model_config.py (a test keeps them equal). Version 2 (17 November 2026): insurers' revenue
 # (premium earned) is read, and a company with no consolidated statements uses its standalone ones. Only the reports that can change are rebuilt
@@ -328,6 +333,17 @@ def stale_revenue(report: Any) -> bool:
         return False
     basis = report.get("statementType") or meta.get("statementType")
     return rating.get("group") == "INSURANCE" or (rating.get("status") == "NOT RATED" and basis == "consolidated")
+
+
+def hidden_model(report: Any) -> bool:
+    """True when a stored report is too old to show at all: stale_model() and not one of SHOWN_WHILE_REBUILDING."""
+    if not stale_model(report):
+        return False
+    try:
+        data = json.loads(report) if isinstance(report, (str, bytes)) else report
+    except (ValueError, UnicodeDecodeError):
+        return True
+    return not (isinstance(data, dict) and isinstance(data.get("rating"), dict) and data["rating"].get("modelVersion") in SHOWN_WHILE_REBUILDING)
 
 
 def stale_classification(report: Any) -> bool:
@@ -630,7 +646,7 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     if refusal:
         return refusal
     row = await _stored(request.app.state.store, *wanted)
-    if row is None or stale_model(row["report"]):
+    if row is None or hidden_model(row["report"]):
         return _reply({"status": "none", "detail": f"No current-model {PRISM_NAME} report is available. A fresh calculation is needed."}, 404)
     refreshing = await _refresh_stale_technical(request.app, wanted[0], row)
     from . import scorelive

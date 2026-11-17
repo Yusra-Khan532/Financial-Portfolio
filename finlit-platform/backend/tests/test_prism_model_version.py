@@ -1,5 +1,6 @@
 """A stored report from older scoring rules must not suppress a current calculation."""
 import ast
+import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -73,3 +74,37 @@ async def test_nightly_queue_selects_old_model_without_waiting_for_age_cutoff(en
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE prism_reports SET model_version=$1 WHERE symbol='RELIANCE'", prism.REQUIRED_MODEL_VERSION)
     assert 'RELIANCE' not in await prism._pending(app.state.store, 'consolidated', 7, 20, [])
+
+
+def test_only_the_previous_version_is_shown_while_it_is_rebuilt():
+    report = lambda v: {'rating': {'modelVersion': v}}
+    assert prism.stale_model(report('3.6.18')) and not prism.hidden_model(report('3.6.18'))     # out of date, but shown
+    assert prism.hidden_model(report('3.6.10')) and prism.hidden_model('not-json') and prism.hidden_model(None)
+    assert not prism.hidden_model(report(prism.REQUIRED_MODEL_VERSION))
+
+
+@pytest.mark.integration
+async def test_a_report_of_the_previous_version_stays_on_screen_and_is_rebuilt(env):  # noqa: F811
+    """17 November 2026: hiding every stored report after a model change made each page wait for a live calculation. A 3.6.18 report is shown
+    (with its date and freshness saying it is behind the model) and a calculation does not reuse it."""
+    app, fake = env
+    gold = await member(app, 'gold')
+    await generate(gold, 'RELIANCE')
+    row = await prism._stored(app.state.store, 'RELIANCE', 'consolidated')
+    old = json.loads(row['report'])
+    old['rating']['modelVersion'] = '3.6.18'
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("UPDATE prism_reports SET report=$1::jsonb, model_version='3.6.18' WHERE symbol='RELIANCE'", json.dumps(old))
+    assert not prism._fresh(await prism._stored(app.state.store, 'RELIANCE', 'consolidated'))     # a calculation would not reuse it
+    response = await gold.get('/api/prism/reports/latest', params={'symbol': 'RELIANCE'})
+    assert response.status_code == 200                                                            # on screen, not "none"
+    fresh = response.json()['freshness']
+    assert fresh['stale'] is True and fresh['kind'] == 'model' and fresh['refreshing'] is True     # and rebuilt behind the page
+    for _ in range(100):
+        stored = json.loads((await prism._stored(app.state.store, 'RELIANCE', 'consolidated'))['report'])
+        if stored['rating']['modelVersion'] == prism.REQUIRED_MODEL_VERSION:
+            break
+        await asyncio.sleep(0.05)
+    assert stored['rating']['modelVersion'] == prism.REQUIRED_MODEL_VERSION
+    summary = await gold.get('/api/prism/reports/latest', params={'symbol': 'RELIANCE', 'view': 'summary'})
+    assert summary.status_code == 200
