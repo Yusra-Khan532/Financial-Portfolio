@@ -11,6 +11,10 @@ import { STARTERS, SECOND } from "./questionBank";
 import { MARKET_QUESTIONS, writtenAnswer, type Q } from "./askFlow";
 import { EXPLORER_ANSWERS, TOPICS } from "./askExplorer";
 
+/** Every company question of the question bank: the company list and every group's questions, typed once (TypeScript 7 no longer widens the two JSON shapes to one). */
+export type BankQuestion = { id: string; text: string; needsSecondCompany?: boolean; lendersOnly?: boolean };
+export const COMPANY_QUESTIONS: readonly BankQuestion[] = [...suggestions.company, ...suggestions.groups.flatMap((g): readonly BankQuestion[] => g.items)];
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type J = any;
 export type Answer = { text: string; link?: { to: string; label: string } };
@@ -390,7 +394,7 @@ export function generalAnswer(text: string): string | undefined {
 export type Match = { id: string; sym: string; quarter?: number; fy?: string; second?: string };
 const SYM = "([A-Za-z0-9&.\\-]{1,20})";
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const TEMPLATES: { id: string; re: RegExp }[] = [...suggestions.company, ...suggestions.groups.flatMap((g) => g.items)].map((q) => ({
+const TEMPLATES: { id: string; re: RegExp }[] = COMPANY_QUESTIONS.map((q) => ({
   id: q.id,
   re: new RegExp("^" + esc(q.text).replace(/\\\{company_2\\\}/g, "(.+?)").replace(/\\\{company\\\}/g, SYM).replace(/\\\{n\\\}/g, "\\d+") + "$", "i"),
 }));
@@ -424,7 +428,7 @@ export function searchListed(term: string, company?: string | null, limit = 6, l
   const w = term.toLowerCase().replace(/[?.,!']/g, " ").split(/\s+/).filter((x) => x.length > 1 && !STOP.has(x));
   if (!w.length) return [];
   const fill = (s: string) => s.replace(/\{company_2\}/g, SECOND).replace(/\{company\}/g, company ?? "").replace(/\{n\}/g, "5");
-  const companyQs: Q[] = company ? [...suggestions.company, ...suggestions.groups.flatMap((g) => g.items)].map((q) => ({ id: q.id, text: fill(q.text), ...("needsSecondCompany" in q && q.needsSecondCompany ? { needsSecondCompany: true } : {}) }))
+  const companyQs: Q[] = company ? COMPANY_QUESTIONS.map((q) => ({ id: q.id, text: fill(q.text), ...(q.needsSecondCompany ? { needsSecondCompany: true } : {}) }))
     .filter((q, i, a) => a.findIndex((y) => y.text === q.text) === i) : [];
   const score = (q: Q) => w.filter((k) => q.text.toLowerCase().includes(k)).length;
   const need = loose ? Math.max(1, Math.ceil(w.length / 3)) : w.length > 2 ? w.length - 1 : w.length;

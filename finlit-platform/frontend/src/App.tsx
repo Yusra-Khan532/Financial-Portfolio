@@ -8,7 +8,7 @@ import { AppShell } from "./components/AppShell";
 import { SearchPalette } from "./components/SearchPalette";
 import { Home } from "./pages/Home";
 const Research = lazy(() => import("./pages/Research").then((m) => ({ default: m.Research })));
-const PlansPage = lazy(() => import("./pages/Plans").then((m) => ({ default: m.PlansPage })));
+import { PlansPage } from "./pages/Plans";   // the landing page already includes the plans section, so a separate download would save nothing
 const Services = lazy(() => import("./pages/Services").then((m) => ({ default: m.Services })));
 const About = lazy(() => import("./pages/About").then((m) => ({ default: m.About })));
 const Why = lazy(() => import("./pages/Why").then((m) => ({ default: m.Why })));

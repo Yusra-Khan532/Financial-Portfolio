@@ -9,7 +9,7 @@ import { PALETTES, PALETTE_IDS } from "../lib/palettes";
 import { prefs, usePrefs } from "../lib/prefs";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { PasswordField } from "./Login";
+import { PasswordField } from "./PasswordField";
 import { DEMO } from "../lib/demo";
 
 const TABS = [["", "Profile", "users"], ["security", "Security", "lock"], ["appearance", "Appearance", "spark"], ["plan", "Plan", "crown"]] as const;

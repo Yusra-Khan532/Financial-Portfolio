@@ -58,7 +58,8 @@ def test_registry_shape_names_and_rules():
     assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades"]
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and "weak valuation" in BY_ID["weakvalue"].card_text
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and "weak valuation" in BY_ID["weakvalue"].card_text      # 14 Nov N-35: the mock-up's order
+    assert [p.name for p in QUICK_VIEWS] == ["Strong and safe", "Fair value", "Weak value", "Uptrend on both views"] and not any(re.search(r"\d", p.card_text) for p in QUICK_VIEWS)      # N-31: words, no cut-offs
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
             assert not re.search(r"prism_reports|is_psu|one row|flag", p.blocked_reason or "", re.I), p.id
@@ -370,7 +371,7 @@ def test_blocked_screens_do_not_run():
 
 def test_prism_basics_are_served_like_every_other_screen():
     """SC-10: the four Prism basics run on the server (so they get history, As on and a place in Top gainers), including "Uptrend on both technical views"."""
-    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "bothtech", "weakvalue"] and all(p.kind == "rules" for p in QUICK_VIEWS)
+    assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and all(p.kind == "rules" for p in QUICK_VIEWS)
     rows = [mrow("SAFE"), mrow("UP"), mrow("DOWN"), mrow("CHEAP")]
     prism = {"SAFE": pz(final=85, risk=70, st=0, lt=0), "UP": pz(final=50, risk=30, st=25, lt=40), "DOWN": pz(final=50, risk=30, st=25, lt=10), "CHEAP": pz(final=50, fund=70, val=40, risk=30, st=0, lt=0)}
     fr = frame(rows, prism)

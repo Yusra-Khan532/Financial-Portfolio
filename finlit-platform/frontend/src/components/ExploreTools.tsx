@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
-import { OPEN_AI } from "./Assistant";
+import { OPEN_AI } from "./assistantEvents";
 import { BUCKETS, EXPANDED, FIGURE, SHORT, STATS, type Bucket, type BucketId, type PlatformCard } from "../lib/platformTools";
 import { useFocusTrap } from "../lib/focusTrap";
 import "../styles/explore-tools.css";

@@ -93,6 +93,8 @@ async def test_screener_universe(api):
         assert k in rel and (rel[k] is None or isinstance(rel[k], (int, float))), k
     assert rel["overall"] is not None and rel["band"] in {"strong", "healthy", "mixed", "watch"}
     assert "statement" not in rel and "updated_at" not in rel
+    # task #64, 14 Nov N-28 / N-34: NSE's sector and industry come with every row (null when the company is in neither list), for the Sector and industry filter
+    assert all("nse_sector" in x and "nse_industry" in x for x in rows.values())
 
 
 async def test_every_section_and_range(api):

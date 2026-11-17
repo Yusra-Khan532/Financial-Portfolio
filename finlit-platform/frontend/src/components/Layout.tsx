@@ -12,7 +12,8 @@ import { SearchPalette } from "./SearchPalette";
 import { useWarmMyCompanies } from "../lib/mycompanies";
 import { AlertToasts, NotificationBell } from "./Notifications";
 import { SystemControl } from "./SystemControl";
-import { Assistant, OPEN_AI } from "./Assistant";
+import { AssistantLauncher } from "./AssistantLauncher";
+import { OPEN_AI } from "./assistantEvents";
 import { PageFaqs } from "./PageFaqs";
 import { EnquiryProvider, useEnquiry } from "./Enquiry";
 import { InfoProvider } from "./Info";
@@ -234,7 +235,7 @@ export function Layout() {
         {!bare && <Footer />}
         <SearchPalette open={search} onClose={() => setSearch(false)} />
         <AlertToasts />
-        {!onAuth && <Assistant />}
+        {!onAuth && <AssistantLauncher />}
         {!bare && <PageFeedbackDock />}
         {!bare && <MobileTabs onSearch={() => setSearch(true)} />}
       </EnquiryProvider>

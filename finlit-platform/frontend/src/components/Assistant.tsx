@@ -14,8 +14,8 @@ import { TOPICS, clearRecent, loadRecent, loadSaved, pushRecent, searchQuestions
 import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
 
-/** Fired by the header button; the assistant panel listens for it. */
-export const OPEN_AI = "finlit:open-ai";
+import { OPEN_AI } from "./assistantEvents";
+export { OPEN_AI };
 type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; suggest?: Q[] };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved";
 
@@ -36,8 +36,8 @@ const companyOf = (pathname: string) => { const m = /^\/stocks\/([A-Za-z0-9&.\-]
 
 /** Ask FinLit AI. The flow: a general landing, a choice of segment, a company with its question tabs (Q1 to Q4 for results), then answers with related
  *  questions, the company kept in context. Chosen questions answer from written text or the company's own FinLit figures (task #138: no language model); nothing here is advice. */
-export function Assistant({ sector }: { sector?: string | null } = {}) {
-  const [open, setOpen] = useState(false);
+export function Assistant({ sector, startOpen = false }: { sector?: string | null; startOpen?: boolean } = {}) {
+  const [open, setOpen] = useState(startOpen);   // AssistantLauncher mounts it on the first "open" event, which fired before this panel listened
   const [view, setView] = useState<View>("home");
   const [back, setBack] = useState<View>("home");          // where the back arrow goes from the conversation
   const [category, setCategory] = useState<Exclude<CategoryId, "company"> | null>(null);

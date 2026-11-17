@@ -94,6 +94,8 @@ export function missingReason(r: Item, key: "f" | "t" | "overall" | Pillar, lock
 // ---------- filters ----------
 export type Filters = {
   caps: Cap[]; sectors: string[];
+  /** NSE industries (any of these): the Sector and industry filter (14 Nov N-28 / N-34). `sectors` above is the old filter on the company's own label, kept so old links still work. */
+  industries: string[];
   bands: Record<BandKey, Band[]>;
   ranges: Record<RangeKey, Range>;
   labels: PrismLabel[];     // FinLit Prism rating labels (any of these)
@@ -103,12 +105,12 @@ export type Filters = {
   top: number | null;       // keep only the first N by FinLit IQ among the companies that pass every other filter (the Top 10 quick views)
 };
 export const emptyFilters = (): Filters => ({
-  caps: [], sectors: [],
+  caps: [], sectors: [], industries: [],
   bands: { f: [], t: [], o: [], q: [], g: [], p: [], b: [] },
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { min: null, max: null }])) as Filters["ranges"],
   labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null,
 });
-export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
+export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { ...f.ranges[k] }])) as Filters["ranges"], labels: [...f.labels], iqLabels: [...f.iqLabels], rated: f.rated, tech: { st: [...f.tech.st], lt: [...f.tech.lt] }, top: f.top });
 
 /** Each band runs up to, but not including, the start of the next one, so a fractional score (44.6) is in a band and never between two. */
@@ -176,6 +178,7 @@ const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : 
 export function passes(r: Item, f: Filters, skip?: "caps" | "sectors"): boolean {
   if (skip !== "caps" && f.caps.length && !(r.cap && f.caps.includes(r.cap))) return false;
   if (skip !== "sectors" && f.sectors.length && !(r.sector && f.sectors.includes(r.sector))) return false;
+  if (skip !== "sectors" && f.industries?.length && !(r.nse_industry && f.industries.includes(r.nse_industry))) return false;
   if (f.rated && !hasPrism(r)) return false;
   if (f.iqLabels.length && !f.iqLabels.includes(iqLabelOf(r.overall))) return false;
   if (f.labels.length && !(isLabel(r.prism_label) && f.labels.includes(r.prism_label))) return false;
@@ -191,7 +194,20 @@ export function facetCounts(items: Item[], f: Filters) {
   const m = new Map<string, number>();
   for (const r of items) if (r.sector) { if (passes(r, f, "sectors")) m.set(r.sector, (m.get(r.sector) || 0) + 1); else if (!m.has(r.sector)) m.set(r.sector, 0); }
   const sectors = [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  return { caps, sectors };
+  return { caps, sectors, tree: sectorTree(items, f) };
+}
+
+/** 14 Nov N-28 / N-34: NSE's sectors, each with its industries under it and the companies that pass every other filter, for the Sector and industry filter. */
+export type SectorNode = { sector: string; n: number; industries: { name: string; n: number }[] };
+export function sectorTree(items: Item[], f: Filters): SectorNode[] {
+  const by = new Map<string, Map<string, number>>();
+  for (const r of items) {
+    if (!r.nse_sector || !r.nse_industry) continue;
+    const inds = by.get(r.nse_sector) ?? new Map<string, number>(); by.set(r.nse_sector, inds);
+    inds.set(r.nse_industry, (inds.get(r.nse_industry) ?? 0) + (passes(r, f, "sectors") ? 1 : 0));
+  }
+  return [...by.entries()].map(([sector, m]) => ({ sector, n: [...m.values()].reduce((a, b) => a + b, 0), industries: [...m.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => a.name.localeCompare(b.name)) }))
+    .sort((a, b) => a.sector.localeCompare(b.sector));
 }
 
 // ---------- validation ----------
@@ -256,6 +272,7 @@ export function chipsFor(f: Filters): Chip[] {
   const out: Chip[] = [];
   if (f.caps.length) out.push({ id: "caps", label: `Market cap: ${CAPS.filter((c) => f.caps.includes(c)).join(", ")}` });
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
+  (f.industries ?? []).forEach((s) => out.push({ id: "ind:" + s, label: s }));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].word).join(", ")}` }); });
   RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) {
     const pb = (PRISM_RANGE_KEYS as readonly string[]).includes(k) ? rangeToPBands(r) : [];   // a Prism part set by its band chips reads as the band names, never the cut-offs (N-31)
@@ -271,6 +288,7 @@ export function removeChip(f: Filters, id: string): Filters {
   const n = cloneFilters(f);
   if (id === "caps") n.caps = [];
   else if (id.startsWith("sector:")) n.sectors = n.sectors.filter((s) => s !== id.slice(7));
+  else if (id.startsWith("ind:")) n.industries = n.industries.filter((s) => s !== id.slice(4));
   else if (id.startsWith("band:")) n.bands[id.slice(5) as BandKey] = [];
   else if (id.startsWith("range:")) n.ranges[id.slice(6) as RangeKey] = { min: null, max: null };
   else if (id === "labels") n.labels = [];
@@ -364,6 +382,7 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   const caps = (p.get("cap") || "").split(",");
   f.caps = CAPS.filter((c) => caps.includes(c));
   f.sectors = [...new Set(p.getAll("sector").filter(Boolean))];
+  f.industries = [...new Set(p.getAll("ind").filter(Boolean))];
   const finlit = scope !== "advanced", prism = scope !== "basic";
   BAND_KEYS.forEach((k) => { f.bands[k] = finlit ? parseBands(p.get(BAND_PARAM[k]) ?? (k === "q" && isBandList(p.get("q")) ? p.get("q") : null)) : []; });
   RANGE_KEYS.forEach((k) => {
@@ -391,6 +410,7 @@ export function serializeState(s: State): URLSearchParams {
   const p = new URLSearchParams(), f = s.filters;
   if (f.caps.length) p.set("cap", CAPS.filter((c) => f.caps.includes(c)).join(","));
   f.sectors.forEach((x) => p.append("sector", x));
+  f.industries.forEach((x) => p.append("ind", x));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) p.set(BAND_PARAM[k], BAND_ORDER.filter((b) => f.bands[k].includes(b)).join(",")); });
   RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null) p.set(k + "min", String(r.min)); if (r.max != null) p.set(k + (r.maxExcl ? "lt" : "max"), String(r.max)); });
   if (f.iqLabels.length) p.set(IQ_LABEL_PARAM, IQ_LABELS.filter((l) => f.iqLabels.includes(l)).join(","));
