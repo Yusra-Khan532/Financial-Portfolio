@@ -17,7 +17,7 @@ export type LeadDisplay = { chip: string | null; line: string; parts?: LeadParts
 export type LeadershipOn = {
   available: true; asOf: string; stale: boolean; held: boolean;
   /** `source` "list" is the indicator's peer list (`listed` names on it, as of `listAsOf`); "industry" (or absent, on older data) is the data provider's industry. */
-  peerGroup: { id: string; name: string; short: string; kind: "industry" | "sector"; ranked: number; source?: "list" | "industry"; listed?: number | null; listAsOf?: string | null; leaderSlots?: number };
+  peerGroup: { id: string; name: string; short: string; kind: "industry" | "sector" | "basic_industry"; ranked: number; source?: "list" | "industry"; listed?: number | null; listAsOf?: string | null; leaderSlots?: number };
   benchmarks: { sector: { code: string | null; name: string; kind: "index" | "peer_average"; ret52: number | null }; market: { code: string; name: string; ret52: number | null } | null };
   rel: { w13: number | null; w26: number | null; w52: number | null; w52Market: number | null };
   rank: number; label: LeadLabel; rawLabel: LeadLabel; direction: Direction; fundamentalNote: "below_peers" | "stronger_than_price" | null;
@@ -91,5 +91,6 @@ export function groupSourceLine(lead: Pick<LeadershipOn, "peerGroup">): string {
     const of = g.listed != null && g.listed > g.ranked ? `${g.ranked} of the ${g.listed} names on the list are ranked` : `all ${g.ranked} names on the list are ranked`;
     return `Peer group: the ${g.name} list${g.listAsOf ? `, as of ${new Date(g.listAsOf + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}; ${of}.`;
   }
-  return `Peer group: companies in the same ${g.kind === "sector" ? "sector" : "industry"} (${g.name}), ${g.ranked} ranked.`;
+  const level = g.kind === "sector" ? "sector" : g.kind === "basic_industry" ? "basic industry" : "industry";   // NSE's levels (task #192)
+  return `Peer group: companies in the same ${level} (${g.name}), ${g.ranked} ranked.`;
 }

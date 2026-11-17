@@ -228,6 +228,8 @@ async def _seed(store, n=14, industry="IT - Software"):
             await conn.execute("INSERT INTO scores (symbol, statement, model, overall, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, sector, industry, macro_sector) "
                                "VALUES ($1, 'consolidated', 'v1', 50, $2, $2, $2, $2, 'Information Technology', $3, 'Information Technology')", sym, 90 - i * 5, industry)
             await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT DO NOTHING", sym, 200000 - i * 100)
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, 'Information Technology', "
+                               "'Information Technology', $2, 'industry', 1) ON CONFLICT (symbol) DO UPDATE SET industry = EXCLUDED.industry", sym, industry)   # NSE's industry: the peer group
             g = 0.006 - i * 0.0008
             ds = [END - timedelta(days=7 * (119 - k)) for k in range(120)]
             body = _json.dumps({"series": {"t": [d.isoformat() for d in ds], "c": [100 * (1 + g) ** k for k in range(120)], "v": [1e6] * 120}})
@@ -257,7 +259,7 @@ async def test_weekly_run_then_api(store):  # noqa: F811
             mid = (await c.get("/api/stocks/T07/leadership")).json()
             assert top["available"] and top["label"] == "leader" and top["rank"] == 1 and top["peerGroup"]["ranked"] == 14
             assert top["benchmarks"]["sector"]["code"] == "NIFIT" and top["benchmarks"]["market"]["code"] == "NIF50"
-            assert top["display"]["chip"] == "Leader" and top["display"]["line"].startswith("1st of 14 IT software peers · +")
+            assert top["display"]["chip"] == "Leader" and top["display"]["line"].startswith("1st of 14 IT - Software peers · +")   # NSE's name (task #192)
             assert bottom["label"] == "laggard" and mid["label"] == "in_line" and len(top["peers"]) == 14
             assert top["sectorReliability"]["tier"] == "insufficient" and top["sectorReliability"]["sentence"] == "Not enough history to judge"
             assert top["fundamentalNote"] == "below_peers" or top["fundamentalNote"] is None   # the price leader has the strongest fundamentals here
@@ -302,6 +304,8 @@ async def test_banks_are_split_into_private_and_public_sector_groups(store):  # 
             await conn.execute("INSERT INTO scores (symbol, statement, model, overall, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, sector, industry, macro_sector) "
                                "VALUES ($1, 'consolidated', 'v1', 50, 50, 50, 50, 50, 'Financial Services', 'Banks', 'Financial Services')", sym)
             await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT DO NOTHING", sym, 190000 - i * 100)
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, 'Financial Services', "
+                               "'Financial Services', 'Banks', 'industry', 1) ON CONFLICT (symbol) DO UPDATE SET industry = 'Banks', sector = 'Financial Services'", sym)
             g = 0.004 - i * 0.0004
             ds = [END - timedelta(days=7 * (119 - k)) for k in range(120)]
             await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ($1, 'consolidated', 'price-MAX', $2, 'x', now())", sym,
@@ -313,9 +317,9 @@ async def test_banks_are_split_into_private_and_public_sector_groups(store):  # 
         got = {r["symbol"]: (r["group_name"], r["sector_code"], r["ranked"]) for r in await conn.fetch("SELECT symbol, group_name, sector_code, ranked FROM leadership")}
     # the indicator's researched groups: private banks and PSU banks, each against its own Nifty index
     assert got["HDFCBANK"] == ("private bank", "NIFPRIBAN", 6) and got["SBIN"] == ("PSU bank", "NIFPSUBAN", 6)
-    # IDBI is on the indicator's "Major Banks" list (not on either researched group): ranked there, against the average of those peers while the Nifty Financial Services
-    # levels are not cached in this test
-    assert got["IDBI"][0] == "Major Banks" and got["IDBI"][1] == "peer_average" and got["IDBI"][2] == 11
+    # IDBI is on the TradingView "Major Banks" list, which is no longer a peer group (task #192, T6): its NSE industry, Banks, has only IDBI left once the
+    # private and public sector banks are in their own groups, so it is ranked in NSE's wider sector, Financial Services, against the peers' average
+    assert got["IDBI"] == ("Financial Services", "peer_average", 13)
 
 
 async def test_switch_endpoints_need_an_administrator(store):  # noqa: F811
@@ -459,7 +463,8 @@ def test_the_indicators_lists_are_the_files_and_the_precedence_is_the_indicators
     assert by["pl-oil-refining-marketing"].index_code == "NIFENE" and by["pl-textiles"].index_code is None and by["pl-hospital-nursing-management"].index_code is None   # no index: the peers' average
     assert all(len(g.symbols) <= 35 or g.kind == "curated" for g in groups) and all(g.symbols for g in groups)
     first = lambda sym: [g.id for g in L.lists_for(sym, groups)]
-    assert first("TCS") == ["pl-it", "pl-information-technology-services", "pl-technology-services-sector"]      # researched group first, then industry, then sector
+    assert first("TCS") == ["pl-it"]                     # the researched group only: the TradingView industry and sector lists are not peer groups (task #192, T6)
+    assert first("RELIANCE") == [] and any(g.kind == "industry" for g in groups)   # on a TradingView list only: ranked in its NSE industry instead
     assert first("M&M")[0] == "pl-auto-sector" and first("m-m")[0] == "pl-auto-sector" and first("BAJAJ-AUTO")[0] == "pl-auto-sector"   # M&M = M-M = M_M; BAJAJ-AUTO = BAJAJ_AUTO
     assert first("SBIN")[0] == "pl-psu-bank" and first("HDFCBANK")[0] == "pl-private-bank" and first("NOSUCHCO") == []
     assert L.norm_symbol("m&m") == "M_M" == L.norm_symbol("M_M") and L.norm_symbol("bajaj-auto") == L.norm_symbol("BAJAJ_AUTO")
@@ -525,6 +530,8 @@ async def _seed_names(store, names, industry="IT - Services", skip_prices=(), mc
             await conn.execute("INSERT INTO scores (symbol, statement, model, overall, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, sector, industry, macro_sector) "
                                "VALUES ($1, 'consolidated', 'v1', 50, 50, 50, 50, 50, 'Information Technology', $2, 'Information Technology') ON CONFLICT DO NOTHING", sym, industry)
             await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT (symbol) DO UPDATE SET market_cap = EXCLUDED.market_cap", sym, mcap - i * 10)
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, 'Information Technology', "
+                               "'Information Technology', $2, 'industry', 1) ON CONFLICT (symbol) DO UPDATE SET industry = EXCLUDED.industry", sym, industry)
             if sym in skip_prices:
                 continue
             g = growth - i * step
@@ -564,7 +571,7 @@ async def test_a_stock_on_the_indicators_it_list_is_ranked_there_with_its_not_ra
             assert top["sectorReliability"]["source"] == "spec" and top["sectorReliability"]["tier"] == "mixed" and top["sectorReliability"]["checks"] == 269
             assert top["sectorReliability"]["sentence"].startswith("In IT, leadership has held in some periods and not others: 60% of checks since 2005")
             assert top["runs52"] == {"leader": 1, "in_line": 0, "laggard": 0, "total": 1}
-            odd = (await c.get("/api/stocks/ODD/leadership")).json()                      # on no list: the data provider's industry, as before
+            odd = (await c.get("/api/stocks/ODD/leadership")).json()                      # on no list and not placed by NSE's lists: not ranked
             assert odd["available"] is False or odd["peerGroup"]["source"] == "industry"
             hist = (await c.get("/api/stocks/TCS/leadership-history")).json()
             assert hist["rows"][-1]["rawLabel"] == "leader" and hist["rows"][-1]["rel13"] is not None
@@ -587,11 +594,12 @@ async def test_a_list_too_thin_to_rank_falls_back_to_the_next_list_then_the_indu
     assert out["labelled"] == 0 and out["onIndicatorLists"] == 0
     async with store.pool.acquire() as conn:
         assert {r["symbol"]: r["reason"] for r in await conn.fetch("SELECT symbol, reason FROM leadership_excluded")} == {s: "group" for s in it.symbols[:5]}
-    await _seed_names(store, it.symbols[:5] + [f"Z{i}" for i in range(4)])                   # four more in the same industry on no list: the provider's industry group has 9
+    await _seed_names(store, it.symbols[:5] + [f"Z{i}" for i in range(4)])                   # four more in the same NSE industry on no list: the NSE industry group has 9
     out = await L.run(store, settings, as_of=END)
-    assert out["labelled"] == 9 and out["onIndicatorLists"] == 0 and out["onProviderIndustry"] == 9
+    assert out["labelled"] == 9 and out["onIndicatorLists"] == 0 and out["onNseIndustry"] == 9
     async with store.pool.acquire() as conn:
-        assert await conn.fetchval("SELECT group_source FROM leadership WHERE symbol = 'TCS'") == "industry"
+        row = await conn.fetchrow("SELECT group_source, group_name, group_short, group_kind FROM leadership WHERE symbol = 'TCS'")
+        assert tuple(row) == ("industry", "IT - Services", "IT - Services", "industry")         # NSE's name, never a home-made short one
 
 
 @pytest.mark.integration

@@ -47,6 +47,13 @@ fund and ETF holdings, which are read by ISIN, can be grouped the same way.
   at each level (`notClassified`). Public; cached 10 minutes.
 - `GET /api/taxonomy/company/{symbol}`: one company's four levels, ISIN, rule and note; 404 when unknown or not placed yet.
 
+## Leader / In line / Laggard peer groups (round 3b)
+`finlit/leadership.py`: a stock in one of the spec's five researched groups is ranked there; every other stock among the companies of its NSE industry,
+widened to its NSE sector when fewer than 6 can be ranked. Banks named in `leadership_splits` are ranked in their NSE basic industry (Private Sector Bank,
+Public Sector Bank). Group names are NSE's own (never the home-made short names of `leadership_benchmarks`, which now only picks the NSE index). The
+TradingView lists in `data/leadership_groups.json` are no longer peer groups (rule T6). A company NSE's lists cannot place is not ranked ("no peer group").
+The weekly run (Saturdays) writes the new groups.
+
 ## Rounds of task #192
 1. This data layer (nothing on the pages changes yet).
 2. Every page named in the pack's section 3 reads these fields and labels each list by its level; the old mixed `sector` column goes when no
