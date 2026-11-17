@@ -20,16 +20,16 @@ def _rows(answer):
     return answer.get("financials") if isinstance(answer, dict) else answer
 
 
-def reshaped(fixture, *, no_consolidated=False, general=False):
+def reshaped(fixture, *, no_consolidated=False, general=False, fees=False):
     """HDFC Life's recording with (no_consolidated) the standalone answers equal to the consolidated ones and every consolidated statement empty, as
     FinEdge answers for SBILIFE, ICICIGI and STARHEALTH; and/or (general) the revenue line named as a general insurer names it."""
     fixture = copy.deepcopy(fixture)
     rec = fixture["recorded"]
-    if general:
+    if general or fees:
         for answer in rec.values():
             for row in (_rows(answer) or []) if isinstance(answer, (dict, list)) else []:
                 if isinstance(row, dict) and "netPremiumIncome" in row:
-                    row["premiumEarned"] = row.pop("netPremiumIncome")
+                    row["revenueFromOperations" if fees else "premiumEarned"] = row.pop("netPremiumIncome")
     if no_consolidated:
         for key, answer in list(rec.items()):
             path, params = json.loads(key)
@@ -91,3 +91,13 @@ def test_no_consolidated_full_year_is_counted_by_profit_whatever_revenue_is_call
                   for y in (2024, 2025)]
     assert recent_annual_run([]) == (0, None)
     assert recent_annual_run(standalone)[0] == 2
+
+
+def test_an_insurance_group_company_without_premiums_uses_its_revenue_from_operations(replay):  # noqa: F811
+    """MEDIASSIST (a claims administrator in the insurance group) earns fees and reports no premium line: its revenue from operations is its sales."""
+    fixture, provider = replay("HDFCLIFE")
+    provider.recorded = reshaped(fixture, fees=True)["recorded"]
+    report, _, _ = new_report(fixture)
+    assert report["rating"]["group"] == "INSURANCE" and report["rating"]["status"] != "NOT RATED", report["rating"].get("notRatedReasons")
+    assert metric(report, "SALES_GROWTH")["value"] is not None
+    assert "revenueFromOperations" in report["inputMeta"]["provenance"]["sales"]

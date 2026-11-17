@@ -116,6 +116,8 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         name = next((key for key in names if num(source.get(key)) is not None), None)
         if name: provenance.setdefault(target, set()).add(name)
         return num(source[name]) / scale if name else None
+    insurer_premiums = group == "INSURANCE" and any(num(r.get(k)) is not None for r in list(qmap.values()) + list(amap.values())
+                                                    for k in ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
     def revenue(row):
         if group in ("BANK", "NBFC"):
             value = record(row, "sales", ("netInterestIncome", "netInterestRevenue", "netInterestEarnings"))
@@ -126,7 +128,11 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
             return value
         if group == "INSURANCE":
             # Life insurers report net premium income; general and health insurers report premium earned (net), e.g. ICICIGI, NIACL, STARHEALTH (revenue names v2).
-            return record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
+            premium = record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
+            if premium is not None or insurer_premiums:
+                return premium
+            # An insurance-group company that reports no premium line at all (a claims administrator such as MEDIASSIST) earns fees: its revenue
+            # from operations is its sales. An underwriter always reports premiums, so one company never mixes the two lines.
         return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
