@@ -220,7 +220,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         try:      # task #64, 14 Nov N-28 / N-34: NSE's sector and industry for each company (the 12 sectors and 59 industries the Stock screener filters on)
             from .screener.data import get_table
             t = await get_table(app.state.store)
-            nse = {sym: (t.sector[i], t.industry[i]) for sym, i in t.pos.items()}
+            from .screener.data import nse_pairs
+            nse = nse_pairs(t)
         except Exception:
             logging.getLogger("finlit.api").exception("screener universe: NSE sectors not read")
         out = []

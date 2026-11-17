@@ -591,6 +591,13 @@ async def _refresh(store) -> None:
             log.exception("screener table not refreshed; the last one is kept")
 
 
+def nse_pairs(t: "Table") -> Dict[str, Tuple[str, str]]:
+    """symbol -> (NSE sector, NSE industry), as the Stock screener's catalog files them (task #64, N-28 / N-34): a company's sector is its industry's
+    sector. A company with no NSE industry is left out, so its own label ("Auto Components", "Industries") never shows as a sector."""
+    sector_of = {ind: sec for ind, sec, _n in t.industries if sec}
+    return {sym: (sector_of[t.industry[i]], t.industry[i]) for sym, i in t.pos.items() if t.industry[i] in sector_of}
+
+
 async def get_table(store, force: bool = False) -> Table:
     """The in-memory table. Only the very first request after a start waits for it; after that an old table is served at once
     while a check runs in the background (stale-while-revalidate), so no visitor waits on the database."""

@@ -95,6 +95,13 @@ async def test_screener_universe(api):
     assert "statement" not in rel and "updated_at" not in rel
     # task #64, 14 Nov N-28 / N-34: NSE's sector and industry come with every row (null when the company is in neither list), for the Sector and industry filter
     assert all("nse_sector" in x and "nse_industry" in x for x in rows.values())
+    # every sector sent is the catalog's sector for that company's NSE industry (never the company's own label), so the filter shows NSE's sectors only
+    cat = (await api.get("/api/screener/catalog")).json()
+    sector_of = {i["name"]: i["sector"] for i in cat["industries"] if i.get("sector")}
+    for x in rows.values():
+        assert (x["nse_sector"] is None) == (x["nse_industry"] is None), x["symbol"]
+        if x["nse_industry"]:
+            assert sector_of.get(x["nse_industry"]) == x["nse_sector"], x["symbol"]
 
 
 async def test_every_section_and_range(api):
