@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/portfolio")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 MAX_SYMBOLS = 500
 CACHE_SECONDS = 6 * 3600
-CACHE_VERSION = "v1"
+CACHE_VERSION = "v2"   # v2 (task #183): the engine's sector is NSE's macro sector; meta carries the three NSE levels
 TILT_LOCKED = div.TILT_LOCKED
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 
@@ -114,7 +114,7 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
             index_rows = await div._index(app)
             if not index_rows:
                 raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now, so the comparison cannot be worked out. Please try again in a moment.")
-            meta = inputs.build_meta(known, facts, await _sector_spellings(app))
+            meta = inputs.build_meta(known, facts, await _sector_spellings(app), await app.state.store.classifications(known))
             try:
                 page_obj = await asyncio.to_thread(_compute, prices, index_rows, meta, week)
             except AssertionError:
@@ -237,7 +237,7 @@ async def score_page(request: Request, body: ScoreIn, ctx: Ctx = Depends(member_
         last = p["c"][-1] if p and p.get("c") else None
         if s in qty and last:
             values[s] = float(qty[s]) * float(last)
-    meta = inputs.build_meta(known, facts, await _sector_spellings(app)) if known else {}
+    meta = inputs.build_meta(known, facts, await _sector_spellings(app), await app.state.store.classifications(known)) if known else {}
     try:
         out = await asyncio.to_thread(_score_compute, prices, nifty_rows, bench_rows, meta, known, values, cards, week, body.horizon, body.risk, body.goal, body.benchmark)
     except AssertionError:

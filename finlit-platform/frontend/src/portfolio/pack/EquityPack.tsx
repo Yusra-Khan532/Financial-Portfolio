@@ -10,10 +10,10 @@ import { Hideable } from "../../components/Hideable";
 import { Cards, Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import type { LeadHistory, Leadership } from "../../lib/leadership";
 import {
-  corrCell, leaderCards, peerCards, trendCards, segLine, togetherCards, peerLine, peerSentence, riskCards, riskLead, riskTiles, riskWord, sp, spreadCards, standsOut, PEER_WORD,
+  leaderCards, peerCards, trendCards, peerLine, peerSentence, riskCards, riskLead, riskTiles, riskWord, sp, standsOut, PEER_WORD,
   type LeaderPair, type MarketFig, type Share, type Size,
 } from "../../lib/equityPack";
-import type { PageObject, Reading } from "../types";
+import type { Reading } from "../types";
 import type { StyleTilt } from "../../components/diversification/types";
 import { ordinal, tiltRead } from "../../components/diversification/wording";
 import { LockedBlock } from "../../components/sectors/Parts";
@@ -22,7 +22,6 @@ import { useAuth } from "../../lib/auth";
 import type { Card } from "../../lib/pulsePack";
 import type { TrendRead } from "../../lib/mfPortfolio";
 
-const pct = (x: number) => `${Math.round(x)}%`;
 
 // ------------------------------------------------------------------------------------------------ the score
 export type View = "portfolio" | "diversification" | "risk";
@@ -172,73 +171,7 @@ function LeaderCompare({ shares }: { shares: Share[] }) {
   );
 }
 
-// ------------------------------------------------------------------------------------------------ Diversification
-export function SpreadSection({ page, weights, counts, sizeCount, packs }: { page: PageObject; weights: Record<string, number>; counts: Record<string, string[]>; sizeCount: Record<Size, number>; packs: { members: string[]; avg: number; name: string }[] }) {
-  const s = page.score, n = page.order.length, inds = Object.keys(counts).length, sizes = (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length;
-  const weak = packs.find((p) => p.members.length >= 3);
-  return (
-    <Section id="eq-spread" title="How spread out is the list?" help="How spread out is the list? The diversification score (0 to 100) looks at how widely the shares spread across industries and sizes and how independently they move. Moves like counts shares that rise and fall together as one bet." sub="Two scores: how widely the money is spread, and how independently the shares move.">
-      <div className="eq-dials">
-        <div className="eq-dial"><span className="eq-dial-c" style={{ ["--v" as string]: s.score }}><b>{s.score}</b></span><div><b>{s.band}</b><p>{inds} {inds === 1 ? "industry" : "industries"} and {sizes === 3 ? "all three" : sizes} company sizes.{weak ? ` The one weak spot: ${weak.members.length} shares in the same industry.` : ""}</p></div></div>
-        <div className="eq-dial"><span className="eq-dial-c t" style={{ ["--v" as string]: (s.effective_stocks / Math.max(1, n)) * 100 }}><b>{s.effective_stocks.toFixed(1)}</b></span><div><b>Moves like {s.effective_stocks.toFixed(1)} shares<Tip text="Moves like. Shares that rise and fall together count as one bet; this is how many independent shares the list behaves like." /></b><p>Your {n} shares with a full year of prices behave like about {s.effective_stocks.toFixed(1)} shares that move independently. Shares that rise and fall together count as one bet.</p></div></div>
-      </div>
-      <Cards items={spreadCards(weights, counts, sizeCount, packs)} />
-    </Section>
-  );
-}
-export function WhereSits({ weights, sizes }: { weights: Record<string, number>; sizes: { k: Size; pct: number; who: string[] }[] }) {
-  const xs = Object.entries(weights).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...xs.map((x) => x[1]));
-  return (
-    <section className="sp-sec eq-half" aria-labelledby="eq-where">
-      <h2 id="eq-where">Where your list sits</h2><p className="sp-sub">Share of the list in each industry, if equal amounts were held.</p>
-      <ul className="eq-bars">{xs.map(([k, v]) => <li key={k}><span>{k}</span><span className="t"><i style={{ width: `${(v / max) * 100}%` }} className={v >= 20 ? "hi" : ""} /></span><b>{pct(v)}</b></li>)}</ul>
-      <p className="sp-cap">By company size<Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></p>
-      <div className="eq-sizebar" role="img" aria-label={sizes.map((s) => `${s.k} ${pct(s.pct)}`).join(", ")}>{sizes.map((s) => <i key={s.k} className={"s-" + s.k.toLowerCase()} style={{ flex: s.pct || 0.01 }} />)}</div>
-      <ul className="eq-sizes">{sizes.map((s) => <li key={s.k}><i className={"s-" + s.k.toLowerCase()} aria-hidden="true" />{s.k} ({s.who.join(", ") || "none"}) <b>{pct(s.pct)}</b></li>)}</ul>
-    </section>
-  );
-}
-export function Packs({ packs, weights, n }: { packs: { members: string[]; avg: number; name: string }[]; weights: Record<string, number>; n: number }) {
-  return (
-    <Hideable id="portfolio.packs" title="What moves together">
-      <section className="sp-sec eq-half" aria-labelledby="eq-packs">
-        <h2 id="eq-packs">What moves together<Tip text="What moves together. Shares that tend to rise and fall together, worked out from a year of weekly prices. Shares in the same industry usually do." /></h2>
-        <p className="sp-sub">Shares in the same industry usually rise and fall together. These are the packs in your list.</p>
-        {!packs.length ? <p className="sp-note">No two shares in the list move closely together.</p> :
-          <ul className="eq-packs">{packs.map((p) => <li key={p.members.join()}><p><b>{p.name} · {p.members.length} shares · {pct(weights[p.name] ?? (p.members.length / n) * 100)} of the list</b></p>
-            <span className="eq-chips">{p.members.map((m) => <Link key={m} to={`/stocks/${m}`} className="eq-chip"><CoLogo symbol={m} size={18} inline />{m}</Link>)}</span>
-            <small>They rise and fall together: {p.avg.toFixed(2)} on average.</small></li>)}</ul>}
-        <Cards items={[{ kind: "insight", title: "To spread it further", text: "Industries not yet in the list spread it further than more shares of the ones already in it. Sector Rotation shows which industries lead." }]} />
-      </section>
-    </Hideable>
-  );
-}
-
-/** The pack's second "What moves together": every pair of shares on one grid (darker = closer), the same-sector and different-sector tiles, and two cards. */
-export function MovesGrid({ page, packs }: { page: PageObject; packs: { members: string[]; avg: number; name: string }[] }) {
-  const o = page.order, seg = page.segments;
-  const shade = (v: number) => ({ background: `color-mix(in srgb, var(--eq-heat) ${Math.round(Math.max(0, Math.min(1, v)) * 100)}%, var(--eq-heat0))`, color: v >= 0.5 ? "#fff" : undefined });
-  return (
-    <Section id="eq-grid" hide title="What moves together" help="How closely each pair of shares moves, from a year of weekly prices: 0 means the two are unrelated; near 1, they rise and fall as one."
-      sub={`${o.length} shares move like ${page.score.effective_stocks.toFixed(1)} independent ones. Darker cells: the two shares rise and fall together more closely.`}>
-      <div className="eq-gridrow">
-        <div>
-          <Scroll label="how closely each pair of shares moves"><table className="eq-heat">
-            <thead><tr><td />{o.map((c) => <th key={c} scope="col"><span>{c}</span></th>)}</tr></thead>
-            <tbody>{o.map((r, i) => <tr key={r}><th scope="row">{r}</th>{o.map((c, j) => i === j ? <td key={c} className="eq-self" aria-label={`${r} with itself`} />
-              : <td key={c} style={shade(page.corr[i][j])} title={`${r} and ${c}: ${page.corr[i][j].toFixed(2)}`}>{corrCell(page.corr[i][j])}</td>)}</tr>)}</tbody>
-          </table></Scroll>
-          <p className="eq-heatkey">{([[0, "0, unrelated"], [0.42, "0.35–0.5"], [0.7, "0.65+, move almost as one"]] as const).map(([v, l]) => <span key={l}><i style={shade(v)} aria-hidden="true" />{l}</span>)}</p>
-        </div>
-        <div className="eq-gside">
-          <div className="eq-segs">{([["Same sector", seg.same], ["Different sectors", seg.cross]] as const).map(([k, x]) => <div key={k} className="ip-tile"><p className="sp-cap">{k} · {x.pairs} {x.pairs === 1 ? "pair" : "pairs"}</p><b>{x.avg == null ? "–" : x.avg.toFixed(2)}</b><small>{x.avg == null ? "No pairs of this kind in the list." : segLine(x)}</small></div>)}</div>
-          <Cards items={togetherCards(packs, seg.cross.avg)} />
-        </div>
-      </div>
-    </Section>
-  );
-}
-
+// ------------------------------------------------------------------------------------------------ Diversification analytics: DivPack.tsx (task #183 W7)
 /** Style tilt: where the list's average share ranks among all the companies FinLit Prism rates, part by part (Gold). */
 export function StyleTiltPack({ tilt }: { tilt: StyleTilt | undefined }) {
   if (!tilt) return null;

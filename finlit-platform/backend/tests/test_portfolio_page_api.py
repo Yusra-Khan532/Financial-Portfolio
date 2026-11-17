@@ -51,7 +51,7 @@ async def test_page_for_a_stored_list_and_the_card_agree(app):  # noqa: F811
     page = j["page"]
     assert j["unknown"] == ["ZZUNKNOWN"] and j["symbols"][-1] == "NEWCO" and "NEWCO" in page["short_history"] and "NEWCO" not in page["order"]
     assert page["to"] == "2026-10-30" and page["weeks"] == 104 and page["layout"] == "long" and page["together_open_by_default"] is False   # 16 shares
-    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr"} and j["meta"]["TCS"]["size"] == "L"
+    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr", "nse"} and j["meta"]["TCS"]["size"] == "L"   # nse: the three NSE levels (task #183)
     assert len(page["summary"]["eq"]) <= 5 and all(x["text"] for x in page["summary"]["eq"])
     card = (await silver.post("/api/diversification", json={"symbols": SAMPLE + ["NEWCO"]})).json()
     clean = (await silver.post(URL, json={"symbols": SAMPLE + ["NEWCO"]})).json()["page"]["score"]

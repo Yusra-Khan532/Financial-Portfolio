@@ -40,7 +40,9 @@ import type { Leadership } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
 import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { EachRisk, GoldLock, InShort, LeadersSection, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, TrendSection, RiskGlance, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
+import { EachRisk, GoldLock, InShort, LeadersSection, MarketFall, MoneyRisk, StyleTiltPack, PeersSection, TrendSection, RiskGlance, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
+import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "../portfolio/pack/DivPack";
+import { nseLevels } from "../lib/nseTaxonomy";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
@@ -53,7 +55,7 @@ import "../portfolio/pack/equity-pack.css";
 /** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
   portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
-  diversification: { label: "Diversification analytics", secs: [["eq-spread", "Spread"], ["eq-where", "Where it sits"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
+  diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
   risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
 
@@ -158,11 +160,23 @@ export function HoldingsPage() {
   const secW = page?.sector_weight.eq ?? {}, secR = page?.sector_risk.eq ?? {};
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
-  const sizes = (["Large", "Mid", "Small"] as Size[]).map((k) => ({ k, pct: shares.length ? (sizeCount[k] / shares.length) * 100 : 0, who: shares.filter((x) => x.size === k).map((x) => x.symbol) }));
-  const packs = useMemo(() => (page?.groups ?? []).map((g) => { const tally = new Map<string, number>(); g.members.forEach((m) => { const k = meta[m]?.sector || ""; tally.set(k, (tally.get(k) ?? 0) + 1); }); const name = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0] || "Mixed"; return { members: g.members, avg: g.avg_corr, name }; }), [page, meta]);
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { industries: Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
   const sr = page?.share_risk.eq ?? {}, sw = page?.share_weight.eq ?? {};
   const top3 = (() => { const xs = Object.keys(sr).sort((a, b) => sr[b] - sr[a]).slice(0, 3); return xs.length === 3 ? { symbols: xs, risk: xs.reduce((a, k) => a + sr[k], 0), money: xs.reduce((a, k) => a + (sw[k] ?? 0), 0) } : null; })();
+  // Diversification analytics (task #183 W7): each share's NSE levels (stored classification, else its industry's place in NSE's tree), size and score band
+  const div: DivInput | null = useMemo(() => {
+    if (!page) return null;
+    const levelOf = (sym: string, l: "macro" | "sector" | "industry") => {
+      const n = meta[sym]?.nse, o = byOv.get(sym), ind = o && o.status === "ready" ? o.industry : null, t = nseLevels(n?.industry ?? ind);
+      const v = l === "macro" ? n?.macro_sector ?? t?.macro : l === "sector" ? n?.sector ?? t?.sector : n?.industry ?? t?.industry;
+      return v || (l === "macro" ? meta[sym]?.sector : null) || "Not classified";
+    };
+    const band = (sym: string) => { const x = shareOf.get(sym), w = (model === "prism" ? x?.prismWord : x?.iqWord)?.toUpperCase();
+      return !w ? null : w === "STRONG" || w === "HEALTHY" ? "g" : w === "AVERAGE" || w === "MIXED" ? "m" : w === "WEAK" || w === "POOR" || w === "WATCH" ? "b" : null; };
+    return { page, symbols: ids, levelOf, sizeOf: (sym) => shareOf.get(sym)?.size ?? null, band, gold: model === "prism", nameOf: (sym) => meta[sym]?.name ?? sym };
+  }, [page, ids, meta, byOv, shareOf, model]);
+  // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all three sizes"
+  const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
   const [showChoices, setShowChoices] = useState(false);
 
   return (
@@ -238,11 +252,13 @@ export function HoldingsPage() {
               <GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." />
             </>}
           </>}
-          {view === "diversification" && (page && common ? <>
-            <SpreadSection page={page} weights={secW} counts={counts} sizeCount={sizeCount} packs={packs} />
-            <div className="eq-row"><WhereSits weights={secW} sizes={sizes} /><Packs packs={packs} weights={secW} n={ids.length} /></div>
-            <MovesGrid page={page} packs={packs} />
-            <StyleTiltPack tilt={data?.styleTilt} />
+          {view === "diversification" && (page && common && div ? <>
+            <KeyFigures tab="diversification" sub="How spread out your list really is" cards={divKeys(div)} />
+            <WhereSitsGrid d={div} />
+            <SpreadPack d={div} />
+            <DivSubTabs d={div} />
+            <ShareGrid d={div} />
+            {model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
           {view === "risk" && (page ? <>
             <RiskGlance m={page.market.eq} top3={top3} shares={shares} risk={sr} money={sw} day={day} to={page.to} />

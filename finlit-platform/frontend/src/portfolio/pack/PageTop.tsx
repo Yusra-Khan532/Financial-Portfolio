@@ -7,9 +7,11 @@ import { Tip } from "../../components/sectors/pack/Common";
 import type { KeyCard, TabKey, TopTile } from "../../lib/equityTop";
 import "./pagetop.css";
 
-export function jumpTo(id: string) {
+export function jumpTo(id: string, retry = true) {
+  // a section inside a sub-tab (Diversification analytics) opens its sub-tab first, then it is scrolled to
+  if (retry) window.dispatchEvent(new CustomEvent("eq-jump", { detail: id }));
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el) { if (retry) setTimeout(() => jumpTo(id, false), 80); return; }
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   el.classList.remove("eqt-flash"); void el.offsetWidth; el.classList.add("eqt-flash");
   setTimeout(() => el.classList.remove("eqt-flash"), 1600);

@@ -14,7 +14,7 @@ describe("Portfolio tab", () => {
     ], "Friday");
     expect(c[0]).toEqual({ kind: "good", title: "TECHM is your strongest all-rounder", text: "First of 13 IT peers, healthy Prism (77), uptrend in both the short and long term, and near its 1-year high." });
     expect(c[1]).toEqual({ kind: "warning", title: "3 shares fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies, which tend to swing more." });
-    expect(c[2]).toEqual({ kind: "watch", title: "Weak Prism, strong price: APOLLO and GLENMARK", text: "Both have weak business scores (44 and 45) but rising prices. Prices can run ahead of the business; check why." });
+    expect(c[2]).toEqual({ kind: "watch", title: "Weak Prism, strong price: APOLLO and GLENMARK", text: "Both have weak business scores (44 and 45) and rising prices: the price has run ahead of the business." });   // task #183 A8: plain, no "but", no advice
   });
   it("against their peers: the sentence and the cards", () => {
     const xs = [sh("TECHM", { peer: peer("leader", 1, 13) }), sh("PERSISTENT", { peer: peer("leader", 4, 13) }), sh("INFY", { peer: peer("laggard", 10, 13) }), sh("ZENSARTECH", { peer: peer("laggard", 13, 18) }),

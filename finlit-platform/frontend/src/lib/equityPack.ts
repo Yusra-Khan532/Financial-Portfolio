@@ -39,7 +39,7 @@ export function sharesCards(shares: Share[], day: string): Card[] {
   const fell = shares.filter((s) => s.chg != null && s.chg <= -10).sort((a, b) => a.chg! - b.chg!);
   if (fell.length) { const small = fell.every((s) => s.size === "Small"); out.push({ kind: "warning", title: `${fell.length === 1 ? "One share" : `${fell.length} shares`} fell 10% or more ${on}`, text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg)}`))}.${small ? ` ${fell.length === 1 ? "It is a small company" : `All ${num(fell.length)} are small companies`}, which tend to swing more.` : ""}` }); }
   const runAhead = shares.filter((s) => weakP(s.prism) && trendBand(s.lt) === "positive");
-  if (runAhead.length) out.push({ kind: "watch", title: `Weak Prism, strong price: ${list(runAhead.map((s) => s.symbol))}`, text: `${runAhead.length === 1 ? "It has a weak business score" : `${runAhead.length === 2 ? "Both" : "All"} have weak business scores`} (${list(runAhead.map((s) => String(Math.round(s.prism!))))}) but rising prices. Prices can run ahead of the business; check why.` });
+  if (runAhead.length) out.push({ kind: "watch", title: `Weak Prism, strong price: ${list(runAhead.map((s) => s.symbol))}`, text: `${runAhead.length === 1 ? "It has a weak business score" : `${runAhead.length === 2 ? "Both" : "All"} have weak business scores`} (${list(runAhead.map((s) => String(Math.round(s.prism!))))}) and ${runAhead.length === 1 ? "a rising price" : "rising prices"}: the price has run ahead of the business.` });
   return out;
 }
 
@@ -127,7 +127,7 @@ export function riskCards(shares: Share[], shareRisk: Record<string, number>, sh
   const on = day === "Today" ? "today" : `on ${day}`;
   if (fell.length) out.push({ kind: "watch", title: `${cap(num(fell.length))} small-company ${fell.length === 1 ? "fall" : "falls"} ${on}`, text: `${list(fell.map((s) => s.symbol))} ${fell.length === 1 ? "fell" : "each fell"} more than 10% in one day. Small companies can move this much on little news.` });
   const steady = rated.filter((s) => s.risk! >= 80).sort((a, b) => a.symbol.localeCompare(b.symbol));
-  if (steady.length) out.push({ kind: "good", title: `${cap(num(steady.length))} ${steady.length === 1 ? "share steadies" : "shares steady"} the list`, text: `${list(steady.map((s) => s.symbol))} ${steady.length === 1 ? "scores" : "all score"} ${Math.floor(Math.min(...steady.map((s) => s.risk!)))} or more on Prism Risk.` });
+  if (steady.length) out.push({ kind: "good", title: `${cap(num(steady.length))} ${steady.length === 1 ? "share steadies" : "shares steady"} the list`, text: `${list(steady.map((s) => s.symbol))} ${steady.length === 1 ? "has" : "each have"} a Prism Risk score of ${Math.floor(Math.min(...steady.map((s) => s.risk!)))} or more.` });
   return out;
 }
 export const riskWord = (v: number | null) => (v == null ? null : v < 52 ? "Higher risk" : v < 70 ? "Medium" : "Lower risk");

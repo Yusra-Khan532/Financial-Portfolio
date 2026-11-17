@@ -246,11 +246,11 @@ def rules(f: dict) -> List[dict]:
         if v["n"] >= 3 and v["avg"] >= 0.6:
             say("M3", "together", 76, f"The {v['n']} {sec} shares move almost as one ({two(v['avg'])} on average).")
         elif v["n"] >= 3 and v["avg"] < 0.35:
-            say("M4", "together", 40, f"The {v['n']} {sec} shares share a sector but move fairly independently ({two(v['avg'])}).")
+            say("M4", "together", 40, f"The {v['n']} {sec} shares are in one sector and move fairly independently of each other ({two(v['avg'])}).")
     for g in f["groups"]:
         secs = sorted(set(f["sector"][s] for s in g["members"]))
         if len(secs) > 1:
-            say("M5", "together", 72, f"Group {g['letter']}: {join_names(g['members'])} are in different sectors but move together ({two(g['avg_corr'])}).")
+            say("M5", "together", 72, f"Group {g['letter']}: {join_names(g['members'])} move together ({two(g['avg_corr'])}) across different sectors.")
     if not f["groups"]:
         say("M8", "together", 50, "No set of shares moves closely together.")
     twins = f["near_duplicates"]
@@ -266,13 +266,13 @@ def rules(f: dict) -> List[dict]:
         rs, am = f["share_risk"][mode], f["share_weight"][mode]
         heavy = [(s, rs[s], am[s]) for s in sorted(rs, key=lambda s: -rs[s]) if rs[s] >= 3 and rs[s] >= 1.5 * am[s]]
         for s, r_, a_ in heavy[:2]:
-            say("K1", "risk", 72, f"{s} is {pct(a_)} of the amount but {pct(r_)} of the risk.", mode)
+            say("K1", "risk", 72, f"{s} is {pct(a_)} of the list and carries {pct(r_)} of the risk.", mode)
         sr, sa = f["sector_risk"][mode], f["sector_weight"][mode]
         members = pd.Series(list(f["sector"].values())).value_counts()
         gap = sorted(((k, sr[k] - sa[k]) for k in sr if members.get(k, 0) >= 2), key=lambda t: -t[1])  # one-share sectors repeat K1
         if gap and gap[0][1] >= 4:
             k = gap[0][0]
-            say("K2", "risk", 68, f"{k} is {pct(sa[k])} of the amount but {pct(sr[k])} of the risk.", mode)
+            say("K2", "risk", 68, f"{k} is {pct(sa[k])} of the list and carries {pct(sr[k])} of the risk.", mode)
         top3 = sorted(rs.items(), key=lambda t: -t[1])[:3]
         t3 = sum(v for _, v in top3)
         if n >= 6 and t3 >= 40:

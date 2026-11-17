@@ -6,10 +6,12 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 import { FAQ_BANNED, PAGE_BANNED } from "./wordingRules";
 import * as W from "./words";
 import { MY_PORTFOLIO_FAQ } from "../content/myPortfolioFaqs";
-import { InShort, MarketFall, MoneyRisk, MovesGrid, Packs, SpreadSection, StyleTiltPack, WhereSits } from "./pack/EquityPack";
+import { InShort, MarketFall, MoneyRisk, StyleTiltPack } from "./pack/EquityPack";
+import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "./pack/DivPack";
 import { SharesTable } from "./SharesTable";
 import { sectorColors, sectorOrder } from "./derive";
 import s12 from "./__fixtures__/sample_12.json";
@@ -31,12 +33,12 @@ describe.each(cases)("the page text, %s", (_n, s) => {
   const meta = Object.fromEntries(Object.entries(s.inputs.meta).map(([k, v]) => [k, { name: v.name, sector: v.sector, size: v.size, mcap_cr: v.mcap_cr }])) as Record<string, Meta>;
   const symbols = Object.keys(meta), colors = sectorColors(sectorOrder(page, "eq"));
   const counts: Record<string, string[]> = {}; symbols.forEach((x) => (counts[meta[x].sector ?? "Other"] ??= []).push(x));
-  const packs = page.groups.map((g) => ({ members: g.members, avg: g.avg_corr, name: meta[g.members[0]]?.sector ?? "Mixed" }));
+  const SZ = { L: "Large", M: "Mid", S: "Small" } as const;
+  const d: DivInput = { page, symbols: page.order, levelOf: (x, l) => (l === "industry" ? `${meta[x]?.sector ?? "Other"} industry` : meta[x]?.sector ?? "Not classified"), sizeOf: (x) => SZ[meta[x]?.size as "L" | "M" | "S"] ?? null,
+    band: () => "g", gold: true, nameOf: (x) => meta[x]?.name ?? x };
   it.each(["eq", "mc"] as Mode[])("holds no advice wording in mode %s", (mode) => {
     const { container } = render(<MemoryRouter><div>
-      <SpreadSection page={page} weights={page.sector_weight.eq} counts={counts} sizeCount={{ Large: 6, Mid: 4, Small: 2 }} packs={packs} />
-      <WhereSits weights={page.sector_weight.eq} sizes={[{ k: "Large", pct: 50, who: symbols.slice(0, 6) }]} /><Packs packs={packs} weights={page.sector_weight.eq} n={symbols.length} />
-      <MovesGrid page={page} packs={packs} /><StyleTiltPack tilt={TILT} />
+      <WhereSitsGrid d={d} /><SpreadPack d={d} /><DivSubTabs d={d} /><ShareGrid d={d} /><p>{divKeys(d).map((c) => `${c.k} ${c.v} ${c.text}`).join(" ")}</p><StyleTiltPack tilt={TILT} />
       <MoneyRisk sw={page.sector_weight.eq} sr={page.sector_risk.eq} counts={counts} /><MarketFall beta={page.market.eq.beta} /><InShort items={page.summary[mode]} />
       <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} actions={() => null} />
     </div></MemoryRouter>);
