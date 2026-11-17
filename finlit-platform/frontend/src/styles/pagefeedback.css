@@ -1,9 +1,14 @@
-/* "Raise a Query" button (in the page banner) and "Share feedback" (bottom right of every page), with their one dialog. Site tokens only. */
+/* "Raise a Query" and "Share feedback", side by side at the bottom right of every page (task #214), with their one dialog. Site tokens only. */
 .pf-dock { position: fixed; z-index: 66; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; align-items: center; }
 .pf-fab { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1.5px solid var(--gold); background: var(--s1); color: var(--text); font: 600 var(--fs-14)/1.2 var(--sans); cursor: pointer; box-shadow: 0 10px 26px -12px rgba(0, 0, 0, .55); transition: background .15s, transform .15s; }
 .pf-fab:hover { background: var(--s2); transform: translateY(-1px); }
 .pf-fab:focus-visible, .pf-chips button:focus-visible, .pf-stars button:focus-visible, .pf-x:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
 .pf-fab svg { width: 16px; height: 16px; flex: none; }
+.pf-fab:not(.pf-fab-q) svg { color: var(--gold-deep, var(--gold)); }
+/* task #214: the two are told apart at a glance: a question has the green edge and icon, feedback the gold one; same size, shape and type */
+.pf-fab-q { border-color: var(--gain); }
+.pf-fab-q svg { color: var(--gain); }
+.pf-fab-q:focus-visible { outline-color: var(--gain); }
 /* trays that sit along the bottom of some pages: the dock stands above them */
 body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 900px) {

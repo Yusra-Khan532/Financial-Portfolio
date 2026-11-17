@@ -23,7 +23,16 @@ describe("pageTag", () => {
     const t = pageTag("/stocks/RELIANCE?tab=x#a", "gold", doc("Reliance Industries Ltd | FinLit", "Reliance Industries Ltd"), 1440);
     expect(t.page).toBe("/stocks/RELIANCE");
     expect(t.pageName).toBe("Company report");
-    expect(t.context).toEqual({ symbol: "RELIANCE", title: "Reliance Industries Ltd", plan: "gold", screen: "desktop" });
+    expect(t.context).toEqual({ symbol: "RELIANCE", tab: "x", title: "Reliance Industries Ltd", plan: "gold", screen: "desktop" });
+  });
+  it("task #214: a symbol picked in a tool, the open tab on screen and the theme; never a typed figure or free text", () => {
+    const d = { title: "", querySelector: (q: string) => (q.includes("aria-selected") ? { textContent: "2Valuation" } : null), documentElement: { dataset: { theme: "light" } } } as never;
+    const t = pageTag("/eps-calculator?np=80775&px=1344.8&sym=tcs&tab=export", null, d, 1440);
+    expect(t.page).toBe("/eps-calculator");
+    expect(t.context).toMatchObject({ symbol: "TCS", tab: "Valuation", theme: "light" });   // the tab on screen wins over the address
+    expect(JSON.stringify(t.context)).not.toMatch(/80775|1344/);
+    expect(pageTag("/x?sym=<script>&tab=a%22b<c", null, null, 1440).context).not.toHaveProperty("symbol");
+    expect(pageTag("/x?tab=a<b", null, null, 1440).context).not.toHaveProperty("tab");
   });
   it("falls back to the page's own heading or title for a page the site map does not know, and names the screen", () => {
     expect(pageTag("/brand-new", null, doc("Brand new tool | FinLit", "A new tool"), 390).pageName).toBe("A new tool");
