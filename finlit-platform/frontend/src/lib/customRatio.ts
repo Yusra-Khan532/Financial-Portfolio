@@ -61,14 +61,28 @@ export function roundNice(v: number): number {
 }
 
 /** CR-4: the presets from the ratio's own spread (market spreads, not FinLit cut-offs). */
-export type Stats = { have: number; total: number; p2: number | null; p5: number | null; p25: number | null; p50: number | null; p75: number | null; p95: number | null; p98: number | null; hist30: number[]; scale: "linear" | "log"; values: number[];
+export type Stats = { have: number; total: number; p2: number | null; p5: number | null; p25: number | null; p50: number | null; p75: number | null; p95: number | null; p98: number | null; hist30: number[]; scale: "linear" | "log"; values: number[]; outside?: { below: number; above: number };
   example: { symbol: string; name: string | null; num: number; den: number; value: number } | null };
 export type Preset = { id: string; label: string; op: "gt" | "lt"; a: number };
+/** The chart's step: one of its 30 bars on a plain scale, as a round number (1, 2 or 5 times a power of ten). A preset or a mode that fills the value box
+ *  rounds to it (task #64, N-7: the box once showed "At least 0.0131 %" for a ratio around 1%). */
+export function chartStep(s: Pick<Stats, "p2" | "p98" | "p50">): number {
+  const lo = s.p2, hi = s.p98;
+  const span = lo != null && hi != null && hi > lo ? (hi - lo) / 30 : Math.abs(s.p50 ?? 1) / 10 || 0.01;
+  const p = 10 ** Math.floor(Math.log10(span)), m = span / p;
+  return Number(((m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p).toPrecision(1));
+}
+export function roundToStep(v: number, step: number): number {
+  if (!Number.isFinite(v) || !(step > 0)) return v;
+  const d = Math.max(0, -Math.floor(Math.log10(step)));
+  return Number((Math.round(v / step) * step).toFixed(Math.min(d, 6)));
+}
 export function presets(s: Stats | undefined): Preset[] {
   if (!s || s.p25 == null || s.p50 == null || s.p75 == null) return [];
+  const step = chartStep(s), r = (v: number) => roundToStep(v, step);
   return [
-    { id: "top", label: "Top quarter", op: "gt", a: roundNice(s.p75) }, { id: "above", label: "Above the middle", op: "gt", a: roundNice(s.p50) },
-    { id: "below", label: "Below the middle", op: "lt", a: roundNice(s.p50) }, { id: "low", label: "Lowest quarter", op: "lt", a: roundNice(s.p25) },
+    { id: "top", label: "Top quarter", op: "gt", a: r(s.p75) }, { id: "above", label: "Above the middle", op: "gt", a: r(s.p50) },
+    { id: "below", label: "Below the middle", op: "lt", a: r(s.p50) }, { id: "low", label: "Lowest quarter", op: "lt", a: r(s.p25) },
   ];
 }
 

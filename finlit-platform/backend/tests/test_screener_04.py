@@ -213,6 +213,24 @@ async def test_ratios_validate_count_as_a_funnel_step_and_the_drawer_gets_the_sp
     assert (await silver.get("/api/screener/ratio-stats", params={"num": "overall", "den": "pe"})).status_code == 400
 
 
+def test_one_extreme_company_never_squashes_the_ratio_chart_it_sits_in_an_end_bar():
+    """Task #64, N-5: the chart runs from p2 to p98 and companies outside it are counted in the end bars (they were dropped, and the drawer had no way
+    to say so). Every company with the ratio is in exactly one bar, and `outside` says how many sit beyond each end."""
+    from finlit.screener.api import ratio_stats, _ratio_stats
+
+    class T:
+        n, loaded = 102, 7
+
+        def ratio(self, num, den, show):
+            return [float(i) for i in range(100)] + [-85700.0, float("nan"), 999999.0]
+    _ratio_stats.clear()
+    st = ratio_stats(T(), "a", "b", "pct")
+    assert st["have"] == 102 and sum(st["hist30"]) == 102                    # nobody left out of the chart
+    assert st["outside"]["below"] >= 1 and st["outside"]["above"] >= 1
+    assert max(st["hist30"]) < 102 / 3                                     # no single bar holds nearly everyone
+    _ratio_stats.clear()
+
+
 @pytest.mark.asyncio
 async def test_custom_ratios_are_refused_below_gold_with_the_plain_line_and_the_rest_still_runs(app, table):  # noqa: F811
     """Task #64, N-2 (CR-0 of 13 Nov): Silver could open and use the Custom ratio builder. The server now refuses `ratios` and the drawer's spread
