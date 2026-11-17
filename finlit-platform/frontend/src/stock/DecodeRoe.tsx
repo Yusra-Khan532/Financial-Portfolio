@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
+import { TabGroup } from "../components/TabGroup";
 import { HScroll } from "../components/HScroll";
 import { RoeLines } from "../charts/RoeLines";
 import { Waterfall } from "../charts/Waterfall";
@@ -34,7 +35,6 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
   const [view, setView] = useState<View>("reported");
   const [basis, setBasis] = useState<Basis>("year-end");
   const [hint, setHint] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [pick, setPick] = useState<string | null>(null);
   const [goal, setGoal] = useState(String(GOAL_DEFAULT));
   const [canLink, setCanLink] = useState(false);
@@ -118,13 +118,17 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
         })()}
       </div>
 
+      {/* task #216 (README 3.10): the seven detail cards of Decoding ROE are one tab group */}
+      <TabGroup label="Decoding ROE" hint="ROE by year shown here" views={[
+        { key: "year", label: "ROE by year", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="growth" /></span>ROE by year, reported and normalized</h3><span className="s">{view === "reported" ? "Dotted line: normalized" : "Dotted line: reported"} · ⚑ ring marks low-quality earnings</span></div>
         <RoeLines labels={labels} series={rowOrder} flags={years.map((y) => y.lowQuality)} notes={years.map((y) => y.why.roe?.short ?? null)} fmt={(v) => `${sg(v, 1)}%`} ariaLabel={`Return on equity by year, reported and normalized. ${years.map((y) => `${y.label}: reported ${y.roe == null ? "not available" : nf(y.roe, 1) + " per cent"}, normalized ${y.normRoe == null ? "not available" : nf(y.normRoe, 1) + " per cent"}`).join("; ")}`} />
         <ul className="dp-legend" aria-hidden="true"><li><i className="ln" style={{ background: "var(--c1)" }} />ROE, reported (circle)</li><li><i className="ln dot" style={{ color: "var(--c2)" }} />ROE, normalized (square)</li></ul>
         <p className="faint dp-note">Normalized ROE removes exceptional items (after tax at the year's own tax rate) and profit from discontinued operations: normalized profit = net profit − exceptional items × (1 − tax rate) − discontinued profit.{years.some((y) => y.taxRateFallback && (y.exceptional ?? 0) !== 0) ? ` Where tax and pre-tax profit could not give a rate (${years.filter((y) => y.taxRateFallback && (y.exceptional ?? 0) !== 0).map((y) => y.label).join(", ")}), a ${nf(LIM.fallbackTaxRate * 100, 0)}% rate was assumed.` : ""}</p>
       </div>
-
+        </> },
+        { key: "roa", label: "ROE and ROA", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>ROE and ROA by year</h3><span className="s">{basis === "average" ? "Average balances" : "Year-end balances"} · {view} figures</span></div>
         <HScroll className="" label="ROE and ROA table">
@@ -153,15 +157,19 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           <p className="faint dp-note">A year is low-quality earnings when one-off items (exceptional items and discontinued-operations profit) are above {nf(LIM.lowQualityShare * 100, 0)}% of its pre-tax profit. It is shown in the table and chart but not averaged. The average is a simple mean of the yearly ROE.</p>
         </div>
       </div>
-
-      {flags.length > 0 && (
+        </> },
+        { key: "checks", label: "Checks", content: <>
+        {flags.length > 0 ? (
         <div className="card dp-card">
           <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Checks on the numbers</h3><span className="s">{flags.length} to look at</span></div>
           <ul className="dp-flags">{flags.map((a, i) => (
             <li className="dp-find" key={a.period + a.kind + i}><Icon name="alert" /><span><b>{a.label}:</b> {a.text}{canLink && <> <a className="alx-link" href="#financials" onClick={goStatements}>See the financial statements</a></>}</span></li>))}</ul>
         </div>
-      )}
-
+        ) : (
+        <div className="card dp-card"><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Checks on the numbers</h3><span className="s">0 to look at</span></div><p className="faint">No year stands out: none of the checks on margin, turnover, leverage or a loss year flagged anything.</p></div>
+        )}
+        </> },
+        { key: "say", label: "What the figures say", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>What the ROE figures say</h3><span className="s">Descriptive only · reported figures</span></div>
         {ins.cards.length ? <div className="dp-ins" role="list">{ins.cards.map((c) => (
@@ -169,7 +177,8 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           : <p className="faint">{mv ? "None of the observation rules applies to this range." : "Needs at least two years with margin, turnover, multiplier and a meaningful ROE."}</p>}
         {ins.fired > ins.cards.length && <p className="faint dp-note">Showing the {ins.cards.length} most important of {ins.fired} observations.</p>}
       </div>
-
+        </> },
+        { key: "ext", label: "Extended DuPont", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>Extended DuPont: tax, interest or operations?</h3><span className="s">{wf.ok ? `${wf.from} to ${wf.to} · reported figures` : "Five factors"}</span></div>
         {wf.ok ? (<>
@@ -190,7 +199,8 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           <p className="faint dp-note">{wf.note} Pre-tax profit includes exceptional items. Contributions are rounded to one decimal, so they can differ from the total by 0.1.</p>
         </>) : <p className="faint">{wf.reason}</p>}
       </div>
-
+        </> },
+        { key: "whatif", label: "What-if calculator", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>What-if calculator</h3><span className="s">{start ? `Starts at ${start.year.label} · ${basis === "average" ? "average" : "year-end"} balances` : "Needs a year with all three factors"}</span></div>
         {cur && start && rng ? (<>
@@ -210,10 +220,9 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           <p className="faint dp-note">required margin = ROE ÷ (asset turnover × equity multiplier). This is arithmetic on the ratios set above, not a forecast of what the company will earn.</p>
         </>) : <p className="faint">No year has margin, asset turnover and equity multiplier together, so there is nothing to start from.</p>}
       </div>
-
+        </> },
+        { key: "how", label: "How it is calculated", content: <>
       <div className="card dp-card">
-        <button type="button" className="dp-how" aria-expanded={open} aria-controls={uid + "-how"} onClick={() => setOpen(!open)}><Icon name="info" />How is this calculated?<span aria-hidden="true">{open ? "−" : "+"}</span></button>
-        {open && (
           <div id={uid + "-how"} className="dp-howbody">
             <label className="dp-pick">Year <select value={chosen.period} onChange={(e) => setPick(e.target.value)}>{years.map((y) => <option key={y.period} value={y.period}>{y.label}</option>)}</select></label>
             <HScroll className="" label="calculation steps">
@@ -229,8 +238,10 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
               {thresholdNotes().map((t) => <li key={t}>{t}</li>)}
               <li>Observation sentences come from a rule list with thresholds that can be tuned; each card shows the numbers behind its sentence.</li>
             </ul>
-          </div>)}
+          </div>
       </div>
+        </> },
+      ]} />
       <p className="faint dp-note">Worked out from the company's own statements. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
     </section>
   );
