@@ -35,12 +35,11 @@ import { apiGet } from "../lib/api";
 import { capBucket } from "../lib/capBuckets";
 import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
-import { Cards } from "../components/sectors/pack/Common";
 import type { Leadership } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
 import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { GoldLock, InShort, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
+import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
 import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
@@ -238,7 +237,7 @@ export function HoldingsPage() {
           {view === "portfolio" && <>
             <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
-              peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
+              peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
@@ -275,6 +274,7 @@ export function HoldingsPage() {
         </div>
       </Gate>
       <details className="sp-sec sp-fold eq-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="equity" /></details>
+      <p className="eq-end">Information only, not investment advice.</p>
     </div>
   );
 }

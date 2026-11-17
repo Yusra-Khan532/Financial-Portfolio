@@ -39,13 +39,13 @@ export function glanceTiles(r: RiskAnswer) {
   return [
     { k: "Typical swing in a year · 3 yrs", v: l?.swing == null ? "–" : `${l.swing.toFixed(1)}%`, nifty: g.nifty.swing == null ? "–" : `${g.nifty.swing.toFixed(1)}%`,
       sub: ratio == null ? "Not enough prices." : ratio >= 1.8 ? "About twice as bumpy as the index." : ratio >= 1.15 ? "Bumpier than the index." : ratio <= 0.85 ? "Steadier than the index." : "About as bumpy as the index.",
-      help: "Typical swing in a year. How much the list's value has moved up and down in a typical year (the annualised volatility of daily closes), over the last 3 years." },
+      help: "How much the list's value has moved up and down in a typical year (the annualised volatility of daily closes), over the last 3 years.", how: "Higher is a bumpier ride. Set it beside the Nifty 50's figure under it." },
     { k: "Worst fall from a high · 3 yrs", v: signed(l?.worstFall), nifty: signed(g.nifty.worstFall), sub: l?.worstFall == null || g.nifty.worstFall == null ? "Not enough prices." : l.worstFall < g.nifty.worstFall - 1 ? "Deeper than the index." : l.worstFall > g.nifty.worstFall + 1 ? "Shallower than the index." : "About the same as the index.",
-      help: "Worst fall from a high. The largest drop from a peak to a later low, over the last 3 years of daily closes." },
+      help: "The largest drop from a peak to a later low, over the last 3 years of daily closes.", how: "A larger minus figure is a deeper fall. Set it beside the Nifty 50's." },
     { k: "In the 10 worst weeks · past year", v: signed(g.worst10.list), nifty: signed(g.worst10.nifty), sub: g.worst10.list == null || g.worst10.nifty == null ? "Not enough prices." : g.worst10.list < g.worst10.nifty - 0.3 ? "Falls more when the market falls." : g.worst10.list > g.worst10.nifty + 0.3 ? "Falls less when the market falls." : "Falls about as much as the market.",
-      help: "In the 10 worst weeks. The list's average weekly move in the Nifty 50's 10 worst weeks of the past year." },
+      help: "The list's average weekly move in the Nifty 50's 10 worst weeks of the past year.", how: "Below the Nifty 50's figure: the list fell more in those weeks; above it, less." },
     { k: "Beta, size-weighted", v: b2(r.betas.weighted), nifty: "1.00", niftyWord: "benchmarks", sub: r.betas.weighted == null ? "Not enough prices." : r.betas.weighted > 1.1 ? "More sensitive than its market (its own benchmarks)." : r.betas.weighted < 0.9 ? "Less sensitive than its market (its own benchmarks)." : "About as sensitive as its market (its own benchmarks).",
-      help: "Beta, size-weighted. Each share against the index of companies its size over the past year of weekly closes; the sizes combined by their share of the list." },
+      help: "Each share against the index of companies its size over the past year of weekly closes; the sizes combined by their share of the list.", how: "1.00 moves with its own benchmarks; above 1 more, below 1 less." },
   ];
 }
 /** Key figures of the Risk tab (the pack): Moves more than its markets, Small companies carry the risk, Highest beta. */

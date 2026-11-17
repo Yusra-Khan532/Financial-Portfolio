@@ -24,7 +24,7 @@ export function TopGrid({ score, tiles, onOpen }: { score: React.ReactNode; tile
       {tiles.map((t) => (
         <div key={t.id} className={"eqt-tile eqt-" + t.tone} role="link" tabIndex={0} aria-label={`${t.k}: ${t.v}. ${t.link}`} onClick={() => onOpen(t.id)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(t.id); } }}>
-          <p className="eqt-k">{t.k}<span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Tip text={t.help} label={`About “${t.k}”`} /></span></p>
+          <p className="eqt-k">{t.k}<span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></span></p>
           <p className="eqt-v">{t.v}</p>
           <p className="eqt-x">{t.sub}</p>
           <span className="eqt-go">{t.link} →</span>
@@ -91,7 +91,7 @@ export function SectionsBar({ tab, all, onTab }: { tab: TabKey; all: Record<TabK
 export function ScoreBox({ total, band, needsQty, onAddQty }: { total: number | null; band?: string; needsQty: boolean; onAddQty: () => void }) {
   return (
     <div className="eqt-score">
-      <p className="eqt-score-k">Your portfolio score<Tip text="Your portfolio score. One number from 0 to 100 that sums up how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration. How they are combined stays on FinLit's side." label="About “Your portfolio score”" /></p>
+      <p className="eqt-score-k">Your portfolio score<Tip text="One number from 0 to 100 that sums up how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration." how="Higher reads stronger on those together. How they are combined stays on FinLit's side; Make the score yours shows the parts." label="About “Your portfolio score”" /></p>
       <p className="eqt-score-v"><b>{total ?? "—"}</b> / 100{band && total != null && <em> {band}</em>}</p>
       <p className="eqt-score-x">{needsQty ? "Needs quantities: type how many of each share you own in the Qty column of Your shares. Until then every share counts the same." : "Counted by the value of each holding you entered."}</p>
       {needsQty && <button type="button" className="eqt-addq" onClick={onAddQty}>Add quantities</button>}

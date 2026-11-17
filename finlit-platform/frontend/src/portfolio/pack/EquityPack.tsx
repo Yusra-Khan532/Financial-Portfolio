@@ -40,7 +40,7 @@ export function More({ names, show = 4, empty = "–" }: { names: string[]; show
 export function Insights({ items, scope }: { items: Card[]; scope: string }) {
   const { user } = useAuth();
   if (!items.length) return null;
-  return <DashCardsProvider userId={user?.id}><div className="eq-ins">
+  return <DashCardsProvider userId={user?.id} remember={false}><div className="eq-ins">
     <div className="eq-ins-h"><span className="sp-cap">{items.length === 1 ? "One thing to know" : `${num(items.length)} things to know`}</span><OpenAll scope={scope} n={items.length} /></div>
     <DashCards items={items} scope={scope} cols={Math.min(3, items.length)} />
   </div></DashCardsProvider>;
@@ -64,18 +64,18 @@ export function TrendSection({ t, shares }: { t: TrendRead; shares: Share[] }) {
   const pc0 = (x: number) => `${Math.round(x * 100)}%`, stocks = (n: number) => `${n} ${n === 1 ? "stock" : "stocks"}`;
   const none = shares.filter((s) => s.lt == null).map((s) => s.symbol);
   return (
-    <Section id="eq-trend" hide title="Short- and long-term trend" help="Short- and long-term trend. Where each share's short-term price trend sits against its long-term one, from FinLit Prism's technical view. It describes past prices, not what comes next."
+    <Section id="eq-trend" hide title="Short- and long-term trend" help="Where each share's short-term price trend sits against its long-term one, from FinLit Prism's technical view." how="Across: the short-term trend, down to up. Down the side: the long-term trend, up to down. It describes past prices, not what comes next."
       sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each share's short-term trend sits against its long-term one.{none.length ? <> {none.length <= 6 ? list2(none) : <More names={none} />} {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>
       {!t.rated ? <p className="sp-empty">None of the shares in your list has a stored FinLit Prism trend reading yet.</p> : <div className="eq-tr">
         <div className="eq-tm">
-          <p className="eq-tm-x">Short-term trend →<Tip text="Short-term trend. The share's price trend over the last few weeks: across, from down to up." label="About the short-term trend" /></p>
-          <p className="eq-tm-y">Long-term trend ↓<Tip text="Long-term trend. The share's price trend over the last year: down the side, from up at the top to down at the bottom." label="About the long-term trend" /></p>
+          <p className="eq-tm-x">Short-term trend →<Tip text="The share's price trend over the last few weeks." how="Read across: from down on the left to up on the right." label="About the short-term trend" /></p>
+          <p className="eq-tm-y">Long-term trend ↓<Tip text="The share's price trend over the last year." how="Read down the side: from up at the top to down at the bottom." label="About the long-term trend" /></p>
           <Scroll label="trend matrix"><table className="eq-tg"><thead><tr><th><span className="sr-only">Long-term trend</span></th>{ST_COLS.map(([k, l]) => <th key={k} scope="col">{l}</th>)}</tr></thead>
             <tbody>{LT_ROWS.map(([r, rl]) => <tr key={r}><th scope="row">{rl}</th>{ST_COLS.map(([c]) => { const g = t.grid[`${r},${c}`]; return <td key={c} className={"eq-tg-c t" + (+r + +c)}>
               <b>{g?.name ?? "–"}</b><small>{stocks(g?.n ?? 0)} · {pc0(g?.share ?? 0)}</small><em><More names={g?.symbols ?? []} /></em></td>; })}</tr>)}</tbody></table></Scroll>
         </div>
         <div className="eq-bp">
-          <p className="eq-bp-h"><b>Business and price</b><Tip text="Business and price. The business is the FinLit Prism score: 65 or above is a strong business, below 50 a weak one. The price is the long-term trend. Where the two disagree, the price has run ahead of the business or fallen behind it." label="About Business and price" /></p>
+          <p className="eq-bp-h"><b>Business and price</b><Tip text="The business, from the FinLit Prism score, beside the price, from the long-term trend." how="65 or above is a strong business, below 50 a weak one; shares in between are counted under the list. Where the two disagree, the price has run ahead of the business or fallen behind it." label="About Business and price" /></p>
           {BIZ.map(([k, tone, label, rule]) => { const b = t.business[k]; return <div key={k} className={"eq-bpr " + tone}>
             <p className="eq-bpr-t"><b>{label}</b><b>{pc0(b.share)}</b></p><small>{stocks(b.n)} · {rule}</small><small className="eq-bpr-n"><More names={b.symbols} /></small></div>; })}
           {t.between != null && <p className="sp-note">{t.between} of {t.rated} rated {t.rated === 1 ? "share sits" : "shares sit"} in between (Prism 50 to 64, or a sideways trend).</p>}
@@ -100,7 +100,7 @@ export function PeersSection({ shares }: { shares: Share[] }) {
         {!xs.length && <p className="sp-note">None.</p>}</div>);
   };
   return (
-    <Section id="eq-peers" hide title="Against their peers" help="Against their peers. Each share's price over the last 12 months against similar companies (its peer group) and its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future."
+    <Section id="eq-peers" hide title="Against their peers" help="Each share's price over the last 12 months against similar companies (its peer group) and its sector index." how="Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future."
       sub="For each share: was it among the strongest or the weakest of similar companies over the last 12 months?"
       why="A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group.">
       <p className="sp-lead eq-lead">{peerSentence(shares)}</p>
@@ -113,7 +113,7 @@ export function PeersSection({ shares }: { shares: Share[] }) {
 export function LeadersSection({ shares }: { shares: Share[] }) {
   if (!shares.some((s) => s.peer?.label === "laggard")) return null;
   return (
-    <Section id="eq-leaders" hide title="What if you had owned the group leader instead?" help="What if you had owned the group leader instead? Each of your laggards against the share ranked first in its own peer group, over the last 12 months of weekly closes. Both lines start at 100: the leader is the one that did best in that time, which is known only afterwards."
+    <Section id="eq-leaders" hide title="What if you had owned the group leader instead?" help="Each of your laggards against the share ranked first in its own peer group, over the last 12 months of weekly closes." how="Both lines start at 100: the gap is how far apart they ended. The leader is the one that did best in that time, which is known only afterwards."
       why="A laggard can still be a fine business. Seeing how far the group's best share went shows the size of the gap, and prompts the question: the business, the price paid, or something temporary?">
       <LeaderCompare shares={shares} />
     </Section>

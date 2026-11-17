@@ -54,6 +54,7 @@
 .eq-addbar .pfx-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; } .eq-addbar .pfx-input { grid-column: 1; } .eq-addbar .pfx-solid { grid-column: 2; }
 .eq-addbar .pfx-add > .pfx-btn, .eq-addbar .pfx-cap { grid-column: auto; } .eq-addbar .eq-add2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .eq-addbar .eq-add2 .pfx-cap { margin-left: auto; }
 .eq-disc { width: 100%; box-sizing: border-box; }
+.eq-end { margin: 12px 0 4px; text-align: center; font: 400 var(--fs-caption, 12px)/1.5 var(--sans, inherit); color: var(--muted, inherit); }
 
 /* Sections with Hide whose title sits straight in the section: keep the title and its (i) clear of the pill in the top-right corner. */
 .eq .hz > .sp-sec > h2 { padding-right: 88px; }

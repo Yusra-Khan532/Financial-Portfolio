@@ -5,7 +5,7 @@ import type { Share } from "./equityPack";
 import { trendBand } from "./prismTechnical";
 
 export type TabKey = "portfolio" | "diversification" | "risk";
-export type TopTile = { id: TabKey; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string };
+export type TopTile = { id: TabKey; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string; how: string };
 export type KeyCard = { tone: "good" | "info" | "watch" | "warn"; k: string; v: string; text: string; go: string; to: string };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -25,23 +25,23 @@ export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "f
     const strong = sc.filter((s) => (s.prism as number) >= 70).length, weak = sc.filter((s) => (s.prism as number) < 50).length;
     portfolio = { id: "portfolio", k: "Portfolio", v: avg == null ? "Not scored" : `${prismWord(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
       sub: `Holding strength: average Prism, ${strong} strong · ${sc.length - strong - weak} fair · ${weak} weak${shares.length - sc.length ? ` · ${shares.length - sc.length} not scored` : ""}`,
-      help: "Portfolio. The average FinLit Prism score of your shares, from 0 to 100, and how many are strong (70 and above), fair (50 to 69) or weak (below 50)." };
+      help: "The average FinLit Prism score of your shares, from 0 to 100, and how many are strong, fair or weak.", how: "Strong is 70 and above, fair 50 to 69, weak below 50. Open the tab for each share." };
   } else {
     const sc = shares.filter((s) => s.iq != null), avg = sc.length ? Math.round(sc.reduce((a, s) => a + (s.iq as number), 0) / sc.length) : null;
     const c = (w: string) => sc.filter((s) => (s.iqWord || "").toLowerCase() === w).length;
     portfolio = { id: "portfolio", k: "Portfolio", v: avg == null ? "Not scored" : `${iqWord(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
       sub: `Average FinLit IQ: ${c("strong")} strong · ${c("healthy")} healthy · ${c("mixed")} mixed${c("watch") ? ` · ${c("watch")} watch` : ""}${shares.length - sc.length ? ` · ${shares.length - sc.length} not scored` : ""}`,
-      help: "Portfolio. The average FinLit IQ of your shares, from 0 to 100, and how many read Strong, Healthy, Mixed or Watch." };
+      help: "The average FinLit IQ of your shares, from 0 to 100, and how many read Strong, Healthy, Mixed or Watch.", how: "Higher reads stronger. Each share's word comes from its own FinLit IQ. Open the tab for each share." };
   }
   const parts = [spread.macro != null ? `${spread.macro} macro ${spread.macro === 1 ? "sector" : "sectors"}` : null, spread.sectors != null ? `${spread.sectors} ${spread.sectors === 1 ? "sector" : "sectors"}` : null,
     `${spread.industries} ${spread.industries === 1 ? "industry" : "industries"}`, spread.sizes === 3 ? "all three sizes" : spread.sizes === 2 ? "two of the three sizes" : "one size"].filter(Boolean);
   const m = page?.market.eq;
   return [portfolio,
     { id: "diversification", k: "Diversification analytics", v: page ? `${page.score.score} · ${page.score.band}` : "–", sub: parts.join(" · "), tone: "info", link: "Open Diversification analytics",
-      help: "Diversification analytics. How widely the list is spread across sectors and sizes, and how independently the shares move, from 0 to 100." },
+      help: "How widely the list is spread across sectors and sizes, and how independently the shares move, from 0 to 100.", how: "Higher means more spread. The line under it counts the macro sectors, sectors, industries and sizes held." },
     { id: "risk", k: "Risk analytics", v: m ? `${m.beta > 1.1 ? "Above" : m.beta < 0.9 ? "Below" : "In line"} · β ${m.beta.toFixed(2)}` : "–", tone: "watch", link: "Open Risk analytics",
       sub: m ? `Against the index: ${m.vol > m.vol_nifty * 1.15 ? "bigger" : m.vol < m.vol_nifty * 0.85 ? "smaller" : "similar"} swings, ${m.vol.toFixed(1)}% a year vs ${m.vol_nifty.toFixed(1)}%` : "Needs a year of weekly prices",
-      help: "Risk analytics. Beta: how much the list tends to move when its index moves 1%. The swing is how much it rises and falls in a typical year." },
+      help: "Beta: how much the list tends to move when its index moves 1%. The swing: how much it rises and falls in a typical year.", how: "A beta above 1 has moved more than the index, below 1 less. The swing sits beside the index's." },
   ];
 }
 

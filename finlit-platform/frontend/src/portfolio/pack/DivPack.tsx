@@ -50,7 +50,7 @@ export function WhereSitsGrid({ d }: { d: DivInput }) {
   const g = useMemo(() => whereGrid(d.symbols, (s) => d.levelOf(s, "macro"), d.sizeOf), [d]);
   const sizeLabel: Record<Size3, string> = { Large: "Large cap", Mid: "Mid cap", Small: "Small cap" };
   return (
-    <Section id="eq-where" hide title="Where your list sits: macro sector and size" help="Where your list sits. Each share sits in one row (its NSE macro sector) and one column (its size). The last column is the row's share of the list, if equal amounts were held."
+    <Section id="eq-where" hide title="Where your list sits: macro sector and size" help="Each share in one row, its NSE macro sector, and one column, its size: large, mid or small." how="A deeper cell has more of your shares. The last column is the row's share of the list, if equal amounts were held; rows and columns each add to 100%."
       sub={<>Each chip is one share; its dot shows the {d.gold ? "FinLit Prism" : "FinLit IQ"} band. Darker cells carry more of the list. Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr.</>}>
       <Scroll label="where your list sits"><table className="eqd-ws">
         <thead><tr><th scope="col">Macro sector</th>{g.cols.map((c) => <th key={c.k} scope="col">{sizeLabel[c.k]} <span className="eqd-mute">· {c.n}</span></th>)}<th scope="col">Of the list</th></tr></thead>
@@ -80,7 +80,7 @@ export function SpreadPack({ d }: { d: DivInput }) {
     { kind: "insight" as const, title: sz[0] && sz[1] && sz[2] ? (sz[2] > sz[0] + sz[1] ? "Balanced by size, tilted small" : "Balanced by size") : "Leaning to one size", text: `${sz[0]} large, ${sz[1]} mid and ${sz[2]} small companies.${sz[0] && sz[2] ? " Large companies steady the list; the small ones add most of the swings." : ""}` },
   ];
   return (
-    <Section id="eq-spread" hide title="How spread out is the list?" help="How spread out is the list? The diversification score (0 to 100) reads two things: how widely the shares spread across NSE's 12 macro sectors and how independently they move. Moves like counts shares that rise and fall together as one bet."
+    <Section id="eq-spread" hide title="How spread out is the list?" help="The diversification score, 0 to 100: how widely the shares spread across NSE's 12 macro sectors and how independently they move." how="Higher means more spread. Moves like counts shares that rise and fall together as one bet, so a list of many shares can still read as fewer."
       sub="Two readings: how widely the list is spread across sectors, and how independently the shares move.">
       <div className="eq-dials">
         <div className="eq-dial"><span className="eq-dial-c" style={{ ["--v" as string]: s.score }}><b>{s.score}</b></span><div><b>{s.band}</b>
@@ -123,29 +123,29 @@ function SectorsPanel({ d }: { d: DivInput }) {
   const Title = cap1(word) + " against " + word;
   const sel = pick ? heat.cell(pick[0], pick[1]) : null;
   return (
-    <Section id="eq-sectors" hide title={`Do your ${word}s move together?`} help={`Do your ${word}s move together? For each pair of ${word}s, the average correlation of their shares' weekly prices over the past two years: 0 means no link; 1 means they move as one.`}
+    <Section id="eq-sectors" hide title={`Do your ${word}s move together?`} help={`For each pair of ${word}s, the average correlation of their shares' weekly prices over the past two years.`} how="0 means no link; 1 means they move as one. A darker cell is a closer pair."
       sub="0 means no link; 1 means they move as one. Weekly prices, past two years."
 >
       <div className="eqd-tools"><div className="eqd-seg" role="group" aria-label="Level"><button type="button" aria-pressed={lv === "macro"} onClick={() => { setLv("macro"); setPick(null); }}>Macro sector · {nMacro}</button><button type="button" aria-pressed={lv === "sector"} onClick={() => { setLv("sector"); setPick(null); }}>Sector · {nSec}</button></div></div>
       <div className="eqd-k3">
-        <div className="eqd-kpi"><p className="sp-cap">Shares in the same {word}<Tip text={`Shares in the same ${word}. The average correlation of every pair of your shares that share a ${word}.`} /></p><b>{two(sd.same.avg)}</b><small>{sd.same.pairs} {sd.same.pairs === 1 ? "pair" : "pairs"}</small></div>
-        <div className="eqd-kpi"><p className="sp-cap">Shares in different {word}s<Tip text={`Shares in different ${word}s. The average correlation of every pair of your shares in two different ${word}s.`} /></p><b>{two(sd.diff.avg)}</b><small>{sd.diff.pairs} pairs{sd.same.avg != null && sd.diff.avg != null ? (Math.abs(sd.same.avg - sd.diff.avg) < 0.1 ? " · close to the same-sector figure" : " · well below the same-sector figure") : ""}</small></div>
-        <div className="eqd-kpi"><p className="sp-cap">Goes its own way most<Tip text={`Goes its own way most. The ${word} whose shares move least with the rest of your list.`} /></p><b className="eqd-serif">{ties[0]?.name ?? "–"}</b><small>{ties[0] ? `${two(ties[0].avg)} with the rest of the list` : "Needs two or more sectors."}</small></div>
+        <div className="eqd-kpi"><p className="sp-cap">Shares in the same {word}<Tip text={`The average correlation of every pair of your shares in the same ${word}.`} how="0 means no link; 1 means they move as one. Compare it with the next figure." /></p><b>{two(sd.same.avg)}</b><small>{sd.same.pairs} {sd.same.pairs === 1 ? "pair" : "pairs"}</small></div>
+        <div className="eqd-kpi"><p className="sp-cap">Shares in different {word}s<Tip text={`The average correlation of every pair of your shares in two different ${word}s.`} how={`Well below the same-${word} figure: the ${word}s spread the list. Close to it: they move much alike.`} /></p><b>{two(sd.diff.avg)}</b><small>{sd.diff.pairs} pairs{sd.same.avg != null && sd.diff.avg != null ? (Math.abs(sd.same.avg - sd.diff.avg) < 0.1 ? " · close to the same-sector figure" : " · well below the same-sector figure") : ""}</small></div>
+        <div className="eqd-kpi"><p className="sp-cap">Goes its own way most<Tip text={`The ${word} whose shares move least with the rest of your list.`} how="The figure under it is its average correlation with the rest: the lower, the more it goes its own way." /></p><b className="eqd-serif">{ties[0]?.name ?? "–"}</b><small>{ties[0] ? `${two(ties[0].avg)} with the rest of the list` : "Needs two or more sectors."}</small></div>
       </div>
       <div className="eqd-two">
         <div>
-          <h3 className="eqd-h3">{Title}<Tip text={`${Title}. Darker: the two ${word}s move together more. Outlined: shares inside one ${word}. Tap a cell to read it.`} /></h3>
+          <h3 className="eqd-h3">{Title}<Tip text={`How closely each pair of ${word}s moves, from their shares' weekly prices.`} how={`Darker: the two ${word}s move together more. Outlined: shares inside one ${word}. Tap a cell to read it.`} /></h3>
           <p className="sp-note">Darker: the two {word}s move together more. Outlined: shares inside one {word}. Tap a cell.</p>
           <WideBox title={Title}><table className="eqd-heat"><thead><tr><td />{heat.names.map((c) => <th key={c} scope="col" title={c}>{short(c)}</th>)}</tr></thead>
             <tbody>{heat.names.map((r) => <tr key={r}><th scope="row">{short(r)} · {heat.count[r]}</th>{heat.names.map((c) => { const x = heat.cell(r, c), self = r === c;
               return <td key={c} className={self ? "self" : ""}>{x.avg == null ? <span className="eqd-one">{self ? "1 share" : "–"}</span>
                 : <button type="button" style={self ? undefined : shade(x.avg)} aria-pressed={!!pick && ((pick[0] === r && pick[1] === c) || (pick[0] === c && pick[1] === r))} aria-label={`${r} and ${c}: ${two(x.avg)}`} onClick={() => setPick([r, c])}>{two(x.avg)}</button>}</td>; })}</tr>)}</tbody></table></WideBox>
-          <div className="eqd-reader" aria-live="polite"><h3 className="eqd-h3">Read a cell<Tip text="Read a cell. Tap any cell in the grid to see what it means for those two sectors." /></h3>
+          <div className="eqd-reader" aria-live="polite"><h3 className="eqd-h3">Read a cell<Tip text="The pair you tapped in the grid, in words." how="Tap any cell in the grid; this box says how closely those two move and how many pairs of shares the figure rests on." /></h3>
             {pick && sel?.avg != null ? <p><b>{pick[0] === pick[1] ? `Inside ${pick[0]}` : `${pick[0]} · ${pick[1]}`}: {two(sel.avg)}</b>. Across {sel.pairs} {sel.pairs === 1 ? "pair" : "pairs"} of shares, they {linkWord(sel.avg)}.</p> : null}
             <dl><div><dt>Strongest link</dt><dd>{hi[0] ? `${hi[0].a} · ${hi[0].b} ${two(hi[0].avg)}` : "–"}</dd></div><div><dt>Weakest link</dt><dd>{hi.length ? `${hi[hi.length - 1].a} · ${hi[hi.length - 1].b} ${two(hi[hi.length - 1].avg)}` : "–"}</dd></div><div><dt>Typical pair in your list</dt><dd>{two(typical)}</dd></div></dl></div>
         </div>
         <div>
-          <h3 className="eqd-h3">Tied to the rest of your list<Tip text={`Tied to the rest of your list. Each ${word}'s shares against every share outside it. A short bar steadies the list most.`} /></h3>
+          <h3 className="eqd-h3">Tied to the rest of your list<Tip text={`Each ${word}'s shares against every share outside it: their average correlation.`} how="A short bar moves least with the rest and steadies the list most; a long bar moves with it." /></h3>
           <p className="sp-note">Shortest first. A short bar steadies the list most.</p>
           <ul className="eqd-ties">{ties.map((t) => <li key={t.name}><span>{short(t.name)} · {t.n}</span><span className="t" aria-hidden="true"><i style={{ width: `${(t.avg / maxTie) * 100}%` }} /></span><b>{two(t.avg)}</b></li>)}</ul>
           <div className="eqd-pairs"><p className="sp-cap">Different {word}s, moving together</p><ul>{hi.slice(0, 3).map((x) => <li key={x.a + x.b}><span><b>{x.a}</b> and <b>{x.b}</b></span><b>{two(x.avg)}</b></li>)}</ul></div>
@@ -166,7 +166,7 @@ function GroupsPanel({ d }: { d: DivInput }) {
   const shown = groups.filter((g) => f === "all" || (f === "cross") === g.cross), first = more ? shown : shown.slice(0, 6);
   const fam = useMemo(() => looserFamilies(o, C, d.page.groups), [o, C, d.page.groups]);
   return (
-    <Section id="eq-groups" hide title="How stocks move together" help="How stocks move together. Groups found from each pair of shares' weekly prices, not from sector labels: average-linkage clustering on 1 − correlation, cut where a group's shares average a correlation of 0.50 or more."
+    <Section id="eq-groups" hide title="How stocks move together" help="Groups found from each pair of shares' weekly prices, not from sector labels: average-linkage clustering on 1 − correlation, cut at 0.5." how="Shares in one group average a correlation of 0.50 or more: they have tended to rise and fall together. Crosses sectors: the group joins shares from different sectors."
       sub="Found from each pair of shares, not from sector labels. A group's shares average a correlation of 0.50 or more."
 >
       <div className="eqd-tools"><div className="eqd-seg" role="group" aria-label="Show"><button type="button" aria-pressed={f === "all"} onClick={() => setF("all")}>All groups</button><button type="button" aria-pressed={f === "cross"} onClick={() => setF("cross")}>Crosses sectors</button><button type="button" aria-pressed={f === "same"} onClick={() => setF("same")}>One sector</button></div></div>
@@ -184,7 +184,7 @@ function GroupsPanel({ d }: { d: DivInput }) {
         </div>)}</div>
         {shown.length > 6 && <button type="button" className="eq-more" aria-expanded={more} onClick={() => setMore(!more)}>{more ? "Show fewer groups ▴" : `Show ${shown.length - 6} more ${shown.length - 6 === 1 ? "group" : "groups"} ▾`}</button>}
         {!shown.length && <p className="sp-note">{f === "cross" ? "No group crosses sectors." : "No group sits inside one sector."}</p>}
-        <details className="eqd-fam"><summary><b>Looser families</b><Tip text="Looser families. Wider groups that join up when the net widens: shares that average 0.35 or more with each other, joining two or more of the groups above, or a group and other shares." /><span className="eqd-mute">{fam.length ? `${fam.length} wider ${fam.length === 1 ? "group" : "groups"} that join up when the net widens` : "None: the groups stay apart even with a wider net"} · Show ▾</span></summary>
+        <details className="eqd-fam"><summary><b>Looser families</b><Tip text="Wider groups that join up when the net widens: shares that average 0.35 or more with each other." how="Each family joins two or more of the groups above, or a group and other shares. They move together less tightly than a group." /><span className="eqd-mute">{fam.length ? `${fam.length} wider ${fam.length === 1 ? "group" : "groups"} that join up when the net widens` : "None: the groups stay apart even with a wider net"} · Show ▾</span></summary>
           {fam.map((x, i) => <p key={i} className="eqd-famr"><b>{x.members.length} shares</b> · <More names={x.members} show={8} /> <span className="eqd-mute">· joins {x.joins} {x.joins === 1 ? "group" : "groups"}</span></p>)}</details>
       </>}
     </Section>
@@ -195,14 +195,14 @@ function SizesPanel({ d }: { d: DivInput }) {
   const f = useMemo(() => sizeFigures(d.page.order, d.page.corr, d.sizeOf), [d]);
   const maxTop = Math.max(1, ...f.mix.map((m) => m.top)), lead = f.mix[0];
   return (
-    <Section id="eq-sizes" hide title="Do small, mid and large companies move together?" help="Do small, mid and large companies move together? How closely shares move with others of the same size, and with the other sizes, from weekly prices. 0 means no link; 1 means they move as one."
+    <Section id="eq-sizes" hide title="Do small, mid and large companies move together?" help="How closely shares move with others of the same size, and with the other sizes, from weekly prices." how="0 means no link; 1 means they move as one. A size that moves closely with itself acts more like one bet."
       sub="How closely shares move with others of the same size, and with the other sizes. 0 means no link; 1 means they move as one.">
       <div className="eqd-k3">{f.within.map((w) => <div key={w.k} className="eqd-kpi"><p className="sp-cap">{w.k} companies · {w.n} counted</p><b>{two(w.avg)}</b><small>{w.n > 1 && w.avg != null ? `with each other. ${w.n} shares move like about ${w.eff.toFixed(1)} independent ones.` : w.n === 1 ? "One share: nothing to compare it with." : "None in the list."}</small></div>)}</div>
       <div className="eqd-two">
-        <div><h3 className="eqd-h3">Size against size<Tip text="Size against size. The average correlation between shares of two sizes. Outlined: shares of the same size." /></h3><p className="sp-note">Outlined: shares of the same size. Darker: they move together more.</p>
+        <div><h3 className="eqd-h3">Size against size<Tip text="The average correlation between shares of two sizes." how="Darker: they move together more. Outlined: shares of the same size." /></h3><p className="sp-note">Outlined: shares of the same size. Darker: they move together more.</p>
           <Scroll label="size against size"><table className="eqd-heat eqd-sz3"><thead><tr><td />{SIZES3.map((k) => <th key={k} scope="col">{k}</th>)}</tr></thead>
             <tbody>{SIZES3.map((r) => <tr key={r}><th scope="row">{r} · {f.heat.count[r] ?? 0}</th>{SIZES3.map((c) => { const x = f.heat.cell(r, c); return <td key={c} className={r === c ? "self" : ""}>{x.avg == null ? <span className="eqd-one">–</span> : <span className="eqd-v" style={r === c ? undefined : shade(x.avg)}>{two(x.avg)}</span>}</td>; })}</tr>)}</tbody></table></Scroll></div>
-        <div><h3 className="eqd-h3">Your {f.closest} most alike pairs<Tip text="Your most alike pairs. Which sizes the closest pairs of shares come from, against how common that mix is among all pairs in your list." /></h3><p className="sp-note">Which sizes the closest pairs come from, against how common that mix is in your list.</p>
+        <div><h3 className="eqd-h3">Your {f.closest} most alike pairs<Tip text="Which sizes the closest pairs of shares come from." how="Each bar sets the closest pairs against how common that mix is among all pairs in your list: more than its share means that size pairing moves especially alike." /></h3><p className="sp-note">Which sizes the closest pairs come from, against how common that mix is in your list.</p>
           <div className="eqd-mix"><p className="eqd-mixh"><span /><span>Of the {f.closest} closest</span><span>Of all pairs</span></p>
             {f.mix.map((m) => <p key={m.k} className="eqd-mixr"><span>{m.k}</span><span className="eqd-mb"><i style={{ width: `${(m.top / maxTop) * 100}%` }} /><b>{m.top}</b></span><span className="eqd-mb g"><i style={{ width: `${m.allShare}%` }} /><b>{Math.round(m.allShare)}%</b></span></p>)}
             {lead && f.closest > 0 && <p className="sp-note">{mixLine(lead, f.closest)}</p>}</div></div>
@@ -229,7 +229,7 @@ export function ShareGrid({ d }: { d: DivInput }) {
     : pick ? (() => { const near = p.order.filter((s) => s !== pick.a).sort((x, y) => c(pick.a, y) - c(pick.a, x)); return { t: `${pick.a} · ${of(pick.a)}`, x: `With the rest of the list: ${two(rest[pick.a])}. Closest: ${near.slice(0, 3).map((s) => `${s} (${two(c(pick.a, s))})`).join(", ")}.` }; })() : null;
   const pair = (x: { a: string; b: string; corr: number }) => <li key={x.a + x.b}><button type="button" className="eqd-link" onClick={() => setPick({ a: x.a, b: x.b })}>{x.a} · {x.b}</button><b>{two(x.corr)}</b></li>;
   return (
-    <Section id="eq-grid" hide title="Share by share" help="Share by share. How closely each pair of shares moves, from weekly prices: 0 means the two are unrelated; near 1, they rise and fall as one. Tap a cell for the pair, or a name for that share."
+    <Section id="eq-grid" hide title="Share by share" help="How closely each pair of shares moves, from weekly prices." how="0 means the two are unrelated; near 1, they rise and fall as one. Tap a cell for the pair, or a name for that share."
       sub={`${p.order.length} shares move like ${p.score.effective_stocks.toFixed(1)} independent ones. Same sector: ${sd.same.pairs} pairs at ${two(sd.same.avg)} on average. Different sectors: ${sd.diff.pairs} pairs at ${two(sd.diff.avg)}.`}>
       <div className="eqd-shx">
         <div>
@@ -241,12 +241,12 @@ export function ShareGrid({ d }: { d: DivInput }) {
           <p className="eqd-key2"><span>Independent</span><i aria-hidden="true" /><span>Move as one</span><span>· Tap a cell for the pair, or a name for that share</span></p>
         </div>
         <aside className="eqd-side">
-          <div className="eqd-box" aria-live="polite"><h3 className="eqd-h3">What the grid shows<Tip text="What the grid shows. The pairs that move most alike, the most alike across sectors, and the shares that go their own way most." /></h3>
+          <div className="eqd-box" aria-live="polite"><h3 className="eqd-h3">What the grid shows<Tip text="The pairs that move most alike, the most alike across sectors, and the shares that go their own way most." how="Tap a cell or a name in the grid and this box reads it instead." /></h3>
             {rd ? <p className="eqd-read"><b>{rd.t}</b><br />{rd.x} <button type="button" className="eqd-link" onClick={() => setPick(null)}>Clear</button></p> : <p className="sp-note">{ps.length} pairs. A typical pair moves together at {two(typical)}.</p>}
             <p className="sp-cap">Most alike</p><ul className="eqd-pl">{ps.slice(0, 5).map(pair)}</ul>
             <p className="sp-cap">Most alike across sectors</p><ul className="eqd-pl">{ps.filter((x) => of(x.a) !== of(x.b)).slice(0, 3).map(pair)}</ul>
             <p className="sp-cap">Go their own way most</p><ul className="eqd-pl">{own.map((s) => <li key={s}><button type="button" className="eqd-link" onClick={() => setPick({ a: s })}>{s}</button><b>{two(rest[s])}</b></li>)}</ul></div>
-          <div className="eqd-box"><h3 className="eqd-h3">Macro sectors in the grid<Tip text="Macro sectors in the grid. Each macro sector's shares with each other (inside) and with every other share (others)." /></h3>
+          <div className="eqd-box"><h3 className="eqd-h3">Macro sectors in the grid<Tip text="Each macro sector's shares with each other (inside) and with every other share (others)." how="Inside well above others: that sector's shares move as one bet. Close together: the sector adds little spread." /></h3>
             <table className="eqd-mst"><thead><tr><th scope="col">Sector</th><th scope="col" className="r">Inside</th><th scope="col" className="r">Others</th></tr></thead>
               <tbody>{heat.names.map((n) => { const t = tiesOf(p.order, p.corr, of).find((x) => x.name === n); return <tr key={n}><th scope="row"><i className={"s-" + Math.abs(hash(n)) % 8} aria-hidden="true" />{short(n)} · {heat.count[n]}</th><td className="r">{two(heat.cell(n, n).avg)}</td><td className="r">{two(t?.avg)}</td></tr>; })}</tbody></table>
             <p className="sp-note">–: one share, nothing to compare inside the sector.</p></div>
