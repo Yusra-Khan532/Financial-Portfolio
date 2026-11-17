@@ -19,11 +19,11 @@ export function groupHoldings(holdings: Holding[], threshold = SMALL_BELOW_PCT):
   return { major, small, otherPct: sumPct(small.map((h) => h.pct)), otherCount: small.length, totalPct: sumPct(holdings.map((h) => h.pct)) };
 }
 
-export type Slice = { key: string; label: string; pct: number; sector: string | null; other: boolean; holding?: Holding };
+export type Slice = { key: string; label: string; pct: number; industry: string | null; other: boolean; holding?: Holding };
 /** Slices for the donut: each major holding, then one "Other holdings" slice for the rest (only if it has weight). */
 export function sliceList(g: Grouped): Slice[] {
-  const s: Slice[] = g.major.map((h, i) => ({ key: `h${i}`, label: h.name, pct: h.pct as number, sector: h.sector, other: false, holding: h }));
-  if (g.otherPct > 0) s.push({ key: "other", label: `Other holdings (${g.otherCount} below ${SMALL_BELOW_PCT}%)`, pct: g.otherPct, sector: null, other: true });
+  const s: Slice[] = g.major.map((h, i) => ({ key: `h${i}`, label: h.name, pct: h.pct as number, industry: h.industry, other: false, holding: h }));
+  if (g.otherPct > 0) s.push({ key: "other", label: `Other holdings (${g.otherCount} below ${SMALL_BELOW_PCT}%)`, pct: g.otherPct, industry: null, other: true });
   return s;
 }
 
@@ -56,7 +56,7 @@ export function classifyChanges(p: Pick<Portfolio, "holdings" | "exited" | "prev
 
 export type SortDir = "asc" | "desc";
 /** Sort holdings by a column; missing values always last. */
-export function sortHoldings(rows: Holding[], key: "name" | "sector" | "pct" | "qty" | "valueLakh", dir: SortDir): Holding[] {
+export function sortHoldings(rows: Holding[], key: "name" | "industry" | "pct" | "qty" | "valueLakh", dir: SortDir): Holding[] {
   const sgn = dir === "asc" ? 1 : -1;
   return [...rows].sort((a, b) => {
     const x = a[key], y = b[key];
@@ -74,12 +74,12 @@ export function assetRows(a: AssetSplit | null | undefined): { key: keyof AssetS
   return [{ key: "equity", label: "Equity", pct: x.equity }, { key: "debt", label: "Debt", pct: x.debt }, { key: "cash", label: "Cash and equivalents", pct: x.cash }, { key: "other", label: "Other", pct: x.other }];
 }
 
-/** Sector rows: the published summary when present, else worked out from the holdings' sectors (equity rows with a sector). Largest first. */
-export function sectorRows(p: Pick<Portfolio, "holdings" | "summary">): { sector: string; pct: number }[] {
-  if (p.summary?.sectors?.length) return [...p.summary.sectors].sort((a, b) => b.pct - a.pct);
+/** Industry rows (NSE's industries, task #192): the server's summary when present, else worked out from the equity lines. Largest first. */
+export function industryRows(p: Pick<Portfolio, "holdings" | "summary">): { industry: string; pct: number }[] {
+  if (p.summary?.industries?.length) return [...p.summary.industries].sort((a, b) => b.pct - a.pct);
   const m = new Map<string, number>();
-  for (const h of p.holdings) if (h.sector && h.pct != null) m.set(h.sector, (m.get(h.sector) || 0) + h.pct);
-  return [...m].map(([sector, pct]) => ({ sector, pct: r6(pct) })).sort((a, b) => b.pct - a.pct);
+  for (const h of p.holdings) if (h.industry && h.pct != null) m.set(h.industry, (m.get(h.industry) || 0) + h.pct);
+  return [...m].map(([industry, pct]) => ({ industry, pct: r6(pct) })).sort((a, b) => b.pct - a.pct);
 }
 
 /** SVG path of a donut segment between two fractions (0..1 of the circle, from 12 o'clock, clockwise). */

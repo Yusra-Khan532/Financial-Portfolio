@@ -54,7 +54,7 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
 
     disclosed = [f for f in funds if f.get("holdings")]
     stocks: Dict[str, Dict[str, Any]] = {}
-    sectors: Dict[str, Dict[str, Any]] = {}
+    industries: Dict[str, Dict[str, Any]] = {}
     size = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Other": 0.0}
     known = 0.0
     for f in disclosed:
@@ -64,12 +64,12 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
             w = (h["pct"] / 100) * f["w"]
             known += w
             k = h.get("isin") or h.get("name")
-            s = stocks.setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "sector": h.get("sector"), "w": 0.0, "funds": []})
+            s = stocks.setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "industry": h.get("industry"), "w": 0.0, "funds": []})
             s["w"] += w
             if f["code"] not in s["funds"]:
                 s["funds"].append(f["code"])
-            sk = (h.get("sector") or "Other").lower()                   # fund houses spell some sectors differently ("It - Software")
-            sec = sectors.setdefault(sk, {"name": h.get("sector") or "Other", "w": 0.0})
+            ind = h.get("industry") or "Not classified"                # NSE's industry, already in one spelling (taxonomy.holding_level)
+            sec = industries.setdefault(ind, {"name": ind, "w": 0.0})
             sec["w"] += w
             size[size_of(h.get("isin"), h.get("stockSymbol")) or "Other"] += w
     stock_list = sorted(stocks.values(), key=lambda s: -s["w"])
@@ -160,7 +160,7 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
         "coverage": {"funds": len(funds), "disclosed": len(disclosed), "missing": [f["code"] for f in funds if not f.get("holdings")]},
         "overall": overall, "readings": readings, "mix": mix, "knownShares": known,
         "size": {k: (v / known if known else 0.0) for k, v in size.items()},
-        "sectors": [{"name": s["name"], "share": s["w"] / known if known else 0.0} for s in sorted(sectors.values(), key=lambda s: -s["w"])],
+        "industries": [{"name": s["name"], "share": s["w"] / known if known else 0.0} for s in sorted(industries.values(), key=lambda s: -s["w"])],
         "topStocks": stock_list[:10], "overlap": overlap,
         "together": {"codes": [f["code"] for f in moving], "C": C, "weeks": max(len(weeks) - 1, 0), "from": weeks[0] if weeks else None, "to": weeks[-1] if weeks else None},
     }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { arcPath, assetRows, classifyChanges, groupHoldings, sectorRows, sliceFractions, sliceList, sortHoldings, sumPct, topNPct } from "./logic";
+import { arcPath, assetRows, classifyChanges, groupHoldings, industryRows, sliceFractions, sliceList, sortHoldings, sumPct, topNPct } from "./logic";
 import type { Holding } from "./types";
 
-const h = (name: string, pct: number | null, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, sector: null, assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
+const h = (name: string, pct: number | null, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, industry: null, assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
 
 describe("groupHoldings", () => {
   const rows = [h("A", 9.5), h("B", 1), h("C", 0.99), h("D", 0.5), h("E", null), h("F", 4)];
@@ -63,9 +63,9 @@ describe("sorting and splits", () => {
     expect(sortHoldings(rows, "name", "desc").map((x) => x.name)).toEqual(["c", "b", "a"]);
   });
   it("assetRows keeps a missing class missing", () => expect(assetRows({ equity: 97.1, debt: null, cash: 2.9, other: null }).map((r) => r.pct)).toEqual([97.1, null, 2.9, null]));
-  it("sectorRows prefers the published summary, else sums holdings", () => {
-    const hs = [h("a", 2, { sector: "Banks" }), h("b", 3, { sector: "Banks" }), h("c", 1, { sector: "IT" })];
-    expect(sectorRows({ holdings: hs, summary: { count: 3, top10Pct: null, assetSplit: { equity: null, debt: null, cash: null, other: null }, sectors: [] } })).toEqual([{ sector: "Banks", pct: 5 }, { sector: "IT", pct: 1 }]);
-    expect(sectorRows({ holdings: hs, summary: { count: 3, top10Pct: null, assetSplit: { equity: null, debt: null, cash: null, other: null }, sectors: [{ sector: "X", pct: 1 }, { sector: "Y", pct: 9 }] } })[0].sector).toBe("Y");
+  it("industryRows prefers the server's summary, else sums holdings", () => {
+    const hs = [h("a", 2, { industry: "Banks" }), h("b", 3, { industry: "Banks" }), h("c", 1, { industry: "IT - Software" })];
+    expect(industryRows({ holdings: hs, summary: { count: 3, top10Pct: null, assetSplit: { equity: null, debt: null, cash: null, other: null }, industries: [] } })).toEqual([{ industry: "Banks", pct: 5 }, { industry: "IT - Software", pct: 1 }]);
+    expect(industryRows({ holdings: hs, summary: { count: 3, top10Pct: null, assetSplit: { equity: null, debt: null, cash: null, other: null }, industries: [{ industry: "Finance", pct: 1 }, { industry: "Power", pct: 9 }] } })[0].industry).toBe("Power");
   });
 });

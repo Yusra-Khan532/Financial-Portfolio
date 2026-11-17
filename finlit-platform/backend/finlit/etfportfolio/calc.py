@@ -132,14 +132,14 @@ def overlap(etfs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def top_stocks(etfs: Sequence[Dict[str, Any]], n: int = 8) -> List[Dict[str, Any]]:
-    """The n biggest stocks across the ETFs: [{name, isin, symbol, sector, w (0..1 of the list), etfs, abroad}]."""
+    """The n biggest stocks across the ETFs: [{name, isin, symbol, industry (NSE's, or "Listed abroad"), w (0..1 of the list), etfs, abroad}]."""
     stocks: Dict[str, Dict[str, Any]] = {}
     for e in etfs:
         for h in e.get("holdings") or []:
             if h.get("assetClass") != "equity" or not h.get("pct"):
                 continue
             k = h.get("isin") or (h.get("name") or "").lower()
-            s = stocks.setdefault(k, {"name": h.get("name"), "isin": h.get("isin"), "symbol": h.get("stockSymbol"), "sector": h.get("sector"), "w": 0.0, "etfs": [],
+            s = stocks.setdefault(k, {"name": h.get("name"), "isin": h.get("isin"), "symbol": h.get("stockSymbol"), "industry": h.get("industry"), "w": 0.0, "etfs": [],
                                       "abroad": abroad(h.get("isin"), e.get("assetClass"))})
             s["w"] += e["w"] * float(h["pct"]) / 100
             s["symbol"] = s["symbol"] or h.get("stockSymbol")

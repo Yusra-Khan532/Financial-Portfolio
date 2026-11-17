@@ -169,3 +169,51 @@ async def test_many_companies_at_once_for_a_watchlist_or_portfolio(ingested):  #
             got = r.json()["companies"]
             assert list(got) == ["RELIANCE"] and got["RELIANCE"]["industry"] == "Petroleum Products"   # unknown and malformed symbols left out, duplicates once
             assert (await api.get("/api/taxonomy/companies")).json() == {"companies": {}}
+
+
+# ---------------------------------------------------------------- round 3: fund and ETF holdings (T7, F5, T10)
+
+def test_fund_house_names_become_nse_industries_in_nse_spelling():
+    for amfi, industry, macro in (("It - Software", "IT - Software", "Information Technology"), ("Diversified Fmcg", "Diversified FMCG", "Fast Moving Consumer Goods"),
+                                  ("Agricultural Food & Other Products", "Agricultural Food & other Products", "Fast Moving Consumer Goods"),
+                                  ("Non - Ferrous Metals", "Non - Ferrous Metals", "Commodities"), ("Diversified", "Diversified", "Diversified")):
+        lv = taxonomy.holding_level(amfi, "INE000000000")
+        assert (lv["industry"], lv["macroSector"], lv["note"]) == (industry, macro, None) and lv["sector"], amfi
+
+
+def test_a_basic_industry_line_is_mapped_up_to_its_industry():
+    lv = taxonomy.holding_level("Refineries & Marketing", "INE002A01018")
+    assert lv["industry"] == "Petroleum Products" and lv["macroSector"] == "Energy"
+
+
+def test_a_share_listed_abroad_is_labelled_so_whatever_its_name():
+    for name in ("Semiconductors", "Pharmaceuticals", "Banks"):     # "Pharmaceuticals" and "Banks" are NSE names, but the ISIN is American
+        lv = taxonomy.holding_level(name, "US11135F1012")
+        assert lv["industry"] == lv["macroSector"] == "Listed abroad" and "outside India" in lv["note"]
+
+
+def test_the_company_own_place_wins_so_fund_and_company_pages_agree():
+    cls = {"industry": "Industrial Products", "macro_sector": "Industrials"}
+    assert taxonomy.holding_level("Industrial Capital Goods", "INE111A01025", cls)["industry"] == "Industrial Products"
+    lv = taxonomy.holding_level("Industrial Capital Goods", "INE111A01025")         # an old AMFI name, company not placed: not classified, with the name
+    assert lv["industry"] == "Not classified" and "Industrial Capital Goods" in lv["note"]
+    assert taxonomy.holding_level("null", "INE111A01025")["note"] == "Not classified: the fund house gives no industry for this line."
+
+
+def test_a_portfolio_names_each_line_and_sums_industries_and_macro_sectors():
+    from datetime import date
+    from finlit.portfolios import build_portfolio_json, pack_holdings
+    from finlit.disclosure_parsers.model import Holding
+    hs = [Holding(name="Infosys", isin="INE009A01021", sector="It - Software", asset_class="equity", pct_nav=40.0, qty=None, value_lakh=None),
+          Holding(name="TCS", isin="INE467B01029", sector="IT - Software", asset_class="equity", pct_nav=30.0, qty=None, value_lakh=None),
+          Holding(name="Broadcom Inc", isin="US11135F1012", sector="Semiconductors", asset_class="equity", pct_nav=20.0, qty=None, value_lakh=None),
+          Holding(name="Gilt 2033", isin="IN0020230085", sector=None, asset_class="debt", pct_nav=10.0, qty=None, value_lakh=None)]
+    cur = {"holdings": pack_holdings(hs), "as_of": date(2026, 10, 31), "source": "x", "source_url": None, "notes": "[]", "net_assets_lakh": None}
+    out = build_portfolio_json(cur, None, {})
+    lines = {h["name"]: h for h in out["holdings"]}
+    assert lines["Infosys"]["industry"] == "IT - Software" and lines["Infosys"]["amfiIndustry"] == "It - Software"
+    assert lines["Broadcom Inc"]["industry"] == "Listed abroad" and lines["Gilt 2033"]["industry"] is None
+    assert out["summary"]["industries"] == [{"industry": "IT - Software", "pct": 70.0}, {"industry": "Listed abroad", "pct": 20.0}]
+    assert out["summary"]["macroSectors"][0] == {"macroSector": "Information Technology", "pct": 70.0}
+    assert out["summary"]["sectors"][0] == {"sector": "Information Technology", "pct": 70.0}            # NSE's 22-level sector, not the fund house's name
+    assert lines["Infosys"]["sector"] == "Information Technology" and lines["Broadcom Inc"]["sector"] == "Listed abroad" and lines["Gilt 2033"]["sector"] is None

@@ -15,7 +15,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from .. import mf
+from .. import mf, taxonomy
 from ..mfscore import exitload
 from . import calc
 
@@ -66,8 +66,8 @@ def tags_for(name: str, tab: str, tags: Sequence[dict], sectors: Optional[Dict[s
     return sorted(set(out))
 
 
-def portfolio_figures(holdings: Sequence[Sequence[Any]]) -> dict:
-    """Asset split, holdings count, top-10 and largest holding, sector map of one portfolio (holdings are [name, isin, sector, class, pct, qty, value])."""
+def portfolio_figures(holdings: Sequence[Sequence[Any]], classes: Optional[Dict[str, dict]] = None) -> dict:
+    """Asset split, holdings count, top-10 and largest holding, industry map (NSE's industries; kept in the `sectors` columns) of one portfolio (holdings are [name, isin, sector, class, pct, qty, value])."""
     split = {"e": 0.0, "d": 0.0, "c": 0.0, "o": 0.0}
     sectors: Dict[str, float] = {}
     pcts: List[float] = []
@@ -77,8 +77,8 @@ def portfolio_figures(holdings: Sequence[Sequence[Any]]) -> dict:
         if cls != "c":
             pcts.append(pct)
         if cls == "e":
-            sec = (h[2] or "").strip()
-            if sec and sec.lower() != "not classified":
+            sec = taxonomy.holding_level(h[2], h[1], (classes or {}).get(h[1] or ""))["industry"]   # NSE's industry in one spelling, or "Listed abroad" (task #192 round 3)
+            if sec != taxonomy.NOT_CLASSIFIED:
                 sectors[sec] = sectors.get(sec, 0.0) + pct
     top = max(sectors.items(), key=lambda kv: kv[1]) if sectors else (None, None)
     srt = sorted(pcts, reverse=True)
@@ -137,7 +137,7 @@ def category_view(flows: Dict[date, dict], totals: Dict[date, float]) -> Optiona
 
 def build_rows(schemes: Sequence[dict], monthly: Dict[int, Tuple[Sequence[date], Sequence[float]]], facts: Dict[int, dict], ters: Dict[int, Tuple[Optional[float], Optional[float]]],
                exits: Dict[str, Optional[str]], ports: Dict[str, List[dict]], flows: Dict[str, Dict[date, dict]], totals: Dict[date, float], etf_isins: set,
-               tags: Sequence[dict], run: date) -> Tuple[List[tuple], List[tuple], dict]:
+               tags: Sequence[dict], run: date, classes: Optional[Dict[str, dict]] = None) -> Tuple[List[tuple], List[tuple], dict]:
     """Everything the job writes, as plain data. schemes: dicts with the mf_schemes columns this needs. Returns (mf_screen rows, mf_screen_hold rows, stats)."""
     for s in schemes:
         s["tab"], s["ckey"], _ = mf.classify(s["category"])
@@ -232,7 +232,7 @@ def build_rows(schemes: Sequence[dict], monthly: Dict[int, Tuple[Sequence[date],
     hold_rows: List[tuple] = []
     for fk, rows in ports.items():
         latest = rows[0]
-        p = portfolio_figures(latest["holdings"])
+        p = portfolio_figures(latest["holdings"], classes)
         p["asof"] = latest["as_of"]
         na = [r for r in rows if r["net_assets_lakh"] and r["net_assets_lakh"] > 0]
         p["na_chg"] = (na[0]["net_assets_lakh"] / na[-1]["net_assets_lakh"] - 1) * 100 if len(na) >= 2 else None
@@ -326,7 +326,8 @@ async def _load(conn) -> dict:
     etf = {r["isin"] for r in await conn.fetch("SELECT isin FROM etf_funds WHERE isin IS NOT NULL")}
     tags = [{"tag": r["tag"], "keywords": list(r["keywords"]), "sectors": list(r["sectors"]), "sector_min": r["sector_min"], "tabs": list(r["tabs"])}
             for r in await conn.fetch("SELECT tag, keywords, sectors, sector_min, tabs FROM mf_tags WHERE active")]
-    return {"schemes": schemes, "monthly": monthly, "facts": facts, "ters": ters, "exits": exits, "ports": dict(ports), "industry": industry, "totals": totals, "etf": etf, "tags": tags}
+    classes = {r["isin"]: dict(r) for r in await conn.fetch("SELECT isin, industry, sector, macro_sector FROM company_classification WHERE isin IS NOT NULL")}
+    return {"classes": classes, "schemes": schemes, "monthly": monthly, "facts": facts, "ters": ters, "exits": exits, "ports": dict(ports), "industry": industry, "totals": totals, "etf": etf, "tags": tags}
 
 
 def _upsert_sql() -> str:
@@ -348,7 +349,7 @@ async def run(store, settings=None) -> dict:
     run_day = datetime.now(timezone.utc).date()
     flows = industry_flows(data["industry"], data["totals"])
     rows, holds, stats = build_rows(data["schemes"], data["monthly"], data["facts"], data["ters"], data["exits"], data["ports"],
-                                    flows, data["totals"], data["etf"], data["tags"], run_day)
+                                    flows, data["totals"], data["etf"], data["tags"], run_day, data["classes"])
     # json text for the jsonb column: asyncpg takes the text with the ::jsonb cast done by the column type via a codec-free path
     sql = _upsert_sql().replace(f"${COLS.index('x_sectors') + 1}", f"${COLS.index('x_sectors') + 1}::jsonb")
     async with store.pool.acquire() as conn:

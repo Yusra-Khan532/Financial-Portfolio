@@ -194,13 +194,13 @@ export function MfPortfolioPage() {
   const limit = d?.limit ?? limitsFor(plan).mf_holdings;
   const unlock = () => upgrade("gold", "The FinLit FundPulse is part of Gold.");
 
-  // the largest stocks underneath: industry and FinLit size from the stock list, how each did against its peers from its weekly reading
+  // the largest stocks underneath: NSE's industry from the fund files (task #192), FinLit size from the stock list, how each did against its peers from its weekly reading
   const uni = useUniverse(), byU = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol, r])), [uni.data]);
   const top = useMemo(() => sp.data?.topStocks ?? [], [sp.data]);
   const leads = useQueries({ queries: top.map((t) => ({ queryKey: ["leadership", t.symbol], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(t.symbol || "")}/leadership`), staleTime: 15 * 60_000, retry: false, enabled: !!t.symbol })) });
   const under: Under[] = useMemo(() => top.map((t, i) => {
     const u = t.symbol ? byU.get(t.symbol) : undefined, ld = leads[i]?.data;
-    return { name: t.name, symbol: t.symbol, industry: u?.sector ?? t.sector, size: capBucket(u?.market_cap ?? null)?.label.replace(" cap", "") ?? null, w: t.w, funds: t.funds,
+    return { name: t.name, symbol: t.symbol, industry: t.industry, size: capBucket(u?.market_cap ?? null)?.label.replace(" cap", "") ?? null, w: t.w, funds: t.funds,
       peer: ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.peerGroup.ranked, group: ld.peerGroup.short || ld.peerGroup.name } : null,
       notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [top, byU, leads]);   // eslint-disable-line react-hooks/exhaustive-deps

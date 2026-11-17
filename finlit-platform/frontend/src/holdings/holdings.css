@@ -71,3 +71,4 @@
 .hd-count { min-height: 36px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s2); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
 .hd-count b { margin-left: 4px; } .hd-count[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--s2)); } .hd-count:disabled { opacity: .5; cursor: default; }
 @media (max-width: 640px) { .hd-count, .hd-more { min-height: 44px; } }
+.hd-why { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
