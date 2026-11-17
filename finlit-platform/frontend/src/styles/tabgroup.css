@@ -1,5 +1,5 @@
-/* The report's one tab group (components/TabGroup.tsx; company report handover 17 Nov 2026, README 1.2). One blue (--c1) for every tab bar, no navy, no gold. */
-:root { --c1: #2a78d6; }
+/* The report's one tab group (components/TabGroup.tsx; company report handover 17 Nov 2026, README 1.2). One blue for every tab bar, no navy, no gold: the site's own
+   --c1 (finlit.css: #2a78d6 in light, a lighter blue in dark). It is not redefined here, because the charts use the same token. */
 .ctabs { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 6px 0 16px; padding: 10px 12px 10px 14px; max-width: 100%;
   background: var(--s1); border: 1.5px solid color-mix(in srgb, var(--c1) 40%, var(--border)); border-left: 5px solid var(--c1); border-radius: 14px;
   box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--c1) 70%, transparent); color: var(--text); }

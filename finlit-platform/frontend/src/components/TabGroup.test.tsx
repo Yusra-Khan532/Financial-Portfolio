@@ -64,7 +64,8 @@ describe("TabGroup", () => {
   });
   it("uses one blue for the chosen tab, no navy and no gold", () => {
     const css = readFileSync(join(__dirname, "../styles/tabgroup.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(css).toMatch(/:root \{ --c1: #2a78d6; \}/);
+    expect(css).not.toMatch(/--c1\s*:/);   // the site's own token (#2a78d6 in light), never redefined: the charts use it too
+    expect(readFileSync(join(__dirname, "../styles/finlit.css"), "utf8")).toMatch(/--k1: #2a78d6;[\s\S]*--c1: var\(--k1\)/);
     expect(css).toMatch(/\.ct-list button\[aria-selected="true"\] \{ background: var\(--c1\); border-color: var\(--c1\); color: #fff;/);
     expect(css).not.toMatch(/--gold|navy/);
   });
