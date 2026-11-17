@@ -13,6 +13,7 @@ import hmac
 import json
 import time
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Annotated, Any, Dict, List, Literal, Optional
@@ -124,6 +125,12 @@ class TokenOnly(BaseModel):
 
 
 class ResetIn(TokenOnly):
+    password: str = Field(min_length=1, max_length=200)
+
+
+class ResetCodeIn(BaseModel):
+    email: str = Field(max_length=254)
+    code: str = Field(min_length=1, max_length=12)
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -283,6 +290,64 @@ def email_hash(email: str) -> str:
     return crypto.token_hash("email:" + email)[:32]
 
 
+# ------------------------------------------------------------------ wrong passwords and the emailed reset code (owner, 17 November 2026)
+# Five wrong passwords for one account from one address pause sign-in there for 15 minutes, and the message points to "Forgot password".
+# Counted per account AND address: one address alone would let one person lock out an office or a mobile network, and nobody elsewhere can lock
+# the owner out. Counted the same way when the account does not exist, so the answer never reveals whether it does.
+WRONG_PW_MAX = 5
+WRONG_PW_SECONDS = 15 * 60
+# "Forgot password" also emails a 6-digit code (15 minutes; 5 wrong tries cancel it). Only a keyed hash of it is kept, in Redis, never the code.
+CODE_SECONDS = 15 * 60
+CODE_TRIES = 5
+
+
+def _wrong_key(email: str, ip: str) -> str:
+    from ..security import _bucket_ip
+    return f"auth:wrongpw:{email_hash(email)}|{_bucket_ip(ip)}"
+
+
+async def _wrong_state(redis, key: str) -> tuple[int, int]:
+    """(wrong passwords so far, seconds until the count clears). (0, 0) when Redis cannot answer: the other limits still apply."""
+    try:
+        count = int(await redis.get(key) or 0)
+        ttl = await redis.ttl(key) if count else 0
+        return count, max(int(ttl or 0), 0)
+    except Exception:
+        return 0, 0
+
+
+async def _wrong_add(redis, key: str) -> int:
+    try:
+        async with redis.pipeline(transaction=False) as pipe:
+            pipe.set(key, 0, ex=WRONG_PW_SECONDS, nx=True)     # the 15 minutes start at the first wrong password (INCR keeps the expiry)
+            pipe.incr(key)
+            _, count = await pipe.execute()
+        return int(count)
+    except Exception:
+        return 0
+
+
+async def clear_wrong_passwords(redis, email: str) -> None:
+    """After a password reset the owner signs in at once: every address's count for this account is cleared."""
+    try:
+        async for key in redis.scan_iter(match=f"auth:wrongpw:{email_hash(email)}|*", count=200):
+            await redis.delete(key)
+    except Exception:
+        pass
+
+
+def _too_many_wrong(retry: int) -> HTTPException:
+    minutes = max(1, -(-retry // 60))
+    return HTTPException(status_code=429, detail={
+        "status": "too_many_wrong", "retryAfter": retry,
+        "detail": f"Too many wrong passwords. Wait {minutes} minute{'s' if minutes != 1 else ''}, or reset your password with Forgot password."},
+        headers={"Retry-After": str(retry)})
+
+
+def _code_hash(secret: str, user_id: str, code: str) -> str:
+    return hmac.new(secret.encode(), f"reset-code:{user_id}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
 async def issue_token(pool, user_id: str, kind: str, ttl: timedelta) -> str:
     raw, th = crypto.new_token()
     async with pool.acquire() as conn:
@@ -406,6 +471,20 @@ async def login(request: Request, response: Response, body: SignIn):
     # attacker's attempts from elsewhere cannot lock the owner out: there is no account-wide lock, only these budgets.
     await limit(request, "loginpair", email_hash(email) + "|" + ip, 10, 900)
     await limit(request, "loginmail", email_hash(email), 200, 3600)
+    redis = request.app.state.store.redis
+    wrong_key = _wrong_key(email, ip)
+    wrong, retry = await _wrong_state(redis, wrong_key)
+    if wrong >= WRONG_PW_MAX:
+        raise _too_many_wrong(retry or WRONG_PW_SECONDS)
+
+    async def wrong_password() -> HTTPException:
+        count = await _wrong_add(redis, wrong_key)
+        if count >= WRONG_PW_MAX:
+            return _too_many_wrong(WRONG_PW_SECONDS)
+        left = WRONG_PW_MAX - count if count else None
+        detail = "Email or password is not correct." + (f" {left} tr{'ies' if left != 1 else 'y'} left before sign-in pauses for 15 minutes." if left is not None else "")
+        return HTTPException(status_code=401, detail={"status": "invalid_credentials", "detail": detail, **({"triesLeft": left} if left is not None else {})})
+
     try:
         async with pool.acquire() as conn:
             u = await conn.fetchrow("SELECT * FROM users WHERE lower(email) = $1", email)
@@ -413,7 +492,7 @@ async def login(request: Request, response: Response, body: SignIn):
         raise fail(503, "db_unavailable", wake.DB_DOWN_MESSAGE)
     if u is None:
         await crypto.verify_password(crypto.dummy_hash(), body.password)
-        raise invalid
+        raise await wrong_password()
     ok = await crypto.verify_password(u["password_hash"], body.password)
 
     async def count_failure() -> None:   # kept for the audit trail and the admin console; the budgets above do the slowing down
@@ -424,6 +503,7 @@ async def login(request: Request, response: Response, body: SignIn):
     if not ok or u["status"] != "active":
         if ok is False:
             await count_failure()
+            raise await wrong_password()
         raise invalid
     if u["email_verified_at"] is None:
         raise fail(403, "email_not_verified", "Confirm your email first. We sent you a link when you signed up.")
@@ -443,6 +523,10 @@ async def login(request: Request, response: Response, body: SignIn):
         mfa_ok = True   # the owner chose to run without the authenticator for now (ADMIN_REQUIRE_MFA=0)
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET failed_logins = 0, locked_until = NULL, last_login_at = now() WHERE id = $1", u["id"])
+    try:
+        await redis.delete(wrong_key)
+    except Exception:
+        pass
     if crypto.needs_rehash(u["password_hash"]):
         async with pool.acquire() as conn:
             await conn.execute("UPDATE users SET password_hash = $2 WHERE id = $1", u["id"], await crypto.hash_password(body.password))
@@ -485,10 +569,17 @@ async def forgot(request: Request, body: EmailOnly):
             u = await conn.fetchrow("SELECT id FROM users WHERE lower(email) = $1 AND status = 'active'", email)
         if u:
             raw = await issue_token(pool, str(u["id"]), "reset", timedelta(hours=1))
-            subject, text = mail.reset_mail(f"{st.public_site_url}/reset-password?token={raw}")
+            code = f"{secrets.randbelow(10 ** 6):06d}"
+            redis = request.app.state.store.redis
+            try:
+                await redis.set(f"auth:resetcode:{u['id']}", _code_hash(st.secret_key, str(u["id"]), code), ex=CODE_SECONDS)
+                await redis.delete(f"auth:resetcode:tries:{u['id']}")
+            except Exception:
+                code = ""        # Redis cannot keep it: the email carries the link only
+            subject, text = mail.reset_mail(f"{st.public_site_url}/reset-password?token={raw}", code)
             await request.app.state.mailer.send(email, subject, text)
             await audit(pool, str(u["id"]), "password_reset_requested", None, ip_of(request))
-    return Response(content=json.dumps({"status": "check_email", "detail": "If an account exists for that address, we have sent a reset link."}),
+    return Response(content=json.dumps({"status": "check_email", "detail": "If an account exists for that address, we have sent a 6-digit code and a reset link."}),
                     status_code=202, media_type="application/json", headers=NO_STORE)
 
 
@@ -513,7 +604,64 @@ async def reset(request: Request, body: ResetIn):
         await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now(), failed_logins = 0, locked_until = NULL, "
                            "email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", uid, pw)
     await revoke_all(request.app, uid)
+    try:
+        await request.app.state.store.redis.delete(f"auth:resetcode:{uid}")
+    except Exception:
+        pass
+    await clear_wrong_passwords(request.app.state.store.redis, peek["email"])
     await audit(pool, uid, "password_reset", None, ip_of(request))
+    return Response(content=json.dumps({"status": "password_changed"}), media_type="application/json", headers=NO_STORE)
+
+
+@router.post("/auth/reset-code")
+async def reset_with_code(request: Request, body: ResetCodeIn):
+    """The second page of "Forgot password": the 6-digit code from the email and the new password. Five wrong codes cancel the code. The answer is
+    the same whether or not the account exists."""
+    pre_session_guard(request)
+    st: Settings = request.app.state.settings
+    pool, redis = request.app.state.store.pool, request.app.state.store.redis
+    ip = ip_of(request)
+    await limit(request, "resetcode", ip, 15, 3600)
+    email = crypto.normalise_email(body.email)
+    wrong = fail(400, "invalid_code", "That code is not correct or has expired. Check the latest email, or request a new code.")
+    if not email:
+        raise wrong
+    await limit(request, "resetcodemail", email_hash(email), 10, 3600)
+    code = re.sub(r"\s+", "", body.code)
+    async with pool.acquire() as conn:
+        u = await conn.fetchrow("SELECT id, email FROM users WHERE lower(email) = $1 AND status = 'active'", email)
+    if u is None or not re.fullmatch(r"\d{6}", code):
+        raise wrong
+    uid = str(u["id"])
+    key, tries_key = f"auth:resetcode:{uid}", f"auth:resetcode:tries:{uid}"
+    stored = await redis.get(key)
+    stored = stored.decode() if isinstance(stored, bytes) else stored
+    if not stored:
+        raise wrong
+    if not hmac.compare_digest(stored, _code_hash(st.secret_key, uid, code)):
+        async with redis.pipeline(transaction=False) as pipe:
+            pipe.set(tries_key, 0, ex=CODE_SECONDS, nx=True)
+            pipe.incr(tries_key)
+            _, tries = await pipe.execute()
+        if int(tries) >= CODE_TRIES:
+            await redis.delete(key, tries_key)
+            await audit(pool, uid, "password_reset_code_cancelled", None, ip)
+            raise fail(400, "code_cancelled", "Too many wrong codes, so this code no longer works. Request a new code.")
+        raise wrong
+    problem = crypto.password_problem(body.password, u["email"])
+    if problem:
+        raise fail(422, "weak_password", problem)          # the code stays valid: the member only picks a stronger password
+    if not await redis.delete(key):                        # used once: a second request with the same code finds nothing
+        raise wrong
+    await redis.delete(tries_key)
+    pw = await crypto.hash_password(body.password)
+    async with pool.acquire() as conn:
+        await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now(), failed_logins = 0, locked_until = NULL, "
+                           "email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", uid, pw)
+        await conn.execute("UPDATE email_tokens SET used_at = now() WHERE user_id = $1 AND kind = 'reset' AND used_at IS NULL", uid)   # the link in the same email stops working
+    await revoke_all(request.app, uid)
+    await clear_wrong_passwords(redis, u["email"])
+    await audit(pool, uid, "password_reset", None, ip, how="code")
     return Response(content=json.dumps({"status": "password_changed"}), media_type="application/json", headers=NO_STORE)
 
 

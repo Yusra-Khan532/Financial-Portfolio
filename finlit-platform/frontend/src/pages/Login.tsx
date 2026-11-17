@@ -23,11 +23,13 @@ export function Login() {
   const [needCode, setNeedCode] = useState(false);
   const [unverified, setUnverified] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [offerReset, setOfferReset] = useState(false);   // after a pause for wrong passwords, or with 1-2 tries left: point to Forgot password
   const [sent, setSent] = useState<string | null>(null);
   const [created, setCreated] = useState(false);  // account was confirmed at sign-up (test deployments without email)
 
   const explain = (e: unknown): string => {
     if (e instanceof ApiError) {
+      if (e.body.status === "too_many_wrong" && e.body.detail) return e.body.detail;
       if (e.status === 429) return e.body.retryAfter ? `Too many attempts. Please wait ${Math.ceil(e.body.retryAfter / 60)} min and try again.` : "Too many attempts. Please wait and try again.";
       return e.body.detail || "Something went wrong. Please try again.";
     }
@@ -38,6 +40,8 @@ export function Login() {
     onSuccess: async (r) => { await refresh(); nav(r.mfaSetupRequired ? "/account/security?setup=1" : r.user.role === "admin" && !params.get("next") ? "/console" : next, { replace: true }); },
     onError: (e) => {
       setUnverified(false);
+      const left = e instanceof ApiError ? (e.body as { triesLeft?: number }).triesLeft : undefined;
+      setOfferReset(e instanceof ApiError && (e.body.status === "too_many_wrong" || (typeof left === "number" && left <= 2)));
       if (e instanceof ApiError && e.body.status === "mfa_required") { setNeedCode(true); setErr(null); return; }
       if (e instanceof ApiError && e.body.status === "email_not_verified") setUnverified(true);
       setErr(explain(e));
@@ -50,7 +54,7 @@ export function Login() {
   });
   const resend = useMutation({ mutationFn: () => resendVerification(email.trim()), onSuccess: () => { setErr(null); setUnverified(false); setSent(email.trim()); } });
   const submit = (e: React.FormEvent) => {
-    e.preventDefault(); setErr(null);
+    e.preventDefault(); setErr(null); setOfferReset(false);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return setErr("Enter a valid email address.");
     if (mode === "signup") { if (!terms) return setErr("Please accept the Terms and Privacy Notice to continue."); register.mutate(); } else login.mutate();
   };
@@ -99,7 +103,7 @@ export function Login() {
               </>}
               {needCode && <label>Authenticator code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus required /></label>}
               {mode === "signup" && <label className="chk"><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} /><span>I agree to the <Link to="/legal/terms" target="_blank">Terms</Link> and <Link to="/legal/privacy" target="_blank">Privacy Notice</Link>. FinLit research is information, not investment advice.</span></label>}
-              {err && <div className="formerr" role="alert">{err}{unverified && <> <button type="button" className="linkbtn" onClick={() => resend.mutate()} disabled={resend.isPending}>Send the link again</button></>}</div>}
+              {err && <div className="formerr" role="alert">{err}{unverified && <> <button type="button" className="linkbtn" onClick={() => resend.mutate()} disabled={resend.isPending}>Send the link again</button></>}{offerReset && mode === "signin" && <> <Link to={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}>Reset your password</Link></>}</div>}
               <div className="auth-submit"><button className="btn primary lg" style={{ width: "100%" }} disabled={busy}>{busy ? "One moment…" : mode === "signup" ? "Create account" : needCode ? "Verify and sign in" : "Sign in"}</button></div>
               {mode === "signin" && !needCode && <p style={{ margin: "14px 0 0", fontSize: 14 }}><Link to="/forgot-password">Forgot your password?</Link></p>}
             </form>

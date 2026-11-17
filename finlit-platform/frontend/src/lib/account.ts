@@ -10,6 +10,8 @@ export const resendVerification = (email: string) => apiSend("POST", "/api/auth/
 export const signIn = (b: { email: string; password: string; code?: string }) => apiSend<SignInResult>("POST", "/api/auth/login", b);
 export const forgotPassword = (email: string) => apiSend("POST", "/api/auth/forgot", { email });
 export const resetPassword = (token: string, password: string) => apiSend("POST", "/api/auth/reset", { token, password });
+/** The second page of "Forgot password" (owner, 17 Nov 2026): the 6-digit code from the email and the new password. */
+export const resetPasswordWithCode = (email: string, code: string, password: string) => apiSend("POST", "/api/auth/reset-code", { email, code, password });
 
 export const updateProfile = (name: string) => apiSend("PATCH", "/api/me", { name });
 export const changePassword = (current: string, next: string) => apiSend("POST", "/api/me/password", { current, new: next });

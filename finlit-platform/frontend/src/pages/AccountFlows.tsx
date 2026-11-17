@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { ApiError } from "../lib/api";
-import { forgotPassword, resetPassword, verifyEmail } from "../lib/account";
+import { forgotPassword, resetPassword, resetPasswordWithCode, verifyEmail } from "../lib/account";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { PasswordField } from "./PasswordField";
@@ -42,16 +42,57 @@ export function VerifyEmail() {
 
 export function ForgotPassword() {
   useDocTitle("Reset your password", "Reset your FinLit password by email.");
-  const [email, setEmail] = useState("");
-  const m = useMutation({ mutationFn: () => forgotPassword(email.trim()) });
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") || "");
+  const nav = useNavigate();
+  // owner, 17 Nov 2026: the email carries a 6-digit code; the next page takes it with the new password (the link in the same email still works too)
+  const m = useMutation({ mutationFn: () => forgotPassword(email.trim()), onSuccess: () => nav(`/reset-password?email=${encodeURIComponent(email.trim())}&sent=1`) });
   return (
     <Shell title="Reset your password">
-      {m.isSuccess ? <><p className="muted">If an account exists for {email}, we have sent a reset link. It works once and expires in 1 hour.</p><Link className="btn" to="/login">Back to sign in</Link></> : (
-        <form className="form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) m.mutate(); }}>
-          <p className="muted" style={{ margin: "0 0 14px" }}>Enter your email and we will send you a link to choose a new password.</p>
+      <form className="form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) m.mutate(); }}>
+        <p className="muted" style={{ margin: "0 0 14px" }}>Enter your email and we will send you a 6-digit code to choose a new password.</p>
+        <label>Email address<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+        {m.isError && <div className="formerr" role="alert">{msg(m.error)}</div>}
+        <button className="btn primary lg" style={{ width: "100%" }} disabled={m.isPending}>{m.isPending ? "Sending…" : "Send the code"}</button>
+      </form>
+    </Shell>
+  );
+}
+
+/** The second page: the code from the email and the new password (twice). */
+function ResetWithCode() {
+  useDocTitle("Enter your code", "Enter the code from your email and choose a new FinLit password.");
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") || "");
+  const [code, setCode] = useState(""), [pw, setPw] = useState(""), [again, setAgain] = useState("");
+  const [local, setLocal] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
+  const nav = useNavigate();
+  const m = useMutation({ mutationFn: () => resetPasswordWithCode(email.trim(), code.replace(/\s+/g, ""), pw), onSuccess: () => setTimeout(() => nav("/login", { replace: true }), 1800) });
+  const again_ = useMutation({ mutationFn: () => forgotPassword(email.trim()), onSuccess: () => { setResent(true); setCode(""); m.reset(); } });
+  const cancelled = m.error instanceof ApiError && m.error.body.status === "code_cancelled";
+  return (
+    <Shell title={m.isSuccess ? "Password changed" : "Enter your code"}>
+      {m.isSuccess ? <p className="muted">All devices were signed out. Taking you to sign in…</p> : (
+        <form className="form" onSubmit={(e) => {
+          e.preventDefault();
+          if (!/^\d{6}$/.test(code.replace(/\s+/g, ""))) return setLocal("Enter the 6-digit code from the email.");
+          if (pw !== again) return setLocal("The two passwords do not match.");
+          setLocal(null); m.mutate();
+        }}>
+          <p className="muted" style={{ margin: "0 0 14px" }} role="status">
+            {resent ? "A new code is on its way. " : params.get("sent") ? "If an account exists for this email, we have sent a 6-digit code. " : ""}
+            It expires in 15 minutes. Check your spam folder if it does not arrive.
+          </p>
           <label>Email address<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          {m.isError && <div className="formerr" role="alert">{msg(m.error)}</div>}
-          <button className="btn primary lg" style={{ width: "100%" }} disabled={m.isPending}>{m.isPending ? "Sending…" : "Send reset link"}</button>
+          <label>6-digit code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} value={code} onChange={(e) => setCode(e.target.value)} required /></label>
+          <PasswordField label="New password" value={pw} onChange={setPw} autoComplete="new-password" hint />
+          <PasswordField label="Repeat new password" value={again} onChange={setAgain} autoComplete="new-password" />
+          {(local || m.isError) && <div className="formerr" role="alert">{local || msg(m.error)}</div>}
+          <button className="btn primary lg" style={{ width: "100%" }} disabled={m.isPending}>{m.isPending ? "Saving…" : "Change password"}</button>
+          <p style={{ margin: "14px 0 0", fontSize: 14 }}>
+            <button type="button" className="linkbtn" disabled={!email.trim() || again_.isPending} onClick={() => again_.mutate()}>{cancelled ? "Send a new code" : "Did not get it? Send a new code"}</button>
+          </p>
         </form>
       )}
     </Shell>
@@ -66,7 +107,7 @@ export function ResetPassword() {
   const [local, setLocal] = useState<string | null>(null);
   const nav = useNavigate();
   const m = useMutation({ mutationFn: () => resetPassword(token, pw), onSuccess: () => setTimeout(() => nav("/login", { replace: true }), 1800) });
-  if (!token) return <Shell title="This link did not work"><p className="muted">The reset link is incomplete. Request a new one.</p><Link className="btn" to="/forgot-password">Request a new link</Link></Shell>;
+  if (!token) return <ResetWithCode />;     // no link token: the code page (from "Forgot password")
   return (
     <Shell title={m.isSuccess ? "Password changed" : "Choose a new password"}>
       {m.isSuccess ? <p className="muted">All devices were signed out. Taking you to sign in…</p> : (
