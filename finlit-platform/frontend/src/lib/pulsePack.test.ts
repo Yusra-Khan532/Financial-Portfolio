@@ -21,12 +21,8 @@ describe("Today in one minute (pack 05)", () => {
     const c = todayCards(rows);
     expect(c.map((x) => x.kind)).toEqual(["good", "watch", "insight", "warning"]);
     expect(c[0].title).toBe("15 groups are bouncing back");
-<<<<<<< HEAD
     expect(c[0].text).toBe("Finance, Construction, Ferrous Metals {more}: most of their stocks turned up together within days. 8 of them bounced after a crash.");   // "+12 more ▾" on the page
     expect(c[0].more).toHaveLength(12);
-=======
-    expect(c[0].text).toBe("Finance, Construction, Ferrous Metals and 12 more: most of their stocks turned up together within days. 8 of them bounced after a crash.");
->>>>>>> origin/main
     expect(c[1].title).toBe("No industry is rising together yet");
     expect(c[2].title).toBe("A bounce may be forming in 5 sold-off groups");
     expect(c[2].text).toBe("Banks (34 of 36); Cement & Cement Products (17 of 19); Capital Markets (26 of 31); Leisure Services (26 of 31); Transport Services (15 of 18): most of their stocks are already above their short trend.");

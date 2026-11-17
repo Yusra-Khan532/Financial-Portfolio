@@ -136,12 +136,8 @@ export function todayCards(rows: GroupRow[]): Card[] {
   if (bounce.length) {
     const crash = by("crash").length, names = bounce.slice(0, 3).map((r) => short(r.name));
     out.push({ kind: "good", title: `${plural(bounce.length, "group is", "groups are")} bouncing back`,
-<<<<<<< HEAD
       more: bounce.length > 3 ? bounce.slice(3).map((r) => short(r.name)) : undefined,
       text: `${bounce.length > 3 ? `${names.join(", ")} {more}` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
-=======
-      text: `${bounce.length > 3 ? `${names.join(", ")} and ${bounce.length - 3} more` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
->>>>>>> origin/main
   }
   const rise = by("rising");
   out.push(rise.length

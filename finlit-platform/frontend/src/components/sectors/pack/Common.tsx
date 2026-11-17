@@ -6,10 +6,7 @@ import { Hideable } from "../../Hideable";
 import { placeFloating } from "../../../lib/floating";
 import { BOX, COLOUR, STATE_HELP, WORD, accountFor, type Card } from "../../../lib/pulsePack";
 import { useTaxonomyIndex } from "../../../lib/taxonomy";
-<<<<<<< HEAD
 import { BOX_HELP } from "../../../lib/rotationPack";
-=======
->>>>>>> origin/main
 import type { Board } from "../../../lib/sectors";
 import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
@@ -76,11 +73,7 @@ export function BoxChip({ corner, help }: { corner: CornerCode | null | undefine
   return (
     <span className="sp-chipw">
       <span className={"sp-chip sp-box-" + b.tone}><b aria-hidden="true">{b.arrow}</b>{b.word}</span>
-<<<<<<< HEAD
       {help && <Tip text={BOX_HELP[corner]} label={`About “${b.word}”`} />}
-=======
-      {help && <Tip text="Sector Rotation compares each industry with the average group over the last few months and over recent weeks. The two answers put it in one of four boxes." label={`About “${b.word}”`} />}
->>>>>>> origin/main
     </span>
   );
 }
@@ -130,7 +123,6 @@ export function InsideLine({ list }: { list: { industry: string; companies: numb
   return <small className="sp-inside">Sector group of {names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]}</small>;
 }
 
-<<<<<<< HEAD
 /** A card text with the token {more} where a cut list goes on: "+N more ▾" opens the rest in place, "show fewer ▴" closes it (task #192, SECTOR-PAGES.md 6). */
 export function MoreText({ text, more }: { text: string; more?: string[] }) {
   const [open, setOpen] = useState(false);
@@ -149,8 +141,6 @@ export function useShowAll<T>(rows: T[], first: number): { shown: T[]; button: R
   };
 }
 
-=======
->>>>>>> origin/main
 /** A table that scrolls sideways on a narrow screen, with no extra buttons (the pack's tables have none); keyboard users can scroll it once it has the focus. */
 export function Scroll({ label, children }: { label: string; children: ReactNode }) {
   return <div className="sp-scroll" role="region" aria-label={label} tabIndex={0}>{children}</div>;

@@ -14,11 +14,7 @@ import {
   BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayCards, yourCards, yourOrder,
   type Card, type Holding,
 } from "../../../lib/pulsePack";
-<<<<<<< HEAD
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
-=======
-import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
->>>>>>> origin/main
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 
@@ -191,11 +187,7 @@ export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
   const fin = b.rows.find((r) => keyOf(r) === "crash" || keyOf(r) === "bouncing") ?? b.rows[0];
   const early = g.flatMap((x) => x.rows).filter(isEarly);          // in the group's own order (most stocks rising first)
   return (
-<<<<<<< HEAD
     <Section id="sp-bystate" hide title={`All ${groupsN(b.rows.length)}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
-=======
-    <Section id="sp-bystate" title={`All ${groupsN(b.rows.length)}, by state`} sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
->>>>>>> origin/main
       {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
       <div className="sp-two">
@@ -335,11 +327,7 @@ export function CountedAndSmall({ b }: { b: Board }) {
         </div>
         <p className="sp-note">The list is reviewed once a month. Stocks left out still appear on each industry's page, marked "not counted".</p>
       </Section>}
-<<<<<<< HEAD
       {few.length > 0 && <Section id="sp-small" title="Too small for a reading" help="Too small for a reading. Groups with too few actively traded stocks for a steady reading: one share moving could flip the whole state. Their stocks still appear on their own pages." sub={`${groupsSplit(few)} have too few counted stocks for a steady reading, ${total} stocks between them.`}>
-=======
-      {few.length > 0 && <Section id="sp-small" title="Too small for a reading" sub={`${groupsSplit(few)} have too few counted stocks for a steady reading, ${total} stocks between them.`}>
->>>>>>> origin/main
         <details className="sp-more"><summary>Show the {groupsN(few.length)} ▾</summary>
           <ul className="sp-smalllist">{few.map((g) => <li key={g.slug}><details><summary><b>{short(g.name)}</b> <small>{g.stocks_counted} stocks</small>{g.kind === "sector" && <InsideLine list={acc?.inside[g.slug]} />}</summary><SmallList slug={g.slug} name={g.name} /></details></li>)}</ul>
         </details>
