@@ -2,6 +2,13 @@
 
 **Start here:** read `docs/MAINTAINER-MAP.md` first in every session. It is the one-page map of the code, the jobs, the hosting (AWS EC2 + Caddy; Cloudflare is DNS, email routing and the AMFI/exchange Worker relay, not a proxy), the release flow, the team workspace and the open questions, plus how every change is applied. Keep it current when any of those change.
 
+## Current work order (Pranjal Jain, 17 Nov 2026): ONE task at a time, never combined
+
+- **Do only the tasks added by Pranjal Jain** in the workspace (created_by Pranjal) until told otherwise; after those, continue with the other tasks the same way.
+- **One task at a time, start to finish.** Never work on two tasks together and never fold one task's points into another's PR: tasks done together before were not fixed effectively. Each task gets its own branch from the latest `main`, its own PR, its own live check and its own report.
+- **Every task follows `docs/TASK-PROMPT.md` in full** (Step 0 checklist word for word, Step 1 reproduce live with before screenshots, Step 2 plan, Step 3 implement, Step 4 prove every point in all 4 views, Step 5 upgrade, ship and verify live, report). A point without evidence is not done.
+- **When a task is completely done:** report it to the user in one message (cause, checklist table with evidence, tests, upgrades, what is open, links), and update the workspace: a done note on the task in the form `<what changed> | <where> | <PR link> | <how to check>` and the status set to done, plus a note with next ideas. Then start the next task.
+
 ## The founder's five-step method (apply to EVERY issue, one issue at a time)
 
 The founder (Pranshu) sends 4-5 issues at a time. Solve them one at a time, with full effort on each, in these five steps:
