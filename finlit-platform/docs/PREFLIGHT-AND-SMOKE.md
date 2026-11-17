@@ -11,7 +11,7 @@ Environment for tests: `TEST_DATABASE_URL`, `TEST_REDIS_URL` (defaults match `de
 ## `scripts/smoke.sh <base-url>`: run after every deploy
 Checks health, home page, screener catalog (total > 5000), a summary with price and score for RELIANCE and one small-cap, the latest declared day's
 "being updated" share (at most `MAX_UPDATING_PCT`, default 40), /etfs, /funds, forum threads, glossary (> 300 terms). Prints PASS/FAIL lines; exit 1 on any FAIL.
-The repository-root `.github/workflows/platform-smoke.yml` runs on demand against the entered AWS site URL. Scheduled runs require the repository variable `FINLIT_SITE_URL`. It only reports check results; it does not deploy or open issues.
+The repository-root `.github/workflows/platform-smoke.yml` runs every six hours (minute 17) and on demand (Actions > Smoke test the live site > Run workflow; leave the address empty for the live site). It tests https://finlitventures.com unless the repository variable `FINLIT_SITE_URL` or the address entered for a manual run names another one. A failed run shows as a red run in Actions and GitHub e-mails it; it only reports check results, it does not deploy or open issues.
 `SMALLCAP` (default `SBFC`) can be changed.
 
 ## Nightly integrity audit
