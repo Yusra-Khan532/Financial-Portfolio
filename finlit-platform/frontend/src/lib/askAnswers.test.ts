@@ -2,7 +2,6 @@
 // FinLit figures (RELIANCE's real report sections, saved from the live site on 14 Nov 2026), with their period and source; nothing is guessed or advised.
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import suggestions from "../content/questionSuggestions.json";
 import { CONCEPT_QUESTIONS, MARKET_QUESTIONS, PLATFORM_QUESTIONS } from "./askFlow";
 import { TOPICS } from "./askExplorer";
 
@@ -17,14 +16,14 @@ vi.mock("./api", () => ({ apiGet: async (p: string) => {
   if (!hit || [...missing].some((x) => p.includes(x))) throw new Error("404 " + p);
   return fx(hit[1]);
 } }));
-import { answerCompany, clearAnswerCache, COMPANY_DISCLAIMER, COMPANY_RULES, generalAnswer, matchQuestion, searchListed } from "./askAnswers";
+import { answerCompany, clearAnswerCache, COMPANY_DISCLAIMER, COMPANY_QUESTIONS, COMPANY_RULES, generalAnswer, matchQuestion, searchListed } from "./askAnswers";
 
 const ADVICE = /\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i;
 beforeEach(() => { clearAnswerCache(); calls.length = 0; missing.clear(); });
 
 describe("every listed question has an answer, with no model", () => {
   it("every company question of the question bank has an answer rule", () => {
-    const ids = [...suggestions.company, ...suggestions.groups.flatMap((g) => g.items)].map((q) => q.id);
+    const ids = COMPANY_QUESTIONS.map((q) => q.id);
     expect(ids.filter((id) => !COMPANY_RULES[id])).toEqual([]);
   });
   it("every general question (explorer topics, concepts, platform, market) has a written answer that describes and never advises", () => {
