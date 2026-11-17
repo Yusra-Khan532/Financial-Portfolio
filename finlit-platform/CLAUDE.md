@@ -17,9 +17,9 @@ Report each issue in one message: cause, what changed, test results, what is sti
 ## Project facts
 
 - Live site: https://finlitventures.com, https://www.finlitventures.com and https://app.finlitventures.com (AWS EC2 Sydney, 54.253.190.17; Docker Compose + Caddy in `deploy/aws/`).
-- Source of truth: company repo `Yusra-Khan532/Financial-Portfolio`, folder `finlit-platform/` (this folder). Its `main` is deployed automatically by the server about every 5 minutes. Delivery from the founder's repo `pranshukesavmishra/finlit-platform` goes through `.github/workflows/sync-to-company.yml` as a pull request the founder merges with "Create a merge commit". Never edit the legacy root folders of the company repo.
+- Source of truth: company repo `Yusra-Khan532/Financial-Portfolio`, folder `finlit-platform/` (this folder). Its `main` is deployed automatically by the server about every 5 minutes. Work arrives as a pull request on this repository, squash-merged once every check passes (`docs/TASK-PROMPT.md`). The older route, a sync pull request from the founder's repo `pranshukesavmishra/finlit-platform` made by that repo's `.github/workflows/sync-to-company.yml` (the workflow is in the founder's repo, not in this one; last used 5 Nov 2026), is merged with "Create a merge commit". The company repo's legacy root folders were removed; everything lives in `finlit-platform/`.
 - Background jobs: `docs/JOBS.md` (job supervisor; jobs NEVER stop, see the rule below). Status: `/api/jobs/status`.
-- Handover and open items: `docs/HANDOVER-PROMPT.md`.
+- Open items: the team's task list at https://workspace.finlitventures.com (tasks, their attachments and the team's rework notes) and `docs/KNOWN-ISSUES.md` (every fault the founder reported, with its regression test). `docs/HANDOVER-PROMPT.md` is not in this repository.
 
 ## Zero mistakes, nothing missed (the founder said so on 13 Nov 2026)
 

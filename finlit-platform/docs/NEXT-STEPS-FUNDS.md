@@ -49,7 +49,7 @@
 - AMFI's portal sometimes drops a TLS connection mid-download (seen on about 1 in 10 requests from the sandbox); `mf._retry` retries, and a month that still fails is simply asked again on the next run.
 
 ## Live state (22 October 2026, read this first)
-- **How to see what the boot/nightly steps did:** open `https://finlit-arug.onrender.com/api/mf/status` (no login). It shows, for `refresh-etf`, `refresh-mf`, `backfill-mf` and `refresh-facts`, when they last ran, their status and counts. Render's logs are not reachable from outside.
+- **How to see what the boot/nightly steps did:** open `https://finlitventures.com/api/mf/status` (no login). It shows, for `refresh-etf`, `refresh-mf`, `backfill-mf` and `refresh-facts`, when they last ran, their status and counts. Render's logs are not reachable from outside.
 - **Funds are loaded:** 8,247 active schemes after the exclusions; Growth plans are the default view; best-known fund houses first (`MF_FEATURED_AMCS` in `config.py`). IDCW pages link to the Growth option of the same fund.
 - **ETFs are loaded:** the 22 Oct refresh ended `ok`. All 355 ETFs have a price; 274 have a 1-year and 95 a 5-year return. Every blank has its reason: listed less than 1 / 5 years (75 / 252), liquid ETFs whose price does not move (6), or a price break in the provider's history (9 ETFs; see below).
 - **ETF price breaks are NOT splits:** checked against Upstox's raw candles: LIQUID1 x32, ABSLLIQUID x260, GOLDETF x4.5, MOLOWVOL x7, MIDSELIETF two instruments interleaved under one ISIN, and MOM30IETF's "x10" predates its own August 2022 launch. The older history under those ISINs is another security, so withholding the figures is correct. Do not add split adjustment without a corporate-action source.
