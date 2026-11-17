@@ -42,7 +42,7 @@ describe("task #122: the landing page's FinLit Prism part", () => {
     const tech = screen.getByRole("region", { name: "Technical analysis" });
     for (const t of ["Technical short term", "5–20 sessions", "+29", "▲ Uptrend", "Technical long term", "6–18 months", "−55", "▼ Strong downtrend"]) expect(within(tech).getByText(t)).toBeTruthy();
     expect(screen.getByText("Reliance Industries on FinLit Prism, 6 Nov 2026. Shown as an example, not a recommendation.")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Open FinLit Prism/ }).getAttribute("href")).toBe("/prism");
+    expect(screen.getByRole("link", { name: /Open FinLit Prism/ }).getAttribute("href")).toBe("/prism/RELIANCE");   // task #207: Reliance's report, never /prism and its fictional sample
   });
   it("4. hovering a feature item lights it and its block in gold, and focusing it does the same", () => {
     open();
@@ -120,6 +120,7 @@ describe("task #153: Reliance's live reading with the actual score of each part"
   });
   it("never draws a half-filled card: a reading missing any figure keeps the example", () => {
     expect(showcaseView(LIVE)?.live).toBe(true);
+    expect(showcaseView({ ...LIVE, symbol: "TCS" })?.symbol).toBe("TCS");   // task #207: the button follows the card's own company
     for (const bad of [{ ...LIVE, final: null }, { ...LIVE, label: "NOT RATED" }, { ...LIVE, at: null }, { ...LIVE, parts: { ...LIVE.parts, risk: null } },
       { ...LIVE, st: { score: null, word: null } }, { ...LIVE, lt: { score: 3, word: null } }]) expect(showcaseView(bad as ShowcaseReading)).toBeNull();
     expect(showcaseView(null)).toBeNull();

@@ -91,7 +91,8 @@ export function PrismShowcase() {
         </div>
         <figcaption>{S.caption}</figcaption>
       </figure>
-      <div className="hpz-cta"><Link className="btn lg" to="/prism">Open FinLit Prism <Icon name="arrow" /></Link></div>
+      {/* Task #207: the button opens the report of the company on the card (Reliance), never the general page with its fictional sample */}
+      <div className="hpz-cta"><Link className="btn lg" to={`/prism/${encodeURIComponent(S.symbol)}`}>Open FinLit Prism <Icon name="arrow" /></Link></div>
     </div></section>
   );
 }
