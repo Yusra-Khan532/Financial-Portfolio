@@ -897,13 +897,15 @@ class Store:
         await self.redis.delete(SEARCH_KEY)
 
     async def peer_rows(self, symbols: List[str], model: str = "v1") -> List[dict]:
-        """Name, sector and (if already scored) score and price for each peer, in the given order."""
+        """Name, NSE industry and basic industry (task #192: the old `sector` field held FinEdge's mixed column, mostly basic industries) and, if
+        already scored, score and price for each peer, in the given order."""
         if not symbols:
             return []
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT c.symbol, c.name, c.sector, s.overall, s.band, s.price, s.market_cap, s.pe, s.roe
+                """SELECT c.symbol, c.name, k.industry, k.basic_industry, s.overall, s.band, s.price, s.market_cap, s.pe, s.roe
                    FROM companies c
+                   LEFT JOIN company_classification k ON k.symbol = c.symbol
                    LEFT JOIN LATERAL (SELECT * FROM scores WHERE symbol = c.symbol AND model = $2
                                       ORDER BY updated_at DESC LIMIT 1) s ON true
                    WHERE c.symbol = ANY($1::text[])""", symbols, model)

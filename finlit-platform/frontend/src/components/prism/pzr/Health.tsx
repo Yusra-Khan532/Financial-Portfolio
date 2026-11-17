@@ -23,7 +23,7 @@ export function benchmarkLine(key: string, b: BenchmarkDetail) {
   const scope = b.scope === "sector" ? "Sector" : b.scope === "own history" ? "Own five-year" : "Industry";
   const what = `${scope} ${ratio} ${b.method === "reported benchmark" ? "benchmark" : "median"}`;
   const value = b.value == null ? "not available" : `${nf(b.value, 2)}×`;
-  const cover = b.positiveCount != null && b.universeCount != null ? ` From ${b.positiveCount} positive multiples; ${b.observedCount ?? "—"} of ${b.universeCount} peer records available${b.partial ? " (partial coverage, not a complete-industry median)" : ""}.` : "";
+  const cover = b.positiveCount != null && b.universeCount != null ? ` From ${b.positiveCount} positive multiples; ${b.observedCount ?? "—"} of ${b.universeCount} peer records available${b.partial ? " (partial coverage, not a complete peer-group median)" : ""}.` : "";
   const extra = b.scope === "sector" ? " The provider does not specify its statement basis, valuation date or aggregation method." : "";
   return { what, value, src: `${b.provider}${b.method ? `, ${b.method}` : ""}${b.asOf ? `, as of ${dateIN(b.asOf)}` : ""}.`, more: cover + extra };
 }
@@ -70,7 +70,7 @@ export function Peers({ report }: { report: PrismReport }) {
 /** How to read the report, in words: what the score, the labels and the readings mean. The method itself stays on the server. */
 export const HOW_TO_READ = [
   "The score runs from 0 to 100. Labels, best to worst: Strong, Healthy, Average, Weak, Poor.",
-  "Each part reads its factors against companies in the same industry group. Higher is better for all four; a high Risk score means lower risk.",
+  "Each part reads its factors against the company's peer group (the data provider FinEdge's list of similar companies). Higher is better for all four; a high Risk score means lower risk.",
   "Each factor's reading runs from Very strong to Very weak.",
   "Not rated: too much of the data is missing, or there is too little income history. Provisional: part of the data is missing, and the label is held back.",
   "A missing input may be estimated from industry figures. Estimates are always marked and never shown as strengths or concerns.",

@@ -18,6 +18,7 @@ import { csvOf, metric, offlineHtml, saveFile } from "./derive";
 import { TradingFacts } from "./TradingFacts";
 import { NameDots, Row, SubLine } from "./HeaderScore";
 import { useReportHeader } from "./useReportHeader";
+import { useClassification } from "../lib/taxonomy";
 import { CoLogo } from "../components/CoLogo";
 
 const KPI_SPEC: [key: string, label: string, icon: string, color: string][] = [
@@ -42,6 +43,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
   const { two, isAdmin, seesAll, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
   const q = s.quote, p = s.profile, good = (q.change ?? 0) >= 0, cov = s.dataQuality.coverage;
   const asOf = q.asOf ? new Date(q.asOf) : null;
+  const macro = useClassification(p.symbol).data?.macro_sector ?? null;   // NSE's macro sector (task #192), not the provider's mixed field
   const download = (kind: "pdf" | "html" | "csv") => {
     setDl(false);
     const name = `${p.nse || p.symbol}-FinLit`;
@@ -53,7 +55,7 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
   return (
     <section className="band hero" id="hero" aria-label={`${p.name} research report`}>
       <div className="wrap">
-        <div className="crumbs"><Link to="/research">Research</Link><span>›</span><span>{p.macroSector || p.sector}</span><span>›</span><span style={{ color: "var(--text)" }}>{p.nse || p.symbol}</span></div>
+        <div className="crumbs"><Link to="/research">Research</Link><span>›</span>{macro && <><span title="Macro sector (NSE)">{macro}</span><span>›</span></>}<span style={{ color: "var(--text)" }}>{p.nse || p.symbol}</span></div>
         <div className="idrow">
           <div className="idl">
             <div className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></div>

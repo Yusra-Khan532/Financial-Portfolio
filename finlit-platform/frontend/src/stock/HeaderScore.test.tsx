@@ -19,10 +19,28 @@ describe("header", () => {
     expect(h).toContain("What do the dots mean?");
     expect(h).toContain("70 or more"); expect(h).toContain("50 to 69"); expect(h).toContain("under 50");
   });
-  it("labels industry and market cap", () => {
-    const h = renderToStaticMarkup(<CompanyFacts p={profile} />);
-    expect(h).toContain("Industry"); expect(h).toContain("Petroleum Products · Refineries &amp; Marketing");
+  it("names each NSE level under its own label, and market cap (task #192)", () => {
+    const cls = { symbol: "RELIANCE", isin: "INE002A01018", macro_sector: "Energy", sector: "Oil, Gas & Consumable Fuels", industry: "Petroleum Products",
+      basic_industry: "Refineries & Marketing", source: "basic_industry", note: null };
+    const h = renderToStaticMarkup(<CompanyFacts p={profile} cls={cls} />);
+    for (const [label, value] of [["Macro sector", "Energy"], ["Sector", "Oil, Gas &amp; Consumable Fuels"], ["Industry", "Petroleum Products"], ["Basic industry", "Refineries &amp; Marketing"]])
+      expect(h).toContain(`<span class="hs-l">${label}</span><div class="hs-c"><span class="hs-t">${value}</span>`);
+    expect(h).not.toContain("Petroleum Products · Refineries");   // before: two levels joined under one "Industry" label
     expect(h).toContain("Market cap"); expect(h).toContain("₹16,02,253 Cr · Large cap");
+  });
+  it("a blank level says why, once; a company NSE's lists do not place says Not classified with the reason", () => {
+    const happy = { symbol: "HAPPY", isin: null, macro_sector: "Industrials", sector: "Capital Goods", industry: "Industrial Manufacturing", basic_industry: null,
+      source: "industry", note: 'Basic industry not shown: "Forgings & Machined Components" is not one of NSE\'s 197 basic industries.' };
+    const h = renderToStaticMarkup(<CompanyFacts p={profile} cls={happy} />);
+    expect(h).toContain('<span class="hs-l">Basic industry</span><div class="hs-c"><span class="hs-t hs-na">Not shown</span><span class="hs-why">Basic industry not shown');
+    const none = { ...happy, macro_sector: null, sector: null, industry: null, source: null, note: "Not classified: its classification (\"DVR\") is not one of NSE's names." };
+    const n = renderToStaticMarkup(<CompanyFacts p={profile} cls={none} />);
+    expect(n).toContain("Not classified"); expect(n).toContain("its classification (&quot;DVR&quot;) is not one of NSE"); expect(n).not.toContain("Macro sector");
+  });
+  it("before the classification arrives, only the industry, under Industry", () => {
+    const h = renderToStaticMarkup(<CompanyFacts p={profile} />);
+    expect(h).toContain('<span class="hs-l">Industry</span><div class="hs-c"><span class="hs-t">Petroleum Products</span>');
+    expect(h).not.toContain("Refineries");
   });
   it("Silver badge is the basic score; Gold is Prism or 'not rated yet' with a link", () => {
     const wrap = (v: ReturnType<typeof badgeView>) => renderToStaticMarkup(<MemoryRouter><ScoreBadge view={v} symbol="RELIANCE" /></MemoryRouter>);

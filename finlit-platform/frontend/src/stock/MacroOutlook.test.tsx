@@ -25,7 +25,7 @@ describe("Macro & Sector Outlook section", () => {
   it("shows the backdrop bar: sentiment, sector, score out of 100, the two drivers with signs, and no how-it-works block", async () => {
     wrap();
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
-    expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Private banks")).toBeTruthy(); expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
+    expect(within(bar).getByText("Tailwind")).toBeTruthy(); expect(within(bar).getByText("Outlook group · Private banks")).toBeTruthy();   // FinLit's outlook group, named as such (task #192) expect(within(bar).getByText("74")).toBeTruthy(); expect(within(bar).getByText("/100")).toBeTruthy();
     expect(within(bar).getByText("Credit +")).toBeTruthy(); expect(within(bar).getByText("Deposits +")).toBeTruthy(); expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByRole("button", { name: "How it works" })).toBeNull();
     expect(screen.getByText("Macro and sector outlook")).toBeTruthy();
   });
@@ -69,7 +69,7 @@ describe("Macro & Sector Outlook section", () => {
     const { container } = wrap();
     await screen.findByText("Indicator signals");
     expect(container.querySelectorAll(".mo-tile").length).toBe(0);
-    expect(screen.getByText(/names no dominant driver for this sector right now/)).toBeTruthy();
+    expect(screen.getByText(/names no dominant driver for this outlook group right now/)).toBeTruthy();
   });
   it("an Insufficient Data company shows the missing readings that are the stated reason, with why they are missing", async () => {
     st.company = insufficient;

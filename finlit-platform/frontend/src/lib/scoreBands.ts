@@ -36,12 +36,6 @@ export function marketCapLine(cr: number | null | undefined): string | null {
   const t = marketCapText(cr), size = capSize(cr);
   return t ? `Market cap ${t}${size ? " · " + size : ""}` : null;
 }
-/** Industry for the header: the sub-industry when it adds to the industry, else the industry, else the sector. */
-export function industryText(p: { industry?: string | null; subIndustry?: string | null; sector?: string | null }): string | null {
-  const i = p.industry?.trim() || null, s = p.subIndustry?.trim() || null;
-  if (i && s && s.toLowerCase() !== i.toLowerCase()) return `${i} · ${s}`;
-  return i || s || p.sector?.trim() || null;
-}
 
 /** The technical scores of a stored Prism report, as the dots need them: the model's rating word (never shown) and the -100..+100 score of each horizon. */
 export type TechIn = { score: number | null; rating: string | null };

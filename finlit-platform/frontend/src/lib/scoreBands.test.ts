@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgeFor, badgeView, dotLabel, industryText, marketCapLine, partHint, scoreBand, goldDots, type PrismInput } from "./scoreBands";
+import { badgeFor, badgeView, dotLabel, marketCapLine, partHint, scoreBand, goldDots, type PrismInput } from "./scoreBands";
 
 describe("score colour bands", () => {
   it("green from 70, orange 50 to 69, red under 50, grey without a score", () => {
@@ -30,11 +30,9 @@ describe("plan badge", () => {
   it("Basic sees no badge", () => expect(badgeView("basic", false, basic, { kind: "none" })).toEqual({ kind: "none" }));
 });
 describe("header facts", () => {
-  it("formats market cap in Indian units and joins industry", () => {
+  it("formats market cap in Indian units", () => {
     expect(marketCapLine(123456)).toBe("Market cap ₹1,23,456 Cr · Large cap");
     expect(marketCapLine(null)).toBeNull();
-    expect(industryText({ industry: "Transport Services", subIndustry: "Transport Services", sector: "X" })).toBe("Transport Services");
-    expect(industryText({ industry: null, subIndustry: null, sector: "Energy" })).toBe("Energy");
   });
   it("says higher is better for the four fundamental parts, Risk explained", () => {
     expect(partHint("risk")!.long).toContain("lower risk");

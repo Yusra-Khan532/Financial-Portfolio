@@ -80,7 +80,7 @@ export function FactorExplorer({ report, review }: { report: PrismReport; review
   return (
     <section className="pzr-sec" aria-labelledby="pzr-h-fx">
       <header className="pzr-sh"><h3 id="pzr-h-fx">Every factor</h3>
-        <p className="pzr-wide">Each factor is read against companies in the same industry group, from Very strong to Very weak. Strong and Very strong count as strengths, Weak and Very weak as concerns, and estimated factors as neither. A higher Risk score means lower risk.</p></header>
+        <p className="pzr-wide">Each factor is read against the company's peer group (FinEdge's list of similar companies), from Very strong to Very weak. Strong and Very strong count as strengths, Weak and Very weak as concerns, and estimated factors as neither. A higher Risk score means lower risk.</p></header>
       <div className="pzr-tools pzr-noprint">
         <div className="pzr-chipsrow" role="group" aria-label="Filter factors">
           {FILTERS.map((f) => <button key={f} type="button" className={"pzr-chip" + (filter === f ? " on" : "")} aria-pressed={filter === f} onClick={() => setFilter(f)}>{FILTER_WORD[f]} <small>{count(f)}</small></button>)}

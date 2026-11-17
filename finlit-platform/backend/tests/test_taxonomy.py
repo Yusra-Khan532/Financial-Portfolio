@@ -147,3 +147,12 @@ async def test_a_score_only_save_places_a_new_company_but_never_replaces_a_full_
     await store.save_score_only("RELIANCE", "consolidated", {"symbol": "RELIANCE", "model": "v1", "overall": 50, "band": "fair", "name": "Reliance",
                                                               "industry": "Miscellaneous"})
     assert (await store.classification("RELIANCE"))["basic_industry"] == before["basic_industry"] == "Refineries & Marketing"
+
+
+async def test_peer_rows_name_nse_industry_and_basic_industry_not_the_mixed_sector(ingested):  # noqa: F811
+    """The peers list sent a `sector` that was mostly a basic industry ("Computers - Software & Consulting" for INFY); round 2a names both levels."""
+    store = ingested
+    await store.classify_all(force=True)
+    [row] = await store.peer_rows(["RELIANCE"])
+    assert row["industry"] == "Petroleum Products" and row["basic_industry"] == "Refineries & Marketing"
+    assert "sector" not in row

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { LogoLoader } from "../components/LogoLoader";
 import "../styles/preparing.css";
+import { useClassification } from "../lib/taxonomy";
 
 /** What the waiting page says about progress. The numbers are the parts of the report the server has received so far (it counts them), never a guess. */
 export function progressText(done?: number, total?: number): string {
@@ -16,6 +17,9 @@ export type PreparingMode = "loading" | "building" | "busy" | "gaveUp" | "failed
 /** The page of a company whose report is not stored yet: its name, the shape of the report as placeholders (so nothing jumps when the real page
  *  arrives), a truthful progress line, and a hard end (failed / gave up) with "Try again" instead of waiting for ever. */
 export function PreparingReport({ symbol, name, sector, mode, done, total, onRetry, elapsed }: { symbol: string; name?: string | null; sector?: string | null; mode: PreparingMode; done?: number; total?: number; onRetry?: () => void; elapsed?: number }) {
+  // NSE's industry, named (task #192); `sector` from the companies list is the provider's mixed column and is no longer shown
+  const industry = useClassification(symbol).data?.industry ?? null;
+  void sector;
   const secs = useElapsed(mode === "building" || mode === "loading", elapsed);
   const title = mode === "rejected" ? "We are not showing this report yet" : mode === "failed" ? "We could not build this report right now" : mode === "gaveUp" ? "This is taking longer than usual" : mode === "busy" ? "Many reports are being prepared right now" : mode === "loading" ? "Opening the report" : "Preparing this report";
   const pct = total ? Math.min(100, Math.round(((done ?? 0) / total) * 100)) : 0;
@@ -25,7 +29,7 @@ export function PreparingReport({ symbol, name, sector, mode, done, total, onRet
         <span className="prep-badge skeleton" aria-hidden="true" />
         <div className="prep-id">
           <h1 className="prep-name">{name || symbol}</h1>
-          <div className="prep-sub"><b>{symbol}</b>{sector ? <span> · {sector}</span> : null}</div>
+          <div className="prep-sub"><b>{symbol}</b>{industry ? <span> · Industry: {industry}</span> : null}</div>
         </div>
         <div className="prep-price skeleton" aria-hidden="true" />
       </div>
