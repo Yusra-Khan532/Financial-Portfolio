@@ -102,7 +102,7 @@ Rules: no spaces around `=`, and no `$ " ' #` or spaces inside a value. `ADMIN_R
 ```bash
 bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh
 ```
-It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, builds the image (6-12 minutes the first time), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
+It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, downloads the image GitHub built for that commit (`.github/workflows/platform-image.yml`, public `ghcr.io/yusra-khan532/finlit-app`; it waits up to 20 minutes while GitHub is still building, and builds on the server only when no image comes, 6-12 minutes; `FINLIT_PULL_IMAGE=0` in the env file always builds on the server), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
 
 ## 6. Open the site
 Browse to `http://YOUR.ELASTIC.IP`. Sign in at `/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD`; the first sign-in asks you to set up an authenticator app. After that you may delete the `ADMIN_PASSWORD` line.
