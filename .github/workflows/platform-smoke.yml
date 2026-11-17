@@ -1,18 +1,19 @@
 name: Smoke test the live site
-# Runs the platform smoke checks on demand, or every six hours when FINLIT_SITE_URL is configured.
-# Read-only checks against the AWS site.
+# Read-only checks against the AWS site (finlit-platform/scripts/smoke.sh): every six hours, and on demand.
+# The address is https://finlitventures.com unless the repository variable FINLIT_SITE_URL names another one.
+# (Until 17 Nov 2026 the scheduled run skipped itself whenever that variable was not set, and it never was, so the schedule never ran.)
 on:
   schedule: [{cron: "17 */6 * * *"}]
   workflow_dispatch:
     inputs:
       base_url:
-        description: Site address to test
-        required: true
+        description: Site address to test (empty = https://finlitventures.com)
+        required: false
+        default: ""
 permissions:
   contents: read
 jobs:
   smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.FINLIT_SITE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -21,4 +22,4 @@ jobs:
           persist-credentials: false
       - run: bash finlit-platform/scripts/smoke.sh "$BASE_URL"
         env:
-          BASE_URL: ${{ inputs.base_url || vars.FINLIT_SITE_URL }}
+          BASE_URL: ${{ inputs.base_url || vars.FINLIT_SITE_URL || 'https://finlitventures.com' }}

@@ -200,17 +200,47 @@ disk_guard() {  # before a deploy: from 75% clean what is safe to clean and say 
   [ "${pct:-0}" -lt 97 ] || die "the disk is ${pct}% full: a deploy now could stop the database. Free space first (docker system df; bash $0 backups)."
 }
 
+# The image GitHub builds for every commit on main (.github/workflows/platform-image.yml; the repository is public, so the image is too and needs no login).
+# Building on this 2 GB server took up to 2 GB for the website bundle alone, next to the live site and the jobs: every deploy pushed the server into
+# swap and slowed the site for many minutes (17 Nov 2026). Waits while GitHub is still building this commit; when the image does not come (the build
+# failed, GitHub cannot be reached, FINLIT_PULL_IMAGE=0 in the env file), the server builds it itself exactly as before.
+PREBUILT_REPO_DEFAULT="ghcr.io/yusra-khan532/finlit-app"
+pull_prebuilt() {
+  local full="$1" repo want wait_s waited=0
+  want="${FINLIT_PULL_IMAGE:-$(envval FINLIT_PULL_IMAGE)}"
+  [ "$want" != "0" ] || return 1
+  repo="${FINLIT_IMAGE_REPO:-$(envval FINLIT_IMAGE_REPO)}"; repo="${repo:-$PREBUILT_REPO_DEFAULT}"
+  wait_s="${PREBUILT_WAIT_SECONDS:-1200}"
+  [ -n "$full" ] || return 1
+  info "looking for the prebuilt image $repo:$full (waiting up to $((wait_s / 60)) minutes while GitHub builds it)"
+  while :; do
+    if docker pull -q "$repo:$full" >/dev/null 2>&1; then
+      [ "$(docker image inspect -f '{{index .Config.Labels "finlit.commit"}}' "$repo:$full" 2>/dev/null)" = "$(git -C "$SRC" rev-parse --short=7 HEAD)" ] || {
+        info "the prebuilt image is not labelled with this commit; building here instead"; docker rmi "$repo:$full" >/dev/null 2>&1 || true; return 1; }
+      docker tag "$repo:$full" "$IMAGE:current" || { info "the prebuilt image could not be tagged; building here instead"; return 1; }
+      docker rmi "$repo:$full" >/dev/null 2>&1 || true     # only the extra name goes: finlit-app:current keeps the image
+      return 0
+    fi
+    [ "$waited" -lt "$wait_s" ] || { info "no prebuilt image for this commit after $((wait_s / 60)) minutes; building here instead"; return 1; }
+    sleep 30; waited=$((waited + 30))
+  done
+}
+
 cmd_deploy() {
   need_docker
   mkdir -p "$STATE"
   git_sync
   check_env
   local commit old_id new_id
-  commit="$(git -C "$SRC" rev-parse --short HEAD)"; export GIT_COMMIT="$commit"
+  commit="$(git -C "$SRC" rev-parse --short=7 HEAD)"; export GIT_COMMIT="$commit"   # 7 characters, as the GitHub build labels it
   old_id="$(image_id "$IMAGE:current")"
   [ -z "$old_id" ] || docker tag "$IMAGE:current" "$IMAGE:pending"   # a second name keeps the old build alive while the new one replaces "current"
-  say "Building the image (first time 6-12 minutes on this small server; later builds reuse the cache)"
-  dc build app
+  if pull_prebuilt "$(git -C "$SRC" rev-parse HEAD)"; then
+    say "Using the image GitHub built for commit $commit (no build on this server)"
+  else
+    say "Building the image (first time 6-12 minutes on this small server; later builds reuse the cache)"
+    dc build app
+  fi
   new_id="$(image_id "$IMAGE:current")"
   if [ -n "$old_id" ]; then
     if [ "$old_id" != "$new_id" ]; then

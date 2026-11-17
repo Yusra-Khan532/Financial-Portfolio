@@ -1,11 +1,13 @@
 # Run the whole FinLit site on one AWS server (beginner runbook)
 
-This replaces the free Render container. One small AWS server (EC2 `t3.small`, Mumbai) runs everything with Docker:
+This replaces the free Render container. One small AWS server (EC2 `t3.small`) runs everything with Docker:
 the website, the research API, the company site backend, the background jobs, its own PostgreSQL and Redis, and Caddy (the web server that gives you https).
 It does not sleep, and the database is on the same machine, so pages are fast.
 
 **Where the code comes from.** The server builds from the **company repository**: `https://github.com/Yusra-Khan532/Financial-Portfolio`, branch `main`, folder `finlit-platform/`
-(the repository also holds the company's older `backend/` and `frontend/` folders; the server never builds those).
+(the company's older root `backend/` and `frontend/` folders were removed; everything the server builds is in `finlit-platform/`).
+
+**The live server today:** finlitventures.com runs on EC2 in **Sydney (ap-southeast-2)**, address 54.253.190.17. The steps below were written for Mumbai (ap-south-1); either region works for a new or replacement server, but the prices in section 10 (Cost) are Mumbai's.
 **Future changes are made in the company repository. To put them on the server, run `deploy.sh` (it pulls `main` and rebuilds).**
 Your passwords and keys live only in `/opt/finlit/.env.aws` on the server: outside the git clone, so a pull never touches them, and never in any repository.
 
@@ -102,7 +104,7 @@ Rules: no spaces around `=`, and no `$ " ' #` or spaces inside a value. `ADMIN_R
 ```bash
 bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh
 ```
-It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, builds the image (6-12 minutes the first time), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
+It checks the settings file (and stops with a clear message if a `CHANGE_ME` is left), pulls `main`, downloads the image GitHub built for that commit (`.github/workflows/platform-image.yml`, public `ghcr.io/yusra-khan532/finlit-app`; it waits up to 20 minutes while GitHub is still building, and builds on the server only when no image comes, 6-12 minutes; `FINLIT_PULL_IMAGE=0` in the env file always builds on the server), starts everything, waits for `/api/ping` and `/api/health`, and prints the address. Safe to rerun.
 
 ## 6. Open the site
 Browse to `http://YOUR.ELASTIC.IP`. Sign in at `/login` with `ADMIN_EMAIL` / `ADMIN_PASSWORD`; the first sign-in asks you to set up an authenticator app. After that you may delete the `ADMIN_PASSWORD` line.

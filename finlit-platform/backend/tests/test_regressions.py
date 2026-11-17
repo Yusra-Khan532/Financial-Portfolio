@@ -5,8 +5,6 @@ Items (a) and (c) live in test_coverage.py and test_pl_crosscheck.py; (d) and (f
 """
 from datetime import date
 
-import pytest
-
 from finlit import finedge, integrity, results
 
 
@@ -14,7 +12,6 @@ def _rows(*ends):
     return {"financials": [{"period_end": e.replace("-", ""), "year": int(e[:4])} for e in ends]}
 
 
-@pytest.mark.xfail(strict=False, reason="stale-basis fix in progress by another agent (finedge._prefer_current_basis / worker); drop the marker once it lands")
 def test_b_stale_consolidated_is_replaced_by_the_fresher_standalone_basis():
     """SBFC: consolidated quarters stop Mar 2025, standalone run to Sep 2026. The fresher basis must be chosen, with the reason recorded."""
     bundle = {"pl_quarterly": _rows("2024-12-31", "2025-03-31"), "pl_annual": _rows("2024-03-31", "2025-03-31")}
