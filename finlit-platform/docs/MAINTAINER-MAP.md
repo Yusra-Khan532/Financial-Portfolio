@@ -1,0 +1,225 @@
+# Maintainer map: the whole platform on one page
+
+Written 17 Nov 2026 from a full read of the repository, the team workspace and the live site. Start here in every new session, then read
+`CLAUDE.md` (rules) and `docs/TASK-PROMPT.md` (how every task is done). Update this page when something on it changes.
+
+## 1. How we work (applies to every change)
+
+- One task at a time, by `docs/TASK-PROMPT.md`:
+  1. Copy the task and the team's notes into a checklist, word for word.
+  2. Reproduce each point on the live site.
+  3. Fix the root cause.
+  4. Prove each point with a test or a screenshot: desktop and phone, light and dark, Silver and Gold where it applies.
+  5. Push only when everything passes, then check the live page.
+- Standing rules (`CLAUDE.md`):
+  - Background jobs never stop or get weaker. The sector job is off by the founder's written decision until `SECTORS_JOB=on`.
+  - Numbers are correct and current, and every blank says why.
+  - Describe, never advise, and keep the disclaimer.
+  - Everything stays free.
+  - Secrets live only in `/opt/finlit/.env.aws`.
+  - No model names in commits or code.
+- Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121).
+- Shipping:
+  - Work goes on a branch, then a PR on `Yusra-Khan532/Financial-Portfolio`, squash-merged when every check passes.
+  - `main` reaches the live site by itself in about 10 minutes.
+  - Give the founder the PR link and the live pages to check.
+- Why tasks came back (22% of the first 209 were reopened):
+  - "still not done" on the real page;
+  - dark mode or phone width missed;
+  - a fix broke a neighbouring button or card (global CSS);
+  - a line of a large design pack missed.
+
+  Since `TASK-PROMPT.md` (13 Nov) reopens have dropped sharply.
+
+## 2. Repository layout (`finlit-platform/`)
+
+| Folder | What it is |
+|---|---|
+| `frontend/` | Website. React 19, TypeScript 7 (strict), Vite 8, React Query 5, react-router 8 (`BrowserRouter`). |
+| `backend/finlit/` | Research API (FastAPI, port 8000) and the job CLI. Postgres (TimescaleDB) is the source of truth; Redis is a cache only. |
+| `backend/finlit_technicals/` | numpy/pandas engine for the sector and technicals jobs. |
+| `site-api/backend/` | Site backend (FastAPI, port 8001, MongoDB via motor): blog/CMS, forms, AI chat (Gemini), FinLit Prism premium reports. Almost all in one file, `server.py` (about 4,400 lines). |
+| `deploy/` | `start.sh` (app container), `jobs.sh` (jobs container), `scheduler.sh` (supervisor loops), `aws/` (Compose, Caddyfile, deploy and auto-deploy scripts, backups), `amfi-relay/` (Cloudflare Worker). |
+| `extension/` | Chromium extension: select text on any page to get a glossary meaning or a company card. |
+| `design/` | `tokens.json` and its builder. **Not wired in**: the live colours are hand-kept in `frontend/src/styles/design-system.css`. |
+| `docs/` | One document per feature. `KNOWN-ISSUES.md` is the fault ledger; `JOBS.md` is the job supervisor. |
+
+## 3. Backend (research API)
+
+- **App** (`finlit/api.py`, `create_app`):
+  - Middleware, outermost first: security headers, trusted host, CORS, body limit, Redis rate limit, model guard, gzip.
+  - **Route order matters.** Specific stock sub-routers are mounted before `/api/stocks/{symbol}/{name}`. The `mfscore`, `mfscreen` and `mf_insights` routers come before `mf.router`. The catch-all forwarding to the site backend (`siteproxy.py`) is last; then `web.py` serves `frontend/dist`.
+- **Stock reports:**
+  - Served as pre-rendered sections from Redis, with ETags.
+  - A miss queues the symbol (`ingest_queue`); the request answers 202 `queued` if it is not built in time.
+- **Feature areas:**
+
+  | Area | Modules |
+  |---|---|
+  | Screener | `screener/` (query language evaluated in Python), `presets/`, `advanced/` |
+  | Prism | `prism*.py`, `premium.py` |
+  | Mutual funds | `mf.py`, `mfscore/`, `mfscreen/`, `mf_insights.py`, `amfi_import.py` |
+  | ETF | `etf.py`, `etf_vs_index.py` |
+  | Portfolios | `myinvest/`, `mfportfolio/`, `etfportfolio/`, `portfolio_page/`, `diversification/` |
+  | Sectors | `sector_*.py`, `taxonomy.py` |
+  | Macro and flows | `macro*.py`, `flows*.py` |
+  | Alerts | `alert*.py`, `notify.py` |
+  | Accounts | `auth/` |
+  | Community | `forum.py`, `page_feedback.py` |
+  | MCP server | `mcp/` |
+  | Other tools | `stress/`, `outlook/`, `earnings/`, `company_brief/` |
+- **Jobs:**
+  - `finlit/worker.py`: about 59 CLI commands.
+  - `finlit/jobs/`:
+    - `registry.py`: 54 jobs with windows, time limits, SLAs and prerequisites.
+    - `due.py`: what runs when.
+    - `supervisor.py`, `runner.py`: run each job and kill it by process group.
+  - Time windows (IST): night 23:00–05:00, morning 05:00–08:00, after close 18:30–21:30.
+- **Database:**
+  - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `106_company_classification.sql`, and numbers have gaps, so the next one is `107_`.
+  - Migrations only go forward: a rollback does not undo them.
+- **Settings:** `finlit/config.py` (`Settings`), although many modules read `os.environ` directly.
+- **Data providers:**
+
+  | Provider | Used for |
+  |---|---|
+  | FinEdge | Fundamentals (`finedge.py`); FinEdge's own figures win, see `KNOWN-ISSUES.md` fault i |
+  | Dhan | Prices, intraday, options, indices |
+  | Upstox | Second price source |
+  | AMFI and mfapi.in | Mutual funds |
+  | NSE archives | Sectors, flows, transcripts |
+  | RBI, MoSPI, World Bank, FBIL, NSDL, EIA | Macro data |
+  | Gemini | Summaries |
+  | Resend | Email |
+- **Plans:**
+  - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions.
+  - Every route checks the plan itself (24 files); there is no central dependency, so **a new route must add its own check**.
+  - The session cache lasts 120 s; call `forget_cached` when a plan changes.
+  - `SHOWCASE_SYMBOLS` are open to every plan.
+- **Health signals:**
+  - About 634 `except Exception` blocks.
+  - A few f-string SQL calls without a `nosec` note: `forum.py`, `mf_compare.py`.
+  - The largest files are `mf.py`, `worker.py`, `etf.py`, `prism.py` and `auth/routes.py`.
+
+## 4. Frontend
+
+- **Routes:**
+  - All are in `src/App.tsx`, loaded lazily through `lazyPage` (`src/lib/resilience.ts`).
+  - The app pages sit inside `AppShell` (side rail). The stock page `/stocks/:symbol` and the public pages sit inside `Layout`.
+- **API:**
+  - Use `src/lib/api.ts` (`apiGet`, `apiSend`, which add CSRF, the admin "view as" header and `ApiError`). `src/lib/siteApi.ts` covers the site backend.
+  - About 54 raw `fetch(` calls still bypass it; do not add more.
+- **Development proxy** (`vite.config.ts`):
+  - `/api` paths go to the research API only when they match a list of prefixes; everything else goes to the site backend.
+  - **A new research route must be added to that list.**
+- **Plan checks:**
+  - `src/lib/auth.tsx` reads `/api/auth/me`.
+  - `src/components/Gate.tsx`, `src/lib/planGate.ts` and `src/lib/premium.ts` show plan locks.
+  - The server is the real gate.
+- **CSS:**
+  - Plain global sheets (`src/styles/`, about 123 files); the import order in `main.tsx` matters.
+  - Bare `.btn`, `.card` and `.chip` are styled in several sheets.
+  - **Scope new CSS to the component and grep a class name before using it.**
+  - Theme comes from `data-theme` on `<html>`; charts read CSS variables when they draw.
+- **Tests:**
+  - Vitest: about 305 files and 2,800 cases. jsdom is chosen per file with `// @vitest-environment jsdom`.
+  - Browser checks are standalone Playwright scripts in `e2e/`, for example `layout_guard.mjs` (`docs/LAYOUT-GUARD.md`). CI runs none of them.
+  - There is no ESLint, although the code has about 97 `exhaustive-deps` suppressions.
+- **Large files:**
+  - `src/stress/stressLab.js` (untyped).
+  - Pages: `AdvancedCharts.tsx`, `ScreenerPro.tsx`, `Dcf.tsx`, `EpsCalculator.tsx`, `Funds.tsx`.
+  - The stock report is split across `stock/Sections*.tsx`.
+
+## 5. Hosting and release
+
+**Live:** `finlitventures.com` (main), with `www` redirecting to it and `app.` serving the same site with a canonical link to the main domain.
+
+**Cloudflare** is DNS only (records not proxied, checked 17 Nov). It provides:
+- DNS;
+- Email Routing (MX and SPF records);
+- the Worker relay in `deploy/amfi-relay/` for AMFI files and NSE/BSE pages, which refuse the AWS address. If the relay breaks, fund facts, company briefs and earnings calls stop updating.
+
+Caddy already trusts `CF-Connecting-IP` from Cloudflare's ranges (#515), so turning the proxy on needs no code. Two caveats:
+- SSL mode must be "Full (strict)".
+- `/api` must not be cached at the edge.
+
+**AWS:** one EC2 t3.small in Sydney (54.253.190.17; 2 GB of memory plus 2 GB swap). Docker Compose runs:
+
+| Service | Role | Memory |
+|---|---|---|
+| Caddy | Ports 80 and 443; automatic HTTPS; security headers; holds requests 90 s during restarts; also serves the workspace through `/etc/caddy/extra/*.caddy` | |
+| `app` | Research API, website files, and the site backend on port 8001 | 500 MB |
+| `jobs` | Job supervisor | 800 MB |
+| TimescaleDB | Database, about 1.8 GB on 17 Nov | |
+| Redis | Cache only | |
+| `backup` | Nightly `pg_dump` at 02:00 IST | |
+
+Memory is the recurring fault (`docs/ops/MEMORY-AND-503.md`).
+
+**Release:**
+1. A PR is merged to `main`.
+2. `platform-image.yml` builds `ghcr.io/yusra-khan532/finlit-app:<sha>`. It runs only when `finlit-platform/**` changes.
+3. The server's timer runs `deploy/aws/auto-deploy.sh` about every 5 minutes:
+   1. It runs `git ls-remote` and takes a backup.
+   2. `deploy.sh` pulls the prebuilt image, waiting up to 20 minutes, or builds it locally.
+   3. It tags the old image `previous` and starts the new one.
+   4. It waits for `/api/ping` and `/api/health`.
+   5. It moves the jobs container only when job code changed and no long job is running.
+4. A failed deploy rolls back to `previous`, and its SHA is never retried.
+
+**Fragile points:**
+- Nothing waits for CI; whatever lands on `main` is deployed.
+- A commit outside `finlit-platform/` gets no image, so the 2 GB server builds the image itself.
+- `tsc` runs only in the frontend workflow.
+
+**CI** (`.github/workflows/`):
+
+| Workflow | What it runs |
+|---|---|
+| `platform-ci.yml` | Backend pytest with Postgres and Redis; deploy script tests; site-api pytest |
+| `platform-frontend.yml` | Typecheck, Vitest, npm audit, build |
+| `platform-security.yml` | pip-audit, npm audit, bandit (`backend/finlit` only), gitleaks |
+| `platform-smoke.yml` | `scripts/smoke.sh` against the live site every 6 hours |
+| `platform-image.yml` | Builds the server image |
+
+Before a push: `bash scripts/preflight.sh`.
+
+**Live checks (public):**
+- `/api/health` gives `{ok, version}` and `/version.json` gives the build time; together they show which commit is live.
+- `/api/jobs/status`: every job, overdue and failing lists, the canary, disk and database size.
+
+## 6. Team workspace (https://workspace.finlitventures.com)
+
+- The team's task tracker. Its source is not in this repository; it runs on the same server.
+- Statuses: todo → in progress → done → verified, or reopened with a "rework" note.
+- The API answers to this session: `GET /api/tasks`, `/api/members`, `/api/stats`. The writes are `/api/tasks/{id}/status`, `/api/tasks/{id}/updates` and `/api/tasks/{id}/checklist`. **Anything written appears as the team's account, so write only when asked.**
+- People:
+
+  | Who | Role |
+  |---|---|
+  | Pranshu | Lead and founder; reopens tasks as lead |
+  | Chinmay | Main task writer and checker |
+  | Nishant | Screener, Prism and data tasks |
+  | Pranjal | Large design packs, sent as zip files whose content is the specification |
+  | Claude | The member who builds and marks tasks done |
+
+- Pace (6–17 Nov): about 17 tasks a day. Median 11.5 h from created to done, and 6.4 h from done to verified.
+- Large tasks often have no text, only a zip pack. Step 0 is a word-for-word checklist from its README or CHECKLIST, attached to the task.
+
+## 7. Open questions to settle (as of 17 Nov 2026)
+
+- #206 asks to recolour the whole site from a photo, which conflicts with the final-pages pack and the site-green work (#161). Ask the founder before building.
+- #210 (Prism CAGR ladders and PEG fallback) looks already shipped in PR #503 (Prism 3.6.19) but is still todo. Check it live, then mark it done.
+- #191 (Zerodha, Upstox, Groww connection), #212 (superinvestor portfolios from FinEdge) and #211 ("claude integration check") need scoping first.
+- Should Cloudflare's proxy be turned on? It adds an edge cache, DDoS protection and hides the server's address.
+- Cheap safety fixes worth doing between tasks:
+  - deploy only after CI passes;
+  - one central plan-check dependency on the backend;
+  - ESLint for React hooks;
+  - the layout guard in CI.
+- Out-of-date docs:
+  - `TEAM-DEPLOY.md`: misses the prebuilt image and the separate jobs container.
+  - `ops/MEMORY-AND-503.md`: old memory limits.
+  - `prism/DEPLOY.md`, `current-site-inventory.md`, `platform-plan.md`: Render, Neon and Vercel era.
+  - `technicals/INCIDENT-2026-10.md`: status out of date.
+  - The README's caching claims: stock API replies are now `private, no-cache`.
