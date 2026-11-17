@@ -5,8 +5,9 @@ import { Icon } from "../lib/icons";
 import { MiniBars, type BarSeries } from "../charts/MiniBars";
 import { Plain } from "../components/Plain";
 import { MINUS, cr, nf, num } from "../lib/format";
-import type { Events, Financials, Ratios, Table } from "../lib/api";
-import { SectionHead } from "./Sections";
+import { useSection, type Events, type Financials, type Ratios, type Table } from "../lib/api";
+import { useBasis, type Basis } from "../lib/basis";
+import { SectionHead, yearGaps } from "./Sections";
 import { badgeOf, insightLine, lastIndex, shortPeriod, yoyChange, type Tone } from "../lib/trendInsight";
 
 const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math.abs(v)) : nf(v, Math.abs(v) < 10 && v !== 0 ? 1 : 0));
@@ -109,8 +110,28 @@ const segKeys = (e: React.KeyboardEvent<HTMLElement>) => {
   bs[to].focus(); bs[to].click();
 };
 
-export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Ratios }) {
+export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: Events; r?: Ratios }) {
   const [tab, setTab] = useState<"key" | "margin" | "div">("key");
+  // Task #198 (same rules as section 06, task #190): the reader can switch THIS section between consolidated and standalone accounts; the rest of the
+  // page keeps its basis. The other basis's financials and ratios are asked for only when its button is pressed, and its cards are drawn only once an
+  // answer for exactly that basis is here (never the previous basis's figures under the new label). Dividend per share is per share: the same on either.
+  const sym = pageF?.meta.symbol ?? "";
+  const pageBasis = useBasis(sym);
+  const [pick, setPick] = useState<{ sym: string; b: Basis } | null>(null);
+  const chosen: Basis | null = pick && pick.sym === sym ? pick.b : null;
+  const wantOther = !!pageF && chosen != null && chosen !== pageF.meta.statement;
+  const finQ = useSection<Financials>(sym, "financials", wantOther, chosen ?? undefined);
+  const ratQ = useSection<Ratios>(sym, "ratios", wantOther, chosen ?? undefined);
+  const finReady = wantOther && finQ.data?.meta.symbol === sym && finQ.data.meta.statement === chosen ? finQ.data : undefined;
+  const ratReady = wantOther && ratQ.data?.meta.symbol === sym && ratQ.data.meta.statement === chosen ? ratQ.data : undefined;
+  const ratDone = !!ratReady || ratQ.isError;            // ratios that fail leave their two cards out (listed as not shown); the rest still draws
+  const f = wantOther ? (finReady && ratDone ? finReady : undefined) : pageF;
+  const r = wantOther ? ratReady : pageR;
+  const emptyFin = (x?: Financials) => !!x && x.yearly.pl.periods.length === 0 && x.quarterly.pl.periods.length === 0;
+  const [none, setNone] = useState<string[]>([]);       // a basis found to have no statements stays greyed out, with its reason, for this company
+  useEffect(() => { if (finReady && emptyFin(finReady) && chosen && !none.includes(sym + ":" + chosen)) setNone((n) => [...n, sym + ":" + chosen]); }, [finReady, chosen, sym, none]);
+  const isNone = (b: Basis) => none.includes(sym + ":" + b) || (b === chosen && !!finReady && emptyFin(finReady));
+  const noneFor: Basis | null = chosen && isNone(chosen) ? chosen : null;
   const [mode, setModeRaw] = useState<"q" | "a">(readMode);
   const setMode = (m: "q" | "a") => { setModeRaw(m); try { sessionStorage.setItem(MODE_KEY, m); } catch { /* private window */ } };
   const [big, setBig] = useState<string | null>(null);
@@ -119,7 +140,31 @@ export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Rat
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(null); };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
   }, [big]);
-  if (!f) return null;
+  if (!pageF) return null;
+  const nameOf = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
+  const active: Basis = chosen ?? pageF.meta.statement;
+  const basisSeg = (
+    <div className="seg" role="group" aria-label="Accounts: consolidated or standalone">
+      {(["consolidated", "standalone"] as Basis[]).map((b) => {
+        const off = isNone(b);
+        return <button key={b} type="button" aria-pressed={active === b} disabled={off && active !== b}
+          title={(b === "consolidated" ? "The group: the company and its subsidiaries together" : "The parent company alone, without its subsidiaries") + (off ? ". Not available for this company." : "")}
+          onClick={() => setPick(b === pageF.meta.statement ? null : { sym, b })}>{nameOf(b)}</button>;
+      })}
+    </div>);
+  const head = (b: Basis) => `${nameOf(b)} accounts. Quarter by quarter or year by year. Hover a column for its exact value.`;
+  if (!f || noneFor) {
+    const why = noneFor ? `${nameOf(noneFor)} statements are not available for this company in our data sources, so this section can only show ${pageF.meta.statement} accounts.`
+      : finQ.isError ? `${nameOf(chosen as Basis)} accounts could not be loaded right now (${finQ.error?.status === 503 ? "the data provider did not answer" : "please try again in a moment"}). The ${pageF.meta.statement} accounts are still here: press ${nameOf(pageF.meta.statement)}.`
+        : `Loading ${chosen as Basis} accounts…`;
+    return (
+      <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
+        <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} color="--gold" />
+        <div className="tr-bar"><span className="faint" style={{ fontSize: 13, alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
+        <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: 14, margin: "6px 2px 0" }}>{why}</p>
+        {!noneFor && !finQ.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
+      </section>);
+  }
   const A = f.yearly, Q = f.quarterly.pl;
   const tbl = (m: "q" | "a") => (m === "q" ? Q : A.pl);
   const mk = (title: string, key: string, color: string, fmt = crf, x: Partial<Card> = {}): Card => ({ id: key, title, ...x, build: (m) => { const t = tbl(m); return { labels: t.periods, series: [{ key, label: title, values: row(t, key), color }], fmt }; } });
@@ -155,11 +200,15 @@ export function TrendsSection({ f, e, r }: { f?: Financials; e?: Events; r?: Rat
   const missing = built.filter((b) => !b.d).map((b) => b.c.title);
   return (
     <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
-      <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub="Quarter by quarter or year by year. Hover a column for its exact value." color="--gold"
+      <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)} color="--gold"
         aside={<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div>} />
       <div className="tr-bar">
         <div className="seg" role="tablist" aria-label="Trend groups" onKeyDown={segKeys}>{([["key", "Key metrics"], ["margin", "Margins and investment"], ["div", "Dividends"]] as const).map(([k, l]) => <button key={k} type="button" role="tab" id={"trtab-" + k} aria-controls="trpanel" tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>
+        {basisSeg}
       </div>
+      {chosen && f.meta.statement !== pageBasis && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>This section now shows {f.meta.statement} accounts; the rest of this page uses {pageBasis} accounts.</p>}
+      {mode === "a" && yearGaps(A.pl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>No {f.meta.statement} figures for {g} in our data sources: neighbouring columns and the trend lines below skip those years.</p>)}
+      {chosen && wantOther && ratQ.isError && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>The {chosen} ratios (return on equity and capital, payout) could not be loaded right now, so those charts are left out.</p>}
       <p className="sr-only" role="status" aria-live="polite">{`Showing ${mode === "q" ? "quarterly" : "annual"} figures, ${shownCount} of ${list.length} charts in ${tabName}.`}</p>
       <div className="tr-grid" role="tabpanel" id="trpanel" aria-labelledby={"trtab-" + tab}>{built.map(({ c, d }) => {
         if (!d) return null;
