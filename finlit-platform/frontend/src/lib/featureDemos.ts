@@ -39,6 +39,7 @@ export const DEMOS: Record<string, Demo> = {
   downloads: v("downloads", "Downloads", "Save a company's report as a PDF note or an offline copy, and download tables as CSV.", "/stocks/RELIANCE", "Open a company report"),
   segments: v("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "/premium/fundamentals", "Open company financials"),
   "gold-dash": v("gold-dash", "Gold dashboards", "Markets and financials: index moves with the events behind them, and every ratio over the years.", "/premium", "Open the Gold dashboards"),
+  superinvestors: v("superinvestors", "Superinvestor portfolios", "What named investors own, from company filings: every stake of 1% or more, its value today, the weightings, the sector split and the year's changes.", "/superinvestors", "Open superinvestor portfolios"),
   options: v("options", "Option chain", "Open interest, its change, volume and implied volatility by strike, with the put-call ratio and max pain.", "/premium/options", "Open the option chain"),
 };
 
@@ -57,7 +58,7 @@ export const FEATURE_DEMO: Record<string, string> = {
   "Downloads": "downloads", "Downloads: PDF note, offline copy, CSV": "downloads", "Portfolio scorecard": "portfolio",
   "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit forecasting": "outlook",
   "FinLit FundPulse": "fund-health", "Revenue by segment": "segments",
-  "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
+  "Superinvestor portfolios": "superinvestors", "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
 };
 
 export const demoFor = (feature: string): Demo | null => { const id = FEATURE_DEMO[feature.replace(" (coming soon)", "")]; return id ? DEMOS[id] ?? null : null; };

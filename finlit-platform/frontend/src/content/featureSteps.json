@@ -121,6 +121,11 @@
   "FinLit Prism, company financials, market events and the option chain",
   "Each one opens with a short guide to reading it"
  ],
+ "superinvestors": [
+  "Every investor named with 1% or more in two or more companies",
+  "Stock picks and weightings, valued at today's prices",
+  "The sector split and what changed over the year"
+ ],
  "options": [
   "Pick an index or an F&O stock",
   "Open interest, volume and implied volatility by strike",

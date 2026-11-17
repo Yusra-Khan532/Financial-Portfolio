@@ -58,6 +58,8 @@ const SipCalculator = lazy(() => import("./pages/SipCalculator").then((m) => ({ 
 const OptionChainPage = lazy(() => import("./pages/OptionChain").then((m) => ({ default: m.OptionChainPage })));
 const CommoditiesPage = lazy(() => import("./pages/Commodities").then((m) => ({ default: m.CommoditiesPage })));
 const StressLabPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabPage })));
+const SuperinvestorsPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorsPage })));
+const SuperinvestorPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorPage })));
 const StressLabIndexPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabIndexPage })));
 const OutlookPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookPage })));
 const OutlookIndexPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookIndexPage })));
@@ -138,6 +140,8 @@ export default function App() {
             <Route path="outlook" element={<OutlookIndexPage />} />
             <Route path="outlook/:symbol" element={<OutlookPage />} />
             <Route path="research/stress-lab" element={<StressLabIndexPage />} />
+            <Route path="superinvestors" element={<SuperinvestorsPage />} />
+            <Route path="superinvestors/:key" element={<SuperinvestorPage />} />
             <Route path="research/stress-lab/:symbol" element={<StressLabPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="sip-calculator" element={<SipCalculator />} />
