@@ -1,12 +1,15 @@
-"""POST /api/me/all-investments (task #137): the figures behind the "All my investments" page.
+"""POST /api/me/all-investments (task #137, 15 Nov 2026 pack): the figures behind the "All my investments" page.
 
 The body carries the member's Equity portfolio shares (symbol and quantity: that list lives in the browser and the account, as the Equity portfolio page
-sends it); the member's mutual funds are read from their MF portfolio here. No new store: both lists stay where they are, so changing a list on its own
-page changes this page. ETFs are not read: the ETF portfolio does not exist yet, and the answer says so.
+sends it); the member's mutual funds and ETFs are read here from their MF portfolio and ETF portfolio. No new store: the three lists stay where they are,
+so a change on a portfolio page shows here after a refresh.
 
-Plans (founder, 15 Nov 2026): Silver and Gold, as the two portfolio pages. Shares are read with the FinLit IQ on Silver and FinLit Prism on Gold, never
-both; the funds' FundPulse is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
-Information only, not investment advice.
+Plans: Silver and Gold, as the three portfolio pages. Shares are read with the FinLit IQ on Silver and FinLit Prism on Gold, never both; the funds' Health
+Score is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
+
+Every figure follows "How the numbers are worked out" in the pack (see calc.py). The shares' beta is the Equity portfolio's own sum
+(portfolio_page.metrics.market_measures on weekly prices) against the Nifty 500; each fund's and ETF's beta is its portfolio page's own figure
+(mfportfolio.risk.fund_figures on daily NAVs or closes, three years). Information only, not investment advice.
 """
 
 from __future__ import annotations
@@ -14,16 +17,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..auth.routes import Ctx, fail, ip_of
+from ..auth.routes import Ctx, ip_of
 from ..mfportfolio import risk as mfrisk
 from ..mfportfolio.api import SCHEME_COLS, holdings_of, is_gold, member_ctx, nav_history, scores_for
 from . import calc
@@ -32,11 +35,13 @@ log = logging.getLogger("finlit.myinvest")
 router = APIRouter(prefix="/api/me")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
-BENCH_KEY = "myinv:nifty500:sectors:v1"
-DISCLAIMER = ("Describes your shares and mutual funds from their published prices, NAVs and the fund houses' monthly portfolio files; holdings inside a fund can "
-              "have changed since the fund house published its file. Past figures do not guarantee future returns. Mutual fund investments are subject to market "
-              "risks; read all scheme-related documents carefully. Information only, not investment advice.")
-ETF_SOON = "The ETF portfolio is coming. Once you can keep a list of your ETFs, they are counted here too."
+DISCLAIMER = ("Describes your shares, mutual funds and ETFs from their published prices, NAVs and the fund houses' monthly portfolio files; holdings inside a "
+              "fund or ETF can have changed since the fund house published its file. Past figures do not guarantee future returns. Mutual fund investments "
+              "are subject to market risks; read all scheme-related documents carefully. Information only, not investment advice.")
+PRISM_BANDS = ("Strong", "Healthy", "Average", "Weak", "Poor")
+IQ_BANDS = ("Strong", "Healthy", "Mixed", "Watch")
+FUND_BANDS = PRISM_BANDS
+NO_BENCH = "The Nifty 500 history is not available right now, so the beta and swing figures cannot be worked out."
 
 
 class ShareIn(BaseModel):
@@ -60,42 +65,99 @@ class Body(BaseModel):
 
 def _ord(t: str) -> Optional[int]:
     try:
-        return date.fromisoformat(t[:10]).toordinal()
+        return date.fromisoformat(str(t)[:10]).toordinal()
     except (TypeError, ValueError):
         return None
 
 
-def _year_ago(days: List[int], values: List[float]) -> Optional[float]:
-    """The value about one year before the last one (the last value on or before that day, within 10 days)."""
-    if not days:
+def _year_change(days: List[int], values: List[float]) -> Optional[float]:
+    """% change over the last year: the last value against the last one on or before a year earlier (within 10 days). None with under a year of prices."""
+    if not days or days[-1] - days[0] < 360:
         return None
-    got = calc.on_grid(days, values, [days[-1] - 365])
-    return got[0]
+    target, best = days[-1] - 365, None
+    for d, v in zip(days, values):
+        if d > target:
+            break
+        best = (d, v)
+    if best is None or target - best[0] > 10 or not best[1]:
+        return None
+    return (values[-1] / best[1] - 1) * 100
 
 
-async def _bench_sectors(app, spell: Dict[str, str]) -> Dict[str, float]:
-    redis = app.state.store.redis
+def _shares_market(prices: Dict[str, Any], bench_rows: List[dict], symbols: List[str], weights: Dict[str, float], week: str) -> Optional[Dict[str, Any]]:
+    """The Equity portfolio's own market figures (weekly prices, its window), against the Nifty 500, for the weights given, plus each share's own beta."""
+    import numpy as np
+    from ..portfolio_page import inputs, metrics
+    frame, bench = inputs.build_frame(prices, bench_rows, symbols, week)
+    r, rn, short = metrics.weekly_returns(frame, bench)
+    if len(r.columns) < 1 or len(r) < 20:
+        return None
+    w = np.array([max(weights.get(s, 0.0), 0.0) for s in r.columns], dtype=float)
+    w = w / w.sum() if w.sum() > 0 else np.ones(len(r.columns)) / len(r.columns)
+    m = metrics.market_measures(r, rn, w)
+    var = float(np.var(rn, ddof=1))
+    each = {}
+    for s in r.columns:
+        pair = r[s].notna() & rn.notna()
+        each[s] = round(float(np.cov(r[s][pair], rn[pair])[0, 1] / np.var(rn[pair], ddof=1)), 2) if pair.sum() >= metrics.MIN_WEEKS and var > 0 else None
+    return {**{k: float(v) for k, v in m.items()}, "each": each, "short": list(short), "weeks": int(len(r)), "years": round(len(r) / 52, 1)}
+
+
+def _list_risk(parts: List[Tuple[List[int], List[float], float]], end: int) -> Dict[str, Any]:
+    """A fund or ETF list's swing a year and worst fall from a high, as its portfolio page works them out (daily, three years)."""
+    ld, lv = mfrisk.list_series(parts, end) if parts else ([], [])
+    if len(lv) < mfrisk.MIN_DAYS:
+        return {"swing": None, "worstFall": None, "years": None, "why": "They share less than a year of daily prices, so they cannot be followed as one line yet." if parts else None}
+    return {"swing": mfrisk.r1(mfrisk.swing(mfrisk.returns(lv), mfrisk.per_year(ld))), "worstFall": mfrisk.r1(mfrisk.worst_fall(lv)),
+            "years": round((ld[-1] - ld[0]) / 365.25, 1), "why": None}
+
+
+async def _bench(app) -> List[dict]:
+    from .. import indices
     try:
-        raw = await redis.get(BENCH_KEY)
-    except Exception:
-        raw = None
-    if raw:
-        return orjson.loads(raw)
+        raw = await indices._cached(app, "idx:px:NIF500", 6 * 3600, lambda: indices._fetch_levels(app, "NIF500"))
+        return indices.shape_levels(raw, 5)["rows"] if raw else []
+    except Exception as exc:          # the index provider is down: the page shows everything else and says why the risk figures are empty
+        log.warning("all-investments: Nifty 500 levels not read: %s", type(exc).__name__)
+        return []
+
+
+async def _peers(store) -> Dict[str, str]:
+    """The stored Leader / In line / Laggard code of each company, only while the label is switched on for everyone (as on the Advanced screener)."""
+    from .. import leadership_api
+    try:
+        if await leadership_api.public_now(store):
+            async with store.pool.acquire() as conn:
+                return {r["symbol"]: r["label"] for r in await conn.fetch("SELECT symbol, label FROM leadership WHERE label IS NOT NULL")}
+    except Exception as exc:
+        log.warning("all-investments: peer labels not read: %s", type(exc).__name__)
+    return {}
+
+
+async def _etfs(app, user_id: str) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """The member's ETFs as the ETF portfolio reads them: [{symbol, name, qty, price, chg1y, premium, ter, tracks, holdings, asOf, days, closes}], and the
+    symbols no longer listed."""
+    from ..etfportfolio import api as ep
     async with app.state.store.pool.acquire() as conn:
-        members = [r["symbol"] for r in await conn.fetch("SELECT symbol FROM index_members WHERE index_code = 'NIFTY500'")]
-    facts = await app.state.store.diversification_facts(members) if members else []
-    out = calc.bench_sectors([{"sector": spell.get(f.get("sector") or "", f.get("sector")), "mcap": f.get("mcap")} for f in facts])
-    try:
-        await redis.set(BENCH_KEY, orjson.dumps(out), ex=6 * 3600)
-    except Exception:
-        pass
-    return out
-
-
-async def _iq(conn, symbols: List[str]) -> Dict[str, float]:
-    rows = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, overall FROM scores WHERE symbol = ANY($1::text[]) AND model = 'v1' AND overall IS NOT NULL "
-                            "ORDER BY symbol, (statement = 'consolidated') DESC, updated_at DESC", symbols)
-    return {r["symbol"]: float(r["overall"]) for r in rows}
+        held = await ep.held_of(conn, user_id)
+    if not held:
+        return [], []
+    by, idx = await asyncio.gather(ep.etf_rows(app), ep.index_keys(app))
+    live = [h for h in held if h["symbol"] in by]
+    gone = [h["symbol"] for h in held if h["symbol"] not in by]
+    facts = await asyncio.gather(*[ep.facts_for(app, by[h["symbol"]]["isin"]) for h in live])
+    files = await asyncio.gather(*[ep.holdings_for(app, by[h["symbol"]]["isin"]) for h in live])
+    hist = await asyncio.gather(*[ep.closes_for(app, h["symbol"], by[h["symbol"]]) for h in live])
+    out = []
+    for h, f, (port, why), (days, closes, hwhy) in zip(live, facts, files, hist):
+        r = by[h["symbol"]]
+        v = ep._view(h["symbol"], h["qty"], r, f, idx.get(h["symbol"]))
+        out.append({"symbol": h["symbol"], "short": h["symbol"], "name": v["name"], "isin": v["isin"], "qty": v["qty"], "price": v["price"], "priceDate": v["priceDate"],
+                    "chg1d": v["changePct"], "chg1y": v["ret1y"], "premium": v["premium"], "ter": v["ter"]["value"], "assetClass": r.get("asset_class"),
+                    "category": r.get("category"), "categoryLabel": v["categoryLabel"], "tracks": v["tracks"], "holdings": (port or {}).get("holdings") or [],
+                    "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
+                    "fileWhy": None if port and port.get("holdings") else why or "No monthly portfolio file found for this ETF yet.", "days": days, "closes": closes, "historyWhy": hwhy})
+    return out, gone
 
 
 @router.post("/all-investments")
@@ -105,12 +167,13 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     if not allowed:
         return Response(orjson.dumps({"status": "rate_limited", "detail": "Too many requests. Please wait and try again.", "retryAfter": retry}), status_code=429,
                         media_type="application/json", headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
-    from .. import indices, portfolios
+    from .. import mf, portfolios
     from ..diversification import api as div
-    from ..portfolio_page.api import _sector_spellings
+    from ..etfportfolio import api as ep
+    from ..etfportfolio import calc as ecalc
+    from ..mfportfolio.calc import label_of
     gold = is_gold(ctx)
     store = app.state.store
-    spell = await _sector_spellings(app)
 
     # ---- shares: one row per company, quantities added up (a row without a quantity makes the company's quantity unknown)
     qty: Dict[str, Optional[float]] = {}
@@ -128,40 +191,31 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         schemes = {r["code"]: dict(r) for r in await conn.fetch(f"SELECT {SCHEME_COLS} FROM mf_schemes WHERE code = ANY($1::int[])", codes)} if codes else {}  # nosec B608 - fixed column list; codes are bound
         navs = {c: await nav_history(conn, schemes[c]) for c in codes if c in schemes}
         fscores = await scores_for(conn, codes) if gold and codes else {}
-        iq = await _iq(conn, known) if known and not gold else {}
-    prism = {r["symbol"]: r for r in await store.prism_cards(known)} if known and gold else {}
-    from .. import leadership_api
-    peer: Dict[str, str] = {}
-    try:      # Leader / In line / Laggard against its peers, only while the label is switched on for everyone (as on the Advanced screener)
-        if await leadership_api.public_now(store):
-            async with store.pool.acquire() as conn:
-                peer = {r["symbol"]: r["label"] for r in await conn.fetch("SELECT symbol, label FROM leadership WHERE label IS NOT NULL")}
-    except Exception as exc:
-        log.warning("all-investments: peer labels not read: %s", type(exc).__name__)
+    etfs, etf_gone = await _etfs(app, ctx.user_id)
+    peer_raw, bench_rows = await asyncio.gather(_peers(store), _bench(app))
+    bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in bench_rows}
+    end = max(bench) if bench else None
 
     shares: List[Dict[str, Any]] = []
-    sday: Dict[str, List[int]] = {}
-    sval: Dict[str, List[float]] = {}
     for s in known:
         f = facts[s]
         p = prices.get(s) or {}
         pairs = [(_ord(t), c) for t, c in zip(p.get("t") or [], p.get("c") or [])]
         pairs = [(d, c) for d, c in pairs if d is not None]
-        sday[s], sval[s] = [d for d, _ in pairs], [c for _, c in pairs]
-        last = sval[s][-1] if sval[s] else None
-        ago = _year_ago(sday[s], sval[s])
-        score = (calc._num(prism[s].get("final")) if s in prism else None) if gold else iq.get(s)
-        shares.append({"symbol": s, "name": f.get("name") or s, "sector": spell.get(f.get("sector") or "", f.get("sector")), "qty": qty[s], "price": last, "price1y": ago,
-                       "chg1y": (last / ago - 1) * 100 if last and ago else None, "score": score})
+        days, vals = [d for d, _ in pairs], [c for _, c in pairs]
+        last = vals[-1] if vals else None
+        prev = vals[-2] if len(vals) > 1 else None
+        shares.append({"symbol": s, "name": f.get("name") or s, "qty": qty[s], "price": last, "priceDate": date.fromordinal(days[-1]).isoformat() if days else None,
+                       "chg1d": (last / prev - 1) * 100 if last and prev else None, "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
 
     units: Dict[int, Decimal] = defaultdict(Decimal)
     unknown_units = set()
     for h in held:
-        for l in h["lots"]:
-            if l["units"] is None:
+        for lot in h["lots"]:
+            if lot["units"] is None:
                 unknown_units.add(h["code"])
             else:
-                units[h["code"]] += Decimal(str(l["units"]))
+                units[h["code"]] += Decimal(str(lot["units"]))
     funds: List[Dict[str, Any]] = []
     for c in codes:
         s = schemes.get(c)
@@ -170,91 +224,137 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         port = await portfolios.get_portfolio(store.pool, c)
         days, vals = navs.get(c, ([], []))
         nav = float(s["nav"]) if s.get("nav") is not None else (vals[-1] if vals else None)
-        ago = _year_ago(days, vals)
         sc = fscores.get(c) or {}
-        funds.append({"code": c, "name": s["name"], "short": mfrisk.short_name(s["name"]), "units": float(units[c]) if units.get(c) and c not in unknown_units else None,
-                      "nav": nav, "chg1y": (vals[-1] / ago - 1) * 100 if vals and ago else None, "holdings": (port or {}).get("holdings") or [],
-                      "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"), "score": sc.get("final"), "scoreLabel": sc.get("label")})
+        funds.append({"code": c, "name": s["name"], "short": mfrisk.short_name(s["name"]), "type": mf.classify(s["category"])[2] if s.get("category") else None,
+                      "units": float(units[c]) if units.get(c) and c not in unknown_units else None, "nav": nav, "navDate": s["nav_date"].isoformat() if s.get("nav_date") else None,
+                      "chg1y": _year_change(days, vals), "ter": calc._num(float(s["ter"])) if s.get("ter") is not None else None,
+                      "holdings": (port or {}).get("holdings") or [], "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
+                      "score": sc.get("final"), "label": sc.get("label"), "scoreWhy": None if not gold or sc.get("final") is not None else sc.get("reason"),
+                      "days": days, "closes": vals})
 
-    split = calc.split_parts(shares, funds)
-    companies = calc.look_through(shares, funds, split)
-    sector_of = {s["symbol"]: s["sector"] for s in shares}
-    missing = [r["symbol"] for r in companies if r["symbol"] not in sector_of]
-    if missing:
-        more = await store.diversification_facts(missing)
-        sector_of.update({f["symbol"]: spell.get(f.get("sector") or "", f.get("sector")) for f in more})
-        names = {f["symbol"]: f.get("name") for f in more}
-        for r in companies:
-            if names.get(r["symbol"]):
-                r["name"] = names[r["symbol"]]
-    bench_sec = await _bench_sectors(app, spell)
-    sector_rows = calc.sectors(companies, sector_of, bench_sec)
-    mix = calc.asset_mix(shares, funds, split)
+    split = calc.split_parts(shares, funds, etfs)
+    companies = calc.look_through(shares, funds, etfs, split)
+    fund_name = {f["code"]: f["short"] for f in funds}
 
-    # ---- risk against the NIFTY 500: weekly, three years
-    risk_out: Optional[Dict[str, Any]] = None
-    why_risk = None
-    try:
-        raw = await indices._cached(app, "idx:px:NIF500", 6 * 3600, lambda: indices._fetch_levels(app, "NIF500"))
-        rows = indices.shape_levels(raw, calc.YEARS + 1)["rows"] if raw else []
-    except Exception as exc:          # the index provider is down: the page shows everything else and says why the risk tab is empty
-        log.warning("all-investments: NIFTY 500 levels not read: %s", type(exc).__name__)
-        rows = []
-    bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in rows}
-    if not bench:
-        why_risk = "The Nifty 500 history is not available right now, so the risk figures cannot be worked out."
-    elif shares or funds:
-        grid = calc.weekly_grid(bench, max(bench))
-        b_r = calc.rets(calc.on_grid(sorted(bench), [bench[d] for d in sorted(bench)], grid))
-        s_r = [calc.rets(calc.on_grid(sday[s["symbol"]], sval[s["symbol"]], grid)) for s in shares]
-        f_r = [calc.rets(calc.on_grid(*navs.get(f["code"], ([], [])), grid)) for f in funds]
-        parts = {"shares": calc.blend(s_r, split["shares"]["w"]), "funds": calc.blend(f_r, split["funds"]["w"])}
-        port = calc.blend([parts[k] for k in parts if split["part"][k]], [split["part"][k] for k in parts if split["part"][k]])
-        figs = calc.risk_figures(port, b_r)
-        if figs is None:
-            why_risk = "Needs about a year of weekly prices for your holdings before the risk figures can be worked out."
-        else:
-            ratio = figs["swing"] / figs["benchSwing"] if figs["benchSwing"] else None
-            shares_sw = calc.swing_shares(parts, split["part"], port)
-            lines = [f"{calc.PART_WORD[x['part']].capitalize()} are {x['money']:.0f}% of your money but {x['swings']:.0f}% of the ups and downs."
-                     for x in shares_sw if x["swings"] is not None and x["swings"] > x["money"] * 1.5 and x["swings"] - x["money"] >= 10]
-            risk_out = {**{k: (round(v, 2) if isinstance(v, float) else v) for k, v in figs.items()}, "level": mfrisk.level_word(ratio) if ratio else None,
-                        "vs": "the Nifty 500", "parts": shares_sw, "lines": lines, "grain": "weekly", "years": calc.YEARS}
+    # ---- every listed company underneath: name, macro sector, market value, score
+    listed = sorted({c["symbol"] for c in companies if c["symbol"] and not c["abroad"]})
+    more = [x for x in listed if x not in facts]
+    for f in (await store.diversification_facts(more) if more else []):
+        facts[f["symbol"]] = f
+    classes = await store.classifications(listed) if listed else {}
+    scores = await ep.scores_for(app, listed, gold) if listed else {}
+    for c in companies:
+        f = facts.get(c["symbol"] or "")
+        if f and f.get("name"):
+            c["name"] = f["name"]
+    sectors = calc.macro_sectors(companies, {s: (classes.get(s) or {}).get("macro_sector") for s in listed})
+    sizes = calc.company_sizes(companies, lambda c: calc._num((facts.get(c["symbol"] or "") or {}).get("mcap")))
+    made = calc.made_of(shares, funds, etfs, split)
 
-    # ---- the answer
-    def part_card(kind: str, items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    # ---- risk: each kind's beta against the Nifty 500, then together
+    week = div.unfinished_week(div.now_ist())
+    s_market = None
+    if shares and bench_rows:
+        sw = {s["symbol"]: w for s, w in zip(shares, split["shares"]["w"])}
+        try:
+            s_market = await asyncio.to_thread(_shares_market, prices, bench_rows, [s["symbol"] for s in shares], sw, week)
+        except Exception as exc:
+            log.warning("all-investments: share market figures failed: %s", type(exc).__name__)
+    for s in shares:
+        s["beta"] = (s_market or {}).get("each", {}).get(s["symbol"])
+    for items in (funds, etfs):
+        for f in items:
+            fig = mfrisk.fund_figures(f["days"], f["closes"], bench, end) if bench and f["days"] else {"beta": None, "swing": None, "worstFall": None, "why": None}
+            f.update(beta=fig["beta"], swing=fig["swing"], worstFall=fig["worstFall"], riskWhy=fig.get("why"))
+    kind_risk: Dict[str, Dict[str, Any]] = {}
+    if shares:
+        kind_risk["shares"] = {"beta": calc.r((s_market or {}).get("beta")), "swing": (s_market or {}).get("vol"), "worstFall": (s_market or {}).get("max_fall"),
+                               "years": (s_market or {}).get("years"), "benchSwing": (s_market or {}).get("vol_nifty"), "benchWorstFall": (s_market or {}).get("max_fall_nifty"),
+                               "why": NO_BENCH if not bench_rows else None if s_market else "Needs about a year of weekly prices for your shares."}
+    for kind, items in (("funds", funds), ("etfs", etfs)):
+        if not items:
+            continue
+        b, cover = calc.kind_beta([f["beta"] for f in items], split[kind]["w"])
+        parts = [(f["days"], f["closes"], w) for f, w in zip(items, split[kind]["w"]) if f["swing"] is not None]
+        lr = _list_risk(parts, end) if end else {"swing": None, "worstFall": None, "years": None}
+        kind_risk[kind] = {"beta": calc.r(b), "cover": cover, **lr, "why": NO_BENCH if not bench else None if b is not None else
+                           f"None of your {calc.PART_WORD[kind]} has a year of daily prices yet."}
+    together = calc.risk_together({k: {"share": split["part"][k], "beta": v["beta"]} for k, v in kind_risk.items()}, split["total"])
+    bench_fig = None
+    if bench:
+        bd, bv = mfrisk.window(sorted(bench), [bench[d] for d in sorted(bench)], end)
+        bench_fig = {"name": "Nifty 500", "swing": mfrisk.r1(mfrisk.swing(mfrisk.returns(bv), mfrisk.per_year(bd))), "worstFall": mfrisk.r1(mfrisk.worst_fall(bv)),
+                     "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat()}
+
+    # ---- health
+    s_scores = [scores.get(s["symbol"], {}) for s in shares] if shares else []
+    for s, sc in zip(shares, s_scores):
+        s["score"], s["label"] = sc.get("score"), sc.get("label")
+    s_bands = PRISM_BANDS if gold else IQ_BANDS
+    health = {
+        "shares": {"model": "prism" if gold else "iq", "score": calc.r(calc.weighted_mean([s["score"] for s in shares], split["shares"]["w"]), 0),
+                   **calc.band_counts([s["label"] for s in shares], split["shares"]["w"], s_bands)} if shares else None,
+        "funds": ({"locked": True} if not gold else {"locked": False, "score": calc.r(calc.weighted_mean([f["score"] for f in funds], split["funds"]["w"]), 0),
+                  **calc.band_counts([f["label"] for f in funds], split["funds"]["w"], FUND_BANDS),
+                  "lowest": min(({"name": f["short"], "score": f["score"], "label": f["label"]} for f in funds if f["score"] is not None), key=lambda x: x["score"], default=None)}) if funds else None,
+        "etfs": {"ter": calc.r(calc.weighted_mean([e["ter"] for e in etfs], split["etfs"]["w"]), 3),
+                 "costPerLakh": calc.r((calc.weighted_mean([e["ter"] for e in etfs], split["etfs"]["w"]) or 0) * 1000, 0) if any(e["ter"] is not None for e in etfs) else None,
+                 "widestGap": max(({"symbol": e["symbol"], "premium": e["premium"]} for e in etfs if e["premium"] is not None), key=lambda x: abs(x["premium"]), default=None)} if etfs else None,
+    }
+    under = [c for c in companies if c["symbol"] and not c["abroad"]]
+    health["underneath"] = {"model": "prism" if gold else "iq", **calc.band_counts([(scores.get(c["symbol"]) or {}).get("label") for c in under], [c["all"] for c in under], s_bands)} if under else None
+
+    # ---- each kind's card
+    def card(kind: str, items: List[Dict[str, Any]]) -> Dict[str, Any]:
         sp = split[kind]
         chg = calc.weighted_mean([i.get("chg1y") for i in items], sp["w"])
-        top = max(zip(items, sp["w"]), key=lambda x: x[1])[0] if items else None
-        return {"count": len(items), "valued": sp["valued"], "value": round(sp["value"], 2) if sp["value"] else None, "share": round(split["part"][kind] * 100, 2),
-                "chg1y": round(chg, 2) if chg is not None else None, "largest": ({"name": top.get("short") or top.get("name"), "symbol": top.get("symbol"), "code": top.get("code")} if top else None)}
+        order = sorted(zip(items, sp["w"]), key=lambda x: -x[1]) if sp["valued"] else list(zip(items, sp["w"]))
+        return {"count": len(items), "valued": sp["valued"], "value": calc.r(sp["value"]) if split["byValue"] else None, "share": calc.r(split["part"][kind] * 100),
+                "chg1y": calc.r(chg), "beta": (kind_risk.get(kind) or {}).get("beta"), "betaBand": calc.beta_band((kind_risk.get(kind) or {}).get("beta")),
+                "first": [{"name": i.get("short") or i.get("name"), "symbol": i.get("symbol"), "code": i.get("code"), "w": calc.r(w * 100, 1)} for i, w in order[:3]],
+                "firstIs": "largest" if sp["valued"] else "list"}
 
-    s_card = part_card("shares", shares)
-    f_card = part_card("funds", funds)
-    s_card["score"] = round(calc.weighted_mean([s["score"] for s in shares], split["shares"]["w"]), 1) if any(s["score"] is not None for s in shares) else None
-    s_card["scoreModel"] = "prism" if gold else "iq"
-    f_card["score"] = round(calc.weighted_mean([f["score"] for f in funds], split["funds"]["w"]), 1) if gold and any(f["score"] is not None for f in funds) else None
-    f_card["scoreLocked"] = not gold
-    if f_card["score"] is not None:
-        from ..mfportfolio.calc import label_of
-        f_card["scoreWord"] = label_of(f_card["score"]) or None
-    overlap = max((len(c["via"]) for c in companies if c["funds"] > 0), default=0)
-    f_card["overlap"] = calc.fund_overlap(funds)
-    s_card["peers"] = {"lead": sum(1 for s in shares if peer.get(s["symbol"]) == "Leader"), "lag": sum(1 for s in shares if peer.get(s["symbol"]) == "Laggard"), "shown": bool(peer)}
-    f_card["sharedCompanies"] = sum(1 for c in companies if len(c["via"]) > 1)
-    f_card["mostShared"] = overlap
+    cards = {"shares": card("shares", shares), "funds": card("funds", funds), "etfs": card("etfs", etfs)}
+    cards["shares"].update(score=(health["shares"] or {}).get("score"), scoreModel="prism" if gold else "iq",
+                           peers={w: sum(1 for s in shares if calc.peer_word(peer_raw.get(s["symbol"]), True) == w) for w in ("Leader", "In line", "Laggard", calc.NOT_COMPARED)},
+                           bands=(health["shares"] or {}).get("bands"))
+    cards["funds"].update(score=(health["funds"] or {}).get("score"), scoreLocked=not gold, bands=(health["funds"] or {}).get("bands"),
+                          scoreWord=label_of((health["funds"] or {}).get("score")) or None if (health["funds"] or {}).get("score") is not None else None,
+                          overlap=calc.fund_overlap(funds), sharedCompanies=sum(1 for c in companies if len(c["viaFunds"]) > 1))
+    rep = ecalc.repeats({e["symbol"]: e["tracks"] for e in etfs})
+    cards["etfs"].update(ter=(health["etfs"] or {}).get("ter"), repeats=rep,
+                         types=[{"label": k, "count": n} for k, n in Counter(e["categoryLabel"] or "Other" for e in etfs).items()])
+
+    twice = {s for x in rep for s in x["symbols"]}
+    out_shares = [{**{k: s[k] for k in ("symbol", "name", "qty", "price", "priceDate", "chg1d", "chg1y", "beta", "score", "label")},
+                   "macro": (classes.get(s["symbol"]) or {}).get("macro_sector") or calc.NOT_CLASSIFIED, "size": calc.size_of(s["mcap"]), "peer": calc.peer_word(peer_raw.get(s["symbol"]), True),
+                   "value": calc.r(s["qty"] * s["price"]) if s["qty"] and s["price"] else None, "of": calc.r(split["part"]["shares"] * w * 100),
+                   "alsoIn": next(({"funds": calc.r(c["funds"]), "etfs": calc.r(c["etfs"]), "all": calc.r(c["all"]), "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + c["viaEtfs"]}
+                                   for c in companies if c["symbol"] == s["symbol"] and c["ways"] > 1), None)} for s, w in zip(shares, split["shares"]["w"])]
+    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "scoreWhy", "beta", "swing", "worstFall", "riskWhy")},
+                  "chg1y": calc.r(f["chg1y"]), "value": calc.r(f["units"] * f["nav"]) if f["units"] and f["nav"] else None, "of": calc.r(split["part"]["funds"] * w * 100),
+                  "file": bool(f["holdings"]), "equityLines": sum(1 for h in f["holdings"] if (h.get("assetClass") or "equity") == "equity")}
+                 for f, w in zip(funds, split["funds"]["w"])]
+    out_etfs = [{**{k: e[k] for k in ("symbol", "name", "isin", "qty", "price", "priceDate", "chg1d", "chg1y", "premium", "ter", "categoryLabel", "asOf", "fileWhy", "beta", "swing", "worstFall", "riskWhy")},
+                 "tracks": e["tracks"].get("label"), "twice": e["symbol"] in twice, "value": calc.r(e["qty"] * e["price"]) if e["qty"] and e["price"] else None,
+                 "of": calc.r(split["part"]["etfs"] * w * 100), "file": bool(e["holdings"])} for e, w in zip(etfs, split["etfs"]["w"])]
+    out_companies = [{"symbol": c["symbol"], "name": c["name"], "abroad": c["abroad"], "macro": calc.LISTED_ABROAD if c["abroad"] else ((classes.get(c["symbol"] or "") or {}).get("macro_sector") or c["macro"] or calc.NOT_CLASSIFIED),
+                      "size": c.get("size"), "all": calc.r(c["all"], 3), "direct": calc.r(c["direct"], 3), "funds": calc.r(c["funds"], 3), "etfs": calc.r(c["etfs"], 3), "held": c["held"],
+                      "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + list(c["viaEtfs"]),
+                      "score": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("score"),
+                      "label": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("label"),
+                      "peer": calc.peer_word(peer_raw.get(c["symbol"] or ""), c["direct"] > 0)} for c in companies]
+    have = sum(1 for s in shares if s["qty"]) + sum(1 for f in funds if f["units"]) + sum(1 for e in etfs if e["qty"])
+    files = [f["asOf"] for f in funds + etfs if f.get("asOf")]
     body_out = {
-        "plan": "gold" if gold else "silver", "byValue": split["byValue"], "total": round(split["total"], 2) if split["total"] else None,
-        "chg1y": round(calc.weighted_mean([s_card["chg1y"], f_card["chg1y"]], [split["part"]["shares"], split["part"]["funds"]]), 2)
-                 if s_card["chg1y"] is not None or f_card["chg1y"] is not None else None,
-        "parts": {"shares": s_card, "funds": f_card, "etfs": {"count": 0, "soon": True, "why": ETF_SOON}},
-        "mix": mix, "companies": [{**{k: (round(v, 4) if isinstance(v, float) else v) for k, v in c.items()}, "sector": sector_of.get(c["symbol"]), "peer": peer.get(c["symbol"])} for c in companies],
-        "peersShown": bool(peer),
-        "heldTwice": sum(1 for c in companies if c["twice"]), "sectors": sector_rows, "risk": risk_out, "riskWhy": why_risk,
-        "insights": calc.insights(sector_rows, companies, mix, risk_out),
-        "holdingsAsOf": max((f["asOf"] for f in funds if f.get("asOf")), default=None),
-        "unknown": [s for s in symbols if s not in facts],
-        "noHoldings": [f["short"] for f in funds if not f["holdings"]],
-        "disclaimer": DISCLAIMER,
+        "plan": "gold" if gold else "silver", "byValue": split["byValue"], "total": calc.r(split["total"]), "missing": split["missing"],
+        "counts": {"shares": len(shares), "funds": len(funds), "etfs": len(etfs)}, "quantities": {"have": have, "of": len(shares) + len(funds) + len(etfs)},
+        "chg1y": calc.r(calc.weighted_mean([cards[k]["chg1y"] for k in calc.KINDS], [split["part"][k] for k in calc.KINDS])),
+        "cards": cards, "madeOf": made, "sectors": sectors, "sizes": sizes, "companies": out_companies, "filters": calc.filter_counts(companies),
+        "health": health, "risk": {**together, "kinds": kind_risk, "bench": bench_fig},
+        "shares": out_shares, "funds": out_funds, "etfs": out_etfs,
+        "sources": {"pricesTo": max((s["priceDate"] for s in shares + etfs if s.get("priceDate")), default=None),
+                    "navsTo": max((f["navDate"] for f in funds if f.get("navDate")), default=None), "filesFrom": min(files, default=None), "filesTo": max(files, default=None)},
+        "unknown": [s for s in symbols if s not in known], "gone": etf_gone, "disclaimer": DISCLAIMER,
     }
-    return Response(orjson.dumps(body_out), media_type="application/json", headers=NO_STORE)
+    return Response(orjson.dumps(body_out, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)
