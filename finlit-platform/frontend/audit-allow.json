@@ -1,0 +1,14 @@
+{
+  "_comment": "Advisories the security audit (.github/workflows/platform-security.yml, scripts/audit-check.mjs) accepts for now. Each entry is one GitHub advisory, allowed ONLY in build and test tools (never in what ships to visitors) and only while no fixed version is published: the check fails again the moment a version above maxAffected exists, so the update is made and the entry removed. Any other high or critical advisory fails the check as before.",
+  "allow": [
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "maxAffected": "4.0.7",
+      "title": "picomatch vulnerable to ReDoS through single-branch repeated extglobs",
+      "why": "Reached only through vite and vitest (build and test tools). Every published picomatch (latest 4.0.7) is affected, so no update can clear it; npm's only suggestion is downgrading vite 8 to 6.",
+      "added": "2026-11-17",
+      "approvedBy": "the owner, in the session for task #193 (17 Nov 2026)"
+    }
+  ]
+}
