@@ -5,9 +5,14 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AssistantLauncher } from "./components/AssistantLauncher";
 import { OPEN_AI } from "./components/assistantEvents";
+
+// The panel reads the member and FinLit AI's allowance (task #211); on the site it sits inside the providers of main.tsx, here a visitor is enough.
+vi.mock("./lib/auth", async (orig) => ({ ...(await orig<typeof import("./lib/auth")>()), useAuth: () => ({ user: null }) }));
+vi.mock("./lib/askAi", async (orig) => ({ ...(await orig<typeof import("./lib/askAi")>()), useAskQuota: () => ({ data: undefined }) }));
+vi.mock("@tanstack/react-query", async (orig) => ({ ...(await orig<typeof import("@tanstack/react-query")>()), useQueryClient: () => ({ invalidateQueries: async () => {} }) }));
 
 const SRC = __dirname;
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => {

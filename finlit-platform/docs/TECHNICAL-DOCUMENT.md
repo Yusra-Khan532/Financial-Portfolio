@@ -64,6 +64,6 @@ Backend: pytest (about 3,300 tests, with Postgres and Redis). Site backend: pyte
 - Showing MCX prices publicly needs written permission from Dhan/MCX; redistribution terms for FinEdge and Dhan data are still to be settled.
 
 ## 10. Environment
-Key settings (in `/opt/finlit/.env.aws` on the server, never in code; `deploy/aws/.env.aws.example` lists them all): `DATABASE_URL`, `MONGO_URL`, `FINEDGE_API_KEY`, `DHAN_CLIENT_ID` with `DHAN_PIN` and `DHAN_TOTP_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `INGEST_LIMIT`, `SCORE_ALL_PER_RUN`. Optional: `RESEND_API_KEY` (email), `GEMINI_API_KEY` (AI chat), `METALS_DEV_API_KEY`.
+Key settings (in `/opt/finlit/.env.aws` on the server, never in code; `deploy/aws/.env.aws.example` lists them all): `DATABASE_URL`, `MONGO_URL`, `FINEDGE_API_KEY`, `DHAN_CLIENT_ID` with `DHAN_PIN` and `DHAN_TOTP_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `INGEST_LIMIT`, `SCORE_ALL_PER_RUN`. Optional: `RESEND_API_KEY` (email), `ANTHROPIC_API_KEY` (Ask FinLit AI's written answers, `docs/ASK-AI.md`), `GEMINI_API_KEY` (the nightly earnings-call and company-brief summaries), `METALS_DEV_API_KEY`.
 
 More detail: `docs/AWS-DEPLOY.md` (server runbook), `docs/TEAM-DEPLOY.md` (team workflow), `docs/JOBS.md` (background jobs), `docs/DHAN-SETUP.md`, `docs/FLOWS.md`, `docs/KNOWN-ISSUES.md`.
