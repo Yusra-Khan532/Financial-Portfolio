@@ -10,17 +10,19 @@ import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
 import { MINUS, nf } from "../lib/format";
-import { DATE_MEANING, GAP_LABEL, PAGE, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
+import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
 import { saveFile } from "../stock/derive";
 import { ChartHelp } from "../components/ChartHelp";
 import { HScroll } from "../components/HScroll";
-import { GrowthCharts, GrowthPanel } from "../components/QrGrowth";
+import { GrowthPanel } from "../components/QrGrowth";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
 import "../styles/qresults.css";
 import { CoLogo } from "../components/CoLogo";
 import { short } from "../lib/pulsePack";
-import { KpiTiles, ResultsHead, VerdictCell } from "../components/results/pack/ResultsPack";
+import { ResultsHead, VerdictCell } from "../components/results/pack/ResultsPack";
+import { QuarterPicker, QuarterTiles } from "../components/results/pack/QuarterTop";
+import { GlanceCard } from "../components/results/pack/Glance";
 import { IndustriesView } from "../components/results/pack/IndustriesView";
 import type { VRow } from "../lib/resultsPack";
 import "../styles/sectors.css";
@@ -309,16 +311,12 @@ export function QuarterResultsPage() {
 
   const delayed = useResultsDelayedNote();
   return (
-    <div className="wrap ipo qr sp rs">
+    <div className="wrap ipo qr sp rs rs-latest">
       <ResultsHead title={`Latest results${q ? ` · ${q.fiscal}` : ""}`} view={view}
         desc={`Every company's results for the quarter${q ? ` ended ${new Date(q.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}` : ""}, the most recently declared first, with how each compares with similar companies.`}
         links={[["/results", "Results calendar"], ["/news", "News & filings"], ["/documents", "Documents"]]} />
-      <KpiTiles r={d} />
-      <div className="rs-qsel"><label className="wl-sel"><span>Quarter</span>
-        <select aria-label="Quarter" value={q?.key || ""} onChange={(e) => { const n = new URLSearchParams(sp); if (e.target.value) n.set("quarter", e.target.value); else n.delete("quarter"); setSp(n); setOffset(0); }}>
-          {(d?.quarters || []).map((x) => <option key={x.key} value={x.key}>{x.label} · {x.fiscal} ({x.declared} out)</option>)}
-          {!d?.quarters?.length && <option value="">Loading…</option>}
-        </select></label></div>
+      <QuarterTiles r={d} />
+      <div className="rs-qsel"><QuarterPicker quarters={d?.quarters ?? []} current={q?.key} onPick={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} /></div>
       <div className="rs-tabs" role="tablist" aria-label="Industries or companies">
         {([["industries", "Industries", "How each industry's results compare with the market"], ["companies", "Companies", "Every company, newest first, with its verdict"]] as const).map(([k, t, s2]) =>
           <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}><b>{t}</b><small>{s2}</small></button>)}
@@ -403,7 +401,10 @@ export function QuarterResultsPage() {
           {filtersOn && <button type="button" className="alx-link" onClick={clearFilters}>Clear filters</button>}
       </div>
       {f.q && d && !dateErr && !res.isFetching && <p className="qr-findnote" role="status">{total ? <><b>{nf(total, 0)}</b> {total === 1 ? "company matches" : "companies match"} “{f.q}” among the filtered results.</> : <>“{f.q}” is not in the filtered results. <button type="button" className="alx-link" onClick={() => { setQuery(""); set({ q: "" }); }}>Clear the search</button></>}</p>}
-      <GrowthCharts summary={d?.growth} dist={d?.distribution} locked={!silver} />
+      <GlanceCard dist={d?.distribution} growth={d?.growth} locked={!silver} fills={[
+        ...GROWTH_PRESETS.map((g) => { const on = activePreset(growth) === g.id && priceIsDefault(price); return { id: g.id, label: g.label, hint: g.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(g), DEFAULT_PRICE) }; }),
+        ...PRICE_PRESETS.filter((x) => x.growth).map((x) => { const on = activePricePreset(growth, price) === x.id; return { id: x.id, label: x.label, hint: x.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(x.growth!), on ? DEFAULT_PRICE : x.price) }; }),
+      ]} />
 
       {zoom && <div className="qr-backdrop" onClick={() => setZoom(false)} aria-hidden="true" />}
       <section className={"card qr-card" + (zoom ? " qr-zoomed" : "")}>
