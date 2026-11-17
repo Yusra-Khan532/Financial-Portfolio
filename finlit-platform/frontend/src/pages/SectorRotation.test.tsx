@@ -45,7 +45,8 @@ describe("Sector Rotation, the pack's header", () => {
 describe("Sector Rotation, Simple view (pack 08)", () => {
   it("shows the pack's sections in its order and never advises", () => {
     at();
-    const want = ["Today in one minute", "How your industries compare", "The map: where every industry stands", "Who is ahead, and which way they are moving", "Changed box this week · 8", "May change box next week · 7", "Biggest rank moves in 4 weeks", "The four boxes, in the order industries usually move"];
+    // task #192 (SECTOR-PAGES.md 7): 1 Today → 2 The four boxes → 3 Map → 4 Who is ahead → 5 Changed box → 6 May change → 7 Rank moves → 8 Your industries
+    const want = ["Today in one minute", "The four boxes, in the order industries usually move", "The map: where every industry stands", "Who is ahead, and which way they are moving", "Changed box this week · 8", "May change box next week · 7", "Biggest rank moves in 4 weeks", "How your industries compare"];
     const got = h2(), idx = want.map((t) => got.indexOf(t));
     expect(idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1]))).toBe(true);
     expect(document.body.textContent).toContain("Leadership is shifting.");
@@ -99,5 +100,38 @@ describe("Sector Rotation, Full table view (pack 09)", () => {
     const heat = screen.getByRole("img", { name: /Ranks of 37 groups at 26 weekly closes/ });
     expect(heat.querySelectorAll("g").length).toBe(37);
     expect(document.querySelectorAll(".rp-12 tbody tr").length).toBe(37);
+  });
+});
+
+describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Rotation", () => {
+  it("has the guide, closed, with the ranked count and the four boxes word for word as their i texts", () => {
+    at();
+    fireEvent.click(screen.getByRole("button", { name: /How to read and use this page/ }));
+    expect(document.body.textContent).toContain("measures each of the 37 ranked groups against one yardstick, the average group (all 38 counted equally)");
+    const first = document.querySelector(".sp-guide-t tbody tr")!;
+    expect(first.children[1].textContent).toBe("Doing better than the average group over the longer run, and still pulling ahead lately.");
+    expect(document.body.textContent).not.toContain("How to read this page");
+  });
+  it("numbers the sections in the pack's order and adds Hide where the pack says", () => {
+    at();
+    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2Four boxes", "3Map", "4Who is ahead", "5Changed box", "6May change", "7Rank moves", "8Your industries"]);
+    const hide = screen.getAllByRole("button", { name: /^Hide: / }).map((b) => b.getAttribute("aria-label"));
+    expect(hide).toEqual(expect.arrayContaining(["Hide: How your industries compare", "Hide: The map: where every industry stands", "Hide: Changed box this week · 8", "Hide: May change box next week · 7"]));
+    expect(screen.getByRole("button", { name: "About “Today in one minute”" })).toBeTruthy();
+  });
+  it("starts Changed box and May change at 4 rows and Who is ahead at 10 bars", () => {
+    at();
+    expect(document.querySelectorAll(".rp-ah-row")).toHaveLength(10);
+    expect(screen.getAllByRole("button", { name: /^Show all \d+ ▾$/ }).map((b) => b.textContent)).toEqual(expect.arrayContaining(["Show all 38 ▾", "Show all 8 ▾", "Show all 7 ▾"]));
+    const tables = [...document.querySelectorAll(".rp-chg tbody")].map((t) => t.children.length);
+    expect(tables).toEqual([4, 4]);
+  });
+  it("Full table: 1 Ranking → 2 May change → 3 Six months of ranks → 4 12-week change, with Hide on May change", () => {
+    at("/sectors/rotation?view=full");
+    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Ranking", "2May change", "3Six months of ranks", "412-week change"]);
+    expect(screen.getByRole("button", { name: "About “Ranking of every industry”" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hide: May change box next week · 7" })).toBeTruthy();
   });
 });

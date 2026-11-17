@@ -35,7 +35,7 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
     <>
       <Cards items={tableCards(b.rows, week)} />
       <section className="sp-sec" aria-labelledby="sp-every">
-        <div className="sp-sec-h"><div><h2 id="sp-every">Every industry, every number</h2><p className="sp-sub">Grouped by state. Click any industry to see the stocks inside it, strongest 6 months first.</p></div>
+        <div className="sp-sec-h"><div><h2 id="sp-every">Every industry, every number<Tip text="Every industry, every number. Every group with a reading on one table: its state and since when, how many of its counted stocks are above their short, medium and longer trend, how far it is below its 1-year high, its Sector Rotation box and the last bounce." label="About “Every industry, every number”" /></h2><p className="sp-sub">Grouped by state. Click any industry to see the stocks inside it, strongest 6 months first.</p></div>
           <button type="button" className="sp-dl" onClick={() => download(b.rows, b.date)}>Download CSV</button></div>
         <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
         <div className="sp-ckey"><span><b>How to read the 6-month chart:</b> the <b>line</b> is the share of its stocks rising each day (dashed = half); the <b>shading</b> is its state that day; ▲ marks its last bounce.</span>
@@ -108,7 +108,7 @@ export function TooSmallFull({ b }: { b: Board }) {
 export function StandoutsFull({ b }: { b: Board }) {
   const [all, setAll] = useState(false);
   const f = b.leader_flags;
-  if (f == null) return <section className="sp-sec"><h2>Standout stocks</h2><LockedBlock plan="silver" title="The standout stocks are part of the Silver plan">Silver lists every stock at a new 1-year high inside a weak industry.</LockedBlock></section>;
+  if (f == null) return <section className="sp-sec" aria-labelledby="sp-stand-f"><h2 id="sp-stand-f">Standout stocks</h2><LockedBlock plan="silver" title="The standout stocks are part of the Silver plan">Silver lists every stock at a new 1-year high inside a weak industry.</LockedBlock></section>;
   const c = standoutCounts(f), shown = all ? f : f.slice(0, 24);
   return (
     <section className="sp-sec" aria-labelledby="sp-stand-f">

@@ -25,15 +25,8 @@ export const MEANING: Record<StateKey, string> = {
   sold_off: "Most of its stocks have fallen below their trend, and no broad bounce has followed yet.",
   no_signal: "No sell-off, bounce or broad rise: its stocks are not moving together.",
 };
-/** The (i) text of each state (pack "Words on this page"). */
-export const STATE_HELP: Record<StateKey, string> = {
-  sold_off: "Sold off. Most of this industry's stocks have fallen below their usual price level, and they have not turned up together yet. The industry is out of favour for now.",
-  bouncing: "Bouncing back. After a fall, most of the industry's stocks turned up together within a few days. It is the first sign of a recovery, and it can still fade.",
-  crash: "Bouncing back after a crash. The same broad bounce, but after a deep fall in which almost every stock in the industry hit a new low. Bounces after a crash can be sharp, and they can also fade.",
-  rising: "Rising together. Most of the industry's stocks are above their short, medium and longer-term price levels. The rise is broad, not carried by a few names.",
-  losing: "Losing steam. A bounce or a rise that is losing support: fewer of the industry's stocks are still going up.",
-  no_signal: "No clear signal. The industry is not sold off, not bouncing and not rising together: its stocks are not moving as one.",
-};
+/** The (i) text of each state: its name and the same definition as the state table and the page guide, word for word (task #192, SECTOR-PAGES.md section 8). */
+export const STATE_HELP: Record<StateKey, string> = Object.fromEntries((Object.keys(WORD) as StateKey[]).map((k) => [k, `${WORD[k]}. ${MEANING[k]}`])) as Record<StateKey, string>;
 
 /** A group's name as every sector page shows it: NSE's own, with its commas (task #192, T12: no home-made short names; lib/groupNames.ts). */
 export const short = (name: string) => nseName(name);
@@ -111,7 +104,8 @@ export function statesAt(h: SectorHistory | undefined, back: number): Record<Sta
 export type CardChip = { symbol: string; label: string; note?: string };
 /** A labelled group of chips ("Lead · 16" in green, "Lag · 11" in red). */
 export type CardGroup = { label: string; tone?: "up" | "down"; chips: CardChip[] };
-export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string };
+/** `more`: a list cut in the title or text, where the token {more} stands; the page shows "+N more ▾", which opens it in place (task #192, SECTOR-PAGES.md 6). */
+export type Card = { kind: "good" | "watch" | "insight" | "warning"; title: string; text: string; groups?: CardGroup[]; note?: string; more?: string[] };
 const bounceKeys: StateKey[] = ["crash", "bouncing"];
 const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
@@ -141,7 +135,8 @@ export function todayCards(rows: GroupRow[]): Card[] {
   if (bounce.length) {
     const crash = by("crash").length, names = bounce.slice(0, 3).map((r) => short(r.name));
     out.push({ kind: "good", title: `${plural(bounce.length, "group is", "groups are")} bouncing back`,
-      text: `${bounce.length > 3 ? `${names.join(", ")} and ${bounce.length - 3} more` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
+      more: bounce.length > 3 ? bounce.slice(3).map((r) => short(r.name)) : undefined,
+      text: `${bounce.length > 3 ? `${names.join(", ")} {more}` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
   }
   const rise = by("rising");
   out.push(rise.length
@@ -229,7 +224,7 @@ export function matrixCards(rows: GroupRow[]): Card[] {
   const weak = rows.filter((r) => keyOf(r) === "sold_off" && r.rotation?.corner === "behind_slipping").map((r) => short(r.name));
   const out: Card[] = [];
   if (strong.length) out.push({ kind: "good", title: `Both views agree: ${strong.join(", ")}`, text: "Their stocks have just turned up together, and these industries were already beating most others. A recovery with support behind it." });
-  if (weak.length) out.push({ kind: "warning", title: `Both views are negative: ${weak.length > 4 ? weak.slice(0, 4).join(", ") + ` and ${weak.length - 4} more` : list(weak)}`, text: "Sold off and falling further behind other industries. No sign of a turn yet." });
+  if (weak.length) out.push({ kind: "warning", title: `Both views are negative: ${weak.length > 4 ? weak.slice(0, 4).join(", ") + " {more}" : list(weak)}`, more: weak.length > 4 ? weak.slice(4) : undefined, text: "Sold off and falling further behind other industries. No sign of a turn yet." });
   return out;
 }
 
