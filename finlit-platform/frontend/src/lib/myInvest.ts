@@ -1,56 +1,96 @@
-// All my investments (task #137): the member's shares and mutual funds read together, from POST /api/me/all-investments (finlit/myinvest).
-// The shares come from the Equity portfolio list in this browser and the account (sent as symbol and quantity only); the funds are read by the server from
-// the member's MF portfolio. ETFs: the ETF portfolio does not exist yet, so the page says they are coming. Describes; never advises.
+// All my investments (task #137, 15 Nov 2026 pack): the member's shares, mutual funds and ETFs read together, from POST /api/me/all-investments
+// (finlit/myinvest). The shares come from the Equity portfolio list in this browser and the account (sent as symbol and quantity only); the funds and ETFs
+// are read by the server from the member's MF portfolio and ETF portfolio. Every figure, weight, band and cut-off is worked out on the server; this file
+// only types the answer and writes numbers as words. Describes; never advises.
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
 import { MINUS, nf } from "./format";
 import type { Holding } from "./portfolio";
-import { partWord } from "../stock/prismCardLogic";
 
-export type PartCard = { count: number; valued: boolean; value: number | null; share: number; chg1y: number | null; largest: { name: string; symbol?: string | null; code?: number | null } | null;
-  score?: number | null; scoreModel?: "iq" | "prism"; scoreWord?: string | null; scoreLocked?: boolean; peers?: { lead: number; lag: number; shown: boolean };
-  overlap?: { pct: number; a: string; b: string } | null; sharedCompanies?: number; mostShared?: number };
-export type Company = { symbol: string; name: string; sector: string | null; direct: number; funds: number; etfs: number; all: number; twice: boolean; ways: number; via: number[]; peer: string | null };
-export type Risk = { swing: number; benchSwing: number; worstFall: number | null; benchWorstFall: number | null; beta: number | null; fallsTaken: number | null; weeks: number;
-  worstWeek: number; benchWorstWeek: number; level: string | null; vs: string; parts: { part: "shares" | "funds"; money: number; swings: number | null }[]; lines: string[]; grain: string; years: number };
+export type Kind = "shares" | "funds" | "etfs";
+export const KINDS: Kind[] = ["shares", "funds", "etfs"];
+export const KIND_NAME: Record<Kind, string> = { shares: "Shares", funds: "Mutual funds", etfs: "ETFs" };
+export const KIND_LOWER: Record<Kind, string> = { shares: "shares", funds: "mutual funds", etfs: "ETFs" };
+export const KIND_TAB: Record<Kind, Tab> = { shares: "equity", funds: "mf", etfs: "etf" };
+export const KIND_PAGE: Record<Kind, { to: string; name: string }> = {
+  shares: { to: "/holdings", name: "Equity portfolio" }, funds: { to: "/mf-portfolio", name: "MF portfolio" }, etfs: { to: "/etf-portfolio", name: "ETF portfolio" } };
+export const KIND_MARK: Record<Kind, "D" | "F" | "E"> = { shares: "D", funds: "F", etfs: "E" };
+export type Tab = "all" | "equity" | "mf" | "etf";
+
+export type Band = { label: string; count: number; share: number };
+export type Bands = { bands: Band[]; notRated: { count: number; share: number }; topTwoShare: number };
+export type First = { name: string; symbol?: string | null; code?: number | null; w: number | null };
+export type Card = {
+  count: number; valued: boolean; value: number | null; share: number; chg1y: number | null; beta: number | null; betaBand: string | null; first: First[]; firstIs: "largest" | "list";
+  score?: number | null; scoreModel?: "iq" | "prism"; scoreLocked?: boolean; scoreWord?: string | null; bands?: Band[] | null; peers?: Record<string, number>;
+  overlap?: { pct: number; a: string; b: string; n: number } | null; sharedCompanies?: number; ter?: number | null; repeats?: { key: string; label: string | null; symbols: string[] }[];
+  types?: { label: string; count: number }[];
+};
+export type MixRow = { key: "indian" | "abroad" | "gold" | "debt" | "other" | "notLoaded"; label: string; shares: number; funds: number; etfs: number; all: number };
+export type MadeOf = { rows: MixRow[]; each: { kind: Kind; name: string; how: "file" | "type" | "none"; asOf: string | null; mix: Partial<Record<MixRow["key"], number>> }[];
+  notLoaded: { kind: Kind; name: string }[]; byType: { kind: Kind; name: string }[]; outsideIndianShares: number };
+export type SplitRow = { direct: number; funds: number; etfs: number; all: number };
+export type Sector = SplitRow & { sector: string; named: boolean };
+export type Size = SplitRow & { size: string };
+export type Company = SplitRow & { symbol: string | null; name: string; abroad: boolean; macro: string; size: string | null; held: ("D" | "F" | "E")[]; via: string[]; score: number | null; label: string | null; peer: string };
+export type KindRisk = { beta: number | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
+export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; riskShare: number | null; red: boolean };
+export type Risk = { beta: number | null; band?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
+  kinds: Partial<Record<Kind, KindRisk>>; bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string } | null };
+export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
+  score: number | null; label: string | null; macro: string; size: string | null; peer: string; value: number | null; of: number;
+  alsoIn: { funds: number; etfs: number; all: number; via: string[] } | null };
+export type FundRow = { code: number; name: string; short: string; type: string | null; units: number | null; nav: number | null; navDate: string | null; ter: number | null; asOf: string | null;
+  score: number | null; label: string | null; parts: Record<string, number | null> | null; scoreWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
+  riskWhy: string | null; chg1y: number | null; value: number | null; of: number; file: boolean; equityLines: number };
+export type EtfRow = { symbol: string; name: string | null; isin: string | null; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null;
+  premium: number | null; ter: number | null; categoryLabel: string | null; asOf: string | null; fileWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
+  riskWhy: string | null; tracks: string | null; twice: boolean; value: number | null; of: number; file: boolean };
+export type Health = {
+  shares: (Bands & { model: "iq" | "prism"; score: number | null; label: string | null }) | null;
+  funds: ({ locked: true } | (Bands & { locked: false; score: number | null; label: string | null; lowest: { name: string; score: number; label: string | null } | null })) | null;
+  etfs: { ter: number | null; costPerLakh: number | null; widestGap: { symbol: string; premium: number } | null } | null;
+  underneath: (Bands & { model: "iq" | "prism" }) | null;
+};
 export type AllInvestments = {
-  plan: "silver" | "gold"; byValue: boolean; total: number | null; chg1y: number | null;
-  parts: { shares: PartCard; funds: PartCard; etfs: { count: 0; soon: true; why: string } };
-  mix: Partial<Record<"equity" | "debt" | "cash" | "other" | "unknown", number>>; companies: Company[]; heldTwice: number; peersShown: boolean;
-  sectors: { sector: string; mine: number; bench: number | null }[]; risk: Risk | null; riskWhy: string | null;
-  insights: { id: "sector" | "three" | "soften"; title: string; text: string }[]; holdingsAsOf: string | null; unknown: string[]; noHoldings: string[]; disclaimer: string;
+  plan: "silver" | "gold"; byValue: boolean; total: number | null; missing: Kind[]; counts: Record<Kind, number>; quantities: { have: number; of: number }; chg1y: number | null;
+  cards: Record<Kind, Card>; madeOf: MadeOf; sectors: Sector[]; sizes: Size[]; companies: Company[]; filters: { all: number; twice: number; through: number; direct: number };
+  health: Health; risk: Risk; shares: ShareRow[]; funds: FundRow[]; etfs: EtfRow[];
+  sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
 };
 
 /** The Equity portfolio list as the server takes it: one entry per row, symbol and quantity only (0 or none means no quantity yet). */
 export const sharesBody = (hs: Holding[]) => ({ shares: hs.map((h) => ({ symbol: h.symbol.toUpperCase(), qty: h.qty > 0 ? h.qty : null })) });
-
+export const ALL_KEY = "all-investments";
 export const useAllInvestments = (hs: Holding[], enabled: boolean) => {
   const body = sharesBody(hs);
-  return useQuery<AllInvestments, ApiError>({ queryKey: ["all-investments", body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1 });
+  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1 });
 };
 
-/** ₹ in lakh or crore, as the design writes it ("₹14.2 lakh", "₹1.3 crore", "₹61,400"). */
+/** ₹ in lakh or crore, as the design writes it ("₹14.2 L", "₹1.3 Cr", "₹61,400"). */
 export function rupees(v: number): string {
   const a = Math.abs(v), s = v < 0 ? MINUS : "";
-  if (a >= 1e7) return `${s}₹${nf(a / 1e7, 2)} crore`;
-  if (a >= 1e5) return `${s}₹${nf(a / 1e5, 1)} lakh`;
+  if (a >= 1e7) return `${s}₹${nf(a / 1e7, 2)} Cr`;
+  if (a >= 1e5) return `${s}₹${nf(a / 1e5, 2)} L`;
   return `${s}₹${nf(a, 0)}`;
 }
 /** A change with its sign always shown ("+7.9%", "−3.1%"). */
 export const chg = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
-export const pctOf = (v: number | null | undefined, d = 1) => (v == null ? "—" : nf(v, d) + "%");
-
-/** A score's word on the site's own bands: FinLit IQ (Strong 78+, Healthy 62+, Mixed 45+, Watch), FinLit Prism (the Prism page's part bands). */
-export const iqWord = (v: number) => (v >= 78 ? "Strong" : v >= 62 ? "Healthy" : v >= 45 ? "Mixed" : "Watch");
-export const shareScoreWord = (v: number, model: "iq" | "prism") => (model === "iq" ? iqWord(v) : partWord(v)[0]);
+export const pctOf = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
+export const betaTxt = (v: number | null | undefined) => (v == null ? "—" : nf(v, 2));
 export const MODEL_NAME = { iq: "FinLit IQ", prism: "FinLit Prism" } as const;
+export const toneOf = (label: string | null | undefined) => (label === "Strong" || label === "Healthy" ? "pos" : label === "Average" || label === "Mixed" ? "mid" : label ? "neg" : "none");
 
-export type Seg = "all" | "twice" | "through";
-/** The look-through table's segment: All, Held twice (directly and through a fund), Only through funds and ETFs (no direct holding). */
-export const segRows = (rows: Company[], seg: Seg) => (seg === "twice" ? rows.filter((r) => r.twice) : seg === "through" ? rows.filter((r) => r.direct === 0 && (r.funds > 0 || r.etfs > 0)) : rows);
-
-/** "4.2% direct, 1.3% through funds" (only the ways it is held). */
-export function splitText(c: Company): string {
-  const parts = [c.direct > 0 ? `${pctOf(c.direct)} direct` : null, c.funds > 0 ? `${pctOf(c.funds)} through funds` : null, c.etfs > 0 ? `${pctOf(c.etfs)} through ETFs` : null].filter(Boolean);
-  return parts.join(", ");
+/** How the split was decided, said wherever a split appears (pack: "Without quantities, every split says each kind counts the same and that the split is not
+ *  the member's money"). */
+export function splitLine(d: AllInvestments): string {
+  if (d.byValue) return "Shares of your money, from your quantities × the last price or NAV.";
+  const n = KINDS.filter((k) => d.counts[k] > 0).length;
+  return n > 1 ? `Each kind counts the same (${n === 3 ? "⅓" : "½"} each) until you add quantities, so this split is not your money.`
+    : "Each holding counts the same until you add quantities, so this split is not your money.";
 }
+export const kindsHeld = (d: AllInvestments) => KINDS.filter((k) => d.counts[k] > 0);
+export const joinWords = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
+export const dateShort = (iso: string | null | undefined) => (iso ? new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
+/** A row name inside a sentence: lower case, except a proper name ("Indian shares" stays). */
+export const lower = (s: string) => (/^Indian\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));

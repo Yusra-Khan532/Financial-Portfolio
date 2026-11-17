@@ -229,7 +229,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                       "units": float(units[c]) if units.get(c) and c not in unknown_units else None, "nav": nav, "navDate": s["nav_date"].isoformat() if s.get("nav_date") else None,
                       "chg1y": _year_change(days, vals), "ter": calc._num(float(s["ter"])) if s.get("ter") is not None else None,
                       "holdings": (port or {}).get("holdings") or [], "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
-                      "score": sc.get("final"), "label": sc.get("label"), "scoreWhy": None if not gold or sc.get("final") is not None else sc.get("reason"),
+                      "score": sc.get("final"), "label": sc.get("label"), "parts": sc.get("parts"), "scoreWhy": None if not gold or sc.get("final") is not None else sc.get("reason"),
                       "days": days, "closes": vals})
 
     split = calc.split_parts(shares, funds, etfs)
@@ -291,10 +291,14 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     for s, sc in zip(shares, s_scores):
         s["score"], s["label"] = sc.get("score"), sc.get("label")
     s_bands = PRISM_BANDS if gold else IQ_BANDS
+    from ..analytics.scoring import band as iq_band
+    word = (lambda v: label_of(v) or None) if gold else (lambda v: iq_band(v)["label"])
+    s_avg = calc.weighted_mean([s["score"] for s in shares], split["shares"]["w"])
+    f_avg = calc.weighted_mean([f["score"] for f in funds], split["funds"]["w"])
     health = {
-        "shares": {"model": "prism" if gold else "iq", "score": calc.r(calc.weighted_mean([s["score"] for s in shares], split["shares"]["w"]), 0),
+        "shares": {"model": "prism" if gold else "iq", "score": calc.r(s_avg, 0), "label": word(s_avg) if s_avg is not None else None,
                    **calc.band_counts([s["label"] for s in shares], split["shares"]["w"], s_bands)} if shares else None,
-        "funds": ({"locked": True} if not gold else {"locked": False, "score": calc.r(calc.weighted_mean([f["score"] for f in funds], split["funds"]["w"]), 0),
+        "funds": ({"locked": True} if not gold else {"locked": False, "score": calc.r(f_avg, 0), "label": label_of(f_avg) or None if f_avg is not None else None,
                   **calc.band_counts([f["label"] for f in funds], split["funds"]["w"], FUND_BANDS),
                   "lowest": min(({"name": f["short"], "score": f["score"], "label": f["label"]} for f in funds if f["score"] is not None), key=lambda x: x["score"], default=None)}) if funds else None,
         "etfs": {"ter": calc.r(calc.weighted_mean([e["ter"] for e in etfs], split["etfs"]["w"]), 3),
@@ -331,7 +335,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                    "value": calc.r(s["qty"] * s["price"]) if s["qty"] and s["price"] else None, "of": calc.r(split["part"]["shares"] * w * 100),
                    "alsoIn": next(({"funds": calc.r(c["funds"]), "etfs": calc.r(c["etfs"]), "all": calc.r(c["all"]), "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + c["viaEtfs"]}
                                    for c in companies if c["symbol"] == s["symbol"] and c["ways"] > 1), None)} for s, w in zip(shares, split["shares"]["w"])]
-    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "scoreWhy", "beta", "swing", "worstFall", "riskWhy")},
+    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "parts", "scoreWhy", "beta", "swing", "worstFall", "riskWhy")},
                   "chg1y": calc.r(f["chg1y"]), "value": calc.r(f["units"] * f["nav"]) if f["units"] and f["nav"] else None, "of": calc.r(split["part"]["funds"] * w * 100),
                   "file": bool(f["holdings"]), "equityLines": sum(1 for h in f["holdings"] if (h.get("assetClass") or "equity") == "equity")}
                  for f, w in zip(funds, split["funds"]["w"])]
