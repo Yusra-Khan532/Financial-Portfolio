@@ -14,27 +14,12 @@ import {
   BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayCards, yourCards, yourOrder,
   type Card, type Holding,
 } from "../../../lib/pulsePack";
-import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
+import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 
-// ------------------------------------------------------------------------------------------------ How to read this page
-export function HowToRead() {
-  return (
-    <details className="sp-sec sp-fold">
-      <summary><span><b className="sp-ft">How to read this page</b><small>Four steps, and a 3-minute guide</small></span><span className="sp-show">Show ▾</span></summary>
-      <ol className="sp-steps">
-        <li><b>Read the state.</b> The coloured state shows where an industry is in its cycle: sold off, bouncing back, rising together or losing steam.</li>
-        <li><b>Count the stocks rising.</b> How many of its counted stocks are above their short, medium and longer trend. More stocks rising means the move is broad.</li>
-        <li><b>Check the market.</b> The market backdrop at the top: an industry bounce means more when the whole market is in an uptrend.</li>
-        <li><b>Open an industry.</b> A year of its readings, every bounce and when it faded, and how each of its stocks has done.</li>
-      </ol>
-      <Link className="sp-link" to="/learn/sector-signals">How to use Sector Pulse →</Link>
-    </details>
-  );
-}
-
 // ------------------------------------------------------------------------------------------------ Today in one minute
+export const TODAY_HELP = "Today in one minute. What changed at the latest close: how many groups are in each state now and a week ago, one square per group, and the few things worth knowing.";
 export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }) {
   const rows = b.rows, now = statesAt(h, 0), week = statesAt(h, 1);
   const hd = headline(rows, now, week), cards = todayCards(rows);
@@ -42,7 +27,7 @@ export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }
   const shown = ORDER.filter((k) => k !== "no_signal" || rows.some((r) => keyOf(r) === k));
   return (
     <section className="sp-sec" aria-labelledby="sp-today">
-      <h2 id="sp-today">Today in one minute</h2>
+      <h2 id="sp-today">Today in one minute<Tip text={TODAY_HELP} label="About “Today in one minute”" /></h2>
       <p className="sp-sub">What changed in the industries, and what to keep an eye on.</p>
       <p className="sp-lead"><b>{hd.lead}</b>{hd.rest}</p>
       {hd.sub && <p className="sp-lead-sub">{hd.sub}</p>}
@@ -125,10 +110,10 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
   const key = [...symbols].sort().join(",");
   const q = useQuery<Membership, ApiError>({ queryKey: ["sectors", "membership", key], queryFn: () => apiGet<Membership>(`/api/sectors/membership?symbols=${encodeURIComponent(key)}`), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
   const held: Holding[] = symbols.flatMap((s) => (q.data?.groups[s] ? [{ symbol: s, slug: q.data.groups[s].slug }] : []));
-  const mine = b.rows.filter((r) => held.some((x) => x.slug === r.slug)).sort(yourOrder);
+  const mine = b.rows.filter((r) => held.some((x) => x.slug === r.slug)).sort(yourOrder), { shown: mineShown, button: mineMore } = useShowAll(mine, 5);
   const spark = (slug: string) => h?.groups.find((g) => g.slug === slug)?.rising ?? [];
   return (
-    <Section id="sp-yours" title="How your industries are doing" help="Your industries: the NSE industries of the shares in your portfolio. Each one's state today, how it compares with other industries (Sector Rotation) and how many of its stocks have been rising over 6 months."
+    <Section id="sp-yours" hide title="How your industries are doing" help="Your industries: the NSE industries of the shares in your portfolio. Each one's state today, how it compares with other industries (Sector Rotation) and how many of its stocks have been rising over 6 months."
       sub={mine.length ? `The ${mine.length} ${mine.length === 1 ? "industry" : "industries"} your ${held.length} ${held.length === 1 ? "share belongs" : "shares belong"} to: is each one rising or falling, and is it beating other industries?` : undefined}
       why="A share rarely swims against its whole industry for long. Knowing whether your industries are rising or falling tells you what your shares are up against.">
       {!symbols.length ? <p className="sp-empty">{signedIn ? <>Add the shares you own to <Link to="/portfolio">your portfolio</Link> and their industries appear here, each with its state and how it compares with the others.</> : <><Link to="/login">Sign in</Link> and add the shares you own: their industries appear here, each with its state and how it compares with the others.</>}</p>
@@ -140,7 +125,7 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
             <thead><tr><th scope="col">Industry and your shares</th><th scope="col">Its state today<Tip text="The industry's state at the latest close: sold off, bouncing back, rising together or losing steam." /></th>
               <th scope="col">Against other industries<Tip text="Its Sector Rotation box and rank: how it has done against the average group over recent months and weeks." /></th>
               <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th></tr></thead>
-            <tbody>{mine.map((r) => {
+            <tbody>{mineShown.map((r) => {
               const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => x.symbol), up = risingOf(r);
               return (<tr key={r.slug}>
                 <td><Link className="sp-ind" to={`/sectors/${r.slug}`}>{short(r.name)}</Link><div className="sp-mine">{syms.map((s) => <Link key={s} to={`/stocks/${s}`} className="sp-sym"><CoLogo symbol={s} size={18} inline />{s}</Link>)}</div></td>
@@ -151,6 +136,7 @@ export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: Secto
               </tr>);
             })}</tbody>
           </table></Scroll>
+          {mineMore}
         </>}
     </Section>
   );
@@ -166,7 +152,7 @@ const CYCLE: { k: StateKey; line: string; next: string }[] = [
 export function Cycle({ b }: { b: Board }) {
   const count = (k: StateKey) => b.rows.filter((r) => keyOf(r) === k || (k === "bouncing" && keyOf(r) === "crash")).length;
   return (
-    <Section id="sp-cycle" hide title="The cycle industries move through" sub="Most industries go round these four stages. Many bounces fade before the next stage, so the cycle is a map, not a timetable.">
+    <Section id="sp-cycle" hide title="The cycle industries move through" help="The cycle. Most industries go round four stages: sold off, bouncing back, rising together and losing steam. The number on each stage is how many groups sit in it today." sub="Most industries go round these four stages. Many bounces fade before the next stage, so the cycle is a map, not a timetable.">
       <ol className="sp-cycle">{CYCLE.map((c, i) => (
         <li key={c.k} className={"sp-cyc sp-cyc-" + c.k}>
           <div className="sp-cyc-h"><StateChip k={c.k} help /><b className="sp-cyc-n">{count(c.k)}</b></div>
@@ -179,11 +165,11 @@ export function Cycle({ b }: { b: Board }) {
 }
 
 // ------------------------------------------------------------------------------------------------ All industries, by state
-function StateGroup({ k, rows, mine }: { k: StateKey; rows: GroupRow[]; mine: Set<string> }) {
-  const bounce = k === "crash" || k === "bouncing";
+function StateGroup({ k, rows: all, mine }: { k: StateKey; rows: GroupRow[]; mine: Set<string> }) {
+  const bounce = k === "crash" || k === "bouncing", { shown: rows, button } = useShowAll(all, 5);
   return (
     <div className={"sp-grp sp-grp-" + k}>
-      <div className="sp-grp-h"><StateChip k={k} help /><p>{MEANING[k]}</p><b>{rows.length}</b></div>
+      <div className="sp-grp-h"><StateChip k={k} help /><p>{MEANING[k]}</p><b>{all.length}</b></div>
       <table className="sp-tb sp-grp-t">
         <thead><tr><th scope="col">Industry</th><th scope="col">Stocks rising<Tip text="Out of the industry's counted stocks, how many are above their medium trend. The bar fills up as more of them rise; past halfway, most are rising." /></th>
           <th scope="col" className="r">{bounce ? "Bounced" : "Below 1-yr high"}<Tip text={bounce ? "When most of its stocks turned up together, in trading days." : "How far the industry (its stocks averaged equally) is below its highest point of the past year."} /></th></tr></thead>
@@ -192,6 +178,7 @@ function StateGroup({ k, rows, mine }: { k: StateKey; rows: GroupRow[]; mine: Se
             <td><span className="sp-barw"><span className="sp-bar"><i style={{ width: `${Math.min(100, (r.breadth.above_20 ?? 0))}%`, background: COLOUR[k] }} /></span><b>{up} of {r.stocks_counted}</b></span></td>
             <td className="r">{bounce ? bouncedAgo(r) ?? "–" : belowHigh(r.index_vs_52w_high) ?? "–"}</td></tr>); })}</tbody>
       </table>
+      {button}
     </div>
   );
 }
@@ -200,7 +187,7 @@ export function ByState({ b, mine }: { b: Board; mine: Set<string> }) {
   const fin = b.rows.find((r) => keyOf(r) === "crash" || keyOf(r) === "bouncing") ?? b.rows[0];
   const early = g.flatMap((x) => x.rows).filter(isEarly);          // in the group's own order (most stocks rising first)
   return (
-    <Section id="sp-bystate" title={`All ${groupsN(b.rows.length)}, by state`} sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
+    <Section id="sp-bystate" hide title={`All ${groupsN(b.rows.length)}, by state`} help="All groups, by state. Every group with a reading, grouped by its state today. Inside each state the freshest bounce or the most stocks rising comes first; the bar is how many of its counted stocks are above their medium trend." sub="Grouped by state. Inside each group, the freshest bounce or the most stocks rising comes first. Select an industry to open its page.">
       {fin && <div className="sp-howrow"><b>How to read a row:</b><span className="sp-howex">{short(fin.name)}<span className="sp-bar"><i style={{ width: `${fin.breadth.above_20}%`, background: COLOUR[keyOf(fin)] }} /></span><b>{risingOf(fin)} of {fin.stocks_counted}</b></span>
         <p>means {risingOf(fin)} of the {fin.stocks_counted} counted {short(fin.name).toLowerCase()} stocks are above their medium-term trend. The bar fills up as more of them rise; past halfway, most are rising.</p></div>}
       <div className="sp-two">
@@ -300,7 +287,7 @@ export function Standouts({ b }: { b: Board }) {
   const [all, setAll] = useState(false);
   const f = b.leader_flags;
   return (
-    <Section id="sp-standouts" title="Standout stocks in weak industries" help="Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours."
+    <Section id="sp-standouts" hide title="Standout stocks in weak industries" help="Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours."
       sub="Stocks at a new 1-year high while their own industry is still well below its high."
       why="When most of an industry is down, a stock that keeps making new highs is showing strength of its own. It is a place to start your research, not a signal to act on.">
       {f == null ? <LockedBlock plan="silver" title="The standout stocks are part of the Silver plan">The industry states and the stocks rising are open to everyone. Silver lists every stock at a new 1-year high inside a weak industry, with how far its industry is below its own high.</LockedBlock>
@@ -340,7 +327,7 @@ export function CountedAndSmall({ b }: { b: Board }) {
         </div>
         <p className="sp-note">The list is reviewed once a month. Stocks left out still appear on each industry's page, marked "not counted".</p>
       </Section>}
-      {few.length > 0 && <Section id="sp-small" title="Too small for a reading" sub={`${groupsSplit(few)} have too few counted stocks for a steady reading, ${total} stocks between them.`}>
+      {few.length > 0 && <Section id="sp-small" title="Too small for a reading" help="Too small for a reading. Groups with too few actively traded stocks for a steady reading: one share moving could flip the whole state. Their stocks still appear on their own pages." sub={`${groupsSplit(few)} have too few counted stocks for a steady reading, ${total} stocks between them.`}>
         <details className="sp-more"><summary>Show the {groupsN(few.length)} ▾</summary>
           <ul className="sp-smalllist">{few.map((g) => <li key={g.slug}><details><summary><b>{short(g.name)}</b> <small>{g.stocks_counted} stocks</small>{g.kind === "sector" && <InsideLine list={acc?.inside[g.slug]} />}</summary><SmallList slug={g.slug} name={g.name} /></details></li>)}</ul>
         </details>

@@ -6,6 +6,7 @@ import { Hideable } from "../../Hideable";
 import { placeFloating } from "../../../lib/floating";
 import { BOX, COLOUR, STATE_HELP, WORD, accountFor, type Card } from "../../../lib/pulsePack";
 import { useTaxonomyIndex } from "../../../lib/taxonomy";
+import { BOX_HELP } from "../../../lib/rotationPack";
 import type { Board } from "../../../lib/sectors";
 import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
@@ -43,7 +44,7 @@ export function InsightCard({ c }: { c: Card }) {
   return (
     <div className={"sp-card sp-" + c.kind}>
       <span className="sp-card-ic" aria-hidden="true"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{KIND_ICON[c.kind]}</svg></span>
-      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct">{c.title}</h3><p className="sp-cx">{c.text}</p></div>
+      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct"><MoreText text={c.title} more={c.more} /></h3><p className="sp-cx"><MoreText text={c.text} more={c.more} /></p></div>
     </div>
   );
 }
@@ -72,7 +73,7 @@ export function BoxChip({ corner, help }: { corner: CornerCode | null | undefine
   return (
     <span className="sp-chipw">
       <span className={"sp-chip sp-box-" + b.tone}><b aria-hidden="true">{b.arrow}</b>{b.word}</span>
-      {help && <Tip text="Sector Rotation compares each industry with the average group over the last few months and over recent weeks. The two answers put it in one of four boxes." label={`About “${b.word}”`} />}
+      {help && <Tip text={BOX_HELP[corner]} label={`About “${b.word}”`} />}
     </span>
   );
 }
@@ -120,6 +121,24 @@ export function InsideLine({ list }: { list: { industry: string; companies: numb
   if (!list?.length) return null;
   const names = list.map((x) => x.industry + (x.companies === 0 ? " (no listed company)" : ""));
   return <small className="sp-inside">Sector group of {names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]}</small>;
+}
+
+/** A card text with the token {more} where a cut list goes on: "+N more ▾" opens the rest in place, "show fewer ▴" closes it (task #192, SECTOR-PAGES.md 6). */
+export function MoreText({ text, more }: { text: string; more?: string[] }) {
+  const [open, setOpen] = useState(false);
+  if (!text.includes("{more}")) return <>{text}</>;
+  const [a, b] = text.split("{more}");
+  if (!more?.length) return <>{a.replace(/[, ]+$/, "")}{b}</>;
+  return <>{a}{open && <>{more.join(", ")} </>}<button type="button" className="sp-more-in" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "show fewer ▴" : `+${more.length} more ▾`}</button>{b}</>;
+}
+
+/** "Show all N ▾" under a list that starts short (task #192, SECTOR-PAGES.md 5): the first `first` rows, the rest one click away. */
+export function useShowAll<T>(rows: T[], first: number): { shown: T[]; button: ReactNode } {
+  const [all, setAll] = useState(false);
+  return {
+    shown: all ? rows : rows.slice(0, first),
+    button: rows.length > first ? <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button> : null,
+  };
 }
 
 /** A table that scrolls sideways on a narrow screen, with no extra buttons (the pack's tables have none); keyboard users can scroll it once it has the focus. */
