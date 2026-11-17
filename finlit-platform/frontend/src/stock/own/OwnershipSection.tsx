@@ -47,7 +47,7 @@ export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnI
         <OwnersToday slices={slicesAt(series, idx)} when={when} isLatest={isLatest} />
         <OwnMoves moves={moves} q={q} sel={idx} onQ={setQ} />
       </div>
-      <OwnCharts series={series} symbol={o?.meta?.symbol ?? ins?.symbol ?? ""} />
+      <OwnCharts series={series} />
       <OwnFacts ins={stale ? undefined : ins} />
       <p className="ow-foot">pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.</p>
     </section>

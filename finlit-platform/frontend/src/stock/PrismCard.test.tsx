@@ -57,11 +57,9 @@ describe("FinLit Prism card", () => {
     expect(t).toContain("No data");   // the missing Risk part says so instead of showing zero
     expect(t).toContain("76% of inputs available");
     expect(t).toContain("20 Oct 2026");
-    expect(t).toContain("Profit growth over years");   // the top two pros and cons
-    expect(t).toContain("Second pro");
-    expect(t).not.toContain("Third pro");
-    expect(t).toContain("Priced above its industry.");
-    expect(t).toContain("Recalculate");
+    // task #216: no "What supports and weighs on the rating" drop-down (its pros, cons, date and Recalculate) and no "Show full breakdown", for any plan
+    expect(t).not.toContain("What supports and weighs"); expect(t).not.toContain("Profit growth over years"); expect(t).not.toContain("Show full breakdown");
+    expect(html).not.toContain("dk-more");
     expect(t).toContain("Technical view: recalculate to add");   // an older stored report: a quiet line, no invented number
     expect(t).not.toContain("coming soon");
     expect(html.match(/class="pcx-card band-/g)).toHaveLength(4);

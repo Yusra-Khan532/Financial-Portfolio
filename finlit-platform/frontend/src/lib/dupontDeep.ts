@@ -6,7 +6,6 @@
  *  Per cent changes do not add up across multiplied factors, which is why logs are used. A log is undefined for a zero or negative value (for example a loss year),
  *  so the shares are left blank there and the waterfall falls back to step-by-step substitution. */
 import type { Table } from "./api";
-import { csvRow } from "./graphData";
 import { shareDefined } from "./dupont";
 import { MINUS, nf } from "./format";
 import { DRIVER_NAME, DUPONT_LIMITS as L, INSIGHT_RULES, MEASURE_FORMAT, QUALITY_SCORE, type InsightRule, type Measure } from "./dupontRules";
@@ -349,15 +348,6 @@ export function thresholdNotes(): string[] {
   ];
 }
 
-// ------------------------------------------------------------------------------------------------ CSV
-
-export function decodeCsv(opts: { symbol: string; years: DeepYear[]; view: View; basis: Basis; lender: boolean; day?: string }): string {
-  const { years, view, basis, lender } = opts, rows = tableRows(years, view, lender);
-  const head = [csvRow(["FinLit", `${opts.symbol} Decoding ROE`]), csvRow(["Balances", basis === "average" ? "average of opening and closing (first year falls back to year-end)" : "year-end"]), csvRow(["Net margin and ROA shown as", view]), ...(opts.day ? [csvRow(["Exported", opts.day])] : []), ""];
-  const body = [csvRow(["Measure", ...years.map((y) => y.label)]), ...rows.map((t) => csvRow([t.label, ...t.values.map((v) => (v == null ? "" : v))]))];
-  const gaps = gapList(years).map((g) => csvRow([g.labels.join("; "), g.reason.long]));
-  return [...head, ...body, "", csvRow(["Why a cell is blank", ""]), ...(gaps.length ? gaps : [csvRow(["None", ""])]), "", csvRow(["Information only, not investment advice."])].join("\n");
-}
 
 /** The verdict shown on the ROE quality score, in the site's one colour rule (lib/scoreBands.ts): green 70 or more (Clean and steady), orange 50 to 69 (Mixed), red under 50 (Uneven). */
 export function roeVerdict(total: number): { band: "hi" | "mid" | "lo"; colour: "Green" | "Orange" | "Red"; word: string; range: string; mark: string } {

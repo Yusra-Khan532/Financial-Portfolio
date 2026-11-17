@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AlertButton } from "../components/AlertComposer";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
@@ -6,15 +5,14 @@ import { MINUS, dateIN, fmtUnit, nf, signed } from "../lib/format";
 import { useUI } from "../lib/ui";
 import { Spark } from "../charts/Small";
 import { Gate } from "../components/Gate";
-import { PrismCompare, PrismDetail } from "./PrismCompare";
+import { PrismCompare } from "./PrismCompare";
+import { ScoreMovesCard } from "./ScoreMoves";
 import { ScreenBadges } from "./ScreenBadges";
-import { ScoreCard, ScoreDetail } from "./ScoreCard";
-import { DashToggle, useDashOpen } from "./DashToggle";
-import { apiUrl } from "../lib/api";
+import { ScoreCard } from "./ScoreCard";
 import { Info } from "../components/Info";
 import { LeadLine } from "./Leadership";
-import { type Financials, type Ratios, type Summary } from "../lib/api";
-import { csvOf, metric, offlineHtml, saveFile } from "./derive";
+import { type Ratios, type Summary } from "../lib/api";
+import { metric } from "./derive";
 import { TradingFacts } from "./TradingFacts";
 import { NameDots, Row, SubLine } from "./HeaderScore";
 import { useReportHeader } from "./useReportHeader";
@@ -36,21 +34,12 @@ export function blankWhy(key: string, label: string, lender: boolean | undefined
   return { short: "Not reported", long: `${label}: the data provider sent no figure for this company.` };
 }
 
-export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fin?: Financials; jump: (id: string) => void }) {
+export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (id: string) => void }) {
   const { toast } = useUI();
-  const [dashOpen, setDashOpen] = useDashOpen();
-  const [dl, setDl] = useState(false);
-  const { two, isAdmin, seesAll, prismRep, effPlan, prismIn, watch, toggleWatch, need, has } = useReportHeader(s);
+  const { two, seesAll, effPlan, prismIn, watch, toggleWatch, has } = useReportHeader(s);
   const q = s.quote, p = s.profile, good = (q.change ?? 0) >= 0, cov = s.dataQuality.coverage;
   const asOf = q.asOf ? new Date(q.asOf) : null;
   const macro = useClassification(p.symbol).data?.macro_sector ?? null;   // NSE's macro sector (task #192), not the provider's mixed field
-  const download = (kind: "pdf" | "html" | "csv") => {
-    setDl(false);
-    const name = `${p.nse || p.symbol}-FinLit`;
-    if (kind === "csv") { saveFile(name + "-Data.csv", csvOf(s, fin, ratios), "text/csv;charset=utf-8"); toast(`Data saved as ${name}-Data.csv.`); }
-    if (kind === "html") { saveFile(name + "-Research.html", offlineHtml(s, fin, ratios), "text/html"); toast("Offline copy saved. It opens in any browser without internet."); }
-    if (kind === "pdf") { toast("In the print window, choose “Save as PDF”."); setTimeout(() => window.print(), 400); }
-  };
 
   return (
     <section className="band hero" id="hero" aria-label={`${p.name} research report`}>
@@ -83,18 +72,6 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
               <AlertButton symbol={s.profile.symbol} className="btn" label="Set alert" />
               <button className={"btn " + (watch ? "on" : "primary")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
               <Link className="btn" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
-              <div className="dl" style={{ position: "relative" }}>
-                <button className="btn" aria-haspopup="menu" aria-expanded={dl} aria-label="Download" onClick={() => { if (!dl && !need("silver", "Downloads and data export")) return; setDl((d) => !d); }}>
-                  <Icon name="table" /><span>Download</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
-                {dl && (
-                  <div className="dl-menu" role="menu">
-                    <button role="menuitem" onClick={() => download("pdf")}><b>Research note · PDF</b><span className="d">Print-ready report with charts</span></button>
-                    <button role="menuitem" onClick={() => download("html")}><b>Offline copy · HTML</b><span className="d">One file that opens without internet</span></button>
-                    {prismRep && isAdmin && <a role="menuitem" href={apiUrl(`/api/prism/reports/${encodeURIComponent(prismRep.id)}/pdf`)} download onClick={() => setDl(false)}><b>FinLit Prism · PDF</b><span className="d">The full Prism report of this company</span></a>}
-                    <button role="menuitem" onClick={() => download("csv")}><b>Data · CSV</b><span className="d">Statements, ratios and scores for Excel</span></button>
-                  </div>
-                )}
-              </div>
               <button className="btn" aria-label="Copy link to this report" onClick={() => { navigator.clipboard?.writeText(location.href.split("#")[0]).then(() => toast("Link to this report copied."), () => toast(location.href)); }}><Icon name="arrow" /><span>Share</span></button>
             </div>
           </div>
@@ -103,19 +80,14 @@ export function Hero({ s, ratios, fin, jump }: { s: Summary; ratios?: Ratios; fi
 
         {/* One model per plan (founder, 13 Nov 2026, task #100): Gold (and the open example company) sees FinLit Prism only, full width; Silver sees the FinLit IQ
             beside a locked Prism example; Basic sees both locked. */}
-        <div className="pz-pair dk-pair" data-open={dashOpen}>
+        <div className="pz-pair dk-pair">
         {!two && <Gate tier="silver" title="Unlock the FinLit IQ" points={["Overall score from our proprietary model", "Five-pillar scorecard on every stock page", "See how each parameter drives the score"]}>
-          <ScoreCard s={s} ratios={ratios} jump={jump} two={false} expanded={dashOpen} />
+          <ScoreCard s={s} ratios={ratios} jump={jump} two={false} />
         </Gate>}
         <PrismCompare symbol={s.profile.symbol} name={p.name} statement={s.meta.statement} />
         </div>
-        <DashToggle open={dashOpen} onToggle={setDashOpen} controls="dk-full" />
-        <div id="dk-full" className="dk-full" hidden={!dashOpen}>
-          {dashOpen && <>
-            {!two && has("silver") && <ScoreDetail s={s} ratios={ratios} />}
-            {two && <PrismDetail symbol={s.profile.symbol} statement={s.meta.statement} />}
-          </>}
-        </div>
+        {/* task #216: "How the scores have moved" sits under the Prism card (it was in live section 17, which is removed) */}
+        <ScoreMovesCard symbol={s.meta.symbol} statement={s.meta.statement} />
 
         <div className="kpis">
           {KPI_SPEC.map(([key, label, icon, color]) => {

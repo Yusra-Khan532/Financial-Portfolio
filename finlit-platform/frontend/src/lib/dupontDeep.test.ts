@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Table } from "./api";
 import { dupont } from "./dupont";
 import {
-  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, simRoe, simStart, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, simRoe, simStart, tableRows, thresholdNotes, waterfall,
 } from "./dupontDeep";
 import { DUPONT_LIMITS, INSIGHT_RULES, QUALITY_SCORE } from "./dupontRules";
 import reliance from "./__fixtures__/relianceYearly.json";
@@ -82,7 +82,7 @@ describe("deepYears, year-end basis", () => {
     expect(evaluateInsights(insightContext(one), false).cards).toEqual([]);
     const nulls = deepYears(t(["FY25", "FY26"], { revenue: [null, null], net_profit: [null, null] }), t(["FY25", "FY26"], { total_assets: [null, null], total_equity: [null, null] }), false);
     expect(nulls.every((y) => y.roe == null && !y.complete)).toBe(true); expect(completeness(nulls).complete).toBe(0); expect(averages(nulls, 3).reported).toBeNull();
-    expect(qualityScore(nulls, false).total).toBeNull(); expect(simStart(nulls)).toBeNull(); expect(decodeCsv({ symbol: "X", years: nulls, view: "reported", basis: "year-end", lender: false })).toContain("Information only");
+    expect(qualityScore(nulls, false).total).toBeNull(); expect(simStart(nulls)).toBeNull();
     const huge = deepYears(t(["FY26"], { revenue: [1], net_profit: [1e9], profit_before_tax: [1e9] }), t(["FY26"], { total_assets: [1e9], total_equity: [1e9] }), false)[0];
     expect(Number.isFinite(huge.netMargin as number)).toBe(true);
   });
@@ -242,13 +242,6 @@ describe("table, explanation and CSV", () => {
     expect(lines.find((l) => l.label === "ROE")!.working).toContain("43,851 ÷ 5,66,235"); expect(lines.find((l) => l.label === "ROE")!.result).toBe("7.74%");
     expect(explain(deepYears(RIL.pl, RIL.bs, false, "average")[3], "average", false).find((l) => l.label === "Asset turnover")!.formula).toMatch(/average total assets/);
     expect(thresholdNotes().join(" ")).toMatch(/50%/);
-  });
-  it("exports exactly the table that is shown, with reasons, and escapes risky text", () => {
-    const { pl, bs } = shaped(), s = deepYears(pl, bs, false), csv = decodeCsv({ symbol: "=EVIL", years: s, view: "normalized", basis: "year-end", lender: false, day: "2026-10-29" });
-    const lines = csv.split("\n"); expect(lines[0]).toContain("'=EVIL");
-    const head = lines.findIndex((l) => l.startsWith("Measure,")); expect(lines[head]).toBe("Measure," + s.map((y) => y.label).join(","));
-    expect(lines[head + 1]).toMatch(/^"?Net margin, normalized/); expect(csv).toContain("Why a cell is blank"); expect(csv).toContain("Mar 2019; Mar 2020; Mar 2021; Mar 2022");
-    expect(lines.find((l) => l.startsWith('"ROE, reported"'))).toMatch(/^"ROE, reported",,,,,/);
   });
 });
 

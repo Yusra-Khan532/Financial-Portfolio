@@ -1,16 +1,7 @@
 import { useState } from "react";
-import { CHARTED, WINDOWS, at, chartFor, chartLabel, chartNote, csvText, fmt2, groupsOf, NAME, pc, signedPts, windowIndexes, type ChartModel, type OwnSeries } from "../../lib/ownView";
+import { CHARTED, WINDOWS, at, chartFor, chartLabel, chartNote, fmt2, groupsOf, NAME, pc, signedPts, windowIndexes, type ChartModel, type OwnSeries } from "../../lib/ownView";
 import { ChartZoom } from "../../components/ChartZoom";
 
-function download(name: string, text: string) {
-  try {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch { /* the browser refused the download: nothing else to do */ }
-}
 
 /** One small chart: the line is an SVG path only; the share now, the start, the change, the axis numbers and the months are page text. */
 function Panel({ m }: { m: ChartModel }) {
@@ -48,8 +39,8 @@ function Panel({ m }: { m: ChartModel }) {
   );
 }
 
-/** "How the shareholding pattern changed": a line chart per group, 1Y / 3Y / 5Y, the numbers, the CSV. */
-export function OwnCharts({ series, symbol }: { series: OwnSeries; symbol: string }) {
+/** "How the shareholding pattern changed": a line chart per group, 1Y / 3Y / 5Y, and the numbers (task #216: no CSV; the report has no downloads). */
+export function OwnCharts({ series }: { series: OwnSeries }) {
   const filings = series.periods.length, maxW = Math.max(1, filings - 1);
   const enabled = WINDOWS.filter((o, k) => o.w <= maxW || (k > 0 ? WINDOWS[k - 1].w < maxW : true));   // a window longer than the history is offered once, as "all of it"
   const [w, setW] = useState(() => enabled[enabled.length - 1]?.w ?? 20), [table, setTable] = useState(false);
@@ -79,7 +70,6 @@ export function OwnCharts({ series, symbol }: { series: OwnSeries; symbol: strin
         <span className="ow-small ow-muted">{chartNote(series)} Hover, tap or use the arrow keys on a chart for a quarter.</span>
         <span className="ow-actions">
           <button type="button" className="ow-btn" aria-expanded={table} aria-controls="ow-nums" onClick={() => setTable((t) => !t)}>{table ? "Hide the numbers" : "Show the numbers"}</button>
-          <button type="button" className="ow-btn" onClick={() => download(`${symbol || "stock"}_shareholding.csv`, csvText(series))}>Download CSV</button>
         </span>
       </div>
       {table && (
