@@ -353,7 +353,7 @@ class Rotation:
         t = self.weeks[-1]
         return {
             "date": _d(t),
-            "week_closed": bool(t.dayofweek >= 4),
+            "week_closed": bool(t.day_of_week >= 4),
             "groups": len(rows),
             "benchmark": METHOD["benchmark"],
             "average_industry": {"return_1m": _r((self.bench.iloc[-1] / self.bench.iloc[-1 - p.change_sessions] - 1) * 100),
