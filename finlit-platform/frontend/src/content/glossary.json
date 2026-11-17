@@ -3202,7 +3202,7 @@
    "formula": "Call intrinsic value = max(Price − Strike, 0); Put intrinsic value = max(Strike − Price, 0)",
    "id": "in-the-money-at-the-money-and-out-of-the-money",
    "letter": "I",
-   "finlit": "On FinLit's option chain, in-the-money calls and puts are shaded.",
+   "finlit": "",
    "aliases": [
     "In the money",
     "At the money",
@@ -4618,7 +4618,7 @@
    "formula": "",
    "id": "option-chain",
    "letter": "O",
-   "finlit": "FinLit's option chain covers Nifty, Bank Nifty, Sensex and F&O stocks, with OI change, the put-call ratio and max pain.",
+   "finlit": "",
    "aliases": [
     "Options chain",
     "F&O chain",

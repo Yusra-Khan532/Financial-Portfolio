@@ -77,7 +77,6 @@ export const MORE: NavSection = { id: "more", label: "More", groups: [
   { title: "Gold dashboards", items: [
     i("/premium/fundamentals", "Company financials", "Financials of any company, in tables and charts", "table", { gold: true }),
     i("/premium/markets", "Market events & index", "Index moves and the events behind them", "activity", { gold: true }),
-    i("/premium/options", "Option chain", "Open interest, put-call ratio and max pain", "layers", { gold: true }),
   ] },
   { title: "Learn and community", items: [
     i("/forum", "Discussion forums", "Information and opinion only, moderated", "users"),

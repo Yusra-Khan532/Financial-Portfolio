@@ -108,7 +108,7 @@ const CLIPS = {
     await cap(p, 3, "How the mix has shifted"); await scrollBy(p, 520, 2200); await sleep(2000); } },
   "gold-dash": { url: "/premium", run: async (p) => {
     await cap(p, 1, "Gold dashboards: four tools for serious investors", "Fast to open, always up to date"); await sleep(2600);
-    await cap(p, 2, "FinLit Prism, company financials, market events and the option chain"); await hit(p, '.pm-card >> nth=0', { click: false, wait: 1600 }); await hit(p, '.pm-card >> nth=1', { click: false, wait: 1800 });
+    await cap(p, 2, "FinLit Prism, company financials, market events and the premium report"); await hit(p, '.pm-card >> nth=0', { click: false, wait: 1600 }); await hit(p, '.pm-card >> nth=1', { click: false, wait: 1800 });
     await cap(p, 3, "Each one opens with a short guide to reading it"); await scrollBy(p, 520, 2200); await sleep(2200);
     await scrollBy(p, 520, 2200); await sleep(1500); } },
   options: { url: "/premium/options", run: async (p) => {
