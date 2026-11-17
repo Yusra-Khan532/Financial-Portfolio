@@ -1,4 +1,6 @@
-import { useId, useState } from "react";
+import { useState } from "react";
+import { PasswordField } from "./PasswordField";
+export { PasswordField };   // kept for older imports
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { ApiError } from "../lib/api";
@@ -8,23 +10,6 @@ import { safeNext } from "../lib/safe";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { DEMO } from "../lib/demo";
-
-const PW_RULES: [string, (p: string) => boolean][] = [["10 or more characters", (p) => p.length >= 10], ["Not a common password", (p) => !/^(password|12345|qwerty|letmein|welcome|admin|finlit)/i.test(p)]];
-
-export function PasswordField({ label = "Password", value, onChange, autoComplete, hint }: { label?: string; value: string; onChange: (v: string) => void; autoComplete: string; hint?: boolean }) {
-  const [show, setShow] = useState(false);
-  const id = useId();
-  return (
-    <div className="fld">
-      <label htmlFor={id}>{label}</label>
-      <span className="pw">
-        <input id={id} type={show ? "text" : "password"} autoComplete={autoComplete} value={value} onChange={(e) => onChange(e.target.value)} required maxLength={128} />
-        <button type="button" className="pw-t" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"}>{show ? "Hide" : "Show"}</button>
-      </span>
-      {hint && <span className="pw-h" aria-live="polite">{PW_RULES.map(([t, ok]) => <i key={t} className={ok(value) ? "ok" : ""}><Icon name="check" />{t}</i>)}</span>}
-    </div>
-  );
-}
 
 export function Login() {
   useDocTitle("Sign in", "Sign in to your FinLit account or create one free: saved watchlists, your plan, and your own dashboard.");

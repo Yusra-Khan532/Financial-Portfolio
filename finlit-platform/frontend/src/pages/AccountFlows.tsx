@@ -5,7 +5,7 @@ import { ApiError } from "../lib/api";
 import { forgotPassword, resetPassword, verifyEmail } from "../lib/account";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { PasswordField } from "./Login";
+import { PasswordField } from "./PasswordField";
 
 const msg = (e: unknown) => e instanceof ApiError ? (e.status === 429 ? "Too many attempts. Please wait a little and try again." : e.body.detail || "Something went wrong.") : "We could not reach FinLit. Check your connection and try again.";
 
