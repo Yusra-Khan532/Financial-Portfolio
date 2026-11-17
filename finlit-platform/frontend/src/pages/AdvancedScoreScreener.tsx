@@ -1,22 +1,20 @@
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
 import { HowDialog } from "../components/screener/controls";
-import { FilterGroup, QuickRow } from "../components/screener/FilterGroup";
+import { FilterGroup } from "../components/screener/FilterGroup";
 import { HighFilter, highActive } from "../components/screener/HighFilter";
 import { PRISM_SUB, PRISM_TITLE, PrismScoreRows, prismActive } from "../components/screener/PrismScoreFilter";
-import { Donut } from "../components/screener/PageParts";
 import { PrismPart, PrismScore, PrismTrend } from "../components/screener/cells";
 import { AdvancedUpgrade } from "../components/screener/AdvancedUpgrade";
 import { useScreener } from "../components/screener/useScreener";
 import { ColumnsMenu, PRICE_COL_COUNT, PriceCells, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
-import { PresetPanel } from "../components/screener/presets/PresetPanel";
 import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
-import { dateIN, MINUS, nf } from "../lib/format";
+import { dateIN, MINUS } from "../lib/format";
 import { LABEL_WORD as LEAD_WORD } from "../lib/leadership";
-import { PRISM_PRESETS, TECH_BANDS, activePrismPreset, withPrismPreset, withoutPrismPreset } from "../lib/scoreScreen";
+import { TECH_BANDS } from "../lib/scoreScreen";
 import { EXPLAIN, PRISM_PARTS, coverageLine } from "../lib/scorePrism";
 import "../styles/scorescreen.css";
 
@@ -31,17 +29,12 @@ export function AdvancedScoreScreener() {
 function Advanced() {
   const s = useScreener("advanced");
   const [priceCols, setPriceCols] = usePriceColumns();
-  const { draft, applied, isLoading, sum, cover, prismAsOf, techAsOf } = s;
-  const prismPreset = activePrismPreset(applied);
+  const { cover, prismAsOf, techAsOf } = s;
   const route = usePresetRoute();   // the prebuilt screen in the address (?preset=...)
-  const pickPreset = (id: string) => s.apply(prismPreset === id ? withoutPrismPreset(draft) : withPrismPreset(draft, PRISM_PRESETS.find((p) => p.id === id)!));
 
   const dateLine = [prismAsOf && `Prism: ${dateIN(prismAsOf)}`, techAsOf && `technical views: prices to ${dateIN(techAsOf)}`].filter(Boolean).join(" · ") || null;
 
-  const basics = <div className="sx-presets" role="group" aria-label="Quick views built from the Prism parts">
-    {PRISM_PRESETS.map((p) => <QuickRow key={p.id} label={p.label} on={prismPreset === p.id} title={p.say} onClick={() => pickPreset(p.id)} />)}
-  </div>;
-  if (route.id) return <PresetPage route={route} basics={basics} />;
+  if (route.id) return <PresetPage route={route} />;      // the four Prism views are server screens in the strip now (14 Nov N-35)
 
   return (
     <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced stock screener" title="Advanced stock screener" sideLabel="Advanced stock screener filters" errorTitle="The advanced stock screener is unavailable right now"
@@ -49,8 +42,7 @@ function Advanced() {
       dateLine={dateLine} howTitle="How FinLit Prism works" columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
       leadTag={(r) => r.lead ? <span className={"sxl-tag " + r.lead} title={`${LEAD_WORD[r.lead]} among its peers on 52-week price performance${r.lead_line ? ` (${r.lead_line})` : ""}. Describes past price performance only.`}>{LEAD_WORD[r.lead]}</span> : null}
       tier="gold" sortChoices={[{ key: "prism_final", label: "Prism score" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short term" }, { key: "prism_lt_score", label: "Long term" }]}
-      donut={!isLoading && sum.found > 0 ? <Donut part={sum.nZ} total={sum.found} partLabel="Rated" restLabel="Not rated yet" title={`${nf(sum.found - sum.nZ, 0)} of ${nf(sum.found, 0)} companies in this result are not rated yet.`} note="More are added every night, largest first." /> : undefined}
-      presets={<PresetPanel route={route} hideGroups basics={basics} basicsActive={!!prismPreset} />} screens={<ScreensStrip route={route} />}
+      presets={null} screens={<ScreensStrip route={route} />}
       filters={<>
         <FilterGroup id="score" icon="bars" title={PRISM_TITLE} defaultOpen active={prismActive(s)} hint={PRISM_SUB}>
           <PrismScoreRows s={s} />

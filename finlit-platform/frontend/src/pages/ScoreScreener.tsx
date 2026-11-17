@@ -4,7 +4,6 @@ import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import { HighFilter, highActive } from "../components/screener/HighFilter";
 import { IQ_SUB, IQ_TITLE, IqScoreRows, iqActive } from "../components/screener/IqScoreFilter";
-import { Donut } from "../components/screener/PageParts";
 import { Score } from "../components/screener/cells";
 import { useScreener } from "../components/screener/useScreener";
 import { ColumnsMenu, PRICE_COL_COUNT, PriceCells, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
@@ -14,7 +13,7 @@ import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
 import { TierChip } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { nf, dateIN } from "../lib/format";
+import { dateIN } from "../lib/format";
 import { PILLARS, hasPrismParams } from "../lib/scoreScreen";
 import { useIsGold } from "../lib/planGate";
 import "../styles/scorescreen.css";
@@ -34,9 +33,8 @@ function Basic() {
   useDocTitle("Basic stock screener", "Every listed company with its FinLit IQ, the basic model: filter, sort and compare by size, sector and score.");
   const s = useScreener("basic");
   const [priceCols, setPriceCols] = usePriceColumns();
-  const { draft, setDraft, locked, upgrade, isLoading, asOf } = s;
+  const { draft, setDraft, locked, upgrade, asOf } = s;
   const route = usePresetRoute("basic");   // the prebuilt screen in the address (?preset=...)
-  const notScored = s.rows.filter((r) => r.scored === false).length;
   const allStrong = PILLARS.every((x) => draft.bands[x.k].length === 1 && draft.bands[x.k][0] === "high");
   const setAllStrong = () => setDraft((d) => ({ ...d, bands: { ...d.bands, ...Object.fromEntries(PILLARS.map((x) => [x.k, allStrong ? [] : ["high"]])) } }));
 
@@ -50,7 +48,6 @@ function Basic() {
       headLink={<Link to="/advanced-score-screener" className="sx-hlink" aria-label="Advanced stock screener (Gold)">Advanced stock screener <TierChip tier="gold" /></Link>}
       columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
       tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
-      donut={!isLoading && s.rows.length > 0 ? <Donut part={s.rows.length - notScored} total={s.rows.length} partLabel="Scored" restLabel="Not scored" title={notScored > 0 ? `${nf(notScored, 0)} of ${nf(s.rows.length, 0)} companies in this result are not scored yet.` : `All ${nf(s.rows.length, 0)} companies in this result are scored.`} note="Scoring fills in every night, or open a company's report to score it now." /> : undefined}
       presets={null} screens={<ScreensStrip route={route} />}
       filters={locked ? (<>
         <FilterGroup id="score" icon="bars" title={IQ_TITLE} defaultOpen hint={IQ_SUB}>

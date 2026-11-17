@@ -94,6 +94,13 @@ def _as_on(request: Request):
     return d
 
 
+BAND_NOW = {"pillar_technical": "FinLit IQ"}      # 14 Nov N-25: lists stored before the change keep their old band name; served with today's
+
+
+def _bands_now(cols: List[dict]) -> List[dict]:
+    return [{**c, "band": BAND_NOW[c["key"]]} if c.get("key") in BAND_NOW and c.get("band") else c for c in cols]
+
+
 def _history_columns(cols: List[dict], p: Preset, then: bool) -> List[dict]:
     """The On this list band: Added and Since added (Since then when a past day is shown), after the standard columns and before This screen's own."""
     if p.kind in ("themes", "gainers") or any(c["key"] in ("added_on", "since_added_pct", "since_then_pct") for c in cols):
@@ -144,7 +151,7 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         out = {**base, "rows": snap["rows"], "exportRows": snap["rows"], "count": snap["count"], "shown": len(snap["rows"]), "asOn": snap["session"],
                "benchSincePct": history._pct(b0, b1)}
         out.pop("listText", None)
-        out["columns"] = _history_columns(out.get("columns") or [], p, then=True)
+        out["columns"] = _bands_now(_history_columns(out.get("columns") or [], p, then=True))
         return out
     body = await service.get_result(store, p, active)
     if body is None:
@@ -163,6 +170,8 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         body["columns"] = _history_columns(body.get("columns") or [], p, then=False)
     except Exception:
         pass
+    body["columns"] = _bands_now(body.get("columns") or [])
+    body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
     return body
 
 

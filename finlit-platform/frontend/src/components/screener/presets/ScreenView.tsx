@@ -135,7 +135,7 @@ function Results({ d, cols, rows, sort, setSort, tab }: { tab: PresetTab; d: Pre
         <label className="psx-sw"><input type="checkbox" checked={returns} onChange={(e) => setReturns(e.target.checked)} /> Returns and 52-week high</label>
       </div>)}
     {view === "charts" ? <><ChartCards rows={rows.slice(0, cards).map((r) => ({ ...openRow(r), facts: r.facts as PanelRow["facts"] }))} onOpen={(r) => setChart(r)} />{rows.length > cards && <button type="button" className="btn" onClick={() => setCards((n) => n + 9)}>Show 9 more of {rows.length} on this page</button>}</> :
-    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" tall><table className={"scr-t psx-t" + (banded ? " banded" : "")}>
+    <TableZoom label={`${d.name}: results`}><HScroll className="scr-tw" label="results table" tall controls={false}><table className={"scr-t psx-t" + (banded ? " banded" : "")}>
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{d.offset ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead>
         {banded && <tr className="psx-bh">

@@ -18,8 +18,9 @@ vi.mock("../lib/ui", () => ({
 import { AdvancedScoreScreener } from "./AdvancedScoreScreener";
 import { watch } from "../lib/watchlist";
 
+const NSE: Record<string, [string, string]> = { Banks: ["Financial Services", "Banks"], IT: ["Information Technology", "IT - Software"], Auto: ["Automobile and Auto Components", "Automobiles"] };
 const mk = (symbol: string, sector: string | null, cap: number | null, o: Partial<Row> = {}): Row => ({
-  symbol, name: symbol + " Limited", sector, overall: 80, band: null, pillar_quality: 80, pillar_growth: 80, pillar_profitability: 80, pillar_balance: 80, pillar_technical: 80,
+  symbol, name: symbol + " Limited", sector, nse_sector: sector ? NSE[sector]?.[0] ?? null : null, nse_industry: sector ? NSE[sector]?.[1] ?? null : null, overall: 80, band: null, pillar_quality: 80, pillar_growth: 80, pillar_profitability: 80, pillar_balance: 80, pillar_technical: 80,
   price: cap == null ? null : 100, market_cap: cap, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
   operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
 });
@@ -54,12 +55,12 @@ describe("Advanced stock screener (Gold)", () => {
     open();
     expect(screen.queryByLabelText("Summary")).toBeNull();                         // the five stat boxes are gone (task #64, V-2)
     expect(screen.getByText("6 companies in this result")).toBeTruthy();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Banks 2" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Financial Services: all its industries" }));      // 14 Nov N-34: the sector picks all its industries
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
     expect(document.querySelector(".fgx-top")!.textContent).toMatch(/1 active/);
     expect(screen.getByText("2 companies in this result")).toBeTruthy();
-    expect(screen.getByText("0 of 2 companies in this result are not rated yet.")).toBeTruthy();
-    expect(screen.getByLabelText("Sector mix of the result").textContent).toMatch(/Banks/);
+    expect(screen.queryByText(/not rated yet\./)).toBeNull(); expect(screen.queryByLabelText("Sector mix of the result")).toBeNull();     // N-33: no ring, no sector box
+    expect(loc()).toContain("ind=Banks");
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(screen.getByText("6 companies in this result")).toBeTruthy());
     expect(document.querySelector(".fgx-top")!.textContent).not.toMatch(/active/);
@@ -87,6 +88,11 @@ describe("Advanced stock screener (Gold)", () => {
     expect(rowOf("FFF").textContent).toMatch(/30\s*PoorProvisional/);
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);   // the model's own "Buy" / "Hold" never reach the screen
     expect(screen.queryByRole("group", { name: "Growth & Profitability score" })).toBeNull();
+    // 14 Nov N-37: Short term and Long term sit under their own "Technical views" band, after the Prism parts (the bands no longer start one column late)
+    const cols = [...document.querySelectorAll("thead tr:not(.gh) th")];
+    const under = (label: string) => { let at = 0; for (const th of document.querySelectorAll(".gh.tg-row th")) { const n = Number(th.getAttribute("colspan") || 1); if (th.textContent?.startsWith(label)) return cols.slice(at, at + n).map((c) => c.textContent?.replace(/[▲▼▾]/g, "").trim()); at += n; } return []; };
+    expect(under("FinLit Prism")).toEqual(["Prism score", "Growth & Profitability", "Valuation", "Quality", "Risk"]);
+    expect(under("Technical views")).toEqual(["Short term", "Long term"]);
   });
 
   it("no coverage note or bar above the table (V-2): How FinLit Prism works says how many are rated; a company without a rating says why, with a Rate now link", () => {
@@ -187,18 +193,12 @@ describe("Advanced stock screener (Gold)", () => {
     expect(symbols()).toEqual(["BBB"]);
   });
 
-  it("offers four quick views built from the Prism parts only, each applying at once and switching off again", () => {
+  it("the four Prism views are server screens in the strip (14 Nov N-35): no second list of them in the filter panel, and an old quick-view link still filters", () => {
     open();
-    const views = screen.getAllByRole("button", { name: /^(Prism strong and lower risk|Strong Growth & Profitability at a fair valuation|Uptrend on both technical views|Growth & Profitability strong but valuation weak)$/ });
-    expect(views).toHaveLength(4);
-    fireEvent.click(screen.getByRole("button", { name: "Prism strong and lower risk" }));
-    expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?zmin=80&zrmin=65&rated=1");
-    fireEvent.click(screen.getByRole("button", { name: "Prism strong and lower risk" }));
-    expect(symbols()).toHaveLength(6); expect(loc()).toBe("/advanced-score-screener");
-    fireEvent.click(screen.getByRole("button", { name: "Uptrend on both technical views" }));
-    expect(symbols()).toEqual(["AAA"]); expect(loc()).toBe("/advanced-score-screener?st=pos&lt=pos");
-    fireEvent.click(screen.getByRole("button", { name: "Growth & Profitability strong but valuation weak" }));
-    expect(symbols()).toEqual(["BBB"]);                                        // Growth & Profitability 66 or more and Valuation 40 (50 or less)
+    expect(screen.queryByRole("group", { name: "Quick views built from the Prism parts" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Prism strong and lower risk" })).toBeNull();
+    cleanup(); open("?zmin=80&zrmin=65&rated=1");                              // an address saved from the old quick view
+    expect(symbols()).toEqual(["AAA"]);
     expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
   });
 
