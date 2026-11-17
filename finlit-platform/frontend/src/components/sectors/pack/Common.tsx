@@ -4,7 +4,9 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from "react-dom";
 import { Hideable } from "../../Hideable";
 import { placeFloating } from "../../../lib/floating";
-import { BOX, COLOUR, STATE_HELP, WORD, type Card } from "../../../lib/pulsePack";
+import { BOX, COLOUR, STATE_HELP, WORD, accountFor, type Card } from "../../../lib/pulsePack";
+import { useTaxonomyIndex } from "../../../lib/taxonomy";
+import type { Board } from "../../../lib/sectors";
 import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
 
@@ -70,7 +72,7 @@ export function BoxChip({ corner, help }: { corner: CornerCode | null | undefine
   return (
     <span className="sp-chipw">
       <span className={"sp-chip sp-box-" + b.tone}><b aria-hidden="true">{b.arrow}</b>{b.word}</span>
-      {help && <Tip text="Sector Rotation compares each industry with the average industry over the last few months and over recent weeks. The two answers put it in one of four boxes." label={`About “${b.word}”`} />}
+      {help && <Tip text="Sector Rotation compares each industry with the average group over the last few months and over recent weeks. The two answers put it in one of four boxes." label={`About “${b.word}”`} />}
     </span>
   );
 }
@@ -106,6 +108,18 @@ export function Section({ id, title, help, sub, why, hide, right, children }: { 
     </section>
   );
   return hide ? <Hideable id={"pack." + id} title={title}>{body}</Hideable> : body;
+}
+
+/** Task #192 (T5): the industries inside a too-small sector group, and the line that accounts for all of NSE's industries, from GET /api/taxonomy. */
+export function useAccount(b: Pick<Board, "rows" | "too_few_stocks">) {
+  const t = useTaxonomyIndex();
+  return t.data ? accountFor(b, t.data.industries) : null;
+}
+/** "Sector group: Engineering Services, Transport Infrastructure and Public Services (no listed company)". */
+export function InsideLine({ list }: { list: { industry: string; companies: number | null }[] | undefined }) {
+  if (!list?.length) return null;
+  const names = list.map((x) => x.industry + (x.companies === 0 ? " (no listed company)" : ""));
+  return <small className="sp-inside">Sector group of {names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]}</small>;
 }
 
 /** A table that scrolls sideways on a narrow screen, with no extra buttons (the pack's tables have none); keyboard users can scroll it once it has the focus. */

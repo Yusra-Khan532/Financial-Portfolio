@@ -1,6 +1,6 @@
 // Sector Rotation as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/08 and 09): the sentences, cards and tables of the Simple
 // and Full table views, worked out from the server's rotation answer (GET /api/rotation) and, where the pack asks "Does Sector Pulse agree?", the Sector Pulse board.
-// Every figure is the server's; this file only chooses, orders and words them. Describes how industries have done against the average industry; never advice.
+// Every figure is the server's; this file only chooses, orders and words them. Describes how industries have done against the average group; never advice.
 import type { CornerCode, GroupRow } from "./sectors";
 import type { RotationMap, RotationRow } from "./rotation";
 import { BOX, isEarly, keyOf, short } from "./pulsePack";
@@ -13,16 +13,16 @@ export const CYCLE: Box[] = ["behind_gaining", "ahead_gaining", "ahead_slowing",
 /** How strong a box is: a move up this scale is "a better box". */
 export const LEVEL: Record<Box, number> = { behind_slipping: 0, behind_gaining: 1, ahead_slowing: 2, ahead_gaining: 3 };
 export const BOX_MEANING: Record<Box, string> = {
-  ahead_gaining: "Doing better than the average industry over the longer run, and still pulling ahead lately.",
+  ahead_gaining: "Doing better than the average group over the longer run, and still pulling ahead lately.",
   ahead_slowing: "Still ahead over the longer run, but lately it has done worse than the average.",
   behind_gaining: "Behind over the longer run, but lately it has done better than the average.",
   behind_slipping: "Doing worse than the average over the longer run, and still falling further behind.",
 };
 export const BOX_HELP: Record<Box, string> = {
-  ahead_gaining: "Ahead and gaining. Over the last several months the industry did better than the average industry, and over the last month it is still pulling further ahead.",
-  ahead_slowing: "Ahead but slowing. Over the last several months the industry did better than the average industry, but over the last month it did worse, so its lead is shrinking.",
-  behind_gaining: "Behind but gaining. Over the last several months the industry did worse than the average industry, but over the last month it did better, so it is catching up.",
-  behind_slipping: "Behind and slipping. Over the last several months the industry did worse than the average industry, and over the last month it fell further behind.",
+  ahead_gaining: "Ahead and gaining. Over the last several months the industry did better than the average group, and over the last month it is still pulling further ahead.",
+  ahead_slowing: "Ahead but slowing. Over the last several months the industry did better than the average group, but over the last month it did worse, so its lead is shrinking.",
+  behind_gaining: "Behind but gaining. Over the last several months the industry did worse than the average group, but over the last month it did better, so it is catching up.",
+  behind_slipping: "Behind and slipping. Over the last several months the industry did worse than the average group, and over the last month it fell further behind.",
 };
 export const WATCH_NEXT: Record<Box, string> = {
   behind_gaining: "Does the catch-up last long enough to get ahead?", ahead_gaining: "The first month it trails the average.",
@@ -33,7 +33,7 @@ export const CORNER_AT: Record<Box, string> = { behind_gaining: "top-left", ahea
 
 const boxOf = (c: CornerCode | null | undefined): Box | null => (c && c !== "middle" ? c : null);
 export const word = (c: CornerCode | null | undefined) => (boxOf(c) ? BOX[boxOf(c)!].word : "No box yet");
-/** "+1.2%", "−5.6%", "+0.0%": a figure against the average industry, as the pack writes it. */
+/** "+1.2%", "−5.6%", "+0.0%": a figure against the average group, as the pack writes it. */
 export const pc = (v: number | null | undefined, dp = 1) => (v == null ? "–" : `${v > 0 || Object.is(v, 0) || (v === 0) ? "+" : "−"}${Math.abs(v).toFixed(dp)}%`);
 export const pt = (v: number | null | undefined) => (v == null ? "–" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`);
 const ord = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
@@ -151,7 +151,7 @@ export function rotationHeadline(m: RotationMap, mine: Set<string>): { lead: str
   const parts = [jump ? `${short(jump.r.name)} ${jump.to === "ahead_gaining" ? "jumped into the top box" : `moved up to ${BOX[jump.to].word}`} this week` : !mv.length ? "No industry changed box this week" : `${plural(mv.length, "industry", "industries")} moved to a weaker box this week`];
   if (tg.length) parts.push(`${list(tg)} may start gaining next week`);
   const k = mayMoveRows(m).length;
-  const line = `${plural(mv.length, "industry", "industries")} changed box this week${mv.length ? `: ${up.length} moved to a better box, ${down.length} to a weaker one` : ""}. ${k ? `${k} more may change next week.` : "None looks set to change next week."}`;
+  const line = `${plural(mv.length, "group", "groups")} changed box this week${mv.length ? `: ${up.length} moved to a better box, ${down.length} to a weaker one` : ""}. ${k ? `${k} more may change next week.` : "None looks set to change next week."}`;
   return { lead, rest: " " + parts.join("; ") + ".", line };
 }
 export function rotationTodayCards(m: RotationMap, mine: Set<string>, pulse: Map<string, GroupRow>): Card[] {
@@ -159,7 +159,7 @@ export function rotationTodayCards(m: RotationMap, mine: Set<string>, pulse: Map
   const jump = [...mv].filter((x) => LEVEL[x.to] > LEVEL[x.from]).sort((a, b) => LEVEL[b.to] - LEVEL[b.from] - (LEVEL[a.to] - LEVEL[a.from]) || (b.r.rank_change_4w ?? 0) - (a.r.rank_change_4w ?? 0))[0];
   if (jump) {
     const c4 = jump.r.rank_change_4w;
-    out.push({ kind: "good", title: `${short(jump.r.name)} made the biggest jump`, text: `From ${BOX[jump.from].word} to ${BOX[jump.to].word} in one week${c4 && c4 > 0 ? `, and up ${c4} places in 4 weeks` : ""} to rank ${jump.r.rank}. It beat the average industry by ${pc(lastMonth(jump.r))} last month.` });
+    out.push({ kind: "good", title: `${short(jump.r.name)} made the biggest jump`, text: `From ${BOX[jump.from].word} to ${BOX[jump.to].word} in one week${c4 && c4 > 0 ? `, and up ${c4} places in 4 weeks` : ""} to rank ${jump.r.rank}. It beat the average group by ${pc(lastMonth(jump.r))} last month.` });
   }
   const top = [...rk].sort((a, b) => a.rank! - b.rank!).slice(0, 3);
   if (top.length === 3) {
@@ -170,7 +170,7 @@ export function rotationTodayCards(m: RotationMap, mine: Set<string>, pulse: Map
   if (mm.length) {
     const tg = towardsGaining(m, mine).slice(0, 3);
     const fits = tg.filter((x) => { const g = pulse.get(x.r.slug); return g && (keyOf(g) === "crash" || keyOf(g) === "bouncing" || keyOf(g) === "rising" || isEarly(g)); }).length;
-    out.push({ kind: "watch", title: `${plural(mm.length, "industry", "industries")} may change box next week`,
+    out.push({ kind: "watch", title: `${plural(mm.length, "group", "groups")} may change box next week`,
       text: tg.length ? `${list(tg.map((x) => short(x.r.name)))} ${tg.length === 1 ? "is" : "are"} among them, ${tg.length === 1 ? "" : "all "}moving towards gaining.${tg.length && fits * 2 > tg.length ? " It fits what Sector Pulse shows: their stocks have started rising." : ""}` : `Their newest weekly readings already sit in another box. ${list(mm.slice(0, 3).map((x) => short(x.r.name)))} are among them.` });
   }
   const fall = [...rk].filter((r) => (r.rank_change_4w ?? 0) < 0).sort((a, b) => a.rank_change_4w! - b.rank_change_4w! || b.rank! - a.rank!);   // equal falls: the one now lower first
@@ -199,7 +199,7 @@ export function yourRotationCards(rows: RotationRow[], value: Map<string, number
   if (!rows.length) return out;
   const ag = rows.filter((r) => r.corner === "ahead_gaining").sort((a, b) => (value.get(b.slug) ?? 0) - (value.get(a.slug) ?? 0));
   const total = rows.reduce((s, r) => s + (value.get(r.slug) ?? 0), 0), inAg = ag.reduce((s, r) => s + (value.get(r.slug) ?? 0), 0);
-  if (ag.length) out.push({ kind: "good", title: `${ag.length} of your ${rows.length} industries ${ag.length === 1 ? "is" : "are"} ahead and gaining`,
+  if (ag.length) out.push({ kind: "good", title: `${ag.length} of your ${rows.length} groups ${ag.length === 1 ? "is" : "are"} ahead and gaining`,
     text: `${ag.map((r) => short(r.name)).join(", ")}.${total > 0 ? inAg * 2 > total ? " Most of your money sits in industries that are leading the market." : " Less than half of your money sits in them." : ""}` });
   const jump = rows.filter((r) => r.corner === "behind_slipping" && nextBox(r) === "ahead_gaining").sort((a, b) => (value.get(b.slug) ?? 0) - (value.get(a.slug) ?? 0))[0];
   if (jump) {
@@ -208,7 +208,7 @@ export function yourRotationCards(rows: RotationRow[], value: Map<string, number
     out.push({ kind: "watch", title: `${short(jump.name)} is behind, but may jump next week`, text: `${syms.length === 1 ? `${syms[0]}'s industry is` : syms.length ? `The industry of ${list(syms)} is` : "It is"} in Behind and slipping, yet its newest reading points to Ahead and gaining.${rising ? ` Sector Pulse shows ${noun(short(jump.name))} stocks rising too.` : ""}` });
   } else {
     const bs = rows.filter((r) => r.corner === "behind_slipping");
-    if (bs.length) out.push({ kind: "watch", title: `${bs.length} of your industries ${bs.length === 1 ? "is" : "are"} behind and slipping`, text: `${list(bs.map((r) => short(r.name)))}: behind the average industry over the longer run, and still falling further back.` });
+    if (bs.length) out.push({ kind: "watch", title: `${bs.length} of your industries ${bs.length === 1 ? "is" : "are"} behind and slipping`, text: `${list(bs.map((r) => short(r.name)))}: behind the average group over the longer run, and still falling further back.` });
   }
   return out;
 }
@@ -232,11 +232,11 @@ export const turned = (r: RotationRow) => { const s = sixMonths(r), l = lastMont
 export function aheadCards(m: RotationMap): Card[] {
   const rows = m.rows.filter((r) => sixMonths(r) != null && lastMonth(r) != null), out: Card[] = [];
   const slipped = rows.filter((r) => sixMonths(r)! > 0 && turned(r)), gained = rows.filter((r) => sixMonths(r)! < 0 && turned(r));
-  if (slipped.length) out.push({ kind: "watch", title: `${plural(slipped.length, "leader")} slipped last month`, text: "Ahead of the average industry over 6 months, but behind it over the last month." });
-  if (gained.length) out.push({ kind: "good", title: `${plural(gained.length, "laggard")} gained last month`, text: "Behind over 6 months, but ahead of the average industry over the last month." });
+  if (slipped.length) out.push({ kind: "watch", title: `${plural(slipped.length, "leader")} slipped last month`, text: "Ahead of the average group over 6 months, but behind it over the last month." });
+  if (gained.length) out.push({ kind: "good", title: `${plural(gained.length, "laggard")} gained last month`, text: "Behind over 6 months, but ahead of the average group over the last month." });
   const rk = ranked(m).filter((r) => lastMonth(r) != null);
   const best = [...rk].sort((a, b) => lastMonth(b)! - lastMonth(a)! || a.rank! - b.rank!)[0], worst = [...rk].sort((a, b) => lastMonth(a)! - lastMonth(b)! || a.rank! - b.rank!)[0];
-  if (best && worst) out.push({ kind: "insight", title: `Biggest move last month: ${short(best.name)}`, text: `${pt(lastMonth(best))} points against the average industry; the weakest was ${short(worst.name)} at ${pt(lastMonth(worst))}.` });
+  if (best && worst) out.push({ kind: "insight", title: `Biggest move last month: ${short(best.name)}`, text: `${pt(lastMonth(best))} points against the average group; the weakest was ${short(worst.name)} at ${pt(lastMonth(worst))}.` });
   return out;
 }
 
@@ -258,7 +258,7 @@ export function fullCards(m: RotationMap): Card[] {
   const out: Card[] = [], ag = m.rows.filter((r) => r.corner === "ahead_gaining" && r.rank != null);
   const broad = ag.filter((r) => r.breadth === "broad"), few = ag.filter((r) => r.breadth === "narrow");
   if (ag.length) out.push({ kind: broad.length * 2 > ag.length ? "good" : "watch", title: broad.length * 2 > ag.length ? "Most leaders are broad" : "Few leaders are broad",
-    text: `In ${broad.length} of the ${ag.length} industries ahead and gaining, most stocks are taking part. A lead that many stocks share is sturdier.` });
+    text: `In ${broad.length} of the ${ag.length} groups ahead and gaining, most stocks are taking part. A lead that many stocks share is sturdier.` });
   if (few.length) out.push({ kind: "watch", title: "Some leads rest on a few stocks", text: `${few.map((r) => short(r.name)).join(", ")}: ahead and gaining, but only a few of their stocks are in an uptrend. One or two big shares may be carrying the industry.` });
   const long = m.rows.filter((r) => r.corner === "behind_slipping" && r.weeks_in_corner >= 15).sort((a, b) => a.weeks_in_corner - b.weeks_in_corner);
   if (long.length) out.push({ kind: "warning", title: "Long stays at the bottom", text: `${list(long.map((r) => short(r.name)))} ${long.length === 1 ? "has" : "have"} been behind and slipping for ${list(long.map((r) => String(r.weeks_in_corner)))} weeks. A long stay shows a steady trend, not a quick bounce.` });
@@ -270,9 +270,9 @@ export const inRotFilter = (r: RotationRow, f: RotFilter, mine: Set<string>) => 
 export const byBox = (rows: RotationRow[]) => BOXES.map((b) => ({ box: b, rows: rows.filter((r) => r.corner === b).sort((x, y) => (x.rank ?? 999) - (y.rank ?? 999)) })).filter((g) => g.rows.length);
 /** The sentence when an industry is opened (pack 09). */
 export function rowSummary(r: RotationRow): string {
-  if (r.rank == null) return `${short(r.name)} is too new for a rank. Against the average industry it is ${pc(sixMonths(r))} over 6 months and ${pc(lastMonth(r))} over the last month.`;
+  if (r.rank == null) return `${short(r.name)} is too new for a rank. Against the average group it is ${pc(sixMonths(r))} over 6 months and ${pc(lastMonth(r))} over the last month.`;
   const b = breadthWord(r).w;
-  return `${short(r.name)} is rank ${r.rank} of ${r.ranked}, in ${word(r.corner)} for ${plural(r.weeks_in_corner, "week")}. Against the average industry it is ${pc(sixMonths(r))} over 6 months and ${pc(lastMonth(r))} over the last month.${b === "Most" ? " Most of its stocks are taking part in the move." : b === "Some" ? " Some of its stocks are taking part in the move." : b === "Few" ? " Only a few of its stocks are taking part in the move." : ""}`;
+  return `${short(r.name)} is rank ${r.rank} of ${r.ranked}, in ${word(r.corner)} for ${plural(r.weeks_in_corner, "week")}. Against the average group it is ${pc(sixMonths(r))} over 6 months and ${pc(lastMonth(r))} over the last month.${b === "Most" ? " Most of its stocks are taking part in the move." : b === "Some" ? " Some of its stocks are taking part in the move." : b === "Few" ? " Only a few of its stocks are taking part in the move." : ""}`;
 }
 export function rotationCsv(rows: RotationRow[]): string {
   const head = ["Rank", "Change 1 week", "Change 4 weeks", "Industry", "Box", "May move to", "Weeks in box", "1 month vs average %", "3 months vs average %", "6 months vs average %", "Taking part", "Share above 50-day average %", "Highest rank 26 weeks", "Lowest rank 26 weeks"];

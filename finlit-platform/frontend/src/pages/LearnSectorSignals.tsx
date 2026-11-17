@@ -7,7 +7,7 @@ import { useDocTitle } from "../lib/title";
 import "../styles/sectors.css";
 
 const TITLE = "How to use Sector Pulse";
-const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";
+const DESC = "Sector Pulse shows, for every NSE industry with enough traded stocks (and small industries read together by NSE sector), whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";
 const STATES: [string, string][] = [
   ["Washout", "The industry has been sold broadly. No broad rebound yet."],
   ["Thrust C", "Most stocks turned up together after a sell-off."],
@@ -25,7 +25,7 @@ export function LearnSectorSignalsPage() {
       <div className="sx-learn">
         <section className="sx-card sx-sec" aria-labelledby="ls-what">
           <h2 id="ls-what">What Sector Pulse shows</h2>
-          <p>Each evening, Sector Pulse checks every NSE industry and asks one question: are most of its stocks rising together, or only a few? It counts only liquid, established stocks, so a handful of thinly traded names cannot swing the answer. Small industries are read together with the other small industries of their NSE sector.</p>
+          <p>Each evening, Sector Pulse checks every NSE industry with enough actively traded stocks, and reads the small industries of one NSE sector together as a sector group. It asks one question of each: are most of its stocks rising together, or only a few? It counts only liquid, established stocks, so a handful of thinly traded names cannot swing the answer. Small industries are read together with the other small industries of their NSE sector.</p>
         </section>
         <section className="sx-card sx-sec" aria-labelledby="ls-four">
           <h2 id="ls-four">The four things to read</h2>

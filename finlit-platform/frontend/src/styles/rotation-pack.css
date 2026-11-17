@@ -53,12 +53,12 @@
 /* who is ahead */
 .rp-lg { display: inline-block; width: 14px; height: 10px; border-radius: 2px; } .rp-lg-up { background: var(--rp-up); } .rp-lg-dn { background: var(--rp-dn); } .rp-lg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sp-ink); }
 .rp-ahead { display: grid; gap: 0; margin: 8px 0; font-size: 13px; }
-.rp-ah-head, .rp-ah-row { display: grid; grid-template-columns: 180px minmax(0, 1fr) 70px 90px; align-items: center; gap: 10px; }
+.rp-ah-head, .rp-ah-row { display: grid; grid-template-columns: 220px minmax(0, 1fr) 70px 90px; align-items: center; gap: 10px; }
 .rp-ah-head b { font: 700 12px var(--sans); text-transform: uppercase; letter-spacing: .04em; text-align: right; color: var(--sp-mute); }
 .rp-ah-axis { position: relative; height: 34px; font-size: 12px; } .rp-ah-axis small { position: absolute; left: var(--z); top: 0; transform: translateX(-50%); color: var(--sp-mute); white-space: nowrap; }
 .rp-ah-axis em { position: absolute; bottom: 2px; font-style: normal; font-weight: 700; white-space: nowrap; } .rp-ah-axis em.dn { right: calc(100% - var(--z) + 6px); color: var(--sp-bad); } .rp-ah-axis em.up { left: calc(var(--z) + 6px); color: var(--sp-good); }
 .rp-ah-row { min-height: 22px; } .rp-ah-row:nth-child(even) { background: color-mix(in srgb, var(--s2) 60%, transparent); }
-.rp-ah-n { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-ah-n { text-align: right; white-space: normal; overflow-wrap: anywhere; line-height: 1.2; padding: 2px 0; }   /* NSE's full names wrap, never cut (task #192, T12) */
 .rp-ah-track { position: relative; height: 18px; } .rp-ah-track::before { content: ""; position: absolute; left: var(--z); top: -3px; bottom: -3px; width: 1.5px; background: var(--sp-ink); }
 .rp-ah-bar { position: absolute; top: 3px; height: 12px; } .rp-ah-bar.up { background: var(--rp-up); } .rp-ah-bar.dn { background: var(--rp-dn); }
 .rp-ah-dot { position: absolute; top: 5px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--sp-ink); }

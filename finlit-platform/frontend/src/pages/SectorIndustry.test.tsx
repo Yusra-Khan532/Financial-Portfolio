@@ -40,7 +40,7 @@ describe("an industry page (pack 07)", () => {
   });
   it("shows the sections in the pack's order and never advises", () => {
     at();
-    const want = ["What is happening in Finance", "Where Finance is in the cycle", "A year of Finance", "Against other industries", "The 67 counted stocks, strongest 6 months first"], got = h2(), idx = want.map((t) => got.indexOf(t));
+    const want = ["What is happening in Finance", "Where Finance is in the cycle", "A year of Finance", "Against other groups", "The 67 counted stocks, strongest 6 months first"], got = h2(), idx = want.map((t) => got.indexOf(t));
     expect(idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1]))).toBe(true);
     expect(document.body.textContent).toContain("Finance bounced back after a crash on 5 Nov.");
     expect(document.body.textContent).toContain("FINANCE IS HERE");
