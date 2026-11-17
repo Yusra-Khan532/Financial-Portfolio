@@ -1,0 +1,398 @@
+diff --git a/finlit-platform/backend/finlit/api.py b/finlit-platform/backend/finlit/api.py
+index 6d6ae85..a4316d5 100644
+--- a/finlit-platform/backend/finlit/api.py
++++ b/finlit-platform/backend/finlit/api.py
+@@ -213,7 +213,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
+             try:
+                 if await leadership_api.public_now(app.state.store):
+                     async with app.state.store.pool.acquire() as conn:
+-                        lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
++                        lead = {x["symbol"]: {**dict(x), "label": leadership_api.agreeing(x["label"], x["raw_label"], x["rel52"])} for x in await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+             except Exception:
+                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
+         out = []
+diff --git a/finlit-platform/backend/finlit/etfportfolio/api.py b/finlit-platform/backend/finlit/etfportfolio/api.py
+index 647e3fd..e9819d9 100644
+--- a/finlit-platform/backend/finlit/etfportfolio/api.py
++++ b/finlit-platform/backend/finlit/etfportfolio/api.py
+@@ -172,10 +172,24 @@ async def scores_for(app, symbols: List[str], gold: bool) -> Dict[str, Dict[str,
+     return {r["symbol"]: {"model": "iq", "score": fnum(r["overall"], 0), "label": BAND_WORD.get(r["band"] or "", None)} for r in rows}
+ 
+ 
++SIZE_SQL = """SELECT d.isin, COALESCE(NULLIF(l.market_cap, 0), x.market_cap) AS mc FROM disclosure_isin d JOIN companies c ON c.symbol = d.symbol
++               LEFT JOIN listing_quotes l ON l.symbol = c.symbol
++               LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
++               WHERE d.isin = ANY($1::text[])"""
++
++
++def size_word(crore: Any) -> Optional[str]:
++    """The site's one size rule (task #183, the owner's decision of 15 Nov): market value in rupees crore, Large above 50,000, Mid above 10,000, else Small."""
++    if crore is None:
++        return None
++    v = float(crore)
++    return "Large" if v > 50000 else "Mid" if v > 10000 else "Small" if v >= 0 else None
++
++
+ async def size_of_isins(app, isins: List[str]) -> Dict[str, str]:
+-    from ..mfportfolio.api import size_ranks
+     async with app.state.store.pool.acquire() as conn:
+-        return await size_ranks(conn, isins)
++        rows = await conn.fetch(SIZE_SQL, isins)
++    return {r["isin"]: w for r in rows if (w := size_word(r["mc"]))}
+ 
+ 
+ # ------------------------------------------------------------------------------------------------------------------------ reading
+diff --git a/finlit-platform/backend/finlit/leadership_api.py b/finlit-platform/backend/finlit/leadership_api.py
+index 5b82f1c..311ce90 100644
+--- a/finlit-platform/backend/finlit/leadership_api.py
++++ b/finlit-platform/backend/finlit/leadership_api.py
+@@ -88,9 +88,22 @@ def shape_reliability(row: Optional[dict]) -> Dict[str, Any]:
+             "to": (str(row["window_end"].year) if spec else _day(row["window_end"])[:7]) if row["window_end"] else None, "periods": periods, "source": "spec" if spec else "site"}
+ 
+ 
++def agreeing(label: Optional[str], raw: Optional[str], rel52: Any) -> Optional[str]:
++    """The label to show (task #183): a Leader is ahead of its peers and a Laggard behind them. When the label held over by the two-week rule no longer
++    agrees with this week's 12-month gap to the peers (a Leader at minus points, a Laggard at plus points), this week's own answer is shown instead.
++    The stored label, the weekly job and the rule itself are unchanged."""
++    v = _f(rel52)
++    if v is None or raw is None:
++        return label
++    if (label == "leader" and v <= 0) or (label == "laggard" and v >= 0):
++        return raw
++    return label
++
++
+ def shape(row: dict, rel: Optional[dict], peers: List[dict], unranked: Optional[List[dict]] = None, runs: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+     """The `leadership` object for a stock that has a label. `unranked` and `runs` are what the newer columns and tables add (an older row has neither)."""
+     stale = (row["stale_runs"] or 0) >= STALE_AFTER_RUNS
++    row = {**row, "label": agreeing(row["label"], row["raw_label"], row["rel52"])}
+     shown = display(label=row["label"], rank=row["rank"], ranked=row["ranked"], group_short=row["group_short"] or row["group_name"] or "",
+                     sector_name=row["sector_name"] or "its peers", market_name=row["market_name"], rel52=_f(row["rel52"]), rel52_market=_f(row["rel52_market"]),
+                     direction=row["direction"], fundamental=row["fundamental"], fund_rank=row["fund_rank"], fund_n=row["fund_n"])
+@@ -122,7 +135,7 @@ def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
+     if row is None:
+         why = reason or "not_compared"      # no row and no recorded reason: it was not in the last weekly run (never "not enough price history")
+         return {"available": False, "reason": why, "text": UNRANKED_TEXT.get(why) or REASON_TEXT.get(why) or "Not compared this week"}
+-    return {"available": True, "label": row["label"], "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
++    return {"available": True, "label": agreeing(row["label"], row.get("raw_label"), row["rel52"]), "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
+             "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
+             "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS}
+ 
+@@ -184,7 +197,7 @@ async def leadership(request: Request, symbol: str) -> Response:
+             gone = []
+         counts = await conn.fetch("SELECT label, count(*) AS n FROM leadership_history WHERE symbol = $1 AND run_date > $2 AND label IS NOT NULL GROUP BY label",
+                                   symbol, row["as_of"] - timedelta(days=364))
+-    peers = [{"symbol": p["symbol"], "name": p["name"], "rank": p["rank"], "label": p["label"], "rawLabel": p["raw_label"], "direction": p["direction"], "rel13": _f(p["rel13"]),
++    peers = [{"symbol": p["symbol"], "name": p["name"], "rank": p["rank"], "label": agreeing(p["label"], p["raw_label"], p["rel52"]), "rawLabel": p["raw_label"], "direction": p["direction"], "rel13": _f(p["rel13"]),
+               "rel52": _f(p["rel52"]), "rel52Market": _f(p["rel52_market"]), "marketCap": _f(p["market_cap"])} for p in peer_rows]
+     unranked = [{"symbol": g["symbol"], "name": g["name"] or g["symbol"], "reason": g["reason"], "text": UNRANKED_TEXT.get(g["reason"], "Not ranked this week")} for g in gone]
+     by_label = {c["label"]: int(c["n"]) for c in counts}
+diff --git a/finlit-platform/backend/finlit/myinvest/api.py b/finlit-platform/backend/finlit/myinvest/api.py
+index 95f5a8d..ed80da8 100644
+--- a/finlit-platform/backend/finlit/myinvest/api.py
++++ b/finlit-platform/backend/finlit/myinvest/api.py
+@@ -135,7 +135,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
+     try:      # Leader / In line / Laggard against its peers, only while the label is switched on for everyone (as on the Advanced screener)
+         if await leadership_api.public_now(store):
+             async with store.pool.acquire() as conn:
+-                peer = {r["symbol"]: r["label"] for r in await conn.fetch("SELECT symbol, label FROM leadership WHERE label IS NOT NULL")}
++                peer = {r["symbol"]: leadership_api.agreeing(r["label"], r["raw_label"], r["rel52"]) for r in await conn.fetch("SELECT symbol, label, raw_label, rel52 FROM leadership WHERE label IS NOT NULL")}
+     except Exception as exc:
+         log.warning("all-investments: peer labels not read: %s", type(exc).__name__)
+ 
+diff --git a/finlit-platform/backend/tests/test_etfportfolio_unit.py b/finlit-platform/backend/tests/test_etfportfolio_unit.py
+index 078835b..87ec1ad 100644
+--- a/finlit-platform/backend/tests/test_etfportfolio_unit.py
++++ b/finlit-platform/backend/tests/test_etfportfolio_unit.py
+@@ -124,3 +124,8 @@ def test_quantities():
+     for bad in ("abc", "0", "-3", "1e20"):
+         with pytest.raises(ValueError):
+             qty_of(bad)
++
++
++def test_company_size_uses_the_sites_rupee_bands():
++    from finlit.etfportfolio.api import size_word
++    assert [size_word(v) for v in (900000, 50001, 50000, 10001, 10000, 5, None)] == ["Large", "Large", "Mid", "Mid", "Small", "Small", None]
+diff --git a/finlit-platform/backend/tests/test_leadership_agreeing_183.py b/finlit-platform/backend/tests/test_leadership_agreeing_183.py
+new file mode 100644
+index 0000000..9f1ab2d
+--- /dev/null
++++ b/finlit-platform/backend/tests/test_leadership_agreeing_183.py
+@@ -0,0 +1,19 @@
++"""Task #183 (live issue): a Leader is never shown at minus points against its peers, nor a Laggard at plus points. When the label held over by the
++two-week rule disagrees with this week's 12-month gap, this week's own answer is shown; the stored label and the rule stay as they are."""
++from finlit.leadership_api import agreeing
++
++
++def test_a_leader_behind_its_peers_shows_this_weeks_answer():
++    assert agreeing("leader", "in_line", -0.180542) == "in_line"      # RPEL on 15 Nov: 7th of 45, −18.1 pts against the peer average
++    assert agreeing("leader", "in_line", 0.0) == "in_line"
++
++
++def test_a_laggard_ahead_of_its_peers_shows_this_weeks_answer():
++    assert agreeing("laggard", "leader", 0.12) == "leader"            # ICICIBANK on 15 Nov: published Laggard, this week Leader
++
++
++def test_labels_that_agree_with_the_gap_stay_and_missing_figures_change_nothing():
++    assert agreeing("leader", "in_line", 0.05) == "leader"           # the two-week rule still holds a Leader that is ahead
++    assert agreeing("laggard", "in_line", -0.02) == "laggard"
++    assert agreeing("in_line", "leader", -0.3) == "in_line"
++    assert agreeing("leader", None, -0.2) == "leader" and agreeing("leader", "in_line", None) == "leader"
+diff --git a/finlit-platform/frontend/src/components/PortfolioTabs.test.tsx b/finlit-platform/frontend/src/components/PortfolioTabs.test.tsx
+index d493c4f..28bec1e 100644
+--- a/finlit-platform/frontend/src/components/PortfolioTabs.test.tsx
++++ b/finlit-platform/frontend/src/components/PortfolioTabs.test.tsx
+@@ -9,7 +9,7 @@ const silver = fx.silver as unknown as Overview, gold = fx.gold as unknown as Ov
+ const lines = (o: Overview): Line[] => o.holdings.map((h) => ({ symbol: h.symbol, name: isReady(h) ? h.name : null, ov: h }));
+ const noop = () => {};
+ const table = (o: Overview, model: Model, tab: Tab, period: Period = "year", state: "loading" | "ready" | "error" = "ready", ls = lines(o)) =>
+-  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop} onExport={noop}
++  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop}
+     actions={(s) => <button>Remove {s}</button>} /></StaticRouter>);
+ const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+ 
+@@ -46,9 +46,9 @@ describe("Overview tab", () => {
+     const html = table(silver, "finlit", "overview");
+     expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
+   });
+-  it("has the filter chips, search box and Export CSV", () => {
++  it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
+     const t = text(table(silver, "finlit", "overview"));
+-    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).toContain("Export CSV");
++    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
+   });
+ });
+ 
+diff --git a/finlit-platform/frontend/src/components/PortfolioTabs.tsx b/finlit-platform/frontend/src/components/PortfolioTabs.tsx
+index 3c7f148..1b19c17 100644
+--- a/finlit-platform/frontend/src/components/PortfolioTabs.tsx
++++ b/finlit-platform/frontend/src/components/PortfolioTabs.tsx
+@@ -121,11 +121,11 @@ export function TabStrip({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void })
+ 
+ export type PortfolioTableProps = {
+   lines: Line[]; model: Model; tab: Tab; period: Period; limit: number; state: "loading" | "ready" | "error"; errorText?: string;
+-  onPeriod: (p: Period) => void; onExport: () => void;
++  onPeriod: (p: Period) => void;
+   flags?: Record<string, string>; actions?: (symbol: string) => ReactNode;
+ };
+ 
+-export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, onExport, flags, actions }: PortfolioTableProps) {
++export function PortfolioTable({ lines, model, tab, period, limit, state, errorText, onPeriod, flags, actions }: PortfolioTableProps) {
+   const cols = useMemo(() => columnsFor(tab, model, period), [tab, model, period]);
+   const [sortId, setSortId] = useState("score"), [dir, setDir] = useState<1 | -1>(-1);
+   const [band, setBand] = useState<BandFilter>(null), [q, setQ] = useState("");
+@@ -142,8 +142,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
+ 
+   return (
+     <section className="card hold-card pf-tabs-card"><div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Your shares</h3>
+-      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span>
+-      <button type="button" className="btn" onClick={onExport} disabled={!lines.length}>Export CSV</button></div>
++      <span className="s">{shown.length === lines.length ? lines.length : `${shown.length} of ${lines.length}`} · limit {limit}</span></div>
+         <div className="hold-bar">
+           <div className="hold-chips" role="group" aria-label={`Filter by ${unit} score colour`}>
+             <button type="button" className={"hchip" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All <b>{lines.length}</b></button>
+diff --git a/finlit-platform/frontend/src/content/mfPortfolioFaqs.ts b/finlit-platform/frontend/src/content/mfPortfolioFaqs.ts
+index d3b3aeb..edadb71 100644
+--- a/finlit-platform/frontend/src/content/mfPortfolioFaqs.ts
++++ b/finlit-platform/frontend/src/content/mfPortfolioFaqs.ts
+@@ -11,6 +11,6 @@ export const MF_PORTFOLIO_FAQ: PageFaq = {
+     { q: "How do the groups and the pie chart work?", a: "Pick a group (Equity, Hybrid, Debt, Solution oriented, Others or All funds). They sit under Mix & overlap. The pie chart shows the share of your funds in each type, or in each category of the group you picked. The categories and their fund counts are for reading only; Your funds always lists every fund." },
+     { q: "What happens when the same fund appears twice?", a: "A fund appears once in your list. A line repeated in a file is counted once, and a fund you already follow is skipped." },
+     { q: "How many funds can I add?", a: "The page shows your count against your plan's limit, for example 3 of 30 on Silver and 500 on Gold." },
+-    { q: "Can I export my list?", a: "Yes. Select Export CSV; every blank cell carries its reason in the Notes column. Information only, not investment advice." },
++    { q: "Can I export my list?", a: "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account, and every figure is on the page with its reason when blank. Information only, not investment advice." },
+   ],
+ };
+diff --git a/finlit-platform/frontend/src/content/pageFaqs.ts b/finlit-platform/frontend/src/content/pageFaqs.ts
+index 4234512..a786526 100644
+--- a/finlit-platform/frontend/src/content/pageFaqs.ts
++++ b/finlit-platform/frontend/src/content/pageFaqs.ts
+@@ -1069,7 +1069,7 @@ export const PAGE_FAQS: PageFaq[] = [
+    },
+    {
+     "q": "Can I export my list?",
+-    "a": "Yes. Select Export CSV."
++    "a": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account."
+    }
+   ]
+  },
+diff --git a/finlit-platform/frontend/src/pages/EtfPortfolio.test.tsx b/finlit-platform/frontend/src/pages/EtfPortfolio.test.tsx
+index 74c4162..ff39c1a 100644
+--- a/finlit-platform/frontend/src/pages/EtfPortfolio.test.tsx
++++ b/finlit-platform/frontend/src/pages/EtfPortfolio.test.tsx
+@@ -74,6 +74,11 @@ describe("ETF portfolio (#136)", () => {
+     expect(screen.getByText("NIFTYBEES and SBINIFTY50: 100% the same companies")).toBeTruthy();
+     expect(screen.getAllByText("Not compared: listed abroad").length).toBeGreaterThan(0);
+   });
++  it("the plan badge shows the account's own plan (task #183: no SILVER on a Gold account)", () => {
++    st.list = FX("list");
++    st.plan = "gold"; open(); expect(document.querySelector(".mfp-plan")!.textContent).toBe("Gold"); cleanup();
++    st.plan = "silver"; open(); expect(document.querySelector(".mfp-plan")!.textContent).toBe("Silver");
++  });
+   it("✕ removes that ETF", () => {
+     st.plan = "silver"; st.list = FX("list");
+     open();
+diff --git a/finlit-platform/frontend/src/pages/EtfPortfolio.tsx b/finlit-platform/frontend/src/pages/EtfPortfolio.tsx
+index 7491158..d7cff4b 100644
+--- a/finlit-platform/frontend/src/pages/EtfPortfolio.tsx
++++ b/finlit-platform/frontend/src/pages/EtfPortfolio.tsx
+@@ -217,7 +217,7 @@ function WhatsInside({ d, ins, items }: { d: { repeats: { label: string; symbols
+         <h3 className="efp-h3">Company size of the Indian shares</h3>
+         {ins.size && sizeTotal > 0 ? <div className="efp-sizes">{(["Large", "Mid", "Small"] as const).map((k) => <div key={k} className="efp-size"><span>{k} cap</span><span className="efp-track-bar"><i style={{ width: `${ins.size![k]}%` }} /></span><b>{Math.round(ins.size![k])}%</b></div>)}
+           {ins.size["Not sized"] > 0.5 && <p className="sp-note">{Math.round(ins.size["Not sized"])}% could not be sized: the company is not in our list of listed companies.</p>}
+-          <p className="sp-note">FinLit's three sizes, by market value: the 100 biggest listed companies are large, the next 150 mid, the rest small.</p></div>
++          <p className="sp-note">FinLit's three sizes, by market value: large above ₹50,000 Cr, mid ₹10,000 to 50,000 Cr, small below ₹10,000 Cr.</p></div>
+           : <p className="sp-note">None of your ETFs holds Indian shares in its latest monthly file.</p>}
+       </div>
+       <div>
+@@ -310,7 +310,7 @@ export function EtfPortfolioPage() {
+     <div className="wrap ipo mp sp mfp efp">
+       <Gate tier="silver" title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the biggest stocks", "Their swing, worst fall and beta against the Nifty 500", "Import a broker file, matched on ISIN, then symbol"]}>
+         <header className="sp-head mfp-head">
+-          <div><p className="mfp-plan"><span>Silver</span></p><h1>ETF portfolio</h1>
++          <div><p className="mfp-plan"><span>{plan === "gold" ? "Gold" : "Silver"}</span></p><h1>ETF portfolio</h1>
+             <p className="sp-desc">What your ETFs track, what they cost, how close they trade to their value, what sits inside them and how risky they are together.</p>
+             <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/my-investments">All my investments →</Link><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/etfs/compare">Compare ETFs →</Link></nav></div>
+           <section className="mfp-add" aria-label="Add ETFs">
+diff --git a/finlit-platform/frontend/src/pages/Holdings.tsx b/finlit-platform/frontend/src/pages/Holdings.tsx
+index 9347cea..69a392c 100644
+--- a/finlit-platform/frontend/src/pages/Holdings.tsx
++++ b/finlit-platform/frontend/src/pages/Holdings.tsx
+@@ -12,13 +12,12 @@ import { useSearchIndex } from "../lib/api";
+ import { useUniverse } from "../lib/screener";
+ import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
+ import { RemoveAll } from "../components/RemoveAll";
+-import { saveFile } from "../stock/derive";
+ import { PdfImport } from "../components/PdfImport";
+ import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
+ import { isPdf } from "../lib/holdingsPdf";
+ import { entriesFrom, entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
+ import { resolveIsins, sourcesLine } from "../lib/isin";
+-import { csvName, modelFor, parsePeriod, parseTab, toCsv, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
++import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
+ import { usePortfolioPage } from "../portfolio/usePortfolioPage";
+ import { ScoreCard, ScoreInputs } from "../portfolio/ScoreCard";
+ import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
+@@ -119,7 +118,6 @@ export function HoldingsPage() {
+     if (symbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
+     portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0 }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
+   };
+-  const exportCsv = () => model && saveFile(csvName(tab, period), toCsv(lines, tab, model, period), "text/csv;charset=utf-8");
+   const empty = !lines.length;
+   const common = page && model ? { page, meta, symbols: ids, mode, colors, model, ov: ovMap } : null;
+ 
+@@ -154,7 +152,7 @@ export function HoldingsPage() {
+       <Gate tier="silver" title="Score your portfolio" points={["FinLit IQ and pillars for every share you own (Gold: FinLit Prism)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
+         <div className="pfx-flow">
+         <header className="sp-head eq-head">
+-          <div><p className="eq-plan"><span>Silver</span></p><h1>Equity portfolio</h1>
++          <div><p className="eq-plan"><span>{plan === "gold" ? "Gold" : "Silver"}</span></p><h1>Equity portfolio</h1>
+             <p className="sp-desc">How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money. Nothing is sent to a broker.</p>
+             <nav className="eq-links" aria-label="Related pages"><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/watchlist">Watchlists →</Link><Link className="sp-link" to="/alerts">Alerts →</Link><Link className="sp-link" to="/learn/portfolio">Learn more →</Link></nav></div>
+         <section className="eq-addbar" aria-label="Add shares">
+@@ -201,7 +199,7 @@ export function HoldingsPage() {
+           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
+           {view === "portfolio" && <>
+             <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
+-              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)} onExport={exportCsv}
++              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
+               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
+               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
+             <SizeFold counts={sizeCount} />
+diff --git a/finlit-platform/frontend/src/pages/MfPortfolio.tsx b/finlit-platform/frontend/src/pages/MfPortfolio.tsx
+index e1406a3..e60c6b8 100644
+--- a/finlit-platform/frontend/src/pages/MfPortfolio.tsx
++++ b/finlit-platform/frontend/src/pages/MfPortfolio.tsx
+@@ -9,11 +9,10 @@ import { useDocTitle } from "../lib/title";
+ import { useUI } from "../lib/ui";
+ import { limitsFor } from "../lib/auth";
+ import { RemoveAll } from "../components/RemoveAll";
+-import { saveFile } from "../stock/derive";
+ import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
+ import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
+ import {
+-  STATUS_WORD, commitItems, crores, csvFileName, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings, toCsv,
++  STATUS_WORD, commitItems, crores, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings,
+   useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Holding, type Preview, type ReviewRow,
+   shares, typeOf,
+ } from "../lib/mfPortfolio";
+@@ -210,7 +209,7 @@ export function MfPortfolioPage() {
+     <div className="wrap ipo mp sp mfp">
+       <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is (FundPulse on Gold)", "How much your funds overlap, and the stocks underneath", "Each fund's swing, worst fall and beta against the Nifty 500", "Import your CAS PDF, or Excel / CSV statements"]}>
+         <header className="sp-head mfp-head">
+-          <div><p className="mfp-plan"><span>Silver</span></p><h1>MF portfolio</h1>
++          <div><p className="mfp-plan"><span>{plan === "gold" ? "Gold" : "Silver"}</span></p><h1>MF portfolio</h1>
+             <p className="sp-desc">How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.</p>
+             <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">FinLit FundPulse →</Link></nav></div>
+           <section className="mfp-add" aria-label="Add funds">
+@@ -233,7 +232,7 @@ export function MfPortfolioPage() {
+           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
+           {view === "funds" && <>
+             <FundsSection hs={rows} rk={rk.data} rkErr={rk.isError ? errText(rk.error) : null} sp={sp.data} locked={locked} onUnlock={unlock} cols={cols} onCols={setCols}
+-              tools={<><button className="btn" onClick={() => saveFile(csvFileName(), toCsv(rows, locked), "text/csv;charset=utf-8")}>Export CSV</button></>}
++              tools={null}
+               extra={(h) => <>
+                 <td className="r">{h.nav == null ? <Dash why="This scheme has no NAV yet." /> : <><b>{rupees(h.nav)}</b><small className={"mfp-sub" + (h.navStale ? " warn" : "")} title={h.navNote || undefined}>{h.navDate ? dateIN(h.navDate) : ""}</small></>}</td>
+                 {(["r1y", "r3y", "r5y"] as const).map((k) => <td key={k} className="r">{pctOrDash(h.returns[k], h.returns.why || h.returns.partialWhy)}</td>)}
+diff --git a/finlit-platform/frontend/src/portfolio/SharesTable.tsx b/finlit-platform/frontend/src/portfolio/SharesTable.tsx
+index 37249f0..bcd33ae 100644
+--- a/finlit-platform/frontend/src/portfolio/SharesTable.tsx
++++ b/finlit-platform/frontend/src/portfolio/SharesTable.tsx
+@@ -37,7 +37,7 @@ const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x
+ 
+ type Props = {
+   lines: Line[]; meta: Record<string, Meta>; page: PageObject | null; mode: Mode; colors: Record<string, string>; model: Model; tab: Tab; period: Period; limit: number;
+-  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; onExport: () => void; actions: (symbol: string) => ReactNode;
++  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; actions: (symbol: string) => ReactNode;
+   /** Quantity the member typed for a share (null when none) and the setter; with the latest price they give the Value column. */
+   qtyOf: (symbol: string) => number | null; onQty: (symbol: string, qty: number | null) => void;
+   /** The final pages pack (12): each share's peer reading, FinLit size and industry, the day word for the move, and the cards above the table. */
+@@ -142,8 +142,7 @@ export function SharesTable(p: Props) {
+       <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{plural(lines.length, "share")} · limit {p.limit}{!long ? " · grouped by how each did against its peers" : ""}</p>}</div>
+         <div className="pfx-tabs" role="tablist" aria-label="Portfolio views">{TABS.map((t, i) => (
+           <button key={t.id} type="button" role="tab" id={`pf-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="pf-panel" tabIndex={tab === t.id ? 0 : -1} className={"pfx-pillbtn" + (tab === t.id ? " on" : "")} onClick={() => p.onTab(t.id)}
+-            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}
+-          <button type="button" className="pfx-btn" onClick={p.onExport} disabled={!lines.length}>Export CSV</button></div></div>
++            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
+       {p.cards}
+       <div className={"pfx-tools" + (p.peerOf && !long && tab !== "financials" ? " eq-hide" : "")}>
+         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
+diff --git a/finlit-platform/frontend/src/portfolio/wording.test.tsx b/finlit-platform/frontend/src/portfolio/wording.test.tsx
+index aa70968..eb95957 100644
+--- a/finlit-platform/frontend/src/portfolio/wording.test.tsx
++++ b/finlit-platform/frontend/src/portfolio/wording.test.tsx
+@@ -38,7 +38,7 @@ describe.each(cases)("the page text, %s", (_n, s) => {
+       <WhereSits weights={page.sector_weight.eq} sizes={[{ k: "Large", pct: 50, who: symbols.slice(0, 6) }]} /><Packs packs={packs} weights={page.sector_weight.eq} n={symbols.length} />
+       <MovesGrid page={page} packs={packs} /><StyleTiltPack tilt={TILT} />
+       <MoneyRisk sw={page.sector_weight.eq} sr={page.sector_risk.eq} counts={counts} /><MarketFall beta={page.market.eq.beta} /><InShort items={page.summary[mode]} />
+-      <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} onExport={() => {}} actions={() => null} />
++      <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} actions={() => null} />
+     </div></MemoryRouter>);
+     const text = container.textContent || "";
+     expect(text.length).toBeGreaterThan(500);
+diff --git a/finlit-platform/scripts/build-page-faqs.py b/finlit-platform/scripts/build-page-faqs.py
+index fdffa69..728bc13 100644
+--- a/finlit-platform/scripts/build-page-faqs.py
++++ b/finlit-platform/scripts/build-page-faqs.py
+@@ -79,6 +79,8 @@ AMENDMENTS = {
+     # Task #128 (14 Nov 2026): holdings files are read by ISIN; the name is used only for a line without one.
+     "Type a name or ticker, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work.": "Type a name, ticker or ISIN, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). When a line has an ISIN, the ISIN decides which company it is, because a company's name can be written differently from one file to another; the name is used only for a line without an ISIN. Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work.",
+     "No. Only the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. So every share counts equally and no money-weighted totals are shown.": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. So every share counts equally and no money-weighted totals are shown.",
++    # Task #183 (15 Nov 2026): no downloads on the portfolio pages; Export CSV is gone from the Equity portfolio.
++    "Yes. Select Export CSV.": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account.",
+ }
+ # Page titles renamed after the PDF.
+ TITLE_AMENDMENTS = {
+diff --git a/finlit-platform/scripts/data/page-faqs.json b/finlit-platform/scripts/data/page-faqs.json
+index 5c92e5e..b708493 100644
+--- a/finlit-platform/scripts/data/page-faqs.json
++++ b/finlit-platform/scripts/data/page-faqs.json
+@@ -1092,7 +1092,7 @@
+    },
+    {
+     "q": "Can I export my list?",
+-    "a": "Yes. Select Export CSV."
++    "a": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account."
+    }
+   ]
+  },

@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import orjson
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -31,6 +31,7 @@ from . import alertapi, commodities, feedback, indices, intraday, leadership_api
 from .aliases import SYMBOL_ALIASES
 from . import results as results_api
 from . import prism_screen
+from . import isin as isin_mod
 from .screener import api as screener_api
 from .screener import qapi as screener_qapi
 from .advanced import api as advanced_api
@@ -213,7 +214,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             try:
                 if await leadership_api.public_now(app.state.store):
                     async with app.state.store.pool.acquire() as conn:
-                        lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
+                        lead = {x["symbol"]: {**dict(x), "label": leadership_api.agreeing(x["label"], x["raw_label"], x["rel52"])} for x in await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
         nse: dict = {}
@@ -224,9 +225,11 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             nse = nse_pairs(t)
         except Exception:
             logging.getLogger("finlit.api").exception("screener universe: NSE sectors not read")
+        isins = await isin_mod.symbol_isins(app)       # task #183: every row carries the company's share ISIN (null when the exchanges' lists do not have it)
         out = []
         for r in rows:
             r = {k: v for k, v in r.items() if k not in ("statement", "model", "updated_at")}
+            r["isin"] = isins.get(r["symbol"])
             sec, ind = nse.get(r["symbol"], (None, None))
             r["nse_sector"], r["nse_industry"] = sec or None, ind or None
             r.update(stored.get(r["symbol"]) or prism_screen.blank())
@@ -588,8 +591,30 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         except Exception:
             return False
 
+    @app.get("/api/securities/{isin}")
+    async def security_by_isin(request: Request, isin: str):
+        """Task #183 (ISIN as the key): what one ISIN is and, for a listed share, its company and page (same answer as /api/isin/{isin})."""
+        return await isin_mod.security(isin, request)
+
+    async def with_isin(sym: str, hit):
+        """The summary with meta.isin added (the company's current share ISIN from the exchanges' lists), or as it was when none is known."""
+        code = (await isin_mod.symbol_isins(app)).get(sym)
+        if not code:
+            return hit
+        try:
+            body = orjson.loads(hit[0])
+            body.setdefault("meta", {})["isin"] = code
+        except Exception:
+            return hit
+        return orjson.dumps(body), '"' + hashlib.sha1(f"{hit[1]}|{code}".encode()).hexdigest()[:20] + '"'  # nosec B324 - cache validator
+
     @app.get("/api/stocks/{symbol}")
     async def summary(request: Request, symbol: str, statement: str = Query("consolidated")):
+        if isin_mod.looks_like_isin(symbol):      # task #183: an ISIN in the path reads as the company it belongs to
+            a = await isin_mod.security(symbol, request)
+            if not a.get("symbol"):
+                raise HTTPException(status_code=404, detail={"status": "not_found", "detail": a.get("note") or "No listed company has this ISIN."})
+            symbol = a["symbol"]
         if SYMBOL.match(symbol):
             spawn(app.state.store.note_view(symbol))
         sym = symbol.strip().upper()
@@ -683,6 +708,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             pass
 
     async def serve_hit(request: Request, symbol: str, statement: str, name: str, hit, started: float) -> Response:
+        if name == "summary":
+            hit = await with_isin(symbol, hit)        # task #183: the answer carries the company's ISIN (meta.isin)
         if not varies_by_plan(name):
             return cached(request, hit[0], hit[1], CACHE_STOCK, started)
         # Plan-dependent: the showcase company is fully open; everything else is trimmed to the caller's plan on the server.

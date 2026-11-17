@@ -11,7 +11,7 @@ import { Cards, Scroll, Section, Tip } from "../../components/sectors/pack/Commo
 import type { LeadHistory, Leadership } from "../../lib/leadership";
 import {
   corrCell, leaderCards, peerCards, segLine, togetherCards, peerLine, peerSentence, riskCards, riskLead, riskTiles, riskWord, sp, spreadCards, standsOut, PEER_WORD,
-  type LeaderPair, type MarketFig, type Share, type Size, type Tile,
+  type LeaderPair, type MarketFig, type Share, type Size,
 } from "../../lib/equityPack";
 import type { PageObject, Reading } from "../types";
 import type { StyleTilt } from "../../components/diversification/types";
@@ -21,28 +21,9 @@ import { LockedBlock } from "../../components/sectors/Parts";
 const pct = (x: number) => `${Math.round(x)}%`;
 
 // ------------------------------------------------------------------------------------------------ the score
-export function ScoreGrid({ total, needsQty, band, tiles, onAddQty, onGo }: { total: number | null; needsQty: boolean; band?: string; tiles: Tile[]; onAddQty: () => void; onGo: (t: Tile["to"]) => void }) {
-  return (
-    <section className="eq-grid" aria-label="Your portfolio score">
-      <div className="eq-total">
-        <p className="eq-total-k">Your portfolio score<Tip text="Your portfolio score. One number from 0 to 100 that sums up the readings beside it: how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration. How they are combined stays on FinLit's side." label="About “Your portfolio score”" /></p>
-        <p className="eq-total-v"><b>{total ?? "—"}</b> / 100{band && total != null && <em>{band}</em>}</p>
-        <p className="eq-total-x">{needsQty ? "Needs quantities: type how many of each share you own in the Qty column of Your shares. Until then every share counts the same." : "Counted by the value of each holding you entered."}</p>
-        {needsQty && <button type="button" className="eq-addq" onClick={onAddQty}>Add quantities</button>}
-      </div>
-      {tiles.map((t) => (
-        <div key={t.id} className={"eq-tile eq-" + t.tone}>
-          <p className="eq-tile-k">{t.k}<Tip text={t.help} label={`About “${t.k}”`} /></p>
-          <p className="eq-tile-v">{t.v}</p>
-          <p className="eq-tile-x">{t.sub}</p>
-          <button type="button" className="eq-tile-go" onClick={() => onGo(t.to)}>{t.link} →</button>
-        </div>))}
-    </section>
-  );
-}
 export type View = "portfolio" | "diversification" | "risk";
 export function ViewTabs({ view, onView, n }: { view: View; onView: (v: View) => void; n: number }) {
-  const tabs: [View, string, string][] = [["portfolio", "Portfolio", `Your ${n} shares, their scores and how they compare with peers`], ["diversification", "Diversification", "How spread out the list is, and what moves together"], ["risk", "Risk analytics", "How much it swings, what drives the risk, what a fall could mean"]];
+  const tabs: [View, string, string][] = [["portfolio", "Portfolio", `Your ${n} shares, their scores and how they compare with peers`], ["diversification", "Diversification analytics", "How spread out the list is, and what moves together"], ["risk", "Risk analytics", "How much it swings, what drives the risk, what a fall could mean"]];
   return <div className="eq-tabs" role="tablist" aria-label="Equity portfolio views">{tabs.map(([k, t, s]) => <button key={k} type="button" role="tab" id={`eq-tab-${k}`} aria-selected={view === k} aria-controls="eq-panel" onClick={() => onView(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
 }
 

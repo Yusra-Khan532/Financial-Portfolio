@@ -79,6 +79,8 @@ AMENDMENTS = {
     # Task #128 (14 Nov 2026): holdings files are read by ISIN; the name is used only for a line without one.
     "Type a name or ticker, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work.": "Type a name, ticker or ISIN, paste a list, or upload the file from your broker (Excel .xlsx or .xls, .csv, or a PDF statement). When a line has an ISIN, the ISIN decides which company it is, because a company's name can be written differently from one file to another; the name is used only for a line without an ISIN. Names such as Reliance Industries, HDFC Bank Ltd, TCS-EQ or 500325 all work.",
     "No. Only the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. So every share counts equally and no money-weighted totals are shown.": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. So every share counts equally and no money-weighted totals are shown.",
+    # Task #183 (15 Nov 2026): no downloads on the portfolio pages; Export CSV is gone from the Equity portfolio.
+    "Yes. Select Export CSV.": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account.",
 }
 # Page titles renamed after the PDF.
 TITLE_AMENDMENTS = {

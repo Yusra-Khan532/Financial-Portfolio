@@ -38,10 +38,11 @@ describe.each(cases)("the page text, %s", (_n, s) => {
       <WhereSits weights={page.sector_weight.eq} sizes={[{ k: "Large", pct: 50, who: symbols.slice(0, 6) }]} /><Packs packs={packs} weights={page.sector_weight.eq} n={symbols.length} />
       <MovesGrid page={page} packs={packs} /><StyleTiltPack tilt={TILT} />
       <MoneyRisk sw={page.sector_weight.eq} sr={page.sector_risk.eq} counts={counts} /><MarketFall beta={page.market.eq.beta} /><InShort items={page.summary[mode]} />
-      <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} onExport={() => {}} actions={() => null} />
+      <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} actions={() => null} />
     </div></MemoryRouter>);
     const text = container.textContent || "";
     expect(text.length).toBeGreaterThan(500);
+    expect(text).not.toContain("Export CSV");   // task #183: no download control on the portfolio pages
     scan(text, mode);
     expect(text).toContain("Information only, not investment advice");
   });

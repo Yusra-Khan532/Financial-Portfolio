@@ -1,7 +1,8 @@
 // Holdings live in this browser and, for signed-in Silver and Gold members, in their account (see lib/sync.tsx).
 import { useSyncExternalStore } from "react";
 
-export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean };
+/** isin (task #183): the share's ISIN, the key that survives a rename (ZOMATO → ETERNAL); the symbol is what the page shows. */
+export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean; isin?: string };
 export type PState = { holdings: Holding[] };
 const KEY = "finlit-portfolio-v1";
 const fresh = (): PState => ({ holdings: [] });

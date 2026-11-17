@@ -4,7 +4,7 @@ import type { Mode } from "./types";
 
 export const DISCLAIMER = "Information only, not investment advice.";
 export const HEAD_DESC = "Add the shares you own and see how strong they are, and how spread out they are. Only names are needed; nothing is sent to a broker.";
-export const ADD_NOTE = "Excel, CSV or PDF statements work. A line's ISIN decides which company it is (its name only when it has no ISIN); quantities, prices and dates are ignored.";
+export const ADD_NOTE = "Excel, CSV or PDF statements work. Each share is read by its ISIN, so a renamed company or a changed symbol stays the same share; a row without an ISIN is matched by name and shown for you to confirm. Quantities, prices and dates are ignored.";   // the pack's words (task #183)
 export const MODE_LABEL: Record<Mode, string> = { eq: "Equal amounts", mc: "Sized by company value" };
 export const MODE_SHORT: Record<Mode, string> = { eq: "Equal amounts", mc: "By company value" };
 export const MODE_NOTE: Record<Mode, string> = { eq: "If equal amounts were held", mc: "If amounts were sized by company value" };

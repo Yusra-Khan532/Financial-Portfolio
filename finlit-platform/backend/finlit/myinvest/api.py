@@ -135,7 +135,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     try:      # Leader / In line / Laggard against its peers, only while the label is switched on for everyone (as on the Advanced screener)
         if await leadership_api.public_now(store):
             async with store.pool.acquire() as conn:
-                peer = {r["symbol"]: r["label"] for r in await conn.fetch("SELECT symbol, label FROM leadership WHERE label IS NOT NULL")}
+                peer = {r["symbol"]: leadership_api.agreeing(r["label"], r["raw_label"], r["rel52"]) for r in await conn.fetch("SELECT symbol, label, raw_label, rel52 FROM leadership WHERE label IS NOT NULL")}
     except Exception as exc:
         log.warning("all-investments: peer labels not read: %s", type(exc).__name__)
 

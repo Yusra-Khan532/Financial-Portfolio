@@ -331,3 +331,55 @@ async def resolve_route(body: ResolveIn, request: Request):
     sources = {"exchanges": {"source": "NSE and BSE instrument lists (Dhan)", "loadedAt": loaded.isoformat() if loaded else None},
                "depository": {"source": "NSDL ISIN list", "date": (meta or {}).get("date")} if meta else None}
     return {"items": items, "sources": sources}
+
+
+# ------------------------------------------------------------------------------------------------------------------- symbol -> ISIN (task #183)
+# Every listed company's current share ISIN, from the exchanges' instrument lists loaded every night (NSE first, then BSE). Kept in this process for
+# an hour: the list changes once a day. A company the lists do not carry has no ISIN here, and the answers say nothing rather than guess.
+SYMBOL_ISIN_SQL = """
+SELECT DISTINCT ON (c.symbol) c.symbol, x.isin FROM companies c
+JOIN LATERAL (
+    SELECT n.isin, 1 AS pri FROM dhan_instruments n WHERE n.exch = 'NSE' AND c.nse_code <> '' AND n.symbol = c.nse_code AND n.isin LIKE 'IN%'
+    UNION ALL
+    SELECT b.isin, 2 FROM dhan_instruments b WHERE b.exch = 'BSE' AND c.bse_code <> '' AND b.security_id = c.bse_code AND b.isin LIKE 'IN%'
+) x ON true
+ORDER BY c.symbol, x.pri
+"""
+ISIN_TTL = 3600
+
+
+async def symbol_isins(app) -> Dict[str, str]:
+    held = getattr(app.state, "symbol_isins", None)
+    if held and time.time() - held[0] < ISIN_TTL:
+        return held[1]
+    try:
+        async with app.state.store.pool.acquire() as conn:
+            got = {r["symbol"]: r["isin"] for r in await conn.fetch(SYMBOL_ISIN_SQL) if r["isin"] and valid(r["isin"])}
+    except Exception:
+        log.warning("symbol to ISIN map not read", exc_info=True)
+        got = held[1] if held else {}
+    app.state.symbol_isins = (time.time(), got)
+    return got
+
+
+ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
+
+
+def looks_like_isin(s: str) -> bool:
+    return bool(ISIN_RE.match((s or "").strip().upper()))
+
+
+@router.get("/{isin}")
+async def security(isin: str, request: Request):
+    """GET /api/isin/{isin}: what one ISIN is (a listed share, a fund unit, an ETF, a bond ...) and, for a listed share, which company and its page.
+    The same answer as POST /resolve for one ISIN, plus `url`. Open to every visitor: public facts only."""
+    i = isin.strip().upper()
+    async with request.app.state.store.pool.acquire() as conn:
+        a = (await resolve(conn, [i])).get(i) or {"isin": i, "status": "not_found", "symbol": None, "note": "No list we hold knows this ISIN."}
+    if a.get("symbol") and a.get("status") in ("matched", "check"):
+        a["url"] = f"/stocks/{a['symbol']}"
+    elif a.get("scheme"):
+        a["url"] = f"/funds/{a['scheme'].get('code')}" if isinstance(a["scheme"], dict) and a["scheme"].get("code") else None
+    else:
+        a["url"] = None
+    return a

@@ -156,8 +156,10 @@ def _finlit(score: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     overall = _num(score.get("overall"))
     band = (score.get("band") or {}).get("key") if isinstance(score.get("band"), dict) else None
     pillars = {p.get("key"): _num(p.get("score")) for p in score.get("pillars") or [] if isinstance(p, dict)}
+    # task #183: each pillar's word as the report gives it (score.pillars[].band.label), never worked out again from the number on the page
+    words = {p.get("key"): (p.get("band") or {}).get("label") for p in score.get("pillars") or [] if isinstance(p, dict) and isinstance(p.get("band"), dict)}
     return {"overall": overall, "band": band if overall is not None else None, "word": BAND_WORD.get(band) if overall is not None else None,
-            "pillars": {k: pillars.get(k) for k in PILLARS}}
+            "pillars": {k: pillars.get(k) for k in PILLARS}, "pillarWords": {k: (words.get(k) if pillars.get(k) is not None else None) for k in PILLARS}}
 
 
 def prism_block(row: Optional[Dict[str, Any]]) -> Dict[str, Any]:

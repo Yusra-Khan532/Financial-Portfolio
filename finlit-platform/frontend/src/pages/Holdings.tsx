@@ -5,20 +5,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { useUI } from "../lib/ui";
+import { TIER, useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
 import { useSearchIndex } from "../lib/api";
+import { isinMap } from "../lib/searchFilters";
 import { useUniverse } from "../lib/screener";
 import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
-import { RemoveAll } from "../components/RemoveAll";
-import { saveFile } from "../stock/derive";
+import { ClearPortfolio } from "../components/ClearPortfolio";
+import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
 import { isPdf } from "../lib/holdingsPdf";
 import { entriesFrom, entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
-import { csvName, modelFor, parsePeriod, parseTab, toCsv, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
+import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { ScoreCard, ScoreInputs } from "../portfolio/ScoreCard";
 import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
@@ -37,8 +38,10 @@ import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
 import { Cards } from "../components/sectors/pack/Common";
 import type { Leadership } from "../lib/leadership";
-import { scoreTiles, sharesCards, type Share, type Size } from "../lib/equityPack";
-import { EachRisk, InShort, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, RiskGlance, ScoreGrid, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
+import { sharesCards, type Share, type Size } from "../lib/equityPack";
+import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
+import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { EachRisk, InShort, MarketFall, MoneyRisk, MovesGrid, Packs, StyleTiltPack, PeersSection, RiskGlance, SizeFold, SpreadSection, ViewTabs, WhereSits, type View } from "../portfolio/pack/EquityPack";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
@@ -47,6 +50,13 @@ import "../portfolio/pack/equity-pack.css";
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names only: quantities, prices and dates are never asked for.
  *  Every figure and every sentence comes from POST /api/portfolio/page (the handover pack's engine) and POST /api/portfolio/overview (live price and the plan's scores). */
+
+/** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
+const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"]] },
+  diversification: { label: "Diversification analytics", secs: [["eq-spread", "Spread"], ["eq-where", "Where it sits"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
+  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
+};
 
 export function HoldingsPage() {
   useDocTitle("Equity portfolio", "Add the shares you own, by name or from a broker file, and see how strong each one is, how spread out the list is, what moves together and where the risk comes from.");
@@ -65,9 +75,8 @@ export function HoldingsPage() {
   const [one, setOne] = useState(""), [text, setText] = useState(""), [pasting, setPasting] = useState(false), [missing, setMissing] = useState<string[]>([]);
   const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
-  const [undo, setUndo] = useState<{ before: PState; n: number } | null>(null);   // after "Remove all": the list as it was, for Undo (task #127)
-  useEffect(() => { if (st.holdings.length) setUndo(null); }, [st.holdings.length]);   // once the list has shares again, Undo would throw them away: it goes
   const matcher = useMemo(() => makeMatcher(index), [index]);
+  const localBefore = useRef<PState | null>(null), addBox = useRef<HTMLInputElement>(null);   // Clear portfolio: the list as it was, if the server cannot be reached for Undo
   const mode: Mode = "eq";   // the final pages pack reads the list as equal amounts throughout
 
   const symbols = useMemo(() => [...new Set(st.holdings.map((h) => h.symbol))], [st.holdings]);
@@ -97,17 +106,27 @@ export function HoldingsPage() {
   const state: "loading" | "ready" | "error" | "none" = DEMO ? "none" : pg.isError ? "error" : pg.isPending && symbols.length ? "loading" : "ready";
 
   // Task #128: every line is matched by its ISIN when it has one (the company list's ISINs, then POST /api/isin/resolve); its name is used only when it has none.
-  const add = async (entries: Entry[], from?: string) => {
+  const isinOf = useMemo(() => isinMap(idx.data), [idx.data]);
+  // Task #183 (ISIN is the key): every saved share carries its ISIN; a share whose symbol changed (ZOMATO → ETERNAL) follows its ISIN to the new one.
+  useEffect(() => {
+    if (!isinOf?.size) return;
+    const bySymbol = new Set(index.map((r) => r[0])), symbolOf = new Map([...isinOf].map(([sym, i]) => [i, sym]));
+    for (const h of st.holdings) {
+      if (!h.isin && isinOf.get(h.symbol)) portfolio.update(h.id, { isin: isinOf.get(h.symbol) });
+      else if (h.isin && !bySymbol.has(h.symbol) && symbolOf.get(h.isin)) portfolio.update(h.id, { symbol: symbolOf.get(h.isin)! });
+    }
+  }, [isinOf, st.holdings, index]);
+  const add = async (entries: Entry[], from?: string, confirmNames = !!from) => {
     if (!entries.length) { toast(from ? `No shares found in ${from}. It should have a column with the ISINs or the share names (ISIN, Symbol, Stock, Instrument or Company).` : "No share names found. Put one ISIN, name or ticker per line, or paste the ISIN or Name column from your broker."); return; }
     if (!index.length) { toast("The company list is still loading. Try again in a moment."); return; }
     const isins = entries.flatMap((e) => (e.isin ? [e.isin] : []));
     if (isins.length) setBusy(true);
     const res = isins.length ? await resolveIsins(isins, idx.data) : null;
     setBusy(false);
-    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null);
+    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null, confirmNames);
     const fresh = [...new Map(found.filter((f) => !symbols.includes(f.symbol)).map((f) => [f.symbol, f])).values()];
     const room = Math.max(0, cap - symbols.length), take = fresh.slice(0, room);
-    if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0 })));
+    if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0, isin: f.isin || isinOf?.get(f.symbol) })));
     const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
     setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
     setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${entries.length > isins.length ? ` ${entries.length - isins.length} without an ISIN matched by name.` : ""}` : null);
@@ -117,9 +136,8 @@ export function HoldingsPage() {
   const addChecked = (c: ToCheck) => {
     if (symbols.includes(c.symbol)) { setChecks((xs) => xs.filter((x) => x !== c)); return; }
     if (symbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
-    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0 }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
+    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol) }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
   };
-  const exportCsv = () => model && saveFile(csvName(tab, period), toCsv(lines, tab, model, period), "text/csv;charset=utf-8");
   const empty = !lines.length;
   const common = page && model ? { page, meta, symbols: ids, mode, colors, model, ov: ovMap } : null;
 
@@ -135,7 +153,7 @@ export function HoldingsPage() {
     const size = (capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.label.replace(" cap", "") ?? null) as Size | null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.peerGroup.ranked, group: ld.peerGroup.short || ld.peerGroup.name, vs: ld.rel.w52 == null ? null : ld.rel.w52 * 100, bench: ld.benchmarks.sector.kind === "index" ? ld.benchmarks.sector.name : "peer average", direction: ld.direction } : null;
     return { symbol: l.symbol, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
-      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
+      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [lines, by, leads, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const secW = page?.sector_weight.eq ?? {}, secR = page?.sector_risk.eq ?? {};
@@ -143,8 +161,7 @@ export function HoldingsPage() {
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
   const sizes = (["Large", "Mid", "Small"] as Size[]).map((k) => ({ k, pct: shares.length ? (sizeCount[k] / shares.length) * 100 : 0, who: shares.filter((x) => x.size === k).map((x) => x.symbol) }));
   const packs = useMemo(() => (page?.groups ?? []).map((g) => { const tally = new Map<string, number>(); g.members.forEach((m) => { const k = meta[m]?.sector || ""; tally.set(k, (tally.get(k) ?? 0) + 1); }); const name = [...tally].sort((a, b) => b[1] - a[1])[0]?.[0] || "Mixed"; return { members: g.members, avg: g.avg_corr, name }; }), [page, meta]);
-  const bigPack = packs.filter((x) => x.members.length >= 3).sort((a, b) => b.members.length - a.members.length)[0];
-  const tiles = scoreTiles(shares, sc.data?.readings as never, page as never, Object.keys(counts).length, (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length, bigPack ? { n: bigPack.members.length, name: bigPack.name } : null);
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { industries: Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
   const sr = page?.share_risk.eq ?? {}, sw = page?.share_weight.eq ?? {};
   const top3 = (() => { const xs = Object.keys(sr).sort((a, b) => sr[b] - sr[a]).slice(0, 3); return xs.length === 3 ? { symbols: xs, risk: xs.reduce((a, k) => a + sr[k], 0), money: xs.reduce((a, k) => a + (sw[k] ?? 0), 0) } : null; })();
   const [showChoices, setShowChoices] = useState(false);
@@ -154,31 +171,34 @@ export function HoldingsPage() {
       <Gate tier="silver" title="Score your portfolio" points={["FinLit IQ and pillars for every share you own (Gold: FinLit Prism)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <header className="sp-head eq-head">
-          <div><p className="eq-plan"><span>Silver</span></p><h1>Equity portfolio</h1>
+          <div><p className="eq-plan"><span>{TIER[plan].n}</span></p><h1>Equity portfolio</h1>
             <p className="sp-desc">How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money. Nothing is sent to a broker.</p>
             <nav className="eq-links" aria-label="Related pages"><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/watchlist">Watchlists →</Link><Link className="sp-link" to="/alerts">Alerts →</Link><Link className="sp-link" to="/learn/portfolio">Learn more →</Link></nav></div>
         <section className="eq-addbar" aria-label="Add shares">
           <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); void add(one.trim() ? [entryOf(one)] : []); setOne(""); }}>
-            <label className="pfx-input"><span className="sr-only">Add a share by name, ticker or ISIN</span><Icon name="search" />
-              <input list="pf-names" value={one} onChange={(e) => setOne(e.target.value)} placeholder="Add a share by name, ticker or ISIN" autoComplete="off" maxLength={80} /></label>
+            <label className="pfx-input"><span className="sr-only">Add a share by name, symbol or ISIN</span><Icon name="search" />
+              <input ref={addBox} list="pf-names" value={one} onChange={(e) => setOne(e.target.value)} placeholder="Add a share by name, symbol or ISIN" autoComplete="off" maxLength={80} /></label>
             <datalist id="pf-names">{index.slice(0, 500).map((r) => <option key={r[0]} value={r[0]}>{r[1]}</option>)}</datalist>
             <button className="pfx-solid">Add</button>
             <span className="eq-add2"><button type="button" className="pfx-btn" aria-expanded={pasting} onClick={() => setPasting((v) => !v)}>Paste a list</button>
             <button type="button" className="pfx-btn" onClick={() => file.current?.click()} disabled={busy}>{busy ? "Reading…" : "Upload broker file"}</button>
             <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (isPdf(f)) { setPdf(f); return; } setBusy(true);
               try { await add(await entriesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
-            <RemoveAll count={symbols.length} noun="share" className="pfx-btn" note={qtyBySymbol.size ? "The quantities you typed go too." : undefined}
-              onConfirm={() => { const n = symbols.length, before = portfolio.clear(); setUndo({ before, n }); }} />
+            <ClearPortfolio count={symbols.length} noun="share" kind="equity" className="pfx-btn" goes={["the quantities you added", "the figures worked out from them: score, diversification and risk"]}
+              onClear={async () => { const before = portfolio.get(); await clearPortfolioServer(); localBefore.current = before; portfolio.reset(); }}
+              onUndo={async () => {
+                try { const r = await undoClearPortfolioServer(); portfolio.replace({ holdings: r.holdings as PState["holdings"] }); }
+                catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); if (localBefore.current) portfolio.restore(localBefore.current); }
+              }} />
             <span className="pfx-cap">{symbols.length} of {cap} shares</span></span>
           </form>
-          <p className="pfx-note sr-only">{ADD_NOTE}</p>
-          {undo && <p className="pfx-note rma-done" role="status">All {undo.n} {undo.n === 1 ? "share was" : "shares were"} removed. <button type="button" className="pfx-btn" onClick={() => { portfolio.restore(undo.before); setUndo(null); }}>Undo</button></p>}
+          <p className="pfx-note eq-addnote">{ADD_NOTE}</p>
           {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
-            <button className="pfx-solid" onClick={() => { void add(entriesFrom(text, matcher)); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
+            <button className="pfx-solid" onClick={() => { const es = entriesFrom(text, matcher); void add(es, undefined, es.length > 1); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
           {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
-            onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0 }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
+            onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0, isin: isinOf?.get(sym) }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
-          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>
+          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - symbols.length), take = checks.filter((c) => !symbols.includes(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
             <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b>{c.symbol}</b> {c.name}. <small>{c.note}.</small></span>
               <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
           {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
@@ -187,9 +207,10 @@ export function HoldingsPage() {
         </section>
         </header>
 
-        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add the shares you own above. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p></div> : model && <>
-          {scoreOn ? (sc.data && !sc.data.locked ? <ScoreGrid total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} tiles={tiles} onAddQty={() => { setView("portfolio"); setTimeout(() => document.querySelector<HTMLInputElement>(".x-qty input")?.focus(), 50); }} onGo={(t) => setView(t === "shares" ? "portfolio" : t, true)} />
-            : <ScoreCard a={sc.data} state={sc.isError ? "error" : sc.isPending ? "loading" : "ready"} error={sc.error?.body?.detail} />) : null}
+        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span></div> : model && <>
+          <TopGrid tiles={top} onOpen={(t) => setView(t, true)}
+            score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} onAddQty={() => { setView("portfolio"); setTimeout(() => document.querySelector<HTMLInputElement>(".x-qty input")?.focus(), 50); }} />
+              : <ScoreCard a={sc.data} state={sc.isError ? "error" : sc.isPending ? "loading" : "ready"} error={sc.error?.body?.detail} />) : <ScoreLocked />} />
           {scoreOn && <details className="sp-sec sp-fold" open={showChoices} onToggle={(e) => setShowChoices((e.currentTarget as HTMLDetailsElement).open)}>
             <summary><span><b className="sp-ft">Make the score yours</b><small>All optional: horizon, risk comfort, goal and the index to compare with. They stay in this browser.</small></span><span className="sp-show">{showChoices ? "Hide ▴" : "Show ▾"}</span></summary>
             <ScoreInputs c={choices} onChange={pick} /></details>}
@@ -198,15 +219,17 @@ export function HoldingsPage() {
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
           <div id="eq-tabs"><ViewTabs view={view} onView={(v) => setView(v)} n={lines.length} /></div>
+          <SectionsBar tab={view} all={SECS} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
+          {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} />}
           {view === "portfolio" && <>
             <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
-              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)} onExport={exportCsv}
+              errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Cards items={sharesCards(shares, day)} /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SizeFold counts={sizeCount} />
-            {tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
-            {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}
+            <div id="eq-trend">{tr.data && !tr.data.locked && tr.data.trend && <TrendCard t={{ all: tr.data.trend }} nm={(c) => String(c)} what="shares in your list" />}
+            {tr.data?.locked && <section className="card x-trend" aria-label="Short- and long-term trend"><div className="card-h"><h3>Short- and long-term trend</h3></div><p className="faint">{tr.data.why} <Link to="/plans">See plans</Link></p></section>}</div>
             <PeersSection shares={shares} />
           </>}
           {view === "diversification" && (page && common ? <>

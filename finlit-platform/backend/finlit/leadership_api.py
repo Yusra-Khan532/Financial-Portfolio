@@ -88,9 +88,22 @@ def shape_reliability(row: Optional[dict]) -> Dict[str, Any]:
             "to": (str(row["window_end"].year) if spec else _day(row["window_end"])[:7]) if row["window_end"] else None, "periods": periods, "source": "spec" if spec else "site"}
 
 
+def agreeing(label: Optional[str], raw: Optional[str], rel52: Any) -> Optional[str]:
+    """The label to show (task #183): a Leader is ahead of its peers and a Laggard behind them. When the label held over by the two-week rule no longer
+    agrees with this week's 12-month gap to the peers (a Leader at minus points, a Laggard at plus points), this week's own answer is shown instead.
+    The stored label, the weekly job and the rule itself are unchanged."""
+    v = _f(rel52)
+    if v is None or raw is None:
+        return label
+    if (label == "leader" and v <= 0) or (label == "laggard" and v >= 0):
+        return raw
+    return label
+
+
 def shape(row: dict, rel: Optional[dict], peers: List[dict], unranked: Optional[List[dict]] = None, runs: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
     """The `leadership` object for a stock that has a label. `unranked` and `runs` are what the newer columns and tables add (an older row has neither)."""
     stale = (row["stale_runs"] or 0) >= STALE_AFTER_RUNS
+    row = {**row, "label": agreeing(row["label"], row["raw_label"], row["rel52"])}
     shown = display(label=row["label"], rank=row["rank"], ranked=row["ranked"], group_short=row["group_short"] or row["group_name"] or "",
                     sector_name=row["sector_name"] or "its peers", market_name=row["market_name"], rel52=_f(row["rel52"]), rel52_market=_f(row["rel52_market"]),
                     direction=row["direction"], fundamental=row["fundamental"], fund_rank=row["fund_rank"], fund_n=row["fund_n"])
@@ -122,7 +135,7 @@ def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
     if row is None:
         why = reason or "not_compared"      # no row and no recorded reason: it was not in the last weekly run (never "not enough price history")
         return {"available": False, "reason": why, "text": UNRANKED_TEXT.get(why) or REASON_TEXT.get(why) or "Not compared this week"}
-    return {"available": True, "label": row["label"], "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
+    return {"available": True, "label": agreeing(row["label"], row.get("raw_label"), row["rel52"]), "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
             "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
             "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS}
 
@@ -184,7 +197,7 @@ async def leadership(request: Request, symbol: str) -> Response:
             gone = []
         counts = await conn.fetch("SELECT label, count(*) AS n FROM leadership_history WHERE symbol = $1 AND run_date > $2 AND label IS NOT NULL GROUP BY label",
                                   symbol, row["as_of"] - timedelta(days=364))
-    peers = [{"symbol": p["symbol"], "name": p["name"], "rank": p["rank"], "label": p["label"], "rawLabel": p["raw_label"], "direction": p["direction"], "rel13": _f(p["rel13"]),
+    peers = [{"symbol": p["symbol"], "name": p["name"], "rank": p["rank"], "label": agreeing(p["label"], p["raw_label"], p["rel52"]), "rawLabel": p["raw_label"], "direction": p["direction"], "rel13": _f(p["rel13"]),
               "rel52": _f(p["rel52"]), "rel52Market": _f(p["rel52_market"]), "marketCap": _f(p["market_cap"])} for p in peer_rows]
     unranked = [{"symbol": g["symbol"], "name": g["name"] or g["symbol"], "reason": g["reason"], "text": UNRANKED_TEXT.get(g["reason"], "Not ranked this week")} for g in gone]
     by_label = {c["label"]: int(c["n"]) for c in counts}
