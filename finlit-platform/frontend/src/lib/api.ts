@@ -122,6 +122,8 @@ export function errorBody(raw: unknown): ApiError["body"] {
 /** The signed-in session's CSRF token; set by the auth provider and sent on every state-changing request. */
 let csrf: string | null = null;
 export const setCsrf = (t: string | null) => { csrf = t; };
+/** The current CSRF token, for the few requests that cannot go through apiSend (the streamed Ask FinLit AI answer). */
+export const csrfToken = () => csrf;
 
 /** POST/PUT/PATCH/DELETE with the session cookie and CSRF header. */
 export async function apiSend<T = { status?: string }>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {

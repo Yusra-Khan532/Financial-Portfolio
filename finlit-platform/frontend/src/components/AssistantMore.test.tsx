@@ -12,7 +12,15 @@ import { CATEGORIES, QUARTERS, SEGMENTS, TABS, quarterQuestion, related, tabQues
 const ask = vi.fn(async (id: string, sym: string, _extra?: unknown): Promise<{ text: string; link?: { to: string; label: string } }> => ({ text: `answer to ${id} for ${sym}`, link: { to: `/stocks/${sym}#financials`, label: "See the Profit & Loss" } }));
 vi.mock("../lib/askAnswers", async (orig) => ({ ...(await orig<typeof import("../lib/askAnswers")>()), answerCompany: (id: string, sym: string, extra?: unknown) => ask(id, sym, extra) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: async () => ({ fields: [], rows: [["RELIANCE", "Reliance Industries Ltd", null, 1], ["TCS", "Tata Consultancy Services Ltd", null, 1]] }) }));
+// Task #211: written answers from FinLit AI. Off by default here (the state of task #138: no key on the server), so every test above them is unchanged;
+// the tests at the end switch them on for a signed-in member or a visitor and script the streamed answer.
+const ai = vi.hoisted(() => ({ quota: undefined as undefined | Record<string, unknown>, user: null as null | { id: string }, events: [] as unknown[], sent: [] as unknown[][] }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: ai.user }) }));
+vi.mock("../lib/askAi", async (orig) => ({ ...(await orig<typeof import("../lib/askAi")>()), useAskQuota: () => ({ data: ai.quota }),
+  askAi: async (q: string, history: unknown, symbol: unknown, on: (e: unknown) => void) => { ai.sent.push([q, history, symbol]); ai.events.forEach(on); } }));
+vi.mock("@tanstack/react-query", async (orig) => ({ ...(await orig<typeof import("@tanstack/react-query")>()), useQueryClient: () => ({ invalidateQueries: async () => {} }) }));
 beforeAll(() => { Element.prototype.scrollIntoView = () => {}; });
+afterEach(() => { ai.quota = undefined; ai.user = null; ai.events = []; ai.sent = []; });
 afterEach(() => { cleanup(); ask.mockClear(); });
 
 const open = (path = "/stocks/reliance", sector?: string) => {
@@ -193,3 +201,59 @@ describe("Assistant full window (task #52)", () => {
     localStorage.removeItem("finlit-ai-full");
   });
 });
+
+describe("written answers from FinLit AI (task #211)", () => {
+  const typeAndSend = async (label: string, text: string) => {
+    const box = screen.getByLabelText(label);
+    fireEvent.change(box, { target: { value: text } });
+    await act(async () => { fireEvent.submit(box.closest("form")!); });
+  };
+  it("a signed-in member's own question is sent as typed, with the page's company, and the answer streams in with the disclaimer", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "meta", limit: 50, used: 13, left: 37, resets: "2026-12-01", cached: false }, { type: "status", text: "Reading the ratios (RELIANCE)" },
+      { type: "text", text: "Reliance's debt to equity was " }, { type: "text", text: "0.41 in FY2026." }, { type: "done", disclaimer: "Information only, not investment advice.", sources: ["get_ratios"] }];
+    open();
+    expect(screen.getByText(/FinLit AI: 38 of 50 written answers left this month/)).toBeTruthy();
+    await typeAndSend("Your question for FinLit AI", "Will the dividend rise much higher next year, do you think?");
+    expect(ai.sent[0][0]).toBe("Will the dividend rise much higher next year, do you think?");
+    expect(ai.sent[0][2]).toBe("RELIANCE");
+    expect(screen.getByText("Reliance's debt to equity was 0.41 in FY2026.")).toBeTruthy();
+    expect(screen.getByText("Information only, not investment advice.")).toBeTruthy();
+    expect(ask).not.toHaveBeenCalled();
+  });
+  it("a listed question still answers at once from FinLit's figures, without using a written answer", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 0, left: 50, resets: "2026-12-01" };
+    open();
+    const first = screen.getAllByRole("button").find((b) => b.className === "aif-q")!;
+    await act(async () => { fireEvent.click(first); });
+    expect(ask).toHaveBeenCalled();
+    expect(ai.sent).toEqual([]);
+  });
+  it.each([["a visitor", null, { enabled: true, signedIn: false }], ["a Basic member", { id: "b1" }, { enabled: true, signedIn: true, limit: 0, used: 0, left: 0, resets: "2026-12-01" }]])(
+    "%s keeps the listed questions only: the closest ones are offered, with a note that written answers are Silver and Gold (founder, 17 Nov 2026)", async (_who, user, quota) => {
+      ai.user = user as { id: string } | null; ai.quota = quota;
+      open();
+      expect(screen.queryByText(/written answers left this month/)).toBeNull();          // no "0 of 0" line for Basic
+      await typeAndSend("Search the listed questions", "Will the dividend rise much higher next year, do you think?");
+      expect(ai.sent).toEqual([]);
+      expect(screen.getByText(/part of the Silver plan \(50 a month\) and the Gold plan \(100 a month\)/)).toBeTruthy();
+      expect(within(screen.getByRole("list", { name: "Closest listed questions" })).getAllByRole("button").length).toBeGreaterThan(0);
+      expect(screen.getByRole("link", { name: /See the plans/ }).getAttribute("href")).toBe("/plans");
+    });
+  it("with the month's questions used, the box goes back to the listed questions and says when they renew", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 50, left: 0, resets: "2026-12-01" };
+    open();
+    expect(screen.getByText(/0 of 50 written answers left this month; they renew on 1 Dec/)).toBeTruthy();
+    await typeAndSend("Search the listed questions", "xyzzy plugh");
+    expect(ai.sent).toEqual([]);
+    expect(screen.getByText(/none matches “xyzzy plugh”/)).toBeTruthy();
+  });
+  it("a refusal or a failure is said in the bubble, never left blank", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 1, left: 49, resets: "2026-12-01" };
+    ai.events = [{ type: "meta", limit: 50, used: 2, left: 48, resets: "2026-12-01", cached: false }, { type: "error", code: "busy", text: "FinLit AI is answering many questions right now. Please try again in a minute." }];
+    open();
+    await typeAndSend("Your question for FinLit AI", "How has the market done this week?");
+    expect(screen.getByText("FinLit AI is answering many questions right now. Please try again in a minute.")).toBeTruthy();
+  });
+});
+
