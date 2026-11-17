@@ -17,6 +17,9 @@ What each portfolio shows (all described, never advised):
     is not named in a filing, so "no longer named" means sold or below 1%; the filing does not say which.
 Blanks always say why. Information only, not investment advice.
 
+Each investor is marked "person" or "firm" from the shape of the name; the page opens on people (the "superinvestors" of the task) with
+companies and funds one tab away.
+
 GET /api/superinvestors          the list (every plan, signed in or not)
 GET /api/superinvestors/{key}    one portfolio (Silver and Gold; Basic and visitors get plan_required)
 """
@@ -38,14 +41,15 @@ from .auth.service import current
 log = logging.getLogger("finlit.superinvestors")
 router = APIRouter()
 
-CACHE_KEY = "superinvestors:v1"
+CACHE_KEY = "superinvestors:v2"   # v2: every investor carries kind (person | firm)
 CACHE_SECONDS = 3600
 MIN_COMPANIES = 2           # named in at least this many listed companies (1% or more today) to be listed
 MIN_STAKE = 1.0             # the filing names holders of 1% or more
 MOVE = 0.01                 # a stake change smaller than this (percentage points) is "unchanged"
 SOURCE = "Each company's shareholding filing (named public shareholders of 1% or more), via FinEdge; values at today's market capitalisation."
 DISCLAIMER = "Information only, not investment advice. Holdings below 1% are not named in filings, so a portfolio here shows only stakes of 1% or more."
-NOTE_NAMES = "Names are matched as the filings write them; one investor filing under two spellings, or through a company, appears separately."
+NOTE_NAMES = ("Names are matched as the filings write them: one investor filing under two spellings, or through a company, appears separately, "
+              "and two different people with the same name appear as one. People and companies are told apart by the shape of the name.")
 
 # Category lines a filing lists next to named holders. They are groups of shareholders, not one investor.
 _CATEGORY = re.compile(
@@ -55,7 +59,9 @@ _CATEGORY = re.compile(
     r"unclaimed.*|suspense.*|escrow.*|employees?.*|esop.*|resident individuals?.*|individuals?.*|associate compan.*|"
     r"(?:i+|iv|v)\.? .*nominal share capital.*|.*nominal share capital.*|alternate investment funds?|"
     r"foreign portfolio investors?.*|banks?|insurance compan(?:y|ies)|mutual funds?|provident funds?.*|pension funds?.*|"
-    r"nbfcs? registered with rbi|central government.*|state government.*|president of india)$")
+    r"nbfcs? registered with rbi|central government.*|state government.*|president of india|overseas corporate bod(?:y|ies)|"
+    r"public\s*-\s*pac|independent directors?.*|firms?|societ(?:y|ies)|.*clearing corporation.*|.*employees? welfare trust.*|"
+    r".*trusteeship.*|.*trustees? (?:company|co|pvt|private|ltd|limited).*)$")
 _HONORIFIC = re.compile(r"^(?:mr|mrs|ms|miss|shri|smt|sri|dr|late)\.?\s+")
 
 
@@ -72,6 +78,19 @@ def holder_key(name: str) -> str:
 
 def slug(key: str) -> str:
     return key.replace(" ", "-")
+
+
+# A name that reads as a company, fund or firm rather than a person. A Hindu Undivided Family (HUF) is a family, so it stays with people.
+_FIRM = re.compile(r"\b(?:ltd|limited|pvt|private|llp|pte|inc|llc|plc|corporation|corp|company|fund|funds|trust|capital|investments?|holdings?|bank|"
+                   r"securities|ventures|partners|finance|financial|enterprises|industries|associates|advis[eo]rs|management|group|foundation|"
+                   r"sdn bhd|bhd|gmbh|ag|sa|bv|nv|opportunities|equity|board|mauritius|master|trading|exports?|infra(?:structure)?|"
+                   r"realty|properties|estates?|developers|technologies|motors|mills|commerce|credit|leasing)\b", re.I)
+
+
+def kind_of(name: str) -> str:
+    """"person" or "firm", from the shape of the name (an HUF counts as a person's family)."""
+    n = name or ""
+    return "person" if re.search(r"\bhuf\b", n, re.I) or not _FIRM.search(n) else "firm"
 
 
 def is_investor(name: str) -> bool:
@@ -183,7 +202,7 @@ def build(rows: List[dict], names: Dict[str, str], quotes: Dict[str, dict], clas
         counts = Counter(h["status"] for h in changes)
         unvalued = sum(1 for h in holdings if h["valueCr"] is None)
         investors[slug(k)] = {
-            "key": slug(k), "name": display(inv["names"]), "companies": len(holdings), "valueCr": round(total, 2) if total else None,
+            "key": slug(k), "name": display(inv["names"]), "kind": kind_of(display(inv["names"])), "companies": len(holdings), "valueCr": round(total, 2) if total else None,
             "valueNote": None if not unvalued else f"{unvalued} holding{'s' if unvalued > 1 else ''} without a market value today, left out of the total.",
             "top": [{"symbol": h["symbol"], "name": h["name"], "weightPct": h["weightPct"]} for h in holdings[:3]],
             "changes": {s: counts.get(s, 0) for s in ("new", "added", "reduced", "exited")},
@@ -261,7 +280,8 @@ def summary(d: dict) -> dict:
     meta = {k: d.get(k) for k in ("covered", "companies", "asOf", "fetchedFrom", "fetchedTo", "pricesAt", "source", "disclaimer", "noteNames", "rule", "builtAt")}
     why = None if rows else ("No company's named-holder details are stored yet; they are fetched overnight." if not d.get("covered")
                               else "No public shareholder is named in two or more companies in the stored filings.")
-    return {"investors": rows, "count": len(rows), "emptyWhy": why, **meta}
+    kinds = Counter(r["kind"] for r in rows)
+    return {"investors": rows, "count": len(rows), "people": kinds.get("person", 0), "firms": kinds.get("firm", 0), "emptyWhy": why, **meta}
 
 
 @router.get("/api/superinvestors")

@@ -10,6 +10,12 @@
 .si-find input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .si-count { margin: 0; font-size: 13px; color: var(--muted); }
 
+.si-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.si-tab { font: inherit; font-size: 14px; padding: 8px 12px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.si-tab small { font-size: 12px; color: var(--faint); }
+.si-tab.on { color: var(--text); font-weight: 600; border-bottom-color: var(--text); }
+.si-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.si-empty .linkish { font: inherit; padding: 0; border: 0; background: none; color: var(--text); text-decoration: underline; cursor: pointer; }
 .si-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .si-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
 .si-rank { font-size: 13px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
