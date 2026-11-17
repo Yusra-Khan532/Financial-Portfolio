@@ -12,7 +12,7 @@ type QItem = QResp["quarters"][number];
 
 /** One quarter's whole-quarter totals for one size band (or the whole quarter): the page's own filters never change the tiles. */
 function useTotals(quarter: string | undefined, cap?: string, on = true): VSummary | null | undefined {
-  const r = useQuarterResults({ quarter, cap, limit: 1 }, { enabled: on && !!quarter });
+  const r = useQuarterResults({ quarter, cap, limit: 1 }, on && !!quarter);
   if (!on || !quarter) return null;
   if (r.isPlaceholderData || !r.data) return r.isError ? null : undefined;   // undefined: still loading (never another quarter's figures); null: not available
   return (cap ? r.data.summary : r.data.totals) as VSummary;

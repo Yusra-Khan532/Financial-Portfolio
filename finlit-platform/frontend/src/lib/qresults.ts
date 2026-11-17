@@ -255,9 +255,8 @@ export const queryString = (p: QParams) => {
   return u.toString();
 };
 
-/** `enabled: false` asks nothing (e.g. the tiles' quarter-before figures when there is no quarter before). */
-export const useQuarterResults = (p: QParams, opts: { enabled?: boolean } = {}) => useQuery({
-  queryKey: ["quarter-results", queryString(p)], staleTime: 60_000, enabled: opts.enabled ?? true, retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 1, placeholderData: keepPreviousData,
+export const useQuarterResults = (p: QParams, enabled = true) => useQuery({
+  queryKey: ["quarter-results", queryString(p)], staleTime: 60_000, enabled, retry: (n, e) => !(e instanceof ApiError && e.status < 500) && n < 1, placeholderData: keepPreviousData,
   queryFn: () => apiGet<QResp>(`/api/results/quarter?${queryString({ limit: PAGE, ...p })}`),
 });
 
