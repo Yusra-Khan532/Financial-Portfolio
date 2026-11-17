@@ -47,3 +47,7 @@ section.block .cz.cz-table:not(.cz-boxed) :is(th, td):last-child { padding-right
   section.block :has(> svg:is([viewBox^="0 0 720 "], [viewBox^="0 0 760 "], [viewBox^="0 0 1000 "])) { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scrollbar-width: thin; }
   section.block svg:is([viewBox^="0 0 720 "], [viewBox^="0 0 760 "], [viewBox^="0 0 1000 "]) { min-width: 680px; max-width: none; height: auto; }
 }
+
+/* ---- 1.8 sections bar: each chip and "All sections" line starts with its section number ---- */
+.sn-no { display: inline-block; margin-right: 6px; font: 700 var(--fs-11, 11px)/1 var(--sans); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.secnav a.active .sn-no, .secnav a[aria-current="true"] .sn-no { color: inherit; }
