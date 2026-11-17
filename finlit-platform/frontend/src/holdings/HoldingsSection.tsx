@@ -1,10 +1,10 @@
-// "What it invests in": donut of the major holdings, concentration, sector and asset split, month-on-month change, and every small holding in a table.
+// "What it invests in": donut of the major holdings, concentration, industry (NSE's, task #192) and asset split, month-on-month change, and every small holding in a table.
 // Shared by mutual funds and ETFs. Takes the portfolio JSON of finlit.disclosure.get_portfolio (or its { unavailable } reason). Numbers are shown exactly as published.
 import { CoLogo } from "../components/CoLogo";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { dateIN, nf } from "../lib/format";
-import { arcPath, assetRows, classifyChanges, groupHoldings, SMALL_BELOW_PCT, sectorRows, sliceFractions, sliceList, sortHoldings, topNPct, type ChangeKind, type SortDir } from "./logic";
+import { arcPath, assetRows, classifyChanges, groupHoldings, SMALL_BELOW_PCT, industryRows, sliceFractions, sliceList, sortHoldings, topNPct, type ChangeKind, type SortDir } from "./logic";
 import { isPortfolio, type Holding, type PortfolioResult } from "./types";
 import "./holdings.css";
 import { ChartZoom } from "../components/ChartZoom";
@@ -13,6 +13,14 @@ const pct = (v: number | null | undefined, d = 2) => (v == null ? "—" : nf(v, 
 const pp = (v: number | null | undefined) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 2) + " pp");
 const KIND_TEXT: Record<ChangeKind, string> = { new: "New", exited: "Exited", increased: "Increased", decreased: "Decreased", unchanged: "Unchanged" };
 const PATTERNS = ["", "stripe", "dots", "cross"] as const;
+
+/** NSE's industry of a line; "Not classified" and "Listed abroad" carry their reason on hover, and the fund house's own name when it differs. */
+function IndustryText({ h }: { h: Pick<Holding, "industry" | "industryNote" | "amfiIndustry"> }) {
+  if (!h.industry) return <>—</>;
+  const own = h.amfiIndustry && h.amfiIndustry.trim().toLowerCase() !== h.industry.toLowerCase() ? `The fund house calls it "${h.amfiIndustry.trim()}".` : "";
+  const why = [h.industryNote, own].filter(Boolean).join(" ");
+  return why ? <span className="hd-why" title={why}>{h.industry}</span> : <>{h.industry}</>;
+}
 
 function NameCell({ h }: { h: { name: string; stockSymbol?: string | null } }) {
   return h.stockSymbol ? <Link to={`/stocks/${encodeURIComponent(h.stockSymbol)}`} title={`Open ${h.stockSymbol} on FinLit`}><CoLogo symbol={h.stockSymbol} name={h.name} size={20} inline />{h.name}</Link> : <>{h.name}</>;
@@ -40,7 +48,7 @@ function Donut({ slices }: { slices: ReturnType<typeof sliceList> }) {
           const pat = s.other ? "stripe" : PATTERNS[Math.floor(i / 8) % 4];
           return (
             <g key={s.key} tabIndex={0} role="img" className={"hd-slice" + (active === i ? " on" : "")}
-              aria-label={`${s.label}, ${nf(s.pct, 2)} percent${s.sector ? `, ${s.sector}` : ""}`}
+              aria-label={`${s.label}, ${nf(s.pct, 2)} percent${s.industry ? `, ${s.industry}` : ""}`}
               onMouseEnter={() => setActive(i)} onMouseLeave={() => setActive((a) => (a === i ? null : a))} onFocus={() => setActive(i)} onBlur={() => setActive((a) => (a === i ? null : a))}>
               <path d={d} fill={fillOf(i, s.other)} />
               {pat && <path d={d} fill={`url(#${uid}-${pat})`} />}
@@ -51,19 +59,19 @@ function Donut({ slices }: { slices: ReturnType<typeof sliceList> }) {
         <text x="110" y="124" textAnchor="middle" className="hd-ct2">{cur ? "of the portfolio" : slices.length === 1 ? "slice" : "slices"}</text>
       </svg>
       <div className="hd-tip" role="status" aria-live="polite">
-        {cur ? <><b>{cur.label}</b><span>{nf(cur.pct, 2)}%{cur.sector ? ` · ${cur.sector}` : ""}</span></> : <span className="hd-hint">Hover or focus a slice for its name, share and sector.</span>}
+        {cur ? <><b>{cur.label}</b><span>{nf(cur.pct, 2)}%{cur.industry ? ` · ${cur.industry}` : ""}</span></> : <span className="hd-hint">Hover or focus a slice for its name, share and industry.</span>}
       </div>
     </div>
   );
 }
 
 function SmallTable({ rows, label }: { rows: Holding[]; label?: string }) {
-  const [key, setKey] = useState<"name" | "sector" | "pct" | "qty" | "valueLakh">("pct");
+  const [key, setKey] = useState<"name" | "industry" | "pct" | "qty" | "valueLakh">("pct");
   const [dir, setDir] = useState<SortDir>("desc");
   const sorted = useMemo(() => sortHoldings(rows, key, dir), [rows, key, dir]);
   const head = (k: typeof key, label: string, num = false) => (
     <th scope="col" className={num ? "num" : ""} aria-sort={key === k ? (dir === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" className="hd-sort" onClick={() => { if (key === k) setDir(dir === "asc" ? "desc" : "asc"); else { setKey(k); setDir(k === "name" || k === "sector" ? "asc" : "desc"); } }}>
+      <button type="button" className="hd-sort" onClick={() => { if (key === k) setDir(dir === "asc" ? "desc" : "asc"); else { setKey(k); setDir(k === "name" || k === "industry" ? "asc" : "desc"); } }}>
         {label}{key === k && <i aria-hidden="true">{dir === "asc" ? "▲" : "▼"}</i>}
       </button>
     </th>);
@@ -71,9 +79,9 @@ function SmallTable({ rows, label }: { rows: Holding[]; label?: string }) {
     <div className="hd-scroll" tabIndex={0} role="region" aria-label={label ?? `All ${rows.length} holdings below ${SMALL_BELOW_PCT} percent`}>
       <table className="hd-table">
         <caption className="sr-only">Every holding below {SMALL_BELOW_PCT}% of the portfolio. Use the column buttons to sort.</caption>
-        <thead><tr>{head("name", "Holding")}{head("sector", "Sector")}{head("pct", "Share", true)}{head("qty", "Quantity", true)}{head("valueLakh", "Value (₹ lakh)", true)}</tr></thead>
+        <thead><tr>{head("name", "Holding")}{head("industry", "Industry")}{head("pct", "Share", true)}{head("qty", "Quantity", true)}{head("valueLakh", "Value (₹ lakh)", true)}</tr></thead>
         <tbody>{sorted.map((h, i) => (
-          <tr key={`${h.isin || h.name}-${i}`}><th scope="row"><NameCell h={h} /></th><td>{h.sector || "—"}</td><td className="num">{pct(h.pct)}</td>
+          <tr key={`${h.isin || h.name}-${i}`}><th scope="row"><NameCell h={h} /></th><td><IndustryText h={h} /></td><td className="num">{pct(h.pct)}</td>
             <td className="num">{h.qty == null ? "—" : nf(h.qty, 0)}</td><td className="num">{h.valueLakh == null ? "—" : nf(h.valueLakh, 2)}</td></tr>))}</tbody>
       </table>
     </div>
@@ -88,23 +96,23 @@ function TopBars({ rows }: { rows: Holding[] }) {
     <div className="hd-topbars">
       <h4 className="hd-h4">10 largest holdings</h4>
       <ol className="hd-bars hd-top10" aria-label="The 10 largest holdings">{top.map((h, i) => (
-        <li key={`${h.isin || h.name}-${i}`}><span className="hd-bl"><NameCell h={h} />{h.sector && <small>{h.sector}</small>}</span>
+        <li key={`${h.isin || h.name}-${i}`}><span className="hd-bl"><NameCell h={h} />{h.industry && <small><IndustryText h={h} /></small>}</span>
           <span className="hd-bt" aria-hidden="true"><i style={{ width: `${((h.pct ?? 0) / max) * 100}%` }} /></span><b>{pct(h.pct)}</b></li>))}</ol>
     </div>);
 }
 
 /** `layout`: "donut" or "bars" (the ETF page, task #134; the mutual fund page, task #132). `firstChanges`: open the change table on this many of the biggest moves,
- *  the rest behind a button (ETF page). `fundPage` (task #132, the mutual fund pack): the 10 largest beside the sectors (10 first, all one click away), every
+ *  the rest behind a button (ETF page). `fundPage` (task #132, the mutual fund pack): the 10 largest beside the industries (10 first, all one click away), every
  *  holding and those below 1% behind one button, and the change table opened by four counts (New, Exited, Increased, Decreased) that filter it. */
 export function HoldingsSection({ portfolio, title = "What it invests in", unit = "fund", layout = "donut", firstChanges, fundPage = false }: { portfolio: PortfolioResult | null | undefined; title?: string; unit?: string; layout?: "donut" | "bars"; firstChanges?: number; fundPage?: boolean }) {
   const p = isPortfolio(portfolio) ? portfolio : null;
   const g = useMemo(() => (p ? groupHoldings(p.holdings) : null), [p]);
   const slices = useMemo(() => (g ? sliceList(g) : []), [g]);
   const changes = useMemo(() => (p ? classifyChanges(p) : null), [p]);
-  const sectors = useMemo(() => (p ? sectorRows(p) : []), [p]);
+  const industries = useMemo(() => (p ? industryRows(p) : []), [p]);
   const [showAll, setShowAll] = useState(false);
   const [allChanges, setAllChanges] = useState(false), [allHoldings, setAllHoldings] = useState(false);
-  const [kind, setKind] = useState<ChangeKind | null>(null), [allSectors, setAllSectors] = useState(false);   // fundPage: the count that filters the change table; every sector
+  const [kind, setKind] = useState<ChangeKind | null>(null), [allIndustries, setAllIndustries] = useState(false);   // fundPage: the count that filters the change table; every industry
 
   if (!p || !g) {
     return (
@@ -115,12 +123,12 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
   }
   const top10 = p.summary.top10Pct ?? topNPct(p.holdings, 10);
   const count = p.summary.count || p.holdings.length;
-  const maxSector = Math.max(1, ...sectors.map((s) => s.pct));
+  const maxIndustry = Math.max(1, ...industries.map((s) => s.pct));
   const moved = (changes || []).filter((c) => c.kind !== "unchanged");
   const COUNT_KINDS = ["new", "exited", "increased", "decreased"] as const;
   const countOf = (k: ChangeKind) => moved.filter((c) => c.kind === k).length;
   const listed = fundPage ? (kind ? moved.filter((c) => c.kind === kind) : moved) : showAll ? changes || [] : moved;
-  const SECTORS_FIRST = 10, sectorList = fundPage && !allSectors ? sectors.slice(0, SECTORS_FIRST) : sectors;
+  const INDUSTRIES_FIRST = 10, industryList = fundPage && !allIndustries ? industries.slice(0, INDUSTRIES_FIRST) : industries;
   const byMove = firstChanges ? [...listed].sort((a, b) => Math.abs(b.change ?? 0) - Math.abs(a.change ?? 0)) : listed;   // the biggest moves first when the list is cut
   const shownChanges = firstChanges && !allChanges ? byMove.slice(0, firstChanges) : byMove;
   return (
@@ -135,19 +143,19 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
       </dl>
 
       {fundPage ? (<>
-        <ChartZoom label="Largest holdings and sectors" className="cz-top">
+        <ChartZoom label="Largest holdings and industries" className="cz-top">
         <div className="hd-two hd-main">
           <div>
             <TopBars rows={p.holdings} />
             <button type="button" className="hd-more" aria-expanded={allHoldings} onClick={() => setAllHoldings((v) => !v)}>{allHoldings ? "Hide the full list" : `All ${nf(count, 0)} holdings, and those below ${SMALL_BELOW_PCT}% →`}</button>
           </div>
           <div>
-            <h4 className="hd-h4">By sector</h4>
-            {sectors.length ? (
-              <ul className="hd-bars">{sectorList.map((s) => (
-                <li key={s.sector}><span className="hd-bl">{s.sector}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${(s.pct / maxSector) * 100}%` }} /></span><b>{pct(s.pct)}</b></li>))}</ul>
-            ) : <p className="hd-none">— No sector split is published for this {unit}.</p>}
-            {sectors.length > SECTORS_FIRST && <button type="button" className="hd-more" aria-expanded={allSectors} onClick={() => setAllSectors(!allSectors)}>{allSectors ? `Show the ${SECTORS_FIRST} largest sectors` : `All ${sectors.length} sectors`}</button>}
+            <h4 className="hd-h4">By industry</h4>
+            {industries.length ? (
+              <ul className="hd-bars">{industryList.map((s) => (
+                <li key={s.industry}><span className="hd-bl">{s.industry}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${(s.pct / maxIndustry) * 100}%` }} /></span><b>{pct(s.pct)}</b></li>))}</ul>
+            ) : <p className="hd-none">— No industry split is published for this {unit}.</p>}
+            {industries.length > INDUSTRIES_FIRST && <button type="button" className="hd-more" aria-expanded={allIndustries} onClick={() => setAllIndustries(!allIndustries)}>{allIndustries ? `Show the ${INDUSTRIES_FIRST} largest industries` : `All ${industries.length} industries`}</button>}
             <h4 className="hd-h4">By asset type</h4>
             <ul className="hd-bars">{assetRows(p.summary.assetSplit).map((a) => (
               <li key={a.key}><span className="hd-bl">{a.label}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${Math.min(100, a.pct ?? 0)}%` }} /></span>
@@ -174,7 +182,7 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
           {slices.map((s, i) => (
             <li key={s.key}>
               <span className={"hd-sw" + (s.other ? " other" : "")} style={{ backgroundColor: s.other ? "var(--hd-other)" : `var(--hd-${i % 8})` }} data-pat={s.other ? "stripe" : PATTERNS[Math.floor(i / 8) % 4]} aria-hidden="true" />
-              <span className="hd-ln">{s.holding ? <NameCell h={s.holding} /> : s.label}{s.sector && <small>{s.sector}</small>}</span>
+              <span className="hd-ln">{s.holding ? <NameCell h={s.holding} /> : s.label}{s.holding?.industry && <small><IndustryText h={s.holding} /></small>}</span>
               <b>{pct(s.pct)}</b>
             </li>))}
         </ol>
@@ -186,11 +194,11 @@ export function HoldingsSection({ portfolio, title = "What it invests in", unit 
 
       <div className="hd-two">
         <div>
-          <h4 className="hd-h4">By sector</h4>
-          {sectors.length ? (
-            <ul className="hd-bars">{sectors.map((s) => (
-              <li key={s.sector}><span className="hd-bl">{s.sector}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${(s.pct / maxSector) * 100}%` }} /></span><b>{pct(s.pct)}</b></li>))}</ul>
-          ) : <p className="hd-none">— No sector split is published for this {unit}.</p>}
+          <h4 className="hd-h4">By industry</h4>
+          {industries.length ? (
+            <ul className="hd-bars">{industries.map((s) => (
+              <li key={s.industry}><span className="hd-bl">{s.industry}</span><span className="hd-bt" aria-hidden="true"><i style={{ width: `${(s.pct / maxIndustry) * 100}%` }} /></span><b>{pct(s.pct)}</b></li>))}</ul>
+          ) : <p className="hd-none">— No industry split is published for this {unit}.</p>}
         </div>
         <div>
           <h4 className="hd-h4">By asset type</h4>

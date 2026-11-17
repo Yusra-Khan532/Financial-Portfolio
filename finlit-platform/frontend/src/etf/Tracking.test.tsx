@@ -11,10 +11,10 @@ import type { EtfDetail, EtfTracking } from "../lib/etf";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 afterEach(cleanup);
-const H = (i: number, pct: number, prev: number | null): Holding => ({ name: `Company ${i}`, isin: `INE${i}`, sector: i % 2 ? "Banks" : "IT", assetClass: "Equity", pct, qty: 1000 * i, valueLakh: 10 * i, stockSymbol: null, prevPct: prev, change: prev == null ? null : +(pct - prev).toFixed(2) });
+const H = (i: number, pct: number, prev: number | null): Holding => ({ name: `Company ${i}`, isin: `INE${i}`, industry: i % 2 ? "Banks" : "IT - Software", assetClass: "Equity", pct, qty: 1000 * i, valueLakh: 10 * i, stockSymbol: null, prevPct: prev, change: prev == null ? null : +(pct - prev).toFixed(2) });
 const holdings = Array.from({ length: 14 }, (_, i) => H(i + 1, +(12 - i * 0.8).toFixed(2), +(12 - i * 0.8 - (i % 3 === 0 ? 0.6 : i % 3 === 1 ? -0.2 : 0)).toFixed(2)));
 const P: Portfolio = { asOf: "2026-10-31", previousAsOf: "2026-09-30", source: "Sample Mutual Fund, monthly portfolio", sourceUrl: null, holdings, exited: [],
-  summary: { count: 14, top10Pct: 90, assetSplit: { equity: 99.9, debt: 0, cash: 0.1, other: 0 }, sectors: [{ sector: "Banks", pct: 50 }, { sector: "IT", pct: 50 }] } };
+  summary: { count: 14, top10Pct: 90, assetSplit: { equity: 99.9, debt: 0, cash: 0.1, other: 0 }, industries: [{ industry: "Banks", pct: 50 }, { industry: "IT - Software", pct: 50 }] } };
 const view = (el: React.ReactElement) => render(<MemoryRouter>{el}</MemoryRouter>);
 
 describe("What it invests in, ETF page (task #134 C-4, C-5)", () => {

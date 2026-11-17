@@ -94,9 +94,9 @@ export function SpreadSection({ d, part }: { d: MfSpread; part: "mix" | "togethe
             <ul className="x-key">{sizeRows.map(([k, l, c]) => <li key={k}><i style={{ background: c }} /><span>{l}</span> <b>{p0(d.size[k])}</b></li>)}</ul>
             <p className="x-fine">Large cap is the 100 biggest listed companies by market value, mid cap the next 150, small cap the rest.</p>
           </>}
-          {d.sectors.length > 0 && <>
-            <h4>Largest sectors ({d.sectors.length} in all)</h4>
-            <ul className="x-sect">{d.sectors.slice(0, 8).map((s) => <li key={s.name}><span title={s.name}>{s.name}</span><i><u style={{ width: `${Math.min(100, s.share * 100)}%` }} /></i><b>{p0(s.share)}</b></li>)}</ul>
+          {d.industries.length > 0 && <>
+            <h4>Largest industries ({d.industries.length} in all)</h4>
+            <ul className="x-sect">{d.industries.slice(0, 8).map((s) => <li key={s.name}><span title={s.name}>{s.name}</span><i><u style={{ width: `${Math.min(100, s.share * 100)}%` }} /></i><b>{p0(s.share)}</b></li>)}</ul>
           </>}
         </section>
 

@@ -69,10 +69,10 @@ describe("fund facts: what we do not have sits in one box", () => {
 });
 
 describe("what it invests in: bars, the full list, and the four counts", () => {
-  const h = (name: string, pct: number, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, sector: "Banks", assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
+  const h = (name: string, pct: number, extra: Partial<Holding> = {}): Holding => ({ name, isin: null, industry: "Banks", assetClass: "equity", pct, qty: null, valueLakh: null, stockSymbol: null, prevPct: null, change: null, ...extra });
   const holdings = [...Array.from({ length: 12 }, (_, i) => h(`Big ${i + 1}`, 12 - i * 0.5, i === 0 ? { prevPct: null } : i < 4 ? { prevPct: 1 } : { prevPct: 20 })), ...Array.from({ length: 5 }, (_, i) => h(`Small ${i + 1}`, 0.4, { prevPct: 0.4 }))];
   const P: Portfolio = { asOf: "2026-10-31", previousAsOf: "2026-09-30", source: "PPFAS", sourceUrl: null, holdings, exited: [{ name: "Gone Ltd", pct: null, prevPct: 2 }],
-    summary: { count: holdings.length, top10Pct: 90, assetSplit: { equity: 90, debt: 5, cash: 5, other: null }, sectors: [{ sector: "Banks", pct: 100 }] } };
+    summary: { count: holdings.length, top10Pct: 90, assetSplit: { equity: 90, debt: 5, cash: 5, other: null }, industries: [{ industry: "Banks", pct: 100 }] } };
   it("draws the 10 largest as bars, no donut, and opens every holding with one click", () => {
     render(<MemoryRouter><HoldingsSection portfolio={P} layout="bars" fundPage /></MemoryRouter>);
     expect(document.querySelector(".hd-donut")).toBeNull();

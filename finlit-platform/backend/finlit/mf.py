@@ -2328,7 +2328,7 @@ async def portfolio_route(request: Request, code: int) -> Response:
         await _scheme(request, code)
         got = await _disclosure(request, "get_portfolio", code)
         return got if isinstance(got, dict) and got.get("holdings") is not None else {"unavailable": NO_PORTFOLIO if got is None else "No portfolio is published for this scheme in the sources loaded."}
-    return await cached_json(request, "portfolio", str(code), build)
+    return await cached_json(request, "portfolio2", str(code), build)   # "2": holdings named by NSE industry (task #192 round 3)
 
 
 @router.get("/{code}")

@@ -32,6 +32,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import httpx
 
+from . import taxonomy
 from .config import MF_EXCLUDED_AMCS
 from .disclosure_parsers import amfi
 from .disclosure_parsers.amcs import ADAPTERS, BROWSER_UA, MAX_BYTES, UA, Adapter, FileRef, month_ends
@@ -243,7 +244,11 @@ def _hkey(h: Holding) -> str:
     return h.isin or ("n:" + name_key(h.name))
 
 
-def build_portfolio_json(cur: dict, prev: Optional[dict], symbols: Dict[str, str]) -> dict:
+def build_portfolio_json(cur: dict, prev: Optional[dict], symbols: Dict[str, str], classes: Optional[Dict[str, dict]] = None) -> dict:
+    """`classes`: NSE's place of each held company, by ISIN (company_classification). Each equity line is named by NSE's industry and macro sector
+    (taxonomy.holding_level; also NSE's 22-level sector: "Listed abroad" for shares listed outside India, "Not classified" with the reason); the fund house's own name stays
+    in `amfiIndustry`."""
+    classes = classes or {}
     hs = unpack_holdings(cur["holdings"])
     ph = unpack_holdings(prev["holdings"]) if prev else []
     pm: Dict[str, float] = {}
@@ -251,6 +256,7 @@ def build_portfolio_json(cur: dict, prev: Optional[dict], symbols: Dict[str, str
         pm[_hkey(h)] = pm.get(_hkey(h), 0.0) + h.pct_nav
     seen: Set[str] = set()
     out_h = []
+    levels: Dict[int, Optional[dict]] = {}
     for h in hs:
         k = _hkey(h)
         seen.add(k)
@@ -263,7 +269,10 @@ def build_portfolio_json(cur: dict, prev: Optional[dict], symbols: Dict[str, str
             change = "unchanged"
         else:
             change = "increased" if h.pct_nav > prevp else "decreased"
-        out_h.append({"name": h.name, "isin": h.isin, "sector": h.sector, "assetClass": h.asset_class, "pct": h.pct_nav, "qty": h.qty, "valueLakh": h.value_lakh,
+        lv = taxonomy.holding_level(h.sector, h.isin, classes.get(h.isin or "")) if h.asset_class == "equity" else None
+        levels[id(h)] = lv
+        out_h.append({"name": h.name, "isin": h.isin, "industry": lv["industry"] if lv else None, "sector": lv["sector"] if lv else None, "macroSector": lv["macroSector"] if lv else None,
+                      "industryNote": lv["note"] if lv else None, "amfiIndustry": h.sector, "assetClass": h.asset_class, "pct": h.pct_nav, "qty": h.qty, "valueLakh": h.value_lakh,
                       "stockSymbol": symbols.get(h.isin) if h.isin else None, "prevPct": _r6(prevp) if prevp is not None else None, "change": change})
     exited = []
     if prev:
@@ -271,17 +280,24 @@ def build_portfolio_json(cur: dict, prev: Optional[dict], symbols: Dict[str, str
             if h.asset_class != "cash" and _hkey(h) not in seen:
                 exited.append({"name": h.name, "isin": h.isin, "prevPct": h.pct_nav})
     split = {c: 0.0 for c in ASSET_CLASSES}
-    sectors: Dict[str, float] = defaultdict(float)
+    industries: Dict[str, float] = defaultdict(float)
+    macros: Dict[str, float] = defaultdict(float)
+    nse_sectors: Dict[str, float] = defaultdict(float)
     for h in hs:
         split[h.asset_class] += h.pct_nav
-        if h.asset_class == "equity":
-            sectors[h.sector or "Not classified"] += h.pct_nav
+        lv = levels.get(id(h))
+        if lv:
+            industries[lv["industry"]] += h.pct_nav
+            macros[lv["macroSector"]] += h.pct_nav
+            nse_sectors[lv["sector"]] += h.pct_nav
     top = sorted((h.pct_nav for h in hs if h.asset_class != "cash"), reverse=True)[:10]
     notes = cur["notes"] if isinstance(cur["notes"], list) else json.loads(cur["notes"] or "[]")
     res = {"asOf": cur["as_of"].isoformat(), "previousAsOf": prev["as_of"].isoformat() if prev else None, "source": cur["source"], "sourceUrl": cur["source_url"],
            "holdings": out_h, "exited": exited,
            "summary": {"count": len(hs), "top10Pct": _r6(sum(top)), "assetSplit": {c: _r6(v) for c, v in split.items()},
-                       "sectors": [{"sector": s, "pct": _r6(v)} for s, v in sorted(sectors.items(), key=lambda kv: -kv[1])]}}
+                       "industries": [{"industry": k, "pct": _r6(v)} for k, v in sorted(industries.items(), key=lambda kv: -kv[1])],
+                       "sectors": [{"sector": k, "pct": _r6(v)} for k, v in sorted(nse_sectors.items(), key=lambda kv: -kv[1])],   # NSE's 22
+                       "macroSectors": [{"macroSector": k, "pct": _r6(v)} for k, v in sorted(macros.items(), key=lambda kv: -kv[1])]}}
     if notes:
         res["notes"] = notes
     if cur["net_assets_lakh"] is not None:
@@ -305,7 +321,16 @@ async def get_portfolio(pool, key) -> Optional[dict]:
         if isins:
             got = await conn.fetch("SELECT i.isin, i.symbol FROM disclosure_isin i JOIN companies c ON c.symbol = i.symbol WHERE i.isin = ANY($1::text[])", isins)
             symbols = {r["isin"]: r["symbol"] for r in got}
-    return build_portfolio_json(cur, prev, symbols)
+        classes: Dict[str, dict] = {}
+        if isins:   # NSE's place of each held company: by its ISIN, else by the symbol its ISIN maps to
+            placed = await conn.fetch("SELECT symbol, isin, industry, sector, macro_sector FROM company_classification WHERE isin = ANY($1::text[]) OR symbol = ANY($2::text[])",
+                                    isins, list(set(symbols.values())))
+            by_sym = {r["symbol"]: dict(r) for r in placed}
+            classes = {r["isin"]: dict(r) for r in placed if r["isin"]}
+            for i, sym in symbols.items():
+                if i not in classes and sym in by_sym:
+                    classes[i] = by_sym[sym]
+    return build_portfolio_json(cur, prev, symbols, classes)
 
 
 def _iso(d: Optional[date]) -> Optional[str]:

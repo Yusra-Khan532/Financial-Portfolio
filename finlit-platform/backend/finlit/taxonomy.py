@@ -114,3 +114,36 @@ def levels_index() -> dict:
         "basic_industries": [{k: r[k] for k in ("basic_industry", "basic_industry_code", "industry", "sector", "macro_sector")} for r in rows],
         "labels": LABELS,
     }
+
+
+# ---------------------------------------------------------------------------------------------------- fund and ETF holdings (round 3)
+LISTED_ABROAD = "Listed abroad"
+NOT_CLASSIFIED = "Not classified"
+
+
+def holding_level(amfi_name: Any, isin: Any = None, cls: Optional[dict] = None) -> dict:
+    """NSE's industry and macro sector of one line of a fund's or ETF's monthly portfolio (rules T7 and F5 of the 15 Nov sector pack).
+
+    The fund house writes an industry name per line (AMFI's list, close to NSE's 59 but spelled its own way: "It - Software", "Diversified Fmcg",
+    or an older name such as "Industrial Capital Goods"). In order:
+    1. a share listed outside India (its ISIN does not start with IN): "Listed abroad" (NSE's lists cover Indian companies only);
+    2. the company's own place (`cls`, from company_classification by ISIN or symbol), so a fund page names the same industry as the company's page;
+    3. the fund house's name, when it is one of NSE's 59 industries (any spelling) or one of its 197 basic industries (mapped up to its industry);
+    4. otherwise "Not classified", with the fund house's name in the note.
+    Returns {industry, sector (NSE's 22), macroSector, note}; note is None when the line is placed; sector is None when only the industry's
+    macro sector is known (never for a placed industry: every NSE industry has one sector)."""
+    code = str(isin or "").strip().upper()
+    if code and not code.startswith("IN"):
+        return {"industry": LISTED_ABROAD, "sector": LISTED_ABROAD, "macroSector": LISTED_ABROAD, "note": "Listed outside India: NSE's industry classification covers companies listed in India only."}
+    if cls and cls.get("industry"):
+        return {"industry": cls["industry"], "sector": cls.get("sector"), "macroSector": cls.get("macro_sector"), "note": None}
+    t = tree()["by"]
+    k = key(amfi_name)
+    hit = t["industry"].get(k) or t["basic_industry"].get(k)
+    if hit:
+        return {"industry": hit["industry"], "sector": hit["sector"], "macroSector": hit["macro_sector"], "note": None}
+    macro, sector = (cls or {}).get("macro_sector"), (cls or {}).get("sector")
+    name = str(amfi_name or "").strip()
+    why = (f"the fund house names its industry \"{name}\", which is not one of NSE's 59 industries" if name and name.lower() not in ("null", "not applicable")
+           else "the fund house gives no industry for this line")
+    return {"industry": NOT_CLASSIFIED, "sector": sector or NOT_CLASSIFIED, "macroSector": macro or NOT_CLASSIFIED, "note": f"Not classified: {why}."}

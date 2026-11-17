@@ -21,11 +21,11 @@ def _funds():
         v1.append(x); v2.append(y); v3.append(z); v4.append(100 * (1 + 0.004 * math.sin(i / 2 + 1)))
 
     def H(rows):
-        return [{"isin": i, "stockSymbol": i, "name": i, "pct": p, "sector": s, "assetClass": "equity"} for i, p, s in rows]
+        return [{"isin": i, "stockSymbol": i, "name": i, "pct": p, "industry": s, "assetClass": "equity"} for i, p, s in rows]
     return [
         {"code": 1, "name": "Alpha MNC Fund", "amc": "Alpha Mutual Fund", "category": "Sectoral / Thematic", "holdings": H([("A", 10, "Banks"), ("B", 5, "Auto"), ("C", 85, "IT - Software")]),
          "assetSplit": {"equity": 100}, "series": {"t": t, "v": v1}},
-        {"code": 2, "name": "Beta MNC Fund", "amc": "Beta Mutual Fund", "category": "Sectoral / Thematic", "holdings": H([("A", 20, "Banks"), ("D", 80, "It - Software")]),
+        {"code": 2, "name": "Beta MNC Fund", "amc": "Beta Mutual Fund", "category": "Sectoral / Thematic", "holdings": H([("A", 20, "Banks"), ("D", 80, "IT - Software")]),
          "assetSplit": {"equity": 100}, "series": {"t": t, "v": v2}},
         {"code": 3, "name": "Gamma Liquid Fund", "amc": "Alpha Mutual Fund", "category": "Liquid", "holdings": [], "assetSplit": {"debt": 100}, "series": {"t": t, "v": v3}},
         {"code": 4, "name": "Delta Flexi Cap Fund", "amc": "Delta Mutual Fund", "category": "Flexi Cap", "holdings": None, "assetSplit": None, "series": {"t": t, "v": v4}},
@@ -39,7 +39,7 @@ def test_readings_match_the_design_package_check():
     assert out["readings"]["theme"]["theme"] == "MNC"
     assert out["together"]["codes"] == [1, 2, 4]                                                                     # the liquid fund is left out
     assert out["readings"]["together"]["range"][1] > 0.9
-    it = next(s for s in out["sectors"] if "it - software" in s["name"].lower())
+    it = next(s for s in out["industries"] if s["name"] == "IT - Software")   # NSE's industry, one spelling (taxonomy.holding_level, task #192)
     assert abs(it["share"] - (0.85 * 0.25 + 0.8 * 0.25) / out["knownShares"]) < 1e-9
     assert abs(out["mix"]["sharesUnknown"] - 0.25) < 1e-9 and abs(out["mix"]["debt"] - 0.25) < 1e-9
     assert out["coverage"]["missing"] == [3, 4]

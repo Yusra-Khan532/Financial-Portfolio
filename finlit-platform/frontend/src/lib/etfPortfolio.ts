@@ -21,7 +21,7 @@ export type EtfRow = {
 export type Repeat = { key: string; label: string; symbols: string[] };
 export type EtfPortfolio = { plan: string; limit: number; count: number; items: EtfRow[]; basis: "value" | "equal"; repeats: Repeat[]; asOf: string | null; missingQty?: string[]; disclaimer: string };
 
-export type Top = { name: string; isin: string | null; symbol: string | null; sector: string | null; w: number; etfs: string[]; abroad: boolean; size: string | null;
+export type Top = { name: string; isin: string | null; symbol: string | null; /** NSE's industry, or "Listed abroad" (task #192) */ industry: string | null; w: number; etfs: string[]; abroad: boolean; size: string | null;
   score: { model: "prism" | "iq"; score: number | null; label: string | null } | null; scoreWhy: string | null };
 export type Inside = {
   count: number; why?: string; basis: "value" | "equal"; files: { symbol: string; asOf: string | null; source: string | null; why: string | null }[]; asOf: string | null;
