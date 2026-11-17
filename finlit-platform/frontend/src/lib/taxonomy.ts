@@ -1,7 +1,7 @@
 // NSE's four classification levels for a company (task #192; backend finlit/taxonomy.py, docs/TAXONOMY.md):
 // Macro sector (12) > Sector (22) > Industry (59) > Basic industry (197), each from NSE's own lists. Every page that names a company's group reads
 // it from here, so a level is always called by its own name and every page agrees. One request per company, shared by every part of the page.
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
 
 export type Level = "macro_sector" | "sector" | "industry" | "basic_industry";
@@ -33,6 +33,41 @@ export function useClassification(symbol: string | null | undefined) {
       }
     },
   });
+}
+
+/** NSE's levels of many companies at once (a watchlist, a portfolio: up to 200 per request): symbol -> classification; a company not placed yet is
+ *  missing from the map. Each answer also fills the one-company cache, so the rest of the page reuses it. */
+export function useClassifications(symbols: string[]) {
+  const qc = useQueryClient();
+  const syms = [...new Set(symbols.map((s) => s.toUpperCase()))].sort();
+  return useQuery<Record<string, Classification>, ApiError>({
+    queryKey: ["classifications", syms.join(",")], enabled: syms.length > 0, staleTime: 10 * 60_000, retry: 1,
+    queryFn: async () => {
+      const out: Record<string, Classification> = {};
+      for (let i = 0; i < syms.length; i += 200) {
+        const part = syms.slice(i, i + 200);
+        const r = await apiGet<{ companies: Record<string, Classification> }>(`/api/taxonomy/companies?symbols=${encodeURIComponent(part.join(","))}`);
+        Object.assign(out, r.companies);
+        for (const s of part) qc.setQueryData(classificationKey(s), r.companies[s] ?? null);
+      }
+      return out;
+    },
+  });
+}
+
+/** One spelling for matching, as the server's finlit/taxonomy.py `key`: lower case, "and" as "&", only letters, digits and "&". */
+export const nameKey = (name: string | null | undefined) => String(name ?? "").toLowerCase().replace(/ and /g, " & ").replace(/[^a-z0-9&]/g, "");
+
+type TaxonomyIndex = { macro_sectors: { macro_sector: string }[]; sectors: { sector: string }[]; industries: { industry: string }[]; basic_industries: { basic_industry: string }[] };
+/** A name in NSE's own spelling, whatever its commas or case ("Oil Gas & Consumable Fuels" -> "Oil, Gas & Consumable Fuels"); a name NSE's lists do not have stays as
+ *  it is. Pages that receive group names from Sector Pulse (which drops NSE's commas) show them through this (task #192, rule T3: one spelling per name). */
+export function useNseName(): (name: string) => string {
+  const q = useQuery<TaxonomyIndex, ApiError>({ queryKey: ["taxonomy-index"], staleTime: 30 * 60_000, retry: 1, queryFn: () => apiGet<TaxonomyIndex>("/api/taxonomy") });
+  const d = q.data;
+  const map = new Map<string, string>();
+  if (d) for (const n of [...d.macro_sectors.map((x) => x.macro_sector), ...d.sectors.map((x) => x.sector), ...d.industries.map((x) => x.industry), ...d.basic_industries.map((x) => x.basic_industry)])
+    if (!map.has(nameKey(n))) map.set(nameKey(n), n);
+  return (name: string) => map.get(nameKey(name)) ?? name;
 }
 
 /** For a page without React Query (the assistant's answers): the same request, same cache rules on the server. */

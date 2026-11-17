@@ -2,8 +2,9 @@
 
 Three checks on a year ago: revenue growth, net profit growth and the change in net margin. Each is set against the typical company (the median) of the same NSE industry
 this quarter: above it, close to it, or below it. The verdict follows from the balance of the three: Strong, Good, In line, Weak or Poor; Loss when the company lost money.
-Company size does not change the yardstick. An NSE industry with too few declared results so far is compared with its broad group instead; a company with no NSE
-industry is placed in its broad group ("Information Technology (broad group)").
+Company size does not change the yardstick. An NSE industry with too few declared results so far is compared with its NSE macro sector instead. A company with no
+NSE industry is named by the level that is known, with its label ("Sector: Information Technology", "Macro sector: Industrials"); one with no NSE level at all has no
+industry (task #192: this column used to show the provider's own field as "<value> (broad group)", e.g. "DVR (broad group)").
 
 The page is sent the verdict and an arrow per check, never the bands that decide them (CLAUDE.md: describe what is measured, not how it is scored)."""
 from __future__ import annotations
@@ -28,8 +29,18 @@ def _classes() -> Dict[str, Tuple[str, Optional[str]]]:
     return _CLASSES
 
 
-def broad(sector: Optional[str]) -> Optional[str]:
-    return f"{sector} (broad group)" if sector else None
+FALLBACK_PREFIXES = ("Sector: ", "Macro sector: ")   # a label naming a level above the industry: never an industry row of its own
+
+
+def _lookup(d: Dict[str, str], name: Optional[str]) -> Optional[str]:
+    """A Sector Pulse group by NSE name, whatever the commas (Sector Pulse writes "Oil Gas & Consumable Fuels", NSE "Oil, Gas & Consumable Fuels")."""
+    if not name:
+        return None
+    if name in d:
+        return d[name]
+    from .taxonomy import key
+    k = key(name)
+    return next((v for n, v in d.items() if key(n) == k), None)
 
 
 _BOARD: Dict[str, Any] = {"rel": None, "ind": {}, "sec": {}}
@@ -55,14 +66,23 @@ def _sector_groups() -> Tuple[Dict[str, str], Dict[str, str]]:
     return _BOARD["ind"], _BOARD["sec"]
 
 
-def industry_of(symbol: str, sector: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """(the industry shown, the broad group behind it): the company's Sector Pulse group (the same 38 groups as Sector Pulse and Sector Rotation); with no group, its NSE
-    industry; with no NSE industry at all, its broad group ("Information Technology (broad group)")."""
-    c = _classes().get(symbol.upper())
-    if not c:
-        return broad(sector), broad(sector)
+def industry_of(symbol: str, sector: Optional[str], cls: Optional[dict] = None) -> Tuple[Optional[str], Optional[str]]:
+    """(the industry shown, the group behind it for too-small industries): the company's Sector Pulse group (the same 38 groups as Sector Pulse and Sector Rotation);
+    with no group, its NSE industry; with no NSE industry, the known higher level with its label. The group behind is the company's NSE macro sector.
+    `cls` is the company's stored NSE classification (finlit/taxonomy.py, company_classification); without it the row's own field is placed by the same rules."""
+    from . import taxonomy
+    k = cls or taxonomy.classify(symbol, None, None, sector, sector)
+    macro = k.get("macro_sector")
+    group = f"Macro sector: {macro}" if macro else None
     ind, sec = _sector_groups()
-    return ind.get(c[0]) or (sec.get(c[1]) if c[1] else None) or c[0], broad(sector)
+    c = _classes().get(symbol.upper())
+    if c:
+        return _lookup(ind, c[0]) or _lookup(sec, c[1]) or c[0], group
+    if k.get("industry"):
+        return _lookup(ind, k["industry"]) or _lookup(sec, k.get("sector")) or k["industry"], group
+    if k.get("sector"):
+        return f"Sector: {k['sector']}", group
+    return group, group
 
 
 def _arrow(v: Optional[float], typical: Optional[float], band: float) -> Optional[str]:
@@ -79,11 +99,12 @@ def _verdict(checks: Dict[str, Optional[str]]) -> Optional[str]:
     return "Strong" if score >= 2 else "Good" if score == 1 else "In line" if score == 0 else "Weak" if score == -1 else "Poor"
 
 
-def add_verdicts(rows: List[dict]) -> None:
-    """Gives every row `industry`, and every row with figures `verdict` and `checks` ({rev, profit, margin}: up / flat / down, or loss). In place."""
+def add_verdicts(rows: List[dict], classes: Optional[Dict[str, dict]] = None) -> None:
+    """Gives every row `industry`, and every row with figures `verdict` and `checks` ({rev, profit, margin}: up / flat / down, or loss). In place. `classes`: symbol ->
+    the stored NSE classification (store.classifications)."""
     groups: Dict[str, List[dict]] = {}
     for r in rows:
-        ind, grp = industry_of(r["symbol"], r.get("sector"))
+        ind, grp = industry_of(r["symbol"], r.get("sector"), (classes or {}).get(str(r["symbol"]).upper()))
         r["industry"], r["_group"] = ind, grp
         if r.get("hasNumbers") and ind:
             groups.setdefault(ind, []).append(r)
@@ -97,7 +118,7 @@ def add_verdicts(rows: List[dict]) -> None:
     cache: Dict[Tuple[str, str], Optional[float]] = {}
 
     def yardstick(r: dict, field: str) -> Optional[float]:
-        for name in (r["industry"], r["_group"]):          # the industry; with too few declared so far, its broad group
+        for name in (r["industry"], r["_group"]):          # the industry; with too few declared so far, its NSE macro sector
             key = (name or "", field)
             if key not in cache:
                 cache[key] = typical(name, field)
@@ -138,7 +159,7 @@ def industries(rows: List[dict]) -> List[Dict[str, Any]]:
     mkt = {"medianRevenueYoY": med(withnum_all, "revenueYoY"), "medianProfitYoY": med(withnum_all, "profitYoY"), "medianNpmChange": med(withnum_all, "npmChange")}
     by: Dict[str, List[dict]] = {}
     for r in rows:
-        if r.get("industry") and not str(r["industry"]).endswith("(broad group)"):
+        if r.get("industry") and not str(r["industry"]).startswith(FALLBACK_PREFIXES):
             by.setdefault(r["industry"], []).append(r)
     out = []
     for name, rs in by.items():

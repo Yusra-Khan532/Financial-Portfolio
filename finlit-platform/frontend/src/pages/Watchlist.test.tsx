@@ -22,6 +22,9 @@ vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }) }));
 vi.mock("../lib/indices", async (orig) => ({ ...(await orig<typeof import("../lib/indices")>()), useIndices: () => ({ data: { asOf: "2026-11-06", live: false, marketOpen: false, items: [], key: [] } }) }));
 vi.mock("../lib/leadership", async (orig) => ({ ...(await orig<typeof import("../lib/leadership")>()), useLeadershipList: () => ({ data: st.leads, isLoading: false }) }));
+// NSE's industry of each stock (task #192); the screener rows below still carry the old mixed `sector` value, which must not be shown
+vi.mock("../lib/taxonomy", async (orig) => ({ ...(await orig<typeof import("../lib/taxonomy")>()), useClassifications: () => ({ data: {
+  WHEELS: { symbol: "WHEELS", industry: "Auto Components" }, SSWL: { symbol: "SSWL", industry: "Auto Components" }, LOTUSDEV: { symbol: "LOTUSDEV", industry: "Realty" } } }) }));
 vi.mock("../components/PageFaqs", () => ({ PageFaqs: () => <section aria-label="Questions about this page" /> }));
 vi.mock("../components/AlertComposer", () => ({ AlertButton: ({ symbol, className }: { symbol: string; className?: string }) => <button className={className} aria-label={`Create an alert for ${symbol}`} /> }));
 import { WatchlistPage } from "./Watchlist";
@@ -64,7 +67,7 @@ describe("Watchlists, as the pack draws it", () => {
     expect(within(tile("Against peers")).getByText("2 lead")).toBeTruthy();
     expect(within(tile("Against peers")).getByText("1 not compared (under a year of prices)")).toBeTruthy();
     expect(within(tile("Against peers")).getByRole("button", { name: "About Against peers" })).toBeTruthy();
-    expect(tile("Concentration").textContent).toBe("Concentration67%in one industry: auto components & equipments");
+    expect(tile("Concentration").textContent).toBe("Concentration67%in one industry: Auto Components");
   });
   it("groups the table Against peers, with the cards over it and the pack's columns", () => {
     open();
@@ -81,7 +84,7 @@ describe("Watchlists, as the pack draws it", () => {
     const groupRows = within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent);
     expect(groupRows).toEqual(["Leaders2 stocks", "Not compared1 stock"]);
     const w = rowOf("WHEELS");
-    for (const t of ["Auto Components & Equipments", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Small", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Small", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Not compared")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Under a year of prices")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Mid")).toBeTruthy();

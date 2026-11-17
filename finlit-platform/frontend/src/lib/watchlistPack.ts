@@ -13,7 +13,8 @@ export type ListLead =
 export type ListLeadFeed = { available: true; asOf: string; rows: Record<string, ListLead> } | { available: false; reason: string };
 
 /** What the page needs of a stock: the universe row's figures, the plan's score and its word, and the peer label. */
-export type Item = { symbol: string; name: string; sector: string | null; marketCap: number | null; change: number | null; score: number | null; word: string | null; lead: ListLead | null };
+/** `industry`: the company's NSE industry (task #192; before, the screener's mixed `sector` column, lower-cased on the card). */
+export type Item = { symbol: string; name: string; industry: string | null; marketCap: number | null; change: number | null; score: number | null; word: string | null; lead: ListLead | null };
 
 export const PEER_HELP = "Leader, In line, Laggard. Each share's price over the last 12 months is compared with similar companies and with its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future.";
 export const HELP = {
@@ -96,10 +97,10 @@ export function peersTile(items: Item[]): { value: string; sub: string } {
 /** Tile 5: the largest share of the list in one industry. */
 export function concentrationTile(items: Item[]): { value: string; sub: string; top: string | null; n: number } {
   const m = new Map<string, number>();
-  for (const i of items) if (i.sector) m.set(i.sector, (m.get(i.sector) || 0) + 1);
+  for (const i of items) if (i.industry) m.set(i.industry, (m.get(i.industry) || 0) + 1);
   const top = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
   if (!top || !items.length) return { value: "—", sub: "No industry yet", top: null, n: 0 };
-  return { value: `${Math.round((top[1] / items.length) * 100)}%`, sub: `in one industry: ${top[0].toLowerCase()}`, top: top[0], n: top[1] };
+  return { value: `${Math.round((top[1] / items.length) * 100)}%`, sub: `in one industry: ${top[0]}`, top: top[0], n: top[1] };   // NSE's spelling, never lower-cased
 }
 
 /** The insight cards over the table: price ahead of the business (Watch out), the business ahead of the price (Insight), most of the list in one industry
@@ -111,7 +112,7 @@ export function listCards(items: Item[]): Card[] {
   const behind = items.filter((i) => { const l = lead(i); return l && l.fundamentalNote === "stronger_than_price" && l.fundamentalRank != null; });
   if (behind.length) out.push({ kind: "insight", title: "The business leads, the price lags", text: rankSentence(behind, "business score", "price", true) + ` Worth reading ${behind.length === 1 ? "its report" : "their reports"} to see why.` });
   const c = concentrationTile(items);
-  if (c.top && items.length >= 2 && c.n / items.length >= 0.5) out.push({ kind: "warning", title: `${cap1(c.n === items.length ? (items.length === 2 ? "both" : "all " + inWords(c.n)) : inWords(c.n) + " of " + inWords(items.length))} stocks in one industry`, text: `A downturn in ${c.top.toLowerCase()} would hit ${c.n === items.length ? "all" : "most"} of this list at once.` });
+  if (c.top && items.length >= 2 && c.n / items.length >= 0.5) out.push({ kind: "warning", title: `${cap1(c.n === items.length ? (items.length === 2 ? "both" : "all " + inWords(c.n)) : inWords(c.n) + " of " + inWords(items.length))} stocks in one industry`, text: `A downturn in the ${c.top} industry would hit ${c.n === items.length ? "all" : "most"} of this list at once.` });
   const young = items.filter((i) => i.lead && !i.lead.available && i.lead.reason === "history");
   if (young.length) out.push({ kind: "insight", title: `${andList(young.slice(0, 3).map((i) => i.symbol))}${young.length > 3 ? ` and ${young.length - 3} more` : ""} ${young.length === 1 ? "has" : "have"} under a year of prices`, text: `With less than a year of share prices, ${young.length === 1 ? "it has" : "they have"} no peer tag yet. ${young.length === 1 ? "It gets one" : "Each gets one"} once ${young.length === 1 ? "it has" : "it has"} a full year of prices.` });
   return out;
@@ -155,7 +156,7 @@ export const GROUP_SUB: Record<GroupBy, string> = {
 const PEER_ORDER = ["Leaders", "In line", "Laggards", "Not compared"];
 /** The group a stock falls in for each Group by button. */
 export function groupOf(g: GroupBy, i: Item): string {
-  if (g === "industry") return i.sector || "Industry not known";
+  if (g === "industry") return i.industry || "Not classified";
   if (g === "size") return sizeWord(i.marketCap) ?? "Size not known";
   const l = lead(i);
   return !l ? "Not compared" : l.label === "leader" ? "Leaders" : l.label === "laggard" ? "Laggards" : "In line";

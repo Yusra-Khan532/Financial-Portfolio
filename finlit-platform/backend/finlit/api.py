@@ -518,6 +518,14 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         out["counts"] = {name: len(out[name]) for name in plural.values()}
         return JSONResponse(out, headers={"Cache-Control": "public, max-age=600"})
 
+    @app.get("/api/taxonomy/companies")
+    async def taxonomy_companies(symbols: str = Query("", max_length=5000)):
+        """NSE's four levels of up to 200 companies (comma-separated symbols): {"companies": {symbol: row}}; a company not placed yet is left out."""
+        syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        syms = [s for s in dict.fromkeys(syms) if SYMBOL.match(s)][:200]
+        rows = await app.state.store.classifications(syms)
+        return JSONResponse({"companies": rows}, headers={"Cache-Control": "public, max-age=600"})
+
     @app.get("/api/taxonomy/company/{symbol}")
     async def taxonomy_company(symbol: str):
         sym = symbol.strip().upper()

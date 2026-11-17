@@ -313,6 +313,16 @@ class Store:
                                     "FROM company_classification WHERE symbol = $1", symbol.upper())
         return dict(r) if r else None
 
+    async def classifications(self, symbols: List[str]) -> Dict[str, dict]:
+        """NSE's four levels of many companies at once (a watchlist, a portfolio): symbol -> row; a company not placed yet is left out."""
+        syms = sorted({s.upper() for s in symbols if isinstance(s, str) and s})
+        if not syms:
+            return {}
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT symbol, isin, macro_sector, sector, industry, basic_industry, source, note "
+                                    "FROM company_classification WHERE symbol = ANY($1::text[])", syms)
+        return {r["symbol"]: dict(r) for r in rows}
+
     async def classification_counts(self) -> Dict[str, Dict[str, int]]:
         """Listed companies per name at each level, and how many are not classified at each level."""
         out: Dict[str, Dict[str, int]] = {}

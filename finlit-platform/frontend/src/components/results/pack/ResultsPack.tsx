@@ -8,7 +8,7 @@ import { Cards, Scroll, Section, Tip } from "../../sectors/pack/Common";
 import { LockedBlock } from "../../sectors/Parts";
 import { dayCards, dayShort, kpiTiles, longDate, monthName, soFar, sp, VERDICTS, weekCards, type IndustrySoFar, type VRow, type VSummary, type Verdict, type Check } from "../../../lib/resultsPack";
 import type { QResp } from "../../../lib/qresults";
-import { short } from "../../../lib/pulsePack";
+import { useNseName } from "../../../lib/taxonomy";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const cr = (v: number | null | undefined) => (v == null ? "–" : Math.abs(v) >= 100 ? n0(Math.round(v)) : v.toFixed(1));
@@ -80,6 +80,14 @@ export function MonthCalendar({ month, setMonth, days, today, pick, onPick, only
 // ------------------------------------------------------------------------------------------------ one company's verdict and the results table
 const ARROW: Record<Check, string> = { up: "▲", flat: "●", down: "▼", loss: "✕" };
 const ARROW_WORD: Record<Check, string> = { up: "better than typical", flat: "close to typical", down: "worse than typical", loss: "a loss" };
+/** A result row's group (task #192): its NSE industry or Sector Pulse group in NSE's spelling, a labelled higher level ("Sector: ...", "Macro sector: ..."), or
+ *  "Not classified" when NSE's lists do not place the company. Never the provider's own field (it showed "DVR (broad group)" and "Industrials (broad group)"). */
+export function IndustryCell({ name }: { name: string | null | undefined }) {
+  const nse = useNseName();
+  if (!name) return <span className="faint" title="This company is not in NSE's classification lists, so it is not compared with an industry">Not classified</span>;
+  return <>{nse(name)}</>;
+}
+
 export function VerdictCell({ r }: { r: VRow }) {
   if (!r.verdict) return <span className="sp-nil">{r.hasNumbers ? "Not enough figures" : "–"}</span>;
   const c = r.checks;
@@ -102,7 +110,7 @@ export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: strin
       </thead>
       <tbody>{rows.map((r) => (
         <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine?.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
-          <td className="rs-ind">{r.industry ? short(r.industry) : r.sector ?? "–"}</td><td>{r.cap ?? "–"}</td>
+          <td className="rs-ind"><IndustryCell name={r.industry} /></td><td>{r.cap ?? "–"}</td>
           <td className="r">{cr(r.revenue)}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.revenueQoQ)}>{sp(r.revenueQoQ)}</td>
           <td className="r">{r.loss ? <span className="sp-red">{cr(r.netProfit)}</span> : cr(r.netProfit)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td className={"r " + tone(r.profitQoQ)}>{sp(r.profitQoQ)}</td>
           <td className="r">{r.npm == null ? "–" : `${r.npm.toFixed(1)}%`}</td><td className={"r " + tone(r.npmChange)}>{sp(r.npmChange)}</td><td><VerdictCell r={r} /></td></tr>))}</tbody>
@@ -160,7 +168,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine }: { resp: QResp 
             <th scope="col" className="r">Market value<Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." /></th><th scope="col">Its industry so far<Tip text="So far. Counts only the companies of the industry that have already declared this quarter. The picture can change as more of them report." /></th></tr></thead>
           <tbody>{shown.map((r) => <tr key={r.symbol}><td className="rs-day">{dayShort(r.date)}</td>
             <td><Link to={`/stocks/${r.symbol}`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
-            <td className="rs-ind">{r.industry ? short(r.industry) : r.sector ?? "–"}</td><td>{r.cap ?? "–"}</td><td className="r">{r.marketCap == null ? "–" : `₹${n0(Math.round(r.marketCap))} Cr`}</td><td className="rs-sofar">{soFar(by.get(r.industry ?? ""))}</td></tr>)}</tbody>
+            <td className="rs-ind"><IndustryCell name={r.industry} /></td><td>{r.cap ?? "–"}</td><td className="r">{r.marketCap == null ? "–" : `₹${n0(Math.round(r.marketCap))} Cr`}</td><td className="rs-sofar">{soFar(by.get(r.industry ?? ""))}</td></tr>)}</tbody>
         </table></Scroll>
       </>}
     </Section>
