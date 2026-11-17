@@ -48,11 +48,11 @@ const loc = () => screen.getByTestId("loc").textContent || "";
 const rowSyms = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => r.querySelector("b")?.textContent);
 
 describe("grouped panel", () => {
-  it("orders the groups as the spec does, Prism basics last, and opens the first group", async () => {
+  it("orders the groups as the spec does, the page's Prism views last, and opens the first group", async () => {
     mount();
     await screen.findByRole("button", { name: /Top rated/ });
     const names = screen.getAllByRole("button", { expanded: undefined }).filter((b) => b.hasAttribute("aria-expanded")).map((b) => b.querySelector(".psx-gt")?.textContent);
-    expect(names).toEqual(["Top rated", "Themes", "Safety", "Ownership", "Prism basics"]);
+    expect(names).toEqual(["Top rated", "Themes", "Safety", "Ownership", "Prism views"]);
     expect(screen.getByRole("button", { name: /Top rated/ }).getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: /Safety/ }).getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: /Safety/ }));
@@ -67,11 +67,11 @@ describe("grouped panel", () => {
     fireEvent.click(card);
     expect(loc()).not.toContain("preset");
   });
-  it("Prism basics is listed once: the server's own Prism basics group is not shown next to the page's list", async () => {
-    listBody = { ...LIST, groups: [...LIST.groups, { id: "prism-basics", name: "Prism basics", presets: [P("pb1", "Prism strong and lower risk", "Prism basics")] }] };
+  it("Prism views is listed once in the panel: the server's own Prism views group is not shown next to the page's list", async () => {
+    listBody = { ...LIST, groups: [...LIST.groups, { id: "prism-basics", name: "Prism views", presets: [P("pb1", "Strong and safe", "Prism views")] }] };
     mount();
     await screen.findByText("Top rated");
-    expect(screen.getAllByText("Prism basics")).toHaveLength(1);
+    expect(screen.getAllByText("Prism views")).toHaveLength(1);
   });
   it("keeps the Prism quick views working when the list is unavailable", async () => {
     listStatus = 500;

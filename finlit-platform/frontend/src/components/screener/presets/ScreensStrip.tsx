@@ -67,7 +67,7 @@ export function ScreensStrip({ route }: { route: PresetRoute }) {
   const { upgrade } = useUI();
   const [picked, setPicked] = useState<string | null>(null);
   const plan = PLAN_OF[route.tab], planName = plan === "gold" ? "Gold" : "Silver";
-  const groups = route.groups.filter((g) => g.id !== "prism-basics");
+  const groups = route.groups;          // Prism views (the server's "prism-basics" group) leads the strip after Top rated on Advanced (14 Nov N-35)
   const activeGroup = groups.find((g) => g.presets.some((p) => p.id === route.id))?.id ?? null;
   const shown = groups.find((g) => g.id === (picked ?? activeGroup)) ?? groups[0];
   const pick = (p: Preset) => { if (p.status === "blocked") return; if (p.locked) upgrade(plan, `Prebuilt screens on this page are part of ${planName}.`); else route.choose(p.id); };

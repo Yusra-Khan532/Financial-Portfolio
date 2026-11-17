@@ -216,9 +216,18 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
                         lead = {x["symbol"]: x for x in await conn.fetch("SELECT symbol, label, rank, ranked, group_short FROM leadership WHERE label IS NOT NULL")}
             except Exception:
                 logging.getLogger("finlit.api").exception("screener universe: leadership labels not read")
+        nse: dict = {}
+        try:      # task #64, 14 Nov N-28 / N-34: NSE's sector and industry for each company (the 12 sectors and 59 industries the Stock screener filters on)
+            from .screener.data import get_table
+            t = await get_table(app.state.store)
+            nse = {sym: (t.sector[i], t.industry[i]) for sym, i in t.pos.items()}
+        except Exception:
+            logging.getLogger("finlit.api").exception("screener universe: NSE sectors not read")
         out = []
         for r in rows:
             r = {k: v for k, v in r.items() if k not in ("statement", "model", "updated_at")}
+            sec, ind = nse.get(r["symbol"], (None, None))
+            r["nse_sector"], r["nse_industry"] = sec or None, ind or None
             r.update(stored.get(r["symbol"]) or prism_screen.blank())
             ld = lead.get(r["symbol"])
             if ld:

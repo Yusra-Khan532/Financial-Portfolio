@@ -46,8 +46,8 @@ export function pageRange(d: Pick<PresetDetail, "count" | "offset" | "shown">): 
 
 export const DISCLAIMER = "A screen narrows a list. It is not a recommendation.";
 /** The order the groups are shown in; a group the API adds later follows these, before "Prism basics". */
-export const GROUP_ORDER = ["Top rated", "Trend", "New highs", "Chart patterns", "Growth", "Themes", "Value and income", "Safety", "Ownership"];
-export const BASICS = "Prism basics";
+export const GROUP_ORDER = ["Top rated", "Prism views", "Trend", "New highs", "Chart patterns", "Growth", "Themes", "Value and income", "Safety", "Ownership"];      // Prism views after Top rated (14 Nov N-35, N-38)
+export const BASICS = "Prism views";
 
 /** Groups in the spec's order. A group the API omits is simply absent; unknown ones come last (but before Prism basics, which the page adds itself). */
 export function orderGroups(groups: PresetGroup[]): PresetGroup[] {

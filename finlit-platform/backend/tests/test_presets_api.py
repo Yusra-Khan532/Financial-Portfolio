@@ -35,7 +35,7 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     body = r.json()
     cards = [c for g in body["groups"] for c in g["presets"]]
     assert r.status_code == 200 and len(cards) == 38 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]
-    assert [g["name"] for g in body["groups"]][0] == "Top rated" and body["groups"][-1]["name"] == "Prism basics"
+    assert [g["name"] for g in body["groups"]][:2] == ["Top rated", "Prism views"] and body["groups"][-1]["name"] == "Ownership"      # 14 Nov N-35
     assert (await anon.get("/api/screener/presets/emerging-tech")).status_code == 403
     silver = await signed_in(app, "s@example.com", plan="silver")
     d = await silver.get("/api/screener/presets/emerging-tech")

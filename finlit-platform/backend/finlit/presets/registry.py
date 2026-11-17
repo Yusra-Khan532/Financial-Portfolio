@@ -92,8 +92,8 @@ class Preset:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Trend"), ("setups", "New highs"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
-                                 ("safety", "Safety"), ("ownership", "Ownership"), ("prism-basics", "Prism basics")]
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("prism-basics", "Prism views"), ("trend", "Trend"), ("setups", "New highs"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
+                                 ("safety", "Safety"), ("ownership", "Ownership")]
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
 RANK = Col("rank", "#", "text", "right")
@@ -338,14 +338,14 @@ PATTERNS_ADV: List[Preset] = [
     for k in _SCANS]
 PRESETS = PRESETS[:-2] + SETUPS_ADV + PATTERNS_ADV + PRESETS[-2:]
 
-# the Prism basics (the page's own quick views, frontend/src/lib/scoreScreen.ts PRISM_PRESETS): served like every other screen, so each has history, As on and a place in Top gainers (task 64, SC-10)
+# Prism views (14 Nov N-35: the group after Top rated on the Advanced strip; the mock-up's names and order). Formerly "Prism basics" (the page's own quick views, frontend/src/lib/scoreScreen.ts PRISM_PRESETS): served like every other screen, so each has history, As on and a place in Top gainers (task 64, SC-10)
 _BASICS_COLS = with_status((RANK, STOCK, SECTOR, PRISM, PLABEL, FUND, VAL, QUAL, RISK, STS, LTS, MCAP))
 _BASICS_ORDER = (("prism_final", "desc"), ("market_cap", "desc"))
 QUICK_VIEWS: List[Preset] = [
-    Preset("strongsafe", "Prism strong and lower risk", "prism-basics", "A Prism score of 80 or more (Strong) and Prism Risk 65 or more (a higher Risk score means lower risk).", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("fairvalue", "Strong Growth & Profitability at a fair valuation", "prism-basics", "Prism Growth & Profitability 65 or more and Prism Valuation 50 or more.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("bothtech", "Uptrend on both technical views", "prism-basics", "Prism's short-term and long-term technical views are both in an uptrend (+20 or more).", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("weakvalue", "Growth & Profitability strong but valuation weak", "prism-basics", "Prism Growth & Profitability 65 or more but Prism Valuation below 50.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("strongsafe", "Strong and safe", "prism-basics", "Strong on FinLit Prism, with a Risk part that reads lower risk.", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("fairvalue", "Fair value", "prism-basics", "Strong Growth & Profitability, with a fair valuation.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("weakvalue", "Weak value", "prism-basics", "Strong Growth & Profitability, with a weak valuation.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("bothtech", "Uptrend on both views", "prism-basics", "Both of Prism's technical views, short term and long term, in an uptrend.", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
 ]
 
 
@@ -364,7 +364,7 @@ B_PB = Col("profit_plus_balance", "Profitability + Balance sheet", "score")
 # A screen adds only its own "This screen" columns after them. (key, label, format, align, band)
 STD_PRICE = (("price", "LTP (Rs)", "num2", "right", "Price & size"), ("ret_1d", "Day change", "pct", "right", "Price & size"), ("market_cap", "Market cap (Rs Cr)", "cr", "right", "Price & size"))
 STD_BASIC = STD_PRICE + (("overall", "FinLit IQ", "score", "right", "FinLit IQ"), ("pillar_quality", "Quality", "score", "right", "FinLit IQ"), ("pillar_growth", "Growth", "score", "right", "FinLit IQ"),
-                         ("pillar_profitability", "Profitability", "score", "right", "FinLit IQ"), ("pillar_balance", "Balance sheet", "score", "right", "FinLit IQ"), ("pillar_technical", "Technical", "score", "right", "Technical"))
+                         ("pillar_profitability", "Profitability", "score", "right", "FinLit IQ"), ("pillar_balance", "Balance sheet", "score", "right", "FinLit IQ"), ("pillar_technical", "Technical", "score", "right", "FinLit IQ"))      # 14 Nov N-25: Technical is the fifth part of the FinLit IQ, inside its band
 STD_ADVANCED = STD_PRICE + (("prism_final", "Prism", "score", "right", "FinLit Prism"), ("prism_fundamental", "Growth & Profitability", "score", "right", "FinLit Prism"), ("prism_valuation", "Valuation", "score", "right", "FinLit Prism"),
                             ("prism_quality", "Quality", "score", "right", "FinLit Prism"), ("prism_risk", "Risk", "score", "right", "FinLit Prism"),
                             ("prism_st_score", "Short term", "score", "right", "Technical views"), ("prism_lt_score", "Long term", "score", "right", "Technical views"))

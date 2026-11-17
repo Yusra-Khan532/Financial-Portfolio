@@ -30,3 +30,12 @@ def test_joined_counts_the_latest_close_only_and_not_the_first_stored_close():
     assert glance.joined_count(added, "2026-11-14", date(2026, 11, 11)) == 0
     assert glance.joined_count(added, "2026-11-11", date(2026, 11, 11)) == 0          # everyone was "added" on the day storing began
     assert glance.joined_count(added, None, None) is None
+
+
+def test_basic_technical_is_inside_the_finlit_iq_band_even_on_a_list_stored_before():
+    """14 Nov N-25: Technical is the fifth part of the FinLit IQ, not a band of its own."""
+    from finlit.presets.api import _bands_now
+    from finlit.presets.registry import STD_BASIC
+    assert next(b for k, _l, _f, _a, b in STD_BASIC if k == "pillar_technical") == "FinLit IQ"
+    old = [{"key": "overall", "band": "FinLit IQ"}, {"key": "pillar_technical", "band": "Technical"}, {"key": "rank"}]
+    assert [c.get("band") for c in _bands_now(old)] == ["FinLit IQ", "FinLit IQ", None]
