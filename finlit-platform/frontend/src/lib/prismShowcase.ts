@@ -8,11 +8,11 @@ import { apiGet } from "./api";
 export type PartTone = "gold" | "red" | "green";
 export type ShowcasePart = { name: string; v: number; word: string };
 export type ShowcaseTech = { name: string; span: string; v: number; word: string };
-export type ShowcaseView = { company: string; date: string; score: number; word: string; parts: ShowcasePart[]; tech: ShowcaseTech[]; caption: string; live: boolean };
+export type ShowcaseView = { symbol: string; company: string; date: string; score: number; word: string; parts: ShowcasePart[]; tech: ShowcaseTech[]; caption: string; live: boolean };
 
 const NOTE = "Shown as an example, not a recommendation.";
 export const PRISM_SAMPLE: ShowcaseView = {
-  company: "Reliance Industries", date: "6 Nov 2026",
+  symbol: "RELIANCE", company: "Reliance Industries", date: "6 Nov 2026",
   score: 59.4, word: "Average",
   parts: [
     { name: "Growth & Profitability", v: 58, word: "Average" },
@@ -60,7 +60,7 @@ export function showcaseView(r: ShowcaseReading | null | undefined): ShowcaseVie
   if (!parts.every(([, v]) => num(v)) || !num(r.st?.score) || !num(r.lt?.score) || !r.st.word || !r.lt.word) return null;
   const company = shortName(r.name || r.symbol), date = dayText(r.at), tech = r.techAt && r.techAt !== r.at ? dayText(r.techAt) : null;
   return {
-    company, date, score: r.final, word: LABEL_WORD[r.label], live: true,
+    symbol: r.symbol, company, date, score: r.final, word: LABEL_WORD[r.label], live: true,
     parts: parts.map(([name, v]) => ({ name, v: Math.round(v as number), word: partWordOf(v as number) })),
     tech: [
       { name: "Technical short term", span: "5–20 sessions", v: Math.round(r.st.score), word: r.st.word },

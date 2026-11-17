@@ -44,8 +44,13 @@ function Landing() {
 }
 
 /* ------------------------------------------------------------------ one company */
-const Problem_ = ({ p, onRetry, retryLabel = "Try again" }: { p: Problem; onRetry?: () => void; retryLabel?: string }) => (
-  <div className={"pzr-problem " + p.kind} role="alert"><Icon name="alert" /><div><b>{p.title}</b><p>{p.text}</p>{onRetry && <button type="button" className="btn" onClick={onRetry}>{retryLabel}</button>}</div></div>
+/** A problem in words. Not signed in (`p.signIn`): "Sign in (free)" and "Create a free account", each coming back to `back`, instead of a retry that cannot help (task #207). */
+const Problem_ = ({ p, onRetry, retryLabel = "Try again", back }: { p: Problem; onRetry?: () => void; retryLabel?: string; back?: string }) => (
+  <div className={"pzr-problem " + p.kind} role="alert"><Icon name="alert" /><div><b>{p.title}</b><p>{p.text}</p>
+    {p.signIn && back ? <div className="pzr-signin">
+      <Link className="btn primary" to={`/login?next=${encodeURIComponent(back)}`}>Sign in (free)</Link>
+      <Link className="btn" to={`/login?mode=signup&next=${encodeURIComponent(back)}`}>Create a free account</Link></div>
+      : onRetry && <button type="button" className="btn" onClick={onRetry}>{retryLabel}</button>}</div></div>
 );
 
 /** The honest wait: the seconds that have really passed and a bar that follows the usual time. Nothing moves in a loop. */
@@ -107,7 +112,7 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
       </div>
       {down && <div className="pzr-problem unavailable" role="note"><Icon name="alert" /><div><b>{PRISM_NAME} is not connected right now</b><p>{status.data?.reason || "The rating service is unavailable."} Stored ratings may still open.</p></div></div>}
       {latest.isLoading && <ReportSkeleton />}
-      {latest.isError && !busy && <Problem_ p={prismProblem(latest.error)} onRetry={() => latest.refetch()} />}
+      {latest.isError && !busy && <Problem_ p={prismProblem(latest.error)} onRetry={() => latest.refetch()} back={`/prism/${encodeURIComponent(symbol)}`} />}
       {calc.phase === "failed" && <Problem_ p={calc.problem} onRetry={calc.retryable ? () => run(!!report) : undefined} retryLabel="Retry" />}
       {pdfErr && !expired && <Problem_ p={pdfErr} />}
       {expired && <Problem_ p={pdfErr!} onRetry={() => run(true)} retryLabel="Recalculate" />}
@@ -128,7 +133,7 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
 
 export function PrismPage() {
   const { symbol: raw } = useParams();
-  const gold = useGold(), { showcase } = useAuth();
+  const gold = useGold(), { showcase, ready } = useAuth();
   const symbol = cleanSymbol(raw);
   const statement: Statement = "consolidated";   // FinLit Prism is requested on consolidated statements: there is no standalone choice (an old ?statement=standalone link opens the consolidated report)
   // The report itself may use the standalone statements (consolidated history too short or out of date, model 3.6.16+): the header names the basis
@@ -136,6 +141,9 @@ export function PrismPage() {
   const shown = useLatestPrism(symbol || "", statement, !!symbol && (gold || showcase.includes(symbol))).data;
   const basis: Statement = shown?.statementType === "standalone" ? "standalone" : statement;
   if (!raw) return gold ? <Landing /> : <Locked />;
+  // Task #207: until the account check answers, the showcase list is empty; showing <Locked> (a fictional sample) for that moment flashed the sample
+  // before the showcase company's own report. Wait for the answer instead.
+  if (!ready) return <><Head /><div className="wrap pzr-page" style={{ paddingBottom: 56 }}><ReportSkeleton /></div></>;
   if (!symbol) return <><Head /><div className="wrap" style={{ paddingBottom: 56 }}><div className="pm-empty"><b>That is not a company symbol.</b><p><Link to="/prism">Search for a company</Link></p></div></div></>;
   if (!gold && !showcase.includes(symbol)) return <Locked symbol={symbol} />;
   return (

@@ -9,19 +9,19 @@ import technicalBuilt from "../lib/__fixtures__/prismTechnicalBuilt.json";
 import { score1, type PrismReport } from "../lib/prism";
 import { parseTechnical, ratingWord } from "../lib/prismTechnical";
 
-const state = vi.hoisted(() => ({ latest: null as unknown, gold: true, admin: true, calc: { phase: "idle" } as unknown }));
+const state = vi.hoisted(() => ({ latest: null as unknown, gold: true, admin: true, calc: { phase: "idle" } as unknown, ready: true, showcase: [] as string[], error: null as unknown }));
 vi.mock("../lib/prism", async (orig) => {
   const m = await orig<typeof import("../lib/prism")>();
   return {
     ...m,
-    useLatestPrism: () => ({ data: state.latest, isLoading: false, isError: false, refetch: () => undefined }),
+    useLatestPrism: () => ({ data: state.latest, isLoading: false, isError: !!state.error, error: state.error, refetch: () => undefined }),
     useGeneratePrism: () => ({ mutate: () => undefined, isPending: false, isError: false }),
     usePrismCalculation: () => ({ calc: state.calc, start: () => Promise.resolve() }),
     usePrismStatus: () => ({ data: { name: "FinLit Prism", available: true, reason: null, modelVersion: "3.6.10" } }),
   };
 });
 vi.mock("../lib/premium", () => ({ useGold: () => state.gold, useSlashFocus: () => undefined, pushRecent: () => undefined, readRecent: () => [] }));
-vi.mock("../lib/auth", () => ({ useAuth: () => ({ showcase: [], isAdmin: state.admin }) }));
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ showcase: state.showcase, isAdmin: state.admin, ready: state.ready }) }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useSearchIndex: () => ({ data: undefined }), useQuotesFor: () => ({ data: undefined }) }));
 vi.mock("../lib/screener", () => ({ useUniverse: () => ({ data: undefined, isLoading: false, isError: false }) }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: () => state.gold, upgrade: () => undefined }), TIER: { gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
@@ -261,5 +261,27 @@ describe("Prism page header names the basis the report really uses (model 3.6.16
     expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
     state.latest = null;
     expect(text(page("/prism/NESTLEIND"))).toContain("NESTLEIND · Consolidated statements.");
+  });
+});
+
+describe("task #207: the showcase company's report, never the fictional sample", () => {
+  it("while the account check has not answered, the page waits (a skeleton), it never flashes the fictional example", () => {
+    state.gold = false; state.ready = false;
+    const t = text(page("/prism/RELIANCE"));
+    expect(t).not.toContain("Example only: a fictional company");
+    expect(t).not.toContain("Example Components");
+    state.ready = true; state.gold = true;
+  });
+  it("a visitor (not signed in) on the showcase report is offered Sign in (free) and a free account, both coming back to that report, not Try again", async () => {
+    const { ApiError } = await import("../lib/api");
+    state.gold = false; state.showcase = ["RELIANCE"]; state.latest = null;
+    state.error = new ApiError(401, { status: "sign_in_required", detail: "Sign in to open the FinLit Prism report. It is free." });
+    const html = page("/prism/RELIANCE");
+    expect(text(html)).toContain("Sign in to open FinLit Prism");
+    expect(html).toContain('href="/login?next=%2Fprism%2FRELIANCE"');
+    expect(html).toContain('href="/login?mode=signup&amp;next=%2Fprism%2FRELIANCE"');
+    expect(text(html)).not.toContain("Try again");
+    expect(text(html)).not.toContain("Example Components");
+    state.error = null; state.showcase = []; state.gold = true;
   });
 });
