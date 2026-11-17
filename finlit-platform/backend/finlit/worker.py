@@ -320,6 +320,7 @@ async def refresh_universe(client: FinEdgeClient, store: Store) -> int:
 QUOTES_AT_ONCE = 24            # companies updated at the same time (a read and a write of each stored summary): never thousands at once
 QUOTES_BUDGET_S = 7 * 60       # a run stops starting new companies after this long, inside the job's 10-minute limit; the next run carries on from there
 QUOTES_CURSOR_KEY = "quotes:cursor"
+QUOTES_SLICE = 240           # companies priced, then followed up (live scores, screener numbers), before the next slice starts
 
 
 async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[List[Tuple[str, str]]] = None, dhan_client=None,
@@ -392,7 +393,7 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
         for k in ("upperCircuit", "lowerCircuit"):   # a price band belongs to the quote it came with: never an older day's band beside a newer price
             if live.get(k) is None:
                 summary["quote"].pop(k, None)
-        if len(live_scores) < scorelive.cohort_max():   # the price-driven part of the FinLit IQ follows the price (same function as the full build)
+        if scored + len(live_scores) < scorelive.cohort_max():   # (a cap for the whole run, across slices) the price-driven part of the FinLit IQ follows the price (same function as the full build)
             fields = await scorelive.apply_live_price(store, symbol, statement, summary)
             if fields:
                 live_scores.append(fields)
@@ -414,7 +415,32 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
             except Exception:      # one company never stops the others
                 log.exception("quote update failed for %s", symbol)
 
-    await asyncio.gather(*(guarded(s, st) for s, st in items))
+    async def follow_up():
+        """What each updated price feeds: the live FinLit IQ rows and the screener's price-based numbers (P/E, market cap, returns, 52-week position)."""
+        if live_scores:   # the screener reads the same numbers the stock page now shows
+            try:
+                await store.update_live_scores(list(live_scores))
+            except Exception:
+                log.exception("live FinLit IQ rows were not stored")
+            live_scores.clear()
+        if touched:
+            try:
+                from .screener.jobs import refresh_metrics_for
+                await refresh_metrics_for(store, list(touched))
+            except Exception:
+                log.exception("screener metrics were not refreshed after the quote update")
+            touched.clear()
+
+    # 17 November 2026: the follow-up used to run once, after every price, and outside the budget: with ~3,000 prices updated it ran past the job's
+    # 10-minute limit, the job was killed ("timeout" every run) and the screener numbers of that run were never stored. Now a slice of companies is
+    # priced and followed up before the next slice starts, and the budget covers both, so a run ends at most one slice after the budget.
+    scored = 0
+    for i in range(0, len(items), QUOTES_SLICE):
+        if budget_s is not None and time.monotonic() - started > budget_s:
+            break
+        await asyncio.gather(*(guarded(s, st) for s, st in items[i:i + QUOTES_SLICE]))
+        scored += len(live_scores)
+        await follow_up()
     if budget_s is not None and items:
         try:
             await store.redis.set(QUOTES_CURSOR_KEY, str((start_at + reached) % len(items)), ex=86400)
@@ -422,17 +448,6 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
             pass
         if reached < len(items):
             log.info("quotes: reached %d of %d companies in this run; the next run starts with the rest", reached, len(items))
-    if live_scores:   # the screener reads the same numbers the stock page now shows
-        try:
-            await store.update_live_scores(live_scores)
-        except Exception:
-            log.exception("live FinLit IQ rows were not stored")
-    if touched:  # keep the screener's price-based numbers (P/E, market cap, returns, 52-week position) as fresh as the quote
-        try:
-            from .screener.jobs import refresh_metrics_for
-            await refresh_metrics_for(store, touched)
-        except Exception:
-            log.exception("screener metrics were not refreshed after the quote update")
     return updated
 
 
