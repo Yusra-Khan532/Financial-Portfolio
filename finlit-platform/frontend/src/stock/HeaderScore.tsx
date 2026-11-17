@@ -7,7 +7,8 @@ import { Icon } from "../lib/icons";
 import { bandLegend } from "../lib/prismTechnical";
 import "../styles/dash-shared.css";
 import "../styles/headerscore.css";
-import { BAND_NAME, GOLD_DOTS, LEGEND, badgeFor, badgeView, dotLabel, goldDots, industryText, marketCapLine, scoreBand, type BadgeView, type Plan, type PrismInput } from "../lib/scoreBands";
+import { BAND_NAME, GOLD_DOTS, LEGEND, badgeFor, badgeView, dotLabel, goldDots, marketCapLine, scoreBand, type BadgeView, type Plan, type PrismInput } from "../lib/scoreBands";
+import { LEVELS, LEVEL_LABEL, useClassification, type Classification } from "../lib/taxonomy";
 import type { PillarSummary, Profile } from "../lib/api";
 
 /** The five pillars in the order the founder listed them, with the one letter drawn inside each dot. */
@@ -90,13 +91,29 @@ export function ScoreBadge({ view, symbol }: { view: BadgeView; symbol: string }
   );
 }
 
-/** Labelled chips: Industry and Market cap, shown to every plan (public company facts). */
-export function CompanyFacts({ p }: { p: Profile }) {
-  const ind = industryText(p), cap = marketCapLine(p.marketCapCr);
-  if (!ind && !cap) return null;
+/** Labelled facts shown to every plan (public): NSE's four levels, each under its own name (task #192: Macro sector, Sector, Industry, Basic
+ *  industry; a blank level says why), then Market cap. Until the classification has loaded, or for a company not placed yet, only the industry is
+ *  shown, under "Industry" (never two levels joined under one label, as before). */
+export function CompanyFacts({ p, cls }: { p: Profile; cls?: Classification | null }) {
+  const cap = marketCapLine(p.marketCapCr);
+  const rows: ReactNode[] = [];
+  if (cls && cls.source) {
+    let why = cls.note;   // the reason is written once, under the first blank level
+    for (const l of LEVELS) {
+      const v = cls[l];
+      rows.push(<Row key={l} label={LEVEL_LABEL[l]}>{v ? <span className="hs-t">{v}</span> : <><span className="hs-t hs-na">Not shown</span>{why && <span className="hs-why">{why}</span>}</>}</Row>);
+      if (!v) why = null;
+    }
+  } else if (cls && !cls.source) {
+    rows.push(<Row key="industry" label="Industry"><span className="hs-t hs-na">Not classified</span>{cls.note && <span className="hs-why">{cls.note.replace(/^Not classified: /, "")}</span>}</Row>);
+  } else {
+    const ind = p.industry?.trim() || null;
+    if (ind) rows.push(<Row key="industry" label="Industry"><span className="hs-t">{ind}</span></Row>);
+  }
+  if (!rows.length && !cap) return null;
   return (
     <>
-      {ind && <Row label="Industry"><span className="hs-t">{ind}</span></Row>}
+      {rows}
       {cap && <Row label="Market cap"><span className="hs-t">{cap.replace(/^Market cap /, "")}</span></Row>}
     </>
   );
@@ -120,10 +137,11 @@ export function NameDots({ score, plan, admin, prism }: { score: ScoreLike; plan
 /** Under the company name: the plan's score badge and the labelled industry / market cap chips. `plan` is the effective plan. */
 export function SubLine({ profile, score, plan, admin, prism }: { profile: Profile; score: ScoreLike; plan: Plan; admin: boolean; prism: PrismInput }) {
   const view = badgeView(plan, admin, { overall: score.overall, word: score.band.label }, prism);
+  const cls = useClassification(profile.symbol).data;
   return (
     <>
       <Row label="Rating"><ScoreBadge view={view} symbol={profile.symbol} /></Row>
-      <CompanyFacts p={profile} />
+      <CompanyFacts p={profile} cls={cls} />
     </>
   );
 }

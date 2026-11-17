@@ -12,6 +12,7 @@ import { SegmentHistory } from "./SegmentMix";
 import { OTHERS_COLOR, segmentColors, segmentNames } from "../lib/segmentMix";
 import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
+import { useClassification } from "../lib/taxonomy";
 
 const v = (n: string) => `var(${n})`;
 
@@ -20,6 +21,7 @@ export { OwnershipSection } from "./own/OwnershipSection";
 
 /* ---------------- Company ---------------- */
 export function BusinessSection({ s }: { s: Summary }) {
+  const cls = useClassification(s.profile.symbol).data;   // NSE's levels, each named (task #192): the provider's `sector` mixed levels
   const p = s.profile, [more, setMore] = useState(false);
   const desc = (p.description || "Neither of our data sources holds a description of this company yet. The sector, the exchange codes and the announcements below are still shown.").replace(/\s+/g, " ");
   const fromUpstox = !!p.description && s.dataQuality?.secondarySource?.profile === "upstox";
@@ -40,7 +42,7 @@ export function BusinessSection({ s }: { s: Summary }) {
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
             {[[10, 60, 36], [52, 30, 30], [88, 74, 26], [120, 20, 40], [166, 52, 30], [202, 38, 34], [244, 70, 28], [278, 14, 36], [320, 48, 30], [356, 66, 30]].map(([x, y, w], i) => <g key={i}><rect x={x} y={y} width={w} height={120 - y} rx="3" fill="var(--p-growth)" opacity={0.1 + (i % 3) * 0.05} />{Array.from({ length: 4 }, (_, j) => <rect key={j} x={x + 6 + (j % 2) * 12} y={y + 8 + Math.floor(j / 2) * 14} width="5" height="6" rx="1" fill="var(--gold)" opacity=".5" className="win" style={{ animationDelay: `${(i * 4 + j) * 140}ms` }} />)}</g>)}
           </svg>
-          <div className="biz-id"><span className="biz-av"><CoLogo symbol={p.symbol} name={p.name} size={58} /></span><div><b>{p.name}</b><div className="biz-tags">{p.sector && <span className="chip">{p.sector}</span>}{p.industry && <span className="chip">{p.industry}</span>}</div></div></div>
+          <div className="biz-id"><span className="biz-av"><CoLogo symbol={p.symbol} name={p.name} size={58} /></span><div><b>{p.name}</b><div className="biz-tags">{cls?.sector && <span className="chip" title="Sector (NSE)">Sector · {cls.sector}</span>}{cls?.industry && <span className="chip" title="Industry (NSE)">Industry · {cls.industry}</span>}</div></div></div>
           <p className={"biz-desc" + (more ? " open" : "")}>{desc}</p>
           <div className="biz-actions">{long && <button className="btn" onClick={() => setMore(!more)}>{more ? "Show less" : "Read the full description"}</button>}
             {p.website && /^[\w.-]+\.[a-z]{2,}/i.test(p.website) && <a className="chip gold" href={`https://${p.website.replace(/^https?:\/\//, "")}`} target="_blank" rel="noopener noreferrer">{p.website} ↗</a>}

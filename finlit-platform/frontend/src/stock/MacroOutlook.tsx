@@ -28,7 +28,7 @@ function Backdrop({ c }: { c: CompanyMacro }) {
     <div className="mo-bar-a" role="group" aria-label="Macro backdrop summary">
       <span className="mo-k">Macro backdrop</span>
       <Chip label={ok ? c.label! : "Insufficient Data"} tone={ok ? c.tone ?? "flat" : "none"} />
-      <span className="mo-sector"><Icon name="layers" />{c.mapping?.sectorName}</span>
+      {c.mapping?.sectorName && <span className="mo-sector" title="FinLit's Macro & Sector Outlook groups its companies in 18 outlook groups of its own; NSE's sector of this company is in the header"><Icon name="layers" />Outlook group · {c.mapping.sectorName}</span>}
       <span className="mo-score"><b>{ok && c.score != null ? Math.round(c.score) : "—"}</b><small>/100</small><Bar score={ok ? c.score ?? null : null} tone={c.tone ?? "none"} /></span>
       <span className="mo-drivers">{ok ? (c.drivers?.length ? c.drivers.map((d) => <Pill key={d.code} d={d} />) : <span className="faint">No dominant driver</span>) : <span className="faint">{insufficientText(c)}</span>}</span>
     </div>
@@ -40,7 +40,7 @@ export function SectorTable({ rows }: { rows: SectorRow[] }) {
   return (
     <div className="mo-panel">
       <div className="mo-h"><h3><Icon name="bars" />Sector impact</h3><span className="faint">{rows.length > 1 ? "50 is neutral · sorted by score" : "50 is neutral"}</span></div>
-      <table className="mo-t"><thead><tr><th scope="col">Sector</th><th scope="col">Score <span className="faint">(line at 50)</span></th><th scope="col" className="num">Score</th><th scope="col">Sentiment</th><th scope="col">Top reasons</th></tr></thead>
+      <table className="mo-t"><thead><tr><th scope="col">Outlook group</th><th scope="col">Score <span className="faint">(line at 50)</span></th><th scope="col" className="num">Score</th><th scope="col">Sentiment</th><th scope="col">Top reasons</th></tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={r.sector.code} className="me" aria-current="true">
             <th scope="row">{r.sector.name}<span className="mo-you">This company</span></th>
@@ -79,7 +79,7 @@ function Indicators({ c, reasons }: { c: CompanyMacro; reasons: Reason[] }) {
     <div className="mo-panel">
       <div className="mo-h"><h3><Icon name="activity" />Indicator signals</h3><span className="faint">signal: −1 low or falling, +1 high or rising</span></div>
       {tiles.length > 0 && <p className="mo-why">Only the indicators behind the reasons above: {tiles.map((t) => shortName(t.indicator.code, t.indicator.name)).join(", ")}.</p>}
-      {tiles.length === 0 && <p className="faint">{c.status === "ok" ? "Sector impact names no dominant driver for this sector right now, so there is no indicator to show." : "Sector impact shows no reading to explain right now."}</p>}
+      {tiles.length === 0 && <p className="faint">{c.status === "ok" ? "Sector impact names no dominant driver for this outlook group right now, so there is no indicator to show." : "Sector impact shows no reading to explain right now."}</p>}
       {(c.groups ?? []).map((g) => { const t = tiles.filter((x) => x.indicator.group === g.code); return t.length > 0 && (
         <section key={g.code} className="mo-grp" aria-label={g.name}><h4><Icon name={GROUP_ICON[g.code] ?? "info"} />{g.name}</h4><ul>{t.map((x) => <Tile key={x.indicator.code} i={x.indicator} why={x.reason} />)}</ul></section>); })}
     </div>);
@@ -135,7 +135,7 @@ function HistoryPanel({ c }: { c: CompanyMacro }) {
       <ChartZoom label={"Macro score history"} className="cz-r">
       <div className="mo-h"><h3><Icon name="line" />Score history</h3>
         <div className="mo-seg" role="group" aria-label="Period">{PERIODS.map((p) => <button key={p} type="button" aria-pressed={period === p} className={period === p ? "on" : ""} onClick={() => setPeriod(p)}>{p}</button>)}</div></div>
-      {c.mapping?.basis !== "primary" ? <p className="faint">History is shown per sector; this company is weighted across several sectors.</p> : q.data && q.data.points.length ? <Chart h={q.data} /> : <p className="faint">{q.isLoading ? "Loading…" : "No history yet."}</p>}
+      {c.mapping?.basis !== "primary" ? <p className="faint">History is shown per outlook group; this company is weighted across several outlook groups.</p> : q.data && q.data.points.length ? <Chart h={q.data} /> : <p className="faint">{q.isLoading ? "Loading…" : "No history yet."}</p>}
       <div className="mo-delta">{["1M", "3M", "6M", "1Y"].map((k) => <span key={k} className={d[k] ? (d[k]!.change > 0 ? "pos" : d[k]!.change < 0 ? "neg" : "") : ""}>{k} <b>{d[k] ? signed(d[k]!.change, 1) : "—"}</b></span>)}</div>
       {q.data?.points.some((p) => p.basis === "reconstructed") && <p className="mo-foot"><span className="mo-dot rcd" /> reconstructed from stored data; <span className="mo-dot lv" /> calculated on the day.</p>}
       </ChartZoom>
@@ -148,11 +148,11 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
   const showImpact = !!c && (c.status === "ok" || c.status === "insufficient_data");
   const imp = useSectorImpact(showImpact && c?.mapping?.basis === "revenue_weighted");   // the full sector table is read only for a company that spans several sectors
 
-  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's sector" sub="Backdrop, sector impact, indicator signals and what they mean." color="--p-growth" />;
+  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's outlook group" sub="Backdrop, sector impact, indicator signals and what they mean." color="--p-growth" />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;
-  else if (c.status === "not_mapped" || c.status === "pending") body = <p className="mo-note" role="status"><Icon name="info" />Macro outlook not available for this company: {c.reason ?? "its sector has not been assigned yet."}</p>;
+  else if (c.status === "not_mapped" || c.status === "pending") body = <p className="mo-note" role="status"><Icon name="info" />Macro outlook not available for this company: {c.reason ?? "its outlook group has not been assigned yet."}</p>;
   else {
     const rows = companyRows(c, imp.data?.sectors), reasons = reasonsOf(rows, c);
     body = (

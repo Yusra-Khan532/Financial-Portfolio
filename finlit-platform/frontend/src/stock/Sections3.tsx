@@ -15,6 +15,7 @@ import { Fragment } from "react";
 import { NotMeaningful, ReadingCell, ReadingFilter, ReadingMobileRow, useRatioReadings } from "./RatioReading";
 import { prefetchStock, type Peers, type Ratios, type Segments, type Summary } from "../lib/api";
 import { buckets, metric } from "./derive";
+import { useClassification } from "../lib/taxonomy";
 import { useUI } from "../lib/ui";
 import { SectionHead } from "./Sections";
 import { ProfitabilityRatios } from "./ProfitabilityRatios";
@@ -202,6 +203,7 @@ const hue = (s: string) => HUES[[...s].reduce((a, c) => (a * 31 + c.charCodeAt(0
 export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summary }) {
   const nav = useNavigate(); const qc = useQueryClient();
   const lead = useLeadership(self).data;
+  const cls = useClassification(self).data;
   const [hv, setHv] = useState<string | null>(null);
   const items = (p?.items || p?.symbols.map((x) => ({ symbol: x, name: null })) || []) as NonNullable<Peers["items"]>;
   const peers = items.filter((i) => i.symbol !== self);
@@ -221,7 +223,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
       <SectionHead id="peers" no="13 · Peers" icon="layers" tier="basic" title={`How ${s.profile.name.split(" ")[0]} compares with its peers`} sub="Select a company to open its report." color="--gold-deep" />
-      <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {s.profile.sector ? `These ${N} companies work in ${s.profile.sector}.` : ""}</Plain>
+      <Plain>Comparing a company with its closest rivals is the quickest way to tell whether a number is good or just normal for the industry. {cls?.industry ? `${s.profile.name.split(" ")[0]} is in NSE's ${cls.industry} industry${cls.basic_industry ? ` (basic industry: ${cls.basic_industry})` : ""}; these ${N} are the companies the data provider lists as its peers.` : ""}</Plain>
       <div className="pr2">
         <div className="card acc orbit-card" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <ChartZoom label="Peer map: companies in the same industry">
@@ -280,7 +282,8 @@ const WHY: Record<string, [string, string]> = {
 };
 
 export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?: { rsi14: number | null } }) {
-  const b = useMemo(() => buckets(s, r, tech), [s, r, tech]);
+  const cls = useClassification(s.profile.symbol).data;
+  const b = useMemo(() => buckets(s, r, tech, cls), [s, r, tech, cls]);
   const trig = [...s.watchouts.slice(0, 3).map((n) => ({ ...n, kind: "watch" as const })), ...s.strengths.slice(0, 3).map((n) => ({ ...n, kind: "good" as const }))];
   const spec = b.filter(([, k]) => SPEC[k]), plain = b.filter(([, k]) => !SPEC[k]);
   return (

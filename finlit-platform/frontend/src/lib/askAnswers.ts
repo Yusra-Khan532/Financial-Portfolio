@@ -10,6 +10,7 @@ import suggestions from "../content/questionSuggestions.json";
 import { STARTERS, SECOND } from "./questionBank";
 import { MARKET_QUESTIONS, writtenAnswer, type Q } from "./askFlow";
 import { EXPLORER_ANSWERS, TOPICS } from "./askExplorer";
+import { LEVELS, LEVEL_LABEL, fetchClassification, type Classification } from "./taxonomy";
 
 /** Every company question of the question bank: the company list and every group's questions, typed once (TypeScript 7 no longer widens the two JSON shapes to one). */
 export type BankQuestion = { id: string; text: string; needsSecondCompany?: boolean; lendersOnly?: boolean };
@@ -29,12 +30,18 @@ const get = (sym: string, path: string): Promise<J | null> => {
   if (!cache.has(key)) cache.set(key, apiGet<J>(`/api/stocks/${encodeURIComponent(sym)}${path}`).catch(() => { cache.delete(key); return null; }));
   return cache.get(key)!;
 };
-type Part = "summary" | "fin" | "ratios" | "own" | "events" | "peers" | "price" | "stats" | "scores" | "max";
-const PATH: Record<Part, string> = { summary: "", fin: "/financials", ratios: "/ratios", own: "/ownership", events: "/events", peers: "/peers", price: "/price?range=1Y",
+type Part = "summary" | "fin" | "ratios" | "own" | "events" | "peers" | "price" | "stats" | "scores" | "max" | "cls";
+const PATH: Record<Exclude<Part, "cls">, string> = { summary: "", fin: "/financials", ratios: "/ratios", own: "/ownership", events: "/events", peers: "/peers", price: "/price?range=1Y",
   stats: "/stats", scores: "/score-history", max: "/price?range=MAX" };
 type D = Partial<Record<Part, J | null>>;
+/** NSE's four levels of a company (task #192), cached like the report parts; null when it is not classified yet. */
+const classified = (sym: string): Promise<J | null> => {
+  const key = sym + "|cls";
+  if (!cache.has(key)) cache.set(key, fetchClassification(sym).then((c) => c as unknown as J).catch(() => { cache.delete(key); return null; }));
+  return cache.get(key)!;
+};
 async function load(sym: string, parts: Part[]): Promise<D> {
-  const got = await Promise.all(parts.map((p) => get(sym, PATH[p])));
+  const got = await Promise.all(parts.map((p) => (p === "cls" ? classified(sym) : get(sym, PATH[p]))));
   return Object.fromEntries(parts.map((p, i) => [p, got[i]]));
 }
 
@@ -339,7 +346,11 @@ const redFlags: Fn = (sym, d) => {
 const identity: Fn = (sym, d) => {
   const p = d.summary?.profile, mc = d.summary?.quote?.marketCapCr;
   if (!p) return notHeld("a company profile", sym, report(sym), "Open the company report");
-  return out([`${sym} (${p.name ?? sym}) is in the ${p.macroSector ? p.macroSector + " sector, " : ""}${p.industry ?? "–"} industry and the ${p.subIndustry ?? p.sector ?? "–"} sub-industry.`,
+  const c = d.cls as unknown as Classification | null | undefined;
+  const named = c ? LEVELS.filter((l) => c[l]).map((l) => `${LEVEL_LABEL[l].toLowerCase()} ${c[l]}`) : [];
+  return out([named.length ? `${sym} (${p.name ?? sym}) is in NSE's ${named.slice(0, -1).join(", ")}${named.length > 1 ? " and " : ""}${named[named.length - 1]}.`
+    : `${sym} (${p.name ?? sym}): its NSE classification is not known.`,
+    c?.note && c.source ? c.note : c?.note ? c.note.replace(/^Not classified: /, "Not classified by NSE's lists: ") : null,
     isNum(mc) ? `With a market cap of ${rs(mc)} it is a ${(capSize(mc) ?? "–").toLowerCase()} company (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr).` : "Its market cap is not held.", "Source: FinLit company profile and prices."]);
 };
 const sectorRank: Fn = (sym, d) => {
@@ -353,7 +364,7 @@ const sectorGrowth: Fn = (sym, d) => { const r3 = latest(d.ratios, "revenue_cagr
 
 /** Every listed company question, by its id in the question bank (content/questionSuggestions.json). */
 export const COMPANY_RULES: Record<string, Rule> = {
-  "C.1.Q1": { parts: ["summary"], fn: identity }, "C.1.Q2": { parts: ["summary", "peers"], fn: sectorRank },
+  "C.1.Q1": { parts: ["summary", "cls"], fn: identity }, "C.1.Q2": { parts: ["summary", "peers"], fn: sectorRank },
   "C.2.Q3": { parts: ["fin"], fn: revenueYears }, "C.2.Q4": { parts: ["fin", "ratios"], fn: revenueCagr }, "C.2.1.3": { parts: ["fin", "ratios"], fn: revenueCagr },
   "C.2.Q5": { parts: ["ratios"], fn: sectorGrowth }, "C.2.Q6": { parts: ["fin", "ratios"], fn: ebitdaTrend }, "C.2.2.1": { parts: ["fin", "ratios"], fn: ebitdaTrend },
   "C.2.Q7": { parts: ["fin", "ratios"], fn: profitCagr }, "C.2.Q8": { parts: ["fin"], fn: latestQuarter }, "C.2.5.1": { parts: ["fin"], fn: latestQuarter }, "C.2.1.2": { parts: ["fin"], fn: latestQuarter },

@@ -234,7 +234,7 @@ export function KeyRatios({ latest, benchmark }: { latest: Ratio[]; benchmark?: 
   return (
     <div className="pzr-htab"><h4>Key financial ratios</h4>
       <div className="pzr-kr">
-        {multiples.length > 0 && <div className="pzr-tw pzr-kr-v"><table className="pzr-t"><thead><tr><th scope="col">Valuation multiple</th><th scope="col" className="n">Company</th><th scope="col" className="n">Own 5-year median</th><th scope="col" className="n">{sector ? "Sector benchmark" : "Industry median"}</th></tr></thead>
+        {multiples.length > 0 && <div className="pzr-tw pzr-kr-v"><table className="pzr-t"><thead><tr><th scope="col">Valuation multiple</th><th scope="col" className="n">Company</th><th scope="col" className="n">Own 5-year median</th><th scope="col" className="n">{sector ? "Sector benchmark" : "Peer group median (FinEdge)"}</th></tr></thead>
           <tbody>{multiples.map((m) => <tr key={m.label}><th scope="row">{m.label}</th><td className="n pzr-kr-co">{m.co ? ratioText(m.co) : "—"}</td><td className="n">{m.own ? ratioText(m.own) : "—"}</td><td className="n">{m.bm ? ratioText(m.bm) : "—"}</td></tr>)}</tbody></table></div>}
         {groups.map(([title, rows]) => one(title, rows))}
         {rest.length > 0 && one("Other", rest.map((r) => ({ label: r.label, r })))}

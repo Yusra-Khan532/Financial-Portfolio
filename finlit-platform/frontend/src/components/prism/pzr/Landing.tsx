@@ -170,7 +170,7 @@ export function LandingBody({ statement, setStatement }: { statement: Statement;
         <div className="pzr-what-art"><PrismMark /></div>
         <div className="pzr-what-t">
           <h3>What you get</h3>
-          <p>A company's financial health, split into four parts the way a prism splits light, each read against its own industry group.</p>
+          <p>A company's financial health, split into four parts the way a prism splits light, each read against its own peer group (FinEdge's list of similar companies).</p>
           <ul>{WHAT.map((w) => <li key={w}><Icon name="check" />{w}</li>)}</ul>
         </div>
         <div className="pzr-what-h">

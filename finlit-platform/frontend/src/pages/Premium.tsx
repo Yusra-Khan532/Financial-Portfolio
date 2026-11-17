@@ -27,7 +27,7 @@ function PrismHubCard() {
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <span className="ic"><Icon name="layers" /></span><span className="chip gold new">New in Gold</span>
         <h2>FinLit Prism</h2>
-        <p>An advanced financial-health rating of any listed company, in four parts, with a downloadable PDF. Each company is read against its own industry group, so a bank, an insurer and a manufacturer are each judged on the measures that fit them.</p>
+        <p>An advanced financial-health rating of any listed company, in four parts, with a downloadable PDF. Each company is read against its own peer group (FinEdge's list of similar companies), so a bank, an insurer and a manufacturer are each judged on the measures that fit them.</p>
         <ul>{["A score out of 100 and a plain label, from Strong to Poor", "Shows how much of the data was available, and says so when a rating is provisional", "The same report on screen and as a PDF"].map((p) => <li key={p}><Icon name="check" />{p}</li>)}</ul>
       </div>
       <div className="pm-pv" aria-hidden="true">

@@ -13,6 +13,6 @@ export const PRISM_PARTS: [PrismPart, string, string][] = [
 /** What Prism adds, for the unlock card. */
 export const PRISM_POINTS = [
   "A financial-health score out of 100 in four parts: Growth & Profitability, Valuation, Quality and Risk",
-  "Each company is judged on the measures that fit its industry, across eight industry groups",
+  "Each company is judged on the measures that fit its kind of business, across eight business types (banks, lenders, insurers, real estate, utilities, heavy industry, manufacturing, asset-light)",
   "Shows how complete the data is, and saves as a PDF you can keep",
 ];

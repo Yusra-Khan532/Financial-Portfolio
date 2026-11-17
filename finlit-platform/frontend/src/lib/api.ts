@@ -77,7 +77,7 @@ export type SegmentInsights = {
   thresholds?: Record<string, number>; rows: SegmentTrendRow[]; sentences: string[]; cautions: string[];
 };
 export type Segments = { meta: Meta; unit: string; periods: string[]; segments: Record<string, { revenue: Series; ebit: Series }>; latest: Segment[]; insights?: SegmentInsights };
-export type PeerItem = { symbol: string; name: string | null; sector?: string | null; overall?: number | null; band?: string | null; price?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null };
+export type PeerItem = { symbol: string; name: string | null; industry?: string | null; basic_industry?: string | null; overall?: number | null; band?: string | null; price?: number | null; market_cap?: number | null; pe?: number | null; roe?: number | null };
 export type Peers = { meta: Meta; symbols: string[]; items?: PeerItem[] };
 export type Technical = {
   price: number; ema20: number | null; ema50: number | null; ema200: number | null; vsEma20Pct: number | null; vsEma50Pct: number | null;

@@ -10,6 +10,8 @@ const calls: string[] = [];
 const missing = new Set<string>();
 vi.mock("./api", () => ({ apiGet: async (p: string) => {
   calls.push(p);
+  if (p.startsWith("/api/taxonomy/company/RELIANCE")) return { symbol: "RELIANCE", isin: "INE002A01018", macro_sector: "Energy", sector: "Oil, Gas & Consumable Fuels",
+    industry: "Petroleum Products", basic_industry: "Refineries & Marketing", source: "basic_industry", note: null };   // task #192: NSE's four levels
   const m: [RegExp, string][] = [[/TCS\/ratios/, "tcs_ratios"], [/\/financials$/, "fin"], [/\/ratios$/, "ratios"], [/\/ownership$/, "own"], [/\/events$/, "events"], [/\/peers$/, "peers"],
     [/range=1Y/, "price"], [/range=MAX/, "max"], [/\/stats$/, "stats"], [/score-history/, "scores"], [/RELIANCE$/, "summary"]];
   const hit = m.find(([re]) => re.test(p));
@@ -109,5 +111,14 @@ describe("finding the question", () => {
     expect(searchListed("free cash flow", "TCS").map((q) => q.text)).toContain("What is TCS's free cash flow trend and FCF yield, and in how many of the last 10 years was FCF positive?");
     expect(searchListed("dupont").length).toBeGreaterThan(0);
     expect(searchListed("Will the dividend rise much higher next year, do you think?", "TCS", 6, true).map((q) => q.text).join(" ")).toMatch(/dividend/);
+  });
+});
+
+describe("task #192: the company's group is named by NSE's levels", () => {
+  it("C.1.Q1 names the macro sector, sector, industry and basic industry, each by its own name", async () => {
+    clearAnswerCache();
+    const a = await answerCompany("C.1.Q1", "RELIANCE");
+    expect(a.text).toMatch(/is in NSE's macro sector Energy, sector Oil, Gas & Consumable Fuels, industry Petroleum Products and basic industry Refineries & Marketing\./);
+    expect(a.text).not.toMatch(/sub-industry/);    // before: the provider's fields, with its sub-industry and a "sector" that could be a basic industry
   });
 });
