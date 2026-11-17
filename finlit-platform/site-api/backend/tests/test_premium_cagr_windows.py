@@ -13,15 +13,15 @@ def scored(sales, profit=None):
 
 @pytest.mark.parametrize('values,years,previous',[
     ([100,110,121,133.1,146.41,161.051],5,100),
-    ([1,100,120,144,172.8],3,100),  # four years exist; requested 3-year preference wins
+    ([1,100,120,144,172.8],4,1),  # four years exist: the 4-year window (owner, 17 Nov 2026: 5, then 4, 3, 2)
     ([100,120,144,172.8],3,100),
     ([100,120,144],2,100),
     ([100,120],1,100),
-    ([None,1,100,120,144,172.8],3,100),
+    ([None,1,100,120,144,172.8],4,1),
     ([10,20,None,100,120,144],2,100),  # do not bridge the missing annual slot
     ([10,20,30,None,100,120],1,100),
 ])
-def test_cagr_prefers_five_then_three_then_latest_consecutive_available(values,years,previous):
+def test_cagr_prefers_five_then_four_three_two_then_latest_consecutive_available(values,years,previous):
     _,_,rows=scored(values)
     for name in ('SALES_CAGR','PROFIT_CAGR'):
         row=rows[name]
