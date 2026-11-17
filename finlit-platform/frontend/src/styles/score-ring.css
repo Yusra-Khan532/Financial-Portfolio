@@ -1,0 +1,19 @@
+/* The shared score ring (components/ScoreRing.tsx), classes srg-*: the stock page's Prism ring (styles/prism-card.css, .pcx-ring) drawn at card size.
+   Colours: the site's --band-* tokens (finlit.css sets them for light and dark); the disc and ticks follow the theme here. */
+.srg { --srg-w: 40, 34, 20; --srg-disc-1: #ffffff; --srg-disc-2: #fbf7ec; --srg-disc-3: #f0e9d6; --srg-ink: #1c1a15;
+  display: inline-block; flex: none; line-height: 0; }
+:root[data-theme="dark"] .srg { --srg-w: 255, 255, 255; --srg-disc-1: #2a2d35; --srg-disc-2: #1b1d22; --srg-disc-3: #121317; --srg-ink: #f3f1ea; }
+.srg svg { width: 100%; height: 100%; overflow: visible; }
+.srg-tk { stroke: rgba(var(--srg-w), .2); stroke-width: .8; stroke-linecap: round; } .srg-tk.maj { stroke: rgba(var(--srg-w), .36); stroke-width: 1.2; }
+.srg-trk { fill: none; stroke: rgba(var(--srg-w), .11); stroke-width: 10; stroke-linecap: round; }
+.srg-fill { fill: none; stroke: var(--pc); stroke-width: 10; stroke-linecap: round; animation: srg-draw 1s cubic-bezier(.16, 1, .3, 1) calc(.1s + var(--i, 0) * .1s) backwards; }
+.srg-knob { fill: #fff; stroke: var(--pc); stroke-width: 1.4; }
+.srg-disc { stroke: var(--gold); stroke-opacity: .5; stroke-width: 1.1; }
+.srg-disc2 { fill: none; stroke: var(--gold); stroke-opacity: .2; stroke-width: .8; stroke-dasharray: 1 4; }
+.srg-num { font: 500 32px var(--font-serif, "Source Serif 4", Georgia, serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums; fill: var(--srg-ink); }
+.srg-of { font: 600 11px var(--font-sans, Inter, sans-serif); letter-spacing: .14em; fill: var(--faint); }
+.srg-wd { font: 700 11px var(--font-sans, Inter, sans-serif); letter-spacing: .1em; fill: var(--faint); }
+.srg-num.b-hi, .srg-wd.b-hi { fill: var(--band-hi-ink); } .srg-num.b-mid, .srg-wd.b-mid { fill: var(--band-mid-ink); } .srg-num.b-lo, .srg-wd.b-lo { fill: var(--band-lo-ink); }
+.srg-num.b-na { fill: var(--faint); }
+@keyframes srg-draw { from { stroke-dashoffset: 400; stroke-dasharray: 400; } to { stroke-dashoffset: 0; stroke-dasharray: 400; } }
+@media (prefers-reduced-motion: reduce) { .srg-fill { animation: none; } }

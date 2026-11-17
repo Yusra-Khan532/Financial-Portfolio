@@ -30,9 +30,21 @@ const G = {};
     return o;
   }
   /** Clip custom values to the plausible ranges (spec 7.3); the API does the same. */
-  function clipScenario(s) {
+  // The reader's own numbers have no limit (task #196, D1): RANGES are only the sliders' usual drag ranges. Only an impossible value is refused: a price or a
+  // volume cannot fall by more than 100% (crude, demand; the rupee's value too, which would make a dollar cost infinite rupees). refused(s) names it.
+  var FLOOR = { crude: -100, demand: -100, rupee: -100 };
+  function refused(s) {
+    var o = scenario(s), bad = [];
+    for (var k in RANGES) if (o[k] !== null && o[k] !== undefined && !isFinite(o[k])) bad.push(k);
+    if (o.crude < FLOOR.crude) bad.push('crude');
+    if (o.demand < FLOOR.demand) bad.push('demand');
+    if (o.usdinr !== null && o.usdinr !== undefined && rupeeFromUsdinr(o.usdinr) <= FLOOR.rupee) bad.push('rupee');
+    return bad;
+  }
+  function clipScenario(s) {   // kept for its callers: the reader's numbers as they are, with an impossible value held at its floor
     var o = scenario(s);
-    for (var k in RANGES) if (o[k] !== null) o[k] = clip(o[k], RANGES[k][0], RANGES[k][1]);
+    if (o.crude < FLOOR.crude) o.crude = FLOOR.crude;
+    if (o.demand < FLOOR.demand) o.demand = FLOOR.demand;
     return o;
   }
 
@@ -194,7 +206,7 @@ const G = {};
   }
 
   root.StressEngine = { run: run, engine: engine, breakingPoints: breakingPoints, sensitivities: sensitivities, scenario: scenario,
-                        clipScenario: clipScenario, RANGES: RANGES, LABELS: LABELS, usdinrFromRupee: usdinrFromRupee,
+                        clipScenario: clipScenario, refused: refused, FLOOR: FLOOR, RANGES: RANGES, LABELS: LABELS, usdinrFromRupee: usdinrFromRupee,
                         rupeeFromUsdinr: rupeeFromUsdinr, withExposure: withExposure, eps: eps, ebitda: ebitda, COVER_FLOOR: COVER_FLOOR };
   })(G);
 

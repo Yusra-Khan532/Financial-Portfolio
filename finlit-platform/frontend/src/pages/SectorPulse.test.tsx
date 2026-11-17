@@ -49,8 +49,12 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
   it("shows the pack's sections in its order, each title once", () => {
     at();
     expect(h2()).toEqual(expect.arrayContaining(["The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted", "Too small for a reading"]));
+<<<<<<< HEAD
     // task #192 (SECTOR-PAGES.md 7): 1 Today → 2 The cycle → 3 All by state → 4 Map → 5 Market mood → 6 Momentum × strength → 7 Your industries → 8 Standout stocks → 9 Counted / Too small
     const order = ["Today in one minute", "The cycle industries move through", "All 38 groups, by state", "The market's mood, day by day", "Momentum and strength, side by side", "How your industries are doing", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+=======
+    const order = ["Today in one minute", "The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+>>>>>>> origin/main
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(said()).not.toMatch(ADVICE);
   });

@@ -34,8 +34,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      # Reads package-lock.json only (no install). High and critical findings fail the build.
-      - run: npm audit --audit-level=high
+      # Reads package-lock.json only (no install). High and critical findings fail the build, except an advisory listed in
+      # finlit-platform/frontend/audit-allow.json, and only while it stays in build and test tools and no fixed version is published.
+      - run: node scripts/audit-check.mjs
         working-directory: finlit-platform/frontend
 
   code:

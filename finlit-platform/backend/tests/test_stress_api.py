@@ -52,9 +52,23 @@ def test_covered_quarters_come_from_the_table_without_building_any_pack():
 
 
 # ---------------------------------------------------------------------------------------------------------------- the reader's numbers
-def test_sliders_are_clipped_to_the_specs_ranges_and_the_scenario_becomes_custom():
+def test_the_readers_numbers_have_no_limit_and_the_scenario_becomes_custom():
+    """Task #196 (D1): "The model must accept any value; there is no clamp on the server"; the sliders' ranges are only their drag ranges."""
     sc = R.scenario_from(R.ScenarioIn(crude=900, rate_bp=-9000, demand=-99, cpi=3.0, persistence="permanent"))
-    assert (sc.crude, sc.rate_bp, sc.demand, sc.cpi, sc.persistence, sc.name) == (300.0, -500.0, -60.0, 3.0, "permanent", "Custom")
+    assert (sc.crude, sc.rate_bp, sc.demand, sc.cpi, sc.persistence, sc.name) == (900.0, -9000.0, -99.0, 3.0, "permanent", "Custom")
+    assert R.scenario_from(R.ScenarioIn(crude=-100, demand=-100)).crude == -100.0              # all the way down is possible; below it is not
+
+
+def test_only_impossible_values_are_refused():
+    import pytest
+    from fastapi import HTTPException
+    for body, why in ((R.ScenarioIn(crude=-100.5), "Crude cannot fall by more than 100%."), (R.ScenarioIn(demand=-150), "Demand cannot fall by more than 100%."),
+                      (R.ScenarioIn(usdinr=-100), "A dollar cannot cost zero rupees or fewer.")):
+        with pytest.raises(HTTPException) as e:
+            R.scenario_from(body)
+        assert e.value.status_code == 422 and why in str(e.value.detail)
+    with pytest.raises(HTTPException):
+        R.scenario_from(R.ScenarioIn(crude=float("inf")))
     assert R.scenario_from(R.ScenarioIn(persistence="forever")).persistence == "one_year"
     base = S.PRESETS["oil"]
     assert R.scenario_from(R.ScenarioIn(rate_bp=25), base).crude == base.crude          # untouched shocks keep the preset's value

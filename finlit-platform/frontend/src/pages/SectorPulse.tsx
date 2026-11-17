@@ -4,8 +4,12 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
+<<<<<<< HEAD
 import { groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
+=======
+import { groupsSplit } from "../lib/pulsePack";
+>>>>>>> origin/main
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";

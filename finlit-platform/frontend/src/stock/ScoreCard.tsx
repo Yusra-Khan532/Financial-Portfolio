@@ -1,5 +1,5 @@
 // The left half of the stock page's first dashboard: the FinLit IQ. Compact by default (header row, dial + the read, one row of five
-// pillar tiles, three one-line insights, a footer); `expanded` shows the full read, and ScoreDetail adds the insight cards and the pillar notes.
+// pillar tiles, three one-line insights, a footer); (task #216: the "Show full breakdown" panel is gone from the report).
 // Plan gating is unchanged: Hero wraps this in the Silver Gate. The right half (FinLit Prism) uses the same row grid, see PrismCompare.tsx.
 import { useState } from "react";
 import { Icon } from "../lib/icons";
@@ -17,7 +17,7 @@ export const SCORE_TICKS = [45, 62, 78];
 const bandStyle = (v: number | null | undefined) => (scoreBand(v) === "na" ? undefined : ({ "--tc": bandInk(scoreBand(v)) } as React.CSSProperties));
 const toneOf = (key: string | undefined, score: number | null): Tone => score == null ? "na" : key === "strong" ? "strong" : key === "healthy" ? "healthy" : key === "mixed" ? "mixed" : "weak";
 
-export function ScoreCard({ s, ratios, jump, two, expanded }: { s: Summary; ratios?: Ratios; jump: (id: string) => void; two: boolean; expanded: boolean }) {
+export function ScoreCard({ s, ratios, jump, two }: { s: Summary; ratios?: Ratios; jump: (id: string) => void; two: boolean }) {
   const { has, plan } = useUI();
   const hist = useScoreHistory(s.profile.symbol, has("silver") && s.score.overall != null);
   const chg = scoreChange(hist.data?.points);
@@ -45,7 +45,7 @@ export function ScoreCard({ s, ratios, jump, two, expanded }: { s: Summary; rati
             <span className={"dk-st big " + bandTone} style={bandStyle(s.score.overall)}>{s.score.overall == null ? "Not scored yet" : s.score.band.label}</span>
             {chg && <span className={"dk-delta " + (chg.delta > 0 ? "up" : chg.delta < 0 ? "down" : "")} title={`Compared with ${dateIN(chg.since)}`}>{chg.delta > 0 ? "▲ +" : chg.delta < 0 ? "▼ −" : "● "}{Math.abs(chg.delta)} points since {dateIN(chg.since, { day: "numeric", month: "short" })}</span>}
           </div>
-          <p className={"dk-thesis" + (expanded ? " full" : "")}>{thesis}</p>
+          <p className="dk-thesis">{thesis}</p>
         </div>
       </div>
       <div className="dk-tiles" style={{ "--n": s.score.pillars.length } as React.CSSProperties} role="group" aria-label="Five pillars">
@@ -67,7 +67,7 @@ export function ScoreCard({ s, ratios, jump, two, expanded }: { s: Summary; rati
         )}
       </div></div>
       <div className="dk-notes dk-know1">
-        <div className="dk-pc-h"><Icon name="spark" /><span>What stands out</span><a href="#method" onClick={(e) => { e.preventDefault(); jump("method"); }} aria-label="See all pros and cons">See all</a></div>
+        <div className="dk-pc-h"><Icon name="spark" /><span>What stands out</span><a href="#notes" onClick={(e) => { e.preventDefault(); jump("notes"); }} aria-label="See every strength and watch-out in section 03">See all</a></div>
         {know.length ? <ul>{know.map((n) => <li key={n.key} className={n.tone} title={`${n.title}. ${n.text}`}><Icon name={n.tone === "good" ? "check" : "alert"} /><b>{n.title}</b><span>{n.text}</span></li>)}</ul> : <p className="dk-none">Nothing stands out yet.</p>}
       </div>
       <details className="dk-more">
@@ -75,7 +75,7 @@ export function ScoreCard({ s, ratios, jump, two, expanded }: { s: Summary; rati
         <div className="dk-foot">
           <span className="dk-chip dk-live dk-fchip" title={chipTitle}><span className="dk-m">Model </span>{s.score.model} · {s.dataQuality.fundamentalsAsOf} · {updated}</span>
           <span className="dk-cap"><span className="dk-cap-t">Average of five pillars · select a ring segment or a pillar</span> <ChartHelp id="score-dial" /><ChartHelp id="score-pillars" /></span>
-          <a className="dk-link" href="#method" onClick={(e) => { e.preventDefault(); jump("method"); }}>Pros &amp; cons →</a>
+          <a className="dk-link" href="#notes" onClick={(e) => { e.preventDefault(); jump("notes"); }}>Strengths &amp; watch-outs →</a>
           {plan === "gold" && <a className="dk-link" href="#prism" title="This score is the FinLit IQ. Gold's advanced model, FinLit Prism, rates the company separately." onClick={(e) => { e.preventDefault(); jump("prism"); }}>Advanced model: FinLit Prism →</a>}
         </div>
       </details>
@@ -84,32 +84,3 @@ export function ScoreCard({ s, ratios, jump, two, expanded }: { s: Summary; rati
   );
 }
 
-/** The left half of "Show full breakdown": the three insights in full, and what each pillar rests on. */
-export function ScoreDetail({ s, ratios }: { s: Summary; ratios?: Ratios }) {
-  const byKey = Object.fromEntries((ratios?.score.pillars || []).map((x) => [x.key, x]));
-  const know = [...s.strengths.slice(0, 2).map((n) => ({ ...n, tone: "good" as const })), ...s.watchouts.slice(0, 1).map((n) => ({ ...n, tone: "bad" as const }))];
-  return (
-    <section className="report dk-card dk-detail" aria-label="FinLit IQ: full breakdown">
-      <h3 className="dk-dh"><span className="eyebrow">FinLit IQ</span>What stands out, and what each pillar rests on</h3>
-      {know.length > 0 && <div className="know dk-know">
-        {know.map((n) => (
-          <div key={n.key} style={{ "--k": n.tone === "good" ? "var(--p-quality)" : "var(--p-tech)" } as React.CSSProperties}>
-            <div className="kt"><Icon name={n.tone === "good" ? "check" : "alert"} />{n.title}</div><p>{n.text}</p>
-          </div>
-        ))}
-      </div>}
-      <ul className="dk-plist">
-        {s.score.pillars.map((pl) => {
-          const ev = pl.score == null && pl.reason ? pl.reason : (byKey[pl.key]?.inputs || []).filter((x) => x.value != null).slice(0, 3).map((x) => `${x.label} ${num(x.value)}`).join(" · ");
-          return (
-            <li key={pl.key} style={{ "--pc": `var(${PILLAR_COLOR[pl.key]})` } as React.CSSProperties}>
-              <span className="pt-ic" aria-hidden="true"><Icon name={PILLAR_ICON[pl.key]} /></span>
-              <b>{pl.label}</b><span className="dk-pn">{pl.score ?? "—"}</span><span className={"dk-st " + toneOf(pl.band.key, pl.score)}>{pl.score == null ? "No data" : pl.band.label}</span>
-              <span className="dk-pe">{ev || "Select this pillar above to see its inputs."}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}

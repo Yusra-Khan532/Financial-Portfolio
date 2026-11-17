@@ -19,6 +19,7 @@ import { LABEL, headline, industryCards, ordinal, peerCards, priceCards, riskCar
 import "../../styles/sectors-pack.css";
 import "../../styles/industry-pack.css";
 import "./stands.css";
+import { SectionHead } from "../Sections";
 
 type Tab = "industry" | "peers" | "chart" | "risk";
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
@@ -48,11 +49,10 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
     ["peers", "Against peers", lead ? `${lead.peerGroup.ranked} ${lead.peerGroup.short} companies, and what the leader did` : "Similar companies, and what the leader did"],
     ["chart", "Price chart", "12 months, trends and the 1-year high"], ["risk", "Risk", "How risky the share is, and why"]];
   return (
-    <section className="block sp ws" id="sector" aria-labelledby="ws-h" data-testid="where-stands">
+    <section className="block sp ws" aria-label={`Where ${short1} stands`} data-testid="where-stands">
+      {/* task #216: numbered 14 with the report's own section heading (number, "Sector, peers and risk", Gold, title, one line) */}
+      <SectionHead id="sector" no="14 · Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers, its own price and its risk: one question per tab." color="--gold" />
       <div className="sp-sec ws-head">
-        <p className="ws-eye">Sector, peers and risk</p>
-        <h2 id="ws-h">Where {short1} stands</h2>
-        <p className="sp-sub">Its industry, its peers, its own price and its risk: one question per tab.</p>
         {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
         {h?.recent && <p className="sp-note">{h.recent}</p>}
         <div className="ws-strip">

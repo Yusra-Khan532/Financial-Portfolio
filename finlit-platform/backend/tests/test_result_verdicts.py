@@ -99,3 +99,20 @@ def test_task_192_no_broad_group_label_and_the_stored_classification_places_a_co
     rv.add_verdicts(rows)
     assert not any(str(r["industry"] or "").endswith("(broad group)") for r in rows)
     assert [x["name"] for x in rv.industries(rows)] == []                                  # a labelled higher level is never listed as an industry
+
+
+def test_task_194_one_industry_is_one_row_whatever_the_commas(monkeypatch):
+    """Latest results listed "Paper Forest & Jute Products" (24 companies) and "Paper, Forest & Jute Products" (33) as two groups: Sector Pulse's file writes NSE's
+    names without commas, the stored classification with them. With no Sector Pulse group for the industry, both now read as NSE's spelling, and count as one."""
+    monkeypatch.setattr(rv, "_classes", lambda: {"PAPER1": ("Paper Forest & Jute Products", "Forest Materials")})
+    monkeypatch.setattr(rv, "_sector_groups", lambda: ({}, {}))
+    stored = {"macro_sector": "Commodities", "sector": "Forest Materials", "industry": "Paper, Forest & Jute Products", "basic_industry": None}
+    assert rv.industry_of("PAPER1", None)[0] == "Paper, Forest & Jute Products"
+    assert rv.industry_of("PAPER2", None, stored)[0] == "Paper, Forest & Jute Products"
+    rows = [row(f"P{i}", None, 10.0, 10.0, 0.0) for i in range(6)]
+    monkeypatch.setattr(rv, "_classes", lambda: {**{f"P{i}": ("Paper Forest & Jute Products", "Forest Materials") for i in range(3)}})
+    classes = {f"P{i}": stored for i in range(3, 6)}
+    rv.add_verdicts(rows, classes)
+    names = [x["name"] for x in rv.industries(rows)]
+    assert names == ["Paper, Forest & Jute Products"]
+    assert rv.nse_spelling("Something else") == "Something else"

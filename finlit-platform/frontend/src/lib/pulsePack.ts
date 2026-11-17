@@ -101,7 +101,8 @@ export function statesAt(h: SectorHistory | undefined, back: number): Record<Sta
 
 // ------------------------------------------------------------------------------------------------ "Today in one minute"
 /** A chip in an opened dashboard card (task #135): a company that opens its report, with an optional figure (its % move or profit change). */
-export type CardChip = { symbol: string; label: string; note?: string };
+/** `to`: where the chip opens (default: the company report of `symbol`); e.g. an industry chip opens that industry's results (task #194). */
+export type CardChip = { symbol: string; label: string; note?: string; to?: string };
 /** A labelled group of chips ("Lead · 16" in green, "Lag · 11" in red). */
 export type CardGroup = { label: string; tone?: "up" | "down"; chips: CardChip[] };
 /** `more`: a list cut in the title or text, where the token {more} stands; the page shows "+N more ▾", which opens it in place (task #192, SECTOR-PAGES.md 6). */
@@ -135,8 +136,12 @@ export function todayCards(rows: GroupRow[]): Card[] {
   if (bounce.length) {
     const crash = by("crash").length, names = bounce.slice(0, 3).map((r) => short(r.name));
     out.push({ kind: "good", title: `${plural(bounce.length, "group is", "groups are")} bouncing back`,
+<<<<<<< HEAD
       more: bounce.length > 3 ? bounce.slice(3).map((r) => short(r.name)) : undefined,
       text: `${bounce.length > 3 ? `${names.join(", ")} {more}` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
+=======
+      text: `${bounce.length > 3 ? `${names.join(", ")} and ${bounce.length - 3} more` : list(names)}: most of their stocks turned up together within days.${crash ? ` ${crash} of them bounced after a crash.` : ""}` });
+>>>>>>> origin/main
   }
   const rise = by("rising");
   out.push(rise.length
