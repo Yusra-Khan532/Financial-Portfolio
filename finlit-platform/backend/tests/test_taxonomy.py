@@ -156,3 +156,16 @@ async def test_peer_rows_name_nse_industry_and_basic_industry_not_the_mixed_sect
     [row] = await store.peer_rows(["RELIANCE"])
     assert row["industry"] == "Petroleum Products" and row["basic_industry"] == "Refineries & Marketing"
     assert "sector" not in row
+
+
+async def test_many_companies_at_once_for_a_watchlist_or_portfolio(ingested):  # noqa: F811
+    store = ingested
+    await store.classify_all(force=True)
+    app = create_app(make_settings(), store=store)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api:
+            r = await api.get("/api/taxonomy/companies", params={"symbols": "reliance,NOSUCHCO,RELIANCE,bad code!"})
+            assert r.status_code == 200
+            got = r.json()["companies"]
+            assert list(got) == ["RELIANCE"] and got["RELIANCE"]["industry"] == "Petroleum Products"   # unknown and malformed symbols left out, duplicates once
+            assert (await api.get("/api/taxonomy/companies")).json() == {"companies": {}}

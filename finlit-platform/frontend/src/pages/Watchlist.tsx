@@ -30,6 +30,7 @@ import {
 import { saveFile } from "../stock/derive";
 import "../styles/sectors-pack.css";
 import "../styles/watchlist-pack.css";
+import { useClassifications } from "../lib/taxonomy";
 
 type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
 type Rich = Item & { row: Row };
@@ -104,11 +105,12 @@ export function WatchlistPage() {
   const leads = leadQ.data && leadQ.data.available ? leadQ.data.rows : null;
   const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
+  const cls = useClassifications(list.symbols).data;   // NSE's industry of each stock (task #192): one request for the whole list
 
   const items: Rich[] = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).map((r) => {
     const v = rowView(model, r);
-    return { symbol: r.symbol, name: r.name || r.symbol, sector: r.sector || null, marketCap: r.market_cap ?? null, change: r.change_pct ?? null, score: v.score, word: v.word, lead: leads?.[r.symbol] ?? null, row: r };
-  }), [list, bySym, model, leads]);
+    return { symbol: r.symbol, name: r.name || r.symbol, industry: cls?.[r.symbol]?.industry ?? null, marketCap: r.market_cap ?? null, change: r.change_pct ?? null, score: v.score, word: v.word, lead: leads?.[r.symbol] ?? null, row: r };
+  }), [list, bySym, model, leads, cls]);
   const sorted = useMemo(() => [...items].sort((a, b) => {
     const A = sortValue(sort, a, model), B = sortValue(sort, b, model);
     if (A == null && B == null) return a.symbol.localeCompare(b.symbol); if (A == null) return 1; if (B == null) return -1;
@@ -126,7 +128,7 @@ export function WatchlistPage() {
     if (!silver) { toast("Downloads come with the Silver plan."); nav("/plans"); return; }
     const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
     const head = ["Symbol", "Company", "Industry", "Price", "Change %", "P/E", "ROE %", "Size", "Market cap (Cr)", scName, "Against peers", "Peer rank", "Target", "Note"];
-    const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.sector || "", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", i.score ?? "", p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });
+    const body = sorted.map((i) => { const p = peerCell(i.lead), m = st.meta[i.symbol]; return [i.symbol, i.name, i.industry || "Not classified", i.row.price ?? "", i.change ?? "", i.row.pe ?? "", i.row.roe ?? "", sizeWord(i.marketCap) ?? "", i.marketCap ?? "", i.score ?? "", p.chip, p.line, m?.target ?? "", m?.note ?? ""].map((v) => (typeof v === "string" ? esc(v) : v)).join(","); });
     saveFile("FinLit-watchlist.csv", [head.map(esc).join(","), ...body].join("\n"), "text/csv;charset=utf-8"); toast("Saved FinLit-watchlist.csv.");
   };
   const toggleSel = (s: string) => setSel((x) => (x.includes(s) ? x.filter((y) => y !== s) : x.length >= (gold ? 4 : 2) ? (toast(gold ? "Compare up to 4 companies." : "Silver compares 2 companies. Gold compares up to 4."), x) : [...x, s]));
@@ -212,7 +214,7 @@ export function WatchlistPage() {
                                 <Logo src={lg?.logo} name={i.name} kind="stock" size={30} />
                                 <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b>{i.symbol}</b><small>{i.name}</small></Link>
                               </div></td>
-                              <td className="wp-ind">{i.sector || "—"}</td>
+                              <td className="wp-ind">{i.industry || <span className="faint" title="This company is not in NSE's industry lists">Not classified</span>}</td>
                               <td className="r wp-px"><b>{fmt(METRICS.price, r.price)}</b>{i.change != null && <span className={i.change >= 0 ? "wp-up" : "wp-dn"}>{(i.change > 0 ? "+" : i.change < 0 ? "−" : "") + nf(Math.abs(i.change), 2)}%</span>}</td>
                               <td className="r">{r.pe != null ? nf(r.pe, 1) + "×" : "—"}</td>
                               <td className="r">{r.roe != null ? nf(r.roe, 1) + "%" : "—"}</td>

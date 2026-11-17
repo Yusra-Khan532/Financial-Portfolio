@@ -463,7 +463,11 @@ async def _build(store, e: date, decls: Dict[str, Decl], today: date) -> Entry:
         return op_growth(h["ends"], h["op"], e, m.get("q_operating_profit"))
     rows = [{**build_row(s, d, base.get(s, {"symbol": s}), metrics.get(s, {}), e, today, cap_of(s), sorted(members.get(s, [])), growth(s),
                          {"used": s in used_light, "basis": (used_light.get(s) or {}).get("basis"), "asked": s in asked, **asked.get(s, {})}), **quote_of(s)} for s, d in decls.items()]
-    add_verdicts(rows)   # each company against the typical company of its NSE industry this quarter (final pages pack, boards 10 and 11)
+    try:   # NSE's levels of these companies (task #192, finlit/taxonomy.py): a company missing from NSE's quote-page list is still placed by its stored classification
+        classes = await store.classifications([r["symbol"] for r in rows])
+    except Exception:   # nosec B110 - the rows' own field is placed by the same rules instead
+        classes = {}
+    add_verdicts(rows, classes)   # each company against the typical company of its NSE industry this quarter (final pages pack, boards 10 and 11)
     counts: Dict[str, int] = {}
     for r in rows:
         if r["sector"]:
