@@ -499,6 +499,36 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         body["version"] = os.getenv("APP_VERSION") or "unknown"  # commit the image was built from (Dockerfile ARG GIT_COMMIT)
         return JSONResponse(body, status_code=200 if ok else 503, headers={"Cache-Control": "no-store"})
 
+    # ---- NSE's four classification levels (task #192, finlit/taxonomy.py): public, the same for every visitor
+    @app.get("/api/taxonomy")
+    async def taxonomy_index():
+        from . import taxonomy
+        out = taxonomy.levels_index()
+        try:
+            counts = await app.state.store.classification_counts()
+        except Exception:
+            counts = {}
+        plural = {"macro_sector": "macro_sectors", "sector": "sectors", "industry": "industries", "basic_industry": "basic_industries"}
+        for level, name in plural.items():
+            per = counts.get(level) or {}
+            for row in out[name]:
+                row["companies"] = per.get(row[level], 0)
+            out.setdefault("notClassified", {})[level] = per.get("", 0)
+        out["companies"] = sum((counts.get("macro_sector") or {}).values())
+        out["counts"] = {name: len(out[name]) for name in plural.values()}
+        return JSONResponse(out, headers={"Cache-Control": "public, max-age=600"})
+
+    @app.get("/api/taxonomy/company/{symbol}")
+    async def taxonomy_company(symbol: str):
+        sym = symbol.strip().upper()
+        if not SYMBOL.match(sym):
+            return JSONResponse({"detail": "Unknown symbol"}, status_code=404)
+        row = await app.state.store.classification(sym)
+        if not row:
+            return JSONResponse({"detail": "Not classified yet", "symbol": sym}, status_code=404, headers={"Cache-Control": "no-store"})
+        row["updated_at"] = row["updated_at"].isoformat() if row.get("updated_at") else None
+        return JSONResponse(row, headers={"Cache-Control": "public, max-age=600"})
+
     @app.get("/api/stocks/search-index")
     async def search_index(request: Request):
         started = time.perf_counter()

@@ -1,0 +1,1982 @@
+{
+ "source": "https://www.niftyindices.com/docs/default-source/default-document-library/industry-classification/nse-indices_industry-classification-structure-2023-07.pdf",
+ "edition": "July 2023",
+ "counts": {
+  "macro_sector": 12,
+  "sector": 22,
+  "industry": 59,
+  "basic_industry": 197
+ },
+ "basic_industries": [
+  {
+   "basic_industry_code": "IN010101001",
+   "basic_industry": "Commodity Chemicals",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101002",
+   "basic_industry": "Specialty Chemicals",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101003",
+   "basic_industry": "Carbon Black",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101004",
+   "basic_industry": "Dyes And Pigments",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101005",
+   "basic_industry": "Explosives",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101006",
+   "basic_industry": "Petrochemicals",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101007",
+   "basic_industry": "Printing Inks",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101008",
+   "basic_industry": "Trading - Chemicals",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010101009",
+   "basic_industry": "Industrial Gases",
+   "industry_code": "IN010101",
+   "industry": "Chemicals & Petrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010102001",
+   "basic_industry": "Fertilizers",
+   "industry_code": "IN010102",
+   "industry": "Fertilizers & Agrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010102002",
+   "basic_industry": "Pesticides & Agrochemicals",
+   "industry_code": "IN010102",
+   "industry": "Fertilizers & Agrochemicals",
+   "sector_code": "IN0101",
+   "sector": "Chemicals",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010203001",
+   "basic_industry": "Cement & Cement Products",
+   "industry_code": "IN010203",
+   "industry": "Cement & Cement Products",
+   "sector_code": "IN0102",
+   "sector": "Construction Materials",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010204001",
+   "basic_industry": "Other Construction Materials",
+   "industry_code": "IN010204",
+   "industry": "Other Construction Materials",
+   "sector_code": "IN0102",
+   "sector": "Construction Materials",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010301001",
+   "basic_industry": "Ferro & Silica Manganese",
+   "industry_code": "IN010301",
+   "industry": "Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010301002",
+   "basic_industry": "Pig Iron",
+   "industry_code": "IN010301",
+   "industry": "Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010301003",
+   "basic_industry": "Sponge Iron",
+   "industry_code": "IN010301",
+   "industry": "Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010301004",
+   "basic_industry": "Iron & Steel",
+   "industry_code": "IN010301",
+   "industry": "Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010302001",
+   "basic_industry": "Aluminium",
+   "industry_code": "IN010302",
+   "industry": "Non - Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010302002",
+   "basic_industry": "Copper",
+   "industry_code": "IN010302",
+   "industry": "Non - Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010302003",
+   "basic_industry": "Zinc",
+   "industry_code": "IN010302",
+   "industry": "Non - Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010302004",
+   "basic_industry": "Precious Metals",
+   "industry_code": "IN010302",
+   "industry": "Non - Ferrous Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010303001",
+   "basic_industry": "Diversified Metals",
+   "industry_code": "IN010303",
+   "industry": "Diversified Metals",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010304001",
+   "basic_industry": "Industrial Minerals",
+   "industry_code": "IN010304",
+   "industry": "Minerals & Mining",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010305001",
+   "basic_industry": "Trading - Metals",
+   "industry_code": "IN010305",
+   "industry": "Metals & Minerals Trading",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010305002",
+   "basic_industry": "Trading - Minerals",
+   "industry_code": "IN010305",
+   "industry": "Metals & Minerals Trading",
+   "sector_code": "IN0103",
+   "sector": "Metals & Mining",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010401001",
+   "basic_industry": "Paper & Paper Products",
+   "industry_code": "IN010401",
+   "industry": "Paper, Forest & Jute Products",
+   "sector_code": "IN0104",
+   "sector": "Forest Materials",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010401002",
+   "basic_industry": "Forest Products",
+   "industry_code": "IN010401",
+   "industry": "Paper, Forest & Jute Products",
+   "sector_code": "IN0104",
+   "sector": "Forest Materials",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN010401003",
+   "basic_industry": "Jute & Jute Products",
+   "industry_code": "IN010401",
+   "industry": "Paper, Forest & Jute Products",
+   "sector_code": "IN0104",
+   "sector": "Forest Materials",
+   "macro_sector_code": "IN01",
+   "macro_sector": "Commodities"
+  },
+  {
+   "basic_industry_code": "IN020101001",
+   "basic_industry": "Passenger Cars & Utility Vehicles",
+   "industry_code": "IN020101",
+   "industry": "Automobiles",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020101002",
+   "basic_industry": "2/3 Wheelers",
+   "industry_code": "IN020101",
+   "industry": "Automobiles",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020101004",
+   "basic_industry": "Auto Dealer",
+   "industry_code": "IN020101",
+   "industry": "Automobiles",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020102001",
+   "basic_industry": "Auto Components & Equipments",
+   "industry_code": "IN020102",
+   "industry": "Auto Components",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020102006",
+   "basic_industry": "Tyres & Rubber Products",
+   "industry_code": "IN020102",
+   "industry": "Auto Components",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020102007",
+   "basic_industry": "Trading - Auto Components",
+   "industry_code": "IN020102",
+   "industry": "Auto Components",
+   "sector_code": "IN0201",
+   "sector": "Automobile and Auto Components",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201002",
+   "basic_industry": "Cycles",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201003",
+   "basic_industry": "Consumer Electronics",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201005",
+   "basic_industry": "Gems, Jewellery And Watches",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201006",
+   "basic_industry": "Glass - Consumer",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201007",
+   "basic_industry": "Household Appliances",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201008",
+   "basic_industry": "Houseware",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201009",
+   "basic_industry": "Leather And Leather Products",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201010",
+   "basic_industry": "Leisure Products",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201011",
+   "basic_industry": "Plastic Products - Consumer",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201012",
+   "basic_industry": "Plywood Boards/ Laminates",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201013",
+   "basic_industry": "Sanitary Ware",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201015",
+   "basic_industry": "Paints",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201016",
+   "basic_industry": "Diversified consumer products",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201017",
+   "basic_industry": "Footwear",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201018",
+   "basic_industry": "Furniture, Home Furnishing",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201019",
+   "basic_industry": "Ceramics",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020201020",
+   "basic_industry": "Granites & Marbles",
+   "industry_code": "IN020201",
+   "industry": "Consumer Durables",
+   "sector_code": "IN0202",
+   "sector": "Consumer Durables",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020301001",
+   "basic_industry": "Garments & Apparels",
+   "industry_code": "IN020301",
+   "industry": "Textiles & Apparels",
+   "sector_code": "IN0203",
+   "sector": "Textiles",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020301002",
+   "basic_industry": "Other Textile Products",
+   "industry_code": "IN020301",
+   "industry": "Textiles & Apparels",
+   "sector_code": "IN0203",
+   "sector": "Textiles",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020301003",
+   "basic_industry": "Trading - Textile Products",
+   "industry_code": "IN020301",
+   "industry": "Textiles & Apparels",
+   "sector_code": "IN0203",
+   "sector": "Textiles",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020401001",
+   "basic_industry": "Advertising & Media Agencies",
+   "industry_code": "IN020401",
+   "industry": "Media",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020401002",
+   "basic_industry": "Electronic Media",
+   "industry_code": "IN020401",
+   "industry": "Media",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020401003",
+   "basic_industry": "Web based media and service",
+   "industry_code": "IN020401",
+   "industry": "Media",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020401004",
+   "basic_industry": "Print Media",
+   "industry_code": "IN020401",
+   "industry": "Media",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020402001",
+   "basic_industry": "Film Production, Distribution & Exhibition",
+   "industry_code": "IN020402",
+   "industry": "Entertainment",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020402002",
+   "basic_industry": "Digital Entertainment",
+   "industry_code": "IN020402",
+   "industry": "Entertainment",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020402003",
+   "basic_industry": "Media & Entertainment",
+   "industry_code": "IN020402",
+   "industry": "Entertainment",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020402004",
+   "basic_industry": "TV Broadcasting & Software Production",
+   "industry_code": "IN020402",
+   "industry": "Entertainment",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020403001",
+   "basic_industry": "Printing & Publication",
+   "industry_code": "IN020403",
+   "industry": "Printing & Publication",
+   "sector_code": "IN0204",
+   "sector": "Media, Entertainment & Publication",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020501001",
+   "basic_industry": "Residential, Commercial Projects",
+   "industry_code": "IN020501",
+   "industry": "Realty",
+   "sector_code": "IN0205",
+   "sector": "Realty",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020501002",
+   "basic_industry": "Real Estate related services",
+   "industry_code": "IN020501",
+   "industry": "Realty",
+   "sector_code": "IN0205",
+   "sector": "Realty",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020501003",
+   "basic_industry": "Real Estate Investment Trusts (REITs)",
+   "industry_code": "IN020501",
+   "industry": "Realty",
+   "sector_code": "IN0205",
+   "sector": "Realty",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020601001",
+   "basic_industry": "Hotels & Resorts",
+   "industry_code": "IN020601",
+   "industry": "Leisure Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020601002",
+   "basic_industry": "Restaurants",
+   "industry_code": "IN020601",
+   "industry": "Leisure Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020601003",
+   "basic_industry": "Amusement Parks/ Other Recreation",
+   "industry_code": "IN020601",
+   "industry": "Leisure Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020601004",
+   "basic_industry": "Wellness",
+   "industry_code": "IN020601",
+   "industry": "Leisure Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020601005",
+   "basic_industry": "Tour, Travel Related Services",
+   "industry_code": "IN020601",
+   "industry": "Leisure Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020602001",
+   "basic_industry": "Education",
+   "industry_code": "IN020602",
+   "industry": "Other Consumer Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020602002",
+   "basic_industry": "E-Learning",
+   "industry_code": "IN020602",
+   "industry": "Other Consumer Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020602003",
+   "basic_industry": "Food Storage Facilities",
+   "industry_code": "IN020602",
+   "industry": "Other Consumer Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020602004",
+   "basic_industry": "Other Consumer Services",
+   "industry_code": "IN020602",
+   "industry": "Other Consumer Services",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603001",
+   "basic_industry": "Speciality Retail",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603002",
+   "basic_industry": "Pharmacy Retail",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603003",
+   "basic_industry": "Diversified Retail",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603004",
+   "basic_industry": "E-Retail/ E- Commerce",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603005",
+   "basic_industry": "Internet & Catalogue Retail",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN020603006",
+   "basic_industry": "Distributors",
+   "industry_code": "IN020603",
+   "industry": "Retailing",
+   "sector_code": "IN0206",
+   "sector": "Consumer Services",
+   "macro_sector_code": "IN02",
+   "macro_sector": "Consumer Discretionary"
+  },
+  {
+   "basic_industry_code": "IN030101001",
+   "basic_industry": "Gas Transmission/Marketing",
+   "industry_code": "IN030101",
+   "industry": "Gas",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030101003",
+   "basic_industry": "LPG/CNG/PNG/LN G Supplier",
+   "industry_code": "IN030101",
+   "industry": "Gas",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030101004",
+   "basic_industry": "Trading - Gas",
+   "industry_code": "IN030101",
+   "industry": "Gas",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030102001",
+   "basic_industry": "Oil Exploration & Production",
+   "industry_code": "IN030102",
+   "industry": "Oil",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030102002",
+   "basic_industry": "Offshore Support Solution Drilling",
+   "industry_code": "IN030102",
+   "industry": "Oil",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030102003",
+   "basic_industry": "Oil Storage & Transportation",
+   "industry_code": "IN030102",
+   "industry": "Oil",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030102004",
+   "basic_industry": "Oil Equipment & Services",
+   "industry_code": "IN030102",
+   "industry": "Oil",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030103001",
+   "basic_industry": "Refineries & Marketing",
+   "industry_code": "IN030103",
+   "industry": "Petroleum Products",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030103002",
+   "basic_industry": "Lubricants",
+   "industry_code": "IN030103",
+   "industry": "Petroleum Products",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030104001",
+   "basic_industry": "Coal",
+   "industry_code": "IN030104",
+   "industry": "Consumable Fuels",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN030104002",
+   "basic_industry": "Trading - Coal",
+   "industry_code": "IN030104",
+   "industry": "Consumable Fuels",
+   "sector_code": "IN0301",
+   "sector": "Oil, Gas & Consumable Fuels",
+   "macro_sector_code": "IN03",
+   "macro_sector": "Energy"
+  },
+  {
+   "basic_industry_code": "IN040101001",
+   "basic_industry": "Edible Oil",
+   "industry_code": "IN040101",
+   "industry": "Agricultural Food & other Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040101002",
+   "basic_industry": "Sugar",
+   "industry_code": "IN040101",
+   "industry": "Agricultural Food & other Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040101003",
+   "basic_industry": "Tea & Coffee",
+   "industry_code": "IN040101",
+   "industry": "Agricultural Food & other Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040101004",
+   "basic_industry": "Other Agricultural Products",
+   "industry_code": "IN040101",
+   "industry": "Agricultural Food & other Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040102001",
+   "basic_industry": "Breweries & Distilleries",
+   "industry_code": "IN040102",
+   "industry": "Beverages",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040102002",
+   "basic_industry": "Other Beverages",
+   "industry_code": "IN040102",
+   "industry": "Beverages",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040103001",
+   "basic_industry": "Cigarettes & Tobacco Products",
+   "industry_code": "IN040103",
+   "industry": "Cigarettes & Tobacco Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104001",
+   "basic_industry": "Animal Feed",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104002",
+   "basic_industry": "Dairy Products",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104003",
+   "basic_industry": "Other Food Products",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104004",
+   "basic_industry": "Packaged Foods",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104005",
+   "basic_industry": "Seafood",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040104006",
+   "basic_industry": "Meat Products including Poultry",
+   "industry_code": "IN040104",
+   "industry": "Food Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040105001",
+   "basic_industry": "Personal Care",
+   "industry_code": "IN040105",
+   "industry": "Personal Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040106001",
+   "basic_industry": "Household Products",
+   "industry_code": "IN040106",
+   "industry": "Household Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040106004",
+   "basic_industry": "Stationary",
+   "industry_code": "IN040106",
+   "industry": "Household Products",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN040107001",
+   "basic_industry": "Diversified FMCG",
+   "industry_code": "IN040107",
+   "industry": "Diversified FMCG",
+   "sector_code": "IN0401",
+   "sector": "Fast Moving Consumer Goods",
+   "macro_sector_code": "IN04",
+   "macro_sector": "Fast Moving Consumer Goods"
+  },
+  {
+   "basic_industry_code": "IN050101001",
+   "basic_industry": "Financial Institution",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101002",
+   "basic_industry": "Housing Finance Company",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101003",
+   "basic_industry": "Investment Company",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101004",
+   "basic_industry": "Non Banking Financial Company (NBFC)",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101005",
+   "basic_industry": "Other Financial Services",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101006",
+   "basic_industry": "Holding Company",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101007",
+   "basic_industry": "Microfinance Institutions",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050101008",
+   "basic_industry": "Securitisation",
+   "industry_code": "IN050101",
+   "industry": "Finance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050102001",
+   "basic_industry": "Public Sector Bank",
+   "industry_code": "IN050102",
+   "industry": "Banks",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050102002",
+   "basic_industry": "Private Sector Bank",
+   "industry_code": "IN050102",
+   "industry": "Banks",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050102003",
+   "basic_industry": "Other Bank",
+   "industry_code": "IN050102",
+   "industry": "Banks",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103001",
+   "basic_industry": "Asset Management Company",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103002",
+   "basic_industry": "Depositories, Clearing Houses and Other Intermediaries",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103003",
+   "basic_industry": "Financial Products Distributor",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103004",
+   "basic_industry": "Ratings",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103005",
+   "basic_industry": "Exchange and Data Platform",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103006",
+   "basic_industry": "Stockbroking & Allied",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050103007",
+   "basic_industry": "Other Capital Market related Services",
+   "industry_code": "IN050103",
+   "industry": "Capital Markets",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050104001",
+   "basic_industry": "General Insurance",
+   "industry_code": "IN050104",
+   "industry": "Insurance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050104002",
+   "basic_industry": "Life Insurance",
+   "industry_code": "IN050104",
+   "industry": "Insurance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050104003",
+   "basic_industry": "Other Insurance Companies",
+   "industry_code": "IN050104",
+   "industry": "Insurance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050104004",
+   "basic_industry": "Insurance Distributors",
+   "industry_code": "IN050104",
+   "industry": "Insurance",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN050105001",
+   "basic_industry": "Financial Technology (Fintech)",
+   "industry_code": "IN050105",
+   "industry": "Financial Technology (Fintech)",
+   "sector_code": "IN0501",
+   "sector": "Financial Services",
+   "macro_sector_code": "IN05",
+   "macro_sector": "Financial Services"
+  },
+  {
+   "basic_industry_code": "IN060101001",
+   "basic_industry": "Pharmaceuticals",
+   "industry_code": "IN060101",
+   "industry": "Pharmaceuticals & Biotechnology",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN060101002",
+   "basic_industry": "Biotechnology",
+   "industry_code": "IN060101",
+   "industry": "Pharmaceuticals & Biotechnology",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN060102001",
+   "basic_industry": "Medical Equipment & Supplies",
+   "industry_code": "IN060102",
+   "industry": "Healthcare Equipment & Supplies",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN060103001",
+   "basic_industry": "Hospital",
+   "industry_code": "IN060103",
+   "industry": "Healthcare Services",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN060103002",
+   "basic_industry": "Healthcare Service Provider",
+   "industry_code": "IN060103",
+   "industry": "Healthcare Services",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN060103003",
+   "basic_industry": "Healthcare Research, Analytics & Technology",
+   "industry_code": "IN060103",
+   "industry": "Healthcare Services",
+   "sector_code": "IN0601",
+   "sector": "Healthcare",
+   "macro_sector_code": "IN06",
+   "macro_sector": "Healthcare"
+  },
+  {
+   "basic_industry_code": "IN070101001",
+   "basic_industry": "Civil Construction",
+   "industry_code": "IN070101",
+   "industry": "Construction",
+   "sector_code": "IN0701",
+   "sector": "Construction",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070201001",
+   "basic_industry": "Aerospace & Defense",
+   "industry_code": "IN070201",
+   "industry": "Aerospace & Defense",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070202001",
+   "basic_industry": "Tractors",
+   "industry_code": "IN070202",
+   "industry": "Agricultural, Commercial & Construction Vehicles",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070202002",
+   "basic_industry": "Commercial Vehicles",
+   "industry_code": "IN070202",
+   "industry": "Agricultural, Commercial & Construction Vehicles",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070202003",
+   "basic_industry": "Construction Vehicles",
+   "industry_code": "IN070202",
+   "industry": "Agricultural, Commercial & Construction Vehicles",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070202004",
+   "basic_industry": "Dealers– Commercial Vehicles, Tractors, Construction Vehicles",
+   "industry_code": "IN070202",
+   "industry": "Agricultural, Commercial & Construction Vehicles",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070203001",
+   "basic_industry": "Heavy Electrical Equipment",
+   "industry_code": "IN070203",
+   "industry": "Electrical Equipment",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070203002",
+   "basic_industry": "Other Electrical Equipment",
+   "industry_code": "IN070203",
+   "industry": "Electrical Equipment",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070204005",
+   "basic_industry": "Railway Wagons",
+   "industry_code": "IN070204",
+   "industry": "Industrial Manufacturing",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070204006",
+   "basic_industry": "Ship Building & Allied Services",
+   "industry_code": "IN070204",
+   "industry": "Industrial Manufacturing",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070204008",
+   "basic_industry": "Industrial Products",
+   "industry_code": "IN070204",
+   "industry": "Industrial Manufacturing",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205003",
+   "basic_industry": "Cables - Electricals",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205004",
+   "basic_industry": "Castings & Forgings",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205008",
+   "basic_industry": "Packaging",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205009",
+   "basic_industry": "Plastic Products - Industrial",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205011",
+   "basic_industry": "Rubber",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205012",
+   "basic_industry": "Other Industrial Products",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205013",
+   "basic_industry": "Glass - Industrial",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205014",
+   "basic_industry": "Aluminium, Copper & Zinc Products",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205015",
+   "basic_industry": "Iron & Steel Products",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205016",
+   "basic_industry": "Abrasives & Bearings",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205017",
+   "basic_industry": "Compressors, Pumps & Diesel Engines",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN070205018",
+   "basic_industry": "Electrodes & Refractories",
+   "industry_code": "IN070205",
+   "industry": "Industrial Products",
+   "sector_code": "IN0702",
+   "sector": "Capital Goods",
+   "macro_sector_code": "IN07",
+   "macro_sector": "Industrials"
+  },
+  {
+   "basic_industry_code": "IN080101001",
+   "basic_industry": "Computers - Software & Consulting",
+   "industry_code": "IN080101",
+   "industry": "IT - Software",
+   "sector_code": "IN0801",
+   "sector": "Information Technology",
+   "macro_sector_code": "IN08",
+   "macro_sector": "Information Technology"
+  },
+  {
+   "basic_industry_code": "IN080101002",
+   "basic_industry": "Software Products",
+   "industry_code": "IN080101",
+   "industry": "IT - Software",
+   "sector_code": "IN0801",
+   "sector": "Information Technology",
+   "macro_sector_code": "IN08",
+   "macro_sector": "Information Technology"
+  },
+  {
+   "basic_industry_code": "IN080102001",
+   "basic_industry": "IT Enabled Services",
+   "industry_code": "IN080102",
+   "industry": "IT - Services",
+   "sector_code": "IN0801",
+   "sector": "Information Technology",
+   "macro_sector_code": "IN08",
+   "macro_sector": "Information Technology"
+  },
+  {
+   "basic_industry_code": "IN080103001",
+   "basic_industry": "Computers Hardware & Equipments",
+   "industry_code": "IN080103",
+   "industry": "IT - Hardware",
+   "sector_code": "IN0801",
+   "sector": "Information Technology",
+   "macro_sector_code": "IN08",
+   "macro_sector": "Information Technology"
+  },
+  {
+   "basic_industry_code": "IN090101001",
+   "basic_industry": "Dredging",
+   "industry_code": "IN090101",
+   "industry": "Engineering Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102001",
+   "basic_industry": "Airline",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102002",
+   "basic_industry": "Logistics Solution Provider",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102003",
+   "basic_industry": "Railways",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102004",
+   "basic_industry": "Road Transport",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102005",
+   "basic_industry": "Shipping",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090102006",
+   "basic_industry": "Transport Related Services",
+   "industry_code": "IN090102",
+   "industry": "Transport Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090103001",
+   "basic_industry": "Airport & Airport services",
+   "industry_code": "IN090103",
+   "industry": "Transport Infrastructure",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090103002",
+   "basic_industry": "Port & Port services",
+   "industry_code": "IN090103",
+   "industry": "Transport Infrastructure",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090103004",
+   "basic_industry": "Road Assets–Toll, Annuity, Hybrid- Annuity",
+   "industry_code": "IN090103",
+   "industry": "Transport Infrastructure",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090104001",
+   "basic_industry": "Trading & Distributors",
+   "industry_code": "IN090104",
+   "industry": "Commercial Services & Supplies",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090104002",
+   "basic_industry": "Consulting Services",
+   "industry_code": "IN090104",
+   "industry": "Commercial Services & Supplies",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090104003",
+   "basic_industry": "Data Processing Services",
+   "industry_code": "IN090104",
+   "industry": "Commercial Services & Supplies",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090104004",
+   "basic_industry": "Diversified Commercial Services",
+   "industry_code": "IN090104",
+   "industry": "Commercial Services & Supplies",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090104005",
+   "basic_industry": "Business Process Outsourcing (BPO)/ Knowledge Process Outsourcing (KPO)",
+   "industry_code": "IN090104",
+   "industry": "Commercial Services & Supplies",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090105001",
+   "basic_industry": "Urban Local Bodies",
+   "industry_code": "IN090105",
+   "industry": "Public Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN090105002",
+   "basic_industry": "Development Authority",
+   "industry_code": "IN090105",
+   "industry": "Public Services",
+   "sector_code": "IN0901",
+   "sector": "Services",
+   "macro_sector_code": "IN09",
+   "macro_sector": "Services"
+  },
+  {
+   "basic_industry_code": "IN100101001",
+   "basic_industry": "Telecom - Cellular & Fixed line services",
+   "industry_code": "IN100101",
+   "industry": "Telecom - Services",
+   "sector_code": "IN1001",
+   "sector": "Telecommunication",
+   "macro_sector_code": "IN10",
+   "macro_sector": "Telecommunication"
+  },
+  {
+   "basic_industry_code": "IN100101002",
+   "basic_industry": "Telecom - Infrastructure",
+   "industry_code": "IN100101",
+   "industry": "Telecom - Services",
+   "sector_code": "IN1001",
+   "sector": "Telecommunication",
+   "macro_sector_code": "IN10",
+   "macro_sector": "Telecommunication"
+  },
+  {
+   "basic_industry_code": "IN100101003",
+   "basic_industry": "Other Telecom Services",
+   "industry_code": "IN100101",
+   "industry": "Telecom - Services",
+   "sector_code": "IN1001",
+   "sector": "Telecommunication",
+   "macro_sector_code": "IN10",
+   "macro_sector": "Telecommunication"
+  },
+  {
+   "basic_industry_code": "IN100102001",
+   "basic_industry": "Telecom - Equipment & Accessories",
+   "industry_code": "IN100102",
+   "industry": "Telecom - Equipment & Accessories",
+   "sector_code": "IN1001",
+   "sector": "Telecommunication",
+   "macro_sector_code": "IN10",
+   "macro_sector": "Telecommunication"
+  },
+  {
+   "basic_industry_code": "IN110101002",
+   "basic_industry": "Power Trading",
+   "industry_code": "IN110101",
+   "industry": "Power",
+   "sector_code": "IN1101",
+   "sector": "Power",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110101003",
+   "basic_industry": "Power - Transmission",
+   "industry_code": "IN110101",
+   "industry": "Power",
+   "sector_code": "IN1101",
+   "sector": "Power",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110101004",
+   "basic_industry": "Power Generation",
+   "industry_code": "IN110101",
+   "industry": "Power",
+   "sector_code": "IN1101",
+   "sector": "Power",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110101005",
+   "basic_industry": "Integrated Power Utilities",
+   "industry_code": "IN110101",
+   "industry": "Power",
+   "sector_code": "IN1101",
+   "sector": "Power",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110101006",
+   "basic_industry": "Power Distribution",
+   "industry_code": "IN110101",
+   "industry": "Power",
+   "sector_code": "IN1101",
+   "sector": "Power",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110201001",
+   "basic_industry": "Water Supply & Management",
+   "industry_code": "IN110201",
+   "industry": "Other Utilities",
+   "sector_code": "IN1102",
+   "sector": "Utilities",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110201002",
+   "basic_industry": "Waste Management",
+   "industry_code": "IN110201",
+   "industry": "Other Utilities",
+   "sector_code": "IN1102",
+   "sector": "Utilities",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110201003",
+   "basic_industry": "Emergency Services",
+   "industry_code": "IN110201",
+   "industry": "Other Utilities",
+   "sector_code": "IN1102",
+   "sector": "Utilities",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110201004",
+   "basic_industry": "Multi Utilities",
+   "industry_code": "IN110201",
+   "industry": "Other Utilities",
+   "sector_code": "IN1102",
+   "sector": "Utilities",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN110201005",
+   "basic_industry": "Other Utilities",
+   "industry_code": "IN110201",
+   "industry": "Other Utilities",
+   "sector_code": "IN1102",
+   "sector": "Utilities",
+   "macro_sector_code": "IN11",
+   "macro_sector": "Utilities"
+  },
+  {
+   "basic_industry_code": "IN120101001",
+   "basic_industry": "Diversified",
+   "industry_code": "IN120101",
+   "industry": "Diversified",
+   "sector_code": "IN1201",
+   "sector": "Diversified",
+   "macro_sector_code": "IN12",
+   "macro_sector": "Diversified"
+  }
+ ]
+}

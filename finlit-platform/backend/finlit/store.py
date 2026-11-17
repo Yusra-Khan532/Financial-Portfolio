@@ -159,6 +159,17 @@ def code_version() -> str:
     return os.getenv("APP_VERSION") or "unknown"
 
 
+# Each company's ISIN, the same way the search list finds it: Dhan's NSE instrument (the EQ series first), else its BSE instrument, else the fund
+# disclosure files' ISIN -> symbol list.
+COMPANY_ISIN_SQL = """
+    SELECT c.symbol,
+           COALESCE((SELECT n.isin FROM dhan_instruments n WHERE n.exch = 'NSE' AND n.symbol = c.nse_code AND c.nse_code <> '' AND n.isin IS NOT NULL
+                      ORDER BY (n.series = 'EQ') DESC, n.series LIMIT 1),
+                    (SELECT b.isin FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> '' AND b.isin IS NOT NULL LIMIT 1),
+                    (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin
+    FROM companies c WHERE c.symbol = ANY($1::text[])"""
+
+
 class Store:
     db_tag = ""
 
@@ -232,6 +243,8 @@ class Store:
             )
             if score_row:
                 await self._upsert_score(conn, {**score_row, "statement": statement})
+                prof = (sections.get("summary") or {}).get("profile") or {}
+                await self._classify(conn, [(symbol, prof.get("subIndustry"), prof.get("industry"), prof.get("sector"), prof.get("macroSector"))])
             if daily and daily.get("t"):
                 await self._upsert_prices(conn, symbol, daily)
             if sections.get("events"):
@@ -241,6 +254,73 @@ class Store:
         await self._cache(symbol, statement, encoded, etags)
         await self._cache_inputs(symbol, statement, sections)
         return etags
+
+    # ------------------------------------------------------------ NSE classification (task #192, finlit/taxonomy.py)
+
+    async def _classify(self, conn, items: List[tuple], only_new: bool = False) -> int:
+        """Place each (symbol, basic, industry, sector, macro) in NSE's four levels and store it with the company's ISIN. Only full report builds
+        and classify_all() call this; a quote patch never does. With only_new, a company already placed keeps its place (a score-only save knows
+        less than a full report did)."""
+        from . import taxonomy
+        if not items:
+            return 0
+        syms = [i[0].upper() for i in items]
+        isins = {r["symbol"]: r["isin"] for r in await conn.fetch(COMPANY_ISIN_SQL, syms)}
+        rows = []
+        for sym, basic, industry, sector, macro in items:
+            c = taxonomy.classify(sym, basic, industry, sector, macro)
+            rows.append((sym.upper(), isins.get(sym.upper()), c["macro_sector"], c["sector"], c["industry"], c["basic_industry"], c["source"], c["note"],
+                         taxonomy.VERSION))
+        await conn.executemany(
+            """INSERT INTO company_classification(symbol, isin, macro_sector, sector, industry, basic_industry, source, note, rule_version, updated_at)
+               VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+               ON CONFLICT (symbol) DO NOTHING""" if only_new else
+            """INSERT INTO company_classification(symbol, isin, macro_sector, sector, industry, basic_industry, source, note, rule_version, updated_at)
+               VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+               ON CONFLICT (symbol) DO UPDATE SET isin = COALESCE(EXCLUDED.isin, company_classification.isin), macro_sector = EXCLUDED.macro_sector,
+                 sector = EXCLUDED.sector, industry = EXCLUDED.industry, basic_industry = EXCLUDED.basic_industry, source = EXCLUDED.source,
+                 note = EXCLUDED.note, rule_version = EXCLUDED.rule_version, updated_at = now()""", rows)
+        return len(rows)
+
+    async def classify_all(self, force: bool = False) -> Dict[str, int]:
+        """Every listed company not yet placed by the current rules (or all, with force): its FinEdge fields from its stored report, else from its
+        screener row, else from the companies list. Reads stored data only (no provider call); about 6,000 companies take a few seconds."""
+        from . import taxonomy
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT c.symbol,
+                          p.prof ->> 'subIndustry' AS basic,
+                          COALESCE(p.prof ->> 'industry', sc.industry, c.industry) AS industry,
+                          COALESCE(p.prof ->> 'sector', sc.sector, c.sector) AS sector,
+                          COALESCE(p.prof ->> 'macroSector', sc.macro_sector) AS macro
+                   FROM companies c
+                   LEFT JOIN LATERAL (SELECT body::jsonb -> 'profile' AS prof FROM snapshots n
+                                      WHERE n.symbol = c.symbol AND n.section = 'summary' ORDER BY n.generated_at DESC LIMIT 1) p ON true
+                   LEFT JOIN LATERAL (SELECT industry, sector, macro_sector FROM scores s WHERE s.symbol = c.symbol
+                                      ORDER BY (s.statement = 'consolidated') DESC LIMIT 1) sc ON true
+                   LEFT JOIN company_classification k ON k.symbol = c.symbol
+                   WHERE $1 OR k.symbol IS NULL OR k.rule_version < $2""", force, taxonomy.VERSION)
+            done = 0
+            for i in range(0, len(rows), 500):
+                async with conn.transaction():
+                    done += await self._classify(conn, [(r["symbol"], r["basic"], r["industry"], r["sector"], r["macro"]) for r in rows[i:i + 500]])
+            by = await conn.fetch("SELECT COALESCE(source, 'not_classified') AS k, count(*) AS n FROM company_classification GROUP BY 1")
+        return {"placed": done, **{r["k"]: r["n"] for r in by}}
+
+    async def classification(self, symbol: str) -> Optional[dict]:
+        async with self.pool.acquire() as conn:
+            r = await conn.fetchrow("SELECT symbol, isin, macro_sector, sector, industry, basic_industry, source, note, updated_at "
+                                    "FROM company_classification WHERE symbol = $1", symbol.upper())
+        return dict(r) if r else None
+
+    async def classification_counts(self) -> Dict[str, Dict[str, int]]:
+        """Listed companies per name at each level, and how many are not classified at each level."""
+        out: Dict[str, Dict[str, int]] = {}
+        async with self.pool.acquire() as conn:
+            for level in ("macro_sector", "sector", "industry", "basic_industry"):
+                out[level] = {(r["k"] if r["k"] is not None else ""): r["n"] for r in await conn.fetch(
+                    f"SELECT {level} AS k, count(*) AS n FROM company_classification GROUP BY 1")}  # nosec B608 - level is one of four fixed names
+        return out
 
     async def _cache_inputs(self, symbol: str, statement: str, sections: Dict[str, dict]) -> None:
         """A full load rewrites the figures' inputs: keep the new ones for the quote job (a quote patch carries only the summary and leaves them alone)."""
@@ -355,6 +435,7 @@ class Store:
         daily prices). The screener and alerts read the score row; the report itself is built when somebody opens the company."""
         async with self.pool.acquire() as conn, conn.transaction():
             await self._upsert_score(conn, {**score_row, "statement": statement})
+            await self._classify(conn, [(symbol, None, score_row.get("industry"), score_row.get("sector"), score_row.get("macro_sector"))], only_new=True)
 
     async def slim_pending(self, days: int = 7, limit: int = 1500, retry_days: int = 7) -> List[str]:
         """Companies that have no score yet, or one older than `days`, biggest first (never-scored before stale ones). A company whose last
