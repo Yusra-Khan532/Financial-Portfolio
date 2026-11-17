@@ -20,7 +20,7 @@ const LIST = { asOf: "2026-11-12", tab: "basic", groups: [
     P("both", "Strong on both", "top-rated", { joined: 0, first: F([["Udvel", 87]]) })] },
   { id: "setups", name: "New highs", presets: [P("nh", "Closed above its range", "setups", { figure: "From 52-week high", count: 23, joined: 4, first: F([["Lorvik", 0], ["Quinra", 1.6], ["Velmora", null]]) })] },
   { id: "top-gainers", name: "Top gainers", presets: [P("g1", "Top gainers: 1 week", "top-gainers", { figure: "Since it joined", count: 20, first: F([["Up Co", 4.8], ["Down Co", -1.25]]) })] },
-  { id: "prism-basics", name: "Prism basics", presets: [P("pb", "Basics", "prism-basics")] },
+  { id: "prism-basics", name: "Prism views", presets: [P("pb", "Strong and safe", "prism-basics")] },
 ] };
 let body: unknown = LIST;
 beforeEach(() => { body = LIST; vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), json: async () => body }) as unknown as Response)); });
@@ -38,7 +38,7 @@ describe("Ready-made screens strip", () => {
     expect(strip.textContent).toContain("Lists FinLit builds after every close. Pick one to see the companies that made it, and who joined since yesterday.");
     expect(strip.textContent).toContain("Updated after the 12 Nov close");
     const tabs = within(strip).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, "").trim())).toEqual(["Top rated", "Trend", "New highs", "Top gainers"]);   // Top rated first even when the API sends it later; Prism basics stays in the panel
+    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, "").trim())).toEqual(["Top rated", "Prism views", "Trend", "New highs", "Top gainers"]);   // Top rated first even when the API sends it later; Prism views right after it (14 Nov N-35)
     const top = tabs[0];
     expect(top.getAttribute("aria-selected")).toBe("true");
     expect(top.className).toContain("is-crown");

@@ -13,9 +13,9 @@ import { cr, nf } from "../../lib/format";
 import { watch } from "../../lib/watchlist";
 import { CAPS, PAGE_SIZES, pageList, type SortKey } from "../../lib/scoreScreen";
 import type { Plan } from "../../lib/ui";
-import { useAuth } from "../../lib/auth";
-import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
-import { SectorBars, SortMenu, Toolbar } from "./PageParts";
+import { CheckRow, FgxFocus, FilterGroup } from "./FilterGroup";
+import { SectorTree } from "./SectorTree";
+import { SortMenu, Toolbar } from "./PageParts";
 import { TierChip } from "../Gate";
 import "../../styles/fgx.css";
 import type { PageHeaderProps } from "../PageHeader";
@@ -34,7 +34,7 @@ export function GroupRow({ groups }: { groups: { g: string; n: number; label: st
     <tr className="gh tg-row">
       <th colSpan={2} aria-hidden="true" className="tg-none fz1" />
       <th scope="colgroup" data-g="company" className="stick fz3 fz-last">Company</th>
-      <th scope="colgroup" colSpan={3} data-g="price"><span className="gh-lab">Price &amp; size</span></th>
+      <th scope="colgroup" colSpan={2} data-g="price"><span className="gh-lab">Price &amp; size</span></th>      {/* LTP and Market cap: two columns (a span of 3 pushed every band one column right, 14 Nov N-25 / N-37) */}
       {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}><span className="gh-lab">{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</span></th>)}
       <th aria-hidden="true" className="tg-none" />
     </tr>
@@ -60,17 +60,15 @@ type Props = {
   /** The plan badge in the title card. */ tier: Plan;
   /** Columns offered in the "Sort by" list (beside Stock name and Market cap). */ sortChoices: { key: SortKey; label: string }[];
   /** The header's key figures, quick links and illustration (real data only). */ head?: Pick<PageHeaderProps, "stats" | "links" | "art" | "meta">;
-  /** A card drawn beside the sector bars (the donut), only when its numbers are real. */ donut?: ReactNode;
   /** The header line (task #64, B-4 / V-4): the data date in words, the name of the "How … works" dialog and a link to the other screener. */
   dateLine?: string | null; howTitle?: string; headLink?: ReactNode;
   /** The Columns menu in the toolbar (the 52-week and return columns). */ columnsMenu?: ReactNode;
   /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
 };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, donut, dateLine, howTitle = "How scores work", headLink, columnsMenu, leadTag }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", headLink, columnsMenu, leadTag }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
-  const { isAdmin } = useAuth();
-  const { draft, setDraft, facets, secQ, setSecQ, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, mix, filterCount, maxCompare } = s;
+  const { draft, setDraft, facets, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
   // where the frozen columns end, so each group heading can stay in view just after them while the table scrolls sideways
   const tableRef = useRef<HTMLTableElement>(null);
@@ -117,15 +115,11 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         </section>
         {screens}
         {beforeTable}
-        {isAdmin && (      // the "not rated yet" share and the sector mix of the result: for the team, not shown to members
-          <div className="fgx-two" style={donut ? undefined : { gridTemplateColumns: "minmax(0, 1fr)" }}>
-            {donut}
-            <SectorBars title="Results by sector (Top 5)" rows={mix} action={<button type="button" className="fgx-link" onClick={() => showPanel("sector")}>View all sectors &rsaquo;</button>} />
-          </div>)}
+        {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
         <div className="sx-stick"><Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "cap", label: "Market cap", active: draft.caps.length, onClick: () => showPanel("cap") },
-          { id: "sector", label: "Sector", active: draft.sectors.length, onClick: () => showPanel("sector") },
-          { id: "score", label: "Score filters", active: Math.max(0, filterCount - draft.caps.length - draft.sectors.length), onClick: () => showPanel("score") }]}
+          { id: "sector", label: "Sector", active: draft.sectors.length + draft.industries.length, onClick: () => showPanel("sector") },
+          { id: "score", label: "Score filters", active: Math.max(0, filterCount - draft.caps.length - draft.sectors.length - draft.industries.length), onClick: () => showPanel("score") }]}
           sort={<>{columnsMenu}<SortMenu value={sortVal} options={sortOpts.map(([k, d, l]) => ({ v: `${k}:${d}`, label: l }))}
             onPick={(v) => { const [k, d] = v.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }} /></>} /></div>
         <div className={"scr sx" + (drawer ? " sx-open" : "") + (collapsed ? " fgx-collapsed" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
@@ -139,14 +133,10 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
               </FilterGroup>
-              <FilterGroup id="sector" title="Sector" defaultOpen active={draft.sectors.length}>
-                <SearchBox value={secQ} onChange={setSecQ} placeholder="Search sector" label="Search sectors" />
-                <ul className="fgx-list" aria-label="Sectors">
-                  {facets.sectors.filter(([x]) => x.toLowerCase().includes(secQ.trim().toLowerCase())).map(([x, n]) => (
-                    <li key={x}><CheckRow label={x} count={n} checked={draft.sectors.includes(x)} onChange={() => setDraft((d) => ({ ...d, sectors: s.toggle(d.sectors, x) }))} /></li>))}
-                  {!facets.sectors.length && !isLoading && <li className="fgx-none">No sectors loaded yet.</li>}
-                  {!!facets.sectors.length && !facets.sectors.some(([x]) => x.toLowerCase().includes(secQ.trim().toLowerCase())) && <li className="fgx-none">No sector matches “{secQ}”.</li>}
-                </ul>
+              <FilterGroup id="sector" title="Sector and industry" defaultOpen active={draft.sectors.length + draft.industries.length}>
+                <SectorTree tree={facets.tree} picked={draft.industries} set={(next) => setDraft((d) => ({ ...d, industries: next }))} loading={isLoading} />
+                {draft.sectors.length > 0 && <ul className="fgx-list" aria-label="From an older link">{draft.sectors.map((x) => (     /* an old link's label filter stays visible until cleared */
+                  <li key={x}><CheckRow label={x} checked onChange={() => setDraft((d) => ({ ...d, sectors: s.toggle(d.sectors, x) }))} /></li>))}</ul>}
               </FilterGroup>
               {filters}
               </FgxFocus.Provider>

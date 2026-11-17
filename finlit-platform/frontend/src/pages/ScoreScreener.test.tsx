@@ -21,7 +21,7 @@ import { ScoreScreener } from "./ScoreScreener";
 import { watch } from "../lib/watchlist";
 
 const mk = (symbol: string, sector: string | null, f: number | null, t: number | null, cap: number | null, o: Partial<Row> = {}): Row => ({
-  symbol, name: symbol + " Limited", sector, overall: f == null ? null : f, band: null, pillar_quality: f, pillar_growth: f, pillar_profitability: f, pillar_balance: f, pillar_technical: t,
+  symbol, name: symbol + " Limited", sector, nse_sector: sector, nse_industry: sector, overall: f == null ? null : f, band: null,   /* one industry per sector, named alike, in the fixture */ pillar_quality: f, pillar_growth: f, pillar_profitability: f, pillar_balance: f, pillar_technical: t,
   price: cap == null ? null : 100, market_cap: cap == null ? null : cap * 100,   /* x100: the fixture companies are all Large on the rupee scale */ pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
   operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
 });
@@ -40,7 +40,8 @@ const open = (qs = "") => render(<QueryClientProvider client={new QueryClient({ 
 const loc = () => screen.getByTestId("loc").textContent || "";
 const symbols = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => within(r).queryAllByRole("cell")[2]?.querySelector("b")?.textContent).filter(Boolean);
 const hint = () => document.querySelector(".sx-hint")!;
-const sector = (name: string) => screen.getByRole("checkbox", { name: new RegExp("^" + name) });
+/** A sector's tick box in the Sector and industry filter (14 Nov N-28): ticking it picks all its industries. */
+const sector = (name: string) => screen.getByRole("checkbox", { name: new RegExp("^" + name + ": all its industries") });
 
 beforeEach(() => { admin.on = true; st.plan = "silver"; st.rows = DATA; st.cover = null; localStorage.clear(); watch.reset(); st.upgrade.mockReset(); st.toast.mockReset(); });
 afterEach(cleanup);
@@ -67,6 +68,13 @@ describe("Basic stock screener page", () => {
     const labs = [...document.querySelectorAll(".gh.tg-row th[data-g] .gh-lab")].map((e) => e.textContent);
     expect(labs).toEqual(["Price & size", "FinLit IQ0–100, higher is better"]);
     expect(document.querySelector('.gh.tg-row th[data-g="iq"]')!.getAttribute("colspan")).toBe("6");
+    // 14 Nov N-25: Price & size spans its two columns (LTP, Market cap), so FinLit IQ's band sits over FinLit IQ to Technical, not one column to the right
+    expect(document.querySelector('.gh.tg-row th[data-g="price"]')!.getAttribute("colspan")).toBe("2");
+    const band = [...document.querySelectorAll(".gh.tg-row th")].reduce((n, th) => n + Number(th.getAttribute("colspan") || 1), 0);
+    const cols = document.querySelectorAll("thead tr:not(.gh) th").length;
+    expect(band).toBe(cols);
+    const heads = [...document.querySelectorAll("thead tr:not(.gh) th")].map((h) => h.textContent?.replace(/[▲▼▾]/g, "").trim());
+    expect(heads.slice(5, 11).map((h) => h?.replace(/ \?$/, ""))).toEqual(["FinLit IQ", "Quality", "Growth", "Profitability", "Balance sheet", "Technical"]);   // the six columns under the FinLit IQ band
   });
   it("a Gold member never gets the Basic stock screener: its address opens the Advanced one (task #100)", () => {
     st.plan = "gold"; open();
@@ -77,26 +85,22 @@ describe("Basic stock screener page", () => {
     open();
     fireEvent.click(sector("IT")); fireEvent.click(sector("Auto"));
     expect(hint().textContent).toMatch(/Updating/);                            // never a silent gap between what is ticked and what is shown
-    await waitFor(() => expect(loc()).toBe("/score-screener?sector=IT&sector=Auto"));
+    await waitFor(() => expect(loc()).toBe("/score-screener?ind=IT&ind=Auto"));
     expect(symbols()).toEqual(["CCC", "DDD", "EEE", "GGG"]);
     expect(document.querySelector(".fgx-top")!.textContent).toMatch(/2 active/);
     expect(screen.getByText("4 companies in this result")).toBeTruthy();
     expect(screen.getByText("1–4 of 4")).toBeTruthy();
-    expect(screen.getByText("1 of 4 companies in this result are not scored yet.")).toBeTruthy();   // the donut follows the result too
     expect(screen.getByRole("button", { name: "Remove filter IT" })).toBeTruthy();
     expect(hint().textContent).not.toMatch(/Updating/);
   });
 
-  it("the not-scored share and the sector mix are for administrators only: a member does not see them", () => {
-    admin.on = false;
-    open();
-    expect(screen.queryByText(/are not scored yet/)).toBeNull();
-    expect(screen.queryByText("Results by sector (Top 5)")).toBeNull();
-    expect(screen.getByRole("table")).toBeTruthy();                       // the results themselves are untouched
-    cleanup();
-    admin.on = true;
-    open();
-    expect(screen.getByText("Results by sector (Top 5)")).toBeTruthy();
+  it("no not-scored ring and no sector box above the list, for members and administrators alike (14 Nov N-24)", () => {
+    for (const on of [false, true]) {
+      cleanup(); admin.on = on; open();
+      expect(screen.queryByText(/are not scored yet/)).toBeNull();
+      expect(screen.queryByText("Results by sector (Top 5)")).toBeNull();
+      expect(screen.getByRole("table")).toBeTruthy();                     // the results themselves are untouched
+    }
   });
 
   it("a typed number applies after a short pause, or on Enter, and an invalid range waits", async () => {
@@ -124,7 +128,7 @@ describe("Basic stock screener page", () => {
 
   it("the counts beside each option follow the other filters, and Clear all restores every total", async () => {
     open();
-    const count = (name: string) => (sector(name).closest("label")!.querySelector(".fgx-n")?.textContent);
+    const count = (name: string) => (sector(name).closest(".sxt-srow")!.querySelector(".fgx-n")?.textContent);
     expect(count("Banks")).toBe("2"); expect(count("Metals")).toBe("14");
     fireEvent.click(screen.getByRole("checkbox", { name: /^Large cap/ }));      // Large caps: the 100 largest, here all 22 are Large
     await waitFor(() => expect(loc()).toContain("cap=Large"));
@@ -227,12 +231,15 @@ describe("Basic stock screener page", () => {
   });
 
   it("opens a shared link with its filters, sort and page", () => {
-    st.rows = MANY; open("?sector=Metals&sort=name&dir=asc&size=25&page=2");
+    st.rows = MANY; open("?ind=Metals&sort=name&dir=asc&size=25&page=2");
     expect((sector("Metals") as HTMLInputElement).checked).toBe(true);
     expect(screen.getByRole("button", { name: "Sort by Stock" }).closest("th")!.getAttribute("aria-sort")).toBe("ascending");
     expect(screen.getByRole("button", { name: "Sort by FinLit IQ" }).closest("th")!.getAttribute("aria-sort")).toBe("none");
     expect((screen.getByLabelText("Rows per page") as HTMLSelectElement).value).toBe("25");
     expect(screen.getByRole("button", { name: "Page 2" }).getAttribute("aria-current")).toBe("page");
+    cleanup(); open("?sector=Metals");                                    // a link from before the Sector and industry filter still narrows the list, and says so
+    expect(symbols().every((s) => /^(ZZ|YY)/.test(s!))).toBe(true);
+    expect(within(screen.getByRole("list", { name: "From an older link" })).getByRole("checkbox", { name: /Metals/ })).toBeTruthy();
   });
 
   it("sorting by a heading flips the direction, keeps missing scores last and writes the address", () => {
@@ -357,11 +364,16 @@ describe("Basic stock screener page", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("shows the sector mix of the whole result", () => {
+  it("the Sector and industry filter lists sectors first with their counts, then each sector's industries, with a search box (14 Nov N-28)", () => {
     open();
-    const mix = screen.getByLabelText("Sector mix of the result");
-    expect(mix.textContent).toMatch(/Metals 14/);
-    expect(mix.textContent).toMatch(/Sector not listed 1/);
+    expect(screen.queryByLabelText("Sector mix of the result")).toBeNull();                        // N-24: no sector box above the list
+    const tree = within(screen.getByRole("list", { name: "Sectors and industries" }));
+    expect(sector("Metals").closest(".sxt-srow")!.querySelector(".fgx-n")!.textContent).toBe("14");
+    expect(tree.queryByRole("list", { name: "Metals industries" })).toBeNull();                      // closed until opened
+    fireEvent.click(tree.getByRole("button", { name: "Open Metals's industries" }));
+    expect(within(tree.getByRole("list", { name: "Metals industries" })).getByRole("checkbox", { name: /^Metals/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Search sectors and industries"), { target: { value: "pharm" } });
+    expect(screen.getAllByRole("checkbox", { name: /all its industries$/ }).map((c) => c.getAttribute("aria-label"))).toEqual(["Pharma: all its industries"]);
   });
 });
 
@@ -431,14 +443,14 @@ describe("Basic stock screener: no Prism", () => {
   });
 
   it("a group header shows 'n active' for its filters and counts beside options are real", () => {
-    open("?sector=IT&sector=Auto&cap=Large");
-    expect(within(document.querySelector("aside")!).getByRole("button", { name: /^Sector.*2 active/ })).toBeTruthy();
+    open("?ind=IT&ind=Auto&cap=Large");
+    expect(within(document.querySelector("aside")!).getByRole("button", { name: /^Sector and industry.*2 active/ })).toBeTruthy();
     expect(within(screen.getByLabelText("Score screener filters")).getByRole("button", { name: /^Market cap.*1 active/ })).toBeTruthy();
     // 22 companies: the draft counts follow the other filters (Large cap + sector are skipped for their own group)
     const large = screen.getByRole("checkbox", { name: /^Large cap/ }).closest("label")!;
     expect(large.querySelector("small")!.textContent).toMatch(/^\d+$/);
-    const banks = sector("Banks").closest("label")!;
-    expect(banks.querySelector("small")!.textContent).toBe("2");
+    expect(sector("Banks").closest(".sxt-srow")!.querySelector("small")!.textContent).toBe("2");
+    expect((sector("IT") as HTMLInputElement).checked).toBe(true);                                  // an address with industries ticks their sector
   });
 
   it("a Min - Max row is disabled until its box is ticked, unticking clears it, and the value reaches the address", () => {
@@ -472,9 +484,9 @@ describe("Basic stock screener: no Prism", () => {
     expect(symbols().slice(0, 3)).toEqual(["AAA", "BBB", "HHH"]);
   });
 
-  it("the not-scored donut is computed from the loaded companies", () => {
+  it("a company not scored yet says so on its own row, with its reason, and no ring sums it up above the list (14 Nov N-24)", () => {
     open();
-    expect(screen.getByText("1 of 22 companies in this result are not scored yet.")).toBeTruthy();
-    expect(screen.getByText(/Scored 21 \(95%\)/)).toBeTruthy();
+    expect(screen.queryByText(/companies in this result are not scored yet/)).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Select GGG" }).closest("tr")!.textContent).toMatch(/Not scored yet/);
   });
 });

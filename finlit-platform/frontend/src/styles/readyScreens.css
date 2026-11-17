@@ -29,7 +29,7 @@
 .rms-tab.is-crown b { color: #EBD59F; }
 .rms-tab.is-crown.is-on { color: #F5E3B0; box-shadow: 0 0 0 3px rgba(201, 162, 78, .35); }
 
-.rms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; padding-top: 18px; }
+.rms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; padding-top: 18px; }
 .rms-card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 7px; text-align: left; border: 1px solid var(--border-strong); background: var(--card, var(--s1)); border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit; color: var(--text); transition: transform .12s, box-shadow .12s, border-color .12s; min-width: 0; }
 .rms-card:hover, .rms-card:focus-visible { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 8px 18px -12px rgba(122, 92, 30, .6); }
 .rms-card.is-on { border: 2px solid var(--gold); padding: 11px 13px; }
