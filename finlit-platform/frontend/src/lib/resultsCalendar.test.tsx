@@ -59,3 +59,15 @@ describe("DropTile (shared)", () => {
     expect(panel.hasAttribute("hidden")).toBe(true);
   });
 });
+
+describe("shared styles (task #193 follow-up)", () => {
+  it("the calendar's tables use the shared grid and load it themselves; the page keeps no copy of the grid or the card rules", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const pack = readFileSync(resolve(__dirname, "../components/results/pack/ResultsPack.tsx"), "utf8");
+    const css = readFileSync(resolve(__dirname, "../styles/results-calendar.css"), "utf8");
+    expect(pack).toContain('import "../../../styles/table-grid.css"');
+    expect(pack).toContain("kit-band kit-b-blue");
+    expect(css).not.toMatch(/rsc-grid|rsc-groups|\.dsh-ic|\.dsh-openall/);
+  });
+});

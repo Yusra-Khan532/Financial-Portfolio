@@ -128,7 +128,7 @@ const pick = (id: string) => SECTIONS.find((x) => x.id === id)!.groups.flatMap((
 const once = (items: { to: string; label: string }[]) => items.filter((it, i) => items.findIndex((x) => x.to === it.to) === i);
 const FOOT: { title: string; items: { to: string; label: string }[] }[] = [
   { title: "Research", items: pick("research") },
-  { title: "Markets and news", items: once([...pick("markets"), ...pick("news"), { to: "/premium/markets", label: "Market events & index" }, { to: "/premium/options", label: "Option chain" }]) },
+  { title: "Markets and news", items: once([...pick("markets"), ...pick("news"), { to: "/premium/markets", label: "Market events & index" }]) },
   { title: "Funds and Workspace", items: once([...pick("funds"), { to: "/fund-score-screener", label: "FinLit FundPulse" }, { to: "/funds/compare", label: "Compare funds" }, ...pick("myfinlit")]) },
 ];
 

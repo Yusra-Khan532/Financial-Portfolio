@@ -105,6 +105,10 @@ class Settings:
     # Earnings-call summaries (finlit/earnings, docs/EARNINGS-CALLS.md). Empty key = the nightly job reports "not configured" and the site says the summaries are not available yet.
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", "").strip())
     gemini_model: str = field(default_factory=lambda: os.getenv("EARNINGS_LLM_MODEL", "").strip() or os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.8-flash")
+    # Ask FinLit AI (finlit/ask, docs/ASK-AI.md): the chat that answers from FinLit's own data. Empty key = the chat says it is not switched on and the panel
+    # keeps its instant listed answers. The key lives only in /opt/finlit/.env.aws. ASK_MODEL changes the model (founder's choice: Haiku, for cost).
+    anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
+    ask_model: str = field(default_factory=lambda: os.getenv("ASK_MODEL", "").strip() or "claude-haiku-5-5")
     # Free sample reports shown in full to everyone (the home page example).
     # The separate site backend (blog/CMS, portfolio report, contact forms, chat, ticker). Empty = those /api routes answer 404.
     site_api_url: str = field(default_factory=lambda: site_api_url_default())

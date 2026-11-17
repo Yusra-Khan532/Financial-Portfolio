@@ -133,3 +133,13 @@
 .aif-typed button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 10px; font-size: var(--fs-13); line-height: 1.35; color: var(--text); }
 .aif-typed button:hover, .aif-typed button:focus-visible { background: var(--s2); outline: none; }
 .aif-typed svg { flex: none; width: 14px; height: 14px; color: var(--muted); }
+
+/* FinLit AI's written answers (task #211): what is being read while the words have not come yet, the disclaimer under a finished answer, a refusal, and the
+   questions left this month under the box. Scoped to the panel's own classes. */
+.aif-reading { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.aif-reading i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold, currentColor); animation: aif-pulse 1s ease-in-out infinite; }
+@keyframes aif-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .aif-reading i { animation: none; opacity: .7; } }
+.bub .aif-disc { display: block; margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--muted); white-space: normal; }
+.bub.aif-bub-err { color: var(--muted); }
+.ai-fine .aif-left { white-space: normal; }

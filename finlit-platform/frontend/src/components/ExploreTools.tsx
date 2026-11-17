@@ -46,7 +46,7 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
   "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line",
-  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "option-chain": "grid", "stress-lab": "alert",
+  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "stress-lab": "alert",
   "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare",
   "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-calendar": "calendar", "ipo-calendar": "bell",
   "glossary": "book", "discussion-forum": "users", "browser-extension": "globe", "insights-blog": "notes", "finlit-bot": "chat",

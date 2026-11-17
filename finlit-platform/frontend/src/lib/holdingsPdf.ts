@@ -18,6 +18,7 @@ import { resolveIsins, type IsinAnswer } from "./isin";
 import { SPLIT_NAMES } from "./aliases";
 import { plausibleName, tidy, type Grid } from "./holdingsFile";
 import { makeLookup, makeMatcher, matchNames, type Found } from "./holdingsMatch";
+import { casQuantities } from "./dematCas";
 
 export type PdfItem = { str: string; x: number; y: number; w: number; h: number };
 export const PDF_MAX_BYTES = 10_000_000;
@@ -151,8 +152,10 @@ const kindOf = (r: PdfRow): Kind => {
 
 /* ------------------------------------------------------------------ names in the rows */
 
-export type PdfFound = Found & { unsure?: string };
-export type PdfFinds = { found: PdfFound[]; missing: string[]; mode: "table" | "text"; rows: number; notes: string[] };
+/** `qty` and `accounts`: from a depository statement (task #191, lib/dematCas), the shares held and in how many demat accounts. */
+export type PdfFound = Found & { unsure?: string; qty?: number; accounts?: number };
+/** `cas`: the statement is a depository statement (NSDL or CDSL CAS); its source, the date of its balances and the column the quantities came from. */
+export type PdfFinds = { found: PdfFound[]; missing: string[]; mode: "table" | "text"; rows: number; notes: string[]; cas?: { source: string; asOf: string | null; column: string | null } };
 /** Whether a find may be ticked without asking: an exact name, ticker, code or retired ticker, and nothing in the statement that casts doubt on it. */
 export const isSure = (f: PdfFound) => (f.how === "exact" || f.how === "alias" || f.how === "split" || f.how === "isin" || f.how === "old_isin") && !f.unsure;
 
@@ -167,6 +170,7 @@ function recordsOf(region: PdfRow[], grade: (name: string) => number): Rec[] {
   const nearD = href * 1.75;
   const idx: number[] = []; let skipping = false; const skipAt = new Set<number>();
   kinds.forEach((k, i) => { if (i && region[i].page !== region[i - 1].page) skipping = false;   // a new page: the fund / bond section may have ended (the ISIN check still guards)
+    if (isHeaderRow(region[i])) skipping = false;           // a new heading row starts a new table (the next demat account of a CAS, task #191): a fund section above it has ended
     if (k === "skipSec") skipping = true; else if (k === "eqSec") skipping = false; else if (k === "num") { idx.push(i); if (skipping) skipAt.add(i); } });
   if (!idx.length) return [];
   const namey = (c: PdfCell) => hasAlpha(c.t) && !(c.isin && c.t === c.isin) && !isNum(c.t);
@@ -246,7 +250,8 @@ function recordsOf(region: PdfRow[], grade: (name: string) => number): Rec[] {
     const recs: Rec[] = idx.map((i, k) => {
       const row = region[i], own = at(row);
       const rest = row.cells.filter((c) => c !== own && namey(c)).map((c) => c.t);
-      const isin = row.cells.find((c) => c.isin)?.isin;
+      // the ISIN can sit on a wrapped line of the name ("INE312A01313 HDFC ASSET MANAGEMENT COMPANY" above the figures, "LIMITED" below): it still decides (task #128)
+      const isin = [row, ...head[k].slice(head[k].length - hs[k]).map((j) => region[j]), ...tail[k].slice(0, ts[k]).map((j) => region[j])].flatMap((x) => x.cells).find((c) => c.isin)?.isin;
       const r: Rec = { row, own, skip: skipAt.has(i), name: assemble(k, hs[k], ts[k]), isin, others: rest };
       if (doubtful.has(k)) r.doubt = "The line next to it in the statement is not part of the name, or the name was cut: please check";
       return r;
@@ -334,7 +339,8 @@ export function findHoldingsInRows(rowsIn: PdfRow[], index: SearchRow[], isins?:
         }
         if (!u && h.how === "split" && !/^TATAMOTORS$/i.test(n)) u = "Tata Motors was split in two: this name could be either part. Please check which you hold";
         if (!u) { const other = r.others.map((o) => exact(tidyName(o, matcher))).find((x) => x && x[0] !== h.symbol); if (other && h.how !== "split") u = `Another column of this line says ${other[0]}: please check`; }
-        found.push(u ? { ...h, unsure: u } : { ...h });
+        const own = r.isin && !h.isin ? { isin: r.isin } : {};       // the line's ISIN stays with a name match, so a depository quantity can follow it (task #191)
+        found.push(u ? { ...h, ...own, unsure: u } : { ...h, ...own });
       }
     }
     return { table, found: dedupe(found), missing };
@@ -458,7 +464,21 @@ export async function readPdfHoldings(file: File, index: SearchRow[], password?:
   const res = isins.length && search ? await resolveIsins(isins, search) : null;   // the page always passes the company list; without it the PDF is read by names, as before
   const finds = findHoldingsInRows(rows, index, res?.answers);
   if (res?.offline) finds.notes.push("Some ISINs could not be checked just now, so those lines were matched by their names and are marked please check.");
-  return finds;
+  return withCasQuantities(finds, rows);
+}
+
+/** Task #191: a depository statement (NSDL or CDSL CAS) also says how many shares of each ISIN are held; each company found keeps that quantity. */
+export function withCasQuantities(finds: PdfFinds, rows: PdfRow[]): PdfFinds {
+  const cas = casQuantities(rows);
+  if (!cas || !cas.column) return finds;
+  const sold = new Set(cas.zero);                       // a balance of 0 in every account: sold, not held
+  const gone = finds.found.filter((f) => f.isin && sold.has(f.isin));
+  const found = finds.found.filter((f) => !gone.includes(f)).map((f) => { const q = f.isin ? cas.byIsin.get(f.isin) : undefined; return q ? { ...f, qty: q.qty, accounts: q.accounts } : f; });
+  const notes = [...finds.notes];
+  if (gone.length) notes.push(`${gone.map((f) => f.symbol).join(", ")} ${gone.length === 1 ? "has" : "have"} a balance of 0 in the statement, so ${gone.length === 1 ? "it is" : "they are"} left out.`);
+  const without = found.filter((f) => f.qty == null).length;
+  if (without) notes.push(`${without === 1 ? "One company's" : `${without} companies'`} quantity could not be read from the statement's ${cas.column} column, so ${without === 1 ? "it is" : "they are"} added without a quantity; you can type it in the list.`);
+  return { ...finds, found, notes, cas: { source: cas.source, asOf: cas.asOf, column: cas.column } };
 }
 
 export { tidy };
