@@ -170,7 +170,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ath": "deadline: stops itself after --max-minutes 8 (limit 12)",
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
-    "quotes": "fixed: one batch of live prices per cycle, every request has its own timeout; measured about 17 s",
+    "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
     "listing": "fixed: two provider calls for the whole market list; measured about 13 s",
     "alerts-flag": "fixed: one flag in Redis; measured about 4 s",
@@ -235,7 +235,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             interval_min=40, active_hours=(8, 23), windows=(W("MORNING", 4),), sla=Sla("active", 1.0), visitor_gate="env:RESULTS_NEED_VISITOR",
             owns=("results_calendar", "ipo_calendar"), what="IPO and results calendars (board-meeting dates)"),
         # ---------------------------------------------------------------- prices and alerts
-        Job("quotes", ("refresh-quotes",), priority=4, max_runtime_min=10, weight_mb=100, honours_pause=False, stall_min=10,
+        Job("quotes", ("refresh-quotes", "--max-minutes", "7"), priority=4, max_runtime_min=10, weight_mb=100, honours_pause=False, stall_min=10,
             interval_min=qe, interval_idle_min=15, interval_market=True, visitor_gate="visitor_or_alerts", owns=("quotes",),
             catchup=False, what="live prices into stored summaries: every minute while a visitor is on the site, every 15 minutes when only member alerts need them"),
         Job("scores-live", ("refresh-scores-live", "--max-minutes", "10"), priority=7, max_runtime_min=15, weight_mb=200, honours_pause=False, stall_min=10, probe="scores-live", min_gap_min=3,

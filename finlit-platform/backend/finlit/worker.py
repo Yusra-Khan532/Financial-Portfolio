@@ -321,6 +321,11 @@ QUOTES_AT_ONCE = 24            # companies updated at the same time (a read and 
 QUOTES_BUDGET_S = 7 * 60       # a run stops starting new companies after this long, inside the job's 10-minute limit; the next run carries on from there
 QUOTES_CURSOR_KEY = "quotes:cursor"
 QUOTES_SLICE = 240           # companies priced, then followed up (live scores, screener numbers), before the next slice starts
+# 17 Nov 2026, after the slices above: the two steps the budget still did not cover. The Dhan batch calls before the first slice (each up to 4 tries of
+# 20 s plus back-off, with the account's call pacing shared with the Prism price-history lane) and a company that never answers inside a slice.
+QUOTES_DHAN_S = 90             # the Dhan batch phase; slower than this, the run goes on with FinEdge as for a Dhan error
+QUOTES_COMPANY_S = 30          # one company (read, live score, write); a slower one is left for a later run (the cursor comes back to it)
+QUOTES_PROGRESS_S = 60         # a progress line this often in a scheduled run, so the supervisor's hang check (it reads the log) sees it working
 
 
 async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[List[Tuple[str, str]]] = None, dhan_client=None,
@@ -346,16 +351,31 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
     touched: List[Tuple[str, str]] = []
     live_scores: List[dict] = []
     batch: Dict[str, dict] = {}
+    bounded = budget_s is not None
+    phase: Dict[str, float] = {}
+
+    def say(msg: str) -> None:   # the scheduled run's own log: stdout is what the supervisor keeps and reads
+        if bounded:
+            print(f"quotes: {msg}", flush=True)
+
+    t0 = time.monotonic()
     if dhan_client is not None and dhan_client.configured and items:
         from . import dhan
-        try:
+
+        async def dhan_batch() -> Dict[str, dict]:
             ids = await dhan.security_map(store, sorted({s for s, _ in items}))
             raw = await dhan_client.quotes(sorted(set(ids.values())))
-            batch = {sym: q for sym, key in ids.items() if (q := dhan.to_quote(raw.get(key) or {}))}
+            return {sym: q for sym, key in ids.items() if (q := dhan.to_quote(raw.get(key) or {}))}
+        try:
+            batch = await (asyncio.wait_for(dhan_batch(), QUOTES_DHAN_S) if bounded else dhan_batch())
+        except asyncio.TimeoutError:
+            log.warning("Dhan quotes took longer than %d s, using FinEdge for all in this run", QUOTES_DHAN_S)
+            say(f"Dhan did not answer within {QUOTES_DHAN_S} s; this run uses FinEdge")
         except dhan.DhanError as e:
             log.warning("Dhan quotes unavailable, using FinEdge for all: %s", e)
         except Exception:
             log.exception("Dhan quotes failed, using FinEdge for all")
+    phase["dhan"] = time.monotonic() - t0
 
     async def one(symbol: str, statement: str):
         nonlocal updated
@@ -404,14 +424,22 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
     gate = asyncio.Semaphore(QUOTES_AT_ONCE)
     reached = 0
 
+    slow = 0
+
     async def guarded(symbol: str, statement: str):
-        nonlocal reached
+        nonlocal reached, slow
         async with gate:
             if budget_s is not None and time.monotonic() - started > budget_s:
                 return
             reached += 1
             try:
-                await one(symbol, statement)
+                if bounded:
+                    await asyncio.wait_for(one(symbol, statement), QUOTES_COMPANY_S)
+                else:
+                    await one(symbol, statement)
+            except asyncio.TimeoutError:   # left for a later run, which comes back to it in turn
+                slow += 1
+                log.warning("quote update for %s took longer than %d s; left for a later run", symbol, QUOTES_COMPANY_S)
             except Exception:      # one company never stops the others
                 log.exception("quote update failed for %s", symbol)
 
@@ -434,13 +462,29 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
     # 17 November 2026: the follow-up used to run once, after every price, and outside the budget: with ~3,000 prices updated it ran past the job's
     # 10-minute limit, the job was killed ("timeout" every run) and the screener numbers of that run were never stored. Now a slice of companies is
     # priced and followed up before the next slice starts, and the budget covers both, so a run ends at most one slice after the budget.
+    async def progress():
+        while True:
+            await asyncio.sleep(QUOTES_PROGRESS_S)
+            say(f"{reached} of {len(items)} companies reached, {updated} updated, {time.monotonic() - started:.0f} s")
+
     scored = 0
-    for i in range(0, len(items), QUOTES_SLICE):
-        if budget_s is not None and time.monotonic() - started > budget_s:
-            break
-        await asyncio.gather(*(guarded(s, st) for s, st in items[i:i + QUOTES_SLICE]))
-        scored += len(live_scores)
-        await follow_up()
+    priced = followed = 0.0
+    ticker = asyncio.create_task(progress()) if bounded else None
+    try:
+        for i in range(0, len(items), QUOTES_SLICE):
+            if budget_s is not None and time.monotonic() - started > budget_s:
+                break
+            t0 = time.monotonic()
+            await asyncio.gather(*(guarded(s, st) for s, st in items[i:i + QUOTES_SLICE]))
+            scored += len(live_scores)
+            t1 = time.monotonic()
+            await follow_up()
+            priced += t1 - t0
+            followed += time.monotonic() - t1
+    finally:
+        if ticker:
+            ticker.cancel()
+    phase["prices"], phase["follow-up"] = priced, followed
     if budget_s is not None and items:
         try:
             await store.redis.set(QUOTES_CURSOR_KEY, str((start_at + reached) % len(items)), ex=86400)
@@ -448,6 +492,8 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
             pass
         if reached < len(items):
             log.info("quotes: reached %d of %d companies in this run; the next run starts with the rest", reached, len(items))
+    say(f"done in {time.monotonic() - started:.0f} s: {updated} updated, {reached} of {len(items)} companies reached"
+        + (f", {slow} too slow (a later run)" if slow else "") + "; phases " + ", ".join(f"{k} {v:.1f} s" for k, v in phase.items()))
     return updated
 
 
@@ -1044,7 +1090,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_alerts.add_argument("--kind", choices=["live", "daily", "all"], default="all", help="live: price metrics (market hours); daily: the rest (evenings)")
     sub.add_parser("check-screens", help="email members when a company newly matches one of their saved screens")
     sub.add_parser("send-digest", help="send the weekly week-ahead email to members who switched it on")
-    sub.add_parser("refresh-quotes")
+    p_q = sub.add_parser("refresh-quotes")
+    p_q.add_argument("--max-minutes", type=float, default=QUOTES_BUDGET_S / 60, help="no new slice of companies after this long (the rest waits for the next run)")
     p_aud = sub.add_parser("audit-coverage", help="compare what the provider sends with what the reports show, for a random sample (exit 1 on any mismatch)")
     p_aud.add_argument("--sample", type=int, default=100)
     p_aud.add_argument("--seed", type=int, default=None)
@@ -1693,7 +1740,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:
-                    print(await refresh_quotes(client, store, dhan_client=dc, budget_s=QUOTES_BUDGET_S), "quotes updated")
+                    print(await refresh_quotes(client, store, dhan_client=dc, budget_s=args.max_minutes * 60), "quotes updated")
             elif args.cmd == "audit-integrity":
                 from . import integrity
                 from .sysctl import loads_enabled
