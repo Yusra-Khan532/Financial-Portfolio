@@ -187,7 +187,7 @@ async def prism_need(store: Any, symbol: str, statement: str = "consolidated", n
             pq = (_json.loads(report) if isinstance(report, (str, bytes)) else report).get("inputMeta", {}).get("quarterlyAsOf")
         except (ValueError, AttributeError):
             pq = None
-    return stale_reason(row["generated_at"], pq, row["iq"], bool(report is not None and (prism.stale_model(report) or prism.stale_classification(report))), now)
+    return stale_reason(row["generated_at"], pq, row["iq"], bool(report is not None and (prism.stale_model(report) or prism.stale_classification(report) or prism.stale_revenue(report))), now)
 
 
 async def enqueue_prism(store: Any, symbol: str, statement: str = "consolidated") -> bool:

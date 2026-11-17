@@ -110,6 +110,13 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# Revenue names, version 2 (17 November 2026; inputMeta.revenueVersion, REVENUE_VERSION below): insurers. General and health insurers report their revenue as premium earned (FinEdge `premiumEarned`), which the
+# insurance group did not read, so they had no sales history and were NOT RATED (ICICIGI, NIACL, STARHEALTH). The standalone switch counted revenue
+# without any insurance names, so an insurer with no consolidated statements (SBILIFE, ICICIGI, STARHEALTH) was rated on empty consolidated
+# statements; it now switches, and any company with no consolidated full year or quarter at all switches to its standalone statements. No other
+# company's calculation changes, so the model version stays: only the affected stored reports are rebuilt (finlit/prism.py stale_revenue), and every
+# other stored report stays on screen (a version bump hides them all until each is recalculated).
+REVENUE_VERSION = 2
 # 3.6.18 (16 November 2026): consolidated statements that stop earlier than the standalone ones (standalone latest year >= 360 days or latest
 # quarter >= 170 days newer; the main site's rule) also switch the report to standalone; a provider failure on the company's own statements, quote,
 # prices, P/E history or ownership filings stops the calculation instead of rating empty answers.
