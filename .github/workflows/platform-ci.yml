@@ -46,6 +46,8 @@ jobs:
         run: bash ../deploy/aws/test-auto-deploy.sh
       - name: Jobs container move checks (deploy.sh jobs)
         run: bash ../deploy/aws/test-deploy-jobs.sh
+      - name: Prebuilt image checks (deploy.sh pull_prebuilt)
+        run: bash ../deploy/aws/test-prebuilt-image.sh
 
   site-api:
     runs-on: ubuntu-latest
