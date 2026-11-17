@@ -55,7 +55,9 @@ export function dayCards(rows: VRow[], counts: Record<Verdict, number> | null | 
   const busy = [...week].filter((w) => w.n > total).sort((a, b) => b.n - a.n).slice(0, 2).sort((a, b) => a.date.localeCompare(b.date));
   if (total < 100 && busy.length) {
     const small = rows.filter((r) => r.cap === "Small").length * 2 > rows.length;
-    out.push({ kind: "insight", title: `${wday(day)} is a light day`, text: `Only ${total} companies reported${small ? ", most of them small" : ""}. The big reporting days this week are ${list(busy.map((w) => wday(w.date)))}.` });
+    // Task #193 bug 3: "Only 1 companies reported, most of them small". One company is "1 company", and "most of them" needs more than one.
+    const who = total === 1 ? `Only 1 company reported${rows[0]?.cap === "Small" ? ", a small one" : ""}` : `Only ${total} companies reported${small ? ", most of them small" : ""}`;
+    out.push({ kind: "insight", title: `${wday(day)} is a light day`, text: `${who}. The big reporting days this week are ${list(busy.map((w) => wday(w.date)))}.` });
   } else if (total >= 100) {
     const large = rows.filter((r) => r.cap === "Large").length;
     out.push({ kind: "insight", title: `${wday(day)} is a busy day`, text: `${n0(total)} companies reported${large ? `, ${large} of them large` : ""}.` });

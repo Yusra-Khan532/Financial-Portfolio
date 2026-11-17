@@ -619,7 +619,9 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "
         out = [r for r in out if index in r["indices"]]
     if symbols is not None:
         out = [r for r in out if r["symbol"] in symbols]
-    if status:
+    if status == "upcoming":   # the announced date is still to come, figures in or not: what the calendar shows as due (task #193)
+        out = [r for r in out if r["date"] > today]
+    elif status:
         out = [r for r in out if r["status"] == status]
     if flagged:
         out = [r for r in out if r["flagged"]]
@@ -909,6 +911,14 @@ def parse_range(on: str, frm: str, to: str, today: date, future: bool = False) -
     return start, end
 
 
+def majority_quarter(decls: Dict[str, Dict[str, Decl]], lo: date, hi: date) -> Optional[str]:
+    """The quarter most of the range's announcements belong to (a late-October day is mostly about the September quarter); ties go to the later quarter.
+    One rule for the list (`?date=`) and the calendar (`/calendar`), so a day's count on the calendar is the number of companies its list shows (task #193)."""
+    counts = {qk: sum(1 for d in by_sym.values() if lo <= d.date <= hi) for qk, by_sym in decls.items()}
+    best = max(counts.items(), key=lambda kv: (kv[1], kv[0]), default=(None, 0))
+    return best[0] if best[1] else None
+
+
 def date_facts(decls: Dict[str, Dict[str, Decl]], rng: Tuple[date, date], qkey: Optional[str]) -> Dict[str, Any]:
     """What the date filter found in the declarations (before any other filter): per quarter in range, and the nearest days with results around it."""
     lo, hi = rng
@@ -946,17 +956,12 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
         raise fail(403, "plan_required", "Filtering by price position is part of the Silver plan.", plan="silver")
     store = request.app.state.store
     today = today_ist()
-    rng = parse_range(on, frm, to, today, future=status == "due")
+    rng = parse_range(on, frm, to, today, future=status in ("due", "upcoming"))
     decls = await get_declarations(store)
     quarters = list_quarters(decls, today)
     qkey = quarter or None
     if qkey is None and rng is not None:
-        # no quarter chosen: the quarter most of the range's announcements belong to (a late-October day is mostly about the September quarter)
-        counts: Dict[str, int] = {}
-        for qk, by_sym in decls.items():
-            counts[qk] = sum(1 for d in by_sym.values() if rng[0] <= d.date <= rng[1])
-        best = max(counts.items(), key=lambda kv: (kv[1], kv[0]), default=(None, 0))
-        qkey = best[0] if best[1] else None
+        qkey = majority_quarter(decls, rng[0], rng[1])
         if qkey is None:
             guess = quarter_key(quarter_end_before(rng[1]))
             qkey = guess if guess in {x["key"] for x in quarters} else None
@@ -989,7 +994,7 @@ def _dump(body: dict) -> Response:
 async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
                           cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
-                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
+                          status: str = Query("", pattern="^(declared|awaiting|due|missing|upcoming)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                           offset: int = Query(0, ge=0, le=20000), limit: int = Query(PAGE, ge=1, le=100),
                           on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),
                           growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params)):
@@ -1038,6 +1043,59 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
         raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
     _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
+
+
+# ------------------------------------------------------------------ the month calendar (task #193)
+CAL_MAX_DAYS = 92   # one request covers at most a quarter
+
+
+def day_label(r: dict) -> str:
+    """How a company is named in a calendar cell: its NSE symbol, or its name when it has only a BSE code."""
+    return r["name"] if r["symbol"].isdigit() and r.get("name") else r["symbol"]
+
+
+def calendar_days(decls: Dict[str, Dict[str, Decl]], entries: Dict[str, "Entry"], lo: date, hi: date, today: date, symbols: Optional[set] = None) -> List[Dict[str, Any]]:
+    """Each day of [lo, hi] with companies on it: how many, the three biggest by market value, and whether the date has passed. A day's companies are the rows
+    its list (`/quarter?date=<day>`) shows, from the same quarter chosen by the same rule (majority_quarter), so the two counts agree by construction.
+    `entries`: quarter key -> its rows (get_entry); a quarter missing from it is skipped. `symbols`: only these companies (the watchlist switch)."""
+    days = sorted({d.date for by in decls.values() for d in by.values() if lo <= d.date <= hi})
+    out: List[Dict[str, Any]] = []
+    for day in days:
+        qk = majority_quarter(decls, day, day)
+        entry = entries.get(qk or "")
+        if entry is None:
+            continue
+        iso = day.isoformat()
+        rows = [r for r in entry.rows if r["date"] == iso and (symbols is None or r["symbol"] in symbols)]
+        if not rows:
+            continue
+        big = sorted(rows, key=lambda r: (-(r["marketCap"] if r["marketCap"] is not None else -1.0), r["symbol"]))[:3]
+        out.append({"date": iso, "n": len(rows), "names": [day_label(r) for r in big], "due": day > today, "quarter": qk})
+    return out
+
+
+@router.get("/calendar")
+async def results_calendar(request: Request, from_: str = Query(..., alias="from", max_length=10), to: str = Query(..., max_length=10),
+                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), symbols: str = Query("", max_length=4000)):
+    """The Results calendar's days (task #193): per day the number of companies, the three biggest and whether it is still to come. Counts and names are
+    open to every plan; figures are not part of this answer. The same rows as the day's list, so the calendar and the list never disagree."""
+    ctx = await current(request)
+    today = today_ist()
+    lo, hi = parse_range("", from_, to, today, future=True) or (today, today)
+    if (hi - lo).days >= CAL_MAX_DAYS:
+        raise fail(400, "bad_request", f"Ask for at most {CAL_MAX_DAYS} days at a time.")
+    store = request.app.state.store
+    decls = await get_declarations(store)
+    syms = await _symbols_of(request, ctx, scope)
+    if symbols.strip():   # "Only my watchlist": the page's own lists (they also work for a visitor who is not signed in)
+        own = {s.strip().upper() for s in symbols.split(",") if s.strip()}
+        if len(own) > 500 or not all(re.fullmatch(r"[A-Z0-9&_.-]{1,20}", s) for s in own):
+            raise fail(400, "bad_request", "symbols is a comma-separated list of up to 500 NSE symbols or BSE codes.")
+        syms = own if syms is None else syms & own
+    wanted = {majority_quarter(decls, d.date, d.date) for by in decls.values() for d in by.values() if lo <= d.date <= hi}
+    entries = {qk: await get_entry(store, qk) for qk in sorted(k for k in wanted if k and parse_quarter(k) is not None)}
+    return _dump({"today": today.isoformat(), "from": lo.isoformat(), "to": hi.isoformat(), "days": calendar_days(decls, entries, lo, hi, today, syms),
+                  "meaning": "Board-meeting dates for quarterly results as announced to the exchanges; a passed date counts as declared."})
 
 
 # ------------------------------------------------------------------ pipeline status (read-only, no secrets)

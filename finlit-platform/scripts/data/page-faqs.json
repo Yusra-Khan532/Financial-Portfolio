@@ -776,11 +776,11 @@
    },
    {
     "q": "How do I see every company due on a day?",
-    "a": "Select the day in the calendar to see all its companies, with a link to the filing once it is out. Use the arrows or Today to move between months."
+    "a": "Select the day in the calendar, or pick it in the day list above the declared table (← and → step through the days, Today jumps to today); the day goes into the page link, so you can share it. Use the arrows or Today above the calendar to move between months."
    },
    {
-    "q": "What are Coming up and Recently reported?",
-    "a": "Coming up lists the next results dates. Recently reported lists the latest results filings, each with a link to the exchange filing."
+    "q": "What are Coming up this week and the tiles?",
+    "a": "Coming up this week lists every company whose board meets on results in the next seven days, the same companies the calendar shows as due, with how its industry has done so far and that industry's typical profit growth. The four tiles at the top count what is declared, what is due in the next seven days, your own companies and the last full day."
    },
    {
     "q": "Where can I see the actual numbers?",

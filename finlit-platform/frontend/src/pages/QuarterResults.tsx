@@ -204,7 +204,8 @@ export function QuarterResultsPage() {
   const { plan, upgrade, toast } = useUI();
   const [sp, setSp] = useSearchParams();
   const silver = plan !== "basic";
-  const [f, setF] = useState<QParams>(() => ({ scope: "all", sort: "date", dir: "desc", industry: sp.get("industry") || undefined }));
+  // ?scope=portfolio or watchlist: the Results calendar's "Your companies" tile links here "filtered to yours" (task #193)
+  const [f, setF] = useState<QParams>(() => ({ scope: sp.get("scope") === "portfolio" || sp.get("scope") === "watchlist" ? (sp.get("scope") as "portfolio" | "watchlist") : "all", sort: "date", dir: "desc", industry: sp.get("industry") || undefined }));
   const view = sp.get("view") === "industries" ? "industries" : "companies";   // the final pages pack's Industries / Companies tabs (board 11)
   const setView = (v: "industries" | "companies") => { const n = new URLSearchParams(sp); if (v === "industries") n.set("view", "industries"); else n.delete("view"); setSp(n, { replace: true }); };
 
