@@ -4,7 +4,16 @@
 .rv-co .dcf-search { min-height: 48px; padding-inline: 14px; }   /* a proper full-width search bar, the same as on the DCF page (task #111) */
 .rv-head { display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; align-items: center; padding-top: 6px; border-top: 1px solid var(--border); } .rv-head b { font-size: var(--fs-18); } .rv-head small { display: block; color: var(--muted); } .rv-px { text-align: right; } .rv-px b { font: 600 var(--fs-24) var(--serif); }
 .rv-grid { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
-.rv-grid > .card { min-width: 0; } .rv-as { grid-row: span 3; position: sticky; top: 90px; } .rv-miss, .rv-gr { grid-column: 1 / -1; }
+.rv-grid > .card { min-width: 0; } .rv-miss, .rv-gr { grid-column: 1 / -1; }
+/* "Your assumptions" stays in view while the results scroll (task #69). Task #184 rework (Chinmay, 16 Nov: "your assumptions box is moving below every other
+   box when we scroll and is stuck"): it stuck at 90px, under the section bar of task #188 (sticky at 64px, about 54px tall), so its heading slid under the
+   bar; and when it was taller than the screen its lower inputs could not be reached. It now sticks just below the bar, and is never taller than the space
+   left on screen: its own contents scroll inside it. */
+.rv { --rv-stick: calc(64px + var(--rv-sn-h, 56px) + 12px); }
+/* The card sticks inside its own column (.rv-as-col spans the first three rows). Sticking the grid item itself let it ride down over the full-width cards
+   below (Miss scenarios, Price drivers ...): a sticky grid item is held by the whole grid, not by its own rows. */
+.rv-as-col { grid-row: span 3; align-self: stretch; min-width: 0; }
+.rv-as { position: sticky; top: var(--rv-stick); max-height: calc(100vh - var(--rv-stick) - 16px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .rv-as h2, .rv-res h2 { margin: 0 0 10px; font: 600 var(--fs-20) var(--sans); } .rv-res h2 em { font-style: normal; color: var(--gain); }
 .rv-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; } .rv-modes button { min-height: 40px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; } .rv-modes button.on { background: var(--gain-soft); border-color: var(--gain); color: var(--gain); }
 .rv-f { display: grid; gap: 5px; margin-bottom: 10px; font-size: var(--fs-13); color: var(--muted); } .rv-f > span:first-child { display: flex; justify-content: space-between; gap: 8px; color: var(--text); font-weight: 600; } .rv-f small { color: var(--faint); font-weight: 400; }
@@ -20,7 +29,7 @@
 .rv-miss table, .rv-heat { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: var(--fs-14); } .rv-miss th, .rv-miss td, .rv-heat th, .rv-heat td { padding: 10px 12px; border-top: 1px solid var(--border); text-align: left; } .rv-miss th.r, .rv-miss td.r { text-align: right; font-variant-numeric: tabular-nums; } .rv-miss thead th, .rv-heat thead th { font: 700 var(--fs-11) var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; } .rv-miss .neg { color: var(--loss); font-weight: 600; } .rv-dn { color: var(--loss); font-size: var(--fs-11); }
 .rv-heat td, .rv-heat th { text-align: center; font-variant-numeric: tabular-nums; } .rv-heat th[scope="row"] { font-weight: 600; } .rv-heat .corner { text-align: left; } .rv-heat td.hi { background: color-mix(in srgb, var(--gain) 22%, var(--s1)); } .rv-heat td.lo { background: color-mix(in srgb, var(--loss) 16%, var(--s1)); } .rv-heat td.eq { background: var(--s2); } .rv-heat td.mid { outline: 2px solid var(--gain); outline-offset: -2px; font-weight: 700; }
 .rv-foot { font-size: var(--fs-13); line-height: 1.5; }
-@media (max-width: 980px) { .rv-grid { grid-template-columns: minmax(0, 1fr); } .rv-as { position: static; grid-row: auto; } .rv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 980px) { .rv-grid { grid-template-columns: minmax(0, 1fr); } .rv-as-col { grid-row: auto; } .rv-as { position: static; max-height: none; overflow: visible; } .rv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---- #69 second pass: Valuation tools bar, info panels, steppers, scenarios, tornado, weighted outcome, grid frontier, sharing ---- */
 .rv-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 6px; } .rv-tools > span:first-child { margin-right: 6px; font: 700 var(--fs-13) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }

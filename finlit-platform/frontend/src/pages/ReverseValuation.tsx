@@ -223,6 +223,7 @@ export function ReverseValuationPage() {
           {inputs && hist && (
             <>
               <div className="rv-grid">
+                <div className="rv-as-col">{/* task #184 rework: the column the assumptions card sticks within, so it stops where its three rows end */}
                 <section className="card rv-as" aria-labelledby="rv-as-h">
                   <div className="rv-ash"><h2 id="rv-as-h">Your assumptions</h2><button type="button" className="rv-def" onClick={() => { setSym((x) => x); setV((o) => ({ ...o, taxPct: "25", depPct: "3", capexPct: "4", nwcPct: "10", r: "12", years: "10" })); setOpt({ terminal: "multiple", growthPath: "steady", marginPath: "straight" }); setTermG("5"); if (hist && c) { const ev = (c.marketCap ?? 0) + (c.netDebt.value ?? 0), ebitda = hist.rev0 * (hist.margin0 / 100); setV((o) => ({ ...o, rev0: String(Math.round(hist.rev0)), margin0: f1(hist.margin0, 1).replace("−", "-"), marginN: f1(hist.margin3 ?? hist.margin0, 1).replace("−", "-"), exitMultiple: ebitda > 0 && ev > 0 ? f1(ev / ebitda, 1) : o.exitMultiple, g: hist.cagr5 != null ? f1(hist.cagr5, 1).replace("−", "-") : o.g })); } }}>Use default</button></div>
                   <div className="rv-modes" role="group" aria-label="Solve for">{MODES.map((m) => <button key={m.id} type="button" aria-pressed={mode === m.id} className={mode === m.id ? "on" : ""} onClick={() => setMode(m.id)}>{m.label}</button>)}</div>
@@ -249,6 +250,7 @@ export function ReverseValuationPage() {
                     <p className="rv-note">Net debt {rs(inputs.netDebt)} Cr{c?.netDebt.period ? ` (${c.netDebt.period})` : ""}; shares {f1(inputs.shares, 2)} crore. Revenue and operating profit are the company's reported yearly figures (EBITDA is taken as operating profit before depreciation). Free cash flow = EBITDA − tax − capital spending − working capital, as a share of revenue. The margin moves in a straight line from today's level to the final-year level.</p>
                   </details>
                 </section>
+                </div>
 
                 <section className="card rv-res" aria-labelledby="rv-res-h" aria-live="polite">
                   <h2 id="rv-res-h">Result: <em>{reqLabel}</em></h2>
