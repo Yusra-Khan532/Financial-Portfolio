@@ -1,10 +1,12 @@
-// The dashboard: a greeting row (date, market state, followed stocks, Setup chip, Customise), then the blocks in the member's order. Every block can be moved, hidden or resized in Customise;
-// on a phone the blocks sit under three tabs (My stocks, Market, News) and the last tab is remembered. Descriptive only, information only.
+// The dashboard: a greeting row (date, market state, followed stocks, Setup chip, Customise), then the sticky sections bar and the blocks in five numbered steps (task #195,
+// dashboard pack of 15 Nov 2026): 1 Your money, 2 Your watchlist, 3 The market, 4 Results and news, 5 Tools, on every screen size. Every block can be moved inside its step,
+// switched off or resized in Customise; a switched-off block leaves its step, and a step with no blocks is not shown. Descriptive only, information only.
 import { useEffect, useMemo, useState } from "react";
+import { StepHeading, StepsBar, type Step } from "../components/StepsBar";
 import { Navigate, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
 import { RANK, useUI } from "../lib/ui";
-import { DASH_TABS, WIDGETS, prefs, usePrefs, type DashTab } from "../lib/prefs";
+import { WIDGETS, prefs, stepGroups, usePrefs } from "../lib/prefs";
 import { useUniverse, type Row } from "../lib/screener";
 import { useWatchlist, watch } from "../lib/watchlist";
 import { useMyCompanies } from "../lib/mycompanies";
@@ -12,10 +14,10 @@ import { usePortfolio } from "../lib/portfolio";
 import { useIndices } from "../lib/indices";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
-import { firstName, greetingWord, istHour, longDay, readTab, writeTab } from "../lib/dashboard";
+import { firstName, greetingWord, istHour, longDay } from "../lib/dashboard";
 import { marketWhen } from "../lib/dashPack";
-import { Card, useIsPhone } from "../components/dashboard/parts";
-import { MyStocks, type Followed } from "../components/dashboard/MyStocks";
+import { Card } from "../components/dashboard/parts";
+import { MyStocks, Signals, type Followed } from "../components/dashboard/MyStocks";
 import { MarketToday } from "../components/dashboard/MarketToday";
 import { Snapshot, Sectors } from "../components/dashboard/Snapshot";
 import { MarketRead } from "../components/dashboard/MarketRead";
@@ -43,10 +45,8 @@ export function Dashboard() {
   const pf = usePortfolio();
   const uni = useUniverse();
   const idx = useIndices();
-  const phone = useIsPhone();
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState(params.get("edit") === "1");
-  const [tab, setTab] = useState<DashTab>(() => readTab(user?.id));
   const rows: Row[] = uni.data?.rows ?? [];
   const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
   const followed = useMemo<Followed[]>(() => {
@@ -58,7 +58,6 @@ export function Dashboard() {
   const watchSet = useMemo(() => new Set(wl.lists.flatMap((l) => l.symbols)), [wl]);
   const heldSet = useMemo(() => new Set(pf.holdings.map((h) => h.symbol.toUpperCase())), [pf.holdings]);
   const items = followed.map((f) => bySym.get(f.symbol)).filter((r): r is Row => !!r);
-  const sectors = useMemo(() => new Map(rows.map((r) => [r.symbol, r.sector])), [rows]);
   const caps = useMemo(() => new Map(rows.map((r) => [r.symbol, r.market_cap])), [rows]);
   const oneYear = useMemo(() => new Map(rows.map((r) => [r.symbol, r.return_1y ?? null])), [rows]);   // task #135: the 1 year column
   const qty = useMemo(() => { const m = new Map<string, number>(); for (const h of pf.holdings) m.set(h.symbol.toUpperCase(), (m.get(h.symbol.toUpperCase()) ?? 0) + h.qty); return m; }, [pf.holdings]);
@@ -77,13 +76,16 @@ export function Dashboard() {
   const loadingRows = uni.isLoading;
   // An administrator seeing every plan's features gets every block (founder, 14 Nov 2026), except "Gold & silver today": its prices come through Dhan,
   // whose terms do not allow showing them on the site, so it stays off until a licensed source is connected.
-  const shown = p.dashboard.filter((w) => (w.on || (all && w.id !== "commodities")) && (!phone || meta[w.id].tab === tab));
+  const shown = p.dashboard.filter((w) => w.on || (all && w.id !== "commodities"));
+  const groups = stepGroups(shown);
+  const steps: Step[] = groups.map((g) => ({ id: `dsh-s-${g.step.id}`, n: g.step.n, title: g.step.title, line: g.step.line, sections: g.blocks.map((b) => ({ id: `dsh-b-${b.id}`, label: meta[b.id].nav ?? meta[b.id].label })) }));
   const body = (id: string) => {
     const w = meta[id];
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;
     const legacy = (el: React.ReactNode) => <Card id={id} title={w.label}>{el}</Card>;
     switch (id) {
       case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} watch={watchSet} held={heldSet} caps={caps} oneYear={oneYear} qty={qty} />;
+      case "say": return <Signals followed={followed} caps={caps} />;
       case "market": return <MarketToday />;
       case "snapshot": return <Snapshot rows={rows} loading={loadingRows} />;
       case "sectors": return <Sectors rows={rows} loading={loadingRows} />;
@@ -92,7 +94,7 @@ export function Dashboard() {
       case "portfolio": return <PortfolioGlance held={[...heldSet]} rows={rows} loading={loadingRows} />;
       case "mfglance": return <FundsGlance />;
       case "etfglance": return <EtfsGlance />;
-      case "stress": return <Stress followed={followed} loading={loadingFollowed} sectors={sectors} />;
+      case "stress": return <Stress followed={followed} loading={loadingFollowed} />;
       case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} />;
       case "resultstoday": return <ResultsToday symbols={symbols} />;
       case "filings": return <Filings symbols={symbols} />;
@@ -103,28 +105,30 @@ export function Dashboard() {
       case "movers": return legacy(<Movers items={items} />);
       case "second": return legacy(<SecondLook items={items} meta={wl.meta} />);
       case "buckets": return legacy(<Buckets items={items} />);
-      case "dcf": return legacy(<DcfW />);
+      case "dcf": return <DcfW />;
       case "commodities": return legacy(<CommoditiesW />);
       default: return null;
     }
   };
-  const pickTab = (t: DashTab) => { setTab(t); writeTab(user.id, t); };
   const name = firstName(user.name, user.email);
   const state = idx.data ? marketWhen(new Date(), idx.data.marketOpen, idx.data.asOf ?? null) : [];   // pack 04: "Market opens at 9:15 · Figures from Friday's close"
   const sub = [longDay(), ...state, followed.length ? `You follow ${followed.length} stock${followed.length === 1 ? "" : "s"}` : loadingFollowed ? null : "You follow no stocks yet"].filter(Boolean).join(" · ");
   return (
     <DashCardsProvider userId={user.id}>
-    <div className="wrap dsh" data-tab={tab}>
+    <div className="wrap dsh">
       <header className="dsh-head">
         <div><div className="dsh-kicker">Dashboard</div><h1>{greetingWord(istHour())}{name ? `, ${name}` : ""}</h1><p className="dsh-meta">{sub}</p></div>
         <div className="dsh-actions"><SetupChip steps={setup.steps} n={setup.n} />
           <button type="button" className="dsh-btn" aria-pressed={edit} onClick={() => { setEdit(!edit); if (params.has("edit")) setParams({}, { replace: true }); }}>{edit ? "Done" : "Customise"}</button></div>
       </header>
-      <div className="dsh-tabs" role="tablist" aria-label="Dashboard sections">{DASH_TABS.map((t) => <button key={t.id} type="button" role="tab" id={`dsh-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="dsh-grid" onClick={() => pickTab(t.id)}>{t.label}</button>)}</div>
       {edit && <Customise layout={p.dashboard} plan={plan} onChange={(dashboard) => prefs.set({ dashboard })} onReset={() => prefs.set({ dashboard: [] })} onDone={() => setEdit(false)} />}
-      <div className="dsh-grid" id="dsh-grid" role={phone ? "tabpanel" : undefined} aria-labelledby={phone ? `dsh-tab-${tab}` : undefined}>
-        {shown.map((w) => <div key={w.id} className={"dsh-cell " + w.size} data-block={w.id}>{body(w.id)}</div>)}
-        {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">{phone ? "Every block on this tab is switched off." : "Every block is switched off."} <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
+      <StepsBar steps={steps} label="Dashboard sections" />
+      <div className="dsh-grid" id="dsh-grid">
+        {groups.map((g) => [
+          <StepHeading key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} n={g.step.n} title={g.step.title} line={g.step.line} />,
+          ...g.blocks.map((w) => <div key={w.id} id={`dsh-b-${w.id}`} className={"dsh-cell " + w.size} data-block={w.id}>{body(w.id)}</div>),
+        ])}
+        {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">Every block is switched off. <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
       </div>
       <PageFaqs inline />
       <p className="dsh-fine">Describes prices, flows and company health from filings and prices; not a recommendation. Information only, not investment advice.</p>

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import logging
 import time
 from dataclasses import replace
@@ -61,13 +62,25 @@ def strip_value(obj: Any) -> Any:
     return obj
 
 
+IMPOSSIBLE = {"crude": "Crude cannot fall by more than 100%.", "demand": "Demand cannot fall by more than 100%.",
+              "usdinr": "A dollar cannot cost zero rupees or fewer."}
+
+
 def scenario_from(body: "ScenarioIn", base: Optional[S.Scenario] = None) -> S.Scenario:
-    """A scenario from the reader's numbers, clipped to the sliders' ranges (spec 7.3)."""
+    """A scenario from the reader's numbers, as they are: task #196 (D1) "The model must accept any value; there is no clamp on the server". RANGES are
+    only the sliders' usual drag ranges. Refused: a value that is not a number (a rupee worth nothing is an infinite usdinr), and the impossible ones:
+    crude or demand down by more than 100%, and a dollar costing zero rupees or fewer (usdinr, the change in rupees per dollar, at or below -100%)."""
     sc = replace(base) if base else S.Scenario()
-    for k, (lo, hi) in RANGES.items():
+    for k in RANGES:
         v = getattr(body, k)
-        if v is not None:
-            setattr(sc, k, min(max(float(v), lo), hi))
+        if v is None:
+            continue
+        v = float(v)
+        if not math.isfinite(v):
+            raise fail(422, "not_a_number", f"{k} must be a number.")
+        if (k in ("crude", "demand") and v < -100) or (k == "usdinr" and v <= -100):
+            raise fail(422, "impossible_value", IMPOSSIBLE[k])
+        setattr(sc, k, v)
     if body.persistence in ("one_year", "permanent"):
         sc.persistence = body.persistence
     sc.name = "Custom"

@@ -1,11 +1,11 @@
-// "The market on <day>: what it adds up to" as the final pages pack draws it (04): one sentence, then tabs. The market read: six readings (today's breadth, big moves,
+// "What the market adds up to" (task #195; was "The market on <day>: what it adds up to"), as the final pages pack draws it (04): one sentence, then tabs. The market read: six readings (today's breadth, big moves,
 // which sizes lead, the short and the bigger trend across the counted stocks, the industries), each saying which stocks it is based on, and what they add up to.
 // Breadth, sizes and movers: the same day by company size, with the biggest moves. Figures from the screener table, the index feed and the Sector Pulse board.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { capBucket } from "../../lib/capBuckets";
-import { pickIndices } from "../../lib/dashboard";
-import { dayWord, marketRead, type Reading } from "../../lib/dashPack";
+import { dayMonth, pickIndices } from "../../lib/dashboard";
+import { dayWord, marketRead, weekdayOf, type Reading } from "../../lib/dashPack";
 import { useIndices } from "../../lib/indices";
 import { useLevels } from "../../lib/markets";
 import { useSectorBoard } from "../../lib/sectors";
@@ -37,11 +37,13 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
   }, [rows]);
   const niftyChg = useNiftyDay(cards[0]?.row?.changePct ?? null);
   const read = useMemo(() => marketRead({ day, adv: data.adv, dec: data.dec, total: data.total, niftyChg, midChg: cards[3]?.row?.changePct ?? null, smallChg: cards[4]?.row?.changePct ?? null, big: data.big, size: data.size, board }), [data, cards, board, day]);
-  const title = `The market ${day === "Today" ? "today" : `on ${day}`}: what it adds up to`;
+  // task #195: retitled "What the market adds up to", with the date in the sub-line ("Friday, 13 Nov · each reading says which stocks it is based on.")
+  const asOf = idx.data?.asOf?.slice(0, 10) ?? null, title = "What the market adds up to";
+  const sub = `${asOf ? `${weekdayOf(asOf)}, ${dayMonth(asOf)} · each` : "Each"} reading says which stocks it is based on.`;
   const tabs: [Tab, string, string][] = [["read", "The market read", "Six readings: good signs, mixed and warnings"], ["breadth", "Breadth, sizes and movers", "How many stocks rose, and which sizes led"]];
   const tops = useMemo(() => { const m = data.moves.filter((r) => (r.market_cap ?? 0) >= 1000); return { up: [...m].sort((a, b) => (b.change_pct as number) - (a.change_pct as number)).slice(0, 5), down: [...m].sort((a, b) => (a.change_pct as number) - (b.change_pct as number)).slice(0, 5) }; }, [data.moves]);
   return (
-    <Card id="marketread" title={title} sub="Each reading says which stocks it is based on." className="dsh-mr">
+    <Card id="marketread" title={title} sub={sub} className="dsh-mr">
       {loading || !data.total ? <Rows n={4} h={60} /> : <>
         <p className="dsh-mr-lead"><b>{read.lead}</b>{read.rest}</p>
         {read.tail && <p className="dsh-note">{read.tail}</p>}

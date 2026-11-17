@@ -11,8 +11,8 @@ import { CoLogo } from "../../CoLogo";
 import { LockedBlock } from "../Parts";
 import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
-import { COLOUR, MEANING, ORDER, WORD, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, toCsv, type Card, type TableFilter } from "../../../lib/pulsePack";
-import { BoxChip, Cards, InsightCard, Scroll, Spark, StateChip, Swatch, Tip } from "./Common";
+import { COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, toCsv, type Card, type TableFilter } from "../../../lib/pulsePack";
+import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
 
 const pct0 = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);
 const signed = (v: number | null | undefined) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`);
@@ -44,7 +44,7 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
           <thead>
             <tr className="sp-full-g"><th colSpan={2} /><th colSpan={3} className="sp-g-trend">Above their trend<Tip text="Out of the industry's counted stocks, the share above their short (about 2 weeks), medium (about a month) and longer (about 3 months) average price." /></th>
               <th colSpan={2} className="sp-g-fall">Depth of fall<Tip text="How deep the fall was. Below high: how far the industry's typical stock is below its 1-year high. Held up: at the industry's last low, the share of stocks that stayed above their earlier low. A low figure (in red) means almost every stock fell to a new low: a crash." /></th>
-              <th colSpan={2} /><th colSpan={2} className="sp-g-vs">Vs other industries<Tip text="The Sector Rotation box and rank: how the industry has done against the average industry over recent months and weeks." /></th></tr>
+              <th colSpan={2} /><th colSpan={2} className="sp-g-vs">Vs other industries<Tip text="The Sector Rotation box and rank: how the industry has done against the average group over recent months and weeks." /></th></tr>
             <tr><th scope="col">Industry</th><th scope="col">Last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day. The shading: its state that day." /></th>
               <th scope="col" className="r">Short</th><th scope="col" className="r">Medium</th><th scope="col" className="r">Longer</th><th scope="col" className="r">Below high</th><th scope="col" className="r">Held up</th>
               <th scope="col">Bounced<Tip text="When most of its stocks last turned up together, in trading days, and whether that bounce came after a crash or a sell-off." /></th><th scope="col" className="r">Standouts<Tip text="How many of its stocks are at a new 1-year high while the industry is still well below its own high." /></th>
@@ -78,13 +78,14 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
 
 // ------------------------------------------------------------------------------------------------ the sections under the full table
 type Small = { slug: string; name: string; counted: number; listed: number | null; locked?: string; note?: string | null; stocks: { symbol: string; name: string; ret_6m: number | null }[] | null };
-function SmallRow({ g }: { g: { name: string; slug: string; stocks_counted: number } }) {
+function SmallRow({ g, inside }: { g: { name: string; slug: string; kind?: string; stocks_counted: number }; inside?: { industry: string; companies: number | null }[] }) {
   const [open, setOpen] = useState(false);
   const q = useQuery<Small, ApiError>({ queryKey: ["sector-small", g.slug], queryFn: () => apiGet<Small>(`/api/sectors/small/${encodeURIComponent(g.slug)}`), staleTime: 300_000, retry: false });
   const listed = q.data?.listed;
   return (
     <li><details onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
-      <summary><span className="sp-chev" aria-hidden="true">{open ? "▼" : "▶"}</span><b>{g.name === "Diversified" ? "Diversified (conglomerates)" : g.name}</b>{g.name === "Diversified" && <Tip text="Diversified is NSE's name for conglomerates, companies that run several unrelated businesses. It has nothing to do with diversifying your portfolio." />}
+      <summary><span className="sp-chev" aria-hidden="true">{open ? "▼" : "▶"}</span><b>{g.name === "Diversified" ? "Diversified (conglomerates)" : short(g.name)}</b>{g.name === "Diversified" && <Tip text="Diversified is NSE's name for conglomerates, companies that run several unrelated businesses. It has nothing to do with diversifying your portfolio." />}
+        {g.kind === "sector" && <InsideLine list={inside} />}
         <small>{g.stocks_counted} counted{q.data?.note && q.data.stocks?.length ? ` · ${q.data.stocks.length} largest shown` : listed != null ? ` · ${listed} listed` : ""}</small></summary>
       {open && (q.isLoading ? <span className="sp-nil">Loading…</span> : q.data?.locked ? <span className="sp-nil">The stocks are part of the Silver plan.</span>
         : !q.data?.stocks?.length ? <span className="sp-nil">No listed stock carries this group's name in the screener today.</span>
@@ -92,14 +93,15 @@ function SmallRow({ g }: { g: { name: string; slug: string; stocks_counted: numb
     </details></li>);
 }
 export function TooSmallFull({ b }: { b: Board }) {
-  const few = b.too_few_stocks ?? [];
+  const few = b.too_few_stocks ?? [], acc = useAccount(b);
   if (!few.length) return null;
   return (
     <section className="sp-sec" aria-labelledby="sp-small-f">
       <h2 id="sp-small-f">Too small for a reading</h2>
-      <p className="sp-sub">{few.length} industries have too few actively traded stocks for a steady reading.</p>
+      <p className="sp-sub">{groupsSplit(few)} have too few actively traded stocks for a steady reading.</p>
       <p className="sp-why"><b>Why it matters</b> With only a handful of stocks, one share moving can flip the whole industry's state. Open any of them to see its stocks; we just do not give the industry a state.</p>
-      <ul className="sp-smallrows">{few.map((g) => <SmallRow key={g.slug} g={g} />)}</ul>
+      <ul className="sp-smallrows">{few.map((g) => <SmallRow key={g.slug} g={g} inside={acc?.inside[g.slug]} />)}</ul>
+      {acc && <p className="sp-note" data-testid="all-59">{acc.line}</p>}
     </section>
   );
 }
@@ -123,10 +125,11 @@ export function StandoutsFull({ b }: { b: Board }) {
   );
 }
 /** The pack's Friday squares, drawn as one picture that grows with the page (pack 06: 20 x 16 squares, 22 apart, names right-aligned at 210, the date every fourth Friday counted back from today). */
-const FX = 221, FS = 22, FR = 18, FT = 27;
+const FS = 22, FR = 18, FT = 27;
 export function SixMonths({ h }: { h: SectorHistory }) {
   const nav = useNavigate();
-  const fr = fridays(h), cards = fridayCards(h), cols = fr.ends.length, W = FX + cols * FS + 8, H = FT + fr.rows.length * FR + 6;
+  // the name column fits the longest NSE name in full (task #192, T12: no shortened names), about 8.6 units a letter at the 16-unit name size
+  const fr = fridays(h), cards = fridayCards(h), cols = fr.ends.length, FX = Math.max(221, Math.ceil(Math.max(0, ...fr.rows.map((r) => short(r.name).length)) * 8.6) + 14), W = FX + cols * FS + 8, H = FT + fr.rows.length * FR + 6;
   const go = (e: React.MouseEvent | React.KeyboardEvent, slug: string) => { e.preventDefault(); nav(`/sectors/${slug}`); };
   return (
     <Hideable id="pack.sp-six" title="Six months of every industry">
@@ -134,17 +137,17 @@ export function SixMonths({ h }: { h: SectorHistory }) {
       <div className="sp-sec-h"><div><h2 id="sp-six">Six months of every industry<Tip text="Each industry's state at every Friday close for six months: one row per industry, one square per Friday. The outlined column is the latest close." /></h2>
         <p className="sp-sub">One row per industry, one square per Friday. The outlined column is today. Rows are sorted by today's state.</p></div></div>
       <ul className="sp-lgd">{(["crash", "bouncing", "rising", "losing", "sold_off", "no_signal"] as StateKey[]).map((k) => <li key={k}><Swatch k={k} />{WORD[k]}</li>)}</ul>
-      <Scroll label="six months of every industry"><svg className="sp-fri" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Each of ${fr.rows.length} industries' state at ${cols} Friday closes, from ${cols ? dayMon(h.dates[fr.ends[0]]) : ""} to ${cols ? dayMon(h.dates[fr.ends[cols - 1]]) : ""}`}>
+      <Scroll label="six months of every industry"><svg className="sp-fri" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Each of ${groupsN(fr.rows.length)} industries' state at ${cols} Friday closes, from ${cols ? dayMon(h.dates[fr.ends[0]]) : ""} to ${cols ? dayMon(h.dates[fr.ends[cols - 1]]) : ""}`}>
         {fr.ends.map((i, j) => (cols - 1 - j) % 4 === 0 && <text key={i} x={FX + j * FS + 10} y={18} className="sp-fri-d" textAnchor="middle">{dayMon(h.dates[i])}</text>)}
         {fr.rows.map((r, k) => { const y = FT + k * FR; return (<g key={r.slug}>
-          <a href={`/sectors/${r.slug}`} onClick={(e) => go(e, r.slug)}><text x={210} y={y + 12} className="sp-fri-n" textAnchor="end">{short(r.name)}</text></a>
+          <a href={`/sectors/${r.slug}`} onClick={(e) => go(e, r.slug)}><text x={FX - 11} y={y + 12} className="sp-fri-n" textAnchor="end">{short(r.name)}</text></a>
           {r.states.map((s, j) => <rect key={j} x={FX + j * FS} y={y} width={20} height={16} rx={3} fill={s ? COLOUR[s] : "transparent"}><title>{`${short(r.name)}, ${dayMon(h.dates[fr.ends[j]])}: ${s ? WORD[s] : "no reading"}`}</title></rect>)}
         </g>); })}
         {cols > 0 && <rect x={FX + (cols - 1) * FS - 1} y={FT - 3} width={22} height={fr.rows.length * FR + 4} rx={4} fill="none" className="sp-fri-now" />}
       </svg></Scroll>
       <p className="sp-note">Long yellow runs are industries sold off for months; a fresh green square at the right end is a bounce that has just started.</p>
       <Cards items={cards} />
-      {h.changed_this_week?.length > 0 && <details className="sp-more"><summary>What changed this week ({h.changed_this_week.length} industries) ▾</summary>
+      {h.changed_this_week?.length > 0 && <details className="sp-more"><summary>What changed this week ({groupsN(h.changed_this_week.length)}) ▾</summary>
         <ul className="sp-changed">{h.changed_this_week.map((c) => <li key={c.slug}><Link to={`/sectors/${c.slug}`}>{short(c.name)}</Link>: {c.last} → <b>{c.now}</b></li>)}</ul></details>}
     </section>
     </Hideable>

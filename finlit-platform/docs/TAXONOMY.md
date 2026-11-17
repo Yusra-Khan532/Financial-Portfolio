@@ -68,6 +68,12 @@ Public Sector Bank). Group names are NSE's own (never the home-made short names 
 TradingView lists in `data/leadership_groups.json` are no longer peer groups (rule T6). A company NSE's lists cannot place is not ranked ("no peer group").
 The weekly run (Saturdays) writes the new groups.
 
+## Sector Pulse and Sector Rotation names (round 4a)
+The board's groups mix NSE industries and sector groups (small industries of one NSE sector read together), so every count on those pages says
+"groups" and names its two levels ("38 groups: 33 industries and 5 sectors"); the yardstick is "the average group". Group names are NSE's own in full,
+with NSE's commas (`frontend/src/lib/groupNames.ts`, checked against `nse_classification.json` by a test); the two home-made short-name lists are gone.
+The Too small section names the industries inside a too-small sector group and accounts for all 59 industries.
+
 ## Rounds of task #192
 1. This data layer (nothing on the pages changes yet).
 2. Every page named in the pack's section 3 reads these fields and labels each list by its level; the old mixed `sector` column goes when no

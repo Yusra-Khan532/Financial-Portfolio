@@ -13,7 +13,7 @@ import { LockedBlock } from "../Parts";
 import { BoxChip, Cards, Scroll, Section, StateChip, Swatch, Tip } from "./Common";
 import { COLOUR, STATE_HELP, WORD, keyOf, short } from "../../../lib/pulsePack";
 import { BOX_HELP } from "../../../lib/rotationPack";
-import { CYCLE_STEPS, cycleNotes, dm, happening, rotationTiles, stockCards, story, tiles, tierWord, topCards, twoPages, yearCards } from "../../../lib/industryPack";
+import { CYCLE_STEPS, cycleNotes, dm, happening, rankOf, rotationTiles, unitOf, stockCards, story, tiles, tierWord, topCards, twoPages, yearCards } from "../../../lib/industryPack";
 import type { IndustryPage, RankedStock } from "../../../lib/sectors";
 import type { IndustryYear } from "../../../lib/sectorExtra";
 import type { RotationCard } from "../../../lib/rotation";
@@ -36,7 +36,7 @@ export function IndustryHead({ p, rot }: { p: IndustryPage; rot: RotationCard | 
           <h1>{name}</h1>
           <p className="ip-chips">
             <StateChip k={k} help />{p.since_label && <span className="ip-since">since {dm(p.since!)}</span>}
-            {rot && rot.corner && rot.corner !== "middle" && <><BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} />{rot.rank != null && <span className="ip-since">rank {rot.rank} of {rot.ranked}</span>}</>}
+            {rot && rot.corner && rot.corner !== "middle" && <><BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} />{rot.rank != null && <span className="ip-since">rank {rankOf(rot.rank, rot.ranked)}</span>}</>}
           </p>
           <p className="sp-meta"><span>NSE {p.kind === "sector" ? "sector group" : "industry"}{p.sector ? ` in ${p.sector}` : ""} · <b>{p.stocks_counted} stocks counted</b>, {notCounted} not counted · data as of {p.date_label ?? p.date}</span></p>
         </div>
@@ -78,7 +78,7 @@ export function CycleInd({ p }: { p: IndustryPage }) {
 // ------------------------------------------------------------------------------------------------ A year of <industry>
 export function YearInd({ p, y }: { p: IndustryPage; y: IndustryYear }) {
   const [more, setMore] = useState(false);
-  const name = short(p.name), m = useMemo(() => story(y), [y]), cards = yearCards(p, y);
+  const name = short(p.name), m = useMemo(() => story(y, unitOf(p)), [y, p]), cards = yearCards(p, y);
   const W = 820, H = 300, L = 30, Rr = 70, T = 12, B = 46, n = y.dates.length;
   const x = (i: number) => L + (i / Math.max(1, n - 1)) * (W - L - Rr), yy = (v: number) => T + (1 - v / 100) * (H - T - B);
   const line = (vals: (number | null)[]) => vals.map((v, i) => (v == null ? "" : `${i && vals[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)},${yy(v).toFixed(1)}`)).join("");
@@ -96,7 +96,7 @@ export function YearInd({ p, y }: { p: IndustryPage; y: IndustryYear }) {
         <ol className="ip-abc">
           <li><b>The line</b> is how many of every 100 {name} stocks were rising that day (trading above their medium trend).</li>
           <li><b>Above the dashed line</b> more than half were rising; in the green band, almost all. In the red band, almost all were falling.</li>
-          <li><b>The coloured strip</b> under the chart is the state Sector Pulse gave the industry on that day.</li>
+          <li><b>The coloured strip</b> under the chart is the state Sector Pulse gave the {unitOf(p)} on that day.</li>
         </ol>
         <Scroll label={`a year of ${name}`}><svg className="ip-year" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${name}: stocks rising out of 100 each day for a year; ${last == null ? "" : `${Math.round(last)} at the latest close`}`}>
           <rect x={L} y={yy(100)} width={W - L - Rr} height={yy(70) - yy(100)} className="ip-band-up" /><rect x={L} y={yy(30)} width={W - L - Rr} height={yy(0) - yy(30)} className="ip-band-dn" />
@@ -140,9 +140,9 @@ export function AgainstInd({ p, rot }: { p: IndustryPage; rot: RotationCard }) {
   const worstAt = h.filter((q) => q.rank === rot.rank_worst_26w).pop();
   const corner = rot.corner && rot.corner !== "middle" ? rot.corner : null;
   return (
-    <Section id="ip-rot" hide title="Against other industries" help="Against other industries. From Sector Rotation: how the industry has done against the average industry, and its rank among all industries each week." sub="From Sector Rotation, updated each Friday.">
+    <Section id="ip-rot" hide title="Against other groups" help="Against other groups. From Sector Rotation: how this group has done against the average group, and its rank among all ranked groups (NSE industries and sector groups) each week." sub="From Sector Rotation, updated each Friday.">
       <p className="ip-chips">{corner ? <><BoxChip corner={corner} /><Tip text={BOX_HELP[corner]} label={`About “${rot.corner_name}”`} /></> : <span className="sp-nil">No box yet</span>}<span className="ip-since">for {rot.weeks_in_corner} {rot.weeks_in_corner === 1 ? "week" : "weeks"}{rot.corner_since_label ? `, since ${rot.corner_since_label.replace(/ \d{4}$/, "")}` : ""}</span></p>
-      <div className="ip-rtiles">{rotationTiles(rot, p.stocks_counted).map((t) => <div key={t.k} className="ip-tile"><p className="sp-cap">{t.k}<Tip text={t.help} label={`About “${t.k}”`} /></p><b>{t.v}</b><small>{t.sub}</small></div>)}</div>
+      <div className="ip-rtiles">{rotationTiles(rot, p.stocks_counted, unitOf(p)).map((t) => <div key={t.k} className="ip-tile"><p className="sp-cap">{t.k}<Tip text={t.help} label={`About “${t.k}”`} /></p><b>{t.v}</b><small>{t.sub}</small></div>)}</div>
       {d && <div className="ip-rank"><p className="sp-cap">Rank over {h.length} weeks</p>
         <svg viewBox={`0 0 ${W} ${H}`} className="ip-rankc" role="img" aria-label={`Rank over ${h.length} weeks: highest ${rot.rank_best_26w}, lowest ${rot.rank_worst_26w}`}><path d={`${d}L${W - 4},${H}L4,${H}Z`} className="ip-rank-a" /><path d={d} className="ip-rank-l" fill="none" />{lastP && <circle cx={lastP[0]} cy={lastP[1]} r={3} className="ip-rank-d" />}</svg>
         <small>Higher is better · highest {rot.rank_best_26w}, lowest {rot.rank_worst_26w}{worstAt ? ` (${dm(worstAt.date)})` : ""}</small></div>}

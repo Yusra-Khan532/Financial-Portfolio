@@ -5,8 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Table } from "../lib/api";
 import reliance from "../lib/__fixtures__/relianceYearly.json";
 
-const st = vi.hoisted(() => ({ saved: [] as { name: string; text: string; type: string }[], fin: null as unknown }));
-vi.mock("./derive", () => ({ saveFile: (name: string, text: string, type: string) => st.saved.push({ name, text, type }) }));
+const st = vi.hoisted(() => ({ fin: null as unknown }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useSection: () => ({ data: st.fin }) }));
 import { roeVerdict } from "../lib/dupontDeep";
@@ -22,8 +21,8 @@ const SHAPED = {
   bs: t(P8, { total_assets: [500, 520, 530, 560, 540000, 520, 510, 530], total_equity: [null, null, null, null, 107000, 280, 270, 266], equity_capital: [10, 10, 10, 10, 10, 10, 10, 10] }),
 };
 beforeAll(() => { (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }; });
-afterEach(() => { cleanup(); document.getElementById("financials")?.remove(); st.saved.length = 0; });
-const show = (d = RIL, lender = false) => render(<DecodeRoe symbol="RELIANCE" pl={d.pl} bs={d.bs} lender={lender} />);
+afterEach(() => { cleanup(); document.getElementById("financials")?.remove(); });
+const show = (d = RIL, lender = false) => render(<DecodeRoe pl={d.pl} bs={d.bs} lender={lender} />);
 
 describe("Decoding ROE, Reliance", () => {
   it("has the heading, the plain sentence, a completeness indicator and the disclaimer", () => {
@@ -81,11 +80,11 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.getByRole("table", { name: /Formulas for Mar 2019/ }).textContent).toContain("35,163 ÷ 3,84,904");
     expect(screen.getByText(/Year-end balances use the closing balance sheet/)).toBeTruthy();
   });
-  it("exports the table as CSV", () => {
-    show(); fireEvent.click(screen.getByRole("button", { name: /Download table/ }));
-    expect(st.saved).toHaveLength(1); expect(st.saved[0].name).toBe("FinLit-RELIANCE-decoding-roe.csv"); expect(st.saved[0].type).toMatch(/text\/csv/);
-    expect(st.saved[0].text).toContain("Measure,Mar 2019,Mar 2020"); expect(st.saved[0].text).toContain("Information only, not investment advice.");
+  it("offers no download (task #216: the report has no downloads)", () => {
+    show();
+    expect(screen.queryByRole("button", { name: /download|csv/i })).toBeNull();
   });
+
   it("no checks panel for steady, ordinary figures", () => { show(); expect(screen.queryByText("Checks on the numbers")).toBeNull(); });
 });
 

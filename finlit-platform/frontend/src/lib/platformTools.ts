@@ -71,7 +71,7 @@ export const FIGURE: Record<string, [string, string]> = {
   "mutual-funds": ["1,200+", "funds"], "etfs": ["350+", "ETFs"], "fund-health-score": ["1,200+", "funds scored"],
   "company-report": ["5", "IQ pillars"], "finlit-prism": ["4", "parts + 2 tech views"], "company-financials": ["3", "statements + ratios"], "compare-companies": ["2–4", "companies at once"],
   "reverse-valuation": ["4", "answers it solves for"], "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "stress-lab": ["5", "shocks to test"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
-  "sector-pulse": ["35+", "industry groups"], "sector-rotation": ["4", "corners"], "market-events": ["3", "calendars"], "ipo-calendar": ["3", "IPO lists"],
+  "sector-pulse": ["38", "industry and sector groups"], "sector-rotation": ["4", "corners"], "market-events": ["3", "calendars"], "ipo-calendar": ["3", "IPO lists"],
   "glossary": ["440+", "terms"], "discussion-forum": ["5,800+", "company pages"],
 };
 

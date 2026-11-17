@@ -1,5 +1,6 @@
 // Your shares at a glance (task #135; was "Your portfolio at a glance"), as the final pages pack draws it (04): the shares in the member's Equity portfolio, read with FinLit Prism like the Equity portfolio
-// page (the average score in a ring, score colours, the average of each Prism part, a card on the weak spot) and their spread across sectors and company sizes.
+// page (task #195: the average score in the shared Prism ring, one arc per Prism part; score colours; the average of each Prism part in the same bands; a card on the
+// weak spot) and their spread across sectors and company sizes.
 // Sizes by FinLit's rule (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below), as on every page of the pack. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
@@ -10,11 +11,13 @@ import { capBucket } from "../../lib/capBuckets";
 import { portfolioCard } from "../../lib/dashPack";
 import { Tip } from "../sectors/pack/Common";
 import { DashCards } from "./DashCards";
+import { ScoreRing, bandWord } from "../ScoreRing";
 
-const PARTS: [keyof Row, string][] = [["prism_fundamental", "Growth & Profitability"], ["prism_valuation", "Valuation"], ["prism_quality", "Quality"], ["prism_risk", "Risk (higher is safer)"]];
+const PARTS: [keyof Row, string, string][] = [["prism_fundamental", "Growth & Profitability", "growth"], ["prism_valuation", "Valuation", "valuation"], ["prism_quality", "Quality", "quality"], ["prism_risk", "Risk (higher is safer)", "risk"]];
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const avg = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
-export const colourOf = (v: number | null) => (v == null ? "n" : v >= 70 ? "g" : v >= 50 ? "o" : "r");
+/** Task #195: the site's bands, as the ring draws them (Strong 80+ and Healthy 65–79 green, Average 50–64 orange, Weak and Poor below 50 red), so a part of 69 is green on the ring and its bar alike. */
+export const colourOf = (v: number | null) => { const b = bandWord(v).band; return b === "hi" ? "g" : b === "mid" ? "o" : b === "lo" ? "r" : "n"; };
 
 /** FinLit's size of each listed company, from its market value. */
 /** The score bar in band words (task #135: the model's cut-offs stay on the server): "6 strong or healthy · 6 average · 2 weak or poor". */
@@ -26,7 +29,7 @@ export function finlitSizes(rows: Row[]): Map<string, "Large" | "Mid" | "Small">
 
 export type Glance = {
   count: number; scored: number; avgPrism: number | null; colours: { g: number; o: number; r: number; n: number };
-  parts: { label: string; value: number | null }[]; sectors: number; largest: { name: string; count: number } | null; sizes: { label: string; count: number }[];
+  parts: { key: string; label: string; value: number | null }[]; sectors: number; largest: { name: string; count: number } | null; sizes: { label: string; count: number }[];
 };
 export function glance(held: string[], rows: Row[]): Glance {
   const by = new Map(rows.map((r) => [r.symbol, r])), sizeOf = finlitSizes(rows);
@@ -41,7 +44,7 @@ export function glance(held: string[], rows: Row[]): Glance {
   for (const r of mine) { const s = sizeOf.get(r.symbol); if (s) sizes.set(s, (sizes.get(s) ?? 0) + 1); }
   return {
     count: held.length, scored: finals.filter((v) => v != null).length, avgPrism: avg(finals), colours,
-    parts: PARTS.map(([k, label]) => ({ label, value: avg(mine.map((r) => num(r[k]))) })),
+    parts: PARTS.map(([k, label, key]) => ({ key, label, value: avg(mine.map((r) => num(r[k]))) })),
     sectors: sectors.size, largest: largest ? { name: largest[0], count: largest[1] } : null,
     sizes: (["Large", "Mid", "Small"] as const).filter((l) => sizes.get(l)).map((l) => ({ label: l, count: sizes.get(l)! })),
   };
@@ -66,7 +69,8 @@ export function PortfolioGlance({ held, rows, loading }: { held: string[]; rows:
           ? <p className="dsh-note">No Prism score is stored yet for these shares. A share's score appears here once its FinLit Prism rating has been calculated; <Link to="/prism">open FinLit Prism</Link>.</p>
           : <p className="dsh-note">The average score, score colours and Prism parts use FinLit Prism, part of Gold. <Link to="/plans">See plans</Link>.</p>) : <>
           <div className="dsh-pg-top">
-            <div className={"dsh-pg-ring " + colourOf(g.avgPrism)} role="img" aria-label={`Average Prism score ${g.avgPrism ?? "not available"} out of 100`} style={{ ["--v" as string]: g.avgPrism ?? 0 }}><b>{g.avgPrism ?? "—"}</b></div>
+            <div className="dsh-pg-ringw" role="img" aria-label={`Average Prism score ${g.avgPrism ?? "not available"} out of 100${g.avgPrism != null ? `, ${bandWord(g.avgPrism).word}` : ""}; ${g.parts.map((p) => `${p.label} ${p.value ?? "no score"}`).join(", ")}`}>
+              <ScoreRing parts={g.parts.map((p) => ({ key: p.key, value: p.value }))} score={g.avgPrism} /></div>
             <div>
               <p className="dsh-lh first">Score bands</p>
               <div className="dsh-pg-mix" role="img" aria-label={bandLine(g.colours)}>

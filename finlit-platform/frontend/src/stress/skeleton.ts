@@ -43,24 +43,32 @@ export function skeleton(plan: "silver" | "gold", disclaimer: string, model: str
 <section class="ptop" data-v="both"><p class="lead" style="margin:0">See how a shock to crude, the rupee, inflation, interest rates or demand would move a company's earnings over the next 12 months, under assumptions you can see${gold ? " and change" : ""}.</p>
 <div class="r" data-find="company"><span class="seg" role="group" aria-label="View"><button type="button" data-view="single" aria-pressed="true">One company</button>${compare}</span>
 <label class="find"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><input type="search" placeholder="Search another company" aria-label="Find a company"></label></div></section>
-<section class="card" data-v="both"><div class="costrip" id="costrip"></div></section>
-<section class="card" data-v="both" aria-labelledby="scen-h"><h2 id="scen-h">Choose a shock${ib("Today measures how far conditions now are from those in which the company earned its last four quarters. The presets replay past shocks or test one driver at a time. Custom lets you set your own.", "lt", "About the scenarios")}</h2>
+<div id="guide"></div><nav class="secbar" id="secbar" aria-label="Steps on this page"></nav>
+<div class="step" id="st-1" data-v="both" data-step="Company"><span class="sn" aria-hidden="true">1</span><div><h2 class="stt">Company</h2><p>The company and the four quarters the model starts from.</p></div></div>
+<section class="card" data-v="both" id="sx-company" data-sub="Company"><div class="costrip" id="costrip"></div></section>
+<div class="step" id="st-2" data-v="both" data-step="Choose a shock"><span class="sn" aria-hidden="true">2</span><div><h2 class="stt">Choose a shock</h2><p>Pick a ready scenario, or set your own numbers.</p></div></div>
+<section class="card" data-v="both" aria-labelledby="scen-h" id="sx-scen" data-sub="Scenarios and sliders"><h2 id="scen-h">Choose a shock${ib("Today measures how far conditions now are from those in which the company earned its last four quarters. The presets replay past shocks or test one driver at a time. Custom lets you set your own.", "lt", "About the scenarios")}</h2>
 <div class="chips" id="chips" role="group" aria-label="Scenario"></div><div class="based" id="based"></div><div id="todayinputs"></div><div class="sliders" id="sliders" hidden></div><div class="upnote" id="upnote" role="note" hidden></div></section>
-<section class="card" data-v="single" aria-label="Result"><div id="head"></div></section>
-<section class="card" data-v="compare" aria-label="Comparison"><div id="cmpsum"></div></section>
-<section data-v="both" aria-label="Insights and warnings"><div class="calls" id="calls"></div></section>
-<section class="card" data-v="single" aria-labelledby="ana-h"><h2 id="ana-h">What the numbers say${ib("A plain reading of this result: what changes, where the cost comes from, and what to keep in mind about timing. It describes the numbers under these assumptions.", "lt", "About this reading")}</h2><div class="ana" id="ana" style="margin-top:12px"></div></section>
-<section class="cmp2" id="cols" data-v="compare" aria-label="The two companies"></section>
+<div class="step" id="st-3" data-v="both" data-step="The result"><span class="sn" aria-hidden="true">3</span><div><h2 class="stt">The result</h2><p>What the shock does to earnings, and how sure it is.</p></div></div>
+<section class="card" data-v="single" aria-label="Result" id="sx-result" data-sub="Score and figures"><div id="head"></div></section>
+<section class="card" data-v="compare" aria-label="Comparison" id="sx-cmp" data-sub="The two companies"><div id="cmpsum"></div></section>
+<section data-v="both" aria-label="Insights and warnings" id="sx-calls" data-sub="Good sign, insight, watch out"><div class="calls" id="calls"></div></section>
+<div class="step" id="st-4" data-v="both" data-step="Why it moves"><span class="sn" aria-hidden="true">4</span><div><h2 class="stt">Why it moves</h2><p>From costs to profit, line by line.</p></div></div>
+<section class="card" data-v="single" aria-labelledby="ana-h" id="sx-ana" data-sub="What the numbers say"><h2 id="ana-h">What the numbers say${ib("A plain reading of this result: what changes, where the cost comes from, and what to keep in mind about timing. It describes the numbers under these assumptions.", "lt", "About this reading")}</h2><div class="ana" id="ana" style="margin-top:12px"></div></section>
+<section class="cmp2" id="cols" data-v="compare" aria-label="The two companies" data-sub="Side by side"></section>
 <div class="two" id="grid2" data-v="both">
-<section class="card" data-v="single"><div id="tbl"></div></section>
-<section class="card"><div id="drv"></div></section>
-<section class="card senscard"><div id="sens"></div></section>
+<section class="card" data-v="single" id="sx-tbl" data-sub="The numbers, before and after"><div id="tbl"></div></section>
+<section class="card" id="sx-drv" data-sub="What drives it"><div id="drv"></div></section>
+<section class="card senscard" id="sx-sens" data-sub="What moves it most · breaking points"><div id="sens"></div></section>
 </div>
-<section class="card" data-v="both"><div id="every"></div></section>
-<section class="card" data-v="both"><div id="hist"></div></section>
-<section class="card" data-v="single"><div id="bt"></div></section>
-<section class="card" data-v="single"><div id="asm"></div></section>
-<section class="card" data-v="both">${HOW(fxSourceWords(more.fxSource), String(more.statement || "consolidated").toLowerCase())}</section>
+<div class="step" id="st-5" data-v="both" data-step="Every scenario"><span class="sn" aria-hidden="true">5</span><div><h2 class="stt">Every scenario</h2><p>All ready scenarios side by side.</p></div></div>
+<section class="card" data-v="both" id="sx-every" data-sub="Every scenario at a glance"><div id="every"></div></section>
+<div class="step" id="st-6" data-v="both" data-step="History"><span class="sn" aria-hidden="true">6</span><div><h2 class="stt">History</h2><p>Real shocks, and how well the model did before.</p></div></div>
+<section class="card" data-v="both" id="sx-hist" data-sub="What happened in real shocks"><div id="hist"></div></section>
+<section class="card" data-v="single" id="sx-bt" data-sub="How the model did"><div id="bt"></div></section>
+<div class="step" id="st-7" data-v="both" data-step="Assumptions"><span class="sn" aria-hidden="true">7</span><div><h2 class="stt">Assumptions</h2><p>Every number the model uses; change the ones in boxes.</p></div></div>
+<section class="card" data-v="single" id="sx-asm" data-sub="The assumptions behind it"><div id="asm"></div></section>
+<section class="card" data-v="both" id="sx-how" data-sub="How the model works">${HOW(fxSourceWords(more.fxSource), String(more.statement || "consolidated").toLowerCase())}</section>
 <section class="disc" data-v="both" role="note"><span aria-hidden="true" style="flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--muted);color:var(--card);font:italic 700 14px/1 Georgia,serif">i</span><div><b>${esc(disclaimer)}</b> Stress Lab describes what happens to the numbers under the assumptions shown; it does not say what to do with any security.<div class="src">Model ${esc(model)} · data to ${esc(sayDate(asOf))} · Brent: U.S. Energy Information Administration</div></div></section>
 </main></div>`;
 }

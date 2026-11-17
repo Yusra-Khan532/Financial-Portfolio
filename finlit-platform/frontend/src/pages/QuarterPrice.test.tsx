@@ -29,7 +29,10 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<QuarterResultsPage />} /></Routes><Where /></MemoryRouter>);
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
-const lastParams = () => st.params[st.params.length - 1] as QParams;
+// the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
+const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
+// the filter panel's quick fills (the glance card above the table has the same three, task #194)
+const panel = () => within(document.querySelector(".qg") as HTMLElement);
 const section = (n: string) => within(screen.getByRole("group", { name: new RegExp(n) }));
 
 beforeEach(() => { st.plan = "silver"; st.params = []; st.resp = resp(); st.upgrade.mockClear(); vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
@@ -112,9 +115,9 @@ describe("the combined card", () => {
   });
   it("one Reset filters clears both blocks and keeps the quarter; quick fills set both blocks in one go", () => {
     open("?quarter=2026-09");
-    fireEvent.click(screen.getByRole("button", { name: "Growth and near 52-week high" }));
+    fireEvent.click(panel().getByRole("button", { name: "Growth and near 52-week high" }));
     expect(lastParams()).toMatchObject({ p52: "0", revQoQValue: "0", npYoYValue: "0" });
-    expect(screen.getByRole("button", { name: "Growth and near 52-week high" }).getAttribute("aria-pressed")).toBe("true");
+    expect(panel().getByRole("button", { name: "Growth and near 52-week high" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Deep below the all-time high" }));
     expect(lastParams().pAthMin).toBe("40"); expect(lastParams().p52).toBeUndefined(); expect(lastParams().revQoQValue).toBeUndefined();
     fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));

@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useState, type 
 import { Link } from "react-router";
 import type { Card } from "../../lib/pulsePack";
 import { KIND_ICON, KIND_WORD } from "../sectors/pack/Common";
+import "../../styles/dash-cards.css";
 
 type OpenStore = { isOpen: (id: string) => boolean; setOpen: (ids: string[], open: boolean) => void };
 const Ctx = createContext<OpenStore | null>(null);
@@ -29,7 +30,7 @@ export function DashCardsProvider({ userId, children }: { userId: string | numbe
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }
 
-function useOpenStore(): OpenStore {
+export function useOpenStore(): OpenStore {
   const ctx = useContext(Ctx);
   const [local, setLocal] = useState<Set<string>>(new Set());
   const fallback = useMemo<OpenStore>(() => ({ isOpen: (id) => local.has(id), setOpen: (ids, on) => setLocal((p) => { const n = new Set(p); for (const id of ids) { if (on) n.add(id); else n.delete(id); } return n; }) }), [local]);
@@ -59,7 +60,7 @@ export function DashCard({ c, id }: { c: Card; id: string }) {
         {(c.groups ?? []).map((g) => (
           <div className={"dsh-ic-g" + (g.tone ? " " + g.tone : "")} key={g.label}>
             <p className="dsh-ic-gl">{g.label}</p>
-            <ul>{g.chips.map((ch) => <li key={ch.symbol}><Link className="dsh-ichip" to={`/stocks/${encodeURIComponent(ch.symbol)}`} title={`Open the ${ch.label} report`}>{ch.label}{ch.note ? <small>{ch.note}</small> : null}</Link></li>)}</ul>
+            <ul>{g.chips.map((ch) => <li key={ch.symbol}><Link className="dsh-ichip" to={ch.to ?? `/stocks/${encodeURIComponent(ch.symbol)}`} title={ch.to ? `Open ${ch.label}` : `Open the ${ch.label} report`}>{ch.label}{ch.note ? <small>{ch.note}</small> : null}</Link></li>)}</ul>
           </div>))}
         {c.note && <p className="dsh-ic-note">{c.note}</p>}
       </div>

@@ -51,10 +51,17 @@ export function Ipos() {
     const when = i.status === "open" ? (i.closeDate ? `closes ${shortDay(i.closeDate, today)}` : "") : `opens ${shortDay(i.openDate, today)}`;
     return [band, when].filter(Boolean).join(" · ") || "Details soon";
   };
+  // task #195: with no IPO (or no IPO data), the card is a one-line strip
+  if (!q.isLoading && (q.isError || !list.length)) return (
+    <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-ipos">
+      <h2 id="dsh-ipos" className="t">IPOs open now</h2>
+      <p className="m">{q.isError ? "IPO details are not available right now." : "No IPO is open or announced right now."}</p>
+      <Link className="dsh-btn" to="/ipo">IPO calendar →</Link>
+    </section>
+  );
   return (
     <Card id="ipos" title="IPOs open now">
-      {q.isLoading ? <Rows n={2} h={44} /> : q.isError ? <p className="dsh-note">IPO details are not available right now.</p> : !list.length ? <p className="dsh-note">No IPO is open or announced right now.</p> :
-        <div className="dsh-lines">{list.map((i) => <Link key={i.id} to="/ipo" className="dsh-ipo"><b>{titleCase(i.name)}</b><span>{detail(i)}</span></Link>)}</div>}
+      {q.isLoading ? <Rows n={2} h={44} /> : <div className="dsh-lines">{list.map((i) => <Link key={i.id} to="/ipo" className="dsh-ipo"><b>{titleCase(i.name)}</b><span>{detail(i)}</span></Link>)}</div>}
       <Link className="dsh-link foot" to="/ipo">IPO calendar →</Link>
     </Card>
   );
@@ -68,7 +75,7 @@ export function AlertsScreens() {
   const { alerts } = useAlerts(), saved = useSavedScreens();
   const live = alerts.filter((a) => a.status !== "done" || a.lastFiredAt).sort((a, b) => Number(!!b.met) - Number(!!a.met)).slice(0, 4);
   return (
-    <Card id="alerts" title="Alerts and saved screens">
+    <Card id="alerts" title="Alerts and saved screens" className="dsh-tool">
       {!live.length && !saved.length ? <><p className="dsh-p">No alerts or saved screens yet. Get told when a price, score or filing crosses your line.</p>
         <div className="dsh-btns"><Link className="dsh-btn dark" to="/alerts">Create an alert</Link><Link className="dsh-btn" to="/screener">Open screener</Link></div></> : <>
         {live.length > 0 && <><div className="dsh-lh first">Alerts</div><div className="dsh-lines">{live.map((a) => <Link key={a.id} to="/alerts" className="dsh-ipo"><b>{a.symbol} <i className={"dsh-tag" + (a.met ? " on" : "")}>{a.met ? "Triggered" : a.status === "paused" ? "Paused" : "Active"}</i></b><span>{a.label}</span></Link>)}</div></>}
@@ -84,8 +91,8 @@ export function Learn() {
   const [t, setT] = useState<{ term: string; topic: string; meaning: string; id: string } | null>(null);
   useEffect(() => { import("../../lib/glossary").then((g) => setT(g.termOfTheDay())); }, []);
   return (
-    <section className="dsh-card dsh-term" aria-labelledby="dsh-learn">
-      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link" to={"/glossary#" + t.id}>Open the glossary →</Link></>}
+    <section className="dsh-card dsh-term dsh-tool" aria-labelledby="dsh-learn">
+      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link foot" to={"/glossary#" + t.id}>Open the glossary →</Link></>}
     </section>
   );
 }

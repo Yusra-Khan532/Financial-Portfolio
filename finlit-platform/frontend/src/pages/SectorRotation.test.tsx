@@ -33,12 +33,12 @@ describe("Sector Rotation, the pack's header", () => {
   it("has the title, the weekly date line, the unranked industry, The yardstick and the two views", () => {
     at();
     expect(screen.getByRole("heading", { level: 1, name: "Sector Rotation" })).toBeTruthy();
-    expect(document.body.textContent).toContain("Updated after the weekly close, Fri 6 Nov 2026 · 37 ranked industries");
+    expect(document.body.textContent).toContain("Updated after the weekly close, Fri 6 Nov 2026 · 37 groups ranked");
     expect(document.body.textContent).toContain("Oil is too small to rank");
-    expect(screen.getByLabelText("The yardstick").textContent).toContain("All 38 industries counted equally.");
+    expect(screen.getByLabelText("The yardstick").textContent).toContain("All 38 groups counted equally.");
     expect(within(screen.getByRole("navigation", { name: "Sector pages" })).getByRole("link", { name: "Sector Rotation" }).getAttribute("aria-current")).toBe("page");
     expect((screen.getByRole("combobox") as HTMLInputElement).placeholder).toBe("An industry, e.g. Banks");
-    expect(document.querySelector(".sp-disclaimer")?.textContent).toBe("Describes past prices of NSE industry groups against the average industry; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of Fri 6 Nov 2026, after the close.");
+    expect(document.querySelector(".sp-disclaimer")?.textContent).toBe("Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of Fri 6 Nov 2026, after the close.");
   });
 });
 
@@ -92,11 +92,11 @@ describe("Sector Rotation, Full table view (pack 09)", () => {
     at("/sectors/rotation?view=full");
     const row = [...document.querySelectorAll(".rp-full .rp-row")].find((r) => r.textContent?.includes("Automobiles"))!;
     fireEvent.click(within(row as HTMLElement).getByRole("button"));
-    expect(document.body.textContent).toContain("Automobiles is rank 4 of 37, in Ahead and gaining for 1 week. Against the average industry it is +9.0% over 6 months and +10.8% over the last month. Most of its stocks are taking part in the move.");
+    expect(document.body.textContent).toContain("Automobiles is rank 4 of 37, in Ahead and gaining for 1 week. Against the average group it is +9.0% over 6 months and +10.8% over the last month. Most of its stocks are taking part in the move.");
   });
   it("draws six months of ranks, one row per ranked industry", () => {
     at("/sectors/rotation?view=full");
-    const heat = screen.getByRole("img", { name: /Ranks of 37 industries at 26 weekly closes/ });
+    const heat = screen.getByRole("img", { name: /Ranks of 37 groups at 26 weekly closes/ });
     expect(heat.querySelectorAll("g").length).toBe(37);
     expect(document.querySelectorAll(".rp-12 tbody tr").length).toBe(37);
   });

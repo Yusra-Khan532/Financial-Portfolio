@@ -69,9 +69,9 @@ describe("FII / DII bars and the one-line Stress Lab", () => {
     expect((html.match(/class="dii"/g) || []).length).toBe(30 + 1);
     expect(html).toMatch(/aria-label="FII and DII net flows, last 30 sessions from/);
   });
-  it("Stress Lab is one line while the nightly run covers none of the stocks", () => {
+  it("Stress Lab is a tool card (task #195) that says in one line that the nightly run covers none of the stocks", () => {
     const html = renderToStaticMarkup(<MemoryRouter><Stress followed={[{ symbol: "A", name: null }, { symbol: "B", name: null }]} loading={false} /></MemoryRouter>);
-    expect(html).toContain("dsh-strip"); expect(html).toContain("None of your 2 stocks are in the nightly run yet");
+    expect(html).toContain("dsh-tool"); expect(html).toContain("None of your 2 stocks is in the nightly run yet"); expect(html).toContain('href="/research/stress-lab"');
     expect(html).not.toContain("Not covered yet");
   });
 });

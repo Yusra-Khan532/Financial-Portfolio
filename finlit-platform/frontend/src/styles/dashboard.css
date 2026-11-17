@@ -43,13 +43,12 @@
 .dsh-link .short { display: none; }
 .dsh :focus-visible { outline: 2px solid var(--focus-ring, #6D28D9); outline-offset: 2px; }
 
-/* phone tabs */
-.dsh-tabs { display: none; }
-
 /* the card */
-.dsh-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.dsh-cell { min-width: 0; grid-column: span 3; display: flex; } .dsh-cell > * { flex: 1; min-width: 0; }
-.dsh-cell.full { grid-column: span 6; } .dsh-cell.third { grid-column: span 2; }
+/* task #195: a 12-column grid (full, half, third and quarter widths), split into the numbered steps of components/StepsBar.tsx */
+.dsh-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.dsh-cell { min-width: 0; grid-column: span 6; display: flex; scroll-margin-top: 140px; } .dsh-cell > * { flex: 1; min-width: 0; }
+.dsh-cell.full { grid-column: span 12; } .dsh-cell.third { grid-column: span 4; } .dsh-cell.quarter { grid-column: span 3; }
+.dsh .stb-step { scroll-margin-top: 140px; }
 .dsh-card { background: var(--d-card); border: 1px solid var(--d-line); border-radius: 16px; padding: 20px 24px; min-width: 0; box-shadow: none; }
 .dsh-card .dsh-ch { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 12px; margin-bottom: 12px; }
 .dsh-card h2 { margin: 0; font: 600 20px/1.25 var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
@@ -154,20 +153,17 @@
 .dsh-edit .dsh-seg button { height: 36px; min-width: 52px; padding: 0 10px; }
 
 /* tablets: halves and thirds widen */
-@media (max-width: 1100px) { .dsh-cell.third { grid-column: span 3; } }
-@media (max-width: 899px) { .dsh-cell, .dsh-cell.third, .dsh-cell.half { grid-column: span 6; } .dsh-edit li { grid-template-columns: 24px minmax(0, 1fr) auto auto; } .dsh-edit li small { grid-column: 2 / -1; grid-row: 2; } }
+@media (max-width: 1100px) { .dsh-cell.third, .dsh-cell.quarter { grid-column: span 6; } }   /* tablet: the tools row is 2 by 2 */
+@media (max-width: 899px) { .dsh-cell, .dsh-cell.third, .dsh-cell.half, .dsh-cell.quarter { grid-column: span 12; } .dsh-edit li { grid-template-columns: 24px minmax(0, 1fr) auto auto; } .dsh-edit li small { grid-column: 2 / -1; grid-row: 2; } }
 
 /* phones */
 .dsh-hide-phone { display: block; }
 @media (max-width: 759px) {
   .dsh { gap: 16px; padding-top: 16px; padding-bottom: 104px; }
-  .dsh h1 { font-size: 28px !important; line-height: 1.15 !important; } .dsh-card { padding: 16px; } .dsh .dsh-card h2, .dsh-drawer h2 { font-size: 18px !important; }   /* !important: the site-wide phone heading rule in luxe.css is !important too */
+  .dsh h1 { font-size: 28px !important; line-height: 1.15 !important; } .dsh-card { padding: 16px; } .dsh .dsh-card h2, .dsh-drawer h2 { font-size: var(--fs-section-title) !important; line-height: 28px !important; }   /* task #195: every card title 20px; !important: the site-wide phone heading rule in luxe.css is !important too */
   .dsh-st .nm a { display: flex; align-items: center; min-height: 44px; } .dsh-mv, .dsh-sl { min-height: 44px; align-items: center; } .dsh-sl a { display: flex; align-items: center; min-height: 44px; }
   .dsh-head { align-items: flex-start; } .dsh-actions { width: 100%; } .dsh-btn, .dsh-chip { height: 44px; } .dsh-ib { width: 44px; height: 44px; }
   .dsh-seg button, .dsh-chips > button, .dsh-menu > button { height: 44px; padding: 0 14px; }
-  .dsh-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--d-tile); border: 1px solid var(--d-line2); }
-  .dsh-tabs button { flex: 1; height: 44px; border: 0; border-radius: 10px; background: none; color: var(--d-mut2); font: 500 14px var(--font-sans, Inter, sans-serif); cursor: pointer; }
-  .dsh-tabs button[aria-selected="true"] { background: var(--d-card); color: var(--d-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
   .dsh-link .long { display: none; } .dsh-link .short { display: inline; } .dsh-link, .dsh-link.foot { min-height: 44px; display: inline-flex; align-items: center; }
   .dsh-hide-phone { display: none; }
   .dsh-ixs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dsh-ix.vix { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; background: var(--d-tile); } .dsh-ix.vix .v { margin: 0; font-size: 16px; } .dsh-ix.vix .n { font-size: 14px; color: var(--d-ink); }
@@ -600,8 +596,6 @@
 .dsh-plg { display: flex; gap: 14px; margin: 4px 0 0; font-size: 12px; color: var(--d-mut); } .dsh-plg span { display: inline-flex; align-items: center; gap: 6px; } .dsh-plg i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
 /* Your portfolio at a glance (final pages pack 04): the average score in a ring */
-.dsh-pg-ring { --c: #B7791F; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(closest-side, var(--d-card, #FBF8F1) 74%, transparent 75% 100%), conic-gradient(var(--c) calc(var(--v) * 1%), var(--d-tile) 0); }
-.dsh-pg-ring.g { --c: #2E7D57; } .dsh-pg-ring.r { --c: #A12E26; } .dsh-pg-ring b { font: 400 28px var(--serif); color: var(--d-ink); }
 
 /* ---- task #135: insight cards that open and close (dashboard only; the shared .sp-card keeps its look elsewhere) ---- */
 .dsh .dsh-ics { align-items: start; }                               /* opening one card does not stretch its neighbour */
@@ -626,17 +620,6 @@
 .dsh-ichip:hover { border-color: var(--gold); }
 .dsh-ichip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .dsh-ic-note { margin: 10px 0 0; font-size: var(--fs-12); color: var(--muted); }
-.dsh-say { margin: 18px 0 4px; padding: 0; }
-.dsh-say-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.dsh-say-h h2 { margin: 0; font: 600 var(--fs-24)/1.2 var(--serif); }
-.dsh-say .dsh-ics { margin-top: 10px; }
-@media (max-width: 759px) {
-  .dsh .dsh-ics { grid-template-columns: minmax(0, 1fr); }
-  .dsh-ic-body { padding-left: 16px; }
-  .dsh-ic-row { min-height: 56px; }
-  .dsh-ichip { min-height: 36px; }
-}
-
 /* ---- task #135: Your investments today, All / Mutual funds / ETFs: seven columns (name, type, price or NAV, the day, 1 year, FinLit reading, alert) ---- */
 .dsh-inv .dsh-st-h, .dsh-inv .dsh-st-r { grid-template-columns: minmax(150px, 2.2fr) minmax(86px, .8fr) minmax(90px, .9fr) minmax(70px, .7fr) minmax(70px, .7fr) minmax(130px, 1.3fr) minmax(76px, .7fr); }
 @media (min-width: 760px) {
@@ -656,10 +639,51 @@
   .dsh-inv .dsh-st-r .ty { grid-area: ty; } .dsh-inv .dsh-st-r .y1 { grid-area: y1; } .dsh-inv .dsh-st-r .sc { grid-area: sc; } .dsh-inv .dsh-st-r .al { grid-area: al; }
   .dsh-inv .dsh-st-r .y1::before { content: "1 year "; font-weight: 400; color: var(--d-mut2, var(--muted)); }
 }
-/* "What your stocks say" sits under the table, in the same full-width cell */
-.dsh-cell[data-block="mystocks"] { flex-direction: column; }
 /* Your mutual funds at a glance: label and figure on one line */
 .dsh-fg-kv { display: grid; gap: 8px; margin: 14px 0 4px; }
 .dsh-fg-kv > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .dsh-fg-kv dt { color: var(--d-mut, var(--muted)); font-size: var(--fs-14); }
 .dsh-fg-kv dd { margin: 0; text-align: right; font-size: var(--fs-14); font-weight: 600; color: var(--d-ink, var(--text)); }
+
+/* ---------- task #195 (dashboard pack, 15 Nov 2026) ---------- */
+/* one type scale: every card title 20, the market read lead and readings 18, notes 13, captions 12 */
+.dsh .dsh-card h2 { font-size: var(--fs-section-title); line-height: 28px; }
+.dsh-mr-lead { font: 400 18px/1.45 var(--serif); margin: 6px 0 2px; }
+.dsh-rd-v { font: 600 18px/1.3 var(--font-sans, Inter, sans-serif); font-variant-numeric: tabular-nums; margin: 2px 0; }
+.dsh-rd-x { font-size: var(--fs-small); line-height: 18px; } .dsh-rd-b { font-size: var(--fs-caption); }
+@media (max-width: 640px) { .dsh-mr-lead { font-size: 18px; } }
+/* Your investments today: the header row on a band; 24px between every column, 12px more before the FinLit reading */
+.dsh-st-h { background: var(--d-tile); border-radius: 8px; color: var(--d-ink); text-transform: uppercase; letter-spacing: .06em; font-size: var(--fs-label); }
+@media (min-width: 760px) {
+  .dsh-st-h, .dsh-st-r { column-gap: 14px; padding-left: 10px; padding-right: 10px; }   /* tablets: the card is narrower than the table's 24px gaps allow */
+  .dsh-cell[data-block="mystocks"] .dsh-st { overflow-x: auto; overscroll-behavior-x: contain; }   /* a card narrower than the table scrolls the table, never the page */
+}
+@media (min-width: 1200px) {
+  .dsh-st-h, .dsh-st-r { column-gap: 24px; }
+  .dsh-inv .dsh-st-r .sc, .dsh-inv .dsh-st-h > span:nth-child(6) { padding-left: 12px; }
+}
+/* What your stocks say: one callout per signal, side by side */
+.dsh-sig-grid { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 12px; align-items: start; margin-top: 4px; }
+@media (max-width: 759px) { .dsh-sig-grid { grid-template-columns: minmax(0, 1fr); } }
+/* glance cards: the shared ring; equal height in a row, the link at the bottom */
+.dsh-pg-ringw { display: flex; line-height: 0; }
+.dsh-pg-top { grid-template-columns: 152px minmax(0, 1fr); gap: 22px; }
+@media (max-width: 420px) { .dsh-pg-top { grid-template-columns: minmax(0, 1fr); justify-items: start; } }
+/* empty ETF and IPO cards: one-line strips, full width */
+.dsh-card.dsh-strip1 { flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 18px; }
+.dsh-strip1 h2.t { margin: 0; font: 600 var(--fs-section-title)/28px var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
+.dsh-strip1 .m { flex: 1 1 260px; min-width: 0; margin: 0; font-size: var(--fs-body); line-height: 20px; color: var(--d-mut2); }
+.dsh-strip1 > .dsh-btn { flex: none; margin-left: auto; }
+/* tools row: four equal cards, the link at the bottom of each */
+.dsh-card.dsh-tool { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.dsh-tool > .dsh-new { align-self: flex-start; }
+.dsh-tool .dsh-p { margin: 0; }
+.dsh-tool > .dsh-link.foot, .dsh-tool > .dsh-btns { margin-top: auto; }
+.dsh-tool .dsh-btns { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* FII / DII, full width: figures and insight on the left, the chart on the right */
+@media (min-width: 900px) {
+  .dsh-cell.full[data-block="flows"] > .dsh-card:not(.dsh-is-hidden) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); column-gap: 28px; align-items: start; }
+  .dsh-cell.full[data-block="flows"] > .dsh-card > * { grid-column: 1; }
+  .dsh-cell.full[data-block="flows"] > .dsh-card > .dsh-ch { grid-column: 1 / -1; }
+  .dsh-cell.full[data-block="flows"] > .dsh-card > .dsh-pbars { grid-column: 2; grid-row: 2 / span 5; }
+}
