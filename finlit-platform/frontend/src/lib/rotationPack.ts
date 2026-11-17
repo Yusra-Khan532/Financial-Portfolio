@@ -18,12 +18,8 @@ export const BOX_MEANING: Record<Box, string> = {
   behind_gaining: "Behind over the longer run, but lately it has done better than the average.",
   behind_slipping: "Doing worse than the average over the longer run, and still falling further behind.",
 };
-export const BOX_HELP: Record<Box, string> = {
-  ahead_gaining: "Ahead and gaining. Over the last several months the industry did better than the average group, and over the last month it is still pulling further ahead.",
-  ahead_slowing: "Ahead but slowing. Over the last several months the industry did better than the average group, but over the last month it did worse, so its lead is shrinking.",
-  behind_gaining: "Behind but gaining. Over the last several months the industry did worse than the average group, but over the last month it did better, so it is catching up.",
-  behind_slipping: "Behind and slipping. Over the last several months the industry did worse than the average group, and over the last month it fell further behind.",
-};
+/** The (i) text of each box: its name and the same definition as The four boxes and the page guide, word for word (task #192, SECTOR-PAGES.md section 8). */
+export const BOX_HELP: Record<Box, string> = Object.fromEntries((Object.keys(BOX_MEANING) as Box[]).map((b) => [b, `${BOX[b].word}. ${BOX_MEANING[b]}`])) as Record<Box, string>;
 export const WATCH_NEXT: Record<Box, string> = {
   behind_gaining: "Does the catch-up last long enough to get ahead?", ahead_gaining: "The first month it trails the average.",
   ahead_slowing: "Does it start gaining again, or lose its lead?", behind_slipping: "The first month it beats the average.",

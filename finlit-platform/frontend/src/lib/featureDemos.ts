@@ -57,7 +57,7 @@ export const FEATURE_DEMO: Record<string, string> = {
   "Downloads": "downloads", "Downloads: PDF note, offline copy, CSV": "downloads", "Portfolio scorecard": "portfolio",
   "FinLit Prism": "prism", "Advanced stock screener": "adv-screener", "DCF calculator": "dcf", "Revenue and profit forecasting": "outlook",
   "FinLit FundPulse": "fund-health", "Revenue by segment": "segments",
-  "Gold dashboards": "gold-dash", "Option chain": "options", "FII & DII flows, India economy and commodity prices": "flows",
+  "Gold dashboards": "gold-dash", "FII & DII flows, India economy and commodity prices": "flows",
 };
 
 export const demoFor = (feature: string): Demo | null => { const id = FEATURE_DEMO[feature.replace(" (coming soon)", "")]; return id ? DEMOS[id] ?? null : null; };

@@ -41,7 +41,7 @@ export function RankingRot({ m, mine, pulse }: { m: RotationMap; mine: Set<strin
   const csv = () => { const blob = new Blob([rotationCsv(rows)], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `sector-rotation-${m.date}.csv`; a.click(); URL.revokeObjectURL(a.href); };
   const cls = (v: number | null) => (v == null ? "" : v > 0 ? "sp-good" : v < 0 ? "sp-red" : "");
   return (
-    <Section id="rp-rank" title="Ranking of every industry" sub="Grouped by box, strongest rank first. Click an industry for its summary and its strongest and weakest stocks." right={<button type="button" className="sp-dl" onClick={csv}>Download CSV</button>}>
+    <Section id="rp-rank" title="Ranking of every industry" help="Ranking of every industry. Every ranked group on one list this week, 1 the strongest, grouped by box: its rank and moves, its box and how long it has been there, how it did against the average group, how many of its stocks take part, and its rank over 26 weeks." sub="Grouped by box, strongest rank first. Click an industry for its summary and its strongest and weakest stocks." right={<button type="button" className="sp-dl" onClick={csv}>Download CSV</button>}>
       <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
       <Scroll label="ranking of every industry"><table className="sp-tb rp-full">
         <thead>

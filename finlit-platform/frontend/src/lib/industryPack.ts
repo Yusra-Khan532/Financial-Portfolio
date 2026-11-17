@@ -189,7 +189,7 @@ export function stockCards(stocks: RankedStock[], p: IndustryPage): Card[] {
     out.push({ kind: "good", title: lo > 0 ? "The leaders of the last 6 months" : "The strongest of the last 6 months", text: `${list(top.map((x) => x.symbol))} are ${lo >= 0 ? "up" : "changed"} ${lo}% to ${hi}% in 6 months.` });
   }
   const fl = stocks.filter((x) => x.leader_flag);
-  if (fl.length) out.push({ kind: "insight", title: `${fl.length} standout ${fl.length === 1 ? "stock" : "stocks"}`, text: `${list(fl.slice(0, 3).map((x) => x.symbol))}${fl.length > 3 ? ` and ${fl.length - 3} more` : ""} made new 1-year highs while the industry is still ${p.index_vs_52w_high == null ? "below" : `${Math.round(Math.abs(p.index_vs_52w_high))}% below`} its own high.` });
+  if (fl.length) out.push({ kind: "insight", title: `${fl.length} standout ${fl.length === 1 ? "stock" : "stocks"}`, more: fl.length > 3 ? fl.slice(3).map((x) => x.symbol) : undefined, text: `${fl.length > 3 ? `${fl.slice(0, 3).map((x) => x.symbol).join(", ")} {more}` : list(fl.slice(0, 3).map((x) => x.symbol))} made new 1-year highs while the industry is still ${p.index_vs_52w_high == null ? "below" : `${Math.round(Math.abs(p.index_vs_52w_high))}% below`} its own high.` });
   const low = s.slice(-5);
   if (s.length >= 15 && low.length === 5 && low.every((x) => x.return_6m_pct! < 0)) {
     const a = Math.round(Math.abs(Math.max(...low.map((x) => x.return_6m_pct!)))), b = Math.round(Math.abs(Math.min(...low.map((x) => x.return_6m_pct!))));

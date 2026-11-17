@@ -4,7 +4,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
-import { groupsSplit } from "../lib/pulsePack";
+import { groupsParen, groupsSplit } from "../lib/pulsePack";
+import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";
@@ -15,7 +16,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { Blank } from "../components/sectors/Parts";
 import { Tip } from "../components/sectors/pack/Common";
 import { Backdrop, PackHead, type View } from "../components/sectors/pack/PulseHead";
-import { ByState, CountedAndSmall, Cycle, HowToRead, IndustryMapPack, Momentum, Mood, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
+import { ByState, CountedAndSmall, Cycle, IndustryMapPack, Momentum, Mood, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
 import { PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
@@ -46,16 +47,23 @@ export function SectorPulsePage() {
         side={b ? <Backdrop pct={b.market?.pct_vs_200d ?? null} above={b.market?.above_200d ?? null} /> : null} />
       {q.isLoading && <div className="sx-skel sp-sec" role="status" aria-label="Loading the sector readings" />}
       {q.isError && <div className="sp-sec"><Blank title="Sector Pulse is not available right now" reason={failureText(q.error)}><button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></Blank></div>}
+      {b && <PulseGuide stocks={b.universe?.counted_in_groups_with_reading ?? b.stocks_counted} groups={groupsParen(b.rows)} />}
+      {b && <SectionsBar items={view === "simple" ? [
+        { id: "sp-today", label: "Today" }, { id: "sp-cycle", label: "The cycle" }, { id: "sp-bystate", label: "By state" }, ...(mq.data ? [{ id: "sp-map", label: "Map" }] : []),
+        ...(h ? [{ id: "sp-mood", label: "Market mood" }] : []), { id: "sp-momentum", label: "Momentum × strength" }, { id: "sp-yours", label: "Your industries" },
+        { id: "sp-standouts", label: "Standout stocks" }, { id: b.universe ? "sp-counted" : "sp-small", label: "Counted / Too small" },
+      ] : [
+        { id: "sp-every", label: "Every number" }, ...(h ? [{ id: "sp-six", label: "Six months" }] : []), { id: "sp-stand-f", label: "Standout stocks" }, ...((b.too_few_stocks ?? []).length ? [{ id: "sp-small-f", label: "Too small" }] : []),
+      ]} />}
       {b && view === "simple" && (
         <>
-          <HowToRead />
           <TodayMinute b={b} h={h} />
-          {h && <Mood h={h} />}
-          <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
           <Cycle b={b} />
           <ByState b={b} mine={mine} />
           {mq.data && <IndustryMapPack m={mq.data} />}
+          {h && <Mood h={h} />}
           <Momentum b={b} mine={mine} />
+          <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
           <Standouts b={b} />
           <CountedAndSmall b={b} />
           <Words />
@@ -64,9 +72,9 @@ export function SectorPulsePage() {
       {b && view === "full" && (
         <>
           <PulseTable b={b} h={h} mine={mine} />
-          <TooSmallFull b={b} />
-          <StandoutsFull b={b} />
           {h && <SixMonths h={h} />}
+          <StandoutsFull b={b} />
+          <TooSmallFull b={b} />
           <Words />
         </>
       )}

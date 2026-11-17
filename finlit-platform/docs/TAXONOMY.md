@@ -61,6 +61,13 @@ The API gives each line `industry`, `sector` (NSE's 22), `macroSector`, `industr
 `industries`, `sectors` (NSE's 22) and `macroSectors` (Diversified is the 12th macro sector). `sector` used to hold the fund house's industry
 name; it now holds only NSE's 22-level sector.
 
+## Leader / In line / Laggard peer groups (round 3b)
+`finlit/leadership.py`: a stock in one of the spec's five researched groups is ranked there; every other stock among the companies of its NSE industry,
+widened to its NSE sector when fewer than 6 can be ranked. Banks named in `leadership_splits` are ranked in their NSE basic industry (Private Sector Bank,
+Public Sector Bank). Group names are NSE's own (never the home-made short names of `leadership_benchmarks`, which now only picks the NSE index). The
+TradingView lists in `data/leadership_groups.json` are no longer peer groups (rule T6). A company NSE's lists cannot place is not ranked ("no peer group").
+The weekly run (Saturdays) writes the new groups.
+
 ## Sector Pulse and Sector Rotation names (round 4a)
 The board's groups mix NSE industries and sector groups (small industries of one NSE sector read together), so every count on those pages says
 "groups" and names its two levels ("38 groups: 33 industries and 5 sectors"); the yardstick is "the average group". Group names are NSE's own in full,

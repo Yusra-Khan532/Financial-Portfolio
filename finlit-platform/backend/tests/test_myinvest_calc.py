@@ -1,94 +1,161 @@
-"""All my investments (task #137): the pure figures. Each test is one point of the team's pack (finlit-08-all-my-investments-14nov)."""
+"""All my investments (task #137, 15 Nov 2026 pack): the pure figures. Each test names the point of the pack it proves (B = a live bug of START-HERE,
+D = a "Done when" line of the README, L = a layout line, N = "How the numbers are worked out")."""
 
 import math
-from datetime import date
 
 from finlit.myinvest import calc
 
 SH = [{"symbol": "HDFCBANK", "name": "HDFC Bank", "qty": 10, "price": 1600.0}, {"symbol": "TCS", "name": "TCS", "qty": 2, "price": 4000.0}]   # 16,000 + 8,000
-FU = [{"code": 1, "name": "Flexi", "units": 100, "nav": 80.0, "assetSplit": {"equity": 90, "debt": 5, "cash": 5},           # 8,000
-       "holdings": [{"stockSymbol": "HDFCBANK", "name": "HDFC Bank", "assetClass": "equity", "pct": 8.0}, {"stockSymbol": "INFY", "name": "Infosys", "assetClass": "equity", "pct": 5.0},
-                    {"stockSymbol": None, "name": "GOI 2033", "assetClass": "debt", "pct": 5.0}]}]
+FU = [{"code": 1, "short": "Flexi", "units": 100, "nav": 80.0,                                                                                # 8,000
+       "holdings": [{"stockSymbol": "HDFCBANK", "isin": "INE040A01034", "name": "HDFC Bank", "assetClass": "equity", "pct": 8.0, "macroSector": "Financial Services"},
+                    {"stockSymbol": "INFY", "isin": "INE009A01021", "name": "Infosys", "assetClass": "equity", "pct": 5.0, "macroSector": "Information Technology"},
+                    {"stockSymbol": None, "isin": "US0378331005", "name": "Apple Inc", "assetClass": "equity", "pct": 2.0},
+                    {"stockSymbol": None, "isin": None, "name": "GOI 2033", "assetClass": "debt", "pct": 75.0},
+                    {"stockSymbol": None, "isin": None, "name": "Gold ETF units", "assetClass": "other", "pct": 10.0}]}]
+ET = [{"symbol": "NIFTYBEES", "qty": 100, "price": 80.0, "assetClass": "equity", "category": "equity",                                          # 8,000
+       "holdings": [{"stockSymbol": "HDFCBANK", "isin": "INE040A01034", "name": "HDFC Bank", "assetClass": "equity", "pct": 12.0}]}]
 
 
-def test_the_look_through_sums_add_up_for_one_company():
-    """Done when: for one test company, the direct, fund and ETF weights add up to the 'All together' figure (all as % of everything)."""
-    split = calc.split_parts(SH, FU)
-    assert split["byValue"] and split["total"] == 32000
-    rows = {r["symbol"]: r for r in calc.look_through(SH, FU, split)}
+def test_three_kinds_with_quantities_weigh_by_money_and_the_look_through_adds_up():
+    """N weights with quantities; N look-through: All together = direct + through funds + through ETFs; D10 Held markers."""
+    split = calc.split_parts(SH, FU, ET)
+    assert split["byValue"] and split["total"] == 40000 and split["missing"] == []
+    assert split["part"] == {"shares": 0.6, "funds": 0.2, "etfs": 0.2}
+    rows = {r["key"]: r for r in calc.look_through(SH, FU, ET, split)}
     h = rows["HDFCBANK"]
-    assert math.isclose(h["direct"], 16000 / 32000 * 100) and math.isclose(h["funds"], 8000 / 32000 * 8.0)     # 50% direct + 25% x 8% = 2% through the fund
-    assert math.isclose(h["direct"] + h["funds"] + h["etfs"], h["all"]) and math.isclose(h["all"], 52.0)
-    assert h["twice"] and h["ways"] == 2 and h["via"] == [1]
-    assert not rows["INFY"]["twice"] and math.isclose(rows["INFY"]["all"], 25 * 0.05)                           # only through the fund
-    assert "GOI 2033" not in {r["name"] for r in rows.values()}                                                  # debt is not a company
+    assert math.isclose(h["direct"], 40.0) and math.isclose(h["funds"], 20 * 0.08) and math.isclose(h["etfs"], 20 * 0.12)
+    assert math.isclose(h["all"], h["direct"] + h["funds"] + h["etfs"]) and h["held"] == ["D", "F", "E"] and h["ways"] == 3
+    assert h["viaFunds"] == [1] and h["viaEtfs"] == ["NIFTYBEES"]
+    assert rows["INFY"]["held"] == ["F"] and not rows["INFY"]["twice"]
 
 
-def test_without_quantities_every_holding_and_every_part_counts_the_same():
-    """Done when: without quantities, the page says it counts each holding the same (byValue False, equal weights)."""
-    s = [dict(SH[0], qty=0), SH[1]]
-    split = calc.split_parts(s, FU)
-    assert not split["byValue"] and split["total"] is None and split["part"] == {"shares": 0.5, "funds": 0.5}
-    assert split["shares"]["w"] == [0.5, 0.5] and not split["shares"]["valued"] and split["funds"]["valued"]
+def test_every_equity_line_counts_including_shares_listed_abroad():
+    """D14: every holding in each file, not only listed Indian ones; debt and other lines are not companies."""
+    split = calc.split_parts(SH, FU, ET)
+    rows = {r["key"]: r for r in calc.look_through(SH, FU, ET, split)}
+    apple = rows["isin:US0378331005"]
+    assert apple["abroad"] and apple["symbol"] is None and math.isclose(apple["all"], 20 * 0.02)
+    assert not any("GOI" in r["name"] or "Gold" in r["name"] for r in rows.values())
 
 
-def test_one_part_only_and_nothing_at_all():
-    split = calc.split_parts(SH, [])
-    assert split["byValue"] and split["part"] == {"shares": 1.0, "funds": 0.0}
-    empty = calc.split_parts([], [])
-    assert not empty["byValue"] and empty["part"] == {"shares": 0, "funds": 0}
+def test_without_quantities_each_kind_counts_the_same_one_third_each():
+    """B1 and D8: without quantities each kind counts the same (1/3 each with three kinds) and each holding the same inside its kind; no total (D9)."""
+    s = [dict(SH[0], qty=None), SH[1]]
+    split = calc.split_parts(s, FU, ET)
+    assert not split["byValue"] and split["total"] is None and split["missing"] == ["shares"]
+    assert all(math.isclose(v, 1 / 3) for v in split["part"].values())
+    assert split["shares"]["w"] == [0.5, 0.5]
+    two = calc.split_parts(s, FU)
+    assert two["part"] == {"shares": 0.5, "funds": 0.5, "etfs": 0.0}
+    assert calc.split_parts([], [], [])["part"] == {"shares": 0.0, "funds": 0.0, "etfs": 0.0}
 
 
-def test_asset_mix_counts_shares_as_equity_and_each_fund_by_its_split():
-    split = calc.split_parts(SH, FU)
-    mix = calc.asset_mix(SH, FU, split)
-    assert math.isclose(mix["equity"], 75 + 25 * 0.9) and math.isclose(mix["debt"], 25 * 0.05) and math.isclose(mix["cash"], 25 * 0.05)
-    nofile = [dict(FU[0], assetSplit=None)]
-    assert calc.asset_mix([], nofile, calc.split_parts([], nofile)) == {"unknown": 100.0}
+def test_company_table_filters_have_counts():
+    """D11: All, Held more than one way, Only through funds and ETFs, Only direct, each with its count."""
+    split = calc.split_parts(SH, FU, ET)
+    f = calc.filter_counts(calc.look_through(SH, FU, ET, split))
+    assert f == {"all": 4, "twice": 1, "through": 2, "direct": 1}          # HDFCBANK three ways; INFY and Apple through; TCS direct only
 
 
-def test_sectors_are_counted_through_funds_against_the_nifty_500_by_market_value():
-    split = calc.split_parts(SH, FU)
-    rows = calc.look_through(SH, FU, split)
-    bench = calc.bench_sectors([{"sector": "Banks", "mcap": 30}, {"sector": "IT", "mcap": 70}, {"sector": None, "mcap": 0}])
-    assert bench == {"Banks": 30.0, "IT": 70.0}
-    sec = calc.sectors(rows, {"HDFCBANK": "Banks", "TCS": "IT", "INFY": "IT"}, bench)
-    assert sec[0] == {"sector": "Banks", "mine": 52.0, "bench": 30.0} and sec[1]["sector"] == "IT" and math.isclose(sec[1]["mine"], 25 + 1.25)
+def test_peer_words_never_raw_codes():
+    """B4 and D12: Leader / In line / Laggard; Not compared; Not on your list."""
+    assert [calc.peer_word(x, True) for x in ("leader", "in_line", "laggard", None, "odd")] == ["Leader", "In line", "Laggard", "Not compared", "Not compared"]
+    assert calc.peer_word("leader", False) == "Not on your list"
 
 
-def test_weekly_grid_and_prices_on_it():
-    d0 = date(2026, 1, 5).toordinal()   # a Monday
-    bench = {d0 + i: 100.0 + i for i in range(0, 30) if date.fromordinal(d0 + i).weekday() < 5}   # trading days only
-    grid = calc.weekly_grid(bench, max(bench))
-    assert all(date.fromordinal(g).weekday() == 4 or g == max(bench) for g in grid)    # Fridays (the last trading day of each week)
-    vals = calc.on_grid([d0, d0 + 20], [10.0, 20.0], [d0 + 3, d0 + 15, d0 + 21])
-    assert vals == [10.0, None, 20.0]                                                     # no price older than 10 days
+def test_what_it_is_made_of_rows_and_columns():
+    """L8 and N asset mix: rows Indian shares, Shares abroad, Gold and silver, Debt and cash (+ Other), File not loaded yet; columns per kind and together."""
+    split = calc.split_parts(SH, FU, ET)
+    m = calc.made_of(SH, FU, ET, split)
+    rows = {r["key"]: r for r in m["rows"]}
+    assert [r["label"] for r in m["rows"]] == ["Indian shares", "Shares abroad", "Gold and silver", "Debt and cash", "File not loaded yet"]
+    assert math.isclose(rows["indian"]["shares"], 60) and math.isclose(rows["indian"]["funds"], 20 * 0.13) and math.isclose(rows["indian"]["etfs"], 20)
+    assert math.isclose(rows["abroad"]["funds"], 0.4) and math.isclose(rows["gold"]["funds"], 2.0) and math.isclose(rows["debt"]["funds"], 15.0)
+    assert math.isclose(sum(r["all"] for r in m["rows"]), 100.0, abs_tol=0.05)
+    assert m["notLoaded"] == [] and math.isclose(m["outsideIndianShares"], 17.4, abs_tol=0.01)
 
 
-def test_risk_figures_against_the_index():
-    b = [None] + [0.01 if i % 2 else -0.01 for i in range(80)]
-    p = [None] + [x * 0.8 for x in b[1:]]
-    r = calc.risk_figures(p, b)
-    assert math.isclose(r["beta"], 0.8, rel_tol=1e-9) and math.isclose(r["fallsTaken"], 80.0) and math.isclose(r["swing"], r["benchSwing"] * 0.8)
-    assert calc.risk_figures(p[:20], b[:20]) is None                                      # under a year of weeks: no figures
-    shares = calc.swing_shares({"shares": b, "funds": p}, {"shares": 0.5, "funds": 0.5}, calc.blend([b, p], [0.5, 0.5]))
-    assert math.isclose(sum(x["swings"] for x in shares), 100.0, abs_tol=0.2)
+def test_a_fund_or_etf_without_a_file_is_named():
+    """D15: a fund or ETF whose file is not loaded counts in "File not loaded yet" and is named; a gold ETF is counted by its type."""
+    nofile = [dict(FU[0], holdings=[])]
+    gold = [{"symbol": "GOLDBEES", "qty": 8000, "price": 1.0, "assetClass": "gold", "category": "gold", "holdings": []}]
+    split = calc.split_parts([], nofile, gold)
+    m = calc.made_of([], nofile, gold, split)
+    rows = {r["key"]: r["all"] for r in m["rows"]}
+    assert rows["notLoaded"] == 50.0 and rows["gold"] == 50.0
+    assert m["notLoaded"] == [{"kind": "funds", "name": "Flexi"}] and m["byType"] == [{"kind": "etfs", "name": "GOLDBEES"}]
 
 
-def test_insights_follow_the_three_rules_only():
-    sec = [{"sector": "Banks", "mine": 31.0, "bench": 27.0}]
-    comp = [{"name": "HDFC Bank", "ways": 2, "all": 6.1}]
-    risk = {"worstWeek": -4.0, "benchWorstWeek": -6.5}
-    ins = calc.insights(sec, comp, {"equity": 80, "debt": 15, "cash": 5}, risk)
-    assert [i["id"] for i in ins] == ["sector", "soften"]
-    assert ins[0]["text"] == "Counted through your funds, Banks is 31% of all you hold, against 27% of the Nifty 500."
-    assert calc.insights([{"sector": "Banks", "mine": 20.0, "bench": 27.0}], comp, {"equity": 100}, risk) == []
-    words = " ".join(i["text"] + i["title"] for i in ins).lower()
-    assert not any(w in words for w in ("buy", "sell", "hold on", "should", "best"))
+def test_macro_sectors_and_fixed_size_amounts():
+    """B5 and L9: the 12 macro sectors (NSE's place first, the fund file's line second); sizes large above Rs 50,000 Cr, small below Rs 10,000 Cr."""
+    split = calc.split_parts(SH, FU, ET)
+    comp = calc.look_through(SH, FU, ET, split)
+    sec = {x["sector"]: x for x in calc.macro_sectors(comp, {"HDFCBANK": "Financial Services", "TCS": "Information Technology"})}
+    assert math.isclose(sec["Financial Services"]["all"], 44.0) and math.isclose(sec["Information Technology"]["all"], 20 + 1.0)
+    assert sec["Listed abroad"]["funds"] == 0.4 and not sec["Listed abroad"]["named"]
+    assert [calc.size_of(x) for x in (60000, 50000, 20000, 10000, 9999, None)] == ["Large", "Mid", "Mid", "Mid", "Small", None]
+    caps = {"HDFCBANK": 1_200_000, "TCS": 1_300_000, "INFY": 9000}
+    sizes = {x["size"]: x for x in calc.company_sizes(comp, lambda c: caps.get(c["symbol"]))}
+    assert math.isclose(sizes["Large"]["all"], 64.0) and math.isclose(sizes["Small"]["all"], 1.0) and sizes["Listed abroad"]["all"] == 0.4
+
+
+def test_beta_together_is_the_sum_of_share_times_beta_and_the_risk_share_follows():
+    """D16 and N: beta together = sum of share x beta; risk share = share x beta / together; red when risk share > money share + 10 points (L6)."""
+    t = calc.risk_together({"shares": {"share": 0.5, "beta": 1.4}, "funds": {"share": 0.3, "beta": 0.8}, "etfs": {"share": 0.2, "beta": 1.0}}, 100000)
+    assert t["beta"] == 1.14 and t["band"] == "More sensitive" and t["largest"] == "shares"
+    parts = {p["kind"]: p for p in t["parts"]}
+    assert parts["shares"]["riskShare"] == 61.4 and parts["shares"]["red"] and not parts["funds"]["red"]
+    assert math.isclose(sum(p["riskShare"] for p in t["parts"]), 100, abs_tol=0.2)
+    assert t["fall10"] == {"pct": -11.4, "value": -11400.0}
+    gap = calc.risk_together({"shares": {"share": 0.5, "beta": 1.4}, "funds": {"share": 0.5, "beta": None}}, None)
+    assert gap["beta"] is None and gap["why"].startswith("No beta for your mutual funds")
+
+
+def test_beta_bands_and_kind_beta():
+    assert [calc.beta_band(b) for b in (0.5, 0.65, 0.9, 1.1, 1.35, 1.75, None)] == ["Less sensitive", "Defensive", "Similar", "More sensitive", "High", "Very high", None]
+    b, cover = calc.kind_beta([1.2, None, 0.6], [0.5, 0.25, 0.25])
+    assert math.isclose(b, (1.2 * 0.5 + 0.6 * 0.25) / 0.75) and cover == 75.0
+
+
+def test_band_counts_and_top_two_share():
+    """L11: counts per band, the share in the top two bands, and Not rated."""
+    c = calc.band_counts(["Strong", "Healthy", "Weak", None], [0.4, 0.3, 0.2, 0.1], ("Strong", "Healthy", "Average", "Weak", "Poor"))
+    assert c["topTwoShare"] == 70.0 and c["notRated"] == {"count": 1, "share": 10.0} and c["bands"][3] == {"label": "Weak", "count": 1, "share": 20.0}
 
 
 def test_highest_overlap_between_two_funds():
     a = {"short": "A", "holdings": [{"stockSymbol": "X", "pct": 10.0, "assetClass": "equity"}, {"stockSymbol": "Y", "pct": 5.0, "assetClass": "equity"}]}
     b = {"short": "B", "holdings": [{"stockSymbol": "X", "pct": 6.0, "assetClass": "equity"}, {"stockSymbol": "Z", "pct": 9.0, "assetClass": "equity"}]}
-    assert calc.fund_overlap([a, b]) == {"pct": 6.0, "a": "A", "b": "B"}
+    assert calc.fund_overlap([a, b]) == {"pct": 6.0, "a": "A", "b": "B", "n": 1}
     assert calc.fund_overlap([a]) is None
+
+
+def test_the_shares_beta_is_the_equity_portfolios_own_figure():
+    """D17: the shares' beta is worked out by the Equity portfolio's own sum (portfolio_page.metrics.market_measures on its weekly frame), so both pages
+    show the same figure against the same index."""
+    import random
+    from datetime import date, timedelta
+
+    import numpy as np
+
+    from finlit.diversification.calc import iso_week_key
+    from finlit.myinvest.api import _shares_market
+    from finlit.portfolio_page import inputs, metrics
+
+    today = date(2026, 11, 13)
+    days = [d for d in (today - timedelta(days=k) for k in range(3 * 366, -1, -1)) if d.weekday() < 5]
+    rnd, x, idx = random.Random(5), 100.0, []
+    for _ in days:
+        x *= 1 + rnd.gauss(0.0003, 0.009)
+        idx.append(x)
+    a = [v * (1 + rnd.gauss(0, 0.004)) ** 1.3 for v in idx]
+    b = [100 * (1 + rnd.gauss(0.0002, 0.01)) for _ in days]
+    prices = {"AAA": {"t": [d.isoformat() for d in days], "c": a}, "BBB": {"t": [d.isoformat() for d in days], "c": b}}
+    bench_rows = [{"d": d.isoformat(), "c": v} for d, v in zip(days, idx)]
+    week = iso_week_key(today)
+    got = _shares_market(prices, bench_rows, ["AAA", "BBB"], {"AAA": 0.75, "BBB": 0.25}, week)
+    frame, bench = inputs.build_frame(prices, bench_rows, ["AAA", "BBB"], week)
+    r, rn, _ = metrics.weekly_returns(frame, bench)
+    want = metrics.market_measures(r, rn, np.array([0.75, 0.25]))
+    assert got["beta"] == want["beta"] and got["vol"] == want["vol"] and got["max_fall"] == want["max_fall"]
+    assert set(got["each"]) == {"AAA", "BBB"} and got["each"]["AAA"] is not None

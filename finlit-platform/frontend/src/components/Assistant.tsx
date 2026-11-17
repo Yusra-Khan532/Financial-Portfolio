@@ -4,6 +4,9 @@ import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
+import { AskRefused, askAi, useAskQuota, type AskTurn } from "../lib/askAi";
+import { useAuth } from "../lib/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
   type CategoryId, type Q, type TabId,
@@ -16,7 +19,9 @@ import "../styles/ask-ai.css";
 
 import { OPEN_AI } from "./assistantEvents";
 export { OPEN_AI };
-type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; suggest?: Q[] };
+/** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
+ *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
+type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean } };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -91,6 +96,13 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     return () => { live = false; clearTimeout(id); };
   }, [find, view]);
   const asked = useMemo(() => msgs.filter((m) => m.role === "user").map((m) => m.content), [msgs]);
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const quota = useAskQuota(open);
+  const qd = quota.data;
+  const aiOn = !!qd?.enabled;                                   // written answers are switched on (ANTHROPIC_API_KEY on the server)
+  const aiPlan = aiOn && (!user || quota.data?.limit === 0);           // a visitor or a Basic member: written answers are part of Silver and Gold
+  const aiReady = aiOn && !!user && (quota.data?.left ?? 0) > 0;        // a Silver or Gold member with questions left this month
   if (loc.pathname.startsWith("/admin")) return null;
 
   const pool: Q[] = category ? categoryQuestions(category) : company ? [...tabQuestions(tab, company, lender), ...tabQuestions("suggested", company, lender)] : [];
@@ -99,13 +111,45 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const goCompany = (sym: string, t: TabId) => { setCompany(sym); setTab(t); setFind(""); setFound([]); setView("company"); };
   /** Task #138 (founder, 14 Nov 2026): no language model. A listed question answers at once: a general one from its written answer, a company one from
    *  that company's own FinLit figures. Anything else typed is matched against the listed questions and the closest ones are offered. */
+  /** A question the listed answers do not cover: FinLit AI reads FinLit's own data as this member and the answer streams into the last bubble. */
+  const written = async (q: string, before: Msg[]) => {
+    const history: AskTurn[] = before.filter((m) => m.content && !m.ai?.error && !m.ai?.plans && !m.suggest).map((m) => ({ role: m.role, content: m.content }));
+    while (history.length && history[0].role !== "user") history.shift();
+    const pairs: AskTurn[] = [];                                         // only whole question-and-answer pairs, in order
+    for (let i = 0; i + 1 < history.length; i++) if (history[i].role === "user" && history[i + 1].role === "assistant") { pairs.push(history[i], history[i + 1]); i++; }
+    const patch = (f: (m: Msg) => Msg) => setMsgs((ms) => { const c = [...ms]; c[c.length - 1] = f(c[c.length - 1]); return c; });
+    setMsgs((m) => [...m, { role: "assistant", content: "", ai: { status: "Reading FinLit's data" } }]);
+    setBusy(true);
+    try {
+      await askAi(q, pairs, company, (e) => {
+        if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
+        else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
+        else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: undefined } }));
+        else if (e.type === "done") patch((m) => ({ ...m, ai: { disclaimer: e.disclaimer } }));
+        else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text, ai: { error: true } }));
+      });
+    } catch (err) {
+      const text = err instanceof AskRefused ? err.message : "FinLit AI could not be reached just now. Please try again.";
+      patch((m) => ({ ...m, content: text, ai: { error: true, plans: err instanceof AskRefused && err.code === "plan_required" } }));
+    } finally {
+      setBusy(false);
+      void qc.invalidateQueries({ queryKey: ["ask-quota"] });
+    }
+  };
   const ask = async (q: string, via: View, meta?: Partial<Match>) => {
     if (!q || busy) return;
     setBack(via === "chat" ? back : via); setView("chat"); setText(""); setRecent((r) => pushRecent(r, q));
+    const before = msgs;
     setMsgs((m) => [...m, { role: "user", content: q }]);
-    const written = generalAnswer(q);
-    if (written) { setMsgs((m) => [...m, { role: "assistant", content: written }]); return; }
+    const listedAnswer = generalAnswer(q);
+    if (listedAnswer) { setMsgs((m) => [...m, { role: "assistant", content: listedAnswer }]); return; }
     const found = meta?.id && meta.sym ? (meta as Match) : matchQuestion(q, company);
+    if (!found && aiReady) { await written(q, before); return; }
+    if (!found && aiPlan) {
+      const close = searchListed(q, company, 6, true);
+      setMsgs((m) => [...m, { role: "assistant", content: "Written answers to your own questions are part of the Silver plan (50 a month) and the Gold plan (100 a month). The listed questions answer at once on every plan." + (close.length ? " These are the closest to yours:" : ""), suggest: close, ai: { plans: true } }]);
+      return;
+    }
     if (!found) {
       const close = searchListed(q, company, 6, true);
       setMsgs((m) => [...m, { role: "assistant", content: close.length ? "FinLit AI answers its listed questions. These are the closest to yours; pick one for its answer:" : `FinLit AI answers its listed questions, and none matches “${q}”. Choose a topic or a company to see them all.`, suggest: close }]);
@@ -134,7 +178,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const sub = view === "company" || (view === "chat" && company) ? company : null;
   const row = (q: Q) => <li key={q.id}><button type="button" className="aif-q" onClick={() => tapQ(q)} title={q.needsSecondCompany ? `Replace ${SECOND} with the second company, then send` : undefined}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>;
   // the box: a few search words ask their best listed question; a sentence that matches none exactly is offered the closest listed ones
-  const send = (e: React.FormEvent) => { e.preventDefault(); const t = text.trim(); if (!t) return; const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || !top ? t : top.text, view === "chat" ? back : view); };
+  // with written answers on, a sentence that is not a listed question goes to FinLit AI as typed; without them, its closest listed question is asked
+  const send = (e: React.FormEvent) => { e.preventDefault(); const t = text.trim(); if (!t) return; const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || aiReady || aiPlan || !top ? t : top.text, view === "chat" ? back : view); };
   const typed = text.trim().length >= 2 && !text.includes(SECOND) ? searchListed(text, company, 5) : [];   // the typing box searches the listed questions
 
   return (
@@ -284,10 +329,12 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot")} style={{ whiteSpace: "pre-wrap" }}>{m.content}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "")} style={{ whiteSpace: "pre-wrap" }} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.content}
+                {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
+                {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
                 {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
                 {m.suggest && m.suggest.length > 0 && <ul className="aif-qs aif-sugq" aria-label="Closest listed questions">{m.suggest.map((q) => row(q))}</ul>}</div>)}
-              {busy && <div className="bub bot typing" role="status" aria-label="Putting the answer together from FinLit's figures"><i /><i /><i /></div>}
+              {busy && !msgs[msgs.length - 1]?.ai && <div className="bub bot typing" role="status" aria-label="Putting the answer together from FinLit's figures"><i /><i /><i /></div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
                 <ul className="aif-qs" aria-label="Related questions">{relatedQs.map((q) => row(q))}</ul></div>}
               {!busy && msgs.length > 0 && <div className="chips"><button type="button" className="back" onClick={() => setView(company ? "company" : "home")}>{company ? `← More about ${company}` : "← Main menu"}</button>
@@ -298,10 +345,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
           {typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
           <form onSubmit={send}>
             <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={300}
-              placeholder={company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"} aria-label="Search the listed questions" />
+              placeholder={aiReady ? (company && view !== "home" ? `Ask anything about ${company}` : "Ask about a company, a fund or the market") : company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"}
+              aria-label={aiReady ? "Your question for FinLit AI" : "Search the listed questions"} />
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>
-          <p className="ai-fine">General information, not investment advice.</p>
+          <p className="ai-fine">General information, not investment advice.{aiOn && user && qd && (qd.limit ?? 0) > 0 && <> <span className="aif-left">FinLit AI: {qd.left} of {qd.limit} written answers left this month{qd.left === 0 && qd.resets ? `; they renew on ${new Date(qd.resets).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}.</span></>}</p>
         </section>
       )}
     </>

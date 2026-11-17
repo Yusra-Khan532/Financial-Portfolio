@@ -14,8 +14,9 @@ import { groupsN, short } from "../lib/pulsePack";
 import { Blank } from "../components/sectors/Parts";
 import { Tip } from "../components/sectors/pack/Common";
 import { PackHead, type View } from "../components/sectors/pack/PulseHead";
+import { RotationGuide, SectionsBar } from "../components/sectors/pack/Guide";
 import { Words } from "../components/sectors/pack/PulseSimple";
-import { AheadRot, ChangedRot, FourBoxes, HowToReadRot, MapRot, MayMoveRot, RankMovesRot, ROT_WORDS, TodayRot, YourRot } from "../components/rotation/pack/RotationSimple";
+import { AheadRot, ChangedRot, FourBoxes, MapRot, MayMoveRot, RankMovesRot, ROT_WORDS, TodayRot, YourRot } from "../components/rotation/pack/RotationSimple";
 import { FullCardsRot, RankingRot, SixMonthRanks, TwelveWeeks } from "../components/rotation/pack/RotationTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
@@ -64,17 +65,23 @@ export function SectorRotationPage() {
       <PackHead page="rotation" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} findHint="An industry, e.g. Banks" side={m ? <Yardstick n={m.rows.length} /> : null} />
       {q.isLoading && <div className="sx-skel sp-sec" role="status" aria-label="Loading the rotation readings" />}
       {q.isError && <div className="sp-sec"><Blank title="Sector Rotation is not available right now" reason={failureText(q.error)}><button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></Blank></div>}
-      {m && <HowToReadRot m={m} />}
+      {m && <RotationGuide ranked={nRanked} total={m.rows.length} />}
+      {m && <SectionsBar items={view === "simple" ? [
+        { id: "rp-today", label: "Today" }, { id: "rp-four", label: "Four boxes" }, { id: "rp-map", label: "Map" }, { id: "rp-ahead", label: "Who is ahead" }, { id: "rp-changed", label: "Changed box" },
+        { id: "rp-next", label: "May change" }, { id: "rp-moves", label: "Rank moves" }, { id: "rp-yours", label: "Your industries" },
+      ] : [
+        { id: "rp-rank", label: "Ranking" }, { id: "rp-next", label: "May change" }, { id: "rp-six", label: "Six months of ranks" }, { id: "rp-twelve", label: "12-week change" },
+      ]} />}
       {m && view === "simple" && (
         <>
           <TodayRot m={m} mine={mine} pulse={pulse} />
-          <YourRot m={m} mine={mine} shares={shares} value={value} pulse={pulse} signedIn={!!user} />
+          <FourBoxes m={m} mine={mine} />
           <MapRot m={m} mine={mine} />
           <AheadRot m={m} />
           <ChangedRot m={m} mine={mine} pulse={pulse} />
           <MayMoveRot m={m} mine={mine} pulse={pulse} />
           <RankMovesRot m={m} mine={mine} />
-          <FourBoxes m={m} mine={mine} />
+          <YourRot m={m} mine={mine} shares={shares} value={value} pulse={pulse} signedIn={!!user} />
           <Words items={ROT_WORDS} />
         </>
       )}
@@ -82,9 +89,9 @@ export function SectorRotationPage() {
         <>
           <FullCardsRot m={m} />
           <RankingRot m={m} mine={mine} pulse={pulse} />
+          <MayMoveRot m={m} mine={mine} pulse={pulse} sub="Its newest weekly reading already sits in another box. If next week agrees, it moves." why={false} />
           <SixMonthRanks m={m} />
           <TwelveWeeks m={m} mine={mine} />
-          <MayMoveRot m={m} mine={mine} pulse={pulse} sub="Its newest weekly reading already sits in another box. If next week agrees, it moves." why={false} />
           <Words items={ROT_WORDS} />
         </>
       )}

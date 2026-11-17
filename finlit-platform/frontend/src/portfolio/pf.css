@@ -50,6 +50,7 @@
 .pfx-input:focus-within { outline: 2px solid var(--gold); outline-offset: 1px; }
 .pfx-cap { margin-left: auto; font-size: 13px; color: var(--pfx-ink2); }
 .pfx-addbar .pfx-note { margin-top: 8px; font-size: 13px; line-height: 18px; }
+.eq-cas summary { cursor: pointer; color: var(--muted); } .eq-cas p { margin: 6px 0 0; max-width: 72ch; }
 .pfx-paste { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
 .pfx-paste textarea { width: 100%; font: inherit; font-size: 16px; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--bg); color: var(--pfx-ink); }
 

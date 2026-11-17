@@ -21,7 +21,7 @@ export const SECTIONS: NavSection[] = [
   { id: "myfinlit", label: "Workspace", groups: [{ items: [
     i("/dashboard", "Dashboard", "Your stocks, alerts and scores in one place", "table"),
     i("/watchlist", "Watchlists", "Follow stocks in named lists", "wallet"),
-    i("/my-investments", "All my investments", "Your shares and mutual funds together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
+    i("/my-investments", "All my investments", "Your shares, mutual funds and ETFs together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
     i("/holdings", "Equity portfolio", "Score and mix of the shares you hold", "pie"),
     i("/mf-portfolio", "MF portfolio", "Score, value and returns of the mutual funds you hold", "pie"),
     i("/etf-portfolio", "ETF portfolio", "What your ETFs track and cost, what sits inside them and how risky they are together", "pie", { newUntil: "2026-12-15" }),
@@ -77,7 +77,6 @@ export const MORE: NavSection = { id: "more", label: "More", groups: [
   { title: "Gold dashboards", items: [
     i("/premium/fundamentals", "Company financials", "Financials of any company, in tables and charts", "table", { gold: true }),
     i("/premium/markets", "Market events & index", "Index moves and the events behind them", "activity", { gold: true }),
-    i("/premium/options", "Option chain", "Open interest, put-call ratio and max pain", "layers", { gold: true }),
   ] },
   { title: "Learn and community", items: [
     i("/forum", "Discussion forums", "Information and opinion only, moderated", "users"),

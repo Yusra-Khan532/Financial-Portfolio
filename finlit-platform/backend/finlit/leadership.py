@@ -12,10 +12,11 @@ Layout of this file
 Parameters (52-week ranking window, 13-week direction window, 30% ends, +-5 point direction threshold, 6 peers, 52 weeks of history, 7-day staleness,
 Rs 1 crore liquidity, 2-week stability) are the module constants below; nothing is tuned per sector.
 
-Peer lists (since the finlit_technicals v1.1 delivery): a stock is ranked in the first of THE INDICATOR'S lists that holds it (the five researched groups, then
-its TradingView industry, then its sector: data/leadership_groups.json), measured against the NSE sector index that list names, or against the peers' average
-when it names none. A stock on none of those lists, or whose list has fewer than 6 stocks this site can rank, keeps the earlier grouping by the data provider's
-industry (widened to the sector when too small). The size bucket that picks the market index follows the indicator's rupee cut-offs (see MARKET_CAP_CUTS).
+Peer lists: a stock in one of the indicator's five researched groups (data/leadership_groups.json, kind "curated") is ranked there, measured against the NSE
+sector index that list names. Every other stock is ranked among the companies of its NSE industry (company_classification, task #192), widened to its NSE
+sector when the industry has fewer than 6 stocks this site can rank; banks named in leadership_splits are ranked in their NSE basic industry (Private /
+Public Sector Bank). The indicator's TradingView industry and sector lists are kept in the file but no longer used: the 15 Nov sector pack (rule T6) says peer
+groups fall back to the NSE industry, never TradingView names. A company NSE's lists cannot place is not ranked ("group"). The size bucket that picks the market index follows the indicator's rupee cut-offs (see MARKET_CAP_CUTS).
 docs/technicals/README.md lists every rule on which this file and the package agree or differ.
 """
 
@@ -60,6 +61,8 @@ MARKET_CAP_CUTS = (107000.0, 32800.0)
 LISTS_FILE = Path(__file__).with_name("data") / "leadership_groups.json"
 
 LABELS = ("leader", "in_line", "laggard")
+# leadership_splits sub-groups are NSE basic industries of the Banks industry; the name shown is NSE's
+SPLIT_NAMES = {"Banks - Private": "Private Sector Bank", "Banks - Public Sector": "Public Sector Bank"}
 CHIP = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
 REASON_TEXT = {"history": "Not enough price history to compare with peers yet", "stale": "Not enough price history to compare with peers yet",
                "liquidity": "Too thinly traded to compare with peers", "group": "Too few comparable companies to rank",
@@ -230,12 +233,14 @@ def load_lists(path: Optional[Path] = None) -> Tuple[List[ListedGroup], str]:
     return _lists_cache[key]
 
 
+LIST_KINDS = ("curated",)   # the five researched groups only; never the TradingView industry / sector lists (task #192, rule T6)
+
+
 def lists_for(sym: str, groups: Sequence[ListedGroup]) -> List[ListedGroup]:
-    """The lists that can be a stock's peer group, in the indicator's order: the first researched group that holds it, then the first industry list, then the first
-    sector list (peers.resolve: curated, then TradingView industry, then sector)."""
+    """The researched group that can be a stock's peer group (the first that holds it); empty when none does: the stock is then ranked in its NSE industry."""
     n = norm_symbol(sym)
     out: List[ListedGroup] = []
-    for kind in ("curated", "industry", "sector"):
+    for kind in LIST_KINDS:
         hit = next((g for g in groups if g.kind == kind and n in g.norm), None)
         if hit:
             out.append(hit)
@@ -579,15 +584,17 @@ async def _long_index_prices(store, settings, code: str) -> Optional[Prices]:
 async def _load_universe(store) -> List[dict]:
     async with store.pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT DISTINCT ON (s.symbol) s.symbol, s.statement, COALESCE(c.name, s.symbol) AS name, COALESCE(NULLIF(s.industry, ''), NULLIF(c.industry, ''), NULLIF(s.sector, '')) AS industry, "
-            "COALESCE(NULLIF(s.macro_sector, ''), NULLIF(s.sector, ''), NULLIF(c.sector, '')) AS sector, COALESCE(q.market_cap, s.market_cap)::float8 AS mcap, s.pillar_quality AS pq, s.pillar_growth AS pg, "
+            "SELECT DISTINCT ON (s.symbol) s.symbol, s.statement, COALESCE(c.name, s.symbol) AS name, k.industry, k.sector, "
+            "COALESCE(q.market_cap, s.market_cap)::float8 AS mcap, s.pillar_quality AS pq, s.pillar_growth AS pg, "
             "s.pillar_profitability AS pp, s.pillar_balance AS pb FROM scores s JOIN companies c ON c.symbol = s.symbol "
+            "LEFT JOIN company_classification k ON k.symbol = s.symbol "      # NSE's industry and sector (task #192): the peer groups' names
             "LEFT JOIN listing_quotes q ON q.symbol = s.symbol WHERE s.model = 'v1' "
             "ORDER BY s.symbol, (s.statement = 'consolidated') DESC, s.updated_at DESC")
         splits = {r["symbol"]: r["subgroup"] for r in await conn.fetch("SELECT symbol, subgroup FROM leadership_splits")}
     out = [dict(r) for r in rows]
     for r in out:   # a stock listed in leadership_splits is ranked in its own sub-group (private banks against the private bank index)
-        r["industry"] = splits.get(r["symbol"]) or r["industry"]
+        if r["industry"] and splits.get(r["symbol"]):
+            r["industry"] = splits[r["symbol"]]
     return out
 
 
@@ -747,9 +754,13 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
             for row in g.rows:
                 if row.sym in homes:
                     emit(t, final, row, g, info)
-        # 2. everyone else: the data provider's industry, widened to the sector when it is too small
+        # 2. everyone else: NSE's industry, widened to NSE's sector when it is too small; a company NSE's lists cannot place is not ranked
         for industry, group in by_industry.items():
             if not industry:
+                if final:
+                    for m in group:
+                        if m.sym not in home:
+                            why_not[m.sym] = "group"
                 continue
             sector_name = meta[group[0].sym]["sector"] or ""
             kind, chosen, excluded = choose_group(group, by_sector.get(sector_name, group), t)
@@ -772,10 +783,11 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
                 for sym_, why in g.excluded.items():
                     if meta[sym_]["industry"] == industry and sym_ not in home:
                         why_not[sym_] = why
-            short = (conf["group_short"] if conf and kind == "industry" else (sector_name if kind == "sector" else industry))
-            gname = (conf["group_name"] if conf and kind == "industry" else (sector_name if kind == "sector" else industry))
+            split = SPLIT_NAMES.get(industry) if kind == "industry" else None   # banks: NSE's basic industry (Private / Public Sector Bank)
+            gname = short = split or (sector_name if kind == "sector" else industry)  # NSE's own names, never a home-made short one (rule T12)
+            kind_shown = "basic_industry" if split else kind
             group_id = slug(industry if kind == "industry" else sector_name)
-            info = {"group_id": group_id, "gname": gname, "short": short, "kind": kind, "source": "industry", "listed": None,
+            info = {"group_id": group_id, "gname": gname, "short": short, "kind": kind_shown, "source": "industry", "listed": None,
                     "sector_name": (conf["sector_name"] if conf and g.kind == "index" else "peer average"), "sidx_code": conf["sector_code"] if conf and g.kind == "index" else None}
             if final:
                 unranked.extend((group_id, sym_, members[sym_].name or sym_, why, as_of) for sym_, why in g.excluded.items() if sym_ in members and meta[sym_]["industry"] == industry)
@@ -843,7 +855,7 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
     on_lists = sum(1 for v in latest.values() if v["source"] == "list")
     out = {"asOf": as_of.isoformat(), "runs": len(dates), "labelled": covered, "withPrices": len(members), "history": len(history_rows), "churn": churn,
            "churnPct": round(100 * churn / max(1, len([s for s in latest if s in state])), 1), "held": sorted(held_syms), "indices": {c: (len(p) if p else 0) for c, p in idx.items()},
-           "onIndicatorLists": on_lists, "onProviderIndustry": covered - on_lists,
+           "onIndicatorLists": on_lists, "onNseIndustry": covered - on_lists,
            "lists": {g.id: {"listed": len(set(g.norm)), "withPrices": len(listed_members(g)), "ranked": rank_list(g, as_of).n, "homes": sum(1 for h in home.values() if h.id == g.id)}
                      for g in lists if g.id in usable}}
     log.info("leadership run %s", {k: v for k, v in out.items() if k != "lists"})
@@ -853,8 +865,8 @@ async def run(store, settings, *, as_of: Optional[date] = None, backfill_from: O
 async def backtest(store, settings) -> Dict[str, Any]:
     """The quarterly backtest behind the reliability card: for every peer group with at least 6 rankable stocks, the share of 4-weekly checks on which the
     top 30% beat the bottom 30% over the next 6 months. It can only use the weekly history the site stores, so a group with under 10 years of checks is
-    stored as 'insufficient' and the card says so; it never invents a tier. The groups are the indicator's peer lists and, for stocks on none of them, the
-    data provider's industries. For the spec's five researched groups the spec's own backtest (method 'spec') stays on the card until this one has a tier."""
+    stored as 'insufficient' and the card says so; it never invents a tier. The groups are the indicator's five researched groups and NSE's industries
+    (task #192: never the TradingView lists). For the spec's five researched groups the spec's own backtest (method 'spec') stays on the card until this one has a tier."""
     universe = await _load_universe(store)
     prices = await _load_prices(store, universe, long_history=True)
     lists, lists_as_of = load_lists()
@@ -867,12 +879,12 @@ async def backtest(store, settings) -> Dict[str, Any]:
         if r["symbol"] in prices and r["industry"]:
             groups.setdefault(r["industry"], []).append(r)
     jobs: List[Tuple[str, str, List[Member], Optional[str]]] = []   # (group id, name, members, long index code)
-    for g in lists:
+    for g in (x for x in lists if x.kind in LIST_KINDS):
         ms = [Member(sym=on_file[n], prices=prices[on_file[n]][0], liquid=prices[on_file[n]][1]) for n in dict.fromkeys(g.norm) if n in on_file]
         jobs.append((g.id, g.name, ms, g.index_code))
     for industry, rows in groups.items():
         conf = cfg.get(norm_industry(industry))
-        jobs.append((slug(industry), conf["group_name"] if conf else industry,
+        jobs.append((slug(industry), SPLIT_NAMES.get(industry, industry),
                      [Member(sym=r["symbol"], prices=prices[r["symbol"]][0], mcap=r["mcap"] or 0.0, liquid=prices[r["symbol"]][1]) for r in rows], conf["sector_code"] if conf else None))
     done = {}
     today = last_friday()

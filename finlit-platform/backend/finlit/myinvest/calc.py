@@ -1,14 +1,19 @@
-"""All my investments (task #137): the member's shares and mutual funds read together, looking through each fund to the companies inside it.
+"""All my investments (task #137, 15 Nov 2026 pack): the member's shares, mutual funds and ETFs read together, looking through each fund and ETF to the
+companies inside it.
 
-Pure Python: no database, no network. Inputs are plain dicts gathered by api.py from the lists the member already keeps (Equity portfolio, MF portfolio) and
-from the data the portfolio pages already use. ETFs are not here yet: the ETF portfolio does not exist, and the page says so (founder, 15 Nov 2026).
+Pure Python: no database, no network. Inputs are plain dicts gathered by api.py from the three lists the member already keeps (Equity portfolio,
+MF portfolio, ETF portfolio) and from the data those portfolio pages already use.
 
-Weights. A part (shares, mutual funds) is "valued" when every holding in it has a quantity and a price. Inside a valued part each holding weighs its value;
-inside a part without quantities each holding counts the same. Across parts the money decides only when every part is valued; otherwise each part counts
-the same, and the page says so.
+Weights ("How the numbers are worked out", README of the pack):
+- with quantities: value = quantity x last price (shares, ETFs) or units x NAV (funds); the share of everything is value / total;
+- without quantities: each kind counts the same (1/3 each when all three are held, 1/2 with two kinds) and each holding counts the same inside its kind.
+  The money decides only when every kind present has a quantity for every holding; the page says so wherever a split appears.
 
-Look-through. A company's weight = its direct weight + the sum over funds of (fund weight x the company's share of that fund's net assets). Only the fund's
-equity holdings matched to a listed company are counted as companies; the rest of a fund sits in its asset split (debt, cash, other).
+Look-through: your share of a company through a fund = your share of that fund x the company's weight in the fund's latest monthly file, added up across
+funds, and the same way for ETFs. All together = direct + through funds + through ETFs. Every equity line of each file is counted.
+
+Beta: each kind's beta is the value-weighted beta of its holdings against the Nifty 500 (the shares' beta is worked out by the Equity portfolio's own
+calculation in api.py); beta together = sum of (share of money x beta of the kind); a kind's share of the market risk = (share x beta) / beta together.
 
 Describes the past and the present mix; not a forecast and not a recommendation. Information only, not investment advice.
 """
@@ -16,27 +21,48 @@ Describes the past and the present mix; not a forecast and not a recommendation.
 from __future__ import annotations
 
 import math
-import statistics
+import re
 from collections import defaultdict
-from datetime import date
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-WEEKS_A_YEAR = 52
-YEARS = 3
-MIN_WEEKS = 50          # about a year of weekly points before any risk figure is given
-STALE_DAYS = 10         # a price older than this on a grid date is no price
-SECTOR_FLAG = 25.0      # % of everything: the insight rule "a sector over 25% of everything"
-SOFTEN_SHARE = 10.0     # % in debt, cash and other before the "softening" insight is considered
+KINDS = ("shares", "funds", "etfs")
+PART_WORD = {"shares": "shares", "funds": "mutual funds", "etfs": "ETFs"}
+QTY = {"shares": ("qty", "price"), "funds": ("units", "nav"), "etfs": ("qty", "price")}
+
+# What it is made of (step 2): the five rows of the pack, plus "Other holdings" for lines that are none of them (REITs, InvITs, derivatives), shown only
+# when a file has such lines, so the rows always add up to 100% of everything.
+MIX_ROWS = (("indian", "Indian shares"), ("abroad", "Shares abroad"), ("gold", "Gold and silver"), ("debt", "Debt and cash"), ("other", "Other holdings"),
+            ("notLoaded", "File not loaded yet"))
+GOLD_RE = re.compile(r"\b(gold|silver)\b", re.I)
+ABROAD_RE = re.compile(r"\b(foreign|overseas|international|global|nasdaq|s&p|us equity|world)\b", re.I)
+TYPE_BUCKET = {"gold": "gold", "silver": "gold", "debt": "debt", "liquid": "debt", "international": "abroad"}   # an ETF whose kind fixes what it holds
+
+# Company sizes by FinLit's fixed amounts (README step 3): large above Rs 50,000 Cr, small below Rs 10,000 Cr.
+LARGE_CR, SMALL_CR = 50000.0, 10000.0
+SIZES = ("Large", "Mid", "Small", "Listed abroad", "Not sized")
+
+# The owner's beta bands (README step 6): the edge is the upper limit of each band.
+BETA_BANDS = ((0.65, "Less sensitive"), (0.9, "Defensive"), (1.1, "Similar"), (1.35, "More sensitive"), (1.75, "High"), (math.inf, "Very high"))
+RISK_RED_POINTS = 10.0     # Key figures: "red when the risk share is more than 10 points above the money share"
+
+PEER_WORD = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
+NOT_COMPARED, NOT_ON_LIST = "Not compared", "Not on your list"
+TOP_TWO = {"Strong", "Healthy"}      # the top two bands of FinLit Prism, the FinLit IQ and the Fund Health Score
+LISTED_ABROAD, NOT_CLASSIFIED = "Listed abroad", "Not classified"
 
 
 def _num(v: Any) -> Optional[float]:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
 
 
+def r(v: Optional[float], dp: int = 2) -> Optional[float]:
+    return None if v is None else round(v, dp)
+
+
 # ------------------------------------------------------------------------------------------------ weights
 
-def part_weights(items: List[Dict[str, Any]], qty_key: str, price_key: str) -> Tuple[bool, Optional[float], List[float]]:
-    """(valued, total value or None, each item's weight inside the part). Valued only when every item has a quantity above 0 and a price."""
+def part_weights(items: Sequence[Dict[str, Any]], qty_key: str, price_key: str) -> Tuple[bool, Optional[float], List[float]]:
+    """(valued, total value or None, each item's weight inside the kind). Valued only when every item has a quantity above 0 and a price."""
     if not items:
         return False, None, []
     vals = [(_num(i.get(qty_key)) or 0) * (_num(i.get(price_key)) or 0) for i in items]
@@ -47,214 +73,245 @@ def part_weights(items: List[Dict[str, Any]], qty_key: str, price_key: str) -> T
     return False, None, [1 / len(items)] * len(items)
 
 
-def split_parts(shares: List[Dict[str, Any]], funds: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """The weight of each part of everything, and how it was decided."""
-    sv, stot, sw = part_weights(shares, "qty", "price")
-    fv, ftot, fw = part_weights(funds, "units", "nav")
-    present = [k for k, items in (("shares", shares), ("funds", funds)) if items]
-    by_value = bool(present) and all({"shares": sv, "funds": fv}[k] for k in present)
+def split_parts(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any]], etfs: Sequence[Dict[str, Any]] = ()) -> Dict[str, Any]:
+    """The weight of each kind in everything, and how it was decided. `missing`: the kinds held without a quantity for every holding."""
+    items = {"shares": shares, "funds": funds, "etfs": etfs}
+    out: Dict[str, Any] = {}
+    for k in KINDS:
+        v, tot, w = part_weights(items[k], *QTY[k])
+        out[k] = {"valued": v, "value": tot, "w": w}
+    present = [k for k in KINDS if items[k]]
+    by_value = bool(present) and all(out[k]["valued"] for k in present)
     if by_value:
-        total = (stot or 0) + (ftot or 0)
-        pw = {"shares": (stot or 0) / total if total else 0, "funds": (ftot or 0) / total if total else 0}
+        total = sum(out[k]["value"] or 0 for k in present)
+        part = {k: ((out[k]["value"] or 0) / total if k in present else 0.0) for k in KINDS}
     else:
-        pw = {k: (1 / len(present) if k in present else 0) for k in ("shares", "funds")}
         total = None
-    return {"byValue": by_value, "total": total, "part": pw, "shares": {"valued": sv, "value": stot, "w": sw}, "funds": {"valued": fv, "value": ftot, "w": fw}}
+        part = {k: (1 / len(present) if k in present else 0.0) for k in KINDS}
+    return {"byValue": by_value, "total": total, "part": part, "present": present, "missing": [k for k in present if not out[k]["valued"]], **out}
 
 
 # ------------------------------------------------------------------------------------------------ look-through
 
-def look_through(shares: List[Dict[str, Any]], funds: List[Dict[str, Any]], split: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Every company counted once: its weight held directly and through funds (both as % of everything), largest first.
-    shares: [{symbol, name}], funds: [{code, name, holdings: [{stockSymbol, name, assetClass, pct}]}]."""
-    rows: Dict[str, Dict[str, Any]] = {}
-    ps, pf = split["part"]["shares"], split["part"]["funds"]
+def abroad_isin(isin: Optional[str], item_class: Optional[str] = None) -> bool:
+    """A share listed outside India: its ISIN is not Indian, or (no ISIN) it sits in an international fund or ETF."""
+    return not str(isin).upper().startswith("IN") if isin else item_class == "international"
 
-    def row(sym: str, name: str) -> Dict[str, Any]:
-        return rows.setdefault(sym, {"symbol": sym, "name": name, "direct": 0.0, "funds": 0.0, "etfs": 0.0, "via": []})
+
+def line_key(h: Dict[str, Any]) -> str:
+    """One company, however it is reached: its NSE symbol, else its ISIN, else its name."""
+    if h.get("stockSymbol"):
+        return str(h["stockSymbol"]).upper()
+    if h.get("isin"):
+        return "isin:" + str(h["isin"]).upper()
+    return "name:" + re.sub(r"\s+", " ", str(h.get("name") or "").strip().lower())
+
+
+def look_through(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any]], etfs: Sequence[Dict[str, Any]], split: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Every company counted once: its weight held directly, through funds and through ETFs (each as % of everything), largest first.
+    shares: [{symbol, name}]; funds: [{code, short, holdings}]; etfs: [{symbol, assetClass, holdings}]; holdings: [{stockSymbol, isin, name, assetClass, pct,
+    macroSector}] with pct as % of the fund's net assets. Only equity lines are companies; the rest of a fund sits in step 2."""
+    rows: Dict[str, Dict[str, Any]] = {}
+
+    def row(key: str, symbol: Optional[str], name: str, isin: Optional[str], abroad: bool) -> Dict[str, Any]:
+        got = rows.get(key)
+        if got is None:
+            got = rows[key] = {"key": key, "symbol": symbol, "name": name, "isin": isin, "abroad": abroad, "macro": None,
+                               "direct": 0.0, "funds": 0.0, "etfs": 0.0, "viaFunds": [], "viaEtfs": []}
+        return got
 
     for s, w in zip(shares, split["shares"]["w"]):
-        row(s["symbol"], s.get("name") or s["symbol"])["direct"] += ps * w * 100
-    for f, w in zip(funds, split["funds"]["w"]):
-        for h in f.get("holdings") or []:
-            sym, pct = h.get("stockSymbol"), _num(h.get("pct"))
-            if not sym or pct is None or (h.get("assetClass") or "equity") != "equity":
-                continue
-            r = row(sym, h.get("name") or sym)
-            r["funds"] += pf * w * pct
-            if f.get("code") not in r["via"]:
-                r["via"].append(f.get("code"))
+        row(s["symbol"], s["symbol"], s.get("name") or s["symbol"], s.get("isin"), False)["direct"] += split["part"]["shares"] * w * 100
+    for kind, items, via, ident in (("funds", funds, "viaFunds", "code"), ("etfs", etfs, "viaEtfs", "symbol")):
+        for f, w in zip(items, split[kind]["w"]):
+            share = split["part"][kind] * w
+            for h in f.get("holdings") or []:
+                pct = _num(h.get("pct"))
+                if pct is None or pct <= 0 or (h.get("assetClass") or "equity") != "equity":
+                    continue
+                ab = abroad_isin(h.get("isin"), f.get("assetClass"))
+                x = row(line_key(h), h.get("stockSymbol") and str(h["stockSymbol"]).upper(), h.get("name") or h.get("stockSymbol") or "", h.get("isin"), ab)
+                x[kind] += share * pct
+                if x["macro"] is None and h.get("macroSector"):
+                    x["macro"] = h["macroSector"]
+                if f.get(ident) not in x[via]:
+                    x[via].append(f.get(ident))
     out = []
-    for r in rows.values():
-        r["all"] = r["direct"] + r["funds"] + r["etfs"]
-        r["twice"] = r["direct"] > 0 and (r["funds"] > 0 or r["etfs"] > 0)
-        r["ways"] = (r["direct"] > 0) + (r["funds"] > 0) + (r["etfs"] > 0)
-        out.append(r)
-    return sorted(out, key=lambda r: (-r["all"], r["symbol"]))
+    for x in rows.values():
+        x["all"] = x["direct"] + x["funds"] + x["etfs"]
+        x["held"] = [m for m, k in (("D", "direct"), ("F", "funds"), ("E", "etfs")) if x[k] > 0]
+        x["ways"] = len(x["held"])
+        x["twice"] = x["ways"] >= 2
+        out.append(x)
+    return sorted(out, key=lambda x: (-x["all"], x["name"]))
 
 
-def asset_mix(shares: List[Dict[str, Any]], funds: List[Dict[str, Any]], split: Dict[str, Any]) -> Dict[str, float]:
-    """% of everything in equity, debt, cash and other (gold sits in other where a fund house files it so). Shares are all equity; each fund adds its
-    monthly asset split; a fund with no split is counted as 'not known'."""
-    mix: Dict[str, float] = defaultdict(float)
-    mix["equity"] += split["part"]["shares"] * 100 if shares else 0
-    for f, w in zip(funds, split["funds"]["w"]):
-        part = split["part"]["funds"] * w * 100
-        a = f.get("assetSplit") or {}
-        known = {k: _num(a.get(k)) for k in ("equity", "debt", "cash", "other")}
-        if not any(v is not None for v in known.values()):
-            mix["unknown"] += part
-            continue
-        tot = sum(v for v in known.values() if v is not None) or 100
-        for k, v in known.items():
-            if v:
-                mix[k] += part * v / tot
-    return {k: round(v, 4) for k, v in mix.items() if v > 0}
+def filter_counts(companies: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    """The company table's four filters, each with its count."""
+    return {"all": len(companies), "twice": sum(1 for c in companies if c["ways"] >= 2),
+            "through": sum(1 for c in companies if c["direct"] == 0), "direct": sum(1 for c in companies if c["direct"] > 0 and c["ways"] == 1)}
 
 
-def sectors(rows: List[Dict[str, Any]], sector_of: Dict[str, Optional[str]], bench: Dict[str, float]) -> List[Dict[str, Any]]:
-    """Each sector's % of everything, counted through funds, against its % of the NIFTY 500 by market value. Companies without a sector go to
-    'No sector on record'."""
-    mine: Dict[str, float] = defaultdict(float)
-    for r in rows:
-        mine[sector_of.get(r["symbol"]) or "No sector on record"] += r["all"]
-    keys = sorted(set(mine) | {k for k, v in bench.items() if v >= 1}, key=lambda k: (-mine.get(k, 0), -bench.get(k, 0), k))
-    return [{"sector": k, "mine": round(mine.get(k, 0), 2), "bench": round(bench[k], 2) if k in bench else None} for k in keys]
+def peer_word(raw: Optional[str], direct: bool) -> str:
+    """Leader / In line / Laggard, never the stored code; "Not compared" for a share on the list without a label; "Not on your list" for a company held
+    only through funds and ETFs."""
+    if not direct:
+        return NOT_ON_LIST
+    return PEER_WORD.get(str(raw or "").strip().lower().replace(" ", "_"), NOT_COMPARED)
 
 
-def bench_sectors(members: List[Dict[str, Any]]) -> Dict[str, float]:
-    """The NIFTY 500's sector split by market value of its companies: [{sector, mcap}] -> {sector: %}."""
-    by: Dict[str, float] = defaultdict(float)
-    for m in members:
-        v = _num(m.get("mcap"))
-        if v and v > 0:
-            by[m.get("sector") or "No sector on record"] += v
-    tot = sum(by.values())
-    return {k: v / tot * 100 for k, v in by.items()} if tot else {}
-
-
-def fund_overlap(funds: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def fund_overlap(funds: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """The highest overlap between two of the member's funds: the share of net assets in the same companies, sum over common companies of the smaller weight."""
     best = None
-    eq = [(f, {h["stockSymbol"]: _num(h.get("pct")) or 0 for h in f.get("holdings") or [] if h.get("stockSymbol") and (h.get("assetClass") or "equity") == "equity"}) for f in funds]
+    eq = [(f, {line_key(h): _num(h.get("pct")) or 0 for h in f.get("holdings") or [] if (h.get("assetClass") or "equity") == "equity"}) for f in funds]
     for i in range(len(eq)):
         for j in range(i + 1, len(eq)):
             a, b = eq[i][1], eq[j][1]
-            ov = sum(min(a[k], b[k]) for k in set(a) & set(b))
-            if best is None or ov > best["pct"]:
-                best = {"pct": round(ov, 1), "a": eq[i][0].get("short") or eq[i][0].get("name"), "b": eq[j][0].get("short") or eq[j][0].get("name")}
+            common = set(a) & set(b)
+            ov = sum(min(a[k], b[k]) for k in common)
+            if common and (best is None or ov > best["pct"]):
+                best = {"pct": round(ov, 1), "a": eq[i][0].get("short") or eq[i][0].get("name"), "b": eq[j][0].get("short") or eq[j][0].get("name"), "n": len(common)}
     return best
 
 
+# ------------------------------------------------------------------------------------------------ what it is made of (step 2)
+
+def line_bucket(h: Dict[str, Any], item_class: Optional[str]) -> str:
+    cls = (h.get("assetClass") or "equity").lower()
+    if cls == "equity":
+        return "abroad" if abroad_isin(h.get("isin"), item_class) else "indian"
+    if cls in ("debt", "cash"):
+        return "debt"
+    name = str(h.get("name") or "")
+    if GOLD_RE.search(name):
+        return "gold"
+    if ABROAD_RE.search(name):
+        return "abroad"
+    return "other"
+
+
+def item_mix(item: Dict[str, Any]) -> Tuple[Dict[str, float], str]:
+    """One fund's or ETF's split over the step-2 rows (fractions adding to 1) and how it was read: "file" (its monthly file), "type" (no file, but its kind
+    fixes what it holds: a gold, silver, debt, liquid or international ETF) or "none" (no file: "File not loaded yet")."""
+    hs = [h for h in item.get("holdings") or [] if (_num(h.get("pct")) or 0) > 0]
+    tot = sum(_num(h.get("pct")) or 0 for h in hs)
+    if hs and tot > 0:
+        m: Dict[str, float] = defaultdict(float)
+        for h in hs:
+            m[line_bucket(h, item.get("assetClass"))] += (_num(h.get("pct")) or 0) / tot
+        return dict(m), "file"
+    t = TYPE_BUCKET.get(str(item.get("category") or "").lower()) or TYPE_BUCKET.get(str(item.get("assetClass") or "").lower())
+    if t and item.get("kind") == "etfs":
+        return {t: 1.0}, "type"
+    return {"notLoaded": 1.0}, "none"
+
+
+def made_of(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any]], etfs: Sequence[Dict[str, Any]], split: Dict[str, Any]) -> Dict[str, Any]:
+    """Rows Indian shares, Shares abroad, Gold and silver, Debt and cash, (Other holdings), File not loaded yet; columns From shares, From mutual funds,
+    From ETFs and All together, each as % of everything. Also each fund's and ETF's own split (the "How each fund and ETF splits" dropdown)."""
+    cols = {k: defaultdict(float) for k in KINDS}
+    if shares:
+        cols["shares"]["indian"] += split["part"]["shares"] * 100       # the Equity portfolio holds NSE-listed shares
+    each, not_loaded, by_type = [], [], []
+    for kind, items in (("funds", funds), ("etfs", etfs)):
+        for f, w in zip(items, split[kind]["w"]):
+            m, how = item_mix({**f, "kind": kind})
+            for b, x in m.items():
+                cols[kind][b] += split["part"][kind] * w * x * 100
+            name = f.get("short") or f.get("symbol") or f.get("name")
+            if how == "none":
+                not_loaded.append({"kind": kind, "name": name})
+            elif how == "type":
+                by_type.append({"kind": kind, "name": name})
+            each.append({"kind": kind, "name": name, "how": how, "asOf": f.get("asOf"), "mix": {b: round(x * 100, 1) for b, x in m.items()}})
+    rows = []
+    for key, word in MIX_ROWS:
+        vals = {k: cols[k].get(key, 0.0) for k in KINDS}
+        tot = sum(vals.values())
+        if key == "other" and tot <= 0:
+            continue
+        rows.append({"key": key, "label": word, **{k: round(v, 2) for k, v in vals.items()}, "all": round(tot, 2)})
+    outside = sum(x["all"] for x in rows if x["key"] not in ("indian", "notLoaded"))
+    return {"rows": rows, "each": each, "notLoaded": not_loaded, "byType": by_type, "outsideIndianShares": round(outside, 2)}
+
+
+# ------------------------------------------------------------------------------------------------ macro sectors and sizes (step 3)
+
+def macro_sectors(companies: Sequence[Dict[str, Any]], macro_of: Dict[str, Optional[str]]) -> List[Dict[str, Any]]:
+    """NSE's 12 macro sectors (plus "Listed abroad" and "Not classified"), each with % of everything from your shares, through funds and through ETFs.
+    `macro_of`: {symbol: macro sector} from NSE's classification; a fund's own line (taxonomy.holding_level, in its file) fills the rest."""
+    by: Dict[str, Dict[str, float]] = defaultdict(lambda: {"direct": 0.0, "funds": 0.0, "etfs": 0.0})
+    for c in companies:
+        sec = LISTED_ABROAD if c["abroad"] else (macro_of.get(c["symbol"] or "") or c.get("macro") or NOT_CLASSIFIED)
+        for k in ("direct", "funds", "etfs"):
+            by[sec][k] += c[k]
+    out = [{"sector": s, **{k: round(v, 2) for k, v in d.items()}, "all": round(sum(d.values()), 2), "named": s not in (LISTED_ABROAD, NOT_CLASSIFIED)} for s, d in by.items()]
+    return sorted(out, key=lambda x: (not x["named"], -x["all"], x["sector"]))
+
+
+def size_of(cap_cr: Optional[float]) -> Optional[str]:
+    if cap_cr is None or cap_cr <= 0:
+        return None
+    return "Large" if cap_cr > LARGE_CR else "Small" if cap_cr < SMALL_CR else "Mid"
+
+
+def company_sizes(companies: Sequence[Dict[str, Any]], cap_of: Callable[[Dict[str, Any]], Optional[float]]) -> List[Dict[str, Any]]:
+    """Large / Mid / Small (plus Listed abroad and Not sized), each with % of everything from your shares, through funds and through ETFs."""
+    by: Dict[str, Dict[str, float]] = {s: {"direct": 0.0, "funds": 0.0, "etfs": 0.0} for s in SIZES}
+    for c in companies:
+        s = "Listed abroad" if c["abroad"] else (size_of(cap_of(c)) or "Not sized")
+        c["size"] = s if s in ("Large", "Mid", "Small") else None
+        for k in ("direct", "funds", "etfs"):
+            by[s][k] += c[k]
+    return [{"size": s, **{k: round(v, 2) for k, v in d.items()}, "all": round(sum(d.values()), 2)} for s, d in by.items() if sum(d.values()) > 0 or s in ("Large", "Mid", "Small")]
+
+
+# ------------------------------------------------------------------------------------------------ health (step 5)
+
 def weighted_mean(values: Sequence[Optional[float]], weights: Sequence[float]) -> Optional[float]:
-    pairs = [(v, w) for v, w in zip(values, weights) if v is not None]
+    pairs = [(v, w) for v, w in zip(values, weights) if v is not None and w > 0]
     tw = sum(w for _, w in pairs)
     return sum(v * w for v, w in pairs) / tw if pairs and tw else None
 
 
-# ------------------------------------------------------------------------------------------------ risk: weekly, against the NIFTY 500
-
-def weekly_grid(bench: Dict[int, float], end: int) -> List[int]:
-    """The last trading day of each week in the three years to `end` (ordinal days), from the index's own days."""
-    start = end - round(365.25 * YEARS)
-    last: Dict[Tuple[int, int], int] = {}
-    for d in sorted(k for k in bench if start <= k <= end):
-        iso = date.fromordinal(d).isocalendar()
-        last[(iso[0], iso[1])] = d
-    return sorted(last.values())
+def band_counts(labels: Sequence[Optional[str]], weights: Sequence[float], order: Sequence[str]) -> Dict[str, Any]:
+    """{bands: [{label, count, share}], notRated, topTwoShare}: share = % of the kind (by value with quantities, by count without)."""
+    tw = sum(weights) or 1
+    out = [{"label": b, "count": sum(1 for l in labels if l == b), "share": round(sum(w for l, w in zip(labels, weights) if l == b) / tw * 100, 1)} for b in order]
+    nr = [w for l, w in zip(labels, weights) if l not in order]
+    return {"bands": out, "notRated": {"count": len(nr), "share": round(sum(nr) / tw * 100, 1)},
+            "topTwoShare": round(sum(w for l, w in zip(labels, weights) if l in TOP_TWO) / tw * 100, 1)}
 
 
-def on_grid(days: Sequence[int], values: Sequence[float], grid: Sequence[int]) -> List[Optional[float]]:
-    """The last value on or before each grid day, no older than STALE_DAYS; None where there is none."""
-    out: List[Optional[float]] = []
-    i, n = 0, len(days)
-    for g in grid:
-        while i < n and days[i] <= g:
-            i += 1
-        out.append(values[i - 1] if i and g - days[i - 1] <= STALE_DAYS else None)
-    return out
+# ------------------------------------------------------------------------------------------------ risk (step 6)
+
+def beta_band(beta: Optional[float]) -> Optional[str]:
+    return None if beta is None else next(w for edge, w in BETA_BANDS if beta < edge)
 
 
-def rets(levels: Sequence[Optional[float]]) -> List[Optional[float]]:
-    return [None] + [(b / a - 1) if a and b else None for a, b in zip(levels, levels[1:])]
+def kind_beta(betas: Sequence[Optional[float]], weights: Sequence[float]) -> Tuple[Optional[float], float]:
+    """(the value-weighted beta of the holdings that have one, the share of the kind they cover in %)."""
+    b = weighted_mean(betas, weights)
+    cover = sum(w for v, w in zip(betas, weights) if v is not None) / (sum(weights) or 1) * 100
+    return b, round(cover, 1)
 
 
-def blend(series: List[List[Optional[float]]], weights: List[float]) -> List[Optional[float]]:
-    """A weighted weekly return; each week uses the holdings that have a return that week, their weights re-scaled to 1."""
-    if not series:
-        return []
-    out: List[Optional[float]] = []
-    for t in range(len(series[0])):
-        have = [(s[t], w) for s, w in zip(series, weights) if s[t] is not None and w > 0]
-        tw = sum(w for _, w in have)
-        out.append(sum(r * w for r, w in have) / tw if have and tw else None)
-    return out
-
-
-def worst_fall(rs: Sequence[Optional[float]]) -> Optional[float]:
-    level, peak, worst = 1.0, 1.0, 0.0
-    seen = False
-    for r in rs:
-        if r is None:
-            continue
-        seen = True
-        level *= 1 + r
-        peak = max(peak, level)
-        worst = min(worst, level / peak - 1)
-    return worst * 100 if seen else None
-
-
-def risk_figures(port: List[Optional[float]], bench: List[Optional[float]]) -> Optional[Dict[str, Any]]:
-    """Swing a year (%), worst fall (%), beta and falls taken (%) of a weekly return line against the index's, on the weeks both have."""
-    pairs = [(p, b) for p, b in zip(port, bench) if p is not None and b is not None]
-    if len(pairs) < MIN_WEEKS:
-        return None
-    ps, bs = [p for p, _ in pairs], [b for _, b in pairs]
-    var_b = statistics.pvariance(bs)
-    cov = sum((p - statistics.fmean(ps)) * (b - statistics.fmean(bs)) for p, b in pairs) / len(pairs)
-    down = [(p, b) for p, b in pairs if b < 0]
-    return {"swing": statistics.pstdev(ps) * math.sqrt(WEEKS_A_YEAR) * 100, "benchSwing": statistics.pstdev(bs) * math.sqrt(WEEKS_A_YEAR) * 100,
-            "worstFall": worst_fall(ps), "benchWorstFall": worst_fall(bs), "beta": cov / var_b if var_b else None,
-            "fallsTaken": (statistics.fmean([p for p, _ in down]) / statistics.fmean([b for _, b in down]) * 100) if down and statistics.fmean([b for _, b in down]) else None,
-            "weeks": len(pairs), "worstWeek": min(ps) * 100, "benchWorstWeek": min(bs) * 100}
-
-
-def swing_shares(parts: Dict[str, List[Optional[float]]], part_w: Dict[str, float], port: List[Optional[float]]) -> List[Dict[str, Any]]:
-    """Each part's share of the ups and downs: weight x cov(part, everything) / var(everything), so the shares add up to 100%."""
-    idx = [t for t, p in enumerate(port) if p is not None and all(s[t] is not None for k, s in parts.items() if part_w.get(k))]
-    if len(idx) < MIN_WEEKS:
-        return []
-    pv = [port[t] for t in idx]
-    mp, var_p = statistics.fmean(pv), statistics.pvariance(pv)
-    out = []
-    for k, s in parts.items():
-        w = part_w.get(k, 0)
-        if not w:
-            continue
-        sv = [s[t] for t in idx]
-        cov = sum((a - statistics.fmean(sv)) * (b - mp) for a, b in zip(sv, pv)) / len(idx)
-        out.append({"part": k, "money": round(w * 100, 1), "swings": round(w * cov / var_p * 100, 1) if var_p else None})
-    return out
-
-
-# ------------------------------------------------------------------------------------------------ insights (up to three, by these rules only)
-
-PART_WORD = {"shares": "shares", "funds": "mutual funds", "etfs": "ETFs"}
-
-
-def insights(sector_rows: List[Dict[str, Any]], companies: List[Dict[str, Any]], mix: Dict[str, float], risk: Optional[Dict[str, Any]]) -> List[Dict[str, str]]:
-    out: List[Dict[str, str]] = []
-    big = [s for s in sector_rows if s["mine"] > SECTOR_FLAG and s["sector"] != "No sector on record"]
-    if big:
-        s = big[0]
-        vs = f", against {s['bench']:.0f}% of the Nifty 500" if s.get("bench") is not None else ""
-        out.append({"id": "sector", "title": f"{s['sector']} is {s['mine']:.0f}% of everything", "text": f"Counted through your funds, {s['sector']} is {s['mine']:.0f}% of all you hold{vs}."})
-    three = [c for c in companies if c["ways"] >= 3]
-    if three:
-        c = three[0]
-        out.append({"id": "three", "title": f"{c['name']} is owned three ways", "text": f"You hold {c['name']} directly, through your funds and through your ETFs: {c['all']:.1f}% of everything together."})
-    soft = mix.get("debt", 0) + mix.get("cash", 0) + mix.get("other", 0)
-    if risk and soft >= SOFTEN_SHARE and risk.get("worstWeek") is not None and risk.get("benchWorstWeek") is not None and risk["worstWeek"] > risk["benchWorstWeek"]:
-        out.append({"id": "soften", "title": "Debt, cash and gold softened the worst week",
-                    "text": f"With {soft:.0f}% outside shares, your worst week in three years was {risk['worstWeek']:.1f}%, against {risk['benchWorstWeek']:.1f}% for the Nifty 500."})
-    return out[:3]
+def risk_together(kinds: Dict[str, Dict[str, Any]], total: Optional[float]) -> Dict[str, Any]:
+    """kinds: {kind: {share (0..1), beta}} for the kinds held. Beta together = sum of share x beta; each kind's share of the market risk =
+    (share x beta) / beta together. No figure when a kind with money has no beta (the reason names it), never a guess."""
+    held = {k: v for k, v in kinds.items() if v.get("share")}
+    missing = [k for k, v in held.items() if v.get("beta") is None]
+    if not held:
+        return {"beta": None, "why": "Nothing on your lists yet.", "parts": []}
+    if missing:
+        return {"beta": None, "band": None, "why": "No beta for your " + " and ".join(PART_WORD[k] for k in missing) + " yet, so the figure for everything together cannot be added up.",
+                "parts": [{"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v.get("beta")), "riskShare": None, "red": False} for k, v in held.items()]}
+    tog = sum(v["share"] * v["beta"] for v in held.values())
+    parts = []
+    for k, v in held.items():
+        rs = v["share"] * v["beta"] / tog * 100 if tog else None
+        parts.append({"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v["beta"]), "band": beta_band(v["beta"]), "riskShare": r(rs, 1),
+                      "red": rs is not None and rs > v["share"] * 100 + RISK_RED_POINTS})
+    top = max(parts, key=lambda p: p["riskShare"] or 0)
+    return {"beta": r(tog), "band": beta_band(tog), "why": None, "parts": parts, "largest": top["kind"],
+            "fall10": {"pct": r(-tog * 10, 1), "value": r(-total * tog * 0.10, 0) if total else None}}

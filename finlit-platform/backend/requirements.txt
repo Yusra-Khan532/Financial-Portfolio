@@ -21,3 +21,4 @@ pandas==3.1.0
 # Diversification card (docs/DIVERSIFICATION.md): scipy and scikit-learn, imported only when a request needs them
 scipy==1.18.1
 scikit-learn==1.9.1
+anthropic==2.10.0        # Ask FinLit AI (finlit/ask): the official SDK, async streaming with tools

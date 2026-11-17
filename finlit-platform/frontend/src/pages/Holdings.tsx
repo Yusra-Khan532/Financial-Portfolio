@@ -205,10 +205,18 @@ export function HoldingsPage() {
             <span className="pfx-cap">{symbols.length} of {cap} shares</span></span>
           </form>
           <p className="pfx-note eq-addnote">{ADD_NOTE}</p>
+          <details className="pfx-note eq-cas"><summary>Shares at more than one broker, Groww included? Upload your CAS</summary>
+            <p>A CAS (Consolidated Account Statement) from NSDL or CDSL lists the shares in every demat account you have, at every broker, with the number of shares. NSDL or CDSL emails it to you every month in which your holdings changed (look for "Consolidated Account Statement"), and both let you ask for one on their websites. Its password is usually your PAN in capitals.</p>
+            <p>Upload the PDF with Upload broker file. It is read on your device; only the ISINs are sent, to be looked up, and the quantities are added up across your accounts. Nothing is sent to a broker.</p></details>
           {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
             <button className="pfx-solid" onClick={() => { const es = entriesFrom(text, matcher); void add(es, undefined, es.length > 1); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
-          {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
-            onAdd={(syms) => { portfolio.addMany(syms.map((sym) => ({ symbol: sym, qty: 1, price: 0, isin: isinOf?.get(sym) }))); toast(`Added ${syms.length} ${syms.length === 1 ? "share" : "shares"} from the PDF.`); }} />}
+          {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} heldQty={qtyBySymbol} room={Math.max(0, cap - symbols.length)} onClose={() => setPdf(null)}
+            onAdd={(picks) => {   // task #191: a depository statement brings each share's quantity; a share already in the list takes it as if typed
+              const fresh = picks.filter((p) => !symbols.includes(p.symbol)), set = picks.filter((p) => symbols.includes(p.symbol) && p.qty);
+              if (fresh.length) portfolio.addMany(fresh.map((p) => (p.qty ? { symbol: p.symbol, qty: p.qty, price: 0, owned: true, isin: isinOf?.get(p.symbol) } : { symbol: p.symbol, qty: 1, price: 0, isin: isinOf?.get(p.symbol) })));
+              set.forEach((p) => onQty(p.symbol, p.qty!));
+              const withQty = fresh.filter((p) => p.qty).length;
+              toast([fresh.length ? `Added ${fresh.length} ${fresh.length === 1 ? "share" : "shares"} from the PDF${withQty ? `, ${withQty === fresh.length ? "each" : withQty} with its quantity` : ""}` : "", set.length ? `quantity set for ${set.length}` : ""].filter(Boolean).join("; ") + "."); }} />}
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
           {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - symbols.length), take = checks.filter((c) => !symbols.includes(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
             <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b>{c.symbol}</b> {c.name}. <small>{c.note}.</small></span>

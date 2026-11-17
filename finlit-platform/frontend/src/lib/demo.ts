@@ -15,6 +15,7 @@ async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
 
   if (method !== "GET") {
     if (path === "/api/contact" || path === "/api/service-enquiry") return json({ id: "demo" }, 201);
+    if (path === "/api/me/all-investments") return file("my-investments.json");   // All my investments (task #137): a sample answer built with the server's calc (sample lists, not real data)
     if (path === "/api/content/admin/login") return json({ detail: "Admin sign-in is disabled in the demo." }, 401);
     return json({ detail: "Not available in the demo." }, 405);
   }

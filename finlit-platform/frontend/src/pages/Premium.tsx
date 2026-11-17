@@ -62,7 +62,7 @@ export function PremiumHub() {
   const gold = useGold(); const qc = useQueryClient();
   return (
     <>
-      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/fundamentals", "/premium/markets", "/premium/options"]}>The premium research desk: <b>{CARDS.length + 1} tools</b> built for serious investors. They open fast, stay up to date, and every number comes from the same sources our analysts use.</PremiumHead>
+      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/fundamentals", "/premium/markets"]}>The premium research desk: <b>{CARDS.length + 1} tools</b> built for serious investors. They open fast, stay up to date, and every number comes from the same sources our analysts use.</PremiumHead>
       <div className="wrap" style={{ paddingBottom: 56 }}>
         {!gold && <p className="chip gold" style={{ height: "auto", padding: "8px 14px", whiteSpace: "normal", maxWidth: "100%", lineHeight: 1.4 }}><Icon name="crown" /> Included with the Gold plan. Open any tool to see how it works.</p>}
         <PrismHubCard />
