@@ -33,7 +33,7 @@ export const GROUPS: { id: string; title: string; words: string }[] = [
   { id: "returns", title: "Returns", words: "returns return 1 year 3 years 5 years sip xirr category median rank short-term change calendar year monthly gain months ahead track record" },
   { id: "cost", title: "Cost", words: "cost expense expense ratio ter regular direct gap fee share exit load" },
   { id: "risk", title: "Risk", words: "risk volatility downside deviation biggest fall worst fall worst month worst 12 months falling month time below high downside capture sharpe" },
-  { id: "portfolio", title: "Portfolio", words: "portfolio holdings asset split equity debt cash top-10 concentration largest holding sector exposure holds this stock portfolio date" },
+  { id: "portfolio", title: "Portfolio", words: "portfolio holdings asset split equity debt cash top-10 concentration largest holding industry exposure sector holds this stock portfolio date" },
   { id: "tags", title: "Theme, sector and strategy", words: "theme sector strategy defence aerospace ai technology global factor index tracked" },
   { id: "market", title: "Category market view", words: "category market view net flow inflow streak category size folios share of industry" },
   { id: "checklist", title: "FinLit checklist", words: "finlit checklist checks each check" },
@@ -275,14 +275,14 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Number of holdings</Sub>{rf("n_hold", true)}
         <Sub>Top-10 concentration</Sub>{rf("top10", true)}
         <Sub>Largest single holding</Sub>{rf("max_hold", true)}
-        <Sub>Sector exposure</Sub>
-        <label className="mfs-sel"><span className="sr-only">Sector</span>
+        <Sub>Industry exposure</Sub>
+        <label className="mfs-sel"><span className="sr-only">Industry</span>
           <select value={q.sector} onChange={(e) => upd({ sector: e.target.value, sectorMin: e.target.value ? q.sectorMin || "10" : "" })}>
-            <option value="">Any sector</option>
+            <option value="">Any industry</option>
             {(fac?.sectors ?? []).map((s) => <option key={s.name} value={s.name}>{s.name} ({s.n})</option>)}
             {q.sector && !(fac?.sectors ?? []).some((s) => s.name === q.sector) && <option value={q.sector}>{q.sector}</option>}
           </select></label>
-        {q.sector && <div className="mfs-mm"><span>at least</span><input className="mfs-box" inputMode="decimal" aria-label="Minimum share of net assets in the sector" value={q.sectorMin} onChange={(e) => upd({ sectorMin: e.target.value.replace(/[^0-9.]/g, "").slice(0, 5) })} /><span>% of net assets</span></div>}
+        {q.sector && <div className="mfs-mm"><span>at least</span><input className="mfs-box" inputMode="decimal" aria-label="Minimum share of net assets in the industry" value={q.sectorMin} onChange={(e) => upd({ sectorMin: e.target.value.replace(/[^0-9.]/g, "").slice(0, 5) })} /><span>% of net assets</span></div>}
         <Sub>Holds this stock</Sub>
         <SearchBox value={stock} onChange={(v) => setStock(v.toUpperCase())} placeholder="NSE symbol, e.g. RELIANCE" label="Find a stock held by funds" />
         {stock.trim().length >= 2 && stocks.data && (

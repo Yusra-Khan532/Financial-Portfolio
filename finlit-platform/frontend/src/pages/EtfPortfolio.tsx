@@ -237,8 +237,8 @@ function WhatsInside({ d, ins, items }: { d: { repeats: { label: string; symbols
           <th scope="col">{ins.scoreModel === "prism" ? "FinLit Prism" : "FinLit IQ"}</th></tr></thead>
         <tbody>{ins.top.map((t, i) => { const ld = leads[i]?.data; return (
           <tr key={t.isin ?? t.name}>
-            <th scope="row">{t.symbol && !t.abroad ? <Link to={`/stocks/${t.symbol}`} className="ip-sym"><CoLogo symbol={t.symbol} name={t.name} size={22} inline /><span><b>{coName(t.name)}</b><small>{[t.sector, t.size].filter(Boolean).join(" · ")}</small></span></Link>
-              : <span className="ip-sym"><span><b>{coName(t.name)}</b><small>{[t.abroad ? "Listed abroad" : null, t.sector].filter(Boolean).join(" · ")}</small></span></span>}</th>
+            <th scope="row">{t.symbol && !t.abroad ? <Link to={`/stocks/${t.symbol}`} className="ip-sym"><CoLogo symbol={t.symbol} name={t.name} size={22} inline /><span><b>{coName(t.name)}</b><small>{[t.industry, t.size].filter(Boolean).join(" · ")}</small></span></Link>
+              : <span className="ip-sym"><span><b>{coName(t.name)}</b><small>{t.abroad ? "Listed abroad" : t.industry}</small></span></span>}</th>
             <td className="r">{t.w.toFixed(1)}%</td><td>{t.etfs.join(", ")}</td>
             <td>{t.abroad ? <small className="sp-note">Not compared: listed abroad</small> : ld && ld.available ? <><span className={"mfp-peer " + ld.label}>{PEER[ld.label]}</span><small className="mfp-sub">{ld.rank} of {ld.peerGroup.ranked} {ld.peerGroup.short || ld.peerGroup.name}</small></>
               : ld && !ld.available ? <small className="sp-note">Not compared: {NOT_RANKED[ld.reason] ?? "is not ranked"}</small> : <small className="sp-note">{t.symbol ? "…" : "Not compared"}</small>}</td>

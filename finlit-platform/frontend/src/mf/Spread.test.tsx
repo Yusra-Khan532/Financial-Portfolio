@@ -13,7 +13,7 @@ const d: MfSpread = {
     assets: { word: "Mostly equity", equityShare: 0.79 },
   },
   mix: { shares: 0.6, sharesUnknown: 0.19, debt: 0.2, other: 0.01 }, size: { Large: 0.5, Mid: 0.3, Small: 0.2, Other: 0 },
-  sectors: [{ name: "Banks", share: 0.3 }], topStocks: [{ name: "HDFC Bank", symbol: "HDFCBANK", sector: "Banks", w: 0.05, funds: [1, 2] }],
+  industries: [{ name: "Banks", share: 0.3 }], topStocks: [{ name: "HDFC Bank", symbol: "HDFCBANK", industry: "Banks", w: 0.05, funds: [1, 2] }],
   overlap: [{ a: 1, b: 2, pct: 21, n: 55 }], together: { codes: [1, 2], C: [[1, 0.91], [0.91, 1]], weeks: 51, from: "2025-11-03", to: "2026-10-26" },
   coverage: { funds: 3, disclosed: 2, missing: [3] },
   funds: [

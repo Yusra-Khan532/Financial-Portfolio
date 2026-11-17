@@ -177,8 +177,9 @@ export type MfSpread = {
     houses: SpreadReading & { top: string; count: number }; assets: SpreadReading & { equityShare: number } };
   mix: { shares: number; sharesUnknown: number; debt: number; other: number };
   size: { Large: number; Mid: number; Small: number; Other: number };
-  sectors: { name: string; share: number }[];
-  topStocks: { name: string; symbol: string | null; sector: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];
+  /** NSE's industries (task #192), largest first; "Listed abroad" and "Not classified" are lines of their own */
+  industries: { name: string; share: number }[];
+  topStocks: { name: string; symbol: string | null; industry: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];
   trendLocked?: boolean; trend?: MfTrend;
   overlap: { a: number; b: number; pct: number; n: number }[];
   together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };

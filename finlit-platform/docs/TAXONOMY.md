@@ -47,6 +47,20 @@ fund and ETF holdings, which are read by ISIN, can be grouped the same way.
   at each level (`notClassified`). Public; cached 10 minutes.
 - `GET /api/taxonomy/company/{symbol}`: one company's four levels, ISIN, rule and note; 404 when unknown or not placed yet.
 
+## Fund and ETF holdings (round 3)
+Each equity line of a fund's or ETF's monthly portfolio is named by `taxonomy.holding_level` (in `portfolios.build_portfolio_json`, so the fund page,
+the ETF page, the MF portfolio and the ETF portfolio all read the same names, and in the MF screener's nightly job):
+1. ISIN not starting with IN: **Listed abroad** (NSE's lists cover companies listed in India only).
+2. The company's own place in `company_classification` (by ISIN, else by the symbol its ISIN maps to): the fund page names the same industry as the
+   company page.
+3. The fund house's name when it is one of NSE's 59 industries in any spelling ("It - Software" → "IT - Software") or one of the 197 basic
+   industries (mapped up to its industry).
+4. Otherwise **Not classified**, with the fund house's name in the note.
+
+The API gives each line `industry`, `sector` (NSE's 22), `macroSector`, `industryNote` and the fund house's own `amfiIndustry`; the summary gives
+`industries`, `sectors` (NSE's 22) and `macroSectors` (Diversified is the 12th macro sector). `sector` used to hold the fund house's industry
+name; it now holds only NSE's 22-level sector.
+
 ## Leader / In line / Laggard peer groups (round 3b)
 `finlit/leadership.py`: a stock in one of the spec's five researched groups is ranked there; every other stock among the companies of its NSE industry,
 widened to its NSE sector when fewer than 6 can be ranked. Banks named in `leadership_splits` are ranked in their NSE basic industry (Private Sector Bank,
