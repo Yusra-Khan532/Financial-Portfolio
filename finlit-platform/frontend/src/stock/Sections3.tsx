@@ -288,7 +288,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
   const spec = b.filter(([, k]) => SPEC[k]), plain = b.filter(([, k]) => !SPEC[k]);
   return (
     <section className="block" style={{ "--sc": "var(--t-gold)" } as React.CSSProperties}>
-      <SectionHead id="insights" no="14 · Gold insights" icon="crown" tier="gold" title={`Triggers to watch and where ${s.profile.name.split(" ")[0]} fits`} sub="Where this company sits in FinLit's stock buckets, and what to watch next." color="--t-gold" />
+      <SectionHead id="insights" no="15 · Gold insights" icon="crown" tier="gold" title={`Triggers to watch and where ${s.profile.name.split(" ")[0]} fits`} sub="Where this company sits in FinLit's stock buckets, and what to watch next." color="--t-gold" />
       <Plain>Buckets tell you what kind of company this is, and where it sits on each scale. Triggers are the specific things most worth watching next.</Plain>
       <p className="faint" style={{ margin: "0 0 14px" }}><Link to={`/outlook/${encodeURIComponent(s.profile.symbol)}`}>Profit and revenue forecasting, from this company's own history (Gold) →</Link></p>
       <Gate tier="gold" title="Unlock Gold insights" points={["Stock bucketing by size, style and theme", "Key triggers and sector benchmarking"]}>
@@ -305,13 +305,13 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
           {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits</span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
         </div>
         <div className="card acc" style={{ "--ac": "var(--t-gold)", marginTop: 16 } as React.CSSProperties}>
-          <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths</span></div>
+          <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths · <a href="#notes" className="trg-03" onClick={(e) => { const el = document.getElementById("notes"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Full findings in 03 ↑</a></span></div>
           <div className="trg-bal"><span style={{ flex: s.watchouts.length || 0.2, background: "var(--warn)" }} /><span style={{ flex: s.strengths.length || 0.2, background: "var(--gain)" }} /></div>
           <div className="trg-cols">
             {([["watch", "Worries", "alert"], ["good", "Strengths", "check"]] as const).map(([kind, title]) => (
               <div key={kind}><div className={"trg-colh " + kind}>{title}<span>{trig.filter((n) => n.kind === kind).length}</span></div>
                 <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key]; return (
-                  <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div><p>{n.text}</p>
+                  <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div>
                     {w && <div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div>}</li>
                 ); })}{!trig.some((n) => n.kind === kind) && <li className={kind}><p>Nothing stands out.</p></li>}</ul></div>
             ))}
@@ -326,7 +326,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
 export function SegmentsSection({ seg }: { seg?: Segments }) {
   return (
     <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-      <SectionHead id="segments" no="15 · Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." color="--p-profit" />
+      <SectionHead id="segments" no="16 · Segments" icon="pie" tier="gold" title="Where the revenue comes from" sub="Each business segment's share of revenue, its growth and its profit, year by year." color="--p-profit" />
       <Gate tier="gold" title="Unlock revenue segmentation" points={["Revenue by business segment, year by year", "Each segment's share, growth and profit", "How dependent the company is on one segment"]}>
         <SegmentCard seg={seg} />
       </Gate>

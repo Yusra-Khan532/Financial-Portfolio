@@ -31,7 +31,7 @@ function LeadTip({ text }: { text: string }) {
   const tip = useRef<HTMLSpanElement>(null);
   const leave = useRef(0);
   // Portalled and fixed: it can never be clipped or re-themed by the hero it sits in, and it is placed beside/above/below
-  // the (i) so that it does not cover the Set alert / Watchlist / Download buttons.
+  // the (i) so that it does not cover the Set alert / Watchlist / Value (DCF) / Share buttons.
   useLayoutEffect(() => { if (open && btn.current && tip.current) setPos(placeFloating(btn.current, tip.current)); else setPos(null); }, [open, text]);
   useEffect(() => {
     if (!open) return;

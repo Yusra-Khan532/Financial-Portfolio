@@ -176,10 +176,6 @@ export const chartLabel = (m: ChartModel): string => `${m.name} went from ${pc(m
 // ------------------------------------------------------------------------------------------------ the numbers and the CSV
 export const fmt2 = (v: number | null): string => (v == null ? "–" : `${v.toFixed(2)}%`);
 
-export function csvText(s: OwnSeries): string {
-  const keys = groupsOf(s);
-  return [["Filing", ...keys.map((k) => NAME[k])].join(","), ...s.periods.map((p, i) => [p, ...keys.map((k) => at(s, k, i) ?? "")].join(","))].join("\n");
-}
 
 // ------------------------------------------------------------------------------------------------ also from the filing, named holders
 export type FactItem = { label: string; value: string; note: string };

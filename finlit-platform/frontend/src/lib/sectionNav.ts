@@ -22,12 +22,11 @@ export const NAV: NavItem[] = [
   ["segments", "Segments", "pie", "Where the revenue comes from"],
   ["dividends", "Dividends", "coins", "Dividends, splits, bonuses and events"],
   ["announcements", "Announcements", "notes", "Exchange announcements, routine filings hidden"],
-  ["method", "Pros & cons", "info", "Pros, cons and how the Prism score has moved"],
   ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
 ];
 
 /** The first section of each reading group: the bar draws a thin separator before it. */
-export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "insights", "dividends", "method"]);
+export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "insights", "dividends", "community"]);
 
 /** The sections to list (Where it stands took over the old Leadership section, final pages pack board 17). */
 export const navFor = (): NavItem[] => NAV;

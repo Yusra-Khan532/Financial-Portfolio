@@ -8,11 +8,10 @@ import { Icon } from "../lib/icons";
 import type { Table } from "../lib/api";
 import { DUPONT_LIMITS as LIM } from "../lib/dupontRules";
 import {
-  anomalies, averages, completeness, decodeCsv, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
-import { saveFile } from "./derive";
 
 const sg = (v: number, d: number) => (v < 0 ? MINUS : "") + nf(v, d);
 const DIGITS: Record<string, number> = { margin: 2, turnover: 2, multiplier: 2, roa: 1, roe: 1, normRoe: 1, oneOff: 0 };
@@ -30,7 +29,7 @@ function Blank({ why, onHint }: { why: Why | null; onHint: (t: string | null) =>
 
 /** The Decoding ROE sub-section inside the DuPont block: normalized ROE, ROA, data gaps, anomaly checks, rule-based insight cards, the five-factor waterfall and a what-if calculator.
  *  All numbers come from lib/dupontDeep.ts; this component only lays them out. */
-export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: string; pl: Table | undefined; bs: Table | undefined; lender: boolean; said?: string[] }) {
+export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefined; bs: Table | undefined; lender: boolean; said?: string[] }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [view, setView] = useState<View>("reported");
   const [basis, setBasis] = useState<Basis>("year-end");
@@ -80,7 +79,6 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
   const need = goalOk && cur ? requiredMargin(goNum, cur.t, cur.e) : null;
   const goStatements = (e: React.MouseEvent) => { const el = document.getElementById("financials"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } };
   const lines = chosen ? explain(chosen, basis, lender) : [];
-  const csv = () => saveFile(`FinLit-${symbol || "stock"}-decoding-roe.csv`, "﻿" + decodeCsv({ symbol, years, view, basis, lender, day: new Date().toISOString().slice(0, 10) }), "text/csv;charset=utf-8");
   const driverWhy = !mv ? "Needs two years with margin, turnover and multiplier." : "Return on equity barely moved, or a loss year makes the log shares undefined.";
 
   return (
@@ -91,7 +89,6 @@ export function DecodeRoe({ symbol, pl, bs, lender, said = NONE }: { symbol: str
         <div className="seg" role="group" aria-label="Show reported or normalized figures">{(["reported", "normalized"] as View[]).map((v) => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{v === "reported" ? "Reported" : "Normalized"}</button>)}</div>
         <div className="seg" role="group" aria-label="Balance sheet figures used">{(["year-end", "average"] as Basis[]).map((b) => <button key={b} type="button" aria-pressed={basis === b} onClick={() => setBasis(b)}>{b === "year-end" ? "Year-end balances" : "Average balances"}</button>)}</div>
         <span className="chip ghost dp-comp" title={comp.missing.length ? `Incomplete: ${comp.missing.join(", ")}` : "Every year has margin, turnover, multiplier and ROE"}>{comp.complete} of {comp.total} years complete</span>
-        <button type="button" className="alx-link dp-csv" onClick={csv}><Icon name="download" />Download table (CSV)</button>
       </div>
       {basis === "average" && <p className="faint dp-note">Average balances use the mean of this year's and the previous year's closing total assets and equity. The first year, or a year after a missing balance sheet, falls back to its year-end figure (marked †). The DuPont card above always uses year-end balances.</p>}
 

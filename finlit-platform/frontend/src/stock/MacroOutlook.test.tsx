@@ -29,17 +29,12 @@ describe("Macro & Sector Outlook section", () => {
     expect(within(bar).getByText("Credit +")).toBeTruthy(); expect(within(bar).getByText("Deposits +")).toBeTruthy(); expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByRole("button", { name: "How it works" })).toBeNull();
     expect(screen.getByText("Macro and sector outlook")).toBeTruthy();
   });
-  it("Sector impact keeps only the row marked This company: no other sector, no show-all button, 50 marked on the bar", async () => {
+  it("a one-sector company has no Sector impact panel (task #216: its single row repeats the backdrop, which shows the same reasons)", async () => {
     const { container } = wrap();
-    await screen.findByText("Sector impact");
-    await screen.findByText("This company");
-    const rows = container.querySelectorAll(".mo-t tbody tr");
-    expect(rows.length).toBe(1);
-    expect(container.querySelector("tr.me th")?.textContent).toContain("Private banks");
-    expect(container.querySelector(".mo-t .mo-bar u")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Show all|Show fewer/ })).toBeNull();
+    await screen.findByText("Indicator signals");
+    expect(screen.queryByText("Sector impact")).toBeNull(); expect(container.querySelector(".mo-t")).toBeNull();
+    expect(container.querySelector(".mo-bar-a")?.textContent).toContain("Credit +");   // the reason the panel showed is in the backdrop
     expect(container.textContent).not.toContain("PSU banks");
-    expect(container.querySelector(".mo-t")?.textContent).toContain("Credit +");
     expect(st.calls.some((c) => c.includes("sector-impact"))).toBe(false);          // the 35-sector table is not even requested for a one-sector company
   });
   it("Indicator signals show only the indicators that are a reason in Sector impact, each tied to its reason", async () => {
@@ -106,7 +101,7 @@ describe("Macro & Sector Outlook section", () => {
     expect(screen.getByText(/not a company-specific assessment, forecast, or investment recommendation/)).toBeTruthy();
   });
   it("never uses advice wording", async () => {
-    const { container } = wrap(); await screen.findByText("Sector impact");
+    const { container } = wrap(); await screen.findByText("Indicator signals");
     expect(container.textContent).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target|best|multibagger|top pick)\b/i);
   });
 });

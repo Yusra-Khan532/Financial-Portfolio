@@ -209,7 +209,7 @@
   ]
  },
  {
-  "declared": 10,
+  "declared": 9,
   "id": "company-report",
   "title": "Company report",
   "section": "Analyse a company",
@@ -239,16 +239,12 @@
     "a": "Consolidated figures include the company's subsidiaries; Standalone covers the parent company alone. Switch between them at the top of the score."
    },
    {
-    "q": "What can I download?",
-    "a": "Download offers a print-ready research note (PDF), an offline copy (HTML) that opens without internet, the full FinLit Prism report (PDF), and the data (CSV) with statements, ratios and scores for Excel."
-   },
-   {
     "q": "What do the F&O and margin trading lines mean?",
     "a": "They say whether the stock trades in futures and options (with the NSE lot size) and whether it is eligible for margin trading, as listed by the broker Dhan. Each broker sets its own list and terms."
    },
    {
     "q": "What can I do from the report?",
-    "a": "Set an alert, add the company to a watchlist, value it in the DCF calculator, download or share the report."
+    "a": "Set an alert, add the company to a watchlist, value it in the DCF calculator, or share the report."
    },
    {
     "q": "What are buckets, triggers and segments?",
