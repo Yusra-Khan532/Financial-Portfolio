@@ -29,7 +29,7 @@ export function DashCardsProvider({ userId, children }: { userId: string | numbe
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }
 
-function useOpenStore(): OpenStore {
+export function useOpenStore(): OpenStore {
   const ctx = useContext(Ctx);
   const [local, setLocal] = useState<Set<string>>(new Set());
   const fallback = useMemo<OpenStore>(() => ({ isOpen: (id) => local.has(id), setOpen: (ids, on) => setLocal((p) => { const n = new Set(p); for (const id of ids) { if (on) n.add(id); else n.delete(id); } return n; }) }), [local]);

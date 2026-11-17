@@ -1,5 +1,5 @@
-// Block 1, Your stocks today, as the "FinLit final pages" pack draws it (04): the stocks in My portfolio and on the watchlists, under All / Watchlist / Portfolio
-// tabs (Held and Watchlist chips; held shares first), three cards counted over every followed stock (big falls, profit, peers), then six rows and "Show N more".
+// Block 1, Your investments today: the shares held, the mutual funds, the ETFs and the watchlist under All / Watchlist / Shares / Mutual funds / ETFs; task #195 (dashboard pack
+// of 15 Nov 2026): four rows, the biggest moves of the last trading day first, then "Show all N" / "Show fewer". "What your stocks say" (Signals, below) is its own block.
 // Each row: size, price, the day's move, FinLit IQ (Prism for Gold), vs its peers, latest quarter against a year earlier, and any alert. Descriptive only.
 import { scoreView, usePlanModel, usePlanPrism, type ScoreView } from "../../lib/planScore";
 import { useMemo, useState } from "react";
@@ -8,10 +8,10 @@ import { Link } from "react-router";
 import { useQueries } from "@tanstack/react-query";
 import { capBucket } from "../../lib/capBuckets";
 import type { Leadership } from "../../lib/leadership";
-import { dayWord, myStockCards, type MyStock } from "../../lib/dashPack";
+import { dayWord, myStockSignals, type MyStock, type Signal } from "../../lib/dashPack";
 import { useIndices } from "../../lib/indices";
 import { Tip } from "../sectors/pack/Common";
-import { DashCards, OpenAll } from "./DashCards";
+import { SignalCards } from "./Signals";
 import { apiGet, useQuotesFor, type Financials } from "../../lib/api";
 import { useAlerts } from "../../lib/alerts";
 import { quoteMap, BAND_LABEL } from "../../lib/globalSearch";
@@ -21,12 +21,12 @@ import { Card, Rows, ShowMoreButton, tone, useShowMore } from "./parts";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, type Holding as MfHolding } from "../../lib/mfPortfolio";
 import type { FundDetail } from "../../lib/mf";
-import { KIND_TAG, healthText, investRows, investSub, navText, type InvRow } from "../../lib/dashInvest";
+import { KIND_TAG, byMove, healthText, investLine, investRows, navText, type InvRow } from "../../lib/dashInvest";
 
 export type Followed = { symbol: string; name: string | null };
 export type StockTab = "all" | "watchlist" | "portfolio" | "mf" | "etf";   // task #135: Portfolio is shown as "Shares"; Mutual funds and ETFs added
-const LIMIT = 6;
-const INV_LIMIT = 10;   // All, Mutual funds and ETFs: the first 10, then "Show N more" (pack 06)
+const LIMIT = 4;       // task #195: four rows, the biggest moves first; "Show all N" opens the rest
+const INV_LIMIT = 4;
 const LIST_ID = "dsh-mystocks-list";
 const pct = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + "%");
 
@@ -91,8 +91,9 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const fundData = fundDetail.map((d) => d.data);
   const inv = useMemo(() => buildInv(lists, followed, funds, fundData, qm, oneYear, qty), [lists, followed, funds, fundData.map((d) => d?.code ?? 0).join(","), quotes.data, oneYear, qty]);   // eslint-disable-line react-hooks/exhaustive-deps
   const isStockTab = tab === "watchlist" || tab === "portfolio";
-  const list = isStockTab ? lists[tab as "watchlist" | "portfolio"] : [];
-  const invList = tab === "mf" ? inv.funds : tab === "etf" ? inv.etfs : inv.all;
+  // task #195: every list by the size of the last day's move, largest first (a fall as big as a rise)
+  const list = isStockTab ? byMove(lists[tab as "watchlist" | "portfolio"].map((f) => ({ ...f, day: qm.get(f.symbol)?.chg ?? null }))) : [];
+  const invList = byMove(tab === "mf" ? inv.funds : tab === "etf" ? inv.etfs : inv.all);
   const more = useShowMore(list, LIMIT, tab), invMore = useShowMore(invList, INV_LIMIT, tab);
   const shown = more.visible, invShown = invMore.visible;
   const syms = isStockTab ? shown.map((f) => f.symbol) : invShown.filter((r) => r.symbol).map((r) => r.symbol as string);
@@ -103,14 +104,6 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const fins = syms.map((s) => finOf.get(s)!);
   const idx = useIndices(), day = dayWord(new Date(), idx.data?.asOf ?? null);
   const sizeOf = (s: string) => (capBucket(caps.get(s) ?? null)?.label.replace(" cap", "") ?? null) as MyStock["size"];
-  const peerOf = (s: string): MyStock["peer"] => { const l = leadOf.get(s)?.data; return !l ? null : l.available ? (l.label === "in_line" ? "inline" : l.label) : "unranked"; };
-  const cards = useMemo(() => {
-    if (quotes.isLoading || finsAll.some((f) => f.isLoading) || leads.some((l) => l.isLoading)) return [];
-    const items: MyStock[] = allSyms.map((s) => { const pl = finOf.get(s)?.data?.quarterly?.pl, np = pl ? yoyLabel(pl.rows.net_profit, pl.periodEnds) : null;
-      return { symbol: s, name: followed.find((f) => f.symbol === s)?.name ?? null, chg: qm.get(s)?.chg ?? null, size: sizeOf(s), profit: np?.pct ?? null, profitText: np?.text ?? null, reported: !!np && (np.pct != null || np.text != null), peer: peerOf(s) }; });
-    const qe = finsAll.map((f) => f.data?.quarterly?.pl?.periodEnds?.slice(-1)[0]).filter((x): x is string => !!x).sort().pop() ?? null;
-    return myStockCards(items, day, qe);
-  }, [quotes.isLoading, quotes.data, finsAll, leads, day]);   // eslint-disable-line react-hooks/exhaustive-deps
   const { alerts } = useAlerts();
   const latestEnd = finsAll.map((f) => f.data?.quarterly?.pl?.periodEnds?.slice(-1)[0]).filter(Boolean).sort().pop();
   const priced = [...qm.values()].map((q) => q.date).filter(Boolean).sort().pop();
@@ -118,7 +111,8 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const counts = { watch: lists.watchlist.length, shares: lists.portfolio.length, funds: funds.length, etfs: inv.etfs.length };
   const navWhen = funds.map((h) => h.navDate).filter(Boolean).sort().pop();
   const subWhen = when ?? (navWhen ? dayMonth(navWhen) : null);
-  const sub = followed.length || funds.length ? [investSub(counts, subWhen), tab === "watchlist" || tab === "portfolio" ? (latestEnd ? `latest quarter ${quarterEndLabel(latestEnd)}` : null) : null].filter(Boolean).join(" · ") : undefined;
+  const shownCount = isStockTab ? list.length : invList.length, noun: [string, string] = isStockTab ? ["stock", "stocks"] : tab === "mf" ? ["fund", "funds"] : tab === "etf" ? ["ETF", "ETFs"] : ["investment", "investments"];
+  const sub = followed.length || funds.length ? [investLine(shownCount, noun, day, subWhen, !isStockTab && counts.funds > 0), isStockTab && latestEnd ? `latest quarter ${quarterEndLabel(latestEnd)}` : null].filter(Boolean).join(" · ") : undefined;
   const open = tab === "portfolio" ? { to: "/holdings", long: "Open Equity portfolio", short: "Shares" } : tab === "mf" ? { to: "/mf-portfolio", long: "Open MF portfolio", short: "Funds" }
     : tab === "etf" ? { to: "/etfs", long: "Open ETFs", short: "ETFs" } : { to: "/watchlist", long: "Open watchlist", short: "Watchlist" };
   const tabs: [StockTab, string, number][] = [["all", "All", inv.all.length], ["watchlist", "Watchlist", counts.watch], ["portfolio", "Shares", counts.shares], ["mf", "Mutual funds", counts.funds], ["etf", "ETFs", counts.etfs]];
@@ -201,15 +195,33 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
           })}
         </div>
       )}
-      {!loading && isStockTab && list.length > 0 && <ShowMoreButton more={more} noun="stock" controls={LIST_ID} />}
-      {!loading && !isStockTab && invList.length > 0 && <ShowMoreButton more={invMore} noun="investment" controls={LIST_ID} />}
+      {!loading && isStockTab && list.length > 0 && <ShowMoreButton more={more} noun="stock" total={list.length} controls={LIST_ID} />}
+      {!loading && !isStockTab && invList.length > 0 && <ShowMoreButton more={invMore} noun={noun[0]} plural={noun[1]} total={invList.length} controls={LIST_ID} />}
     </Card>
-    {/* task #135: "What your stocks say", under the table: the cards about the member's own stocks (results, peers), each one opening to its names */}
-    {cards.length > 0 && (
-      <section className="sp dsh-say" aria-labelledby="dsh-say-h">
-        <div className="dsh-say-h"><div><h2 id="dsh-say-h">What your stocks say</h2><p className="dsh-sub">Tap a card to see the names behind it.</p></div><OpenAll scope="say" n={cards.length} /></div>
-        <DashCards items={cards} scope="say" cols={Math.min(cards.length, 3)} />
-      </section>)}
     </>
   );
+}
+
+/** Task #195: "What your stocks say", its own block under the table. The signals count every followed stock: their prices, latest results and peer labels
+ *  (the same cached calls as the table). One card per signal; the names sit in each card's dropdown. Descriptive only. */
+export function Signals({ followed, caps = new Map() }: { followed: Followed[]; caps?: ReadonlyMap<string, number | null> }) {
+  const syms = followed.map((f) => f.symbol);
+  const quotes = useQuotesFor(syms), qm = quoteMap(quotes.data);
+  const fins = useQueries({ queries: syms.map((s) => ({ queryKey: ["stock", s, "/financials"], queryFn: () => apiGet<Financials>(`/api/stocks/${s}/financials`), staleTime: 60_000, retry: false })) });
+  const leads = useQueries({ queries: syms.map((s) => ({ queryKey: ["leadership", s], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(s)}/leadership`), staleTime: 15 * 60_000, retry: false })) });
+  const idx = useIndices(), day = dayWord(new Date(), idx.data?.asOf ?? null);
+  const loading = quotes.isLoading || fins.some((f) => f.isLoading) || leads.some((l) => l.isLoading);
+  const signals = useMemo<Signal[]>(() => {
+    if (loading) return [];
+    const items: MyStock[] = syms.map((s, i) => {
+      const pl = fins[i]?.data?.quarterly?.pl, np = pl ? yoyLabel(pl.rows.net_profit, pl.periodEnds) : null, l = leads[i]?.data;
+      return { symbol: s, name: followed[i]?.name ?? null, chg: qm.get(s)?.chg ?? null, size: (capBucket(caps.get(s) ?? null)?.label.replace(" cap", "") ?? null) as MyStock["size"],
+        profit: np?.pct ?? null, profitText: np?.text ?? null, reported: !!np && (np.pct != null || np.text != null),
+        peer: !l ? null : l.available ? (l.label === "in_line" ? "inline" : l.label) : "unranked" };
+    });
+    const qe = fins.map((f) => f.data?.quarterly?.pl?.periodEnds?.slice(-1)[0]).filter((x): x is string => !!x).sort().pop() ?? null;
+    return myStockSignals(items, day, qe);
+  }, [loading, quotes.data, fins, leads, day, caps]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return <SignalCards id="say" title="What your stocks say" sub="Signals from your shares' latest results and prices. Open a card for the names." signals={signals} loading={loading && followed.length > 0}
+    empty={followed.length ? undefined : "Follow stocks or add the shares you hold: signals from their latest results and prices show here."} />;
 }

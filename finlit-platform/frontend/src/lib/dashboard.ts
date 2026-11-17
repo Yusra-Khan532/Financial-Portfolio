@@ -1,7 +1,7 @@
 // The refreshed dashboard's pure logic (no React): names and greeting, heat-map tile colours and labels, "results today" and "filings and news" cleaning, year-on-year
 // figures, the phone tab memory and the Customise moves. Descriptive only; a figure that cannot be worked out is null and the page says why.
 import type { FeedItem } from "./feed";
-import type { DashTab, WidgetPref } from "./prefs";
+import type { WidgetPref } from "./prefs";
 import type { IndexRow } from "./indices";
 import type { Row } from "./screener";
 import { MAX_MOVE, largest } from "./markets";
@@ -181,17 +181,6 @@ export function titleCase(name: string): string {
   return name.toLowerCase().replace(/\b([a-z])([a-z]*)/g, (_m, a: string, b: string) => (/^(ltd|pvt|llp|ipo|sme)$/.test(a + b) ? (a + b).replace(/^./, (c) => c.toUpperCase()) : a.toUpperCase() + b));
 }
 
-// ---------------------------------------------------------------------------------------------------------------- phone tabs
-const TAB_KEY = "finlit-dash-tab:";
-const TABS: DashTab[] = ["stocks", "market", "news"];
-/** The last phone tab this member used (per member, per browser); "stocks" when none is remembered. */
-export function readTab(userId: string | null | undefined, store: Pick<Storage, "getItem"> | null = safeStore()): DashTab {
-  try { const v = store?.getItem(TAB_KEY + (userId || "guest")); return TABS.includes(v as DashTab) ? (v as DashTab) : "stocks"; } catch { return "stocks"; }
-}
-export function writeTab(userId: string | null | undefined, tab: DashTab, store: Pick<Storage, "setItem"> | null = safeStore()): void {
-  try { store?.setItem(TAB_KEY + (userId || "guest"), tab); } catch { /* private mode: the tab is simply not remembered */ }
-}
-function safeStore(): Storage | null { try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; } }
 
 // ---------------------------------------------------------------------------------------------------------------- Customise
 /** Moves the block at `from` to the place of the block at `to` (drag and drop, and the up and down buttons, both use it). Returns a new list. */

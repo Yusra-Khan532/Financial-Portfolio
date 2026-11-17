@@ -94,10 +94,10 @@ export function useShowMore<T>(items: readonly T[], limit = 5, resetKey?: unknow
 }
 export type ShowMore = ReturnType<typeof useShowMore>;
 
-/** "Show 2 more stocks" / "Show fewer" under a list; nothing when nothing is hidden. */
-export function ShowMoreButton({ more, noun, plural, controls }: { more: Pick<ShowMore, "extra" | "open" | "toggle">; noun: string; plural?: string; controls?: string }) {
+/** "Show 2 more stocks" (or, given `total`, "Show all 18 investments", task #195) / "Show fewer" under a list; nothing when nothing is hidden. */
+export function ShowMoreButton({ more, noun, plural, controls, total }: { more: Pick<ShowMore, "extra" | "open" | "toggle">; noun: string; plural?: string; controls?: string; total?: number }) {
   if (!more.extra) return null;
-  const label = more.open ? "Show fewer" : `Show ${more.extra} more ${more.extra === 1 ? noun : plural ?? noun + "s"}`;
+  const label = more.open ? "Show fewer" : total != null ? `Show all ${total} ${total === 1 ? noun : plural ?? noun + "s"}` : `Show ${more.extra} more ${more.extra === 1 ? noun : plural ?? noun + "s"}`;
   return (
     <button type="button" className="dsh-more" aria-expanded={more.open} aria-controls={controls} onClick={more.toggle}>
       <span>{label}</span>

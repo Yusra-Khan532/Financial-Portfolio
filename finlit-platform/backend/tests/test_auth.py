@@ -277,6 +277,11 @@ async def test_saved_state_and_plan_limits(app):
     assert (await silver.put("/api/me/screens", json=unknown)).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "midnight", "density": "compact", "dashboard": [{"id": "movers", "on": True, "size": "full"}]})).status_code == 200
     assert (await basic.get("/api/me/state")).json()["prefs"]["palette"] == "midnight"
+    # task #195: the dashboard's quarter-width tools and the layout version are stored as sent
+    assert (await basic.put("/api/me/prefs", json={"dashV": 2, "dashboard": [{"id": "learn", "on": True, "size": "quarter"}]})).status_code == 200
+    stored = (await basic.get("/api/me/state")).json()["prefs"]
+    assert stored["dashV"] == 2 and stored["dashboard"] == [{"id": "learn", "on": True, "size": "quarter"}]
+    assert (await basic.put("/api/me/prefs", json={"dashboard": [{"id": "learn", "on": True, "size": "huge"}]})).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "neon"})).status_code == 422
     # one user never sees another's state
     assert (await silver.get("/api/me/state")).json()["prefs"] == {}
