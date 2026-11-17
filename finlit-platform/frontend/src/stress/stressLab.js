@@ -56,20 +56,34 @@ export function mountStressLab(root, E, D, opts) {
   };
   var KIND = { ins: 'INSIGHT', good: 'GOOD SIGN', watch: 'WATCH OUT', warn: 'WARNING' };
   function svg(p, w) { return '<svg viewBox="0 0 20 20" width="' + (w || 16) + '" height="' + (w || 16) + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>'; }
-  function call(c) { return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b><span class="d">' + c.d + '</span></div></div>'; }
+  // task #196 (D4, shared rule 3): a callout shows its kind and headline; the detail opens with a chevron button. CALLN numbers them for their ids.
+  var CALLN = 0;
+  function call(c, i) {
+    var key = c.k + ':' + (typeof i === 'number' ? i : c.t), id = 'cd-' + (++CALLN), open = !!(S.callsOpen && S.callsOpen[key]);
+    return '<div class="call ' + c.k + '"><span class="ic">' + svg(ICON[c.k]) + '</span><div class="tx"><span class="k">' + KIND[c.k] + '</span><b>' + c.t + '</b></div>' +
+      '<button type="button" class="cx" data-cx="' + esc(key) + '" aria-expanded="' + open + '" aria-controls="' + id + '" aria-label="' + (open ? 'Hide the detail' : 'Show the detail') + '">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16) + '</button>' +
+      '<span class="d" id="' + id + '"' + (open ? '' : ' hidden') + '>' + c.d + '</span></div>';
+  }
+  /** "What stands out": the cards, with one Open all / Close all when there are several. */
+  function callsHtml(list) {
+    if (!list.length) return '';
+    var all = list.every(function (c, i) { return S.callsOpen && S.callsOpen[c.k + ':' + i]; });
+    return '<div class="callsh"><span>What stands out</span>' + (list.length > 1 ? '<button type="button" class="btn sm" data-callall="1" aria-pressed="' + all + '">' + (all ? 'Close all' : 'Open all') + '</button>' : '') + '</div>' +
+      '<div class="callsg">' + list.map(call).join('') + '</div>';
+  }
   var LCLS = { 'Holds up well': 'g', 'Gains under this shock': 'g', 'Takes a clear hit': 'a', 'Hit hard': 'r', 'Debt cover at risk': 'r', 'Not comparable': 'n' };
   var LICON = { g: ICON.good, a: ICON.watch, r: ICON.warn, n: ICON.ins };
   var RING = { g: 'var(--h0f6b3a)', a: 'var(--hb7791f)', r: 'var(--ha8342b)', n: 'var(--h8d8571)' };
   function labPill(l, big) { var c = LCLS[l] || 'n'; return big ? '<span class="lab ' + c + '">' + svg(LICON[c]) + esc(l) + '</span>' : '<span class="pill ' + c + '">' + esc(l) + '</span>'; }
   function ring(score, l) {
     var c = LCLS[l] || 'n', r = 44, C = 2 * Math.PI * r, f = score === null ? 0 : score / 100;
-    return '<div class="ring" role="img" aria-label="Resilience score ' + (score === null ? 'not available' : score + ' out of 100') + '"><svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="' + r + '" fill="none" style="stroke:var(--hefe8da)" stroke-width="10"/>' +
+    return '<div class="ringw"><div class="ring" role="img" aria-label="Resilience score ' + (score === null ? 'not available' : score + ' out of 100') + '"><svg viewBox="0 0 104 104"><circle cx="52" cy="52" r="' + r + '" fill="none" style="stroke:var(--hefe8da)" stroke-width="10"/>' +
       (f > 0.005 ? '<circle cx="52" cy="52" r="' + r + '" fill="none" style="stroke:' + RING[c] + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + (C * f).toFixed(1) + ' ' + C.toFixed(1) + '"/>' : '') + '</svg>' +
-      '<div class="n"><b>' + (score === null ? '–' : score) + '</b><small>out of 100</small></div></div>';
+      '<div class="n"><b>' + (score === null ? '–' : score) + '</b><small>out of 100</small></div></div>' + (score === null ? '' : '<p class="rscale">0–100; higher holds up better</p>') + '</div>';   // task #196 (D3.4): the scale, under the ring
   }
 
   /* ------------------------------------------------------------------ state */
-  var S = { scen: 'today', todayCrude: 'level', custom: null, persistence: 'one_year', edits: {}, open: false, unit: 'eps' };
+  var S = { scen: 'today', todayCrude: 'level', custom: null, persistence: 'one_year', edits: {}, open: false, unit: 'eps', stretch: {} };   // stretch: a slider's range widened by a typed value (task #196, D1)
   var SC = {}; D.scenarios.forEach(function (s) { SC[s.id] = s; });
   var A = D.company, B = opts.peer ? opts.peer.company : null, PEER_SC = {};
   /* The model needs revenue and a share count: without them there is no EPS to stress, so the page says so instead of drawing NaN. */
@@ -142,6 +156,83 @@ export function mountStressLab(root, E, D, opts) {
       '<div class="tw"><table class="t"><thead><tr><th>Driver</th><th class="r">Now</th><th class="r">Average, ' + winWords(D.base_window) + '</th><th class="r">Shock</th><th>Source</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="note">Prices are measured as today’s level against the window average; inflation, rates and growth as the latest reading minus the window average. ' + (eo && eo.brent && eo.brent.length && fin(eo.avg) && SC.today_eia ? '<b>Crude eases</b> uses the U.S. EIA outlook instead of today’s level: US$' + eo.brent.map(function (b) { return fin(b) ? b.toFixed(2) : '–'; }).join(', ') + ' over the next four quarters, an average of US$' + eo.avg.toFixed(2) + '. ' : '') + 'Data to ' + dt(D.as_of) + '.</p></details>';
   }
+  // task #196 (D3.2): share and save a scenario. The link holds every slider (custom shocks) or the scenario's id, the persistence and the unit; opening it
+  // restores them (readLink, at the start). The CSV is the numbers on the page: the shocks, then each line before and after.
+  var LAST = null, LINKKEYS = { crude: 'crude', usdinr: 'usdinr', cpi: 'cpi', wpi: 'wpi', rate_bp: 'rate', demand: 'demand', erp_bp: 'erp' };
+  function linkHref() {
+    var u = new URL(location.href), q = u.searchParams;
+    ['sc', 'p'].concat(Object.keys(LINKKEYS).map(function (k) { return LINKKEYS[k]; })).forEach(function (k) { q.delete(k); });
+    q.set('sc', S.scen === 'today' && S.todayCrude === 'eia' ? 'today_eia' : S.scen);
+    if (S.persistence !== 'one_year') q.set('p', S.persistence);
+    if (S.scen === 'custom' && S.custom) Object.keys(LINKKEYS).forEach(function (k) { var v = S.custom[k]; if (fin(v)) q.set(LINKKEYS[k], String(+v.toFixed(4))); });
+    u.hash = VIEW === 'compare' ? '#compare' : ''; return u.toString();
+  }
+  function readLink() {
+    var q; try { q = new URL(location.href).searchParams; } catch (e) { return; }
+    var id = q.get('sc'); if (!id) return;
+    if (q.get('p') === 'permanent') S.persistence = 'permanent';
+    if (id === 'today_eia' && SC.today_eia) { S.scen = 'today'; S.todayCrude = 'eia'; return; }
+    if (id === 'custom' && GOLD) {
+      var b = Object.assign({}, SC.today || {}), any = false;
+      Object.keys(LINKKEYS).forEach(function (k) { var v = parseFloat(q.get(LINKKEYS[k])); if (isFinite(v)) { b[k] = v; any = true; } });
+      if (!any || E.refused(b).length) return;   // an impossible or empty link opens on Today
+      S.customFrom = 'a shared link'; S.custom = Object.assign(b, { id: 'custom', name: 'Custom', based_on: '' }); S.scen = 'custom'; S.open = true;
+      DEFS.forEach(function (d) { var v = sliderVal(S.custom, d.k); if (v < d.min || v > d.max) S.stretch[d.k] = [v, v]; });
+      return;
+    }
+    if (SC[id] && !LOCKED[id]) S.scen = id;
+  }
+  function csvText() {
+    if (!LAST) return '';
+    var r = LAST.r, sc = LAST.sc, b = r.base, s = r.stressed, q = function (v) { var t = String(v === null || v === undefined || (typeof v === 'number' && !isFinite(v)) ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    var n = function (v, d) { return fin(v) ? +v.toFixed(d === undefined ? 2 : d) : ''; };
+    var rows = [['Stress Lab', A.name + ' (' + A.symbol + ')'], ['Scenario', sc.id === 'custom' ? 'Custom' : sc.name], ['Base', winWords(D.base_window)], ['Data to', D.as_of], [],
+      ['Shock', 'Value', 'Unit'], ['Crude oil (Brent)', n(sc.crude), '%'], ['Rupee against the dollar (minus = weaker)', n(E.rupeeFromUsdinr(sc.usdinr || 0)), '%'], ['Consumer inflation', n(sc.cpi), 'pt'],
+      ['Wholesale inflation', n(sc.wpi === null || sc.wpi === undefined ? sc.cpi : sc.wpi), 'pt'], ['Interest rates', n(sc.rate_bp, 0), 'bp'], ['Demand', n(sc.demand), '%']];
+    if (SHOWV) rows.push(['Investor caution', n(sc.erp_bp, 0), 'bp']);
+    rows.push([], ['Line', 'Last four quarters', 'After the shock', 'Unit'],
+      ['Revenue', n(b.revenue), n(s.revenue), 'Rs Cr'], ['EBITDA', n(b.ebitda), n(s.ebitda), 'Rs Cr'], ['EBITDA margin', n(b.ebitda_margin_pct), n(s.ebitda_margin_pct), '%'],
+      ['Other income', n(b.other_income), n(s.other_income), 'Rs Cr'], ['Depreciation', n(b.depreciation), n(s.depreciation), 'Rs Cr'], ['Interest', n(b.interest), n(s.interest), 'Rs Cr'],
+      ['Profit before tax', n(b.pbt), n(s.pbt), 'Rs Cr'], ['Earnings per share', n(b.eps), n(s.eps), 'Rs'], ['Interest cover', n(b.interest_cover), n(s.interest_cover), 'times']);
+    rows.push([], ['Label', r.label], ['Resilience score', r.score === null ? '' : r.score]);
+    if (SHOWV && r.value) rows.push(['Value move', n(r.value.move_pct), '%']);
+    rows.push([], ['Illustrative, not a forecast and not advice.']);
+    return rows.map(function (x) { return x.map(q).join(','); }).join('\r\n') + '\r\n';
+  }
+  function shareOut(kind) {
+    var note = $('shared');
+    if (kind === 'csv') {
+      var blob = new Blob(['\ufeff' + csvText()], { type: 'text/csv;charset=utf-8' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'stress-lab-' + String(A.symbol).toLowerCase() + '-' + (S.scen === 'custom' ? 'custom' : S.scen) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      if (note) note.textContent = 'The numbers were saved as a CSV file.';
+      return;
+    }
+    var href = linkHref();
+    try { history.replaceState(null, '', href); } catch (e) {}
+    var done = function (ok) { if (note) note.textContent = ok ? 'Link copied. Anyone with it opens this scenario (Gold shows the custom shocks).' : 'The link is in the address bar; copy it from there.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(href).then(function () { done(true); }, function () { done(false); }); else done(false);
+  }
+  // task #196 (D1): each slider has a box for any number; the slider stretches to fit it. Units as the box reads them; the rupee box uses minus for weaker.
+  var UNIT = { crude: '%', rupee: '% (minus = weaker)', cpi: 'pt', wpi: 'pt', rate_bp: 'bp', demand: '%', erp_bp: 'bp' };
+  function range(d) { var x = S.stretch[d.k]; return [x ? Math.min(d.min, x[0]) : d.min, x ? Math.max(d.max, x[1]) : d.max]; }
+  function numVal(v) { return fin(v) ? +(+v).toFixed(2) : 0; }
+  var REFUSE = { crude: 'Crude cannot fall by more than 100%: the price would be below zero.', demand: 'Demand cannot fall by more than 100%: volumes would be below zero.',
+                 rupee: 'The rupee cannot lose 100% or more of its value: a dollar would cost infinite rupees.' };
+  /** A typed value: refused when impossible (with the reason under the box), else applied, the slider stretched to hold it. */
+  function onType(k, raw) {
+    var d = DEFS.filter(function (x) { return x.k === k; })[0], box = $('n-' + k), why = $('x-' + k), v = parseFloat(raw);
+    if (!d || !box) return;
+    var bad = !isFinite(v) ? 'Type a number.' : (k === 'crude' || k === 'demand') && v < -100 ? REFUSE[k] : k === 'rupee' && v <= -100 ? REFUSE.rupee : '';
+    if (why) { why.hidden = !bad; why.textContent = bad; }
+    box.setAttribute('aria-invalid', bad ? 'true' : 'false');
+    if (bad) return;
+    if (v < d.min || v > d.max) { var old = S.stretch[k] || [v, v]; S.stretch[k] = [Math.min(v, old[0]), Math.max(v, old[1])]; }
+    var r = $('s-' + k), rg = range(d);
+    if (r) { r.min = rg[0]; r.max = rg[1]; r.value = v; }
+    var line = $('r-' + k); if (line) line.textContent = 'Slider: ' + d.f(rg[0]) + ' to ' + d.f(rg[1]);
+    onSlide(k, v);
+  }
   function renderScen() {
     var co = coA();
     $('chips').innerHTML = CHIPS.map(function (id) {
@@ -163,16 +254,21 @@ export function mountStressLab(root, E, D, opts) {
     var sl = $('sliders'); sl.hidden = !show;
     if (show) {
       var q = co.exposure.demand_beta;
-      sl.innerHTML = DEFS.filter(function (d) { return SHOWV || d.k !== 'erp_bp'; }).map(function (d) {
+      sl.innerHTML = '<p class="slnote">These are your own numbers, so there is no limit. Drag within the usual range, or type any value in a box: the slider stretches to fit it. Only impossible values are refused: a price or a volume cannot fall by more than 100%.</p>' +
+        DEFS.filter(function (d) { return SHOWV || d.k !== 'erp_bp'; }).map(function (d) {
         var v = sliderVal(s, d.k), hint = d.k === 'demand' ? 'Change in volumes for the average company; ' + poss(A) + ' move ' + q.toFixed(2) + ' times as much' : d.hint;
         var tip = d.k === 'demand' ? 'An input, not an outcome of the other shocks. ' + poss(A) + ' volumes have moved about ' + q.toFixed(2) + ' times the average company’s, estimated from its own history.' : d.tip;
-        return '<div class="sl"><div class="t"><label for="s-' + d.k + '">' + d.label + ib(tip, 'lt', 'About ' + d.label) + '</label><output id="o-' + d.k + '" for="s-' + d.k + '">' + d.f(v) + '</output></div>' +
-          '<input type="range" id="s-' + d.k + '" data-k="' + d.k + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + v + '" aria-describedby="h-' + d.k + '">' +
-          '<div class="ends"><span>' + d.f(d.min) + '</span><span>' + d.f(d.max) + '</span></div><span class="h" id="h-' + d.k + '">' + hint + '</span></div>';
+        var rg = range(d);
+        return '<div class="sl"><div class="t"><label for="s-' + d.k + '">' + d.label + ib(tip, 'lt', 'About ' + d.label) + '</label><span class="tv"><output id="o-' + d.k + '" for="s-' + d.k + '">' + d.f(v) + '</output>' +
+          '<span class="numw"><input type="number" class="num" id="n-' + d.k + '" data-num="' + d.k + '" step="any" value="' + numVal(v) + '" aria-label="' + esc(d.label) + ': type any value" aria-describedby="r-' + d.k + '"><span class="u">' + UNIT[d.k] + '</span></span></span></div>' +
+          '<input type="range" id="s-' + d.k + '" data-k="' + d.k + '" min="' + rg[0] + '" max="' + rg[1] + '" step="' + d.step + '" value="' + v + '" aria-describedby="h-' + d.k + '">' +
+          '<div class="ends"><span id="r-' + d.k + '">Slider: ' + d.f(rg[0]) + ' to ' + d.f(rg[1]) + '</span><span class="free">Type any value in the box</span></div>' +
+          '<span class="refuse" id="x-' + d.k + '" role="alert" hidden></span><span class="h" id="h-' + d.k + '">' + hint + '</span></div>';
       }).join('') +
-        '<div class="slfoot">' + (SHOWV ? '<span class="l">How long the hit lasts' + ib('<b>A year:</b> earnings return to their path after 12 months. <b>For good:</b> the lower earnings last. Changes only the value move.', 'lt', 'About how long the hit lasts') +
-        '<span class="seg sm" role="group" aria-label="How long the hit lasts"><button type="button" data-pers="one_year" aria-pressed="' + (S.persistence === 'one_year') + '">A year</button><button type="button" data-pers="permanent" aria-pressed="' + (S.persistence === 'permanent') + '">For good</button></span></span>' : '<span></span>') +
-        '<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-reset="1">Back to Today</button></span></div>';
+        '<div class="slfoot">' + (SHOWV ? '<span class="l">How long the shock lasts' + ib('<b>A year:</b> earnings return to their path after 12 months. <b>For good:</b> the new level of earnings lasts, whether higher or lower. Changes only the value move.', 'lt', 'About how long the shock lasts') +
+        '<span class="seg sm" role="group" aria-label="How long the shock lasts"><button type="button" data-pers="one_year" aria-pressed="' + (S.persistence === 'one_year') + '">A year</button><button type="button" data-pers="permanent" aria-pressed="' + (S.persistence === 'permanent') + '">For good</button></span></span>' : '<span></span>') +
+        '<span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" data-share="link">Copy a link to this scenario</button><button type="button" class="btn" data-share="csv">Download the numbers (CSV)</button><button type="button" class="btn" data-reset="1">Back to Today</button></span></div>' +
+        '<p class="shared" id="shared" role="status" aria-live="polite"></p>';
     }
   }
   function onSlide(k, raw) {
@@ -187,6 +283,7 @@ export function mountStressLab(root, E, D, opts) {
     S.custom = E.clipScenario(S.custom); S.custom.id = 'custom'; S.custom.name = 'Custom';
     var d = DEFS.filter(function (x) { return x.k === k; })[0];
     var o = $('o-' + k); if (o) o.textContent = d.f(v);
+    var nb = $('n-' + k); if (nb && root.activeElement !== nb) nb.value = numVal(v);
     // re-render everything except the slider panel (keeps focus and drag)
     var keep = S.open; S.open = true; renderScenLight(); S.open = keep; renderResults();
   }
@@ -230,14 +327,21 @@ export function mountStressLab(root, E, D, opts) {
       '<div class="hero"><div><div class="verdict">' + ring(r.score, r.label) + '<div>' + labPill(r.label, true) +
       ib('<b>Holds up well:</b> EPS moves less than 10%. <b>Takes a clear hit:</b> EPS falls 10% to 30%. <b>Hit hard:</b> EPS falls 30% or more. <b>Gains under this shock:</b> EPS rises 10% or more. <b>Debt cover at risk:</b> operating profit would cover interest less than 1.5 times, whatever happens to EPS.', 'lt', 'About the label') +
       '<p class="why">' + esc(r.label_reason) + '.</p><p class="why" style="margin-top:2px">Resilience score' + ib('A score out of 100 for how well earnings withstand this shock: near 100 when earnings barely move, lower the more they fall. It is held low when operating profit would barely cover interest.', 'lt', 'About the resilience score') + '</p></div></div>' +
-      '<p class="sentence">Under ' + scName(sc) + ', ' + poss(co) + ' earnings per share ' + moveWord(r) + ' over the next 12 months.</p></div>' +
+      '<p class="sentence">Under ' + scName(sc) + ', ' + poss(co) + ' earnings per share ' + moveWord(r) + ' over the next 12 months.</p>' + apartNote(r) + '</div>' +
       '<div><div class="kpis' + (SHOWV ? '' : ' k4') + '">' +
       kpi('EPS', pct(cp.eps), cp.eps, rs(b.eps) + ' → ' + rs(s.eps), 'Earnings per share. Model EPS on the last four quarters: ' + rs(b.eps) + '. ' + (fin(co.reported_eps) ? 'Reported EPS for the same quarters is ' + rs(co.reported_eps) + '; the model leaves out exceptional items and minority interests.' : 'The company’s reported EPS for these quarters is not on file.')) +
       kpi('EBITDA', pct(cp.ebitda), cp.ebitda, cr(b.ebitda) + ' → ' + cr(s.ebitda), 'Operating profit before depreciation, interest and tax.') +
       kpi('EBITDA margin', pc(s.ebitda_margin_pct), cp.margin_pts, 'from ' + pc(b.ebitda_margin_pct) + ' · ' + pt(cp.margin_pts), 'EBITDA as a share of revenue. Revenue rises when prices go up to recover costs, so the margin can fall even when revenue grows.') +
       kpi('Interest cover', xx(s.interest_cover), s.interest_cover !== null && s.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(b.interest_cover), 'How many times operating profit (EBITDA plus other income, less depreciation) covers interest. Under 1.5× is labelled <b>Debt cover at risk</b>.') +
-      (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && other ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(other.move_pct) : r.value ? '' : 'not worked out: loss in the base period', valTip, 'rt') : '') +
+      (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && other ? (S.persistence === 'one_year' ? 'if the shock lasts: ' : 'if it lasts a year: ') + pct(other.move_pct) : r.value ? '' : 'not worked out: loss in the base period', valTip, 'rt') : '') +
       '</div>' + sureHtml(co, sc, r) + editedHtml() + '</div></div>';
+  }
+  /** task #196 (bug 1): earnings and the value move can point opposite ways, because the value also moves with interest rates and investor caution.
+   *  Said in words for both directions, so "Gains under this shock" never sits unexplained beside a value move of −1.2%. */
+  function apartNote(r) {
+    var e = r.change_pct && r.change_pct.eps, v = r.value && r.value.move_pct;
+    if (!SHOWV || !fin(e) || !fin(v) || Math.abs(v) < 0.05 || Math.abs(e) < 0.05 || (e > 0) === (v > 0)) return '';
+    return '<p class="why apart">Earnings per share ' + (e > 0 ? 'rise' : 'fall') + ' (' + pct(e) + ') but the value move is ' + pct(v) + ': the value also ' + (v < 0 ? 'falls as interest rates or investor caution rise' : 'rises as interest rates or investor caution fall') + ', which changes what each rupee of earnings is worth.</p>';
   }
   function kpi(l, v, sign, s, tip, pos) {
     var cls = sign === null || sign === undefined ? '' : sign < -0.05 ? ' dn' : sign > 0.05 ? ' up' : '';
@@ -295,7 +399,14 @@ export function mountStressLab(root, E, D, opts) {
       out.push({ k: 'ins', p: 3, t: cap(PHR[top.key]) + verb(top.key, ' is', ' are') + (tShare > 0.5 ? ' the main drag' : ' the biggest drag'),
                  d: cap(PHR[top.key]) + verb(top.key, ' takes ', ' take ') + Math.abs(top.eps_pct).toFixed(1) + ' points off EPS, out of a total change of ' + sgn(e) + (back && back.eps_pct > 1 ? '; ' + PHR[back.key] + verb(back.key, ' adds', ' add') + ' back ' + back.eps_pct.toFixed(1) + '.' : negs[1] ? '; next ' + verb(negs[1].key, 'is ', 'are ') + PHR[negs[1].key] + ' at ' + Math.abs(negs[1].eps_pct).toFixed(1) + '.' : '.') });
     }
-    if (w.cost_increase_total_rs_cr > 1) out.push({ k: 'ins', p: 4, t: 'Prices recover ' + share(w.share_recovered) + ' of the cost rise', d: 'Input costs rise ' + cr(w.cost_increase_total_rs_cr) + '; about ' + cr(w.recovered_through_prices_rs_cr) + ' comes back through higher prices within the year and ' + cr(w.cost_increase_total_rs_cr - w.recovered_through_prices_rs_cr) + ' is absorbed.' });
+    if (w.cost_increase_total_rs_cr > 1) {
+      // task #196 (bug 3): the pass-through setting applies only to sales priced in India; export and crude-linked sales follow world prices (engine.js
+      // domesticRev). Say so whenever the share recovered is below the setting, so "0%" never sits unexplained beside a setting of 83%.
+      var ex = co.exposure, dom = Math.max(0, 1 - ex.export_rev - ex.crude_rev), gap = ex.pass_through - w.share_recovered > 0.005;
+      out.push({ k: 'ins', p: 4, t: 'Prices recover ' + (w.share_recovered < 0.005 ? 'none' : share(w.share_recovered)) + ' of the cost rise',
+        d: 'Input costs rise ' + cr(w.cost_increase_total_rs_cr) + '; about ' + cr(w.recovered_through_prices_rs_cr) + ' comes back through higher prices within the year and ' + cr(w.cost_increase_total_rs_cr - w.recovered_through_prices_rs_cr) + ' is absorbed.' +
+          (gap ? ' The setting passes on ' + share(ex.pass_through) + ' of a cost rise, but only on sales priced in India, ' + share(dom) + ' of revenue; export and crude-linked sales follow world prices, so ' + share(w.share_recovered) + ' of the whole rise comes back.' : '') });
+    }
     else if (w.cost_increase_total_rs_cr < -1) out.push({ k: 'good', p: 4, t: 'Costs fall by ' + cr(-w.cost_increase_total_rs_cr), d: 'About ' + share(w.share_recovered) + ' of the saving is passed on to customers as lower prices; the rest stays in profit.' });
     var netCash = co.cash - co.debt;
     if (!hasDebt || (cov !== null && cov >= 8)) out.push({ k: 'good', p: 5, t: 'Debt is not a pressure point', d: !hasDebt ? (co.debt > 0 ? 'It reports no interest cost on its debt of ' + cr(co.debt) + (netCash > 0 ? ', and cash and investments exceed that debt by ' + cr(netCash) : '') + '.' : 'It has no borrowings, so there is no interest to cover' + (co.cash > 0 ? ', and its cash and investments come to ' + cr(co.cash) : '') + '.')
@@ -303,13 +414,13 @@ export function mountStressLab(root, E, D, opts) {
     else if (hasDebt && cov !== null && cov >= 1.5 && cov < 3) out.push({ k: 'watch', p: 2, t: 'Interest cover gets thin: ' + xx(cov), d: 'Operating profit would cover interest ' + xx(cov) + ', from ' + xx(r.base.interest_cover) + '. Under 1.5× it would read <b>Debt cover at risk</b>.' });
     if (poss.length) out.push({ k: 'good', p: 6, t: cap(PHR[poss[0].key]) + verb(poss[0].key, ' helps', ' help'), d: sgn(poss[0].eps_pct) + ' points of EPS' + (poss[0].key === 'interest' && netCash > 0 ? ': with more cash than debt, higher rates add more to interest earned than to interest paid.' : poss[0].key === 'demand' ? ' from higher volumes.' : '.') });
     var o = r.value_other_persistence;
-    if (SHOWV && r.value && o && Math.abs(o.move_pct - r.value.move_pct) >= 5 && S.persistence === 'one_year') out.push({ k: 'watch', p: 7, t: 'If the hit lasts, value moves ' + pct(o.move_pct), d: 'The value move of ' + pct(r.value.move_pct) + ' assumes earnings get back on their path after a year. If the lower earnings last, it is ' + pct(o.move_pct) + '.' });
+    if (SHOWV && r.value && o && Math.abs(o.move_pct - r.value.move_pct) >= 5 && S.persistence === 'one_year') out.push({ k: 'watch', p: 7, t: 'If the shock lasts, value moves ' + pct(o.move_pct), d: 'The value move of ' + pct(r.value.move_pct) + ' assumes earnings get back on their path after a year. If the change in earnings lasts, it is ' + pct(o.move_pct) + '.' });
     if (SHOWV && r.value && e !== null && sc.rate_bp >= 100 && Math.abs(e) < 3 && r.value.move_pct < -5) out.push({ k: 'ins', p: 3, t: 'Earnings barely move; value falls', d: 'Higher rates barely touch earnings here, but they raise the return investors ask for, so the value move is ' + pct(r.value.move_pct) + '.' });
     out.sort(function (a, b) { return a.p - b.p; });
     var g = 0; out = out.filter(function (c) { return c.k !== 'good' || ++g <= (e !== null && e <= -10 ? 1 : 2); });
     return out.slice(0, 4);
   }
-  function renderCalls(r, co, sc) { var c = insights(r, co, sc); $('calls').innerHTML = c.map(call).join(''); $('calls').hidden = !c.length; }
+  function renderCalls(r, co, sc) { var c = insights(r, co, sc); $('calls').innerHTML = callsHtml(c); $('calls').hidden = !c.length; }
 
   function renderAna(r, co, sc) {
     var cp = r.change_pct, w = r.working, b = r.base, s = r.stressed, P = [];
@@ -327,7 +438,7 @@ export function mountStressLab(root, E, D, opts) {
     var dl = [];
     if (co.debt > 0 && co.interest > 0) dl.push('operating profit covers interest ' + xx(s.interest_cover) + ', from ' + xx(b.interest_cover));
     if (co.cash > co.debt) dl.push('cash and investments of ' + cr(co.cash) + ' exceed debt of ' + cr(co.debt));
-    if (SHOWV && r.value) dl.push('the value move under these assumptions is ' + pct(r.value.move_pct) + (r.value_other_persistence ? ' (' + pct(r.value_other_persistence.move_pct) + ' ' + (S.persistence === 'one_year' ? 'if the hit lasts' : 'if it lasts only a year') + ')' : ''));
+    if (SHOWV && r.value) dl.push('the value move under these assumptions is ' + pct(r.value.move_pct) + (r.value_other_persistence ? ' (' + pct(r.value_other_persistence.move_pct) + ' ' + (S.persistence === 'one_year' ? 'if the shock lasts' : 'if it lasts only a year') + ')' : ''));
     if (dl.length) P.push('<b>' + (SHOWV ? 'Debt and value' : 'Debt') + '.</b> ' + cap(dl.join('; ')) + '.');
     var lq = D.backtest.latest_quarter;
     var care = '';
@@ -596,7 +707,7 @@ export function mountStressLab(root, E, D, opts) {
     return '<div class="card cmphead"><div class="co">' + logoHtml(co) + '<div><b>' + esc(co.name) + '</b><small>' + idLine(co) + '</small></div></div>' +
       '<div class="verdict">' + ring(r.score, r.label) + '<div>' + labPill(r.label, true) + '<p class="why">' + esc(r.label_reason) + '.</p></div></div>' +
       '<div class="kpis">' + kpi('EPS', pct(cp.eps), cp.eps, rs(r.base.eps) + ' → ' + rs(r.stressed.eps), 'Model EPS on the last four quarters, and after the shock.') + kpi('EBITDA margin', pc(r.stressed.ebitda_margin_pct), cp.margin_pts, 'from ' + pc(r.base.ebitda_margin_pct) + ' · ' + pt(cp.margin_pts), 'EBITDA as a share of revenue.') +
-      kpi('Interest cover', xx(r.stressed.interest_cover), r.stressed.interest_cover !== null && r.stressed.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(r.base.interest_cover), 'How many times operating profit covers interest. Under 1.5× reads Debt cover at risk.') + (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && r.value_other_persistence ? (S.persistence === 'one_year' ? 'if the hit lasts: ' : 'if it lasts a year: ') + pct(r.value_other_persistence.move_pct) : r.value ? '' : 'not worked out: loss in the base period', 'An earnings-based value under these assumptions, not a price estimate, and never applied to the share price.', 'rt') : '') + '</div>' +
+      kpi('Interest cover', xx(r.stressed.interest_cover), r.stressed.interest_cover !== null && r.stressed.interest_cover < 1.5 ? -1 : 0, 'from ' + xx(r.base.interest_cover), 'How many times operating profit covers interest. Under 1.5× reads Debt cover at risk.') + (SHOWV ? kpi('Value move', r.value ? pct(r.value.move_pct) : '–', r.value ? r.value.move_pct : 0, r.value && r.value_other_persistence ? (S.persistence === 'one_year' ? 'if the shock lasts: ' : 'if it lasts a year: ') + pct(r.value_other_persistence.move_pct) : r.value ? '' : 'not worked out: loss in the base period', 'An earnings-based value under these assumptions, not a price estimate, and never applied to the share price.', 'rt') : '') + '</div>' +
       '<div class="tw" style="margin-top:4px"><table class="t"><thead><tr><th>Line</th><th class="r">Last four quarters</th><th class="r">After</th><th class="r">Change</th></tr></thead><tbody>' +
       [['Revenue', cr(r.base.revenue), cr(r.stressed.revenue), pct(cp.revenue), cp.revenue], ['EBITDA', cr(r.base.ebitda), cr(r.stressed.ebitda), pct(cp.ebitda), cp.ebitda], ['Interest', cr(r.base.interest), cr(r.stressed.interest), pct(chg(r.base.interest, r.stressed.interest)), r.base.interest - r.stressed.interest], ['Profit before tax', cr(r.base.pbt), cr(r.stressed.pbt), pct(chg(r.base.pbt, r.stressed.pbt)), r.stressed.pbt - r.base.pbt]].map(function (x) {
         return '<tr><td class="l">' + x[0] + '</td><td class="r">' + x[1] + '</td><td class="r"><b>' + x[2] + '</b></td><td class="r' + (!fin(x[4]) || Math.abs(x[4]) < 0.005 ? '' : x[4] < 0 ? ' dn' : ' up') + '">' + x[3] + '</td></tr>';
@@ -618,7 +729,7 @@ export function mountStressLab(root, E, D, opts) {
   function renderCompare() {
     var a = coA(), b = coB(), sc = cur(), ra = E.run(a, sc), rb = E.run(b, forB(sc));
     $('cmpsum').innerHTML = '<h2>Side by side under ' + scName(sc) + ib('The same shock for both companies, each measured against its own last four quarters. ' + (SAMEQ ? 'Both report to ' + my(A.base_end) + ', so ‘Today’ is the same shock for both here.' : 'The two companies report to different quarters, so each ‘Today’ is measured against its own last four quarters.') + '', 'lt', 'About the comparison') + '</h2><p class="sentence" style="margin-top:8px">' + compareSummary(ra, rb, a, b) + '</p>';
-    var c = cmpInsights(ra, rb, a, b); $('calls').innerHTML = c.map(call).join('');
+    var c = cmpInsights(ra, rb, a, b); $('calls').innerHTML = callsHtml(c);
     $('cols').innerHTML = colHtml(ra, a) + colHtml(rb, b);
     var drows = ra.drivers.map(function (d) { var o = rb.drivers.filter(function (x) { return x.key === d.key; })[0]; return [d.key === 'demand' ? 'Volumes' : d.name, d.eps_pct, o.eps_pct]; });
     drows.push(['Change in EPS', ra.change_pct.eps, rb.change_pct.eps]);
@@ -642,6 +753,7 @@ export function mountStressLab(root, E, D, opts) {
   function renderResults() {
     if (VIEW === 'compare') { renderCompare(); return; }
     var co = coA(), sc = cur(), r = E.run(co, sc);
+    LAST = { r: r, co: co, sc: sc };
     renderHead(r, co, sc); renderCalls(r, co, sc); renderAna(r, co, sc); renderTable(r, co); renderDrivers(r, co); renderSens(co); renderEvery(co);
   }
   function renderStrip() {
@@ -689,7 +801,73 @@ export function mountStressLab(root, E, D, opts) {
     HOST.classList.toggle('v-compare', v === 'compare');
     root.querySelectorAll('[data-v]').forEach(function (el) { var w = el.getAttribute('data-v'); el.hidden = !(w === 'both' || w === v); });
     root.querySelectorAll('[data-view]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-view') === v); });
-    renderAll();
+    renderAll(); renderBar();
+  }
+
+  /* ------------------------------------------------------------------ task #196: the guide, the 7 steps and the sections bar (D2, D6) */
+  var GUIDE_KEY = 'finlit-stress-guide';
+  function guideOpen() { try { return localStorage.getItem(GUIDE_KEY) === 'open'; } catch (e) { return false; } }   // closed by default, remembered per visitor
+  function renderGuide() {
+    var g = $('guide'); if (!g) return;
+    var open = guideOpen(), L = E.LABELS || {}, order = ['Gains under this shock', 'Holds up well', 'Takes a clear hit', 'Hit hard', 'Debt cover at risk', 'Not comparable'];
+    g.innerHTML = '<section class="guide' + (open ? ' open' : '') + '" aria-labelledby="gd-t">' +
+      '<button type="button" class="gd-h" data-guide="1" aria-expanded="' + open + '" aria-controls="gd-b"><span class="gd-q" aria-hidden="true">?</span><span class="gd-tt"><b id="gd-t">How to read and use this page</b><small>Four steps, what the result means, and what the model leaves out · 2 min read</small></span>' +
+      '<span class="gd-ch" aria-hidden="true">' + svg(open ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 14) + '</span></button>' +
+      '<div class="gd-b" id="gd-b"' + (open ? '' : ' hidden') + '>' +
+      '<p class="gd-intro">Stress Lab asks one question: if crude, the rupee, inflation, interest rates or demand moved, what would happen to this company’s earnings over the next 12 months? It starts from the last four reported quarters and shows every assumption, so you can see why the answer is what it is.</p>' +
+      '<div class="gd-two"><div><h3 class="gd-k">Use it in four steps</h3><ol class="gd-steps">' +
+      '<li><b>Pick a company.</b> A large or mid cap that is not a bank, NBFC or insurer. Use <em>Compare two</em> to put two side by side.</li>' +
+      '<li><b>Choose a shock.</b> Start from a ready scenario (Today, 2022 commodity and rate shock, 2020 lockdown, Oil spike, Rupee slide, Rates up, Demand slowdown), or pick <em>Custom</em>. Open <em>Adjust these shocks</em> to change any input; type any value in a box, there is no limit.</li>' +
+      '<li><b>Read the result.</b> The score, the label and five figures. The cards under it pick out what stands out.</li>' +
+      '<li><b>See why.</b> <em>Why it moves</em> shows the change line by line and which driver adds or takes away. <em>What moves it most</em> shows the shocks this business is most sensitive to, and <em>Breaking points</em> how big one shock must be to halve earnings.</li></ol></div>' +
+      '<div><h3 class="gd-k">Read the result</h3><p><b>Resilience score, out of 100.</b> Near 100 when earnings barely move; lower the more they fall. It is held low when operating profit would barely cover interest.</p>' +
+      '<table class="gd-t"><thead><tr><th scope="col">Label</th><th scope="col">When</th></tr></thead><tbody>' +
+      order.filter(function (l) { return L[l]; }).map(function (l) { return '<tr><td>' + labPill(l) + '</td><td>' + esc(L[l]) + (l === 'Debt cover at risk' ? ', whatever happens to EPS' : '') + '</td></tr>'; }).join('') + '</tbody></table>' +
+      '<p>The five figures: EPS (earnings per share), EBITDA (operating profit), EBITDA margin, interest cover, and value move (how an earnings-based value would change). Each shows before → after.</p></div></div>' +
+      '<div class="gd-two gd-low"><div><h3 class="gd-k">Check it against history</h3><p><em>Every scenario</em> lines up all ready scenarios for this company. <em>What happened in real shocks</em> shows how far the share price actually fell in past episodes (prices, not earnings). <em>How the model did</em> tests the model on the company’s past years, so you can see how far to trust it.</p></div>' +
+      '<div><h3 class="gd-k">Keep in mind</h3><ul class="gd-ul"><li>It is illustrative, not a forecast and not advice.</li><li>Model EPS leaves out exceptional items and minority interests, so it can differ from reported EPS.</li><li>Every number the model uses is under <em>Assumptions</em>; the ones in boxes you can change.</li></ul></div></div>' +
+      '</div></section>';
+  }
+  /** The sticky bar: "All sections" (every sub-section, grouped by step) and one numbered chip per step, arrows between; the step in view is underlined. */
+  function renderBar() {
+    var bar = $('secbar'); if (!bar) return;
+    var steps = [].slice.call(root.querySelectorAll('.step')).filter(function (el) { return !el.hidden; });
+    var subsOf = function (st) {
+      var out = [], el = st.nextElementSibling;
+      while (el && !el.classList.contains('step')) {
+        [el].concat([].slice.call(el.querySelectorAll('[data-sub]'))).forEach(function (x) { if (x.hasAttribute('data-sub') && !x.hidden && !(x.closest('[hidden]'))) out.push([x.id, x.getAttribute('data-sub')]); });
+        el = el.nextElementSibling;
+      }
+      return out;
+    };
+    bar.innerHTML = '<span class="sb-allw"><button type="button" class="sb-all" data-sball="1" aria-expanded="false" aria-controls="sb-menu">' + svg('<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/>', 14) + 'All sections</button>' +
+      '<div class="sb-menu" id="sb-menu" hidden>' + steps.map(function (st, i) {
+        return '<div class="sb-g"><a href="#' + st.id + '" data-sec="' + st.id + '"><span class="sb-n">' + (i + 1) + '</span><b>' + esc(st.getAttribute('data-step')) + '</b></a>' +
+          subsOf(st).map(function (x) { return '<a href="#' + x[0] + '" data-sec="' + x[0] + '" class="sb-sub">' + esc(x[1]) + '</a>'; }).join('') + '</div>';
+      }).join('') + '</div></span><span class="sb-sep" aria-hidden="true"></span><ol class="sb-l">' +
+      steps.map(function (st, i) { return (i ? '<li class="sb-ar" aria-hidden="true">→</li>' : '') + '<li><a href="#' + st.id + '" class="sb-c" data-sec="' + st.id + '"><span class="sb-n">' + (i + 1) + '</span>' + esc(st.getAttribute('data-step')) + '</a></li>'; }).join('') + '</ol>';
+    fixBarTop(); spy();
+  }
+  function fixBarTop() {   // under the site's own sticky header, whatever its height on this screen
+    var bar = $('secbar'); if (!bar) return;
+    var h = document.querySelector('body > header, #root header, header'), top = 8;
+    if (h) { var cs = getComputedStyle(h); if (/sticky|fixed/.test(cs.position)) top = Math.round(h.getBoundingClientRect().bottom) + 6; }
+    bar.style.top = Math.max(0, top) + 'px';
+  }
+  var spyRaf = 0;
+  function spy() {
+    spyRaf = 0;
+    var bar = $('secbar'); if (!bar) return;
+    var line = (parseFloat(bar.style.top) || 0) + bar.offsetHeight + 24, on = null;
+    root.querySelectorAll('.step').forEach(function (st) { if (!st.hidden && st.getBoundingClientRect().top <= line) on = st.id; });
+    bar.querySelectorAll('.sb-c').forEach(function (c) { var y = c.getAttribute('data-sec') === on; c.classList.toggle('on', y); if (y) c.setAttribute('aria-current', 'location'); else c.removeAttribute('aria-current'); });
+  }
+  listen(window, 'scroll', function () { if (!spyRaf) spyRaf = requestAnimationFrame(spy); }, { passive: true });
+  listen(window, 'resize', function () { fixBarTop(); spy(); });
+  function goTo(id) {
+    var el = root.getElementById(id), bar = $('secbar'); if (!el) return;
+    var off = (parseFloat(bar && bar.style.top) || 0) + (bar ? bar.offsetHeight : 0) + 12;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: 'smooth' });
   }
   function renderAll() {
     renderStrip(); renderScen(); renderResults();
@@ -716,7 +894,34 @@ export function mountStressLab(root, E, D, opts) {
   listen(document, 'keydown', function (ev) { if (ev.key === 'Escape') { closeTips(null); var f = root.activeElement; if (f && f.closest && f.closest('.ib')) f.blur(); } });
   listen(root, 'click', function (ev) {
     var ibx = ev.target.closest('.ib');
-    if (ibx) { ev.preventDefault(); toggleTip(ibx); return; }   // inside a label or a summary it must not also move focus or open the fold
+    if (ibx) { ev.preventDefault(); toggleTip(ibx); return; }
+    var sh = ev.target.closest('[data-share]');
+    if (sh && !A_BAD) { shareOut(sh.getAttribute('data-share')); return; }
+    var gd = ev.target.closest('[data-guide]');
+    if (gd) { var gOpen = gd.getAttribute('aria-expanded') !== 'true'; try { localStorage.setItem(GUIDE_KEY, gOpen ? 'open' : 'closed'); } catch (e) {} renderGuide(); fixBarTop(); return; }
+    var sball = ev.target.closest('[data-sball]');
+    if (sball) { var menu = $('sb-menu'), mOpen = sball.getAttribute('aria-expanded') !== 'true'; sball.setAttribute('aria-expanded', String(mOpen)); if (menu) menu.hidden = !mOpen; return; }
+    var sec = ev.target.closest('[data-sec]');
+    if (sec) { ev.preventDefault(); var m2 = $('sb-menu'), b2 = root.querySelector('[data-sball]'); if (m2) m2.hidden = true; if (b2) b2.setAttribute('aria-expanded', 'false'); goTo(sec.getAttribute('data-sec')); return; }
+    if (!ev.target.closest('.sb-allw')) { var m3 = $('sb-menu'); if (m3 && !m3.hidden) { m3.hidden = true; var b3 = root.querySelector('[data-sball]'); if (b3) b3.setAttribute('aria-expanded', 'false'); } }
+    var cx = ev.target.closest('[data-cx]');
+    if (cx) {   // one callout's detail, opened in place (no re-render, so nothing else moves)
+      S.callsOpen = S.callsOpen || {}; var key = cx.getAttribute('data-cx'), on = cx.getAttribute('aria-expanded') !== 'true';
+      S.callsOpen[key] = on; cx.setAttribute('aria-expanded', String(on)); cx.setAttribute('aria-label', on ? 'Hide the detail' : 'Show the detail');
+      cx.innerHTML = svg(on ? '<path d="M5 12.5l5-5 5 5"/>' : '<path d="M5 7.5l5 5 5-5"/>', 16);
+      var dd = root.getElementById(cx.getAttribute('aria-controls')); if (dd) dd.hidden = !on;
+      var wrap = cx.closest('.calls'), btn = wrap && wrap.querySelector('[data-callall]');
+      if (btn) { var every = [].every.call(wrap.querySelectorAll('[data-cx]'), function (b) { return b.getAttribute('aria-expanded') === 'true'; }); btn.textContent = every ? 'Close all' : 'Open all'; btn.setAttribute('aria-pressed', String(every)); }
+      return;
+    }
+    var ca = ev.target.closest('[data-callall]');
+    if (ca) {
+      var openAll = ca.getAttribute('aria-pressed') !== 'true', box = ca.closest('.calls');
+      S.callsOpen = S.callsOpen || {};
+      box.querySelectorAll('[data-cx]').forEach(function (b) { S.callsOpen[b.getAttribute('data-cx')] = openAll; if ((b.getAttribute('aria-expanded') === 'true') !== openAll) b.click(); });
+      ca.textContent = openAll ? 'Close all' : 'Open all'; ca.setAttribute('aria-pressed', String(openAll));
+      return;
+    }   // inside a label or a summary it must not also move focus or open the fold
     var upg = ev.target.closest('[data-upgrade]');
     if (upg && opts.onUpgrade) { ev.preventDefault(); opts.onUpgrade(); return; }   // the site's own upgrade flow (sign in first, then the plan page)
     var go = ev.target.closest('[data-go]');
@@ -730,7 +935,7 @@ export function mountStressLab(root, E, D, opts) {
     if (t.hasAttribute('data-scen')) pick(t.getAttribute('data-scen'));
     else if (t.hasAttribute('data-tc')) { S.todayCrude = t.getAttribute('data-tc'); renderAll(); }
     else if (t.hasAttribute('data-pers')) { S.persistence = t.getAttribute('data-pers'); renderAll(); }
-    else if (t.hasAttribute('data-reset')) { S.scen = 'today'; S.todayCrude = 'level'; S.custom = null; S.persistence = 'one_year'; renderAll(); }
+    else if (t.hasAttribute('data-reset')) { S.scen = 'today'; S.todayCrude = 'level'; S.custom = null; S.persistence = 'one_year'; S.stretch = {}; renderAll(); }
     else if (t.hasAttribute('data-sure')) { var k = t.getAttribute('data-sure'), v = +t.getAttribute('data-v'); if (Math.abs(v - A.exposure[k]) < 1e-6) delete S.edits[k]; else S.edits[k] = v; renderAll(); }
     else if (t.hasAttribute('data-unit')) { S.unit = t.getAttribute('data-unit'); renderResults(); }
     else if (t.hasAttribute('data-pick')) pick(t.getAttribute('data-pick'));
@@ -744,8 +949,10 @@ export function mountStressLab(root, E, D, opts) {
     if (t.matches('.find input')) { findResults(t); return; }
     if (!A_BAD && t.matches('input[type=range][data-k]')) onSlide(t.getAttribute('data-k'), t.value);
   });
+  listen(root, 'keydown', function (ev) { var t = ev.target; if (!A_BAD && ev.key === 'Enter' && t.matches && t.matches('input[data-num]')) { ev.preventDefault(); onType(t.getAttribute('data-num'), t.value); } });
   listen(root, 'change', function (ev) {
     var t = ev.target;
+    if (!A_BAD && t.matches('input[data-num]')) { onType(t.getAttribute('data-num'), t.value); return; }
     if (t.matches('input[data-edit]')) {
       var k = t.getAttribute('data-edit'), ed = EDITABLE[k], v = parseFloat(t.value);
       if (isNaN(v)) { delete S.edits[k]; } else {
@@ -777,6 +984,8 @@ export function mountStressLab(root, E, D, opts) {
   listen(window, 'scroll', function () { tip.style.display = 'none'; }, { passive: true });
 
   if (!SHOWV) root.querySelectorAll('.vmove').forEach(function (el) { el.remove(); });
+  renderGuide();
+  if (!A_BAD) readLink();
   if (A_BAD) renderUnavailable(); else setView(VIEW);
   return { destroy: function () { OFF.forEach(function (f) { f(); }); OFF.length = 0; }, state: S, render: renderAll, pick: pick, setView: setView };
 }
