@@ -12,12 +12,12 @@ try:
     from .financial_records import CR, num, items, first, field_date
     from .premium_classification import resolve_group, profile_from, label_text, unmapped_reason, CLASSIFICATION_VERSION
     from .financial_fields import INTEREST_COST_FIELDS
-    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
+    from .premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS, REVENUE_VERSION
 except ImportError:
     from financial_records import CR, num, items, first, field_date
     from premium_classification import resolve_group, profile_from, label_text, unmapped_reason, CLASSIFICATION_VERSION
     from financial_fields import INTEREST_COST_FIELDS
-    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS
+    from premium_model_config import QUARTERS_STORED, CAGR_MAX_YEARS, REVENUE_VERSION
 
 
 PROFIT_FIELDS = ("profitAttributableToOwnersOfParent", "profitOrLossAttributableToOwners", "profitLossAttributableToOwnersOfParent", "profitOrLossAttributableToOwnersOfParent",
@@ -125,7 +125,8 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
                 return earned - paid if earned is not None and paid is not None else None
             return value
         if group == "INSURANCE":
-            return record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium"))
+            # Life insurers report net premium income; general and health insurers report premium earned (net), e.g. ICICIGI, NIACL, STARHEALTH (revenue names v2).
+            return record(row, "sales", ("netPremiumEarned", "netPremiumIncome", "netPremium", "netEarnedPremium", "premiumEarned", "premiumsEarned"))
         return record(row, "sales", ("netSales", "sales", "revenueFromOperations", "incomeFromOperations", "revenue", "totalRevenue"))
     def profit(row):
         # Owner-attributable earnings take precedence over total group profit.
@@ -404,7 +405,7 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
     d["rating_blockers"], d["rating_cautions"] = blockers, cautions
     warnings.extend(blockers + cautions)
     chronology = {"quarterly": [f"{key // 4}-{(key % 4) * 3 + 3:02d}" for key in qkeys], "annual": [str(year) for year in ykeys]}
-    meta = {"groupDefaulted": defaulted, "classificationVersion": CLASSIFICATION_VERSION, "groupLabel": label_text(profile), "statementType": statement_type, "quarterlyAsOf": end_q.isoformat() if end_q else None,
+    meta = {"groupDefaulted": defaulted, "classificationVersion": CLASSIFICATION_VERSION, "revenueVersion": REVENUE_VERSION, "groupLabel": label_text(profile), "statementType": statement_type, "quarterlyAsOf": end_q.isoformat() if end_q else None,
             "annualAsOf": max(a).isoformat() if a else None, "balanceAsOf": max(b).isoformat() if b else None,
             "ownershipAsOf": own_date.isoformat() if own_date else None, "priceAsOf": quote_date,
             "assetQualityStatementType": raw.get("asset_quality_basis", statement_type),
