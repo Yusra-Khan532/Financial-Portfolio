@@ -92,14 +92,18 @@
 /* The in-place group view, the sticky group bar, the bottom bar and Expand (task 58, landing pack of 9 Nov) */
 .fl-gv { max-width: 1180px; margin: 8px auto 0; --ac: var(--gold); }
 .fl-gbar { position: sticky; top: 72px; z-index: 5; scroll-margin-top: 72px; display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 18px; background: color-mix(in srgb, var(--s1) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 10px 30px -18px rgba(20, 18, 10, .35); }
-.fl-gchips { display: flex; gap: 6px; flex: 1; min-width: 0; }
-.fl-gchip { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 44px; padding: 6px 10px 6px 6px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ac) 28%, var(--border)); background: color-mix(in srgb, var(--ac) 6%, var(--s1)); color: var(--text); font: 600 var(--fs-14) / 1.2 var(--sans); }
-.fl-gchip .xt-gi { width: 28px; height: 28px; border-radius: 9px; flex: none; } .fl-gchip .xt-gi svg { width: 16px; height: 16px; }
-.fl-gchip span { white-space: nowrap; } .fl-gchip b { margin-left: auto; padding-left: 4px; font: 700 var(--fs-12) var(--mono); color: var(--ac-ink); }
+.fl-gchips { display: flex; gap: 5px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: -2px; }   /* task #200: a strip that scrolls sideways when the chips do not fit, never squeezing them (padding: room for the focus ring) */
+.fl-gchips::-webkit-scrollbar { display: none; }
+.fl-gchips[data-more-r] { mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.fl-gchips[data-more-l] { mask-image: linear-gradient(90deg, transparent, #000 36px); }
+.fl-gchips[data-more-l][data-more-r] { mask-image: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+.fl-gchip { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 0 auto; display: flex; align-items: center; gap: 6px; min-width: max-content; min-height: 44px; padding: 6px 12px 6px 6px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ac) 28%, var(--border)); background: color-mix(in srgb, var(--ac) 6%, var(--s1)); color: var(--text); font: 600 var(--fs-14) / 1.2 var(--sans); }
+.fl-gchip .xt-gi { width: 26px; height: 26px; border-radius: 8px; flex: none; } .fl-gchip .xt-gi svg { width: 16px; height: 16px; }
+.fl-gchip span { white-space: nowrap; } .fl-gchip b { margin-left: auto; padding-left: 6px; font: 700 var(--fs-12) var(--mono); color: var(--ac-ink); }   /* task #200: the count keeps the 12px right padding clear; it used to be pressed into the edge */
 .fl-gchip:hover { border-color: var(--ac); }
 .fl-gchip[aria-pressed="true"] { background: var(--ac); border-color: var(--ac); color: var(--ac-on); box-shadow: 0 8px 18px -10px var(--ac); }
 .fl-gchip[aria-pressed="true"] .xt-gi { background: rgba(255, 255, 255, .22); color: var(--ac-on); } .fl-gchip[aria-pressed="true"] b { color: var(--ac-on); }
-.fl-gall { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-14) / 1 var(--sans); white-space: nowrap; }
+.fl-gall { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-14) / 1 var(--sans); white-space: nowrap; }
 .fl-gall:hover { border-color: var(--text); } .fl-gall svg { width: 16px; height: 16px; }
 .fl-gh { position: relative; padding-top: 18px; display: grid !important; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center !important; gap: 14px; }
 .fl-gh::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--ac), color-mix(in srgb, var(--ac) 30%, transparent)); }
@@ -127,7 +131,7 @@
 .fl-modal-pic { max-height: min(70vh, 760px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--s2, var(--s1)); }
 .fl-modal-pic img { display: block; width: 100%; height: auto; }
 @media (max-width: 760px) {
-  .fl-gbar { flex-wrap: nowrap; gap: 8px; padding: 8px; } .fl-gchips { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; } .fl-gchip { flex: none; } .fl-gall span { display: none; }
+  .fl-gbar { flex-wrap: nowrap; gap: 8px; padding: 8px; } .fl-gchips { -webkit-overflow-scrolling: touch; } .fl-gchip { flex: none; } .fl-gall span { display: none; }
   .fl-gfoot { grid-template-columns: 1fr; justify-items: stretch; } .fl-gnav, .fl-gnav.fl-gnext { justify-self: stretch; } .fl-gnav.fl-gnext { text-align: left; }
   .fl-modal-wrap { padding: 0; } .fl-modal { width: 100%; height: 100%; border-radius: 0; } .fl-modal-cols { grid-template-columns: minmax(0, 1fr); } .fl-modal-pic { max-height: none; }
 }
