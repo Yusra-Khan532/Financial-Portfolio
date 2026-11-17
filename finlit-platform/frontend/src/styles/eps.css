@@ -151,3 +151,31 @@
   .eps .eps-panel[hidden] { display: grid !important; }
   .eps .eps-panel { animation: none !important; }
 }
+
+/* "What your growth assumption tells you" (task #205): collapsed under the results tiles; rows that move with growth have a gold edge, the rest are plain */
+.eps-gt { margin-top: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
+.eps-gtb { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 0; border-radius: 14px; background: none; color: var(--text); font: 600 var(--fs-14)/1.3 var(--sans); text-align: left; cursor: pointer; }
+.eps-gtb svg { flex: none; width: 18px; height: 18px; color: var(--gain); }
+.eps-gtb > span:nth-child(2) { flex: 1; }
+.eps-gtb:hover { color: var(--gain); }
+.eps-gtb:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; }
+.eps-gt.on .eps-caret { transform: rotate(180deg); }
+.eps-gtp { padding: 0 16px 14px; display: grid; gap: 12px; }
+.eps-gtp[hidden] { display: none; }
+.eps-gth { margin: 0; font-size: var(--fs-14); }
+.eps-gtl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.eps-gtr { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-left-width: 3px; border-radius: 12px; background: var(--s2); }
+.eps-gtr.aff { border-left-color: var(--gold); background: var(--gold-soft); }
+.eps-gtm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.eps-gtm > b { font-size: var(--fs-14); }
+.eps-gtt { padding: 2px 8px; border-radius: 99px; font: 600 var(--fs-12)/1.3 var(--sans); background: var(--s1); color: var(--muted); }
+.eps-gtt.aff { color: var(--text); border: 1px solid var(--gold); }
+.eps-gtv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.eps-gtd { font: 600 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.eps-gtd.up, .eps-gtd.down { color: var(--text); }   /* direction only, never a judgement: a lower PEG is not "bad", so no red or green */
+.eps-gtn { font: 500 var(--fs-16)/1.3 var(--mono); overflow-wrap: anywhere; }
+.eps-gtn b { font-weight: 600; }
+.eps-gtc { font: 500 var(--fs-13)/1.3 var(--mono); color: var(--muted); }
+.eps-gtw { margin: 0; font-size: var(--fs-13); line-height: 1.45; color: var(--muted); }
+.eps-gtf { margin: 0; font-size: var(--fs-12); }
+@media (max-width: 640px) { .eps-gtl { grid-template-columns: minmax(0, 1fr); } .eps-gtb { padding: 0 12px; } .eps-gtp { padding: 0 12px 12px; } }
