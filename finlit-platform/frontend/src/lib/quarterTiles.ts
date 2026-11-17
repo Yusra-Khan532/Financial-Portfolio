@@ -1,9 +1,17 @@
 // Latest results: the six quarter tiles and the quarter menu (task #194, pack finlit-latest-results-15nov). Each tile's number is coloured by what it says, carries the
 // change from the quarter before as a pill, and opens a "By size" table (Large / Mid / Small, and the quarter before for comparison). Every figure is the server's
 // (GET /api/results/quarter: `totals`, and `summary` with &cap=); this file only words them. Describes, never advises.
-import type { KitDetail, KitTileData, KitTone } from "../components/pack/Kit";
 import type { VSummary } from "./resultsPack";
 import { sp, VERDICTS } from "./resultsPack";
+
+/** good = green, bad = red, mid = gold (mixed), info = blue (a count, not a judgement), plain = no colour (a figure the plan does not open). */
+export type KitTone = "good" | "bad" | "mid" | "info" | "plain";
+export type KitDetail = { head: string[]; rows: (string | number)[][]; note?: string };
+/** One tile, drawn by the shared DropTile (components/DropTile.tsx). */
+export type KitTileData = {
+  key: string; label: string; value: string; of?: string; tone: KitTone; sub: string; help?: string;
+  bar?: number | null; pill?: { text: string; dir: "up" | "down" | "flat"; title?: string } | null; detail?: KitDetail | null; detailLabel?: string;
+};
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const pct = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);

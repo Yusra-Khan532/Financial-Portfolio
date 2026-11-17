@@ -9,9 +9,10 @@ import { ApiError, apiGet } from "../../../lib/api";
 import { usePortfolio } from "../../../lib/portfolio";
 import { useWatchlist } from "../../../lib/watchlist";
 import { Scroll, Section, Tip, BoxChip } from "../../sectors/pack/Common";
-import { KitCards, type KitCard } from "../../pack/Kit";
+import { DashCards, DashCardsProvider, OpenAll } from "../../dashboard/DashCards";
+import { useAuth } from "../../../lib/auth";
 import { LockedBlock } from "../../sectors/Parts";
-import { BOX, WORD, keyOf } from "../../../lib/pulsePack";
+import { BOX, WORD, keyOf, type Card } from "../../../lib/pulsePack";
 import type { StateKey } from "../../../lib/sectorHistory";
 import { useQuarterResults } from "../../../lib/qresults";
 import { useRotationMap, type RotationRow } from "../../../lib/rotation";
@@ -19,6 +20,7 @@ import { useSectorBoard, type GroupRow } from "../../../lib/sectors";
 import { sp, type VRow } from "../../../lib/resultsPack";
 import { VerdictCell } from "./ResultsPack";
 import { useNseName } from "../../../lib/taxonomy";
+import "../../../styles/table-grid.css";
 
 export type Ind = { name: string; companies: number; declared: number; withNumbers?: number; medianRevenueYoY?: number | null; medianProfitYoY?: number | null; medianNpmChange?: number | null;
   revenueUpShare?: number | null; profitUpShare?: number | null; marginUpShare?: number | null; beat?: number; judged?: number; beatShare?: number | null; vsMarket?: "Ahead" | "In line" | "Behind" | null;
@@ -37,16 +39,18 @@ const AGREE_TEXT: Record<Agree, string> = {
   "Prices lag": "Strong results that the share prices have not yet reflected.", "Prices run ahead": "Shares are leading even though results trail the market.",
 };
 
-/** The four cards over the table: the kind and the headline show; the dropdown holds one line of meaning and EVERY group in it (the pack: not "and 15 more"). */
-export function industryCards(rows: { i: Ind; agree: Agree | null }[], name: (n: string) => string = (n) => n): KitCard[] {
-  const out: KitCard[] = [], nm = (x: { i: Ind }) => name(x.i.name);
+/** The four cards over the table (the dashboard's dropdown cards, shared): the kind and the headline show; the dropdown holds one line of meaning and EVERY group in it
+ *  (the pack: not "and 15 more"), each a chip that opens that group's results. */
+export function industryCards(rows: { i: Ind; agree: Agree | null }[], name: (n: string) => string = (n) => n): Card[] {
+  const out: Card[] = [];
   const ahead = rows.filter((x) => x.i.vsMarket === "Ahead"), behind = rows.filter((x) => x.i.vsMarket === "Behind");
   const lag = rows.filter((x) => x.agree === "Prices lag"), run = rows.filter((x) => x.agree === "Prices run ahead");
   const are = (n: number) => `${n} ${n === 1 ? "group is" : "groups are"}`;
-  if (ahead.length) out.push({ kind: "good", title: `${are(ahead.length)} ahead of the market`, text: "Their typical company grew revenue and profit faster than the typical listed company.", names: ahead.map(nm) });
-  out.push({ kind: "insight", title: `Results beat, prices lag: ${lag.length}`, text: lag.length ? "Strong results that the share prices have not yet reflected." : "No group has strong results with share prices that are behind.", names: lag.map(nm) });
-  out.push({ kind: "watch", title: `Prices ahead of results: ${run.length}`, text: run.length ? "Shares are leading even though results trail the market." : "No group's share prices are running ahead of weak results.", names: run.map(nm) });
-  if (behind.length) out.push({ kind: "warning", title: `${are(behind.length)} behind the market`, text: "Their typical company grew more slowly than the typical listed company.", names: behind.map(nm) });
+  const all = (xs: { i: Ind }[]) => (xs.length ? [{ label: `All ${xs.length}`, chips: xs.map((x) => ({ symbol: x.i.name, label: name(x.i.name), to: `/results/quarter?industry=${encodeURIComponent(x.i.name)}` })) }] : []);
+  if (ahead.length) out.push({ kind: "good", title: `${are(ahead.length)} ahead of the market`, text: "Their typical company grew revenue and profit faster than the typical listed company.", groups: all(ahead) });
+  out.push({ kind: "insight", title: `Results beat, prices lag: ${lag.length}`, text: lag.length ? "Strong results that the share prices have not yet reflected." : "No group has strong results with share prices that are behind.", groups: all(lag) });
+  out.push({ kind: "watch", title: `Prices ahead of results: ${run.length}`, text: run.length ? "Shares are leading even though results trail the market." : "No group's share prices are running ahead of weak results.", groups: all(run) });
+  if (behind.length) out.push({ kind: "warning", title: `${are(behind.length)} behind the market`, text: "Their typical company grew more slowly than the typical listed company.", groups: all(behind) });
   return out;
 }
 
@@ -118,12 +122,17 @@ export function IndustriesView({ inds }: { inds: Ind[] }) {
   const openName = pick === undefined ? (shown.find((i) => i.name === "Finance") ?? shown[0])?.name : pick;
   const flip = (name: string) => setPick(openName === name ? null : name);
   const locked = shown.length > 0 && shown[0].medianRevenueYoY === undefined;
+  const cards = industryCards(rows, nse);
+  const { user } = useAuth();
   const rotWhy = "No Sector Rotation reading: the group has too few stocks with a long enough price history.";
   return (
     <Section id="rs-inds" title={groupsTitle(shown.map((i) => pulse.get(i.name)?.kind), !!bq.data)} help="Groups: the same groups as Sector Pulse, each an NSE industry, or an NSE sector where its industries are too small to read alone. Each has at least five results so far and is compared with the typical listed company."
       sub="Select a group to see how its companies did, right under it. Groups with too few results so far are left out until more report."
       why="Share prices often move before results arrive. Putting each group's results next to its price trend shows where the two agree, and where one is ahead of the other.">
-      {!locked && <KitCards items={industryCards(rows, nse)} cols={4} label="What the groups' results and prices say" />}
+      {!locked && cards.length > 0 && <DashCardsProvider userId={user?.id}>
+        <div className="rs-cardbar"><OpenAll scope="results.groups" n={cards.length} /></div>
+        <DashCards items={cards} scope="results.groups" cols={4} />
+      </DashCardsProvider>}
       <Scroll label="groups"><table className="sp-tb rs-it kit-grid">
         <thead>
           <tr className="kit-bands"><th aria-hidden="true" /><th colSpan={4} scope="colgroup" className="kit-band kit-b-green">Results this quarter</th><th colSpan={2} scope="colgroup" className="kit-band kit-b-blue">Share prices now</th><th scope="colgroup" className="kit-band kit-b-dark">Together</th></tr>

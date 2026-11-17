@@ -22,25 +22,28 @@ describe("results against share prices", () => {
     ];
     const nse = (n: string) => (n === "Oil Gas & Consumable Fuels" ? "Oil, Gas & Consumable Fuels" : n);   // useNseName's job, NSE's spelling
     const c = industryCards(rows, nse);
+    const names = (k: number) => (c[k].groups ?? []).flatMap((g) => g.chips.map((x) => x.label));
     // task #192: the list holds industries and sectors (Sector Pulse's groups), so it says "groups", and names are NSE's full names, never "Oil, Gas & Fuels"
     expect(c.map((x) => x.title)).toEqual(["3 groups are ahead of the market", "Results beat, prices lag: 2", "Prices ahead of results: 1", "2 groups are behind the market"]);
     // task #194: the card shows its headline; the dropdown holds one line of meaning and EVERY group, never "and 15 more"
     expect(c[1].text).toBe("Strong results that the share prices have not yet reflected.");
-    expect(c[1].names).toEqual(["Banks", "Oil, Gas & Consumable Fuels"]);
+    expect(names(1)).toEqual(["Banks", "Oil, Gas & Consumable Fuels"]);
+    expect(c[1].groups![0].label).toBe("All 2");
+    expect(c[1].groups![0].chips[1].to).toBe("/results/quarter?industry=Oil%20Gas%20%26%20Consumable%20Fuels");   // a chip opens that group's results
     expect(c[3].text).toBe("Their typical company grew more slowly than the typical listed company.");
-    expect(c[3].names).toEqual(["IT - Software", "Realty"]);
+    expect(names(3)).toEqual(["IT - Software", "Realty"]);
   });
   it("lists every group in a card, however many", () => {
     const many = Array.from({ length: 19 }, (_, k) => ({ i: ind(`G${k}`, "Ahead"), agree: "Agree" as const }));
     const c = industryCards(many);
     expect(c[0].title).toBe("19 groups are ahead of the market");
-    expect(c[0].names).toHaveLength(19);
+    expect(c[0].groups![0].chips).toHaveLength(19);
     expect(JSON.stringify(c)).not.toMatch(/more/);
   });
   it("says so when no group lags or runs ahead", () => {
     const c = industryCards([{ i: ind("A", "In line"), agree: "Mixed" }]);
     expect(c.map((x) => x.kind)).toEqual(["insight", "watch"]);
-    expect(c[0].text).toBe("No group has strong results with share prices that are behind."); expect(c[0].names).toEqual([]);
+    expect(c[0].text).toBe("No group has strong results with share prices that are behind."); expect(c[0].groups).toEqual([]);
   });
 });
 

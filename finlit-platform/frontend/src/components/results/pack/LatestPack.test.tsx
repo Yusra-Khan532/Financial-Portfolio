@@ -3,11 +3,12 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { KitCards, KitTiles, type KitTileData } from "../../pack/Kit";
-import { QuarterPicker } from "./QuarterTop";
+import { QuarterPicker, QuarterTiles } from "./QuarterTop";
+import type { QResp } from "../../../lib/qresults";
 
 vi.mock("../../../lib/watchlist", () => ({ useWatchlist: () => ({ lists: [{ symbols: ["TCS"] }] }) }));
 vi.mock("../../../lib/portfolio", () => ({ usePortfolio: () => ({ holdings: [] }) }));
+vi.mock("../../../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("../../../lib/taxonomy", () => ({ useNseName: () => (n: string) => (n === "Paper Forest & Jute Products" ? "Paper, Forest & Jute Products" : n) }));
 vi.mock("@tanstack/react-query", async (orig) => ({ ...(await orig<typeof import("@tanstack/react-query")>()), useQuery: () => ({ data: { groups: { TCS: { name: "IT - Software" } } } }) }));
 vi.mock("../../../lib/rotation", () => ({ useRotationMap: () => ({ data: { rows: [{ name: "Finance", corner: "behind_slipping" }, { name: "IT - Software", corner: "ahead_gaining" }] } }) }));
@@ -19,44 +20,47 @@ vi.mock("../../../lib/qresults", async (orig) => ({ ...(await orig<typeof import
 import { IndustriesView, type Ind } from "./IndustriesView";
 
 afterEach(cleanup);
+const ind = (name: string, o: Partial<Ind> = {}): Ind => ({ name, companies: 60, declared: 60, withNumbers: 60, medianRevenueYoY: 18.8, medianProfitYoY: 21.5, beatShare: 41, vsMarket: "Ahead",
+  revenueUpShare: 77, profitUpShare: 77, marginUpShare: 57, medianNpmChange: 0.5, market: { medianRevenueYoY: 16.8, medianProfitYoY: 11.1, medianNpmChange: -0.3 }, ...o });
 
-describe("tile with a dropdown (shared)", () => {
-  const t: KitTileData = { key: "p", label: "Typical profit growth", value: "+11.1%", tone: "good", sub: "vs a year ago", pill: { text: "▼ 6.7 pt vs Q1 FY27", dir: "down" },
-    detailLabel: "By size", detail: { head: ["Size", "Typical profit growth"], rows: [["Large", "+22.5%"], ["Small", "+7.2%"]], note: "A note." } };
-  it("opens its table and note in a panel that floats, and closes on Escape or a click outside", () => {
-    render(<KitTiles tiles={[t]} label="tiles" />);
-    const btn = screen.getByRole("button", { name: "By size" });
-    expect(btn.getAttribute("aria-expanded")).toBe("false");
+describe("the six tiles on the shared DropTile", () => {
+  const sum = { companies: 5175, declared: 5166, due: 9, awaiting: 0, withNumbers: 4156, flagged: 0, medianRevenueYoY: 16.8, medianProfitYoY: 11.1, profitUpShare: 58.1, marginUpShare: 45.4, beatShare: 34.1, nRevenue: 3659, nProfit: 2890, nMargin: 3000 };
+  const r = { plan: "gold", locked: false, today: "2026-11-17", quarter: { key: "2026-09", label: "Jul to Sep 2026", fiscal: "Q2 FY27", periodEnd: "2026-09-30", from: "", to: "" },
+    quarters: [{ key: "2026-09", label: "Jul to Sep 2026", fiscal: "Q2 FY27", total: 5175, declared: 5166, due: 9, periodEnd: "", from: "", to: "" }, { key: "2026-06", label: "Apr to Jun 2026", fiscal: "Q1 FY27", total: 1643, declared: 1643, due: 0, periodEnd: "", from: "", to: "" }],
+    totals: sum, summary: sum } as unknown as QResp;
+  it("draws six coloured tiles with the pill, and a By size panel that floats and closes on Escape or a click outside", () => {
+    render(<MemoryRouter><QuarterTiles r={r} /></MemoryRouter>);
+    const tiles = document.querySelectorAll(".rs-q6 > .dtl");
+    expect(tiles).toHaveLength(6);
+    expect(Array.from(tiles).map((t) => t.className.split(" ")[1])).toEqual(["dtl-blue", "dtl-green", "dtl-green", "dtl-green", "dtl-gold", "dtl-gold"]);
+    const profit = screen.getByTestId("qt-medianProfitYoY");
+    expect(profit.querySelector(".dtl-n.dtl-good")!.textContent).toBe("+11.1%");
+    const btn = within(profit).getByRole("button", { name: /By size/ });
     fireEvent.click(btn);
-    const pane = screen.getByRole("region", { name: "Typical profit growth: By size" });
-    expect(pane.className).toBe("kit-ddbody");   // absolutely placed (kit.css), so the tile keeps its height
-    expect(within(pane).getAllByRole("row").map((r) => r.textContent)).toEqual(["SizeTypical profit growth", "Large+22.5%", "Small+7.2%"]);
-    expect(pane.textContent).toContain("A note.");
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("region")).toBeNull();
+    const pane = within(profit).getByRole("region");
+    expect(pane.className).toBe("dtl-panel");   // absolutely placed (droptile.css), so the tile keeps its height
+    expect(within(pane).getAllByRole("row")[0].textContent).toBe("SizeTypical profit growth");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(pane.hidden).toBe(true);
     fireEvent.click(btn); fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole("region")).toBeNull();
-  });
-  it("shows the coloured number, the pill and the sub-line", () => {
-    const { container } = render(<KitTiles tiles={[t]} label="tiles" />);
-    expect(container.querySelector(".kit-tile.kit-good .kit-val")!.textContent).toBe("+11.1%");
-    expect(container.querySelector(".kit-pill.down")!.textContent).toBe("▼ 6.7 pt vs Q1 FY27");
+    expect(pane.hidden).toBe(true);
   });
 });
 
-describe("callout cards with a dropdown (shared)", () => {
-  const items = [{ kind: "good" as const, title: "19 groups are ahead of the market", text: "Their typical company grew faster.", names: ["Finance", "Chemicals"] },
-    { kind: "warning" as const, title: "12 groups are behind the market", text: "Slower.", names: ["Realty"] }];
-  it("shows only the kind and headline until the chevron opens the line and every name; Open all / Close all", () => {
-    render(<KitCards items={items} label="cards" />);
-    expect(screen.queryByText("Their typical company grew faster.")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Open: 19 groups are ahead of the market" }));
-    expect(screen.getByText("Their typical company grew faster.")).toBeTruthy();
-    expect(screen.getByText("All 2")).toBeTruthy(); expect(screen.getByText("Chemicals")).toBeTruthy();
+describe("the cards (the dashboard's shared dropdown cards)", () => {
+  it("shows only the kind and headline until the chevron opens the line and every group; Open all / Close all", () => {
+    render(<MemoryRouter><IndustriesView inds={[ind("Finance"), ind("Chemicals"), ind("Realty", { vsMarket: "Behind" })]} /></MemoryRouter>);
+    const good = screen.getByRole("button", { name: /2 groups are ahead of the market/ });
+    expect(good.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(good);
+    expect(good.getAttribute("aria-expanded")).toBe("true");
+    const body = document.getElementById(good.getAttribute("aria-controls")!)!;
+    expect(body.textContent).toMatch(/Their typical company grew revenue and profit faster.*All 2.*Chemicals.*Finance/);
+    expect(within(body).getByRole("link", { name: "Chemicals" }).getAttribute("href")).toBe("/results/quarter?industry=Chemicals");
     fireEvent.click(screen.getByRole("button", { name: "Open all" }));
-    expect(screen.getByText("Realty")).toBeTruthy();
+    expect(screen.getAllByRole("button", { expanded: true }).filter((b) => b.className === "dsh-ic-row")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Close all" }));
-    expect(screen.queryByText("Realty")).toBeNull();
+    expect(screen.queryAllByRole("button", { expanded: true }).filter((b) => b.className === "dsh-ic-row")).toHaveLength(0);
   });
 });
 
@@ -84,8 +88,6 @@ describe("the quarter dropdown", () => {
 });
 
 describe("the Industries table", () => {
-  const ind = (name: string, o: Partial<Ind> = {}): Ind => ({ name, companies: 60, declared: 60, withNumbers: 60, medianRevenueYoY: 18.8, medianProfitYoY: 21.5, beatShare: 41, vsMarket: "Ahead",
-    revenueUpShare: 77, profitUpShare: 77, marginUpShare: 57, medianNpmChange: 0.5, market: { medianRevenueYoY: 16.8, medianProfitYoY: 11.1, medianNpmChange: -0.3 }, ...o });
   const inds = [ind("IT - Software", { companies: 150, declared: 150, withNumbers: 150, vsMarket: "Behind" }), ind("Finance"), ind("Paper, Forest & Jute Products", { declared: 24, companies: 24, withNumbers: 24 }), ind("Diversified", { declared: 9, companies: 9, withNumbers: 9 })];
   const view = () => render(<MemoryRouter><IndustriesView inds={inds} /></MemoryRouter>);
   it("groups its headers in three bands with the new names", () => {

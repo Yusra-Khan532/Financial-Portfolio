@@ -1,11 +1,12 @@
 // Latest results, the top of the page (task #194, pack finlit-latest-results-15nov): the six quarter tiles (coloured, with the change from the quarter before and a
 // "By size" dropdown) and the quarter dropdown (one button; its menu shows how many companies each quarter has, and marks the partial ones). Figures are the server's.
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
-import { KitTiles, Chevron, useDismiss } from "../../pack/Kit";
+import { DropTile, type TileAccent, type TileTone } from "../../DropTile";
+import { Tip } from "../../sectors/pack/Common";
 import { useQuarterResults, type QResp } from "../../../lib/qresults";
 import { longDate, type VSummary } from "../../../lib/resultsPack";
-import { PARTIAL_UNDER, months, quarterTiles, type BySize, type Prev } from "../../../lib/quarterTiles";
+import { PARTIAL_UNDER, months, quarterTiles, type BySize, type KitTileData, type KitTone, type Prev } from "../../../lib/quarterTiles";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 type QItem = QResp["quarters"][number];
@@ -30,12 +31,39 @@ export function QuarterTiles({ r }: { r: QResp | undefined }) {
   const upd = r.updatedAt ? new Date(r.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
   return (
     <section className="rs-kpis rs-qtiles" aria-label="The quarter so far">
-      <KitTiles tiles={quarterTiles(t, prev, by, locked)} n={6} label="The quarter in six figures" />
+      <div className="rs-q6" role="group" aria-label="The quarter in six figures">{quarterTiles(t, prev, by, locked).map((x) => <QTile key={x.key} t={x} />)}</div>
       {locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
       <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
     </section>
   );
 }
+
+const TONE: Record<KitTone, TileTone> = { good: "good", bad: "bad", mid: "mixed", info: "plain", plain: "plain" };
+const ACCENT: Record<KitTone, TileAccent> = { good: "green", bad: "red", mid: "gold", info: "blue", plain: "ink" };
+const PILL: Record<"up" | "down" | "flat", TileTone> = { up: "good", down: "bad", flat: "plain" };
+/** One quarter tile on the shared DropTile (task #193's tile with a dropdown): the (i), the bar, the pill and the By size table. */
+function QTile({ t }: { t: KitTileData }) {
+  return <DropTile testId={"qt-" + t.key} label={<>{t.label}{t.help && <Tip text={t.help} label={`About “${t.label}”`} />}</>} value={t.value} unit={t.of} sub={t.sub}
+    tone={TONE[t.tone]} accent={ACCENT[t.tone]} pill={t.pill ? { text: t.pill.text, tone: PILL[t.pill.dir] } : null}
+    bar={t.bar != null ? <span className="rs-qbarline" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, t.bar))}%` }} /></span> : undefined}
+    moreLabel={t.detailLabel} more={t.detail ? <>
+      <table><thead><tr>{t.detail.head.map((h, i) => <th key={i} scope="col" className={i ? "r" : undefined}>{h}</th>)}</tr></thead>
+        <tbody>{t.detail.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className={j ? "r" : undefined}>{c}</td>)}</tr>)}</tbody></table>
+      {t.detail.note && <p className="rs-qnote">{t.detail.note}</p>}
+    </> : undefined} />;
+}
+
+/** Closes a floating menu on Escape (focus back to its button) or a click outside both. */
+function useDismiss(open: boolean, close: () => void, refs: React.RefObject<HTMLElement | null>[]) {
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { close(); refs[0].current?.focus(); } };
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (!refs.some((r) => r.current?.contains(t))) close(); };
+    addEventListener("keydown", key); addEventListener("mousedown", away);
+    return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+const Chevron = () => <svg className="rs-qchev" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 4.5 6 7.5 9 4.5" /></svg>;
 
 /** "5,165 out · 10 due" */
 const counts = (x: QItem) => `${n0(x.declared)} out${x.due ? ` · ${n0(x.due)} due` : ""}`;

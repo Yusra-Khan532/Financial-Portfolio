@@ -49,6 +49,8 @@
 .rs-big a { color: var(--sp-ink); text-decoration: none; }
 
 /* Latest results, task #194 (pack finlit-latest-results-15nov) */
+/* the cards' Open all / Close all, above them on the right */
+.rs-cardbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 /* the quarter dropdown */
 .rs-qdd { position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rs-qlab { font: 600 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
@@ -66,6 +68,15 @@
 .rs-qbar { display: block; height: 4px; border-radius: 99px; background: var(--s2); overflow: hidden; } .rs-qbar i { display: block; height: 100%; background: var(--gold); }
 @media (max-width: 640px) { .rs-qmenu { left: 0; } .rs-qo { grid-template-columns: minmax(0, 1fr) 48px auto; } .rs-qo .pt:empty { display: none; } .rs-qo .pt { grid-column: 1 / -1; margin-top: -6px; padding-bottom: 6px; } }
 .rs-qtiles { position: relative; z-index: 7; }
+/* the six tiles (shared DropTile): the same height, 6 across, 3 at 1300px, 2 at 900px, 1 on a phone */
+.rs-q6 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+@media (max-width: 1300px) { .rs-q6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .rs-q6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .rs-q6 { grid-template-columns: minmax(0, 1fr); } }
+.rs-q6 .dtl-k { display: flex; align-items: center; gap: 6px; }
+.rs-qbarline { display: block; height: 6px; border-radius: 99px; background: var(--s2); overflow: hidden; } .rs-qbarline i { display: block; height: 100%; border-radius: 99px; background: var(--gain); }
+.rs-qnote { font-size: var(--fs-small); line-height: var(--lh-13); color: var(--muted); }
+.rs-qchev { transition: transform .15s; } .rs-qbtn[aria-expanded="true"] .rs-qchev { transform: rotate(180deg); }
 /* the industry table: full width, a row opens its details right under it */
 .rs-iname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; } .rs-iname b { font: 600 var(--fs-body)/var(--lh-14) var(--sans); color: var(--sp-ink); }
 .rs-it td small { display: block; font-size: var(--fs-caption); color: var(--sp-mute); }
