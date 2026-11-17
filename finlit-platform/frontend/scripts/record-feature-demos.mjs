@@ -106,6 +106,11 @@ const CLIPS = {
     await cap(p, 1, "Where the revenue and profit come from"); await sleep(2800);
     await cap(p, 2, "Segment by segment, over the years"); await scrollBy(p, 440, 2200); await sleep(2800);
     await cap(p, 3, "How the mix has shifted"); await scrollBy(p, 520, 2200); await sleep(2000); } },
+  superinvestors: { url: "/superinvestors", run: async (p) => {
+    await cap(p, 1, "Every investor named with 1% or more in two or more companies"); await scrollBy(p, 300, 1800); await sleep(2200);
+    await hit(p, 'a[href="/superinvestors/example-investor-e"]', { wait: 2200 });
+    await cap(p, 2, "Stock picks and weightings, valued at today's prices"); await scrollBy(p, 380, 2000); await sleep(2600);
+    await cap(p, 3, "The sector split and what changed over the year"); await scrollBy(p, 620, 2400); await sleep(2600); } },
   "gold-dash": { url: "/premium", run: async (p) => {
     await cap(p, 1, "Gold dashboards: four tools for serious investors", "Fast to open, always up to date"); await sleep(2600);
     await cap(p, 2, "FinLit Prism, company financials, market events and the premium report"); await hit(p, '.pm-card >> nth=0', { click: false, wait: 1600 }); await hit(p, '.pm-card >> nth=1', { click: false, wait: 1800 });
