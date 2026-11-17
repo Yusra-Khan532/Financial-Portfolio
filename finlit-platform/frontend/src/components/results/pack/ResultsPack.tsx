@@ -12,6 +12,7 @@ import { dayCards, dayShort, kpiTiles, longDate, monthName, sp, VERDICTS, weekCa
 import type { QResp } from "../../../lib/qresults";
 import { useNseName } from "../../../lib/taxonomy";
 import { growthTone, industryLines } from "../../../lib/resultsCalendar";
+import "../../../styles/table-grid.css";   // the shared grid table (kit-grid / kit-bands) of the tables below; imported here so every page that draws them has it
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const cr = (v: number | null | undefined) => (v == null ? "–" : Math.abs(v) >= 100 ? n0(Math.round(v)) : v.toFixed(1));
@@ -105,9 +106,9 @@ export const HOW_JUDGED = "Revenue growth, profit growth and margin change on a 
 const YOY = "On a year ago (YoY). This quarter compared with the same quarter last year. It removes seasonal effects, so it is the main yardstick.";
 export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: string; mine?: Set<string> }) {
   return (
-    <Scroll label={label}><table className="sp-tb rs-t rsc-grid">
+    <Scroll label={label}><table className="sp-tb rs-t kit-grid">
       <thead>
-        <tr className="rp-bands rsc-groups"><th colSpan={3} className="rsc-g0" /><th colSpan={3} scope="colgroup" className="rp-band rsc-g rsc-g-rev"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} scope="colgroup" className="rp-band rsc-g rsc-g-np"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} scope="colgroup" className="rp-band rsc-g rsc-g-pm"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th scope="colgroup" className="rp-band rsc-g rsc-g-vs"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
+        <tr className="kit-bands"><th colSpan={3} aria-hidden="true" /><th colSpan={3} scope="colgroup" className="kit-band kit-b-blue"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} scope="colgroup" className="kit-band kit-b-green"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} scope="colgroup" className="kit-band kit-b-gold"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th scope="colgroup" className="kit-band kit-b-dark"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
         <tr><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
           <th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">Now</th><th scope="col" className="r">Change</th><th scope="col">Verdict</th></tr>
       </thead>
@@ -197,7 +198,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
       right={<Link to="/results/quarter?status=due" className="sp-link">See all {n0(total)} →</Link>}>
       {!resp ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the week ahead" /> : !shown.length ? <p className="sp-empty">No board meetings on results are announced for the next seven days.</p> : <>
         {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-week" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-week" /></div>}
-        <Scroll label="results due this week"><table className="sp-tb rs-t rsc-grid rsc-week-t">
+        <Scroll label="results due this week"><table className="sp-tb rs-t kit-grid rsc-week-t">
           <colgroup><col style={{ width: 112 }} /><col /><col style={{ width: 200 }} /><col style={{ width: 72 }} /><col style={{ width: 120 }} /><col style={{ width: 230 }} /><col style={{ width: 150 }} /></colgroup>
           <thead><tr><th scope="col">Day</th><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
             <th scope="col" className="r">Market value<Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." /></th>
