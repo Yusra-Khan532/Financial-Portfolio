@@ -458,6 +458,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(intraday.router)   # /api/stocks/{symbol}/intraday: also before the /api/stocks/{symbol}/{section} route
     app.include_router(leadership_api.router)   # /api/stocks/{symbol}/leadership and /leadership-history: likewise
     app.include_router(ownership_insights.router)   # /api/stocks/{symbol}/ownership-insights: likewise
+    app.include_router(__import__("finlit.superinvestors", fromlist=["router"]).router)   # /api/superinvestors: named investors of 1% or more, by investor (task #212)
     from .company_brief import api as _cb
     app.include_router(_cb.router)   # /api/stocks/{symbol}/brief: before the generic section route too
     app.include_router(_cb.admin)   # /api/admin/company-brief/*

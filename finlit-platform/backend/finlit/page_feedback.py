@@ -1,4 +1,4 @@
-"""Page queries and feedback: "Raise a Query" in a page's banner and "Share Feedback" at the foot of every page.
+"""Page queries and feedback: "Raise a Query" and "Share Feedback", side by side at the bottom right of every page.
 
 Every message is tagged with the page it came from (address, the name the page gives itself and a few short facts such as the company symbol), so the team
 knows which feature it is about. Members write as themselves (the account is the way back to them); a visitor who is not signed in must leave an email address.

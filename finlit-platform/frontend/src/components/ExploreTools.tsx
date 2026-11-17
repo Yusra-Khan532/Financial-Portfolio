@@ -126,6 +126,17 @@ export function ExploreTools() {
     addEventListener(OPEN_EXPLORE, on); addEventListener("hashchange", hash); addEventListener("popstate", hash);
     return () => { removeEventListener(OPEN_EXPLORE, on); removeEventListener("hashchange", hash); removeEventListener("popstate", hash); };
   }, []);
+  // task #200: when the chips do not all fit (a narrow screen), the strip scrolls sideways; a fade marks the side that has more chips, and the open
+  // group's chip is brought into view
+  const strip = useRef<HTMLDivElement>(null), [more, setMore] = useState({ l: false, r: false });
+  useEffect(() => {
+    const el = strip.current; if (!el) return;
+    const on = () => setMore({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+    const cur = el.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (cur && el.scrollWidth > el.clientWidth) { const l = cur.offsetLeft - el.offsetLeft; if (l < el.scrollLeft || l + cur.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, l - 24); }
+    on(); el.addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
+    return () => { el.removeEventListener("scroll", on); removeEventListener("resize", on); };
+  }, [mode]);
   useEffect(() => {   // a chip, Previous or Next brings the bar back to the top of the screen when it has scrolled away
     if (!toTop.current) return; toTop.current = false;
     const el = bar.current; if (!el) return;
@@ -163,8 +174,8 @@ export function ExploreTools() {
         {group && prev && next && (
           <div className="fl-gv" data-group={group.id}>
             <div className="fl-gbar" ref={bar} role="group" aria-label="Tool groups">
-              <button type="button" className="fl-gall" onClick={() => show("dir")}><Icon name="grid" /><span>All groups</span></button>
-              <div className="fl-gchips">{BUCKETS.map((b) => (
+              <button type="button" className="fl-gall" aria-label="All groups" onClick={() => show("dir")}><Icon name="grid" /><span>All</span></button>
+              <div className="fl-gchips" ref={strip} data-more-l={more.l || undefined} data-more-r={more.r || undefined}>{BUCKETS.map((b) => (
                 <button key={b.id} type="button" className="fl-gchip" data-group={b.id} aria-pressed={b.id === group.id} onClick={() => show(b.id)}><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[b.id] ?? "grid"} /></span><span>{b.name}</span><b>{pad(b.cards.length)}</b></button>))}</div>
             </div>
             <div className="xt-pane"><div className="xt-ghead fl-gh"><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[group.id] ?? "grid"} /></span><div><h3>{group.name}</h3><p>{group.line}</p></div><span>{group.cards.length} tools</span></div>
