@@ -2,7 +2,7 @@
 // however narrow the screen. Escape or a click outside closes it; focus moves in and returns to the button; arrow keys move through the grid.
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
-import { columnsOf, moveIndex, type NavItem } from "../lib/sectionNav";
+import { columnsOf, moveIndex, sectionNo, type NavItem } from "../lib/sectionNav";
 
 export function SectionsMenu({ items, active, onPick }: { items: NavItem[]; active: string | null; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -38,7 +38,7 @@ export function SectionsMenu({ items, active, onPick }: { items: NavItem[]; acti
           {items.map(([sid, label, ic, hint]) => (
             <button key={sid} type="button" data-s={sid} className={"smn-i" + (active === sid ? " on" : "")} aria-current={active === sid ? "true" : undefined}
               onClick={() => { close(true); onPick(sid); }}>
-              <span className="smn-ic"><Icon name={ic} /></span><span className="smn-t"><b>{label}</b><small>{hint}</small></span>
+              <span className="smn-ic"><Icon name={ic} /></span><span className="smn-t"><b>{sectionNo(sid) ? <span className="sn-no">{sectionNo(sid)}</span> : null}{label}</b><small>{hint}</small></span>
             </button>
           ))}
         </div>

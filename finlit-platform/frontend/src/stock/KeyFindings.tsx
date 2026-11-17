@@ -8,7 +8,7 @@ import { earningsIntel, type Intel, type ModuleKey } from "../lib/earningsIntel"
 import { useProfitReality } from "./ProfitReality";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
-import { SectionHead } from "./Sections";
+import { SectionHead, type HeadCount } from "./Sections";
 import "../styles/insights.css";
 
 export type Findings = { flags: Item[]; watch: Item[]; good: Item[] };
@@ -66,10 +66,10 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
   const k = useMemo(() => findingsOf(s, f, lender, checks), [s, f, lender, checks]);
   const total = k.flags.length + k.watch.length + k.good.length;
   if (!total) return null;
-  const counts = `${k.flags.length} red flag${k.flags.length === 1 ? "" : "s"} · ${k.watch.length} to watch · ${k.good.length} positive${k.good.length === 1 ? "" : "s"}`;
+  const counts: HeadCount[] = [{ n: k.flags.length, label: k.flags.length === 1 ? "red flag" : "red flags", tone: "red" }, { n: k.watch.length, label: "to watch", tone: "amb" }, { n: k.good.length, label: k.good.length === 1 ? "positive" : "positives", tone: "pos" }];
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" aside={<span className="sh-counts">{counts}</span>} />
+      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" counts={counts} />
       <Gate tier="silver" title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
         <div className="kf-g">
           <Col kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />

@@ -25,12 +25,14 @@ import { CompanyBriefSection } from "./CompanyBrief";
 import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
+import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";
 import { useProfitReality } from "./ProfitReality";
 import { earningsIntel } from "../lib/earningsIntel";
-import { GROUP_START, navFor } from "../lib/sectionNav";
+import { GROUP_START, navFor, sectionNo } from "../lib/sectionNav";
+import { usePlanModel } from "../lib/planScore";
 import { SectionsMenu } from "./SectionsMenu";
 import { PreparingReport, type PreparingMode } from "./PreparingReport";
 
@@ -70,7 +72,8 @@ export function StockPage() {
   const peers = useSection<Peers>(symbol, "peers", ready).data;
   const seg = useSection<Segments>(symbol, "segments", ready).data;
   const events = useSection<Events>(symbol, "events", ready).data;
-  const navItems = useMemo(() => navFor(), []);
+  const model = usePlanModel();
+  const navItems = useMemo(() => navFor(model), [model]);   // task #216: the Scores line follows the plan (one score per screen)
   const talk = useStats(symbol).data;      // how many discussions members have started about this company, on the viewer's own board (task #101)   // no pill for a section that is switched off
   const pReality = useProfitReality(symbol, !!s?.dataQuality.isBank);
   const found = useMemo(() => (s ? findingsOf(s, fin, !!s.dataQuality.isBank, checkItems(earningsIntel(pReality, s.profile.sector, s.profile.industry))) : null), [s, fin, pReality]);   // the red / orange dots on the tabs
@@ -98,13 +101,17 @@ export function StockPage() {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     if (!s) return;
-    const vis = new Map<string, boolean>();
-    const io = new IntersectionObserver((es) => { es.forEach((e) => vis.set(e.target.id, e.isIntersecting)); const f = navItems.find(([id]) => vis.get(id)); setActive(f ? f[0] : null); }, { rootMargin: "-180px 0px -55% 0px" });
-    navItems.forEach(([id]) => { const n = document.getElementById(id); if (n) io.observe(n); });
+    // task #216 (README 1.8): the chosen chip is the last section whose heading top is above 230 px; a target inside a hidden tab counts by its section's
+    // heading. Read on scroll in one animation frame; nothing here scrolls the page (no scrollIntoView), so the page never jumps back while the reader scrolls.
+    const headOf = (id: string) => { let t = document.getElementById(id); if (t && (t.closest("[hidden]") || !t.getClientRects().length)) { const sec = t.closest("section.block"); t = (sec?.querySelector<HTMLElement>(".sh") ?? sec as HTMLElement | null); } return t; };
+    let tick = 0;
+    const upd = () => { tick = 0; let cur: string | null = null, curH: Element | null = null; for (const [id] of navItems) { const h = headOf(id); if (h && h.getBoundingClientRect().top < 230 && h !== curH) { cur = id; curH = h; } } setActive(cur ?? navItems[0]?.[0] ?? null); };
+    const onScroll = () => { if (!tick) tick = requestAnimationFrame(upd); };
+    addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); upd();
     const hero = document.querySelector(".idr");
     const io2 = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.bottom < 200), { rootMargin: "-130px 0px 0px 0px" });   // gone off the TOP of the screen, not merely below it
     if (hero) io2.observe(hero);
-    return () => { io.disconnect(); io2.disconnect(); };
+    return () => { removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); cancelAnimationFrame(tick); io2.disconnect(); };
   }, [s, ratios, fin, own, peers, seg, events, navItems, shown]);
 
   useEffect(() => {
@@ -148,7 +155,7 @@ export function StockPage() {
           <SectionsMenu items={navItems} active={active} onPick={jump} />
           <div className={"snav" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "")}>
           {edge.l && <button type="button" className="snav-arrow" aria-label="Earlier sections" onClick={() => slide(-1)}>‹</button>}
-          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{label}{id === "community" && !!talk?.threads && <b className="snav-n" aria-label={`${talk.threads} discussions`}>{talk.threads}</b>}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
+          <nav ref={links} aria-label="Sections"><span className="pill" ref={pill} />{navItems.map(([id, label, ic]) => <a key={id} data-s={id} href={`#${id}`} className={(active === id ? "active" : "") + (GROUP_START.has(id) ? " grp" : "")} aria-current={active === id ? "true" : undefined} onClick={(e) => { e.preventDefault(); jump(id); }}><Icon name={ic} />{sectionNo(id) ? <span className="sn-no">{sectionNo(id)}</span> : null}{label}{id === "community" && !!talk?.threads && <b className="snav-n" aria-label={`${talk.threads} discussions`}>{talk.threads}</b>}{id === "earnings" ? <EarnDot s={s} /> : dotOf(id) && <i className={"tdot " + dotOf(id)} role="img" aria-label={dotOf(id) === "f" ? "has a red flag" : "has something to watch"} />}</a>)}</nav>
           {edge.r && <button type="button" className="snav-arrow" aria-label="More sections" onClick={() => slide(1)}>›</button>}
           </div>
         </div>

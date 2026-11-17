@@ -18,6 +18,7 @@ import { buckets, metric } from "./derive";
 import { useClassification } from "../lib/taxonomy";
 import { useUI } from "../lib/ui";
 import { SectionHead } from "./Sections";
+import { TabGroup } from "../components/TabGroup";
 import { ProfitabilityRatios } from "./ProfitabilityRatios";
 import { DuPont } from "./DuPont";
 import { EarningsCash, useEarningsFindings } from "./EarningsCash";
@@ -153,11 +154,15 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       <Plain>Ratios turn big numbers into fair comparisons. The meters below show where each one sits against common rules of thumb. Zones are a starting point: always compare with companies in the same industry.</Plain>
       <div className="mtr-grid">{meters.map((m) => <Meter key={m.key} m={m} r={r} on={cur?.key === m.key} onSel={() => setSel(m.key)} />)}</div>
       {cur && <p className="mtr-say" aria-live="polite"><b>{r.latest[cur.key].label}</b> {cur.say(r.latest[cur.key].value)}</p>}
-      <div className="card acc" style={{ margin: "24px 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
+      {/* task #216 (README 3.9): the meters stay above; the rest is one tab group with the Key view badge */}
+      <TabGroup label="Ratios" variant="key" hint="Profitability ratios shown here" views={[
+        { key: "profit", label: "Profitability ratios", content: <>
+      <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
         <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
       </div>
-      <h3 className="rg-h">All ratios today</h3>
+        </> },
+        { key: "today", label: "All ratios today", content: <>
       <div className="grid g3">
         {r.groups.filter((g) => g.keys.length).map((g) => {
           const keys = g.keys.filter((k) => !(DUPES[k] && r.latest[DUPES[k]]));
@@ -178,6 +183,8 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
         })}
       </div>
       <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
+        </> },
+        { key: "history", label: "Ratio history", content: <>
       <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
         <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
@@ -185,11 +192,13 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
           <ValuationHistory r={r} />
         </div>
       </Gate>
+        </> },
+      ]} />
     </section>
       <DuPont symbol={r.meta.symbol} lender={lender}
         head={<SectionHead id="dupont" no="10 · DuPont analysis" icon="layers" tier="basic" title="What drives return on equity" sub="ROE split into profit margin, asset turnover and leverage, then cleaned of one-off items and split further." color="--p-quality" />} />
       <section className="block" style={{ "--sc": "var(--p-profit)" } as React.CSSProperties}>
-        <SectionHead id="earnings" no="11 · Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." color="--p-profit" aside={ef ? <span className="sh-counts">{ef.red} red flag{ef.red === 1 ? "" : "s"} · {ef.watch} to watch · {ef.investigate} to investigate</span> : undefined} />
+        <SectionHead id="earnings" no="11 · Earnings & cash quality" icon="shield" tier="gold" title="Is the profit real, and is it turning into cash?" sub="Profit against cash, collections and stock, and one-off items." color="--p-profit" counts={ef ? [{ n: ef.red, label: ef.red === 1 ? "red flag" : "red flags", tone: "red" }, { n: ef.watch, label: "to watch", tone: "amb" }, { n: ef.investigate, label: "to investigate", tone: "amb" }] : undefined} />
         <EarningsCash symbol={r.meta.symbol} lender={lender} sector={sector} industry={industry} labels={labels} />
       </section>
     </>
