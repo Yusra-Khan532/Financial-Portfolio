@@ -134,7 +134,8 @@ async def test_portfolio_facts_merge_into_the_fund_page_facts(store):
     assert "unavailable" in f["riskometer"] and "unavailable" in f["managers"] and "unavailable" in f["minInvestment"]
     port = await disclosure.get_portfolio(store.pool, "INF200KA1Z00")     # ETF pages look schemes up by ISIN
     assert port["asOf"] == "2026-09-30" and len(port["holdings"]) == len(p.holdings)
-    assert port["summary"]["sectors"][0]["sector"] == "Auto Components" and port["summary"]["top10Pct"] == pytest.approx(49.3, abs=0.1)
+    assert port["summary"]["industries"][0]["industry"] == "Auto Components" and port["summary"]["macroSectors"][0]["macroSector"] == "Consumer Discretionary"
+    assert port["summary"]["top10Pct"] == pytest.approx(49.3, abs=0.1)
     assert await portfolios.extra_facts(store.pool, 999999) is None and await disclosure.get_facts(store.pool, 999999) is None
 
 
