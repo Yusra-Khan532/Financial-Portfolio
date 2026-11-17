@@ -335,10 +335,10 @@
    ]
   },
   {
-   "term": "Average industry (equal-weighted)",
+   "term": "Average group (equal-weighted)",
    "topic": "FinLit words",
    "meaning": "The yardstick on FinLit's Rotation page: every NSE industry and sector group with a reading, each counted equally.",
-   "why": "Comparing each industry with the typical industry, not with an index of large companies, keeps a few big stocks from setting the bar.",
+   "why": "Comparing each group with the typical group, not with an index of large companies, keeps a few big stocks from setting the bar.",
    "how": "Because every group counts the same, it leans towards industries with many mid and small companies.",
    "formula": "",
    "id": "average-industry-equal-weighted",
@@ -5947,7 +5947,7 @@
   {
    "term": "Rotation corners (Ahead and gaining, Ahead but slowing, Behind and slipping, Behind but gaining)",
    "topic": "FinLit words",
-   "meaning": "Where an industry sits on two readings, each measured against the average industry: its longer-run return (ahead or behind) and its recent return (gaining or slowing).",
+   "meaning": "Where an industry sits on two readings, each measured against the average group: its longer-run return (ahead or behind) and its recent return (gaining or slowing).",
    "why": "Together they show the size of a lead and its direction.",
    "how": "Corners change slowly, so one noisy week does not move an industry. Behind but gaining is often a short bounce rather than a turn.",
    "formula": "",
@@ -5966,7 +5966,7 @@
   {
    "term": "Rotation rank",
    "topic": "FinLit words",
-   "meaning": "A weekly ranking of NSE industry groups by how far they have run ahead of the average industry, over several periods, with breadth added.",
+   "meaning": "A weekly ranking of NSE industry groups by how far they have run ahead of the average group, over several periods, with breadth added.",
    "why": "It puts every group on one list, and its weekly moves show which groups are climbing or falling.",
    "how": "A rank describes past returns. The arrows show the places a group moved in 1 week and in 4 weeks. A new group gets a rank once it has enough history.",
    "formula": "",
@@ -6204,7 +6204,7 @@
   {
    "term": "Sector rotation",
    "topic": "FinLit words",
-   "meaning": "Industries taking turns to lead the market. FinLit measures it against the average industry: every NSE industry or sector group with a reading, weighted equally.",
+   "meaning": "Industries taking turns to lead the market. FinLit measures it against the average group: every NSE industry or sector group with a reading, weighted equally.",
    "why": "It shows which industries have been pulling ahead of the rest and which have been falling behind, and whether that is speeding up or slowing down.",
    "how": "It describes the past: which industries have led and which have lagged, not which will.",
    "formula": "",
