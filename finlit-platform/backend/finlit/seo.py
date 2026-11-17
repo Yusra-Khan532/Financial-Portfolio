@@ -45,6 +45,8 @@ PUBLIC: Dict[str, Page] = {
     "companies": Page("All Listed Indian Companies, A to Z | FinLit", "Browse every listed Indian company from A to Z with its sector, and open its financial statements, ratios, peers and ownership. Free to start.",
                       "Listed Indian companies, A to Z", "Every listed Indian company in one alphabetical directory. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership.", "Companies"),
     "research": Page("Stock Research: Company Reports for Indian Stocks | FinLit", "Browse research on listed Indian companies: statements, ratios, peers, ownership and a plain-English reading of each company's financial health.", "Stock research", "Company reports for listed Indian stocks, built from filings and prices.", "Research"),
+    "superinvestors": Page("Superinvestor Portfolios: Named Investors' Stocks | FinLit", "See what named investors own in listed Indian companies: every stake of 1% or more from company filings, its value today, sector split and the year's changes.",
+                           "Superinvestor portfolios", "What named investors own, from the companies' own shareholding filings: every public shareholder named with 1% or more in at least two listed companies, with the value of each stake today and what changed over the year. Information only, not investment advice.", "Superinvestor portfolios"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
     "score-screener": Page("Stock Score Screener: Financial Health Scores | FinLit", "Filter Indian stocks by their FinLit IQ score and the pillars behind it: quality, growth, profitability, balance sheet and technical.", "Stock score screener", "Filter listed Indian companies by FinLit IQ and its pillars.", "Score screener"),
     "compare": Page("Compare Stocks India: Side-by-Side Analysis | FinLit", "Compare listed Indian companies side by side on financials, ratios, growth and FinLit scores to see how they differ.", "Compare stocks", "Put two or more listed Indian companies side by side.", "Compare stocks"),
@@ -88,7 +90,7 @@ PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", 
            "query-builder", "premium", "portfolio", "feedback", "forum", "graphs", "advanced-score-screener", "outlook", "results/quarter", "funds/screener", "funds/compare",
            "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation")
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
-PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab")
+PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors")
 
 
 def clean(path: str) -> str:
