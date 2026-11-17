@@ -76,7 +76,9 @@ export function SharesTable(p: Props) {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const secOf = (s: string) => meta[s]?.sector || `${s} (not classified)`;
   const sizeOf = (s: string) => { const l = lines.find((x) => x.symbol === s), cap = isReady(l?.ov) ? l!.ov.marketCapCr : null;   // FinLit's rupee bands on the company's own market value
-    return p.peerOf?.(s)?.size ?? (cap != null ? capBucket(cap)?.label.replace(" cap", "") ?? null : null) ?? (meta[s] ? SIZE_WORD[meta[s].size] : null); };
+    const peer = p.peerOf?.(s)?.size; if (peer) return peer;
+    const band = cap != null ? capBucket(cap)?.label.replace(" cap", "") : undefined; if (band) return band;
+    return meta[s] ? SIZE_WORD[meta[s].size] : null; };
   const valueOf = (l: Line): number | null => { const qn = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return qn && pr ? qn * pr : null; };
   const levelOf = (l: Line) => { const ind = isReady(l.ov) ? l.ov.industry : null, x = nseLevels(ind); return x ? x[level] : `${LEVEL_WORD[level]} not given`; };
 
