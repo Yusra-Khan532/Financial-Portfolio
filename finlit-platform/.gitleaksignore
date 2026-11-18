@@ -9,3 +9,7 @@ ce88b3debef1c80e3fc311d6edd9b9696cf00ad3:frontend/public/demo/RELIANCE/ratios.js
 7867dfccc6e1dc90018ad9d4d8dde2e78579539e:finlit-platform/frontend/public/demo/RELIANCE/ratios.json:generic-api-key:1
 7867dfccc6e1dc90018ad9d4d8dde2e78579539e:finlit-platform/frontend/src/lib/mf.ts:generic-api-key:337
 7867dfccc6e1dc90018ad9d4d8dde2e78579539e:finlit-platform/frontend/src/lib/prefs.ts:generic-api-key:27
+# the same reviewed false positives in 633a4462 (#469), on the branches task-158-crowns, task-159-cards and nbfc-financial-leverage (added at the owner's request, 18 Nov)
+633a4462c1bf6eb00984cfb90de49ebb35eb20a2:finlit-platform/frontend/public/demo/RELIANCE/ratios.json:generic-api-key:1
+633a4462c1bf6eb00984cfb90de49ebb35eb20a2:finlit-platform/frontend/src/lib/mf.ts:generic-api-key:339
+633a4462c1bf6eb00984cfb90de49ebb35eb20a2:finlit-platform/frontend/src/lib/prefs.ts:generic-api-key:46
