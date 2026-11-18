@@ -71,7 +71,7 @@
 .x-sw { display: none; position: sticky; left: 0; z-index: 3; flex: none; align-items: center; gap: 6px; padding: 0 8px 0 0; margin-right: 4px; background: var(--sp-panel, var(--s1)); border-right: 1px solid var(--border); border-radius: 999px 0 0 999px; }
 .x-sw-on > .x-sw { display: flex; }
 .eqt-bar .x-sw-b { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--s1); border-radius: 999px; min-height: 36px; padding: 0 10px 0 4px; font: 700 13px var(--sans); color: var(--text); cursor: pointer; white-space: nowrap; }
-.x-sw-b i { font-style: normal; font-size: 12px; opacity: .7; }
+.x-sw-b i { font-style: normal; font-size:12px; opacity: .7; }
 .x-sw-b .acc-av, .x-swm .acc-av { grid-row: auto; width: 28px; height: 28px; border-radius: 50%; font-size: 12px; flex: none; }
 .x-sw-b[aria-expanded="true"] { border-color: var(--text); }
 .x-sw-p b { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }

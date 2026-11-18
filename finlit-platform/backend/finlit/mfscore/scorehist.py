@@ -166,7 +166,7 @@ async def send_mails(mails: Sequence[Dict[str, Any]], mailer, site_url: str) -> 
     return sent
 
 
-async def prune(conn, today: Optional[date] = None) -> int:
-    """Rows older than three years go. Returns how many."""
+async def prune(conn, today: Optional[date] = None, timeout: Optional[float] = None) -> int:
+    """Rows older than three years go. Returns how many. `timeout`: the statement's own limit (the nightly prune passes a longer one than the pool's)."""
     cut = (today or date.today()) - timedelta(days=RETENTION_DAYS)
-    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut)).split()[-1])
+    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut, timeout=timeout)).split()[-1])
