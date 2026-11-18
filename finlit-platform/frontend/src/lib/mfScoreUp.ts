@@ -1,4 +1,4 @@
-// Gold-only upgrades of the FinLit FundPulse: history, breakdown helpers, the Fund Score Screener, the category leaderboard, compare and alerts.
+// Gold-only upgrades of the Mutual Fund Score: history, breakdown helpers, the Fund Score Screener, the category leaderboard, compare and alerts.
 // Everything describes past NAVs, costs and holdings. No buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";

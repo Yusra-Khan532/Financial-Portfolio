@@ -41,7 +41,7 @@ A locked value arrives as `null` and the answer carries `locked: {field: plan}`,
 
 ## 3. The nightly flow
 
-`refresh-sectors`, job `sectors` in the registry: bulk, weekdays after 19:00 IST (AFTER_CLOSE window, not before 19:00) and a MORNING catch-up, SLA "session" 14 h (the data for each trading day must be processed after 18:30; overdue 14 h later), after the `technicals` job, memory weight 450 MB (measured peak 364 MB, section 8), at most 90 minutes, stall watch 45 minutes. It never runs beside another bulk job. **Switched off for now (7 Nov 2026) until `SECTORS_JOB=on`**; meanwhile the status says "disabledByConfig" and it is never counted as overdue.
+`refresh-sectors`, job `sectors` in the registry: bulk, **weekend nights only** (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday 23:00 to Monday 03:30 as a catch-up; docs/JOBS.md section 4b), at the lowest bulk priority so every other job of the night goes first, SLA 8 days (one build a week on the week up to Friday's close), after the `technicals` job, memory weight 450 MB (measured peak 364 MB, section 8), at most 90 minutes, stall watch 45 minutes. It never runs beside another bulk job. On by default (switched off 7 Nov 2026; brought back on weekend nights 18 Nov 2026); `SECTORS_JOB=off` switches it off, and while off the status says "disabledByConfig" and it is never counted as overdue.
 
 1. **fetch** (`SECTOR_FETCH`, default on): one quick request to NSE's archive first; if NSE refuses the server the run says so at once ("NSE's archive refused this server (HTTP 403) ... run the download from a PC in India") instead of waiting minutes. Otherwise `fetch-nse` runs in a child process with a time cap. The newest days are added to `/data/nse`. A failed download never crashes the supervisor; the run carries on with the files it has.
 2. **build** into a new folder; the files in use are not touched. The build runs in stages, each in its own process, so none holds the whole market in memory (section 8).
@@ -77,7 +77,7 @@ ssh -i key.pem ubuntu@SERVER "sudo mv /tmp/nse-upload/* /opt/finlit/data/nse/ &&
 | Variable | Default | Meaning |
 |---|---|---|
 | `SECTORS_ENABLED` | `1` | the sector pages read the published data (the job itself does not look at it) |
-| `SECTORS_JOB` | `off` | **the sector job is switched off for now** (founder, 7 Nov 2026); `on` runs it again (restart after changing). The pages keep the last published data meanwhile |
+| `SECTORS_JOB` | `on` | the sector job runs on weekend nights (owner, 18 Nov 2026); `off` switches it off and keeps the last published data (read when the jobs container is next recreated) |
 | `SECTOR_NSE_DIR` | `/data/nse` | the NSE data folder inside the container |
 | `SECTOR_OUT_DIR` | `/data/sectors` | the swap-in folder the website reads |
 | `SECTOR_FETCH` | `1` | `0`: do not download; build from the files in the folder (use when NSE refuses the server and you copy files up by hand) |

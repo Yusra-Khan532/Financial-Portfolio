@@ -2,7 +2,7 @@
 // a sort menu, two small graphics and a table. Every count comes from the server in one call (/api/mf/filters?screen=1); the list is /api/mf?extra=true.
 // Information only: figures describe past data, nothing here says what to do. Plan: free.
 // Task #131 (the team's 14 Nov design): presets in one row (the one on is dark), a Sort button with a short menu, the default view as removable chips,
-// Result at a glance open on arrival with a Hide button, a FundPulse column (Gold, no Gold tag on the sort), tick boxes to compare up to 4 with the
+// Result at a glance open on arrival with a Hide button, a Mutual Fund Score column (Gold, no Gold tag on the sort), tick boxes to compare up to 4 with the
 // compare bar under the table, and on a phone the filter panel in place with its groups behind one button.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -94,7 +94,7 @@ export function MfScreenerPage() {
     setSaved(next); storeSaved(next);
   };
   const dropSaved = (name: string) => { const next = saved.filter((s) => s.name !== name); setSaved(next); storeSaved(next); };
-  const sorts = SORTS.filter((s) => !s.gold || gold);   // FundPulse sort: Gold (the founder kept the plan), with no Gold tag (task #131)
+  const sorts = SORTS.filter((s) => !s.gold || gold);   // Mutual Fund Score sort: Gold (the founder kept the plan), with no Gold tag (task #131)
   const noMatch = !list.isLoading && !list.isError && total === 0;
   const loadingNow = list.isFetching || facets.isFetching;
   const where = fac && fac.built.rows > 0 ? fac.built : null;

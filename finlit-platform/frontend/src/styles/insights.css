@@ -3,7 +3,7 @@
 .ins { --ic: var(--gold); position: relative; padding: 10px 12px 10px 14px; border: 1px solid color-mix(in srgb, var(--ic) 35%, var(--border)); border-left: 3px solid var(--ic); border-radius: 10px; background: color-mix(in srgb, var(--ic) 7%, var(--s1, var(--card))); margin: 0 0 10px; }
 .ins.v { --ic: var(--gold); } .ins.s { --ic: var(--gain); } .ins.w { --ic: var(--warn, #CC7A00); } .ins.i { --ic: var(--info, #2F5D86); }
 .ins.f { --ic: var(--loss); border-left-width: 4px; }
-.ins-tag { display: inline-block; margin-bottom: 4px; font: 800 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ic); }
+.ins-tag { display: inline-block; margin-bottom: 4px; font: 800 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ic); }
 .ins b { display: block; font-size: var(--fs-14); line-height: 1.35; color: var(--text); }
 .ins p { margin: 3px 0 0; font-size: var(--fs-13); line-height: 1.45; color: var(--muted); }
 .ins a { display: inline-block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--link-gold, var(--gold-deep, var(--gold))); text-decoration: none; }

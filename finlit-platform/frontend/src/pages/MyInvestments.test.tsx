@@ -124,10 +124,10 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("How healthy it is");
     for (const c of document.querySelectorAll(".mi-hc .mi-hv")) expect(c.textContent).not.toMatch(/\d+\s*·\s*\d+/);    // never two scores in one number
     expect(text()).toContain("Shares · FinLit Prism");
-    expect(text()).toContain("Funds · FinLit FundPulse");
+    expect(text()).toContain("Funds · Mutual Fund Score");
     const one = withQty(); one.funds = [one.funds[2]]; one.counts.funds = 1; one.cards.funds.count = 1;
     cleanup(); st.answer = one; mount(); await screen.findByText("How healthy it is");
-    expect(text()).toContain("FinLit FundPulse");
+    expect(text()).toContain("Mutual Fund Score");
     expect(text()).not.toMatch(/average 2\d · Poor/i);
   });
   it("D16, D30, B7: risk together with Beta in words, never β; no \"same than\"", async () => {
@@ -186,7 +186,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Add quantities" })[0]);
     const dlg = await screen.findByRole("dialog", { name: "Quantities" });
     expect(within(dlg).getAllByText("HDFCBANK")).toHaveLength(1);
-    expect(within(dlg).getByText("2 buys: change them in the buy history on the Equity portfolio")).toBeTruthy();
+    expect(within(dlg).getByText("2 buys and sales: change them in the buy history on the Equity portfolio")).toBeTruthy();
   });
   it("D24, D25: Silver reads shares with FinLit IQ, Gold with FinLit Prism; Basic sees the plan gate", async () => {
     const s = withQty(); s.plan = "silver"; st.answer = s; st.plan = "silver";

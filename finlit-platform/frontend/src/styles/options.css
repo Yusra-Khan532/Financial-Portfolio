@@ -40,7 +40,7 @@
 .oc-svgwrap svg { display: block; }
 .oc-chart .grid { stroke: var(--border); stroke-width: 1; }
 .oc-chart .base { stroke: var(--border-strong); stroke-width: 1; }
-.oc-chart .axis { fill: var(--muted); font: 11px var(--sans); }
+.oc-chart .axis { fill: var(--muted); font: 12px var(--sans); }
 .oc-chart .bar.ce { fill: var(--k1); } .oc-chart .bar.pe { fill: var(--k2); }
 .oc-chart .atmband { fill: var(--gold-soft); }
 .oc-chart .spotline { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 4 3; }
@@ -67,9 +67,9 @@
 .oc-table tbody tr:hover td, .oc-table tbody tr:hover th { background: var(--row-hover); }
 .oc-table tr.atm td, .oc-table tr.atm th { background: var(--gold-soft); font-weight: 600; box-shadow: inset 0 1px 0 var(--gold), inset 0 -1px 0 var(--gold); }
 .oc-table th.oc-k { text-align: center; font-family: var(--mono); background: var(--s1); position: sticky; left: 0; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-.oc-table th.oc-k small { display: block; font: 600 11px var(--sans); color: var(--gold); letter-spacing: .04em; }
-.oc-sub { display: block; font-size: 11px; color: var(--muted); }
-.oc-bu { display: inline-block; margin-top: 2px; padding: 0 5px; border-radius: 5px; font: 600 11px/16px var(--mono); border: 1px solid var(--border-strong); color: var(--text); }
+.oc-table th.oc-k small { display: block; font: 600 12px var(--sans); color: var(--gold); letter-spacing: .04em; }
+.oc-sub { display: block; font-size: 12px; color: var(--muted); }
+.oc-bu { display: inline-block; margin-top: 2px; padding: 0 5px; border-radius: 5px; font: 600 12px/16px var(--mono); border: 1px solid var(--border-strong); color: var(--text); }
 .oc-bu::before { margin-right: 3px; }
 .oc-bu.long_buildup::before, .oc-bu.short_covering::before { content: "▲"; }
 .oc-bu.short_buildup::before, .oc-bu.long_unwinding::before { content: "▼"; }
@@ -118,7 +118,7 @@
 .oc-table th.oc-k button { font: 700 14px var(--mono); background: none; border: 0; color: var(--text); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
 .oc-table th.oc-k button:hover { background: var(--s3); } .oc-table th.oc-k button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); }
 .oc-table th.oc-k button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.oc-table th.oc-k small.wall { display: inline-block; margin: 2px 2px 0; padding: 0 5px; border-radius: 5px; font: 600 11px/15px var(--sans); letter-spacing: .02em; }
+.oc-table th.oc-k small.wall { display: inline-block; margin: 2px 2px 0; padding: 0 5px; border-radius: 5px; font: 600 12px/15px var(--sans); letter-spacing: .02em; }
 .oc-table th.oc-k small.wall.ce { color: var(--oc-ce); background: color-mix(in srgb, var(--oc-ce) 14%, transparent); } .oc-table th.oc-k small.wall.pe { color: var(--oc-pe); background: color-mix(in srgb, var(--oc-pe) 14%, transparent); }
 .oc-table th.oc-k small.wall.mp { color: var(--on-gold); background: var(--gold); }
 .oc-table th.oc-k i.split { position: absolute; left: 10px; right: 10px; bottom: 3px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--oc-ce) calc(100% - var(--p)), var(--oc-pe) calc(100% - var(--p))); opacity: .8; }
@@ -129,7 +129,7 @@
 @media (prefers-reduced-motion: reduce) { .oc-detail { animation: none; } }
 .oc-detail header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .oc-detail h3 { margin: 0; font: 700 16px var(--sans); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.oc-tag { font: 700 11px var(--sans); padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
+.oc-tag { font: 700 12px var(--sans); padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
 .oc-x { border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
 .oc-dgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .oc-dcol { border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border); }

@@ -835,7 +835,7 @@ class Store:
             out["feed"] = await batched("feed_items", "item_date < current_date - $1::int", feed_days)
             out["runs"] = await batched("ingest_runs", "started_at < now() - interval '30 days'")
             out["history"] = await batched("score_history", "day < current_date - 800")
-            from .mfscore.scorehist import prune as prune_mf_score_history   # FinLit FundPulse history: three years
+            from .mfscore.scorehist import prune as prune_mf_score_history   # Mutual Fund Score history: three years
             out["mf_score_history"] = 0 if over() else await prune_mf_score_history(conn, timeout=T)
         for sym in done:
             for st in ("consolidated", "standalone"):

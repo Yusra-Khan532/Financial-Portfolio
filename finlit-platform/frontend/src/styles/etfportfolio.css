@@ -18,7 +18,7 @@
 .efp .mff-g.etp-t-indian { border-left-color: #1f6b6b; } .efp .mff-g.etp-t-gold { border-left-color: #b8892f; } .efp .mff-g.etp-t-abroad { border-left-color: #6b5ea8; }
 .efp .mff-g.etp-t-silver { border-left-color: #8fa8a6; } .efp .mff-g.etp-t-liquid, .efp .mff-g.etp-t-debt { border-left-color: #9aa3ad; }
 .efp .etp-bar { display: flex; gap: 2px; height: 26px; margin: 4px 0 8px; border-radius: 8px; overflow: hidden; background: var(--s2); }
-.efp .etp-bar i { display: flex; align-items: center; justify-content: center; min-width: 3px; font: 600 11px/1 var(--sans); font-style: normal; color: #fff; white-space: nowrap; overflow: hidden; }
+.efp .etp-bar i { display: flex; align-items: center; justify-content: center; min-width: 3px; font: 600 12px/1 var(--sans); font-style: normal; color: #fff; white-space: nowrap; overflow: hidden; }
 .efp .etp-zI { background: #1f6b6b; } .efp .etp-zN { background: repeating-linear-gradient(135deg, #1f6b6b 0 6px, #4f8e8e 6px 12px); }
 .efp .etp-zA { background: #6b5ea8; } .efp .etp-zG { background: #b8892f; } .efp .etp-zS { background: #8fa8a6; } .efp .etp-zD { background: #9aa3ad; color: #20262c; }
 .efp .etp-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; }
@@ -28,7 +28,7 @@
 .efp .etp-abroad ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin: 6px 0; padding-left: 18px; font-size: 13px; }
 .efp .etp-abroad li span { color: var(--sp-mute); font-variant-numeric: tabular-nums; }
 .efp .etp-mv { margin: 10px 0 0; font-size: 13px; color: var(--sp-mute); } .efp .etp-mv b { font: 400 24px/1 var(--serif); color: var(--sp-ink); margin-right: 4px; }
-.efp .etp-badge { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 4px; border-radius: 4px; font: 700 11px/1 var(--sans); color: #fff; background: #1f6b6b; flex: none; }
+.efp .etp-badge { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 4px; border-radius: 4px; font: 700 12px/1 var(--sans); color: #fff; background: #1f6b6b; flex: none; }
 .efp .etp-b-gold { background: #b8892f; } .efp .etp-b-abroad { background: #6b5ea8; } .efp .etp-b-silver { background: #8fa8a6; } .efp .etp-b-debt, .efp .etp-b-liquid { background: #9aa3ad; }
 :root[data-theme="dark"] .efp .etp-twice { color: #e9c26b; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .efp .etp-twice { color: #e9c26b; } }

@@ -1,4 +1,4 @@
-// Admin only (Console, Data health): the state of the FinLit FundPulse run, what data is missing, and the internal look back by score quintile.
+// Admin only (Console, Data health): the state of the Mutual Fund Score run, what data is missing, and the internal look back by score quintile.
 // Internal, descriptive, not a forecast: nothing here is published on the public site.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -12,13 +12,13 @@ export function ScoreAdminPanel() {
   const h = useQuery<AdminHealth, ApiError>({ queryKey: ["admin-mfscore"], queryFn: () => apiGet("/api/admin/mf-score/health"), retry: false, staleTime: 120_000 });
   const [m, setM] = useState(12);
   const c = useQuery<Calibration, ApiError>({ queryKey: ["admin-mfscore-cal", m], queryFn: () => apiGet(`/api/admin/mf-score/calibration?months_ago=${m}`), retry: false, staleTime: 300_000 });
-  if (h.isError) return <section className="card acct-c"><h2>FinLit FundPulse</h2><div className="formerr">Could not load the score health view.</div></section>;
+  if (h.isError) return <section className="card acct-c"><h2>Mutual Fund Score</h2><div className="formerr">Could not load the score health view.</div></section>;
   const d = h.data;
-  if (!d) return <section className="card acct-c"><h2>FinLit FundPulse</h2><div className="skeleton" style={{ height: 120 }} /></section>;
+  if (!d) return <section className="card acct-c"><h2>Mutual Fund Score</h2><div className="skeleton" style={{ height: 120 }} /></section>;
   const lr = d.lastRun;
   return (
-    <section className="card acct-c mfu-admin" aria-label="FinLit FundPulse health">
-      <h2>FinLit FundPulse</h2>
+    <section className="card acct-c mfu-admin" aria-label="Mutual Fund Score health">
+      <h2>Mutual Fund Score</h2>
       <p className="muted">Last run: {lr ? <>{String(lr.at ?? "")} · {String(lr.status ?? "")} · {String(lr.written ?? 0)} written in {String(lr.seconds ?? "?")} s</> : "never recorded"}. {d.total.toLocaleString("en-IN")} funds stored; {d.history.rows.toLocaleString("en-IN")} weekly history rows{d.history.first ? ` from ${d.history.first}` : ""}.</p>
       <div className="hstat">{Object.entries(d.status).map(([k, n]) => <div key={k}><b>{n.toLocaleString("en-IN")}</b><span>{k.toLowerCase()}</span></div>)}</div>
       <h3 className="mf-h4">Score distribution by group</h3>

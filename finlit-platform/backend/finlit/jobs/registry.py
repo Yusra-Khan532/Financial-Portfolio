@@ -24,11 +24,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Mapping, Optional, Tuple
 
 
-JOBS_RULE = ('Background jobs NEVER stop. Every scheduled job runs every day and completes every day. Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished. If a job cannot complete, the cause is fixed the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job (now: the sector job, off since 7 Nov 2026 until SECTORS_JOB=on).')
+JOBS_RULE = ('Background jobs NEVER stop. Every scheduled job runs every day and completes every day. Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished. If a job cannot complete, the cause is fixed the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job (now: the sector job, which runs only on weekend nights by the owner\'s decision of 18 Nov 2026).')
 """The founder's rule for every background job, shown on GET /api/jobs/status and in the Admin Console. Do not weaken it."""
 
 
@@ -64,6 +64,40 @@ class Gate:
 
 
 @dataclass(frozen=True)
+class TimeRule:
+    """The hours of the week (IST) a job may start in, checked before everything else: its windows, retries after a failure, the continuation of a
+    resumable run, a freshness force and a breached SLA all wait for the next allowed moment. `ok(t)` takes an IST datetime; `next_start(t)` gives the
+    next allowed moment at or after t; `text` is the sentence shown in the status."""
+    ok: Callable[[datetime], bool]
+    next_start: Callable[[datetime], datetime]
+    text: str
+
+
+# The sector job (owner, 18 Nov 2026): market data changes only on weekdays and the job is heavy (about 2.5 h of one core), so it runs once a week on the
+# weekend nights, after every daily and weekly job of the night: Saturday 23:00 IST to Sunday 08:00 (the main run), and Sunday 23:00 to Monday 03:30 as a
+# catch-up, so a 90-minute run started at the latest moment still ends by 05:00, before Monday morning's jobs. Never on a weekday night.
+def _weekend_nights(t: datetime) -> bool:
+    wd, hm = t.weekday(), (t.hour, t.minute)
+    return (wd == 5 and hm >= (23, 0)) or (wd == 6 and (hm < (8, 0) or hm >= (23, 0))) or (wd == 0 and hm < (3, 30))
+
+
+def _weekend_nights_next(t: datetime) -> datetime:
+    if _weekend_nights(t):
+        return t
+    for k in range(8):
+        d = (t + timedelta(days=k)).replace(second=0, microsecond=0)
+        for h in ((23, 0),) if d.weekday() in (5, 6) else ():
+            c = d.replace(hour=h[0], minute=h[1])
+            if c >= t:
+                return c
+    return t + timedelta(days=7)
+
+
+WEEKEND_NIGHTS = TimeRule(_weekend_nights, _weekend_nights_next,
+                          "runs only on weekend nights, after every other job of the night: Saturday 23:00 to Sunday 08:00 IST, and Sunday 23:00 to Monday 03:30 as a catch-up")
+
+
+@dataclass(frozen=True)
 class Job:
     name: str
     args: Tuple[str, ...] = ()
@@ -80,6 +114,7 @@ class Job:
     active_hours: Optional[Tuple[int, int]] = None
     daily_at: Optional[Tuple[int, int]] = None
     day_rule: Optional[Callable[[date], bool]] = None
+    time_rule: Optional["TimeRule"] = None          # the only hours of the week the job may START in, retries and continuations included (the sector job: weekend nights)
     sla: Sla = field(default_factory=Sla)
     probe: Optional[str] = None
     min_gap_min: float = 30.0                       # probe-driven re-runs: at least this long after the last attempt
@@ -260,9 +295,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("technicals", ("refresh-technicals",), cls="bulk", priority=10, max_runtime_min=75, weight_mb=350, resumable=True, probe="technicals",
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("technicals", "daily_prices"),
             what="technical view of every stored Prism report from fresh Dhan daily candles (resumable, yields to members)"),
-        Job("sectors", ("refresh-sectors",), cls="bulk", priority=12, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
-            windows=(W("AFTER_CLOSE", 0, (19, 0)), W("NIGHT", 0), W("MORNING", 0)), sla=Sla("session", 14), owns=("sectors",), catchup=False,
-            gate=Gate("SECTORS_JOB", "The sector job is switched off for now (founder, 7 Nov 2026): Sector Pulse and Rotation keep the last published data. To switch it back on, set SECTORS_JOB=on in /opt/finlit/.env.aws and restart (docs/SECTORS.md)", wants="on", default="off"),
+        # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
+        # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
+        Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
+            windows=(W("NIGHT", 120), W("MORNING", 120)), time_rule=WEEKEND_NIGHTS, sla=Sla("hours", 192), owns=("sectors",), catchup=False,
+            gate=Gate("SECTORS_JOB", "The sector job is switched off by SECTORS_JOB=off in /opt/finlit/.env.aws: Sector Pulse and Rotation keep the last published data. Remove the line (or set it to on) and restart the jobs container to bring back the weekend build (docs/JOBS.md section 4b)", wants="on", default="on"),   # on since the owner's decision of 18 Nov 2026 (weekend nights only); SECTORS_JOB=off still switches it off
             what="Sector Pulse: NSE's daily files, then every industry's breadth state, leader flags and ranked stocks, swapped in whole (docs/SECTORS.md)"),
         Job("ingest-flagship", ("ingest", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "LT", "BHARTIARTL", "HINDUNILVR"), cls="bulk",
             priority=15, max_runtime_min=30, weight_mb=300, windows=(W("NIGHT", 144),), sla=Sla("hours", 400), boot=True, resumable=True,
@@ -307,7 +344,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,
-            sla=Sla("hours", 26), prerequisites=("portfolios",), gate=FUNDS_GATE, boot=True, owns=("fund_scores",), what="FinLit FundPulse (after the portfolios)"),
+            sla=Sla("hours", 26), prerequisites=("portfolios",), gate=FUNDS_GATE, boot=True, owns=("fund_scores",), what="Mutual Fund Score (after the portfolios)"),
         Job("mf-screen", ("refresh-mf-screen",), cls="bulk", priority=57, max_runtime_min=30, weight_mb=300, group="funds", windows=night_morning,
             sla=Sla("hours", 30), prerequisites=("facts", "industry", "portfolios"), gate=FUNDS_GATE, boot=True,
             what="Mutual Fund Screener figures: risk from month-end NAVs, ranks in category, exit load, portfolio and category-flow summaries, theme tags (database only; docs/MF-FILTERS.md)"),

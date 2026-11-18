@@ -69,7 +69,7 @@
 .dcf-st-ico svg { width: 24px; height: 24px; }
 .dcf-st-body { flex: 1 1 280px; min-width: 0; display: grid; gap: 4px; }
 .dcf-st-body b { font-size: 18px; letter-spacing: .03em; text-transform: uppercase; color: var(--st); }
-.dcf-st-body p { margin: 0; font-size: var(--fs-16); } .dcf-st-body small { color: var(--mute, var(--ink)); opacity: .8; font-size: 13px; }
+.dcf-st-body p { margin: 0; font-size: var(--fs-16); } .dcf-st-body small { color: var(--mute, var(--ink)); font-size: 13px; }
 .dcf-st-pill { padding: 7px 16px; border-radius: 999px; background: var(--st); color: #fff; font-weight: 600; font-size: 13px; white-space: nowrap; }
 
 .dcf-kv { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
@@ -95,7 +95,7 @@
 .dcf-chart { margin: 0; }
 .dcf-chart svg { width: 100%; height: auto; display: block; }
 .dcf-chart .bar-y { fill: var(--c1, var(--gold)); } .dcf-chart .bar-tv { fill: var(--gold); }
-.dcf-chart .ax { fill: var(--faint); font: 11px var(--sans); }
+.dcf-chart .ax { fill: var(--faint); font: 12px var(--sans); }
 .dcf-chart figcaption { font-size: var(--fs-13); margin-top: 6px; }
 
 .dcf-sens + .dcf-sens { margin-top: 18px; }
@@ -163,11 +163,11 @@
 .dcf-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--s1); border: 3px solid var(--gold); }
 .dcf-range:hover::-webkit-slider-thumb, .dcf-range:focus-visible::-webkit-slider-thumb { transform: scale(1.15); box-shadow: 0 0 0 6px var(--gold-soft); }
 .dcf-range:focus, .dcf-range:focus-visible { outline: none; }
-.dcf-range-ends { display: flex; justify-content: space-between; margin-top: -4px; font: 400 11px var(--mono); color: var(--faint); }
+.dcf-range-ends { display: flex; justify-content: space-between; margin-top: -4px; font: 400 12px var(--mono); color: var(--faint); }
 .dcf-sl.has-err .dcf-range::-webkit-slider-thumb { border-color: var(--loss); }
 /* live result at the top of the inputs, so the effect of a slider is seen at once */
 .dcf-live { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s2); text-align: center; }
-.dcf-live span { display: block; font: 600 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dcf-live span { display: block; font: 600 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dcf-live b { display: block; margin-top: 2px; font: 500 20px var(--mono); color: var(--text); } .dcf-live b.up { color: var(--gain); } .dcf-live b.down { color: var(--loss); }
 /* the three groups of inputs */
 /* The three input groups are cards with an icon heading (task #47): each field sits in its own bordered card, as in the design. */

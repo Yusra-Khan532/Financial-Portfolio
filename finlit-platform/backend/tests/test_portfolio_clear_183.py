@@ -55,3 +55,17 @@ async def test_a_saved_share_keeps_its_isin(app):  # noqa: F811
     assert [h["isin"] for h in (await c.get("/api/me/state")).json()["portfolio"]["holdings"]] == ["INE758T01015", "INE040A01034"]
     bad = [{**H[0], "isin": "not-an-isin"}]
     assert (await c.put("/api/me/portfolio", json={"holdings": bad})).status_code == 422
+
+
+async def test_235_clear_keeps_the_portfolios_and_undo_brings_back_buys_and_sales(app):  # noqa: F811
+    c = await signed_in(app, "s235@example.com", plan="silver")
+    body = {"portfolios": [{"id": "dhan", "name": "Dhan"}, {"id": "upstox", "name": "Upstox"}],
+            "holdings": [{"id": "b1", "symbol": "ITC", "qty": 40, "price": 412.3, "date": "2025-06-12", "owned": True, "pf": "upstox"},
+                         {"id": "s1", "symbol": "ITC", "qty": 30, "price": 455, "date": "2026-01-20", "owned": True, "pf": "upstox", "side": "sell"}]}
+    assert (await c.put("/api/me/portfolio", json=body)).status_code == 200
+    assert (await c.post("/api/me/portfolio/clear")).json()["removed"] == 2
+    st = (await c.get("/api/me/state")).json()["portfolio"]
+    assert st["holdings"] == [] and [p["name"] for p in st["portfolios"]] == ["Dhan", "Upstox"]               # the portfolios stay, empty
+    await c.post("/api/me/portfolio/undo-clear")
+    back = (await c.get("/api/me/state")).json()["portfolio"]
+    assert [(h["id"], h.get("side"), h["pf"]) for h in back["holdings"]] == [("b1", None, "upstox"), ("s1", "sell", "upstox")]

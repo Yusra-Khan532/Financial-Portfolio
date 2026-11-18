@@ -102,20 +102,20 @@ export function MfTab({ d }: { d: AllInvestments }) {
   const liquid = f.filter((x) => /liquid|overnight|money market/i.test(x.type ?? "")).reduce((a, x) => a + x.of, 0);
   const notes: Note[] = [
     card.overlap ? { kind: "insight", title: `${card.overlap.a} and ${card.overlap.b} overlap ${pctOf(card.overlap.pct, 0)}`, text: <>{card.overlap.n} companies sit in both; the overlap is the part of each fund's money in the same companies.</> } : { kind: "good", title: "No two funds hold the same companies", text: "Or there is only one fund with a loaded file." },
-    d.plan === "gold" && f.some((x) => x.score != null) ? { kind: "insight", title: `Lowest FundPulse: ${[...f].filter((x) => x.score != null).sort((a, b) => a.score! - b.score!)[0].short}`, text: "FinLit FundPulse reads performance, risk, cost and quality against the fund's own category." } : { kind: "insight", title: "FinLit FundPulse is part of Gold", text: <>It reads each fund's performance, risk, cost and quality. <Link to="/plans">Compare plans</Link></> },
+    d.plan === "gold" && f.some((x) => x.score != null) ? { kind: "insight", title: `Lowest Mutual Fund Score: ${[...f].filter((x) => x.score != null).sort((a, b) => a.score! - b.score!)[0].short}`, text: "Mutual Fund Score reads performance, risk, cost and quality against the fund's own category." } : { kind: "insight", title: "Mutual Fund Score is part of Gold", text: <>It reads each fund's performance, risk, cost and quality. <Link to="/plans">Compare plans</Link></> },
     { kind: types.length ? "watch" : "good", title: types.length ? `${types.length} ${types.length === 1 ? "type is" : "types are"} held twice` : "No fund type is held twice", text: types.length ? joinWords(types.map(([t, v]) => `${t}: ${joinWords(v)}`)) + "." : "Each fund is of a different type." },
   ];
   return (
     <>
       <KeyFigures items={[
         { label: "One theme twice", value: types.length ? `${types.length} ${types.length === 1 ? "type" : "types"}` : "None", line: types.length ? joinWords(types.map(([t, v]) => `${t} ×${v.length}`)) : "Each fund is of a different type.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Fund types (category) you hold more than once.", "Two funds of one type often hold many of the same companies."] },
-        { label: "Weakest health part", value: weakest ? `${PART_WORD[weakest.k]} · ${nf(weakest.v as number, 0)}` : d.plan === "gold" ? "—" : "Gold", line: weakest ? "The lowest of the four FundPulse parts, weighted across your funds." : d.plan === "gold" ? "No fund has a FundPulse yet." : "FinLit FundPulse is part of the Gold plan.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Of FundPulse's four parts (performance, risk, cost, quality), the one your funds score lowest on, weighted.", "A low part is where your funds read weakest against their categories."] },
+        { label: "Weakest health part", value: weakest ? `${PART_WORD[weakest.k]} · ${nf(weakest.v as number, 0)}` : d.plan === "gold" ? "—" : "Gold", line: weakest ? "The lowest of the four Mutual Fund Score parts, weighted across your funds." : d.plan === "gold" ? "No fund has a Mutual Fund Score yet." : "Mutual Fund Score is part of the Gold plan.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Of Mutual Fund Score's four parts (performance, risk, cost, quality), the one your funds score lowest on, weighted.", "A low part is where your funds read weakest against their categories."] },
         { label: "Liquid fund share", value: pctOf(liquid), line: `Of everything, in liquid, overnight and money market funds (${pctOf((liquid / w) * 100, 0)} of your funds).`, button: "See inside", go: () => go("mi-mf-inside"), info: ["How much of everything sits in liquid, overnight and money market funds.", "These hold short-term debt and cash and move little with the market."] },
       ]} />
       <section className="card mi-step">
-        <SecHead id="mi-mf-list" n={1} title="Your funds" line={`${f.length} funds from your MF portfolio.`} info={["Each fund on your MF portfolio with its type, FundPulse, 1-year change, cost and beta.", "FundPulse carries the fund's own band word; beta is against the Nifty 500."]} />
+        <SecHead id="mi-mf-list" n={1} title="Your funds" line={`${f.length} funds from your MF portfolio.`} info={["Each fund on your MF portfolio with its type, Mutual Fund Score, 1-year change, cost and beta.", "Mutual Fund Score carries the fund's own band word; beta is against the Nifty 500."]} />
         <HScroll label="Your funds" className="mi-freeze"><table className="mi-tb">
-          <thead><tr><th scope="col">Fund</th><th scope="col">Type</th><th scope="col">FinLit FundPulse</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Beta vs Nifty 500</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
+          <thead><tr><th scope="col">Fund</th><th scope="col">Type</th><th scope="col">Mutual Fund Score</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Cost a year</th><th scope="col" className="r">Beta vs Nifty 500</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
           <tbody>{f.map((x) => { const tw = types.find(([t]) => t === x.type); return <tr key={x.code}><th scope="row"><Link to={`/funds/${x.code}`}><b>{x.short}</b></Link>{tw && <span className="mi-tag">{x.type} ×{tw[1].length}</span>}</th><td>{x.type ?? "—"}</td>
             <td>{d.plan === "gold" ? <ScoreWord v={x.score} label={x.label} why={x.scoreWhy} /> : <span className="mi-muted">Gold</span>}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td><td className="r">{x.ter != null ? pctOf(x.ter, 2) : "—"}</td><td className="r">{betaTxt(x.beta)}</td>
             {d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{pctOf(x.of, 2)}</td></tr>; })}</tbody></table></HScroll>
@@ -123,7 +123,7 @@ export function MfTab({ d }: { d: AllInvestments }) {
       </section>
       <Inside d={d} kind="funds" id="mi-mf-inside" title="What is inside your funds" />
       <KindRisk d={d} kind="funds" id="mi-mf-risk" n={3} />
-      <GoLink to="/mf-portfolio" title="Open the full MF portfolio" line="Gains, FundPulse parts, mix, overlap and risk of each fund" />
+      <GoLink to="/mf-portfolio" title="Open the full MF portfolio" line="Gains, Mutual Fund Score parts, mix, overlap and risk of each fund" />
     </>
   );
 }

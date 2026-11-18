@@ -4,7 +4,7 @@
 /* ---- the grid table: tinted header rows, column-group rows tinted with a coloured top border (not filled), column and row lines ---- */
 .kit-grid { width: 100%; border-collapse: collapse; }
 .kit-grid thead tr:not(.kit-bands) th { padding: 9px 8px; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); border-bottom: 2px solid var(--border-strong);
-  font: 700 var(--fs-label)/var(--lh-11) var(--sans, inherit); letter-spacing: .06em; text-transform: uppercase; color: var(--text); vertical-align: bottom; white-space: normal; }
+  font: 700 var(--fs-label)/var(--lh-12) var(--sans, inherit); letter-spacing: .06em; text-transform: uppercase; color: var(--text); vertical-align: bottom; white-space: normal; }
 .kit-grid th, .kit-grid td { border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
 .kit-grid th:last-child, .kit-grid td:last-child { border-right: 0; }
 .kit-grid tbody td { border-bottom: 1px solid var(--border); }

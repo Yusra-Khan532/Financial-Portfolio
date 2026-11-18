@@ -1,4 +1,4 @@
-// Task #132: the "at a glance" row under a fund's header (FundPulse, 5 years a year, 1 year, expense ratio, fund size, largest fall) and the row of links to
+// Task #132: the "at a glance" row under a fund's header (Mutual Fund Score, 5 years a year, 1 year, expense ratio, fund size, largest fall) and the row of links to
 // each section of the page. Every value is one the page already loads (the fund, its facts and its score): nothing new is fetched and nothing is estimated.
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -9,7 +9,7 @@ import { bandOf } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 
 export const FUND_SECTIONS = [
-  ["fd-returns", "Returns"], ["fd-score", "FundPulse"], ["fd-chart", "NAV chart"], ["fd-facts", "Fund facts"], ["fd-risk", "Risk"],
+  ["fd-returns", "Returns"], ["fd-score", "Mutual Fund Score"], ["fd-chart", "NAV chart"], ["fd-facts", "Fund facts"], ["fd-risk", "Risk"],
   ["fd-holdings", "What it invests in"], ["fd-plans", "Other plans"], ["fd-about", "About the data"],
 ] as const;
 
@@ -37,7 +37,7 @@ export function FundGlance({ d, facts, factsLoading }: { d: FundDetail; facts?: 
   const wait = factsLoading && !facts ? "Loading…" : null;
   const pct = (v: number | null) => (v == null ? "—" : <span className={tone(v)}>{pctText(v)}</span>);
   const cells: Cell[] = [
-    { k: "score", label: "FundPulse",
+    { k: "score", label: "Mutual Fund Score",
       value: q.isLoading ? "…" : !s || s.notOffered ? "—" : s.locked ? "Locked" : s.final == null ? "—" : <span style={{ color: bandVar(bandOf(s.final)) }}>{scoreText(s.final)}</span>,
       sub: q.isLoading ? "Loading…" : !s ? "Not available right now" : s.notOffered ? "Not given for this kind of fund" : s.locked ? <>Part of a paid plan · <Link to="/plans">See plans</Link></>
         : s.final == null ? (s.status === "NOT SCORED" ? "Not scored" : "Not rated") + (s.reason ? `: ${s.reason}` : "")

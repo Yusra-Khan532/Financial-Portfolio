@@ -26,7 +26,7 @@
 .ip-tk { font: 12px var(--sans); fill: var(--sp-mute); } .ip-tk.ip-up { fill: var(--sp-good); font-weight: 700; } .ip-tk.ip-dn { fill: var(--sp-bad); font-weight: 700; }
 .ip-line { stroke: var(--ip-line); stroke-width: 1.6; } .ip-l9 { stroke: #2E7D57; stroke-width: 1.2; opacity: .8; } .ip-l50 { stroke: #B7791F; stroke-width: 1.2; opacity: .8; }
 .ip-dot { fill: var(--ip-line); } .ip-now { font: 700 13px var(--sans); fill: var(--sp-ink); }
-.ip-mk circle { fill: var(--ip-mk); stroke: #fff; stroke-width: 1.5; } .ip-mk text { font: 700 11px var(--sans); fill: #fff; } :root[data-theme="dark"] .ip-mk text { fill: #17262E; }
+.ip-mk circle { fill: var(--ip-mk); stroke: #fff; stroke-width: 1.5; } .ip-mk text { font: 700 12px var(--sans); fill: #fff; } :root[data-theme="dark"] .ip-mk text { fill: #17262E; }
 .ip-lg { display: inline-block; width: 16px; height: 2px; vertical-align: middle; } .ip-lg9 { background: #2E7D57; } .ip-lg50 { background: #B7791F; }
 .ip-story { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; margin: 14px 0; }
 .ip-moments { list-style: none; margin: 6px 0 0; padding: 0; } .ip-moments li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--sp-line); }

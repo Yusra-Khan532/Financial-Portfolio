@@ -17,7 +17,7 @@
 /* task #129, second note: the colour key, and the read / red flag / watch / investigate cards in green, orange and red only, with the Six checks' marks */
 .ec-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; padding: 0; font-size: var(--fs-13); color: var(--muted); }
 .ec-legend li { display: inline-flex; align-items: center; gap: 6px; } .ec-legend b { color: var(--text); font-weight: 700; }
-.ec-mk { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-right: 6px; border-radius: 50%; color: #fff; font: 800 11px/1 var(--sans); vertical-align: 2px; }
+.ec-mk { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-right: 6px; border-radius: 50%; color: #fff; font: 800 12px/1 var(--sans); vertical-align: 2px; }
 .ec-legend .ec-mk { margin-right: 0; }
 .ec .s > .ec-mk, .ec .s .ec-mk, .ec-legend .s .ec-mk { background: var(--ck-solid-ok); } .ec .w .ec-mk { background: var(--ck-solid-watch); } .ec .f .ec-mk { background: var(--ck-solid-alert); }
 .ec-tile b .ec-mk { width: 22px; height: 22px; font-size: 13px; vertical-align: 4px; }
