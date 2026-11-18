@@ -141,10 +141,12 @@ describe("Assistant on a company page", () => {
 });
 
 describe("Assistant away from a company page", () => {
-  it("starts with the greeting and the four categories", () => {
+  it("starts with the greeting and the five categories (task #203 added Mutual funds & ETFs)", () => {
     open("/about");
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
-    expect(within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button")).toHaveLength(4);
+    const cats = within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button");
+    expect(cats).toHaveLength(5);
+    expect(cats[4].textContent).toMatch(/Mutual funds & ETFs/);
     expect((screen.getByLabelText("Search the listed questions") as HTMLInputElement).placeholder).toBe("Search the questions (e.g. P/E, cash flow, debt)");
   });
   it("Explore a company -> segment -> search a company -> that company's tab", async () => {
