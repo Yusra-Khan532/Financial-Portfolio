@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
 import { MINUS, nf } from "./format";
 import type { Holding } from "./portfolio";
+import { aggOf } from "./ledger";
 
 export type Kind = "shares" | "funds" | "etfs";
 export const KINDS: Kind[] = ["shares", "funds", "etfs"];
@@ -59,8 +60,19 @@ export type AllInvestments = {
   sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
 };
 
-/** The Equity portfolio list as the server takes it: one entry per row, symbol and quantity only (0 or none means no quantity yet). */
-export const sharesBody = (hs: Holding[]) => ({ shares: hs.map((h) => ({ symbol: h.symbol.toUpperCase(), qty: h.qty > 0 ? h.qty : null })) });
+/** The Equity portfolio list as the server takes it: one entry per share, symbol and the quantity still held (none means no quantity yet).
+ *  Task #235: the rows are buys and sales in portfolios, so the quantity is what is left, first in, first out within each portfolio, added across them
+ *  (lib/ledger); a share sold in full in every portfolio is left out, as on the Equity page. */
+export function sharesBody(hs: Holding[]) {
+  const syms = [...new Set(hs.map((h) => h.symbol.toUpperCase()))];
+  const shares: { symbol: string; qty: number | null }[] = [];
+  for (const s of syms) {
+    const a = aggOf(hs, s, "all");
+    if (a && a.nBuys > 0 && a.qty === 0) continue;                          // sold in full
+    shares.push({ symbol: s, qty: a?.qty != null && a.qty > 0 ? Math.round(a.qty * 10000) / 10000 : null });
+  }
+  return { shares };
+}
 export const ALL_KEY = "all-investments";
 export const useAllInvestments = (hs: Holding[], enabled: boolean) => {
   const body = sharesBody(hs);

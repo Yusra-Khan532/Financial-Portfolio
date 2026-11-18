@@ -28,7 +28,7 @@ const withQty = () => structuredClone(QTY) as unknown as AllInvestments;
 const noQty = () => structuredClone(NOQTY) as unknown as AllInvestments;
 const mount = (path = "/my-investments") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><MyInvestmentsPage /></MemoryRouter></QueryClientProvider>);
 const text = () => document.body.textContent ?? "";
-beforeEach(() => { st.plan = "gold"; st.answer = withQty(); st.sends = []; localStorage.clear(); portfolio.reset(); portfolio.add({ symbol: "HDFCBANK", qty: 40, price: 0 }); portfolio.add({ symbol: "INFY", qty: 0, price: 0 }); });
+beforeEach(() => { st.plan = "gold"; st.answer = withQty(); st.sends = []; localStorage.clear(); portfolio.reset(); portfolio.add({ symbol: "HDFCBANK", qty: 40, price: 0, owned: true }); portfolio.add({ symbol: "INFY", qty: 0, price: 0 }); });
 afterEach(cleanup);
 
 describe("task #137: All my investments (15 Nov pack)", () => {
