@@ -1,4 +1,6 @@
 import { factItems, pc2, type OwnFacts as Facts, type OwnInsights } from "../../lib/ownView";
+import { Info } from "../../components/Info";
+import { newInfo } from "../../lib/reportInfo";
 
 const GROUP_WORD: Record<string, string> = { dii: "Domestic", fii: "Foreign", public: "Retail & others", government: "Government", promoters: "Promoter" };
 
@@ -14,7 +16,7 @@ export function OwnFacts({ ins }: { ins?: OwnInsights }) {
         <h3 id="ow-facts" className="ow-h3">Also from the filing</h3>
         {why && <p className="ow-note ow-why" role="status">{why}</p>}
         <div className="ow-facts">
-          {items.map((it) => <div className="ow-fact" key={it.label}><span className="ow-small ow-muted">{it.label}</span><b>{it.value}</b><span className="ow-small ow-body">{it.note}</span></div>)}
+          {items.map((it) => <div className="ow-fact" key={it.label}><span className="ow-small ow-muted">{it.label}<Info g={newInfo(it.label)} /></span><b>{it.value}</b><span className="ow-small ow-body">{it.note}</span></div>)}
         </div>
       </section>
       <section className="ow-card" aria-labelledby="ow-named">

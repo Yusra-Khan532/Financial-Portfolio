@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { OwnInsights } from "../lib/ownView";
 import { ApiError, useSearchIndex, usePrice, useSection, useSummary, type Events, type Financials, type Ownership, type Peers, type Ratios, type Segments } from "../lib/api";
 import { Icon } from "../lib/icons";
+import { nf, signed } from "../lib/format";
 import { OpenAccess } from "../components/Gate";
 import { useAuth } from "../lib/auth";
 import { Hero } from "./Hero";
@@ -83,6 +84,7 @@ export function StockPage() {
 
   const [active, setActive] = useState<string | null>(null);
   const [stuck, setStuck] = useState(false);
+  const [folded, setFolded] = useState(false);   // task #216 (README 1.8): 200 px past the bar the company bar folds away and a small chip shows instead
   const idrow = useRef<HTMLDivElement>(null);
   const links = useRef<HTMLDivElement>(null);
   const pill = useRef<HTMLSpanElement>(null);
@@ -106,8 +108,10 @@ export function StockPage() {
     const headOf = (id: string) => { let t = document.getElementById(id); if (t && (t.closest("[hidden]") || !t.getClientRects().length)) { const sec = t.closest("section.block"); t = (sec?.querySelector<HTMLElement>(".sh") ?? sec as HTMLElement | null); } return t; };
     let tick = 0;
     const upd = () => { tick = 0; let cur: string | null = null, curH: Element | null = null; for (const [id] of navItems) { const h = headOf(id); if (h && h.getBoundingClientRect().top < 230 && h !== curH) { cur = id; curH = h; } } setActive(cur ?? navItems[0]?.[0] ?? null); };
-    const onScroll = () => { if (!tick) tick = requestAnimationFrame(upd); };
-    addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); upd();
+    // The bar sticks once the identity row has gone 130 px above the top (also read here: the observer below does not fire on phones), and 200 px more folds it.
+    const fold = () => { const h = document.querySelector(".idr"); const bt = h ? h.getBoundingClientRect().bottom : Infinity; setFolded(bt < -70); if (bt < 130) setStuck(true); else if (bt > 200) setStuck(false); };
+    const onScroll = () => { fold(); if (!tick) tick = requestAnimationFrame(upd); };
+    addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); upd(); fold();
     const hero = document.querySelector(".idr");
     const io2 = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.bottom < 200), { rootMargin: "-130px 0px 0px 0px" });   // gone off the TOP of the screen, not merely below it
     if (hero) io2.observe(hero);
@@ -123,7 +127,7 @@ export function StockPage() {
   }, [active]);
 
   // The Prism section hides itself when there is nothing to show; its links then open the Prism page instead.
-  const jump = (id: string) => { const t = document.getElementById(id); if (!t && id !== "prism" && !opened.current) { opened.current = true; setOpenAll(true); setTimeout(() => jump(id), 80); setTimeout(() => jump(id), 600); return; } if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
+  const jump = (id: string, tries = 0) => { const t = document.getElementById(id); if (t && t.closest("[hidden]") && tries < 4) { requestAnimationFrame(() => requestAnimationFrame(() => jump(id, tries + 1))); return; }   /* a target inside a tab group's hidden panel (17's "Announcements"): the group opens that panel on the click; scroll once it is drawn */ if (!t && id !== "prism" && !opened.current) { opened.current = true; setOpenAll(true); setTimeout(() => jump(id), 80); setTimeout(() => jump(id), 600); return; } if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 176, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); else if (id === "prism") nav(`/prism/${encodeURIComponent(symbol)}`); };
   const q = useMemo(() => s?.quote, [s]);
 
   const err = (sum.error ?? sum.failureReason) as ApiError | null;   // while it retries, the last answer is the failure reason (it carries the progress)
@@ -149,8 +153,11 @@ export function StockPage() {
       <Hero s={s} ratios={ratios} jump={jump} />
       <CommunityStrip symbol={symbol} name={s.profile.name} jump={jump} />
       <div className={"secnav" + (stuck ? " stuck" : "")} id="secnav">
-        <MiniBar s={s} on={stuck} />
+        <MiniBar s={s} on={stuck && !folded} />
         <div className="wrap">
+          {stuck && folded && <a className="sn-co" href="#top" title="Back to the top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }}>
+            <b>{s.profile.symbol}</b><span className="sn-co-px">₹{s.quote.price == null ? "–" : nf(s.quote.price)}</span>
+            {s.quote.changePct != null && <span className={"sn-co-chg " + (s.quote.changePct >= 0 ? "up" : "down")}>{signed(s.quote.changePct)}</span>}</a>}
 
           <SectionsMenu items={navItems} active={active} onPick={jump} />
           <div className={"snav" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "")}>

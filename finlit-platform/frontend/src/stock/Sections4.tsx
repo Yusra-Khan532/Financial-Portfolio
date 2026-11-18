@@ -8,6 +8,7 @@ import { MINUS, cr, nf, num } from "../lib/format";
 import { useSection, type Events, type Financials, type Ratios, type Table } from "../lib/api";
 import { useBasis, type Basis } from "../lib/basis";
 import { SectionHead, yearGaps } from "./Sections";
+import { TabGroup } from "../components/TabGroup";
 import { badgeOf, insightLine, lastIndex, shortPeriod, yoyChange, type Tone } from "../lib/trendInsight";
 
 const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math.abs(v)) : nf(v, Math.abs(v) < 10 && v !== 0 ? 1 : 0));
@@ -201,16 +202,15 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
   return (
     <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
       <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(f.meta.statement)} color="--gold"
-        aside={<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div>} />
-      <div className="tr-bar">
-        <div className="seg" role="tablist" aria-label="Trend groups" onKeyDown={segKeys}>{([["key", "Key metrics"], ["margin", "Margins and investment"], ["div", "Dividends"]] as const).map(([k, l]) => <button key={k} type="button" role="tab" id={"trtab-" + k} aria-controls="trpanel" tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}</div>
-        {basisSeg}
-      </div>
+        aside={<>{basisSeg}<div className="seg" role="group" aria-label="Period" onKeyDown={segKeys}><button type="button" aria-pressed={mode === "q"} tabIndex={mode === "q" ? 0 : -1} onClick={() => setMode("q")}>Quarterly</button><button type="button" aria-pressed={mode === "a"} tabIndex={mode === "a" ? 0 : -1} onClick={() => setMode("a")}>Annual</button></div></>} />
+      {/* task #216 (README 3.7): the trend groups are the report's tab group; Consolidated | Standalone sits in the heading row, left of Quarterly | Annual */}
+      <TabGroup label="Trend groups" value={tab} onChange={(k) => setTab(k as typeof tab)} next={false} hint={`${tabName} shown here`}
+        views={[{ key: "key", label: "Key metrics" }, { key: "margin", label: "Margins and investment" }, { key: "div", label: "Dividends" }]} />
       {chosen && f.meta.statement !== pageBasis && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>This section now shows {f.meta.statement} accounts; the rest of this page uses {pageBasis} accounts.</p>}
       {mode === "a" && yearGaps(A.pl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>No {f.meta.statement} figures for {g} in our data sources: neighbouring columns and the trend lines below skip those years.</p>)}
       {chosen && wantOther && ratQ.isError && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>The {chosen} ratios (return on equity and capital, payout) could not be loaded right now, so those charts are left out.</p>}
       <p className="sr-only" role="status" aria-live="polite">{`Showing ${mode === "q" ? "quarterly" : "annual"} figures, ${shownCount} of ${list.length} charts in ${tabName}.`}</p>
-      <div className="tr-grid" role="tabpanel" id="trpanel" aria-labelledby={"trtab-" + tab}>{built.map(({ c, d }) => {
+      <div className="tr-grid" id="trpanel" aria-label={tabName}>{built.map(({ c, d }) => {
         if (!d) return null;
         const open = big === c.id, unit = c.unit ?? "cr", money = trendMoney(unit), single = d.series.length === 1;
         const kind = c.kind ?? (single ? "flow" : "pair");

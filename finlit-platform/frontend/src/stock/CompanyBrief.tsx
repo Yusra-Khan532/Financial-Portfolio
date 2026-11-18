@@ -1,6 +1,7 @@
 // COMPANY BRIEF on every company page: what the company does, how the group is held, each business with its latest figures, where the money comes from, recent
 // developments and what is missing, every line cited to the company's own filings. Shows the PUBLISHED brief only; with none it says why. Describes, never advises.
 import { useState } from "react";
+import { DropChev } from "../components/DropChev";
 import { dateIN } from "../lib/format";
 import { AUTO_NOTE, COMPLIANCE, PART_NAMES, citeUrl, citedPages, crore, shares, shortName, useCompanyBrief, type Brief, type BriefReply, type Cite, type Doc, type MixSide } from "../lib/companyBrief";
 import "../styles/company-brief.css";
@@ -151,8 +152,8 @@ export function BriefBody({ r }: { r: Extract<BriefReply, { state: "published" }
         {b.gaps?.length ? <ul className="cb-gaps">{b.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul> : <p className="cb-faint">The writer listed nothing as missing. The checks below say how many citations were confirmed.</p>}
       </section>
 
-      <details className="cb-det">
-        <summary>Sources and checks</summary>
+      <details className="cb-det xdd">
+        <summary>Sources and checks<DropChev /></summary>
         <div className="cb-detb">
           <p className="cb-checks"><b>{r.checks.passed} of {r.checks.citations}</b> quoted citations were found on the page they cite{r.checks.date ? ` (checked ${day(r.checks.date)})` : ""}.{r.checks.unchecked ? ` ${r.checks.unchecked} point to FinLit's own data or to a document that could not be read, and were not checked against a page.` : ""}{r.checks.fixed?.length ? ` ${r.checks.fixed.join(" ")}` : ""}</p>
           {r.checks.method ? <p className="cb-faint">{r.checks.method}</p> : null}

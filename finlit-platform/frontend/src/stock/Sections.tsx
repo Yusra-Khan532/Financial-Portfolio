@@ -19,6 +19,7 @@ import { PL_INFO, PL_LABEL, plCell } from "./plDefinitions";
 import { useUI, type Plan } from "../lib/ui";
 import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
+import { TabGroup } from "../components/TabGroup";
 
 const css = (v: string) => `var(${v})`;
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
@@ -235,10 +236,13 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
       {f.yearly.pl.periods.length > 0 && f.yearly.pl.periods.length < 5 && (chosen || !wasAutomatic(sym)) && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Only {f.yearly.pl.periods.length} year{f.yearly.pl.periods.length === 1 ? "" : "s"} of {shownBasis} statements are available for this company (it may be newly listed, or have started publishing these accounts recently).</p>}
       {kind !== "q" && yearGaps(tbl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>No {shownBasis} figures for {g} in our data sources: the columns on either side are not consecutive years.</p>)}
       {(kind === "bs" || kind === "cf") && tbl.periods.length > 0 && tbl.periods.length < f.yearly.pl.periods.length && <p className="faint" style={{ fontSize: 13, margin: "0 0 10px" }}>Our data sources hold {tbl.periods.length} year{tbl.periods.length === 1 ? "" : "s"} of this statement for this company, against {f.yearly.pl.periods.length} years of profit and loss.</p>}
+      {/* task #216 (README 3.6): the statement switch is the report's tab group ("3 views · Profit & loss shown here"); it wraps the section's own switch, so no Next view */}
+      <TabGroup label="Statement" value={kind === "q" ? "pl" : kind} onChange={(k) => { if (!(k === "pl" && kind === "q")) setKind(k as FinKind); }} next={false}
+        hint={`${{ pl: "Profit & loss", bs: "Balance sheet", cf: "Cash flow" }[kind === "q" ? "pl" : kind]} shown here`}
+        views={[{ key: "pl", label: "Profit & loss" }, { key: "bs", label: "Balance sheet" }, { key: "cf", label: "Cash flow" }]} />
       <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
         <ChartZoom label="Financial statements chart" className="cz-r">
         <div className="tools">
-          <div className="seg" role="group" aria-label="Statement">{([["pl", "Profit & loss"], ["bs", "Balance sheet"], ["cf", "Cash flow"]] as const).map(([k, l]) => <button key={k} aria-pressed={kind === k || (k === "pl" && kind === "q")} onClick={() => setKind(k)}>{l}</button>)}</div>
           <div className="tools-r">
             {basisSeg}
             <div className="seg seg-period" role="group" aria-label="Period: quarterly or yearly"><button aria-pressed={kind === "q"} onClick={() => setKind("q")} title="Profit and loss for each quarter">Quarterly</button><button aria-pressed={kind !== "q"} onClick={() => { if (kind === "q") setKind("pl"); }} title="Each financial year (April to March)">Yearly</button></div>
