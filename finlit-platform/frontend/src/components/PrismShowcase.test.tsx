@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Task #122 (14 Nov 2026): the landing page's FinLit Prism part as the team drew it. One test per point of the task:
 //   1. the layout of the first picture   2. the card larger than the old picture   3. the red-box line removed
-//   4. the gold light on hover (second picture)   5. the new line "Beyond Ratios. A Statistical Model for Deeper Financial Analysis."
+//   4. the gold light on hover (second picture)   5. the new line "Beyond Ratios. A Statistical Model for Deeper Equity Analysis."
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -22,7 +22,7 @@ const css = readFileSync(join(__dirname, "..", "styles", "prism-showcase.css"), 
 describe("task #122: the landing page's FinLit Prism part", () => {
   it("5. uses the new line instead of 'Financial health in four parts'", () => {
     open();
-    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Beyond Ratios. A Statistical Model for Deeper Financial Analysis.");
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Beyond Ratios. A Statistical Model for Deeper Equity Analysis.");
     expect(document.body.textContent).not.toMatch(/Financial health in four parts/);
     expect(readFileSync(join(__dirname, "..", "pages", "Home.tsx"), "utf8")).not.toContain("Financial health in four parts");
   });
