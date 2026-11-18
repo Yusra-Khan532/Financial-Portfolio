@@ -64,6 +64,8 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
   return (
     <figure className="pzr-ch" style={{ "--c": color } as React.CSSProperties}>
       <ChartZoom label={title} className="cz-r">
+      {/* task #220 (README 3.3): the chart's colour travels with it into the enlarge window (which sits outside this figure) */}
+      <div className="pzr-ch-in" style={{ "--c": color } as React.CSSProperties}>
       <figcaption><b>{title}</b><span>{last ? <>{valueText(last.value)} <small>{periodLabel(last.period)}</small></> : "No data"}</span></figcaption>
       <div ref={box} className="pzr-ch-b" tabIndex={enough ? 0 : -1} role="group" aria-label={`${title}. Use the left and right arrow keys to read each ${basis === "annual" ? "year" : "quarter"}.`} {...(enough ? scrub.props : {})}>
         {!enough ? <p className="pzr-empty">Not enough reported {basis === "annual" ? "years" : "quarters"} for a chart.</p> : (
@@ -97,6 +99,7 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
             )}
           </>
         )}
+      </div>
       </div>
       </ChartZoom>
       <div className="pzr-cfoot"><span>{unitNote}</span>{enough && <ShowTable on={table} set={setTable} />}</div>
@@ -175,7 +178,8 @@ export function HistoryCharts({ report }: { report: PrismReport }) {
 }
 
 const cell = (v: number | null | undefined, d?: number) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(Math.abs(v), d ?? (Math.abs(v) >= 1000 ? 0 : 2)));
-export function HistoryTables({ history, income, note = null, benchmark }: { history: PrismHistory; income: string; note?: string | null; benchmark?: PrismReport["benchmark"] }) {
+/** `part` (task #220, README 3.3): one table for a tab of 03 (Quarterly results, Annual results, Key financial ratios); all three when not given. */
+export function HistoryTables({ history, income, note = null, benchmark, part }: { history: PrismHistory; income: string; note?: string | null; benchmark?: PrismReport["benchmark"]; part?: "quarterly" | "annual" | "ratios" }) {
   const table = (title: string, rows: { period: string; [k: string]: number | string | null }[], fields: [string, string][]) => (
     <div className="pzr-htab"><h4>{title}</h4>
       {rows.length ? <div className="pzr-tw" tabIndex={0} role="region" aria-label={`${title}, scrolls sideways on a small screen`}>
@@ -186,10 +190,10 @@ export function HistoryTables({ history, income, note = null, benchmark }: { his
   const inc = income;
   return (
     <div className="pzr-tables">
-      <p className="pzr-small">Oldest to newest · amounts in ₹ crore · EPS in ₹ per share · missing values shown as a dash.{note ? ` ${note}` : ""}</p>
-      {table("Quarterly results", history.quarterly, [["sales", inc], ["profit", "Owner-attributable net profit"], ["ebitda", "EBITDA"], ["eps", "EPS (₹)"]])}
-      {table("Annual results", history.annual, [["sales", inc], ["profit", "Owner-attributable net profit"], ["cashFlow", "Operating cash flow"], ["netWorth", "Book equity"]])}
-      <KeyRatios latest={history.latest} benchmark={benchmark} />
+      {part !== "ratios" && <p className="pzr-small">Oldest to newest · amounts in ₹ crore · EPS in ₹ per share · missing values shown as a dash.{note ? ` ${note}` : ""}</p>}
+      {(!part || part === "quarterly") && table("Quarterly results", history.quarterly, [["sales", inc], ["profit", "Owner-attributable net profit"], ["ebitda", "EBITDA"], ["eps", "EPS (₹)"]])}
+      {(!part || part === "annual") && table("Annual results", history.annual, [["sales", inc], ["profit", "Owner-attributable net profit"], ["cashFlow", "Operating cash flow"], ["netWorth", "Book equity"]])}
+      {(!part || part === "ratios") && <KeyRatios latest={history.latest} benchmark={benchmark} />}
     </div>
   );
 }

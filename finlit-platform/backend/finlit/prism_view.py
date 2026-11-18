@@ -13,6 +13,7 @@ observations are sent only as the page shows them (the stage-2 flag only with st
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 PARTS = ("fundamental", "valuation", "quality", "risk")
@@ -115,9 +116,16 @@ def _rating(r: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# The streak factors' summary repeated "N growth quarters across M comparable quarters", which the line under it already states (README 3.1).
+STREAK_REPEAT = re.compile(r"\s*\d+ growth quarters?(?: and \d+ forgiven slips?)? across \d+(?: of \d+)? comparable quarters\.", re.I)
+
+
 def _review_item(i: Dict[str, Any]) -> Dict[str, Any]:
+    summary = _s(i.get("summary"))
+    if summary and str(i.get("metric") or "").endswith("_STREAK"):
+        summary = STREAK_REPEAT.sub("", summary).strip()
     return _drop_none({"metric": _s(i.get("metric")), "label": _s(i.get("label")), "valueText": _s(i.get("valueText")),
-                       "summary": _s(i.get("summary")), "comparisonText": _s(i.get("comparisonText"))})
+                       "summary": summary, "comparisonText": _s(i.get("comparisonText"))})
 
 
 def _review(v: Dict[str, Any]) -> Dict[str, Any]:

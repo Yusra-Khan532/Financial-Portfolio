@@ -38,7 +38,7 @@ export const SECTIONS: NavSection[] = [
     { title: "Analyse a company", items: [
       i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
       i("/compare", "Compare companies", "Two to four companies side by side, in charts", "compare"),
-      i("/prism", "FinLit Prism", "A company's financial health rated in four parts, with a PDF", "layers", { gold: true }),
+      i("/prism", "FinLit Prism", "A company's financial health rated in four parts", "layers", { gold: true }),
       i("/outlook", "Profit and revenue forecasting", "Revenue and profit estimates from a company's own history and its sector", "activity", { gold: true }),
       i("/research/stress-lab", "Stress Lab", "How a shock to crude, the rupee or rates would move a company's earnings", "gauge"),
     ] },

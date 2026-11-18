@@ -122,7 +122,7 @@ export function Browse({ statement, open, onOpen }: { statement: Statement; open
   );
 }
 
-const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak, and which inputs are missing", "A PDF of the report, prepared for you"];
+const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak, and which inputs are missing"];
 export const PRISM_WHAT = WHAT;
 
 /** Six of the most searched companies, one tap each: straight to that company's Prism page, no typing. */

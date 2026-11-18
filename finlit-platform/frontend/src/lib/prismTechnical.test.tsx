@@ -165,7 +165,7 @@ describe("report page section", () => {
     expect(t).toContain("Strong uptrend");
     expect(t).toContain("Rising on both");
     expect(t).toContain("Short-term +64 (Up) × long-term +65 (Up) = Rising on both.");
-    expect(h).toContain('aria-label="Short term: +64 on a scale from minus 100 to plus 100, strong uptrend. 14 of 14 signals available."');
+    expect(h).toMatch(/aria-label="Technical short term \([^)]*\): \+64 on a scale from minus 100 to plus 100, strong uptrend\./);   // task #220: the score card's own trend card
     expect(t).toContain("Volume flow (on-balance volume)");
     expect(t).toContain("Stage 2: advancing");
     expect(t).toContain("Nifty Midcap 100");
@@ -191,7 +191,7 @@ describe("report page section", () => {
     expect(t).toContain("Aligned stock and benchmark history is insufficient");
     expect(t).toContain(ALIGN_NA);
     expect(t).toContain("score withheld");
-    expect(strip(h)).toContain("Not available score withheld");
+    expect(strip(h)).toMatch(/not available, score withheld/);   // task #220: said under the score card's trend cards
   });
   it("older reports get a calm note and a recalculate action, and the Prism score is untouched", () => {
     const h = renderToStaticMarkup(<Technical report={OLD} onRecalculate={() => undefined} />), t = strip(h);
@@ -260,7 +260,7 @@ describe("legend, gauge and light-theme contrast", () => {
     const html = renderToStaticMarkup(<Technical report={withTech(fx.ready)} />);
     expect(strip(html)).not.toContain("Strong uptrend: +50 or more");
     expect(strip(html)).not.toMatch(/[−-]50\b/);
-    expect(html).not.toMatch(/<(span|p|li)\b[^>]*\baria-label=/);
+    expect(html).not.toMatch(/<(span|p|li)\b(?![^>]*\brole=)[^>]*\baria-label=/);
   });
   it("`.pzt-rn small` keeps WCAG AA contrast (4.5:1) on every light surface", async () => {
     const { readFileSync } = await import("node:fs");
@@ -313,7 +313,7 @@ describe("trend alignment and the build-up on the report page", () => {
     for (const c of al.cells) expect(t).toContain(c.label);
     expect((h.match(/aria-current="true"/g) || []).length).toBe(1);
     expect(h).not.toMatch(FORBIDDEN);
-    expect(h).not.toMatch(/<(span|p|li)\b[^>]*\baria-label=/);
+    expect(h).not.toMatch(/<(span|p|li)\b(?![^>]*\brole=)[^>]*\baria-label=/);
   });
   it("renders the trend map alone with the highlighted cell", () => {
     const h = renderToStaticMarkup(<TrendMap al={trendAlignment(-30, 25)!} />);

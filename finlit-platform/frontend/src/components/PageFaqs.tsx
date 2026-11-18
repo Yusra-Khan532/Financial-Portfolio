@@ -65,7 +65,8 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio"]);   // the ETF portfolio puts its questions above its disclaimer (task #136)
 export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
-  const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/"));   // /glossary/<term> is placed by its page too
+  // /glossary/<term> is placed by its page too; a Prism report (/prism/<SYMBOL>) places its questions inside its own container (task #220)
+  const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/")) || /^\/prism\/[^/]+/.test(pathname);
   const found = own && !inline ? undefined : faqForPath(pathname);
   const model = usePlanModel();
   const faq = found && found.id === "company-report" ? { ...found, items: reportFaqFor(found.items, model) } : found;   // task #216: one score per screen

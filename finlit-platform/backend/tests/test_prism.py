@@ -1235,3 +1235,12 @@ async def test_220_an_account_opening_many_companies_quickly_is_recorded_for_rev
     assert (await generate(gold, "WIPRO")).status_code == 200                                   # not blocked
     seen = json.loads(await app.state.store.redis.hget(prism.SWEEP_KEY, gold.user_id))
     assert seen["companies"] == 3 and seen["withinSeconds"] == prism.SWEEP_SECONDS
+
+
+def test_220_streak_summaries_no_longer_repeat_the_growth_quarters_line():
+    view = prism_view.page_view(public_report(prism.reader_view(SNAPSHOT)))
+    items = [i for p in view["review"]["parts"] for b in ("pros", "cons", "mixed", "unavailable") for i in p.get(b, []) if i["metric"].endswith("_STREAK")]
+    assert items and all("comparable quarters" not in i["summary"] for i in items)
+    assert any(i["summary"] == "Consistent year-on-year sales growth." for i in items)
+    streaks = [m for m in view["rating"]["metrics"] if m["metric"].endswith("_STREAK")]
+    assert all("comparable quarters" in m["details"]["streakText"] for m in streaks)    # said once, in the line under it
