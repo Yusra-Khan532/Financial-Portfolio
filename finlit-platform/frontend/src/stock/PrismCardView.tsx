@@ -20,9 +20,18 @@ const vBand = (t: VerdictTone): ScoreBand => (t === "pos" ? "hi" : t === "mixed"
 export const TIP_ROOM = 340;
 export const nearRightEdge = (left: number, width = typeof innerWidth === "number" ? innerWidth : 0) => left - 8 + TIP_ROOM > width - 12;
 /** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. Near the right edge it opens to the left. */
+/** Task #230: the right edge the open tip must stay inside: the window, or the nearest box that clips its overflow (a card), whichever is nearer. */
+export function clipRight(el: Element): number {
+  let right = typeof innerWidth === "number" ? innerWidth : 0;
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const o = getComputedStyle(p); if (/hidden|clip|auto|scroll/.test(`${o.overflowX} ${o.overflow}`)) { right = Math.min(right, p.getBoundingClientRect().right); break; }
+  }
+  return right;
+}
+
 export function InfoTip({ text, end = false }: { text: string; end?: boolean }) {
   const [near, setNear] = useState(false), ref = useRef<HTMLSpanElement>(null);
-  const check = () => { const el = ref.current; if (el && el.getBoundingClientRect().width) setNear(nearRightEdge(el.getBoundingClientRect().left)); };
+  const check = () => { const el = ref.current; if (el && el.getBoundingClientRect().width) setNear(nearRightEdge(el.getBoundingClientRect().left, clipRight(el))); };
   // on load and resize as well as on hover: a hidden tip that opens to the right must never widen the page (README 1.5)
   useEffect(() => { check(); addEventListener("resize", check); return () => removeEventListener("resize", check); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   return <span ref={ref} className={"pcx-i" + (end || near ? " end" : "")} tabIndex={0} role="img" aria-label={text} onMouseEnter={check} onFocus={check}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
@@ -164,7 +173,7 @@ export function TechnicalSection({ a, report, onRecalculate, busy, bare = false,
     <section className="pcx-sec tech" aria-label="Technical analysis, separate from the Prism score">
       {!bare && <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="line" /></span>
-        <div className="pcx-ht"><div className="pcx-hrow"><h3>Technical analysis</h3><InfoTip text={TECH_NOTE} /></div><p>{TECH_SUBTITLE}</p></div>
+        <div className="pcx-ht"><h3 className="pcx-hrow">Technical <span className="pcx-nw">analysis<InfoTip text={TECH_NOTE} /></span></h3><p>{TECH_SUBTITLE}</p></div>
         <p className="pcx-note"><Icon name="info" /><span>{TECH_SEPARATE_NOTE}</span></p>
       </header>}
       {a ? (
