@@ -77,6 +77,8 @@ CAUTION = ("A keyword mention by itself is not proof of material business exposu
 NUM_RE = re.compile(r"\d")
 MIN_DISTINCT, MIN_TOTAL = 2, 5        # the notes: "Require breadth, or a lot of repetition, to avoid one-word noise"
 MAX_PAGES = 80                        # the notes read the first 80 pages
+SIGNAL_BUCKETS = {"Corporate Catalysts & Growth Signals"}
+RULES_VERSION = 2                     # bump when the scoring changes: every stored presentation is read again with the new rules (job, bounded per night)
 DIRECTORY = json.loads((Path(__file__).with_name("directory.json")).read_text(encoding="utf-8"))["buckets"]
 # Related terms of the PDF that are ordinary words in any deck (a power plant's "MW", a test's "trials"): kept in the directory, not matched alone.
 TOO_BROAD = {"mw", "trials", "certification", "navigation", "nodes", "payload", "propulsion", "transformers", "hvac"}
@@ -93,7 +95,7 @@ def compile_patterns() -> Dict[Tuple[str, str], Pattern[str]]:
     pats: Dict[Tuple[str, str], Pattern[str]] = {}
     for bucket, concepts in DIRECTORY.items():
         for c in concepts:
-            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5]
+            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5 and a.lower() not in TOO_BROAD]
             words = [a for a in c["aliases"] if a not in caps and a.lower() not in TOO_BROAD]
             alts = ([r"(?-i:" + _pattern(a) + ")" for a in caps] + [_pattern(a) for a in sorted(words, key=len, reverse=True)])
             if alts:
@@ -112,6 +114,8 @@ def compile_buckets() -> Dict[str, Tuple[Pattern[str], List[str]]]:
         alts: List[Tuple[str, str]] = []
         for c in concepts:
             for a in c["aliases"]:
+                if a.lower() in TOO_BROAD:
+                    continue
                 if a.isupper() and len(a) <= 5:
                     alts.append((r"(?-i:" + _pattern(a) + ")", c["name"]))
                 elif a.lower() not in TOO_BROAD:
@@ -215,12 +219,20 @@ def sentences(text: str) -> List[str]:
     return [" ".join(s.split()) for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text)]
 
 
+def chart_like(s: str) -> bool:
+    """A line of a chart or table read as text ("2.0 2.2 3.1 2.6 ... FY15 FY16 FY17"): more than a third of its words are numbers or year labels.
+    Seen live on the first night; such a line is no sentence to quote."""
+    words = s.split()
+    nums = sum(1 for w in words if re.fullmatch(r"[\(\[]?[-+]?(?:rs\.?|₹|\$)?[\d.,%]+[\)\]]?|(?:fy|cy|q[1-4])\s?'?\d{2,4}[a-z]?", w, re.I))
+    return len(words) >= 6 and nums / len(words) > 0.34
+
+
 def evidence(text: str, terms: List[str], bucket: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, k: int = 2) -> List[str]:
     """Up to k sentences that mention one of the bucket's keywords AND hold a figure (capacity, order value, revenue ...), as the notes ask."""
     out: List[str] = []
     term_pats = [pats[(bucket, t)] for t in terms if (bucket, t) in pats]
     for s in sentences(text):
-        if 20 <= len(s) and NUM_RE.search(s) and any(p.search(s) for p in term_pats):
+        if 20 <= len(s) and NUM_RE.search(s) and not chart_like(s) and any(p.search(s) for p in term_pats):
             out.append(s[:300])
             if len(out) == k:
                 break
@@ -249,8 +261,11 @@ def classify(text: str) -> dict:
     if not scores:
         return {"status": "no_bucket_match", **empty}
     buckets = list(scores)
-    top = buckets[0]
-    secondary = [b for b in buckets[1:] if scores[b]["score"] >= 0.5 * scores[top]["score"]]
+    # "Corporate Catalysts & Growth Signals" (order book, JV, M&A, guidance) are events every deck names, not a line of business: seen live on the first
+    # night (43 of 133 companies). A business theme that qualifies is the primary; the catalysts stay as a secondary theme.
+    business = [b for b in buckets if b not in SIGNAL_BUCKETS]
+    top = business[0] if business else buckets[0]
+    secondary = [b for b in buckets if b != top and (scores[b]["score"] >= 0.5 * scores[top]["score"] or b in SIGNAL_BUCKETS)]
     for b in [top, *secondary]:
         scores[b]["stage"] = theme_stage(text, list(scores[b]["terms"]), b)
         scores[b]["verify"] = sorted({VERIFY[(b, t)] for t in scores[b]["terms"] if VERIFY.get((b, t))})[:3]
