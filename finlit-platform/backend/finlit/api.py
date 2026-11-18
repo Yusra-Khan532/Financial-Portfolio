@@ -811,6 +811,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(fundjobs.router)
     app.include_router(sysctl.router)   # /api/admin/system: loads switch, restart, status
     app.include_router(__import__("finlit.jobs.status", fromlist=["router"]).router)   # GET /api/jobs/status: public, read-only (every job, every dataset's freshness, the pause)
+    app.include_router(__import__("finlit.jobs.admin", fromlist=["router"]).router)    # GET /api/admin/jobs/overview and /runs: the admin console's Jobs section
     app.include_router(__import__("finlit.dbusage", fromlist=["admin"]).admin)   # /api/admin/db-usage: top statements by rows returned
     app.include_router(__import__("finlit.mf_compare", fromlist=["router"]).router)   # head-to-head Fund Compare, /api/mf-compare
     app.include_router(__import__("finlit.etf_vs_index", fromlist=["router"]).router)   # ETF vs index fund on one index, /api/etf-vs-index

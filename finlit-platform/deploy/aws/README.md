@@ -39,7 +39,7 @@ Overrides (environment variables for `deploy.sh`): `REPO_URL`, `REPO_BRANCH` (de
 - **Real visitor address:** Caddy overwrites `X-Forwarded-For` with the address it saw; the app has `CLIENT_IP_HEADER=x-forwarded-for` and reads the chain from the right, skipping private (Docker network) addresses, so no `TRUSTED_PROXIES` is needed.
 - **Databases:** PostgreSQL (TimescaleDB image, same as `docker-compose.yml`) and Redis run here. MongoDB stays in Atlas (`MONGO_URL`); without it the app still starts (blog/forms say "not connected").
 - **Rollback:** each deploy keeps the previous image as `finlit-app:previous` (a rollback moves the jobs container back too; an image from before the jobs container runs its jobs in the app container again).
-- **Two app containers from one image:** `app` (website, research API, site backend; 500 MB) and `jobs` (job supervisor, on-demand report lane, commodity loop; 800 MB). A website deploy replaces `app` only; `jobs` moves only when the job code changed and no long job runs (`deploy.sh jobs`, `deploy.sh status` shows which job code it runs).
+- **Two app containers from one image:** `app` (website, research API, site backend; 500 MB) and `jobs` (job supervisor, on-demand report lane, commodity loop and the jobs' own site backend; 1000 MB). A website deploy replaces `app` only; `jobs` moves only when the job code changed and no long job runs (`deploy.sh jobs`, `deploy.sh status` shows which job code it runs).
 
 ## Manual compose (normally use deploy.sh)
 ```bash
