@@ -9,7 +9,7 @@
 .bh-up { color: var(--sp-good, #1f7a4d); } .bh-down { color: var(--sp-red, #b4362b); }
 .bh-mute { color: var(--sp-mute, var(--muted)); }
 .bh-acts { white-space: nowrap; text-align: right; }
-.bh-link { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent, #1f6b6b); font: 600 12px var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.bh-link { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--sp-info, #0E6471); font: 600 12px var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .bh-add { margin-top: 10px; }
 .bh-cap { margin: 0 0 6px; font: 600 12px var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); }
 .bh-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
@@ -19,7 +19,7 @@
 .bh-go { background: var(--sp-ink, var(--text)); border-color: var(--sp-ink, var(--text)); color: var(--bg, #fff); }
 .bh-err { flex-basis: 100%; margin: 0; color: var(--sp-red, #b4362b); font-size: 13px; }
 .bh-none, .bh-note { margin: 6px 0 0; font-size: 12px; color: var(--sp-mute, var(--muted)); }
-.bh-open { display: block; margin: 2px 0 0 auto; padding: 0; border: 0; background: none; color: var(--accent, #1f6b6b); font: 600 12px var(--sans); cursor: pointer; white-space: nowrap; }
+.bh-open { display: block; margin: 2px 0 0 auto; padding: 0; border: 0; background: none; color: var(--sp-info, #0E6471); font: 600 12px var(--sans); cursor: pointer; white-space: nowrap; }
 .bh-sum { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--sp-line, var(--line)); border-radius: 10px; }
 .bh-sum div { display: grid; gap: 2px; } .bh-sum small { font-size: 12px; color: var(--sp-mute, var(--muted)); } .bh-sum b { font: 400 20px/1.2 var(--serif); }
 .bh-sum p { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--sp-mute, var(--muted)); }
