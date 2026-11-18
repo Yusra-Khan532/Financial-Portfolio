@@ -24,6 +24,7 @@ beforeAll(() => { (globalThis as { ResizeObserver?: unknown }).ResizeObserver = 
 afterEach(() => { cleanup(); document.getElementById("financials")?.remove(); });
 const show = (d = RIL, lender = false) => render(<DecodeRoe pl={d.pl} bs={d.bs} lender={lender} />);
 
+const tabTo = (name: RegExp) => fireEvent.click(screen.getByRole("tab", { name }));   // task #216: the seven cards are one tab group
 describe("Decoding ROE, Reliance", () => {
   it("has the heading, the plain sentence, a completeness indicator and the disclaimer", () => {
     show();
@@ -32,14 +33,14 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.getByText(/Information only, not investment advice/)).toBeTruthy();
   });
   it("table has a caption, years as columns, and the same ROE figures as the DuPont card (FY26 7.7%)", () => {
-    show();
+    show(); tabTo(/ROE and ROA/);
     const tbl = screen.getByRole("table", { name: /Net margin, asset turnover/ });
     expect(within(tbl).getAllByRole("columnheader")).toHaveLength(9);
     const roe = within(tbl).getByRole("row", { name: /ROE, reported/ });
     expect(roe.textContent).toContain("7.7%"); expect(roe.textContent).toContain("8.7%");           // FY19 35,163 / 4,05,322; FY26 43,851 / 5,66,235
   });
   it("toggles Reported | Normalized and Year-end | Average balances, and says which is on", () => {
-    show();
+    show(); tabTo(/ROE and ROA/);
     const rep = screen.getByRole("button", { name: "Reported" }), norm = screen.getByRole("button", { name: "Normalized" });
     expect(rep.getAttribute("aria-pressed")).toBe("true"); fireEvent.click(norm);
     expect(norm.getAttribute("aria-pressed")).toBe("true"); expect(screen.getByRole("row", { name: /Net margin, normalized/ })).toBeTruthy();
@@ -48,18 +49,18 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.getAllByText("†").length).toBeGreaterThan(0);
   });
   it("shows the average ROE with the years used", () => {
-    show();
+    show(); tabTo(/ROE and ROA/);
     const a = screen.getByRole("table", { name: /Average ROE/ });
     expect(within(a).getByRole("row", { name: /3-year average/ }).textContent).toContain("3 of 3");
     expect(within(a).getByRole("row", { name: /5-year average/ }).textContent).toContain("5 of 5");
   });
   it("the waterfall, the calculator and the explanation use the numbers on the page", () => {
-    show();
+    show(); tabTo(/Extended DuPont/);
     expect(screen.getByRole("img", { name: /ROE bridge from Mar 2019 to Mar 2026/ })).toBeTruthy();
     expect(screen.getByRole("table", { name: /Contribution of each factor/ })).toBeTruthy();
   });
   it("calculator: sliders start at the latest values, move the ROE live and solve the required margin", () => {
-    show();
+    show(); tabTo(/What-if calculator/);
     const m = screen.getByLabelText("Net margin") as HTMLInputElement, e = screen.getByLabelText("Equity multiplier") as HTMLInputElement;
     expect(Number(m.value)).toBeCloseTo((43851 / 524105) * 100, 6); expect(e.type).toBe("range");
     fireEvent.change(m, { target: { value: "16.74" } });
@@ -71,10 +72,9 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.getByText(/not a forecast/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Reset to Mar 2026/ })); expect(Number(m.value)).toBeCloseTo((43851 / 524105) * 100, 6);
   });
-  it("'How is this calculated?' opens with the actual numbers of the chosen year", () => {
+  it("'How it is calculated' shows the actual numbers of the chosen year", () => {
     show();
-    const b = screen.getByRole("button", { name: /How is this calculated/ }); expect(b.getAttribute("aria-expanded")).toBe("false"); fireEvent.click(b);
-    expect(b.getAttribute("aria-expanded")).toBe("true");
+    tabTo(/How it is calculated/);   // the tab opens the working; no separate open/close button
     const tbl = screen.getByRole("table", { name: /Formulas for Mar 2026/ }); expect(tbl.textContent).toContain("43,851 ÷ 5,24,105"); expect(tbl.textContent).toContain("8.37%");
     fireEvent.change(screen.getByLabelText("Year"), { target: { value: "FY19" } });
     expect(screen.getByRole("table", { name: /Formulas for Mar 2019/ }).textContent).toContain("35,163 ÷ 3,84,904");
@@ -85,12 +85,15 @@ describe("Decoding ROE, Reliance", () => {
     expect(screen.queryByRole("button", { name: /download|csv/i })).toBeNull();
   });
 
-  it("no checks panel for steady, ordinary figures", () => { show(); expect(screen.queryByText("Checks on the numbers")).toBeNull(); });
+  it("steady, ordinary figures: the Checks tab says nothing was flagged (every blank says why)", () => { show(); tabTo(/Checks/); expect(screen.getByText(/No year stands out/)).toBeTruthy(); expect(document.querySelector(".dp-flags")).toBeNull(); });
+  it("the seven detail cards are one tab group, in the pack's order (task #216, README 3.10)", () => {
+    show(); expect(screen.getAllByRole("tab").map((x) => x.textContent?.replace(/^\d/, ""))).toEqual(["ROE by year", "ROE and ROA", "Checks", "What the figures say", "Extended DuPont", "What-if calculator", "How it is calculated"]);
+  });
 });
 
 describe("Decoding ROE, report-shaped data with gaps and one-offs", () => {
   it("gives a visible reason beside every dash, groups the reasons and counts complete years", () => {
-    show(SHAPED);
+    show(SHAPED); tabTo(/ROE and ROA/);
     expect(screen.getByText(/4 of 8 years complete/)).toBeTruthy();
     expect(screen.getAllByText("equity data not available").length).toBeGreaterThanOrEqual(8);       // multiplier, ROE and normalized ROE rows, four years each (plus the average)
     const note = screen.getAllByRole("note")[0]; expect(note.getAttribute("title")).toMatch(/no total equity figure/); expect(note.getAttribute("tabindex")).toBe("0");
@@ -98,22 +101,23 @@ describe("Decoding ROE, report-shaped data with gaps and one-offs", () => {
     expect(screen.getByLabelText("Why some cells are blank").textContent).toContain("Mar 2019, Mar 2020, Mar 2021, Mar 2022");
   });
   it("shows the 20,780% one-off ratio as an implausible-ratio caution, and marks low-quality years", () => {
-    show(SHAPED);
+    show(SHAPED); tabTo(/ROE and ROA/);
     const c = screen.getByLabelText(/Implausible ratio of 20,780 per cent/); expect(c.textContent).toContain("implausible"); expect(c.textContent).toContain("20,780%");
     expect(screen.getAllByText(/Low quality/).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("table", { name: /Average ROE/ }).textContent).toContain("Mar 2022, Mar 2023 (low-quality earnings)");
   });
   it("lists anomalies with the neutral prompt, and links to the financials section only where it exists", () => {
-    const first = show(SHAPED);
+    const first = show(SHAPED); tabTo(/Checks/);
     expect(screen.getAllByText(/Possible equity raise, merger or restructuring: check the cash flow and equity statements\./).length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /financial statements/ })).toBeNull(); first.unmount();
     const el = document.createElement("section"); el.id = "financials"; el.scrollIntoView = vi.fn(); document.body.appendChild(el);
-    show(SHAPED); const a = screen.getAllByRole("link", { name: /See the financial statements/ })[0]; expect(a.getAttribute("href")).toBe("#financials");
+    show(SHAPED); tabTo(/Checks/); const a = screen.getAllByRole("link", { name: /See the financial statements/ })[0]; expect(a.getAttribute("href")).toBe("#financials");
     fireEvent.click(a); expect(el.scrollIntoView).toHaveBeenCalled();
   });
   it("insight cards come from the rule list and show their numbers", () => {
-    show(SHAPED);
-    const cards = screen.getAllByRole("listitem").filter((x) => x.className === "dp-insc");
+    show(SHAPED); tabTo(/What the figures say/);
+    const cards = screen.getAllByRole("listitem").filter((x) => x.classList.contains("dp-insc"));
+    expect(cards.every((c) => c.tagName === "DETAILS" && c.querySelector("summary .xdd-chev"))).toBe(true);   // task #216: each finding is a drop-down that opens to its figures
     expect(cards.length).toBeGreaterThan(0); expect(cards.length).toBeLessThanOrEqual(4);
     expect(cards[0].textContent).toMatch(/one-off items above 50%/); expect(cards.every((c) => c.querySelector("ul li"))).toBe(true);
   });
@@ -127,8 +131,8 @@ describe("edge cases", () => {
   });
   it("negative equity reads 'negative equity' and 'ROE not meaningful'; one year only and all-null data render", () => {
     const neg = { pl: t(["FY25", "FY26"], { revenue: [100, 100], net_profit: [10, 10], profit_before_tax: [14, 14] }), bs: t(["FY25", "FY26"], { total_assets: [500, 500], total_equity: [-50, -40] }) };
-    show(neg); expect(screen.getAllByText("negative equity").length).toBe(2); expect(screen.getAllByText("ROE not meaningful").length).toBeGreaterThan(0); cleanup();
-    show({ pl: t(["FY26"], { revenue: [100], net_profit: [10], profit_before_tax: [14] }), bs: t(["FY26"], { total_assets: [200], total_equity: [100] }) }); expect(screen.getByText(/1 of 1 years complete/)).toBeTruthy(); expect(screen.getByText(/Needs pre-tax profit, finance costs/)).toBeTruthy(); cleanup();
+    show(neg); expect(screen.getAllByText("negative equity").length).toBeGreaterThanOrEqual(2);   // the table, and the working in "How it is calculated" expect(screen.getAllByText("ROE not meaningful").length).toBeGreaterThan(0); cleanup();
+    show({ pl: t(["FY26"], { revenue: [100], net_profit: [10], profit_before_tax: [14] }), bs: t(["FY26"], { total_assets: [200], total_equity: [100] }) }); expect(screen.getByText(/1 of 1 years complete/)).toBeTruthy(); expect(screen.getAllByText(/Needs pre-tax profit, finance costs/).length).toBeGreaterThan(0); cleanup();
     show({ pl: t(["FY25", "FY26"], { revenue: [null, null], net_profit: [null, null] }), bs: t(["FY25", "FY26"], { total_assets: [null, null], total_equity: [null, null] }) }); expect(screen.getByText(/0 of 2 years complete/)).toBeTruthy(); expect(screen.getAllByText("no revenue").length).toBeGreaterThan(0);
     expect(screen.getByText(/nothing to start from/)).toBeTruthy();
   });
@@ -168,7 +172,7 @@ describe("compliance wording on screen", () => {
   it("no buy, sell, hold or target language anywhere in the block, in either view or basis", () => {
     const BAD = /\b(buy|buying|sell|selling|hold|holding|target|targets|recommend\w*|outperform\w*|undervalued|overvalued|upside|downside|accumulate)\b/i;
     for (const d of [RIL, SHAPED]) {
-      show(d); fireEvent.click(screen.getByRole("button", { name: /How is this calculated/ })); fireEvent.click(screen.getByRole("button", { name: "Normalized" })); fireEvent.click(screen.getByRole("button", { name: "Average balances" }));
+      show(d); fireEvent.click(screen.getByRole("button", { name: "Normalized" })); fireEvent.click(screen.getByRole("button", { name: "Average balances" }));
       const text = document.body.textContent || ""; expect(text.length).toBeGreaterThan(1500); expect(text).not.toMatch(BAD); expect(text).toMatch(/Information only, not investment advice/);
       const sr = [...document.querySelectorAll("[aria-label],[title]")].map((e) => (e.getAttribute("aria-label") || "") + (e.getAttribute("title") || "")).join(" "); expect(sr).not.toMatch(BAD);
       cleanup();

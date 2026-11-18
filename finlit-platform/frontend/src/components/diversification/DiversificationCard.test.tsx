@@ -138,3 +138,17 @@ describe("wording: the card describes and never advises", () => {
   });
   it("an unrated stock is named in a note", () => { expect(W.notRatedNote(["XYZ"])).toBe("1 stock is not rated by Prism yet (XYZ), so it is left out of the style tilt only."); void within; });
 });
+
+describe("task #181: the card looks like the boxes above it, with its name highlighted", () => {
+  it("is a site .card, takes the site's surfaces, lines and text, and keeps the accent for the bar, the icon and the data", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8"), tsx = fs.readFileSync("src/components/diversification/DiversificationCard.tsx", "utf8");
+    expect(tsx).toContain('<section className="card dv"');
+    expect(css).toMatch(/\.dv \{ --bg-surface: var\(--s1\); --bg-subtle: var\(--s2\); --dv-line: var\(--border\); --text-primary: var\(--text\)/);
+    expect(css).not.toMatch(/#0C2419|#F1F8F3|95, 211, 155/);                       // the old private palette is gone
+    expect(css).toMatch(/\.dv-head > div:first-child \{ border-left: 4px solid var\(--gain\)/);   // the highlighted name
+    expect(css).toMatch(/\.dv-cur \{[^}]*border: 1px solid var\(--border-strong\)[^}]*background: var\(--bg-subtle\)/);   // a neutral box, not an accent one
+    const base = /\.dv \{ --dv-hue[^}]*\}/.exec(css)![0];
+    expect(base).not.toMatch(/background:|border:|border-radius:|padding:/);       // the .card styles are not overridden
+  });
+});

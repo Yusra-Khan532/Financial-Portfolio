@@ -27,6 +27,24 @@ The month is the calendar month in India; the count renews on the 1st. An admini
    no disclaimer of its own (the panel shows the standard one under every answer). A finished answer that reads like advice (`service.ADVICE`: "you
    should buy", "target price", "multibagger", "top pick", "best stock" ...) is withdrawn and replaced by a plain notice.
 
+## Reading the company page (rework, 18 Nov 2026)
+
+The founder asked "prism score of jsw steels?" on JSW Steel's page and was told "FinLit has no prism score". Cause: the first tools were the MCP tools,
+made for an anonymous visitor, so none read FinLit Prism or the company page's own sections, and the instructions never named FinLit's measures.
+Now:
+
+- `get_company_card`: everything at the top of a company page in one call (NSE's four levels, market cap, price, 52-week range, FinLit Prism with its
+  parts and technical views, FinLit IQ, key ratios, returns, strengths and watch-outs, rank against NSE peers, F&O and margin trading), read from the
+  page's own routes as the member, so each part follows the plan (Prism: Gold, and the showcase company for every member).
+- `get_finlit_prism`, and `get_company_section` for every other section (peers, rank vs peers, dividends and corporate actions, segments, ownership
+  insights, company brief, IQ and Prism history, forecast, macro outlook, trading facts).
+- **Cards first:** the company of the page the member is on, and up to two companies the question names (`ask/companies.py`: whole names, short
+  names and plurals such as "jsw steels", symbols written in capitals; loose matches need a distinctive word, so "indian banks" or "life insurance
+  companies" name no company), are read before the model starts. Any wording about a company is answered from what its page shows, in one round.
+  Checked against the full list of 5,745 companies: 0 false matches on 48 questions about groups of companies, 20 of 20 named companies found.
+- The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), FinLit IQ, FundPulse, the peer rank and NSE's levels,
+  and forbid saying FinLit lacks a measure; times are written in India time.
+
 ## Speed
 
 - Instant listed answers first; the model is used only for the rest.

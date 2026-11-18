@@ -220,3 +220,12 @@ describe("dashboard cards, task #208 (the team's list of 16 Nov)", () => {
     for (const f of ["correlation-charts-light", "etf-portfolio-light"]) expect(existsSync(join(process.cwd(), "public/landing/tools", f + ".webp")), f).toBe(true);
   });
 });
+
+describe("Correlation Chart card, task #179 (the team's wording, word for word)", () => {
+  it("describes the feature as the task wrote it", () => {
+    const c = BUCKETS.find((b) => b.id === "company-360")!.cards.find((x) => x.id === "correlation-charts")!;
+    expect(c.what).toBe("Discover how financial metrics move together across companies.");
+    expect(c.points).toEqual(["Compare relationships between two measures.", "View regression trends when statistically valid.", "Add companies to compare their positions."]);
+    expect(c.link).toBe("/graphs/advanced");
+  });
+});

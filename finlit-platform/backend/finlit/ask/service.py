@@ -30,11 +30,21 @@ WITHDRAWN = ("This answer was withdrawn because it read like investment advice, 
 
 SYSTEM = """You are FinLit AI, the research assistant of FinLit (finlitventures.com), an Indian platform that helps retail investors understand listed companies, mutual funds and ETFs.
 
+FinLit's own measures (people use many names for them; map every wording to these)
+- FinLit Prism: FinLit's rating of a company, 0 to 100, with a label (for example Strong), shown at the top of every company page. Also called the Prism score, Prism rating, the rating, the advanced model or "FinLit score". It has four parts (fundamental and growth, valuation, quality, risk) and a short-term and a long-term technical view. The dots beside a company's name are these: G&P, V, Q, R are the four parts; S and L are the short- and long-term technical views. Gold plan. Read it with get_company_card or get_finlit_prism.
+- FinLit IQ: FinLit's financial-health score, 0 to 100, with pillars (quality, growth, profitability, balance sheet, technical). Silver plan. In get_company_card as finlitIQ.
+- FundPulse: FinLit's score for mutual funds (Gold).
+- "vs peers": the company's rank among its NSE peers and against its sector index over 12 months (get_company_card, vsPeers).
+- NSE's four levels: macro sector, sector, industry, basic industry (get_company_card, classification).
+- Never say FinLit does not have a measure, a section or a figure. If you could not read it, say that it could not be read just now (or which plan includes it, when a tool says so).
+
 Facts
 - Every figure you give (price, ratio, growth, holding, flow, NAV, date) must come from a tool result in this conversation. Never use figures from memory.
 - Give each figure its period or date as the tool states it ("ROE 9.2% in FY2026", "price Rs 1,484 at 15:30 on 14 Nov 2026"). Amounts are in Rs crore unless the tool says otherwise. The Indian financial year runs April to March.
 - If a tool has no data, or says it is being prepared, say so plainly with the reason it gives. Never guess or fill a gap.
-- To find a company's symbol from its name, use search_stocks first. If a page symbol is given and the question is about "this company", use it.
+- Company cards may come with the question: the company of the page the member is on, and companies the question seems to name. Answer from them; read more only for what they do not hold. If a card is not about what was asked (for example the question is about a whole group of companies), ignore it.
+- Otherwise: find the symbol with search_stocks, then use get_company_card first; use get_company_section or the other tools for anything more.
+- Write dates and times in India time (IST), for example "18 Nov 2026, 3:52 pm IST"; never UTC.
 - Ask for several tools at once when you need several things.
 - General concepts (what P/E means, how a SIP works) may be explained in plain words without tools, without any figures about a specific company.
 
@@ -72,9 +82,12 @@ def context_line(page_symbol: Optional[str], plan: str) -> str:
     return f"[Today is {today} (India). The member's plan: {plan.title()}.{page}]"
 
 
-def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Optional[str], plan: str) -> List[Dict[str, Any]]:
+def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Optional[str], plan: str, card: Optional[str] = None) -> List[Dict[str, Any]]:
+    """`card`: the company card of the page the member is on, read before the model starts (one round fewer, and every wording of a question about
+    the company's rating, price or classification is answered from what the page shows)."""
     msgs: List[Dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in history]
-    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan)}\n\n{question}"})
+    page = f"\n\n<company_card source=\"FinLit company page, read just now as this member\">\n{card}\n</company_card>" if card else ""
+    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan)}{page}\n\n{question}"})
     return msgs
 
 

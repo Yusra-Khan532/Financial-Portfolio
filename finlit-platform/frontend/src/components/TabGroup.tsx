@@ -10,8 +10,8 @@ import "../styles/tabgroup.css";
 
 export type TabView = { key: string; label: string; content?: ReactNode };
 
-export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial }: {
-  views: TabView[]; label: string; hint?: string; numbered?: boolean; variant?: "key" | "highlighted"; value?: string; onChange?: (key: string) => void; next?: boolean; initial?: string;
+export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial, noun = "views" }: {
+  views: TabView[]; label: string; hint?: string; numbered?: boolean; variant?: "key" | "highlighted"; value?: string; onChange?: (key: string) => void; next?: boolean; initial?: string; noun?: string;
 }) {
   const uid = "ct" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const [own, setOwn] = useState(initial ?? views[0]?.key);
@@ -46,7 +46,7 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
       <div ref={bar} className={"ctabs" + (used ? " used" : "") + (variant ? " ct-" + variant : "")}>
         <div className="ctabs-h">
           {variant === "key" && <span className="ct-crown" title="The key view of this section"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" focusable="false"><path d="M3 18h18l-1.6-9-4.4 3.6L12 6l-3 6.6L4.6 9z" /></svg>KEY VIEW</span>}
-          <span className="ctabs-ic" aria-hidden="true">⇆</span><b>{n} views</b><span className="ctabs-hint">{hint}</span>
+          <span className="ctabs-ic" aria-hidden="true">⇆</span><b>{n} {noun}</b><span className="ctabs-hint">{hint}</span>
         </div>
         <div className="ct-list" role="tablist" aria-label={label}>
           {views.map((v, j) => (

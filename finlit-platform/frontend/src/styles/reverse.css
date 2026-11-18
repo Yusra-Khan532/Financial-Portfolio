@@ -73,3 +73,14 @@
 @media (max-width: 760px) { .rv-sn { padding: 4px; } .rv-snb { gap: 6px; min-height: 36px; padding: 0 2px 0 8px; } .rv-snb svg { width: 14px; height: 14px; } }
 @media (prefers-reduced-motion: reduce) { .rv-sni { transition: none; } }
 @media print { .rv-sn { display: none !important; } }
+
+/* task #182: quick picks and "Last searched" under the company search, the same look as profit and revenue forecasting's (outlook.css .olp-) */
+.rv-picks { display: grid; gap: 10px; margin-top: 12px; }
+.rv-pr { display: grid; gap: 8px; align-items: start; }
+.rv-pl { font: 700 var(--fs-13) var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--text); }
+.rv-pr ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.rv-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); font: 500 var(--fs-14) var(--sans); cursor: pointer; }
+.rv-chip small { font-size: var(--fs-12); }
+.rv-chip:hover { border-color: var(--gold); }
+.rv-chip:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
+.rv-chip.on { background: var(--gold-soft); border-color: var(--gold); }

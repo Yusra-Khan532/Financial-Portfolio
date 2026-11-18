@@ -33,7 +33,7 @@ describe("Macro & Sector Outlook section", () => {
     const { container } = wrap();
     await screen.findByText("Indicator signals");
     expect(screen.queryByText("Sector impact")).toBeNull(); expect(container.querySelector(".mo-t")).toBeNull();
-    expect(container.querySelector(".mo-bar-a")?.textContent).toContain("Credit +");   // the reason the panel showed is in the backdrop
+    expect(container.querySelector(".mo-bd")?.textContent).toContain("Credit +");   // the reason the panel showed is in the backdrop
     expect(container.textContent).not.toContain("PSU banks");
     expect(st.calls.some((c) => c.includes("sector-impact"))).toBe(false);          // the 35-sector table is not even requested for a one-sector company
   });
@@ -81,7 +81,7 @@ describe("Macro & Sector Outlook section", () => {
     const bar = await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(within(bar).getByText("Insufficient Data")).toBeTruthy(); expect(within(bar).getByText("—")).toBeTruthy();
     expect(screen.getAllByText(/Insufficient Data: missing critical: Brent crude/).length).toBeGreaterThan(0);
-    expect(container.querySelector(".mo-bar-a .mo-bar i")?.getAttribute("style")).toContain("width: 0");
+    expect(container.querySelector(".mo-bd .mo-ring .arc")).toBeNull();   // task #216: the ring draws no arc without a score
   });
   it("shows a stale warning above the score", async () => {
     st.company = { ...ok, stale: { isStale: true, since: "2026-11-01", message: "Not refreshed for 61 hours. Showing the last successful snapshot.", reason: "overdue" } };

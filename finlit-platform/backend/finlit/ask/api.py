@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..auth.entitlements import sees_all
 from ..auth.routes import fail, ip_of, limit, secure_ctx
 from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
-from . import quota, service
+from . import companies, quota, service, tools
 from .gateway import MemberGateway
 
 log = logging.getLogger("finlit.ask")
@@ -149,7 +149,6 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                        cookie=request.cookies.get(cookie_name(st), ""), csrf=ctx.csrf or "",
                        origin=request.headers.get("origin") or f"{request.url.scheme}://{request.headers.get('host', 'localhost')}",
                        view_as=request.headers.get(VIEW_AS_HEADER))
-    messages = service.build_messages([t.model_dump() for t in body.history], body.question.strip(), body.symbol, plan_key(ctx))
 
     async def run() -> AsyncIterator[bytes]:
         out: List[bytes] = []
@@ -162,6 +161,16 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             out.append(sse(event, data))
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
+        # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the model
+        # starts with the facts whatever the wording, and answers in one round.
+        want = ([body.symbol] if body.symbol else []) + await companies.named_in(gw, body.question, 2, skip=body.symbol)
+        cards: List[str] = []
+        for sym in want[:2]:
+            yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
+        got = await asyncio.gather(*(tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]))
+        cards = [g["text"] for g in got if not g["error"]]
+        card = "\n".join(cards) or None
+        messages = service.build_messages([t.model_dump() for t in body.history], body.question.strip(), body.symbol, plan_key(ctx), card)
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit))

@@ -67,5 +67,9 @@ describe("older answers and other kinds of group", () => {
     expect(groupSourceLine({ peerGroup: { ...LEAD.peerGroup, source: "industry", kind: "sector", name: "Finance", ranked: 20 } })).toBe("Peer group: companies in the same sector (Finance), 20 ranked.");
     expect(groupSourceLine({ peerGroup: { ...LEAD.peerGroup, source: "industry", kind: "basic_industry", name: "Private Sector Bank", ranked: 18 } })).toBe("Peer group: companies in the same basic industry (Private Sector Bank), 18 ranked.");   // task #192: banks split by NSE basic industry
   });
-  it("the status block alone", () => { expect(strip(renderToStaticMarkup(<MemoryRouter><RankingStatus lead={LEAD} /></MemoryRouter>))).toContain("Leader 6th of 11 IT peers"); });
+  it("the status block (task #216, README 3.13): the chip alone, then 'Rank, gaps and this week's reading' and 'How this label works · 5 facts'", () => {
+    const t = strip(renderToStaticMarkup(<MemoryRouter><RankingStatus lead={LEAD} /></MemoryRouter>));
+    expect(t).toMatch(/^ ?Leader Rank, gaps and this week's reading 6th of 11 IT peers · \+14\.0 pts vs Nifty IT · −6\.8 pts vs Nifty 50 \(12 months\) · gaining over 3 months This week the ranking says In line\./);
+    expect(t).toContain("How this label works · 5 facts");
+  });
 });

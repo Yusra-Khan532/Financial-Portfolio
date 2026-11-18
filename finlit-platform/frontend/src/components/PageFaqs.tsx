@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { usePlanModel } from "../lib/planGate";
+import { reportFaqFor } from "../content/reportFaqPlan";
 import { Link, useLocation } from "react-router";
 import type { PageFaq } from "../content/pageFaqs";
 import { faqForPath } from "../lib/pageFaqs";
@@ -64,7 +66,9 @@ const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfo
 export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
   const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/"));   // /glossary/<term> is placed by its page too
-  const faq = own && !inline ? undefined : faqForPath(pathname);
+  const found = own && !inline ? undefined : faqForPath(pathname);
+  const model = usePlanModel();
+  const faq = found && found.id === "company-report" ? { ...found, items: reportFaqFor(found.items, model) } : found;   // task #216: one score per screen
   useEffect(() => { if (faq && hash === "#faq") setTimeout(() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" }), 150); }, [faq, hash]);
   if (!faq) return null;
   // first question open on a wide screen, all closed on a phone

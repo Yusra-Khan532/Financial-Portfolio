@@ -30,7 +30,7 @@ export function SectionsMenu({ items, active, onPick }: { items: NavItem[]; acti
 
   return (
     <div className="smn" ref={box} onKeyDown={key}>
-      <button type="button" ref={btn} className="smn-b" aria-expanded={open} aria-controls={id} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
+      <button type="button" ref={btn} className="smn-b" aria-label="All sections" aria-expanded={open} aria-controls={id} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
         <Icon name="grid" /><span className="smn-l"><span className="smn-d">All sections</span><span className="smn-w">Sections</span></span>
       </button>
       <div id={id} className="smn-p" role="dialog" aria-label="All sections" hidden={!open}>
