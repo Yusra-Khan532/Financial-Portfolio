@@ -1,4 +1,4 @@
-"""`refresh-sectors`: the nightly sector run (docs/SECTORS.md).
+"""`refresh-sectors`: the weekly sector run, on weekend nights (docs/SECTORS.md, docs/JOBS.md).
 
     1. fetch   (SECTOR_FETCH=1, default) bring the NSE data folder up to date with `python -m finlit_technicals fetch-nse`, in a child process with a time
                limit. NSE sometimes refuses data-centre servers: that is reported in plain words (run status, /api/sectors/status) and the run carries on

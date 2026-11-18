@@ -12,7 +12,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   4. Prove each point with a test or a screenshot: desktop and phone, light and dark, Silver and Gold where it applies.
   5. Push only when everything passes, then check the live page.
 - Standing rules (`CLAUDE.md`):
-  - Background jobs never stop or get weaker. The sector job is off by the founder's written decision until `SECTORS_JOB=on`.
+  - Background jobs never stop or get weaker. The sector job runs only on weekend nights (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday night as a catch-up, after every other job of the night; docs/JOBS.md); it stays off until `SECTORS_JOB=on` is set on the server.
   - Numbers are correct and current, and every blank says why.
   - Describe, never advise, and keep the disclaimer.
   - Everything stays free.
