@@ -45,6 +45,8 @@
 .gx-yr { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px 8px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
 .gx-yr select { background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font: inherit; }
 
+/* task #163: a row's Add menu keeps its size; its options now name what each chart shows ("Chart 2 · Revenue"), which must not widen the closed box */
+.gx-list li select { flex: none; width: 104px; }
 .gx-list li.off { opacity: .55; cursor: default; } .gx-list li.off label { cursor: not-allowed; }
 .pagehead .gx-adv { margin-top: 10px; font-size: var(--fs-16); } .gx-adv a { color: var(--gold); font-weight: 600; }
 /* Chart builder: enlarge one chart over the page, "+ Add chart", and the plain-words reading under each chart */
