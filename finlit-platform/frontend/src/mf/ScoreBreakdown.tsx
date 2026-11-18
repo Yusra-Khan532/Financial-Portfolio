@@ -4,9 +4,15 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { PILLARS, STATE_WORD, dataGaps, groupMetrics, stateLine, type CategoryMedian } from "../lib/mfScoreUp";
-import { bandOf, wordBand, type FundScore } from "../lib/mfScore";
+import { bandOf, scoreText, wordBand, type FundScore, type ScorePillar } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import "../styles/mfup.css";
+
+/** This fund's part: its figure out of 100 (task #238) and its word. */
+function PartCell({ p }: { p: ScorePillar | undefined }) {
+  const w = p?.reading || "Not scored";
+  return <>{p?.points != null && <span className="mfs-pnum">{scoreText(p.points)}</span>}<b className={"b-" + wordBand(w)}>{w}</b></>;
+}
 
 const num = (v: number | null | undefined) => (v == null ? "—" : Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2).replace(/\.?0+$/, ""));
 type S = FundScore & { categoryMedian?: CategoryMedian };
@@ -21,10 +27,10 @@ export function ScoreBreakdown({ s }: { s: S }) {
       <h3 className="mf-h4">Score breakdown: this fund against the category median</h3>
       <div className="mfu-bdtop">
         <div className="tw"><table className="mfu-parts">
-          <caption className="sr-only">The four parts of this fund's score in words, beside the category median{med?.n ? ` of ${med.n} funds` : ""}</caption>
+          <caption className="sr-only">The four parts of this fund's score, out of 100 and in words, beside the category median{med?.n ? ` of ${med.n} funds` : ""}</caption>
           <thead><tr><th scope="col">Part</th><th scope="col">This fund</th><th scope="col">{med ? `Category median${med.n ? ` (${med.n} funds)` : ""}` : "Category median"}</th></tr></thead>
           <tbody>{PILLARS.map(([k, name]) => (
-            <tr key={k}><th scope="row">{name}</th><td>{word(s.pillars.find((p) => p.key === k)?.reading)}</td><td>{med ? word(med[k]) : <span className="faint" title="The category median is not worked out for this group yet">—</span>}</td></tr>))}</tbody>
+            <tr key={k}><th scope="row">{name}</th><td><PartCell p={s.pillars.find((x) => x.key === k)} /></td><td>{med ? word(med[k]) : <span className="faint" title="The category median is not worked out for this group yet">—</span>}</td></tr>))}</tbody>
         </table></div>
         <div className="mfu-facts">
           <div className={"mfu-gaps" + (gaps.length ? " has" : "")} aria-label="Data gaps">

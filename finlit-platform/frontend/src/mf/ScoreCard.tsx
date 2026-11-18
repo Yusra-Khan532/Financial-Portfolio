@@ -31,14 +31,18 @@ export function ScoreRing({ score, label, size = 132 }: { score: number | null; 
 
 function Pillars({ s }: { s: FundScore }) {
   return (
-    <ul className="mfs-pillars" aria-label="The four parts of the score, in words">
+    <ul className="mfs-pillars" aria-label="The four parts of the score, each out of 100 and in words">
       {s.pillars.map((p) => {
-        const word = p.reading || "Not scored", band = wordBand(word);
+        const word = p.reading || "Not scored", band = wordBand(word), pts = p.points ?? null;
+        // task #238: the part's own figure beside its word, and the bar drawn to that figure (a part with no figure keeps the word's width)
+        const width = pts != null ? `${Math.max(0, Math.min(100, pts))}%` : band === "hi" ? "100%" : band === "mid" ? "62%" : band === "lo" ? "28%" : "0%";
         return (
           <li key={p.key} title={PILLAR_HELP[p.key]}>
             <span className="mfs-pn">{p.name}</span>
-            <span className="mfs-bar" aria-hidden="true"><i style={{ width: band === "hi" ? "100%" : band === "mid" ? "62%" : band === "lo" ? "28%" : "0%", background: bandVar(band) }} /></span>
-            <b className={"mfs-pv b-" + band}>{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}</b>
+            <span className="mfs-bar" aria-hidden="true"><i style={{ width, background: bandVar(band) }} /></span>
+            <b className={"mfs-pv b-" + band} aria-label={pts != null ? `${p.name}: ${scoreText(pts)} out of 100, ${word}` : undefined}>
+              {pts != null && <span className="mfs-pnum">{scoreText(pts)}</span>}{word}{p.allNotApplicable && <sup title="None of this part's measures apply, so it counts as neutral.">F</sup>}
+            </b>
           </li>);
       })}
     </ul>

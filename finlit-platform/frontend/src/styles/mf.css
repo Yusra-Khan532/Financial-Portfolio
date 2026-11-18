@@ -348,10 +348,14 @@
 .mfs-status { font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--muted); }
 .mfs-status.provisional { border-style: dashed; color: var(--text); } .mfs-status.not-rated, .mfs-status.not-scored { color: var(--faint); }
 .mfs-pillars { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.mfs-pillars li { display: grid; grid-template-columns: 150px 1fr 56px; gap: 12px; align-items: center; }
+.mfs-pillars li { display: grid; grid-template-columns: 150px 1fr minmax(112px, auto); gap: 12px; align-items: center; }
 .mfs-pn { font-weight: 600; font-size: 14px; } .mfs-pn small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
 .mfs-bar { height: 10px; border-radius: 6px; background: var(--s3); overflow: hidden; } .mfs-bar i { display: block; height: 100%; border-radius: 6px; }
-.mfs-pv { font: 700 16px var(--mono, monospace); text-align: right; } .mfs-pillars .mfs-pv sup { font-size: var(--fs-12); margin-left: 2px; color: var(--muted); }
+.mfs-pv { font: 700 16px var(--mono, monospace); text-align: right; }
+/* task #238: the part's figure out of 100 before its word (card and breakdown table) */
+.mfs-pillars .mfs-pv { display: inline-flex; justify-content: flex-end; align-items: baseline; gap: 8px; white-space: nowrap; }
+.mfs-pnum { font: 700 16px var(--sans); color: var(--text); font-variant-numeric: tabular-nums; }
+.mfu-parts .mfs-pnum { margin-right: 8px; } .mfs-pillars .mfs-pv sup { font-size: var(--fs-12); margin-left: 2px; color: var(--muted); }
 .mfs-grp { margin: 16px 0 4px; font-size: 14px; color: var(--muted); } .mfs-grp b { color: var(--text); } .mfs-grp small { display: block; margin-top: 2px; }
 .mfs-conf { display: flex; gap: 8px; align-items: flex-start; font-size: var(--fs-14); color: var(--muted); margin: 6px 0; } .mfs-conf svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
 .mfs-nr { margin: 0; font-size: var(--fs-16); line-height: 1.5; color: var(--muted); } .mfs-nr b { color: var(--text); }
@@ -369,7 +373,7 @@
 .mfs-list { padding-left: 18px; display: grid; gap: 8px; line-height: 1.55; } .mfs-method .card p { line-height: 1.6; max-width: 80ch; }
 @media (max-width: 640px) {
   .mfs-top { grid-template-columns: 1fr; gap: 16px; }
-  .mfs-pillars li { grid-template-columns: 1fr 56px; gap: 4px 10px; } .mfs-pillars .mfs-bar { grid-column: 1 / -1; grid-row: 2; }
+  .mfs-pillars li { grid-template-columns: 1fr auto; gap: 4px 10px; } .mfs-pillars .mfs-bar { grid-column: 1 / -1; grid-row: 2; }
   .mfs-cols { grid-template-columns: 1fr; }
 }
 /* ETF page: the two ETF-only measures under "Why this score" */

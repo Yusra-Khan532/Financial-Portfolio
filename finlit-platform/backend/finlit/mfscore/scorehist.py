@@ -39,7 +39,7 @@ def history_row(r: tuple, run_date: date) -> tuple:
 
 
 def part_word(score: Optional[float]) -> str:
-    """A part's reading in words (the site shows words, never a part's figure): 70 or more Strong, 50 to 69 Fair, under 50 Weak."""
+    """A part's reading in words: 70 or more Strong, 50 to 69 Fair, under 50 Weak. The fund page shows the part's figure beside it (task #238)."""
     return "Not scored" if score is None else "Strong" if score >= 70 else "Fair" if score >= 50 else "Weak"
 
 

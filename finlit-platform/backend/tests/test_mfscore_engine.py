@@ -253,11 +253,15 @@ async def test_job_rows_and_api_gating(store, monkeypatch):
         assert (await c.get("/api/mf/scores?group=EQ-LARGE")).json()["items"] == []            # a list's order would leak the ranking
         body = (await c.get(f"/api/mf/scores?codes={code}")).text
         sd = (await c.get(f"/api/mf/{code}/score")).json()
-        assert sd["locked"] and sd["final"] is None and all(p["reading"] is None and "score" not in p for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
+        assert sd["locked"] and sd["final"] is None and all(p["reading"] is None and "score" not in p and "points" not in p for p in sd["pillars"]) and "metrics" not in sd and "reasons" not in sd and "rank" not in sd
         assert str(funds[0].code) in body
     async with await _client(store, monkeypatch, "gold") as c:
         r = (await c.get(f"/api/mf/{code}/score")).json()
         assert not r["locked"] and r["final"] is not None and len(r["pillars"]) == 4 and r["metrics"] and r["rank"]["of"] == 10
+        # task #238: each part's own figure, 0 to 100, one decimal, and the word agrees with it
+        for p in r["pillars"]:
+            assert isinstance(p["points"], float) and 0 <= p["points"] <= 100 and p["points"] == round(p["points"], 1)
+            assert p["reading"] == ("Strong" if p["points"] >= 70 else "Fair" if p["points"] >= 50 else "Weak")
         assert r["disclaimer"].startswith("Describes the fund's health") and r["method"] == "/methodology/mf-score"
         assert not BANNED.search(json.dumps(r["reasons"]))
 
@@ -274,7 +278,7 @@ async def test_not_rated_and_inherited_and_unscored_answers(store, monkeypatch):
     await _write(store, [tiny])
     async with await _client(store, monkeypatch, "gold") as c:
         n = (await c.get("/api/mf/910001/score")).json()
-        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["reading"] == "Not scored" and "score" not in n["pillars"][0]
+        assert n["status"] == "NOT RATED" and n["final"] is None and "under 12 months" in n["reason"] and n["pillars"][0]["reading"] == "Not scored" and "score" not in n["pillars"][0] and "points" not in n["pillars"][0]
         i = (await c.get("/api/mf/910002/score")).json()
         assert i["status"] == "NOT RATED" and i["inherited"]["code"] == 910001
         s = (await c.get("/api/mf/910003/score")).json()

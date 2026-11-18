@@ -18,7 +18,8 @@ export const PILLAR_HELP: Record<string, string> = {
 export type ScoreState = "A" | "Z" | "S" | "F" | "N";
 export type ScoreLine = { id: string; label: string; text: string; points: number; groupValue: number; effect: number; state: string };
 export type ScoreMetric = { id: string; label: string; pillar: string; state: ScoreState; value: number | null; own: number | null; peer: number | null; peerN: number | null; points: number | null; groupValue: number | null; why: string | null; whyText?: string | null };
-export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; allNotApplicable?: boolean };
+/** `points`: the part's own figure, 0 to 100 (task #238); only on a rated score the plan may see. */
+export type ScorePillar = { key: "performance" | "risk" | "cost" | "quality"; name: string; reading?: string | null; points?: number | null; allNotApplicable?: boolean };
 /** A part in words (the site never shows the weights): 70 or more Strong, 50 to 69 Fair, under 50 Weak. */
 export const partWord = (v: number | null | undefined) => (v == null ? "Not scored" : v >= 70 ? "Strong" : v >= 50 ? "Fair" : "Weak");
 /** A part word as a colour band, and as a FIXED position for charts (the charts show the word, never a figure). */

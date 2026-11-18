@@ -68,12 +68,16 @@ def _load(v: Any) -> Any:
 
 
 def pillars_view(group: str, r: Dict[str, Any], values: bool = True) -> List[Dict[str, Any]]:
-    """The four parts of a score. No weight is sent: how much each part counts stays on the server."""
+    """The four parts of a score: the word and, when the score is rated and may be seen, the part's figure (task #238). No weight is sent: how much each
+    part counts stays on the server."""
     flags = (_load(r["breakdown"]) or {}).get("pillarFlags", {}) if values else {}
     out = []
     for p in PILLARS:
         score = r[{"performance": "perf", "risk": "risk", "cost": "cost", "quality": "quality"}[p]] if values else None
-        out.append({"key": p, "name": PILLAR_NAMES[p], "reading": part_word(score), "allNotApplicable": bool(flags.get(p))})
+        row = {"key": p, "name": PILLAR_NAMES[p], "reading": part_word(score), "allNotApplicable": bool(flags.get(p))}
+        if values:   # task #238: a rated score shows each part's own figure (0 to 100) beside its word; a locked or unrated answer carries none
+            row["points"] = None if score is None else round(float(score), 1)
+        out.append(row)
     return out
 
 
