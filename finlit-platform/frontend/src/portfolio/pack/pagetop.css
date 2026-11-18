@@ -19,7 +19,7 @@
 .eqt-kf-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; } .eqt-kf-h h2 { margin: 0; font: 400 24px/1.2 var(--serif); } .eqt-kf-h p { margin: 2px 0 0; font-size: 13px; color: var(--sp-mute, var(--muted)); }
 .eqt-fold { all: unset; cursor: pointer; font: 600 13px var(--sans); color: #0E6471; min-height: 32px; } .eqt-fold:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .eqt-kf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
-.eqt-bar { position: sticky; top: 0; z-index: 30; display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 0 14px; padding: 6px;
+.eqt-bar { position: sticky; top: calc(var(--top-h, 63px) + 8px); z-index: 30; transition: box-shadow .2s; display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; margin: 0 0 14px; padding: 6px;
   background: color-mix(in srgb, var(--sp-panel, var(--s1)) 94%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--sp-line, var(--border)); border-radius: 999px; }
 .eqt-bar::-webkit-scrollbar { display: none; }
 .eqt-bar button { flex: none; min-height: 38px; padding: 0 13px; border: 0; background: transparent; border-radius: 999px; font: 500 13px var(--sans); color: var(--sp-ink, var(--text)); cursor: pointer; white-space: nowrap; }
@@ -38,3 +38,6 @@
 @media (max-width: 640px) { .eqt-grid { grid-template-columns: minmax(0, 1fr); } .eqt-v { font-size: 20px; } }
 .eqt-addq { align-self: flex-start; margin-top: auto; min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #f3eee2; color: #14211c; font: 600 14px var(--sans); cursor: pointer; }
 .eqt-addq:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* task #235 (pack B6): the bar sticks under the site header (its height measured into --top-h) and gains a shadow while stuck */
+.eqt-bar.stuck { box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .45); }

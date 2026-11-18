@@ -15,8 +15,7 @@ import { PEER_WORD, prismWord, type Share } from "../lib/equityPack";
 import { Tip } from "../components/sectors/pack/Common";
 import { nseLevels } from "../lib/nseTaxonomy";
 import { capBucket } from "../lib/capBuckets";
-import { pnlOf, totalsOf, type Buy } from "../lib/buyHistory";
-import { BuyHistory } from "./BuyHistory";
+import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "./HoldingCells";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
 /** Task #183: the words of each plan's band filter (Gold: Prism's; Silver: the FinLit IQ's, as the server gives them). */
@@ -63,8 +62,8 @@ type Props = {
   qtyOf: (symbol: string) => number | null; onQty: (symbol: string, qty: number | null) => void;
   /** The final pages pack (12): each share's peer reading, FinLit size and industry, the day word for the move, and the cards above the table. */
   peerOf?: (symbol: string) => Share | undefined; day?: string; cards?: ReactNode;
-  /** Task #217: each share's buy history (the dropdown under the share), and adding, changing or removing a buy. */
-  history?: { buysOf: (symbol: string) => Buy[]; add: (symbol: string, b: Omit<Buy, "id">) => void; edit: (id: string, b: Omit<Buy, "id">) => void; remove: (id: string) => void };
+  /** Task #235 (pack B7, B9, B11): each holding's buys and sales under it, the holding columns in three groups and the total row. */
+  lots?: LotsProps;
 };
 const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2 };
 
@@ -72,30 +71,32 @@ export function SharesTable(p: Props) {
   const { lines, meta, page, colors, model, tab, period } = p;
   const ov = isOverviewLike(tab);
   const parts = useMemo(() => partDefs(model), [model]);
-  const cols = useMemo(() => columnsFor(tab, model, period).filter((c) => c.id !== "share" && !(ov && c.id === "cap")), [tab, model, period, ov]);
+  const allCols = useMemo(() => columnsFor(tab, model, period).filter((c) => c.id !== "share" && !(ov && c.id === "cap")), [tab, model, period, ov]);
+  // task #235 (pack B7): with the holding groups, Latest price and Today sit in WHAT IT IS WORTH NOW, not among the score columns
+  const PRICE_COL = allCols.find((c) => c.id === "price")!, CHANGE_COL = allCols.find((c) => c.id === "change")!;
+  const cols = useMemo(() => (ov && p.lots ? allCols.filter((c) => c.id !== "price" && c.id !== "change") : allCols), [allCols, ov, p.lots]);
   const rest = page?.avg_with_rest ?? {};
   const letter = useMemo(() => new Map((page?.groups ?? []).flatMap((g) => g.members.map((m) => [m, g.letter] as const))), [page]);
   const [sortId, setSortId] = useState<string | null>(null), [dir, setDir] = useState<1 | -1>(-1);
+  const [colsMode, setColsMode] = useState<"all" | "h" | "s">("all");   // task #235 (pack B7): Columns: Everything · Your holding · Scores
   const [q, setQ] = useState(""), [band, setBand] = useState<string | null>(null), [level, setLevel] = useState<Level>("sector");
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
-  const [openBuys, setOpenBuys] = useState<Set<string>>(new Set());
-  const flipBuys = (s: string) => setOpenBuys((c) => { const n = new Set(c); if (n.has(s)) n.delete(s); else n.add(s); return n; });
-  // "Add quantities" (the score box) opens the first share's buy history (task #217)
-  useEffect(() => { const on = (e: Event) => { const s = (e as CustomEvent).detail as string; if (s) setOpenBuys((c) => new Set([...c, s])); }; addEventListener("bh-open", on); return () => removeEventListener("bh-open", on); }, []);
+  // "Add buys" (the score box, the missing note) opens the first such holding's buys (task #235, pack B5 and B13)
+  useEffect(() => { const on = (e: Event) => { const s = (e as CustomEvent).detail as string; if (s) p.lots?.onOpen(s, true); }; addEventListener("bh-open", on); return () => removeEventListener("bh-open", on); }, [p.lots]);
   const secOf = (s: string) => meta[s]?.sector || `${s} (not classified)`;
   const sizeOf = (s: string) => { const l = lines.find((x) => x.symbol === s), cap = isReady(l?.ov) ? l!.ov.marketCapCr : null;   // FinLit's rupee bands on the company's own market value
     const peer = p.peerOf?.(s)?.size; if (peer) return peer;
     const band = cap != null ? capBucket(cap)?.label.replace(" cap", "") : undefined; if (band) return band;
     return meta[s] ? SIZE_WORD[meta[s].size] : null; };
   const priceOf = (l: Line) => (isReady(l.ov) ? l.ov.price : null);
-  const totOf = (s: string) => totalsOf(p.history?.buysOf(s) ?? []);
-  const plOf = (l: Line) => pnlOf(totOf(l.symbol), priceOf(l));
   const valueOf = (l: Line): number | null => { const qn = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return qn && pr ? qn * pr : null; };
   const levelOf = (l: Line) => { const ind = isReady(l.ov) ? l.ov.industry : null, x = nseLevels(ind); return x ? x[level] : `${LEVEL_WORD[level]} not given`; };
 
   // every heading sorts both ways: the model's columns, and Share, Size, Qty and Value (task #183)
   const extra: Record<string, (l: Line) => number | string | null> = { share: (l) => l.symbol, size: (l) => (sizeOf(l.symbol) ? SIZE_ORDER[sizeOf(l.symbol) as string] : null), qty: (l) => p.qtyOf(l.symbol), value: valueOf,
-    avg: (l) => totOf(l.symbol).avg, invested: (l) => totOf(l.symbol).invested, pnl: (l) => plOf(l).pnl, rest: (l) => rest[l.symbol] ?? null };
+    ...(p.lots ? { avg: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.avg ?? null, invested: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.invested ?? null,
+      now: (l: Line) => holdingFigs(p.lots!, l.symbol).now, gain: (l: Line) => holdingFigs(p.lots!, l.symbol).gain, gainPct: (l: Line) => holdingFigs(p.lots!, l.symbol).gainPct,
+      qty: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.qty ?? null, price: (l: Line) => priceOf(l), change: (l: Line) => (isReady(l.ov) ? l.ov.changePct : null) } : {}), rest: (l) => rest[l.symbol] ?? null };
   const sorted = (ls: Line[]): Line[] => {
     if (!sortId) return ls;
     if (extra[sortId]) {
@@ -137,8 +138,7 @@ export function SharesTable(p: Props) {
   };
 
   const row = (l: Line, indent = false): ReactNode => (<FragmentRows key={l.symbol}>{shareRow(l, indent)}
-    {ov && p.history && openBuys.has(l.symbol) && <tr className="bh-row"><td colSpan={nCols}><BuyHistory symbol={l.symbol} buys={p.history.buysOf(l.symbol)} price={priceOf(l)}
-      onAdd={(b) => p.history!.add(l.symbol, b)} onEdit={(id, b) => p.history!.edit(id, b)} onRemove={(id) => p.history!.remove(id)} /></td></tr>}</FragmentRows>);
+    {ov && p.lots && p.lots.open.has(l.symbol) && <LotRows p={p.lots} symbol={l.symbol} lead={2} rest={nCols - 2 - HOLD_COLS} />}</FragmentRows>);
   const shareRow = (l: Line, indent = false): ReactNode => {
     const h = l.ov, m = meta[l.symbol], pk = p.peerOf?.(l.symbol);
     const name = l.name || (isReady(h) ? h.name : "") || m?.name || "";
@@ -147,18 +147,11 @@ export function SharesTable(p: Props) {
       <tr key={l.symbol} className={[indent ? "ind" : "", weak ? "eq-weakrow" : ""].join(" ").trim() || undefined}>
         <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{pk ? (pk.industry ?? name) : name}</small></td>
         {ov && <td>{sizeOf(l.symbol) ?? MINUS}</td>}
-        {ov && (p.history ? <td className="r x-qty">{(() => { const t = totOf(l.symbol), n = t.buys.length, on = openBuys.has(l.symbol);
-          return <><b>{t.qty ? t.qty.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : MINUS}</b>
-            <button type="button" className="bh-open" aria-expanded={on} aria-controls={`bh-${l.symbol}`} aria-label={`${on ? "Close" : "Open"} the buy history of ${l.symbol}`} onClick={() => flipBuys(l.symbol)}>{n ? `${n} ${n === 1 ? "buy" : "buys"}` : "Add buys"} {on ? "▴" : "▾"}</button></>; })()}</td>
-          : <td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
-          onChange={(e) => { const n = Number(e.target.value); p.onQty(l.symbol, e.target.value.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 1_000_000_000 ? n : null); }} /></td>)}
-        {ov && p.history && (() => { const t = totOf(l.symbol), why = t.buys.length ? "No buy of this share has a price yet." : "No buys entered yet: open the buy history to add them.";
-          return <><td className="r">{t.avg == null ? <Dash why={why} /> : t.avg.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td className="r">{t.invested == null ? <Dash why={why} /> : "₹" + Math.round(t.invested).toLocaleString("en-IN")}</td></>; })()}
-        {ov && <td className="r x-val">{valueOf(l) == null ? MINUS : "₹" + Math.round(valueOf(l)!).toLocaleString("en-IN")}</td>}
-        {ov && p.history && (() => { const x = plOf(l); return <td className={"r " + (x.pnl == null ? "" : x.pnl > 0 ? "pfx-up" : x.pnl < 0 ? "pfx-down" : "")}>{x.pnl == null ? <Dash why={priceOf(l) == null ? "No price today yet." : "Needs a buy with a price."} />
-            : <>{(x.pnl > 0 ? "+" : x.pnl < 0 ? MINUS : "") + "₹" + Math.round(Math.abs(x.pnl)).toLocaleString("en-IN")}<small className="bh-pct">{(x.pct! > 0 ? "+" : x.pct! < 0 ? MINUS : "") + Math.abs(x.pct!).toFixed(2)}%</small></>}</td>; })()}
-        {isReady(h) ? cols.map((c) => cell(h, c)) : <td colSpan={cols.length} className="pfx-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : p.state === "error" ? "Not loaded." : "Preparing…"}</td>}
+        {ov && (p.lots ? <HoldingRowCells p={p.lots} symbol={l.symbol} priceCell={isReady(h) ? cell(h, PRICE_COL) : <td className="x-c2 x-gs cg-h" />} changeCell={isReady(h) ? cell(h, CHANGE_COL) : <td className="x-c2 cg-h" />} />
+          : <><td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
+          onChange={(e) => { const n = Number(e.target.value); p.onQty(l.symbol, e.target.value.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 1_000_000_000 ? n : null); }} /></td>
+          <td className="r x-val">{valueOf(l) == null ? MINUS : "₹" + Math.round(valueOf(l)!).toLocaleString("en-IN")}</td></>)}
+        {isReady(h) ? cols.map((c) => cell(h, c)) : <td colSpan={cols.length} className="pfx-wait cg-s">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : p.state === "error" ? "Not loaded." : "Preparing…"}</td>}
         {ov && p.peerOf && <td className="eq-vp eq-div2">{pk?.peer ? <><span className={"dsh-pl " + pk.peer.label}>{PEER_WORD[pk.peer.label]}</span><small>{pk.peer.rank} of {pk.peer.of} peers</small>{pk.peer.raw && pk.peer.raw !== pk.peer.label && <small className="eq-next">may become {PEER_WORD[pk.peer.raw]} next week</small>}</>
           : pk ? <><span className="dsh-pl in_line">Not compared</span><small>{pk.notCompared ? pk.notCompared.charAt(0).toUpperCase() + pk.notCompared.slice(1) : ""}</small></> : MINUS}</td>}
         {ov && <td className="r">{rest[l.symbol] != null ? short2(rest[l.symbol]) : <Dash why={page?.short_history.includes(l.symbol) ? "Under a year of weekly prices, so it is left out of the co-movement figures." : "Not available until the figures are ready."} />}</td>}
@@ -181,31 +174,25 @@ export function SharesTable(p: Props) {
   const filtering = q.trim() !== "" || band != null;
   const isOpen = (g: string) => filtering || openSet.has(g);
   const toggle = (g: string) => setOpenSet((c) => { const n = new Set(c); if (n.has(g)) n.delete(g); else n.add(g); return n; });
-  const lead = ov ? (p.history ? 7 : 4) : 1;
+  const lead = ov ? (p.lots ? 2 + HOLD_COLS : 4) : 1;
   const nCols = lead + cols.length + (ov ? 1 + (p.peerOf ? 1 : 0) : 0) + 1;
 
   const avgOf = (ls: Line[], c: Col) => (c.id === "score" ? mean(ls.map((l) => scoreOf(l.ov, model).value)) : c.id.startsWith("p_") ? mean(ls.map((l) => (isReady(l.ov) ? parts.find((d) => d.id === c.id.slice(2))?.get(l.ov) : null))) : undefined);
   const restAvg = (ls: Line[]) => mean(ls.map((l) => rest[l.symbol]));
   const foot = (ls: Line[], label: string) => (
-    <tr className="pfx-avg"><th scope="row" colSpan={ov ? 3 : 1}>{label}</th>
-      {ov && p.history && <td />}
-      {ov && p.history && (() => { const t = ls.reduce((a, l) => a + (totOf(l.symbol).invested ?? 0), 0); return <td className="r x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}
-      {ov && (() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}
-      {ov && p.history && (() => { const t = ls.reduce((a, l) => a + (plOf(l).pnl ?? 0), 0), any = ls.some((l) => plOf(l).pnl != null);
-        return <td className={"r x-total " + (!any ? "" : t > 0 ? "pfx-up" : t < 0 ? "pfx-down" : "")}>{any ? (t > 0 ? "+" : t < 0 ? MINUS : "") + "₹" + Math.round(Math.abs(t)).toLocaleString("en-IN") : MINUS}</td>; })()}
+    <tr className="pfx-avg"><th scope="row" colSpan={ov ? (p.lots ? (colsMode === "s" ? 2 : 2 + HOLD_COLS) : 3) : 1}>{label}</th>
+      {ov && !p.lots && (() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}
       {cols.map((c) => { const v = avgOf(ls, c); return <td key={c.id} className={(c.id === "score" || c.id.startsWith("p_") ? "c " : "") + groupCls(c.id)}>{v == null ? "" : <Chip v={v} big={c.id === "score"} />}</td>; })}
       {ov && p.peerOf && <td />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}<td /></tr>);
   const nParts = cols.filter((c) => c.id.startsWith("p_") || (c.id.startsWith("f_") && c.id !== "f_technical")).length, nTech = cols.filter((c) => c.id.startsWith("t_") || c.id === "f_technical").length;
-  const band1 = ov && (<tr className="eq-band" aria-hidden="true"><th colSpan={lead + cols.filter((c) => c.id === "price" || c.id === "change").length} />
-    <th className="c">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}</th><th colSpan={nParts} className="eq-div">Fundamental pillars</th><th colSpan={nTech} className="eq-div2">{nTech > 1 ? "Technical pillars" : "Technical pillar"}</th>
-    <th colSpan={(p.peerOf ? 1 : 0) + 2} className="eq-div2">Against peers</th></tr>);
+  const band1 = ov && (<tr className="eq-band" aria-hidden="true">{p.lots ? <><th colSpan={2} /><GroupBand /></> : <th colSpan={lead + cols.filter((c) => c.id === "price" || c.id === "change").length} />}
+    <th className="c cg-s">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}</th><th colSpan={nParts} className="eq-div cg-s">Fundamental pillars</th><th colSpan={nTech} className="eq-div2 cg-s">{nTech > 1 ? "Technical pillars" : "Technical pillar"}</th>
+    <th colSpan={(p.peerOf ? 1 : 0) + 2} className="eq-div2 cg-s">Against peers</th></tr>);
   const th = (<tr>{head({ id: "share", label: "Share" })}
     {ov && head({ id: "size", label: "Size" })}
-    {ov && head({ id: "qty", label: "Qty", num: true })}
-    {ov && p.history && head({ id: "avg", label: "Avg price", num: true })}
-    {ov && p.history && head({ id: "invested", label: "Invested", num: true })}
-    {ov && head({ id: "value", label: p.history ? "Current value" : "Value", num: true })}
-    {ov && p.history && head({ id: "pnl", label: "P&L", num: true })}
+    {ov && !p.lots && head({ id: "qty", label: "Qty", num: true })}
+    {ov && p.lots && <HoldingHeads sortHead={(id, label, cls) => head({ id, label, num: true, cls })} />}
+    {ov && !p.lots && head({ id: "value", label: "Value", num: true })}
     {cols.map((c) => head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_") }))}
     {ov && p.peerOf && <th scope="col" className="eq-div2">Vs its peers<Tip text="The share price over the last 12 months against similar companies and the sector index, with its place among them." how="Leader: among the strongest and ahead of the index. In line: in between. Laggard: among the weakest and behind it. It describes the past, not the future." /></th>}
     {ov && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}<th scope="col"><span className="sr-only">Actions</span></th></tr>);
@@ -220,13 +207,6 @@ export function SharesTable(p: Props) {
             onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
       {sizeCards}
-      {ov && p.history && (() => { const xs = lines.map((l) => ({ t: totOf(l.symbol), x: plOf(l) })).filter((r) => r.x.value != null && r.t.invested != null);
-        if (!xs.length) return null;
-        const inv = xs.reduce((a, r) => a + r.t.invested!, 0), val = xs.reduce((a, r) => a + r.x.value!, 0), pl = val - inv, pct = (pl / inv) * 100;
-        const rs = (v: number) => "₹" + Math.round(v).toLocaleString("en-IN");
-        return <div className="bh-sum" aria-label="What you invested and what it is worth"><div><small>Invested</small><b>{rs(inv)}</b></div><div><small>Current value</small><b>{rs(val)}</b></div>
-          <div><small>Total P&amp;L</small><b className={pl > 0 ? "pfx-up" : pl < 0 ? "pfx-down" : undefined}>{(pl > 0 ? "+" : pl < 0 ? MINUS : "") + rs(Math.abs(pl))} ({(pct > 0 ? "+" : pct < 0 ? MINUS : "") + Math.abs(pct).toFixed(2)}%)</b></div>
-          <p>Over the {xs.length === 1 ? "share" : `${xs.length} shares`} whose buys have a price, at the latest price. Open a share's buy history from its Qty to add or change buys.</p></div>; })()}
       <div className="pfx-tools">
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
         <div className="pfx-chipsrow" role="group" aria-label={`Filter by ${model === "prism" ? "Prism" : "FinLit IQ"} band`}>
@@ -235,11 +215,13 @@ export function SharesTable(p: Props) {
         {tab === "sector" && <div className="pfx-chipsrow" role="group" aria-label="Group by">{(["macro", "sector", "industry"] as const).map((k) => <button key={k} type="button" className={"pfx-pillbtn" + (level === k ? " on" : "")} aria-pressed={level === k} onClick={() => setLevel(k)}>{LEVEL_WORD[k]} · {new Set(lines.map((l) => { const x = nseLevels(isReady(l.ov) ? l.ov.industry : null); return x ? x[k] : null; }).filter(Boolean)).size}</button>)}</div>}
         {tab === "financials" && <div className="pfx-chipsrow" role="group" aria-label="Period shown">{([["year", "Latest year"], ["quarter", "Latest quarter"]] as const).map(([k, l]) => <button key={k} type="button" className={"pfx-pillbtn" + (period === k ? " on" : "")} aria-pressed={period === k} onClick={() => p.onPeriod(k)}>{l}</button>)}</div>}
         {(tab === "sector" || tab === "size") && <div className="pfx-chipsrow"><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set(groups.map((g) => g.g)))}>Open all</button><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set())}>Close all</button></div>}
+        {ov && p.lots && <div className="x-cols" role="group" aria-label="Columns"><span>Columns:</span>{([["all", "Everything"], ["h", "Your holding"], ["s", "Scores"]] as const).map(([k, l]) =>
+          <button key={k} type="button" aria-pressed={colsMode === k} onClick={() => setColsMode(k)}>{l}</button>)}</div>}
         <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""} · limit {p.limit}</span>
       </div>
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`}>
-        <HScroll label="table"><table className={"pfx-table t-" + tab}>
+        <HScroll label="table"><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
           <caption className="sr-only">{TABS.find((t) => t.id === tab)?.label} of your shares</caption>
           <thead>{band1}{th}</thead>
           <tbody>
@@ -254,7 +236,7 @@ export function SharesTable(p: Props) {
               </FragmentRows>); })}
             {!shown.length && <tr><td colSpan={nCols} className="pfx-empty">{lines.length ? "No share matches this filter." : "No shares yet."}</td></tr>}
           </tbody>
-          {ov && shown.length > 0 && <tfoot>{foot(shown, "List average")}</tfoot>}
+          {ov && shown.length > 0 && <tfoot>{p.lots && <TotalRow p={p.lots} symbols={shown.map((l) => l.symbol)} lead={2} rest={nCols - 2 - HOLD_COLS} />}{foot(shown, "List average")}</tfoot>}
         </table></HScroll>
       </div>
       <p className="pfx-fine">{ov ? TABLE_FOOT : tab === "ratios" ? "These are the figures on each company's own page (the data provider's, with the period on hover). A dash says why on hover. Information only, not investment advice." : `The latest ${period === "year" ? "full year" : "quarter"} in each company's stored statements, in ₹ crore except EPS. Information only, not investment advice.`}</p>

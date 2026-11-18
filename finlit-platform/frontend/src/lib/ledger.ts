@@ -93,3 +93,39 @@ export function moneyOf(hs: Holding[], pf: string | "all", priceOf: (s: string) 
   }
   return t;
 }
+
+/** The rows the page lists under a holding (buys and sales, drafts with no quantity yet included), in date order, buys first on the same date; each with
+ *  its figure from the ledger of its own portfolio. pf "all": every portfolio's rows, each tagged by its portfolio. */
+export function rowsOf(hs: Holding[], symbol: string, pf: string | "all") {
+  const s = symbol.toUpperCase(), pfs = pf === "all" ? pfsOf(hs, s) : [pf];
+  const figs = new Map<string, BuyFig | SaleFig>();
+  for (const p of pfs) { const l = ledgerOf(hs, s, p); l.buys.forEach((b) => figs.set(b.row.id, b)); l.sales.forEach((x) => figs.set(x.row.id, x)); }
+  const key = (d?: string) => d || "9999-12-31";
+  return hs.filter((h) => h.symbol.toUpperCase() === s && h.owned && pfs.includes(pfOf(h)))
+    .map((h, i) => ({ row: h, sale: h.side === "sell", fig: figs.get(h.id) ?? null, i }))
+    .sort((a, b) => (key(a.row.date) < key(b.row.date) ? -1 : key(a.row.date) > key(b.row.date) ? 1 : Number(a.sale) - Number(b.sale) || a.i - b.i));
+}
+
+type Store = { add: (h: Omit<Holding, "id">) => void; update: (id: string, h: Partial<Holding>) => void; remove: (id: string) => void };
+/** The page's changes (pack B9, B11): "+ Add a buy" / "− Add a sale" add a row dated today with no quantity yet (kept in this browser until it has one); the
+ *  first buy fills the share's name-only line in that portfolio; removing the last row of a share keeps the share, as a name. */
+export function lotActions(get: () => Holding[], store: Store) {
+  return {
+    add: (symbol: string, pf: string, side: "buy" | "sell", today = new Date().toISOString().slice(0, 10)) => {
+      const hs = get(), sym = symbol.toUpperCase(), isin = hs.find((h) => h.symbol.toUpperCase() === sym)?.isin;
+      const base = { symbol: sym, qty: 0, price: 0, date: today, owned: true as const, ...(pf !== DEFAULT_PF ? { pf } : {}), ...(isin ? { isin } : {}), ...(side === "sell" ? { side: "sell" as const } : {}) };
+      const name = hs.find((h) => h.symbol.toUpperCase() === sym && pfOf(h) === pf && !h.owned);
+      if (name && side === "buy") store.update(name.id, base); else store.add(base);
+    },
+    edit: (id: string, patch: Partial<Pick<Holding, "qty" | "price" | "date">>) => store.update(id, patch),
+    remove: (id: string) => {
+      const hs = get(), h = hs.find((x) => x.id === id);
+      if (!h) return;
+      const others = hs.filter((x) => x.id !== id && x.symbol === h.symbol && pfOf(x) === pfOf(h));
+      if (!others.length) store.update(id, { qty: 1, price: 0, date: undefined, owned: false, side: undefined }); else store.remove(id);
+    },
+  };
+}
+
+/** The holdings the server keeps: draft rows (no quantity yet) stay in this browser until they have one. */
+export const savable = (hs: Holding[]) => hs.filter((h) => h.qty > 0);
