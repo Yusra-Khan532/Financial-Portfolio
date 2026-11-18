@@ -32,3 +32,5 @@
 .ctab-panel > .card:first-child, .ctab-panel > .gate:first-child { margin-top: 0; }
 @media (max-width: 700px) { .ctabs-hint { display: none; } }
 @media (prefers-reduced-motion: reduce) { .ct-list button { transition: none; } .ctabs:not(.used) .ct-list button { animation: none; } }
+/* a bar or its panels placed in a grid or flex parent (10's Decoding ROE sits in a grid): never let the row of tabs widen the parent; the tabs scroll instead */
+.ctabs, .ct-panels, .ctab-panel { min-width: 0; }

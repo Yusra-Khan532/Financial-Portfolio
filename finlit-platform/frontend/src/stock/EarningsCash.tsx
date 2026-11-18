@@ -3,6 +3,7 @@
 // 3. Is the profit clean?, 4. The checks, and the rules and investor interpretation folded away. Everything is worked out from the company's own statements
 // (lib/profitReality, lib/revenueCash, lib/earningsIntel); it describes, it is not a recommendation. Gold, like the two cards it replaces.
 import { useContext } from "react";
+import { TabGroup } from "../components/TabGroup";
 import { Gate, OpenAccess, TierChip } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { fyLabel, type ProfitReality as PrModel } from "../lib/profitReality";
@@ -87,19 +88,22 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
       {watch.map((w) => <div className="ins ec-c w" key={w.id}><span className="ins-tag"><Mk t="w" />Watch</span><b>{w.text}</b><p>{w.why}</p></div>)}
       {investigate.map((t, i) => <div className="ins ec-c w" key={i}><span className="ins-tag"><Mk t="w" />Investigate</span><p>{t}</p></div>)}
 
-      {!lender && (<section className="ec-sec" aria-labelledby="ec-1"><h3 id="ec-1"><span className="ec-n">1</span>Profit against cash</h3>
+      {/* Task #216 (README 3.11): steps 1 to 3 are one tab group (Profit against cash · Collections and stock · Is the profit clean?); step 4, the six
+          checks, stays outside the tabs, under them. A lender has only step 3, so no tab group. */}
+      {lender ? <section className="ec-sec" aria-labelledby="ec-3"><h3 id="ec-3"><span className="ec-n">{lender ? 1 : 3}</span>Is the profit clean?</h3>
+        <PrChart r={pr} lender={lender} /><PrOneOff r={pr} lender={lender} /></section> : <TabGroup label="Earnings and cash quality" views={[
+        { key: "cash", label: "Profit against cash", content: <section className="ec-sec" aria-labelledby="ec-1"><h3 id="ec-1"><span className="ec-n">1</span>Profit against cash</h3>
         <PrCash r={pr} lender={lender} />
-        {ok && <><h4 className="ec-k">Revenue growth and operating cash flow margin</h4><Trend years={ok.years} /></>}</section>)}
-
-      {!lender && (<section className="ec-sec" aria-labelledby="ec-2"><h3 id="ec-2"><span className="ec-n">2</span>Collections and stock</h3>
+        {ok && <><h4 className="ec-k">Revenue growth and operating cash flow margin</h4><Trend years={ok.years} /></>}</section> },
+        { key: "stock", label: "Collections and stock", content: <section className="ec-sec" aria-labelledby="ec-2"><h3 id="ec-2"><span className="ec-n">2</span>Collections and stock</h3>
         {L && <div className="rcx-ind">
           <Tile label="Receivables growth" v={L.receivablesGrowth} tone={L.receivablesGap != null && L.receivablesGap > 0 ? "warn" : ""} sub={gapLine(L.receivablesGap)} tip="Receivables on the balance sheet, this year against last year." basis={L.receivablesBasis} />
           <Tile label="Inventory growth" v={L.inventoryGrowth} tone={L.inventoryGap != null && L.inventoryGap > 0 ? "warn" : ""} sub={gapLine(L.inventoryGap)} tip="Inventory on the balance sheet, this year against last year." basis={L.inventoryBasis} />
         </div>}
-        <PrWorking r={pr} lender={lender} /></section>)}
-
-      <section className="ec-sec" aria-labelledby="ec-3"><h3 id="ec-3"><span className="ec-n">{lender ? 1 : 3}</span>Is the profit clean?</h3>
-        <PrChart r={pr} lender={lender} /><PrOneOff r={pr} lender={lender} /></section>
+        <PrWorking r={pr} lender={lender} /></section> },
+        { key: "clean", label: "Is the profit clean?", content: <section className="ec-sec" aria-labelledby="ec-3"><h3 id="ec-3"><span className="ec-n">{lender ? 1 : 3}</span>Is the profit clean?</h3>
+        <PrChart r={pr} lender={lender} /><PrOneOff r={pr} lender={lender} /></section> },
+      ]} />}
 
       {intel && intel.modules.length > 0 && (<section className="ec-sec" aria-labelledby="ec-4"><h3 id="ec-4"><span className="ec-n">{lender ? 2 : 4}</span>{intel.modules.length === 6 ? "Six checks" : "The checks"}</h3>
         <ul className="ei-mods ec-checks">{intel.modules.map((mo) => (

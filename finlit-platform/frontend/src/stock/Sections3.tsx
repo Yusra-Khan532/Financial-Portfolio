@@ -1,4 +1,5 @@
 import { HScroll } from "../components/HScroll";
+import { newInfo } from "../lib/reportInfo";
 import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -305,13 +306,13 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
           const sp = SPEC[k], pos = ((sp.at(val)) / sp.stops.length) * 100;
           return (
             <div className="spc" key={k} style={{ "--bc": v(c), animationDelay: `${i * 80}ms` } as React.CSSProperties}>
-              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}</span><b>{val}</b></div></div>
+              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}<Info g={newInfo(k)} /></span><b>{val}</b></div></div>
               <div className="spc-bar"><span>{sp.stops.map((t) => <em key={t}>{t}</em>)}</span><div className="spc-t"><i style={{ left: `${pos}%` }} /></div></div>
               <p>{sp.say(val)}</p>
             </div>
           );
         })}
-          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits</span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
+          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits<Info g={newInfo("Where it fits")} /></span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
         </div>
         <div className="card acc" style={{ "--ac": "var(--t-gold)", marginTop: 16 } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths · <a href="#notes" className="trg-03" onClick={(e) => { const el = document.getElementById("notes"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Full findings in 03 ↑</a></span></div>
