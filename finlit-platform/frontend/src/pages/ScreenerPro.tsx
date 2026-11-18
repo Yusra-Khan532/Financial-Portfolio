@@ -40,6 +40,24 @@ import { CoLogo } from "../components/CoLogo";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
+/** Task #229 (18 Nov 2026, the team: "add a meaning to this, use a box"): what the 3D picture under the results shows and how to read it. */
+export function CubeMeaning({ n, axes }: { n: number; axes: [string, string, string] }) {
+  return (
+    <aside className="scr-3d-m" aria-label="What this picture shows">
+      <h4>What this picture shows</h4>
+      <p>Each dot is one company of this page: the {n} with all three figures.</p>
+      <dl>
+        <div><dt>Up</dt><dd>{axes[1]}: lowest at the bottom, highest at the top</dd></div>
+        <div><dt>Across</dt><dd>{axes[0]}: lowest on the left, highest on the right</dd></div>
+        <div><dt>Depth</dt><dd>{axes[2]}: lowest at the back, highest at the front</dd></div>
+      </dl>
+      <p>The three directions are the first three number columns of the table, each from the lowest to the highest value on this page, so the picture changes with the page and the columns shown.</p>
+      <p>Move the pointer over the box to turn it. Point at a dot to see the company and its three figures; click it to open the company's report.</p>
+      <p className="faint">It shows where the companies sit against each other; it is not a ranking.</p>
+    </aside>
+  );
+}
+
 export const PAGE = 25;
 const MAX_COLS = 12;
 const NO_RATIOS: CustomRatio[] = [];       // Silver: custom ratios are paused (stable, so the query does not change on every render)
@@ -454,8 +472,11 @@ export function ScreenerPro() {
                       <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
-                  {webgl && cloud && <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
-                    label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>}
+                  {webgl && cloud && <div className="scr-3d">
+                    <Safe3D><Suspense fallback={null}><Cloud3D points={cloud.pts} axes={cloud.axes} onPick={(id) => nav(`/stocks/${id}`)}
+                      label={`The ${cloud.pts.length} companies on this page as points in 3D, spread by ${cloud.axes.join(", ")}. The table above lists the same numbers.`} /></Suspense></Safe3D>
+                    <CubeMeaning n={cloud.pts.length} axes={cloud.axes} />
+                  </div>}
                 </>)}
             {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
             <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
