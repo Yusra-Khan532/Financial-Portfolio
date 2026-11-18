@@ -23,7 +23,7 @@
 .dp-chart { width: 100%; } .dp-chart svg { max-width: 100%; height: auto; } .dp-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 0 0; padding: 0; font-size: var(--fs-13); color: var(--muted); } .dp-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .dp-legend .ln { display: inline-block; width: 26px; height: 3px; border-radius: 2px; } .dp-legend .ln.dot { background: none; height: 0; border-top: 3px dotted currentColor; }
 .dp-t caption { text-align: left; padding: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); caption-side: top; } .dp-t th[scope="row"] { text-align: left; position: sticky; left: 0; background: var(--s1); font: 400 16px var(--sans); letter-spacing: 0; text-transform: none; color: var(--text); vertical-align: top; } .dp-t td.left { text-align: left; white-space: normal; min-width: 200px; font-size: 13px; } .dp-t tr.sub th[scope="row"] { padding-left: 24px; color: var(--muted); font-size: 13px; } .dp-t tr.tot th[scope="row"] { font-weight: 700; }
-.dp-t td { vertical-align: top; } .dp-na { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; color: var(--muted); } .dp-na small { font-size: var(--fs-11); line-height: 1.2; max-width: 11ch; white-space: normal; text-align: right; color: var(--faint); } .dp-na[tabindex] { cursor: help; border-radius: 4px; } .dp-na[tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dp-t td { vertical-align: top; } .dp-na { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; color: var(--muted); } .dp-na small { font-size: var(--fs-12); line-height: 1.2; max-width: 11ch; white-space: normal; text-align: right; color: var(--faint); } .dp-na[tabindex] { cursor: help; border-radius: 4px; } .dp-na[tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .dp-caution { color: var(--warn); } .dp-caution small { color: var(--warn); } .dp-lq { color: var(--warn); font-weight: 600; }
 .dp-hint { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; } .dp-gaps { margin: 6px 0 0; padding-left: 18px; font-size: 13px; max-width: 80ch; color: var(--muted); } .dp-gaps li { margin: 2px 0; }
 .dp-avgs { margin-top: 18px; } .dp-at { max-width: 560px; }
@@ -46,7 +46,7 @@
 .dp-ins { gap: 16px; }
 .dp-insc { padding: 18px 20px; gap: 10px; border-left-width: 5px; background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
 .dp-insc p { font-size: 18px; line-height: 1.4; } .dp-insc p b { font-weight: 650; }
-.dp-insc ul { font-size: var(--fs-16); line-height: 1.5; padding-left: 20px; color: var(--text); opacity: .85; }
+.dp-insc ul { font-size: var(--fs-16); line-height: 1.5; padding-left: 20px; color: var(--text); }
 @media (max-width: 700px) { .dp-insc p { font-size: var(--fs-16); } .dp-insc ul { font-size: var(--fs-14); } }
 
 /* DuPont redesign: neutral surfaces, ink for numbers, status colour only on the up/down pills */
@@ -70,7 +70,7 @@
 .dp-tile { background: var(--s1); gap: 4px; } .dp-tile .k { font-weight: 600; font-size: 14px; color: var(--text); } .dp-tile > small { color: var(--faint); font-size: 12px; } .dp-tile b { margin: 4px 0; }
 .dp-pill { justify-self: start; display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--s2); color: var(--muted); } .dp-pill.up { color: var(--gain); background: var(--gain-soft); } .dp-pill.down { color: var(--loss); background: var(--loss-soft); }
 .dp-bars { display: flex; align-items: flex-end; gap: 8px; height: 92px; margin-top: 12px; padding-top: 4px; border-bottom: 1px solid var(--border); }
-.dp-bar1 { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; font-size: var(--fs-11); color: var(--faint); }
+.dp-bar1 { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; font-size: var(--fs-12); color: var(--faint); }
 .dp-bar1 i { width: 70%; max-width: 28px; border-radius: 3px 3px 0 0; background: var(--border-strong); display: block; } .dp-bar1.last i { background: var(--text); opacity: .75; }
 .dp-bar1 em { font-style: normal; font-variant-numeric: tabular-nums; order: -1; margin-bottom: 2px; } .dp-bar1 u { text-decoration: none; position: absolute; top: 100%; margin-top: 3px; white-space: nowrap; } .dp-bars { margin-bottom: 20px; }
 .dp-sum1 { display: flex; gap: 12px; align-items: center; margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: var(--fs-16); max-width: none; }
@@ -110,7 +110,7 @@
 .dp-gauge { position: relative; height: 10px; border-radius: 999px; display: flex; overflow: visible; margin: 6px 0 22px; }
 .dp-gz { height: 100%; } .dp-gz.lo { width: 50%; background: var(--band-lo); border-radius: 999px 0 0 999px; opacity: .55; } .dp-gz.mid { width: 20%; background: var(--band-mid); opacity: .55; } .dp-gz.hi { width: 30%; background: var(--band-hi); border-radius: 0 999px 999px 0; opacity: .55; }
 .dp-gp { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--s1); }
-.dp-gauge em { position: absolute; top: 14px; transform: translateX(-50%); font: 500 var(--fs-11) var(--mono); font-style: normal; color: var(--muted); }
+.dp-gauge em { position: absolute; top: 14px; transform: translateX(-50%); font: 500 var(--fs-12) var(--mono); font-style: normal; color: var(--muted); }
 
 /* the what-if values never push into the next slider: the label keeps its line, the value stays in its column (team report, 14 Nov 2026) */
 .dp-sl label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dp-sl output { text-align: right; overflow-wrap: anywhere; }

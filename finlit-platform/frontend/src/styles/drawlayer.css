@@ -8,7 +8,7 @@
 .dl-bar { position: absolute; top: 6px; right: 6px; z-index: 6; }
 .dl-toggle { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--s1); color: var(--muted); cursor: pointer; box-shadow: var(--shadow); }
 .dl-toggle:hover, .dl-toggle.on { color: var(--text); border-color: var(--gold); } .dl-toggle.on { background: color-mix(in srgb, var(--gold) 16%, var(--s1)); }
-.dl-n { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--gold); color: #fff; font: 700 11px var(--sans); }
+.dl-n { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--gold); color: #fff; font: 700 12px var(--sans); }
 .dl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .dl-text { position: absolute; z-index: 7; transform: translateY(-85%); min-width: 150px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--gold); background: var(--s1); font: 600 14px var(--sans); box-shadow: var(--shadow); }
 
@@ -30,8 +30,8 @@
 .dlm-done { color: var(--gain); } .dlm-done:hover { background: var(--gain-soft); color: var(--gain); }
 .dlm-now { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; color: var(--text); } .dlm-now i { width: 12px; height: 12px; border-radius: 50%; display: block; }
 .dlm-set { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px 4px 2px 28px; border-top: 1px solid var(--border-strong); }
-.dlm-set > span { display: inline-flex; align-items: center; gap: 2px; } .dlm-set small { margin-right: 4px; font: 600 11px var(--sans); color: var(--muted); }
-.dlm-wd, .dlm-op { min-width: 34px; height: 28px; display: grid; place-items: center; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 600 11px var(--sans); }
+.dlm-set > span { display: inline-flex; align-items: center; gap: 2px; } .dlm-set small { margin-right: 4px; font: 600 12px var(--sans); color: var(--muted); }
+.dlm-wd, .dlm-op { min-width: 34px; height: 28px; display: grid; place-items: center; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font: 600 12px var(--sans); }
 .dlm-wd i { width: 18px; border-radius: 3px; background: currentColor; display: block; }
 .dlm-wd.on, .dlm-op.on { color: var(--text); border-color: var(--gain); background: var(--gain-soft); }
 .dlm-pop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 9; display: grid; gap: 2px; min-width: 190px; padding: 6px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .55); }

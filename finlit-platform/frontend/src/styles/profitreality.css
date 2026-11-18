@@ -14,7 +14,7 @@
 .pr-chart.neg .pr-bars { align-items: center; }
 .pr-bar { display: block; flex: 0 1 18px; min-width: 4px; max-height: 100%; border-radius: 2px 2px 0 0; } .pr-bar.none { background: transparent; height: 0; }
 .pr-bar.rep { background: color-mix(in srgb, var(--text) 38%, transparent); } .pr-bar.nrm { background: var(--gold); }
-.pr-bar.neg { opacity: .55; } .pr-x { flex: none; text-align: center; font: 11px var(--mono); color: var(--muted); padding-top: 4px; margin-bottom: -22px; transform: translateY(0); }
+.pr-bar.neg { opacity: .55; } .pr-x { flex: none; text-align: center; font: 12px var(--mono); color: var(--muted); padding-top: 4px; margin-bottom: -22px; transform: translateY(0); }
 .pr-chart { margin-bottom: 26px; }
 .pr-legend { display: flex; gap: 14px; align-items: center; font-size: var(--fs-13); color: var(--muted); margin: 0 0 12px; } .pr-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: -8px; } .pr-legend i.rep { background: color-mix(in srgb, var(--text) 38%, transparent); } .pr-legend i.nrm { background: var(--gold); }
 .pr-t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; } .pr-t th, .pr-t td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }

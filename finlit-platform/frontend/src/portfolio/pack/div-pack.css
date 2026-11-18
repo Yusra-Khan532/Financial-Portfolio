@@ -6,7 +6,7 @@
 /* where it sits: macro sector × size */
 .eqd-ws { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; }
 .eqd-ws th, .eqd-ws td { padding: 10px; border: 1px solid var(--sp-line); vertical-align: top; text-align: left; }
-.eqd-ws thead th { background: color-mix(in srgb, var(--s2) 60%, var(--s1)); font: 700 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.eqd-ws thead th { background: color-mix(in srgb, var(--s2) 60%, var(--s1)); font: 700 var(--fs-label)/var(--lh-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
 .eqd-ws thead th:first-child { width: 190px; } .eqd-ws thead th:last-child { width: 130px; }
 .eqd-ws tbody th { font: 600 var(--fs-small)/var(--lh-13) var(--sans); color: var(--sp-ink); vertical-align: middle; }
 .eqd-ws td small { display: block; margin-top: 4px; font: 700 var(--fs-caption)/1 var(--sans); color: var(--sp-ink); }

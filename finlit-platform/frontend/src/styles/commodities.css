@@ -64,7 +64,7 @@
 .cm-par > summary::after { content: "▾"; margin-left: auto; color: var(--muted); transition: transform .2s; }
 .cm-par:not([open]) > summary::after { transform: rotate(-90deg); }
 .cm-par > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
-.cm-tag { font: 600 11px var(--sans); padding: 2px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--text); text-transform: uppercase; letter-spacing: .05em; }
+.cm-tag { font: 600 12px var(--sans); padding: 2px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--text); text-transform: uppercase; letter-spacing: .05em; }
 .cm-parbody { display: grid; gap: 8px; padding-top: 4px; }
 .cm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .cm-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-strong); font: 600 13px var(--sans); background: var(--s1); }

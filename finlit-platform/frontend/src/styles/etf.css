@@ -17,7 +17,7 @@
 .etf-filters { display: grid; gap: 18px; margin-bottom: 14px; }
 .etf-fgroup h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
 .etf-fgroup h3 small { font-weight: 400; color: var(--faint); margin-left: 6px; }
-.etf-fgroup .chip-b small { opacity: .7; margin-left: 2px; }
+.etf-fgroup .chip-b small { margin-left: 2px; }
 .etf-ranges { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .etf-range { border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px 10px; margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .etf-range legend { font-size: var(--fs-13); color: var(--muted); padding: 0 6px; }
@@ -56,7 +56,7 @@
 .etf-skel { display: grid; gap: 8px; }
 .etf-state { text-align: center; padding: 56px 16px; border: 1px dashed var(--border-strong); border-radius: 16px; margin: 12px 0; }
 .etf-state.small { padding: 26px 16px; }
-.etf-state h2 { font: 300 24px var(--serif); margin: 0 0 8px; }
+.etf-state h2 { font: 400 24px var(--serif); margin: 0 0 8px; }
 .etf-state p { color: var(--muted); margin: 0 auto 14px; max-width: 56ch; }
 .etf-note { margin-top: 26px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--s2); color: var(--muted); font-size: var(--fs-14); line-height: 1.6; }
 .etf-note p { margin: 0 0 6px; } .etf-note p:last-child { margin: 0; } .etf-note b { color: var(--text); } .etf-note a { color: var(--gold); }
@@ -73,7 +73,7 @@
 /* detail */
 .etf-crumb { margin: 20px 0 10px; font-size: 14px; } .etf-crumb a { color: var(--muted); text-decoration: none; } .etf-crumb a:hover { color: var(--gold); }
 .etf-head { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 8px; }
-.etf-head h1 { font: 300 var(--fs-page-title)/1.15 var(--serif); margin: 0 0 12px; max-width: 24ch; text-wrap: balance; }
+.etf-head h1 { font: 400 var(--fs-page-title)/1.15 var(--serif); margin: 0 0 12px; max-width: 24ch; text-wrap: balance; }
 .etf-ids { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .etf-quote { text-align: right; display: grid; gap: 4px; justify-items: end; }
 .etf-price { font: 400 clamp(30px, 6vw, 42px)/1 var(--mono); }
@@ -99,7 +99,7 @@
 .etf-ret thead th { font-size: var(--fs-13); color: var(--muted); font-weight: 600; } .etf-ret .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .etf-ret thead .num { font-family: var(--sans); }
 .etf-why { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); line-height: 1.6; }
-.etf-h2 { font: 300 24px var(--serif); margin: 30px 0 4px; }
+.etf-h2 { font: 400 24px var(--serif); margin: 30px 0 4px; }
 .etf-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; } .etf-grid3 .card { margin-top: 14px; }
 .etf-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .etf-big { font: 400 32px/1.1 var(--mono); margin: 6px 0 10px; } .etf-big small { font: 400 14px var(--sans); color: var(--faint); }
@@ -178,7 +178,7 @@
 .etf-glance .etf-g { padding: 14px 16px; border-right: 1px solid var(--border); }
 .etf-glance .etf-g:last-child { border-right: 0; }
 .etf-g { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.etf-g .k { font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.etf-g .k { font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .etf-g b { font: 600 var(--fs-18, 18px) var(--sans); font-variant-numeric: tabular-nums; color: var(--text); }
 .etf-g small { font-size: var(--fs-13); color: var(--muted); line-height: 1.35; }
 .etf-jump { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 12px 0 2px; }
@@ -187,7 +187,7 @@
 #etf-tracks, #h-r3, #h-chart, #hd-h, #h-risk, #h-nav, #h-facts { scroll-margin-top: 90px; }
 .etf-tk { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: 14px; margin: 4px 0 8px; }
 .etf-tk .etf-g { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--s2); }
-.etf-tk .etf-g b { font: 300 28px var(--serif); }
+.etf-tk .etf-g b { font: 600 28px var(--sans); }
 .etf-h4 { margin: 18px 0 6px; font: 600 16px var(--sans); }
 .etf-peers th small { display: block; font-size: var(--fs-12); margin-top: 2px; }
 .etf-peers tr.is-self th, .etf-peers tr.is-self td { background: var(--gold-soft); }
@@ -219,7 +219,7 @@
 .etf-name .etf-sub .mono { font-weight: 600; letter-spacing: .02em; }
 .etf-blank:has(.etf-bwhy) { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 td:not(.num) > .etf-blank:has(.etf-bwhy) { align-items: flex-start; }
-.etf-bwhy { font: 400 var(--fs-11)/1.3 var(--sans); color: var(--muted); white-space: nowrap; margin-top: 2px; }
+.etf-bwhy { font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); white-space: nowrap; margin-top: 2px; }
 .etf-frow { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 14px; align-items: start; }
 .etf-frow > h3 { margin: 6px 0 0; }
 .etf-frow > h3 small { display: block; margin: 2px 0 0; font-size: var(--fs-12); }

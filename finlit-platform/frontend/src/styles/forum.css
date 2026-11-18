@@ -20,7 +20,7 @@
 .fo-body a { color: var(--gold); text-decoration: underline; }
 .fo-act { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .fo-act .btn { height: 34px; padding: 0 12px; font-size: 13px; }
-.fo-staff { color: var(--on-gold); background: var(--gold); border-radius: 6px; font-size: 11px; padding: 1px 6px; font-weight: 700; }
+.fo-staff { color: var(--on-gold); background: var(--gold); border-radius: 6px; font-size: 12px; padding: 1px 6px; font-weight: 700; }
 .fo-board { border: 1px solid var(--border); border-radius: 12px; background: var(--s1); padding: 10px 14px; font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
 .fo-board b { color: var(--text); }
 .fo-note { font-size: 13px; color: var(--warn); }
@@ -106,7 +106,7 @@
 .fo-card-co { font-size: var(--fs-12); color: var(--faint); } .fo-card-co b { color: var(--gold); letter-spacing: .04em; }
 .fo-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-13); color: var(--faint); }
 .fo-card-meta b { color: var(--text); font-weight: 600; }
-.fo-av { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 22%, var(--s2)); color: var(--text); font: 700 var(--fs-11)/1 var(--sans); flex: none; }
+.fo-av { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 22%, var(--s2)); color: var(--text); font: 700 var(--fs-12)/1 var(--sans); flex: none; }
 .fo-cc { display: inline-flex; align-items: center; gap: 5px; }
 .fo-cc svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .fo-staff { font-style: normal; margin-left: 6px; }
@@ -146,7 +146,7 @@
 .fo-cs-root > .fo-c { padding: 12px 14px 6px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
 .fo-c-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--fs-13); color: var(--faint); }
 .fo-c-head b { color: var(--text); font-weight: 600; }
-.fo-op { font-style: normal; font: 700 var(--fs-11)/1 var(--sans); letter-spacing: .06em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 5px; padding: 2px 4px; }
+.fo-op { font-style: normal; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .06em; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 5px; padding: 2px 4px; }
 .fo-c-hidden { font-style: italic; }
 .fo-c > .fo-body { margin: 6px 0 2px 30px; }
 .fo-c > .fo-c-act, .fo-c > .fo-form, .fo-c > .fo-note, .fo-c > .fo-err { margin-left: 24px; }
@@ -215,7 +215,7 @@
 .fo-strip-t { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; font-size: var(--fs-14); } .fo-strip-t b { font: 600 var(--fs-14) var(--sans); } .fo-strip-t span { color: var(--muted); }
 .fo-strip-go { flex: none; font: 600 var(--fs-13) var(--sans); color: var(--gold); white-space: nowrap; } .fo-strip-go i { font-style: normal; }
 @media (max-width: 560px) { .fo-strip { align-items: flex-start; } .fo-strip-go { display: none; } }
-.snav a .snav-n { margin-left: 6px; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font: 700 var(--fs-11) var(--mono); line-height: 18px; text-align: center; }
+.snav a .snav-n { margin-left: 6px; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font: 700 var(--fs-12) var(--mono); line-height: 18px; text-align: center; }
 .fo-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--border-strong); border-radius: 18px; background: var(--s1); }
 .fo-panel-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 18px; }
 .fo-counts { display: flex; flex-wrap: wrap; gap: 8px; } .fo-counts span { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--s2); font-size: var(--fs-13); color: var(--muted); } .fo-counts b { color: var(--text); font-size: var(--fs-14); }

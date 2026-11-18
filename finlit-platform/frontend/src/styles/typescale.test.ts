@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 // The one type scale (docs/TYPE-SCALE.md): every font size in the source is one of these, or an allow-listed display size.
 // Fails with file:line so a new off-scale or sub-11px size is caught before it ships.
 const SCALE = [11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 40];
+// Task #227: no page text under 12px. 11px is left only for chart axis text an SVG draws itself (a fontSize attribute in a .tsx file).
+const CSS_SCALE = SCALE.filter((v) => v !== 11);
 const SRC = new URL("../", import.meta.url).pathname;
 
 // Documented exceptions. Display headings (44px and up) and clamp() heroes stay as designed; anything else needs a line here.
@@ -50,11 +52,12 @@ export function findViolations(files: Record<string, string>): string[] {
       for (const { re, px } of PATTERNS) {
         for (const m of line.matchAll(re)) {
           const v = px(m);
-          if (v == null || v === 0 || v >= DISPLAY_MIN || SCALE.includes(v)) continue;
-          bad.push(`${v < 11 ? "under 11px" : "off scale"} ${where}`);
+          const css = /\.css$/.test(file);
+          if (v == null || v === 0 || v >= DISPLAY_MIN || (css ? CSS_SCALE : SCALE).includes(v)) continue;
+          bad.push(`${v < 11 ? "under 11px" : css && v === 11 ? "under 12px" : "off scale"} ${where}`);
         }
       }
-      for (const m of line.matchAll(/font-size\s*:\s*var\(--fs-(\d+)\)/g)) if (!SCALE.includes(+m[1])) bad.push(`unknown token ${where}`);
+      for (const m of line.matchAll(/font-size\s*:\s*var\(--fs-(\d+)\)/g)) if (!CSS_SCALE.includes(+m[1])) bad.push(`unknown token ${where}`);
     });
   }
   return bad;
@@ -68,18 +71,20 @@ describe("type scale", () => {
     expect(findViolations(files)).toEqual([]);
   });
 
-  it("the checker itself flags sub-11px and off-scale sizes", () => {
+  it("the checker itself flags sub-11px, 11px CSS text (task #227) and off-scale sizes", () => {
     const bad = findViolations({
-      "a.css": ".a{font-size:10px}\n.b{font-size:13px}\n.c{font-size:12.5px}\n.d{font-size:.8em}\n.e{font-size:var(--fs-15)}\n.f{font-size:clamp(20px,5vw,24px)}\n.g{font-size:56px}",
+      "a.css": ".a{font-size:10px}\n.b{font-size:13px}\n.c{font-size:12.5px}\n.d{font-size:.8em}\n.e{font-size:var(--fs-15)}\n.f{font-size:clamp(20px,5vw,24px)}\n.g{font-size:56px}\n.h{font: 600 11px/1 var(--sans)}\n.i{font-size:var(--fs-11)}",
       "b.tsx": "const s={fontSize: 9.5}; <text fontSize=\"10\"/>; const t={fontSize:14}",
     });
-    expect(bad.map((b) => b.split(" a.css")[0].split(" b.tsx")[0])).toEqual(["under 11px", "off scale", "relative size", "unknown token", "clamp under 28px", "under 11px", "under 11px"]);
+    expect(bad.map((b) => b.split(" a.css")[0].split(" b.tsx")[0])).toEqual(["under 11px", "off scale", "relative size", "unknown token", "clamp under 28px", "under 12px", "unknown token", "under 11px", "under 11px"]);
     expect(bad[0]).toContain("a.css:1");
   });
 
   it("every scale token is defined and loaded before the app styles", () => {
     const css = readFileSync(new URL("./typescale.css", import.meta.url), "utf8");
-    for (const n of SCALE) expect(css).toContain(`--fs-${n}: ${n}px`);
+    for (const n of CSS_SCALE) expect(css).toContain(`--fs-${n}: ${n}px`);
+    expect(css).not.toMatch(/--fs-11\s*:/);   // task #227: no 11px step for page text
+    expect(css).toContain("--fs-label: var(--fs-12)");
     const main = readFileSync(new URL("../main.tsx", import.meta.url), "utf8");
     expect(main.indexOf("styles/typescale.css")).toBeGreaterThan(-1);
     expect(main.indexOf("styles/typescale.css")).toBeLessThan(main.indexOf("styles/finlit.css"));

@@ -42,6 +42,7 @@ import { installSvgTextFit } from "./lib/svgText";
 import "./styles/sidebar.css";
 import "./styles/earnings.css";
 import "./styles/calm.css";
+import "./styles/type227.css";   // task #227: serif section titles, readable placeholders (after calm.css, which sets the type roles)
 import "./styles/chartzoom.css";
 import "./styles/site-green.css";   // task #161: the landing green is the dark background of every page (after the theme layers; overlay.css stays last)
 import "./styles/overlay.css";

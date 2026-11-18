@@ -63,7 +63,7 @@
 .mi .mi-stack i { min-width: 2px; }
 .mi .mi-stack.big { height: 40px; border-radius: 10px; margin: 12px 0; }
 .mi .mi-stack.big i { display: flex; align-items: center; padding: 0 10px; color: #fff; overflow: hidden; }
-.mi .mi-stack.big span { font: 700 var(--fs-body)/16px var(--sans); white-space: nowrap; } .mi .mi-stack.big small { display: block; font: 500 var(--fs-caption)/14px var(--sans); opacity: .9; }
+.mi .mi-stack.big span { font: 700 var(--fs-body)/16px var(--sans); white-space: nowrap; } .mi .mi-stack.big small { display: block; font: 500 var(--fs-caption)/14px var(--sans); }
 .mi .mi-stack.dark { background: rgba(255,255,255,.12); }
 .mi .mi-key { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 0; padding: 0; font: 500 var(--fs-caption)/16px var(--sans); color: var(--muted); }
 .mi .mi-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }

@@ -4,7 +4,7 @@
 .bh-t { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .bh-t th, .bh-t td { padding: 7px 10px; border-bottom: 1px solid var(--sp-line, var(--line)); text-align: left; vertical-align: middle; }
 .bh-t thead th { font: 600 12px var(--sans); color: var(--sp-mute, var(--muted)); }
-.bh-t .r { text-align: right; } .bh-t td small { display: block; font-size: 11px; }
+.bh-t .r { text-align: right; } .bh-t td small { display: block; font-size: 12px; }
 .bh-t tfoot th, .bh-t tfoot td { border-bottom: 0; font-weight: 600; }
 .bh-up { color: var(--sp-good, #1f7a4d); } .bh-down { color: var(--sp-red, #b4362b); }
 .bh-mute { color: var(--sp-mute, var(--muted)); }

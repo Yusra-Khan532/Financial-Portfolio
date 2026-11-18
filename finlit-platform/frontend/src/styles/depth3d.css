@@ -39,7 +39,7 @@
 .surface3d { display: block; width: 100%; height: 300px; margin: 4px 0 10px; opacity: 0; animation: scene-in .9s ease forwards; cursor: grab; }
 @media (prefers-reduced-motion: reduce) { .surface3d { animation-duration: .01s; } }
 .cloud3d { position: relative; margin: 0 0 12px; border: 1px solid var(--line, rgba(128,128,128,.25)); border-radius: 12px; overflow: hidden; }
-.cloud3d-axes { position: absolute; left: 12px; bottom: 8px; margin: 0; font-size: 12px; color: var(--muted, inherit); opacity: .8; pointer-events: none; }
+.cloud3d-axes { position: absolute; left: 12px; bottom: 8px; margin: 0; font-size: 12px; color: var(--muted, inherit); pointer-events: none; }
 .cloud3d-tip { position: absolute; left: 12px; top: 10px; margin: 0; padding: 4px 10px; border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--ink, inherit); border: 1px solid var(--gold); pointer-events: none; }
 
 /* Labelled 3D plots (src/three/Plot3D.tsx) and the 3D / Flat switch around every chart */
@@ -52,5 +52,5 @@
 .v3d-seg button[aria-pressed="true"] { background: var(--gold); color: #1A1405; opacity: 1; }
 .v3d-key { display: inline-flex; align-items: center; gap: 5px; opacity: .85; }
 .v3d-key i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
-.v3d-hint { margin: 4px 0 0; font-size: var(--fs-13); opacity: .75; line-height: 1.45; }
+.v3d-hint { margin: 4px 0 0; font-size: var(--fs-13); line-height: 1.45; }
 @media (max-width: 599px) { .p3d-cv { height: 280px; } }
