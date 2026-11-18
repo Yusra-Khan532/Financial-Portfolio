@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CHECKS, COLUMNS, DEFAULT_COLS, EMPTY_QUERY, FACT_LABELS, PAGE_DEFAULTS, RETURN_LABELS, factKeys, factValueText, retTiles, activeFilterCount, aumText, buildLines, catCount, catNames,
+  CHECKS, COLUMNS, DEFAULT_COLS, EMPTY_QUERY, tabDefaults, FACT_LABELS, PAGE_DEFAULTS, RETURN_LABELS, factKeys, factValueText, retTiles, activeFilterCount, aumText, buildLines, catCount, catNames,
   categoryShort, checklistLines, cleanCats, cleanNum, compareUrl, effectiveQuery, listPath, navText, nearestIndex, niceTicks, noReturnsText, pageWindow,
   parseIds, parseQuery, pctText, queryToParams, readCols, rowSortValue, searchOptions, subCats, terText, toggleAll, toggleCat, tone, trayToggle,
   type FilterCategory, type FundRow,
@@ -48,13 +48,14 @@ describe("list address", () => {
     expect(parseQuery(queryToParams(q))).toEqual(q);
     for (const extra of [{ plan: "" }, { tab: "all" as const, cats: null }, { cats: [] as string[] }, { sort: "checklist" as const }]) {
       const r = { ...q, ...extra };
-      expect(parseQuery(queryToParams(r))).toEqual(r);
+      // task #242: on All funds an explicit Growth reads back as the Growth button's own value ("": the same filter, shown as chosen)
+      expect(parseQuery(queryToParams(r))).toEqual(r.tab === "all" && r.option === "Growth" ? { ...r, option: "" } : r);
     }
   });
   it("keeps the address short and readable", () => {
     expect(queryToParams({ ...PAGE_DEFAULTS, cats: ["mid-cap", "large-cap"] }).toString()).toBe("cats=large-cap%2Cmid-cap");
     expect(queryToParams({ ...PAGE_DEFAULTS, plan: "" }).toString()).toBe("plan=All");
-    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "all", cats: ["x"] }).toString()).toBe("tab=all");   // "all" has no sub-categories
+    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "all", cats: ["x"], ...tabDefaults("all") }).toString()).toBe("tab=all");   // "all" has no sub-categories
     expect(queryToParams({ ...PAGE_DEFAULTS, cats: [] }).toString()).toBe("cats=");                   // none ticked is a state of its own
   });
   it("junk in the address falls back to safe values", () => {
@@ -371,5 +372,28 @@ describe("return and cost bands", () => {
     const { costLevel } = await import("./mf");
     expect(costLevel(0.5, null)).toBeNull(); expect(costLevel(null, 1)).toBeNull(); expect(costLevel(1, 0)).toBeNull();
     expect(costLevel(0.8, 1)?.label).toBe("Low"); expect(costLevel(1, 1)?.label).toBe("Moderate"); expect(costLevel(1.2, 1)?.label).toBe("High");
+  });
+});
+
+describe("All funds shows every plan and option (task #242)", () => {
+  it("the All funds tab opens on every plan and option; the category tabs keep Direct and Growth", () => {
+    const all = parseQuery(new URLSearchParams("tab=all"));
+    expect(all).toMatchObject({ tab: "all", plan: "", option: "All" });
+    expect(queryToParams(all).toString()).toBe("tab=all");                                   // its defaults never go into the address
+    expect(parseQuery(new URLSearchParams("tab=debt"))).toMatchObject({ plan: "Direct", option: "" });
+    expect(activeFilterCount(all)).toBe(0);                                                    // a tab's own defaults are no filter
+  });
+  it("a choice on All funds is kept in the address and read back the same", () => {
+    for (const patch of [{ plan: "Direct" }, { option: "" }, { option: "IDCW" }, { plan: "Regular", option: "" }]) {
+      const q = { ...parseQuery(new URLSearchParams("tab=all")), ...patch };
+      const back = parseQuery(queryToParams(q));
+      expect(back).toMatchObject({ tab: "all", plan: q.plan, option: q.option });
+      expect(activeFilterCount(back)).toBe(Object.keys(patch).length);
+    }
+    expect(queryToParams({ ...parseQuery(new URLSearchParams("tab=all")), option: "" }).toString()).toBe("tab=all&option=Growth");
+  });
+  it("old links keep their meaning", () => {
+    expect(parseQuery(new URLSearchParams("tab=all&plan=Direct"))).toMatchObject({ plan: "Direct", option: "All" });
+    expect(parseQuery(new URLSearchParams(""))).toEqual(PAGE_DEFAULTS);
   });
 });
