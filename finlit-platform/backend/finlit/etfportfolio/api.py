@@ -26,7 +26,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -35,7 +35,7 @@ from ..auth.entitlements import LIMITS, has, sees_all
 from ..auth.routes import Ctx, fail, limit, secure_ctx
 from ..mfportfolio import bench as wk
 from ..mfportfolio import risk
-from . import DISCLAIMER, calc
+from . import DISCLAIMER, book, calc
 
 log = logging.getLogger("finlit.etfportfolio")
 router = APIRouter(prefix="/api/me/etf-portfolio")
@@ -95,7 +95,10 @@ async def lock_member(conn, user_id: str) -> None:
     await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", f"etfp:{user_id}")
 
 
-async def held_of(conn, user_id: str) -> List[Dict[str, Any]]:
+async def held_of(conn, user_id: str, pf: Optional[str] = None) -> List[Dict[str, Any]]:
+    """The member's ETFs and their units: every account together, or (task #235) one account's open units with `pf`."""
+    if pf and pf != "all":
+        return await book.held_in(conn, user_id, pf)
     return [{"symbol": r["symbol"], "qty": r["qty"], "isin": r["isin"]}
             for r in await conn.fetch("SELECT symbol, qty, isin FROM etf_holdings WHERE user_id = $1 ORDER BY created_at, symbol", user_id)]
 
@@ -244,10 +247,10 @@ def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any]
 
 
 @router.get("")
-async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
+async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
     app = request.app
     async with app.state.store.pool.acquire() as conn:
-        held = await held_of(conn, ctx.user_id)
+        held = await held_of(conn, ctx.user_id, pf)
     base = {"plan": "gold" if is_gold(ctx) else ctx.plan, "limit": cap_for(ctx), "count": len(held), "disclaimer": DISCLAIMER}
     if not held:
         return reply({**base, "items": [], "basis": "equal", "repeats": [], "asOf": None})
@@ -276,9 +279,9 @@ async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
                   "missingQty": [i["symbol"] for i in live if not i["qty"]]})
 
 
-async def _weighted(request: Request, ctx: Ctx) -> Tuple[List[Dict[str, Any]], Dict[str, dict], str]:
+async def _weighted(request: Request, ctx: Ctx, pf: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Dict[str, dict], str]:
     async with request.app.state.store.pool.acquire() as conn:
-        held = await held_of(conn, ctx.user_id)
+        held = await held_of(conn, ctx.user_id, pf)
     by = await etf_rows(request.app)
     live = [(h, by[h["symbol"]]) for h in held if h["symbol"] in by]
     w, basis = calc.weights([{"symbol": h["symbol"], "qty": h["qty"], "price": r.get("price")} for h, r in live])
@@ -286,10 +289,10 @@ async def _weighted(request: Request, ctx: Ctx) -> Tuple[List[Dict[str, Any]], D
 
 
 @router.get("/inside")
-async def inside(request: Request, ctx: Ctx = Depends(member_ctx)):
+async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
     """What sits inside the ETFs, from each fund house's monthly portfolio file."""
     app = request.app
-    etfs, _by, basis = await _weighted(request, ctx)
+    etfs, _by, basis = await _weighted(request, ctx, pf)
     if not etfs:
         return reply({"count": 0, "why": "Add ETFs to see what sits inside them.", "disclaimer": DISCLAIMER})
     got = await asyncio.gather(*[holdings_for(app, e["row"]["isin"]) for e in etfs])
@@ -331,7 +334,7 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx)):
 
 
 @router.get("/risk")
-async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
+async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
     """Each ETF's swing, worst fall, beta and share of the Nifty 500's falls from its daily closes over three years (the MF portfolio's sums), the list's
     risk level against the Nifty 500, how alike the weekly moves were over the last year, and each ETF's share of the list's swings."""
     app = request.app
@@ -339,7 +342,7 @@ async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
     if len(bench) < risk.MIN_DAYS:
         raise fail(503, "bench_unavailable", "The Nifty 500 history is not available right now, so the risk figures cannot be worked out. Please try again in a moment.")
     end = max(bench)
-    etfs, _by, basis = await _weighted(request, ctx)
+    etfs, _by, basis = await _weighted(request, ctx, pf)
     if not etfs:
         return reply({"count": 0, "why": "Add ETFs to see their risk figures.", "disclaimer": DISCLAIMER})
     hist = await asyncio.gather(*[closes_for(app, e["symbol"], e["row"]) for e in etfs])
@@ -490,6 +493,9 @@ async def set_quantities(request: Request, body: QtyIn, ctx: Ctx = Depends(membe
             missing = [s for s, _ in pairs if s not in have]
             if missing:
                 raise fail(404, "not_found", f"{missing[0]} is not in your ETF list.")
+            booked = {r["symbol"] for r in await conn.fetch("SELECT DISTINCT symbol FROM etf_lots WHERE user_id = $1 AND symbol = ANY($2::text[])", ctx.user_id, [x for x, _ in pairs])}
+            if booked:   # task #235: its quantity is what is left of its buys and sales
+                raise fail(409, "has_buys", f"{sorted(booked)[0]} has buys and sales: change them in its buys on the ETF portfolio.")
             await conn.executemany("UPDATE etf_holdings SET qty = $3, updated_at = now() WHERE user_id = $1 AND symbol = $2", [(ctx.user_id, s, q) for s, q in pairs])
     return reply({"status": "saved", "updated": len(pairs)})
 
@@ -498,7 +504,9 @@ async def set_quantities(request: Request, body: QtyIn, ctx: Ctx = Depends(membe
 async def delete_all(request: Request, ctx: Ctx = Depends(member_ctx)):
     await limit(request, "etfpw", ctx.user_id, 120, 600)
     async with request.app.state.store.pool.acquire() as conn:
-        n = int((await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1", ctx.user_id)).split()[-1])
+        async with conn.transaction():
+            n = int((await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1", ctx.user_id)).split()[-1])
+            await conn.execute("DELETE FROM etf_lots WHERE user_id = $1", ctx.user_id)
     return reply({"status": "deleted", "removed": n})
 
 
@@ -521,8 +529,11 @@ async def clear_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
             await lock_member(conn, ctx.user_id)
             held = await held_of(conn, ctx.user_id)
             snap = [{"symbol": h["symbol"], "isin": h["isin"], "qty": str(h["qty"]) if h["qty"] is not None else None} for h in held]
-            await request.app.state.store.redis.set(_clear_key(ctx.user_id), json.dumps(snap), ex=CLEAR_HOLD_SECONDS)
+            lots = [{**l, "qty": str(l["qty"]), "price": str(l["price"]) if l["price"] is not None else None, "date": l["date"].isoformat() if l["date"] else None}
+                    for l in await book.lots_of(conn, ctx.user_id)]
+            await request.app.state.store.redis.set(_clear_key(ctx.user_id), json.dumps({"held": snap, "lots": lots}), ex=CLEAR_HOLD_SECONDS)
             await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1", ctx.user_id)
+            await conn.execute("DELETE FROM etf_lots WHERE user_id = $1", ctx.user_id)   # task #235: the buys and sales go too; the accounts stay
     return reply({"status": "cleared", "removed": len(snap), "undoSeconds": CLEAR_UNDO_SECONDS})
 
 
@@ -533,10 +544,15 @@ async def undo_clear_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
     held = await request.app.state.store.redis.getdel(_clear_key(ctx.user_id))
     if held is None:
         raise fail(410, "undo_expired", "The clear is final: Undo is only possible for 10 seconds.")
-    snap = json.loads(held)
+    got = json.loads(held)
+    snap, lots = (got, []) if isinstance(got, list) else (got["held"], got.get("lots") or [])
     async with request.app.state.store.pool.acquire() as conn:
         async with conn.transaction():
             await lock_member(conn, ctx.user_id)
+            if lots and not await conn.fetchval("SELECT 1 FROM etf_lots WHERE user_id = $1 LIMIT 1", ctx.user_id):   # buys added inside the window are kept
+                await conn.executemany("INSERT INTO etf_lots (id, user_id, symbol, pf, side, qty, price, bought_on, pos) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT DO NOTHING",
+                                       [(l["id"], ctx.user_id, l["symbol"], l["pf"], l["side"], Decimal(l["qty"]), Decimal(l["price"]) if l["price"] else None,
+                                         date.fromisoformat(l["date"]) if l["date"] else None, l.get("pos", 0)) for l in lots])
             for h in snap:                   # an ETF the member added again inside the window keeps theirs: nothing is doubled
                 await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty, isin) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, symbol) DO NOTHING",
                                    ctx.user_id, h["symbol"], Decimal(h["qty"]) if h["qty"] is not None else None, h.get("isin"))
@@ -547,7 +563,9 @@ async def undo_clear_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
 async def delete_one(request: Request, symbol: str, ctx: Ctx = Depends(member_ctx)):
     await limit(request, "etfpw", ctx.user_id, 120, 600)
     async with request.app.state.store.pool.acquire() as conn:
-        n = int((await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1 AND symbol = $2", ctx.user_id, sym_of(symbol))).split()[-1])
+        async with conn.transaction():
+            n = int((await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1 AND symbol = $2", ctx.user_id, sym_of(symbol))).split()[-1])
+            await conn.execute("DELETE FROM etf_lots WHERE user_id = $1 AND symbol = $2", ctx.user_id, sym_of(symbol))
     if not n:
         raise fail(404, "not_found", "That ETF is not in your list.")
     return reply({"status": "deleted"})
@@ -670,3 +688,6 @@ async def import_commit(request: Request, body: CommitIn, ctx: Ctx = Depends(mem
                     await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty, isin) VALUES ($1, $2, $3, $4)", ctx.user_id, s, q, by[s].get("isin") or None)
                     added += 1
     return reply({"status": "saved", "added": added, "replaced": replaced, "skipped": skipped}, 201)
+
+
+book.register(router, member_ctx, lock_member, lambda app: etf_rows(app), lambda t, by: resolve(t, by), lambda ctx: cap_for(ctx), reply)   # task #235: GET and PUT /book
