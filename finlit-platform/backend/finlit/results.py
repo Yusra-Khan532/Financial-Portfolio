@@ -64,8 +64,14 @@ FILING_SOURCE = "Exchange filing"
 FILING_CATEGORIES = ("outcome of board meeting", "result", "results", "financial results", "financial result")
 QUARTER_RE = re.compile(r"^\d{4}-(03|06|09|12)$")
 NUMERIC_SORTS = {"revenueYoY": "revenueYoY", "profitYoY": "profitYoY", "marginChange": "npmChange", "gap": "gap", "revenue": "revenue", "netProfit": "netProfit",
-                 "below52": "below52", "belowAth": "belowAth"}
-SORTS = {"date", "marketCap", *NUMERIC_SORTS}
+                 "below52": "below52", "belowAth": "belowAth",
+                 # task #224 (results pack of 18 Nov, A1): every column of the Companies table sorts by its heading
+                 "revenueQoQ": "revenueQoQ", "operatingProfit": "operatingProfit", "opYoY": "opYoY", "opQoQ": "opQoQ", "opm": "opm",
+                 "profitQoQ": "profitQoQ", "npm": "npm", "eps": "eps", "verdict": "verdictRank"}
+# Verdict words sort by rank, not alphabetically (A1): the higher the better reading against the industry.
+VERDICT_RANK = {"Strong": 5, "Good": 4, "Mixed": 3, "Weak": 2, "Poor": 1}
+TEXT_SORTS = {"company": "symbol"}   # words: ascending is A to Z
+SORTS = {"date", "marketCap", *NUMERIC_SORTS, *TEXT_SORTS}
 # every figure a row carries that Basic must not see
 FIGURES = ("verdict", "checks", "revenue", "revenueYoY", "revenueQoQ", "operatingProfit", "opYoY", "opQoQ", "opYoYWhy", "opQoQWhy", "opm", "netProfit", "profitYoY", "profitQoQ", "npm", "npmChange", "eps", "gap")
 # the price-position figures every row carries (Silver and Gold see them; Basic gets empty cells)
@@ -635,9 +641,14 @@ def select(rows: List[dict], *, q: str = "", sector: str = "", industry: str = "
         return done + coming
     if sort == "marketCap":
         return sorted(out, key=lambda r: (mcap(r), r["date"]), reverse=desc)
+    if sort in TEXT_SORTS:
+        f = TEXT_SORTS[sort]
+        return sorted(out, key=lambda r: (str(r.get(f) or "").upper(), r["date"]), reverse=desc)
     key = NUMERIC_SORTS[sort]
-    known = [r for r in out if r[key] is not None]
-    rest = [r for r in out if r[key] is None]   # no figure: always last
+    if key == "verdictRank":
+        out = [{**r, "verdictRank": VERDICT_RANK.get(r.get("verdict") or "")} for r in out]
+    known = [r for r in out if r.get(key) is not None]
+    rest = [r for r in out if r.get(key) is None]   # no figure: always last
     return sorted(known, key=lambda r: (r[key], r["date"]), reverse=desc) + sorted(rest, key=lambda r: (r["date"], mcap(r)), reverse=True)
 
 
