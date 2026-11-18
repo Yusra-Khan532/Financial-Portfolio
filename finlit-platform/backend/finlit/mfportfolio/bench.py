@@ -245,6 +245,8 @@ def build(funds: List[Dict[str, Any]], index_closes: Dict[str, Tuple[List[int], 
             dn, up = capture(ch, bch)
             row.update(betaOwn=r2(beta), explained=r2(rr * 100 if rr is not None else None, 0), band=band_of(beta), downPer100=r2(dn, 0), upPer100=r2(up, 0),
                        benchOneYear=r2(year_change(bch), 1))
+            if rr is not None and rr < 0.2:                                      # COMMON-RULES 8: the beta says little; down / up weeks are hidden
+                row.update(downPer100=None, upPer100=None, saysLittle=True)
             if beta is None:
                 row["why"] = "Under a year of weekly NAVs, too short for a beta." if row["weeks"] < MIN_WEEKS else f"No {b['name']} closes for the past year."
         out.append(row)

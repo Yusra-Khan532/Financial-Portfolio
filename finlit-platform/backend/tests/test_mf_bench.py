@@ -95,3 +95,14 @@ def test_the_list_beta_counts_a_liquid_fund_as_zero_and_says_the_figure_without_
     assert out["list"]["beta500"] == 0.6 and out["list"]["fall10"] == {"own": -6.0, "nifty500": -6.0}
     assert f["riskShare"] + l["riskShare"] == pytest.approx(100.0, abs=0.11) and l["riskShare"] == pytest.approx(0.0, abs=0.1)
     assert out["to"] == date.fromordinal(end).isoformat() and out["from"] == (date.fromordinal(end) - timedelta(weeks=52)).isoformat()
+
+
+def test_down_and_up_weeks_are_hidden_where_the_benchmark_explains_under_a_fifth():   # COMMON-RULES 8
+    end = date(2026, 11, 13).toordinal()
+    start = end - 7 * len(X)
+    sd, sv = _series(start, X)
+    noise = [0.03 if i % 4 < 2 else -0.03 for i in range(len(X))]      # moves on its own (a pattern unrelated to the index): it explains almost nothing
+    fd, fv = _series(start, [0.1 * x + e for x, e in zip(X, noise)])
+    out = B.build([{"code": 1, "bench": B.benchmark_for("equity", "flexi-cap", "F"), "days": fd, "navs": fv}], {"NIF500": (sd, sv)}, None, end)
+    f = out["funds"][0]
+    assert f["explained"] < 20 and f["saysLittle"] is True and f["downPer100"] is None and f["upPer100"] is None and f["betaOwn"] is not None
