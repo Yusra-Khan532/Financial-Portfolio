@@ -75,7 +75,7 @@ describe("ETF portfolio: the top of the page (#183 part 3)", () => {
     tab(/Risk analytics/);
     expect(kf().slice(0, 2)).toEqual(["Moves less than the market: β 0.63", "Most risk for its size: MON100 21%"]);
     expect(kf()[2]).toMatch(/^Low beta, big swings: GOLDBEES \d+\.\d%$/);
-    expect(chips()).toEqual(["1At a glance", "2Beta build", "3Against the Nifty 500", "4Risk share", "5If the market fell 10%", "6Each ETF"]);
+    expect(chips()).toEqual(["1At a glance", "2Beta build", "3Against the Nifty 500", "4If the Nifty 500 fell", "5Risk share", "6Each ETF"]);
   });
 });
 

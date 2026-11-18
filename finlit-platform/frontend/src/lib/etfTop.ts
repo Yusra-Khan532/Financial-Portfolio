@@ -117,5 +117,5 @@ export const ETF_SECS: Record<EtfTab, { label: string; secs: Sec[] }> = {
   etfs: { label: "Your ETFs", secs: [["etp-etfs", "Your ETFs"]] },
   inside: { label: "What's inside", secs: [["etp-own", "What they own"], ["etp-money", "Money in"], ["etp-secin", "Sectors inside"], ["etp-move", "Move together"], ["etp-shared", "Shared stocks"],
     ["etp-sizes", "Company sizes"], ["etp-largest", "Largest stocks"]] },
-  risk: { label: "Risk analytics", secs: [["etp-glance", "At a glance"], ["etp-build", "Beta build"], ["etp-n500", "Against the Nifty 500"], ["etp-share", "Risk share"], ["etp-fall", "If the market fell 10%"], ["etp-each", "Each ETF"]] },
+  risk: { label: "Risk analytics", secs: [["etp-glance", "At a glance"], ["etp-build", "Beta build"], ["etp-n500", "Against the Nifty 500"], ["etp-fall", "If the Nifty 500 fell"], ["etp-share", "Risk share"], ["etp-each", "Each ETF"]] },
 };
