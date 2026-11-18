@@ -92,8 +92,13 @@ class Preset:
         return "blocked" if self.kind == "blocked" else "live"
 
 
-GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("prism-basics", "Prism views"), ("trend", "Trend"), ("setups", "New highs"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"), ("growth", "Growth"), ("themes", "Themes"), ("value-income", "Value and income"),
-                                 ("safety", "Safety"), ("ownership", "Ownership")]
+# Task #243 (screeners update pack v4, R2): the featured groups first (Top rated · Momentum · Growth · Themes, and Sectors on Advanced), then the rest
+# (Prism views · Setups · Chart patterns · Top gainers · Value and income · Safety · Ownership). "Trend" reads Momentum and "New highs" reads Setups
+# (pack L14: the group holds the three setups; "Near a 52-week high" sits under Momentum). The ids stay, so stored lists and links keep working.
+GROUPS: List[Tuple[str, str]] = [("top-rated", "Top rated"), ("trend", "Momentum"), ("growth", "Growth"), ("themes", "Themes"), ("sectors", "Sectors"),
+                                 ("prism-basics", "Prism views"), ("setups", "Setups"), ("chart-patterns", "Chart patterns"), ("top-gainers", "Top gainers"),
+                                 ("value-income", "Value and income"), ("safety", "Safety"), ("ownership", "Ownership")]
+FEATURED_GROUPS = ("top-rated", "trend", "growth", "themes", "sectors")
 
 # ------------------------------------------------------------------------------------------------------------------------------ columns
 RANK = Col("rank", "#", "text", "right")

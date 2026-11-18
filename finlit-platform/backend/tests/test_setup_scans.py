@@ -70,7 +70,7 @@ def test_a_term_with_a_minus_ranks_the_lower_figure_higher():
 
 
 def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
-    assert ("setups", "New highs") in GROUPS            # task #64, 14 Nov N-12: FinLit does not use "breakout", "setup" or "entry"
+    assert ("setups", "Setups") in GROUPS               # task #243 (screeners pack v4, L14): the tab holding the three setups reads "Setups" (was "New highs")
     ids = [p.id for p in PRESETS if p.group == "setups"]
     assert ids == ["setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation"]
     for i in ids:
@@ -85,14 +85,15 @@ def test_the_setups_cards_exist_on_both_tabs_and_describe_never_advise():
 
 
 def test_no_breakout_setup_or_entry_in_anything_a_reader_sees_on_the_screeners():
-    """Task #64, 14 Nov N-12: the group is New highs and the nine filters are renamed as in the mock-up; the keys (breakout_age and so on) can stay."""
+    """Task #64, 14 Nov N-12: the nine filters are renamed as in the mock-up; the keys (breakout_age and so on) can stay. Task #243 (pack L14) names the
+    group itself "Setups"; "breakout" and "entry" stay out of everything a reader sees, and no screen, card or rule says "setup"."""
     import re
     from finlit.screener.catalog import CATALOG as METRICS
     from finlit.presets.registry import _PLAIN
     plain_for = _PLAIN.get
     banned = re.compile(r"\b(breakout|breakouts|setup|setups|entry)\b", re.I)
     for _, label in GROUPS:
-        assert not banned.search(label), label
+        assert not banned.search(label) or label == "Setups", label
     for p in PRESETS:
         words = [p.name, p.card_text, *p.how_it_works, *(c.label for c in p.columns), *(t for _, t in p.derived)]
         words += [x for x in (plain_for(p.id) or {}).get("how", [])] + [(plain_for(p.id) or {}).get("text") or ""]

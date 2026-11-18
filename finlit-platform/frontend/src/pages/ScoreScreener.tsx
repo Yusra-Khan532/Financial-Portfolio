@@ -1,5 +1,6 @@
 import { Link, Navigate, useSearchParams } from "react-router";
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
+import { BASIC_DESC } from "../components/screener/ScreenerHead";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import { HighFilter, highActive } from "../components/screener/HighFilter";
@@ -10,7 +11,6 @@ import { ColumnsMenu, PRICE_COL_COUNT, PriceCells, PriceHeads, usePriceColumns }
 import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
-import { TierChip } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { dateIN } from "../lib/format";
@@ -43,9 +43,8 @@ function Basic() {
 
   return (
     <ScreenerFrame s={s} splitKey="score" eyebrow="Score screener" title="Basic stock screener" sideLabel="Score screener filters" errorTitle="The score screener is unavailable right now"
-      intro={<>Every listed company with its <b>FinLit IQ</b> and the five scores it is made of. Filter, sort and compare by size, sector and score.</>}
+      intro={BASIC_DESC}
       dateLine={asOf ? `Scores: ${dateIN(asOf)}` : null} howTitle="How FinLit IQ works"
-      headLink={<Link to="/advanced-score-screener" className="sx-hlink" aria-label="Advanced stock screener (Gold)">Advanced stock screener <TierChip tier="gold" /></Link>}
       columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
       tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
       presets={null} screens={<ScreensStrip route={route} />}

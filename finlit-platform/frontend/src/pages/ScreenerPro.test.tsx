@@ -62,7 +62,9 @@ const ruleHeads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th.
 const colBtn = () => screen.getByRole("button", { name: /^Columns/ }).textContent;
 const ready = () => waitFor(() => expect(table()).toBeTruthy());
 const last = () => st.bodies.filter((b) => !b.q || b.q === "").at(-1)!;
-const rulesPanel = () => screen.getByRole("complementary", { name: "Your rules" });
+const rulesPanel = () => screen.getByRole("complementary", { name: "Screens and rules" });
+/** Task #243 (pack S): the left panel's tabs; the ready-made screens and Custom ratio each sit in their own tab. */
+const openTab = (n: RegExp) => fireEvent.click(screen.getByRole("tab", { name: n }));
 const addRule = async (label: string) => {
   fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
   const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
@@ -92,20 +94,24 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the head and the ready-made screens (file 04 §2, §8)", () => {
-  it("opens with a short head, the four Find stocks tabs and today's ready-made screens", async () => {
+  it("opens with the site's page header, the four screener boxes and the ready-made screens in their own tab (task #243, pack H and S)", async () => {
     mount(); await ready();
     expect(screen.getByRole("heading", { level: 1, name: "Stock screener" })).toBeTruthy();
-    const tabs = screen.getByRole("navigation", { name: "Find stocks" });
-    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screenerSILVER", "Advanced stock screenerGOLD", "Query builder"]);      // free is the default: no FREE badge
+    const boxes = screen.getByRole("navigation", { name: "Screeners" });
+    expect(within(boxes).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screener", "Advanced stock screener", "Query builder"]);   // page names only: no tier tags
+    expect(document.querySelector(".ssy, nav.fst, .ssw-head")).toBeNull();                      // the section above the results, the old tab strip and head card are gone
+    expect(screen.getByRole("tab", { name: "Your rules", selected: true })).toBeTruthy();        // Your rules is open on load
+    openTab(/^Ready-made/);
     const card = await screen.findByRole("button", { name: /^Large, established companies: Market cap above ₹1,00,000 Cr, 123 companies today/ });
-    expect(card.textContent).toMatch(/123 companies/);
+    expect(card.textContent).toMatch(/123/);
     expect(document.querySelector(".fgx-kpi, .kpi")).toBeNull();                 // the stat tiles and the tall hero are gone
   });
 
   it("Custom ratio (task #64 Part 3): + Build a ratio opens the drawer over the page; Add puts a rule card, a chip, a column and the address; the old panel is gone", async () => {
     st.cat = catalog(false, "gold");                                                                 // Gold and Platinum only (CR-0)
     mount(); await ready();
-    expect(screen.getByRole("group", { name: "Custom ratio" }).textContent).toContain("Up to 3 at a time.");   // N-9
+    openTab(/Custom ratio/);
+    expect(screen.getByRole("tabpanel", { name: /Custom ratio/ }).textContent).toContain("Up to 3 at a time.");   // N-9 (the tab's intro, task #243 S5)
     const b = screen.getByRole("button", { name: /\+ Build a ratio/ });
     expect(b.tagName).toBe("BUTTON"); expect(b.className).toMatch(/btn primary/);
     expect(document.getElementById("scr-ratio")).toBeNull();
@@ -118,6 +124,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(await within(dlg).findByRole("radio", { name: "No condition, just the column" }));
     fireEvent.click(within(dlg).getByRole("button", { name: "Add the column" }));
     expect(screen.queryByRole("dialog", { name: "Build a custom ratio" })).toBeNull();
+    openTab(/^Your rules/);
     expect(screen.getByRole("group", { name: "Custom ratio: P/E to return on equity" })).toBeTruthy();
     expect(screen.getByText("P/E to return on equity (column)")).toBeTruthy();
     await waitFor(() => expect(loc()).toContain("cr="));
@@ -126,31 +133,35 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
   });
   it("a metric screen adds its rules to Your rules as editable cards, shows as on, and turns off again (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
+    expect(screen.getByRole("button", { name: /^Value picks:.*, on$/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("tab", { name: /^Ready-made\s*1 on$/ })).toBeTruthy();                     // task #243 (S2): the tab reads "1 on"
+    openTab(/^Your rules/);
     const panel = rulesPanel();
+    expect(within(panel).getByRole("group", { name: "Ready-made screens on: 1" }).textContent).toContain("Value picks");   // S3: listed at the top of Your rules
     expect(within(panel).getByRole("group", { name: "P/E" })).toBeTruthy();
     expect((within(panel).getByLabelText("P/E to") as HTMLInputElement).value).toBe("15");
-    expect(screen.getByRole("button", { name: /^Value picks:.*, on$/ }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText("Screen: Value picks")).toBeTruthy();
     expect(screen.getByText(/match all 2 rules · of 5,813 listed · 1 ready-made screen on/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Value picks:/ }));                   // its card again: only its own rules go
+    fireEvent.click(within(panel).getByRole("button", { name: "Turn off the Value picks screen" }));   // the × on its pill: only its own rules go
     await waitFor(() => expect(screen.queryByText("Screen: Value picks")).toBeNull());
     expect((within(rulesPanel()).getByLabelText("P/E to") as HTMLInputElement).value).toBe("");   // (an earlier answer for no rules is served from the cache)
   });
 
   it("screens stack: each adds its rules to the reader's, the stricter range wins, and turning one off takes away only its own (task #64 P-4)", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Value picks:/ }));              // P/E 0.1 to 15
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } }));
+    openTab(/^Your rules/);
     fireEvent.change(within(rulesPanel()).getByLabelText("P/E to"), { target: { value: "10" } });   // the reader tightens it: it becomes the reader's own
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 } }));
-    fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /Everyday/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Low debt:/ }));                  // a second screen on top: both apply
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, pb: { min: 0.1, max: 2 }, debt_to_equity: { max: 0.5 } }));
-    expect(screen.getByText("2 on", { selector: ".ssy-on b" })).toBeTruthy();
+    expect(screen.getByText("2 on", { selector: ".xsp-allon b" })).toBeTruthy();
     expect(screen.getByText(/· 2 ready-made screens on/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove Screen: Value picks" }));         // off from its chip: P/B goes; the reader's own P/E and Low debt stay
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 }, debt_to_equity: { max: 0.5 } }));
@@ -160,10 +171,11 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("a screen on the plan's score sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
     mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Quality compounders \(model\):/ }));
     await waitFor(() => expect(last().model_screens).toEqual(["modelcompound"]));
     expect(last().filters).toEqual({});
+    openTab(/^Your rules/);
     expect(within(rulesPanel()).getByRole("group", { name: /Screen on the FinLit IQ: Quality compounders/ }).textContent).toMatch(/cut-offs stay on the server/);
     expect(document.body.textContent).not.toMatch(/70\+|Quality 70|78 or more/);
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeTruthy());
@@ -174,7 +186,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 
   it("the rating-word screen and a screen above the plan: Basic is asked to upgrade instead of running", async () => {
     st.cat = catalog(true); mount(); await ready();
-    fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^FinLit IQ Strong:.*part of Silver/ }));
     expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/FinLit IQ Strong/));
     expect(st.bodies.some((b) => b.cats?.band?.length)).toBe(false);
@@ -186,13 +198,16 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save screen/ }));
     fireEvent.change(screen.getByLabelText("Screen name"), { target: { value: "My ROE" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     expect(screen.getByText("My ROE")).toBeTruthy();
+    openTab(/^Your rules/);
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: "Return on equity" })).toBeNull());
+    openTab(/^Ready-made/);
     fireEvent.click(within(screen.getByText("My ROE").closest("li") as HTMLElement).getByRole("button", { name: "Open" }));   // the card is open again: no rules are left
     await waitFor(() => expect((within(rulesPanel()).getByLabelText("Return on equity from") as HTMLInputElement).value).toBe("40"));
     expect(screen.getByText(/started from My ROE/)).toBeTruthy();
+    openTab(/^Ready-made/);                                                                       // opening it moved to Your rules (task #243)
     fireEvent.click(screen.getByRole("button", { name: "Delete My ROE" }));                // still open: the visitor opened the card themselves
     expect(screen.queryByText("My ROE")).toBeNull();
   });
@@ -204,7 +219,7 @@ describe("task #64 Part 4: the panel and the header", () => {
     const box = screen.getByRole("group", { name: "Every filter, by group" });
     expect(box.querySelector(".ssw-size-n")?.textContent).toBe("12 filters in 7 groups");          // hidden period variants are not counted
     expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model"]);
-    expect(within(box).getByRole("link", { name: /Custom ratio: comes with Gold and Platinum/ }).getAttribute("href")).toBe("/plans#gold");   // Silver: locked (N-2)
+    expect(within(box).queryByRole("link", { name: /Custom ratio/ })).toBeNull();                      // task #243 (S3): Custom ratio left the groups for its own tab
     fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
     const dlg = await screen.findByRole("dialog");
     expect(within(dlg).getByRole("button", { name: /Profitability/, pressed: true })).toBeTruthy();
@@ -213,11 +228,10 @@ describe("task #64 Part 4: the panel and the header", () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
     expect(within(screen.getByRole("group", { name: "Every filter, by group" })).getByRole("button", { name: "Profitability: 2 filters, 1 on" })).toBeTruthy();
   });
-  it("S-9: the header is one line with the data date in India time", async () => {
+  it("S-9: the header names the data date in India time, in its date chip", async () => {
     st.cat = { ...catalog(), pricesAt: "2026-11-12T10:05:00Z", scoresAt: "2026-11-12T23:00:00Z" };
     mount(); await ready();
-    expect(document.querySelector(".ssw-h1row")?.textContent).toBe("Stock screenerPrices: 12 Nov close · scores: 13 Nov");
-    expect(document.querySelector(".ssw-lead, .ssw-eyebrow")).toBeNull();
+    expect(document.querySelector(".xsh-date")?.textContent).toBe("Prices: 12 Nov close · scores: 13 Nov");   // task #243 (H): the date chip in the head bar
   });
   it("S-5: the results table has no First column / Last column slider", async () => {
     mount(); await ready();
@@ -271,7 +285,7 @@ describe("Tell me when a company joins (file 04 §9)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const kept = JSON.parse(localStorage.getItem("finlit-saved-screens") || "[]") as { name: string; notify?: boolean }[];
     expect(kept.find((x) => x.name === "Told")!.notify).toBe(true); expect(kept.find((x) => x.name === "Quiet")!.notify).toBe(false);
-    fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /My screens/ }));
     const on = screen.getByRole("button", { name: "Messages for Told: on" });
     fireEvent.click(on);
     expect(screen.getByRole("button", { name: "Messages for Told: off" }).getAttribute("aria-pressed")).toBe("false");
@@ -309,8 +323,9 @@ describe("the table (file 04 §5)", () => {
     expect(tech.length).toBe(2);
     for (const c of tech) { expect(c.querySelector(".ssw-sc")!.textContent).toBe("+12"); expect((c.querySelector("small")!.textContent ?? "").length).toBeGreaterThan(2); }
     expect(within(rulesPanel()).queryByRole("group", { name: "FinLit Prism rating" })).toBeNull();   // task #143: the rating box is gone from Your rules
-    for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|pillar|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
-    expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
+    for (const el of [table(), rulesPanel()]) expect(el.textContent).not.toMatch(/FinLit IQ|Mixed|Watch/);   // (the ready-made list here is a fixed sample)
+    expect(table().querySelector("thead tr.ssw-band th.xst-b-tech")!.textContent).toBe("FinLit Prism · 2 technical pillars−100 to +100");   // task #243 (T1, owner's v3 request 8)
+    openTab(/^Ready-made/); expect(screen.getByRole("tab", { name: /On FinLit Prism/ })).toBeTruthy();
     expect(st.bodies[st.bodies.length - 1].columns).toContain("prism_final");
   });
 
@@ -332,7 +347,7 @@ describe("the table (file 04 §5)", () => {
       st.cat = prism ? { ...g, bandModel: "prism", bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: false, n: 5 })) } : g;
       const v = mount(); await ready();
       const panel = rulesPanel();
-      expect(within(panel).getByRole("heading", { name: "Size" })).toBeTruthy();
+      expect(within(panel).getByRole("heading", { name: "Market cap" })).toBeTruthy();   // task #243: Market cap, not Size
       expect(within(panel).getByRole("heading", { name: "Rules on numbers" })).toBeTruthy();
       for (const name of ["FinLit Prism rating", "FinLit IQ rating"]) expect(within(panel).queryByRole("group", { name })).toBeNull();
       expect([...panel.querySelectorAll(".ssw-sec h3")].map((h) => h.textContent)).not.toContainEqual(expect.stringMatching(/rating/i));
@@ -502,7 +517,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     mount(); await ready();
     await addRule("Dividend yield");
     expect(within(rulesPanel()).getByRole("status").textContent).toMatch(/1 rule has no range yet/);
-    expect(screen.getByRole("button", { name: /^Your rules \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Screens and rules \(1\)/ })).toBeTruthy();
     expect(within(rulesPanel()).getByRole("group", { name: "Dividend yield" })).toBeTruthy();
     await waitFor(() => expect(heads()).toContain("Dividend yield"));                                    // its column is there already
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
@@ -738,9 +753,9 @@ describe("task #140: Your rules can be minimized", () => {
     const work = () => document.querySelector(".ssw-work") as HTMLElement;
     expect(rulesPanel().className).toContain("open");
     expect(work().className).not.toContain("rules-min");
-    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Your rules" }));
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Screens and rules" }));
     await waitFor(() => expect(work().className).toContain("rules-min"));
-    const bar = screen.getByRole("button", { name: /^Your rules/ });
+    const bar = screen.getByRole("button", { name: /^Screens and rules/ });
     expect(bar.getAttribute("aria-expanded")).toBe("false"); expect(bar.className).toContain("min");
     expect(localStorage.getItem("finlit-screener-rules-min")).toBe("1");          // remembered on a wide screen
     expect(loc()).toContain("caps=Large");                                         // minimizing never drops a rule
@@ -752,7 +767,7 @@ describe("task #140: Your rules can be minimized", () => {
     localStorage.setItem("finlit-screener-rules-min", "1");
     mount(); await ready();
     expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min");
-    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Screens and rules/ }));
     await waitFor(() => expect(rulesPanel().className).toContain("open"));
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Show / }));
     await waitFor(() => expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min"));
@@ -772,7 +787,7 @@ describe("task #140 (team note): the sliding bar beside Your rules, as on the ad
     fireEvent.keyDown(screen.getByRole("separator", { name: /Resize the filters panel/ }), { key: "Enter" });     // Enter or a double-click hides it, as on the advanced screeners
     await waitFor(() => expect(work().className).toContain("rules-min"));
     expect(screen.queryByRole("separator", { name: /Resize the filters panel/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Your rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Screens and rules/ }));
     await waitFor(() => expect(work().className).not.toContain("rules-min"));
     expect(work().style.getPropertyValue("--side-w")).toBe("240px");                 // reopens at the last width it had
   });
@@ -782,6 +797,7 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
   const tags = () => Array.from(document.querySelectorAll(".ssr-tier")).map((t) => t.textContent);
   it("N-2: Silver sees Custom ratio locked: one GOLD tag, the one line, See what Gold adds; no builder, no examples, no My ratios", async () => {
     mount(); await ready();
+    openTab(/Custom ratio/);
     const sec = screen.getByRole("group", { name: "Custom ratio, comes with Gold and Platinum" });
     expect(within(sec).getByText("GOLD")).toBeTruthy();
     expect(sec.textContent).toContain("Divide one figure by another, such as cash by market cap or borrowings by market cap, and screen on the result. Custom ratios come with Gold and Platinum.");
@@ -803,8 +819,8 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
     mount(); await ready();
     expect(tags()).toEqual(["GOLD"]);                                                             // only Custom ratio, locked
     expect(screen.queryByRole("tab", { name: /Silver screens/ })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    openTab(/^Your rules/); fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
     const dlg = await screen.findByRole("dialog", { name: "Add a rule" });
     expect(dlg.querySelector(".ssr-tier")).toBeNull();
     fireEvent.keyDown(dlg, { key: "Escape" });

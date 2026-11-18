@@ -181,7 +181,7 @@ const rowOf = (s: string) => screen.getByRole("link", { name: new RegExp(s) }).c
 
 describe("lib", () => {
   it("orders groups and drops empty ones", () => {
-    expect(orderGroups([{ id: "x", name: "Zed", presets: [P("a", "A", "Zed") as never] }, { id: "e", name: "Safety", presets: [] }, { id: "t", name: "Trend", presets: [P("b", "B", "Trend") as never] }]).map((g) => g.name)).toEqual(["Trend", "Zed"]);
+    expect(orderGroups([{ id: "x", name: "Zed", presets: [P("a", "A", "Zed") as never] }, { id: "e", name: "Safety", presets: [] }, { id: "t", name: "Momentum", presets: [P("b", "B", "Momentum") as never] }]).map((g) => g.name)).toEqual(["Momentum", "Zed"]);   // task #243: "Trend" reads Momentum
   });
   it("reads and resolves the address", () => {
     const u = readPresetUrl(new URLSearchParams("preset=p&chip=a&sub=ems&trend=1"));

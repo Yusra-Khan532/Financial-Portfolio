@@ -17,7 +17,7 @@ from datetime import date as _date
 
 from ..screener.data import get_table
 from . import engine, history, service
-from .registry import ALL, BY_ID, DISCLAIMER, GROUPS, Preset, render_card
+from .registry import ALL, BY_ID, DISCLAIMER, FEATURED_GROUPS, GROUPS, Preset, render_card
 
 router = APIRouter(prefix="/api/screener/presets")
 gainers_router = APIRouter(prefix="/api/screener/gainers")
@@ -227,7 +227,7 @@ async def listing(request: Request):
     as_of = None
     found = []
     for p in ALL:
-        if p.tab != tab:
+        if p.tab != tab or p.status == "blocked":      # task #243 (pack L12): a screen that cannot run yet is not listed; its card comes back once it runs
             continue
         cached = None
         if gold and p.kind == "gainers" and p.status == "live":
@@ -263,7 +263,7 @@ async def listing(request: Request):
             card["first"] = _first3(p, cached, table)
             if joined is not None and p.kind != "gainers" and cached.get("asOf"):
                 card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
-    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
+    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
 
 
 BADGE_GROUPS = ("top-rated", "themes")      # the screens a company page names: the highest-rated lists and the themes (a value or safety screen would read as a verdict on one company)
