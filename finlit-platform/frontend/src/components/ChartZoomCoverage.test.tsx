@@ -45,6 +45,7 @@ const EXEMPT: Record<string, string> = {
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",
   "components/Hideable.tsx": "only the eye icon of the Hide button; no data",
   "components/results/pack/QuarterTop.tsx": "only the chevron of the quarter dropdown (task #194); no data",
+  "components/dashboard/FundsGlance.tsx": "the ring of Your ETFs at a glance (task #223, dashboard pack of 18 Nov, D2): a donut of what the ETFs track, every count written in the legend beside it; the pack draws it without an enlarge arrow",
   "components/dashboard/DashCards.tsx": "only the round icon and the chevron of the dashboard's insight cards (task #135); no data",
   "components/sectors/pack/Common.tsx": "the (i), card and chip icons and the small 6-month line inside a table row (the final pages pack draws them without an enlarge arrow)",
   "components/sectors/pack/PulseSimple.tsx": "Sector Pulse as the final pages pack draws it (docs/design/finlit-final-pages/05): its mood chart and industry map have Hide, not an enlarge arrow, and each has the same figures as a table or list beside it",

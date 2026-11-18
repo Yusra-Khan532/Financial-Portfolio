@@ -73,7 +73,7 @@ describe("Your investments today: rows and readings (task #135)", () => {
     expect(healthText({ score: 60, label: "Average", locked: false })).toEqual({ text: "Health 60 · Average", band: "o" });
     expect(healthText({ score: null, label: null, locked: true }).text).toBe("FundPulse: Gold");
     expect(healthText({ score: null, label: null, locked: false, why: "Too new" })).toMatchObject({ text: "Not scored yet", title: "Too new" });
-    expect([navText(-0.12), navText(0.18), navText(0), navText(null)]).toEqual(["0.12% below NAV", "0.18% above NAV", "At NAV", "—"]);
+    expect([navText(-0.12), navText(0.18), navText(0), navText(null), navText(-0.134)]).toEqual(["−0.12% vs NAV", "+0.18% vs NAV", "0.00% vs NAV", "—", "−0.13% vs NAV"]);   // task #223: the pack writes "−0.13% vs NAV"
     expect(investLine(18, ["investment", "investments"], "Friday", "13 Nov", true)).toBe("18 investments · biggest moves on Friday first · prices and NAVs of 13 Nov");   // task #195
     expect(investLine(1, ["stock", "stocks"], "Today", null, false)).toBe("1 stock · biggest moves today first");
   });

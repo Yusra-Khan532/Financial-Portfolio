@@ -1,0 +1,18 @@
+/* Task #223 (dashboard pack of 18 Nov, D2): "Your ETFs at a glance" as a full card. Scoped to .dsh-eg; the card reuses the funds card's styles. */
+.dsh-eg .eg-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px 28px; align-items: center; }
+.dsh-eg .eg-mid { min-width: 0; }
+.dsh-eg .eg-risk { margin: 2px 0 0; font-size: var(--fs-14, 14px); line-height: 1.45; color: var(--d-mut2, var(--muted)); }
+.dsh-eg .eg-hi { color: var(--loss); font-weight: 700; }
+.dsh-eg .eg-lv { color: var(--text); font-weight: 700; }
+.dsh-eg .eg-kv { margin: 0; }
+.dsh-eg .eg-kv dt { white-space: nowrap; }
+.dsh-eg .dsh-pg-mix i { display: block; height: 100%; }
+.dsh-eg .dsh-pg-legend span + span { margin-left: 12px; }
+.dsh-eg .eg-n { font: 600 var(--fs-32, 32px) var(--serif); fill: var(--text); }
+.dsh-eg .eg-u { font: 600 var(--fs-13, 13px) var(--sans); fill: var(--muted); }
+.dsh-eg .eg-sk { display: block; width: 152px; height: 152px; border-radius: 50%; }
+@media (max-width: 900px) { .dsh-eg .eg-row { grid-template-columns: auto minmax(0, 1fr); } .dsh-eg .eg-kv { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .dsh-eg .eg-row { grid-template-columns: minmax(0, 1fr); justify-items: start; } .dsh-eg .eg-kv { width: 100%; } }
+/* the mix colours: the pack's (teal, gold, grey ...) on the light theme, lighter shades on the dark theme so the legend numbers stay readable */
+.dsh-eg { --eg-in: #0e6471; --eg-ab: #2a78d6; --eg-au: #c9a227; --eg-ag: #9aa3ad; --eg-bl: #7a5ea8; --eg-dt: #5b7f4e; --eg-lq: #6b8fa3; --eg-ot: #b0a99a; }
+:root[data-theme="dark"] .dsh-eg, :root:not([data-theme="light"]) .dsh-eg { --eg-in: #3fb0bf; --eg-ab: #6aa8ee; --eg-au: #e0bd4a; --eg-ag: #c2c9d1; --eg-bl: #a78bd4; --eg-dt: #8fb67f; --eg-lq: #9cbccd; --eg-ot: #cfc8b8; }
