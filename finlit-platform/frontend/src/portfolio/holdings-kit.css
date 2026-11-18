@@ -180,3 +180,6 @@ table.only-s tr.x-tot { display: none; }
 .eqt-grid .eqt-tile .eqt-k { grid-area: k; margin: 0; } .eqt-grid .eqt-tile .eqt-v { grid-area: v; margin: 2px 0 0; line-height: 1.2; }
 .eqt-grid .eqt-tile .eqt-x { grid-area: x; margin: 0; font-size: 12px; line-height: 1.4; }
 .eqt-grid .eqt-tile .eqt-go { grid-area: go; align-self: center; margin: 0; padding: 0; font-size: 12px; white-space: nowrap; }
+/* the heading's own line wraps above "Compare with" when the two do not fit side by side (phone) */
+.sp-sec-h:has(> .eq-cmp) { flex-wrap: wrap; }
+.eq-cmp select { min-width: 0; max-width: min(220px, 100%); }
