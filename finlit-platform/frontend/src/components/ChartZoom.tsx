@@ -69,6 +69,7 @@ export function ZoomGlyph({ zoomed = false }: { zoomed?: boolean }) {
 function findBox(el: HTMLElement): HTMLElement | null {
   let ceil: HTMLElement | null = null;
   for (let a = el.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+    if (a.hasAttribute("data-ct-panel")) return null;   // a chart inside a tab group's panel keeps the arrow in its own corner: a box around the group has the tab bar in its corner (task #216)
     const cs = getComputedStyle(a);
     const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderRightWidth) + parseFloat(cs.borderBottomWidth) + parseFloat(cs.borderLeftWidth) > 0 && cs.borderTopStyle !== "none";
     const fill = cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";

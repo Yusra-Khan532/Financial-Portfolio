@@ -1,4 +1,6 @@
 import { HScroll } from "../components/HScroll";
+import { DropChev } from "../components/DropChev";
+import { newInfo } from "../lib/reportInfo";
 import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -305,13 +307,13 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
           const sp = SPEC[k], pos = ((sp.at(val)) / sp.stops.length) * 100;
           return (
             <div className="spc" key={k} style={{ "--bc": v(c), animationDelay: `${i * 80}ms` } as React.CSSProperties}>
-              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}</span><b>{val}</b></div></div>
+              <div className="spc-h"><span className="bk-i"><Icon name={ic} /></span><div><span className="label">{k}<Info g={newInfo(k)} /></span><b>{val}</b></div></div>
               <div className="spc-bar"><span>{sp.stops.map((t) => <em key={t}>{t}</em>)}</span><div className="spc-t"><i style={{ left: `${pos}%` }} /></div></div>
               <p>{sp.say(val)}</p>
             </div>
           );
         })}
-          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits</span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
+          {plain.length > 0 && <div className="spc tags"><span className="label">Where it fits<Info g={newInfo("Where it fits")} /></span><div>{plain.map(([ic, k, val, c]) => <span className="tagc" key={k} style={{ "--bc": v(c) } as React.CSSProperties}><Icon name={ic} /><small>{k}</small><b>{val}</b></span>)}</div></div>}
         </div>
         <div className="card acc" style={{ "--ac": "var(--t-gold)", marginTop: 16 } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key triggers to watch</h3><span className="s">{s.watchouts.length} worries · {s.strengths.length} strengths · <a href="#notes" className="trg-03" onClick={(e) => { const el = document.getElementById("notes"); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Full findings in 03 ↑</a></span></div>
@@ -321,7 +323,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
               <div key={kind}><div className={"trg-colh " + kind}>{title}<span>{trig.filter((n) => n.kind === kind).length}</span></div>
                 <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key]; return (
                   <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div>
-                    {w && <div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div>}</li>
+                    {w && <details className="trg2-dd xdd"><summary>Why it matters, and what to watch<DropChev /></summary><div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div></details>}</li>
                 ); })}{!trig.some((n) => n.kind === kind) && <li className={kind}><p>Nothing stands out.</p></li>}</ul></div>
             ))}
           </div>
