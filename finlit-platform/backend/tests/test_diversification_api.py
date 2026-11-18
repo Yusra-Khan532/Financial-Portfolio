@@ -38,6 +38,8 @@ async def seed(app, symbols=SAMPLE):
                                s, s.title(), LABELS[ref.SAMPLE_SECTORS[s]])
             await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT (symbol) DO UPDATE SET market_cap = EXCLUDED.market_cap", s, ref.SAMPLE_MCAP_CR[s])
         await conn.execute("INSERT INTO companies (symbol, name, sector) VALUES ('NEWCO', 'New Co', 'Healthcare') ON CONFLICT (symbol) DO NOTHING")
+        # no stored NSE classification for these symbols (other tests store some; the score reads them, task #183): the figures never depend on test order
+        await conn.execute("DELETE FROM company_classification WHERE symbol = ANY($1::text[])", list(symbols) + ["NEWCO"])
     for s in symbols:
         series = {"t": PRICES_MAX[s]["t"], "c": PRICES_MAX[s]["c"]}
         await st.redis.hset(stock_key(s, "consolidated"), mapping={"price-MAX": json.dumps({"series": series}), "price-MAX:etag": "x"})

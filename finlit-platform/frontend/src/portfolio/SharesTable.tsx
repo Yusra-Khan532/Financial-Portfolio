@@ -3,18 +3,25 @@ import { CoLogo } from "../components/CoLogo";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { MINUS } from "../lib/format";
-import { bandInk, bandVar, scoreBand, type ScoreBand } from "../lib/scoreBands";
+import { bandInk, bandVar, scoreBand } from "../lib/scoreBands";
 import {
-  TABS, blankWhy, changeText, columnsFor, dash, isReady, money, monthYear, nextTab, priceText, scoreOf, scoreWhy, sortLines, BASIS_WORD, FINLIT_PILLARS, PRISM_FOUR,
+  TABS, blankWhy, changeText, columnsFor, dash, isOverviewLike, isReady, money, monthYear, nextTab, priceText, scoreOf, scoreWhy, sortLines, BASIS_WORD, FINLIT_PILLARS, PRISM_FOUR,
   type Col, type Line, type Model, type Period, type Ready, type Tab,
 } from "../lib/portfolioOverview";
-import { SIZE_WORD, pct, plural, sectorOrder, short2 } from "./derive";
+import { SIZE_WORD, plural, short2 } from "./derive";
 import { TABLE_FOOT } from "./words";
 import type { Meta, Mode, PageObject } from "./types";
-import { PEER_WORD, prismWord, type PeerLabel, type Share } from "../lib/equityPack";
+import { PEER_WORD, prismWord, type Share } from "../lib/equityPack";
 import { Tip } from "../components/sectors/pack/Common";
+import { nseLevels } from "../lib/nseTaxonomy";
+import { capBucket } from "../lib/capBuckets";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
+/** Task #183: the words of each plan's band filter (Gold: Prism's; Silver: the FinLit IQ's, as the server gives them). */
+export const BAND_FILTERS: Record<Model, string[]> = { prism: ["Strong", "Healthy", "Average", "Weak"], finlit: ["Strong", "Healthy", "Mixed", "Watch"] };
+export type Level = "macro" | "sector" | "industry";
+const LEVEL_WORD: Record<Level, string> = { macro: "Macro sector", sector: "Sector", industry: "Industry" };
+const wordKey = (w: string | null | undefined) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : null);
 /** The part columns of the plan's model: the four Prism parts (Gold) or the five FinLit IQ pillars (Silver). */
 export const partDefs = (model: Model): { id: string; label: string; short: string; get: (h: Ready) => number | null }[] =>
   model === "prism" ? PRISM_FOUR.map((p) => ({ id: p.key, label: p.label, short: SHORT_LABEL[p.key], get: (h: Ready) => h.prism?.parts?.[p.key] ?? null }))
@@ -32,151 +39,188 @@ const PartChip = ({ v, why }: { v: number | null | undefined; why?: string }) =>
   const b = scoreBand(v) as "hi" | "mid" | "lo";
   return <span className="pfx-sc" style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{WORD[b]}</span>;
 };
+/** Silver (task #183): a pillar shows the report's own word (Strong, Healthy, Mixed, Watch), coloured by its score; "–" when not scored. */
+const WordChip = ({ v, word, why }: { v: number | null | undefined; word: string | null | undefined; why?: string }) => {
+  if (v == null || !word) return <span className="pfx-sc na" title={why || "Not scored yet."}>{MINUS}<span className="sr-only"> {why || "not scored yet"}</span></span>;
+  const b = scoreBand(v) as "hi" | "mid" | "lo";
+  return <span className="pfx-sc" style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{word}</span>;
+};
+/** Gold (task #183): a Prism trend view as its score (−100 to 100) with a bar and its word. */
+const TrendCell = ({ t }: { t: { score: number | null; word: string | null } | null | undefined }) => {
+  if (!t || t.score == null) return <span className="pfx-dash" title="Not calculated for this rating.">{MINUS}<span className="sr-only"> not calculated for this rating</span></span>;
+  const v = Math.max(-100, Math.min(100, t.score));
+  return <span className="eq-trc" title={t.word ?? undefined}><b>{v > 0 ? "+" : v < 0 ? MINUS : ""}{Math.abs(Math.round(v))}</b><span className="eq-trb" aria-hidden="true"><i className={v >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(v) / 2}%`, [v >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><small>{t.word}</small></span>;
+};
 const Dash = ({ why }: { why: string }) => <span className="pfx-dash" title={why}>{MINUS}<span className="sr-only"> not available: {why}</span></span>;
 const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 
 type Props = {
   lines: Line[]; meta: Record<string, Meta>; page: PageObject | null; mode: Mode; colors: Record<string, string>; model: Model; tab: Tab; period: Period; limit: number;
-  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; onExport: () => void; actions: (symbol: string) => ReactNode;
+  state: "loading" | "ready" | "error"; errorText?: string; onTab: (t: Tab) => void; onPeriod: (p: Period) => void; actions: (symbol: string) => ReactNode;
   /** Quantity the member typed for a share (null when none) and the setter; with the latest price they give the Value column. */
   qtyOf: (symbol: string) => number | null; onQty: (symbol: string, qty: number | null) => void;
   /** The final pages pack (12): each share's peer reading, FinLit size and industry, the day word for the move, and the cards above the table. */
   peerOf?: (symbol: string) => Share | undefined; day?: string; cards?: ReactNode;
 };
-const GROUPS: [PeerLabel | "none", string][] = [["leader", "Leaders"], ["in_line", "In line"], ["laggard", "Laggards"], ["none", "Not compared"]];
+const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2 };
 
 export function SharesTable(p: Props) {
-  const { lines, meta, page, mode, colors, model, tab, period } = p;
-  const long = (page?.layout ?? (lines.length > 15 ? "long" : "short")) === "long";
+  const { lines, meta, page, colors, model, tab, period } = p;
+  const ov = isOverviewLike(tab);
   const parts = useMemo(() => partDefs(model), [model]);
-  // the Overview shows what the design lists (price, today, score and its parts); market value and the two Prism trend readings stay in the CSV and in the other views
-  const cols = useMemo(() => columnsFor(tab, model, period).filter((c) => c.id !== "share" && !(tab === "overview" && (c.id === "cap" || c.id.startsWith("t_")))), [tab, model, period]);
+  const cols = useMemo(() => columnsFor(tab, model, period).filter((c) => c.id !== "share" && !(ov && c.id === "cap")), [tab, model, period, ov]);
   const rest = page?.avg_with_rest ?? {};
   const letter = useMemo(() => new Map((page?.groups ?? []).flatMap((g) => g.members.map((m) => [m, g.letter] as const))), [page]);
   const [sortId, setSortId] = useState<string | null>(null), [dir, setDir] = useState<1 | -1>(-1);
-  const [q, setQ] = useState(""), [band, setBand] = useState<ScoreBand | null>(null);
-  const [openSet, setOpenSet] = useState<Set<string>>(new Set());       // long lists: sectors opened by hand (all shut at first)
+  const [q, setQ] = useState(""), [band, setBand] = useState<string | null>(null), [level, setLevel] = useState<Level>("sector");
+  const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   const secOf = (s: string) => meta[s]?.sector || `${s} (not classified)`;
+  const sizeOf = (s: string) => { const l = lines.find((x) => x.symbol === s), cap = isReady(l?.ov) ? l!.ov.marketCapCr : null;   // FinLit's rupee bands on the company's own market value
+    const peer = p.peerOf?.(s)?.size; if (peer) return peer;
+    const band = cap != null ? capBucket(cap)?.label.replace(" cap", "") : undefined; if (band) return band;
+    return meta[s] ? SIZE_WORD[meta[s].size] : null; };
+  const valueOf = (l: Line): number | null => { const qn = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return qn && pr ? qn * pr : null; };
+  const levelOf = (l: Line) => { const ind = isReady(l.ov) ? l.ov.industry : null, x = nseLevels(ind); return x ? x[level] : `${LEVEL_WORD[level]} not given`; };
 
-  const sortCol: Col | undefined = sortId === "rest" ? { id: "rest", label: "", sort: (h) => rest[h.symbol] ?? null, csv: () => null } : cols.find((c) => c.id === sortId);
-  const bandOf = (l: Line) => scoreOf(l.ov, model).band;
-  const counts = { hi: 0, mid: 0, lo: 0, na: 0 } as Record<ScoreBand, number>;
-  lines.forEach((l) => { counts[bandOf(l)]++; });
+  // every heading sorts both ways: the model's columns, and Share, Size, Qty and Value (task #183)
+  const extra: Record<string, (l: Line) => number | string | null> = { share: (l) => l.symbol, size: (l) => (sizeOf(l.symbol) ? SIZE_ORDER[sizeOf(l.symbol) as string] : null), qty: (l) => p.qtyOf(l.symbol), value: valueOf, rest: (l) => rest[l.symbol] ?? null };
+  const sorted = (ls: Line[]): Line[] => {
+    if (!sortId) return ls;
+    if (extra[sortId]) {
+      const f = extra[sortId];
+      return [...ls].sort((a, b) => { const x = f(a), y = f(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    }
+    const c = cols.find((x) => x.id === sortId);
+    return c ? sortLines(ls, c, dir) : ls;
+  };
+  const wordOf = (l: Line) => wordKey(scoreOf(l.ov, model).word) ?? "Not scored";
+  const counts = new Map<string, number>(); lines.forEach((l) => counts.set(wordOf(l), (counts.get(wordOf(l)) ?? 0) + 1));
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const f = lines.filter((l) => (band == null || bandOf(l) === band) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle)));
-    return sortCol ? sortLines(f, sortCol, dir) : f;
+    return sorted(lines.filter((l) => (band == null || wordOf(l) === band) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle))));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, q, band, sortCol, dir, model, meta]);
+  }, [lines, q, band, sortId, dir, model, meta, cols]);
 
-  const head = (c: { id: string; label: string; hint?: string; sortable?: boolean; num?: boolean }) => (
-    <th key={c.id} scope="col" className={c.num ? "r" : ""} aria-sort={sortId === c.id ? (dir === 1 ? "ascending" : "descending") : "none"} title={c.hint}>
+  const head = (c: { id: string; label: string; hint?: string; sortable?: boolean; num?: boolean; cls?: string }) => (
+    <th key={c.id} scope="col" className={[c.num ? "r" : "", c.cls ?? ""].join(" ").trim() || undefined} aria-sort={sortId === c.id ? (dir === 1 ? "ascending" : "descending") : "none"} title={c.hint}>
       {c.sortable === false ? c.label : <button type="button" className="pfx-sort" onClick={() => { if (sortId === c.id) setDir((d) => (d === 1 ? -1 : 1)); else { setSortId(c.id); setDir(1); } }}>{c.label}<i aria-hidden="true">{sortId === c.id ? (dir === 1 ? "▲" : "▼") : ""}</i></button>}
     </th>);
 
+  const firstPart = cols.find((c) => c.id.startsWith("p_") || c.id.startsWith("f_"))?.id, firstTech = cols.find((c) => c.id.startsWith("t_") || c.id === "f_technical")?.id;
+  const groupCls = (id: string) => (ov && id === firstPart ? "eq-div" : ov && id === firstTech ? "eq-div2" : "");
   const cell = (h: Ready, c: Col): ReactNode => {
+    const g = groupCls(c.id);
     if (c.id === "price") return <td key={c.id} className="r">{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
     if (c.id === "change") return <td key={c.id} className="r">{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
     if (c.id === "cap") return <td key={c.id} className="r">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : `₹${money(h.marketCapCr)} Cr`}</td>;
-    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className="c"><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{model === "prism" && v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{prismWord(v)}</small>}</span></td>; }
-    if (c.id.startsWith("p_") || c.id.startsWith("f_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className="c"><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
-    if (c.id.startsWith("t_")) { const t = h[("prism" as const)]?.[c.id.slice(2) as "shortTerm"]; return <td key={c.id} className="r">{t ? <span title={t.word}>{t.word}</span> : <Dash why="Not calculated for this rating." />}</td>; }
-    if (c.id === "yearEnd") { const s = h.financials[period]; return <td key={c.id}>{s.periodEnd ? monthYear(s.periodEnd) : <Dash why={blankWhy(h, "revenue", period) || "No statement is stored yet."} />}</td>; }
+    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className="c"><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{model === "prism" ? prismWord(v) : wordKey(scoreOf(h, model).word)}</small>}</span></td>; }
+    if (c.id.startsWith("f_")) { const k = c.id.slice(2) as keyof NonNullable<Ready["finlit"]>["pillars"]; return <td key={c.id} className={("c " + g).trim()}><WordChip v={h.finlit?.pillars[k]} word={h.finlit?.pillarWords?.[k]} why={k === "balance" ? "No balance-sheet pillar: banks and lenders are scored without it, or the report has too few figures." : `${c.label}: not scored yet`} /></td>; }
+    if (c.id.startsWith("p_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className={("c " + g).trim()}><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
+    if (c.id.startsWith("t_")) return <td key={c.id} className={g || undefined}><TrendCell t={h.prism?.[c.id.slice(2) as "shortTerm" | "longTerm"]} /></td>;
+    if (c.id === "yearEnd") { const st = h.financials[period]; return <td key={c.id}>{st.periodEnd ? monthYear(st.periodEnd) : <Dash why={blankWhy(h, "revenue", period) || "No statement is stored yet."} />}</td>; }
     if (c.id === "basis") return <td key={c.id}>{h.basis ? BASIS_WORD[h.basis] : <Dash why="The report does not say which statement it used." />}</td>;
     if (c.id in h.ratios) { const f = h.ratios[c.id as keyof Ready["ratios"]]; return <td key={c.id} className="r">{f.value == null ? <Dash why={f.why || "Not available."} /> : <span title={f.period || undefined}>{dash(f.value, 2)}</span>}</td>; }
-    const s = h.financials[period][c.id as "revenue"];
-    return <td key={c.id} className="r">{s?.value == null ? <Dash why={blankWhy(h, c.id, period) || "Not available."} /> : c.id === "tax_ratio" ? dash(s.value, 1) : money(s.value, c.id === "eps" ? 2 : 0)}</td>;
+    const st = h.financials[period][c.id as "revenue"];
+    return <td key={c.id} className="r">{st?.value == null ? <Dash why={blankWhy(h, c.id, period) || "Not available."} /> : c.id === "tax_ratio" ? dash(st.value, 1) : money(st.value, c.id === "eps" ? 2 : 0)}</td>;
   };
 
-  const valueOf = (l: Line): number | null => { const q = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return q && pr ? q * pr : null; };
   const row = (l: Line, indent = false): ReactNode => {
     const h = l.ov, m = meta[l.symbol], pk = p.peerOf?.(l.symbol);
     const name = l.name || (isReady(h) ? h.name : "") || m?.name || "";
+    const weak = ov && scoreOf(h, model).band === "lo";
     return (
-      <tr key={l.symbol} className={indent ? "ind" : ""}>
-        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{long && letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{pk ? (pk.industry ?? name) : name}</small></td>
-        {tab === "overview" && !long && !pk && <td><span className="pfx-sec"><i className="pfx-dot" style={{ background: colors[secOf(l.symbol)] }} aria-hidden="true" />{secOf(l.symbol).replace(/ \(not classified\)$/, "")}</span></td>}
-        {tab === "overview" && <td>{pk ? (pk.size ?? MINUS) : m ? SIZE_WORD[m.size] : MINUS}</td>}
-        {tab === "overview" && <td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
+      <tr key={l.symbol} className={[indent ? "ind" : "", weak ? "eq-weakrow" : ""].join(" ").trim() || undefined}>
+        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{pk ? (pk.industry ?? name) : name}</small></td>
+        {ov && <td>{sizeOf(l.symbol) ?? MINUS}</td>}
+        {ov && <td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
           onChange={(e) => { const n = Number(e.target.value); p.onQty(l.symbol, e.target.value.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 1_000_000_000 ? n : null); }} /></td>}
-        {tab === "overview" && <td className="r x-val">{valueOf(l) == null ? MINUS : "₹" + Math.round(valueOf(l)!).toLocaleString("en-IN")}</td>}
+        {ov && <td className="r x-val">{valueOf(l) == null ? MINUS : "₹" + Math.round(valueOf(l)!).toLocaleString("en-IN")}</td>}
         {isReady(h) ? cols.map((c) => cell(h, c)) : <td colSpan={cols.length} className="pfx-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : p.state === "error" ? "Not loaded." : "Preparing…"}</td>}
-        {tab === "overview" && p.peerOf && <td className="eq-vp">{pk?.peer ? <><span className={"dsh-pl " + pk.peer.label}>{PEER_WORD[pk.peer.label]}</span><small>{pk.peer.rank} of {pk.peer.of} peers</small>{pk.peer.raw && pk.peer.raw !== pk.peer.label && <small className="eq-next">may become {PEER_WORD[pk.peer.raw]} next week</small>}</>
+        {ov && p.peerOf && <td className="eq-vp eq-div2">{pk?.peer ? <><span className={"dsh-pl " + pk.peer.label}>{PEER_WORD[pk.peer.label]}</span><small>{pk.peer.rank} of {pk.peer.of} peers</small>{pk.peer.raw && pk.peer.raw !== pk.peer.label && <small className="eq-next">may become {PEER_WORD[pk.peer.raw]} next week</small>}</>
           : pk ? <><span className="dsh-pl in_line">Not compared</span><small>{pk.notCompared ? pk.notCompared.charAt(0).toUpperCase() + pk.notCompared.slice(1) : ""}</small></> : MINUS}</td>}
-        {tab === "overview" && <td className="r">{rest[l.symbol] != null ? short2(rest[l.symbol]) : <Dash why={page?.short_history.includes(l.symbol) ? "Under a year of weekly prices, so it is left out of the co-movement figures." : "Not available until the figures are ready."} />}</td>}
+        {ov && <td className="r">{rest[l.symbol] != null ? short2(rest[l.symbol]) : <Dash why={page?.short_history.includes(l.symbol) ? "Under a year of weekly prices, so it is left out of the co-movement figures." : "Not available until the figures are ready."} />}</td>}
         <td className="r pfx-act">{p.actions(l.symbol)}</td>
       </tr>);
   };
 
-  // long lists: grouped by sector, sector rows carry the aggregates
-  const bySector = useMemo(() => {
-    if (!long) return [];
-    const order = page ? sectorOrder(page, mode) : [...new Set(shown.map((l) => secOf(l.symbol)))];
-    return order.map((sec) => ({ sec, members: shown.filter((l) => secOf(l.symbol) === sec) })).filter((g) => g.members.length);
+  // By sector (Macro sector · Sector · Industry, NSE's names) and By company size: group rows that fold (task #183)
+  const idx = useMemo(() => new Map((page?.order ?? []).map((s, k) => [s, k])), [page]);
+  const together = (ms: Line[]) => { const ks = ms.map((l) => idx.get(l.symbol)).filter((k): k is number => k != null); if (!page || ks.length < 2) return null;
+    let t = 0, n = 0; for (let a = 0; a < ks.length; a++) for (let b = a + 1; b < ks.length; b++) { t += page.corr[ks[a]][ks[b]]; n++; } return n ? t / n : null; };
+  const groups = useMemo(() => {
+    if (tab !== "sector" && tab !== "size") return [];
+    const key = (l: Line) => (tab === "size" ? (sizeOf(l.symbol) ?? "Size not known") : levelOf(l));
+    const m = new Map<string, Line[]>(); shown.forEach((l) => { const k = key(l); m.set(k, [...(m.get(k) ?? []), l]); });
+    const order = tab === "size" ? (k: string) => SIZE_ORDER[k] ?? 9 : () => 0;
+    return [...m].map(([g, ms]) => ({ g, ms })).sort((a, b) => order(a.g) - order(b.g) || b.ms.length - a.ms.length || a.g.localeCompare(b.g));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [long, page, mode, shown, meta]);
-  const filtering = q.trim() !== "" || band != null;                     // a search or colour filter shows the matching shares at once
-  const isOpen = (sec: string) => filtering || openSet.has(sec);
-  const toggle = (sec: string) => setOpenSet((c) => { const n = new Set(c); if (n.has(sec)) n.delete(sec); else n.add(sec); return n; });
-  const lead = tab === "overview" ? (long || p.peerOf ? 2 : 3) : 1;
-  const nCols = (tab === "overview" ? lead + 2 : 1) + cols.length + (tab === "overview" ? 1 + (p.peerOf ? 1 : 0) : 0) + 1;
+  }, [tab, shown, level, meta]);
+  const filtering = q.trim() !== "" || band != null;
+  const isOpen = (g: string) => filtering || openSet.has(g);
+  const toggle = (g: string) => setOpenSet((c) => { const n = new Set(c); if (n.has(g)) n.delete(g); else n.add(g); return n; });
+  const lead = ov ? 4 : 1;
+  const nCols = lead + cols.length + (ov ? 1 + (p.peerOf ? 1 : 0) : 0) + 1;
 
-  const avgOf = (ls: Line[], c: Col) => (c.id === "score" ? mean(ls.map((l) => scoreOf(l.ov, model).value)) : c.id.startsWith("p_") || c.id.startsWith("f_") ? mean(ls.map((l) => (isReady(l.ov) ? parts.find((d) => d.id === c.id.slice(2))?.get(l.ov) : null))) : undefined);
+  const avgOf = (ls: Line[], c: Col) => (c.id === "score" ? mean(ls.map((l) => scoreOf(l.ov, model).value)) : c.id.startsWith("p_") ? mean(ls.map((l) => (isReady(l.ov) ? parts.find((d) => d.id === c.id.slice(2))?.get(l.ov) : null))) : undefined);
   const restAvg = (ls: Line[]) => mean(ls.map((l) => rest[l.symbol]));
-  const foot = (ls: Line[], label: string, extra?: ReactNode) => (
-    <tr className="pfx-avg"><th scope="row" colSpan={lead}>{label}{extra}</th>
-      {tab === "overview" && <><td />{(() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}</>}
-      {cols.map((c) => { const v = avgOf(ls, c); return <td key={c.id} className={c.id === "score" || c.id.startsWith("p_") || c.id.startsWith("f_") ? "c" : ""}>{v == null ? "" : <Chip v={v} big={c.id === "score"} />}</td>; })}
-      {tab === "overview" && p.peerOf && <td />}{tab === "overview" && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}<td /></tr>);
-  const th = (<tr>{head({ id: "share", label: "Share", sortable: false })}
-    {tab === "overview" && !long && !p.peerOf && head({ id: "sector", label: "Sector", sortable: false })}
-    {tab === "overview" && head({ id: "size", label: "Size", sortable: false })}
-    {tab === "overview" && head({ id: "qty", label: "Qty", sortable: false, num: true })}
-    {tab === "overview" && head({ id: "value", label: "Value", sortable: false, num: true })}
-    {cols.map((c) => head({ id: c.id, label: tab === "overview" && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num }))}
-    {tab === "overview" && p.peerOf && <th scope="col">Vs its peers<Tip text="Leader, In line or Laggard: the share price over the last 12 months against similar companies and the sector index, with its place among them. It describes the past, not the future." /></th>}
-    {tab === "overview" && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}<th scope="col"><span className="sr-only">Actions</span></th></tr>);
+  const foot = (ls: Line[], label: string) => (
+    <tr className="pfx-avg"><th scope="row" colSpan={ov ? 3 : 1}>{label}</th>
+      {ov && (() => { const t = ls.reduce((a, l) => a + (valueOf(l) ?? 0), 0); return <td className="r x-val x-total">{t > 0 ? "₹" + Math.round(t).toLocaleString("en-IN") : MINUS}</td>; })()}
+      {cols.map((c) => { const v = avgOf(ls, c); return <td key={c.id} className={(c.id === "score" || c.id.startsWith("p_") ? "c " : "") + groupCls(c.id)}>{v == null ? "" : <Chip v={v} big={c.id === "score"} />}</td>; })}
+      {ov && p.peerOf && <td />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}<td /></tr>);
+  const nParts = cols.filter((c) => c.id.startsWith("p_") || (c.id.startsWith("f_") && c.id !== "f_technical")).length, nTech = cols.filter((c) => c.id.startsWith("t_") || c.id === "f_technical").length;
+  const band1 = ov && (<tr className="eq-band" aria-hidden="true"><th colSpan={4 + cols.filter((c) => c.id === "price" || c.id === "change").length} />
+    <th className="c">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}</th><th colSpan={nParts} className="eq-div">Fundamental pillars</th><th colSpan={nTech} className="eq-div2">{nTech > 1 ? "Technical pillars" : "Technical pillar"}</th>
+    <th colSpan={(p.peerOf ? 1 : 0) + 2} className="eq-div2">Against peers</th></tr>);
+  const th = (<tr>{head({ id: "share", label: "Share" })}
+    {ov && head({ id: "size", label: "Size" })}
+    {ov && head({ id: "qty", label: "Qty", num: true })}
+    {ov && head({ id: "value", label: "Value", num: true })}
+    {cols.map((c) => head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_") }))}
+    {ov && p.peerOf && <th scope="col" className="eq-div2">Vs its peers<Tip text="The share price over the last 12 months against similar companies and the sector index, with its place among them." how="Leader: among the strongest and ahead of the index. In line: in between. Laggard: among the weakest and behind it. It describes the past, not the future." /></th>}
+    {ov && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}<th scope="col"><span className="sr-only">Actions</span></th></tr>);
+  const sizeCards = tab === "size" && (<div className="eq-sizecards">{(["Large", "Mid", "Small"] as const).map((k) => { const ms = lines.filter((l) => sizeOf(l.symbol) === k), a = mean(ms.map((l) => scoreOf(l.ov, model).value)); return (
+    <div key={k} className="eq-sizecard"><p className="eq-k">{k} cap</p><p className="eq-v">{plural(ms.length, "share")}</p><p className="eq-x">{lines.length ? `${Math.round((ms.length / lines.length) * 100)}% of the list` : ""}{a != null ? ` · average ${model === "prism" ? "Prism" : "FinLit IQ"} ${Math.round(a)}` : ""}</p></div>); })}</div>);
 
   return (
     <section className="pfx-card pfx-wide" id="pf-shares" aria-labelledby="pfx-sh">
-      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{plural(lines.length, "share")} · limit {p.limit}{!long ? " · grouped by how each did against its peers" : ""}</p>}</div>
+      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{plural(lines.length, "share")} · limit {p.limit}. Click a heading to sort.</p>}</div>
         <div className="pfx-tabs" role="tablist" aria-label="Portfolio views">{TABS.map((t, i) => (
           <button key={t.id} type="button" role="tab" id={`pf-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="pf-panel" tabIndex={tab === t.id ? 0 : -1} className={"pfx-pillbtn" + (tab === t.id ? " on" : "")} onClick={() => p.onTab(t.id)}
-            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}
-          <button type="button" className="pfx-btn" onClick={p.onExport} disabled={!lines.length}>Export CSV</button></div></div>
+            onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
-      <div className={"pfx-tools" + (p.peerOf && !long && tab !== "financials" ? " eq-hide" : "")}>
+      {sizeCards}
+      <div className="pfx-tools">
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
-        <div className="pfx-chipsrow" role="group" aria-label="Filter by score">
+        <div className="pfx-chipsrow" role="group" aria-label={`Filter by ${model === "prism" ? "Prism" : "FinLit IQ"} band`}>
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
-          {([["hi", "Strong"], ["mid", "Fair"], ["lo", "Weak"], ["na", "Not scored"]] as const).filter(([b]) => counts[b]).map(([b, l]) => <button key={b} type="button" className={"pfx-pillbtn bf-" + b + (band === b ? " on" : "")} aria-pressed={band === b} onClick={() => setBand(band === b ? null : b)}>{l} {counts[b]}</button>)}</div>
+          {[...BAND_FILTERS[model], "Not scored"].filter((w) => counts.get(w)).map((w) => <button key={w} type="button" className={"pfx-pillbtn" + (band === w ? " on" : "")} aria-pressed={band === w} onClick={() => setBand(band === w ? null : w)}>{w} {counts.get(w)}</button>)}</div>
+        {tab === "sector" && <div className="pfx-chipsrow" role="group" aria-label="Group by">{(["macro", "sector", "industry"] as const).map((k) => <button key={k} type="button" className={"pfx-pillbtn" + (level === k ? " on" : "")} aria-pressed={level === k} onClick={() => setLevel(k)}>{LEVEL_WORD[k]} · {new Set(lines.map((l) => { const x = nseLevels(isReady(l.ov) ? l.ov.industry : null); return x ? x[k] : null; }).filter(Boolean)).size}</button>)}</div>}
         {tab === "financials" && <div className="pfx-chipsrow" role="group" aria-label="Period shown">{([["year", "Latest year"], ["quarter", "Latest quarter"]] as const).map(([k, l]) => <button key={k} type="button" className={"pfx-pillbtn" + (period === k ? " on" : "")} aria-pressed={period === k} onClick={() => p.onPeriod(k)}>{l}</button>)}</div>}
-        {long && <div className="pfx-chipsrow"><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set(bySector.map((g) => g.sec)))}>Open all</button><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set())}>Close all</button></div>}
+        {(tab === "sector" || tab === "size") && <div className="pfx-chipsrow"><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set(groups.map((g) => g.g)))}>Open all</button><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set())}>Close all</button></div>}
         <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""} · limit {p.limit}</span>
       </div>
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`}>
-        <HScroll label="table"><table className={"pfx-table t-" + tab + (long ? " long" : "")}>
+        <HScroll label="table"><table className={"pfx-table t-" + tab}>
           <caption className="sr-only">{TABS.find((t) => t.id === tab)?.label} of your shares</caption>
-          <thead>{th}</thead>
+          <thead>{band1}{th}</thead>
           <tbody>
-            {!long && !(p.peerOf && tab === "overview" && !sortCol) && shown.map((l) => row(l))}
-            {!long && p.peerOf && tab === "overview" && !sortCol && GROUPS.map(([g, label]) => { const ms = shown.filter((l) => (p.peerOf!(l.symbol)?.peer?.label ?? "none") === g); return ms.length ? (
-              <FragmentRows key={g}><tr className="eq-grp"><td colSpan={nCols}>{label} · {ms.length}</td></tr>{ms.map((l) => row(l))}</FragmentRows>) : null; })}
-            {long && bySector.map(({ sec, members }) => { const open = isOpen(sec); return (
-              <FragmentRows key={sec}>
-                <tr className="pfx-secrow"><td colSpan={nCols}><button type="button" aria-expanded={open} onClick={() => toggle(sec)}>
-                  <span className="car" aria-hidden="true">{open ? "▾" : "▸"}</span><i className="pfx-dot" style={{ background: colors[sec] }} aria-hidden="true" /><b>{sec.replace(/ \(not classified\)$/, "")}</b> <span className="n">{plural(members.length, "share")}</span>
-                  {page && <span className="m">{pct(page.sector_weight[mode][sec] ?? 0)} of the list · {pct(page.sector_risk[mode][sec] ?? 0)} of the risk</span>}
-                  {tab === "overview" && <span className="a"><Chip v={mean(members.map((l) => scoreOf(l.ov, model).value))} big /></span>}</button></td></tr>
-                {open && members.map((l) => row(l, true))}
+            {tab !== "sector" && tab !== "size" && shown.map((l) => row(l))}
+            {groups.map(({ g, ms }) => { const open = isOpen(g), t = together(ms), a = mean(ms.map((l) => scoreOf(l.ov, model).value)); return (
+              <FragmentRows key={g}>
+                <tr className="pfx-secrow"><td colSpan={nCols}><button type="button" aria-expanded={open} onClick={() => toggle(g)}>
+                  <span className="car" aria-hidden="true">{open ? "▾" : "▸"}</span>{tab === "sector" && <i className="pfx-dot" style={{ background: colors[g] }} aria-hidden="true" />}<b>{g}</b> <span className="n">{plural(ms.length, "share")}</span>
+                  <span className="m">{Math.round((ms.length / Math.max(1, lines.length)) * 100)}% of the list{t != null ? ` · moves together ${short2(t)}` : ""}</span>
+                  <span className="a">{a != null && <Chip v={a} big />}</span></button></td></tr>
+                {open && ms.map((l) => row(l, true))}
               </FragmentRows>); })}
             {!shown.length && <tr><td colSpan={nCols} className="pfx-empty">{lines.length ? "No share matches this filter." : "No shares yet."}</td></tr>}
           </tbody>
-          {tab === "overview" && shown.length > 0 && <tfoot>{foot(shown, "List average")}</tfoot>}
+          {ov && shown.length > 0 && <tfoot>{foot(shown, "List average")}</tfoot>}
         </table></HScroll>
       </div>
-      <p className="pfx-fine">{tab === "overview" ? TABLE_FOOT : tab === "ratios" ? "These are the figures on each company's own page (the data provider's, with the period on hover). A dash says why on hover. Information only, not investment advice." : `The latest ${period === "year" ? "full year" : "quarter"} in each company's stored statements, in ₹ crore except EPS. Information only, not investment advice.`}</p>
+      <p className="pfx-fine">{ov ? TABLE_FOOT : tab === "ratios" ? "These are the figures on each company's own page (the data provider's, with the period on hover). A dash says why on hover. Information only, not investment advice." : `The latest ${period === "year" ? "full year" : "quarter"} in each company's stored statements, in ₹ crore except EPS. Information only, not investment advice.`}</p>
       {p.state === "loading" && <p className="pfx-fine" role="status">Loading the scores…</p>}
     </section>
   );

@@ -31,16 +31,31 @@ beforeEach(() => { st.user = member; st.sent = []; st.fail = null; panel.set(nul
 afterEach(cleanup);
 
 describe("Raise a Query and Share feedback", () => {
-  it("every page banner has a Raise a Query button, and a Share feedback button is always on screen", () => {
-    open();
-    expect(screen.getByRole("button", { name: "Raise a Query" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Share feedback" })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Raise a Query" }).length).toBe(1);   // the banner carries it, so the dock does not repeat it
+  it("task #214: Raise a Query sits beside Share feedback at the bottom right of every page, once, in the same place with or without a banner", () => {
+    for (const banner of [true, false]) {
+      open("/score-screener", banner);
+      const dock = document.querySelector(".pf-dock") as HTMLElement;
+      const btns = within(dock).getAllByRole("button");
+      expect(btns.map((b) => b.getAttribute("aria-label"))).toEqual(["Raise a Query", "Share feedback"]);
+      expect(btns[0].classList.contains("pf-fab-q")).toBe(true);           // told apart from feedback
+      expect(screen.getAllByRole("button", { name: "Raise a Query" }).length).toBe(1);   // the banner no longer repeats it
+      expect(document.querySelector(".ph-qbtn")).toBeNull();
+      cleanup();
+    }
   });
-  it("a page without a banner gets Raise a Query in the dock instead, so no page is without one", async () => {
-    open("/somewhere", false);
-    await waitFor(() => expect(screen.getAllByRole("button", { name: /Raise a Query/ }).length).toBe(1));
-    expect(screen.getByRole("button", { name: "Share feedback" })).toBeTruthy();
+  it("task #214: the query carries the open tab, a symbol chosen in a tool and the theme, never a typed value", async () => {
+    document.documentElement.dataset.theme = "dark";
+    open("/eps-calculator?np=80775&sym=reliance&tab=valuation", false);
+    fireEvent.click(screen.getByRole("button", { name: "Raise a Query" }));
+    const dlg = screen.getByRole("dialog");
+    fireEvent.change(within(dlg).getByRole("textbox"), { target: { value: "Why does the PEG change when I change growth?" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: "Send query" }));
+    await waitFor(() => expect(st.sent.length).toBe(1));
+    const sent = st.sent[0] as { page: string; context: Record<string, string> };
+    expect(sent.page).toBe("/eps-calculator");
+    expect(sent.context).toMatchObject({ symbol: "RELIANCE", tab: "valuation", theme: "dark" });
+    expect(JSON.stringify(sent.context)).not.toMatch(/80775/);
+    delete document.documentElement.dataset.theme;
   });
   it("the query dialog says which page it is about, checks the text, and sends it tagged with the page", async () => {
     open("/stocks/RELIANCE?tab=x");

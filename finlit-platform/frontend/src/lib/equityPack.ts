@@ -19,6 +19,8 @@ export type PeerLabel = "leader" | "in_line" | "laggard";
 export type Share = {
   symbol: string; industry: string | null; size: Size | null; chg: number | null; prism: number | null; prismWord: string | null; valuation: number | null; risk: number | null;
   st: number | null; lt: number | null; below52: number | null; m1: number | null;
+  /** Silver (task #183): the FinLit IQ, the server's word for it, and its technical pillar. */
+  iq?: number | null; iqWord?: string | null; iqTech?: number | null;
   peer: { label: PeerLabel; raw: PeerLabel | null; rank: number; of: number; group: string; vs: number | null; bench: string; direction: "gaining" | "weakening" | null } | null;
   notCompared: string | null;
 };
@@ -27,39 +29,6 @@ const plural = (why: string) => why.replace(/^has /, "have ").replace(/^is /, "a
 export const PEER_WORD: Record<PeerLabel, string> = { leader: "Leader", in_line: "In line", laggard: "Laggard" };
 const strongP = (v: number | null) => v != null && v >= 70, weakP = (v: number | null) => v != null && v < 50;
 export const prismWord = (v: number | null) => (v == null ? null : v >= 70 ? "Healthy" : v >= 50 ? "Average" : "Weak");
-
-// ------------------------------------------------------------------------------------------------ the score tiles
-export type Tile = { id: string; k: string; v: string; sub: string; to: "shares" | "diversification" | "risk"; link: string; tone: "good" | "info" | "watch" | "bad" | "mute"; help: string };
-type Readings = Record<string, { word: string; figure?: number; why?: string; upShare?: number; downShare?: number; beta?: number; swing?: number; swingIndex?: number } & Record<string, unknown>>;
-export function scoreTiles(shares: Share[], r: Readings | undefined, page: { score: { score: number; band: string; effective_stocks: number }; market: { eq: { beta: number; vol: number; vol_nifty: number } }; order: string[] } | null,
-  industries: number, sizes: number, bigPack: { n: number; name: string } | null): Tile[] {
-  const n = shares.length, scored = shares.filter((s) => s.prism != null);
-  const strong = scored.filter((s) => strongP(s.prism)).length, weak = scored.filter((s) => weakP(s.prism)).length, fair = scored.length - strong - weak;
-  const avg = scored.length ? Math.round(scored.reduce((a, s) => a + s.prism!, 0) / scored.length) : null;
-  const lead = shares.filter((s) => s.peer?.label === "leader").length, lag = shares.filter((s) => s.peer?.label === "laggard").length, inl = shares.filter((s) => s.peer?.label === "in_line").length, nc = n - lead - lag - inl;
-  const lt = shares.filter((s) => s.lt != null), up = lt.filter((s) => trendBand(s.lt) === "positive").length, down = lt.filter((s) => trendBand(s.lt) === "negative").length;
-  const val = r?.valuation?.word ?? "–";
-  const m = page?.market.eq;
-  const tiles: Tile[] = [
-    { id: "strength", k: "Holding strength", v: avg == null ? "Not scored" : `${avg >= 70 ? "Strong" : avg >= 50 ? "Fair" : "Weak"} · ${avg}`, sub: `Average Prism: ${strong} strong · ${fair} fair · ${weak} weak${n - scored.length ? ` · ${n - scored.length} not scored` : ""}`, to: "shares", link: "See your shares", tone: "good",
-      help: "Holding strength. The average FinLit Prism score of your shares, from 0 to 100: green 70 and above is strong, orange 50 to 69 fair, red below 50 weak." },
-    { id: "peers", k: "Against peers", v: `${lead} lead · ${lag} lag`, sub: `${inl} in line · ${nc} not compared`, to: "shares", link: "See your shares", tone: "good",
-      help: "Against peers. How many of your shares were among the strongest (Leader) or the weakest (Laggard) of similar companies over the last 12 months." },
-    { id: "trend", k: "Price trend", v: !lt.length ? "Not rated" : up * 100 >= lt.length * 55 ? "Mostly rising" : down * 100 >= lt.length * 55 ? "Mostly falling" : "Split", sub: lt.length ? `${pc((up / lt.length) * 100)} of the list in a long-term uptrend; ${pc((down / lt.length) * 100)} in a downtrend` : "No Prism trend reading yet", to: "shares", link: "See your shares", tone: "info",
-      help: "Price trend. How many of your shares are in a long-term uptrend or downtrend, from FinLit Prism's technical view." },
-    { id: "spread", k: "Diversification", v: page ? `${page.score.score} · ${page.score.band}` : "–", sub: `${num(industries) === "one" ? "1 industry" : `${industries} industries`}, ${sizes === 3 ? "all three sizes" : sizes === 2 ? "two of the three sizes" : "one size"}`, to: "diversification", link: "See diversification", tone: "info",
-      help: "Diversification. How widely the list is spread across industries and sizes, and how independently the shares move, from 0 to 100." },
-    { id: "moves", k: "Moves like", v: page ? `${page.score.effective_stocks.toFixed(1)} of ${page.order.length}` : "–", sub: `independent shares${bigPack ? `; the ${num(bigPack.n)} ${bigPack.name.toLowerCase()} shares move as a pack` : ""}`, to: "diversification", link: "See diversification", tone: "info",
-      help: "Moves like. Shares that rise and fall together count as one bet. This is how many independent shares the list behaves like." },
-    { id: "risk", k: "Risk vs the index", v: m ? `${m.beta > 1.1 ? "Above" : m.beta < 0.9 ? "Below" : "In line"} · β ${m.beta.toFixed(2)}` : "–", sub: m ? `${m.vol > m.vol_nifty * 1.15 ? "but bigger swings" : m.vol < m.vol_nifty * 0.85 ? "and smaller swings" : "with similar swings"}: ${m.vol.toFixed(1)}% a year vs ${m.vol_nifty.toFixed(1)}%` : "Needs a year of weekly prices", to: "risk", link: "See risk analytics", tone: "watch",
-      help: "Risk vs the index. Beta: how much the list tends to move when the Nifty 50 moves 1%. The swing is how much it rises and falls in a typical year." },
-    { id: "valuation", k: "Valuation", v: val, sub: val === "Weak" ? "Average Prism valuation reading: you pay above-typical prices" : val === "Strong" ? "Average Prism valuation reading: you pay below-typical prices" : "Average Prism valuation reading: close to typical prices", to: "shares", link: "See your shares", tone: val === "Weak" ? "watch" : "good",
-      help: "Valuation. The average FinLit Prism valuation reading of your shares: how their prices compare with what similar companies cost." },
-    { id: "conc", k: "Concentration", v: r?.concentration?.word ?? "Needs quantities", sub: r?.concentration?.largestName ? `Largest holding ${String(r.concentration.largestName)}; top five ${pc(Number(r.concentration.topFive) * 100)} of the value` : "Largest holding and top five, once amounts are in", to: "shares", link: "See your shares", tone: "mute",
-      help: "Concentration. How much of your money sits in the largest holding and the top five. It needs the quantities you own." },
-  ];
-  return tiles;
-}
 
 // ------------------------------------------------------------------------------------------------ Your shares: the three cards
 export function sharesCards(shares: Share[], day: string): Card[] {
@@ -70,7 +39,7 @@ export function sharesCards(shares: Share[], day: string): Card[] {
   const fell = shares.filter((s) => s.chg != null && s.chg <= -10).sort((a, b) => a.chg! - b.chg!);
   if (fell.length) { const small = fell.every((s) => s.size === "Small"); out.push({ kind: "warning", title: `${fell.length === 1 ? "One share" : `${fell.length} shares`} fell 10% or more ${on}`, text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg)}`))}.${small ? ` ${fell.length === 1 ? "It is a small company" : `All ${num(fell.length)} are small companies`}, which tend to swing more.` : ""}` }); }
   const runAhead = shares.filter((s) => weakP(s.prism) && trendBand(s.lt) === "positive");
-  if (runAhead.length) out.push({ kind: "watch", title: `Weak Prism, strong price: ${list(runAhead.map((s) => s.symbol))}`, text: `${runAhead.length === 1 ? "It has a weak business score" : `${runAhead.length === 2 ? "Both" : "All"} have weak business scores`} (${list(runAhead.map((s) => String(Math.round(s.prism!))))}) but rising prices. Prices can run ahead of the business; check why.` });
+  if (runAhead.length) out.push({ kind: "watch", title: `Weak Prism, strong price: ${list(runAhead.map((s) => s.symbol))}`, text: `${runAhead.length === 1 ? "It has a weak business score" : `${runAhead.length === 2 ? "Both" : "All"} have weak business scores`} (${list(runAhead.map((s) => String(Math.round(s.prism!))))}) and ${runAhead.length === 1 ? "a rising price" : "rising prices"}: the price has run ahead of the business.` });
   return out;
 }
 
@@ -90,6 +59,20 @@ export function peerCards(shares: Share[]): Card[] {
   if (flip.length) out.push({ kind: "insight", title: "May change next week", text: `${list(flip.map((s) => `${s.symbol} reads ${PEER_WORD[s.peer!.raw!]}`))} this week. Labels change only if the next weekly reading agrees.` });
   const nc = shares.filter((s) => !s.peer);
   if (nc.length) out.push({ kind: "watch", title: `Not compared: ${nc.length} ${nc.length === 1 ? "share" : "shares"}`, text: [...new Set(nc.map((s) => s.notCompared ?? "is not ranked"))].map((why) => { const who = nc.filter((s) => (s.notCompared ?? "is not ranked") === why).map((s) => s.symbol); return `${list(who)} ${who.length > 1 ? plural(why) : why}`; }).join("; ") + "." });
+  return out;
+}
+/** The three things to know under the trend matrix (task #183, pack 01-equity-portfolio): who rises on both trends, how much of the list trails its longer trend,
+ *  and where the price sits behind the business. Counts and names from the server's trend reading (POST /api/portfolio/trend). */
+export function trendCards(t: { rated: number; grid: Record<string, { n: number; symbols: string[] }>; direction: { weakening: number; improving: number }; business: Record<string, { n: number; symbols: string[] }> }): Card[] {
+  const out: Card[] = [];
+  if (!t.rated) return out;
+  const both = t.grid["1,1"];
+  if (both?.n) out.push({ kind: "good", title: `${cap(num(both.n))} ${both.n === 1 ? "share rises" : "shares rise"} on both trends`, text: `${list(both.symbols)}.` });
+  const trail = t.direction.weakening, lead = t.direction.improving;
+  if (trail >= lead && trail > 0) out.push({ kind: "watch", title: `The short term trails the long term for ${pc(trail * 100)}`, text: "Many shares are pausing or pulling back against their longer trend." });
+  else if (lead > 0) out.push({ kind: "good", title: `The short term leads the long term for ${pc(lead * 100)}`, text: "More shares are picking up against their longer trend than fading." });
+  const behind = t.business.strong_down;
+  if (behind?.n) out.push({ kind: "insight", title: `Price behind the business for ${behind.n === 1 ? "one share" : `${num(behind.n)} shares`}`, text: `Their Prism business reading is stronger than their price trend${behind.symbols.length ? `, including ${list(behind.symbols.slice(0, 3))}` : ""}.` });
   return out;
 }
 /** The pack's "What if you had owned the group leader instead?": ₹1 lakh a year ago in each laggard and in its group's #1. */
@@ -144,7 +127,7 @@ export function riskCards(shares: Share[], shareRisk: Record<string, number>, sh
   const on = day === "Today" ? "today" : `on ${day}`;
   if (fell.length) out.push({ kind: "watch", title: `${cap(num(fell.length))} small-company ${fell.length === 1 ? "fall" : "falls"} ${on}`, text: `${list(fell.map((s) => s.symbol))} ${fell.length === 1 ? "fell" : "each fell"} more than 10% in one day. Small companies can move this much on little news.` });
   const steady = rated.filter((s) => s.risk! >= 80).sort((a, b) => a.symbol.localeCompare(b.symbol));
-  if (steady.length) out.push({ kind: "good", title: `${cap(num(steady.length))} ${steady.length === 1 ? "share steadies" : "shares steady"} the list`, text: `${list(steady.map((s) => s.symbol))} ${steady.length === 1 ? "scores" : "all score"} ${Math.floor(Math.min(...steady.map((s) => s.risk!)))} or more on Prism Risk.` });
+  if (steady.length) out.push({ kind: "good", title: `${cap(num(steady.length))} ${steady.length === 1 ? "share steadies" : "shares steady"} the list`, text: `${list(steady.map((s) => s.symbol))} ${steady.length === 1 ? "has" : "each have"} a Prism Risk score of ${Math.floor(Math.min(...steady.map((s) => s.risk!)))} or more.` });
   return out;
 }
 export const riskWord = (v: number | null) => (v == null ? null : v < 52 ? "Higher risk" : v < 70 ? "Medium" : "Lower risk");

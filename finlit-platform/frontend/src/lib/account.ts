@@ -29,6 +29,9 @@ export type SavedState = { portfolio?: { holdings?: { id: string; symbol: string
 export const loadState = () => apiGet<SavedState>("/api/me/state");
 export const saveWatchlist = (b: unknown) => apiSend("PUT", "/api/me/watchlist", b);
 export const savePortfolio = (holdings: unknown) => apiSend("PUT", "/api/me/portfolio", { holdings });
+/** Clear portfolio (task #183): the server empties the equity list and holds what was there for the Undo window. */
+export const clearPortfolioServer = () => apiSend<{ status: string; removed: number; undoSeconds: number }>("POST", "/api/me/portfolio/clear");
+export const undoClearPortfolioServer = () => apiSend<{ status: string; holdings: unknown[] }>("POST", "/api/me/portfolio/undo-clear");
 export const saveScreens = (screens: unknown) => apiSend("PUT", "/api/me/screens", { screens });
 export const savePrefs = (p: Prefs) => apiSend("PUT", "/api/me/prefs", p);
 

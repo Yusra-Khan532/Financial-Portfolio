@@ -49,7 +49,8 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
   it("shows the pack's sections in its order, each title once", () => {
     at();
     expect(h2()).toEqual(expect.arrayContaining(["The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted", "Too small for a reading"]));
-    const order = ["Today in one minute", "The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+    // task #192 (SECTOR-PAGES.md 7): 1 Today → 2 The cycle → 3 All by state → 4 Map → 5 Market mood → 6 Momentum × strength → 7 Your industries → 8 Standout stocks → 9 Counted / Too small
+    const order = ["Today in one minute", "The cycle industries move through", "All 38 groups, by state", "The market's mood, day by day", "Momentum and strength, side by side", "How your industries are doing", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(said()).not.toMatch(ADVICE);
   });
@@ -103,5 +104,52 @@ describe("Sector Pulse, Full table view (pack 06)", () => {
     expect(six.querySelectorAll("g").length).toBe(38);
     expect(six.querySelectorAll(".sp-fri-now").length).toBe(1);
     expect(screen.getByRole("button", { name: "Hide: Six months of every industry" })).toBeTruthy();
+  });
+});
+
+describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Pulse", () => {
+  it("has the guide under the header, closed by default, with the page's own counts and the state table word for word", () => {
+    at();
+    const open = screen.getByRole("button", { name: /How to read and use this page/ });
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.textContent).not.toContain("How to read this page");   // the old box is gone
+    fireEvent.click(open);
+    expect(document.body.textContent).toContain("in each of the 38 groups (33 industries and 5 sectors) are above their trend");
+    const rows = [...document.querySelectorAll(".sp-guide-t tbody tr")].map((r) => [r.children[0].textContent, r.children[1].textContent]);
+    expect(rows.find((r) => r[0] === "No clear signal")?.[1]).toBe("No sell-off, bounce or broad rise: its stocks are not moving together.");
+    expect(rows).toHaveLength(6);
+  });
+  it("numbers the sections 1 to 9 in the pack's order, in a sections bar after the guide", () => {
+    at();
+    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2The cycle", "3By state", "4Market mood", "5Momentum × strength", "6Your industries", "7Standout stocks", "8Counted / Too small"]);   // no map in this test (no map data)
+    expect(document.querySelector(".sp-guide")!.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it("adds the pack's i buttons and Hide buttons, and keeps Today in one minute always open", () => {
+    at();
+    for (const t of ["Today in one minute", "The cycle industries move through", "All 38 groups, by state", "Too small for a reading"]) expect(screen.getByRole("button", { name: `About “${t}”` })).toBeTruthy();
+    const hide = screen.getAllByRole("button", { name: /^Hide: / }).map((b) => b.getAttribute("aria-label"));
+    expect(hide).toEqual(expect.arrayContaining(["Hide: How your industries are doing", "Hide: All 38 groups, by state", "Hide: Standout stocks in weak industries"]));
+    expect(hide).not.toContain("Hide: Today in one minute");
+  });
+  it("starts each state group at 5 rows with Show all, and turns 'and 12 more' into +12 more ▾", () => {
+    at();
+    const sold = [...document.querySelectorAll(".sp-grp-sold_off tbody tr")];
+    expect(sold).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: "Show all 21 ▾" }));
+    expect(document.querySelectorAll(".sp-grp-sold_off tbody tr")).toHaveLength(21);
+    expect(document.body.textContent).not.toMatch(/and \d+ more/);
+    const more = screen.getByRole("button", { name: "+12 more ▾" });
+    fireEvent.click(more);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+  });
+  it("Full table: 1 Every number → 2 Six months → 3 Standout stocks → 4 Too small, the table's i button, and the guide", () => {
+    at("/sectors?view=full");
+    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Every number", "2Six months", "3Standout stocks", "4Too small"]);
+    expect(screen.getByRole("button", { name: "About “Every industry, every number”" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /How to read and use this page/ })).toBeTruthy();
+    const order = ["Every industry, every number", "Six months of every industry", "Standout stocks", "Too small for a reading"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+    expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
   });
 });

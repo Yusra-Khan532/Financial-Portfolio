@@ -14,6 +14,7 @@ import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
 import { csvText, dateIN, nf } from "../lib/format";
 import { Gate } from "../components/Gate";
+import { SectionNav, type SectionItem } from "../components/SectionNav";
 import { Info } from "../components/Info";
 import { DcfIntro } from "../components/DcfIntro";
 import {
@@ -106,7 +107,7 @@ function CompanyLoader({ enabled, onLoad, loaded, initial }: { enabled: boolean;
   useEffect(() => { if (company.data && company.data.symbol === sym) onLoad(company.data, basis); }, [company.data]);   // eslint-disable-line react-hooks/exhaustive-deps
   const c = loaded;
   return (
-    <section className="card dcf-co" aria-labelledby="dcf-co-h">
+    <section className="card dcf-co" aria-labelledby="dcf-co-h" data-snav="company">
       <div className="dcf-co-h"><h2 id="dcf-co-h">Start from a listed company <span className="tier gold">Gold</span></h2>
         <p className="muted">Fills free cash flow, net debt, shares, price and market capitalisation from the company's latest reported figures. Every field stays editable.</p></div>
       <div className="dcf-co-row">
@@ -385,6 +386,21 @@ function SavedScenarios({ enabled, form, onOpen }: { enabled: boolean; form: For
 }
 
 // ------------------------------------------------------------------------------------------------------------- page
+// task #189: the eight sections of the calculator, in page order, for the sticky bar under the title. The result sections exist only once the inputs give a value.
+export function dcfNav(hasResult: boolean, hasErrors: boolean): SectionItem[] {
+  const why = hasResult ? null : hasErrors ? "Fix the inputs marked in red to see this section." : "Shown once the inputs give a value.";
+  return [
+    { id: "company", label: "Company Inputs", about: "Start from a listed company: fills free cash flow, net debt, shares, price and market capitalisation from its latest reported figures. Every field stays editable." },
+    { id: "cash", label: "Cash Flow & Growth", about: "The free cash flow to start from, growth for years 1 to 5 and 6 to 10, and the terminal growth rate or exit multiple." },
+    { id: "rate", label: "Discount Rate & Risk", about: "The return you require (discount rate), with a builder from the risk-free rate and risk premium, and the margin of safety for uncertainty." },
+    { id: "balance", label: "Balance Sheet", about: "Market capitalisation, share price, net debt and shares outstanding: they turn the business value into a value per share." },
+    { id: "value", label: "DCF Valuation", about: "Intrinsic value per share against today's price, the margin-of-safety price, how the value is built, year by year and what the price implies.", off: why },
+    { id: "sens", label: "Sensitivity Analysis", about: "Grids of value per share as the discount rate, terminal growth and early growth move, with your base case in the centre.", off: why },
+    { id: "cases", label: "Bear / Base / Bull Scenarios", about: "Three sets of assumptions side by side, so you see the range of values rather than one number.", off: why },
+    { id: "save", label: "Save & Export", about: "Copy a link that opens these inputs, download the working as a CSV for Excel, print or save as PDF, and save scenarios to your account.", off: why },
+  ];
+}
+
 export function DcfPage() {
   useDocTitle("Fair value calculator", "Discounted cash flow (DCF) calculator: intrinsic value per share, margin of safety, sensitivity and reverse DCF, with the working shown step by step.");
   const { has } = useUI();
@@ -423,6 +439,7 @@ export function DcfPage() {
       <div className="wrap dcf">
         <DcfIntro />
         <Gate tier="gold" title="DCF calculator" points={["Intrinsic value per share, margin of safety and margin-of-safety price", "Load any listed company's cash flow, debt and shares", "Sensitivity grids, reverse DCF and bear/base/bull cases", "Save scenarios, share links and export to Excel (CSV)"]}>
+          <SectionNav scope=".dcf" items={dcfNav(!!res, out.errors.length > 0)} />
           <CompanyLoader enabled={gold && !!user && !DEMO} onLoad={onCompany} loaded={loaded} initial={sp.get("load") === "1" && form.symbol ? form.symbol.toUpperCase() : null} />
 
           <section className="card dcf-form" aria-labelledby="dcf-in-h">
@@ -432,7 +449,7 @@ export function DcfPage() {
               <div><span>Current price</span><b>{Number.isFinite(inputs.price) ? rs(inputs.price) : "—"}</b></div>
               <div><span>Upside / downside</span><b className={res ? (res.upside >= 0 ? "up" : "down") : ""}>{res && res.equity > 0 ? sgn(res.upside) : "—"}</b></div>
             </div>
-            <details className="dcf-grp" open><summary><Icon name="growth" /><span>1. Cash Flow and Growth</span></summary>
+            <details className="dcf-grp" open data-snav="cash"><summary><Icon name="growth" /><span>1. Cash Flow and Growth</span></summary>
               <div className="dcf-grid">
                 <SliderField id="fcf0" label="Initial FCF (₹ Cr)" help={HELP.fcf0} value={form.fcf0} onChange={set("fcf0")} error={err("fcf0")} min={0} max={1000} />
                 <GrowthField id="g1" label="Growth rate (1 to 5 years)" help={HELP.g1} preset={form.g1Preset} value={form.g1} onPreset={preset("g1")} onValue={set("g1")} error={err("g1")} />
@@ -442,7 +459,7 @@ export function DcfPage() {
                   : <SliderField id="exitMultiple" label="Exit multiple (× year-10 FCF)" help={HELP.exitMultiple} value={form.exitMultiple} onChange={set("exitMultiple")} unit="×" error={err("exitMultiple")} min={1} max={60} step={0.5} />}
               </div>
             </details>
-            <details className="dcf-grp" open><summary><Icon name="quality" /><span>2. Discount Rate and Margin of Safety</span></summary>
+            <details className="dcf-grp" open data-snav="rate"><summary><Icon name="quality" /><span>2. Discount Rate and Margin of Safety</span></summary>
               <div className="dcf-grid">
                 <SliderField id="r" label="Discount rate" help={HELP.r} value={form.r} onChange={set("r")} unit="%" error={err("r")} min={1} max={30} step={0.1} />
                 <SliderField id="mos" label="Margin of safety" help={HELP.mos} value={form.mos} onChange={set("mos")} unit="%" error={err("mos")} min={0} max={80} step={1}>
@@ -451,7 +468,7 @@ export function DcfPage() {
               </div>
               <RateBuilder onUse={(r) => set("r")(String(r))} />
             </details>
-            <details className="dcf-grp" open><summary><Icon name="balance" /><span>3. Price and Balance Sheet</span></summary>
+            <details className="dcf-grp" open data-snav="balance"><summary><Icon name="balance" /><span>3. Price and Balance Sheet</span></summary>
               <div className="dcf-grid">
                 <Field id="marketCap" label="Market capitalisation (₹ Cr)" help={HELP.marketCap} value={form.marketCap} onChange={set("marketCap")} error={err("marketCap")} />
                 <Field id="price" label="Current share price (₹)" help={HELP.price} value={form.price} onChange={set("price")} error={err("price")} />
@@ -473,7 +490,7 @@ export function DcfPage() {
               <ul>{out.errors.map((e: Issue) => <li key={e.field + e.text}>{e.text}</li>)}</ul></section>)}
 
           {res && (<>
-            <section className="dcf-sum" aria-label="Result" aria-live="polite">
+            <section className="dcf-sum" aria-label="Result" aria-live="polite" data-snav="value">
               <div className={"dcf-k main st-" + res.status}><span>Intrinsic value per share</span><b>{res.equity > 0 ? rs(res.iv) : "N/M"}</b><small>{form.symbol ? form.symbol + " · " : ""}on these assumptions</small></div>
               <div className="dcf-k"><span>Current price</span><b>{rs(inputs.price)}</b><small>{loaded?.priceAsOf && form.symbol === loaded.symbol ? dateIN(loaded.priceAsOf.slice(0, 10)) : "as entered"}</small></div>
               <div className="dcf-k"><span>Upside / downside</span><b className={res.upside >= 0 ? "up" : "down"}>{res.equity > 0 ? sgn(res.upside) : "—"}</b><small>intrinsic value vs price</small></div>
@@ -512,16 +529,16 @@ export function DcfPage() {
               <p className="faint">If the growth the price needs is far above what the company has done, the market is optimistic; if the return it offers is below your discount rate, the price is above your value.</p>
             </section>
 
-            <section className="card"><h2>Sensitivity</h2>
+            <section className="card" data-snav="sens"><h2>Sensitivity</h2>
               {inputs.tvMethod === "gordon" && <Grid title="Discount rate × terminal growth" i={inputs} rowKey="gT" rows={around(inputs.gT, 0.5)} rowLabel="Terminal growth" colKey="r" cols={around(inputs.r, 1)} colLabel="Discount rate"
                 note="Each cell is the intrinsic value per share. Green: price at or below the margin-of-safety price; amber: between margin-of-safety price and value; red: price above value; — where terminal growth is not below the discount rate." />}
               <Grid title="Discount rate × growth (years 1–5)" i={inputs} rowKey="g1" rows={around(inputs.g1, 2.5)} rowLabel="Growth 1–5" colKey="r" cols={around(inputs.r, 1)} colLabel="Discount rate"
                 note="The centre cell is your base case." />
             </section>
 
-            <section className="card"><h2>Bear, base and bull</h2><Scenarios i={inputs} /></section>
+            <section className="card" data-snav="cases"><h2>Bear, base and bull</h2><Scenarios i={inputs} /></section>
 
-            <section className="card"><h2>Save, share and export</h2>
+            <section className="card" data-snav="save"><h2>Save, share and export</h2>
               <div className="dcf-acts"><button className="btn" type="button" onClick={copyLink}><Icon name="arrow" /> Copy share link</button>
                 <button className="btn" type="button" onClick={() => exportCsv(inputs, res, form.symbol)}>Download CSV (Excel)</button>
                 <button className="btn" type="button" onClick={() => window.print()}>Print / PDF</button></div>

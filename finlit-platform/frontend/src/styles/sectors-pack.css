@@ -51,7 +51,10 @@
 .sp-i { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; margin-left: 4px; padding: 0; border-radius: 50%; border: 1px solid var(--sp-mute); background: transparent; color: var(--sp-mute); font: italic 600 11px/1 Georgia, serif; cursor: help; vertical-align: middle; }
 .sp-i:hover, .sp-i[aria-expanded="true"] { border-color: var(--sp-info); color: var(--sp-info); }
 .sp-i:focus-visible, .sp-tab:focus-visible, .sp-vbtn:focus-visible, .sp-fbtn:focus-visible, .sp-exp:focus-visible, .sp-morebtn:focus-visible, .sp-dl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.sp-pop { position: fixed; z-index: var(--z-tip, 260); max-width: 320px; padding: 10px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--s1); color: var(--text); font: 400 13px/1.45 var(--sans); box-shadow: 0 14px 34px -16px rgba(0, 0, 0, .4); }
+.sp-pop { overflow-y: auto; overscroll-behavior: contain; position: fixed; z-index: var(--z-tip, 260); max-width: 320px; padding: 10px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--s1); color: var(--text); font: 400 13px/1.45 var(--sans); box-shadow: 0 14px 34px -16px rgba(0, 0, 0, .4); }
+.sp-pop-l { display: block; }
+.sp-pop-l + .sp-pop-l { margin-top: 6px; }
+.sp-pop-l > b { display: block; font: 600 var(--fs-label, 11px)/1.3 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted, var(--text)); margin-bottom: 2px; }
 .sp-cards { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
 .sp-cards-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
 .sp-card { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 15px 16px; border-radius: 16px; border: 1px solid var(--sp-good-bd); background: var(--sp-good-bg); min-width: 0; }
@@ -228,3 +231,37 @@
 /* A section with Hide: the pill sits in the top-right corner, so the title keeps clear of it (on a phone the title wraps before the pill instead of under it). */
 .hz > .sp-sec .sp-sec-h > div:first-child { padding-right: 88px; }
 .sp-inside { display: block; font-size: 12px; color: var(--sp-mute); font-weight: 400; margin-top: 2px; }
+
+/* ---- task #192 round 4a-2 (sector pack, SECTOR-PAGES.md 2, 6, 8): the page guide, the sections bar and "+N more" ---- */
+.sp-guide { background: var(--sp-panel); border: 1px solid var(--sp-line); border-radius: 18px; margin: 14px 0 0; overflow: hidden; }
+.sp-guide-h { all: unset; box-sizing: border-box; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 14px 18px; cursor: pointer; }
+.sp-guide-h:focus-visible { outline: 2px solid var(--gold, #B8955A); outline-offset: -2px; border-radius: 18px; }
+.sp-guide.open .sp-guide-h { border-bottom: 1px solid var(--sp-line); background: color-mix(in srgb, var(--s2) 55%, transparent); }
+.sp-guide-q { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: color-mix(in srgb, #E9B949 22%, transparent); color: #8F5400; font: 700 14px var(--sans); }
+.sp-guide-tt { display: grid; gap: 2px; } .sp-guide-tt b { font: 600 16px var(--sans); color: var(--sp-ink); } .sp-guide-tt small { font-size: 13px; color: var(--sp-mute); }
+.sp-guide-ch { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--sp-line); color: var(--sp-ink); }
+.sp-guide-b { padding: 18px 18px 20px; display: grid; gap: 16px; font-size: 14px; line-height: 1.55; color: var(--sp-ink); }
+.sp-guide-intro { margin: 0; font-size: 16px; }
+.sp-guide-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.sp-guide-low { border-top: 1px dashed var(--sp-line); padding-top: 16px; } .sp-guide-low p { margin: 0; }
+.sp-guide-k { margin: 0 0 8px; font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); }
+.sp-guide-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; } .sp-guide-steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
+.sp-guide-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--sp-ink); color: var(--sp-panel); font: 700 12px var(--sans); }
+.sp-guide-t { width: 100%; border-collapse: collapse; font-size: 13px; } .sp-guide-t th { text-align: left; font: 700 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); background: color-mix(in srgb, var(--s2) 70%, transparent); padding: 6px 8px; }
+.sp-guide-t td { padding: 7px 8px; border-bottom: 1px solid var(--sp-line); vertical-align: top; } .sp-guide-t td:first-child { white-space: nowrap; } .sp-guide-t td .sp-sw { margin-right: 8px; vertical-align: -1px; }
+.sp-guide-tags, .sp-guide-p { margin: 10px 0 0; font-size: 13px; } .sp-guide-ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.sp-secbar { position: sticky; top: var(--sp-bar-top, 64px); z-index: 20; display: flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 6px; background: var(--sp-panel); border: 1px solid var(--sp-line); border-radius: 999px; overflow-x: auto; scrollbar-width: thin; }
+.sp-secbar-all { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: var(--s2); font: 600 13px var(--sans); color: var(--sp-ink); cursor: pointer; white-space: nowrap; flex: none; }
+.sp-secbar-all.on, .sp-secbar-all:hover { background: color-mix(in srgb, var(--sp-ink) 10%, var(--s2)); } .sp-secbar-all:focus-visible, .sp-secbar-c:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+.sp-secbar-l { list-style: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 6px 0 0; flex: none; }
+.sp-secbar-ar { color: var(--sp-mute); font-size: 12px; }
+.sp-secbar-c { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; font: 500 13px var(--sans); color: var(--sp-ink); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+.sp-secbar-c.on { border-bottom-color: var(--gold, #B8955A); font-weight: 700; }
+.sp-secbar-n { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--s2); font: 700 11px var(--sans); color: var(--sp-mute); }
+.sp-secbar-c.on .sp-secbar-n { background: var(--sp-ink); color: var(--sp-panel); }
+.sp-sec h2[id], .sp-sec [id^="sp-"], .sp-sec [id^="rp-"] { scroll-margin-top: 130px; }
+.sp-more-in { all: unset; cursor: pointer; font-weight: 700; color: var(--sp-ink); text-decoration: underline dotted; text-underline-offset: 3px; white-space: nowrap; }
+.sp-more-in:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+.sp-showall { all: unset; display: inline-block; margin: 8px 0 0; padding: 4px 0; font: 600 13px var(--sans); color: var(--sp-ink); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.sp-showall:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+@media (max-width: 760px) { .sp-guide-two { grid-template-columns: minmax(0, 1fr); } .sp-guide-h { padding: 12px 14px; } .sp-guide-b { padding: 14px; } .sp-guide-t td:first-child { white-space: normal; } .sp-secbar { border-radius: 14px; } }

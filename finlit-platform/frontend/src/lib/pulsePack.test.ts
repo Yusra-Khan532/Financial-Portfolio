@@ -21,7 +21,8 @@ describe("Today in one minute (pack 05)", () => {
     const c = todayCards(rows);
     expect(c.map((x) => x.kind)).toEqual(["good", "watch", "insight", "warning"]);
     expect(c[0].title).toBe("15 groups are bouncing back");
-    expect(c[0].text).toBe("Finance, Construction, Ferrous Metals and 12 more: most of their stocks turned up together within days. 8 of them bounced after a crash.");
+    expect(c[0].text).toBe("Finance, Construction, Ferrous Metals {more}: most of their stocks turned up together within days. 8 of them bounced after a crash.");   // "+12 more ▾" on the page
+    expect(c[0].more).toHaveLength(12);
     expect(c[1].title).toBe("No industry is rising together yet");
     expect(c[2].title).toBe("A bounce may be forming in 5 sold-off groups");
     expect(c[2].text).toBe("Banks (34 of 36); Cement & Cement Products (17 of 19); Capital Markets (26 of 31); Leisure Services (26 of 31); Transport Services (15 of 18): most of their stocks are already above their short trend.");
@@ -61,7 +62,8 @@ describe("Momentum and strength, side by side (pack 05)", () => {
     expect(m.cells["sold_off:behind_slipping"].mark).toBe("weakest");
     const c = matrixCards(rows);
     expect(c[0].title).toBe("Both views agree: IT - Software, Petroleum Products, Automobiles");
-    expect(c[1].title).toMatch(/^Both views are negative: Banks, Realty, Beverages, Retailing and \d+ more$/);
+    expect(c[1].title).toBe("Both views are negative: Banks, Realty, Beverages, Retailing {more}");   // "+N more ▾" on the page
+    expect(c[1].more!.length).toBeGreaterThan(0);
     expect(BOX.ahead_gaining.word).toBe("Ahead and gaining");
   });
 });

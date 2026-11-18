@@ -19,7 +19,7 @@ export type PageObject = {
   first_k?: { k: number; effective_stocks: number; rest: number; added: number } | null;
   readings: Reading[]; summary: PerMode<Reading[]>; together_open_by_default: boolean; short_history: string[];
 };
-export type Meta = { name: string; sector: string | null; size: SizeCode; mcap_cr: number | null };
+export type Meta = { name: string; sector: string | null; size: SizeCode; mcap_cr: number | null; nse?: { macro_sector: string | null; sector: string | null; industry: string | null } };
 export type PageResponse = {
   week: string; symbols: string[]; unknown: string[]; noPrices: string[]; page: PageObject | null; meta: Record<string, Meta>; styleTilt?: StyleTilt;
 };

@@ -4,10 +4,10 @@
 .aif.full > header { padding-left: max(16px, calc((100% - 920px) / 2 + 8px)); padding-right: max(16px, calc((100% - 920px) / 2 + 8px)); }
 .aif.full > form, .aif.full > .ai-fine { width: min(920px, 100%); margin-left: auto; margin-right: auto; box-sizing: border-box; }
 .aif.full .ai-body { width: min(920px, 100%); margin: 0 auto; box-sizing: border-box; padding: 20px 24px; }
-.aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(4, 1fr); }
+.aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .aif.full .aif-qs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .aif.full .aif-qchips { max-width: 480px; }
 .aif .aif-full { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; border: 0; background: var(--s1); color: var(--text); cursor: pointer; } .aif .aif-full:hover { background: var(--gold-soft); }
-@media (max-width: 720px) { .aif.full .aif-cats { grid-template-columns: 1fr 1fr; } .aif.full .aif-qs { grid-template-columns: minmax(0, 1fr); } .aif.full .bub { max-width: 92%; } .aif.full .ai-body { padding: 14px; } }
+@media (max-width: 720px) { .aif.full .aif-cats { grid-template-columns: 1fr 1fr; } .aif.full .aif-cats > li:last-child:nth-child(odd) { grid-column: 1 / -1; } .aif.full .aif-qs { grid-template-columns: minmax(0, 1fr); } .aif.full .bub { max-width: 92%; } .aif.full .ai-body { padding: 14px; } }
 .aif header { gap: 10px; justify-content: flex-start; }
 .aif header .aif-title { flex: 1; min-width: 0; } .aif header .aif-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aif header .aif-title + * { margin-left: auto; }
@@ -18,6 +18,8 @@
 .aif-label { margin: 6px 0 2px; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .aif ul { list-style: none; margin: 0; padding: 0; }
 .aif-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.aif-cats > li:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* task #203: the fifth card (Mutual funds & ETFs) takes the whole row in two columns */
+@media (min-width: 721px) { .aif.full .aif-cats > li:last-child:nth-child(odd) { grid-column: auto; } }
 .aif-cat { width: 100%; height: 100%; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); cursor: pointer; }
 .aif-cat:hover, .aif-seg:hover, .aif-q:hover { border-color: var(--gold); background: var(--gold-soft); }
 .aif-cat svg { width: 20px; height: 20px; color: var(--gold); } .aif-cat b { font-size: 14px; } .aif-cat small { color: var(--muted); font-size: 12px; line-height: 1.35; }
@@ -133,3 +135,13 @@
 .aif-typed button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 10px; font-size: var(--fs-13); line-height: 1.35; color: var(--text); }
 .aif-typed button:hover, .aif-typed button:focus-visible { background: var(--s2); outline: none; }
 .aif-typed svg { flex: none; width: 14px; height: 14px; color: var(--muted); }
+
+/* FinLit AI's written answers (task #211): what is being read while the words have not come yet, the disclaimer under a finished answer, a refusal, and the
+   questions left this month under the box. Scoped to the panel's own classes. */
+.aif-reading { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.aif-reading i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold, currentColor); animation: aif-pulse 1s ease-in-out infinite; }
+@keyframes aif-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .aif-reading i { animation: none; opacity: .7; } }
+.bub .aif-disc { display: block; margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--muted); white-space: normal; }
+.bub.aif-bub-err { color: var(--muted); }
+.ai-fine .aif-left { white-space: normal; }

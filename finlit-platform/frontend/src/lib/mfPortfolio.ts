@@ -192,6 +192,8 @@ export type TrendCell = { name: string; share: number; n: number; symbols: strin
 export type TrendRead = {
   n: number; rated: number; coverage: number; grid: Record<string, TrendCell>; breadth: { up: number; down: number }; direction: { improving: number; weakening: number; steady: number };
   business: Record<"strong_up" | "strong_down" | "weak_up" | "weak_down", { n: number; share: number; symbols: string[] }>; average: { stLabel: string; ltLabel: string } | null;
+  /** Rated shares with neither a strong nor a weak business, or a sideways long-term trend (the Equity portfolio counts them under its list). */
+  between?: number; ndirection?: { improving: number; weakening: number; steady: number };
   words: { longTerm: string; shortAgainstLong: string; businessAndPrice: string };
 };
 export type MfTrend = { all: TrendRead; perFund?: Record<string, TrendRead>; sharedWeakSpots?: { n: number; share: number; symbols: string[] } };

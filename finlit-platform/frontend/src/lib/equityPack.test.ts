@@ -1,6 +1,6 @@
 // The Equity portfolio's words as the final pages pack writes them (docs/design/finlit-final-pages/12-14), checked with the pack's own test portfolio of 6 Nov 2026.
 import { describe, expect, it } from "vitest";
-import { leaderCards, peerCards, peerSentence, riskCards, riskLead, scoreTiles, sharesCards, spreadCards, standsOut, type Share } from "./equityPack";
+import { leaderCards, peerCards, peerSentence, riskCards, riskLead, sharesCards, spreadCards, standsOut, type Share } from "./equityPack";
 
 const sh = (symbol: string, o: Partial<Share> = {}): Share => ({ symbol, industry: "Software & Consulting", size: "Large", chg: 0.5, prism: 70, prismWord: "Healthy", valuation: 45, risk: 70, st: 30, lt: 30, below52: 10, m1: 2, peer: null, notCompared: null, ...o });
 const peer = (label: "leader" | "in_line" | "laggard", rank: number, of: number, o: Partial<NonNullable<Share["peer"]>> = {}) => ({ label, raw: null, rank, of, group: "IT", vs: 38.1, bench: "Nifty IT", direction: "gaining" as const, ...o });
@@ -14,7 +14,7 @@ describe("Portfolio tab", () => {
     ], "Friday");
     expect(c[0]).toEqual({ kind: "good", title: "TECHM is your strongest all-rounder", text: "First of 13 IT peers, healthy Prism (77), uptrend in both the short and long term, and near its 1-year high." });
     expect(c[1]).toEqual({ kind: "warning", title: "3 shares fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies, which tend to swing more." });
-    expect(c[2]).toEqual({ kind: "watch", title: "Weak Prism, strong price: APOLLO and GLENMARK", text: "Both have weak business scores (44 and 45) but rising prices. Prices can run ahead of the business; check why." });
+    expect(c[2]).toEqual({ kind: "watch", title: "Weak Prism, strong price: APOLLO and GLENMARK", text: "Both have weak business scores (44 and 45) and rising prices: the price has run ahead of the business." });   // task #183 A8: plain, no "but", no advice
   });
   it("against their peers: the sentence and the cards", () => {
     const xs = [sh("TECHM", { peer: peer("leader", 1, 13) }), sh("PERSISTENT", { peer: peer("leader", 4, 13) }), sh("INFY", { peer: peer("laggard", 10, 13) }), sh("ZENSARTECH", { peer: peer("laggard", 13, 18) }),
@@ -59,15 +59,6 @@ describe("Diversification and Risk analytics", () => {
     expect(c[2].title).toBe("Five shares steady the list");
     expect(standsOut(sh("MARINE", { m1: -17.5, chg: -11.0, below52: 19.8 }), true, "Friday")).toBe("Big price swings · Fell 18% last month · −11.0% on Friday");
     expect(standsOut(sh("INFY", { m1: 16.6, chg: 1, below52: 31.7 }), false, "Friday")).toBe("Far below its 1-year high");
-  });
-  it("the score tiles", () => {
-    const t = scoreTiles([sh("A", { peer: peer("leader", 1, 5), lt: 40 }), sh("B", { prism: 45, peer: peer("laggard", 5, 5), lt: -40 }), sh("C", { prism: null })],
-      { valuation: { word: "Weak" }, concentration: { word: "Needs quantities" } } as never, { score: { score: 80, band: "Widely spread", effective_stocks: 6.5 }, market: { eq: { beta: 1.06, vol: 23.3, vol_nifty: 14.4 } }, order: Array(13).fill("x") }, 11, 3, { n: 4, name: "Software" });
-    expect(t.map((x) => `${x.k}: ${x.v} | ${x.sub}`)).toEqual([
-      "Holding strength: Fair · 58 | Average Prism: 1 strong · 0 fair · 1 weak · 1 not scored", "Against peers: 1 lead · 1 lag | 0 in line · 1 not compared",
-      "Price trend: Mostly rising | 67% of the list in a long-term uptrend; 33% in a downtrend", "Diversification: 80 · Widely spread | 11 industries, all three sizes",
-      "Moves like: 6.5 of 13 | independent shares; the four software shares move as a pack", "Risk vs the index: In line · β 1.06 | but bigger swings: 23.3% a year vs 14.4%",
-      "Valuation: Weak | Average Prism valuation reading: you pay above-typical prices", "Concentration: Needs quantities | Largest holding and top five, once amounts are in"]);
   });
 });
 

@@ -16,16 +16,17 @@ function read(key: string): Set<string> {
   try { const v = JSON.parse(localStorage.getItem(key) || "[]"); return new Set(Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 200) : []); } catch { return new Set(); }
 }
 
-/** Holds which cards the member has opened (in this browser, per member). Without it the cards still open and close, for this visit only. */
-export function DashCardsProvider({ userId, children }: { userId: string | number | null | undefined; children: ReactNode }) {
+/** Holds which cards the member has opened (in this browser, per member). Without it the cards still open and close, for this visit only.
+ *  `remember={false}`: shared Open all / Close all for the group, but every card starts closed on each visit (task #183, Equity page H97). */
+export function DashCardsProvider({ userId, remember = true, children }: { userId: string | number | null | undefined; remember?: boolean; children: ReactNode }) {
   const key = keyOf(userId);
-  const [open, set] = useState<Set<string>>(() => read(key));
+  const [open, set] = useState<Set<string>>(() => (remember ? read(key) : new Set()));
   const setOpen = useCallback((ids: string[], on: boolean) => set((prev) => {
     const next = new Set(prev);
     for (const id of ids) { if (on) next.add(id); else next.delete(id); }
-    try { localStorage.setItem(key, JSON.stringify([...next])); } catch { /* private window: lasts for this visit */ }
+    if (remember) { try { localStorage.setItem(key, JSON.stringify([...next])); } catch { /* private window: lasts for this visit */ } }
     return next;
-  }), [key]);
+  }), [key, remember]);
   const v = useMemo<OpenStore>(() => ({ isOpen: (id) => open.has(id), setOpen }), [open, setOpen]);
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }

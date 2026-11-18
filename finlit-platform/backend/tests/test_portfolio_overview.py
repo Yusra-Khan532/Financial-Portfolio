@@ -106,6 +106,9 @@ async def test_ratios_and_financials_equal_the_stock_page(app):
     s = (await ask(silver, ["RELIANCE"])).json()["holdings"][0]
     assert s["finlit"]["overall"] == summary["score"]["overall"]
     assert s["finlit"]["pillars"] == {p["key"]: p["score"] for p in summary["score"]["pillars"]}
+    # task #183: each pillar's word is the report's own (score.pillars[].band.label), the same words the company page shows
+    assert s["finlit"]["pillarWords"] == {p["key"]: (p["band"]["label"] if p["score"] is not None else None) for p in summary["score"]["pillars"]}
+    assert set(s["finlit"]["pillarWords"].values()) - {None} <= {"Strong", "Healthy", "Mixed", "Watch"}
 
 
 async def test_preparing_and_unknown_companies(app):

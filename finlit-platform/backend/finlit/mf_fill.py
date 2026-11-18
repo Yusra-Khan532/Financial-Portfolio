@@ -70,7 +70,7 @@ async def _store(conn, code: int, days: List[int], navs: List[float]) -> bool:
     prev = (navs[-2], date.fromordinal(days[-2])) if len(days) > 1 else (None, None)
     async with conn.transaction():
         await conn.execute(mf.METRICS_UPDATE, code, *cols, date.fromordinal(days[-1]), *prev, *m["dash"])
-        md, mv = mf.month_ends(days, navs)
+        md, mv = mf.month_ends(days, mf.continuous(days, navs))
         old = await conn.fetchrow("SELECT days, navs FROM mf_monthly WHERE code = $1", code)
         d, v = mf.merge_months(([x.toordinal() for x in old["days"]], list(old["navs"])) if old else ([], []), (md, mv))
         await conn.execute(mf.MONTHLY_UPSERT, code, [date.fromordinal(x) for x in d], v)

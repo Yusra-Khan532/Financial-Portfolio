@@ -69,6 +69,7 @@
 /* ---------- states */
 .pzr-problem { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--pz-weak) 55%, var(--border)); background: color-mix(in srgb, var(--pz-weak) 10%, var(--s1)); margin-bottom: 16px; }
 .pzr-problem.locked, .pzr-problem.expired { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); background: var(--gold-soft); }
+.pzr-signin { display: flex; flex-wrap: wrap; gap: 8px; }   /* task #207: sign in or sign up, then back to the same report */
 .pzr-problem > svg { width: 20px; height: 20px; flex: none; margin-top: 2px; color: var(--pz-weak); } .pzr-problem p { margin: 4px 0 10px; color: var(--muted); font-size: 14px; line-height: 1.5; } .pzr-problem b { color: var(--text); } .pzr-problem .btn { height: 36px; }
 .pzr-work { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; } .pzr-work p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 .pzr-workbody { flex: 1; min-width: 0; } .pzr-workbody p { max-width: 62ch; }

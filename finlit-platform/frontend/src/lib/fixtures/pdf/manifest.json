@@ -607,6 +607,20 @@
   "mode": "table",
   "note": "encrypted, password ABCPM1234F"
  },
+ "protected_cas_two_accounts.pdf": {
+  "check": [],
+  "expected": [
+   "HDFCAMC",
+   "HDFCBANK",
+   "INFY",
+   "ITC",
+   "RELIANCE",
+   "TCS"
+  ],
+  "missing": [],
+  "mode": "table",
+  "note": "task #191: NSDL e-CAS with a Zerodha (NSDL) and a Groww (CDSL) account, real ISINs, a wrapped name, an ETF in demat, a sold-out share (balance 0) and a transactions table; encrypted, password ABCPM1234F"
+ },
  "rupee_symbol.pdf": {
   "check": [],
   "expected": [

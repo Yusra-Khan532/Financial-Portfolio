@@ -55,9 +55,10 @@ const LearnSectorSignalsPage = lazy(() => import("./pages/LearnSectorSignals").t
 const MacroPage = lazy(() => import("./pages/Macro").then((m) => ({ default: m.MacroPage })));
 const FiiDiiPage = lazy(() => import("./pages/FiiDii").then((m) => ({ default: m.FiiDiiPage })));
 const SipCalculator = lazy(() => import("./pages/SipCalculator").then((m) => ({ default: m.SipCalculator })));
-const OptionChainPage = lazy(() => import("./pages/OptionChain").then((m) => ({ default: m.OptionChainPage })));
 const CommoditiesPage = lazy(() => import("./pages/Commodities").then((m) => ({ default: m.CommoditiesPage })));
 const StressLabPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabPage })));
+const SuperinvestorsPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorsPage })));
+const SuperinvestorPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorPage })));
 const StressLabIndexPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabIndexPage })));
 const OutlookPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookPage })));
 const OutlookIndexPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookIndexPage })));
@@ -111,7 +112,8 @@ export default function App() {
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
             <Route path="premium/fundamentals" element={<FundamentalsPage />} />
-            <Route path="premium/options" element={<OptionChainPage />} />
+            {/* Option chain: off for now (task #213); old links land on the Gold dashboards. The page (pages/OptionChain.tsx), /api/options and the option lot-size job stay, so it can come back by restoring this route and its nav entry. */}
+            <Route path="premium/options" element={<Navigate to="/premium" replace />} />
             <Route path="premium/report" element={<PremiumReportPage />} />
             <Route path="premium/report/:symbol" element={<PremiumReportPage />} />
             <Route path="prism" element={<PrismPage />} />
@@ -138,6 +140,8 @@ export default function App() {
             <Route path="outlook" element={<OutlookIndexPage />} />
             <Route path="outlook/:symbol" element={<OutlookPage />} />
             <Route path="research/stress-lab" element={<StressLabIndexPage />} />
+            <Route path="superinvestors" element={<SuperinvestorsPage />} />
+            <Route path="superinvestors/:key" element={<SuperinvestorPage />} />
             <Route path="research/stress-lab/:symbol" element={<StressLabPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
             <Route path="sip-calculator" element={<SipCalculator />} />

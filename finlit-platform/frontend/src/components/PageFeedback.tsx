@@ -1,4 +1,4 @@
-// "Raise a Query" (in a page's banner) and "Share Feedback" (a button at the foot of every page), with the one dialog both open.
+// "Raise a Query" and "Share Feedback", side by side at the bottom right of every page (task #214), with the one dialog both open.
 // Every message goes to the team tagged with the page it was written on (lib/pageFeedback.ts). Styles: styles/pagefeedback.css (pf-).
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -8,15 +8,13 @@ import { ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useFocusTrap } from "../lib/focusTrap";
 import { Icon } from "../lib/icons";
-import { FEEDBACK_TYPES, MESSAGE_MAX, QUERY_MIN, QUERY_TYPES, RATING_WORDS, banner, draftProblem, pageTag, panel, sendPageFeedback, type Kind } from "../lib/pageFeedback";
+import { FEEDBACK_TYPES, MESSAGE_MAX, QUERY_MIN, QUERY_TYPES, RATING_WORDS, draftProblem, pageTag, panel, sendPageFeedback, type Kind } from "../lib/pageFeedback";
 import "../styles/pagefeedback.css";
 
 const openKind = () => useSyncExternalStore(panel.sub, panel.get, () => null);
-const bannerCount = () => useSyncExternalStore(banner.sub, banner.get, () => 0);
 
-/** The button in the page banner, after the page's own buttons. Counting it tells the dock the page already has one. */
+/** An inline "Raise a Query" for a spot inside a page that invites a question (the screener's "A question about a score?"); it opens the same dialog. */
 export function RaiseQueryButton() {
-  useEffect(() => banner.add(), []);
   return <button type="button" className="ph-qbtn" onClick={() => panel.set("query")} aria-haspopup="dialog"><Icon name="bubble" />Raise a Query</button>;
 }
 
@@ -41,10 +39,10 @@ function Stars({ value, onChange }: { value: number; onChange: (v: number) => vo
   );
 }
 
-export function FeedbackDialog({ kind, pathname, plan, onClose }: { kind: Kind; pathname: string; plan: string | null; onClose: () => void }) {
+export function FeedbackDialog({ kind, pathname, search, plan, onClose }: { kind: Kind; pathname: string; search?: string; plan: string | null; onClose: () => void }) {
   const { user } = useAuth();
   const signedIn = !!user;
-  const tag = useMemo(() => pageTag(pathname, plan), [pathname, plan]);   // read once when the dialog opens: it describes the page the member was on
+  const tag = useMemo(() => pageTag(pathname + (search ?? ""), plan), [pathname, plan]);   // read once when the dialog opens: it describes the page the member was on
   const ref = useRef<HTMLDivElement>(null), tid = useId(), mid = useId();
   const [category, setCategory] = useState<string>(kind === "query" ? "question" : "suggestion");
   const [message, setMessage] = useState(""), [rating, setRating] = useState(0), [email, setEmail] = useState(""), [tried, setTried] = useState(false);
@@ -96,12 +94,14 @@ export function FeedbackDialog({ kind, pathname, plan, onClose }: { kind: Kind; 
     </>, document.body);
 }
 
-/** Always on screen, bottom right: "Share feedback" for the page, and "Raise a Query" when the page has no banner to carry it. Also draws the dialog. */
+/** Always on screen, bottom right, on every page: "Raise a Query" beside "Share feedback", always in the same place (task #214; the query button used to sit
+ *  in each page's banner, so its place moved from page to page). Also draws the dialog. */
 export function PageFeedbackDock() {
   const inRouter = useInRouterContext();
-  const pathname = inRouter ? useLocation().pathname : "/";   // eslint-disable-line react-hooks/rules-of-hooks
+  const loc = inRouter ? useLocation() : null;   // eslint-disable-line react-hooks/rules-of-hooks
+  const pathname = loc?.pathname ?? "/", search = loc?.search ?? "";
   const { user, plan } = useAuth();
-  const open = openKind(), banners = bannerCount();
+  const open = openKind();
   useEffect(() => { panel.set(null); }, [pathname]);   // moving to another page closes it: it was about the page left behind
   // Task #79, SL-12c: on a phone the buttons are small round icons that step aside while the page scrolls down, so they never sit over what is being read
   const [away, setAway] = useState(false);
@@ -114,11 +114,11 @@ export function PageFeedbackDock() {
   if (/^\/admin(\/|$)/.test(pathname)) return null;
   return (
     <>
-      <div className="pf-dock" data-no-banner={banners === 0 || undefined} data-away={away || undefined}>
-        {banners === 0 && <button type="button" className="pf-fab pf-fab-q" aria-label="Raise a Query" onClick={() => panel.set("query")} aria-haspopup="dialog"><Icon name="bubble" /><span>Raise a Query</span></button>}
+      <div className="pf-dock" role="group" aria-label="Help with this page" data-away={away || undefined}>
+        <button type="button" className="pf-fab pf-fab-q" aria-label="Raise a Query" onClick={() => panel.set("query")} aria-haspopup="dialog"><Icon name="bubble" /><span>Raise a Query</span></button>
         <button type="button" className="pf-fab" aria-label="Share feedback" onClick={() => panel.set("feedback")} aria-haspopup="dialog"><Icon name="pencil" /><span>Share feedback</span></button>
       </div>
-      {open && <FeedbackDialog key={open + pathname} kind={open} pathname={pathname} plan={user ? plan : null} onClose={() => panel.set(null)} />}
+      {open && <FeedbackDialog key={open + pathname} kind={open} pathname={pathname} search={search} plan={user ? plan : null} onClose={() => panel.set(null)} />}
     </>
   );
 }

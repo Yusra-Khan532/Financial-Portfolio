@@ -9,10 +9,18 @@ from finlit.portfolio_page import api as pf_api
 from test_auth import app, new_client, signed_in  # noqa: F401
 from test_integration import ingested, make_settings, store  # noqa: F401
 from test_diversification_calc import SAMPLE
-from test_diversification_api import seed, _clock  # noqa: F401  (seed data + fixed clock)
+from test_diversification_api import seed as _seed, _clock  # noqa: F401  (seed data + fixed clock)
 
 pytestmark = pytest.mark.integration
 URL = "/api/portfolio/page"
+
+
+async def seed(app, classes=None):  # noqa: F811
+    """The diversification seed (it clears the stored NSE classification of these symbols), plus `classes` (symbol -> macro sector) when given."""
+    await _seed(app)
+    async with app.state.store.pool.acquire() as conn:
+        for sym, macro in (classes or {}).items():
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, $2, $2, $2, 'test', 1)", sym, macro)
 
 
 async def test_only_share_names_are_accepted(app):  # noqa: F811
@@ -51,7 +59,7 @@ async def test_page_for_a_stored_list_and_the_card_agree(app):  # noqa: F811
     page = j["page"]
     assert j["unknown"] == ["ZZUNKNOWN"] and j["symbols"][-1] == "NEWCO" and "NEWCO" in page["short_history"] and "NEWCO" not in page["order"]
     assert page["to"] == "2026-10-30" and page["weeks"] == 104 and page["layout"] == "long" and page["together_open_by_default"] is False   # 16 shares
-    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr"} and j["meta"]["TCS"]["size"] == "L"
+    assert set(j["meta"]["TCS"]) == {"name", "sector", "size", "mcap_cr", "nse"} and j["meta"]["TCS"]["size"] == "L"   # nse: the three NSE levels (task #183)
     assert len(page["summary"]["eq"]) <= 5 and all(x["text"] for x in page["summary"]["eq"])
     card = (await silver.post("/api/diversification", json={"symbols": SAMPLE + ["NEWCO"]})).json()
     clean = (await silver.post(URL, json={"symbols": SAMPLE + ["NEWCO"]})).json()["page"]["score"]
@@ -122,3 +130,39 @@ async def test_score_is_gold_strict_and_never_returns_weights(app):  # noqa: F81
     assert "weight" not in text and "points" not in text and "blend" not in text
     # the names-only page endpoint is untouched
     assert (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+
+
+async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # noqa: F811
+    """POST /api/portfolio/risk (W8): Silver and Gold, never Basic; each share against its size index (index closes), the three list betas, 3-year swing and fall."""
+    import json as _json
+    import time as _time
+    from test_diversification_api import PRICES_MAX
+    await seed(app)
+    rows = [{"quote_date": r["d"], "close_price": r["c"]} for r in PRICES_MAX["__NIFTY"]["rows"]]
+    for code, k in (("NIFMID150", 1.1), ("NIFSMA250", 1.25)):
+        await app.state.store.redis.set(f"idx:px:{code}", _json.dumps({"t": _time.time(), "v": {"rows": [{**r, "close_price": r["close_price"] * k} for r in rows]}}))
+    basic = await signed_in(app, "rb@example.com", plan="basic")
+    assert (await basic.post("/api/portfolio/risk", json={"symbols": SAMPLE})).status_code == 403
+    silver = await signed_in(app, "rs@example.com", plan="silver")
+    assert (await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE, "qty": [1]})).status_code == 422
+    r = await silver.post("/api/portfolio/risk", json={"symbols": SAMPLE + ["NEWCO", "ZZUNKNOWN"]})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["unknown"] == ["ZZUNKNOWN"] and j["missingIndex"] == []
+    by = {x["symbol"]: x for x in j["shares"]}
+    assert by["NEWCO"]["beta"] is None and by["NEWCO"]["why"] in ("Under a year of prices", "No size band yet")
+    counted = [x for x in j["shares"] if x["beta"] is not None]
+    assert counted and all(x["benchmark"] in ("Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250") and 0 <= x["explained"] <= 100 for x in counted)
+    assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
+    assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
+    assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0
+
+
+async def test_task_183_card_and_page_agree_when_nse_levels_are_stored(app):  # noqa: F811
+    """With NSE's stored macro sectors for part of the list, the Diversification card and the page read the same levels, so their scores still agree."""
+    await seed(app, {s: "Financial Services" for s in list(SAMPLE)[:4]})
+    silver = await signed_in(app, "s183c@example.com", plan="silver")
+    page = (await silver.post(URL, json={"symbols": SAMPLE})).json()
+    card = (await silver.post("/api/diversification", json={"symbols": SAMPLE})).json()
+    assert [page["meta"][s]["nse"]["macro_sector"] for s in list(SAMPLE)[:4]] == ["Financial Services"] * 4
+    assert card["score"]["value"] == page["page"]["score"]["score"] and card["score"]["sectorSpread"] == page["page"]["score"]["sector_spread"]

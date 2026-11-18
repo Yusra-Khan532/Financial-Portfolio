@@ -34,7 +34,8 @@ function Card({ c, onExpand }: { c: PlatformCard; onExpand: (id: string) => void
  *  same line. A paid tool shows one golden crown after its name instead of a "Gold"/"Silver" word (task #158); the plan stays readable for screen readers. The few words on what it does stay for screen readers and the tooltip. The assistant opens its panel; every other tool opens its page. */
 function Tool({ c }: { c: PlatformCard }) {
   const inner = <><span className="xt-ti" aria-hidden="true"><Icon name={TOOL_ICON[c.id] ?? "grid"} /></span>
-    <span className="xt-nm">{c.badge === "FREE" ? <b>{c.rowTitle ?? c.title}</b> : <Crowned title={c.rowTitle ?? c.title} plan={BADGE_LABEL[c.badge]} />}</span>
+    <span className="xt-nm">{(c.crown === undefined ? c.badge === "FREE" : c.crown === false) ? <b>{c.rowTitle ?? c.title}</b>
+      : <Crowned title={c.rowTitle ?? c.title} plan={c.crown ? `free to open, more with the ${BADGE_LABEL[c.crown]}` : BADGE_LABEL[c.badge]} />}</span>
     {FIGURE[c.id] && <span className="xt-fig"><strong>{FIGURE[c.id][0]}</strong> {FIGURE[c.id][1]}</span>}<small>{SHORT[c.id]}</small></>;
   return <li>{c.id === "finlit-bot" ? <button type="button" className="xt-tool" title={SHORT[c.id]} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-haspopup="dialog">{inner}</button> : <Link className="xt-tool" to={c.link} title={SHORT[c.id]}>{inner}</Link>}</li>;
 }
@@ -45,9 +46,9 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
 }
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
-  "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line",
-  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "option-chain": "grid", "stress-lab": "alert",
-  "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare",
+  "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line", "correlation-charts": "activity",
+  "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "stress-lab": "alert",
+  "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare", "etf-portfolio": "bars",
   "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-calendar": "calendar", "ipo-calendar": "bell",
   "glossary": "book", "discussion-forum": "users", "browser-extension": "globe", "insights-blog": "notes", "finlit-bot": "chat",
 };
@@ -126,6 +127,17 @@ export function ExploreTools() {
     addEventListener(OPEN_EXPLORE, on); addEventListener("hashchange", hash); addEventListener("popstate", hash);
     return () => { removeEventListener(OPEN_EXPLORE, on); removeEventListener("hashchange", hash); removeEventListener("popstate", hash); };
   }, []);
+  // task #200: when the chips do not all fit (a narrow screen), the strip scrolls sideways; a fade marks the side that has more chips, and the open
+  // group's chip is brought into view
+  const strip = useRef<HTMLDivElement>(null), [more, setMore] = useState({ l: false, r: false });
+  useEffect(() => {
+    const el = strip.current; if (!el) return;
+    const on = () => setMore({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+    const cur = el.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (cur && el.scrollWidth > el.clientWidth) { const l = cur.offsetLeft - el.offsetLeft; if (l < el.scrollLeft || l + cur.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, l - 24); }
+    on(); el.addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
+    return () => { el.removeEventListener("scroll", on); removeEventListener("resize", on); };
+  }, [mode]);
   useEffect(() => {   // a chip, Previous or Next brings the bar back to the top of the screen when it has scrolled away
     if (!toTop.current) return; toTop.current = false;
     const el = bar.current; if (!el) return;
@@ -163,8 +175,8 @@ export function ExploreTools() {
         {group && prev && next && (
           <div className="fl-gv" data-group={group.id}>
             <div className="fl-gbar" ref={bar} role="group" aria-label="Tool groups">
-              <button type="button" className="fl-gall" onClick={() => show("dir")}><Icon name="grid" /><span>All groups</span></button>
-              <div className="fl-gchips">{BUCKETS.map((b) => (
+              <button type="button" className="fl-gall" aria-label="All groups" onClick={() => show("dir")}><Icon name="grid" /><span>All</span></button>
+              <div className="fl-gchips" ref={strip} data-more-l={more.l || undefined} data-more-r={more.r || undefined}>{BUCKETS.map((b) => (
                 <button key={b.id} type="button" className="fl-gchip" data-group={b.id} aria-pressed={b.id === group.id} onClick={() => show(b.id)}><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[b.id] ?? "grid"} /></span><span>{b.name}</span><b>{pad(b.cards.length)}</b></button>))}</div>
             </div>
             <div className="xt-pane"><div className="xt-ghead fl-gh"><span className="xt-gi" aria-hidden="true"><Icon name={GROUP_ICON[group.id] ?? "grid"} /></span><div><h3>{group.name}</h3><p>{group.line}</p></div><span>{group.cards.length} tools</span></div>

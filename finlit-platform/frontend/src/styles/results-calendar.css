@@ -40,31 +40,8 @@
 /* ---- callouts with a dropdown (the shared DashCard, components/dashboard/DashCards), and one Open all / Close all */
 .rsc .rsc-cards { margin: 0 0 12px; }
 .rsc .rsc-openall { display: flex; justify-content: flex-end; margin: 0 0 8px; }
-.rsc .dsh-openall { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 99px; background: var(--s1); color: var(--text); font: 600 var(--fs-small)/1 var(--sans); cursor: pointer; }
-.rsc .dsh-openall:hover { border-color: var(--gold); } .rsc .dsh-openall:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.rsc .dsh-ics { align-items: start; }
-.rsc .dsh-ic { display: block; padding: 0; }
-.rsc .dsh-ic-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 32px; gap: 12px; align-items: center; width: 100%; padding: 13px 14px 13px 16px; border: 0; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; }
-.rsc .dsh-ic-row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
-.rsc .dsh-ic-t { display: grid; min-width: 0; } .rsc .dsh-ic-t .sp-kind { margin: 0 0 3px; } .rsc .dsh-ic-t .sp-ct { margin: 0; font-weight: 600; line-height: 1.3; }
-.rsc .dsh-ic-chev { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); background: var(--s1); color: var(--muted); }
-.rsc .dsh-ic-row:hover .dsh-ic-chev { color: var(--text); }
-.rsc .dsh-ic-body { padding: 0 16px 14px 58px; } .rsc .dsh-ic-body .sp-cx { margin: 0; }
-@media (max-width: 640px) { .rsc .dsh-ic-body { padding-left: 16px; } }
-
-/* ---- tables: header rows on a light band, coloured group headers (tinted, not filled), a line on every column and row (START-HERE "Table headers and lines") */
-.rsc .rsc-grid { border-collapse: collapse; }
-.rsc .rsc-grid thead tr:last-child th { background: var(--s2); border-bottom: 2px solid var(--border-strong); font: 700 var(--fs-caption)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }   /* pack: 11.5px; the scale's nearest, 12 */
-.rsc .rsc-grid th, .rsc .rsc-grid td { border-right: 1px solid var(--border); }
-.rsc .rsc-grid th:last-child, .rsc .rsc-grid td:last-child { border-right: 0; }
-.rsc .rsc-grid tbody tr { border-bottom: 1px solid var(--border); }
-.rsc .rsc-grid tbody td { border-bottom: 1px solid var(--border); }
-.rsc .rsc-groups th { padding: 0; border-bottom: 0; background: none; }
-.rsc .rsc-groups .rsc-g { --g: var(--text); border-top: 3px solid var(--g); background: color-mix(in srgb, var(--g) 8%, transparent); }
-.rsc .rsc-groups .rsc-g span { justify-content: center; padding: 6px 0; border-bottom: 0; color: var(--g); font: 800 var(--fs-caption)/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
-.rsc .rsc-groups .rsc-g-rev { --g: #2F5A9E; } .rsc .rsc-groups .rsc-g-np { --g: #1F7A4A; } .rsc .rsc-groups .rsc-g-pm { --g: #A5741A; } .rsc .rsc-groups .rsc-g-vs { --g: #2B2B2B; }
-:root[data-theme="dark"] .rsc .rsc-groups .rsc-g-rev { --g: #9DB8E6; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-np { --g: #7FD8A6; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-pm { --g: #E9C46A; } :root[data-theme="dark"] .rsc .rsc-groups .rsc-g-vs { --g: #E8E4DA; }
-
+/* ---- tables: the shared grid (styles/table-grid.css, kit-grid / kit-bands, task #194) and the shared dropdown cards (styles/dash-cards.css, imported by
+   DashCards.tsx): one copy for every page, so this page keeps none of its own. */
 /* ---- Coming up this week: set column widths (the spare width goes to Company), Industry not set, the industry so far, the typical profit chip */
 .rsc .rsc-week-t { table-layout: fixed; width: 100%; min-width: 1004px; }
 .rsc .rsc-week-t td { overflow-wrap: anywhere; }

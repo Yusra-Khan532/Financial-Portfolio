@@ -18,7 +18,7 @@ export const SHOTS = {
   "stock-radar": "/screener", "score-screener": "/advanced-score-screener", "etf-explorer": "/etfs", "fund-finder": "/funds",
   "fund-health-check": "/fund-score-screener", "chart-studio": "/graphs", "peer-compare": "/compare", "company-health-score": "/prism",
   "company-financials": "/premium/fundamentals?symbol=RELIANCE", "deep-dive-report": "/premium/report/RELIANCE", "fair-value-calculator": "/dcf",
-  "forecast-builder": "/outlook/RELIANCE", "finance-calculators": "/eps-calculator", "option-chain": "/premium/options",
+  "forecast-builder": "/outlook/RELIANCE", "finance-calculators": "/eps-calculator",
   "watchlists": "/watchlist", "portfolio-check-up": "/holdings", "alerts": "/alerts", "compare-funds": "/funds/compare",
   "theme-tracker": "/sectors", "market-dashboard": "/premium/markets", "newsroom": "/news", "investor-circle": "/forum",
 };
