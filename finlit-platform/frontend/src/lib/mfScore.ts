@@ -1,11 +1,11 @@
-// FinLit FundPulse: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
+// Mutual Fund Score: types, hooks and the words (the model is in backend/finlit/mfscore, the plain-language page is /methodology/mf-score).
 // The score DESCRIBES a fund's health from its past NAVs, costs and holdings. It never advises: no buy, sell or hold wording anywhere in this file.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "./api";
 import { scoreBand, type ScoreBand } from "./scoreBands";
 import { nf } from "./format";
 
-export const MF_SCORE_NAME = "FinLit FundPulse";
+export const MF_SCORE_NAME = "Mutual Fund Score";
 export const MF_SCORE_COMPLIANCE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.";
 export const MF_METHOD_URL = "/methodology/mf-score";
 export const PILLAR_HELP: Record<string, string> = {
@@ -85,7 +85,7 @@ export const builtOnText = (f?: { n: number; of: number }) => (!f || !f.of ? "" 
 export const ordinal = (n: number) => { const t = n % 100, u = n % 10; return `${n}${t >= 11 && t <= 13 ? "th" : u === 1 ? "st" : u === 2 ? "nd" : u === 3 ? "rd" : "th"}`; };
 const WORD_ORDER = ["Strong", "Fair", "Weak"];
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-/** FinLit FundPulse in one plain line, from the four part words and the rank (task #132):
+/** Mutual Fund Score in one plain line, from the four part words and the rank (task #132):
  *  "Strong on risk and cost, weak on performance and quality: 60.3, Average, 14th of 36 Flexi Cap funds (Direct plan)." */
 export function scoreSentence(s: Pick<FundScore, "final" | "label" | "pillars" | "rank" | "family">): string | null {
   if (s.final == null) return null;

@@ -8,7 +8,7 @@ import { PrismShowcase } from "../components/PrismShowcase";
 import { tourLook, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
-const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · FinLit FundPulse · Portfolio";
+const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · Mutual Fund Score · Portfolio";
 const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const src = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-720p.mp4" : "finlit-tour-720p.mp4"}`;
 const poster = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-poster.jpg" : "finlit-tour-poster.jpg"}`;

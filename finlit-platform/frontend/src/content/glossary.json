@@ -1814,7 +1814,7 @@
    "formula": "Downside capture = Fund return in down periods ÷ Yardstick return in down periods × 100",
    "id": "downside-capture-ratio",
    "letter": "D",
-   "finlit": "In FinLit FundPulse, 'How it behaved when similar funds fell' measures this against similar funds, which stand in for the benchmark.",
+   "finlit": "In Mutual Fund Score, 'How it behaved when similar funds fell' measures this against similar funds, which stand in for the benchmark.",
    "aliases": [
     "Downside capture",
     "How it behaved when similar funds fell",
@@ -4122,7 +4122,7 @@
    "formula": "Months ahead % = Months above the category median ÷ Months counted × 100",
    "id": "months-ahead-of-peers",
    "letter": "M",
-   "finlit": "In FinLit FundPulse this is 'Months it matched similar funds', part of Performance.",
+   "finlit": "In Mutual Fund Score this is 'Months it matched similar funds', part of Performance.",
    "aliases": [
     "Months ahead of peers (last 36)",
     "Months it matched similar funds",
@@ -4171,7 +4171,7 @@
    "aliases": []
   },
   {
-   "term": "FinLit FundPulse",
+   "term": "Mutual Fund Score",
    "topic": "FinLit words",
    "meaning": "FinLit's 0 to 100 score of a mutual fund against funds of the same kind, built from four parts: Performance, Risk, Cost and Quality (age, size and how the portfolio is built). How much each part counts depends on the fund group and stays with the model.",
    "why": "Return is only one part of a fund; how bumpy and deep its falls were and what it costs count too.",
