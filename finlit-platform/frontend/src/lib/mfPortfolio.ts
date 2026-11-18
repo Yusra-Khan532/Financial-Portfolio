@@ -15,6 +15,10 @@ export type Lot = { id: string; units: number; invested: number | null; boughtOn
 export type ScoreBlock = {
   locked: boolean; final: number | null; label: string | null; status: string | null; reason: string | null; runDate: string | null;
   parts: Record<PartKey, number | null> | null; inherited: { name: string; why: string } | null;
+  /** The server's word for each part (Strong / Fair / Weak, task #183): the page never cuts the numbers itself. */
+  words?: Record<PartKey, string> | null;
+  /** The fund's place in its category ("13 of 28 in category"); for an IDCW option, its Growth plan's. */
+  rank?: { rank: number; of: number; scope: string | null; categoryLabel: string | null } | null;
 };
 export type Holding = {
   id: string; code: number; folio: string; units: number | null; lots: Lot[]; followed?: boolean;
@@ -161,7 +165,13 @@ export type MfSpread = {
   trendLocked?: boolean; trend?: MfTrend;
   overlap: { a: number; b: number; pct: number; n: number }[];
   together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };
-  coverage: { funds: number; disclosed: number; missing: number[] };
+  coverage: { funds: number; disclosed: number; missing: number[]; notMatched?: number };
+  /** Task #183: the look-through grid. Keys "Macro sector|Large" (or "Sector|Small", "…|Unsized"); w = share of the whole list; every company per cell. */
+  lookThrough?: Record<"macro" | "sector", Record<string, { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }>>;
+  /** Each NSE sector's macro sector. */
+  sectorMacro?: Record<string, string>;
+  /** Each fund's split of its own money: by macro sector, by sector and by size (fractions of the fund). */
+  perFund?: Record<string, { macro: Record<string, number>; sector: Record<string, number>; size: Record<string, number> }>;
   funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
 };
 export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });

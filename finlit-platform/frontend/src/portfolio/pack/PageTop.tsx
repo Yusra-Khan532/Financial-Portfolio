@@ -17,9 +17,10 @@ export function jumpTo(id: string, retry = true) {
   setTimeout(() => el.classList.remove("eqt-flash"), 1600);
 }
 
-export function TopGrid({ score, tiles, onOpen }: { score: React.ReactNode; tiles: TopTile[]; onOpen: (t: TabKey) => void }) {
+/** Generic over the page's tab names (Equity: portfolio | diversification | risk; MF: funds | mix | risk). */
+export function TopGrid<T extends string = TabKey>({ score, tiles, onOpen, label = "Your portfolio at a glance" }: { score: React.ReactNode; tiles: (Omit<TopTile, "id"> & { id: T })[]; onOpen: (t: T) => void; label?: string }) {
   return (
-    <section className="eqt-grid" aria-label="Your portfolio at a glance">
+    <section className="eqt-grid" aria-label={label}>
       {score}
       {tiles.map((t) => (
         <div key={t.id} className={"eqt-tile eqt-" + t.tone} role="link" tabIndex={0} aria-label={`${t.k}: ${t.v}. ${t.link}`} onClick={() => onOpen(t.id)}
@@ -45,14 +46,15 @@ export function ScoreLocked() {
 }
 
 const KF_KEY = "finlit-eq-keyfig";
-const readOpen = (tab: TabKey) => { try { const v = JSON.parse(localStorage.getItem(KF_KEY) || "{}")[tab]; return v !== false; } catch { return true; } };
-const saveOpen = (tab: TabKey, open: boolean) => { try { const all = JSON.parse(localStorage.getItem(KF_KEY) || "{}"); all[tab] = open; localStorage.setItem(KF_KEY, JSON.stringify(all)); } catch { /* not kept */ } };
+const readOpen = (tab: string, key = KF_KEY) => { try { const v = JSON.parse(localStorage.getItem(key) || "{}")[tab]; return v !== false; } catch { return true; } };
+const saveOpen = (tab: string, open: boolean, key = KF_KEY) => { try { const all = JSON.parse(localStorage.getItem(key) || "{}"); all[tab] = open; localStorage.setItem(key, JSON.stringify(all)); } catch { /* not kept */ } };
 
-export function KeyFigures({ tab, sub, cards }: { tab: TabKey; sub: string; cards: KeyCard[] }) {
-  const [open, setOpen] = useState(() => readOpen(tab));
-  useEffect(() => { setOpen(readOpen(tab)); }, [tab]);
+/** `store`: the browser key that remembers open or closed per tab (one per page, so two pages' "risk" tabs do not share it). */
+export function KeyFigures({ tab, sub, cards, store = KF_KEY }: { tab: string; sub: string; cards: KeyCard[]; store?: string }) {
+  const [open, setOpen] = useState(() => readOpen(tab, store));
+  useEffect(() => { setOpen(readOpen(tab, store)); }, [tab, store]);
   if (!cards.length) return null;
-  const flip = () => { saveOpen(tab, !open); setOpen(!open); };
+  const flip = () => { saveOpen(tab, !open, store); setOpen(!open); };
   return (
     <section className="eqt-kf" aria-labelledby={`eqt-kf-${tab}`}>
       <div className="eqt-kf-h"><div><h2 id={`eqt-kf-${tab}`}>Key figures</h2><p>{sub}</p></div>
@@ -65,7 +67,7 @@ export function KeyFigures({ tab, sub, cards }: { tab: TabKey; sub: string; card
 }
 
 export type Sec = [id: string, label: string];
-export function SectionsBar({ tab, all, onTab }: { tab: TabKey; all: Record<TabKey, { label: string; secs: Sec[] }>; onTab: (t: TabKey, then?: string) => void }) {
+export function SectionsBar<T extends string = TabKey>({ tab, all, onTab }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void }) {
   const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false);
   useEffect(() => {
     setOn(secs[0]?.[0] ?? "");
@@ -79,7 +81,7 @@ export function SectionsBar({ tab, all, onTab }: { tab: TabKey; all: Record<TabK
   return (
     <nav className="eqt-bar" aria-label="Sections on this tab">
       <span className="eqt-allw"><button type="button" className="eqt-all" aria-expanded={menu} aria-haspopup="true" onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }}>All sections</button>
-        {menu && <div className="eqt-menu" role="menu">{(Object.keys(all) as TabKey[]).map((t) => <div key={t}><p>{all[t].label}</p>
+        {menu && <div className="eqt-menu" role="menu">{(Object.keys(all) as T[]).map((t) => <div key={t}><p>{all[t].label}</p>
           {all[t].secs.map(([id, label], i) => <button key={id} type="button" role="menuitem" onClick={() => { setMenu(false); if (t === tab) { setOn(id); jumpTo(id); } else onTab(t, id); }}><span className="eqt-n">{i + 1}</span>{label}</button>)}</div>)}</div>}</span>
       {secs.map(([id, label], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
         <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}</button></span>)}

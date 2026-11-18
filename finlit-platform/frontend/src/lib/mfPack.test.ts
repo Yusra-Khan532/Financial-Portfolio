@@ -1,7 +1,7 @@
 // The MF portfolio's words, checked with the pack's own sample (board 15, 6 Nov 2026).
 import { describe, expect, it } from "vitest";
 import { wordCase } from "../mf/pack/MfPack";
-import { fundCards, fundTag, mfTiles, shortFund, underCards, type MfRisk, type Under } from "./mfPack";
+import { fundCards, fundTag, shortFund, underCards, type MfRisk, type Under } from "./mfPack";
 
 const h = (code: number, name: string, cat: string, final: number | null, label: string | null) => ({ code, name, categoryLabel: cat, score: { final, label } }) as never;
 const HS = [h(1, "Parag Parikh Flexi Cap Fund - Direct Plan - Growth", "Flexi Cap", 78, "Healthy"), h(2, "HDFC Flexi Cap Fund - Growth Option - Direct Plan", "Flexi Cap", 74, "Healthy"),
@@ -19,14 +19,6 @@ const UNDER = [U("HDFC Bank", 0.061, pt("laggard", 11, 12, "Private banks")), U(
   U("Bajaj Finance", 0.022, pt("in_line", 12, 33, "Finance")), U("Kotak Mahindra Bank", 0.02, pt("in_line", 4, 12, "Private banks")), U("Larsen & Toubro", 0.019, pt("in_line", 9, 18, "Engineering")), U("ITC", 0.018, pt("laggard", 24, 26, "Consumer"))];
 
 describe("MF portfolio words", () => {
-  it("the five tiles", () => {
-    expect(mfTiles(HS, false, SP, RK, UNDER).map((t) => `${t.k}: ${t.v} | ${t.sub}`)).toEqual([
-      "Funds: 5 | 2 flexi cap · 2 small cap · 1 large cap", "Average health: 70 | 3 healthy · 2 average", "Highest overlap: 38% | HDFC Flexi Cap and ICICI Prudential Large Cap",
-      "Top 10 stocks vs peers: 0 lead · 5 lag | 5 in line · the 10 biggest stocks inside your funds", "Risk level: A little higher | than the Nifty 500, because of the two small-cap funds"]);
-    expect(mfTiles(HS, false, SP, RK, UNDER)[4].tone).toBe("warn");
-    expect(mfTiles(HS, false, SP, { ...RK, list: { ...RK.list, level: { word: "A little lower", vs: "the Nifty 500", because: null, riskier: [] } } }, UNDER)[4]).toMatchObject({ tone: "good", sub: "than the Nifty 500" });
-    expect(mfTiles(HS, true, SP, RK, UNDER)[1]).toMatchObject({ v: "Gold plan", sub: "Each fund's FundPulse opens with Gold" });
-  });
   it("the three cards above Your funds", () => {
     expect(fundCards(RK, HS, false, SP)).toEqual([
       { kind: "good", title: "Parag Parikh Flexi Cap is the steadiest", text: "It took only 62% of the market's falls, with a healthy score of 78." },

@@ -27,8 +27,12 @@ import { apiGet, type ApiError } from "../lib/api";
 import { useUniverse } from "../lib/screener";
 import { capBucket } from "../lib/capBuckets";
 import type { Leadership } from "../lib/leadership";
-import { mfTiles, type MfRisk, type Under } from "../lib/mfPack";
-import { FundsSection, ListRisk, MfTabs, MfTiles, UnderSection, type MfView } from "../mf/pack/MfPack";
+import { type MfRisk, type Under } from "../lib/mfPack";
+import { FundsSection, ListRisk, MfTabs, UnderSection, type MfView } from "../mf/pack/MfPack";
+import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
+import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
+import { ListBox } from "../mf/pack/MfTop";
+import "../portfolio/pack/pagetop.css";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
@@ -205,7 +209,10 @@ export function MfPortfolioPage() {
       peer: ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.peerGroup.ranked, group: ld.peerGroup.short || ld.peerGroup.name } : null,
       notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [top, byU, leads]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const tiles = mfTiles(all, locked, sp.data, rk.data, under);
+  const tiles = mfTiles(all, sp.data, rk.data), box = listBox(all, sp.data);
+  // a Key figures card that names "Add units" opens the dialog; one in another tab opens that tab first, then its section (the sections bar's jump)
+  useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") setUnits(true); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
+  const goTab = (t: MfView, then?: string) => { setView(t); if (then) setTimeout(() => jumpTo(then), 60); };
 
   return (
     <div className="wrap ipo mp sp mfp">
@@ -234,9 +241,12 @@ export function MfPortfolioPage() {
           <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".mfp-add .mp-search input") as HTMLInputElement | null)?.focus()}>Add a fund</button>
             <button type="button" className="btn" onClick={() => setImporting(true)}>Import a statement</button></div></section>}
         {d && d.count > 0 && <>
-          <MfTiles tiles={tiles} onGo={(to) => setView(to, true)} />
+          <TopGrid score={<ListBox box={box} onUnits={() => setUnits(true)} />} tiles={tiles} onOpen={(t) => setView(t, true)} label="Your MF portfolio at a glance" />
           {d.summary.notes.map((n) => <p key={n} className="sp-note" role="note">{n}</p>)}
           <div id="mfp-tabsbox"><MfTabs view={view} onView={(v) => setView(v)} /></div>
+          <SectionsBar tab={view} all={MF_SECS} onTab={goTab} />
+          <KeyFigures store="finlit-mf-keyfig" tab={view} sub={view === "funds" ? `What matters most in your ${all.length} ${all.length === 1 ? "fund" : "funds"}` : view === "mix" ? "How alike your funds really are" : "Where the list's risk sits"}
+            cards={view === "funds" ? fundsCards(all, sp.data) : view === "mix" ? mixCards(sp.data) : riskCards(rk.data)} />
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
           {view === "funds" && <>
             <FundsSection hs={rows} rk={rk.data} rkErr={rk.isError ? errText(rk.error) : null} sp={sp.data} locked={locked} onUnlock={unlock} cols={cols} onCols={setCols}

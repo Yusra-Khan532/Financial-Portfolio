@@ -54,3 +54,11 @@
 .mfu-t tfoot th, .mfu-t tfoot td { font-weight: 700; border-bottom: 0; }
 .mfu-go { border-color: var(--text) !important; background: var(--text) !important; }
 .mfp-empty h2 { margin: 0 0 6px; font: 600 24px/1.3 var(--serif); } .mfp-empty-b { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+/* Task #183: the dark "Your MF list" box, first cell of the top grid */
+.mfp-listbox { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 18px 20px; border-radius: 16px; background: #14211c; color: #f3eee2; }
+.mfp-lb-k { margin: 0; font: 600 var(--fs-label, 11px)/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #e9cf8f; display: flex; align-items: center; gap: 4px; }
+.mfp-lb-k .sp-i { border-color: #cfc6b0; color: #cfc6b0; }
+.mfp-lb-v { margin: 0; font: 400 16px/1.2 var(--sans); } .mfp-lb-v b { font: 600 32px/1.1 var(--serif); margin-right: 4px; }
+.mfp-lb-x { margin: 0; font-size: 13px; line-height: 1.5; color: #d9d2c2; }
+.mfp-lb-go { align-self: flex-start; margin-top: 4px; min-height: 36px; padding: 0 16px; border-radius: 10px; border: 0; background: #fbf8f1; color: #14211c; font: 600 14px var(--sans); cursor: pointer; }
+.mfp-lb-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
