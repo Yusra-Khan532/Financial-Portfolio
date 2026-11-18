@@ -115,3 +115,9 @@ is in `frontend/src/lib/feed.ts docType` and `pages.doc_type`.
 `backend/tests/test_ask.py` (a scripted model, real Postgres and Redis, Basic / Silver / Gold members), `backend/tests/test_ask_pages.py` (the page
 tools on copies of the live site's answers, a real PDF, the links), `frontend/src/components/AssistantMore.test.tsx`
 (written answers in the panel), `frontend/src/lib/askAi.test.ts` (the event stream).
+
+## Discovery (task #221, 18 Nov 2026)
+
+`get_discovery` (in `ask/pages.py`) reads `/api/discovery`: companies grouped by the themes their newest investor presentation talks about
+(docs/DISCOVERY.md). The instructions send "which companies are into ..." questions to it, with the caution that a keyword mention alone is not proof of
+a material business. The same nightly reading fixed `read_company_document` for NSE's files (`.in` links, NSE's archive refusing a non-browser agent).

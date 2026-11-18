@@ -288,6 +288,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             sla=Sla("hours", 48), resumable=True, catchup=False, max_attempts=3,
             gate=Gate("GEMINI_API_KEY", "Earnings-call summaries are off: GEMINI_API_KEY is empty (docs/EARNINGS-CALLS.md)", kind="set"),
             what="earnings-call summaries: finds the latest transcripts of the largest companies, reads their text and answers ten fixed questions with the language model, quote by quote (bounded per run, free tier)"),
+        Job("discovery", ("refresh-discovery", "--max-minutes", "40", "--limit", "300"), cls="bulk", priority=48, max_runtime_min=50, weight_mb=250, stall_min=25,
+            windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30), resumable=True, catchup=True, max_attempts=5, probe="discovery", min_gap_min=5,
+            what="Discovery (task #221): reads each company's newest investor presentation from Documents (first 80 pages) and puts the company in the founder's 21 "
+                 "themes by their keywords, with the sentences that hold figures; only companies with a new presentation (or a failed read a day old); resumable: a run "
+                 "that stops with presentations left is run again a few minutes later (probe); a file the exchange does not give is recorded with the reason (docs/DISCOVERY.md)"),
         Job("company-brief", ("refresh-company-brief",), cls="bulk", priority=46, max_runtime_min=60, weight_mb=300, stall_min=40, windows=(W("NIGHT", 20), W("MORNING", 14)),
             sla=Sla("hours", 72), resumable=True, catchup=False, max_attempts=3,
             what="company brief (the About section): reads the annual report and the latest filings of followed and largest companies, asks the language model to write what the company does, "

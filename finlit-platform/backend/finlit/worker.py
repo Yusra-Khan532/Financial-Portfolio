@@ -1127,6 +1127,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_cb.add_argument("--max-writes", type=int, default=None, help="write at most this many briefs in this run (default BRIEF_MAX_WRITES_PER_NIGHT)")
     p_cb.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
     p_cb.add_argument("symbols", nargs="*", help="only these companies")
+    p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
+    p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
+    p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
+    p_dc.add_argument("symbols", nargs="*", help="only these companies")
     p_oi = sub.add_parser("refresh-ownership", help="nightly: ownership insights of every company (docs/OWNERSHIP.md): a row from the stored shareholding, then the premium filing details (shareholders, pledge, share count, lock-in, named holders) for the companies that lack them, bounded")
     p_oi.add_argument("--max-minutes", type=float, default=20.0, help="start no new premium call after this many minutes")
     p_oi.add_argument("--limit", type=int, default=120, help="premium calls per run")
@@ -1651,6 +1655,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .mf import record_run
             res = await brief_service.run(store, settings, max_writes=args.max_writes, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
             await record_run(store, args.cmd, {k: v for k, v in res.items() if k != "written_symbols"})
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "refresh-discovery":
+            from .discovery import service as discovery_service
+            from .mf import record_run
+            res = await discovery_service.run(store, limit=args.limit, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
+            await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0
         if args.cmd == "refresh-ownership":
