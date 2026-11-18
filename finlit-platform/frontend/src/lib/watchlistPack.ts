@@ -8,7 +8,8 @@ export type LeadLabel = "leader" | "in_line" | "laggard";
 /** One stock's answer from /api/leadership/list. */
 export type ListLead =
   | { available: true; label: LeadLabel; rank: number; ranked: number; group: string; groupName?: string | null; sector: string | null; sectorKind?: string | null; rel52: number | null;
-      fundamentalRank: number | null; fundamentalOf: number | null; fundamentalNote: "below_peers" | "stronger_than_price" | null; stale?: boolean }
+      fundamentalRank: number | null; fundamentalOf: number | null; fundamentalNote: "below_peers" | "stronger_than_price" | null; stale?: boolean;
+      /** task #235 (E4): the week's own reading and its direction, for the Equity portfolio's table */ rawLabel?: LeadLabel | null; direction?: "gaining" | "weakening" | null }
   | { available: false; reason: string; text: string };
 export type ListLeadFeed = { available: true; asOf: string; rows: Record<string, ListLead> } | { available: false; reason: string };
 

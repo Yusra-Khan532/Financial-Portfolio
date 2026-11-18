@@ -289,7 +289,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     # ---- health
     s_scores = [scores.get(s["symbol"], {}) for s in shares] if shares else []
     for s, sc in zip(shares, s_scores):
-        s["score"], s["label"] = sc.get("score"), sc.get("label")
+        s["score"], s["label"] = sc.get("score"), calc.word_case(sc.get("label"))
     s_bands = PRISM_BANDS if gold else IQ_BANDS
     from ..analytics.scoring import band as iq_band
     word = (lambda v: label_of(v) or None) if gold else (lambda v: iq_band(v)["label"])
@@ -346,7 +346,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                       "size": c.get("size"), "all": calc.r(c["all"], 3), "direct": calc.r(c["direct"], 3), "funds": calc.r(c["funds"], 3), "etfs": calc.r(c["etfs"], 3), "held": c["held"],
                       "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + list(c["viaEtfs"]),
                       "score": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("score"),
-                      "label": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("label"),
+                      "label": None if c["abroad"] or not c["symbol"] else calc.word_case((scores.get(c["symbol"]) or {}).get("label")),
                       "peer": calc.peer_word(peer_raw.get(c["symbol"] or ""), c["direct"] > 0)} for c in companies]
     have = sum(1 for s in shares if s["qty"]) + sum(1 for f in funds if f["units"]) + sum(1 for e in etfs if e["qty"])
     files = [f["asOf"] for f in funds + etfs if f.get("asOf")]
