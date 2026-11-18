@@ -71,7 +71,7 @@
 .x-sw { display: none; position: sticky; left: 0; z-index: 3; flex: none; align-items: center; gap: 6px; padding: 0 8px 0 0; margin-right: 4px; background: var(--sp-panel, var(--s1)); border-right: 1px solid var(--border); border-radius: 999px 0 0 999px; }
 .x-sw-on > .x-sw { display: flex; }
 .eqt-bar .x-sw-b { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--s1); border-radius: 999px; min-height: 36px; padding: 0 10px 0 4px; font: 700 13px var(--sans); color: var(--text); cursor: pointer; white-space: nowrap; }
-.x-sw-b i { font-style: normal; font-size: 11px; opacity: .7; }
+.x-sw-b i { font-style: normal; font-size: 12px; opacity: .7; }
 .x-sw-b .acc-av, .x-swm .acc-av { grid-row: auto; width: 28px; height: 28px; border-radius: 50%; font-size: 12px; flex: none; }
 .x-sw-b[aria-expanded="true"] { border-color: var(--text); }
 .x-sw-p b { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
@@ -88,7 +88,7 @@
 @media (max-width: 1180px) { .x-sw-seg { display: none; } .eqt-bar .x-sw-vm { display: inline-flex; } }
 @media (max-width: 520px) { .x-sw { gap: 4px; padding-right: 6px; } .x-sw-p b { max-width: 64px; } .x-sw-vm b { max-width: 84px; overflow: hidden; text-overflow: ellipsis; } .eqt-bar .x-sw-b { min-height: 34px; font-size: 12px; } }
 .x-swm { position: fixed; z-index: 90; min-width: 250px; max-width: calc(100vw - 24px); background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 6px; box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .5); }
-.x-swm-k { margin: 4px 8px 6px; font: 800 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.x-swm-k { margin: 4px 8px 6px; font: 800 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .x-swm button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: none; padding: 8px; border-radius: 10px; text-align: left; cursor: pointer; color: var(--text); font: 500 14px var(--sans); }
 .x-swm button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .x-swm button[aria-checked="true"] { background: color-mix(in srgb, var(--text) 8%, transparent); }

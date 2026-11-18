@@ -15,7 +15,7 @@
 .fx-chip.eq{color:var(--muted);background:color-mix(in srgb,var(--muted) 12%,transparent)}
 .fx-vs{margin:0 0 14px}
 .fx-rs{display:grid;gap:1px;padding:10px 12px;border-radius:12px;background:var(--s1);border:1px dashed color-mix(in srgb,var(--loss) 35%,var(--border))}
-.fx-rs-k{font:700 11px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.fx-rs-k{font:700 12px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .fx-rs b{font:700 24px/1.2 var(--sans);color:var(--loss);font-variant-numeric:tabular-nums}
 .fx-rs small{font-size:12px;color:var(--muted)}
 .fx-src{margin:10px 0 0;font-size:12px;color:var(--muted)}
@@ -38,14 +38,14 @@
 .fx-noparts .fx-c.part{opacity:.3}
 .fx-note{margin:8px 0 0;font-size:12px;line-height:1.45;color:var(--muted)}
 @media (max-width:900px){.fx{grid-template-columns:minmax(0,1fr)}}
-@media (max-width:520px){.fx-big b{font-size:44px}.fx-bw{height:160px}.fx-c b{font-size:12px}.fx-c small{font-size:11px}.fx-bw i{width:min(40px,70%)}}
+@media (max-width:520px){.fx-big b{font-size:44px}.fx-bw{height:160px}.fx-c b{font-size:12px}.fx-c small{font-size:12px}.fx-bw i{width:min(40px,70%)}}
 .fx{grid-template-areas:"top top" "l r"}
 .fx>.fx-top{grid-area:top;border:0!important;background:none!important;padding:0!important}
 .fx>.fx-l{grid-area:l}.fx>.fx-r{grid-area:r}
 .fx-size{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px;background:var(--s2);border:1px solid var(--border);border-radius:12px;width:max-content;max-width:100%}
 .fx-size>span{font:700 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 8px 0 6px}
 .fx-size button{display:inline-grid;justify-items:center;border:0;background:transparent;border-radius:9px;min-height:34px;padding:4px 12px;font:700 14px var(--sans);color:var(--text);cursor:pointer}
-.fx-size button small{font:500 11px var(--sans);color:var(--muted)}
+.fx-size button small{font:500 12px var(--sans);color:var(--muted)}
 .fx-size button[aria-pressed=true]{background:var(--text);color:var(--bg)}
 .fx-size button[aria-pressed=true] small{color:color-mix(in srgb,var(--bg) 80%,transparent)}
 .fx-seg button[disabled]{opacity:.45;cursor:not-allowed}
