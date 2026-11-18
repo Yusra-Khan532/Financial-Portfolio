@@ -1,14 +1,16 @@
-// "How the scores have moved" on the stock page: the four Prism scores (0 to 100) and the two technical views (−100 to +100) in one place.
-// Choose what to plot (all six, the business scores only, the technical views only, or any single line from the key), one point per day or per week,
-// and the period. The four business scores move in steps, only when Prism re-rates the company (marked); the technical views update every trading evening.
-// Gold, like the report. It describes how the scores moved; it never forecasts and is not a recommendation.
+// "How the scores have moved" on the stock page (task #216, company report handover README 2.3): under the Prism card. Range 1 week (on load) · 2 weeks · 1 month;
+// a lead line with the biggest move and the scores that did not move; two charts side by side (stacked under 900 px): the business scores 0 to 100 with a dashed
+// line at 50, and the technical views −100 to +100 with a dashed line at 0; under each, one legend row per line (name, latest value, change over the window).
+// Hover shows the date and every line's value that day. Solid dot: a new rating that day; hollow dot: the earlier rating still holds. The business scores move
+// in steps, only when Prism re-rates the company; the technical views update every trading evening. Gold, like the report. Describes how the scores moved; it
+// never forecasts and is not a recommendation.
 import { useContext, useMemo, useState } from "react";
 import { Icon } from "../lib/icons";
 import { dateIN, MINUS } from "../lib/format";
 import { useGold } from "../lib/premium";
 import { OpenAccess } from "../components/Gate";
-import { toWeekly, usePrismHistory, valueOf, type HistPoint, type Series } from "../lib/prismHistory";
-import { BUSINESS, NAME, PERIODS, TECHNICAL, axisIndexes, bizMove, dotRadius, figureOn, inPeriod, monotonePath, moveSentence, movesOf, readingNow, reRated, seriesFor, stepPath, type Move, type Period, type Show } from "../lib/scoreMoves";
+import { usePrismHistory, valueOf, type HistPoint, type Series } from "../lib/prismHistory";
+import { BUSINESS, LEGEND_NAME, NAME, RANGES, TECHNICAL, axisIndexes, dotRadius, figureOn, inRange, isTechnical, leadLine, monotonePath, stepPath, windowMoves, type Range, type WindowMove } from "../lib/scoreMoves";
 import "../styles/scoremoves.css";
 import { ChartZoom } from "../components/ChartZoom";
 
@@ -20,7 +22,7 @@ const swatch = (s: Series) => (DASHED.has(s) ? `repeating-linear-gradient(90deg,
 const W = 720, L = 42, R = 16;
 const fmt = (v: number | null, signed = false) => (v == null ? MINUS : (signed && v > 0 ? "+" : "") + String(Math.round(v * 10) / 10).replace("-", MINUS));
 
-function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed }: { points: HistPoint[]; history: HistPoint[]; series: Series[]; lo: number; hi: number; ticks: number[]; h: number; marks: string[]; label: string; signed: boolean }) {
+function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed, mid }: { points: HistPoint[]; history: HistPoint[]; series: Series[]; lo: number; hi: number; ticks: number[]; h: number; marks: string[]; label: string; signed: boolean; mid?: number }) {
   const T = marks.length ? 24 : 10, B = 22, days = points.map((p) => Date.parse(p.day)), t0 = days[0], t1 = days[days.length - 1];
   const x = (d: string) => L + (t1 === t0 ? (W - L - R) / 2 : ((Date.parse(d) - t0) / (t1 - t0)) * (W - L - R));
   const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
@@ -43,7 +45,7 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
       <svg viewBox={`0 0 ${W} ${h}`} role="img" tabIndex={0} aria-label={`${label}, ${n} days recorded. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHover(null)}
         onKeyDown={key} onFocus={() => setHover((c) => c ?? n - 1)} onBlur={() => setHover(null)}>
         {ticks.map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeWidth={g === 0 && signed ? 1.2 : 0.6} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="scm-ax">{fmt(g)}</text></g>)}
-        {signed && <rect x={L} width={W - L - R} y={y(20)} height={y(-20) - y(20)} fill="var(--gold)" opacity=".07" />}
+        {mid != null && <line className="scm-mid" x1={L} x2={W - R} y1={y(mid)} y2={y(mid)} stroke="var(--text)" strokeOpacity=".55" strokeWidth="1" strokeDasharray="4 4" />}
         {marks.map((d) => {
           // the dotted line and the triangle mark the day Prism re-rated the company, and the words say so; a word is left out only where it would touch the next one
           const xd = x(d), word = labelled.has(d), left = xd < L + 64;
@@ -69,91 +71,67 @@ function Panel({ points, history, series, lo, hi, ticks, h, marks, label, signed
     </div>);
 }
 
-const GROUP = {
-  biz: { tag: "Fundamental", title: "Business scores · 0 to 100", aria: "Business scores, 0 to 100",
-    pattern: "Step pattern: flat lines that jump only when Prism re-rates the company.",
-    icon: "M1 11h4V7h4V3h4" },
-  tech: { tag: "Technical", title: "Technical views · \u2212100 to +100", aria: "Technical views, \u2212100 to +100",
-    pattern: "Continuous pattern: moves every trading evening. Short term reads 5 to 20 sessions, long term 6 to 18 months.",
-    icon: "M1 9c2 0 2-5 4-5s2 7 4 7 2-8 4-8" },
-} as const;
-
-/** One key chip: the line's colour (dashed where the line is), its name, the latest figure and how far it moved in the period on screen ("−20.8 since 5 Nov").
- *  A line with only one figure in the period says so instead of leaving the change blank. Pressing it hides or shows the line. */
-function Key({ s, now, move, from, off, onToggle }: { s: Series; now: number | null; move: Move | undefined; from?: string | null; off: boolean; onToggle: () => void }) {
-  const signed = TECHNICAL.includes(s);
-  const chg = move ? (move.delta === 0 ? `unchanged since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}` : `${fmt(move.delta, true)} since ${dateIN(move.fromDay, { day: "numeric", month: "short" })}`) : from ? `recorded from ${dateIN(from, { day: "numeric", month: "short" })}` : "only one figure in this period";
-  return <button type="button" className={"scm-key" + (off ? " off" : "")} aria-pressed={!off} onClick={onToggle}><i style={{ background: swatch(s) }} />{NAME[s]} <b>{fmt(now, signed)}</b> <span className="scm-chg">{chg}</span></button>;
+const one = (v: number) => (v < 0 ? MINUS : "") + String(Math.abs(Math.round(v * 10) / 10));
+/** One legend row per line: its colour (dashed where the line is), name, latest value and the change over the window (▲ green, ▼ red, 0 grey). */
+function Legend({ series, all, moves }: { series: Series[]; all: HistPoint[]; moves: WindowMove[] }) {
+  const latest = all[all.length - 1];
+  return (
+    <ul className="scm-lgd" aria-label="Latest value and change in this period">
+      {series.map((s) => {
+        const tech = isTechnical(s), now = latest ? (tech ? valueOf(latest, s) : figureOn(all, s, latest.day)?.value ?? null) : null, d = moves.find((m) => m.s === s)?.delta;
+        return <li key={s}><i style={{ background: swatch(s) }} aria-hidden="true" /><span className="scm-ln">{LEGEND_NAME[s]}</span><b>{fmt(now, tech)}</b>
+          <em className={d == null ? "na" : d > 0 ? "up" : d < 0 ? "down" : "zero"} aria-label={d == null ? "no change to show" : d === 0 ? "unchanged" : `${d > 0 ? "up" : "down"} ${one(Math.abs(d))}`}>{d == null ? "—" : d === 0 ? "0" : `${d > 0 ? "▲" : "▼"} ${one(Math.abs(d))}`}</em></li>;
+      })}
+    </ul>
+  );
 }
 
-export function ScoreMoves({ points: all }: { points: HistPoint[] }) {
-  const [show, setShow] = useState<Show>("all"), [step, setStep] = useState<"day" | "week">("day"), [period, setPeriod] = useState<Period>("3M"), [off, setOff] = useState<Series[]>([]);
-  const base = useMemo(() => inPeriod(step === "week" ? toWeekly(all) : all, period), [all, step, period]);
-  const chosen = seriesFor(show), visible = chosen.filter((s) => !off.includes(s));
-  const biz = visible.filter((s) => BUSINESS.includes(s)), tech = visible.filter((s) => TECHNICAL.includes(s));
-  const latest = all[all.length - 1], marks = useMemo(() => reRated(base), [base]);
-  const moves = movesOf(base, visible), keyMoves = movesOf(base, chosen);
-  const toggle = (s: Series) => setOff((o) => (o.includes(s) ? o.filter((x) => x !== s) : [...o, s]));
-  const pick = (k: Show) => { setShow(k); setOff([]); };
-  const bizOn = BUSINESS.some((s) => chosen.includes(s)), techOn = TECHNICAL.some((s) => chosen.includes(s)), few = base.length < 2;
-  // task #126: when the business scores were first recorded after the period on screen begins (the rating that held before was replaced, so it is not known), say so
-  const bizFrom = useMemo(() => { const f = all.find((p) => BUSINESS.some((s) => valueOf(p, s) != null))?.day ?? null; return f && base.length && f > base[0].day ? f : null; }, [all, base]);
-  const bizSentence = (txt: string) => {
-    if (!bizFrom) return txt;
-    const d = dateIN(bizFrom, { day: "numeric", month: "short" });
-    if (/^There are not enough recorded days/.test(txt)) return `The business scores are recorded from ${d}, with one rating so far: no change to show yet.`;
-    return txt.replace(/^Over the last [^,]+,/, `Since ${d}, when the business scores were first recorded,`);
-  };
-  const group = (k: "biz" | "tech", members: Series[], drawn: Series[]) => {
-    const g = GROUP[k];
-    return (
-      <section className={"scm-grp scm-g-" + k} aria-label={g.aria}>
-        <header className="scm-gh"><span className="scm-tag">{g.tag}</span><h4>{g.title}</h4></header>
-        <p className="scm-pat"><svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d={g.icon} /></svg>{g.pattern}</p>
-        {k === "biz" && bizFrom && <p className="scm-note scm-from" role="note"><Icon name="info" /><span>The business scores are recorded from {dateIN(bizFrom)}. Earlier days in this period have no business scores: the rating that held then was replaced when Prism re-rated the company, and it is not estimated.</span></p>}
-        <div className="scm-keys" role="group" aria-label={g.aria}>
-          {members.filter((s) => chosen.includes(s)).map((s) => { const bm = k === "biz" ? bizMove(all, base, s) : null;   // business: from the rating in force at the start (task #126)
-            return <Key key={s} s={s} now={latest ? (k === "biz" ? figureOn(all, s, latest.day)?.value ?? null : valueOf(latest, s)) : null} move={bm ? bm.move ?? undefined : keyMoves.find((m) => m.s === s)} from={bm?.from} off={off.includes(s)} onToggle={() => toggle(s)} />; })}
-        </div>
-        {few ? null : drawn.length === 0 ? <p className="faint scm-empty">No line is selected here. Press a score above to draw it.</p>
-          : k === "biz" ? <Panel points={base} history={all} series={drawn} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={techOn ? 210 : 250} marks={marks} label="Business scores over time" signed={false} />
-            : <Panel points={base} history={all} series={drawn} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={bizOn ? 180 : 240} marks={[]} label="Technical views over time" signed />}
-        {k === "biz" && !few && drawn.length > 0 && <ul className="scm-lg" aria-label="How to read the business chart">
-          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4.5" className="solid" /></svg>Solid dot: new rating that day</li>
-          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="4" className="hollow" /></svg>Hollow dot: earlier rating still holds</li>
-          <li><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><line x1="6" x2="6" y1="0" y2="12" /></svg>Dotted line: re-rating event</li>
-        </ul>}
-        {k === "biz" && <p className="scm-note"><Icon name="info" /><span>Valuation: higher means cheaper. Risk: higher means lower risk.</span></p>}
-      </section>);
-  };
+export function ScoreMoves({ points: all, range }: { points: HistPoint[]; range: Range }) {
+  const base = useMemo(() => inRange(all, range).points, [all, range]);
+  const moves = useMemo(() => windowMoves(all, base), [all, base]);
+  const lead = leadLine(moves), few = base.length < 2;
   return (
-    <div className="scm">
-      <ChartZoom label={"Score moves"} className="cz-r">
-      <div className="scm-ctl">
-        <div className="seg" role="group" aria-label="Show">{([["all", "All"], ["business", "Business only"], ["technical", "Technical only"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => pick(k)}>{l}</button>)}</div>
-        <div className="seg" role="group" aria-label="Points">{([["day", "Daily"], ["week", "Weekly"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={step === k} onClick={() => setStep(k)}>{l}</button>)}</div>
-        <div className="seg" role="group" aria-label="Period">{PERIODS.map((p) => <button key={p.id} type="button" aria-pressed={period === p.id} onClick={() => setPeriod(p.id)}>{p.id}</button>)}</div>
+    <div className="scm scm216">
+      <div className="scm-lead" aria-live="polite">
+        <p><b>Biggest move in this period:</b> {few ? "only one recorded day falls in this period." : lead.biggest ?? "none of the scores moved."}</p>
+        {!few && lead.unchanged && lead.biggest && <p className="scm-unch">Unchanged: {lead.unchanged}</p>}
       </div>
-      <p className="scm-sum" aria-live="polite">{biz.length && tech.length ? `${bizSentence(moveSentence(bizFrom ? base.filter((p) => p.day >= bizFrom) : base, biz, period))} ${moveSentence(base, tech, period).replace(/^Over the last [^,]+, the/, "The")}` : biz.length ? bizSentence(moveSentence(bizFrom ? base.filter((p) => p.day >= bizFrom) : base, visible, period)) : moveSentence(base, visible, period)}</p>
-      {few && <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p>}
-      {bizOn && group("biz", BUSINESS, biz)}
-      {techOn && group("tech", TECHNICAL, tech)}
-      {!few && moves.length > 0 && <div className="tw"><table className="qtt scm-t"><caption>Change since {dateIN(moves[0].fromDay)}</caption>
-        <thead><tr><th>Score</th><th className="num">Start</th><th className="num">Now</th><th className="num">Change</th><th>Reading now</th></tr></thead>
-        <tbody>{moves.map((m) => <tr key={m.s}><td><i style={{ background: swatch(m.s) }} />{NAME[m.s]}</td><td className="num">{fmt(m.from, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.to, m.s === "shortTerm" || m.s === "longTerm")}</td><td className="num">{fmt(m.delta, true)}</td><td>{readingNow(m.s, m.to)}</td></tr>)}</tbody></table></div>}
-      </ChartZoom>
+      {few ? <p className="faint scm-empty">Only one recorded day falls in this period, so there is no line to draw yet. Try a longer period.</p> : (
+        <ChartZoom label="How the scores have moved" className="cz-r"><div className="scm-two">
+          <section className="scm-c" aria-label="Business scores, 0 to 100">
+            <h4>Business scores <small>0 to 100 · higher is better</small></h4>
+            <Panel points={base} history={all} series={BUSINESS} lo={0} hi={100} ticks={[0, 25, 50, 75, 100]} h={250} marks={[]} label="Business scores over time" signed={false} mid={50} />
+            <Legend series={BUSINESS} all={all} moves={moves} />
+          </section>
+          <section className="scm-c" aria-label="Technical views, −100 to +100">
+            <h4>Technical views <small>−100 to +100 · above 0 leans up</small></h4>
+            <Panel points={base} history={all} series={TECHNICAL} lo={-100} hi={100} ticks={[-100, -50, 0, 50, 100]} h={250} marks={[]} label="Technical views over time" signed mid={0} />
+            <Legend series={TECHNICAL} all={all} moves={moves} />
+          </section>
+        </div></ChartZoom>)}
     </div>);
 }
 
+const short = (d: string) => dateIN(d, { day: "numeric", month: "short" });
 export function ScoreMovesCard({ symbol, statement }: { symbol: string; statement: string }) {
   const gold = useGold(), open = useContext(OpenAccess);
   const q = usePrismHistory(symbol, statement, gold || open);
+  const [range, setRange] = useState<Range>("1w");
   if (q.isError || (!q.data && !q.isLoading)) return null;   // the server and this page disagree about the plan: say nothing rather than show a lock to a member
   const all = q.data?.points ?? [];
+  const w = inRange(all, range), first = all[0]?.day ?? null;
   return (
-    <section className="card acc scm-card" id="scores-moved" aria-label="How the scores have moved">
-      <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>How the scores have moved</h3>{all.length > 0 && <span className="s">As of {dateIN(all[all.length - 1].day)}</span>}</div>
-      {q.isLoading ? <div className="skeleton" style={{ height: 200 }} /> : all.length < 2 ? <p className="faint scm-empty">{q.data?.note || "The history starts on the day recording began; there are not yet enough days to draw it."}</p> : <ScoreMoves points={all} />}
-      <p className="faint scm-foot">One point for each day a figure was worked out (Weekly shows the last day recorded in each week); the history starts on the day recording began and earlier days are not estimated. It describes how the scores moved; it is not a forecast or a recommendation. Information only, not investment advice.</p>
+    <section className="card acc scm-card scm216-card" id="scores-moved" aria-label="How the scores have moved">
+      <header className="scm-h">
+        <span className="scm-hi" aria-hidden="true"><Icon name="growth" /></span>
+        <div className="scm-ht">
+          <p className="scm-eb">FinLit Prism · score history</p>
+          <h3>How the scores have moved</h3>
+          {w.start && w.end && <p className="scm-dl">{short(w.start)} to {dateIN(w.end)} · As of {dateIN(w.end)}{first && w.start < first ? ` · recording began ${dateIN(first)}` : ""}</p>}
+        </div>
+        <div className="scm-rng" role="group" aria-label="Period">{RANGES.map((r) => <button key={r.id} type="button" aria-pressed={range === r.id} onClick={() => setRange(r.id)}>{r.label}</button>)}</div>
+      </header>
+      {q.isLoading ? <div className="skeleton" style={{ height: 200 }} /> : all.length < 2 ? <p className="faint scm-empty">{q.data?.note || "The history starts on the day recording began; there are not yet enough days to draw it."}</p> : <ScoreMoves points={all} range={range} />}
+      <p className="faint scm-foot"><span className="scm-k"><i className="solid" aria-hidden="true" />new rating that day</span> <span className="scm-k"><i className="hollow" aria-hidden="true" />earlier rating still holds</span> · Valuation: higher means cheaper · Risk: higher means lower risk{first ? ` · Recording began ${dateIN(first)}` : ""}. It describes how the scores moved; it is not a forecast or a recommendation.</p>
     </section>);
 }
