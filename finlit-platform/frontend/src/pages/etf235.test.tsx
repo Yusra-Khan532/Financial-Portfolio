@@ -6,7 +6,7 @@
 import LIST from "../lib/__fixtures__/etfp-list.json";
 import RISK from "../lib/__fixtures__/etfp-risk.json";
 import INSIDE from "../lib/__fixtures__/etfp-inside.json";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
