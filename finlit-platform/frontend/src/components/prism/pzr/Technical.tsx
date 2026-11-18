@@ -5,19 +5,21 @@
 // Words: the model's own rating and verdict words are never shown; lib/prismTechnical.ts maps them to descriptive trend words (Positive, Neutral...).
 // Colour only decorates: every conclusion is also a word and a shape. Styles: styles/prism-technical.css (pzt-*).
 import { useMemo, useState } from "react";
+import { PzHead, PzProp } from "./Shell";
 import { Icon } from "../../../lib/icons";
 import type { PrismReport } from "../../../lib/prism";
 import {
-  FACTOR_GROUP_WORD, bandTip, STAGE_WORD, TECH_NOTE, factorGroup, filterTechFactors, fmtScore, parseTechnical, ratingWord, safeText,
-  scalePos, scoreBand, verdictView,
-  type FactorGroup, type TechAssessment, type TechFactor, type TechHorizon, type TrendTone,
+  ALIGN_NA, FACTOR_GROUP_WORD, STAGE_WORD, TECH_NOTE, factorGroup, filterTechFactors, fmtScore, parseTechnical, ratingWord, safeText,
+  scalePos, scoreBand, trendAlignment, verdictView,
+  type FactorGroup, type TechAssessment, type TechFactor, type TechHorizon,
 } from "../../../lib/prismTechnical";
-import { TrendAlignmentBlock } from "./TechBreakdown";
+import { TrendMap, alignmentSentence } from "./TechBreakdown";
+import { TabGroup } from "../../TabGroup";
+import { TechnicalSection } from "../../../stock/PrismCardView";
+import type { PrismLatest } from "../../../stock/PrismCard";
 
 export const TECH_ID = "pzr-technical";
-const SHAPE: Record<TrendTone, string> = { strongpos: "▲▲", pos: "▲", neutral: "—", neg: "▼", strongneg: "▼▼", na: "–" };
 const FILTERS: (FactorGroup | "all")[] = ["all", "supporting", "adverse", "neutral", "unavailable"];
-const STATE_WORD = { ready: "Complete", incomplete: "Incomplete: score withheld" } as const;
 const minus = (s: string) => s.replace("-", "−");
 
 /** One sentence for a screen reader: the horizon, its score, the word, and how complete it is. */
@@ -43,25 +45,6 @@ export function TechGauge({ score, label }: { score: number | null; label: strin
   );
 }
 
-function HorizonCard({ name, h, id }: { name: string; h: TechHorizon; id: string }) {
-  const w = ratingWord(h.rating, h.score), have = h.score != null;
-  return (
-    <article className={"pzt-card " + w.tone} aria-labelledby={id}>
-      <header className="pzt-ch">
-        <div><h4 id={id}>{name}</h4>{h.horizon && <p>Trend over about {h.horizon.replace("–", " to ")}</p>}</div>
-        <span className={"pzt-word " + w.tone} title={bandTip(w.tone)}><i aria-hidden="true">{SHAPE[w.tone]}</i>{w.word}</span>
-      </header>
-      <p className="pzt-score">
-        {have ? <>{fmtScore(h.score)}<small> on −100 to +100{h.provisional ? " · provisional" : ""}</small></> : <>Not available<small> score withheld</small></>}
-      </p>
-      <TechGauge score={h.score} label={horizonSummary(name, h)} />
-      <ul className="pzt-facts">
-        <li className={h.availableCount < h.requiredCount ? "warn" : ""}><Icon name={h.availableCount < h.requiredCount ? "alert" : "check"} /><span><b>{h.availableCount} of {h.requiredCount}</b> signals available. {STATE_WORD[h.status]}.</span></li>
-        {h.provisional && <li className="warn pzt-prov"><Icon name="info" /><span><b>Provisional.</b> {h.provisionalNote ?? "The relative-strength rating needs about two years of prices, so this score uses the other signals only."}</span></li>}
-      </ul>
-    </article>
-  );
-}
 
 function SignalRow({ f }: { f: TechFactor }) {
   const g = factorGroup(f) ?? "unavailable";
@@ -82,7 +65,7 @@ function SignalList({ title, h, filter }: { title: string; h: TechHorizon; filte
     <section className="pzt-col" aria-label={`${title} signals`}>
       <h5>{title} signals <small>{h.availableCount} of {h.requiredCount} available</small></h5>
       {rows.length ? <ul className="pzt-sgl">{rows.map((f) => <SignalRow key={f.key} f={f} />)}</ul>
-        : <p className="pzt-none">{h.factors.length ? `No ${FACTOR_GROUP_WORD[filter].toLowerCase()} signals here.` : "No signals were returned for this horizon."}</p>}
+        : <p className="pzt-none">{h.factors.length ? "No signal here matches the filter." : "No signals were returned for this horizon."}</p>}
     </section>
   );
 }
@@ -150,8 +133,8 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
   const a = parseTechnical(report.technicalAssessment);
   if (!a) {
     return (
-      <section className="pzr-sec pzt" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h">
-        <header className="pzr-sh"><h3 id="pzt-h">Technical view</h3><p>Recent price and trend behaviour, short term and long term.</p></header>
+      <section className="pzr-sec pzt pzs" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h">
+        <PzHead no="02" id="pzt-h" title="Technical view" desc="Recent price and trend behaviour, short term and long term." />
         <div className="pzt-empty" role="note">
           <Icon name="activity" />
           <div><b>This stored report does not include the technical view.</b>
@@ -161,22 +144,32 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
       </section>
     );
   }
-  const v = verdictView(a);
+  const v = verdictView(a), al = trendAlignment(a.shortTerm.score, a.longTerm.score);
   return (
-    <section className="pzr-sec pzt" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h" aria-describedby="pzt-lead">
-      <header className="pzr-sh"><h3 id="pzt-h">Technical view</h3>
-        <p id="pzt-lead">How the share price has been behaving, in the recent weeks (short term) and over the past year or so (long term). It describes past prices and does not predict them. It is calculated separately from the 0 to 100 financial-health score and does not change it. Short term is {ratingWord(a.shortTerm.rating, a.shortTerm.score).word.toLowerCase()}; long term is {ratingWord(a.longTerm.rating, a.longTerm.score).word.toLowerCase()}; {v.word.toLowerCase()}.</p></header>
-      <div className="pzt-cards">
-        <HorizonCard name="Short term" h={a.shortTerm} id="pzt-st" />
-        <HorizonCard name="Long term" h={a.longTerm} id="pzt-lt" />
+    <section className="pzr-sec pzt pzs" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h" aria-describedby="pzt-lead">
+      <PzHead no="02" id="pzt-h" title="Technical view" desc={<span id="pzt-lead">How the share price has been behaving, in the recent weeks (short term) and over the past year or so (long term). It describes past prices and does not predict them. It is calculated separately from the 0 to 100 financial-health score and does not change it. Short term is {ratingWord(a.shortTerm.rating, a.shortTerm.score).word.toLowerCase()}; long term is {ratingWord(a.longTerm.rating, a.longTerm.score).word.toLowerCase()}; {v.word.toLowerCase()}.</span>} />
+      {/* task #220 (README 3.2): the score card's own trend cards (the same component, rendered again), the verdict sentence under the alignment card */}
+      <div className="pzt-clone">
+        <TechnicalSection bare a={a} report={report as unknown as PrismLatest}
+          after={al ? <p className="pzt-vd2">{alignmentSentence(a)} It is separate from the 0 to 100 financial-health score.</p> : null} />
+        {!al && <p className="pzt-vd2">{ALIGN_NA}: a combined trend needs both scores.</p>}
+        {([["Short term", a.shortTerm], ["Long term", a.longTerm]] as const).filter(([, h]) => h.provisional).map(([n, h]) => (
+          <p key={n} className="pzt-vd2 pzt-prov"><Icon name="info" /><span><span className="sr-only">Provisional score: a recent listing. </span><b>{n} is provisional.</b> {h.provisionalNote ?? "The relative-strength rating needs about two years of prices, so this score uses the other signals only."}</span></p>))}
+        {([["Short term", a.shortTerm], ["Long term", a.longTerm]] as const).filter(([, h]) => h.score == null && h.status === "incomplete").map(([n]) => (
+          <p key={n + "-w"} className="pzt-vd2"><b>{n}: not available, score withheld.</b> A score is shown only when every signal it needs is available; the missing ones are listed below.</p>))}
       </div>
-      <TrendAlignmentBlock a={a} />
       <Missing a={a} />
-      <div className="pzt-blk"><h4>Every signal</h4>
-        <p className="pzt-sub">Each signal either supports the trend, works against it (adverse) or is neutral. Unavailable means it could not be calculated.</p>
-        <Signals a={a} /></div>
-      <div className="pzt-blk"><h4>What the market shows</h4><Observations a={a} /></div>
-      {a.notes.length > 0 && <ul className="pzt-notes" aria-label="Notes">{a.notes.map((n, i) => <li key={i}>{safeText(n)}</li>)}</ul>}
+      <TabGroup label="Technical view" sticky views={[
+        { key: "signals", label: "Every signal", chip: a.shortTerm.factors.length + a.longTerm.factors.length, content: (
+          <div className="pzt-blk">
+            <p className="pzt-sub">Each signal either supports the trend, works against it (adverse) or is neutral. Unavailable means it could not be calculated.</p>
+            <PzProp lead="These are some of the signals the technical view is based on.">How the signals are weighted and combined is proprietary to FinLit Ventures.</PzProp>
+            <Signals a={a} /></div>) },
+        { key: "map", label: "Trend map", content: <div className="pzt-blk pzt-mapblk"><h4>Where the two trends meet</h4>{al ? <TrendMap al={al} /> : <p className="pzt-none">The trend map needs both scores.</p>}</div> },
+        { key: "market", label: "What the market shows", content: (
+          <div className="pzt-blk"><Observations a={a} />
+            {a.notes.length > 0 && <ul className="pzt-notes" aria-label="Notes">{a.notes.map((n, i) => <li key={i}>{safeText(n)}</li>)}</ul>}</div>) },
+      ]} />
       <p className="pzr-small pzt-line">{TECH_NOTE} It is not an investment recommendation.</p>
     </section>
   );

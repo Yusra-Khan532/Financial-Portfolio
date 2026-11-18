@@ -1,10 +1,11 @@
 // FinLit Prism: the Gold plan's advanced financial-health rating (engine 3.6.10, merged from Yusra-Khan532/financial-portfolio).
-// The research API (/api/prism/*) checks the plan, keeps the signed snapshot and serves the PDF; the browser only ever sees a PrismReport.
+// The research API (/api/prism/*) checks the plan and keeps the signed snapshot; the browser only ever sees a PrismReport (task #220: built from
+// an allow-list of what the page shows). There is no PDF and no download anywhere in the report.
 // Shapes follow site-api/backend/premium_engine.py (rating), premium_presentation.py (review) and premium_completeness.py (completeness).
 // Contract: docs/prism/CONTRACT.md.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { API_BASE, ApiError, apiGet, apiSend, apiUrl, errorBody } from "./api";
+import { ApiError, apiGet, apiSend } from "./api";
 import { MINUS, nf } from "./format";
 import { FUND_PART_NAME } from "./prismNames";
 
@@ -388,7 +389,7 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
   if (status === 401) return { kind: "locked", title: `Sign in to open ${PRISM_NAME}`, text: "The full report opens for signed-in members. Signing up is free; Gold opens every company.", signIn: true };
   if (status === 403) return { kind: "locked", title: `${PRISM_NAME} is part of Gold`, text: "Sign in with a Gold plan to open and calculate Prism ratings." };
   if (status === 404) return { kind: "missing", title: "We could not find this company", text: "Check the symbol, or choose the company from the search box." };
-  if (status === 410) return { kind: "expired", title: "This PDF is not available", text: "The PDF of this report could not be found. Recalculate to create a fresh report, then download it." };
+  if (status === 410) return { kind: "expired", title: "This report has been replaced", text: "A newer calculation replaced this report. Recalculate or open the company again to see the latest one." };
   if (status === 422) return { kind: "invalid", title: "That request was not accepted", text: detail || "Choose a listed company and a statement basis, then try again." };
   if (status === 429 && e?.body.status === "busy") {
     const secs = e.body.retryAfter || 30;
@@ -408,31 +409,6 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
   return { kind: "other", title: "Something went wrong", text: detail || "Please try again." };
 }
 
-/* ------------------------------------------------------------------ the PDF of exactly this calculation */
-export const prismPdfUrl = (id: string) => `/api/prism/reports/${encodeURIComponent(id)}/pdf`;
-/** The PDF stays downloadable while the signed snapshot lives (30 minutes); afterwards the page offers a recalculation. */
-export const pdfOpen = (r: Pick<PrismReport, "pdfAvailableUntil">, now = Date.now()) => !!r.pdfAvailableUntil && Date.parse(r.pdfAvailableUntil) > now;
-export const pdfName = (r: Pick<PrismReport, "company" | "statementType" | "createdAt">) =>
-  `FinLit-Prism-${r.company.symbol}-${r.statementType}-${r.createdAt.slice(0, 10)}.pdf`.replace(/[^\w.-]+/g, "-");
-
-/** Fetch the PDF and save it. A 410 (snapshot gone) or any other refusal is thrown as an ApiError for the page to explain. */
-export async function downloadPrismPdf(r: PrismReport): Promise<void> {
-  const res = await fetch(apiUrl(prismPdfUrl(r.id)), { headers: { Accept: "application/pdf" }, credentials: API_BASE ? "include" : "same-origin", cache: "no-store" });
-  if (!res.ok) {
-    let body: ApiError["body"] = {};
-    try { body = errorBody(await res.json()); } catch { /* not JSON */ }
-    throw new ApiError(res.status, body);
-  }
-  const href = URL.createObjectURL(await res.blob());
-  const a = document.createElement("a");
-  try {
-    a.href = href; a.download = pdfName(r); a.rel = "noreferrer";
-    document.body.appendChild(a); a.click();
-  } finally {            // whatever happens, the link is removed and the object URL is released
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 30_000);
-  }
-}
 
 /* ------------------------------------------------------------------ data hooks */
 const SYMBOL = /^[A-Z0-9&_.-]{1,24}$/;

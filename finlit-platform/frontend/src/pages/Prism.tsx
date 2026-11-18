@@ -1,7 +1,7 @@
 // FinLit Prism (Gold): /prism finds a company, /prism/:symbol shows its stored rating or calculates one.
 // Replaces the upstream admin "Premium Report" page: no CMS token, no browser-held snapshot. A calculation runs behind the page (POST with
 // background: true, then GET /api/prism/jobs) and the page shows the stored rating when it is ready.
-// The research API keeps the signed snapshot; the browser gets a PrismReport and downloads the PDF from the API.
+// The research API keeps the signed snapshot; the browser gets a PrismReport (task #220: no PDF and no download anywhere on the page).
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Icon } from "../lib/icons";
@@ -9,9 +9,11 @@ import { Gate } from "../components/Gate";
 import { PrismReportView, ReportSkeleton } from "../components/prism/ReportView";
 import { LandingBody, PRISM_WHAT, Picker } from "../components/prism/pzr/Landing";
 import { useAuth } from "../lib/auth";
+import { PageFaqs } from "../components/PageFaqs";
+import { PrismSecNav } from "../components/prism/pzr/Shell";
 import { useGold } from "../lib/premium";
 import {
-  PRISM_NAME, PRISM_NOTE, cleanSymbol, downloadPrismPdf, prismProblem, progressFraction, pushPrismRecent, statementWord,
+  PRISM_NAME, PRISM_NOTE, cleanSymbol, prismProblem, progressFraction, pushPrismRecent, statementWord,
   useLatestPrism, usePrismCalculation, usePrismStatus, type PrismReport, type Problem, type Statement,
 } from "../lib/prism";
 import { useDocTitle } from "../lib/title";
@@ -38,7 +40,7 @@ function Locked({ symbol }: { symbol?: string }) {
 }
 
 function Landing() {
-  useDocTitle(PRISM_NAME, "FinLit Prism: a company's financial health in four parts, with a PDF. For Gold members.");
+  useDocTitle(PRISM_NAME, "FinLit Prism: a company's financial health in four parts. For Gold members.");
   const [statement, setStatement] = useState<Statement>("consolidated");
   return <><Head /><LandingBody statement={statement} setStatement={setStatement} /></>;
 }
@@ -73,13 +75,11 @@ function Working({ since, expected }: { since: number; expected: number }) {
 }
 
 function CompanyView({ symbol, statement, picker }: { symbol: string; statement: Statement; picker: React.ReactNode }) {
-  const { isAdmin } = useAuth();
   const latest = useLatestPrism(symbol, statement), status = usePrismStatus(), { calc, start } = usePrismCalculation(symbol, statement);
-  const [downloading, setDownloading] = useState(false), [pdfErr, setPdfErr] = useState<Problem | null>(null);
   useEffect(() => { pushPrismRecent(symbol); }, [symbol]);
   const report = latest.data ?? null;
   const down = status.data && !status.data.available;
-  const run = (refresh: boolean) => { setPdfErr(null); void start(refresh); };
+  const run = (refresh: boolean) => { void start(refresh); };
   // A company opened with no rating starts calculating by itself, once, so the next visit is instant (and this one shows it as soon as it is ready).
   const autoStarted = useRef("");
   useEffect(() => {
@@ -88,11 +88,6 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
     autoStarted.current = key;
     void start(false);
   }, [latest.isLoading, latest.isError, latest.data, down, calc.phase, symbol, statement, start]);
-  const download = async () => {
-    if (!report) return;
-    setDownloading(true); setPdfErr(null);
-    try { await downloadPrismPdf(report); } catch (e) { setPdfErr(prismProblem(e)); } finally { setDownloading(false); }
-  };
   useDocTitle(report ? `${report.company.name} ${PRISM_NAME}` : `${symbol} ${PRISM_NAME}`, `FinLit Prism financial-health rating for ${symbol}.`);
   const busy = calc.phase === "working";
   // No stored rating: calculate it as soon as the page opens (once per company; a failure shows its message and a retry button).
@@ -100,22 +95,16 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
   useEffect(() => {
     if (!latest.isLoading && !latest.isError && !report && calc.phase === "idle" && !down && autoRan.current !== `${symbol}|${statement}`) { autoRan.current = `${symbol}|${statement}`; run(false); }
   }, [latest.isLoading, latest.isError, report, calc.phase, down, symbol, statement]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const expired = pdfErr?.kind === "expired";
   return (
-    <div aria-busy={busy || latest.isLoading}>
+    <div className="pzr-shell" aria-busy={busy || latest.isLoading}>
+      {report && <PrismSecNav report={report} />}
       <div className="pzr-pagebar">
         {picker}
-        {isAdmin && report && (
-          <button type="button" className="btn primary pzr-dl" onClick={download} disabled={downloading} title="Download the full Prism report of this company as a PDF (administrators only)">
-            <Icon name="download" />{downloading ? "Preparing PDF…" : "Download report (PDF)"}</button>
-        )}
       </div>
       {down && <div className="pzr-problem unavailable" role="note"><Icon name="alert" /><div><b>{PRISM_NAME} is not connected right now</b><p>{status.data?.reason || "The rating service is unavailable."} Stored ratings may still open.</p></div></div>}
       {latest.isLoading && <ReportSkeleton />}
       {latest.isError && !busy && <Problem_ p={prismProblem(latest.error)} onRetry={() => latest.refetch()} back={`/prism/${encodeURIComponent(symbol)}`} />}
       {calc.phase === "failed" && <Problem_ p={calc.problem} onRetry={calc.retryable ? () => run(!!report) : undefined} retryLabel="Retry" />}
-      {pdfErr && !expired && <Problem_ p={pdfErr} />}
-      {expired && <Problem_ p={pdfErr!} onRetry={() => run(true)} retryLabel="Recalculate" />}
       {calc.phase === "working" && <Working since={calc.startedAt} expected={calc.expectedSeconds} />}
       {!latest.isLoading && !latest.isError && !report && calc.phase === "idle" && (
         <div className="card pzr-card pzr-empty-card">
@@ -127,6 +116,8 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
         </div>
       )}
       {report && <PrismReportView key={report.id} report={report} actions={{ onRecalculate: () => run(true), recalculating: busy, }} />}
+      {/* task #220 (README 1.2): the questions sit inside the report's container, so the sections bar stays on screen through them */}
+      <PageFaqs inline />
     </div>
   );
 }

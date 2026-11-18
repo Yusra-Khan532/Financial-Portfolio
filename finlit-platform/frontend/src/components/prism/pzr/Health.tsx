@@ -1,5 +1,6 @@
 // Peer and benchmark panel, and the notes at the end of the report: review notes, the data checks recorded while loading and how to read it.
 import { useState, type ReactNode } from "react";
+import { PzHead } from "./Shell";
 import { dateIN, nf } from "../../../lib/format";
 import { isRated, type BenchmarkDetail, type PrismReport } from "../../../lib/prism";
 import { peerRows, type PeerRow } from "../../../lib/prismReport";
@@ -54,8 +55,8 @@ export function Peers({ report }: { report: PrismReport }) {
   const rows = peerRows(report), [table, setTable] = useState(false);
   const extra = Object.entries(report.benchmark?.metrics || {}).filter(([k]) => !rows.some((r) => k === `industry_median_${r.key}`));
   return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-peer">
-      <header className="pzr-sh"><h3 id="pzr-h-peer">Valuation against the benchmark</h3><p>Price multiples of the company next to the benchmark used in the Valuation part. The line marks the benchmark.</p></header>
+    <section className="pzr-sec pzs" id="valuation" aria-labelledby="pzr-h-peer">
+      <PzHead no="04" id="pzr-h-peer" title="Valuation against the benchmark" desc="Price multiples of the company next to the benchmark used in the Valuation part. The line marks the benchmark." />
       {rows.length ? <ul className="pzr-peers">{rows.map((r) => <PeerBlock key={r.key} row={r} />)}</ul>
         : <p className="pzr-empty">No verified industry or sector valuation benchmarks were available; the valuation factors that need one use group estimates.</p>}
       {extra.length > 0 && <ul className="pzr-bm">{extra.map(([k, b]) => { const l = benchmarkLine(k, b); return <li key={k}><b>{l.what} {l.value}</b><span className="pzr-small">Source: {l.src}{l.more}</span></li>; })}</ul>}
@@ -80,8 +81,8 @@ export const HOW_TO_READ = [
 /** The notes at the end of the report: what the review recorded, what the loader recorded, and how to read the report. */
 export function Notes({ report, notes }: { report: PrismReport; notes: string[] }) {
   return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-notes">
-      <header className="pzr-sh"><h3 id="pzr-h-notes">Notes</h3><p>Review notes, data checks and how to read this report.</p></header>
+    <section className="pzr-sec pzs" id="notes" aria-labelledby="pzr-h-notes">
+      <PzHead no="05" id="pzr-h-notes" title="Notes" desc="Review notes, data checks and how to read this report." />
       <div className="pzr-cols">
         {notes.length > 0 && <Collapse id="pzr-notes" title="Review notes" count={notes.length}><ul className="pzr-notes">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul></Collapse>}
         {report.warnings.length > 0 && <Collapse id="pzr-warn" title="Data checks recorded while loading" count={report.warnings.length}><p className="pzr-small">What the data loader recorded while preparing this calculation, as recorded.</p><ul className="pzr-notes">{report.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></Collapse>}
