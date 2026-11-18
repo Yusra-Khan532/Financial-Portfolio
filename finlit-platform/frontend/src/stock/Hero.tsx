@@ -1,4 +1,8 @@
 import { AlertButton } from "../components/AlertComposer";
+import { DropChev } from "../components/DropChev";
+import { LEVELS, LEVEL_LABEL } from "../lib/taxonomy";
+import { badgeView, marketCapLine, type Plan, type PrismInput } from "../lib/scoreBands";
+import { priceBand, useTrading } from "../lib/trading";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { MINUS, dateIN, fmtUnit, nf, signed } from "../lib/format";
@@ -7,14 +11,13 @@ import { Spark } from "../charts/Small";
 import { Gate } from "../components/Gate";
 import { PrismCompare } from "./PrismCompare";
 import { ScoreMovesCard } from "./ScoreMoves";
-import { ScreenBadges } from "./ScreenBadges";
 import { ScoreCard } from "./ScoreCard";
 import { Info } from "../components/Info";
 import { LeadLine } from "./Leadership";
 import { type Ratios, type Summary } from "../lib/api";
 import { metric } from "./derive";
 import { TradingFacts } from "./TradingFacts";
-import { NameDots, Row, SubLine } from "./HeaderScore";
+import { NameDots } from "./HeaderScore";
 import { useReportHeader } from "./useReportHeader";
 import { useClassification } from "../lib/taxonomy";
 import { CoLogo } from "../components/CoLogo";
@@ -45,38 +48,36 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
     <section className="band hero" id="hero" aria-label={`${p.name} research report`}>
       <div className="wrap">
         <div className="crumbs"><Link to="/research">Research</Link><span>›</span>{macro && <><span title="Macro sector (NSE)">{macro}</span><span>›</span></>}<span style={{ color: "var(--text)" }}>{p.nse || p.symbol}</span></div>
-        <div className="idrow">
-          <div className="idl">
-            <div className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></div>
-            <div style={{ minWidth: 0 }}>
-              <div className="hs-name"><h1>{p.name}</h1><NameDots score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} /></div>
-              <div className="hs-grid">
-                <SubLine profile={p} score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} />
-                <Row label="Listed as"><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></Row>
-                <ScreenBadges symbol={p.symbol} />
-              </div>
-              <LeadLine symbol={p.symbol} jump={jump} />
+        {/* Task #216 (README 2.1, header option D): four rows. 1: logo, name, the dots, price with the day's change, four buttons with a label under each
+            icon (no Download). 2: Rating · Against peers · Market cap · Listed as. 3: NSE's four levels, Macro sector › Sector › Industry › Basic industry.
+            4: "Trading details" drop-down (price band, F&O, margin trading); an exchange-surveillance note stays visible above it. */}
+        <div className="hx hx-d">
+          <div className="hxd-top">
+            <span className="hx-logo"><span className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></span></span>
+            <div className="hxd-n"><h1 className="hx-name">{p.name}</h1><div className="hx-dots"><NameDots score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} /></div></div>
+            <div className="hxd-px">
+              <span className="hx-price"><span className="rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</span>
+              {q.change != null && <span className={"chip " + (good ? "up" : "down")}>{(q.change > 0 ? "+" : q.change < 0 ? MINUS : "") + nf(Math.abs(q.change))} · {signed(q.changePct)}</span>}
+              {q.price == null && cov && cov.reasons.length > 0 && <span className="cov-note" role="note">No price shown: {cov.reasons[0]}.</span>}
             </div>
-          </div>
-          <div className="idr">
-            <div className="pxg">
-            <div>
-              <div className="px"><span className="rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</div>
-              {q.price == null && cov && cov.reasons.length > 0 && <div className="cov-note" role="note">No price shown: {cov.reasons[0]}.</div>}
-              <div className="px-sub"><span className={"chip " + (good ? "up" : "down")}>{q.change == null ? "" : (q.change > 0 ? "+" : q.change < 0 ? MINUS : "") + nf(q.change)} · {signed(q.changePct)}</span>
-                <span>{asOf && !Number.isNaN(+asOf) ? `NSE · ${dateIN(asOf.toISOString(), { day: "numeric", month: "short" })}, ${asOf.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST` : "NSE"}</span></div>
-            </div>
-            <svg className="spark-hero" aria-label="One-year price trend" role="img" viewBox="0 0 150 54"><HeroSpark values={s.sparkline.c} /></svg>
-            </div>
-            <div className="actions">
+            <span className="hx-acts icons"><div className="actions">
               <AlertButton symbol={s.profile.symbol} className="btn" label="Set alert" />
-              <button className={"btn " + (watch ? "on" : "primary")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
+              <button className={"btn" + (watch ? " on" : "")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
               <Link className="btn" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
               <button className="btn" aria-label="Copy link to this report" onClick={() => { navigator.clipboard?.writeText(location.href.split("#")[0]).then(() => toast("Link to this report copied."), () => toast(location.href)); }}><Icon name="arrow" /><span>Share</span></button>
-            </div>
+            </div></span>
           </div>
+          <div className="hxd-strip">
+            <div><span className="hx-k">Rating</span><RatingCell s={s} effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /></div>
+            <div className="hxpeer"><span className="hx-k">Against peers</span><LeadLine symbol={p.symbol} jump={jump} /></div>
+            <div><span className="hx-k">Market cap</span><b>{p.marketCapCr != null ? marketCapLine(p.marketCapCr)?.replace(/^Market cap /, "") : "Not reported"}</b></div>
+            <div><span className="hx-k">Listed as</span><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></div>
+          </div>
+          <ClassPath symbol={p.symbol} fallback={p.industry} />
+          <TradingFacts s={s} part="warn" />
+          <details className="hxd-more xdd"><summary>Trading details · {asOf && !Number.isNaN(+asOf) ? `NSE · ${dateIN(asOf.toISOString(), { day: "numeric", month: "short" })}, ${asOf.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST` : "NSE"}<DropChev /></summary>
+            <TradingList s={s} /></details>
         </div>
-        <TradingFacts s={s} />
 
         {/* One model per plan (founder, 13 Nov 2026, task #100): Gold (and the open example company) sees FinLit Prism only, full width; Silver sees the FinLit IQ
             beside a locked Prism example; Basic sees both locked. */}
@@ -95,7 +96,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             const why = val == null ? blankWhy(key, label, s.dataQuality.isBank, ratios?.blanks) : null;   // task #197: a blank tile says why
             return (
               <div className="kpi" key={key} style={{ "--kc": `var(${color})` } as React.CSSProperties} title={why?.long}>
-                <div className="kl"><Icon name={icon} />{label} <Info g={ratios?.glossary[key]} /></div>
+                <div className="kl"><Icon name={icon} /><span className="kl-t">{label.split("/").map((x, i) => <span key={i}>{i > 0 && <>/<wbr /></>}{x}</span>)}</span> <Info g={ratios?.glossary[key]} /></div>
                 <div className="v">{key === "market_cap" && val != null ? <>₹{val >= 100000 ? nf(val / 100000) : nf(val, 0)}<span className="unit">{val >= 100000 ? "L Cr" : "Cr"}</span></> : fmtUnit(val, unit)}</div>
                 {why ? <div className="s kpi-why">{why.short}<span className="sr-only">. {why.long}</span></div>
                   : <div className="s">{period === "latest" ? "Latest" : period || ""}{key === "roe" && val != null ? " · reported, year-end equity" : ""}</div>}
@@ -108,11 +109,41 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
   );
 }
 
-function HeroSpark({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const mn = Math.min(...values), mx = Math.max(...values), n = values.length, X = (i: number) => 2 + (i / (n - 1)) * 140, Y = (p: number) => 48 - ((p - mn) / (mx - mn || 1)) * 42;
-  const d = values.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(p).toFixed(1)}`).join("");
-  return (<><defs><linearGradient id="hsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--gold)" stopOpacity=".35" /><stop offset="1" stopColor="var(--gold)" stopOpacity="0" /></linearGradient></defs>
-    <path d={`${d}L${X(n - 1)},52L2,52Z`} fill="url(#hsg)" /><path d={d} fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinejoin="round" /><circle cx={X(n - 1)} cy={Y(values[n - 1])} r="3.5" fill="var(--gold-2)" /></>);
+/** Row 2's Rating cell: the plan's one score (FinLit Prism on Gold, FinLit IQ on Silver) as "58.5 /100 Average"; Basic says which plan shows it. */
+export function RatingCell({ s, effPlan, seesAll, prismIn }: { s: Summary; effPlan: Plan; seesAll: boolean; prismIn: PrismInput }) {
+  const v = badgeView(effPlan, seesAll, { overall: s.score.overall, word: s.score.band.label }, prismIn);
+  if (v.kind === "none") return effPlan === "basic" && !seesAll ? <span className="hx-lock"><Link to="/plans">The FinLit IQ comes with Silver</Link></span>
+    : <span className="hx-lock" aria-busy={prismIn.kind === "loading"}>{prismIn.kind === "loading" ? "Reading the rating…" : "—"}</span>;   // Gold while the rating loads, or when the server hides it
+  if (v.kind === "prism-none") return <span className="hx-lock">FinLit Prism: not rated yet · <Link to={`/prism/${encodeURIComponent(s.profile.symbol)}`}>About Prism</Link></span>;
+  const prism = v.kind === "prism", n = v.score == null ? null : prism ? v.score.toFixed(1) : String(Math.round(v.score));
+  if (n == null) return <span className="hx-lock">FinLit IQ: not scored yet</span>;
+  return (
+    <span className={"hx-prism band-" + v.band} role="group" aria-label={`${prism ? "FinLit Prism" : "FinLit IQ"} ${n} out of 100: ${v.word}`}>
+      <span className="hpz-n">{n}</span><span className="hpz-of">/100</span>{v.word && <span className="hpz-w">{v.word}{prism && v.provisional ? " · provisional" : ""}</span>}
+      <span className="hpz-m">{prism ? "FinLit Prism" : "FinLit IQ"}</span>
+    </span>
+  );
 }
-void MINUS; void Spark;
+
+/** Row 3: NSE's four levels as chips with arrows; the basic industry is filled. A blank level says why; a company not placed yet shows the industry only. */
+export function ClassPath({ symbol, fallback }: { symbol: string; fallback?: string | null }) {
+  const c = useClassification(symbol).data;
+  if (c === undefined) return <div className="hx-cls" aria-busy="true" />;
+  if (!c || !c.source) return <div className="hx-cls"><span className="hc-s s3"><span>Industry</span><b>{fallback?.trim() || "Not classified"}</b></span>{c?.note && <span className="hc-why">{c.note.replace(/^Not classified: /, "")}</span>}</div>;
+  return (
+    <nav className="hx-cls" aria-label="NSE classification">
+      {LEVELS.map((l, i) => (
+        <span key={l} className="hc-w">{i > 0 && <i className="hc-a" aria-hidden="true">›</i>}
+          <span className={"hc-s s" + (i + 1)} title={c[l] ? undefined : c.note ?? undefined}><span>{LEVEL_LABEL[l]}</span><b>{c[l] ?? "Not shown"}</b></span></span>))}
+      {c.note && LEVELS.some((l) => !c[l]) && <span className="hc-why">{c.note}</span>}
+    </nav>
+  );
+}
+
+/** Row 4's drop-down body: the trading facts (price band, F&O, margin trading); says so when there are none. */
+function TradingList({ s }: { s: Summary }) {
+  const t = useTrading(s.profile.symbol).data;
+  return priceBand(s.quote) || t?.fno || t?.mtf ? <TradingFacts s={s} part="list" /> : <p className="hxd-none">No price band, F&amp;O or margin-trading facts on file for this company.</p>;
+}
+
+void Spark;

@@ -41,3 +41,36 @@
 .scm-grp .scm-note { margin: 4px 0 0; }
 @media (max-width: 640px) { .scm-grp { padding: 12px 12px 10px; } .scm-gh h4 { font-size: var(--fs-16); } .scm-pat { font-size: var(--fs-13); }
   .scm-grp .scm-key { display: flex; width: 100%; margin-right: 0; text-align: left; flex-wrap: wrap; row-gap: 2px; } .scm-grp .scm-key .scm-chg { margin-left: auto; } }
+
+/* ===== Task #216 (README 2.3): the redrawn card under the Prism card ===== */
+.scm216-card { border-top: 2px solid var(--c1); }
+.scm216-card .scm-h { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; margin: 0 0 14px; }
+.scm216-card .scm-hi { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 12px; background: color-mix(in srgb, var(--c1) 12%, var(--s1)); color: var(--c1); }
+.scm216-card .scm-hi svg { width: 20px; height: 20px; }
+.scm216-card .scm-ht { flex: 1 1 260px; min-width: 0; }
+.scm216-card .scm-eb { margin: 0; font: 700 var(--fs-11, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--c1); }
+.scm216-card .scm-ht h3 { margin: 2px 0; font: 500 var(--fs-24, 24px)/1.2 var(--font-serif, Georgia, serif); color: var(--text); }
+.scm216-card .scm-dl { margin: 0; font: 400 var(--fs-13, 13px) var(--sans); color: var(--muted); }
+.scm216-card .scm-rng { display: flex; flex-wrap: wrap; gap: 6px; }
+.scm216-card .scm-rng button { min-height: 33px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13, 13px) var(--sans); cursor: pointer; }
+.scm216-card .scm-rng button:hover { border-color: var(--c1); }
+.scm216-card .scm-rng button[aria-pressed="true"] { background: var(--c1); border-color: var(--c1); color: #fff; }
+.scm216-card .scm-rng button:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+.scm216 .scm-lead { margin: 0 0 16px; padding: 12px 16px; border-left: 4px solid var(--c1); border-radius: 0 10px 10px 0; background: color-mix(in srgb, var(--c1) 7%, var(--s1)); }
+.scm216 .scm-lead p { margin: 0; font: 400 var(--fs-14, 14px)/1.5 var(--sans); color: var(--text); }
+.scm216 .scm-lead .scm-unch { margin-top: 2px; font-size: var(--fs-13, 13px); color: var(--muted); }
+.scm216 .scm-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+@media (max-width: 899px) { .scm216 .scm-two { grid-template-columns: minmax(0, 1fr); } }
+.scm216 .scm-c { min-width: 0; }
+.scm216 .scm-c h4 { margin: 0 0 6px; font: 600 var(--fs-14, 14px) var(--sans); color: var(--text); }
+.scm216 .scm-c h4 small { margin-left: 8px; font-weight: 400; font-size: var(--fs-12, 12px); color: var(--muted); }
+.scm216 .scm-lgd { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.scm216 .scm-lgd li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 56px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font: 400 var(--fs-13, 13px) var(--sans); }
+.scm216 .scm-lgd li:nth-child(odd) { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.scm216 .scm-lgd i { width: 16px; height: 3px; border-radius: 2px; }
+.scm216 .scm-lgd b { font: 600 var(--fs-14, 14px) var(--sans); font-variant-numeric: tabular-nums; text-align: right; }
+.scm216 .scm-lgd em { font: 700 var(--fs-12, 12px) var(--sans); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.scm216 .scm-lgd em.up { color: var(--gain); } .scm216 .scm-lgd em.down { color: var(--loss); } .scm216 .scm-lgd em.zero, .scm216 .scm-lgd em.na { color: var(--faint); }
+.scm216-card .scm-foot .scm-k { display: inline-flex; align-items: center; gap: 5px; }
+.scm216-card .scm-foot .scm-k i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.scm216-card .scm-foot .scm-k i.solid { background: var(--text); } .scm216-card .scm-foot .scm-k i.hollow { border: 2px solid var(--text); }
