@@ -76,7 +76,7 @@ function Money({ d, money, kinds, toTab, openQty }: { d: AllInvestments; money: 
             <td className={"r " + tone(d.chg1y)}>{chg(d.chg1y)}</td><td className="r">{betaTxt(d.risk.beta)}</td><td colSpan={2} className="mi-muted">1 year: weighted, on what you hold now; holdings with under a year of prices are left out.</td></tr></tfoot>
         </table>
       </HScroll>
-      {d.byValue && money && money.all.missing.length > 0 && <p className="x-miss" role="status"><b>{money.all.full} of {money.all.n}</b> holdings have a quantity and a buy price. Add the buy price for {money.all.missing.slice(0, 3).join(", ")}{money.all.missing.length > 3 ? ` and ${money.all.missing.length - 3} more` : ""} on its portfolio page to count it in Invested and Gain.</p>}
+      {d.byValue && money && money.all.missing.length > 0 && <p className="x-miss" role="status"><b>{money.all.full} of {money.all.n}</b> holdings have a quantity and a buy price. Add the buy price for {money.all.missing.slice(0, 3).join(", ")}{money.all.missing.length > 3 ? ` and ${money.all.missing.length - 3} more` : ""}{money.all.missing.length > 1 ? " on their portfolio pages to count them" : " on its portfolio page to count it"} in Invested and Gain.</p>}
       {!d.byValue && <div className="mi-dashed"><p><b>Add quantities to see your money.</b> Still missing for your {joinWords(d.missing.map((k) => KIND_LOWER[k]))}. Until then each kind counts the same and nothing here is in rupees.</p><button type="button" className="btn primary" onClick={openQty}>Add quantities</button></div>}
     </section>
   );
