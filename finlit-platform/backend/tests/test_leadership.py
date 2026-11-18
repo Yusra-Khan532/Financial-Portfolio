@@ -273,6 +273,10 @@ async def test_weekly_run_then_api(store):  # noqa: F811
             listed = (await c.get("/api/leadership/list?symbols=NOPE,T00")).json()
             assert listed["rows"]["NOPE"]["reason"] == "not_compared" and listed["rows"]["NOPE"]["text"] == "Not in the last weekly comparison"
             assert listed["rows"]["T00"]["available"] is True
+            # task #235 (the 18 Nov pack, E4): the list carries what the Equity portfolio's table needs, the same as the one-stock answer
+            one = (await c.get("/api/stocks/T00/leadership")).json()
+            assert listed["rows"]["T00"]["rawLabel"] == one["rawLabel"] and listed["rows"]["T00"]["direction"] == one["direction"]
+            assert listed["rows"]["T00"]["rank"] == one["rank"] and listed["rows"]["T00"]["ranked"] == one["peerGroup"]["ranked"]
 
     # the second weekly run publishes nothing new unless the raw label held for two runs; a re-run of the same Friday is idempotent
     again = await L.run(store, settings, as_of=END)

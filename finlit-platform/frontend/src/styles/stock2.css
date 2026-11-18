@@ -222,7 +222,7 @@ a.tl-b:hover { border-color: var(--info); transform: translateX(3px); } .tl-b .c
 .mtr-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .mtr { padding: 12px 14px 14px; border-radius: 16px; cursor: default; outline: none; } .mtr.on { border-color: color-mix(in srgb, var(--mc) 60%, var(--border)); box-shadow: 0 14px 30px -20px var(--mc); }
 .mtr-v { font-size: var(--fs-28); margin: 6px 0 10px; } .mtr-v em { font-size: var(--fs-12); margin-left: 6px; }
-.mtr-h .label { font-size: var(--fs-12); } .mtr-pill { padding: 2px 8px; font-size: var(--fs-12); }
+.mtr-h .label { font-size: var(--fs-12); min-width: 0; } .mtr-h { align-items: flex-start; } .mtr-h .li-nw { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; } .mtr-pill { flex: none; white-space: nowrap; } .mtr-pill { padding: 2px 8px; font-size: var(--fs-12); }
 .mtr-bar { height: 8px; }
 .mtr-say { margin: 12px 2px 4px; padding: 10px 14px; border-radius: 12px; background: var(--s2); border-left: 3px solid var(--gold); font-size: 14px; color: var(--muted); } .mtr-say b { color: var(--text); margin-right: 6px; }
 @media (max-width: 1250px) { .mtr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } } @media (max-width: 600px) { .mtr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiSend, type ApiError } from "../lib/api";
+import { apiSend, type ApiError, busyRetry } from "../lib/api";
 
 export const HORIZONS = [["lt1", "Under 1 year"], ["1-3", "1 to 3 years"], ["3-5", "3 to 5 years"], ["gt5", "Over 5 years"]] as const;
 export const RISKS = [["low", "Low"], ["medium", "Medium"], ["high", "High"]] as const;
@@ -22,6 +22,6 @@ export function usePortfolioScore(items: { symbol: string; qty: number | null }[
   return useQuery<ScoreAnswer, ApiError>({
     queryKey: ["portfolio-score", key],
     queryFn: () => apiSend<ScoreAnswer>("POST", "/api/portfolio/score", { items: items.map((i) => (i.qty ? i : { symbol: i.symbol })), ...c }),
-    enabled: enabled && items.length > 0, retry: false, staleTime: 300_000,
+    enabled: enabled && items.length > 0, ...busyRetry, staleTime: 300_000,
   });
 }

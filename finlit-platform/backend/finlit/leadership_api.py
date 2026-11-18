@@ -137,7 +137,9 @@ def list_row(row: Optional[dict], reason: Optional[str]) -> Dict[str, Any]:
         return {"available": False, "reason": why, "text": UNRANKED_TEXT.get(why) or REASON_TEXT.get(why) or "Not compared this week"}
     return {"available": True, "label": agreeing(row["label"], row.get("raw_label"), row["rel52"]), "rank": row["rank"], "ranked": row["ranked"], "group": row["group_short"] or row["group_name"],
             "groupName": row["group_name"], "sector": row["sector_name"], "sectorKind": row["sector_kind"], "rel52": _f(row["rel52"]),
-            "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS}
+            "fundamentalRank": row["fund_rank"], "fundamentalOf": row["fund_n"], "fundamentalNote": row["fundamental"], "stale": (row["stale_runs"] or 0) >= STALE_AFTER_RUNS,
+            # task #235 (the 18 Nov pack, live bug E4): what the Equity portfolio's table needs, so it reads one list instead of one call per share
+            "rawLabel": row.get("raw_label"), "direction": row.get("direction")}
 
 
 @router.get("/api/leadership/list")

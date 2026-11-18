@@ -56,7 +56,7 @@ function Meter({ m, r, on, onSel }: { m: (typeof METERS)[number]; r: Ratios; on:
   const zc = m.good === "none" ? ["--info", "--info", "--info"] : m.good === "low" ? ["--gain", "--warn", "--loss"] : ["--loss", "--warn", "--gain"];
   return (
     <div className={"mtr" + (on ? " on" : "")} tabIndex={0} onMouseEnter={onSel} onFocus={onSel} style={{ "--mc": v(tone) } as React.CSSProperties}>
-      <div className="mtr-h"><span className="label">{e.label} <Info g={r.glossary[m.key]} /></span><span className="mtr-pill">{m.words[zone]}</span></div>
+      <div className="mtr-h"><span className="label"><LabelI text={e.label}><Info g={r.glossary[m.key]} /></LabelI></span><span className="mtr-pill">{m.words[zone]}</span></div>
       <div className="mtr-v">{fmtUnit(x, e.unit)}<em>{e.period === "latest" ? "" : e.period}</em></div>
       <div className="mtr-bar" role="img" aria-label={`${e.label} ${fmtUnit(x, e.unit)}, ${m.words[zone]}`}>
         <span style={{ left: 0, width: `${a}%`, background: v(zc[0]) }} /><span style={{ left: `${a}%`, width: `${b - a}%`, background: v(zc[1]) }} /><span style={{ left: `${b}%`, width: `${100 - b}%`, background: v(zc[2]) }} />
@@ -67,6 +67,12 @@ function Meter({ m, r, on, onSel }: { m: (typeof METERS)[number]; r: Ratios; on:
 }
 
 /** The change of a ratio in its own unit (+31 days, +0.33 pts, +0.10×): a percent change of a ratio misleads. */
+/** Task #230: a label with its "i" kept on the label's last line, right after the last word, so a narrow card wraps the words and never strands the "i" alone or lays it over the text. */
+export function LabelI({ text, children }: { text: string; children: React.ReactNode }) {
+  const k = text.lastIndexOf(" ");
+  return <>{k > 0 ? text.slice(0, k + 1) : ""}<span className="li-nw">{k > 0 ? text.slice(k + 1) : text}{children}</span></>;
+}
+
 export function ratioChange(unit: string | null | undefined, last: number, prev: number): { text: string; delta: number } {
   const d = last - prev, sg = d > 0 ? "+" : d < 0 ? MINUS : "", a = Math.abs(d);
   return { delta: d, text: unit === "days" ? `${sg}${nf(a, 0)} days` : unit === "x" ? `${sg}${nf(a, 2)}×` : `${sg}${nf(a, 2)} pts` };

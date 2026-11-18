@@ -31,7 +31,7 @@
 .xt-dir { list-style: none; margin: 8px auto 26px; padding: 0; max-width: 1180px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .xt-row { --ac: var(--gold); position: relative; display: flex; flex-direction: column; min-width: 0; padding: 20px 18px 14px; border: 1px solid var(--border); border-radius: 20px; background: linear-gradient(180deg, color-mix(in srgb, var(--ac) 7%, var(--s1)), var(--s1) 120px); overflow: hidden;
   transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
-.xt-row::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--ac), color-mix(in srgb, var(--ac) 30%, transparent)); }
+/* task #236 (19 Nov 2026): the coloured line along the top of each group card is removed, as the team marked; the card keeps its border and its group colour in the icon, count and links. */
 .xt-row:hover, .xt-row:focus-within { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); box-shadow: 0 24px 44px -26px color-mix(in srgb, var(--ac) 55%, rgba(0, 0, 0, .4)); }
 .xt-row header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .xt-gi { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); } .xt-gi svg { width: 22px; height: 22px; }
