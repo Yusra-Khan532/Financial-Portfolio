@@ -48,7 +48,7 @@
 .sp-note { margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: var(--sp-mute); }
 .sp-empty { margin: 6px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--s2); color: var(--sp-ink); font-size: 16px; }
 .sp-link { display: inline-flex; margin-top: 10px; color: var(--sp-info); font-weight: 600; text-decoration: none; } .sp-link:hover { text-decoration: underline; }
-.sp-i { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; margin-left: 4px; padding: 0; border-radius: 50%; border: 1px solid var(--sp-mute); background: transparent; color: var(--sp-mute); font: italic 600 12px/1 Georgia, serif; cursor: help; vertical-align: middle; }
+.sp-i { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; margin-left: 4px; padding: 0; border-radius: 50%; border: 1px solid var(--sp-mute); background: var(--s1); color: var(--sp-mute); font: italic 600 12px/1 Georgia, serif; cursor: help; vertical-align: middle; }   /* task #227: a solid disc, so the "i" reads on a coloured tile too */
 .sp-i:hover, .sp-i[aria-expanded="true"] { border-color: var(--sp-info); color: var(--sp-info); }
 .sp-i:focus-visible, .sp-tab:focus-visible, .sp-vbtn:focus-visible, .sp-fbtn:focus-visible, .sp-exp:focus-visible, .sp-morebtn:focus-visible, .sp-dl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .sp-pop { overflow-y: auto; overscroll-behavior: contain; position: fixed; z-index: var(--z-tip, 260); max-width: 320px; padding: 10px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--s1); color: var(--text); font: 400 13px/1.45 var(--sans); box-shadow: 0 14px 34px -16px rgba(0, 0, 0, .4); }
