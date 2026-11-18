@@ -277,7 +277,7 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
     async with store.pool.acquire() as conn:
         sizes = await size_ranks(conn, isins)
     out = public_view(spread(funds, lambda isin, sym: sizes.get(isin or "")))
-    out["funds"] = [{"code": f["code"], "name": f["name"], "amc": f["amc"], "category": f["category"], "weight": round(f["w"] * 100, 1), "holdingsAsOf": f["asOf"],
+    out["funds"] = [{"code": f["code"], "name": f["name"], "amc": f["amc"], "category": f["category"], "weight": round(f["w"] * 100, 1), "holdingsAsOf": f["asOf"], "assetSplit": f.get("assetSplit"),
                      "why": None if f["holdings"] else "The fund house's monthly portfolio disclosure is not loaded yet."} for f in funds]
     for t in out["topStocks"]:
         t["w"] = round(t["w"], 6)

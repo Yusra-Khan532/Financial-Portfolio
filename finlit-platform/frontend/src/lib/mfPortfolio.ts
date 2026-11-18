@@ -172,7 +172,7 @@ export type MfSpread = {
   sectorMacro?: Record<string, string>;
   /** Each fund's split of its own money: by macro sector, by sector and by size (fractions of the fund). */
   perFund?: Record<string, { macro: Record<string, number>; sector: Record<string, number>; size: Record<string, number> }>;
-  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
+  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null; assetSplit?: { equity?: number; debt?: number; cash?: number; other?: number } | null }[];
 };
 export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
 

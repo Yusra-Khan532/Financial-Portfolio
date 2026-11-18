@@ -524,6 +524,8 @@ async def test_diversification_is_silver_words_only_and_names_funds_without_hold
     assert body["overall"] in ("Widely spread", "Spread", "Partly spread", "Concentrated")
     assert all("level" not in x for x in body["readings"].values()), "the bands must stay on the server"
     assert {f["code"] for f in body["funds"]} == {BASE + 1, BASE + 5} and all(f["why"] for f in body["funds"])
+    assert all("assetSplit" in f for f in body["funds"])                     # task #183: each fund's own split, for "What your money is in"
+    assert {"lookThrough", "sectorMacro", "perFund"} <= set(body) and body["coverage"]["notMatched"] == 0
     assert body["coverage"]["missing"] == sorted([BASE + 1, BASE + 5])
 
 
