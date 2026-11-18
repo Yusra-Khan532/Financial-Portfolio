@@ -19,11 +19,11 @@ import { dateIN } from "../lib/format";
 import "../styles/mf.css";
 import "../styles/mfportfolio.css";
 import "../styles/mfspread.css";
-import { SpreadSection } from "../mf/Spread";
 import { apiGet, type ApiError } from "../lib/api";
 import { useUniverse } from "../lib/screener";
 import { type MfRisk } from "../lib/mfPack";
-import { ListRisk, MfTabs, type MfView } from "../mf/pack/MfPack";
+import { MfTabs, type MfView } from "../mf/pack/MfPack";
+import { RiskTab } from "../mf/pack/MfRisk";
 import { FundsTable } from "../mf/pack/MfFunds";
 import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
 import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
@@ -247,8 +247,7 @@ export function MfPortfolioPage() {
           {view === "risk" && <>
             {rk.isPending && <p className="sp-note" aria-busy="true">Working out the risk figures…</p>}
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
-            {rk.data && rk.data.count > 0 && <ListRisk rk={rk.data} />}
-            {sp.data && sp.data.count > 0 && <SpreadSection d={sp.data} part="together" />}
+            {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} />}
           </>}
           </div>
         </>}

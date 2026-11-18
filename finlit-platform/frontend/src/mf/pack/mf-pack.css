@@ -148,3 +148,6 @@ html[data-theme="dark"] .mff-num.m, html[data-theme="dark"] .mff-chip.m, html[da
 .mfm-fold summary { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; cursor: pointer; list-style: none; } .mfm-fold summary::-webkit-details-marker { display: none; }
 .mfm-fold summary h2 { margin: 0; } .mfm-fold summary small { display: block; color: var(--sp-mute); font-size: 13px; }
 @media (max-width: 760px) { .mfm-reads { grid-template-columns: minmax(0, 1fr); } .mfm-pair { grid-template-columns: minmax(0, 1fr); } .mfm-fb { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.mfr-ex { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; } .mfr-ex i { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: var(--s2); } .mfr-ex u { display: block; height: 100%; border-radius: 3px; background: #1f6b6b; }
+.mfp .eqr-sb tbody th, .mfp .eqr-each tbody th, .mfp .eqr-rs tbody th, .mfp .mfm-big tbody th { text-transform: none; letter-spacing: 0; font: 600 14px/1.35 var(--sans); color: var(--sp-ink); }
+.mfp .eqr-sb tbody th .mfp-sub, .mfp .eqr-each tbody th .mfp-sub { font-weight: 400; text-transform: none; letter-spacing: 0; }
