@@ -321,3 +321,105 @@ async def test_personal_answers_are_never_cached(app):
     _, ev2 = await ask(m, "What is on my watchlist?")
     assert ev2[0][1]["cached"] is False and len(client.calls) == 4
     assert ("status", {"text": "Reading your watchlists"}) in ev1
+
+
+# ------------------------------------------------------------------------------------------------------------------ the company page (rework, 18 Nov 2026)
+# Founder's report: "prism score of jsw steels?" was answered "FinLit has no prism score". Cause: no tool read FinLit Prism (the MCP tools were made for an
+# anonymous visitor) and the instructions never named FinLit's own measures. Now: a company card with everything at the top of the page, a Prism tool,
+# a tool for every page section, the card read before the model starts on a company page, and the product names in the instructions.
+
+async def store_prism(app, sym="RELIANCE", final=85.4, label="Strong"):
+    from finlit.prism import REQUIRED_MODEL_VERSION
+    report = {"rating": {"final": final, "label": label, "status": "RATED", "confidence": "High", "modelVersion": REQUIRED_MODEL_VERSION,
+                         "parts": {"fundamental": 88, "valuation": 71, "quality": 90, "risk": 84}},
+              "review": {"parts": [{"pros": [{"summary": "Strong margins"}], "cons": [{"summary": "Cyclical demand"}]}]}}
+    async with app.state.store.pool.acquire() as c:
+        await c.execute("""INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status) VALUES ($1, 'consolidated', $2, $3::jsonb, $4, $5, $6, 'RATED')
+                           ON CONFLICT (symbol, statement) DO UPDATE SET report = EXCLUDED.report, final = EXCLUDED.final, label = EXCLUDED.label, status = EXCLUDED.status""",
+                        sym, "b" * 32, json.dumps(report), REQUIRED_MODEL_VERSION, final, label)
+
+
+async def member_gateway(app, c):
+    st = app.state.settings
+    me = (await c.get("/api/auth/me")).json()
+    return MemberGateway(app, "test", "127.0.0.1", cookie_name=cookie_name(st), cookie=c.cookies.get(cookie_name(st)), csrf=me["csrf"], origin="http://test")
+
+
+@pg
+async def test_the_company_card_holds_what_the_page_shows_and_prism_follows_the_plan(app):
+    await store_prism(app)
+    gold = await member_gateway(app, await signed_in(app, "cg@example.com", plan="gold"))
+    silver = await member_gateway(app, await signed_in(app, "cs@example.com", plan="silver"))
+    # Reliance is the showcase company (SHOWCASE_SYMBOLS): its Prism is open to every signed-in member, as on the website
+    shown = json.loads((await T.run(silver, "get_finlit_prism", {"symbol": "RELIANCE"}))["text"])["data"]["finlitPrism"]
+    assert shown["score"] == 85.4
+    app.state.settings = dataclasses.replace(app.state.settings, showcase_symbols=[])        # any other company: Gold only
+    g = await T.run(gold, "get_company_card", {"symbol": "reliance"})
+    s = await T.run(silver, "get_company_card", {"symbol": "RELIANCE"})
+    assert not g["error"] and not s["error"]
+    gd, sd = json.loads(g["text"])["data"], json.loads(s["text"])["data"]
+    assert gd["finlitPrism"]["score"] == 85.4 and gd["finlitPrism"]["label"] == "Strong" and gd["finlitPrism"]["parts"]["quality"] == 90
+    assert "Gold plan" in sd["finlitPrism"]["unavailable"] and sd["finlitIQ"]["overall"] is not None         # Silver: its IQ, and why Prism is not there
+    for k in ("profile", "classification", "quote", "keyMetrics", "returns", "vsPeers", "tradingFacts"):
+        assert k in gd, k
+    assert gd["profile"]["name"] and len(g["text"].encode()) <= T.RESULT_CAP + 2000
+    p = json.loads((await T.run(gold, "get_finlit_prism", {"symbol": "RELIANCE"}))["text"])["data"]["finlitPrism"]
+    assert p["score"] == 85.4 and p["topPros"] == ["Strong margins"] and p["topCons"] == ["Cyclical demand"]
+    sec = await T.run(gold, "get_company_section", {"symbol": "RELIANCE", "section": "dividends_and_actions"})
+    assert not sec["error"] and '"section":"dividends_and_actions"' in sec["text"]
+    assert (await T.run(gold, "get_company_section", {"symbol": "RELIANCE", "section": "passwords"}))["error"] is True
+    await gold.aclose()
+    await silver.aclose()
+
+
+@pg
+async def test_on_a_company_page_the_card_is_read_first_so_any_wording_is_answered_from_it(app):
+    await store_prism(app)
+    client = FakeClient([{"text": ["FinLit Prism for Reliance is 85.4 (Strong)."]}])
+    enable(app, client)
+    m = await signed_in(app, "pg@example.com", plan="gold")
+    _, ev = await ask(m, "prism score?", symbol="reliance")
+    assert ev[1] == ("status", {"text": "Reading the company page (RELIANCE)"})
+    first = client.calls[0]["messages"][-1]["content"]
+    assert "<company_card" in first and '"score":85.4' in first and first.rstrip().endswith("prism score?")
+    assert len(client.calls) == 1                                    # answered in one round, from the card
+    assert [d["text"] for e, d in ev if e == "text"] == ["FinLit Prism for Reliance is 85.4 (Strong)."]
+
+
+def test_the_instructions_name_finlits_own_measures_and_never_deny_them():
+    s = service.SYSTEM
+    for must in ("FinLit Prism", "Prism score", "FinLit IQ", "FundPulse", "G&P, V, Q, R", "Never say FinLit does not have", "India time (IST)", "get_company_card"):
+        assert must in s, must
+    names = [t["name"] for t in T.definitions()]
+    assert names[:3] == ["get_company_card", "get_finlit_prism", "get_company_section"]
+
+
+# Which companies a question names (finlit/ask/companies.py): their cards are read first, so any wording is answered from the page in one round.
+ROWS = [["JSWSTEEL", "JSW Steel Ltd"], ["TATAMOTORS", "Tata Motors Ltd"], ["TATASTEEL", "Tata Steel Ltd"], ["COALINDIA", "Coal India Ltd"], ["WIPRO", "Wipro Ltd"],
+        ["TCS", "Tata Consultancy Services Ltd"], ["M&M", "Mahindra & Mahindra Ltd"], ["INFY", "Infosys Ltd"], ["INDIANB", "Indian Bank"],
+        ["LICI", "Life Insurance Corporation of India"], ["MARUTI", "Maruti Suzuki India Ltd"], ["IDEA", "Vodafone Idea Ltd"], ["SBIN", "State Bank Of India"]]
+
+
+@pytest.mark.parametrize("q, want", [
+    ("prism score of jsw steels ?", ["JSWSTEEL"]), ("How is tata motors doing vs Tata Steel?", ["TATAMOTORS", "TATASTEEL"]),
+    ("compare wipro and infosys", ["INFY", "WIPRO"]), ("What is TCS's ROE", ["TCS"]), ("M&M margins", ["M&M"]), ("maruti suzuki sales", ["MARUTI"]),
+    ("tell me about coal india", ["COALINDIA"]), ("state bank of india ROE", ["SBIN"]), ("indian bank NPA", ["INDIANB"]),
+    # groups of companies, ordinary words and lower-case symbols name no company (the model searches instead of being handed a wrong card)
+    ("indian banks NPA trend", []), ("life insurance companies growth", []), ("which coal stocks have low debt?", []), ("good idea to look at debt?", []),
+    ("steel companies with high ROE", []), ("what is a good PE ratio?", [])])
+def test_the_companies_a_question_names(q, want):
+    from finlit.ask.companies import find, index_from
+    names, symbols = index_from(ROWS)
+    assert sorted(find(q, names, symbols)) == sorted(want)
+
+
+@pg
+async def test_a_company_named_in_the_question_is_read_first_even_off_its_page(app):
+    from finlit.ask import companies
+    companies._cache.update(at=0.0, names=[], symbols=set())
+    client = FakeClient([{"text": ["Reliance's FinLit IQ is shown above."]}])
+    enable(app, client)
+    m = await signed_in(app, "nm@example.com", plan="silver")
+    _, ev = await ask(m, "how is reliance industries doing?")
+    assert ("status", {"text": "Reading the company page (RELIANCE)"}) in ev
+    assert "<company_card" in client.calls[0]["messages"][-1]["content"] and len(client.calls) == 1
