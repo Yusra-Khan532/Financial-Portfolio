@@ -3,7 +3,7 @@
 // year's changes) is part of Silver and Gold, and the server sends it only to them (finlit/superinvestors.py). Describes, never advises.
 // Styles: styles/superinvestors.css (si-).
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../components/PageHeader";
 import { Gate } from "../components/Gate";
@@ -15,10 +15,10 @@ import "../styles/superinvestors.css";
 export type SiStatus = "new" | "added" | "reduced" | "exited" | "unchanged";
 export type SiHolding = { symbol: string; name: string; industry: string | null; sector: string | null; stakeNow: number | null; stakeYearAgo: number | null; changePts: number | null;
   status: SiStatus; statusText: string; asOf: string | null; fetched: string | null; valueCr?: number | null; valueWhy?: string | null; weightPct?: number | null; sectorWhy?: string };
-export type SiSummary = { key: string; name: string; companies: number; valueCr: number | null; valueNote: string | null; top: { symbol: string; name: string; weightPct: number | null }[];
+export type SiSummary = { key: string; name: string; kind?: "person" | "firm"; companies: number; valueCr: number | null; valueNote: string | null; top: { symbol: string; name: string; weightPct: number | null }[];
   changes: Record<"new" | "added" | "reduced" | "exited", number> };
 type Meta = { asOf: string | null; fetchedFrom: string | null; fetchedTo: string | null; pricesAt?: string | null; source: string; disclaimer: string; noteNames: string; rule: string };
-export type SiList = Meta & { investors: SiSummary[]; count: number; emptyWhy: string | null; covered: number; companies: number | null };
+export type SiList = Meta & { investors: SiSummary[]; count: number; people?: number; firms?: number; emptyWhy: string | null; covered: number; companies: number | null };
 export type SiPortfolio = SiSummary & Meta & { holdings: SiHolding[]; sectors: { sector: string; valueCr: number; weightPct: number | null; companies: number }[]; history: SiHolding[] };
 
 const BASE = "/superinvestors";
@@ -54,11 +54,16 @@ export function SuperinvestorsPage() {
   const q = useQuery<SiList, ApiError>({ queryKey: ["superinvestors"], queryFn: () => apiGet("/api/superinvestors"), staleTime: 600_000, retry: 1 });
   const [find, setFind] = useState("");
   const [all, setAll] = useState(false);
+  // People first (the "superinvestors" of the task); companies and funds one tab away. The tab is in the address, so a shared link keeps it.
+  const [sp, setSp] = useSearchParams();
+  const show: "person" | "firm" = sp.get("show") === "firms" ? "firm" : "person";
+  const setShow = (k: "person" | "firm") => { setAll(false); setSp((prev) => { const n = new URLSearchParams(prev); if (k === "firm") n.set("show", "firms"); else n.delete("show"); return n; }, { replace: true }); };
+  const inTab = useMemo(() => (q.data?.investors ?? []).filter((r) => (r.kind ?? "person") === show), [q.data, show]);
   const list = useMemo(() => {
     const t = find.trim().toLowerCase();
-    const rows = q.data?.investors ?? [];
+    const rows = inTab;
     return t ? rows.filter((r) => r.name.toLowerCase().includes(t) || r.top.some((h) => h.symbol.toLowerCase().includes(t) || h.name.toLowerCase().includes(t))) : rows;
-  }, [q.data, find]);
+  }, [inTab, find]);
   const shown = all || find ? list : list.slice(0, FIRST);
   return (
     <>
@@ -70,11 +75,16 @@ export function SuperinvestorsPage() {
         {q.data && <>
           <div className="si-bar">
             <label className="si-find"><span className="si-lab">Find an investor or a company</span>
-              <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Investor name or company symbol" aria-label="Find an investor or a company" /></label>
-            <p className="si-count" aria-live="polite">{find ? `${list.length} of ${q.data.count} investors` : `${q.data.count.toLocaleString("en-IN")} investors`}</p>
+              <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Name or company symbol" aria-label="Find an investor or a company" /></label>
+            <p className="si-count" aria-live="polite">{find ? `${list.length} of ${inTab.length.toLocaleString("en-IN")}` : `${inTab.length.toLocaleString("en-IN")} ${show === "person" ? "people" : "companies and funds"}`}</p>
+          </div>
+          <div className="si-tabs" role="tablist" aria-label="Who to list">
+            {([["person", "People", q.data.people], ["firm", "Companies and funds", q.data.firms]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" role="tab" aria-selected={show === k} className={"si-tab" + (show === k ? " on" : "")} onClick={() => setShow(k)}>
+                {label}{n != null && <small> {n.toLocaleString("en-IN")}</small>}</button>))}
           </div>
           {q.data.emptyWhy ? <p className="si-empty">{q.data.emptyWhy}</p>
-            : list.length === 0 ? <p className="si-empty">No investor or company matches “{find}”.</p>
+            : list.length === 0 ? <p className="si-empty">{find ? <>No {show === "person" ? "person" : "company or fund"} matches “{find}”{(q.data.investors.some((r) => (r.kind ?? "person") !== show && r.name.toLowerCase().includes(find.trim().toLowerCase()))) && <> here; try <button type="button" className="linkish" onClick={() => setShow(show === "person" ? "firm" : "person")}>{show === "person" ? "Companies and funds" : "People"}</button></>}.</> : "No investor in this group."}</p>
             : <ol className="si-list">{shown.map((r, i) => (
               <li key={r.key} className="si-row">
                 <span className="si-rank" aria-hidden="true">{i + 1}</span>

@@ -28,7 +28,15 @@ government), named with 1% or more in **two or more** listed companies today. Th
 "Clearing members", "HUF", "Individuals holding nominal share capital …") are groups, not investors, and are left out.
 
 Names are matched as the filings write them, after dropping honorifics and punctuation and making "Private Limited" / "Pvt. Ltd."
-alike. One investor who files under two spellings, or through a company, appears separately; the page says so.
+alike. One investor who files under two spellings, or through a company, appears separately, and two different people with the
+same name appear as one; the page says so.
+
+**People and companies (round 2, after the live data):** each investor is marked `person` or `firm` from the shape of the name
+(Ltd, Pvt, LLP, Pte, Capital, Investments, Holdings, Trust, Sdn Bhd …; an HUF is a family, so it counts with people). The page opens
+on **People**, the "renowned superinvestors" of the task, with **Companies and funds** one tab away (`?show=firms`). On the live
+data of 18 Nov: 719 people and 447 companies and funds. More filing category lines are left out ("Overseas Corporate Bodies",
+"Public - PAC", "Independent Director or his relatives", "Firm", "Societies", clearing corporations, employee welfare trusts,
+trustee companies).
 
 ## The year's changes ("transaction history")
 

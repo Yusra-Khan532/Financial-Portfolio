@@ -98,3 +98,17 @@ async def test_the_list_is_open_to_everyone_and_a_portfolio_needs_silver_or_gold
         assert p.status_code == 200 and p.json()["companies"] == 3 and p.json()["history"] and p.json()["source"], plan
         assert p.headers["cache-control"].startswith("private")
         assert (await c.get("/api/superinvestors/nobody-at-all")).status_code == 404
+
+
+def test_more_filing_categories_are_left_out_and_people_are_told_from_firms():
+    for cat in ("Overseas Corporate Bodies", "Public - PAC", "Independent Director or his relatives", "Firm", "Societies", "Indian Clearing Corporation Limited",
+                "Aml Employee Welfare Trust", "Ctl Trusteeship Limited", "Reliance Capital Trustee Co Ltd"):
+        assert not si.is_investor(cat), cat
+    for person in ("Rekha Jhunjhunwala", "Ashish Kacholia", "Thakkar Nileshkumar Farshuram (Huf)", "Mukul Mahavir Agrawal"):
+        assert si.is_investor(person) and si.kind_of(person) == "person", person
+    for firm in ("Info Edge (India) Limited", "Bengal Finance & Investment Pvt Ltd", "Macritchie Investments Pte Ltd", "Ammar Sdn Bhd", "Elevation Capital V Limited"):
+        assert si.kind_of(firm) == "firm", firm
+    rows = [{"symbol": s, "as_of": "Sep 2026", "premium_at": None, "holders": [["Some Holdings Pvt Ltd", "public", 2.0, 2.0], ["Asha Rao", "public", 1.5, 1.0]]} for s in ("AAA", "BBB")]
+    out = si.summary(si.build(rows, {}, {"AAA": {"market_cap": 100}, "BBB": {"market_cap": 100}}, {}))
+    assert out["people"] == 1 and out["firms"] == 1 and {i["name"]: i["kind"] for i in out["investors"]} == {"Some Holdings Pvt Ltd": "firm", "Asha Rao": "person"}
+    assert "same name appear as one" in out["noteNames"]

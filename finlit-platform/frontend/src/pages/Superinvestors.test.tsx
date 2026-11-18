@@ -12,9 +12,10 @@ vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description }
 
 const META = { asOf: "Sep 2026", fetchedFrom: "2026-11-09", fetchedTo: "2026-11-11", pricesAt: "2026-11-17T10:00:00Z", source: "Each company's shareholding filing (named public shareholders of 1% or more), via FinEdge; values at today's market capitalisation.",
   disclaimer: "Information only, not investment advice. Holdings below 1% are not named in filings, so a portfolio here shows only stakes of 1% or more.", noteNames: "Names are matched as the filings write them.", rule: "Named public shareholders who hold 1% or more of at least 2 listed companies today." };
-const KEDIA = { key: "vijay-kedia", name: "Vijay Kedia", companies: 2, valueCr: 72, valueNote: null, top: [{ symbol: "BBB", name: "Bbb Tech Ltd", weightPct: 83.33 }, { symbol: "AAA", name: "Aaa Industries Ltd", weightPct: 16.67 }], changes: { new: 1, added: 0, reduced: 0, exited: 0 } };
-const KACH = { key: "ashish-kacholia", name: "Ashish Kacholia", companies: 3, valueCr: 47, valueNote: "1 holding without a market value today, left out of the total.", top: [{ symbol: "AAA", name: "Aaa Industries Ltd", weightPct: 53.19 }], changes: { new: 1, added: 1, reduced: 1, exited: 1 } };
-const LIST = { ...META, investors: [KEDIA, KACH], count: 2, emptyWhy: null, covered: 4, companies: 5839 };
+const KEDIA = { key: "vijay-kedia", name: "Vijay Kedia", kind: "person", companies: 2, valueCr: 72, valueNote: null, top: [{ symbol: "BBB", name: "Bbb Tech Ltd", weightPct: 83.33 }, { symbol: "AAA", name: "Aaa Industries Ltd", weightPct: 16.67 }], changes: { new: 1, added: 0, reduced: 0, exited: 0 } };
+const KACH = { key: "ashish-kacholia", name: "Ashish Kacholia", kind: "person", companies: 3, valueCr: 47, valueNote: "1 holding without a market value today, left out of the total.", top: [{ symbol: "AAA", name: "Aaa Industries Ltd", weightPct: 53.19 }], changes: { new: 1, added: 1, reduced: 1, exited: 1 } };
+const FIRM = { key: "some-holdings-pvt-ltd", name: "Some Holdings Pvt Ltd", kind: "firm", companies: 2, valueCr: 900, valueNote: null, top: [{ symbol: "AAA", name: "Aaa Industries Ltd", weightPct: 60 }], changes: { new: 0, added: 0, reduced: 0, exited: 0 } };
+const LIST = { ...META, investors: [FIRM, KEDIA, KACH], count: 3, people: 2, firms: 1, emptyWhy: null, covered: 4, companies: 5839 };
 const h = (o: object) => ({ industry: "IT - Software", sector: "Information Technology", asOf: "Sep 2026", fetched: "2026-11-10", status: "unchanged", statusText: "No change", ...o });
 const PORT = { ...KACH, ...META,
   holdings: [h({ symbol: "AAA", name: "Aaa Industries Ltd", stakeNow: 2.5, stakeYearAgo: 1.5, changePts: 1, status: "added", valueCr: 25, valueWhy: null, weightPct: 53.19, industry: "Auto Components", sector: "Automobile and Auto Components" }),
@@ -53,9 +54,25 @@ describe("Superinvestor portfolios (#212)", () => {
     PLAN = "basic"; open("/superinvestors");
     const box = await screen.findByRole("searchbox", { name: /Find an investor/ });
     fireEvent.change(box, { target: { value: "bbb" } });
-    expect(screen.getByText("1 of 2 investors")).toBeTruthy();
+    expect(screen.getByText("1 of 2")).toBeTruthy();
     fireEvent.change(box, { target: { value: "nobody" } });
-    expect(screen.getByText(/No investor or company matches/)).toBeTruthy();
+    expect(document.querySelector(".si-empty")!.textContent).toBe("No person matches “nobody”.");
+  });
+  it("opens on people; companies and funds are one tab away, kept in the address", async () => {
+    PLAN = "basic"; open("/superinvestors");
+    await screen.findByRole("link", { name: "Vijay Kedia" });
+    expect(screen.queryByRole("link", { name: "Some Holdings Pvt Ltd" })).toBeNull();
+    expect(screen.getByRole("tab", { name: /People 2/ }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("2 people")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Companies and funds 1/ }));
+    expect(screen.getByRole("link", { name: "Some Holdings Pvt Ltd" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Vijay Kedia" })).toBeNull();
+    expect(screen.getByText("1 companies and funds")).toBeTruthy();
+    const box = screen.getByRole("searchbox", { name: /Find an investor/ });
+    fireEvent.change(box, { target: { value: "kedia" } });
+    expect(document.querySelector(".si-empty")!.textContent).toMatch(/No company or fund matches “kedia” here; try People/);
+    fireEvent.click(screen.getByRole("button", { name: "People" }));
+    expect(screen.getByRole("link", { name: "Vijay Kedia" })).toBeTruthy();
   });
   it("a portfolio is locked for Basic, and the server is not asked for it", async () => {
     PLAN = "basic"; open("/superinvestors/ashish-kacholia");
