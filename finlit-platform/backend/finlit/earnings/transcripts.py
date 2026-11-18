@@ -37,6 +37,7 @@ HOST_OK = re.compile(r"^(?:[a-z0-9-]+\.)*(?:nseindia\.com|bseindia\.com)$")
 PAUSE = 1.0
 MAX_REDIRECTS = 3
 MAX_PAGES = 400
+DOC_PDF_BYTES = 40 * 1024 * 1024   # an investor presentation is image-heavy (16.5 MB seen on 17 Nov 2026), an annual report large
 
 
 # ------------------------------------------------------------------------------------------------ fiscal quarters (India: April to March)
@@ -267,10 +268,28 @@ class Fetcher:
         """One GET. Straight to the host first: the exchanges' archive hosts (nsearchives.nseindia.com) answer the AWS server directly. Only when an exchange host
         answers 403 and a relay is set is it asked again through the relay (a browser-like request from another address). If the relay cannot help, the host's own
         403 stands, so a real refusal is still a refusal (Blocked)."""
-        r = await self._client.get(url, headers=headers)
         host = urlsplit(url).hostname or ""
-        if r.status_code != 403 or not (self.relay and HOST_OK.match(host)):
+        relayable = bool(self.relay and HOST_OK.match(host))
+        try:
+            r = await self._client.get(url, headers=headers)
+        except httpx.TransportError:
+            # NSE's archive drops the connection (no answer at all) for a non-browser agent from a cloud address (task #221, 18 Nov 2026): that is a
+            # refusal in another form, so the relay is asked as for a 403. Without a relay, or if the relay fails too, the network error stands.
+            if not relayable:
+                raise
+            via = await self._via_relay(url, headers)
+            if via is None:
+                raise
+            return via
+        if r.status_code != 403 or not relayable:
             return r
+        via = await self._via_relay(url, headers)
+        return r if via is None else via
+
+    async def _via_relay(self, url: str, headers: dict) -> Optional[httpx.Response]:
+        """The same GET through the relay, or None when the relay could not get the exchange's own answer."""
+        if self.relay is None:
+            return None
         base, key = self.relay
         fwd = {"X-Relay-Key": key}
         for name in ("User-Agent", "Accept", "Referer"):
@@ -279,9 +298,9 @@ class Fetcher:
         try:
             via = await self._client.get(base + "/fetch", params={"u": url}, headers=fwd)
         except httpx.TransportError:
-            return r
+            return None
         if via.headers.get("x-relay-error") or not via.headers.get("x-relay"):    # the relay's own failure, or an answer it did not write: not the exchange's word
-            return r
+            return None
         return via
 
     # -- one request: budget, pause, back-off on 429 / 503
@@ -311,6 +330,16 @@ class Fetcher:
         raise FetchFailed("did not answer")
 
     @staticmethod
+    def canonical(url: str) -> str:
+        """NSE's filings list gives archive links on nsearchives.nseindia.in; the same files are served at nsearchives.nseindia.com (checked 18 Nov 2026:
+        same file, same size), the host the exchange rules here allow. Every other address is left as it is."""
+        p = urlsplit(url)
+        host = (p.hostname or "").lower()
+        if p.scheme == "https" and re.fullmatch(r"(?:[a-z0-9-]+\.)*nseindia\.in", host) and p.port in (None, 443):
+            return p._replace(netloc=host[:-3] + ".com").geturl()
+        return url
+
+    @staticmethod
     def host_ok(url: str) -> bool:
         p = urlsplit(url)
         return p.scheme == "https" and bool(p.hostname) and bool(HOST_OK.match(p.hostname)) and (p.port in (None, 443))
@@ -323,7 +352,7 @@ class Fetcher:
         if host not in self._robots:
             rp: Optional[RobotFileParser] = None
             try:
-                r = await self._send(f"https://{host}/robots.txt")
+                r = await self._send(f"https://{host}/robots.txt", {"User-Agent": agent})   # asked with the agent that will fetch the file
                 if r.status_code == 200:
                     rp = RobotFileParser()
                     rp.parse(r.text.splitlines())
@@ -357,8 +386,13 @@ class Fetcher:
         raise FetchFailed("too many redirects")
 
     # -- the two things we ask for
-    async def pdf(self, url: str) -> bytes:
-        r = await self._get(url, USER_AGENT, {"Accept": "application/pdf, */*"}, C.MAX_PDF_BYTES)
+    async def pdf(self, url: str, cap: Optional[int] = None) -> bytes:
+        """The PDF at an exchange archive link. cap: the most bytes taken (default: a transcript's cap; presentations and annual reports pass a larger one)."""
+        url = self.canonical(url)
+        # NSE's archive drops the connection for a non-browser agent (no answer at all; checked 18 Nov 2026, task #221) and serves a browser one, as its API
+        # does (nse_announcements): NSE files are asked for with the browser agent; BSE keeps FinLit's identifying agent. robots.txt is still obeyed.
+        agent = NSE_BROWSER_UA if (urlsplit(url).hostname or "").endswith("nseindia.com") else USER_AGENT
+        r = await self._get(url, agent, {"Accept": "application/pdf, */*"}, cap or C.MAX_PDF_BYTES)
         if r.status_code != 200:
             raise FetchFailed(f"HTTP {r.status_code}")
         if not r.content.startswith(b"%PDF"):

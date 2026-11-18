@@ -3,6 +3,8 @@
 // box and Sector Pulse state, each a coloured chip), and whether the two agree. One full-width table; a row opens its details right under it (one row at a time,
 // Finance first). The four cards over it show their headline; a chevron opens the meaning and every group in it. Figures are the server's. Describes; never advice.
 import { Fragment, useMemo, useState } from "react";
+import { SortTh } from "../../SortTh";
+import { useTableSort, type SortVal } from "../../../lib/tableSort";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
@@ -72,6 +74,9 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
   const nse = useNseName();   // the group's name in NSE's spelling (Sector Pulse drops NSE's commas)
   const q = useQuarterResults({ industry: i.name, status: "declared", sort: "marketCap", dir: "desc", limit: 10 });
   const rows = (q.data?.rows ?? []) as VRow[], m = i.market, a = agreeOf(i.vsMarket, rot?.corner);
+  const big = useTableSort(rows, (r, k): SortVal => ({ company: r.symbol, size: r.cap, rev: r.revenueYoY, profit: r.profitYoY, verdict: r.verdict } as Record<string, SortVal>)[k]);
+  const typ = useTableSort([["Revenue growth YoY", i.medianRevenueYoY, m?.medianRevenueYoY], ["Profit growth YoY", i.medianProfitYoY, m?.medianProfitYoY], ["Margin change", i.medianNpmChange, m?.medianNpmChange]] as [string, number | null | undefined, number | null | undefined][],
+    (r, k): SortVal => (k === "fig" ? r[0] : k === "ind" ? r[1] : r[2]));
   const tone = (v: number | null | undefined) => (v == null ? "" : v >= 0 ? "sp-good" : "sp-red");
   const row = (label: string, a1: number | null | undefined, b1: number | null | undefined) => <tr><th scope="row">{label}</th><td className={"r " + tone(a1)}>{sp(a1)}</td><td className={"r " + tone(b1)}>{sp(b1)}</td></tr>;
   if (i.medianRevenueYoY === undefined) return <div className="rs-dr rs-dr-locked"><LockedBlock plan="silver" title="Each group's figures are part of the Silver plan">The counts are open to everyone. {i.declared} of {i.companies} companies in {nse(i.name)} have declared.</LockedBlock></div>;
@@ -84,16 +89,16 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
       </div>
       <div>
         <p className="sp-cap">Typical company</p>
-        <table className="sp-tb rs-typ kit-grid"><thead><tr><th scope="col"><span className="sr-only">Figure</span></th><th scope="col" className="r">Industry</th><th scope="col" className="r">Market</th></tr></thead>
-          <tbody>{row("Revenue growth YoY", i.medianRevenueYoY, m?.medianRevenueYoY)}{row("Profit growth YoY", i.medianProfitYoY, m?.medianProfitYoY)}{row("Margin change", i.medianNpmChange, m?.medianNpmChange)}</tbody></table>
+        <table className="sp-tb rs-typ kit-grid"><thead><tr><SortTh k="fig" label={<span className="sr-only">Figure</span>} sort={typ.sort} onSort={typ.toggle} /><SortTh k="ind" label="Industry" className="r" sort={typ.sort} onSort={typ.toggle} /><SortTh k="mkt" label="Market" className="r" sort={typ.sort} onSort={typ.toggle} /></tr></thead>
+          <tbody>{typ.sorted.map((x) => <Fragment key={x[0]}>{row(x[0], x[1], x[2])}</Fragment>)}</tbody></table>
         <div className="rs-rvp"><p><b>Results vs share prices: {a ?? "no reading"}</b><Tip text="Results vs share prices. How the group's results compare with the market, set against where its share prices stand on Sector Rotation. Agree: both point the same way. Prices lag: results are ahead, prices behind. Prices run ahead: prices ahead, results behind. Mixed: results are about average." /></p>
           <p>{a ? AGREE_TEXT[a] : "Not enough results or no Sector Rotation reading yet."}{rot?.corner && rot.corner !== "middle" ? ` Sector Rotation: ${BOX[rot.corner].word}.` : ""}{pulse ? ` Sector Pulse: ${WORD[keyOf(pulse)]}.` : ""}</p></div>
       </div>
       <div>
         <p className="sp-cap">Biggest companies that declared</p>
         {q.data?.locked ? <p className="sp-note">Each company's verdict is part of the Silver plan.</p> : !rows.length ? <p className="sp-note">{q.isLoading ? "Loading…" : "No company has declared yet."}</p> :
-          <div className="rs-dr-scroll" role="region" aria-label="Biggest companies that declared" tabIndex={0}><table className="sp-tb rs-big kit-grid"><thead><tr><th scope="col">Company</th><th scope="col">Size</th><th scope="col" className="r">Rev.</th><th scope="col" className="r">Profit</th><th scope="col">Verdict</th></tr></thead>
-            <tbody>{rows.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b>{r.symbol}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
+          <div className="rs-dr-scroll" role="region" aria-label="Biggest companies that declared" tabIndex={0}><table className="sp-tb rs-big kit-grid"><thead><tr>{(["company:Company", "size:Size", "rev:Rev.:r", "profit:Profit:r", "verdict:Verdict"]).map((c) => { const [k, l, cls] = c.split(":"); return <SortTh key={k} k={k} label={l} className={cls} sort={big.sort} onSort={big.toggle} />; })}</tr></thead>
+            <tbody>{big.sorted.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b>{r.symbol}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
         <Link className="sp-link" to={`/results/quarter?industry=${encodeURIComponent(i.name)}`}>All {i.declared} companies in {nse(i.name)} →</Link>
       </div>
     </div>
@@ -117,6 +122,13 @@ export function IndustriesView({ inds }: { inds: Ind[] }) {
   const rot = { get: (n: string) => rotM.get(nameKey(n)) }, pulse = { get: (n: string) => pulseM.get(nameKey(n)) };
   const shown = useMemo(() => inds.filter((i) => (i.withNumbers ?? i.declared) >= 5).sort((a, b) => (b.declared - a.declared) || a.name.localeCompare(b.name)), [inds]);
   const rows = shown.map((i) => ({ i, agree: agreeOf(i.vsMarket, rot.get(i.name)?.corner) }));
+  // task #224 (A1): every heading sorts; a row and its open drawer move together (they are one unit below)
+  const { sorted: sortedRows, sort, toggle } = useTableSort(rows, ({ i, agree }, k): SortVal => {
+    const r = rot.get(i.name), g = pulse.get(i.name);
+    return ({ name: nse(i.name), vs: i.vsMarket ?? null, rev: i.medianRevenueYoY ?? null, profit: i.medianProfitYoY ?? null, beat: i.beatShare ?? null,
+      rot: r?.corner && r.corner !== "middle" ? BOX[r.corner].word : null, pulse: g ? WORD[keyOf(g)] : null, agree: agree ?? null } as Record<string, SortVal>)[k];
+  });
+  const H = (k: string, l: React.ReactNode, cls?: string, after?: React.ReactNode) => <SortTh k={k} label={l} sort={sort} onSort={toggle} className={cls} after={after} />;
   // One row open at a time; Finance first (the pack), else the largest group. `null` = the reader closed it.
   const [pick, setPick] = useState<string | null | undefined>(undefined);
   const openName = pick === undefined ? (shown.find((i) => i.name === "Finance") ?? shown[0])?.name : pick;
@@ -133,21 +145,23 @@ export function IndustriesView({ inds }: { inds: Ind[] }) {
         <div className="rs-cardbar"><OpenAll scope="results.groups" n={cards.length} /></div>
         <DashCards items={cards} scope="results.groups" cols={4} />
       </DashCardsProvider>}
+      {/* task #224 (A2): say that every row opens */}
+      <p className="rs-openhint"><span className="rs-chev" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg></span><span><b>Every row opens.</b> Click an industry to see how its companies did, the typical company against the market, and its biggest results. Click a heading to sort.</span></p>
       <Scroll label="groups"><table className="sp-tb rs-it kit-grid">
         <thead>
           <tr className="kit-bands"><th aria-hidden="true" /><th colSpan={4} scope="colgroup" className="kit-band kit-b-green">Results this quarter</th><th colSpan={2} scope="colgroup" className="kit-band kit-b-blue">Share prices now</th><th scope="colgroup" className="kit-band kit-b-dark">Together</th></tr>
-          <tr><th scope="col">Group</th><th scope="col">Vs market<Tip text="Ahead: its typical company grew revenue and profit faster than the typical listed company. Behind: both slower. In line: in between." /></th>
-            <th scope="col" className="r">Revenue growth<Tip text="The typical company's revenue growth on a year ago." /></th><th scope="col" className="r">Profit growth<Tip text="The typical company's net profit growth on a year ago." /></th>
-            <th scope="col">Beat their industry<Tip text="The share of its declared companies with a Strong or Good result against their industry." /></th>
-            <th scope="col">Sector Rotation<Tip text="Its box on Sector Rotation: its price strength over the last few months and in recent weeks, against the average industry." /></th>
-            <th scope="col">Sector Pulse<Tip text="Its state on Sector Pulse: how many of its stocks are rising together." /></th>
-            <th scope="col">Results and prices<Tip text="Whether the results and the share prices point the same way: Agree, Prices lag, Prices run ahead or Mixed." /></th></tr>
+          <tr>{H("name", "Group")}{H("vs", "Vs market", undefined, <Tip text="Ahead: its typical company grew revenue and profit faster than the typical listed company. Behind: both slower. In line: in between." />)}
+            {H("rev", "Revenue growth", "r", <Tip text="The typical company's revenue growth on a year ago." />)}{H("profit", "Profit growth", "r", <Tip text="The typical company's net profit growth on a year ago." />)}
+            {H("beat", "Beat their industry", undefined, <Tip text="The share of its declared companies with a Strong or Good result against their industry." />)}
+            {H("rot", "Sector Rotation", undefined, <Tip text="Its box on Sector Rotation: its price strength over the last few months and in recent weeks, against the average industry." />)}
+            {H("pulse", "Sector Pulse", undefined, <Tip text="Its state on Sector Pulse: how many of its stocks are rising together." />)}
+            {H("agree", "Results and prices", undefined, <Tip text="Whether the results and the share prices point the same way: Agree, Prices lag, Prices run ahead or Mixed." />)}</tr>
         </thead>
-        <tbody>{rows.map(({ i, agree }) => { const r = rot.get(i.name), g = pulse.get(i.name), on = openName === i.name, id = "rs-dr-" + i.name.replace(/[^a-zA-Z0-9]/g, ""); return (
+        <tbody>{sortedRows.map(({ i, agree }) => { const r = rot.get(i.name), g = pulse.get(i.name), on = openName === i.name, id = "rs-dr-" + i.name.replace(/[^a-zA-Z0-9]/g, ""); return (
           <Fragment key={i.name}>
             <tr className={"rs-ir" + (on ? " on" : "")} tabIndex={0} aria-expanded={on} aria-controls={on ? id : undefined} aria-label={`${nse(i.name)}: ${on ? "close" : "open"} its details`}
               onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) flip(i.name); }} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); flip(i.name); } }}>
-              <td><span className="rs-iname"><b>{nse(i.name)}</b>{yours.has(nameKey(i.name)) && <em className="rs-yours" title="You hold or follow a company in this group">Yours</em>}</span><small>{i.declared} of {i.companies} declared</small></td>
+              <td><span className="rs-iname"><span className="rs-chev" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg></span><b>{nse(i.name)}</b>{yours.has(nameKey(i.name)) && <em className="rs-yours" title="You hold or follow a company in this group">Yours</em>}</span><small>{i.declared} of {i.companies} declared</small></td>
               <td>{i.vsMarket === undefined ? "Silver" : i.vsMarket ? <span className={"rs-vm rs-vm-" + i.vsMarket.toLowerCase().replace(" ", "")}>{i.vsMarket}</span> : <span className="rs-na">Too few figures</span>}</td>
               <td className={"r " + signTone(i.medianRevenueYoY)}>{i.medianRevenueYoY === undefined ? "Silver" : sp(i.medianRevenueYoY)}</td><td className={"r " + signTone(i.medianProfitYoY)}>{i.medianProfitYoY === undefined ? "Silver" : sp(i.medianProfitYoY)}</td>
               <td>{i.beatShare === undefined ? "Silver" : i.beatShare == null ? <span className="rs-na">Too few figures</span> : <span className="rs-dw"><span className="t" aria-hidden="true"><i style={{ width: `${Math.min(100, i.beatShare)}%` }} /></span><b>{Math.round(i.beatShare)}%</b></span>}</td>

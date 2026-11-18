@@ -3,6 +3,10 @@
 // with each day's declared or due count, one day's declared results with their own day picker and verdicts, and every company due in the next seven days with its
 // industry so far. Figures and verdicts are the server's (GET /api/results/quarter, /api/results/calendar); words from lib/resultsPack. Never advice.
 import { useMemo, useState } from "react";
+import { Icon } from "../../../lib/icons";
+import { SortTh } from "../../SortTh";
+import "../../../styles/results224.css";
+import { useTableSort, type SortVal } from "../../../lib/tableSort";
 import { Link } from "react-router";
 import { CoLogo } from "../../CoLogo";
 import { Scroll, Section, Tip } from "../../sectors/pack/Common";
@@ -20,6 +24,11 @@ const tone = (v: number | null | undefined) => (v == null ? "" : v > 0 ? "sp-goo
 
 // ------------------------------------------------------------------------------------------------ header, view switch and tiles
 export type ResView = "calendar" | "industries" | "companies";
+const VIEWS: { key: ResView; title: string; desc: string; color: string; icon: string }[] = [
+  { key: "calendar", title: "Calendar", desc: "Who declares when, day by day", color: "#0e6471", icon: "calendar" },
+  { key: "industries", title: "Industries", desc: "How each industry did this quarter", color: "#4b4fc4", icon: "layers" },
+  { key: "companies", title: "Companies", desc: "Every company's results, newest first", color: "#b5541c", icon: "list" },
+];
 export function ResultsHead({ title, desc, links, view }: { title: string; desc: string; links: [string, string][]; view: ResView }) {
   const to: Record<ResView, string> = { calendar: "/results", industries: "/results/quarter?view=industries", companies: "/results/quarter" };
   return (
@@ -29,9 +38,14 @@ export function ResultsHead({ title, desc, links, view }: { title: string; desc:
       <p className="sp-desc">{desc}</p>
       <div className="sp-head-bar">
         <nav className="rs-links" aria-label="Related pages">{links.map(([href, label]) => <Link key={href} to={href} className="sp-link">{label} →</Link>)}</nav>
-        <div className="sp-view" role="group" aria-label="View"><span>View</span>
-          {(["calendar", "industries", "companies"] as const).map((v) => <Link key={v} to={to[v]} className={"sp-vbtn" + (view === v ? " on" : "")} aria-current={view === v ? "page" : undefined}>{v === "calendar" ? "Calendar" : v === "industries" ? "Industries" : "Companies"}</Link>)}
-        </div>
+      </div>
+      {/* task #224 (results pack of 18 Nov, A3): the three views as cards that stand out, each in its own colour; they stay links to the same pages */}
+      <div className="xvr-w">
+        <p className="eqv-k" id="rs-views-k">Choose a view <small>· 3 views · tap one</small></p>
+        <nav className="sp-view xvr" aria-labelledby="rs-views-k">
+          {VIEWS.map((v) => <Link key={v.key} to={to[v.key]} className={"sp-vbtn" + (view === v.key ? " on" : "")} aria-current={view === v.key ? "page" : undefined} style={{ "--va": v.color } as React.CSSProperties}>
+            <span className="eqv-ic" aria-hidden="true"><Icon name={v.icon} /></span><b>{v.title}</b><small>{v.desc}</small></Link>)}
+        </nav>
       </div>
     </header>
   );
@@ -104,15 +118,20 @@ export function VerdictCell({ r }: { r: VRow }) {
 }
 export const HOW_JUDGED = "Revenue growth, profit growth and margin change on a year ago are each compared with the typical company in the same NSE industry. Above on most of them: Strong or Good. Below on most: Weak or Poor. Company size does not change the yardstick; use the size filter to compare like with like.";
 const YOY = "On a year ago (YoY). This quarter compared with the same quarter last year. It removes seasonal effects, so it is the main yardstick.";
+/** Task #224 (A1): what each heading of the results table sorts by. */
+const RT_GET = (r: VRow, k: string): SortVal => ({ company: r.symbol, industry: r.industry, size: r.cap, rev: r.revenue, revYoY: r.revenueYoY, revQoQ: r.revenueQoQ,
+  np: r.netProfit, npYoY: r.profitYoY, npQoQ: r.profitQoQ, npm: r.npm, npmChg: r.npmChange, verdict: r.verdict } as Record<string, SortVal>)[k];
 export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: string; mine?: Set<string> }) {
+  const { sorted, sort, toggle } = useTableSort(rows, RT_GET);
+  const H = (k: string, l: React.ReactNode, cls?: string, after?: React.ReactNode) => <SortTh k={k} label={l} sort={sort} onSort={toggle} className={cls} after={after} />;
   return (
     <Scroll label={label}><table className="sp-tb rs-t kit-grid">
       <thead>
         <tr className="kit-bands"><th colSpan={3} aria-hidden="true" /><th colSpan={3} scope="colgroup" className="kit-band kit-b-blue"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} scope="colgroup" className="kit-band kit-b-green"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} scope="colgroup" className="kit-band kit-b-gold"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th scope="colgroup" className="kit-band kit-b-dark"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
-        <tr><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
-          <th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">₹ Cr</th><th scope="col" className="r">YoY</th><th scope="col" className="r">QoQ</th><th scope="col" className="r">Now</th><th scope="col" className="r">Change</th><th scope="col">Verdict</th></tr>
+        <tr>{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." />)}
+          {H("rev", "₹ Cr", "r")}{H("revYoY", "YoY", "r")}{H("revQoQ", "QoQ", "r")}{H("np", "₹ Cr", "r")}{H("npYoY", "YoY", "r")}{H("npQoQ", "QoQ", "r")}{H("npm", "Now", "r")}{H("npmChg", "Change", "r")}{H("verdict", "Verdict")}</tr>
       </thead>
-      <tbody>{rows.map((r) => (
+      <tbody>{sorted.map((r) => (
         <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine?.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
           <td className="rs-ind"><IndustryCell name={r.industry} /></td><td>{r.cap ?? "–"}</td>
           <td className="r">{cr(r.revenue)}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.revenueQoQ)}>{sp(r.revenueQoQ)}</td>
@@ -192,6 +211,13 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
   const by = new Map(inds.map((x) => [x.name, x]));
   const shown = rows.slice(0, 14).sort((a, b) => (a.date ?? "").localeCompare(b.date ?? "") || (b.marketCap ?? 0) - (a.marketCap ?? 0));   // the largest due, then by day as the sub-title says
   const cards = weekCards(dueMine, followed, days, rows), total = resp?.total ?? 0;
+  // task #224 (A1): every heading of the week table sorts
+  const indOf = (r: VRow) => (industryLines(r.industry).set ? by.get(r.industry ?? "") : undefined);
+  const { sorted: weekRows, sort, toggle } = useTableSort(shown, (r: VRow, k: string): SortVal => {
+    const x = indOf(r);
+    return ({ day: r.date, company: r.symbol, industry: r.industry, size: r.cap, mcap: r.marketCap || null, sofar: x && x.companies ? x.declared / x.companies : null, typ: x?.medianProfitYoY ?? null } as Record<string, SortVal>)[k];
+  });
+  const H = (k: string, l: React.ReactNode, cls?: string, after?: React.ReactNode) => <SortTh k={k} label={l} sort={sort} onSort={toggle} className={cls} after={after} />;
   return (
     <Section id="rs-week" title={`Coming up this week · ${n0(total)} ${total === 1 ? "company" : "companies"}`} help="Coming up this week. Every company whose board meets on results in the next seven days, as announced to the exchanges: the same companies the calendar shows as due."
       sub={`The largest companies due, by day. The last two columns show how their industry has done so far: a yardstick for what to expect.${total > shown.length ? ` The ${shown.length} largest of ${n0(total)} are listed.` : ""}`}
@@ -200,11 +226,11 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
         {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-week" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-week" /></div>}
         <Scroll label="results due this week"><table className="sp-tb rs-t kit-grid rsc-week-t">
           <colgroup><col style={{ width: 112 }} /><col /><col style={{ width: 200 }} /><col style={{ width: 72 }} /><col style={{ width: 120 }} /><col style={{ width: 230 }} /><col style={{ width: 150 }} /></colgroup>
-          <thead><tr><th scope="col">Day</th><th scope="col">Company</th><th scope="col">Industry</th><th scope="col">Size<Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." /></th>
-            <th scope="col" className="r">Market value<Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." /></th>
-            <th scope="col">Industry so far<Tip text="So far. How many of the industry's companies have already declared this quarter. The picture can change as more of them report." /></th>
-            <th scope="col" className="r">Typical profit growth<Tip text="The middle company of the industry's declared results (the median), net profit against a year ago. Green above +0.5%, red below −0.5%, grey between." /></th></tr></thead>
-          <tbody>{shown.map((r) => {
+          <thead><tr>{H("day", "Day")}{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." />)}
+            {H("mcap", "Market value", "r", <Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." />)}
+            {H("sofar", "Industry so far", undefined, <Tip text="So far. How many of the industry's companies have already declared this quarter. The picture can change as more of them report." />)}
+            {H("typ", "Typical profit growth", "r", <Tip text="The middle company of the industry's declared results (the median), net profit against a year ago. Green above +0.5%, red below −0.5%, grey between." />)}</tr></thead>
+          <tbody>{weekRows.map((r) => {
             const x = industryLines(r.industry).set ? by.get(r.industry ?? "") : undefined;
             const v = x?.medianProfitYoY;
             return <tr key={r.symbol}><td className="rs-day">{dayShort(r.date)}</td>

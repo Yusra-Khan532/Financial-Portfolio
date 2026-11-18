@@ -1,0 +1,1791 @@
+{
+ "source": "Investor Presentation Keyword Directory (task #221 attachment, 18 Nov 2026): 166 keywords in 21 buckets, with related terms and what to verify; the founder's notes' terms merged into the concept that holds them.",
+ "buckets": {
+  "AI & GenAI": [
+   {
+    "name": "Artificial intelligence",
+    "keyword": "Artificial intelligence (AI)",
+    "aliases": [
+     "Artificial intelligence",
+     "AI"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Generative AI",
+    "keyword": "Generative AI (GenAI)",
+    "aliases": [
+     "Generative AI",
+     "GenAI"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Large language models",
+    "keyword": "Large language models (LLM)",
+    "aliases": [
+     "Large language models",
+     "LLM",
+     "Large language model"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "AI inference",
+    "keyword": "AI inference",
+    "aliases": [
+     "AI inference"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "AI data centre",
+    "keyword": "AI data centre",
+    "aliases": [
+     "AI data centre"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "GPU server / GPU cluster",
+    "keyword": "GPU server / GPU cluster",
+    "aliases": [
+     "GPU server",
+     "GPU cluster"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Machine learning",
+    "keyword": "Machine learning",
+    "aliases": [
+     "Machine learning"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "AI automation",
+    "keyword": "AI automation",
+    "aliases": [
+     "AI automation"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Computer vision",
+    "keyword": "Computer vision",
+    "aliases": [
+     "Computer vision"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   }
+  ],
+  "Agriculture & Food Technology": [
+   {
+    "name": "Precision agriculture",
+    "keyword": "Precision agriculture",
+    "aliases": [
+     "Precision agriculture"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Smart irrigation",
+    "keyword": "Smart irrigation",
+    "aliases": [
+     "Smart irrigation"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Food processing / cold chain",
+    "keyword": "Food processing / cold chain",
+    "aliases": [
+     "Food processing",
+     "cold chain"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   }
+  ],
+  "Battery & Energy Storage": [
+   {
+    "name": "Battery cell manufacturing",
+    "keyword": "Battery cell manufacturing",
+    "aliases": [
+     "Battery cell manufacturing"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Battery module and pack",
+    "keyword": "Battery module and pack",
+    "aliases": [
+     "Battery module and pack",
+     "Battery module"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Grid-scale battery storage",
+    "keyword": "Grid-scale battery storage (BESS)",
+    "aliases": [
+     "Grid-scale battery storage",
+     "BESS"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Energy storage systems",
+    "keyword": "Energy storage systems (ESS)",
+    "aliases": [
+     "Energy storage systems",
+     "ESS",
+     "Energy storage system"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Battery recycling / black mass",
+    "keyword": "Battery recycling / black mass",
+    "aliases": [
+     "Battery recycling",
+     "black mass"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Sodium-ion batteries",
+    "keyword": "Sodium-ion batteries",
+    "aliases": [
+     "Sodium-ion batteries",
+     "Sodium-ion"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Battery pack",
+    "keyword": "Battery pack",
+    "aliases": [
+     "Battery pack"
+    ],
+    "verify": ""
+   }
+  ],
+  "Cloud & Data Centres": [
+   {
+    "name": "Data centre capacity",
+    "keyword": "Data centre capacity (MW)",
+    "aliases": [
+     "Data centre capacity",
+     "MW"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Hyperscale data centres",
+    "keyword": "Hyperscale data centres",
+    "aliases": [
+     "Hyperscale data centres",
+     "Hyperscale data centre"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Cloud hosting",
+    "keyword": "Cloud hosting",
+    "aliases": [
+     "Cloud hosting"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "GPU cloud / AI compute",
+    "keyword": "GPU cloud / AI compute",
+    "aliases": [
+     "GPU cloud",
+     "AI compute"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Data centre power and cooling",
+    "keyword": "Data centre power and cooling",
+    "aliases": [
+     "Data centre power and cooling",
+     "Data centre power"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Data centre construction and EPC",
+    "keyword": "Data centre construction and EPC",
+    "aliases": [
+     "Data centre construction and EPC",
+     "Data centre EPC",
+     "turnkey data centre",
+     "facility buildout"
+    ],
+    "verify": "Distinguish construction contracts from ownership and operation of data centres."
+   },
+   {
+    "name": "Colocation data centres",
+    "keyword": "Colocation data centres",
+    "aliases": [
+     "Colocation data centres",
+     "Colocation",
+     "rack capacity",
+     "rack space",
+     "retail colocation",
+     "Colocation data centre"
+    ],
+    "verify": "Check commissioned IT load, occupancy, contracted capacity and power availability."
+   },
+   {
+    "name": "Hyperscale cloud infrastructure",
+    "keyword": "Hyperscale cloud infrastructure",
+    "aliases": [
+     "Hyperscale cloud infrastructure",
+     "Hyperscaler",
+     "cloud region",
+     "cloud availability zone",
+     "Hyperscale cloud"
+    ],
+    "verify": "Verify signed customer commitments, investment and operational status."
+   },
+   {
+    "name": "Data centre cooling systems",
+    "keyword": "Data centre cooling systems",
+    "aliases": [
+     "Data centre cooling systems",
+     "Liquid cooling",
+     "precision cooling",
+     "HVAC",
+     "thermal management",
+     "Data centre cooling"
+    ],
+    "verify": "Check data-centre-specific product sales and customer qualification."
+   },
+   {
+    "name": "Data centre power infrastructure",
+    "keyword": "Data centre power infrastructure",
+    "aliases": [
+     "Data centre power infrastructure",
+     "UPS",
+     "backup power",
+     "power distribution",
+     "transformers"
+    ],
+    "verify": "Assess order pipeline, execution and exposure to data centre capex."
+   },
+   {
+    "name": "MW data centre",
+    "keyword": "MW data centre",
+    "aliases": [
+     "MW data centre"
+    ],
+    "verify": ""
+   }
+  ],
+  "Corporate Catalysts & Growth Signals": [
+   {
+    "name": "Revenue guidance / upgraded guidance",
+    "keyword": "Revenue guidance / upgraded guidance",
+    "aliases": [
+     "Revenue guidance",
+     "upgraded guidance"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Strategic partnerships / joint ventures",
+    "keyword": "Strategic partnerships / joint ventures",
+    "aliases": [
+     "Strategic partnerships",
+     "joint ventures",
+     "Strategic partnership",
+     "Joint venture"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Mergers and acquisitions",
+    "keyword": "Mergers and acquisitions (M&A)",
+    "aliases": [
+     "Mergers and acquisitions",
+     "M&A"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Export order wins",
+    "keyword": "Export order wins",
+    "aliases": [
+     "Export order wins",
+     "Export order"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "New product commercialisation",
+    "keyword": "New product commercialisation",
+    "aliases": [
+     "New product commercialisation"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Acquisition of controlling stake",
+    "keyword": "Acquisition of controlling stake",
+    "aliases": [
+     "Acquisition of controlling stake",
+     "Majority stake acquisition",
+     "subsidiary acquisition",
+     "Controlling stake"
+    ],
+    "verify": "Verify ownership acquired, consideration, consolidation date and financial impact."
+   },
+   {
+    "name": "Strategic divestment / stake sale",
+    "keyword": "Strategic divestment / stake sale",
+    "aliases": [
+     "Strategic divestment",
+     "stake sale",
+     "Divestment",
+     "business sale",
+     "asset monetisation"
+    ],
+    "verify": "Assess proceeds, use of funds and impact on continuing operations."
+   },
+   {
+    "name": "Order book growth",
+    "keyword": "Order book growth",
+    "aliases": [
+     "Order book growth",
+     "Order backlog",
+     "executable order book",
+     "unexecuted order book",
+     "Order book"
+    ],
+    "verify": "Track order inflow, execution, cancellations, customer concentration and order-to-revenue conversion."
+   },
+   {
+    "name": "Fresh order inflows",
+    "keyword": "Fresh order inflows",
+    "aliases": [
+     "Fresh order inflows",
+     "New orders",
+     "order intake",
+     "contract awards",
+     "Order inflow"
+    ],
+    "verify": "Separate binding orders from letters of intent and framework agreements."
+   },
+   {
+    "name": "Letter of award / letter of intent",
+    "keyword": "Letter of award / letter of intent",
+    "aliases": [
+     "Letter of award",
+     "letter of intent",
+     "LoA",
+     "LoI",
+     "work order",
+     "purchase order"
+    ],
+    "verify": "Check whether the award is binding, conditions precedent and final contract status."
+   },
+   {
+    "name": "Strategic joint venture",
+    "keyword": "Strategic joint venture",
+    "aliases": [
+     "Strategic joint venture",
+     "JV",
+     "technology partnership",
+     "consortium"
+    ],
+    "verify": "Check ownership, capital commitments, responsibilities and commercial milestones."
+   },
+   {
+    "name": "Technology licensing and commercialisation",
+    "keyword": "Technology licensing and commercialisation",
+    "aliases": [
+     "Technology licensing and commercialisation",
+     "IP licensing",
+     "technology transfer",
+     "royalty income",
+     "Technology licensing"
+    ],
+    "verify": "Verify signed licensing terms, royalty model and realised revenue."
+   }
+  ],
+  "Cybersecurity & Connectivity": [
+   {
+    "name": "Cybersecurity software",
+    "keyword": "Cybersecurity software",
+    "aliases": [
+     "Cybersecurity software"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Threat monitoring / managed security",
+    "keyword": "Threat monitoring / managed security",
+    "aliases": [
+     "Threat monitoring",
+     "managed security"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Zero-trust security",
+    "keyword": "Zero-trust security",
+    "aliases": [
+     "Zero-trust security",
+     "Zero-trust"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "5G network equipment",
+    "keyword": "5G network equipment",
+    "aliases": [
+     "5G network equipment"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Internet of Things",
+    "keyword": "Internet of Things (IoT)",
+    "aliases": [
+     "Internet of Things",
+     "IoT"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Blockchain technology",
+    "keyword": "Blockchain technology",
+    "aliases": [
+     "Blockchain technology",
+     "Distributed ledger",
+     "smart contracts",
+     "tokenisation",
+     "Blockchain"
+    ],
+    "verify": "Look for deployed enterprise use cases and monetised products rather than exploratory pilots."
+   },
+   {
+    "name": "Blockchain infrastructure and platforms",
+    "keyword": "Blockchain infrastructure and platforms",
+    "aliases": [
+     "Blockchain infrastructure and platforms",
+     "Blockchain platform",
+     "nodes",
+     "enterprise ledger"
+    ],
+    "verify": "Verify paying customers, transaction volumes, recurring revenue and regulatory exposure."
+   }
+  ],
+  "Defence & Aerospace": [
+   {
+    "name": "Defence orders",
+    "keyword": "Defence orders",
+    "aliases": [
+     "Defence orders",
+     "Defence order"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Defence indigenisation",
+    "keyword": "Defence indigenisation",
+    "aliases": [
+     "Defence indigenisation"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Aatmanirbhar defence",
+    "keyword": "Aatmanirbhar defence",
+    "aliases": [
+     "Aatmanirbhar defence"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Missile systems",
+    "keyword": "Missile systems",
+    "aliases": [
+     "Missile systems",
+     "Missile system"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Ammunition manufacturing",
+    "keyword": "Ammunition manufacturing",
+    "aliases": [
+     "Ammunition manufacturing",
+     "Ammunition"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Radar systems",
+    "keyword": "Radar systems",
+    "aliases": [
+     "Radar systems",
+     "Radar system"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Electronic warfare systems",
+    "keyword": "Electronic warfare systems",
+    "aliases": [
+     "Electronic warfare systems",
+     "Electronic warfare"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Avionics",
+    "keyword": "Avionics",
+    "aliases": [
+     "Avionics"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Shipbuilding / naval systems",
+    "keyword": "Shipbuilding / naval systems",
+    "aliases": [
+     "Shipbuilding",
+     "naval systems",
+     "Naval system"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Aircraft MRO",
+    "keyword": "Aircraft MRO",
+    "aliases": [
+     "Aircraft MRO"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Defence electronics",
+    "keyword": "Defence electronics",
+    "aliases": [
+     "Defence electronics",
+     "Military electronics",
+     "secure communications",
+     "defence systems"
+    ],
+    "verify": "Check approved vendor status, order wins and product-level revenue."
+   },
+   {
+    "name": "Unmanned combat and surveillance systems",
+    "keyword": "Unmanned combat and surveillance systems",
+    "aliases": [
+     "Unmanned combat and surveillance systems",
+     "Combat UAV",
+     "surveillance drone",
+     "loitering munition"
+    ],
+    "verify": "Verify end-user, procurement stage, qualification and delivery orders."
+   },
+   {
+    "name": "Small arms and defence equipment",
+    "keyword": "Small arms and defence equipment",
+    "aliases": [
+     "Small arms and defence equipment",
+     "Military equipment",
+     "weapon systems",
+     "protective systems"
+    ],
+    "verify": "Confirm lawful product category, customer and actual contract status."
+   },
+   {
+    "name": "Defence exports",
+    "keyword": "Defence exports",
+    "aliases": [
+     "Defence exports",
+     "Export authorisation",
+     "overseas defence orders",
+     "Defence export"
+    ],
+    "verify": "Check export approvals, order value, delivery and payment terms."
+   },
+   {
+    "name": "Aircraft structures and components",
+    "keyword": "Aircraft structures and components",
+    "aliases": [
+     "Aircraft structures and components",
+     "Aero structures",
+     "aircraft parts",
+     "engine components",
+     "Aircraft structure"
+    ],
+    "verify": "Verify OEM qualification, programme life and share of wallet."
+   },
+   {
+    "name": "Defence R&D and testing",
+    "keyword": "Defence R&D and testing",
+    "aliases": [
+     "Defence R&D and testing",
+     "Prototype development",
+     "trials",
+     "certification",
+     "test facilities",
+     "Defence R&D"
+    ],
+    "verify": "Distinguish funded development contracts from speculative pipeline."
+   },
+   {
+    "name": "Missile guidance and control systems",
+    "keyword": "Missile guidance and control systems",
+    "aliases": [
+     "Missile guidance and control systems",
+     "Seeker",
+     "guidance electronics",
+     "navigation",
+     "control actuation",
+     "Missile guidance"
+    ],
+    "verify": "Identify subsystem role, qualification and actual order exposure."
+   },
+   {
+    "name": "Rocket motors and propulsion",
+    "keyword": "Rocket motors and propulsion",
+    "aliases": [
+     "Rocket motors and propulsion",
+     "Solid rocket motor",
+     "propulsion systems",
+     "launch propulsion",
+     "Rocket motor"
+    ],
+    "verify": "Check testing, certification, production capacity and programme linkage."
+   }
+  ],
+  "EV & Automotive Technology": [
+   {
+    "name": "Electric vehicles",
+    "keyword": "Electric vehicles (EV)",
+    "aliases": [
+     "Electric vehicles",
+     "EV",
+     "Electric vehicle"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "EV powertrain",
+    "keyword": "EV powertrain",
+    "aliases": [
+     "EV powertrain"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Traction motors",
+    "keyword": "Traction motors",
+    "aliases": [
+     "Traction motors",
+     "Traction motor"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "EV charging infrastructure",
+    "keyword": "EV charging infrastructure",
+    "aliases": [
+     "EV charging infrastructure",
+     "EV charging"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Automotive electronics",
+    "keyword": "Automotive electronics",
+    "aliases": [
+     "Automotive electronics"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "ADAS / driver assistance",
+    "keyword": "ADAS / driver assistance",
+    "aliases": [
+     "ADAS",
+     "driver assistance"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Battery management system",
+    "keyword": "Battery management system (BMS)",
+    "aliases": [
+     "Battery management system",
+     "BMS"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   }
+  ],
+  "Electrodes & Advanced Materials": [
+   {
+    "name": "Graphite electrodes",
+    "keyword": "Graphite electrodes",
+    "aliases": [
+     "Graphite electrodes",
+     "UHP graphite electrodes",
+     "HP electrodes",
+     "electric arc furnace",
+     "Graphite electrode",
+     "UHP graphite"
+    ],
+    "verify": "Track capacity, utilisation, electrode prices and steel-sector demand."
+   },
+   {
+    "name": "Battery electrode materials",
+    "keyword": "Battery electrode materials",
+    "aliases": [
+     "Battery electrode materials",
+     "Anode material",
+     "cathode material",
+     "electrode coating",
+     "Battery electrode material"
+    ],
+    "verify": "Identify chemistry, customer qualification, capacity and commercial offtake."
+   },
+   {
+    "name": "Lithium-ion anode materials",
+    "keyword": "Lithium-ion anode materials",
+    "aliases": [
+     "Lithium-ion anode materials",
+     "Synthetic graphite",
+     "natural graphite",
+     "silicon anode"
+    ],
+    "verify": "Check product qualification, import dependence and scale-up status."
+   },
+   {
+    "name": "Cathode active materials",
+    "keyword": "Cathode active materials",
+    "aliases": [
+     "Cathode active materials",
+     "LFP",
+     "NMC",
+     "CAM",
+     "cathode precursor",
+     "Cathode active material"
+    ],
+    "verify": "Verify chemistry-specific capacity, customer validation and supply agreements."
+   },
+   {
+    "name": "Welding electrodes and consumables",
+    "keyword": "Welding electrodes and consumables",
+    "aliases": [
+     "Welding electrodes and consumables",
+     "Welding rods",
+     "flux-cored wire",
+     "submerged arc welding",
+     "Welding electrode"
+    ],
+    "verify": "Check industrial end markets, product mix and margin trends."
+   },
+   {
+    "name": "Electrode paste and carbon products",
+    "keyword": "Electrode paste and carbon products",
+    "aliases": [
+     "Electrode paste and carbon products",
+     "Carbon paste",
+     "Söderberg paste",
+     "carbon blocks",
+     "Carbon block"
+    ],
+    "verify": "Verify end-use exposure, plant utilisation and commodity-price sensitivity."
+   },
+   {
+    "name": "Specialty carbon and graphite products",
+    "keyword": "Specialty carbon and graphite products",
+    "aliases": [
+     "Specialty carbon and graphite products",
+     "Isostatic graphite",
+     "carbon composites",
+     "graphite components",
+     "Carbon composite"
+    ],
+    "verify": "Look for high-purity applications, qualification barriers and customer concentration."
+   }
+  ],
+  "Financial Services & Trading": [
+   {
+    "name": "Electronic trading platforms",
+    "keyword": "Electronic trading platforms",
+    "aliases": [
+     "Electronic trading platforms",
+     "Trading platform",
+     "exchange technology",
+     "order management system",
+     "Electronic trading platform"
+    ],
+    "verify": "Identify platform ownership, client base, transaction volumes and recurring fees."
+   },
+   {
+    "name": "Algorithmic trading technology",
+    "keyword": "Algorithmic trading technology",
+    "aliases": [
+     "Algorithmic trading technology",
+     "Algo trading",
+     "execution algorithms",
+     "automated trading",
+     "Algorithmic trading"
+    ],
+    "verify": "Distinguish technology/service revenue from proprietary trading gains."
+   },
+   {
+    "name": "Brokerage and securities trading",
+    "keyword": "Brokerage and securities trading",
+    "aliases": [
+     "Brokerage and securities trading",
+     "Equity broking",
+     "securities trading",
+     "trading volumes",
+     "Brokerage"
+    ],
+    "verify": "Track active clients, average revenue per client, market share and cyclicality."
+   },
+   {
+    "name": "Commodity trading",
+    "keyword": "Commodity trading",
+    "aliases": [
+     "Commodity trading",
+     "Commodity desk",
+     "commodity brokerage",
+     "physical trading"
+    ],
+    "verify": "Assess traded volumes, inventory exposure, spreads and counterparty risk."
+   },
+   {
+    "name": "Treasury and foreign exchange trading",
+    "keyword": "Treasury and foreign exchange trading",
+    "aliases": [
+     "Treasury and foreign exchange trading",
+     "FX trading",
+     "currency derivatives",
+     "treasury operations",
+     "Foreign exchange trading"
+    ],
+    "verify": "Separate client facilitation from proprietary positions and mark-to-market volatility."
+   },
+   {
+    "name": "Trading volume and turnover growth",
+    "keyword": "Trading volume and turnover growth",
+    "aliases": [
+     "Trading volume and turnover growth",
+     "Average daily turnover",
+     "ADTV",
+     "traded value",
+     "Turnover growth"
+    ],
+    "verify": "Check whether volume growth translates into sustainable revenue and margins."
+   }
+  ],
+  "Healthcare & Life Sciences": [
+   {
+    "name": "Biotechnology / biologics",
+    "keyword": "Biotechnology / biologics",
+    "aliases": [
+     "Biotechnology",
+     "biologics"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "CRDMO / CDMO / CRO",
+    "keyword": "CRDMO / CDMO / CRO",
+    "aliases": [
+     "CRDMO",
+     "CDMO",
+     "CRO"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Medical devices",
+    "keyword": "Medical devices",
+    "aliases": [
+     "Medical devices",
+     "Medical device"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "API and formulation capacity",
+    "keyword": "API and formulation capacity",
+    "aliases": [
+     "API and formulation capacity",
+     "Formulation capacity"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Clinical trials / drug discovery",
+    "keyword": "Clinical trials / drug discovery",
+    "aliases": [
+     "Clinical trials",
+     "drug discovery",
+     "Clinical trial"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "API capacity",
+    "keyword": "API capacity",
+    "aliases": [
+     "API capacity"
+    ],
+    "verify": ""
+   }
+  ],
+  "Industrial Manufacturing & Capex": [
+   {
+    "name": "Capacity expansion",
+    "keyword": "Capacity expansion",
+    "aliases": [
+     "Capacity expansion"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Capital expenditure",
+    "keyword": "Capital expenditure (capex)",
+    "aliases": [
+     "Capital expenditure",
+     "capex"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Order book / confirmed backlog",
+    "keyword": "Order book / confirmed backlog",
+    "aliases": [
+     "Order book",
+     "confirmed backlog"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Major contract wins",
+    "keyword": "Major contract wins",
+    "aliases": [
+     "Major contract wins",
+     "Major contract win"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Industrial automation / robotics",
+    "keyword": "Industrial automation / robotics",
+    "aliases": [
+     "Industrial automation",
+     "robotics"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "3D printing / additive manufacturing",
+    "keyword": "3D printing / additive manufacturing",
+    "aliases": [
+     "3D printing",
+     "additive manufacturing"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Precision engineering",
+    "keyword": "Precision engineering",
+    "aliases": [
+     "Precision engineering"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Greenfield capacity expansion",
+    "keyword": "Greenfield capacity expansion",
+    "aliases": [
+     "Greenfield capacity expansion",
+     "New plant",
+     "greenfield project",
+     "new manufacturing facility",
+     "Greenfield"
+    ],
+    "verify": "Verify announced versus commissioned capacity, project cost, funding and ramp-up timeline."
+   },
+   {
+    "name": "Brownfield capacity expansion",
+    "keyword": "Brownfield capacity expansion",
+    "aliases": [
+     "Brownfield capacity expansion",
+     "Debottlenecking",
+     "brownfield expansion",
+     "capacity augmentation",
+     "Brownfield"
+    ],
+    "verify": "Check incremental capacity, capex spent, utilisation and expected commissioning."
+   },
+   {
+    "name": "Capacity utilisation improvement",
+    "keyword": "Capacity utilisation improvement",
+    "aliases": [
+     "Capacity utilisation improvement",
+     "Utilisation rate",
+     "operating capacity",
+     "plant utilisation",
+     "Capacity utilisation"
+    ],
+    "verify": "Compare installed capacity with actual production and sales."
+   }
+  ],
+  "Infrastructure & Transport": [
+   {
+    "name": "Railway modernisation / signalling",
+    "keyword": "Railway modernisation / signalling",
+    "aliases": [
+     "Railway modernisation",
+     "signalling"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Metro rail and rolling stock",
+    "keyword": "Metro rail and rolling stock",
+    "aliases": [
+     "Metro rail and rolling stock",
+     "Metro rail",
+     "Rolling stock"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Road and highway EPC",
+    "keyword": "Road and highway EPC",
+    "aliases": [
+     "Road and highway EPC",
+     "Highway EPC"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Ports and logistics infrastructure",
+    "keyword": "Ports and logistics infrastructure",
+    "aliases": [
+     "Ports and logistics infrastructure",
+     "Ports and logistics"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Water and wastewater projects",
+    "keyword": "Water and wastewater projects",
+    "aliases": [
+     "Water and wastewater projects",
+     "Water and wastewater"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Road EPC",
+    "keyword": "Road EPC",
+    "aliases": [
+     "Road EPC"
+    ],
+    "verify": ""
+   }
+  ],
+  "Marine & Shipbuilding": [
+   {
+    "name": "Commercial shipbuilding",
+    "keyword": "Commercial shipbuilding",
+    "aliases": [
+     "Commercial shipbuilding",
+     "Cargo vessels",
+     "merchant ships",
+     "shipyard",
+     "Cargo vessel"
+    ],
+    "verify": "Check confirmed vessel orders, delivery schedule and margin profile."
+   },
+   {
+    "name": "Naval shipbuilding",
+    "keyword": "Naval shipbuilding",
+    "aliases": [
+     "Naval shipbuilding",
+     "Warships",
+     "frigates",
+     "destroyers",
+     "naval vessels"
+    ],
+    "verify": "Verify defence procurement status, order value and execution milestones."
+   },
+   {
+    "name": "Marine engineering",
+    "keyword": "Marine engineering",
+    "aliases": [
+     "Marine engineering",
+     "Marine propulsion",
+     "ship systems",
+     "marine equipment"
+    ],
+    "verify": "Identify owned technology/products and customer programmes."
+   },
+   {
+    "name": "Offshore oil and gas services",
+    "keyword": "Offshore oil and gas services",
+    "aliases": [
+     "Offshore oil and gas services",
+     "Offshore vessels",
+     "rigs",
+     "subsea services"
+    ],
+    "verify": "Check utilisation, contract duration, day rates and customer concentration."
+   },
+   {
+    "name": "Subsea technology",
+    "keyword": "Subsea technology",
+    "aliases": [
+     "Subsea technology",
+     "Subsea systems",
+     "underwater equipment",
+     "subsea robotics"
+    ],
+    "verify": "Verify product qualification, project awards and recurring service potential."
+   },
+   {
+    "name": "Dredging and port services",
+    "keyword": "Dredging and port services",
+    "aliases": [
+     "Dredging and port services",
+     "Dredging contracts",
+     "harbour works",
+     "marine construction",
+     "Dredging"
+    ],
+    "verify": "Assess awarded backlog, equipment utilisation and receivables."
+   },
+   {
+    "name": "Offshore services",
+    "keyword": "Offshore services",
+    "aliases": [
+     "Offshore services"
+    ],
+    "verify": ""
+   }
+  ],
+  "Mobile & Electronics Manufacturing": [
+   {
+    "name": "Mobile phone manufacturing",
+    "keyword": "Mobile phone manufacturing",
+    "aliases": [
+     "Mobile phone manufacturing"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Smartphone assembly",
+    "keyword": "Smartphone assembly",
+    "aliases": [
+     "Smartphone assembly"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Electronics manufacturing services",
+    "keyword": "Electronics manufacturing services (EMS)",
+    "aliases": [
+     "Electronics manufacturing services",
+     "EMS"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Printed circuit board",
+    "keyword": "Printed circuit board (PCB)",
+    "aliases": [
+     "Printed circuit board",
+     "PCB"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "PCB assembly",
+    "keyword": "PCB assembly (PCBA)",
+    "aliases": [
+     "PCB assembly",
+     "PCBA"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Camera modules",
+    "keyword": "Camera modules",
+    "aliases": [
+     "Camera modules",
+     "Camera module"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Display modules",
+    "keyword": "Display modules (LCD / OLED)",
+    "aliases": [
+     "Display modules (LCD",
+     "OLED",
+     "Display module",
+     "LCD"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Production-linked incentive",
+    "keyword": "Production-linked incentive (PLI)",
+    "aliases": [
+     "Production-linked incentive",
+     "PLI"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Electronics exports",
+    "keyword": "Electronics exports",
+    "aliases": [
+     "Electronics exports",
+     "Electronics export"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   }
+  ],
+  "Nuclear Energy": [
+   {
+    "name": "Nuclear power generation",
+    "keyword": "Nuclear power generation",
+    "aliases": [
+     "Nuclear power generation",
+     "Nuclear power"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Small modular reactor",
+    "keyword": "Small modular reactor (SMR)",
+    "aliases": [
+     "Small modular reactor",
+     "SMR"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Nuclear reactor components",
+    "keyword": "Nuclear reactor components",
+    "aliases": [
+     "Nuclear reactor components",
+     "Nuclear reactor component"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Uranium / nuclear fuel cycle",
+    "keyword": "Uranium / nuclear fuel cycle",
+    "aliases": [
+     "Uranium",
+     "nuclear fuel cycle"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Nuclear EPC and engineering",
+    "keyword": "Nuclear EPC and engineering",
+    "aliases": [
+     "Nuclear EPC and engineering",
+     "Nuclear EPC"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   }
+  ],
+  "Renewable Energy & Power": [
+   {
+    "name": "Solar photovoltaic",
+    "keyword": "Solar photovoltaic (PV)",
+    "aliases": [
+     "Solar photovoltaic",
+     "PV",
+     "Photovoltaic"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Solar EPC",
+    "keyword": "Solar EPC",
+    "aliases": [
+     "Solar EPC"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Wind turbines",
+    "keyword": "Wind turbines",
+    "aliases": [
+     "Wind turbines",
+     "Wind turbine"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Hydroelectric projects",
+    "keyword": "Hydroelectric projects",
+    "aliases": [
+     "Hydroelectric projects",
+     "Hydroelectric"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Green hydrogen / green ammonia",
+    "keyword": "Green hydrogen / green ammonia",
+    "aliases": [
+     "Green hydrogen",
+     "green ammonia"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Power transmission and substations",
+    "keyword": "Power transmission and substations",
+    "aliases": [
+     "Power transmission and substations",
+     "Power transmission",
+     "Substation"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Power generation capacity addition",
+    "keyword": "Power generation capacity addition",
+    "aliases": [
+     "Power generation capacity addition",
+     "Capacity addition"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Solar PV",
+    "keyword": "Solar PV",
+    "aliases": [
+     "Solar PV"
+    ],
+    "verify": ""
+   }
+  ],
+  "Renewable Power": [
+   {
+    "name": "Renewable power generation",
+    "keyword": "Renewable power generation",
+    "aliases": [
+     "Renewable power generation",
+     "Renewable electricity",
+     "clean power generation"
+    ],
+    "verify": "Identify operating renewable generation assets and actual power sold."
+   },
+   {
+    "name": "Independent power producer",
+    "keyword": "Independent power producer (IPP)",
+    "aliases": [
+     "Independent power producer",
+     "IPP",
+     "renewable IPP",
+     "power generation portfolio"
+    ],
+    "verify": "Check installed capacity, PPA coverage, plant load factor and receivables."
+   },
+   {
+    "name": "Hybrid renewable energy",
+    "keyword": "Hybrid renewable energy",
+    "aliases": [
+     "Hybrid renewable energy",
+     "Solar-wind hybrid",
+     "hybrid power project",
+     "Hybrid renewable"
+    ],
+    "verify": "Look for commissioned capacity, offtake contracts and generation profile."
+   },
+   {
+    "name": "Round-the-clock renewable power",
+    "keyword": "Round-the-clock (RTC) renewable power",
+    "aliases": [
+     "Round-the-clock (RTC) renewable power",
+     "RTC power",
+     "firm renewable power",
+     "peak power supply",
+     "Round-the-clock"
+    ],
+    "verify": "Verify storage/dispatch arrangements and contracted delivery obligations."
+   },
+   {
+    "name": "Pumped hydro storage",
+    "keyword": "Pumped hydro storage",
+    "aliases": [
+     "Pumped hydro storage",
+     "Pumped storage",
+     "PSP",
+     "pumped hydro project",
+     "Pumped hydro"
+    ],
+    "verify": "Check project approvals, construction timeline, capex and grid connection."
+   },
+   {
+    "name": "Renewable energy certificates",
+    "keyword": "Renewable energy certificates",
+    "aliases": [
+     "Renewable energy certificates",
+     "REC",
+     "green certificates",
+     "carbon credits",
+     "Renewable energy certificate",
+     "Carbon credit"
+    ],
+    "verify": "Confirm recognised revenue model, eligibility and realised prices."
+   }
+  ],
+  "Semiconductor & Electronics": [
+   {
+    "name": "Semiconductor chip design",
+    "keyword": "Semiconductor chip design",
+    "aliases": [
+     "Semiconductor chip design",
+     "Chip design"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Semiconductor fabrication / wafer fab",
+    "keyword": "Semiconductor fabrication / wafer fab",
+    "aliases": [
+     "Semiconductor fabrication",
+     "wafer fab"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "OSAT / ATMP",
+    "keyword": "OSAT / ATMP",
+    "aliases": [
+     "OSAT",
+     "ATMP"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Compound semiconductors",
+    "keyword": "Compound semiconductors (GaN / SiC)",
+    "aliases": [
+     "Compound semiconductors (GaN",
+     "SiC",
+     "GaN"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Semiconductor equipment",
+    "keyword": "Semiconductor equipment",
+    "aliases": [
+     "Semiconductor equipment"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Electronic components",
+    "keyword": "Electronic components",
+    "aliases": [
+     "Electronic components",
+     "Electronic component"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Advanced chip packaging and testing",
+    "keyword": "Advanced chip packaging and testing",
+    "aliases": [
+     "Advanced chip packaging and testing"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Advanced packaging",
+    "keyword": "Advanced packaging",
+    "aliases": [
+     "Advanced packaging"
+    ],
+    "verify": ""
+   }
+  ],
+  "Solar Technology": [
+   {
+    "name": "Solar cell technology",
+    "keyword": "Solar cell technology",
+    "aliases": [
+     "Solar cell technology",
+     "TOPCon",
+     "HJT",
+     "PERC",
+     "solar cell line",
+     "Solar cell"
+    ],
+    "verify": "Identify technology, cell capacity, efficiency and commercial production status."
+   },
+   {
+    "name": "Solar module manufacturing",
+    "keyword": "Solar module manufacturing",
+    "aliases": [
+     "Solar module manufacturing",
+     "PV module",
+     "module assembly",
+     "solar panel line",
+     "Solar module"
+    ],
+    "verify": "Check nameplate capacity, utilisation, order book and customer concentration."
+   },
+   {
+    "name": "Bifacial solar modules",
+    "keyword": "Bifacial solar modules",
+    "aliases": [
+     "Bifacial solar modules",
+     "Bifacial module",
+     "dual-sided solar panel",
+     "Bifacial"
+    ],
+    "verify": "Verify product mix, certification and actual sales contribution."
+   },
+   {
+    "name": "Solar inverters",
+    "keyword": "Solar inverters",
+    "aliases": [
+     "Solar inverters",
+     "String inverter",
+     "central inverter",
+     "hybrid inverter",
+     "Solar inverter"
+    ],
+    "verify": "Assess manufacturing versus distribution and service revenue."
+   },
+   {
+    "name": "Solar trackers and mounting structures",
+    "keyword": "Solar trackers and mounting structures",
+    "aliases": [
+     "Solar trackers and mounting structures",
+     "Single-axis tracker",
+     "fixed-tilt structure",
+     "Tracker",
+     "Mounting structure"
+    ],
+    "verify": "Check project wins, manufacturing capacity and execution record."
+   },
+   {
+    "name": "Solar glass",
+    "keyword": "Solar glass",
+    "aliases": [
+     "Solar glass",
+     "AR coated glass",
+     "photovoltaic glass",
+     "tempered solar glass"
+    ],
+    "verify": "Verify production capacity, customer approvals and import substitution exposure."
+   },
+   {
+    "name": "Solar wafers and ingots",
+    "keyword": "Solar wafers and ingots",
+    "aliases": [
+     "Solar wafers and ingots",
+     "Silicon wafer",
+     "ingot",
+     "polysilicon",
+     "Solar wafer"
+    ],
+    "verify": "Distinguish announced plans from operational upstream manufacturing."
+   },
+   {
+    "name": "Rooftop and distributed solar",
+    "keyword": "Rooftop and distributed solar",
+    "aliases": [
+     "Rooftop and distributed solar",
+     "Rooftop PV",
+     "residential solar",
+     "C&I solar",
+     "Distributed solar"
+    ],
+    "verify": "Check installations, customer additions, order conversion and collections."
+   },
+   {
+    "name": "Rooftop solar",
+    "keyword": "Rooftop solar",
+    "aliases": [
+     "Rooftop solar"
+    ],
+    "verify": ""
+   }
+  ],
+  "Space & Drone Technology": [
+   {
+    "name": "Unmanned aerial vehicles",
+    "keyword": "Unmanned aerial vehicles (UAV)",
+    "aliases": [
+     "Unmanned aerial vehicles",
+     "UAV",
+     "Unmanned aerial vehicle"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Defence drones",
+    "keyword": "Defence drones",
+    "aliases": [
+     "Defence drones",
+     "Defence drone"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Satellite manufacturing",
+    "keyword": "Satellite manufacturing",
+    "aliases": [
+     "Satellite manufacturing"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Launch vehicle systems",
+    "keyword": "Launch vehicle systems",
+    "aliases": [
+     "Launch vehicle systems"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Ground stations / satellite services",
+    "keyword": "Ground stations / satellite services",
+    "aliases": [
+     "Ground stations",
+     "satellite services",
+     "Ground station",
+     "Satellite service"
+    ],
+    "verify": "Look for quantified revenue contribution, order value, capacity, customer/programme, commissioning status and management commentary."
+   },
+   {
+    "name": "Commercial drone manufacturing",
+    "keyword": "Commercial drone manufacturing",
+    "aliases": [
+     "Commercial drone manufacturing",
+     "UAV manufacturing",
+     "industrial drones",
+     "drone platforms"
+    ],
+    "verify": "Verify production scale, certifications, customers and commercial deliveries."
+   },
+   {
+    "name": "Drone-as-a-service",
+    "keyword": "Drone-as-a-service (DaaS)",
+    "aliases": [
+     "Drone-as-a-service",
+     "DaaS",
+     "Drone services",
+     "surveying drones",
+     "inspection drones"
+    ],
+    "verify": "Check recurring service revenue, fleet utilisation and customer retention."
+   },
+   {
+    "name": "Drone components and payloads",
+    "keyword": "Drone components and payloads",
+    "aliases": [
+     "Drone components and payloads",
+     "Flight controller",
+     "propulsion",
+     "payload",
+     "navigation systems"
+    ],
+    "verify": "Identify proprietary components and share of value in the final system."
+   },
+   {
+    "name": "Counter-drone systems",
+    "keyword": "Counter-drone systems",
+    "aliases": [
+     "Counter-drone systems",
+     "Anti-drone",
+     "CUAS",
+     "drone detection and jamming",
+     "Counter-drone"
+    ],
+    "verify": "Verify procurement stage, trials, orders and regulatory approvals."
+   },
+   {
+    "name": "Satellite communications",
+    "keyword": "Satellite communications",
+    "aliases": [
+     "Satellite communications",
+     "Satcom",
+     "broadband satellite",
+     "satellite connectivity",
+     "Satellite communication"
+    ],
+    "verify": "Verify spectrum/licensing, customer base, capacity and service revenue."
+   },
+   {
+    "name": "Earth observation and geospatial analytics",
+    "keyword": "Earth observation and geospatial analytics",
+    "aliases": [
+     "Earth observation and geospatial analytics",
+     "Remote sensing",
+     "geospatial data",
+     "satellite imagery",
+     "Earth observation",
+     "Geospatial"
+    ],
+    "verify": "Check data ownership, contracts, repeat customers and monetisation."
+   },
+   {
+    "name": "Space launch services",
+    "keyword": "Space launch services",
+    "aliases": [
+     "Space launch services",
+     "Launch vehicle",
+     "launch services",
+     "orbital launch",
+     "Space launch"
+    ],
+    "verify": "Separate development milestones from commercial launch contracts."
+   },
+   {
+    "name": "Space-grade components",
+    "keyword": "Space-grade components",
+    "aliases": [
+     "Space-grade components",
+     "Satellite components",
+     "space electronics",
+     "propulsion systems",
+     "Space-grade"
+    ],
+    "verify": "Check qualification, flight heritage and programme awards."
+   },
+   {
+    "name": "Drone payload",
+    "keyword": "Drone payload",
+    "aliases": [
+     "Drone payload"
+    ],
+    "verify": ""
+   }
+  ]
+ }
+}

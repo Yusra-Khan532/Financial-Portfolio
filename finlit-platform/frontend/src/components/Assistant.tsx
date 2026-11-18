@@ -22,6 +22,7 @@ import { QUICK_PICKS } from "../lib/outlookPick";
 import type { FundCtx } from "../lib/askFunds";
 import type { Answer } from "../lib/askAnswers";
 const AskFunds = lazy(() => import("./AskFunds").then((m) => ({ default: m.AskFunds })));   // task #203: the 1,391 fund questions load only when the theme opens
+const AskDiscovery = lazy(() => import("./AskDiscovery").then((m) => ({ default: m.AskDiscovery })));   // task #221: loads only when Discovery opens
 
 /** The theme card on the start screen (the other four are lib/askFlow.ts CATEGORIES). */
 const FUNDS_CARD = { id: "funds", title: "Mutual funds & ETFs", sub: "Funds, returns, costs, ETFs", icon: "pie" } as const;
@@ -31,7 +32,7 @@ export { OPEN_AI };
 /** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
 type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean } };
-type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds";
+type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
 
 let indexPromise: Promise<SearchIndex> | null = null;
 /** Companies matching what the user typed (symbol first, then name), from the site's own search index (loaded once). */
@@ -224,7 +225,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
       {typed.length > 0 && <ul className="aif-typed aif-typed-top" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
       <p className="aif-try"><span>Try asking</span>{TRY.map((t) => <button key={t.label} type="button" onClick={t.go}>{t.label}</button>)}</p>
     </div>);
-  const moreThemes = <p className="aif-more"><span>More themes</span><button type="button" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} />{FUNDS_CARD.title}</button></p>;
+  const moreThemes = <p className="aif-more"><span>More themes</span><button type="button" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} />{FUNDS_CARD.title}</button>
+    <button type="button" onClick={() => setView("discovery")}><Icon name="globe" />Discovery</button></p>;
 
   return (
     <>
@@ -237,6 +239,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               <button type="button" className={view === "home" ? "on" : ""} aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}><Icon name="home" />Home</button>
               <button type="button" className={view === "history" ? "on" : ""} aria-current={view === "history" ? "page" : undefined} onClick={() => setView("history")}><Icon name="refresh" />Chat History</button>
               <button type="button" className={view === "saved" ? "on" : ""} aria-current={view === "saved" ? "page" : undefined} onClick={() => setView("saved")}><Icon name="star" />Saved Questions</button>
+              <button type="button" className={view === "discovery" ? "on" : ""} aria-current={view === "discovery" ? "page" : undefined} onClick={() => setView("discovery")}><Icon name="globe" />Discovery</button>
             </nav>
             <p className="aif-sl"><Icon name="spark" /> Popular Questions</p>
             <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
@@ -339,6 +342,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view === "funds" && <>
               <div className="aif-h"><h2>{FUNDS_CARD.title}</h2><p>Questions on mutual funds and ETFs, answered from AMFI's and the NSE's figures on FinLit. Pick a segment, or search.</p></div>
               <Suspense fallback={<p className="aif-none" role="status">Loading…</p>}><AskFunds ctx={fundCtx} setCtx={setFundCtx} onAnswer={(q, a) => void askFund(q, a)} /></Suspense>
+            </>}
+
+            {view === "discovery" && <>
+              <div className="aif-h"><h2>Discovery</h2><p>Themes from companies' own investor presentations: AI, defence, solar, batteries, data centres, EVs, nuclear, drones and more.</p></div>
+              <Suspense fallback={<p className="aif-none" role="status">Loading…</p>}><AskDiscovery onLeave={() => setOpen(false)} /></Suspense>
             </>}
 
             {view === "company" && company && big && <div className="aif-ctx">

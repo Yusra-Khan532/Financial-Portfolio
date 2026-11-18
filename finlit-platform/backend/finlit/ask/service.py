@@ -48,6 +48,7 @@ FinLit's pages (task #218: answer as the website does, from the page that shows 
 - Glossary (what a term means, in FinLit's words): lookup_glossary. Insights & blog: get_insights_and_blogs.
 - News & filings and Documents (announcements, results filings, annual reports, investor presentations, call transcripts): get_news_and_filings.
 - What a company's investor presentation, annual report or earnings-call transcript says: read_company_document, then quote it with its page number.
+- Discovery (companies by the themes their investor presentations talk about: AI, defence, solar, batteries, data centres, EV, nuclear, drones ...): get_discovery. Say that a keyword mention alone is not proof of a material business.
 - Use FinLit's page before the web for anything one of these pages shows. Name the page in plain words when it helps ("FinLit's India economy page shows ...").
 
 Answer every question (founder, 18 Nov 2026)
