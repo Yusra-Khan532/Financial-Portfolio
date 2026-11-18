@@ -2,6 +2,7 @@
 // input-state badge in words and the comparison behind it. The exact points stay on the server. Filter chips and a reading sort apply to all
 // parts; on a phone each row becomes a stacked card.
 import { useMemo, useState } from "react";
+import { PzHead, PzProp } from "./Shell";
 import {
   READING_FILL, READING_WORD, STANDING_WORD, factorDetail, factorValue, isRated, partInfo, partsOf, readingOf, reviewItem, score1, standing,
   type PartKey, type PrismMetric, type PrismReport, type PrismReview, type ReviewPart,
@@ -78,9 +79,9 @@ export function FactorExplorer({ report, review }: { report: PrismReport; review
   const parts = order.map((k) => review.parts.find((p) => p.key === k) ?? { key: k, name: partInfo(k).name, score: report.rating.parts[k] ?? null, notes: [], pros: [], cons: [], mixed: [], unavailable: [] });
   const count = (f: FactorFilter) => filterFactors(metrics, f).length;
   return (
-    <section className="pzr-sec" aria-labelledby="pzr-h-fx">
-      <header className="pzr-sh"><h3 id="pzr-h-fx">Every factor</h3>
-        <p className="pzr-wide">Each factor is read against the company's peer group (FinEdge's list of similar companies), from Very strong to Very weak. Strong and Very strong count as strengths, Weak and Very weak as concerns, and estimated factors as neither. A higher Risk score means lower risk.</p></header>
+    <section className="pzr-sec pzs" id="factors" aria-labelledby="pzr-h-fx">
+      <PzHead no="01" id="pzr-h-fx" title="Every factor" desc="Each factor is read against the company's peer group (FinEdge's list of similar companies), from Very strong to Very weak. Strong and Very strong count as strengths, Weak and Very weak as concerns, and estimated factors as neither. A higher Risk score means lower risk." />
+      <PzProp lead="These are some of the parameters FinLit Prism is based on.">The full set of parameters, how each is read, their weights and how the model combines them are proprietary to FinLit Ventures.</PzProp>
       <div className="pzr-tools pzr-noprint">
         <div className="pzr-chipsrow" role="group" aria-label="Filter factors">
           {FILTERS.map((f) => <button key={f} type="button" className={"pzr-chip" + (filter === f ? " on" : "")} aria-pressed={filter === f} onClick={() => setFilter(f)}>{FILTER_WORD[f]} <small>{count(f)}</small></button>)}

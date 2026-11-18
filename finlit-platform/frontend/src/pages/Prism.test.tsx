@@ -152,9 +152,10 @@ describe("Prism page", () => {
   it("shows the stored report with its actions", () => {
     state.latest = R; state.gold = true;
     const t = text(page("/prism/EXAMPLE"));
-    expect(t).toContain("Download report (PDF)");
+    expect(t).not.toMatch(/PDF|download/i);   // task #220: no PDF and no download anywhere in the report
     expect(t).toContain("Recalculate");
-    expect(t).not.toContain("Statement basis"); expect(t).not.toContain("Standalone");
+    const rep = t.split("Questions about this page")[0];      // task #220: the page's questions now sit inside it; they mention the search's basis choice
+    expect(rep).not.toContain("Statement basis"); expect(rep).not.toContain("Standalone");
     state.admin = false;
     expect(text(page("/prism/EXAMPLE"))).not.toContain("Download report (PDF)");      // administrators only, for now
     state.admin = true;

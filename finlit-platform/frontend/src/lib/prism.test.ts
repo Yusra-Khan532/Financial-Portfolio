@@ -3,8 +3,8 @@ import report from "./__fixtures__/prismReport.json";
 import variants from "./__fixtures__/prismVariants.json";
 import { ApiError } from "./api";
 import {
-  backoff, buildFundamentalGrowth, cleanSymbol, factorDetail, factorValue, growthPercent, labelTone, partsOf, partsSentence, pdfName, pdfOpen,
-  prismPdfUrl, prismProblem, prismReview, scoreTone, standing, transient, trendRows, type HistoryRow, type PrismReport,
+  backoff, buildFundamentalGrowth, cleanSymbol, factorDetail, factorValue, growthPercent, labelTone, partsOf, partsSentence,
+  prismProblem, prismReview, scoreTone, standing, transient, trendRows, type HistoryRow, type PrismReport,
 } from "./prism";
 
 const R = report as unknown as PrismReport;
@@ -91,20 +91,6 @@ describe("retry rules", () => {
   it.each([undefined, 408, 429, 502, 503])("retries %s", (s) => expect(transient({ status: s })).toBe(true));
   it.each([401, 403, 404, 422])("stops on %s", (s) => expect(transient({ status: s })).toBe(false));
   it("backs off 2.5 s, 5 s, 10 s, then 15 s", () => expect([0, 1, 2, 3, 4].map((n) => backoff(n))).toEqual([2500, 5000, 10000, 15000, 15000]));
-});
-
-/* intent of upstream lib/currentPremiumReport.test.js: only the current calculation; an expired one is not offered as a PDF */
-describe("the PDF window", () => {
-  const now = Date.parse("2026-10-25T09:30:00Z");
-  it("is open until pdfAvailableUntil, then closed", () => {
-    expect(pdfOpen({ pdfAvailableUntil: "2026-10-25T09:42:41+00:00" }, now)).toBe(true);
-    expect(pdfOpen({ pdfAvailableUntil: "2026-10-25T09:00:00+00:00" }, now)).toBe(false);
-    expect(pdfOpen({ pdfAvailableUntil: null }, now)).toBe(false);
-  });
-  it("downloads exactly this calculation from the API", () => {
-    expect(prismPdfUrl("abc123")).toBe("/api/prism/reports/abc123/pdf");
-    expect(pdfName(R)).toBe("FinLit-Prism-EXAMPLE-consolidated-2026-10-25.pdf");
-  });
 });
 
 describe("problems in words", () => {
@@ -205,21 +191,6 @@ describe("income wording and the PDF download", () => {
     expect(incomeNote("BANK")).toMatch(/net interest income/);
     expect(incomeNote("INSURANCE")).toMatch(/net premium earned/);
     expect(factorDetail({ ...R.rating.metrics.find((m) => m.metric === "SALES_CAGR")! }, "BANK")).toMatch(/sales from/);
-  });
-  it("downloadPrismPdf cleans up the link and the object URL even when the click throws", async () => {
-    const { downloadPrismPdf } = await import("./prism");
-    const { vi } = await import("vitest");
-    vi.useFakeTimers();
-    const revoke = vi.fn(), removed = vi.fn();
-    const link = { click: () => { throw new Error("blocked"); }, remove: removed } as unknown as HTMLAnchorElement;
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, blob: async () => new Blob(["x"]) })));
-    vi.stubGlobal("URL", { createObjectURL: () => "blob:x", revokeObjectURL: revoke });
-    vi.stubGlobal("document", { createElement: () => link, body: { appendChild: () => undefined } });
-    await expect(downloadPrismPdf(R)).rejects.toThrow("blocked");
-    expect(removed).toHaveBeenCalled();
-    vi.advanceTimersByTime(31_000);
-    expect(revoke).toHaveBeenCalledWith("blob:x");
-    vi.useRealTimers(); vi.unstubAllGlobals();
   });
 });
 

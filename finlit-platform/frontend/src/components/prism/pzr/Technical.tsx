@@ -5,6 +5,7 @@
 // Words: the model's own rating and verdict words are never shown; lib/prismTechnical.ts maps them to descriptive trend words (Positive, Neutral...).
 // Colour only decorates: every conclusion is also a word and a shape. Styles: styles/prism-technical.css (pzt-*).
 import { useMemo, useState } from "react";
+import { PzHead } from "./Shell";
 import { Icon } from "../../../lib/icons";
 import type { PrismReport } from "../../../lib/prism";
 import {
@@ -150,8 +151,8 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
   const a = parseTechnical(report.technicalAssessment);
   if (!a) {
     return (
-      <section className="pzr-sec pzt" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h">
-        <header className="pzr-sh"><h3 id="pzt-h">Technical view</h3><p>Recent price and trend behaviour, short term and long term.</p></header>
+      <section className="pzr-sec pzt pzs" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h">
+        <PzHead no="02" id="pzt-h" title="Technical view" desc="Recent price and trend behaviour, short term and long term." />
         <div className="pzt-empty" role="note">
           <Icon name="activity" />
           <div><b>This stored report does not include the technical view.</b>
@@ -163,9 +164,8 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
   }
   const v = verdictView(a);
   return (
-    <section className="pzr-sec pzt" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h" aria-describedby="pzt-lead">
-      <header className="pzr-sh"><h3 id="pzt-h">Technical view</h3>
-        <p id="pzt-lead">How the share price has been behaving, in the recent weeks (short term) and over the past year or so (long term). It describes past prices and does not predict them. It is calculated separately from the 0 to 100 financial-health score and does not change it. Short term is {ratingWord(a.shortTerm.rating, a.shortTerm.score).word.toLowerCase()}; long term is {ratingWord(a.longTerm.rating, a.longTerm.score).word.toLowerCase()}; {v.word.toLowerCase()}.</p></header>
+    <section className="pzr-sec pzt pzs" id={TECH_ID} tabIndex={-1} aria-labelledby="pzt-h" aria-describedby="pzt-lead">
+      <PzHead no="02" id="pzt-h" title="Technical view" desc={<span id="pzt-lead">How the share price has been behaving, in the recent weeks (short term) and over the past year or so (long term). It describes past prices and does not predict them. It is calculated separately from the 0 to 100 financial-health score and does not change it. Short term is {ratingWord(a.shortTerm.rating, a.shortTerm.score).word.toLowerCase()}; long term is {ratingWord(a.longTerm.rating, a.longTerm.score).word.toLowerCase()}; {v.word.toLowerCase()}.</span>} />
       <div className="pzt-cards">
         <HorizonCard name="Short term" h={a.shortTerm} id="pzt-st" />
         <HorizonCard name="Long term" h={a.longTerm} id="pzt-lt" />

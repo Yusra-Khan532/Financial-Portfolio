@@ -7,6 +7,7 @@ import { istTime, LabelChip, StatusChip, type ReportActions } from "./pzr/Hero";
 import { CardTop } from "./pzr/CardTop";
 export { reportRef } from "./pzr/CardTop";
 import { FactorExplorer } from "./pzr/Factors";
+import { PRISM_DISCLAIMER, PzHead } from "./pzr/Shell";
 import { Notes, Peers } from "./pzr/Health";
 import { HistoryCharts, HistoryTables } from "./pzr/History";
 import { Technical } from "./pzr/Technical";
@@ -25,8 +26,8 @@ export function ReportSkeleton() {
   );
 }
 
-/** The one boxed disclaimer at the end of every Prism report. */
-export const PRISM_DISCLAIMER = "This report describes the company's financial health from its filings and market prices, with estimates where information is missing. The FinLit Prism score is calculated from many parameters, and not all of them are shown in this report. It is not an investment recommendation or a prediction of future returns.";
+/** The disclaimer (task #220: also at the top as a drop-down; it ends with the proprietary sentence). */
+export { PRISM_DISCLAIMER };
 
 export function PrismReportView({ report, actions = {}, example = false }: { report: PrismReport; actions?: ReportActions; example?: boolean }) {
   const review = prismReview(report), legacy = "legacy" in review && review.legacy;
@@ -36,15 +37,15 @@ export function PrismReportView({ report, actions = {}, example = false }: { rep
       {example && <p className="pzr-example-b" role="note"><b>Example</b> A fictional company, to show the layout. Not a real rating.</p>}
       <CardTop report={report} actions={actions} example={example} />
       {report.rating.dataIntegrityStatus === "REVIEW REQUIRED" && (
-        <div className="pzr-caution" role="note"><Icon name="alert" /><span><b>Data check: review required.</b> {notRatedReason(report.rating) ?? "Some inputs could not be fully verified"} (see the review notes below). The caution does not change the score; read the result with it in mind.</span></div>
+        <div className="pzr-caution" role="note"><Icon name="alert" /><span><b>Data check: review required.</b> {notRatedReason(report.rating) ?? "Some inputs could not be fully verified"} (see the <a className="pzc-link" href="#notes">review notes below</a>). The caution does not change the score; read the result with it in mind.</span></div>
       )}
       {legacy && (
         <div className="pzr-caution" role="note"><Icon name="info" /><span>This stored report predates the reader commentary. <button type="button" className="pzr-link pzr-noprint" onClick={actions.onRecalculate}>Recalculate</button> for the full review.</span></div>
       )}
       <FactorExplorer report={report} review={review} />
       <Technical report={report} onRecalculate={actions.onRecalculate} />
-      <section className="pzr-sec" aria-labelledby="pzr-h-hist">
-        <header className="pzr-sh"><h3 id="pzr-h-hist">Financial history</h3><p>From the company's filings, on the same statement basis as the score.</p></header>
+      <section className="pzr-sec pzs" id="history" aria-labelledby="pzr-h-hist">
+        <PzHead no="03" id="pzr-h-hist" title="Financial history" desc="From the company's filings, on the same statement basis as the score." />
         <HistoryCharts report={report} />
         {report.financialHistory && <HistoryTables history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} />}
       </section>

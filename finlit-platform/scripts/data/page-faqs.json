@@ -308,7 +308,7 @@
   "items": [
    {
     "q": "What do I get from Prism?",
-    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value and its reading, the inputs that are missing, and a PDF of this report, prepared for you."
+    "a": "A score out of 100 with a label from Strong to Poor (or Not rated when the evidence is thin), the four parts (Growth & Profitability, Valuation, Quality, Risk) each with what supports and weighs on it, every factor with its value and its reading, and the inputs that are missing."
    },
    {
     "q": "Why does the report not show the weights or the points?",

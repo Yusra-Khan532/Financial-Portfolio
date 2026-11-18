@@ -16,9 +16,14 @@ const SHAPE: Record<TrendTone, string> = { strongpos: "▲▲", pos: "▲", neut
 const VSHAPE: Record<VerdictTone, string> = { pos: "▲", mixed: "◆", neg: "▼", na: "–" };
 const vBand = (t: VerdictTone): ScoreBand => (t === "pos" ? "hi" : t === "mixed" ? "mid" : t === "neg" ? "lo" : "na");
 
-/** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. */
+/** A tip whose "i" sits within this many pixels of the window's right edge opens to the left (task #220, README 1.5), so it is never cut off. */
+export const TIP_ROOM = 340;
+export const nearRightEdge = (left: number, width = typeof innerWidth === "number" ? innerWidth : 0) => left - 8 + TIP_ROOM > width - 12;
+/** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. Near the right edge it opens to the left. */
 export function InfoTip({ text, end = false }: { text: string; end?: boolean }) {
-  return <span className={"pcx-i" + (end ? " end" : "")} tabIndex={0} role="img" aria-label={text}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
+  const [near, setNear] = useState(false);
+  const check = (e: React.SyntheticEvent<HTMLSpanElement>) => setNear(nearRightEdge(e.currentTarget.getBoundingClientRect().left));
+  return <span className={"pcx-i" + (end || near ? " end" : "")} tabIndex={0} role="img" aria-label={text} onMouseEnter={check} onFocus={check}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
 }
 
 /* ------------------------------------------------------------------ the segmented ring */
