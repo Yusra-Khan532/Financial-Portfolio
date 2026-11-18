@@ -72,7 +72,7 @@ const Steps = ({ items }: { items: ReactNode[] }) => <ol className="sp-guide-ste
 export function PulseGuide({ stocks, groups }: { stocks: number; groups: string }) {
   return (
     <Fold sub="Four steps, what each state means, and what the reading leaves out · 2 min read">
-      <p className="sp-guide-intro">Sector Pulse asks one question every evening: in each industry, are most stocks going up or down right now? After the close it counts how many of the {stocks.toLocaleString("en-IN")} actively traded stocks in each of the {groups} are above their trend, and gives each one a state. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
+      <p className="sp-guide-intro">Sector Pulse asks one question every weekend: in each industry, are most stocks going up or down? It reads the week up to Friday's close and counts how many of the {stocks.toLocaleString("en-IN")} actively traded stocks in each of the {groups} are above their trend, and gives each one a state. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
         <div><h3 className="sp-guide-k">Use it in four steps</h3>
           <Steps items={[

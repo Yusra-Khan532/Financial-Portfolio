@@ -3,7 +3,7 @@
 > **THE FOUNDER'S RULE (7 Nov 2026). Background jobs NEVER stop. Every scheduled job runs every day and completes every day.**
 > Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished.
 > If a job cannot complete, fix the cause the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job
-> (now: the sector job, off since 7 Nov 2026 until `SECTORS_JOB=on`). The same rule is in `CLAUDE.md`, `jobs/registry.py` (`JOBS_RULE`), `GET /api/jobs/status` (`rule`) and the Admin Console.
+> (now: the sector job, which runs only on weekend nights by the owner's decision of 18 Nov 2026, on by default, `SECTORS_JOB=off` switches it off; section "The sector job on weekend nights"). The same rule is in `CLAUDE.md`, `jobs/registry.py` (`JOBS_RULE`), `GET /api/jobs/status` (`rule`) and the Admin Console.
 
 Written after the 31 Oct 2026 incident. **Goal: failures are impossible to miss, recover by themselves, and stale data is never shown as fresh.**
 No system can promise zero failures (see "What cannot be guaranteed" at the end); this one makes sure the founder is told, the box heals, and the pages say when data is old.
@@ -107,7 +107,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | alerts-flag / alerts-daily / screens / digest | light | 8-9 | none / 80 h / 80 h / 8 d | each window / weekdays 19:10 / MORNING weekdays / Sunday 19:10 |
 | prune | bulk | 5 | 30 h | NIGHT |
 | **technicals** (`refresh-technicals`) | bulk | 10 | session, 12 h | AFTER_CLOSE and MORNING until the session is processed; probe re-runs every 30 min; a company Dhan holds no usable candles for (suspended, delisted, too few or too old sessions) is counted `unavailable` with its reason and keeps its stored view and date; it is not a job failure. A run where every company came back unavailable checks five large companies: if Dhan gives none for them either, the run is `failed` (an outage) |
-| **sectors** (`refresh-sectors`, always on; docs/SECTORS.md) | bulk | 12 | session, 14 h | weekdays from 19:00 IST (AFTER_CLOSE), the NIGHT shift and MORNING until the session is processed; after technicals; weight 450 MB (staged, peak 364 MB); 90 min per run, **resumable** (the full build takes about 2.5 h on the server: each run continues the build the last one stopped; docs/SECTORS.md section 13) |
+| **sectors** (`refresh-sectors`; docs/SECTORS.md) | bulk | **95** (the lowest) | 8 d | **weekend nights only** (owner, 18 Nov 2026): Saturday 23:00 to Sunday 08:00 IST, and Sunday 23:00 to Monday 03:30 as a catch-up (`TimeRule` `WEEKEND_NIGHTS`; retries, continuations, freshness forces and a breached SLA all wait for it); after every other job of the night and after technicals; weight 450 MB (staged, peak 364 MB); 90 min per run, **resumable** (the full build takes about 2.5 h on the server); on by default, `SECTORS_JOB=off` switches it off |
 | ingest-flagship / **ingest** (`ingest-all`) | bulk | 15 / 20 | 26 h | NIGHT (18 h), MORNING (14 h); 90 min per run, resumable |
 | **score** (`score-all`) | bulk | 30 | 26 h | NIGHT, MORNING; after ingest |
 | scores-live (`refresh-scores-live`) | light | 7 | none | probe (queue of just-reported companies), at least 3 min apart; MORNING; docs/REALTIME-SCORES.md |
@@ -134,6 +134,18 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 
 `backend/tests/test_jobs_registry.py` asserts every command the old bash scheduler ran is registered, and that each of its old time slots is covered by the same job at or before that time.
 
+## 4b. The sector job on weekend nights (owner, 18 Nov 2026)
+
+Market data changes only on weekdays and the sector build is heavy (about 2 h 30 min of one core, 450 MB), so it runs **once a week, on the weekend nights**, on the week's data up to Friday's close:
+
+| When (IST) | What |
+|---|---|
+| Monday to Friday | never: weekday nights keep their full room for the daily chain (on 17 to 18 Nov it ran 23:00 to 03:36) |
+| Saturday 23:00 to Sunday 08:00 | the weekly build, after every daily and weekly job of the night (lowest bulk priority, 95), in 90-minute resumable runs; Saturday night is the lightest night (no new trading day) |
+| Sunday 23:00 to Monday 03:30 | catch-up only, when Saturday's build did not finish; the last start is 03:30 so a 90-minute run ends by 05:00, before Monday morning's jobs |
+
+How nothing else is affected: one bulk job at a time and the memory gate stay as they are (it waits for 450 MB + the 100 MB kept for the website); every other bulk job outranks it; a run stops at 90 minutes and the next continues, so a job that falls due goes first; the hours are checked before everything else in `jobs/due.py` (`evaluate`), so a retry after a failure, the continuation of a stopped run, a freshness force or a breached SLA never start it on a weekday; if a build fails, the last good Sector Pulse and Rotation keep serving with their date. Freshness: the board's data date is fresh up to 9 days old (a Friday board until the next weekend's run), late from 10 (one weekend missed), stale after 13 (two missed). The pages say "Updated every weekend, to the close of <Friday>". **Stop rule (owner):** if in two weekends it cannot finish inside these hours, or any other job slips because of it, it is switched back off and reported. It is on by default (no server step: it switches on when this code reaches the jobs container, through the usual gated jobs move); `SECTORS_JOB=off` in `/opt/finlit/.env.aws` switches it off (the setting is read when the jobs container is next recreated). Tests: `tests/test_jobs_registry.py` (the hours, the retry and continuation, the priority), `tests/test_jobs_freshness.py` (the weekly judgement).
+
 ## 5. Data-freshness invariants (a job can "succeed" and still leave stale data)
 
 `jobs/freshness.py` runs inside the supervisor every 10 minutes and reads the **newest data date** of each dataset, compared with what the IST clock, the trading calendar and the declaration calendar say must exist now. Result in `GET /api/jobs/status` under `data` (and `dataFresh`). Each dataset: `expected`, `actual`, `lag`, `status` fresh|late|stale|unknown, owning `jobs`.
@@ -144,7 +156,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | Daily price history | reference large caps have the expected session's bar | 1 h after 18:30 + grace / +14 h | technicals, ingest |
 | Index levels | fetched on demand; if market open and a visitor is looking: under 10 min | 30 min | (on demand) |
 | Technical views | at most 2% of reports behind the expected session | after 19:30 / >25% behind and 10 h | technicals |
-| Sector pulse (`sectors`) | the live board's date is the expected session (always on) | 4 h after 18:30 / +14 h | sectors |
+| Sector pulse (`sectors`) | the board's data date is within 9 days (built every weekend on the week to Friday; only while the job is switched on) | 10 days / +13 days | sectors |
 | Prism ratings, FinLit IQs | newest row under 30 h | 60 h | prism, score |
 | Quarterly results | no company whose declaration date passed still lacks figures: waiting yesterday = late, two or more days = stale (declaration is known by DATE only; target is 6 h, flagged at 24 h) | | results, results-light |
 | Results calendar | refreshed under 3 h ago and upcoming dates exist | 12 h | calendars |
@@ -290,7 +302,7 @@ Header lock icon > System > "Heavy data loads" switch. Switching OFF pauses for 
 
 **Background jobs NEVER stop: every scheduled job runs every day and completes every day** (see the rule at the top of this file).
 
-* The environment switches `FUND_LOADS_ENABLED`, `PRISM_PRECOMPUTE_ENABLED` and `BOOT_LOAD_ENABLED` can no longer disable or hold back a job (`Gate.forced` in `jobs/registry.py`). The one written exception: the sector job, which the founder switched off on 7 Nov 2026 (`SECTORS_JOB=on` brings it back). Only a missing credential (no `DHAN_CLIENT_ID`, no `GEMINI_API_KEY`) keeps a job from starting, and the status says so.
+* The environment switches `FUND_LOADS_ENABLED`, `PRISM_PRECOMPUTE_ENABLED` and `BOOT_LOAD_ENABLED` can no longer disable or hold back a job (`Gate.forced` in `jobs/registry.py`). The one written exception: the sector job, switched off on 7 Nov 2026 and back on weekend nights since 18 Nov 2026 (section 4b; `SECTORS_JOB=off` switches it off). Only a missing credential (no `DHAN_CLIENT_ID`, no `GEMINI_API_KEY`) keeps a job from starting, and the status says so.
 * The admin pause is ignored inside the MORNING, AFTER_CLOSE and NIGHT windows and for any job already past its promise (SLA). It can only hold daytime, not-yet-late work.
 * A job that cannot start because the server lacks memory waits and says so; it is never skipped, and it does not block the other jobs.
 

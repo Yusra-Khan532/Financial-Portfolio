@@ -143,7 +143,7 @@ def sla_status(job: Job, st: JobState, now: datetime) -> SlaStatus:
 
 
 def _day_ok(job: Job, now: datetime) -> bool:
-    return job.day_rule is None or job.day_rule(ist(now).date())
+    return (job.day_rule is None or job.day_rule(ist(now).date())) and (job.time_rule is None or job.time_rule.ok(ist(now)))
 
 
 def _age_h(st: JobState, now: datetime) -> float:
@@ -236,6 +236,11 @@ def evaluate(job: Job, st: JobState, ctx: Ctx) -> Verdict:
         return Verdict("idle", "kept alive by deploy/scheduler.sh")
     if st.running:
         return Verdict("running", "running")
+    # Hours of the week the job may start in (the sector job: weekend nights). Checked first: a retry, the continuation of a resumable run, a freshness
+    # force and a breached SLA all wait for the next allowed moment.
+    if job.time_rule and not job.time_rule.ok(ist(now)):
+        nxt = job.time_rule.next_start(ist(now))
+        return Verdict("idle", f"{job.time_rule.text}; next from {fmt_ist(nxt)}", False, nxt)
     retry_at = effective_retry_at(st, now)
     if retry_at and now < retry_at:
         if st.last_status == "partial":     # finished with its essential step done: degraded, not failed; the next try is a courtesy, not a retry of a failure
@@ -276,7 +281,7 @@ def next_due_at(job: Job, st: JobState, ctx: Ctx) -> Optional[datetime]:
                 t = t.replace(hour=wr.not_before[0], minute=wr.not_before[1])
             if st.last_success_at and job.sla.kind != "session" and not job.probe:
                 t = max(t, st.last_success_at + timedelta(hours=wr.min_age_h))
-            if job.day_rule is None or job.day_rule(ist(t).date()):
+            if (job.day_rule is None or job.day_rule(ist(t).date())) and (job.time_rule is None or job.time_rule.ok(ist(t))):
                 cands.append(t)
                 break
             s += timedelta(days=1)
@@ -284,7 +289,7 @@ def next_due_at(job: Job, st: JobState, ctx: Ctx) -> Optional[datetime]:
         d = ist(now).date()
         for k in range(9):
             t = datetime(d.year, d.month, d.day, job.daily_at[0], job.daily_at[1], tzinfo=IST) + timedelta(days=k)
-            if t > now and (job.day_rule is None or job.day_rule(t.date())):
+            if t > now and (job.day_rule is None or job.day_rule(t.date())) and (job.time_rule is None or job.time_rule.ok(t)):
                 cands.append(t)
                 break
     sla = sla_status(job, st, now)

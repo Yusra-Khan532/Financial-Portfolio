@@ -276,6 +276,6 @@ export const ROT_WORDS: [string, string][] = [
   ["Taking part", "How many of the industry's stocks are above their 50-day average: Most, Some or Few. A lead most stocks share is broad"],
   ["Path", "The route an industry's dot took on the map over the last 8 weekly closes"],
   ["Points", "Percentage points: +5 means the industry did 5% better than the average group over that time"],
-  ["Sector Pulse", "Our other sector page: it counts how many of each industry's stocks are rising, every evening"],
+  ["Sector Pulse", "Our other sector page: it counts how many of each industry's stocks are rising, updated every weekend"],
 ];
 export { LEVEL, nextBox };

@@ -410,7 +410,11 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
     # only while the sector pages AND the sector job are switched on: with the job switched off by the founder's written exception (SECTORS_JOB), the board keeps the
     # last published data on purpose, and the console already says so as "switched off by configuration" (not a second, red "stale" line)
     if f.get("sector_enabled") and not f.get("sector_job_off"):
-        ds.append(judge_session("sectors", "Sector pulse", ["sectors"], f.get("sector_board_date"), exp, now, 4.0, 14.0, "board date vs expected session"))
+        # the sector job runs on weekend nights (owner, 18 Nov 2026): the board holds the week up to Friday's close. Fresh up to 9 days old (a Friday board
+        # until the next weekend's run), late from 10 (one weekend missed), stale after 13 (two missed)
+        sec = judge_weekly("sectors", "Sector pulse", ["sectors"], f.get("sector_board_date"), today, 9, 13)
+        sec.expected, sec.detail = "the week up to the last Friday's close, built on weekend nights", "board date (the last session it holds)"
+        ds.append(sec)
     ds.append(judge_age("prism", "Prism ratings", ["prism"], f.get("prism_newest"), now, 30.0, 60.0))
     ds.append(judge_age("scores", "FinLit IQs", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
     if f.get("score_lag") is not None:

@@ -22,7 +22,7 @@ import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
 
 const TITLE = "Sector Pulse";
-const DESC = "Which industries are being sold, which are bouncing back, and which are rising together? Every evening we look at how many stocks in each industry are going up.";
+const DESC = "Which industries are being sold, which are bouncing back, and which are rising together? Every weekend we look at how many stocks in each industry were going up at Friday's close.";
 const DISCLAIMER = "Describes price data for NSE industries; not a recommendation to buy, sell or hold any security. Sources: NSE daily files and industry classification; company sizes by FinLit's rule (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr). Prices adjusted for splits, bonuses and rights.";
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -40,7 +40,7 @@ export function SectorPulsePage() {
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
   const b = q.data, h = hq.data;
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
-  const meta = b ? <>After the close, {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text="Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group." /></> : null;
+  const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text="Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group." /></> : null;
   return (
     <div className="wrap sx sp" data-testid="sector-pulse">
       <PackHead page="pulse" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={b?.rows ?? []}

@@ -33,7 +33,7 @@ describe("Sector Pulse, the pack's header", () => {
   it("has the title, the date line from the board, the two page tabs, the view switch, Find and the Market backdrop", () => {
     at();
     expect(screen.getByRole("heading", { level: 1, name: "Sector Pulse" })).toBeTruthy();
-    expect(document.body.textContent).toContain("After the close, Fri 6 Nov 2026 · 1,202 actively traded stocks");
+    expect(document.body.textContent).toContain("Updated every weekend, to the close of Fri 6 Nov 2026 · 1,202 actively traded stocks");
     expect(document.body.textContent).toContain("38 groups: 33 industries and 5 sectors, as NSE groups them");
     const tabs = screen.getByRole("navigation", { name: "Sector pages" });
     expect(within(tabs).getByRole("link", { name: "Sector Rotation" })).toBeTruthy();
