@@ -11,8 +11,9 @@ import { SPANS, firstSpan, project, type Projection, type Span } from "../lib/fo
 import "../styles/forecast215.css";
 
 const signedPct = (v: number) => `${v >= 0 ? "+" : "−"}${nf(Math.abs(v), 1)}%`;
+const INFO_ID = "forecast-215";
 const INFO = {
-  key: "forecast-215", label: "Forecast",
+  key: INFO_ID, label: "Forecast",
   what: "For the year you choose, the figure the company would reach if it kept growing at its own past compound yearly rate. 1Y uses last year's growth and shows next year; 3Y uses the growth of the past 3 years and shows the 3rd year from now; 5Y the same over 5 years.",
   read: "Worked out as latest year × (1 + rate) for each year ahead, from the company's filed accounts shown in this section. Past growth does not say what will happen; it is not a prediction or a recommendation.",
 };
