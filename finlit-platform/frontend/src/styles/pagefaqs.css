@@ -10,7 +10,7 @@ main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
 .pfq-k { display: block; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
 .pfq-h h2, .pfq-hub h1 { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--text); }
 .pfq-h h2 small, .pfq-pgh h3 small { font: 500 13px var(--sans); color: var(--faint); margin-left: 6px; white-space: nowrap; }
-.pfq-plan { flex: none; font: 700 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
+.pfq-plan { flex: none; font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
 .pfq-plan.gold { background: var(--gold-soft); color: var(--gold); } .pfq-plan.free { background: var(--gain-soft); color: var(--gain); }
 .pfq-plan.silver { background: color-mix(in srgb, var(--t-silver, #8A8F98) 18%, var(--s1)); }
 .pfq-list { border-top: 1px solid var(--border); }

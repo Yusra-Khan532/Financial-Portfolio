@@ -16,7 +16,7 @@
 .dsh-ic-g.up .dsh-ic-gl { color: var(--gain); } .dsh-ic-g.down .dsh-ic-gl { color: var(--loss); }
 .dsh-ic-g ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .dsh-ichip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-12)/1.2 var(--sans); text-decoration: none; }
-.dsh-ichip small { font: 500 var(--fs-11)/1 var(--mono); color: var(--muted); }
+.dsh-ichip small { font: 500 var(--fs-12)/1 var(--mono); color: var(--muted); }
 .dsh-ic-g.up .dsh-ichip { border-color: color-mix(in srgb, var(--gain) 45%, transparent); background: var(--gain-soft); }
 .dsh-ic-g.down .dsh-ichip { border-color: color-mix(in srgb, var(--loss) 45%, transparent); background: var(--loss-soft); }
 .dsh-ichip:hover { border-color: var(--gold); }

@@ -3,7 +3,7 @@
 .hd .card-h .s { color: var(--muted); font-size: 13px; }
 .hd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 14px 0 6px; }
 .hd-kpis div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); min-width: 0; }
-.hd-kpis dt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.hd-kpis dt { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .hd-kpis dd { margin: 4px 0 0; font-size: var(--fs-16); font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .hd-grid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 20px; align-items: start; margin-top: 12px; }
 .hd-donut { display: grid; gap: 8px; justify-items: center; }
@@ -12,7 +12,7 @@
 .hd-edge { stroke: var(--s1); stroke-width: 1.5; }
 .hd-slice:focus .hd-edge, .hd-slice.on .hd-edge { stroke: var(--focus); stroke-width: 3; }
 .hd-ct1 { font-size: var(--fs-24); font-weight: 700; fill: var(--text); }
-.hd-ct2 { font-size: 11px; fill: var(--muted); }
+.hd-ct2 { font-size: 12px; fill: var(--muted); }
 .hd-tip { min-height: 44px; text-align: center; font-size: 14px; color: var(--text); display: grid; gap: 2px; }
 .hd-tip span { color: var(--muted); }
 .hd-hint { font-size: var(--fs-13); }
@@ -34,7 +34,7 @@
 .hd-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hd-sort { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
 .hd-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.hd-sort i { margin-left: 4px; font-style: normal; font-size: var(--fs-11); }
+.hd-sort i { margin-left: 4px; font-style: normal; font-size: var(--fs-12); }
 .hd-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px 28px; }
 .hd-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .hd-bars li { display: grid; grid-template-columns: minmax(90px, 40%) 1fr auto; gap: 10px; align-items: center; font-size: var(--fs-14); }

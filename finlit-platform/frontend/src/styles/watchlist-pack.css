@@ -90,7 +90,7 @@
 .wp-pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: stretch; margin-bottom: 18px; }
 .wp-pair .wp-sec { margin: 0; }
 .wp-why { margin: 10px 0 0; display: flex; gap: 8px; align-items: baseline; font-size: 14px; line-height: 1.5; color: var(--sp-ink); }
-.wp-why b { flex: none; font: 800 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--sp-info); }
+.wp-why b { flex: none; font: 800 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--sp-info); }
 .wp-dis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .wp-dc { min-width: 0; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--sp-line); background: var(--bg, #fff); }
 :root[data-theme="light"] .wp-dc { background: #fff; }

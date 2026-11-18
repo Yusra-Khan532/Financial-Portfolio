@@ -7,10 +7,10 @@
 .ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .ph-back { font: 600 13px var(--sans); color: var(--muted); } .ph-back a { color: var(--gold); text-underline-offset: 3px; }
 .ph-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ph-plan { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: 700 11px var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.ph-plan { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .ph-plan svg { width: 13px; height: 13px; flex: none; }
 .ph-plan.gold { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
-.ph-eyebrow { font: 700 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.ph-eyebrow { font: 700 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > .ph-title { flex: 1 1 260px; min-width: 0; }
 .ph-title { margin: 0; font: 500 var(--fs-page-title)/1.12 var(--serif); letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
 .ph-desc { margin: 0; max-width: 64ch; color: var(--muted); font-size: var(--fs-16); line-height: 1.55; }

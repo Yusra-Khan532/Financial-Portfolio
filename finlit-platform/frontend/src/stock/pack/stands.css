@@ -41,12 +41,12 @@
 .ws-pt tr.me { background: var(--sp-watch-bg); } .ws-pt th[scope="row"] { text-align: left; text-transform: none; letter-spacing: 0; font: 600 14px var(--sans); }
 .ws-pt .ip-sym b, .ws-bc .ip-sym b { color: var(--sp-ink); }
 .ws-wi { width: 100%; height: auto; display: block; } .ws-ml { stroke: var(--sp-bad); stroke-width: 2; } .ws-ll { stroke: var(--sp-good); stroke-width: 2; }
-.ws-grid { stroke: var(--sp-line); stroke-width: 1; } .ws-tick { font: 11px var(--sans); fill: var(--sp-mute); }
+.ws-grid { stroke: var(--sp-line); stroke-width: 1; } .ws-tick { font: 12px var(--sans); fill: var(--sp-mute); }
 .ws-wv { display: flex; flex-wrap: wrap; gap: 24px; margin: 6px 0 10px; font-size: 13px; color: var(--sp-mute); } .ws-wv span { display: grid; gap: 2px; } .ws-wv b { font: 400 24px var(--serif); }
 .ws-biz { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .ws-bc { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); text-decoration: none; }
 .ws-bc.me { border-color: var(--gold); } .ws-bc:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.ws-bc dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; } .ws-bc dt { font: 700 11px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); } .ws-bc dd { margin: 0; font: 600 14px var(--sans); }
+.ws-bc dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; } .ws-bc dt { font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--sp-mute); } .ws-bc dd { margin: 0; font: 600 14px var(--sans); }
 
 .ws-px { width: 100%; height: auto; display: block; } .ws-pl { stroke: #0E6471; stroke-width: 1.8; } .ws-pd { fill: #0E6471; }
 .ws-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }

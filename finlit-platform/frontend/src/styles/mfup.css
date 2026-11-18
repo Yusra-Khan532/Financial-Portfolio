@@ -1,9 +1,9 @@
 /* Mutual Fund Health Score upgrades: history chart, breakdown, radar, screener, leaderboard, compare, alerts, admin. Tokens only. */
 .mfu, .mfu-page, .mfu-admin, .mfs-bdwrap, .mfu-bd, .mfs-chip { --band-hi: #2FBF7F; --band-mid: #F0A030; --band-lo: #E5484D; --band-hi-ink: #5FE0A5; --band-mid-ink: #FFB454; --band-lo-ink: #FF7A7F; }
 :root[data-theme="light"] .mfu, :root[data-theme="light"] .mfu-page, :root[data-theme="light"] .mfu-admin, :root[data-theme="light"] .mfu-bd, :root[data-theme="light"] .mfs-chip { --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; --band-hi-ink: #11794D; --band-mid-ink: #8F5400; --band-lo-ink: #B82A30; }
-.mfs-chip { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid currentColor; font: 700 11px/17px var(--mono, monospace); vertical-align: 1px; }
+.mfs-chip { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid currentColor; font: 700 12px/17px var(--mono, monospace); vertical-align: 1px; }
 .mfu-hist { position: relative; } .mfu-hist svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
-.mfu-ax { font: 11px var(--mono, monospace); fill: var(--faint); } .mfu-zl { font: 600 11px var(--sans); fill: var(--muted); } .mfu-rl { font: 600 11px var(--sans); fill: var(--muted); }
+.mfu-ax { font: 12px var(--mono, monospace); fill: var(--faint); } .mfu-zl { font: 600 12px var(--sans); fill: var(--muted); } .mfu-rl { font: 600 12px var(--sans); fill: var(--muted); }
 .mfu-tog { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
 .mfu-tog label, .mfu-key { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; } .mfu-tog i, .mfu-leg i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; border: 1px solid transparent; }
 .mfu-tog label.on { color: var(--text); }
@@ -25,7 +25,7 @@
 .mfu-f { display: grid; gap: 4px; font-size: 13px; color: var(--muted); } .mfu-f select, .mfu-f input, .mfu-rg input { width: 100%; min-width: 0; }
 .mfu-rg { display: grid; grid-template-columns: 1fr 74px 74px; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); } .mfu-check { font-size: 13px; display: flex; gap: 6px; }
 .mfu-views, .mfu-chips, .mfu-active { display: flex; flex-wrap: wrap; gap: 6px; } .mfu-bar2, .mfu-main .mfu-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 10px; } .mfu-main .mf-count { flex: 1 1 auto; margin: 0; }
-.mfu-table td, .mfu-table th { white-space: nowrap; } .mfu-lb { display: block; color: var(--muted); font-size: 11px; } .mfu-pages { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 12px 0; }
+.mfu-table td, .mfu-table th { white-space: nowrap; } .mfu-lb { display: block; color: var(--muted); font-size: 12px; } .mfu-pages { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 12px 0; }
 .mfu-board .mfu-bar { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; } .mfu-stats { margin: 6px 0 10px; line-height: 1.5; }
 .mfu-lb-list { list-style: none; margin: 0; padding: 0; } .mfu-lb-list li { display: grid; grid-template-columns: 32px 1fr 44px 54px 70px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
 .mfu-pos { font: 600 13px var(--mono, monospace); color: var(--muted); } .mfu-ln { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -33,7 +33,7 @@
 .mfu-cmptop { display: grid; grid-template-columns: 1fr minmax(220px, 300px); gap: 16px; align-items: center; margin-bottom: 12px; } .mfu-rings { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; } .mfu-rings div { text-align: center; max-width: 110px; } .mfu-rings small { display: block; font-size: var(--fs-12); }
 .mfu-ahead { display: block; font-style: normal; font-size: var(--fs-12); font-weight: 600; } .mfu-ahead.ahead { color: var(--gain); } .mfu-ahead.behind { color: var(--loss); } .mfu-ahead.level { color: var(--muted); }
 .mfu-lines svg { width: 100%; height: auto; } .mfu-faq { padding: 8px 0; border-top: 1px solid var(--border); } .mfu-faq summary { cursor: pointer; font-weight: 600; }
-.mfu-dist { display: flex; flex-wrap: wrap; gap: 12px; } .mfu-spark { display: flex; align-items: flex-end; gap: 1px; height: 36px; width: 80px; } .mfu-spark i { flex: 1; background: var(--gold); border-radius: 1px 1px 0 0; } .mfu-dist small { display: block; font-size: 11px; color: var(--muted); }
+.mfu-dist { display: flex; flex-wrap: wrap; gap: 12px; } .mfu-spark { display: flex; align-items: flex-end; gap: 1px; height: 36px; width: 80px; } .mfu-spark i { flex: 1; background: var(--gold); border-radius: 1px 1px 0 0; } .mfu-dist small { display: block; font-size: 12px; color: var(--muted); }
 .mfu-list { margin: 0 0 8px; padding-left: 18px; font-size: var(--fs-14); }
 @media (max-width: 860px) { .mfu-layout, .mfu-bdtop, .mfu-cmptop { grid-template-columns: 1fr; } .mfu-filters { position: static; } .mfu-lb-list li { grid-template-columns: 26px 1fr 40px 50px; } .mfu-lb-list li small { display: none; } }
 .mfu-alert svg { width: 16px; height: 16px; } .mfu-alert .btn { display: inline-flex; gap: 6px; align-items: center; }
@@ -47,7 +47,7 @@
 /* Task #132: the four parts against the category median as a table (it was a radar chart) */
 .mfu-parts { width: 100%; border-collapse: collapse; font-size: var(--fs-14); }
 .mfu-parts th, .mfu-parts td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-.mfu-parts thead th { font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mfu-parts thead th { font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .mfu-parts td, .mfu-parts thead th { text-align: left; }
 .mfu-bd .mfu-bdtop { grid-template-columns: minmax(320px, 1fr) minmax(0, 1fr); }
 @media (max-width: 860px) { .mfu-bd .mfu-bdtop { grid-template-columns: 1fr; } }

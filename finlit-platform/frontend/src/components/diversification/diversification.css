@@ -27,8 +27,8 @@
 .dv-scale-bar i { background: var(--dv-hue-soft); border-radius: 2px; }
 .dv-scale-bar i.on { background: var(--dv-hue); }
 .dv-scale-bar b { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--text-primary, #0B192C); transform: translateX(-1px); }
-.dv-scale-k { display: flex; gap: 2px; font-size: 11px; margin-top: 8px; font-size: 11px; line-height: 14px; color: var(--text-muted, #5B6779); }
-.dv-scale-k span { min-width: 0; font-size: 11px; padding-right: 4px; overflow-wrap: break-word; hyphens: manual; }
+.dv-scale-k { display: flex; gap: 2px; font-size: 12px; margin-top: 8px; font-size: 12px; line-height: 14px; color: var(--text-muted, #5B6779); }
+.dv-scale-k span { min-width: 0; font-size: 12px; padding-right: 4px; overflow-wrap: break-word; hyphens: manual; }
 .dv-scale-k span.on { color: var(--text-primary, #0B192C); font-weight: 600; }
 .dv-parts { display: grid; gap: 16px; align-content: start; }
 .dv-part { border: 1px solid var(--dv-line); border-radius: 8px; padding: 16px; background: var(--bg-subtle, #ECEFF3); }
@@ -110,8 +110,8 @@
 .dv-heat { margin-top: 16px; border-top: 1px solid var(--dv-line); }
 .dv-heat summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-primary, #0B192C); }
 .dv-heat-w { overflow-x: auto; max-width: 100%; }
-.dv-heat table { border-collapse: separate; border-spacing: 1px; font-size: 11px; }
-.dv-heat th { font-weight: 500; color: var(--text-muted, #5B6779); padding: 2px 4px; text-align: right; white-space: nowrap; font-size: 11px; }
+.dv-heat table { border-collapse: separate; border-spacing: 1px; font-size: 12px; }
+.dv-heat th { font-weight: 500; color: var(--text-muted, #5B6779); padding: 2px 4px; text-align: right; white-space: nowrap; font-size: 12px; }
 .dv-heat thead th { text-align: center; } .dv-heat thead th span { display: block; writing-mode: vertical-rl; transform: rotate(180deg); }
 .dv-heat td { width: 28px; height: 28px; min-width: 28px; text-align: center; color: var(--text-primary, #0B192C); border-radius: 2px; background-clip: padding-box; }
 @media (max-width: 900px) {

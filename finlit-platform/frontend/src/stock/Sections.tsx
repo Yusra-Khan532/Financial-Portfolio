@@ -50,7 +50,7 @@ export function SectionHead({ id, no, icon, tier, title, sub, color, aside, coun
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
 const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", "silver"], ["1M", "silver"]];
-const CAP: React.CSSProperties = { fontSize: 11, padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
+const CAP: React.CSSProperties = { fontSize: 12, padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();
   const [intra, setIntra] = useState<IntradayRange | null>(null);

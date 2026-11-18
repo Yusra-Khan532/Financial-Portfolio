@@ -16,7 +16,7 @@
 .adv-tabs [role=tab] { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); padding: 7px 11px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .adv-tabs [role=tab]:hover { background: var(--s2); color: var(--text); }
 .adv-tabs [role=tab][aria-selected=true] { background: var(--gold-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
-.adv-tn { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--s2); border: 1px solid var(--border); font-size: 11px; color: var(--faint); }
+.adv-tn { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--s2); border: 1px solid var(--border); font-size: 12px; color: var(--faint); }
 [aria-selected=true] > .adv-tn { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
 .adv-tabsel, .adv-pairsel { display: none; }
 .adv-tabsel span, .adv-pairsel span { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
@@ -40,10 +40,10 @@
 .adv-pair:hover { background: var(--s2); }
 .adv-pair[aria-current=true] { background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--gold); }
 .adv-pair.na { color: var(--muted); }
-.adv-pid { grid-row: 1 / 3; font: 600 11px var(--mono, monospace); color: var(--faint); padding-top: 2px; min-width: 30px; }
+.adv-pid { grid-row: 1 / 3; font: 600 12px var(--mono, monospace); color: var(--faint); padding-top: 2px; min-width: 30px; }
 .adv-pl { overflow-wrap: anywhere; }
 .adv-pair .adv-st { justify-self: start; margin-top: 3px; }
-.adv-st { display: inline-block; font-size: var(--fs-11); font-weight: 700; letter-spacing: .02em; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); background: var(--s2); white-space: nowrap; }
+.adv-st { display: inline-block; font-size: var(--fs-12); font-weight: 700; letter-spacing: .02em; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); background: var(--s2); white-space: nowrap; }
 .adv-st.ready { color: var(--k3); border-color: color-mix(in srgb, var(--k3) 45%, var(--border)); }
 .adv-st.adapted { color: var(--k1); border-color: color-mix(in srgb, var(--k1) 45%, var(--border)); }
 .adv-st.unavailable { color: var(--faint); }
@@ -91,7 +91,7 @@ fieldset.adv-field legend { padding: 0 4px; }
 .adv-plot svg:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
 line.adv-gl { stroke: var(--border); stroke-width: 1; }
 .adv-zero { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 3; }
-.adv-tick { fill: var(--muted); font-size: 11px; }
+.adv-tick { fill: var(--muted); font-size: 12px; }
 .adv-axt { fill: var(--muted); font-size: var(--fs-12); font-weight: 600; }
 .adv-pt { fill: var(--muted); fill-opacity: .35; stroke: none; }
 .adv-edge { fill: var(--muted); fill-opacity: .6; }

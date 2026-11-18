@@ -63,7 +63,7 @@
 .eq { --eq-heat: #0E6471; --eq-heat0: var(--sp-panel); }
 .eq-gridrow { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
 .eq-heat { border-collapse: separate; border-spacing: 2px; font: 500 12px var(--sans); color: var(--sp-ink); }
-.eq-heat thead th { height: 96px; vertical-align: bottom; padding: 0 0 4px; font: 600 11px var(--sans); color: var(--sp-mute); }
+.eq-heat thead th { height: 96px; vertical-align: bottom; padding: 0 0 4px; font: 600 12px var(--sans); color: var(--sp-mute); }
 .eq-heat thead th span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .eq-heat tbody th { padding: 0 8px 0 0; text-align: right; font: 600 12px var(--sans); white-space: nowrap; }
 .eq-heat td { width: 34px; height: 26px; text-align: center; border-radius: 3px; font-variant-numeric: tabular-nums; }
@@ -91,7 +91,7 @@
 .eq-addbar .eq-addall { margin-left: 10px; }
 .dw-empty .eq-empty-go { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
 /* Task #183: Your shares by plan. A heading band names the groups; a thick divider follows the score; thin lines start the other groups. */
-.pfx-table .eq-band th { padding: 6px 8px 2px; border-bottom: 0; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); text-align: left; }
+.pfx-table .eq-band th { padding: 6px 8px 2px; border-bottom: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); text-align: left; }
 .pfx-table .eq-band th.c { text-align: center; }
 .pfx-table .eq-div { border-left: 3px solid var(--sp-line, var(--border-strong)); }
 .pfx-table .eq-div2 { border-left: 1px solid var(--sp-line, var(--border)); }
