@@ -1,7 +1,7 @@
 /* Diversification card. Scoped to .dv; reads the site's tokens, defines none globally. Sizes: 11 12 13 14 16 18 20 24 28 32 40 only.
    One neutral hue for every bar and the band scale; no verdict colours anywhere (the card describes, it never judges). */
 .dv { --dv-hue: #2F5496; --dv-hue-soft: color-mix(in srgb, var(--dv-hue) 16%, transparent); --dv-line: var(--border-subtle, #D6DCE4);
-  background: var(--bg-surface, #fff); color: var(--text-body, #334155); border: 1px solid var(--dv-line); border-radius: 12px; padding: 24px; margin: 24px 0; font-size: 14px; line-height: 1.5; min-width: 0; }
+  color: var(--text-body, #334155); margin: 24px 0; font-size: 14px; line-height: 1.5; min-width: 0; }   /* the box itself is a .card, like the boxes above it on Compare (task #181) */
 :root[data-theme="dark"] .dv { --dv-hue: #8DB0E8; }
 .dv *, .dv *::before, .dv *::after { box-sizing: border-box; }
 .dv h2, .dv h3, .dv p, .dv ul { margin: 0; padding: 0; }
@@ -133,18 +133,28 @@
   .dv-table tbody th::before { content: none; }
 }
 
-/* Task #78: FinLit brand hue for the whole card (dark forest surface, mint accent, soft lines, neutral text) - one hue, no verdict colours; the current list always on show */
-.dv { --bg-surface: #F1F8F3; --bg-subtle: #E3F0E7; --dv-line: #A9D0B8; --text-primary: #0B2A1B; --text-body: #1F3B2C; --text-secondary: #3D5A4A; --text-muted: #5A7566; --dv-hue: #1F7A55; --border-control: #7DA992; --focus-ring: #1F7A55; }
-:root[data-theme="dark"] .dv { --bg-surface: #0C2419; --bg-subtle: #12301F; --dv-line: rgba(95, 211, 155, .28); --text-primary: #EAF4EE; --text-body: #CFE0D6; --text-secondary: #AFC7B8; --text-muted: #8FAE9C; --dv-hue: #5FD39B; --border-control: rgba(95, 211, 155, .5); --focus-ring: #5FD39B; }
+/* Task #181 (was task #78's own forest palette): the card takes the site's own surfaces, lines and text, like the boxes above it on Compare,
+   in light and dark. The accent hue is kept for the accent only: the bar beside the title, the list icon and the data bars. */
+.dv { --bg-surface: var(--s1); --bg-subtle: var(--s2); --dv-line: var(--border); --text-primary: var(--text); --text-body: var(--text); --text-secondary: var(--muted); --text-muted: var(--muted);
+  --dv-hue: var(--gain); --border-control: var(--border-strong); --focus-ring: var(--gain); }
+:root[data-theme="dark"] .dv { --dv-hue: var(--gain); }
+/* the section's name highlighted as in the team's picture: an accent bar beside the eyebrow and the title, the title in the site's serif */
+/* the site's ".card p" reading width must not narrow the card's notes and boxes (task #181); the card's own widths are restated at the same strength */
+.card.dv p { max-width: none; }
+.card.dv .dv-side { max-width: 420px; } .card.dv .dv-method { max-width: 760px; }
+@media (max-width: 900px) { .card.dv .dv-side { max-width: none; } }
+.dv-head > div:first-child { border-left: 4px solid var(--gain); padding-left: 16px; }
+.dv-head .dv-eyebrow { letter-spacing: .14em; color: var(--text); }
+.dv-head h2 { font: 400 var(--fs-32)/var(--lh-32) var(--serif); color: var(--text); }
 .dv-listrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 14px; align-items: stretch; margin-bottom: 14px; }
-.dv-cur { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border: 1px solid var(--dv-hue); border-radius: 12px; background: color-mix(in srgb, var(--dv-hue) 10%, var(--bg-surface)); }
+.dv-cur { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--bg-subtle); }   /* task #181: a neutral box, the icon carries the accent */
 .dv-cur-i { flex: none; display: inline-flex; color: var(--dv-hue); }
 .dv-cur-t { display: grid; gap: 2px; min-width: 0; flex: 1; } .dv-cur-t b { font-size: 16px; color: var(--text-primary); font-weight: 600; } .dv-cur-t span { font-size: 14px; color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dv-cur-n { flex: none; font-style: normal; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--dv-hue); background: color-mix(in srgb, var(--dv-hue) 18%, transparent); color: var(--text-primary); white-space: nowrap; }
+.dv-cur-n { flex: none; font-style: normal; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text-primary); white-space: nowrap; }
 .dv-try { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 16px; border: 1px solid var(--dv-line); border-radius: 12px; background: var(--bg-subtle); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }
 .dv-try span { flex: 1; } .dv-try:hover, .dv-try.on { border-color: var(--dv-hue); } .dv-try:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .dv-try.on .dv-car { transform: rotate(180deg); }
-.dv-empty:not([role]) { border: 1px solid var(--dv-line); border-radius: 12px; padding: 14px 16px; background: color-mix(in srgb, var(--dv-hue) 7%, var(--bg-surface)); color: var(--text-secondary); font-size: 14px; }
+.dv-empty:not([role]) { border: 1px solid var(--dv-line); border-radius: 12px; padding: 14px 16px; background: var(--bg-subtle); color: var(--text-secondary); font-size: 14px; }
 .dv-empty:not([role]) b { color: var(--text-primary); }
 .dv-bar i, .dv-scale-bar i.on { background: var(--dv-hue); }
-@media (max-width: 760px) { .dv-listrow { grid-template-columns: minmax(0, 1fr); } .dv-cur-t span { white-space: normal; } }
+@media (max-width: 760px) { .dv-listrow { grid-template-columns: minmax(0, 1fr); } .dv-cur-t span { white-space: normal; } .dv-head h2 { font-size: var(--fs-24); line-height: var(--lh-24); } }
