@@ -4,13 +4,24 @@ capitals only, to avoid noise), a bucket counts when 2 different keywords or 5 m
 primary bucket is the highest score and a secondary one scores at least half of it, and the evidence is up to 2 sentences that name a keyword AND hold
 a figure. Plurals count ("solar cells", "EVs"). One fix: the notes set status "ok" from the evidence function itself (always true); here "ok" needs an evidence sentence.
 
+Upgrade (owner, 18 Nov 2026: "proper bucketing as in the PDF", "sentiment kind of analysis", "sectorization"):
+- The directory's own structure (directory.json, read from the PDF's tables): 166 keywords, each with its related terms and what to verify; a keyword
+  and its related terms are one CONCEPT, so synonyms are not counted twice; the notes' terms are merged into the concept that holds them (175 in all).
+  "2 different keywords" therefore means 2 different concepts.
+- The directory's screening discipline: each evidence sentence is tagged operating, under execution, planned or MoU / pilot, and the company's stage
+  for a theme is the most advanced one its own sentences show.
+- Tone: positive and negative finance words of the presentation (a small list in the spirit of the Loughran-McDonald finance word lists), as a
+  score from -1 to 1 and a plain label. It describes the company's own wording, nothing more.
+
 The directory's own caution stays with every result: a keyword mention by itself is not proof of material business exposure."""
 
 from __future__ import annotations
 
+import json
 import re
 from collections import defaultdict
-from typing import Dict, List, Pattern, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Pattern, Tuple
 
 BUCKETS: Dict[str, List[str]] = {
     "AI & GenAI": ["Artificial intelligence", "Generative AI", "GenAI", "Large language model", "LLM", "AI inference", "AI data centre", "GPU server",
@@ -66,44 +77,149 @@ CAUTION = ("A keyword mention by itself is not proof of material business exposu
 NUM_RE = re.compile(r"\d")
 MIN_DISTINCT, MIN_TOTAL = 2, 5        # the notes: "Require breadth, or a lot of repetition, to avoid one-word noise"
 MAX_PAGES = 80                        # the notes read the first 80 pages
+DIRECTORY = json.loads((Path(__file__).with_name("directory.json")).read_text(encoding="utf-8"))["buckets"]
+# Related terms of the PDF that are ordinary words in any deck (a power plant's "MW", a test's "trials"): kept in the directory, not matched alone.
+TOO_BROAD = {"mw", "trials", "certification", "navigation", "nodes", "payload", "propulsion", "transformers", "hvac"}
+
+
+def _pattern(term: str) -> str:
+    """Whole words; plural endings count (upgrade: decks say "solar cells", "EVs"; the notes' exact boundary missed every plural)."""
+    return r"(?<![A-Za-z])" + re.escape(term) + r"(?:s|es)?(?![A-Za-z])"
 
 
 def compile_patterns() -> Dict[Tuple[str, str], Pattern[str]]:
-    """Word-bounded patterns. Short all-capital acronyms (5 letters or fewer) are matched in capitals only, so 'cam' in 'campaign' or 'Ess' never count."""
+    """(bucket, concept) -> one pattern for the concept's keyword and related terms. Short all-capital acronyms (5 letters or fewer: EMS, CAM, ESS)
+    are matched in capitals only, so 'campaign' or 'ems' never count; the rest ignore case."""
     pats: Dict[Tuple[str, str], Pattern[str]] = {}
-    for bucket, terms in BUCKETS.items():
-        for term in terms:
-            acronym = term.isupper() and len(term) <= 5
-            # plural endings count (upgrade, 18 Nov 2026: decks say "solar cells", "EVs", "electrodes"; the notes' exact boundary missed every plural)
-            pats[(bucket, term)] = re.compile(r"(?<![A-Za-z])" + re.escape(term) + r"(?:s|es)?(?![A-Za-z])", 0 if acronym else re.IGNORECASE)
+    for bucket, concepts in DIRECTORY.items():
+        for c in concepts:
+            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5]
+            words = [a for a in c["aliases"] if a not in caps and a.lower() not in TOO_BROAD]
+            alts = ([r"(?-i:" + _pattern(a) + ")" for a in caps] + [_pattern(a) for a in sorted(words, key=len, reverse=True)])
+            if alts:
+                pats[(bucket, c["name"])] = re.compile("|".join(alts), re.IGNORECASE)
     return pats
 
 
 PATTERNS = compile_patterns()
 
 
+def compile_buckets() -> Dict[str, Tuple[Pattern[str], List[str]]]:
+    """bucket -> (one pattern of every alias of its concepts, longest first, each in its own group; group index -> concept). Scanned once, left to
+    right, so a piece of text counts for one concept only ("Generative AI" is not also "AI")."""
+    out: Dict[str, Tuple[Pattern[str], List[str]]] = {}
+    for bucket, concepts in DIRECTORY.items():
+        alts: List[Tuple[str, str]] = []
+        for c in concepts:
+            for a in c["aliases"]:
+                if a.isupper() and len(a) <= 5:
+                    alts.append((r"(?-i:" + _pattern(a) + ")", c["name"]))
+                elif a.lower() not in TOO_BROAD:
+                    alts.append((_pattern(a), c["name"]))
+        alts.sort(key=lambda x: -len(x[0]))
+        out[bucket] = (re.compile("|".join(f"({p})" for p, _ in alts), re.IGNORECASE), [n for _, n in alts])
+    return out
+
+
+BUCKET_PATTERNS = compile_buckets()
+VERIFY = {(b, c["name"]): c["verify"] for b, cs in DIRECTORY.items() for c in cs}
+
+
 def analyse(text: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, min_distinct: int = MIN_DISTINCT, min_total: int = MIN_TOTAL) -> Dict[str, dict]:
-    """bucket -> {distinct, total, score, terms (the 8 most mentioned)}, highest score first; only buckets with breadth or repetition."""
+    """bucket -> {distinct, total, score, terms (the 8 most mentioned concepts)}, highest score first; only buckets with breadth or repetition.
+    score = 2 x distinct concepts + 0.5 x mentions (up to 20), as the notes."""
     hits: Dict[str, Dict[str, int]] = defaultdict(dict)
-    for (bucket, term), pat in pats.items():
-        n = len(pat.findall(text))
-        if n:
-            hits[bucket][term] = n
+    if pats is PATTERNS:
+        for bucket, (rx, names) in BUCKET_PATTERNS.items():
+            for m in rx.finditer(text):
+                term = names[m.lastindex - 1] if m.lastindex else None
+                if term:
+                    hits[bucket][term] = hits[bucket].get(term, 0) + 1
+    else:                                  # a caller's own patterns (tests): one count per pattern
+        for (bucket, term), pat in pats.items():
+            n = len(pat.findall(text))
+            if n:
+                hits[bucket][term] = n
     scores: Dict[str, dict] = {}
     for bucket, terms in hits.items():
         distinct, total = len(terms), sum(terms.values())
         if distinct >= min_distinct or total >= min_total:
             scores[bucket] = {"distinct": distinct, "total": total, "score": round(distinct * 2 + min(total, 20) * 0.5, 2),
                               "terms": dict(sorted(terms.items(), key=lambda kv: -kv[1])[:8])}
-    return dict(sorted(scores.items(), key=lambda kv: -kv[1]["score"]))
+    return dict(sorted(scores.items(), key=lambda kv: (-kv[1]["score"], kv[0])))
+
+
+def themes_in(text: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS) -> Dict[str, List[str]]:
+    """A short text (a filing's headline): every bucket with at least one concept named, and the concepts. No threshold: a headline is short."""
+    out: Dict[str, List[str]] = defaultdict(list)
+    for (bucket, term), pat in pats.items():
+        if pat.search(text):
+            out[bucket].append(term)
+    return dict(out)
+
+
+# ------------------------------------------------------------------------------------------------ the directory's screening discipline: the stage
+# "Distinguish operating businesses from plans, pilots, MoUs and unexecuted announcements." Checked in this order; the first that matches wins.
+STAGES = ("operating", "execution", "planned", "mou_pilot")
+STAGE_LABEL = {"operating": "Operating", "execution": "Under execution", "planned": "Planned", "mou_pilot": "MoU / pilot"}
+_STAGE_RE = [
+    ("mou_pilot", re.compile(r"\b(mou|memorandum of understanding|pilot|proof of concept|poc|letter of intent|loi|prototype|feasibility|exploring|"
+                             r"evaluat(?:e|es|ing|ion)|in talks|non-binding)\b", re.I)),
+    ("planned", re.compile(r"\b(plan(?:s|ned|ning)? to|proposed|propose|will (?:set up|be|add|commission|launch|start|build|enter|expand|develop|invest)|"
+                           r"to be (?:set up|commissioned|completed|built)|expected to|intend(?:s|ed)? to|aims? to|upcoming|roadmap|pipeline|"
+                           r"by (?:fy|cy)\s?'?\d{2}|envisag\w*|under (?:planning|consideration|evaluation))\b", re.I)),
+    ("execution", re.compile(r"\b(under (?:construction|execution|implementation|development|installation)|being (?:set up|built|executed)|"
+                             r"ramp(?:ing)?[- ]?up|trial (?:run|production)|order book|order backlog|backlog|executing|work in progress|"
+                             r"partially commissioned|commissioning (?:is|of|underway)|in progress|ongoing|order inflows?|"
+                             r"orders? (?:received|won|secured|bagged|worth)|(?:received|won|secured|bagged) (?:an? )?(?:orders?|contracts?))\b", re.I)),
+    ("operating", re.compile(r"\b(commissioned|operational|in operation|installed capacity|existing capacity|current capacity|delivered|supplied|"
+                             r"shipped|achieved|completed|revenue (?:of|from|grew|up|rose)|sales (?:of|grew|rose)|generated|manufactured|produced|"
+                             r"commercial production|deployed|in production|we (?:make|manufacture|supply|operate|run))\b", re.I)),
+]
+
+
+def stage_of(sentence: str) -> Optional[str]:
+    for name, rx in _STAGE_RE:
+        if rx.search(sentence):
+            return name
+    return None
+
+
+def most_advanced(stages: List[Optional[str]]) -> Optional[str]:
+    got = [s for s in stages if s]
+    return min(got, key=STAGES.index) if got else None
+
+
+# ------------------------------------------------------------------------------------------------ tone (sentiment of the company's own words)
+POSITIVE = re.compile(r"\b(grow(?:th|s|n)?|grew|record|highest|strong(?:er)?|improv(?:e|ed|ement|ing)|increas(?:e|ed|ing)|expan(?:d|ded|sion)|"
+                      r"wins?|won|award(?:ed)?|robust|milestones?|commissioned|ahead|profitab(?:le|ility)|upgrad(?:e|ed)|healthy|gains?|"
+                      r"surg(?:e|ed)|accelerat(?:e|ed|ing)|resilien(?:t|ce)|best[- ]in[- ]class|leadership|successful(?:ly)?)\b", re.I)
+NEGATIVE = re.compile(r"\b(declin(?:e|ed|ing)|loss(?:es)?|lower|weak(?:er|ness)?|delay(?:s|ed)?|shortfall|impairment|default(?:s|ed)?|penalt(?:y|ies)|"
+                      r"litigation|downgrad(?:e|ed)|slowdown|pressures?|headwinds?|challeng(?:e|es|ing)|decreas(?:e|ed|ing)|fell|drop(?:ped)?|"
+                      r"deficit|adverse(?:ly)?|terminat(?:e|ed|ion)|cancel(?:led|lation)?|shutdown|disruptions?|fire|strike|volatil(?:e|ity)|"
+                      r"uncertaint(?:y|ies)|subdued|muted)\b", re.I)
+
+
+def tone(text: str) -> dict:
+    """{score -1..1, label, positive, negative}: (positive - negative) / (positive + negative) over the finance words found."""
+    pos, neg = len(POSITIVE.findall(text)), len(NEGATIVE.findall(text))
+    if pos + neg < 3:
+        return {"score": None, "label": "Too few words to tell", "positive": pos, "negative": neg}
+    sc = round((pos - neg) / (pos + neg), 2)
+    label = "Positive" if sc >= 0.4 else "Negative" if sc <= -0.1 else "Mixed"
+    return {"score": sc, "label": label, "positive": pos, "negative": neg}
+
+
+# ------------------------------------------------------------------------------------------------ evidence and the whole presentation
+def sentences(text: str) -> List[str]:
+    return [" ".join(s.split()) for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text)]
 
 
 def evidence(text: str, terms: List[str], bucket: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, k: int = 2) -> List[str]:
     """Up to k sentences that mention one of the bucket's keywords AND hold a figure (capacity, order value, revenue ...), as the notes ask."""
     out: List[str] = []
     term_pats = [pats[(bucket, t)] for t in terms if (bucket, t) in pats]
-    for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text):
-        s = " ".join(s.split())
+    for s in sentences(text):
         if 20 <= len(s) and NUM_RE.search(s) and any(p.search(s) for p in term_pats):
             out.append(s[:300])
             if len(out) == k:
@@ -111,15 +227,33 @@ def evidence(text: str, terms: List[str], bucket: str, pats: Dict[Tuple[str, str
     return out
 
 
+def theme_stage(text: str, terms: List[str], bucket: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS) -> dict:
+    """The stage the company's own sentences on this theme show: the most advanced one, and how many sentences showed each."""
+    term_pats = [pats[(bucket, t)] for t in terms if (bucket, t) in pats]
+    mix: Dict[str, int] = {}
+    for s in sentences(text):
+        if len(s) >= 20 and any(p.search(s) for p in term_pats):
+            st = stage_of(s)
+            if st:
+                mix[st] = mix.get(st, 0) + 1
+    top = most_advanced(list(mix))
+    return {"stage": top, "label": STAGE_LABEL.get(top or "", "Not stated"), "mix": mix}
+
+
 def classify(text: str) -> dict:
-    """One presentation's text -> {status, primary, secondary, scores, evidence}, as the notes' run() decides it."""
+    """One presentation's text -> {status, primary, secondary, scores, evidence, stage, tone}, as the notes' run() decides it, plus the upgrade."""
+    empty = {"primary": None, "secondary": [], "scores": {}, "evidence": [], "stage": None, "tone": tone(text)}
     if len(text) < 200:
-        return {"status": "no_text_layer", "primary": None, "secondary": [], "scores": {}, "evidence": []}
+        return {"status": "no_text_layer", **empty}
     scores = analyse(text)
     if not scores:
-        return {"status": "no_bucket_match", "primary": None, "secondary": [], "scores": {}, "evidence": []}
+        return {"status": "no_bucket_match", **empty}
     buckets = list(scores)
     top = buckets[0]
     secondary = [b for b in buckets[1:] if scores[b]["score"] >= 0.5 * scores[top]["score"]]
-    ev = evidence(text, list(scores[top]["terms"]), top)
-    return {"status": "ok" if ev else "keyword_only_no_figures", "primary": top, "secondary": secondary, "scores": scores, "evidence": ev}
+    for b in [top, *secondary]:
+        scores[b]["stage"] = theme_stage(text, list(scores[b]["terms"]), b)
+        scores[b]["verify"] = sorted({VERIFY[(b, t)] for t in scores[b]["terms"] if VERIFY.get((b, t))})[:3]
+    ev = evidence(text, list(scores[top]["terms"]), top, k=3)
+    return {"status": "ok" if ev else "keyword_only_no_figures", "primary": top, "secondary": secondary, "scores": scores, "evidence": ev,
+            "stage": scores[top]["stage"], "tone": tone(text)}

@@ -26,7 +26,30 @@ business exposure. Open on every plan (it quotes what companies filed). FinLit A
 
 Per company, the newest filing in the last 400 days that the Documents page calls an "Investor presentation" (not a meeting notice, annual report or
 transcript). Read again only when a newer one is filed; a failed read is tried again after a day. First 80 pages (the notes). Newest filings first,
-300 a run and 40 minutes, resumable. Table `discovery_companies` (migration 109). Route `GET /api/discovery` (`?theme=`, `?symbol=`).
+300 a run and 40 minutes, resumable. Table `discovery_companies` (migration 110). Route `GET /api/discovery` (`?theme=`, `?symbol=`).
+
+## Upgrade (owner, 18 Nov 2026): bucketing as the PDF, tone, every filing, sectors
+
+The owner asked for "proper bucketing as mentioned in the PDF", "the same bucketing for all the other companies' news in our documents section",
+"sentimental kind of analysis" and "sectorization, because we have to do further more things into it".
+
+- **The PDF's own structure** (`discovery/directory.json`, read from the PDF's tables): 166 keywords in the 21 buckets, each with its related terms
+  and "what to verify". A keyword and its related terms are one concept, so synonyms count once ("Counter-drone systems", "Anti-drone", "CUAS" are
+  one); every term of the founder's notes is matched (merged into the concept that holds it, or its own: 175 concepts, 521 phrases). Each piece of
+  text counts for one concept only ("Generative AI" is not also "AI"). A handful of related terms that are ordinary words in any deck ("MW",
+  "trials", "navigation", "payload" ...) stay in the directory but are not matched alone.
+- **Screening discipline** (the PDF: "distinguish operating businesses from plans, pilots, MoUs and unexecuted announcements"): each sentence on a
+  theme is Operating (commissioned, delivered, revenue from ...), Under execution (under construction, order book, orders received ...), Planned
+  (plans to, proposed, by FY28 ...) or MoU / pilot; the company shows the most advanced one its own words support.
+- **Tone** of the presentation: positive minus negative finance words, -1 to 1, "Positive", "Mixed", "Negative" or "Too few words to tell".
+- **Every exchange filing** of the last 180 days (news, results filings, documents; `discovery/signals.py`, table `discovery_signals`): an event type
+  from NSE's category and the headline (order win, capacity / commissioning, acquisition / merger, partnership / MoU, fund raising, credit rating,
+  results, management change, legal / regulatory, default, payout, investor meet), the themes its headline names, and a tone of +1 / 0 / -1 (an
+  order +1, a penalty -1, a rating by "upgraded" / "downgraded", a top resignation -1, else the headline's words). Database only, in the same job.
+- **Sectors**: NSE's macro sector, sector and industry of each company (`company_classification`); "By sector" in the panel, a sector filter in a
+  theme (`/api/discovery?sector=`), sector counts per theme, and `bySector` (sector -> theme -> companies) for the work that comes next.
+- The panel shows per company: stage, sector, keywords, sentences with figures, tone, filings of 90 days (count, positive, negative), the
+  presentation; per theme: stages, sectors, the filings that name it, and the directory's "what to verify".
 
 ## Reading NSE's files (shared fetcher, `earnings/transcripts.py`)
 

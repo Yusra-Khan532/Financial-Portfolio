@@ -324,6 +324,8 @@ async def get_discovery(gw: Gateway, a: Dict[str, Any]) -> Out:
         if a["theme"] not in DISCOVERY_THEMES:
             raise ToolError(f"No such theme. The themes are: {', '.join(DISCOVERY_THEMES)}")
         q["theme"] = a["theme"]
+    if a.get("sector"):
+        q["sector"] = a["sector"]
     data = await gw.json("/api/discovery", q, subject="Discovery")
     data = dict(data or {})
     lim = int(a.get("limit") or 15)
@@ -331,10 +333,16 @@ async def get_discovery(gw: Gateway, a: Dict[str, Any]) -> Out:
         if "companies" in t:
             t["companies"] = t["companies"][:lim]
             t["alsoMentions"] = [{"symbol": c["symbol"], "company": c["company"], "primary": c["primary"]} for c in (t.get("alsoMentions") or [])[:lim]]
+            t["recentFilings"] = (t.get("recentFilings") or [])[:lim]
+    if data.get("filings"):
+        data["filings"] = data["filings"][:lim]
     if q.get("symbol"):
         data["themes"] = [t for t in data.get("themes") or [] if t.get("companies") or t.get("alsoMentions")]
     return Out(data, as_of=data.get("updated"), source=SOURCE_DISCOVERY, routes=["/api/discovery"],
-               notes=[CAUTION, "Each company is put in the theme its presentation scores highest (primary); 'alsoMentions' are companies where it is a secondary theme."])
+               notes=[CAUTION, "Each company is put in the theme its presentation scores highest (primary); 'alsoMentions' are companies where it is a secondary theme.",
+                      "stage: the most advanced stage the company's own sentences show (Operating, Under execution, Planned, MoU / pilot). tone: positive "
+                      "minus negative finance words of the presentation (-1 to 1). filings: exchange filings of the last 90 days by event type, theme and "
+                      "tone (+1, 0, -1). sector: NSE's macro sector, sector and industry. Describe these; never call a company a pick."])
 
 
 TOOLS: List[Tool] = [
@@ -365,10 +373,12 @@ TOOLS: List[Tool] = [
           "question": {"type": "string", "maxLength": 200, "description": "What to look for in the document"}}, read_company_document, ["symbol"]),
     Tool("get_discovery", "Discovery", "FinLit AI's Discovery section: companies grouped by the themes their newest investor presentation talks about (AI, defence, "
          "solar, batteries, data centres, semiconductors, EV, nuclear, space and drones, and more: 21 themes), each with its keywords, the sentences that hold figures "
-         "and the presentation's link. Without arguments: the themes and their counts. With `theme`: that theme's companies. With `symbol`: one company's themes. "
+         "and the presentation's link, the stage (operating, under execution, planned, MoU / pilot), the tone of its words, its NSE sector, and the "
+         "company's recent exchange filings by event and tone. Without arguments: the themes and their counts, sectors and filings. With `theme`: that theme's companies. With `symbol`: one company's themes. "
          "Use it for 'which companies are into ...', 'companies working on ...', theme or sector-trend questions.",
          {"theme": {"type": "string", "enum": list(DISCOVERY_THEMES)},
           "symbol": dict(SYMBOL_SCHEMA, description="A company symbol (optional)"),
+          "sector": {"type": "string", "maxLength": 80, "description": "An NSE macro sector, e.g. Industrials, Information Technology (optional)"},
           "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, get_discovery),
     Tool("screen_by_finlit_score", "Score screeners", "FinLit's Basic stock screener (FinLit IQ, Silver) and Advanced stock screener (FinLit Prism, Gold): companies by their "
          "FinLit score, highest first, optionally within a score range, a sector or industry, and a minimum size. The member's plan decides which score they see.",

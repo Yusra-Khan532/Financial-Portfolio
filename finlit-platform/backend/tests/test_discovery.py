@@ -28,20 +28,76 @@ def test_the_21_buckets_of_the_notes_are_all_there():
 def test_short_acronyms_match_in_capitals_only_and_whole_words_only():
     s = K.analyse("The campaign was a success. Cam ess ems. Our EMS and PCB lines; PCBA, OLED.", min_distinct=1, min_total=1)
     terms = s["Mobile & Electronics Manufacturing"]["terms"]
-    assert terms == {"EMS": 1, "PCB": 1, "PCBA": 1, "OLED": 1}                       # not 'campaign', 'Cam', 'ess', 'ems', and PCB not inside PCBA
+    # the PDF's concepts: EMS, PCB, PCBA and OLED each counted once, under the directory's keyword; not 'campaign', 'Cam', 'ess', 'ems'; PCB not in PCBA
+    assert terms == {"Electronics manufacturing services": 1, "Printed circuit board": 1, "PCB assembly": 1, "Display modules": 1}
     assert "Electrodes & Advanced Materials" not in s and "Battery & Energy Storage" not in s
-    long_term = K.analyse("generative ai and GENERATIVE AI", min_distinct=1, min_total=1)
-    assert long_term["AI & GenAI"]["terms"]["Generative AI"] == 2                    # longer terms ignore case
+    long_term = K.analyse("generative ai and GENERATIVE AI and GenAI and AI tools", min_distinct=1, min_total=1)
+    assert long_term["AI & GenAI"]["terms"] == {"Generative AI": 3, "Artificial intelligence": 1}   # one concept, its related terms; no double count
 
 
 def test_a_bucket_needs_two_keywords_or_five_mentions_and_scores_as_the_notes_say():
     assert K.analyse("We make solar cells. " * 4) == {}                               # one keyword, 4 mentions: noise
     five = K.analyse("We make solar cells. " * 5)["Solar Technology"]
-    assert five == {"distinct": 1, "total": 5, "score": 2 * 1 + 5 * 0.5, "terms": {"Solar cell": 5}}
+    assert five == {"distinct": 1, "total": 5, "score": 2 * 1 + 5 * 0.5, "terms": {"Solar cell technology": 5}}
     two = K.analyse("TOPCon line and a solar module plant.")["Solar Technology"]
     assert two["distinct"] == 2 and two["score"] == 2 * 2 + 2 * 0.5
     many = K.analyse("Capex " * 40)["Industrial Manufacturing & Capex"]
     assert many["score"] == 2 * 1 + 20 * 0.5                                         # mentions count up to 20
+
+
+def test_the_directory_pdf_is_the_structure_166_keywords_with_related_terms_and_what_to_verify():
+    rows = [c for cs in K.DIRECTORY.values() for c in cs]
+    assert len(K.DIRECTORY) == 21 and len(rows) == 175                                # the PDF's 166 + 9 of the notes' terms no row holds
+    assert sum(1 for c in rows if c["verify"]) == 166
+    drones = {c["name"]: c for c in K.DIRECTORY["Space & Drone Technology"]}
+    assert {"Anti-drone", "CUAS"} <= set(drones["Counter-drone systems"]["aliases"])
+    assert drones["Counter-drone systems"]["verify"].startswith("Verify procurement stage, trials, orders")
+    notes = {t.lower() for ts in K.BUCKETS.values() for t in ts}                      # every term of the notes is matched by some concept
+    aliases = {a.lower() for c in rows for a in c["aliases"]}
+    assert notes <= aliases
+    assert K.analyse("Counter-drone systems. Anti-drone guns. CUAS radars. ", min_distinct=1, min_total=1)["Space & Drone Technology"]["terms"] == {
+        "Counter-drone systems": 3}                                                   # a keyword and its related terms are one concept
+
+
+def test_stage_follows_the_screening_discipline_and_the_most_advanced_wins():
+    assert K.stage_of("We commissioned a 2 GW module line in Q2.") == "operating"
+    assert K.stage_of("The 1 GW cell line is under construction.") == "execution"
+    assert K.stage_of("Defence order inflow of Rs 12,000 crore in H1.") == "execution"          # orders in hand: under execution, not yet delivered
+    assert K.stage_of("We plan to set up a 5 GWh battery plant by FY28.") == "planned"
+    assert K.stage_of("Signed an MoU with the state for a pilot plant.") == "mou_pilot"
+    assert K.stage_of("A nice picture of the board.") is None
+    assert K.most_advanced(["planned", "mou_pilot", "operating"]) == "operating" and K.most_advanced([None]) is None
+    plan = K.classify("Company overview and highlights for shareholders, segments in detail. " * 4 +
+                      "We plan to set up 5 GWh of battery cell manufacturing by FY28. An MoU for sodium-ion batteries was signed in 2026.")
+    assert plan["primary"] == "Battery & Energy Storage" and plan["stage"]["stage"] == "planned" and plan["stage"]["label"] == "Planned"
+
+
+def test_tone_counts_positive_and_negative_finance_words():
+    up = K.tone("Record revenue and strong growth; margins improved; we won new orders.")
+    assert up["label"] == "Positive" and up["score"] == 1.0
+    down = K.tone("Revenue declined on weak demand; losses widened; project delays and penalty.")
+    assert down["label"] == "Negative" and down["score"] < 0
+    assert K.tone("Revenue grew and margins improved, but demand was weak.")["label"] == "Mixed"
+    assert K.tone("A plain sentence.")["score"] is None
+
+
+def test_every_filing_gets_an_event_themes_and_tone():
+    from finlit.discovery import signals as SG
+    o = SG.tag("Bagging/Receiving of orders/contracts", "BEL has informed the Exchange about receiving orders worth Rs 572 crore for radar systems")
+    assert o["event"] == "order" and o["tone"] == 1 and "Defence & Aerospace" in o["themes"]
+    up = SG.tag("Credit Rating", "ICRA upgraded the long-term rating to AA+ with stable outlook")
+    down = SG.tag("Credit Rating", "CARE downgraded the rating to BBB")
+    flat = SG.tag("Credit Rating", "UltraTech Cement Limited has informed the Exchange about Credit Rating")
+    assert (up["tone"], down["tone"], flat["tone"]) == (1, -1, 0) and up["event"] == "rating"
+    assert SG.tag("Updates", "Show cause notice and penalty from SEBI")["tone"] == -1
+    assert SG.tag("Change in Director(s)", "Resignation of Chief Financial Officer")["tone"] == -1
+    assert SG.tag("Change in Director(s)", "Appointment of an independent director")["tone"] == 0
+    assert SG.tag("Amalgamation/Merger", "Bharat Forge Limited has informed the Exchange about Amalgamation/Merger")["event"] == "mna"
+    assert SG.tag("Allotment of Securities", "Allotment of 12,24,265 securities pursuant to Preferential Issue")["event"] == "fundraise"
+    mou = SG.tag("General Updates", "MoU signed for a green hydrogen pilot plant")
+    assert mou["event"] == "partnership" and mou["stage"] == "mou_pilot" and "Renewable Energy & Power" in mou["themes"]
+    assert SG.tag("Updates", "Change in corporate office of RTA")["event"] == "other"
+    assert SG.tag("Press Release", "Fine chemicals plant output")["event"] != "legal"
 
 
 def test_primary_secondary_evidence_and_status():
@@ -51,6 +107,8 @@ def test_primary_secondary_evidence_and_status():
     r = K.classify(text)
     assert r["primary"] == "Solar Technology" and r["status"] == "ok"
     assert r["evidence"][0].startswith("We commissioned a 2 GW TOPCon") and len(r["evidence"]) == 2
+    assert r["stage"]["stage"] == "operating" and r["tone"]["label"] == "Too few words to tell"
+    assert r["scores"]["Solar Technology"]["verify"]                                  # the directory's "what to verify" for the keywords found
     assert all(any(ch.isdigit() for ch in e) for e in r["evidence"])
     sec = K.classify(text + " Capex of Rs 900 crore for a greenfield plant and a brownfield line.")
     assert "Industrial Manufacturing & Capex" in sec["secondary"]
@@ -159,7 +217,7 @@ def exchange(seen=None, fail=()):
 
 async def seed(st):
     async with st.pool.acquire() as conn:
-        await conn.execute("TRUNCATE discovery_companies, feed_items RESTART IDENTITY CASCADE")
+        await conn.execute("TRUNCATE discovery_companies, discovery_signals, feed_items RESTART IDENTITY CASCADE")
         rows = [
             ("ACMESOLAR", "Acme Solar Ltd", "Investor Presentation", "Acme Solar has informed the Exchange about Investor Presentation",
              "https://nsearchives.nseindia.in/corporate/ACMESOLAR_SOLAR_new.pdf", TODAY - timedelta(days=1)),
@@ -220,7 +278,17 @@ async def test_a_run_that_stops_early_says_work_is_left_for_the_probe(store):  #
 async def test_the_page_route_lists_themes_then_one_theme_then_one_company(store):  # noqa: F811
     from finlit.api import create_app
     await seed(store)
-    await D.run(store, fetcher=exchange())
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM company_classification WHERE symbol = ANY($1::text[])", ["BSHIELD", "ACMESOLAR"])
+        await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, rule_version) VALUES "
+                           "('BSHIELD', 'Industrials', 'Capital Goods', 'Aerospace & Defense', 1), ('ACMESOLAR', 'Power', 'Power', 'Power', 1)")
+        for i, (cat, title, d) in enumerate([("Bagging/Receiving of orders/contracts", "Bharat Shield has received orders worth Rs 400 crore for radar systems", 1),
+                                             ("Credit Rating", "CARE downgraded the long-term rating to A-", 3)]):
+            await conn.execute("INSERT INTO feed_items (kind, title, symbol, company, link, item_date, category, auto, dedupe) VALUES "
+                               "('news', $1, 'BSHIELD', 'Bharat Shield Ltd', 'https://nsearchives.nseindia.com/x.pdf', $2, $3, true, $4)",
+                               title, TODAY - timedelta(days=d), cat, f"n{i}")
+    res = await D.run(store, fetcher=exchange())
+    assert res["filings"]["tagged"] >= 2 and res["filings"]["events"]["order"] == 1
     app = create_app(make_settings(), store=store)
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
@@ -233,10 +301,20 @@ async def test_the_page_route_lists_themes_then_one_theme_then_one_company(store
             one = (await c.get("/api/discovery", params={"theme": "Defence & Aerospace"})).json()
             t = next(t for t in one["themes"] if t["name"] == "Defence & Aerospace")
             co = t["companies"][0]
-            assert co["symbol"] == "BSHIELD" and co["hasFigures"] and "Defence order" in co["keywords"]
+            assert co["symbol"] == "BSHIELD" and co["hasFigures"] and "Defence orders" in co["keywords"]
+            assert co["stageLabel"] in ("Operating", "Under execution") and co["tone"]["label"] and co["verify"]
+            assert co["sector"] == {"macro": "Industrials", "sector": "Capital Goods", "industry": "Aerospace & Defense"}
+            assert co["filings"]["count"] == 3 and co["filings"]["positive"] == 1 and co["filings"]["negative"] == 1
+            assert t["sectors"] == {"Industrials": 1} and t["news"]["filings"] >= 1 and t["verify"]
+            assert [f["event"] for f in t["recentFilings"]] == ["order"] and t["recentFilings"][0]["company"] == "Bharat Shield Ltd"
+            ind = (await c.get("/api/discovery", params={"sector": "Industrials"})).json()
+            assert ind["companies"] == 1 and list(ind["bySector"]) == ["Industrials"]
+            assert (await c.get("/api/discovery", params={"sector": "<script>"})).status_code == 400
             assert co["document"]["link"].endswith("BSHIELD_SHIELD.pdf") and co["document"]["date"] == (TODAY - timedelta(days=2)).isoformat()
             by_sym = (await c.get("/api/discovery", params={"symbol": "acmesolar"})).json()
             assert [x["name"] for x in by_sym["themes"] if x.get("companies")] == ["Solar Technology"]
+            sh = (await c.get("/api/discovery", params={"symbol": "BSHIELD"})).json()
+            assert [f["eventLabel"] for f in sh["filings"]] == ["Order win", "Investor meet / presentation", "Credit rating"] and sh["sectorOf"]["macro"] == "Industrials"
             assert (await c.get("/api/discovery", params={"theme": "Tulips"})).status_code == 404
             assert (await c.get("/api/discovery", params={"symbol": "<x>"})).status_code == 400
 
