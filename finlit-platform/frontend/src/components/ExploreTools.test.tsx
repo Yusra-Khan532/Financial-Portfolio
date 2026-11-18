@@ -4,14 +4,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { ExploreTools } from "./ExploreTools";
-import { BUCKETS, SHORT } from "../lib/platformTools";
+import { BUCKETS, FIGURE, SHORT } from "../lib/platformTools";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.style.overflow = ""; });
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 
 describe("platform data", () => {
-  it("has the six groups with 7, 5, 6, 5, 7 and 5 cards (35 tools; the option chain is off, task #213), each with three points and an image", () => {
-    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 5, 6, 5, 7, 5]);
+  it("has the six groups with 7, 6, 6, 6, 7 and 5 cards (37 tools; the option chain is off, task #213; Correlation Chart and ETF Portfolio added, task #208), each with three points and an image", () => {
+    expect(BUCKETS.map((b) => b.cards.length)).toEqual([7, 6, 6, 6, 7, 5]);
     for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD"]).toContain(c.badge); }
   });
   it("drops the Premium Report and Connect AI cards and adds FinLit Bot", () => {
@@ -54,7 +56,7 @@ describe("<ExploreTools />", () => {
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(7);
     expect(location.hash).toBe("#tools-discover");
     fireEvent.click(chips[1]);
-    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5); expect(location.hash).toBe("#tools-company-360");
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(6); expect(location.hash).toBe("#tools-company-360");
     const foot = screen.getByRole("navigation", { name: /between groups/i });
     expect(within(foot).getByText("Previous group").parentElement!.textContent).toMatch(/Discover/); expect(within(foot).getByText("Next group").parentElement!.textContent).toMatch(/Quant Lab/);
     fireEvent.click(within(foot).getByRole("button", { name: /All six groups/ }));
@@ -72,7 +74,7 @@ describe("<ExploreTools />", () => {
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(6);
     history.replaceState(null, "", "#");
   });
-  it("Expand opens a real dialog with the tool, runs through all 35 tools, locks the page scroll and closes with Esc", () => {
+  it("Expand opens a real dialog with the tool, runs through all 37 tools, locks the page scroll and closes with Esc", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 7 Discover cards/ }));
     fireEvent.click(document.querySelector('[data-exp="stock-screener"]')!);
     const dlg = screen.getByRole("dialog"); expect(dlg.getAttribute("aria-modal")).toBe("true");
@@ -82,7 +84,7 @@ describe("<ExploreTools />", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: /Next: Basic Stock Screener/ }));
     expect(screen.getByRole("dialog").textContent).toMatch(/DISCOVER · 2 OF 7/);
     for (let i = 0; i < 6; i++) fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^Next:/ }));
-    expect(screen.getByRole("dialog").textContent).toMatch(/COMPANY 360 · 1 OF 5/);   // moving into another group's tool switches the group view behind it
+    expect(screen.getByRole("dialog").textContent).toMatch(/COMPANY 360 · 1 OF 6/);   // moving into another group's tool switches the group view behind it
     expect(location.hash).toBe("#tools-company-360");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull(); expect(document.body.style.overflow).not.toBe("hidden");
@@ -97,7 +99,7 @@ describe("<ExploreTools />", () => {
     view();
     const rows = within(screen.getByRole("list", { name: /six groups and their tools/i })).getAllByRole("listitem").filter((li) => li.classList.contains("xt-row"));
     expect(rows).toHaveLength(6);
-    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 5, 6, 5, 7, 5]);
+    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([7, 6, 6, 6, 7, 5]);
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
@@ -110,13 +112,18 @@ describe("<ExploreTools />", () => {
     expect(dir.querySelectorAll(".xt-badge")).toHaveLength(0);
     for (const c of BUCKETS.flatMap((b) => b.cards)) {
       const a = dir.querySelector(`.xt-tool[href="${c.link}"], .xt-tool[title="${SHORT[c.id]}"]`)!;
-      expect(a.querySelectorAll(".xt-nm .xt-crown").length, c.id).toBe(c.badge === "FREE" ? 0 : 1);
+      expect(a.querySelectorAll(".xt-nm .xt-crown").length, c.id).toBe((c.crown === undefined ? c.badge !== "FREE" : c.crown !== false) ? 1 : 0);   // task #208: `crown` overrides
     }
     for (const el of Array.from(dir.querySelectorAll(".xt-tool"))) {   // visible text: name, figure and the short line only, never the plan word
       const seen = Array.from(el.querySelectorAll("b, .xt-fig")).map((e) => e.textContent).join(" ");
       expect(seen).not.toMatch(/\b(Gold|Silver)\b/);
     }
     expect(adv.querySelector(".xt-crown")!.textContent).toBe(", Gold plan");
+    // task #208: no crown on Basic Stock Screener; one on Chart Builder (free to open, more with Silver) and on the new Correlation Chart
+    const row = (name: RegExp) => screen.getAllByRole("link", { name }).find((l) => l.classList.contains("xt-tool"))!;
+    expect(row(/^Basic Stock Screener/).querySelector(".xt-crown")).toBeNull();
+    expect(row(/^Chart Builder/).querySelector(".xt-crown")!.textContent).toBe(", free to open, more with the Silver plan");
+    expect(row(/^Correlation Chart/).querySelector(".xt-crown")!.textContent).toBe(", Silver plan");
     // follow-up: the crown is bound to the name's last word, so a wrapped name never leaves the crown alone on a line
     expect(adv.querySelector(".xt-tail")!.textContent).toBe("Screener, Gold plan");
     expect(adv.querySelector(".xt-nm")!.textContent).toBe("Advanced Stock Screener, Gold plan");
@@ -144,7 +151,7 @@ describe("task #159: three landing cards", () => {
     expect(card("company-report").points).toEqual([
       "FinLit IQ (5 pillars) and Prism (7 pillars): proprietary company scoring",
       "Valuation comparison, sector leaders and laggards",
-      "19 sections in total: financials, advanced ratios, charts, ownership and filings, and many more",
+      "20 sections in total: financials, advanced ratios, charts, ownership and filings, and many more",
     ]);
   });
 });
@@ -183,5 +190,33 @@ describe("task #169: Reverse Valuation in Quant Lab", () => {
     expect(within(learn).getByRole("link", { name: /Browser Extension/ }).getAttribute("href")).toBe("/browser-extension");
     const quant = document.querySelector('.xt-row[data-group="quant-lab"]') as HTMLElement;
     expect(within(quant).getByRole("link", { name: /Stress Lab/ }).querySelector(".xt-crown")).toBeTruthy();
+  });
+});
+
+describe("dashboard cards, task #208 (the team's list of 16 Nov)", () => {
+  const card = (id: string) => BUCKETS.flatMap((b) => b.cards.map((c) => ({ ...c, group: b.id }))).find((c) => c.id === id);
+  it("Discover: Basic Stock Screener without a crown; Mutual Funds shows the funds AMFI lists today (8,332 active on 17 Nov; 8,500+ would not be true yet)", () => {
+    expect(card("basic-score-screener")!.crown).toBe(false);
+    expect(FIGURE["mutual-funds"]).toEqual(["8,300+", "funds"]);
+  });
+  it("Company 360: Company Report 20 sections (the report's sections menu); Chart Builder crowned; Correlation Chart added, crowned, and counted", () => {
+    expect(FIGURE["company-report"]).toEqual(["20", "sections"]);
+    expect(card("chart-builder")!.crown).toBe("SILVER");
+    expect(card("correlation-charts")).toMatchObject({ group: "company-360", title: "Correlation Chart", badge: "SILVER", link: "/graphs/advanced" });
+    expect(BUCKETS.find((b) => b.id === "company-360")!.cards).toHaveLength(6);
+  });
+  it("Quant Lab: no Option Chain (taken off the site, task #213)", () => {
+    expect(card("option-chain")).toBeUndefined();
+  });
+  it("Track & manage: Compare Mutual Funds; ETF Portfolio added", () => {
+    expect(card("compare-funds")!.title).toBe("Compare Mutual Funds");
+    expect(card("etf-portfolio")).toMatchObject({ group: "track", title: "ETF Portfolio", badge: "SILVER", link: "/etf-portfolio" });
+  });
+  it("Follow the market: IPO Calendar keeps its card and link but has no '3 IPO lists' tag", () => {
+    expect(card("ipo-calendar")).toMatchObject({ title: "IPO Calendar", link: "/ipo" });
+    expect(FIGURE["ipo-calendar"]).toBeUndefined();
+  });
+  it("the two new cards have their pictures", () => {
+    for (const f of ["correlation-charts-light", "etf-portfolio-light"]) expect(existsSync(join(process.cwd(), "public/landing/tools", f + ".webp")), f).toBe(true);
   });
 });
