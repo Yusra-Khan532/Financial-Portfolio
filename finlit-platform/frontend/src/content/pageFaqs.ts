@@ -1041,11 +1041,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Does FinLit use my quantities or connect to my broker?",
-    "a": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. Until you add a share's buys, every share counts equally and no money-weighted totals are shown."
-   },
-   {
-    "q": "How do I keep a share's buy history?",
-    "a": "Open a share from its Qty column (\"Add buys\" or \"2 buys\") and add each buy with its date, quantity and the price you paid for each share. The share then shows its total quantity, its average price, what you invested, its value at the latest price and the gain or loss. Average price = total invested ÷ total quantity across all buys: for 15 shares at ₹500 and 20 at ₹100, that is (15 × 500 + 20 × 100) ÷ 35 = ₹271.43. Each buy can be changed or removed; removing the last one keeps the share in your list. Your buys are saved in your account and are never sent to a broker. Information only, not investment advice."
+    "a": "No. Only the ISINs and the share names are taken; quantities, prices and dates in the file are ignored, and nothing is sent to a broker. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored. So every share counts equally and no money-weighted totals are shown."
    },
    {
     "q": "Which scores does this page use?",
