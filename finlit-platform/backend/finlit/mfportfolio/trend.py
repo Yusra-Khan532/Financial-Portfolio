@@ -26,6 +26,17 @@ def label(v: float) -> str:
     return LABELS[rank(v) + 2]
 
 
+BIZ_STRONG, BIZ_WEAK = 65.0, 50.0   # the Equity portfolio pack (15 Nov, task #183): business = the FinLit Prism score, 65 or above strong, below 50 weak
+
+
+def business_of(x: Dict[str, Any]) -> Optional[str]:
+    """"strong" / "weak" business: from the Prism score when the item carries one (`prism`, the Equity portfolio), else from Prism's word (the funds' look-through)."""
+    if x.get("prism") is not None:
+        v = float(x["prism"])
+        return "strong" if v >= BIZ_STRONG else "weak" if v < BIZ_WEAK else None
+    return BIZ.get(x.get("prismLabel") or "")
+
+
 def portfolio_trend(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """items: [{symbol, weight, st, lt, prismLabel}] (st / lt None when the company has no technical score)."""
     rated = [x for x in items if x.get("st") is not None and x.get("lt") is not None and (x.get("weight") or 0) > 0]
@@ -47,7 +58,7 @@ def portfolio_trend(items: List[Dict[str, Any]]) -> Dict[str, Any]:
         if x["lt"] <= -20:
             down += x["weight"]
         st += x["weight"] * x["st"]; lt += x["weight"] * x["lt"]
-        b = BIZ.get(x.get("prismLabel") or "")
+        b = business_of(x)
         t = "up" if x["lt"] >= 20 else "down" if x["lt"] <= -20 else None
         if b and t:
             business[f"{b}_{t}"].append(x)
@@ -58,12 +69,13 @@ def portfolio_trend(items: List[Dict[str, Any]]) -> Dict[str, Any]:
         g["share"] /= cw
         g["symbols"] = names(g.pop("items"))
     biz = {k: {"n": len(a), "share": sum(x["weight"] for x in a) / cw, "symbols": names(a)} for k, a in business.items()}
+    between = len(rated) - sum(len(a) for a in business.values())   # rated, but neither strong nor weak business, or a sideways long-term trend
     breadth = {"up": up / cw, "down": down / cw}
     direction = {k: v / cw for k, v in dirs.items()}
     gap = biz["strong_down"]["share"] + biz["weak_up"]["share"]
     return {
         "n": len(items), "rated": len(rated), "coverage": cw / tot if rated else 0.0,
-        "grid": {f"{a},{b}": v for (a, b), v in grid.items()}, "breadth": breadth, "direction": direction, "ndirection": ndir, "business": biz,
+        "grid": {f"{a},{b}": v for (a, b), v in grid.items()}, "breadth": breadth, "direction": direction, "ndirection": ndir, "business": biz, "between": between,
         "average": {"stLabel": label(st / cw), "ltLabel": label(lt / cw)} if rated else None,
         "words": {
             "longTerm": "Mostly rising" if breadth["up"] >= 0.55 else "Mostly falling" if breadth["down"] >= 0.55 else "Split",

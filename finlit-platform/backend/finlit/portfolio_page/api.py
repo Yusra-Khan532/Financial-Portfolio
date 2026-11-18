@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/portfolio")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 MAX_SYMBOLS = 500
 CACHE_SECONDS = 6 * 3600
-CACHE_VERSION = "v1"
+CACHE_VERSION = "v2"   # v2 (task #183): the engine's sector is NSE's macro sector; meta carries the three NSE levels
 TILT_LOCKED = div.TILT_LOCKED
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 
@@ -114,7 +114,7 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
             index_rows = await div._index(app)
             if not index_rows:
                 raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now, so the comparison cannot be worked out. Please try again in a moment.")
-            meta = inputs.build_meta(known, facts, await _sector_spellings(app))
+            meta = inputs.build_meta(known, facts, await _sector_spellings(app), await app.state.store.classifications(known))
             try:
                 page_obj = await asyncio.to_thread(_compute, prices, index_rows, meta, week)
             except AssertionError:
@@ -136,6 +136,50 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
     return Response(orjson.dumps(result, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)
 
 
+@router.post("/risk")
+async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
+    """Risk analytics by company size (task #183 W8): each share against its own size index (Nifty 50, Midcap 150, Smallcap 250) from index closes, the
+    size-weighted, blended and Nifty 50 betas, each size against its index, and swing and worst fall over 3 years of daily closes. Silver and Gold."""
+    app = request.app
+    allowed, retry = await app.state.limiter.hit("portfolio_page", ip_of(request), 30, 60, fail_open=False)
+    if not allowed:
+        return Response(orjson.dumps({"status": "rate_limited", "detail": "Too many requests. Please wait and try again.", "retryAfter": retry}), status_code=429,
+                        media_type="application/json", headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
+    from ..indices import _cached, _fetch_levels, shape_levels
+    from . import risk_sizes
+    symbols = body.symbols
+    week = div.unfinished_week(div.now_ist())
+    key = "pfrisk:" + ":".join(["v1", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    redis = app.state.store.redis
+    try:
+        cached = await redis.get(key)
+    except Exception:
+        cached = None
+    if cached:
+        return Response(cached, media_type="application/json", headers=NO_STORE)
+    facts = div._facts(await app.state.store.diversification_facts(symbols))
+    known = [s for s in symbols if s in facts]
+    classes = await app.state.store.classifications(known) if known else {}
+    index_rows: Dict[str, Any] = {}
+    for code, _name in risk_sizes.SIZE_INDEX.values():
+        raw = await _cached(app, f"idx:px:{code}", 6 * 3600, lambda c=code: _fetch_levels(app, c))
+        index_rows[code] = shape_levels(raw, 5)["rows"] if raw else []
+    if not index_rows.get("NIF50"):
+        raise fail(502, "provider_unavailable", "NIFTY 50 prices are not available right now, so the risk figures cannot be worked out. Please try again in a moment.")
+    missing = [name for code, name in risk_sizes.SIZE_INDEX.values() if not index_rows.get(code)]
+    prices = await div._prices(app, known) if known else {}
+    sizes = {s: risk_sizes.size_of(float(facts[s]["mcap"]) if facts[s].get("mcap") else None) for s in known}
+    sectors = {s: (classes.get(s.upper()) or {}).get("macro_sector") or facts[s].get("sector") or None for s in known}
+    out = await asyncio.to_thread(risk_sizes.build, prices, index_rows, sizes, sectors)
+    out.update({"week": week, "unknown": [s for s in symbols if s not in facts], "missingIndex": missing})
+    body_bytes = orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY)
+    try:
+        await redis.set(key, body_bytes, ex=CACHE_SECONDS)
+    except Exception:
+        pass
+    return Response(body_bytes, media_type="application/json", headers=NO_STORE)
+
+
 @router.post("/trend")
 async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
     """Short- and long-term trend of the listed shares (FinLit Prism technical scores). Names only; every share counts the same. Gold only (Prism), as the style
@@ -145,7 +189,8 @@ async def trend_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_c
     from .. import prism_screen
     from ..mfportfolio import trend
     cards = prism_screen.cards(await request.app.state.store.prism_cards(body.symbols))
-    items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label")} for s in body.symbols]
+    items = [{"symbol": s, "weight": 1.0, "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label"),
+              "prism": cards.get(s, {}).get("prism_final")} for s in body.symbols]   # business = the Prism score (65+ strong, below 50 weak), the pack's rule
     per = {s: {"st": cards[s].get("prism_st"), "lt": cards[s].get("prism_lt")} for s in body.symbols if s in cards}
     return Response(orjson.dumps({"locked": False, "trend": trend.public(trend.portfolio_trend(items)), "perShare": per}), media_type="application/json", headers=NO_STORE)
 
@@ -236,7 +281,7 @@ async def score_page(request: Request, body: ScoreIn, ctx: Ctx = Depends(member_
         last = p["c"][-1] if p and p.get("c") else None
         if s in qty and last:
             values[s] = float(qty[s]) * float(last)
-    meta = inputs.build_meta(known, facts, await _sector_spellings(app)) if known else {}
+    meta = inputs.build_meta(known, facts, await _sector_spellings(app), await app.state.store.classifications(known)) if known else {}
     try:
         out = await asyncio.to_thread(_score_compute, prices, nifty_rows, bench_rows, meta, known, values, cards, week, body.horizon, body.risk, body.goal, body.benchmark)
     except AssertionError:

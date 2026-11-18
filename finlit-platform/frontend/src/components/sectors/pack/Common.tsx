@@ -12,7 +12,8 @@ import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
 
 /** The pack's (i): a small round button that opens a short explanation on hover, focus or tap; Escape or a click elsewhere closes it. */
-export function Tip({ text, label = "What does this mean?" }: { text: string; label?: string }) {
+/** An ⓘ popover. With `how` it reads as two lines, "What it shows" and "How to read it" (task #183, START-HERE 3); without, one line as before. */
+export function Tip({ text, how, label = "What does this mean?" }: { text: string; how?: string; label?: string }) {
   const [open, setOpen] = useState(false), [pos, setPos] = useState<{ left: number; top: number; maxH: number } | null>(null);
   const leave = useRef(0);
   const btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null), id = "sp-tip-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -36,7 +37,7 @@ export function Tip({ text, label = "What does this mean?" }: { text: string; la
       <button type="button" ref={btn} className="sp-i" aria-label={label} aria-expanded={open} aria-describedby={open ? id : undefined}
         onClick={() => setOpen((v) => !v)} onMouseEnter={hold} onMouseLeave={release} onFocus={hold} onBlur={release}>i</button>
       {open && createPortal(<div ref={pop} id={id} role="tooltip" className="sp-pop" onMouseEnter={hold} onMouseLeave={release}
-        style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxH } : { visibility: "hidden" }}>{text}</div>, document.body)}
+        style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxH } : { visibility: "hidden" }}>{how ? <><span className="sp-pop-l"><b>What it shows</b> {text}</span><span className="sp-pop-l"><b>How to read it</b> {how}</span></> : text}</div>, document.body)}
     </>
   );
 }
@@ -107,10 +108,10 @@ export function Spark({ values, states, label, w = 170, h = 42, last, mark }: { 
 }
 
 /** A pack section: the white rounded panel, the serif title with its (i), the line under it, and Hide / Show when `hide` names it. */
-export function Section({ id, title, help, sub, why, hide, right, children }: { id: string; title: string; help?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode; children: ReactNode }) {
+export function Section({ id, title, help, how, sub, why, hide, right, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode; children: ReactNode }) {
   const body = (
     <section className="sp-sec" aria-labelledby={id}>
-      <div className="sp-sec-h"><div><h2 id={id}>{title}{help && <Tip text={help} label={`About “${title}”`} />}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
+      <div className="sp-sec-h"><div><h2 id={id}>{title}{help && <Tip text={help} how={how} label={`About “${title}”`} />}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
       {why && <p className="sp-why"><b>Why it matters</b> {why}</p>}
       {children}
     </section>

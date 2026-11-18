@@ -769,7 +769,7 @@
     "rule": "K1",
     "section": "risk",
     "priority": 72,
-    "text": "SKYGOLD is 8.3% of the amount but 20.8% of the risk.",
+    "text": "SKYGOLD is 8.3% of the list and carries 20.8% of the risk.",
     "mode": "eq"
    },
    {
@@ -807,7 +807,7 @@
      "rule": "K1",
      "section": "risk",
      "priority": 72,
-     "text": "SKYGOLD is 8.3% of the amount but 20.8% of the risk.",
+     "text": "SKYGOLD is 8.3% of the list and carries 20.8% of the risk.",
      "mode": "eq"
     },
     {

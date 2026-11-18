@@ -1065,7 +1065,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Can I export my list?",
-    "a": "Yes. Select Export CSV."
+    "a": "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account."
    }
   ]
  },

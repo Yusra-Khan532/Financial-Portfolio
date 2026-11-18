@@ -9,7 +9,7 @@ const silver = fx.silver as unknown as Overview, gold = fx.gold as unknown as Ov
 const lines = (o: Overview): Line[] => o.holdings.map((h) => ({ symbol: h.symbol, name: isReady(h) ? h.name : null, ov: h }));
 const noop = () => {};
 const table = (o: Overview, model: Model, tab: Tab, period: Period = "year", state: "loading" | "ready" | "error" = "ready", ls = lines(o)) =>
-  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop} onExport={noop}
+  renderToStaticMarkup(<StaticRouter location="/portfolio"><PortfolioTable lines={ls} model={model} tab={tab} period={period} limit={o.plan === "gold" ? 500 : 30} state={state} onPeriod={noop}
     actions={(s) => <button>Remove {s}</button>} /></StaticRouter>);
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
@@ -17,17 +17,17 @@ describe("tab strip", () => {
   it("is an accessible tablist with the selected tab tabbable", () => {
     const html = renderToStaticMarkup(<TabStrip tab="ratios" onTab={noop} />);
     expect(html).toContain('role="tablist"');
-    expect((html.match(/role="tab"/g) || []).length).toBe(3);
+    expect((html.match(/role="tab"/g) || []).length).toBe(5);
     expect(html).toMatch(/id="pf-tab-ratios"[^>]*aria-selected="true"[^>]*aria-controls="pf-panel"[^>]*tabindex="0"/);
     expect(html).toMatch(/id="pf-tab-overview"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
-    expect(text(html)).toContain("Overview Ratios Financials");
+    expect(text(html)).toContain("Overview By sector By company size Ratios Financials");
   });
 });
 
 describe("Overview tab", () => {
   it("Silver: FinLit IQ with its word and the five pillars; nothing of Prism", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profit.", "Balance", "Technical"].forEach((x) => expect(t).toContain(x));
+    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profitability", "Balance sheet", "Technical"].forEach((x) => expect(t).toContain(x));
     expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap"); expect(t).toContain("Strong");
     expect(t).not.toMatch(/Prism|Growth & Profitability|Valuation|Risk|Rate now/);
     expect(t).toContain("Portfolio average"); expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
@@ -46,9 +46,9 @@ describe("Overview tab", () => {
     const html = table(silver, "finlit", "overview");
     expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
   });
-  it("has the filter chips, search box and Export CSV", () => {
+  it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).toContain("Export CSV");
+    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
   });
 });
 

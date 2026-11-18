@@ -15,7 +15,8 @@ const VISIBLE = /(["'`>])([^"'`<>\n]*\b[Ff]undamentals?\b[^"'`<>\n]*)(?=["'`<])/
 // Task #126 (14 Nov 2026, the team's sample, kept at the founder's choice): the tag on the business-scores card of "How the scores have moved" reads "Fundamental".
 // Task #122 (14 Nov 2026, the team's picture, its wording kept exactly at the founder's choice): the landing page's Prism part says "4 Fundamental Areas"
 // (its "Combines fundamental and technical views..." strip was removed by task #149).
-const ALLOWED = /^(Fundamental|4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
+// Task #183 (15 Nov 2026, the team's portfolio pack, its screenshots): the Equity portfolio's heading band reads "Fundamental pillars".
+const ALLOWED = /^(Fundamental|Fundamental pillars|4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
 
 describe("no 'Fundamental' on any page", () => {
   it("no visible string uses the word (only routes, ids and data keys keep it)", () => {
