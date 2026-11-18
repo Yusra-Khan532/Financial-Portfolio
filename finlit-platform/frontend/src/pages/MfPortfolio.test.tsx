@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // MF portfolio, rebuilt from the 15 Nov pack (task #183 part 2): the page as a whole. The parts are tested in mf/pack/mf*183.test.tsx and lib/mfTop.test.ts.
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
