@@ -187,3 +187,36 @@
 .aif.full > header.aif-hd { position: relative; top: auto; left: auto; right: auto; pointer-events: auto; align-items: center; gap: 8px; min-height: 60px; box-sizing: border-box;
   padding: 10px max(24px, calc((100% - 1080px) / 2 + 24px)); }
 .aif.full .ai-body { padding-top: 8px; }
+
+/* Discovery (task #221): themes from companies' investor presentations */
+.aid { display: grid; gap: 10px; min-width: 0; }
+.aid-lead, .aid-method { margin: 0; color: var(--muted); font-size: var(--fs-13); }
+.aid-method { font-size: 12px; }
+.aid-themes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.aid-themes button { position: relative; width: 100%; min-height: 64px; display: grid; gap: 2px; text-align: left; padding: 10px 34px 10px 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); color: var(--text); font: 500 var(--fs-13) var(--sans); cursor: pointer; }
+.aid-themes button:hover:not(:disabled) { border-color: var(--aif-g, var(--gold)); }
+.aid-themes button:disabled { cursor: default; opacity: .6; }
+.aid-themes button:focus-visible, .aid-crumb button:focus-visible { outline: 2px solid var(--aif-g, var(--gold)); outline-offset: 2px; }
+.aid-themes b { font-weight: 700; }
+.aid-themes .aid-n { color: var(--aif-g, var(--gold)); font-size: 12px; font-weight: 600; }
+.aid-themes small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aid-themes svg { position: absolute; right: 10px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: var(--muted); }
+.aid-note { margin: 0; display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; background: var(--s2); color: var(--muted); font-size: 12px; }
+.aid-note svg { flex: none; width: 14px; height: 14px; margin-top: 1px; }
+.aid-crumb { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.aid-crumb button { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s2); color: var(--text); font: 500 var(--fs-13) var(--sans); cursor: pointer; }
+.aid-crumb button svg { width: 14px; height: 14px; transform: rotate(180deg); }
+.aid-crumb b { font: 400 18px/1.2 var(--serif); }
+.aid-cos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.aid-co { padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); display: grid; gap: 6px; min-width: 0; }
+.aid-co p { margin: 0; }
+.aid-coh a { color: var(--text); text-decoration: none; } .aid-coh a:hover b { text-decoration: underline; }
+.aid-coh span { color: var(--muted); font-size: 12px; }
+.aid-kw { display: flex; flex-wrap: wrap; gap: 4px; }
+.aid-kw span { padding: 2px 8px; border-radius: 999px; background: var(--s2); font-size: 12px; color: var(--text); }
+.aid-ev { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: var(--fs-13); color: var(--text); overflow-wrap: anywhere; }
+.aid-nofig, .aid-sec, .aid-also small, .aid-doc small { color: var(--muted); font-size: 12px; }
+.aid-doc a { display: inline-flex; align-items: center; gap: 4px; color: var(--aif-g, var(--gold)); font-size: var(--fs-13); font-weight: 600; }
+.aid-doc a svg { width: 14px; height: 14px; }
+.aid-also { margin: 0; font-size: var(--fs-13); overflow-wrap: anywhere; }
+.aid-also a { color: var(--text); }

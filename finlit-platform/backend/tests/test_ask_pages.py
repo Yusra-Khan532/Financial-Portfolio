@@ -182,7 +182,7 @@ async def test_the_investor_presentation_is_read_from_the_exchange_file_and_the_
         def __init__(self, **kw):
             pass
 
-        async def pdf(self, url):
+        async def pdf(self, url, cap=None):
             got.append(url)
             return tiny_pdf(DECK)
 
@@ -213,7 +213,7 @@ async def test_a_company_without_that_document_or_an_unreachable_file_is_said_pl
         def __init__(self, **kw):
             pass
 
-        async def pdf(self, url):
+        async def pdf(self, url, cap=None):
             raise FetchFailed("did not answer")
 
         async def aclose(self):

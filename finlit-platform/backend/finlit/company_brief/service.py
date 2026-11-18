@@ -87,13 +87,9 @@ class BriefFetcher(T.Fetcher):
         from .discovery import BSE_AR
         return await self._json(BSE_AR.format(code=code), T.NSE_BROWSER_UA, {"Accept": "application/json, text/plain, */*", "Referer": "https://www.bseindia.com/"})
 
-    async def pdf(self, url: str) -> bytes:   # type: ignore[override]
-        r = await self._get(url, T.USER_AGENT, {"Accept": "application/pdf, */*"}, C.MAX_PDF_BYTES)
-        if r.status_code != 200:
-            raise T.FetchFailed(f"HTTP {r.status_code}")
-        if not r.content.startswith(b"%PDF"):
-            raise T.FetchFailed("not a PDF")
-        return r.content
+    async def pdf(self, url: str, cap: Optional[int] = None) -> bytes:
+        # the shared fetcher (nseindia.in links, NSE's browser agent: task #221), with the annual report's larger cap
+        return await super().pdf(url, cap or C.MAX_PDF_BYTES)
 
 
 def _is_ip(h: str) -> bool:
