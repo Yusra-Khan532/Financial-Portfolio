@@ -2,9 +2,14 @@
 import { useSyncExternalStore } from "react";
 
 /** isin (task #183): the share's ISIN, the key that survives a rename (ZOMATO → ETERNAL); the symbol is what the page shows. */
-export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean; isin?: string };
-export type PState = { holdings: Holding[] };
+/** pf (task #235): the portfolio (broker account) the row belongs to; none = the first portfolio. side "sell": a sale (first in, first out), else a buy. */
+export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean; isin?: string; pf?: string; side?: "sell" };
+/** Task #235 (pack B1): a member's portfolios, one per broker account. The list's rows carry the id in `pf`. */
+export type Portfolio = { id: string; name: string; broker?: string; created?: string };
+export type PState = { holdings: Holding[]; portfolios?: Portfolio[] };
 const KEY = "finlit-portfolio-v1";
+/** The first portfolio's id: rows saved before task #235 have no `pf` and belong to it. */
+export const DEFAULT_PF = "main";
 const fresh = (): PState => ({ holdings: [] });
 function read(): PState {
   try { const s = JSON.parse(localStorage.getItem(KEY) || "null") as PState | null; return s && Array.isArray(s.holdings) ? s : fresh(); } catch { return fresh(); }
@@ -21,14 +26,18 @@ export const portfolio = {
   onSave: (f: ((s: PState) => void) | null) => { onSave = f; },
   replace: (s: PState) => { state = s?.holdings ? s : fresh(); emit(true); },
   reset: () => { state = fresh(); emit(true); },
-  add: (h: Omit<Holding, "id">) => { state = { holdings: [...state.holdings, { ...h, symbol: h.symbol.toUpperCase(), id: uid() }] }; emit(); },
-  update: (id: string, h: Partial<Holding>) => { state = { holdings: state.holdings.map((x) => (x.id === id ? { ...x, ...h } : x)) }; emit(); },
-  remove: (id: string) => { state = { holdings: state.holdings.filter((x) => x.id !== id) }; emit(); },
+  add: (h: Omit<Holding, "id">) => { state = { ...state, holdings: [...state.holdings, { ...h, symbol: h.symbol.toUpperCase(), id: uid() }] }; emit(); },
+  update: (id: string, h: Partial<Holding>) => { state = { ...state, holdings: state.holdings.map((x) => (x.id === id ? { ...x, ...h } : x)) }; emit(); },
+  remove: (id: string) => { state = { ...state, holdings: state.holdings.filter((x) => x.id !== id) }; emit(); },
   /** "Remove all" (task #127): an empty list, saved to the account like any other change. Returns what was there, so the page can offer Undo. */
   clear: (): PState => { const before = state; state = fresh(); emit(); return before; },
   /** Undo of "Remove all": puts the earlier list back exactly (ids, quantities, notes), saved to the account like any other change. */
-  restore: (s: PState) => { state = s?.holdings ? { holdings: [...s.holdings] } : fresh(); emit(); },
-  addMany: (hs: Omit<Holding, "id">[]) => { state = { holdings: [...state.holdings, ...hs.map((h) => ({ ...h, symbol: h.symbol.toUpperCase(), id: uid() }))] }; emit(); },
+  restore: (s: PState) => { state = s?.holdings ? { ...s, holdings: [...s.holdings] } : fresh(); emit(); },
+  addMany: (hs: Omit<Holding, "id">[]) => { state = { ...state, holdings: [...state.holdings, ...hs.map((h) => ({ ...h, symbol: h.symbol.toUpperCase(), id: uid() }))] }; emit(); },
+  /** Task #235 (pack B1): add, rename and remove a portfolio. Removing one removes its rows; the first portfolio's rows have no `pf`. */
+  addPortfolio: (p: Omit<Portfolio, "id">): string => { const id = uid(); state = { ...state, portfolios: [...(state.portfolios ?? []), { ...p, id, created: p.created ?? new Date().toISOString().slice(0, 10) }] }; emit(); return id; },
+  renamePortfolio: (id: string, name: string) => { state = { ...state, portfolios: (state.portfolios ?? []).map((p) => (p.id === id ? { ...p, name } : p)) }; emit(); },
+  removePortfolio: (id: string) => { state = { ...state, portfolios: (state.portfolios ?? []).filter((p) => p.id !== id), holdings: state.holdings.filter((h) => (h.pf ?? DEFAULT_PF) !== id) }; emit(); },
 };
 export const usePortfolio = () => useSyncExternalStore(portfolio.subscribe, portfolio.get, portfolio.get);
 

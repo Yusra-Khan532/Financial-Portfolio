@@ -1,7 +1,7 @@
 // Task #183 (Equity portfolio, the 15 Nov pack): the top of the page (the score and one tile per tab, the whole tile opens its tab), each tab's Key figures
 // row (three cards, foldable, remembers open or closed per tab in this browser; each button jumps to its section and flashes it), and the sticky sections
 // bar (numbered chips with arrows for the open tab, the one in view underlined; All sections lists every section of the three tabs).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Tip } from "../../components/sectors/pack/Common";
 import type { KeyCard, TabKey, TopTile } from "../../lib/equityTop";
@@ -28,7 +28,7 @@ export function TopGrid<T extends string = TabKey>({ score, tiles, onOpen, label
           <p className="eqt-k">{t.k}<span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></span></p>
           <p className="eqt-v">{t.v}{t.tag && <span className="eqt-tag">{t.tag}</span>}</p>
           <p className="eqt-x">{t.sub}</p>
-          <span className="eqt-go">{t.link} →</span>
+          <span className="eqt-go" aria-hidden="true">Open →</span>
         </div>))}
     </section>
   );
@@ -67,8 +67,25 @@ export function KeyFigures({ tab, sub, cards, store = KF_KEY }: { tab: string; s
 }
 
 export type Sec = [id: string, label: string];
+/** Task #235 (pack B6): the site header's height, kept in --top-h so a sticky bar sits just under the header at every width. */
+export function useHeaderHeight() {
+  useEffect(() => {
+    const h = document.querySelector<HTMLElement>("header.top");
+    if (!h) return;
+    const set = () => document.documentElement.style.setProperty("--top-h", `${Math.round(h.getBoundingClientRect().height)}px`);
+    set();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set); ro.observe(h); return () => ro.disconnect();
+  }, []);
+}
+
 export function SectionsBar<T extends string = TabKey>({ tab, all, onTab }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void }) {
-  const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false);
+  const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
+  useHeaderHeight();
+  useEffect(() => {   // "stuck": the bar has reached its sticky place under the header
+    const on = () => { const el = bar.current; if (!el) return; const top = parseFloat(getComputedStyle(el).top) || 0; setStuck(el.getBoundingClientRect().top <= top + 1 && scrollY > 0); };
+    on(); addEventListener("scroll", on, { passive: true }); return () => removeEventListener("scroll", on);
+  }, []);
   useEffect(() => {
     setOn(secs[0]?.[0] ?? "");
     if (typeof IntersectionObserver === "undefined") return;
@@ -79,7 +96,7 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab }: { ta
   }, [tab, secs.map((s) => s[0]).join()]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!menu) return; const close = () => setMenu(false); addEventListener("click", close); return () => removeEventListener("click", close); }, [menu]);
   return (
-    <nav className="eqt-bar" aria-label="Sections on this tab">
+    <nav ref={bar} className={"eqt-bar" + (stuck ? " stuck" : "")} aria-label="Sections on this tab">
       <span className="eqt-allw"><button type="button" className="eqt-all" aria-expanded={menu} aria-haspopup="true" onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }}>All sections</button>
         {menu && <div className="eqt-menu" role="menu">{(Object.keys(all) as T[]).map((t) => <div key={t}><p>{all[t].label}</p>
           {all[t].secs.map(([id, label], i) => <button key={id} type="button" role="menuitem" onClick={() => { setMenu(false); if (t === tab) { setOn(id); jumpTo(id); } else onTab(t, id); }}><span className="eqt-n">{i + 1}</span>{label}</button>)}</div>)}</div>}</span>
@@ -90,13 +107,15 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab }: { ta
 }
 
 /** Gold: the portfolio score box (as before), now the first cell of the top grid. */
-export function ScoreBox({ total, band, needsQty, onAddQty }: { total: number | null; band?: string; needsQty: boolean; onAddQty: () => void }) {
+/** The score box (task #235, pack B5 and B13): the score with one short line beside it. Every holding has a quantity: "Weighted by value now across N shares".
+ *  Quantities missing: "Add buys for N shares to weight the score by value now." with a small "Add buys" button that opens the first such holding's buys. */
+export function ScoreBox({ total, band, missing, shares, onAddQty }: { total: number | null; band?: string; missing: number; shares: number; onAddQty: () => void }) {
   return (
     <div className="eqt-score">
-      <p className="eqt-score-k">Your portfolio score<Tip text="One number from 0 to 100 that sums up how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration." how="Higher reads stronger on those together. How they are combined stays on FinLit's side; Make the score yours shows the parts." label="About “Your portfolio score”" /></p>
+      <p className="eqt-score-k">Your portfolio score<Tip text="One number from 0 to 100 that sums up how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration." how="Higher reads stronger on those together. Once every holding has its buys, each share counts by its value now." label="About “Your portfolio score”" /></p>
       <p className="eqt-score-v"><b>{total ?? "—"}</b> / 100{band && total != null && <em> {band}</em>}</p>
-      <p className="eqt-score-x">{needsQty ? "Needs quantities: type how many of each share you own in the Qty column of Your shares. Until then every share counts the same." : "Counted by the value of each holding you entered."}</p>
-      {needsQty && <button type="button" className="eqt-addq" onClick={onAddQty}>Add quantities</button>}
+      <p className="eqt-score-x">{missing ? `Add buys for ${missing} ${missing === 1 ? "share" : "shares"} to weight the score by value now.` : `Weighted by value now across ${shares} ${shares === 1 ? "share" : "shares"}.`}</p>
+      {missing > 0 && <button type="button" className="eqt-addq" onClick={onAddQty}>Add buys</button>}
     </div>
   );
 }

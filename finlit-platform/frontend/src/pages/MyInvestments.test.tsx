@@ -186,7 +186,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Add quantities" })[0]);
     const dlg = await screen.findByRole("dialog", { name: "Quantities" });
     expect(within(dlg).getAllByText("HDFCBANK")).toHaveLength(1);
-    expect(within(dlg).getByText("2 buys: change them in the buy history on the Equity portfolio")).toBeTruthy();
+    expect(within(dlg).getByText("2 buys and sales: change them in the buy history on the Equity portfolio")).toBeTruthy();
   });
   it("D24, D25: Silver reads shares with FinLit IQ, Gold with FinLit Prism; Basic sees the plan gate", async () => {
     const s = withQty(); s.plan = "silver"; st.answer = s; st.plan = "silver";

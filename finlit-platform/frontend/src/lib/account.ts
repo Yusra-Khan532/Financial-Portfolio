@@ -1,5 +1,6 @@
 // Account calls. Each returns plain data or throws ApiError (with the server's code in `.body.status`).
 import { apiGet, apiSend } from "./api";
+import type { Holding, Portfolio } from "./portfolio";
 import type { User } from "./auth";
 import type { Prefs } from "./prefs";
 
@@ -25,10 +26,11 @@ export const mfaDisable = (code: string) => apiSend("POST", "/api/me/mfa/disable
 export const deleteAccount = (password: string) => apiSend("DELETE", "/api/me", { password });
 export const requestPlan = (plan: "silver" | "gold", note?: string) => apiSend("POST", "/api/me/plan-request", { plan, note });
 
-export type SavedState = { portfolio?: { holdings?: { id: string; symbol: string; qty: number; price: number; date?: string; note?: string }[] }; watchlist: { lists?: { id: string; name: string; symbols: string[] }[]; meta?: Record<string, { note?: string; target?: number; added: number }> }; screens: { name: string; state: unknown }[]; prefs: Partial<Prefs> };
+export type SavedState = { portfolio?: { holdings?: Holding[]; portfolios?: Portfolio[] }; watchlist: { lists?: { id: string; name: string; symbols: string[] }[]; meta?: Record<string, { note?: string; target?: number; added: number }> }; screens: { name: string; state: unknown }[]; prefs: Partial<Prefs> };
 export const loadState = () => apiGet<SavedState>("/api/me/state");
 export const saveWatchlist = (b: unknown) => apiSend("PUT", "/api/me/watchlist", b);
-export const savePortfolio = (holdings: unknown) => apiSend("PUT", "/api/me/portfolio", { holdings });
+/** Task #235: the rows (buys, sales, names) and, when there are any, the portfolios (one per broker account). */
+export const savePortfolio = (holdings: unknown, portfolios?: unknown[]) => apiSend("PUT", "/api/me/portfolio", portfolios?.length ? { holdings, portfolios } : { holdings });
 /** Clear portfolio (task #183): the server empties the equity list and holds what was there for the Undo window. */
 export const clearPortfolioServer = () => apiSend<{ status: string; removed: number; undoSeconds: number }>("POST", "/api/me/portfolio/clear");
 export const undoClearPortfolioServer = () => apiSend<{ status: string; holdings: unknown[] }>("POST", "/api/me/portfolio/undo-clear");
