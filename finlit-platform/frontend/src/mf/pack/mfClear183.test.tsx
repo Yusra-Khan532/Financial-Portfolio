@@ -50,6 +50,6 @@ describe("Add units (M3)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save units" }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(sent.map((s) => [s.method, s.path, (s.body as { lots: { units: string }[] }).lots[0].units])).toEqual([["PUT", "/api/me/mf-portfolio/a", "10"], ["PUT", "/api/me/mf-portfolio/b", "50"]]);
-    expect(screen.getByText("2 purchases: kept as they are")).toBeTruthy();
+    expect(screen.getByText("2 buys and sales: kept as they are")).toBeTruthy();
   });
 });

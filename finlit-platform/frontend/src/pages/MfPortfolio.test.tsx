@@ -47,7 +47,7 @@ describe("MF portfolio page (task #183 part 2)", () => {
     show();
     expect(document.querySelector(".mfp-listbox")!.textContent).toMatch(/Your MF list.*4 funds.*Every fund counts the same until you add units|Each fund counts by the value/);
     expect([...document.querySelectorAll(".eqt-tile .eqt-k")].map((t) => t.textContent)).toEqual(["Your fundsi", "Mix & overlapi", "Risk analyticsi"]);
-    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")?.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);
+    expect(screen.getAllByRole("tab").filter((t) => t.closest(".xv-tabs")).map((t) => t.querySelector("b")?.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);   // task #235: the platforms bar has tabs too
     expect(screen.getByRole("navigation", { name: "Sections on this tab" }).textContent).toMatch(/All sections.*1Your funds/);
     expect(screen.queryByRole("heading", { name: "Key figures" })).toBeNull();      // no card has anything to say for this test list (no scores, theme or liquid fund): the row is left out
   });
@@ -55,7 +55,7 @@ describe("MF portfolio page (task #183 part 2)", () => {
     show();
     expect(screen.getByRole("heading", { name: /^Your funds/ })).toBeTruthy();
     expect([...document.querySelectorAll(".mff-t tbody th a")].map((a) => a.textContent)).toEqual(["Alpha Large Cap Fund", "Beta Large Cap Fund", "Delta Corporate Bond Fund", "Gamma Small Cap Fund"]);
-    expect(screen.getByRole("button", { name: "Add units" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add units and buy NAVs" })).toBeTruthy();   // task #235 (pack C1, C5): opens the first fund without units
     expect(screen.getByRole("button", { name: "Clear portfolio" })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/Remove all|Export CSV/);
   });

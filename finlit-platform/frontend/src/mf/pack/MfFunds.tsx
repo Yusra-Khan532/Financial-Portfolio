@@ -8,6 +8,8 @@ import { Insights } from "../../portfolio/pack/EquityPack";
 import type { Card } from "../../lib/pulsePack";
 import { crores, pct1, rupees, typeOf, type Holding, type MfSpread } from "../../lib/mfPortfolio";
 import { fundName, type FundRisk, type MfRisk } from "../../lib/mfPack";
+import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
+import { keyOf } from "../../lib/mfBook";
 
 export type FundsView = "overview" | "returns" | "risk" | "type";
 type Col = { k: string; label: string; help?: [string, string]; num?: boolean; get: (h: Holding, f?: FundRisk) => number | string | null };
@@ -51,7 +53,10 @@ function Word({ w, n }: { w: string | null | undefined; n?: number | null }) {
 }
 
 /** `listLabel`: the server's word for the list's average score (its band function; the page never cuts the number itself). */
-export function FundsTable({ hs, rk, sp, actions, listLabel }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null }) {
+/** Task #235 (pack C1, C4, C5, C6): with `lots`, Overview shows each fund's money in three groups (What you paid · What it is worth now · Gain or loss: Units,
+ *  Avg buy NAV, Invested · Latest NAV, Value now · ₹, %), each fund opens into its buys and sales (first in, first out within each platform; no Today:
+ *  NAVs change once a day), and a total row sits at the foot. */
+export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null; lots?: LotsProps }) {
   const [view, setView] = useState<FundsView>("overview"), [band, setBand] = useState<string>("All"), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
   const [open, setOpen] = useState<Set<string>>(new Set(["Equity", "Hybrid", "Debt", "Solution oriented", "Others"]));
   const by = useMemo(() => new Map((rk?.funds ?? []).map((f) => [f.code, f])), [rk]);
@@ -72,6 +77,13 @@ export function FundsTable({ hs, rk, sp, actions, listLabel }: { hs: Holding[]; 
       { k: "risk", label: "Share of the risk", num: true, help: ["The fund's share of the list's weekly ups and downs over the past year; the shares add to 100%.", "Above its share of the list: it adds more than its size to how the list moves."], get: (_h, f) => f?.riskShare ?? null }],
     type: [],
   };
+  if (lots) {   // task #235: the money columns replace NAV in Overview
+    const f = (h: Holding) => holdingFigs(lots, keyOf(h.id));
+    COLS.overview = [COLS.overview[0], COLS.overview[1], { k: "qty", label: "Units", num: true, get: (h) => f(h).a?.qty ?? null }, { k: "avg", label: "Avg buy NAV", num: true, get: (h) => f(h).a?.avg ?? null },
+      { k: "invested", label: "Invested", num: true, get: (h) => f(h).a?.invested ?? null }, { k: "price", label: "Latest NAV", num: true, get: (h) => h.nav },
+      { k: "now", label: "Value now", num: true, get: (h) => f(h).now }, { k: "gain", label: "₹", num: true, get: (h) => f(h).gain }, { k: "gainPct", label: "%", num: true, get: (h) => f(h).gainPct },
+      ...COLS.overview.slice(3)];
+  }
   const cols = COLS[view === "type" ? "overview" : view];
   const shown = hs.filter((h) => band === "All" || cap(h.score.label) === band);
   const col = cols.find((c) => c.k === sort.k) ?? cols[0];
@@ -88,15 +100,17 @@ export function FundsTable({ hs, rk, sp, actions, listLabel }: { hs: Holding[]; 
     <th scope="row"><Link to={`/funds/${h.code}`} className="mfp-fund">{fundName(h.name) || `Scheme ${h.code}`}</Link>
       <small className="mfp-sub">{[shortHouse(h.amc), h.plan, optShort(h.option)].filter(Boolean).join(" · ")}{h.folio ? ` · folio ${h.folio}` : ""}</small>
       <small className="mfp-isin" title={h.isin ? "ISIN: names the exact plan and option" : h.isinWhy ?? undefined}>{h.isin ?? "No ISIN"}</small>{view === "overview" && actions(h)}</th>);
-  const overviewRow = (h: Holding) => { const s = h.score; return (
+  const navCell = (h: Holding, cls = "r") => <td className={cls}>{h.nav == null ? "–" : <><b>{rupees(h.nav, true)}</b><small className="mfp-sub">{h.navDate ? shortDate(h.navDate) : ""}</small></>}</td>;
+  const overviewRow = (h: Holding) => { const s = h.score; const row = (
     <tr key={h.id} className={TONE(s.label) === "b" ? "mff-weak" : undefined}>{fundCell(h)}
       <td>{h.categoryLabel || "–"}{themeTag(h) && <span className="mff-tag">{themeTag(h)}</span>}</td>
-      <td className="r">{h.nav == null ? "–" : <><b>{rupees(h.nav, true)}</b><small className="mfp-sub">{h.navDate ? shortDate(h.navDate) : ""}</small></>}</td>
+      {lots ? <HoldingRowCells p={lots} symbol={keyOf(h.id)} priceCell={navCell(h, "r x-c2 x-gs cg-h")} changeCell={null} /> : navCell(h)}
       <td className="mff-sc">{s.final == null ? <span className="sp-note" title={s.reason || undefined}>{STATUS(s.status) || "No score"}</span> : <span className="mff-score"><b className={"mff-num " + TONE(s.label)}>{Math.round(s.final)}</b> <span className={"mff-w " + TONE(s.label)}>{cap(s.label)}</span></span>}</td>
       {PARTS.map(([k], i) => <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}>{s.parts ? <Word w={s.words?.[k] ?? null} n={s.parts[k]} /> : "–"}</td>)}
       <td className="mff-st">{s.status ? <span className={"mff-status " + (s.status === "RATED" ? "g" : "m")}>{STATUS(s.status)}</span> : "–"}
         {s.rank && <small className="mfp-sub">{s.rank.rank} of {s.rank.of} in category</small>}{s.inherited && <small className="mfp-sub">Growth plan's score</small>}</td>
-      </tr>); };
+      </tr>);
+    return lots ? [row, lots.open.has(keyOf(h.id)) && <LotRows key={h.id + ":lots"} p={lots} symbol={keyOf(h.id)} lead={2} rest={6} />] : row; };
   const avg = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   const listAvg = avg(hs.map((h) => h.score.final)), labelOf = () => listLabel;
   const risk = rk?.own?.list;
@@ -111,11 +125,12 @@ export function FundsTable({ hs, rk, sp, actions, listLabel }: { hs: Holding[]; 
       {view !== "type" && <div className="mff-bands" role="group" aria-label="Show funds by Health Score band">{["All", ...words].map((w) => {
         const n = w === "All" ? hs.length : hs.filter((h) => cap(h.score.label) === w).length;
         return <button key={w} type="button" className={"mff-band" + (band === w ? " on" : "")} aria-pressed={band === w} onClick={() => setBand(w)}>{w} {n}</button>; })}</div>}
-      {view === "overview" && <Scroll label="your funds"><table className="sp-tb mff-t kit-grid">
-        <thead><tr className="mff-groups"><th colSpan={3} /><th className="mff-gh">Health Score</th><th colSpan={4} className="mff-gh mff-div">Health parts<Tip text="Each part of the Fund Health Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk." /></th><th className="mff-gh">Score</th><th /></tr>
-          <tr>{cols.slice(0, 3).map((c) => th(c))}{th(cols[3], "mff-sc")}{cols.slice(4, 8).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[8])}</tr></thead>
+      {view === "overview" && <Scroll label="your funds"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}>
+        <thead><tr className="mff-groups">{lots ? <><th colSpan={2} /><GroupBand mf /></> : <th colSpan={3} />}<th className="mff-gh">Health Score</th><th colSpan={4} className="mff-gh mff-div">Health parts<Tip text="Each part of the Fund Health Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk." /></th><th className="mff-gh">Score</th><th /></tr>
+          {lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads mf sortHead={(id, _l, cls) => th(cols.find((c) => c.k === id)!, cls)} />{th(cols[9], "mff-sc")}{cols.slice(10, 14).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[14])}</tr>
+            : <tr>{cols.slice(0, 3).map((c) => th(c))}{th(cols[3], "mff-sc")}{cols.slice(4, 8).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[8])}</tr>}</thead>
         <tbody>{rows.map(overviewRow)}</tbody>
-        <tfoot><tr><th scope="row" colSpan={3}>List average</th><td className="mff-sc">{listAvg == null ? "–" : <span className="mff-score"><b className={"mff-num " + TONE(labelOf())}>{Math.round(listAvg)}</b> <span className={"mff-w " + TONE(labelOf())}>{cap(labelOf())}</span></span>}</td>
+        <tfoot>{lots && <TotalRow p={lots} symbols={hs.map((h) => keyOf(h.id))} lead={2} rest={6} noun={["fund", "funds"]} />}<tr><th scope="row" colSpan={lots ? 9 : 3}>List average</th><td className="mff-sc">{listAvg == null ? "–" : <span className="mff-score"><b className={"mff-num " + TONE(labelOf())}>{Math.round(listAvg)}</b> <span className={"mff-w " + TONE(labelOf())}>{cap(labelOf())}</span></span>}</td>
           {PARTS.map(([k], i) => { const v = avg(hs.map((h) => h.score.parts?.[k])); return <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}><b>{v == null ? "–" : Math.round(v)}</b></td>; })}<td /></tr></tfoot>
       </table></Scroll>}
       {view === "returns" && <Scroll label="returns and costs"><table className="sp-tb mff-t kit-grid"><thead><tr>{cols.map((c) => th(c))}</tr></thead>

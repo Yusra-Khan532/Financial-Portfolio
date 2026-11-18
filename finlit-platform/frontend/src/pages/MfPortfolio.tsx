@@ -8,7 +8,6 @@ import { useDocTitle } from "../lib/title";
 import { TIER, useUI } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
 import { ClearPortfolio } from "../components/ClearPortfolio";
-import { UnitsDialog } from "../mf/pack/UnitsDialog";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
 import {
@@ -21,12 +20,29 @@ import "../styles/mfportfolio.css";
 import "../styles/mfspread.css";
 import { apiGet, type ApiError } from "../lib/api";
 import { useUniverse } from "../lib/screener";
-import { type MfRisk } from "../lib/mfPack";
-import { MfTabs, type MfView } from "../mf/pack/MfPack";
+import { fundName, type MfRisk } from "../lib/mfPack";
+import { type MfView } from "../mf/pack/MfPack";
 import { RiskTab } from "../mf/pack/MfRisk";
 import { FundsTable } from "../mf/pack/MfFunds";
 import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
 import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
+import { AddPortfolioDialog, AnalysingBar, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
+import { MoneyRow, SoldList, soldOf } from "../portfolio/MoneyRow";
+import { StickySwitch, VIEW_COLOR, VIEW_ICON, ViewTabsKit, type ViewDef } from "../portfolio/ViewKit";
+import type { LotsProps } from "../portfolio/HoldingCells";
+import { aggOf, lotActions, moneyOf } from "../lib/ledger";
+import { DEFAULT_PF } from "../lib/portfolio";
+import { keyOf, useMfBook } from "../lib/mfBook";
+import "../portfolio/holdings-kit.css";
+
+/** Pack C1: the places a member holds funds. */
+export const PLATFORMS = ["Coin by Zerodha", "Groww", "Kuvera", "MF Central", "Paytm Money", "The fund house directly", "Upstox", "Zerodha", "Other"];
+/** The three views (task #235, pack B2 and C1): a colour and an icon each; the same list drives the sticky switcher (B12). */
+const mfViews = (n: number): ViewDef<MfView>[] => [
+  { id: "funds", label: "Your funds", short: "Your funds", sub: `${n ? `${n} ${n === 1 ? "fund" : "funds"}: h` : "H"}ealth, returns, costs and risk of each`, color: VIEW_COLOR.first, icon: VIEW_ICON.case },
+  { id: "mix", label: "Mix & overlap", short: "Mix & overlap", sub: "What they hold, how alike they are, company sizes", color: VIEW_COLOR.second, icon: VIEW_ICON.pie },
+  { id: "risk", label: "Risk analytics", short: "Risk", sub: "Each fund against its own benchmark, and the list together", color: VIEW_COLOR.risk, icon: VIEW_ICON.pulse },
+];
 import { ListBox } from "../mf/pack/MfTop";
 import { InShort, SOURCES } from "../mf/pack/MfShort";
 import { MixTab, type Big, type Reading } from "../mf/pack/MfMix";
@@ -167,12 +183,41 @@ export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together.");
   const { plan, has, toast } = useUI();
   const silver = has("silver");
-  const q = useMfPortfolio(silver), w = useMfWrites(), sp = useMfSpread(silver && !!q.data && q.data.count > 0);
-  const rk = useQuery<MfRisk, ApiError>({ queryKey: ["mf-portfolio", "risk", q.data?.count ?? 0], queryFn: () => apiGet<MfRisk>("/api/me/mf-portfolio/risk"), enabled: silver && !!q.data && q.data.count > 0, staleTime: 5 * 60_000, retry: false });
   const [params, setParams] = useSearchParams();
+  // task #235 (pack C1): one tab per platform; ?pf= picks one, All platforms adds them up
+  const qAll = useMfPortfolio(silver), w = useMfWrites();
+  const book = useMfBook(silver, qAll.data);
+  const pfList: PfInfo[] = book.pfs.length ? book.pfs : [{ id: DEFAULT_PF, name: "My funds" }];
+  const pfParam = params.get("pf") || "all", cur = pfParam === "all" || pfList.some((x) => x.id === pfParam) ? pfParam : "all";
+  const setCur = (id: string) => { const n = new URLSearchParams(params); if (id === "all") n.delete("pf"); else n.set("pf", id); setParams(n, { replace: true }); setOpenLots(new Set()); };
+  const qPf = useMfPortfolio(silver && cur !== "all", cur);
+  const q = cur === "all" ? qAll : qPf;
+  const sp = useMfSpread(silver && !!q.data && q.data.count > 0, cur);
+  const rk = useQuery<MfRisk, ApiError>({ queryKey: ["mf-portfolio", "risk", q.data?.count ?? 0, cur], queryFn: () => apiGet<MfRisk>("/api/me/mf-portfolio/risk" + (cur !== "all" ? `?pf=${cur}` : "")), enabled: silver && !!q.data && q.data.count > 0, staleTime: 5 * 60_000, retry: false });
+  const [goToSel, setGoTo] = useState(pfList[0].id), [adding, setAdding] = useState(false);
+  const goTo = cur !== "all" ? cur : pfList.some((x) => x.id === goToSel) ? goToSel : pfList[0].id;
+  const pfName = (id: string) => pfList.find((x) => x.id === id)?.name ?? "My funds";
+  const navs = useMemo(() => new Map((qAll.data?.holdings ?? []).map((h) => [keyOf(h.id), h])), [qAll.data]);
+  const nameOf = (k: string) => navs.get(k)?.name ?? qAll.data?.sold?.find((x) => keyOf(x.id) === k)?.name ?? "this fund";
+  const priceOf = (k: string) => navs.get(k)?.nav ?? null, changeOf = () => null;
+  const acts = useMemo(() => lotActions(book.get, book.store), [book.get, book.store]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [openLots, setOpenLots] = useState<Set<string>>(new Set()), [focus, setFocus] = useState<LotsProps["focus"]>(null);
+  const lots: LotsProps = {
+    holdings: book.rows, cur, pfName, nPortfolios: pfList.length, priceOf, changeOf, goTo, open: openLots, focus, mf: true, nameOf,
+    onOpen: (k, on) => setOpenLots((c) => { const x = new Set(c); if (on) x.add(k); else x.delete(k); return x; }),
+    add: (k, pf, side) => { acts.add(k, pf, side); setOpenLots((c) => new Set([...c, k])); setFocus(null); },
+    edit: (id, patch) => acts.edit(id, patch), remove: (id) => { acts.remove(id); toast("Removed."); },
+  };
+  const money = moneyOf(book.rows, cur, priceOf, changeOf);
+  const sold = soldOf(book.rows, cur).map((x) => ({ ...x, symbol: nameOf(x.symbol) }));
+  const pfFigs = (id: string | "all") => { const m = moneyOf(book.rows, id, priceOf, changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
+  const openFor = (k: string) => { setView("funds"); setFocus({ symbol: k, what: "qty" }); setOpenLots((c) => new Set([...c, k]));
+    if (!(aggOf(book.rows, k, cur)?.nBuys)) acts.add(k, cur === "all" ? (aggOf(book.rows, k, "all")?.pfs[0] ?? goTo) : cur, "buy");
+    setTimeout(() => document.getElementById(`lots-${k}`)?.scrollIntoView?.({ behavior: "smooth", block: "center" }), 150); };
+  // "Add units" (pack C1, C5): opens the first fund without units and focuses its empty box
+  const addUnits = () => { const h = (q.data?.holdings ?? []).find((x) => !(aggOf(book.rows, keyOf(x.id), cur)?.qty)) ?? q.data?.holdings[0]; if (h) openFor(keyOf(h.id)); };
   const view = (["mix", "risk"].includes(params.get("view") || "") ? params.get("view") : "funds") as MfView;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
-  const [units, setUnits] = useState(false);
   const [importing, setImporting] = useState(params.get("tab") === "import");
   const d = q.data;
   const all = useMemo(() => d?.holdings ?? [], [d]);
@@ -197,7 +242,7 @@ export function MfPortfolioPage() {
   const big: Big[] = useMemo(() => top.map((t) => { const u = t.symbol ? byU.get(t.symbol) : undefined, mc = u?.market_cap;
     return { name: t.name, symbol: t.symbol, macro: u?.nse_sector ?? null, size: mc == null ? null : mc > 50000 ? "Large" : mc > 10000 ? "Mid" : "Small", w: t.w, funds: t.funds }; }), [top, byU]);
   // a Key figures card that names "Add units" opens the dialog; one in another tab opens that tab first, then its section (the sections bar's jump)
-  useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") setUnits(true); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
+  useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") addUnits(); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
   const goTab = (t: MfView, then?: string) => { setView(t); if (then) setTimeout(() => jumpTo(then), 60); };
 
   return (
@@ -210,7 +255,7 @@ export function MfPortfolioPage() {
           <section className="mfp-add" aria-label="Add funds">
             <AddFund disabled={false} onDone={toast} />
             <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
-              <button type="button" className="btn" onClick={() => setUnits(true)} disabled={!d?.count}>Add units</button>
+              <button type="button" className="btn" onClick={addUnits} disabled={!d?.count}>Add units and buy NAVs</button>
               <ClearPortfolio count={d?.count ?? 0} noun="fund" kind="MF" className="btn" goes={["each fund's units, purchases and folio", "the figures worked out from them: health, mix, overlap and risk"]}
                 onClear={async () => { await w.clear.mutateAsync(); }}
                 onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
@@ -218,7 +263,16 @@ export function MfPortfolioPage() {
             <p className="pfx-note mfp-isinnote">CAS statements, Excel or CSV. Each fund is read by its ISIN, which names the exact plan and option; a row without an ISIN is matched by name and shown for you to confirm.</p>
           </section>
         </header>
-        {units && d && <UnitsDialog hs={d.holdings} onClose={() => setUnits(false)} onDone={toast} />}
+        {/* task #235 (pack C1): the platforms bar, the Add platform dialog and where new funds go */}
+        <PortfoliosBar list={pfList} cur={cur} onPick={setCur} figs={pfFigs} onAdd={() => setAdding(true)} noun={["fund", "funds"]} sub="One tab for each place you hold funds: an app, a broker or the fund house."
+          onRename={(id, name) => { const m = name.trim(); if (!m) return "Give the platform a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === m.toLowerCase())) return `You already have a platform called ${m}. Try another name, such as "${m} (joint)".`;
+            book.accounts.rename(id, m, pfList); toast("Platform renamed."); return null; }}
+          onRemove={(id) => { const name = pfName(id); book.accounts.remove(id, pfList); setCur("all"); toast(`${name} removed.`); }} />
+        <GoTo list={pfList} value={goTo} onChange={(id) => (cur === "all" ? setGoTo(id) : setCur(id))} noun="Funds" />
+        {adding && <AddPortfolioDialog taken={pfList.map((x) => x.name)} kinds={PLATFORMS}
+          start={[["empty", "An empty platform", "Add funds to it by name, then their buys."], ["file", "An app statement", "Brings each fund with its units; add the buy NAVs after."], ["cas", "A CAS from CAMS, KFintech or NSDL/CDSL", "Lists every folio with units and cost."]]}
+          onClose={() => setAdding(false)} onSave={({ name, broker, start }) => { const id = book.accounts.add({ name, broker }, pfList); setAdding(false); setCur(id); setGoTo(id); toast(`${name} added.`); if (start !== "empty") setImporting(true); }} />}
+        {book.err && <p className="pfx-warn" role="alert">{book.err}</p>}
         {importing && <section className="sp-sec mfp-import" aria-label="Import a file"><ImportFile onDone={(m) => { toast(m); setImporting(false); }} /></section>}
 
         {q.isPending && silver && <div className="sp-sec" aria-busy="true"><b>Loading your funds…</b></div>}
@@ -228,17 +282,21 @@ export function MfPortfolioPage() {
           <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".mfp-add .mp-search input") as HTMLInputElement | null)?.focus()}>Add a fund</button>
             <button type="button" className="btn" onClick={() => setImporting(true)}>Import a statement</button></div></section>}
         {d && d.count > 0 && <>
-          <TopGrid score={<ListBox box={box} onUnits={() => setUnits(true)} />} tiles={tiles} onOpen={(t) => setView(t, true)} label="Your MF portfolio at a glance" />
+          <TopGrid score={<ListBox box={box} onUnits={addUnits} />} tiles={tiles} onOpen={(t) => setView(t, true)} label="Your MF portfolio at a glance" />
           {d.summary.notes.map((n) => <p key={n} className="sp-note" role="note">{n}</p>)}
-          <div id="mfp-tabsbox"><MfTabs view={view} onView={(v) => setView(v)} /></div>
-          <SectionsBar tab={view} all={MF_SECS} onTab={goTab} />
+          <div id="mfp-tabsbox"><ViewTabsKit defs={mfViews(all.length)} view={view} onView={(v) => setView(v)} label="MF portfolio views" idp="mfp-tab" panel="mfp-panel" what="your funds" /></div>
+          <SectionsBar tab={view} all={MF_SECS} onTab={goTab}
+            lead={<StickySwitch list={pfList} cur={cur} onPick={setCur} figs={pfFigs} defs={mfViews(all.length)} view={view} onView={(v) => setView(v)} tabsId="mfp-tabsbox" noun={["fund", "funds"]} />} />
           <KeyFigures store="finlit-mf-keyfig" tab={view} sub={view === "funds" ? `What matters most in your ${all.length} ${all.length === 1 ? "fund" : "funds"}` : view === "mix" ? "How alike your funds really are" : "Where the list's risk sits"}
             cards={view === "funds" ? fundsCards(all, sp.data) : view === "mix" ? mixCards(sp.data) : riskCards(rk.data)} />
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
+          {view !== "funds" && <AnalysingBar list={pfList} cur={cur} onPick={setCur} n={all.length} noun={["fund", "funds"]} />}
+          {view === "funds" && <MoneyRow t={money} onAdd={(k) => openFor(k)} noun={["fund", "funds"]} today={false} nameOf={(k) => fundName(nameOf(k)) || nameOf(k)} />}
           {view === "funds" && <>
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
-            <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label}
+            <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots}
               actions={(h) => <button type="button" className="mff-rm" aria-label={`Remove ${h.name}`} onClick={async () => { try { await w.remove.mutateAsync(h.id); toast("Fund removed."); } catch (x) { toast(errText(x)); } }}>Remove</button>} />
+            <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["fund", "funds"]} />
             {noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
           </>}
           {view === "mix" && <>
@@ -249,7 +307,7 @@ export function MfPortfolioPage() {
           {view === "risk" && <>
             {rk.isPending && <p className="sp-note" aria-busy="true">Working out the risk figures…</p>}
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
-            {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} />}
+            {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All platforms" : pfName(cur) } : null} />}
           </>}
           </div>
           <InShort sp={sp.data} rk={rk.data} />

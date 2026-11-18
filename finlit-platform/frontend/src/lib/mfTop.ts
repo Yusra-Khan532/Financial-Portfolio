@@ -99,5 +99,5 @@ export const MF_SECS: Record<MfTab, { label: string; secs: Sec[] }> = {
   funds: { label: "Your funds", secs: [["mfp-funds", "Your funds"]] },
   mix: { label: "Mix & overlap", secs: [["mfp-own", "What they own"], ["mfp-spread", "Spread"], ["mfp-money", "Money in"], ["mfp-secin", "Sectors inside"], ["mfp-move", "Move together"],
     ["mfp-shared", "Shared stocks"], ["mfp-sizes", "Company sizes"], ["mfp-biggest", "Biggest stocks"], ["mfp-trend", "Trend"]] },
-  risk: { label: "Risk analytics", secs: [["mfp-glance", "At a glance"], ["mfp-build", "Beta build"], ["mfp-ownb", "Own benchmark"], ["mfp-share", "Risk share"], ["mfp-fall", "If the market fell 10%"], ["mfp-each", "Each fund"]] },
+  risk: { label: "Risk analytics", secs: [["mfp-glance", "At a glance"], ["mfp-build", "Beta build"], ["mfp-ownb", "Own benchmark"], ["mfp-share", "Risk share"], ["mfp-fall", "If the Nifty 500 fell"], ["mfp-each", "Each fund"]] },
 };

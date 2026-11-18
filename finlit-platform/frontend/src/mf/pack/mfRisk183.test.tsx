@@ -66,9 +66,13 @@ describe("Own benchmark, risk share, a 10% fall, each fund (M7, steps 3 to 6)", 
     expect(Array.from(document.querySelectorAll(".eqr-rs tbody th")).map((t) => t.textContent)).toEqual(["Thematic", "Small cap", "Hybrid", "Liquid"]);
   });
   it("sizes a 10% fall both ways and puts it on ₹10 lakh", () => {
-    view(<FallSection rk={RK} />);
-    expect(screen.getByText("about −7.1%")).toBeTruthy(); expect(screen.getByText("about −6.5%")).toBeTruthy();
-    expect(screen.getByText(/On ₹10 lakh, a 10% fall in every benchmark has meant roughly ₹71,000; a 10% fall in the Nifty 500 alone, roughly ₹65,000\./)).toBeTruthy();
+    view(<FallSection rk={RK} />);   // task #235 (pack C4, C5): the Equity page's picture
+    expect(document.querySelector(".fx-big b")!.textContent).toBe("−7.1%");
+    expect(document.querySelector(".fx-rs")!.textContent).toBe("In rupees−₹71,000on ₹10 lakh");
+    fireEvent.click(screen.getByRole("button", { name: "Only the Nifty 500 falls" }));
+    expect(document.querySelector(".fx-big b")!.textContent).toBe("−6.5%");
+    expect(screen.getByRole("heading", { name: /If the Nifty 500 fell 10%/ })).toBeTruthy();
+    expect([...document.querySelectorAll(".fx-size button")].map((b) => b.textContent)[2]).toMatch(/the Nifty 500’s worst in 3 years$/);
   });
   it("lists each fund's risk, highest beta first, with what stands out", () => {
     view(<EachFundSection rk={RK} />);

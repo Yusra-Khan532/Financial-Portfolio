@@ -35,7 +35,7 @@ export function QtyDialog({ d, onClose }: { d: AllInvestments; onClose: () => vo
       return { key: "s:" + h.id, kind: "shares" as const, name: sym, sub: price[sym] != null ? `Last price ₹${nf(price[sym]!, 2)}` : "No price on file", price: price[sym] ?? null,
         init: many ? String(a!.qty ?? 0) : h.qty > 0 ? String(h.qty) : "", locked: many ? `${n} buys and sales: change them in the buy history on the Equity portfolio` : undefined }; }),
     ...(mf.data?.holdings ?? []).map((h) => ({ key: "f:" + h.id, kind: "funds" as const, name: h.name ?? String(h.code), sub: h.nav != null ? `NAV ₹${nf(h.nav, 2)}${h.folio ? " · folio " + h.folio : ""}` : "No NAV on file", price: h.nav,
-      init: h.units != null && h.units > 0 ? String(h.units) : "", locked: h.lots.length > 1 ? `${h.lots.length} purchases: change them on the MF portfolio` : undefined })),
+      init: h.units != null && h.units > 0 ? String(h.units) : "", locked: (h.lines ?? h.lots).length > 1 ? `${(h.lines ?? h.lots).length} buys and sales: change them on the MF portfolio` : undefined })),
     ...d.etfs.map((e) => ({ key: "e:" + e.symbol, kind: "etfs" as const, name: e.symbol, sub: e.price != null ? `Last price ₹${nf(e.price, 2)}` : "No price on file", price: e.price, init: e.qty ? String(e.qty) : "" })),
   ], [holdings, mf.data, d.etfs, price]);
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -64,7 +64,7 @@ export function QtyDialog({ d, onClose }: { d: AllInvestments; onClose: () => vo
         if (r.kind === "shares") portfolio.update(r.key.slice(2), { qty: q ?? 0 });
         else if (r.kind === "funds" && q != null) {
           const h = mf.data!.holdings.find((x) => x.id === r.key.slice(2))!, lot = h.lots[0];
-          await mfw.update.mutateAsync({ id: h.id, lots: [{ units: String(q), invested: lot?.invested != null ? String(lot.invested) : undefined, boughtOn: lot?.boughtOn ?? undefined }] });
+          await mfw.update.mutateAsync({ id: h.id, lots: [{ units: String(q), invested: lot?.invested != null ? String(lot.invested) : undefined, boughtOn: lot?.boughtOn ?? undefined, ...(h.lines?.[0] ? { pf: h.lines[0].pf } : {}) }] });
         }
       }
       const et = rows.filter((r) => r.kind === "etfs" && v(r) !== r.init).map((r) => ({ symbol: r.name, qty: numOf(v(r)) != null ? String(numOf(v(r))) : null }));

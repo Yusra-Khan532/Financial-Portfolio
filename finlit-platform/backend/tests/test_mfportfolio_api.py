@@ -38,6 +38,8 @@ async def schemes(app):  # noqa: F811
         await conn.execute("DROP TABLE IF EXISTS mf_holding_lots, mf_holdings CASCADE")
         await conn.execute(MIGRATION.read_text())
         await conn.execute((MIGRATION.parent / "108_mf_holdings_isin.sql").read_text())   # task #183: each holding stored with its ISIN
+        await conn.execute("DROP TABLE IF EXISTS mf_books CASCADE")
+        await conn.execute((MIGRATION.parent / "113_mf_book.sql").read_text())   # task #235: each line's platform and side
         await conn.execute("DELETE FROM mf_scores WHERE code >= $1", BASE)
         await conn.execute("DELETE FROM mf_schemes WHERE code >= $1", BASE)
         for c, name, plan, opt, isin, nav, active, cat, r1, r3, r5, ter, aum in SCHEMES:
@@ -310,9 +312,11 @@ async def test_update_replaces_the_purchases_and_guards_the_folio(app):
     assert r.status_code == 200
     h = next(h for h in (await c.get(URL)).json()["holdings"] if h["id"] == a)
     assert h["units"] == 10.0 and h["invested"] == 1000.0 and [l["boughtOn"] for l in h["lots"]] == ["2020-05-05", None]
-    assert (await c.put(f"{URL}/{a}", json={"lots": []})).status_code == 422
     assert (await c.put(f"{URL}/{a}", json={"lots": [{"units": "-1"}]})).status_code == 422
     assert next(h for h in (await c.get(URL)).json()["holdings"] if h["id"] == a)["units"] == 10.0          # a refused update changes nothing
+    # task #235: every buy and sale removed leaves the fund followed, with no units (the page's "remove the last buy"); it is not refused
+    assert (await c.put(f"{URL}/{a}", json={"lots": []})).status_code == 200
+    assert next(h for h in (await c.get(URL)).json()["holdings"] if h["id"] == a)["units"] is None
     assert b
 
 
