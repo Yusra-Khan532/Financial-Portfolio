@@ -5,6 +5,7 @@ import { useDocTitle } from "../lib/title";
 import { PlansBand } from "./Plans";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
 import { PrismShowcase } from "../components/PrismShowcase";
+import { MfScoreShowcase } from "../components/MfScoreShowcase";
 import { tourLook, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
@@ -73,6 +74,7 @@ export function Home() {
 
       <ExploreTools />
       <PrismShowcase />
+      <MfScoreShowcase />
       <PlansBand id="pricing" landing />
     </div>
   );
