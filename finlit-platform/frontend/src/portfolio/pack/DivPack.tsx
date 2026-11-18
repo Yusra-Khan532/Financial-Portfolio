@@ -82,11 +82,27 @@ export function SpreadPack({ d }: { d: DivInput }) {
   return (
     <Section id="eq-spread" hide title="How spread out is the list?" help="The diversification score, 0 to 100: how widely the shares spread across NSE's 12 macro sectors and how independently they move." how="Higher means more spread. Moves like counts shares that rise and fall together as one bet, so a list of many shares can still read as fewer."
       sub="Two readings: how widely the list is spread across sectors, and how independently the shares move.">
-      <div className="eq-dials">
-        <div className="eq-dial"><span className="eq-dial-c" style={{ ["--v" as string]: s.score }}><b>{s.score}</b></span><div><b>{s.band}</b>
-          <p>Co-movement {Math.round(s.comovement)} · Macro-sector spread {Math.round(s.sector_spread)}. {d.symbols.length} shares across {macro} macro sectors, {sector} sectors and {ind} industries{top && top[1] / d.symbols.length >= 0.25 ? `; ${top[1]} of them are ${top[0].toLowerCase()}, so by sector the list spreads like about ${s.effective_sectors.toFixed(1)} macro sectors` : `; by sector the list spreads like about ${s.effective_sectors.toFixed(1)} macro sectors`}.</p></div></div>
-        <div className="eq-dial"><span className="eq-dial-c t" style={{ ["--v" as string]: (s.effective_stocks / Math.max(1, n)) * 100 }}><b>{s.effective_stocks.toFixed(1)}</b></span><div><b>Moves like {s.effective_stocks.toFixed(1)} shares</b>
-          <p>Your {n} shares with a full year of prices behave like about {s.effective_stocks.toFixed(1)} that move independently. Shares that rise and fall together count as one bet.</p></div></div>
+      {/* task #235 (pack B3): three cards: the score on a ring with its word, line and chips; the two readings it is built from; Moves like, as squares → circles */}
+      <div className="spx">
+        <div className="spx-sc">
+          <div className="spx-ring" role="img" aria-label={`Spread score ${s.score} out of 100, ${s.band}`}>
+            <svg width="132" height="132" viewBox="0 0 120 120" aria-hidden="true"><circle className="tr" cx="60" cy="60" r="52" /><circle className="fg" cx="60" cy="60" r="52" strokeDasharray={`${((Math.max(0, Math.min(100, s.score)) / 100) * 326.7).toFixed(1)} 326.7`} transform="rotate(-90 60 60)" /></svg>
+            <span className="spx-n"><b>{s.score}</b><small>of 100</small></span></div>
+          <div className="spx-w"><p className="spx-k">Spread score</p><p className="spx-word">{s.band}</p>
+            <div className="spx-line" aria-hidden="true"><i style={{ left: `${Math.max(0, Math.min(100, s.score))}%` }} /></div><p className="spx-ends"><span>All in one bet</span><span>Widely spread</span></p>
+            <p className="spx-chips"><span><b>{macro}</b> macro sectors</span><span><b>{sector}</b> sectors</span><span><b>{ind}</b> industries</span><span><b>{sz.filter(Boolean).length}</b> {sz.filter(Boolean).length === 1 ? "size" : "sizes"}</span></p></div>
+        </div>
+        <div className="spx-parts"><p className="spx-k">Built from two readings</p>
+          <div className="spx-p"><div className="spx-ph"><b>Across sectors</b><span>{Math.round(s.sector_spread)}</span></div><div className="spx-bar" aria-hidden="true"><i style={{ width: `${Math.round(s.sector_spread)}%` }} /></div>
+            <p>{d.symbols.length} shares across {macro} macro sectors, {sector} sectors and {ind} industries{top && top[1] / d.symbols.length >= 0.25 ? `; ${top[1]} of them are ${top[0].toLowerCase()}, so by sector the list spreads like about ${s.effective_sectors.toFixed(1)} macro sectors` : `; by sector the list spreads like about ${s.effective_sectors.toFixed(1)} macro sectors`}.</p></div>
+          <div className="spx-p"><div className="spx-ph"><b>How independently they move</b><span>{Math.round(s.comovement)}</span></div><div className="spx-bar" aria-hidden="true"><i style={{ width: `${Math.round(s.comovement)}%` }} /></div>
+            <p>From a year of prices: the less the shares rise and fall together, the higher it reads.</p></div>
+        </div>
+        <div className="spx-bets"><p className="spx-k">Moves like</p><p className="spx-big"><b>{s.effective_stocks.toFixed(1)}</b> of {n} {n === 1 ? "share" : "shares"}</p>
+          <div className="spx-dots" role="img" aria-label={`${n} shares behave like about ${s.effective_stocks.toFixed(1)} independent ones`}>
+            <div className="r1">{Array.from({ length: n }, (_, i) => <i key={i} />)}</div><span className="ar" aria-hidden="true">↓</span>
+            <div className="r2">{Array.from({ length: Math.ceil(s.effective_stocks) }, (_, i) => { const f = Math.min(1, s.effective_stocks - i); return <i key={i} className={f < 1 ? "part" : "b"} style={f < 1 ? { ["--f" as string]: f.toFixed(2) } : undefined} />; })}</div></div>
+          <p>Your {n} shares with a full year of prices behave like about {s.effective_stocks.toFixed(1)} that move independently. Shares that rise and fall together count as one bet.</p></div>
       </div>
       <Insights items={cards} scope="eq.spread" />
     </Section>
@@ -102,7 +118,8 @@ export function DivSubTabs({ d }: { d: DivInput }) {
   useEffect(() => { const on = (e: Event) => { const id = (e as CustomEvent<string>).detail, hit = SUBS.find((x) => x[1] === id); if (hit) setSub(hit[0]); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
   return (
     <div className="eqd-subs">
-      <div className="eqd-subbar" role="tablist" aria-label="How the list moves together">{SUBS.map(([k, , t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} aria-controls={"eqd-p-" + k} id={"eqd-t-" + k} onClick={() => setSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>
+      <p className="x2-k" aria-hidden="true">How the list moves together <small>{SUBS.length} ways to look · tap one</small></p>
+      <div className="eqd-subbar" role="tablist" aria-label="How the list moves together">{SUBS.map(([k, , t, s], i) => <button key={k} type="button" role="tab" aria-selected={sub === k} aria-controls={"eqd-p-" + k} id={"eqd-t-" + k} onClick={() => setSub(k)}><span className="xn" aria-hidden="true">{i + 1}</span><b>{t}</b><small>{s}</small></button>)}</div>
       <div role="tabpanel" id={"eqd-p-" + sub} aria-labelledby={"eqd-t-" + sub}>
         {sub === "sectors" ? <SectorsPanel d={d} /> : sub === "groups" ? <GroupsPanel d={d} /> : <SizesPanel d={d} />}
       </div>
