@@ -100,6 +100,16 @@ def test_every_filing_gets_an_event_themes_and_tone():
     assert SG.tag("Press Release", "Fine chemicals plant output")["event"] != "legal"
 
 
+def test_chart_lines_are_not_quoted_as_evidence():
+    chart = "Infra capital expenditure (Rs trillion) 2.0 2.2 3.1 2.6 3.1 3.4 4.3 5.9 7.4 9.5 FY15 FY16 FY17 FY18 FY19 FY20"
+    assert K.chart_like(chart)
+    assert not K.chart_like("Our order book stands at Rs 2,400 crore, with defence at 50% of it.")
+    text = ("Company overview and highlights for shareholders, segments in detail. " * 4 + chart + ". Capital expenditure of Rs 900 crore "
+            "for a greenfield plant. Capacity expansion to 20,000 tonnes.")
+    ev = K.classify(text)["evidence"]
+    assert ev and not any("FY15" in e for e in ev) and ev[0].startswith("Capital expenditure of Rs 900 crore")
+
+
 def test_a_business_theme_is_primary_and_corporate_catalysts_stay_secondary():
     """Seen live on the first night: 43 of 133 companies had "Corporate Catalysts & Growth Signals" (order book, JV, M&A) as their main theme."""
     text = ("Company overview and highlights for shareholders, segments in detail. " * 4 +

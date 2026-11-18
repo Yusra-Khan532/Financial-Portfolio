@@ -219,12 +219,20 @@ def sentences(text: str) -> List[str]:
     return [" ".join(s.split()) for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text)]
 
 
+def chart_like(s: str) -> bool:
+    """A line of a chart or table read as text ("2.0 2.2 3.1 2.6 ... FY15 FY16 FY17"): more than a third of its words are numbers or year labels.
+    Seen live on the first night; such a line is no sentence to quote."""
+    words = s.split()
+    nums = sum(1 for w in words if re.fullmatch(r"[\(\[]?[-+]?(?:rs\.?|₹|\$)?[\d.,%]+[\)\]]?|(?:fy|cy|q[1-4])\s?'?\d{2,4}[a-z]?", w, re.I))
+    return len(words) >= 6 and nums / len(words) > 0.34
+
+
 def evidence(text: str, terms: List[str], bucket: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, k: int = 2) -> List[str]:
     """Up to k sentences that mention one of the bucket's keywords AND hold a figure (capacity, order value, revenue ...), as the notes ask."""
     out: List[str] = []
     term_pats = [pats[(bucket, t)] for t in terms if (bucket, t) in pats]
     for s in sentences(text):
-        if 20 <= len(s) and NUM_RE.search(s) and any(p.search(s) for p in term_pats):
+        if 20 <= len(s) and NUM_RE.search(s) and not chart_like(s) and any(p.search(s) for p in term_pats):
             out.append(s[:300])
             if len(out) == k:
                 break
