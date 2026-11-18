@@ -397,6 +397,52 @@ def _fmt(d: date) -> str:
     return f"{d.day} {d.strftime('%b %Y')}"
 
 
+FACE_STEPS = (10.0, 100.0, 1000.0)   # a scheme's unit face value moving, e.g. from ₹100 to ₹1,000: its NAV jumps by exactly that multiple overnight
+FACE_TOLERANCE = 0.05
+
+
+def continuous(days: List[int], navs: List[float]) -> List[float]:
+    """The NAVs with face-value changes taken out, for working out returns and risk. When a scheme changes its unit's face value (ICICI Prudential
+    Overnight Fund went from ₹100 to ₹1,000 a unit in August 2022), its NAV moves by 10×, 100× or 1,000× from one NAV day to the next: no fund earns
+    or loses that in a day, so it is a change of unit, not a return. The NAVs before such a step are scaled by the same multiple, so returns, risk,
+    SIP returns and falls measure what an investor's money did. The NAVs as AMFI published them are kept everywhere else."""
+    out = list(navs)
+    for i in range(len(out) - 1, 0, -1):
+        a, b = out[i - 1], out[i]
+        if a <= 0 or b <= 0:
+            continue
+        r = b / a
+        for k in FACE_STEPS:
+            for m in (k, 1.0 / k):
+                if abs(r / m - 1) <= FACE_TOLERANCE:
+                    out[:i] = [v * m for v in out[:i]]
+                    break
+            else:
+                continue
+            break
+    return out
+
+
+UNIT_RATIO_LIMIT = 8.0   # 8x in 5 years is 52% a year: no Indian mutual fund has done it, so a bigger move over 5 years or less is a change of unit
+
+
+def unit_ratio(ratio: float, months: int) -> float:
+    """End NAV / start NAV with a face-value change taken out, when only the two NAVs are known (most schemes keep no daily series; their returns come
+    from the NAV on the start date and today's, see refresh_anchors). Over 5 years or less a fund cannot grow or shrink 8 times, so a ratio beyond
+    that is a change of unit (10x, 100x or 1,000x): it is divided by the power of ten that brings it back into range. Longer horizons are left as they are."""
+    if months > 60 or ratio <= 0:
+        return ratio
+    if ratio >= UNIT_RATIO_LIMIT:
+        for k in (10.0, 100.0, 1000.0):   # the smallest multiple that brings it back into range
+            if ratio / k < UNIT_RATIO_LIMIT:
+                return ratio / k
+    if ratio <= 1 / UNIT_RATIO_LIMIT:
+        for k in (10.0, 100.0, 1000.0):
+            if ratio * k > 1 / UNIT_RATIO_LIMIT:
+                return ratio * k
+    return ratio
+
+
 def trailing_returns(days: List[int], navs: List[float], complete: bool) -> Dict[str, dict]:
     """Point-to-point returns to the last NAV, in percent. Start NAV = the latest NAV on or before the start date (one month, six months... earlier).
     Up to one year: (end / start - 1). Beyond one year: annualised, (end / start) ** (365 / days between the two NAV dates) - 1.
@@ -418,7 +464,7 @@ def trailing_returns(days: List[int], navs: List[float], complete: bool) -> Dict
             out[key] = {"value": None, "kind": kind, "from": None, "why": f"No NAV within {MAX_STALE} days before the start date."}
         else:
             span = end_day - days[i]
-            ratio = end_nav / navs[i]
+            ratio = unit_ratio(end_nav / navs[i], months)   # a face-value change between the two NAVs is not a return
             val = (ratio ** (365.0 / span) - 1) * 100 if kind == "cagr" and span > 0 else (ratio - 1) * 100
             out[key] = {"value": val, "kind": kind, "from": date.fromordinal(days[i]), "why": None}
     return out
@@ -458,6 +504,7 @@ def max_drawdown(days: List[int], navs: List[float]) -> dict:
 
 
 def metrics_for(days: List[int], navs: List[float], complete: bool) -> dict:
+    navs = continuous(days, navs)   # a face-value change is not a return
     out = {"returns": trailing_returns(days, navs, complete), "vol1y": volatility(days, navs, 1, complete), "vol3y": volatility(days, navs, 3, complete),
            "mdd": max_drawdown(days, navs)}
     md, mv = month_ends(days, navs)
@@ -608,7 +655,10 @@ def fall_monthly(mdays: Sequence[int], mnavs: Sequence[float], end_day: int, end
 
 
 def dashboard_figures(mdays: Sequence[int], mnavs: Sequence[float], end_day: int, end_nav: Optional[float]) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """(SIP 3 years, SIP 5 years, month-end fall over 3 years) for one scheme."""
+    """(SIP 3 years, SIP 5 years, month-end fall over 3 years) for one scheme. A face-value change in the month-end series is taken out first."""
+    if mnavs:
+        joined = continuous(list(mdays) + ([end_day] if end_nav else []), list(mnavs) + ([end_nav] if end_nav else []))
+        mnavs, end_nav = joined[: len(mnavs)], (joined[-1] if end_nav else end_nav)
     return (sip_return(mdays, mnavs, end_day, end_nav, SIP_MONTHS[0]), sip_return(mdays, mnavs, end_day, end_nav, SIP_MONTHS[1]),
             fall_monthly(mdays, mnavs, end_day, end_nav))
 
@@ -881,7 +931,7 @@ async def _write_series(conn, items: List[Tuple[int, List[int], List[float], boo
             continue
         m = metrics_for(days, navs, complete)
         mets.append((code, *metric_columns(m), date.fromordinal(days[-1]), *prev, *m["dash"]))
-        months[code] = month_ends(days, navs)
+        months[code] = month_ends(days, continuous(days, navs))
     await conn.executemany(HIST_UPSERT, hist)
     if mets:
         await conn.executemany(METRICS_UPDATE, mets)
@@ -1166,7 +1216,7 @@ async def refresh_anchors(store, client, newest: date) -> dict:
         for key in windows:
             pair = windows[key].get(r["code"])
             days, navs = merge_points(([] if pair is None else pair[0], [] if pair is None else pair[1]), ([end], [r["nav"]]))
-            ret = trailing_returns(days, navs, True)[key]
+            ret = trailing_returns(days, continuous(days, navs), True)[key]
             vals[key] = ret["value"]
         upd.append((r["code"], vals["1y"], vals["5y"], r["nav_date"], vals.get("3y"), has3))
     async with store.pool.acquire() as conn, conn.transaction():
@@ -2228,7 +2278,7 @@ async def compare(request: Request, ids: str = Query("", max_length=60), range: 
             if ok and len(days) > 1:
                 start = 0 if range == "MAX" else bisect_right(days, shift_months(date.fromordinal(days[-1]), dict(RANGES)[range]).toordinal()) - 1
                 start = start if start >= 0 else None
-            spans.append((days, navs, start))
+            spans.append((days, continuous(days, navs) if ok else navs, start))   # the rebased line follows the money, not a face-value change
             funds.append({"code": r["code"], "name": r["name"], "amc": r["amc"], "category": r["category"], "plan": r["plan"], "option": r["option_label"], "optionClass": r["option_class"],
                           "nav": r["nav"], "navDate": iso(r["nav_date"]), "change": day_change(r), "active": r["active"], "returns": ret, "risk": risk, "retDate": iso(r["metrics_date"]),
                           "history": {"source": source if days else None, "from": iso(date.fromordinal(days[0])) if days else None, "note": note if source != "amfi" else None}})
