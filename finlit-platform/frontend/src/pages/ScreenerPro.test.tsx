@@ -226,6 +226,31 @@ describe("task #64 Part 4: the panel and the header", () => {
   });
 });
 
+describe("task #64, from task #192: each list is named by the level of its values (12 macro sectors, 59 industries)", () => {
+  const withLists = () => ({ ...catalog(), sectors: [{ name: "Financial Services", n: 708 }, { name: "Commodities", n: 573 }],
+    industries: [{ name: "Banks", sector: "Financial Services", n: 41 }, { name: "Ferrous Metals", sector: "Commodities", n: 77 }],
+    indices: [{ code: "NIFTY50", label: "NIFTY 50", n: 50 }] });
+  it("the box is Industry and index, the filter Industry: All industries, and the results say Name · size, as each row shows", async () => {
+    st.cat = withLists();
+    mount(); await ready();
+    expect(screen.getByRole("heading", { name: "Industry and index" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Sector and index" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Industry: All industries" })).toBeTruthy();
+    expect(screen.queryByText("All sectors")).toBeNull();
+    expect(table().querySelector("thead tr.ssw-hd th.stick small")?.textContent).toBe("Name · size");
+    expect(table().querySelector("tbody tr td.stick small")?.textContent).toBe("Alpha · Large");      // the row: the company's name and size
+  });
+  it("a picked industry is counted as an industry, and no box title is read twice by a screen reader", async () => {
+    st.cat = withLists();
+    mount(); await ready();
+    fireEvent.click(screen.getByRole("button", { name: "Industry: All industries" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Banks/ }));
+    expect(await screen.findByRole("button", { name: "Industry: 1 picked" })).toBeTruthy();       // not "Industry: Industry: 1 picked"
+    expect(screen.getByRole("button", { name: "Index: any (1 lists)" })).toBeTruthy();            // not "Index: Index: any"
+    await waitFor(() => expect(last().cats?.industry).toEqual(["Banks"]));
+  });
+});
+
 describe("Tell me when a company joins (file 04 §9)", () => {
   it("a visitor is asked to sign in first and comes back to the same screen", async () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 40 } } }), "market_cap", "desc")); await ready();
@@ -598,15 +623,15 @@ describe("The green and red colour note (task 73)", () => {
   });
 });
 
-describe("One Sector filter (task 74)", () => {
+describe("One Industry filter (task 74; named Industry in task #64, from #192: its values are NSE's industries)", () => {
   const withSectors = () => { st.cat = { ...catalog(), sectors: [{ name: "Auto Ancillaries", n: 1 }, { name: "Capital Goods", n: 5 }, { name: "Chemicals", n: 7 }],
     industries: [{ name: "Auto Components", sector: "X", n: 3 }, { name: "Chemicals", sector: "Y", n: 2 }, { name: "Software", sector: "Z", n: 9 }, { name: "Cement", sector: "W", n: 4 }] }; };
   const lastCats = () => st.bodies.filter((b) => b.cats).slice(-1)[0]?.cats;
-  const sectorBtn = () => within(rulesPanel()).getByRole("button", { name: /^Sector: / });
+  const sectorBtn = () => within(rulesPanel()).getByRole("button", { name: /^Industry: / });
 
-  it("there is one Sector filter and no Industry one, listing the industry options with their counts", async () => {
+  it("there is one Industry filter and no separate Sector one, listing the industry options with their counts", async () => {
     withSectors(); mount(); await ready();
-    expect(within(rulesPanel()).queryByText(/^Industry/)).toBeNull();
+    expect(within(rulesPanel()).queryAllByRole("button", { name: /^Sector/ })).toHaveLength(0);
     fireEvent.click(sectorBtn());
     const items = Array.from(rulesPanel().querySelectorAll(".fgx-list li")).map((li) => (li.textContent || "").trim());
     expect(items).toHaveLength(4); expect(items.join("|")).toMatch(/Software.*9/); expect(items.join("|")).not.toMatch(/Capital Goods/);
@@ -627,11 +652,11 @@ describe("One Sector filter (task 74)", () => {
     fireEvent.click(within(rulesPanel().querySelector(".fgx-list") as HTMLElement).getByRole("checkbox", { name: /^Auto Ancillaries/ }));
     await waitFor(() => expect(lastCats()?.sector).toEqual(["Capital Goods"]));
   });
-  it("the funnel says sector, not industry", async () => {
+  it("the funnel names the step by its values: industry, not sector", async () => {
     withSectors(); st.funnel = [{ key: "industry", before: 5813, after: 9, missing: 0 }];
     mount("?s=" + encodeState({ ...norm({}), industries: ["Software"] }, "market_cap", "desc")); await ready();
     const f = await within(rulesPanel()).findByRole("list", { name: "What is left after each rule" });
-    expect(f.textContent).toMatch(/after Sector/); expect(f.textContent).not.toMatch(/industry/i);
+    expect(f.textContent).toMatch(/after Industry/); expect(f.textContent).not.toMatch(/after Sector/);
   });
 });
 

@@ -60,7 +60,8 @@ const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹
 const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
 /** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
-const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Sector", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
+// the industry step is named by its values, NSE's 59 industries (task #64, from #192); "sector" is the old filter of an older link (the company's own label)
+const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Industry", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
 
 function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
   const [q, setQ] = useState(""), [all, setAll] = useState(false);
@@ -80,7 +81,8 @@ function Checks({ items, picked, toggle, search }: { items: { key: string; label
 function Fold({ id, title, summary, open, setOpen, children }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode }) {
   return (
     <div className="ssw-fold" data-facet={id}>
-      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} onClick={() => setOpen(!open)}><span className="sr">{title}: </span>{summary}<i aria-hidden="true">▾</i></button>
+      {/* the title is said once: a summary that already starts with it ("Index: any") is not read as "Index: Index: any" */}
+      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} onClick={() => setOpen(!open)}>{!summary.startsWith(`${title}:`) && <span className="sr">{title}: </span>}{summary}<i aria-hidden="true">▾</i></button>
       {open && <div id={`ssw-f-${id}`} role="group" aria-label={title}>{children}</div>}
     </div>
   );
@@ -339,8 +341,8 @@ export function ScreenerPro() {
               <div className="ssw-sec"><h3>Size</h3>
                 <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
                 <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
-              <div className="ssw-sec"><h3>Sector and index</h3>
-                <Fold id="industry" title="Sector" summary={nSector ? `Sector: ${nSector} picked` : "All sectors"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
+              <div className="ssw-sec"><h3>Industry and index</h3>
+                <Fold id="industry" title="Industry" summary={nSector ? `Industry: ${nSector} picked` : "All industries"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
                   <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
@@ -428,7 +430,7 @@ export function ScreenerPro() {
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
                     <thead>
                       <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
-                      <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Industry · size</small></th>
+                      <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Name · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
