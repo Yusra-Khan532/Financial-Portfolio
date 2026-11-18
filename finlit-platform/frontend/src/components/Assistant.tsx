@@ -4,7 +4,7 @@ import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
-import { AskRefused, askAi, useAskQuota, type AskTurn } from "../lib/askAi";
+import { AskRefused, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
 import { useAuth } from "../lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -138,7 +138,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: undefined } }));
-        else if (e.type === "done") patch((m) => ({ ...m, ai: { disclaimer: e.disclaimer } }));
+        else if (e.type === "done") patch((m) => { const pages = safePages(e.pages); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}) }; });   // task #218: the FinLit pages the answer read
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text, ai: { error: true } }));
       });
     } catch (err) {
@@ -390,7 +390,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
                 {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
-                {m.actions && <p className="aif-acts">{m.actions.map((a) => <Link key={a.to} to={a.to} onClick={() => { if (!big) setOpen(false); }}>{a.label} <Icon name="arrow" /></Link>)}</p>}
+                {m.actions && <p className="aif-acts">{m.ai && <span className="aif-acts-l">Read on FinLit</span>}{m.actions.map((a) => <Link key={a.to} to={a.to} onClick={() => { if (!big) setOpen(false); }}>{a.label} <Icon name="arrow" /></Link>)}</p>}
                 {m.suggest && m.suggest.length > 0 && <ul className="aif-qs aif-sugq" aria-label="Closest listed questions">{m.suggest.map((q) => row(q))}</ul>}</div>)}
               {busy && !msgs[msgs.length - 1]?.ai && <div className="bub bot typing" role="status" aria-label="Putting the answer together from FinLit's figures"><i /><i /><i /></div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>

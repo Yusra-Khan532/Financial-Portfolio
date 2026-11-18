@@ -5,7 +5,7 @@ Silver and Gold members only (Basic keeps the instant listed questions); each pl
     status  {"text"}                                         while FinLit data is being read ("Reading the ratios (TCS)")
     text    {"text"}                                         pieces of the answer as they are written
     replace {"text"}                                         the answer so far is replaced (withdrawn as advice-like)
-    done    {"disclaimer", "sources"}                        last, on success
+    done    {"disclaimer", "sources", "pages"}               last, on success; pages: the FinLit pages the answer read, [{"to", "label"}] (task #218)
     error   {"code", "text"}                                 last, on failure (the question is given back when nothing was written)
 Without ANTHROPIC_API_KEY the endpoint answers 503 "not_enabled" and the panel keeps its instant listed answers."""
 
@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ..auth.entitlements import sees_all
 from ..auth.routes import fail, ip_of, limit, secure_ctx
 from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
-from . import companies, quota, service, tools
+from . import companies, pages, quota, service, tools
 from .gateway import MemberGateway
 
 log = logging.getLogger("finlit.ask")
@@ -135,7 +135,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         async def replay() -> AsyncIterator[bytes]:
             yield sse("meta", {**quota.status(cap, n, month), "cached": True})
             yield sse("text", {"text": cached["text"]})
-            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", [])})
+            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", [])})
         return StreamingResponse(replay(), media_type="text/event-stream", headers={**NO_STORE, "X-Accel-Buffering": "no"})
 
     n = await quota.take(store.pool, ctx.user_id, cap, month)
@@ -213,12 +213,14 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         assert result is not None
         await record(store, result)
         personal = any(t.startswith("get_my_") for t in result["tools"])
+        # "aligned with the web pages" (task #218): the FinLit pages this answer read, as links under it; the companies read before the model started count first
+        links = pages.page_links([("get_company_card", {"symbol": s}) for s in want[:2]] + list(result.get("calls") or []))
         if key and result["text"] and result["stop"] in ("end_turn",) and not personal:
             try:
-                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"]}), ex=CACHE_SECONDS)
+                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links}), ex=CACHE_SECONDS)
             except Exception:
                 pass
-        yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"]))})
+        yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links})
 
     return StreamingResponse(run(), media_type="text/event-stream", headers={**NO_STORE, "X-Accel-Buffering": "no"})
 

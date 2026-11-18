@@ -42,6 +42,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import httpx
 from fastapi import APIRouter, Query, Request, Response
+from fastapi.responses import RedirectResponse
 
 from .auth.routes import fail
 from .config import MF_EXCLUDED_AMCS, MF_FEATURED_AMCS
@@ -2002,6 +2003,9 @@ async def _screen_ctx(request: Request, q: str) -> screen_spec.Ctx:
     store = request.app.state.store
     by_key, by_tab = await _cat_maps(store)
     search = (await _search_index(store)).search(q) if q.strip() else None
+    if ISIN_RE.match(q.strip().upper()):          # task #183 (COMMON-RULES 9): a fund is found by its ISIN too (growth / payout or reinvestment ISIN)
+        async with store.pool.acquire() as conn:
+            search = [r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes WHERE isin = $1 OR isin_reinvest = $1 ORDER BY code", q.strip().upper())]
     wanted = {t.strip() for v in request.query_params.getlist("tick") for t in v.split(",")}
     opened = await _opened_codes(store) if "opened" in wanted else ()
     return screen_spec.Ctx(by_key=by_key, by_tab=by_tab, search=search, opened=opened)
@@ -2222,7 +2226,7 @@ async def detail_payload(app, row) -> dict:
     days, navs, complete, source, note = await load_series(app, row)
     m = metrics_for(days, navs, complete) if days and row["option_class"] == "Growth" and row["active"] else None
     async with app.state.store.pool.acquire() as conn:
-        kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
+        kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active, isin FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
                                row["family"], row["code"])
         facts = await _facts(conn)
     empty = {"value": None, "kind": "absolute", "from": None, "why": returns_note(row, source, bool(days))}
@@ -2242,7 +2246,7 @@ async def detail_payload(app, row) -> dict:
             "history": {"source": source if days else None, "from": iso(date.fromordinal(days[0])) if days else None, "to": iso(date.fromordinal(days[-1])) if days else None,
                         "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
-                        "navDate": iso(k["nav_date"]), "active": k["active"]} for k in kin],
+                        "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
             "notAvailable": NOT_AVAILABLE, **facts}
 
 
@@ -2347,8 +2351,30 @@ async def _disclosure(request: Request, fn_name: str, code: int):
         return None
 
 
+ISIN_RE = re.compile(r"^IN[A-Z0-9]{10}$")
+
+
+async def _by_isin(request: Request, code: str, suffix: str = "") -> Optional[Response]:
+    """Task #183 (COMMON-RULES 9): /api/mf/{ISIN} works. A scheme's ISIN (growth / payout, or its reinvestment ISIN) answers with a redirect to the
+    scheme's code URL, so every scheme keeps one cached copy. A number is left to the route; anything else is not a scheme."""
+    if code.isdigit():
+        return None
+    isin = code.strip().upper()
+    if not ISIN_RE.match(isin):
+        raise fail(404, "not_found", "No mutual fund scheme has this code or ISIN.")
+    async with request.app.state.store.pool.acquire() as conn:
+        hit = await conn.fetchval("SELECT code FROM mf_schemes WHERE isin = $1 OR isin_reinvest = $1 ORDER BY (isin = $1) DESC, active DESC, code LIMIT 1", isin)
+    if hit is None:
+        raise fail(404, "not_found", "No mutual fund scheme has this ISIN.")
+    return RedirectResponse(f"/api/mf/{hit}{suffix}", status_code=307, headers={"Cache-Control": CACHE_HEADER})
+
+
 @router.get("/{code}/facts")
-async def facts_route(request: Request, code: int) -> Response:
+async def facts_route(request: Request, code: str) -> Response:
+    moved = await _by_isin(request, code, "/facts")
+    if moved is not None:
+        return moved
+    code = int(code)  # type: ignore[assignment]
     """Fund facts, each {value, asOf, source} or {unavailable: reason}. Category and fund house come from AMFI's NAV file; the rest from the disclosure module."""
     if not 0 < code < 10**7:
         raise fail(404, "not_found", "No mutual fund scheme has this code.")
@@ -2369,7 +2395,11 @@ async def facts_route(request: Request, code: int) -> Response:
 
 
 @router.get("/{code}/portfolio")
-async def portfolio_route(request: Request, code: int) -> Response:
+async def portfolio_route(request: Request, code: str) -> Response:
+    moved = await _by_isin(request, code, "/portfolio")
+    if moved is not None:
+        return moved
+    code = int(code)  # type: ignore[assignment]
     """The latest monthly portfolio (finlit.disclosure.get_portfolio) or {unavailable: reason}."""
     if not 0 < code < 10**7:
         raise fail(404, "not_found", "No mutual fund scheme has this code.")
@@ -2382,7 +2412,11 @@ async def portfolio_route(request: Request, code: int) -> Response:
 
 
 @router.get("/{code}")
-async def detail(request: Request, code: int) -> Response:
+async def detail(request: Request, code: str) -> Response:
+    moved = await _by_isin(request, code, "")
+    if moved is not None:
+        return moved
+    code = int(code)  # type: ignore[assignment]
     if not 0 < code < 10**7:
         raise fail(404, "not_found", "No mutual fund scheme has this code.")
     store = request.app.state.store

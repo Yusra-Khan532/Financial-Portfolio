@@ -13,8 +13,21 @@ export type AskEvent =
   | { type: "status"; text: string }
   | { type: "text"; text: string }
   | { type: "replace"; text: string }
-  | { type: "done"; disclaimer: string; sources: string[] }
+  | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[] }
   | { type: "error"; code: string; text: string };
+
+/** A FinLit page an answer read (task #218): shown under the answer as "Read on FinLit" links. */
+export type AskPage = { to: string; label: string };
+/** Only this site's own pages, at most four, each once: a link is never taken to another site, whatever the server sends. */
+export function safePages(p: unknown): AskPage[] {
+  if (!Array.isArray(p)) return [];
+  const out: AskPage[] = [];
+  for (const x of p) {
+    const to = typeof x?.to === "string" ? x.to : "", label = typeof x?.label === "string" ? x.label.trim().slice(0, 60) : "";
+    if (/^\/[a-z0-9]/i.test(to) && !to.startsWith("//") && !/[\s\\]/.test(to) && label && !out.some((o) => o.to === to)) out.push({ to, label });
+  }
+  return out.slice(0, 4);
+}
 
 /** Why a question could not be sent at all (before any answer): not signed in, the allowance used, not switched on, or another refusal. */
 export class AskRefused extends Error {

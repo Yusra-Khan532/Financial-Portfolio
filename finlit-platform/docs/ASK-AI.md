@@ -60,6 +60,30 @@ Now:
 - The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), FinLit IQ, FundPulse, the peer rank and NSE's levels,
   and forbid saying FinLit lacks a measure; times are written in India time.
 
+## Reading every FinLit page (task #218, 18 Nov 2026)
+
+The team asked for FinLit AI to be "aligned with our pages" (stock screener, Prism report, company report, advanced stock screener, superinvestor,
+portfolio, Indian economy, FII/DII flows, results calendar, glossary, insights and blogs, news and filings), to "read the investor presentation in the
+Documents section", and to be "aligned with the web pages". `backend/finlit/ask/pages.py` adds one tool per page that had none, each reading the
+route that page reads, as the member:
+
+| Page | Tool | Route |
+|---|---|---|
+| Superinvestor portfolios | `get_superinvestors` (list, or one investor by name) | `/api/superinvestors`, `/api/superinvestors/{key}` |
+| India economy | `get_india_economy` (each reading with its period and publisher) | `/api/macro` |
+| Glossary | `lookup_glossary` (FinLit's own wording) | the glossary data the page is built from |
+| Insights & blog | `get_insights_and_blogs` (says plainly when nothing is published) | `/api/content` |
+| News & filings, Documents | `get_news_and_filings` (news, results filings, documents by type) | `/api/feed` |
+| Documents: the file itself | `read_company_document` (newest investor presentation, annual report or call transcript; the pages that answer, with page numbers and the link) | `/api/feed`, then the PDF from the exchange archive (`earnings/transcripts.Fetcher`: exchange hosts only, robots.txt, byte cap, relay on 403); the newest 24 files stay in memory |
+| Basic and Advanced stock screeners | `screen_by_finlit_score` (FinLit IQ or FinLit Prism, by range, sector, size) | `/api/screener/universe` |
+
+The company report, Prism report, stock screener, portfolios, FII/DII flows and results calendar already had tools. The instructions name every page
+and its tool, FinLit's page before the web. **Links:** the `done` event carries `pages` (`[{to, label}]`, at most four, made by `pages.page_links`
+from the tools the answer used), cached answers too; the panel shows them as "Read on FinLit" links under the answer, this site's pages only
+(`safePages`). **Documents:** a filing is an "Investor presentation" only when it is one: NSE files meeting notices as "Analysts/Institutional Investor
+Meet/Con. Call Updates", which the Documents page used to count (8 of Reliance's 9; 195 of the newest 200 filings site-wide, 55 real). The same rule
+is in `frontend/src/lib/feed.ts docType` and `pages.doc_type`.
+
 ## Speed
 
 - Instant listed answers first; the model is used only for the rest.
@@ -88,5 +112,6 @@ Now:
 
 ## Tests
 
-`backend/tests/test_ask.py` (a scripted model, real Postgres and Redis, Basic / Silver / Gold members), `frontend/src/components/AssistantMore.test.tsx`
+`backend/tests/test_ask.py` (a scripted model, real Postgres and Redis, Basic / Silver / Gold members), `backend/tests/test_ask_pages.py` (the page
+tools on copies of the live site's answers, a real PDF, the links), `frontend/src/components/AssistantMore.test.tsx`
 (written answers in the panel), `frontend/src/lib/askAi.test.ts` (the event stream).
