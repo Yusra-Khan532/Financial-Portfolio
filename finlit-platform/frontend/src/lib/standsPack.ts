@@ -40,7 +40,7 @@ export function headline(name: string, ind: string | null, stateWord: string | n
   const parts: string[] = [];
   if (ind && (stateWord || rot?.rank)) parts.push(`${ind} is ${[stateWord ? stateWord.toLowerCase() : null, rot?.rank && rot.ranked ? `the ${ordinal(rot.rank)} strongest of ${rot.ranked} industries` : null].filter(Boolean).join(" and is ")}`);
   const inside = s?.rank_6m != null && s.ranked_6m ? (s.rank_6m === s.ranked_6m ? `${name} is its weakest stock over 6 months` : s.rank_6m === 1 ? `${name} is its strongest stock over 6 months` : `${name} is ${ordinal(s.rank_6m)} of its ${s.ranked_6m} counted stocks over 6 months`) : null;
-  const peers = lead ? `${ordinal(lead.rank)} of ${lead.peerGroup.ranked} ${lead.peerGroup.short} peers` : null;
+  const peers = lead ? `${ordinal(lead.rank)} of ${lead.peerGroup.ranked} ${groupWord(lead.peerGroup.short)}peers` : null;
   const share = inside && peers ? `${inside} and ${peers}` : inside ?? (peers ? `${name} is ${peers}` : null);
   const contrast = (it === "strong" && st === "lagging") || (it === "weak" && st === "leading");
   const rest = parts.length && share ? `${parts[0]}, ${contrast ? "but" : "and"} ${share}.` : parts.length ? `${parts[0]}.` : share ? `${share}.` : "";
@@ -139,3 +139,5 @@ export function riskCards(name: string, risk: number | null, m12: number | null,
   return out;
 }
 export { num };
+/** The group's short name before "peers" or "companies"; a group already called "peers" is not named twice (task #216, README 3.14). */
+export const groupWord = (short: string | null | undefined): string => (!short || /^peers?$/i.test(short.trim()) ? "" : short.trim() + " ");

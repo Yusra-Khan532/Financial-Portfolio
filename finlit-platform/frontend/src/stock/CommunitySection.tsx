@@ -7,7 +7,7 @@ import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
 import { BOARD_NAME, forumMe, useStats, ago, type Page, type Post } from "../lib/forum";
-import { Disclaimer, ThreadList, ThreadView } from "../components/forum/ForumParts";
+import { Disclaimer, JoinHead, ThreadList, ThreadView } from "../components/forum/ForumParts";
 import { Icon } from "../lib/icons";
 import { SectionHead } from "./Sections";
 
@@ -44,9 +44,9 @@ function Trending({ symbol, onOpen }: { symbol: string; onOpen: (id: number) => 
   return (
     <aside className="fo-trend" aria-label="Trending discussions">
       <h3>Trending</h3>
-      <ol>{list.map((t) => (
+      <ol>{list.map((t, i) => (
         <li key={t.id}><button type="button" onClick={() => onOpen(t.id)}>
-          <span className="fo-trend-t">{t.title}</span>
+          <span className="fo-trend-n" aria-hidden="true">{i + 1}</span><span className="fo-trend-t">{t.title}</span>
           <span className="fo-trend-m"><span title="Upvotes">▲ {t.upvotes}</span><span>{plural(t.replies, "comment")}</span><span>{ago(t.lastActivityAt)}</span></span>
         </button></li>))}</ol>
     </aside>
@@ -79,19 +79,16 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
           <Link className="btn primary" to={`/login?next=${encodeURIComponent(`/stocks/${symbol}#community`)}`}>Sign in to discuss</Link>
         </div>
       ) : (
-        <div className="fo-panel">
+        <JoinHead.Provider value={true}><div className="fo-panel">
           <div className="fo-panel-h">
-            <div className="fo-counts" aria-label="Activity on this company">
+            {/* task #216 (README 3.19): three count tiles, a big number and a small label */}
+            <div className="fo-counts fo-tiles" aria-label="Activity on this company">
               <span><b>{threads.toLocaleString("en-IN")}</b> {threads === 1 ? "discussion" : "discussions"}</span>
               <span><b>{replies.toLocaleString("en-IN")}</b> {replies === 1 ? "comment" : "comments"}</span>
-              {stats?.lastActivityAt && <span>last activity {ago(stats.lastActivityAt)}</span>}
-            </div>
-            <div className="fo-notes">
-              {me?.board && <p className="fo-board fo-board-sm" role="note"><b>{BOARD_NAME[me.board]} board</b>{count ? ` · ${count}` : ""} · seen by {BOARD_NAME[me.board]} members only</p>}
-              <Disclaimer compact />
+              <span><b>{stats?.lastActivityAt ? ago(stats.lastActivityAt) : "—"}</b> last activity</span>
             </div>
           </div>
-          <div className={"fo-hub" + (open == null && n != null && n > 1 ? " has-aside" : "")}>{/* task #168: the Trending column's room only when there is a Trending list */}
+          <div className={"fo-hub" + (open == null ? " has-aside" : "")}>{/* the side column: Trending (when there is a list), then the notes box */}
             <div className="fo-hub-main">
               {open != null
                 ? <ThreadView id={open} onBack={() => show(null)} backLabel={`All discussions about ${short}`} />
@@ -99,9 +96,15 @@ export function CommunitySection({ symbol, name }: { symbol: string; name: strin
                     linkTo={(t) => `/forum/t/${t.id}`} />}
               {open == null && n != null && n > 5 && <p className="fo-rep-more"><Link to={`/forum/c/${encodeURIComponent(symbol)}`}>See all {count} in Discussion forums →</Link></p>}
             </div>
-            {open == null && n != null && n > 1 && <Trending symbol={symbol} onOpen={show} />}
+            {open == null && <div className="fo-side">
+              {n != null && n > 1 && <Trending symbol={symbol} onOpen={show} />}
+              <div className="fo-notes">
+                {me?.board && <p className="fo-board fo-board-sm" role="note"><b>{BOARD_NAME[me.board]} board</b>{count ? ` · ${count}` : ""} · seen by {BOARD_NAME[me.board]} members only</p>}
+                <Disclaimer compact />
+              </div>
+            </div>}
           </div>
-        </div>
+        </div></JoinHead.Provider>
       )}
     </section>
   );

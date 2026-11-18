@@ -52,8 +52,32 @@ export function useEarningsFindings(symbol: string, lender: boolean, sector?: st
   const pr = useProfitReality(symbol, lender), rc = useRevenueCashModel(symbol, lender, labels);
   if ((!open && !has("gold")) || !pr.years.length) return null;
   const { flag, watch, investigate } = flagsOf(pr, rc.m, earningsIntel(pr, sector, industry));
-  const red = (flag ? 1 : 0) + (pr.verdict === "Needs a closer look" ? 1 : 0), amber = watch.length + (pr.verdict === "Mixed" ? 1 : 0);
-  return { red, watch: amber, investigate: investigate.length };
+  // task #216 (README 3.11): the counts count findings only (the red flag, the watch items, the items to investigate), never "The read", the summary sentence
+  return { red: flag ? 1 : 0, watch: watch.length, investigate: investigate.length };
+}
+
+/** An item that came as one sentence or more: the first sentence is its title, the rest its explanation (task #216, README 3.11). A question with nothing
+ *  after it is explained by where section 11 looks at it. */
+export function splitTitle(t: string): { title: string; text: string } {
+  const m = t.match(/^(.+?[.?!])(\s+|$)([\s\S]*)$/);
+  const title = (m ? m[1] : t).replace(/\.$/, "").trim(), rest = (m ? m[3] : "").trim();
+  return { title, text: rest || "Section 11 looks at this in step 3, \u201cIs the profit clean?\u201d." };
+}
+export type EarnItem = { key: string; title: string; text: string; to: string; tag?: string };
+/** Section 11's own findings as list items for section 03 (the 7 Nov merge rule, README 3.3): the red flag, the watch items, then the items to investigate. */
+export function earningsItems(f: ReturnType<typeof flagsOf>): { flags: EarnItem[]; watch: EarnItem[] } {
+  return {
+    flags: f.flag ? [{ key: "ec-flag", title: f.flag.title, text: f.flag.text, to: "earnings" }] : [],
+    watch: [...f.watch.map((w) => ({ key: "ec-w-" + w.id, title: w.text, text: w.why, to: "earnings" })),
+      ...f.investigate.map((t, i) => ({ key: "ec-i-" + i, ...splitTitle(t), to: "earnings", tag: "Investigate" }))],
+  };
+}
+/** Section 11's findings for section 03; empty while Gold is locked or nothing is loaded. */
+export function useEarningsList(symbol: string, lender: boolean, sector?: string | null, industry?: string | null, labels?: (string | null | undefined)[]) {
+  const { has } = useUI(), open = useContext(OpenAccess);
+  const pr = useProfitReality(symbol, lender), rc = useRevenueCashModel(symbol, lender, labels);
+  if ((!open && !has("gold")) || !pr.years.length) return { flags: [], watch: [] };
+  return earningsItems(flagsOf(pr, rc.m, earningsIntel(pr, sector, industry)));
 }
 
 export function EarningsCash({ symbol, lender, sector, industry, labels }: { symbol: string; lender: boolean; sector?: string | null; industry?: string | null; labels?: (string | null | undefined)[] }) {
@@ -84,9 +108,10 @@ export function EarningsCash({ symbol, lender, sector, industry, labels }: { sym
 
       {/* green, orange and red only (task #129): the read takes the colour of the earnings verdict; a red flag is red; watch and investigate are orange */}
       {intel && <div className={"ins ec-c v " + verdictTone(pr.verdict)}><span className="ins-tag"><Mk t={verdictTone(pr.verdict)} />The read</span><b>{intel.happening}</b></div>}
-      {flag && <div className="ins ec-c f"><span className="ins-tag"><Mk t="f" />Red flag</span><b>{flag.title}</b><p>{flag.text}</p></div>}
-      {watch.map((w) => <div className="ins ec-c w" key={w.id}><span className="ins-tag"><Mk t="w" />Watch</span><b>{w.text}</b><p>{w.why}</p></div>)}
-      {investigate.map((t, i) => <div className="ins ec-c w" key={i}><span className="ins-tag"><Mk t="w" />Investigate</span><p>{t}</p></div>)}
+      {/* task #216 (README 3.11): each red flag, watch and investigate item is a drop-down; an item without a title takes its first sentence as the title */}
+      {flag && <details className="ins ec-c f xdd"><summary><span className="ins-tag"><Mk t="f" />Red flag</span><b>{flag.title}</b><DropChev /></summary><p>{flag.text}</p></details>}
+      {watch.map((w) => <details className="ins ec-c w xdd" key={w.id}><summary><span className="ins-tag"><Mk t="w" />Watch</span><b>{w.text}</b><DropChev /></summary><p>{w.why}</p></details>)}
+      {investigate.map((t, i) => { const x = splitTitle(t); return <details className="ins ec-c w xdd" key={i}><summary><span className="ins-tag"><Mk t="w" />Investigate</span><b>{x.title}</b><DropChev /></summary><p>{x.text}</p></details>; })}
 
       {/* Task #216 (README 3.11): steps 1 to 3 are one tab group (Profit against cash · Collections and stock · Is the profit clean?); step 4, the six
           checks, stays outside the tabs, under them. A lender has only step 3, so no tab group. */}

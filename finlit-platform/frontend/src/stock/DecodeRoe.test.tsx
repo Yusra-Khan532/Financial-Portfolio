@@ -116,7 +116,8 @@ describe("Decoding ROE, report-shaped data with gaps and one-offs", () => {
   });
   it("insight cards come from the rule list and show their numbers", () => {
     show(SHAPED); tabTo(/What the figures say/);
-    const cards = screen.getAllByRole("listitem").filter((x) => x.className === "dp-insc");
+    const cards = screen.getAllByRole("listitem").filter((x) => x.classList.contains("dp-insc"));
+    expect(cards.every((c) => c.tagName === "DETAILS" && c.querySelector("summary .xdd-chev"))).toBe(true);   // task #216: each finding is a drop-down that opens to its figures
     expect(cards.length).toBeGreaterThan(0); expect(cards.length).toBeLessThanOrEqual(4);
     expect(cards[0].textContent).toMatch(/one-off items above 50%/); expect(cards.every((c) => c.querySelector("ul li"))).toBe(true);
   });

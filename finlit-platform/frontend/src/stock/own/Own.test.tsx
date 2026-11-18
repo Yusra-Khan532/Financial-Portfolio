@@ -21,14 +21,15 @@ const wrap = (el: React.ReactElement) => render(<MemoryRouter>{el}</MemoryRouter
 afterEach(cleanup);
 
 describe("What changed, in short", () => {
-  it("shows three cards with the tone as icon and word, a title and one number; the full text is for screen readers and tooltips", () => {
+  it("shows three cards with the tone as icon and word, a title and one number; each opens to its full sentence (task #216, README 3.12)", () => {
     const { container } = wrap(<OwnInsightCards ins={full} />);
     const cards = container.querySelectorAll(".ow-icard");
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain("Worth knowing"); expect(cards[0].textContent).toContain("Indian funds buying what foreign funds sell"); expect(cards[0].textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");
     expect(cards[1].textContent).toContain("Supportive"); expect(cards[1].querySelector(".ow-glyph")?.textContent).toBe("+");
-    expect(cards[0].getAttribute("title")).toBe(ins.cards![0].text);
-    expect(cards[0].querySelector(".sr-only")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].tagName).toBe("DETAILS"); expect(cards[0].querySelector("summary .xdd-chev")).toBeTruthy();
+    expect(cards[0].querySelector(".ow-cx")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].querySelector("summary")!.textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");   // tone, title and figures in the summary
     expect(container.querySelector(".ow-glyph")?.getAttribute("aria-hidden")).toBe("true");
   });
   it("keeps the rest behind Show more, and Show fewer closes them", () => {

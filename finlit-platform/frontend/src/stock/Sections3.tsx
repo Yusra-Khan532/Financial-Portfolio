@@ -1,4 +1,5 @@
 import { HScroll } from "../components/HScroll";
+import { DropChev } from "../components/DropChev";
 import { newInfo } from "../lib/reportInfo";
 import { scoreView, usePlanModel, usePlanPrism } from "../lib/planScore";
 import { useMemo, useState } from "react";
@@ -322,7 +323,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
               <div key={kind}><div className={"trg-colh " + kind}>{title}<span>{trig.filter((n) => n.kind === kind).length}</span></div>
                 <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key]; return (
                   <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div>
-                    {w && <div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div>}</li>
+                    {w && <details className="trg2-dd xdd"><summary>Why it matters, and what to watch<DropChev /></summary><div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div></details>}</li>
                 ); })}{!trig.some((n) => n.kind === kind) && <li className={kind}><p>Nothing stands out.</p></li>}</ul></div>
             ))}
           </div>
