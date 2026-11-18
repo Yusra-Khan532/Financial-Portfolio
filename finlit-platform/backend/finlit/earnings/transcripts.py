@@ -288,7 +288,8 @@ class Fetcher:
 
     async def _via_relay(self, url: str, headers: dict) -> Optional[httpx.Response]:
         """The same GET through the relay, or None when the relay could not get the exchange's own answer."""
-        assert self.relay is not None
+        if self.relay is None:
+            return None
         base, key = self.relay
         fwd = {"X-Relay-Key": key}
         for name in ("User-Agent", "Accept", "Referer"):

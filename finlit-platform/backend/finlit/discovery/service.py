@@ -23,12 +23,12 @@ LOOKBACK_DAYS = 400
 RETRY_FAILED_H = 24
 
 # The same rule as the Documents page: annual reports and call transcripts first, then a presentation.
-PENDING_SQL = f"""
+PENDING_SQL = """
 WITH docs AS (
     SELECT DISTINCT ON (f.symbol) f.symbol, f.company, f.title, f.item_date, f.link
     FROM feed_items f
     WHERE f.kind = 'document' AND f.symbol IS NOT NULL AND f.link LIKE 'https://%'
-      AND f.item_date >= current_date - {LOOKBACK_DAYS}
+      AND f.item_date >= current_date - $1::int
       AND (coalesce(f.category, '') || ' ' || f.title) ~* 'presentation'
       AND (coalesce(f.category, '') || ' ' || f.title) !~* 'annual report|integrated report|transcript|concall|earnings call'
     ORDER BY f.symbol, f.item_date DESC, f.id DESC
@@ -36,8 +36,9 @@ WITH docs AS (
 SELECT d.* FROM docs d
 LEFT JOIN discovery_companies c ON c.symbol = d.symbol
 WHERE c.symbol IS NULL OR c.doc_link <> d.link
-   OR (c.status = 'error' AND c.read_at < now() - interval '{RETRY_FAILED_H} hours')
+   OR (c.status = 'error' AND c.read_at < now() - make_interval(hours => $2::int))
 ORDER BY d.item_date DESC, d.symbol
+LIMIT $3
 """
 
 UPSERT_SQL = """
@@ -51,7 +52,7 @@ ON CONFLICT (symbol) DO UPDATE SET company = EXCLUDED.company, doc_title = EXCLU
 
 async def pending(store, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch(PENDING_SQL + (f" LIMIT {int(limit)}" if limit else ""))
+        rows = await conn.fetch(PENDING_SQL, LOOKBACK_DAYS, RETRY_FAILED_H, limit)   # LIMIT NULL = every row
     return [dict(r) for r in rows]
 
 
