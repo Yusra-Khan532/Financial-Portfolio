@@ -58,7 +58,9 @@ export function FundsSection({ hs, rk, rkErr, sp, locked, onUnlock, cols, onCols
           <th scope="col"><span className="sr-only">Remove</span></th></tr></thead>
         <tbody>{hs.map((h) => { const f = by.get(h.code), s = h.score; return (
           <tr key={h.id}>
-            <th scope="row"><Link to={`/funds/${h.code}`} className="mfp-fund">{fundName(h.name) || `Scheme ${h.code}`}</Link>{h.folio && <small className="mfp-sub">folio {h.folio}</small>}</th>
+            <th scope="row"><Link to={`/funds/${h.code}`} className="mfp-fund">{fundName(h.name) || `Scheme ${h.code}`}</Link>
+              <small className="mfp-sub">{[h.amc, h.plan, h.option?.replace(/ option$/i, "")].filter(Boolean).join(" · ")}{h.folio ? ` · folio ${h.folio}` : ""}</small>
+              <small className="mfp-isin" title={h.isin ? "ISIN: names the exact plan and option" : h.isinWhy ?? undefined}>{h.isin ?? "No ISIN"}</small></th>
             <td>{h.categoryLabel || "–"}</td>
             <td>{locked ? <button type="button" className="mfp-lock" onClick={onUnlock}>Gold plan</button> : s.final == null ? <span className="sp-note" title={s.reason || undefined}>{s.status === "NOT RATED" ? "Not rated" : "No score"}</span> : <span className="mfp-h"><b>{Math.round(s.final)}</b> <span className={HEALTH_TONE(s.label)}>{s.label}</span></span>}</td>
             {cols === "risk" ? (f && f.swing != null ? <>

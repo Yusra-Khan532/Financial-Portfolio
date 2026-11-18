@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import re
 from datetime import date, timedelta
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 LIQUID = re.compile(r"liquid|overnight|money market", re.I)
 SECTORAL = re.compile(r"sectoral|thematic", re.I)
@@ -44,9 +44,31 @@ def weekly(series: Dict[str, List[Any]]) -> Dict[str, float]:
     return out
 
 
+def by_isin(holdings: Optional[List[Dict[str, Any]]]) -> Tuple[Optional[List[Dict[str, Any]]], int]:
+    """Task #183 (COMMON-RULES 9): a holding line is read by its ISIN. A line filed as a share whose Indian ISIN is a company's bond or paper
+    (INE040A08…: characters 8-9 are not 01) counts as debt; foreign ISINs stay shares (listed abroad). Returns the lines and how many share ISINs are
+    not matched to a listed company (no NSE symbol), for the data note."""
+    if not holdings:
+        return holdings, 0
+    from ..isin import kind_of
+    out, unmatched = [], 0
+    for h in holdings:
+        isin = (h.get("isin") or "").upper()
+        if h.get("assetClass") == "equity" and len(isin) == 12 and isin.startswith("IN") and kind_of(isin) not in ("share", "preference"):
+            h = {**h, "assetClass": "debt", "readAs": "debt by its ISIN"}
+        elif h.get("assetClass") == "equity" and isin.startswith("IN") and not h.get("stockSymbol"):
+            unmatched += 1
+        out.append(h)
+    return out, unmatched
+
+
 def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Optional[str]], Optional[str]]) -> Dict[str, Any]:
     """funds: [{code, name, amc, category, units?, nav?, holdings: [...] | None, assetSplit: {...} | None, series: {t, v} | None}]
     size_of(isin, symbol) -> 'Large' | 'Mid' | 'Small' | None"""
+    not_matched = 0
+    for f in funds:
+        f["holdings"], n = by_isin(f.get("holdings"))
+        not_matched += n
     valued = all((f.get("units") or 0) > 0 and (f.get("nav") or 0) > 0 for f in funds)
     tot = sum(f["units"] * f["nav"] for f in funds) if valued else len(funds)
     for f in funds:
@@ -157,7 +179,7 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
 
     return {
         "basis": "value" if valued else "equal",
-        "coverage": {"funds": len(funds), "disclosed": len(disclosed), "missing": [f["code"] for f in funds if not f.get("holdings")]},
+        "coverage": {"funds": len(funds), "disclosed": len(disclosed), "missing": [f["code"] for f in funds if not f.get("holdings")], "notMatched": not_matched},
         "overall": overall, "readings": readings, "mix": mix, "knownShares": known,
         "size": {k: (v / known if known else 0.0) for k, v in size.items()},
         "industries": [{"name": s["name"], "share": s["w"] / known if known else 0.0} for s in sorted(industries.values(), key=lambda s: -s["w"])],

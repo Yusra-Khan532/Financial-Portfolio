@@ -37,6 +37,7 @@ async def schemes(app):  # noqa: F811
         # the shared test fixture drops `users` (and with it the foreign keys onto it) but not our tables: make them again from the migration itself
         await conn.execute("DROP TABLE IF EXISTS mf_holding_lots, mf_holdings CASCADE")
         await conn.execute(MIGRATION.read_text())
+        await conn.execute((MIGRATION.parent / "108_mf_holdings_isin.sql").read_text())   # task #183: each holding stored with its ISIN
         await conn.execute("DELETE FROM mf_scores WHERE code >= $1", BASE)
         await conn.execute("DELETE FROM mf_schemes WHERE code >= $1", BASE)
         for c, name, plan, opt, isin, nav, active, cat, r1, r3, r5, ter, aum in SCHEMES:
@@ -457,6 +458,17 @@ async def test_a_fund_can_be_added_with_no_units_and_is_followed_with_its_score_
     assert (await gold.post(URL, json={"code": BASE + 2, "units": "10"})).status_code == 201     # a fund with units still works as before
     mixed = (await gold.get(URL)).json()
     assert mixed["summary"]["valued"] == 1 and next(x for x in mixed["holdings"] if x["code"] == BASE + 2)["current"] == 1400.0
+
+
+async def test_task_183_each_holding_is_stored_and_read_by_its_isin(app):   # COMMON-RULES 9: added, imported or followed, a holding keeps the scheme's ISIN
+    c = await signed_in(app, "isin183@example.com", plan="silver")
+    assert (await c.post(URL, json={"code": BASE + 1, "follow": True})).status_code == 201
+    assert (await c.post(f"{URL}/import-commit", json={"items": [{"code": BASE + 5, "folio": "", "units": 10, "invested": None, "boughtOn": None}]})).status_code == 201
+    async with app.state.store.pool.acquire() as conn:
+        stored = {r["code"]: r["isin"] for r in await conn.fetch("SELECT code, isin FROM mf_holdings WHERE code = ANY($1::int[])", [BASE + 1, BASE + 5])}
+    assert stored == {BASE + 1: "INF000A01011", BASE + 5: "INF000D01013"}
+    rows = {h["code"]: h for h in (await c.get(URL)).json()["holdings"]}
+    assert rows[BASE + 1]["isin"] == "INF000A01011" and rows[BASE + 1]["isinWhy"] is None and rows[BASE + 5]["isin"] == "INF000D01013"
 
 
 async def test_a_missing_units_figure_is_still_refused_unless_following_was_asked_for(app):

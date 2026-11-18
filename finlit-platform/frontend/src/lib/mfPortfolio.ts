@@ -18,7 +18,7 @@ export type ScoreBlock = {
 };
 export type Holding = {
   id: string; code: number; folio: string; units: number | null; lots: Lot[]; followed?: boolean;
-  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null;
+  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null; isinWhy?: string | null;
   nav: number | null; navDate: string | null; navStale: boolean; navNote: string | null;
   invested: number | null; investedWhy: string | null; current: number | null; currentWhy: string | null;
   gain: number | null; gainPct: number | null; gainWhy: string | null;

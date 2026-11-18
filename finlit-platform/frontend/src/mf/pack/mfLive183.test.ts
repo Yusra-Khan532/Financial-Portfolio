@@ -25,3 +25,12 @@ describe("MF portfolio live fixes (M1)", () => {
     expect(MF_PORTFOLIO_FAQ.items.find((i) => /liquid fund/.test(i.q))!.a).toMatch(/every fund counts the same, so a liquid fund is a full share of the list/);
   });
 });
+
+describe("MF portfolio ISIN (M2)", () => {
+  it("searches by name or ISIN, says each fund is read by its ISIN, and shows the ISIN under each fund", () => {
+    expect(page).toContain('placeholder = "Search a fund by name or ISIN…"');
+    expect(page).toContain("Each fund is read by its ISIN, which names the exact plan and option");
+    const pack = readFileSync(resolve(__dirname, "./MfPack.tsx"), "utf8");
+    expect(pack).toContain('<small className="mfp-isin"');
+  });
+});

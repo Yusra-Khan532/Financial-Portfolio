@@ -25,6 +25,7 @@
 
 .mfp-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 .mfp-fund b { color: var(--sp-ink); } .mfp-sub { display: block; font-size: 12px; font-weight: 400; color: var(--sp-mute); }
+.mfp-isin { display: block; font: 400 11px/1.4 var(--mono); letter-spacing: .02em; color: var(--sp-mute); }
 .mfp-ft th[scope="row"], .mfp-ut th[scope="row"] { text-align: left; text-transform: none; letter-spacing: 0; font: 600 14px var(--sans); color: var(--sp-ink); }
 .mfp-fund { color: var(--sp-ink); text-decoration: none; } .mfp-fund:hover { text-decoration: underline; }
 .mfp-ut .ip-sym small { text-transform: none; letter-spacing: 0; font-weight: 400; }

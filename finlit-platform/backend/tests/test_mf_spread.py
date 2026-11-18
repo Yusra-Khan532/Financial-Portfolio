@@ -67,3 +67,20 @@ def test_single_fund_and_no_history_do_not_break():
     out = spread(f, lambda *_: None)
     assert out["together"]["codes"] == [] and out["readings"]["together"]["of"] == 0
     assert out["knownShares"] == 0 and out["size"]["Large"] == 0
+
+
+def test_task_183_holdings_are_read_by_their_isin():
+    """COMMON-RULES 9: a line filed as a share whose ISIN is the company's bond or paper (INE040A08…) counts as debt, never as the share; a share ISIN
+    with no listed company behind it is counted as not matched; foreign ISINs stay shares (listed abroad)."""
+    from finlit.mfportfolio.spread import by_isin
+    lines = [{"isin": "INE040A01034", "stockSymbol": "HDFCBANK", "name": "HDFC Bank", "pct": 6.0, "assetClass": "equity"},
+             {"isin": "INE040A08AB1", "stockSymbol": None, "name": "HDFC Bank NCD", "pct": 2.0, "assetClass": "equity"},
+             {"isin": "INE999Z01011", "stockSymbol": None, "name": "Unlisted Co", "pct": 1.0, "assetClass": "equity"},
+             {"isin": "US0378331005", "stockSymbol": None, "name": "Apple Inc", "pct": 1.5, "assetClass": "equity"}]
+    out, unmatched = by_isin(lines)
+    assert [h["assetClass"] for h in out] == ["equity", "debt", "equity", "equity"] and unmatched == 1
+    fund = {"code": 9, "name": "Epsilon Banking Fund", "amc": "E", "category": "Sectoral / Thematic", "holdings": lines, "assetSplit": {"equity": 100}, "series": None}
+    res = spread([fund], lambda isin, sym: "Large" if sym else None)
+    stocks = {t["name"] for t in res["topStocks"]}
+    assert "HDFC Bank NCD" not in stocks and "HDFC Bank" in stocks and res["coverage"]["notMatched"] == 1
+    assert abs(res["knownShares"] - (6.0 + 1.0 + 1.5) / 100) < 1e-9                    # the bond's 2% is not counted as shares

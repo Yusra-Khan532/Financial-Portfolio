@@ -37,7 +37,7 @@ const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.de
 const Dash = ({ why }: { why?: string | null }) => <span className="pf-dash" title={why || undefined} aria-label={why ? `Not shown. ${why}` : "Not available"} tabIndex={why ? 0 : undefined}>–</span>;
 
 /* --------------------------------------------------------------- fund search */
-function FundSearch({ onPick, placeholder = "Search a fund by name…" }: { onPick: (f: Fund) => void; placeholder?: string }) {
+function FundSearch({ onPick, placeholder = "Search a fund by name or ISIN…" }: { onPick: (f: Fund) => void; placeholder?: string }) {
   const [q, setQ] = useState(""), [items, setItems] = useState<Fund[]>([]), [busy, setBusy] = useState(false), [err, setErr] = useState("");
   useEffect(() => {
     if (q.trim().length < 3) { setItems([]); setErr(""); return; }
@@ -47,7 +47,7 @@ function FundSearch({ onPick, placeholder = "Search a fund by name…" }: { onPi
   }, [q]);
   return (
     <div className="mp-search">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} aria-label="Search a mutual fund" maxLength={80} autoComplete="off" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} aria-label="Search a mutual fund by name or ISIN" maxLength={80} autoComplete="off" />
       {q.trim().length >= 3 && (
         <ul role="listbox" aria-label="Funds found" aria-busy={busy}>
           {err && <li className="none">{err}</li>}
@@ -150,7 +150,7 @@ function ImportFile({ onDone }: { onDone: (msg: string) => void }) {
   return (<>
     <div className="row mp-file"><button className="btn primary" onClick={() => ref.current?.click()} disabled={busy}><Icon name="table" />{busy ? "Reading…" : "Choose a statement…"}</button>
       <input ref={ref} type="file" hidden accept=".pdf,.xlsx,.xls,.csv,.tsv,.txt,.html,.htm" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) read(f); }} />
-      <span className="faint">The CAS PDF that CAMS, KFintech or MF Central emails you (detailed statement), or an .xlsx, .xls or .csv export, up to 2,000 rows. Read in your browser: the file and its password never leave your device; only the fund rows are sent.</span></div>
+      <span className="faint">The CAS PDF that CAMS, KFintech or MF Central emails you (detailed statement), or an .xlsx, .xls or .csv export, up to 2,000 rows. Each fund is read by its ISIN, which names the exact plan and option; a row without one is matched by its name and shown for you to confirm. Read in your browser: the file and its password never leave your device; only the fund rows are sent.</span></div>
     {locked && <form className="row mp-pw" onSubmit={(e) => { e.preventDefault(); if (pw) read(locked.file, pw); }}>
       <label>{locked.wrong ? "That password is not correct. Try again" : "This statement is password protected. A CAS is usually locked with your PAN in capitals, or the password you chose when you asked for it"}
         <input type="password" autoComplete="off" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus /></label>

@@ -41,6 +41,8 @@ NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 MAX_IMPORT_ROWS = 2000
 MAX_LOTS = 200
 CELL_MAX = 300
+# Task #183 (COMMON-RULES 9): a holding is stored with the scheme's ISIN (the exact plan and option); the AMFI code stays the key for NAVs and scores.
+INSERT_HOLDING = "INSERT INTO mf_holdings (user_id, code, folio, isin) VALUES ($1, $2, $3, (SELECT NULLIF(isin, '') FROM mf_schemes WHERE code = $2)) RETURNING id"
 SCHEME_COLS = mf.LIST_COLS + ", family, isin"
 
 
@@ -89,11 +91,11 @@ async def scheme_index(request: Request) -> Index:
 
 async def holdings_of(conn, user_id: str) -> List[Dict[str, Any]]:
     rows = await conn.fetch(
-        "SELECT h.id, h.code, h.folio, l.id AS lot_id, l.units, l.invested, l.bought_on FROM mf_holdings h LEFT JOIN mf_holding_lots l ON l.holding_id = h.id "
+        "SELECT h.id, h.code, h.folio, h.isin, l.id AS lot_id, l.units, l.invested, l.bought_on FROM mf_holdings h LEFT JOIN mf_holding_lots l ON l.holding_id = h.id "
         "WHERE h.user_id = $1 ORDER BY h.created_at, h.id, l.bought_on NULLS LAST, l.created_at, l.id", user_id)
     out: Dict[Any, Dict[str, Any]] = {}
     for r in rows:
-        h = out.setdefault(r["id"], {"id": str(r["id"]), "code": r["code"], "folio": r["folio"], "lots": []})
+        h = out.setdefault(r["id"], {"id": str(r["id"]), "code": r["code"], "folio": r["folio"], "isin": r["isin"], "lots": []})
         if r["lot_id"] is not None:        # a fund that is only followed (no units given) has no purchase lines
             h["lots"].append({"id": str(r["lot_id"]), "units": r["units"], "invested": r["invested"], "bought_on": r["bought_on"]})
     return list(out.values())
@@ -154,6 +156,8 @@ async def build_view(request: Request, ctx: Ctx) -> Dict[str, Any]:
     for h in held:
         s = schemes.get(h["code"])
         row = {**value_holding(h, s, data_date), **_scheme_fields(s)}
+        row["isin"] = h.get("isin") or row.get("isin")          # the stored ISIN (task #183); a scheme AMFI lists without one says so
+        row["isinWhy"] = None if row["isin"] else "AMFI's NAV file gives no ISIN for this scheme."
         row["score"] = scores.get(h["code"]) if gold else LOCKED_SCORE
         rows.append(row)
     total = sum((Decimal(str(r["current"])) for r in rows if r["current"] is not None), Decimal(0))   # weight = share of the value of all valued funds
@@ -377,7 +381,7 @@ async def add_holding(request: Request, body: AddIn, ctx: Ctx = Depends(member_c
                 used = await conn.fetchval("SELECT count(*) FROM mf_holdings WHERE user_id = $1", ctx.user_id)
                 if used >= cap_for(ctx):
                     raise fail(403, "plan_limit", f"Your plan includes {cap_for(ctx)} funds.", plan="gold")
-                hid = await conn.fetchval("INSERT INTO mf_holdings (user_id, code, folio) VALUES ($1, $2, $3) RETURNING id", ctx.user_id, body.code, folio)
+                hid = await conn.fetchval(INSERT_HOLDING, ctx.user_id, body.code, folio)
             elif follow:
                 return reply({"status": "saved", "id": str(hid), "merged": True}, 201)            # already in the list: nothing to add
             elif await conn.fetchval("SELECT count(*) FROM mf_holding_lots WHERE holding_id = $1", hid) >= MAX_LOTS:
@@ -553,7 +557,7 @@ async def import_commit(request: Request, body: CommitIn, ctx: Ctx = Depends(mem
                     skipped += 1
                     continue
                 if hid is None:
-                    hid = await conn.fetchval("INSERT INTO mf_holdings (user_id, code, folio) VALUES ($1, $2, $3) RETURNING id", ctx.user_id, key[0], key[1])
+                    hid = await conn.fetchval(INSERT_HOLDING, ctx.user_id, key[0], key[1])
                     added += 1
                 else:
                     await conn.execute("DELETE FROM mf_holding_lots WHERE holding_id = $1", hid)
