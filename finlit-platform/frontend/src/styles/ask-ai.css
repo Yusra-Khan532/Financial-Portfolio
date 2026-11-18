@@ -180,3 +180,10 @@
 .aif-a-axis { stroke: var(--border-strong); stroke-width: 1; }
 .aif-a-bar { fill: color-mix(in srgb, var(--aif-g, var(--gold)) 45%, transparent); } .aif-a-bar.on { fill: var(--aif-g, var(--gold)); } .aif-a-bar.neg { fill: color-mix(in srgb, var(--loss) 60%, transparent); }
 .aif-a-v { font: 600 var(--fs-11) var(--mono); fill: var(--text); } .aif-a-l { font: 500 var(--fs-11) var(--sans); fill: var(--muted); }
+/* Task #226 (team, 18 Nov: "UI issue in chatbot, align it properly"): in the full window the top row (back arrow, full-window, help, close) was laid
+   over the conversation with no background, so the first question ran into the buttons and older messages slid under them, and the back arrow sat at a
+   fixed place instead of at the conversation's edge. It is now a row of its own above the conversation, on the conversation's width: the back arrow
+   lines up with the conversation's left edge and the buttons with its right edge; the conversation starts below it and never passes under it. */
+.aif.full > header.aif-hd { position: relative; top: auto; left: auto; right: auto; pointer-events: auto; align-items: center; gap: 8px; min-height: 60px; box-sizing: border-box;
+  padding: 10px max(24px, calc((100% - 1080px) / 2 + 24px)); }
+.aif.full .ai-body { padding-top: 8px; }
