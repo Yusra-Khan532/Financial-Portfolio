@@ -285,7 +285,9 @@ export function HoldingsPage() {
             const id = portfolio.addPortfolio({ name, broker }); setAdding(false); setCur(id); setGoTo(id); toast(`${name} added.`);
             if (start !== "empty") setTimeout(() => file.current?.click(), 80); }} />}
 
-        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span></div> : model && <>
+        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span>
+          {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
+          {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <TopGrid tiles={top} onOpen={(t) => setView(t, true)}
             score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} shares={symbols.length} missing={symbols.filter((x) => !qtyBySymbol.get(x)).length}
               onAddQty={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }} />
