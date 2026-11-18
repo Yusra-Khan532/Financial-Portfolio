@@ -1,6 +1,7 @@
 // Task #183 W8: the Equity portfolio's Risk analytics tab as the 15 Nov pack draws it (01-equity-portfolio, E72–E85): Risk at a glance, How your list's beta is
 // built (with Reading a beta), Each size against its own benchmark, Share of the list vs share of the risk, If the market fell 10%, Each share's risk. Betas are
 // against each share's own size index from index closes (POST /api/portfolio/risk); risk shares from the page answer. Every class is eqr-. Never advice.
+import { BENCHMARKS } from "../useScore";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -34,10 +35,11 @@ export function riskSplit(page: PageObject, r: RiskAnswer, sectorOf: (s: string)
 export const riskKeys = (r: RiskAnswer, split: ReturnType<typeof riskSplit>) => riskKeyCards(r, split.bySize);
 
 // ------------------------------------------------------------------------------------------------ 1 Risk at a glance
-export function RiskGlancePack({ r, split }: { r: RiskAnswer; split: ReturnType<typeof riskSplit> }) {
+/** compare (task #235, pack B5): "Compare with [NIFTY 50 ▾]", the index the portfolio score reads the list against (moved here from "Make the score yours"). */
+export function RiskGlancePack({ r, split, compare }: { r: RiskAnswer; split: ReturnType<typeof riskSplit>; compare?: { value: string; onChange: (v: string) => void } }) {
   const short = r.shares.filter((s) => s.why === "Under a year of prices").map((s) => s.symbol), lede = riskLede(r);
   return (
-    <Section id="eq-rg" hide title="Risk at a glance" help="Four figures, each against the Nifty 50: the typical swing and the worst fall over 3 years of daily closes, the 10 worst weeks of the past year, and the beta weighted by size." how="Each figure sits beside the Nifty 50's; the line under it says whether the list has been bumpier or smoother."
+    <Section id="eq-rg" hide title="Risk at a glance" right={compare && <label className="eq-cmp">Compare with<select value={compare.value} onChange={(e) => compare.onChange(e.target.value)}>{BENCHMARKS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>} help="Four figures, each against the Nifty 50: the typical swing and the worst fall over 3 years of daily closes, the 10 worst weeks of the past year, and the beta weighted by size." how="Each figure sits beside the Nifty 50's; the line under it says whether the list has been bumpier or smoother."
       sub={`If equal amounts were held · swing and worst fall: 3 years of daily prices; beta and weekly figures: the past year, to ${new Date(r.to + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · beta for ${r.counted} ${r.counted === 1 ? "share" : "shares"}${short.length ? ` (${short.join(", ")} ${short.length === 1 ? "has" : "have"} under a year of prices)` : ""}`}>
       <p className="eqr-lede"><b>{lede.lead}</b> {lede.rest}</p>
       <div className="eqr-tiles">{glanceTiles(r).map((t) => <div key={t.k} className="eqr-tile"><p className="sp-cap">{t.k}<Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></p><p className="eqr-v"><b>{t.v}</b><small>{t.niftyWord ?? "Nifty 50"}: {t.nifty}</small></p><p className="eqr-sub">{t.sub}</p></div>)}</div>

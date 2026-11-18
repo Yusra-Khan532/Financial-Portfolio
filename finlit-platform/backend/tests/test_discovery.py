@@ -100,6 +100,75 @@ def test_every_filing_gets_an_event_themes_and_tone():
     assert SG.tag("Press Release", "Fine chemicals plant output")["event"] != "legal"
 
 
+def test_chart_lines_are_not_quoted_as_evidence():
+    chart = "Infra capital expenditure (Rs trillion) 2.0 2.2 3.1 2.6 3.1 3.4 4.3 5.9 7.4 9.5 FY15 FY16 FY17 FY18 FY19 FY20"
+    assert K.chart_like(chart)
+    assert not K.chart_like("Our order book stands at Rs 2,400 crore, with defence at 50% of it.")
+    text = ("Company overview and highlights for shareholders, segments in detail. " * 4 + chart + ". Capital expenditure of Rs 900 crore "
+            "for a greenfield plant. Capacity expansion to 20,000 tonnes.")
+    ev = K.classify(text)["evidence"]
+    assert ev and not any("FY15" in e for e in ev) and ev[0].startswith("Capital expenditure of Rs 900 crore")
+
+
+def test_a_business_theme_is_primary_and_corporate_catalysts_stay_secondary():
+    """Seen live on the first night: 43 of 133 companies had "Corporate Catalysts & Growth Signals" (order book, JV, M&A) as their main theme."""
+    text = ("Company overview and highlights for shareholders, segments in detail. " * 4 +
+            "Order book of Rs 4,000 crore. Order inflow of Rs 900 crore. Strategic partnership and a joint venture signed. Letter of award received. "
+            "Revenue guidance raised. We commissioned a 2 GW TOPCon solar cell line in Q2 FY27. Solar module capacity is now 5 GW.")
+    r = K.classify(text)
+    assert K.analyse(text) and list(K.analyse(text))[0] == "Corporate Catalysts & Growth Signals"     # it scores highest ...
+    assert r["primary"] == "Solar Technology" and "Corporate Catalysts & Growth Signals" in r["secondary"]   # ... but the business is primary
+    only = K.classify("Company overview and highlights for shareholders, segments in detail. " * 4 + "Order book of Rs 4,000 crore. Joint venture signed.")
+    assert only["primary"] == "Corporate Catalysts & Growth Signals"                                 # alone, it is still shown
+
+
+async def test_presentations_read_with_older_rules_are_read_again_after_new_ones(store):  # noqa: F811
+    await seed(store)
+    await D.run(store, fetcher=exchange())
+    assert await D.pending(store) == []
+    async with store.pool.acquire() as conn:
+        await conn.execute("UPDATE discovery_companies SET rules = 1 WHERE symbol = 'BSHIELD'")
+        await conn.execute("INSERT INTO feed_items (kind, title, symbol, company, link, item_date, category, auto, dedupe) VALUES ('document', "
+                           "'Investor Presentation', 'NEWCO', 'New Co Ltd', 'https://nsearchives.nseindia.in/corporate/NEWCO_SOLAR.pdf', $1::date - 30, "
+                           "'Investor Presentation', true, 'newco')", TODAY)
+    assert [d["symbol"] for d in await D.pending(store)] == ["NEWCO", "BSHIELD"]                     # the new one first, then the re-read
+    await D.run(store, fetcher=exchange())
+    async with store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT min(rules) FROM discovery_companies") == K.RULES_VERSION
+
+
+def test_filing_themes_come_from_what_the_filing_says_not_the_company_name_or_nse_label():
+    """Found live on the first night (18 Nov 2026): 66 filings under Renewable Energy & Power from company names ("Emmvee Photovoltaic Power
+    Ltd", "Om Power Transmission Ltd") and NSE's label "Capacity addition" (filed for hotel rooms and hospital beds too)."""
+    from finlit.discovery import signals as SG
+    t = lambda c, h, co=None: SG.tag(c, h, None, co)   # noqa: E731
+    assert t("Capacity addition", "Hindustan Zinc Limited has informed the Exchange about Capacity addition", "Hindustan Zinc Limited")["themes"] == {}
+    assert t("Schedule of meet", "Emmvee Photovoltaic Power Limited has informed the Exchange about Schedule of meet", "Emmvee Photovoltaic Power Limited")["themes"] == {}
+    assert t("Transcript", "Om Power Transmission Limited has informed the Exchange about Transcript")["themes"] == {}     # no company field: the name pattern
+    pv = t("Bagging/Receiving of orders/contracts", "Ashoka Buildcon Limited has informed the Exchange about Receipt of Letter of Acceptance (LOA) for "
+           "Solar PV Power Plant in Bhutan", "Ashoka Buildcon Limited")
+    assert pv["event"] == "order" and "Renewable Energy & Power" in pv["themes"]
+    wind = t("Capacity addition", "JSW Energy Limited has informed the Exchange about commissioning of 300 MW wind turbine capacity", "JSW Energy Limited")
+    assert sorted(wind["themes"]) == ["Renewable Energy & Power"]                                            # "MW" alone is no data centre
+    pr = t("Press Release", 'Press Release: Delta Ltd has informed the Exchange regarding a press release dated November 17, 2026, titled '
+           '"Delta wins Rs 200 crore defence order for radar systems"', "Delta Ltd")
+    assert pr["event"] == "order" and pr["tone"] == 1 and sorted(pr["themes"]) == ["Defence & Aerospace"]
+    assert SG.subject_of('Press Release: Delta Ltd has informed the Exchange regarding a press release dated November 17, 2026, titled "Delta wins"',
+                         "Press Release", "Delta Ltd") == "Delta wins"
+
+
+async def test_changed_rules_retag_every_stored_filing_once(store):  # noqa: F811
+    from finlit.discovery import signals as SG
+    await seed(store)
+    await store.redis.delete(SG.VERSION_KEY)
+    first = await SG.tag_new(store)
+    assert first["retagged"] and first["tagged"] == 5                    # the 500-day-old filing is outside the 180 days
+    again = await SG.tag_new(store)
+    assert not again["retagged"] and again["tagged"] == 0
+    await store.redis.set(SG.VERSION_KEY, "old")
+    assert (await SG.tag_new(store))["tagged"] == 5
+
+
 def test_primary_secondary_evidence_and_status():
     text = ("Company overview and highlights of the quarter for our shareholders, with the business segments described in detail below. " * 2 +
             "We commissioned a 2 GW TOPCon solar cell line in Q2 FY27. Solar module capacity is now 5 GW. Bifacial modules lead sales. "
