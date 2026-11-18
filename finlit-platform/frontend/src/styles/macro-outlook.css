@@ -71,3 +71,51 @@
 
 .mo-t td { overflow-wrap: anywhere; min-width: 0; }
 .mo-why { margin: 0 0 10px; font-size: var(--fs-13); color: var(--muted); }
+
+/* ===== Task #216 (README 3.2): "How this reading is made", the backdrop with its ring, the 1.35 : 1 grid, the redrawn score history ===== */
+.mo .mo-how { margin: 0 0 14px; }
+.mo .mo-how > p { margin: 6px 0 0; }
+.mo-bd { --bc: var(--faint); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 20px; margin: 0 0 16px; padding: 16px 20px;
+  border: 1px solid color-mix(in srgb, var(--bc) 40%, var(--border)); border-left: 5px solid var(--bc); border-radius: 16px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 9%, var(--s1)), var(--s1) 60%); }
+.mo-bd.pos { --bc: var(--gain); } .mo-bd.mid { --bc: var(--band-mid, #cc7a00); } .mo-bd.neg { --bc: var(--loss); }
+.mo-ring .trk { fill: none; stroke: var(--s3); stroke-width: 8; }
+.mo-ring .arc { fill: none; stroke: var(--bc); stroke-width: 8; stroke-linecap: round; }
+.mo-ring .tick { stroke: var(--text); stroke-width: 2; }
+.mo-ring .n { font: 500 var(--fs-24, 24px) var(--font-serif, Georgia, serif); fill: var(--text); }
+.mo-ring .of { font: 600 var(--fs-11, 11px) var(--sans); fill: var(--muted); }
+.mo-bd-k { margin: 0; font: 700 var(--fs-11, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--bc); }
+.mo-bd-n { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0; }
+.mo-bd-n .mo-sector { display: inline-flex; align-items: center; gap: 6px; font: 600 var(--fs-20, 20px)/1.2 var(--sans); color: var(--text); }
+.mo-bd-l { margin: 0; font: 400 var(--fs-13, 13px) var(--sans); color: var(--muted); }
+.mo-bd-r { display: grid; gap: 6px; justify-items: end; }
+.mo-bd-r p { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin: 0; }
+.mo-bd-r .mo-bd-k { color: var(--muted); margin-right: 4px; }
+.mo-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.mo-gl { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.mo-gl > .mo-panel:last-child { flex: 1; }   /* Sector interpretation stretches so both columns end level */
+.mo-grid > .mo-hist { min-width: 0; }
+@media (max-width: 979px) { .mo-grid { grid-template-columns: minmax(0, 1fr); } }
+.mo-hist .mo-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.mo-dchip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--s2); font: 600 var(--fs-12, 12px) var(--sans); color: var(--muted); }
+.mo-rng { display: flex; gap: 6px; margin: 8px 0 0; }
+.mo-rng button { min-height: 33px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13, 13px) var(--sans); cursor: pointer; }
+.mo-rng button[aria-pressed="true"] { background: var(--c1); border-color: var(--c1); color: #fff; }
+.mo-sum { margin: 10px 0 4px; }
+.mo-sum p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; }
+.mo-sum .mo-big { font: 500 var(--fs-32, 32px)/1 var(--font-serif, Georgia, serif); color: var(--text); }
+.mo-sum small { font: 600 var(--fs-13, 13px) var(--sans); color: var(--muted); margin-left: -6px; }
+.mo-chg { font: 700 var(--fs-13, 13px) var(--sans); color: var(--faint); } .mo-chg.pos { color: var(--gain); } .mo-chg.neg { color: var(--loss); }
+.mo-was { margin: 4px 0 0 !important; font: 400 var(--fs-13, 13px) var(--sans); color: var(--muted); }
+.mo-hist .mo-chart .above { fill: color-mix(in srgb, var(--gain) 8%, transparent); } .mo-hist .mo-chart .below { fill: color-mix(in srgb, var(--loss) 7%, transparent); }
+.mo-hist .mo-chart .zt { font: 600 var(--fs-11, 11px) var(--sans); } .mo-hist .mo-chart .zt.pos { fill: var(--gain); } .mo-hist .mo-chart .zt.neg { fill: var(--loss); }
+.mo-hist .mo-chart .mid { stroke: var(--text); stroke-opacity: .55; stroke-dasharray: 4 4; }
+.mo-hist .mo-chart .ln { stroke: var(--c1); stroke-width: 2.2; }
+.mo-hist .mo-chart circle.lv { fill: var(--c1); stroke: var(--s1); stroke-width: 1.5; } .mo-hist .mo-chart circle.rc { fill: var(--s1); stroke: var(--c1); stroke-width: 2; }
+.mo-hist .mo-chart .pv { font: 600 var(--fs-11, 11px) var(--sans); fill: var(--text); } .mo-hist .mo-chart .pv.last, .mo-hist .mo-chart .ax.last { font-weight: 800; fill: var(--text); }
+.mo-hist .mo-dot.lv { background: var(--c1); } .mo-hist .mo-dot.rcd { background: var(--s1); border: 2px solid var(--c1); }
+@media (max-width: 640px) {
+  .mo-bd { grid-template-columns: auto minmax(0, 1fr); }
+  .mo-bd-r { grid-column: 1 / -1; justify-items: start; } .mo-bd-r p { justify-content: flex-start; }
+  .mo-bd-n { flex-direction: column; align-items: flex-start; }   /* the word chip on its own line under the sector name */
+}

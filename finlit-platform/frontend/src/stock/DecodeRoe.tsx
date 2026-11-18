@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
+import { DropChev } from "../components/DropChev";
 import { TabGroup } from "../components/TabGroup";
 import { HScroll } from "../components/HScroll";
 import { RoeLines } from "../charts/RoeLines";
@@ -173,7 +174,7 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>What the ROE figures say</h3><span className="s">Descriptive only · reported figures</span></div>
         {ins.cards.length ? <div className="dp-ins" role="list">{ins.cards.map((c) => (
-          <div className="dp-insc" role="listitem" key={c.id}><p><b>{c.text}</b></p><ul>{c.evidence.map((e, i) => <li key={i}>{e}</li>)}</ul></div>))}</div>
+          <details className="dp-insc xdd" role="listitem" key={c.id}><summary><b>{c.text}</b><DropChev /></summary><ul>{c.evidence.map((e, i) => <li key={i}>{e}</li>)}</ul></details>))}</div>
           : <p className="faint">{mv ? "None of the observation rules applies to this range." : "Needs at least two years with margin, turnover, multiplier and a meaningful ROE."}</p>}
         {ins.fired > ins.cards.length && <p className="faint dp-note">Showing the {ins.cards.length} most important of {ins.fired} observations.</p>}
       </div>
@@ -182,7 +183,7 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>Extended DuPont: tax, interest or operations?</h3><span className="s">{wf.ok ? `${wf.from} to ${wf.to} · reported figures` : "Five factors"}</span></div>
         {wf.ok ? (<>
-          <p className="dp-eq"><b>ROE</b> = <span>Tax burden</span> × <span>Interest burden</span> × <span>EBIT margin</span> × <span>Asset turnover</span> × <span>Equity multiplier</span></p>
+          <p className="dp-eq"><b>ROE</b> = <span className="dp-ch">Tax burden</span> × <span className="dp-ch">Interest burden</span> × <span className="dp-ch">EBIT margin</span> × <span className="dp-ch">Asset turnover</span> × <span className="dp-ch">Equity multiplier</span></p>
           <Waterfall ariaLabel={`ROE bridge from ${wf.from} to ${wf.to}: ${nf(wf.start, 1)} per cent to ${nf(wf.end, 1)} per cent. ${wf.steps.map((s) => `${s.label} ${s.pp >= 0 ? "adds" : "takes away"} ${nf(Math.abs(s.pp), 1)} percentage points`).join(", ")}`}
             bars={[{ key: "s", label: [wf.from.replace("Mar ", "Mar "), "ROE"], value: wf.start, kind: "total" },
               ...wf.steps.map((s) => ({ key: s.key, label: SHORT[s.key][0], narrow: SHORT[s.key][1], value: s.pp, kind: "delta" as const })),

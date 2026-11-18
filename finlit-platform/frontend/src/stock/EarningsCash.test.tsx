@@ -66,8 +66,8 @@ describe("Earnings & cash: a colour key, the Six checks' marks, and green, orang
   });
   it("the read takes the verdict's colour, a red flag is red, watch and investigate are orange: no gold, no grey card left", () => {
     expect(src).toContain('"ins ec-c v " + verdictTone(pr.verdict)');
-    expect(src).toContain('className="ins ec-c f"');
-    expect((src.match(/className="ins ec-c w"/g) || []).length).toBe(2);                 // Watch and Investigate
+    expect(src).toContain('className="ins ec-c f xdd"');   // task #216: each finding is a drop-down
+    expect((src.match(/className="ins ec-c w xdd"/g) || []).length).toBe(2);                 // Watch and Investigate
     expect(src).not.toMatch(/className="ins (v|i|w|f)"/);                                  // the old gold read, grey investigate, plain watch
     expect(css).toMatch(/\.ec \.ins\.ec-c\.s \{ --ic: var\(--ck-solid-ok\); \} \.ec \.ins\.ec-c\.w \{ --ic: var\(--ck-solid-watch\); \} \.ec \.ins\.ec-c\.f \{ --ic: var\(--ck-solid-alert\); \}/);
   });

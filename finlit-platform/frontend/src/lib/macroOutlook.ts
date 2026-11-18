@@ -85,3 +85,23 @@ export const arrow = (d: Indicator["direction"]): string => d === "up" ? "▲" :
 export const insufficientText = (c: Pick<CompanyMacro, "reason" | "criticalMissing" | "missing">): string => c.reason ? `Insufficient Data: ${c.reason}` : "Insufficient Data";
 /** Position (0..100 %) of a score on the bar. */
 export const pct = (s: number | null | undefined): number => Math.max(0, Math.min(100, s ?? 0));
+
+/* ---- Task #216 (company report handover, README 3.2): the redrawn macro score history ---- */
+/** The readings with a score, oldest first. */
+export const readings = (points: HistoryPoint[]) => points.filter((p) => p.score != null);
+/** The window shown: every reading while there are 7 days or fewer; otherwise the last 1 week, 2 weeks or 1 month of calendar days. */
+export type MacroRange = "1w" | "2w" | "1m";
+export const MACRO_RANGES: { id: MacroRange; days: number; label: string }[] = [{ id: "1w", days: 7, label: "1 week" }, { id: "2w", days: 14, label: "2 weeks" }, { id: "1m", days: 30, label: "1 month" }];
+export function macroWindow(points: HistoryPoint[], r: MacroRange): HistoryPoint[] {
+  const all = readings(points);
+  if (all.length <= 7) return all;
+  const end = Date.parse(all[all.length - 1].date + "T00:00:00Z"), days = MACRO_RANGES.find((x) => x.id === r)?.days ?? 7;
+  return all.filter((p) => Date.parse(p.date + "T00:00:00Z") > end - days * 86_400_000);
+}
+/** The summary line over a window: latest score and word, the change since the first reading, where it started, and how many latest readings share the word. */
+export function macroSummary(win: HistoryPoint[]): { score: number; label: string; change: number; since: string; first: number; firstLabel: string; streak: number } | null {
+  if (!win.length) return null;
+  const a = win[0], b = win[win.length - 1];
+  let streak = 0; for (let i = win.length - 1; i >= 0 && win[i].label === b.label; i--) streak++;
+  return { score: Math.round(b.score!), label: b.label, change: Math.round(b.score!) - Math.round(a.score!), since: a.date, first: Math.round(a.score!), firstLabel: a.label, streak };
+}
