@@ -13,7 +13,7 @@ export const BUCKETS: Bucket[] = [
     { id: "query-builder", title: "Query Builder", badge: "FREE", link: "/query-builder", what: "Type a rule in plain words and get the companies that match it.", points: ["Write rules like Market cap > 500 AND P/E < 15", "Start from examples: quality compounders, value, high dividend", "Keep a query as a basket and run it again later"], image: "query-builder-light" },
     { id: "mutual-funds", title: "Mutual Funds", badge: "FREE", link: "/funds/screener", what: "Filter every mutual fund by what it costs, holds and returns.", points: ["Type, category, fund house, plan, size, cost and risk filters", "Preset screens such as low-cost large caps or tax savers with a 5-year record", "Returns, SIP returns and the worst fall for every scheme"], image: "mutual-funds-light" },
     { id: "etfs", title: "ETFs", badge: "FREE", link: "/etfs", what: "Every ETF on the NSE, with its returns and the index it follows.", points: ["Price and 1-day, 1-year and 5-year returns for 350+ ETFs", "ETF vs index fund: returns, costs, tracking and risk side by side", "Search by name, symbol, fund house or ISIN"], image: "etfs-light" },
-    { id: "fund-health-score", title: "Mutual Fund Score", badge: "GOLD", link: "/fund-score-screener", what: "Know how healthy a mutual fund is before you choose it.", points: ["A 0–100 score for 1,200+ funds, built from NAVs, costs and holdings", "Four parts: performance, risk, cost and quality", "Category leaderboards and ready-made views"], image: "fund-health-score-light" },
+    { id: "fund-health-score", title: "FinLit FundPulse", badge: "GOLD", link: "/fund-score-screener", what: "Know how healthy a mutual fund is before you choose it.", points: ["A 0–100 score for 1,200+ funds, built from NAVs, costs and holdings", "Four parts: performance, risk, cost and quality", "Category leaderboards and ready-made views"], image: "fund-health-score-light" },
   ] },
   { id: "company-360", name: "Company 360", line: "Open one company up from every side.", cards: [
     { id: "company-report", title: "Company Report", badge: "SILVER", link: "/stocks/RELIANCE", what: "Everything about a listed company on one page.", points: ["FinLit IQ (5 pillars) and Prism (7 pillars): proprietary company scoring", "Valuation comparison, sector leaders and laggards", "20 sections in total: financials, advanced ratios, charts, ownership and filings, and many more"], image: "company-report-light" },
@@ -81,14 +81,19 @@ export const FIGURE: Record<string, [string, string]> = {
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder, the Discussion Forum, MF Portfolio, IPO Calendar, EPS Calculator, Stress Lab, Browser Extension and Insights & Blog have none yet: their large view uses the card picture. */
 export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "basic-score-screener", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "equity-portfolio", "profit-revenue-outlook", "query-builder", "results-calendar", "sector-pulse", "sector-rotation", "sip-calculator", "stock-screener", "watchlists"]);
 
-/** The four figures in the platform panel (task #119). Each is true on the date given, with its source (shown as the figure's tooltip):
+/** The five figures in the platform panel (task #119; ETFs added by task #237). Each is true on the date given, with its source (shown as the figure's tooltip):
  *  - companies: 5,839 rows in /api/stocks/search-index on 13 Nov 2026 (every listed company the site has a page for);
- *  - mutual funds: the 1,200+ funds the Mutual Fund Score covers (the same figure as the Mutual Funds and Mutual Fund Score tools above);
+ *  - mutual funds (task #237, 18 Nov 2026: "make Mutual fund 8500+ and add etf 350+"): 8,341 active mutual fund plans in /api/mf?option=All on
+ *    18 Nov 2026 (every plan and option still publishing a NAV; ETFs are mutual fund schemes and count here), the same figure as the Mutual Funds
+ *    tool card. The team asked for 8,500+; that would overstate what FinLit holds, so the true figure is shown (it was 1,200+: only the funds with
+ *    a score);
+ *  - ETFs: 359 exchange-traded funds in /api/etf on 18 Nov 2026, the same figure as the ETFs tool card;
  *  - sectors: the 22 sectors of NSE's own classification (backend/finlit_technicals/data/nse_industries.json; a test checks the count). The design said 29;
  *  - indices: 228 market indices plus India VIX in /api/indices on 13 Nov 2026 (the design said 6, the key ones in the top strip). */
 export const STATS: { value: string; label: string; icon: string; source: string }[] = [
   { value: "5,800+", label: "Listed companies", icon: "notes", source: "Every listed Indian company with a FinLit page (5,839 on 13 Nov 2026)" },
-  { value: "1,200+", label: "Mutual funds", icon: "coins", source: "Funds with a Mutual Fund Score" },
+  { value: "8,300+", label: "Mutual funds", icon: "coins", source: "Mutual fund plans still publishing a NAV, every plan and option (8,341 on 18 Nov 2026)" },
+  { value: "350+", label: "ETFs", icon: "pie", source: "Exchange-traded funds with a FinLit page (359 on 18 Nov 2026)" },
   { value: "22", label: "Sectors", icon: "grid", source: "NSE's sector classification" },
   { value: "220+", label: "Indices", icon: "layers", source: "NSE and BSE indices on the Markets pages (228, plus India VIX, on 13 Nov 2026)" },
 ];
