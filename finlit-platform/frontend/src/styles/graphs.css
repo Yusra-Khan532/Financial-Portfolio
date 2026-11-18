@@ -13,15 +13,15 @@
 .gx-search li button { width: 100%; text-align: left; background: none; border: 0; color: var(--text); padding: 7px; border-radius: 6px; cursor: pointer; } .gx-search li button:hover, .gx-search li button:focus-visible { background: var(--s3); }
 .gx-chips, .gx-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .gx-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--s2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: var(--fs-13); color: var(--text); }
-.gx-chip i { width: 14px; height: 3px; border-radius: 2px; } .gx-chip small, .gx-chip em { color: var(--muted); font-style: normal; font-size: 11px; }
+.gx-chip i { width: 14px; height: 3px; border-radius: 2px; } .gx-chip small, .gx-chip em { color: var(--muted); font-style: normal; font-size: 12px; }
 .gx-chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: var(--fs-16); line-height: 1; padding: 2px 6px; border-radius: 999px; } .gx-chip button:hover { color: var(--text); }
-.gx-chip .gx-mini { font-size: 11px; border: 1px solid var(--border); }
+.gx-chip .gx-mini { font-size: 12px; border: 1px solid var(--border); }
 .gx-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--s2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; margin-bottom: 8px; }
 .gx-seg button { background: none; border: 0; color: var(--muted); padding: 5px 10px; border-radius: 7px; font: inherit; font-size: var(--fs-13); font-weight: 600; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
 .gx-seg button[aria-pressed=true], .gx-seg button[aria-selected=true] { background: var(--gold-soft); color: var(--gold); } .gx-seg button:disabled { opacity: .4; cursor: not-allowed; }
 .gx-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; } .gx-groups button { background: var(--s2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; } .gx-groups button[aria-pressed=true] { color: var(--gold); border-color: var(--gold); }
 .gx-list { list-style: none; margin: 0; padding: 0; } .gx-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: grab; }
-.gx-list li label { display: flex; gap: 8px; align-items: center; flex: 1; cursor: pointer; } .gx-list li > span { flex: 1; } .gx-list small { color: var(--faint); font-size: 11px; white-space: nowrap; } .gx-list .grip { flex: none; color: var(--faint); }
+.gx-list li label { display: flex; gap: 8px; align-items: center; flex: 1; cursor: pointer; } .gx-list li > span { flex: 1; } .gx-list small { color: var(--faint); font-size: 12px; white-space: nowrap; } .gx-list .grip { flex: none; color: var(--faint); }
 .gx-hint { font-size: 12px; margin: 4px 0; }
 .gx-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin-bottom: 4px; } .gx-bar .btn { padding: 0 12px; font-size: var(--fs-13); min-height: 34px; height: 34px; width: auto; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
 .gx-views input, .gx-views select, .gx-bar select { min-height: 34px; height: 34px; font-size: var(--fs-13); } .gx-views input { width: 200px; max-width: 100%; }

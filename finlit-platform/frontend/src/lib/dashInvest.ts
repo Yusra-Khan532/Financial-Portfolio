@@ -32,8 +32,8 @@ export function investRows(parts: { shares: InvRow[]; funds: InvRow[]; etfs: Inv
 /** "Health 60 · Average" for a fund; the reason (locked on Silver, not scored yet) when there is no figure. */
 export function healthText(h: InvRow["health"]): { text: string; band: "g" | "o" | "r" | "n"; title?: string } {
   if (!h) return { text: "—", band: "n" };
-  if (h.locked) return { text: "FundPulse: Gold", band: "n", title: "The FinLit FundPulse is part of the Gold plan" };
-  if (h.score == null) return { text: "Not scored yet", band: "n", title: h.why ?? "This fund has no FundPulse yet" };
+  if (h.locked) return { text: "Mutual Fund Score: Gold", band: "n", title: "The Mutual Fund Score is part of the Gold plan" };
+  if (h.score == null) return { text: "Not scored yet", band: "n", title: h.why ?? "This fund has no Mutual Fund Score yet" };
   const l = (h.label || "").toLowerCase();
   const band = /strong|healthy/.test(l) ? "g" : /average/.test(l) ? "o" : /weak|poor/.test(l) ? "r" : "n";
   return { text: `Health ${Math.round(h.score)}${h.label ? " · " + h.label : ""}`, band };

@@ -22,7 +22,7 @@ export function ScoreAlertButton({ code = 0, symbol = "", name }: { code?: numbe
       <button type="button" className="btn ghost sm" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="bell" /> {have.length ? `Following score (${have.length})` : "Follow this score"}</button>
       {open && (
         <div className="mfu-pop" role="dialog" aria-label={`Score alerts for ${name}`}>
-          <p className="faint">Get a message when the FinLit FundPulse of {name} changes. It describes the past; it is not advice.</p>
+          <p className="faint">Get a message when the Mutual Fund Score of {name} changes. It describes the past; it is not advice.</p>
           <label><input type="radio" name="sak" checked={kind === "band"} onChange={() => setKind("band")} /> Its band changes (for example Healthy to Average)</label>
           <label><input type="radio" name="sak" checked={kind === "move"} onChange={() => setKind("move")} /> It moves by <input type="number" min={1} max={50} value={pts} onChange={(e) => setPts(e.target.value)} aria-label="Points" className="mfu-n" /> points or more between weekly runs</label>
           <label><input type="checkbox" checked={email} onChange={() => setEmail(!email)} /> Also email me</label>

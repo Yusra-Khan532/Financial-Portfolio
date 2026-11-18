@@ -8,7 +8,7 @@
 .fst.fst-bare { margin: 0; width: max-content; max-width: 100%; }
 
 /* tier tags */
-.ssr-tier { display: inline-block; padding: 1px 6px; border-radius: 6px; font: 800 var(--fs-11)/1.5 var(--sans); letter-spacing: .05em; border: 1px solid var(--border-strong); color: var(--muted); background: var(--s2); vertical-align: 1px; white-space: nowrap; }
+.ssr-tier { display: inline-block; padding: 1px 6px; border-radius: 6px; font: 800 var(--fs-12)/1.5 var(--sans); letter-spacing: .05em; border: 1px solid var(--border-strong); color: var(--muted); background: var(--s2); vertical-align: 1px; white-space: nowrap; }
 .ssr-tier.gold { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); background: var(--gold-soft); }
 .ssr-tier.free { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 40%, transparent); background: color-mix(in srgb, var(--gain) 9%, var(--s1)); }
 
@@ -58,7 +58,7 @@
 .ssw-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; white-space: nowrap; }
 .ssw-chip span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
 .ssw-chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--s1); }
-.ssw-chip[aria-pressed="true"] span { color: inherit; opacity: .75; }
+.ssw-chip[aria-pressed="true"] span { color: inherit; }
 .ssw-chip.is-locked { opacity: .7; }
 .ssw-chip .ic, .ssw-chip svg { width: 13px; height: 13px; }
 .ssw-note { margin: 8px 0 0; font-size: var(--fs-12); color: var(--muted); }
@@ -145,20 +145,20 @@
 .ssw-zero { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; padding: 12px 14px; border-radius: 12px; background: var(--gold-soft); font-size: var(--fs-13); }
 
 /* the table */
-.ssw-t.scr-t thead tr.ssw-band th { padding: 7px 12px 3px; font: 800 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; border-bottom: 0; background: var(--s2); }
+.ssw-t.scr-t thead tr.ssw-band th { padding: 7px 12px 3px; font: 800 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; border-bottom: 0; background: var(--s2); }
 .ssw-t.scr-t thead tr.ssw-hd th { vertical-align: bottom; background: var(--s2); white-space: normal; line-height: 1.25; }
 .ssw-t.scr-t thead th.rb, .ssw-t.scr-t td.rb { background: color-mix(in srgb, var(--gold) 9%, var(--s1)); }
 .ssw-t.scr-t thead tr.ssw-band th.rb { color: var(--gold); }
 .ssw-t.scr-t thead th button { display: inline-flex; align-items: baseline; gap: 3px; max-width: 120px; white-space: normal; text-align: inherit; }
-.ssw-t.scr-t thead th small { display: block; font: 500 var(--fs-11) var(--sans); color: var(--muted); margin-top: 2px; text-transform: none; letter-spacing: 0; }
+.ssw-t.scr-t thead th small { display: block; font: 500 var(--fs-12) var(--sans); color: var(--muted); margin-top: 2px; text-transform: none; letter-spacing: 0; }
 .ssw-t.scr-t thead tr.ssw-hd th button { text-transform: none; letter-spacing: 0; font: 600 var(--fs-13)/1.25 var(--sans); color: var(--text); }
-.ssw-t.scr-t thead th .ar { color: var(--faint); font-size: var(--fs-11); }
+.ssw-t.scr-t thead th .ar { color: var(--faint); font-size: var(--fs-12); }
 .ssw-t.scr-t thead th[aria-sort] .ar { color: var(--gold); }
 .ssw-t.scr-t td { font-variant-numeric: tabular-nums; }
 .ssw-ch { display: block; font-size: var(--fs-12); color: var(--muted); }
 .ssw-ch.up { color: var(--gain); } .ssw-ch.dn { color: var(--loss); }
 .ssw-iq { text-align: center; }
-.ssw-iq small { display: block; font-size: var(--fs-11); color: var(--muted); margin-top: 2px; }
+.ssw-iq small { display: block; font-size: var(--fs-12); color: var(--muted); margin-top: 2px; }
 .ssw-sc { display: inline-block; min-width: 34px; padding: 2px 7px; border-radius: 7px; font-weight: 700; text-align: center; background: var(--s2); color: var(--text); }
 .ssw-sc.strong, .ssw-sc.healthy { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); color: var(--gain); }
 .ssw-sc.watch { background: color-mix(in srgb, var(--loss) 13%, var(--s1)); color: var(--loss); }
@@ -200,7 +200,7 @@
 .ssf { margin: 12px 0 4px; }
 .ssf-t { width: 100%; border-collapse: collapse; font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
 .ssf-t th, .ssf-t td { padding: 7px 4px; border-bottom: 1px solid var(--border); text-align: right; }
-.ssf-t thead th { font: 800 var(--fs-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ssf-t thead th { font: 800 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .ssf-t th[scope="row"], .ssf-t thead th:first-child { text-align: left; font-weight: 500; }
 .ssf-t th[scope="row"] { text-transform: none; letter-spacing: 0; font-size: var(--fs-13); color: var(--text); background: none; }
 .ssf-t td { background: none; }
@@ -238,7 +238,7 @@
 }
 /* ready-made screens stack (task #64 P-4): a card that is on has a tick and a gold border; one line says how many are on and how many companies pass all of them */
 .ssy-c.is-on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; background: color-mix(in srgb, var(--gold) 8%, var(--s1)); }
-.ssy-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font-style: normal; font-size: 11px; vertical-align: 1px; }
+.ssy-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font-style: normal; font-size: 12px; vertical-align: 1px; }
 .ssy-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; font-size: 14px; color: var(--muted); } .ssy-on b { color: var(--text); }
 .ssy-on .lnk { margin-left: auto; }
 .ssy-n.is-on { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text); }

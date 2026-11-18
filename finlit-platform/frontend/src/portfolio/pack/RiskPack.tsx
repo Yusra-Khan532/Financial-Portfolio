@@ -9,7 +9,8 @@ import { apiSend, type ApiError } from "../../lib/api";
 import { CoLogo } from "../../components/CoLogo";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "./EquityPack";
-import { RANGE_EDGES, RANGE_SUB, betaCards, fallLines, glanceCards, glanceTiles, rangeCards, readingFigures, riskKeyCards, riskLede, riskStandsOut, signed, type RangeKey, type RiskAnswer, type RiskShare } from "../../lib/eqRisk";
+import { MarketFall } from "./MarketFall";
+import { RANGE_EDGES, RANGE_SUB, betaCards, glanceCards, glanceTiles, rangeCards, readingFigures, riskKeyCards, riskLede, riskStandsOut, signed, type RangeKey, type RiskAnswer, type RiskShare } from "../../lib/eqRisk";
 import type { Share } from "../../lib/equityPack";
 import type { PageObject } from "../types";
 import "./risk-pack.css";
@@ -53,16 +54,31 @@ export function RiskGlancePack({ r, split, compare }: { r: RiskAnswer; split: Re
 const STEPS: [string, string][] = [["Sort by size", "Large, mid or small by company value"], ["Match a benchmark", "Nifty 50 · Midcap 150 · Smallcap 250"], ["Beta for each share", "Against its own benchmark, weekly, one year"], ["Average by size", "One beta for each size"], ["Weight by the list", "By count now; by money once quantities are in"]];
 const BAR: Record<string, string> = { Large: "#2E7D57", Mid: "#C9A227", Small: "#B4362B" };
 export function BetaBuild({ r }: { r: RiskAnswer }) {
-  const [f, setF] = useState<"All" | "Large" | "Mid" | "Small">("All"), [pin, setPin] = useState<string | null>(null), [open, setOpen] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<"size" | "where" | "three" | "how">("size"), [f, setF] = useState<"All" | "Large" | "Mid" | "Small">("All"), [pin, setPin] = useState<string | null>(null), [open, setOpen] = useState<Record<string, boolean>>({});
   const sizes = r.sizes.filter((s) => s.n), w = r.betas.weighted;
   const shown = r.shares.filter((s) => s.beta != null && (f === "All" || s.size === f)), beta = f === "All" ? w : r.sizes.find((s) => s.size === f)?.avgBeta ?? null;
   const ranges = rangeCards(shown), picked = pin ? r.shares.find((s) => s.symbol === pin) : null;
   const pins = [...(f === "All" && w != null ? [{ k: "Your list", b: w, band: r.betas.weightedBand }] : []), ...sizes.filter((s) => (f === "All" || s.size === f) && s.avgBeta != null).map((s) => ({ k: `${s.size} companies`, b: s.avgBeta as number, band: s.band })),
     ...(picked?.beta != null ? [{ k: picked.symbol, b: picked.beta, band: picked.band }] : [])];
+  const TABS: [typeof tab, string, string][] = [["size", "By size", "Each size against its own index"], ["where", "Where your shares sit", "The six ranges, share by share"], ["three", "Three ways to measure", "Size-weighted, blended, Nifty 50"], ["how", "How it is worked out", "The five steps"]];
   return (
     <Section id="eq-build" hide title="How your list's beta is built" help="Each share is compared with the index of companies its own size over the past year of weekly closes; the sizes are then combined by their share of the list." how="Each size card adds its part; the parts add up to the size-weighted beta in the sum card."
       sub="Each share is compared with the index of companies its own size, then the sizes are combined by their share of the list.">
-      <ol className="eqr-steps">{STEPS.map(([t, x], i) => <li key={t}><span>{i + 1}</span><b>{t}</b><small>{x}</small></li>)}</ol>
+      {/* task #235 (pack B4): two cards always shown, then four tabs, each with its existing content */}
+      <div className="eqb-sum">
+        <div><p className="sp-cap">Your list's beta</p><p className="eqb-big"><b>{b2(w)}</b><Chip band={r.betas.weightedBand} /></p>
+          <p className="eqb-x">{w == null ? "Not enough prices for a beta yet." : `Has moved about ${(w * 10).toFixed(1)}% when its benchmarks moved 10%. Each share is measured against its own size index.`}</p></div>
+        <div className="eqb-mix"><p className="sp-cap">What adds up to {b2(w)}</p>
+          <div className="eqr-stack" role="img" aria-label={`The list's beta by size: ${sizes.map((s) => `${s.size} ${b2(s.adds)}`).join(", ")}`}>{sizes.map((s) => <i key={s.size} style={{ flexGrow: Math.max(0.01, s.adds ?? 0), background: BAR[s.size] }}>{s.size} {b2(s.adds)}</i>)}</div>
+          <ul className="eqb-leg">{sizes.map((s) => <li key={s.size}><b>{s.size}</b> β {b2(s.avgBeta)} × {Math.round(s.listShare)}% = <b>{b2(s.adds)}</b></li>)}</ul></div>
+      </div>
+      <p className="x2-k" aria-hidden="true">How it is built <small>{TABS.length} ways to look · tap one</small></p>
+      <div className="xtabs" role="tablist" aria-label="How your list's beta is built">{TABS.map(([k, t, x], i) => (
+        <button key={k} type="button" role="tab" id={"eqb-t-" + k} aria-selected={tab === k} aria-controls={"eqb-p-" + k} tabIndex={tab === k ? 0 : -1} onClick={() => setTab(k)}
+          onKeyDown={(e) => { const n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null; if (n == null) return; e.preventDefault(); const to = TABS[(n + TABS.length) % TABS.length][0]; setTab(to); setTimeout(() => document.getElementById("eqb-t-" + to)?.focus(), 0); }}>
+          <span className="xn" aria-hidden="true">{i + 1}</span><b>{t}</b><small>{x}</small></button>))}</div>
+      <div className="eqb-p" role="tabpanel" id={"eqb-p-" + tab} aria-labelledby={"eqb-t-" + tab}>
+      {tab === "size" && <>
       <div className="eqr-cards">{sizes.map((s) => { const xs = r.shares.filter((x) => x.size === s.size && x.beta != null); return (
         <div key={s.size} className="eqr-card"><p className="sp-cap">{s.size} companies · {s.n}</p><p className="eqr-mute">against {s.benchmark}</p>
           <div className="eqr-strip" role="img" aria-label={`${s.size} companies' betas: ${xs.map((x) => `${x.symbol} ${b2(x.beta)}`).join(", ")}`}>{xs.map((x) => <i key={x.symbol} style={{ left: at(x.beta as number) }} title={`${x.symbol} ${b2(x.beta)}`} />)}{s.avgBeta != null && <b style={{ left: at(s.avgBeta) }} />}<span style={{ left: at(1) }} /></div>
@@ -70,9 +86,8 @@ export function BetaBuild({ r }: { r: RiskAnswer }) {
           <dl><div><dt>Average beta</dt><dd>{b2(s.avgBeta)}</dd></div><div className="c"><Chip band={s.band} /></div><div><dt>Share of the list</dt><dd>× {Math.round(s.listShare)}%</dd></div><div><dt>Adds to the list's beta</dt><dd><b>{b2(s.adds)}</b></dd></div></dl></div>); })}
         <div className="eqr-card eqr-sum"><p className="sp-cap">Your list</p><p className="eqr-mute">size-weighted</p><p className="eqr-big">{b2(w)}</p><Chip band={r.betas.weightedBand} /><p className="eqr-mute">{sizes.map((s) => b2(s.adds)).join(" + ")}</p></div>
       </div>
-      <div className="eqr-stack" role="img" aria-label={`The list's beta by size: ${sizes.map((s) => `${s.size} ${b2(s.adds)}`).join(", ")}`}>{sizes.map((s) => <i key={s.size} style={{ flexGrow: Math.max(0.01, s.adds ?? 0), background: BAR[s.size] }}>{s.size} {b2(s.adds)}</i>)}</div>
-
-      <div className="eqr-read" id="eq-read">
+      </>}
+      {tab === "where" && <div className="eqr-read" id="eq-read">
         <div className="eqr-read-h"><div><h3 className="eqr-h3">Reading a beta<Tip text="Where your list, each size and a tapped share sit on the six ranges of beta." how="A beta of 1 moves with its benchmark. 1.5 has moved about 15% when its benchmark moved 10%; 0.5 about 5%." /></h3><p className="sp-note">A beta of 1 moves with its benchmark. 1.5 has moved about 15% when its benchmark moved 10%; 0.5 about 5%.</p></div>
           <div className="eqd-seg" role="group" aria-label="Which shares">{(["All", "Large", "Mid", "Small"] as const).map((k) => <button key={k} type="button" aria-pressed={f === k} onClick={() => { setF(k); setPin(null); }}>{k === "All" ? `All ${r.counted}` : k}</button>)}</div></div>
         <div className="eqr-f4">{readingFigures(shown, beta).map((x) => <div key={x.k}><b>{x.v}</b><small>{x.k}</small></div>)}</div>
@@ -88,13 +103,19 @@ export function BetaBuild({ r }: { r: RiskAnswer }) {
             <p className="eqr-n"><b>{x.who.length}</b> {x.who.length === 1 ? "share" : "shares"} · {Math.round(x.pct)}%</p><p className="eqr-mute">{RANGE_SUB[x.key as RangeKey]}</p>
             <ul>{show.map((s) => <li key={s.symbol}><button type="button" className="eqr-nm" aria-pressed={pin === s.symbol} onClick={() => setPin(s.symbol)}><i className={"z-" + (SIZE_LETTER[s.size ?? ""] ?? "U")}>{SIZE_LETTER[s.size ?? ""] ?? "–"}</i>{s.symbol}</button><b>{b2(s.beta)}</b></li>)}</ul>
             {x.who.length > 6 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setOpen({ ...open, [x.key]: !all })}>{all ? "Show fewer ▴" : `Show all ${x.who.length} ▾`}</button>}</div>); })}</div>
+      </div>}
+      {tab === "three" && <>
         <div className="eqr-b3">
           <div className="eqr-tile"><p className="sp-cap">Size-weighted beta<Tip text="Each share against its own size index; each size's average beta times its share of the list." how="The headline reading: 1 moves with its own benchmarks, above 1 more, below 1 less." /></p><p className="eqr-v"><b>{b2(r.betas.weighted)}</b><Chip band={r.betas.weightedBand} /></p><p className="eqr-sub">Each share against its own size index. The headline reading.</p></div>
           <div className="eqr-tile"><p className="sp-cap">Against a blended benchmark<Tip text="The list against the three size indices mixed in its own proportions." how="It checks the size-weighted figure: close to it, the two agree." /></p><p className="eqr-v"><b>{b2(r.betas.blended)}</b><Chip band={r.betas.blendedBand} /></p><p className="eqr-sub">{sizes.map((s) => `${Math.round(s.listShare)}% ${s.benchmark}`).join(" + ")}. {r.betas.blended != null && r.betas.weighted != null && Math.abs(r.betas.blended - r.betas.weighted) <= 0.1 ? "Close to the size-weighted figure, which checks it." : "It checks the size-weighted figure."}</p></div>
           <div className="eqr-tile"><p className="sp-cap">Against the Nifty 50 alone<Tip text="The list against the Nifty 50 only." how="The figure for what a Nifty 50 fall has meant. Small and mid companies move less in step with it." /></p><p className="eqr-v"><b>{b2(r.betas.nifty)}</b><Chip band={r.betas.niftyBand} /></p><p className="eqr-sub">Use this for "what if the Nifty 50 falls". Small and mid companies move less in step with it.</p></div>
         </div>
-        <Insights items={betaCards(r)} scope="eq.beta" />
+      </>}
+      {tab === "how" && <>
+      <ol className="eqr-steps">{STEPS.map(([t, x], i) => <li key={t}><span>{i + 1}</span><b>{t}</b><small>{x}</small></li>)}</ol>
+      </>}
       </div>
+      <Insights items={betaCards(r)} scope="eq.beta" />
     </Section>
   );
 }
@@ -132,20 +153,16 @@ export function RiskShareSection({ r, split }: { r: RiskAnswer; split: ReturnTyp
 }
 
 // ------------------------------------------------------------------------------------------------ 5 If the market fell 10%
-export function Fall10({ r }: { r: RiskAnswer }) {
-  const f = fallLines(r), w = (v: number | null) => (v == null ? 0 : Math.min(100, (-v / 25) * 100));
+export function Fall10({ r, value }: { r: RiskAnswer; value?: { now: number; name?: string } | null }) {
   const most = [...r.sizes].filter((s) => s.n && s.adds != null).sort((a, b) => (b.adds as number) - (a.adds as number))[0];
   const items = r.betas.weighted != null && most ? [{ kind: "insight" as const, title: "What moves the beta", text: `${most.size} companies add the most to the list's beta (${b2(most.adds)} of ${b2(r.betas.weighted)}): ${r.sizes.filter((s) => s.n).map((s) => `${s.size.toLowerCase()} ${b2(s.adds)}`).join(", ")}. The more of the list a size holds, the more its own index sets the list's moves.` }] : [];
-  return (
-    <Section id="eq-fall" hide title="If the market fell 10%" help="A rough size guide from past betas: beta times 10%." how="The rupee line puts it on ₹10 lakh. Real falls are uneven; this is not a forecast." sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
-      <div className="eqr-fall"><div><b>If every size index fell 10%</b><small>size-weighted beta {b2(r.betas.weighted)}</small></div><span className="eqr-fb"><i style={{ width: `${w(f.weighted)}%` }} /><s style={{ left: "40%" }} /></span><b>about {signed(f.weighted)}</b></div>
-      <div className="eqr-fall"><div><b>If the Nifty 50 alone fell 10%</b><small>beta against the Nifty 50 {b2(r.betas.nifty)}</small></div><span className="eqr-fb"><i style={{ width: `${w(f.nifty)}%` }} /><s style={{ left: "40%" }} /></span><b>about {signed(f.nifty)}</b></div>
-      <p className="sp-cap">By size, if its own index fell 10%</p>
-      {f.sizes.map((s) => <div key={s.size} className="eqr-fall sm"><div>{s.size}</div><span className="eqr-fb"><i style={{ width: `${w(s.fall)}%` }} /></span><b className="sp-red">{signed(s.fall)}</b></div>)}
-      {f.rupee && <p className="eqr-rupee">{f.rupee}</p>}
-      <Insights items={items} scope="eq.fall" />
-    </Section>
-  );
+  // pack B8 v3: the worst-fall size is the Risk tab's own "Worst fall" for the Nifty 50 over 3 years, served as it is
+  const worst = r.glance.nifty.worstFall != null && r.glance.nifty.worstFall < 0 ? { pct: -r.glance.nifty.worstFall, line: "the Nifty 50’s worst in 3 years" } : null;
+  return <MarketFall id="eq-fall" value={value ?? null} worst={worst}
+    scenarios={[{ label: "Every size index falls", beta: r.betas.weighted, src: `Size-weighted beta ${b2(r.betas.weighted)}: each share against its own size index`, parts: true },
+      { label: "Only the Nifty 50 falls", beta: r.betas.nifty, src: `Beta against the Nifty 50 ${b2(r.betas.nifty)}`, parts: false }]}
+    parts={r.sizes.filter((s) => s.n && s.avgBeta != null).map((s) => ({ label: s.size, beta: s.avgBeta as number, sub: `${Math.round(s.listShare)}% of the list` }))}
+    after={<Insights items={items} scope="eq.fall" />} />;
 }
 
 // ------------------------------------------------------------------------------------------------ 6 Each share's risk

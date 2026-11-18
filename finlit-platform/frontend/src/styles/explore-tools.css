@@ -13,7 +13,7 @@
 .xt-shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
 .xt-body { display: flex; flex-direction: column; flex: 1; gap: 12px; padding: 20px 22px 22px; }
 .xt-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .xt-top h4 { margin: 0; font: 400 24px/1.2 var(--serif); }
-.xt-badge { flex: none; padding: 4px 10px; border-radius: 999px; font: 700 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.xt-badge { flex: none; padding: 4px 10px; border-radius: 999px; font: 700 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
 .xt-free { background: color-mix(in srgb, var(--gain, #1f7a55) 14%, var(--s1)); color: var(--gain, #1f7a55); }
 .xt-silver { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--muted); }
 .xt-gold { background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--gold-deep, var(--gold)); }
@@ -44,7 +44,7 @@
 .xt-tool > svg { grid-column: 2; grid-row: 1 / span 2; width: 14px; height: 14px; color: var(--faint); opacity: 0; transform: translateX(-4px); transition: opacity .15s, transform .15s; }
 .xt-tool:hover, .xt-tool:focus-visible { background: color-mix(in srgb, var(--ac) 9%, var(--s2)); } .xt-tool:hover b, .xt-tool:focus-visible b { color: var(--ac-ink); }
 .xt-tool:hover > svg, .xt-tool:focus-visible > svg { opacity: 1; transform: none; color: var(--ac-ink); }
-.xt-badge.xt-mini { padding: 2px 6px; font-size: 11px; letter-spacing: .05em; }
+.xt-badge.xt-mini { padding: 2px 6px; font-size: 12px; letter-spacing: .05em; }
 .xt-rn { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 11px 10px 4px; border-top: 1px solid var(--border); color: var(--ac-ink); font: 600 var(--fs-13)/1.3 var(--sans); cursor: pointer; }
 .xt-rn svg { width: 14px; height: 14px; transition: transform .15s; } .xt-rn:hover svg { transform: translateX(3px); } .xt-rn:hover { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 1100px) { .xt-dir { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -75,7 +75,7 @@
 .xt-ti { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 7px; background: color-mix(in srgb, var(--ac) 14%, var(--s1)); color: var(--ac-ink); } .xt-ti svg { width: 13px; height: 13px; }
 .xt-tn { align-items: center; } .xt-tn b { display: inline; }
 .xt-deco { position: absolute; right: 14px; bottom: -4px; width: 96px; height: 44px; fill: var(--ac); stroke: var(--ac); opacity: .16; pointer-events: none; } .xt-row header { position: relative; }
-.xt-cnt small { font-size: var(--fs-11); font-weight: 500; color: inherit; opacity: .8; }
+.xt-cnt small { font-size: var(--fs-12); font-weight: 500; color: inherit; }
 @media (max-width: 1100px) { .xt-hero { grid-template-columns: minmax(0, 1fr); } .xt-hero .xt-head { order: -1; } .xt-checks { grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; padding-left: 0; } .xt-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); border-left: 0; padding-left: 0; } }
 @media (max-width: 700px) { .xt-checks { grid-template-columns: minmax(0, 1fr); } .xt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -168,8 +168,8 @@
 :root .xt .btn.xt-go:not(.primary) { border: 0; background: var(--hh-g-fill); color: var(--hh-on-g); box-shadow: 0 12px 28px -14px var(--hh-glow); }
 :root .xt .btn.xt-go:not(.primary):hover { filter: brightness(1.06); }
 :root .xt .btn.xt-tour:not(.primary) { background: transparent; border: 1px solid var(--hh-g); color: var(--text); }
-.xt-panel .xt-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-left: 1px solid var(--hh-hero-line, var(--border)); }
-.xt-panel .xt-stats > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 14px; }
+.xt-panel .xt-stats { grid-template-columns: repeat(5, auto); justify-content: space-between; gap: 0; border-left: 1px solid var(--hh-hero-line, var(--border)); }
+.xt-panel .xt-stats > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 12px; }   /* five figures (task #237): each column as wide as its figure */
 @media (min-width: 1280px) { .xt-panel .xt-checks li { white-space: nowrap; } } .xt-panel .xt-stats dd { white-space: nowrap; } .xt-panel .xt-stats dt { overflow-wrap: normal; line-height: 1.3; }   /* a label may take two lines; it never runs into the next figure */
 .xt-panel .xt-stats > div + div { border-left: 1px solid var(--hh-hero-line, var(--border)); }
 .xt-panel .xt-stats svg { width: 24px; height: 24px; margin-bottom: 4px; }
@@ -177,7 +177,7 @@
 .xt-hide { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; font: 600 var(--fs-14) var(--sans); color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 .xt-hide:hover { color: var(--text); } .xt-hide:focus-visible { outline: 2px solid var(--hh-g); outline-offset: 2px; border-radius: 6px; }
 @media (max-width: 1100px) {
-  .xt-panel { grid-template-columns: minmax(0, 1fr) auto; } .xt-panel .xt-stats { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hh-hero-line, var(--border)); padding-top: 18px; }
+  .xt-panel { grid-template-columns: minmax(0, 1fr) auto; } .xt-panel .xt-stats { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hh-hero-line, var(--border)); padding-top: 18px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .xt-panel .xt-checks { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
@@ -185,13 +185,13 @@
   .xt-panel > * { padding: 0; } .xt-panel > * + * { border-left: 0; }
   .xt-panel .xt-cta { flex-direction: column; } .xt-panel .xt-cta > * { width: 100%; justify-content: center; min-height: 48px; }
   .xt-panel .xt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; padding-top: 16px; border-top: 1px solid var(--hh-hero-line, var(--border)); }
-  .xt-panel .xt-stats > div:nth-child(3) { border-left: 0; }
+  .xt-panel .xt-stats > div:nth-child(2n+1) { border-left: 0; }   /* two a row: each row's first figure has no line before it */
   .xt-pill::before, .xt-pill::after { flex-basis: 40px; }
   .xt-rn, .fl-exp, .fl-modal-x { min-height: 44px; }
 }
-/* the four figures need about 440px beside the ticks and the buttons: below 1280px they take their own row (the labels never run into each other) */
-@media (min-width: 1101px) and (max-width: 1279px) {
-  .xt-panel { grid-template-columns: max-content auto; } .xt-panel .xt-stats { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hh-hero-line, var(--border)); padding: 18px 0 0; }
+/* the five figures (task #237) need about 550px beside the ticks and the buttons: below 1440px they take their own row (the labels never run into each other) */
+@media (min-width: 1101px) and (max-width: 1439px) {
+  .xt-panel { grid-template-columns: max-content auto; } .xt-panel .xt-stats { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hh-hero-line, var(--border)); padding: 18px 0 0; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* Task #151 (14 Nov 2026, the team's picture): the six group cards keep their colours and icons and take the new alignment: the count in a small box ("07" over "TOOLS")
@@ -200,7 +200,7 @@
 .xt-dir .xt-deco { display: none; }
 .xt-dir .xt-cnt { display: grid; justify-items: center; gap: 3px; min-width: 50px; padding: 7px 8px 6px; border: 1px solid color-mix(in srgb, var(--ac) 45%, var(--border)); border-radius: 10px;
   background: color-mix(in srgb, var(--ac) 8%, transparent); font: 700 var(--fs-20)/1 var(--mono); }
-.xt-dir .xt-cnt small { display: block; font: 600 var(--fs-11)/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.xt-dir .xt-cnt small { display: block; font: 600 var(--fs-12)/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; }
 .xt-dir .xt-tools { grid-template-columns: minmax(0, 1fr); gap: 7px; margin: 16px 0 8px; }
 .xt-dir .xt-tool { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 10px; min-height: 42px; padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--ac) 18%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--ac) 5%, var(--s1)); }
@@ -211,7 +211,7 @@
 .xt-dir .xt-tail, .xt-dir .xt-tool .xt-tail b { white-space: nowrap; }   /* task #158 follow-up: the last word and the crown wrap together */
 .xt-dir .xt-crown { display: inline-flex; margin-left: 6px; vertical-align: -2px; color: var(--gold); white-space: nowrap; }
 .xt-dir .xt-crown svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; }
-.xt-dir .xt-tool .xt-fig { justify-self: end; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); font: 500 var(--fs-11)/1.2 var(--sans); white-space: nowrap; }
+.xt-dir .xt-tool .xt-fig { justify-self: end; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); font: 500 var(--fs-12)/1.2 var(--sans); white-space: nowrap; }
 .xt-dir .xt-tool .xt-fig strong { font-weight: 700; }
 .xt-dir .xt-tool small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .xt-dir .xt-tool:hover, .xt-dir .xt-tool:focus-visible { border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); }

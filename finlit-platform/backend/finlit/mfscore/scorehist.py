@@ -115,7 +115,7 @@ def alert_hit(kind: str, points: Optional[float], prev: Dict[str, Any], cur: Dic
 
 def alert_text(name: str, prev: Dict[str, Any], cur: Dict[str, Any]) -> tuple:
     title = f"Score of {name}: {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))})"
-    body = f"The FinLit FundPulse of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
+    body = f"The Mutual Fund Score of {name} moved from {prev['label']} ({round(float(prev['final']))}) to {cur['label']} ({round(float(cur['final']))}). " \
            "It describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice."
     return title, body
 
@@ -166,7 +166,7 @@ async def send_mails(mails: Sequence[Dict[str, Any]], mailer, site_url: str) -> 
     return sent
 
 
-async def prune(conn, today: Optional[date] = None) -> int:
-    """Rows older than three years go. Returns how many."""
+async def prune(conn, today: Optional[date] = None, timeout: Optional[float] = None) -> int:
+    """Rows older than three years go. Returns how many. `timeout`: the statement's own limit (the nightly prune passes a longer one than the pool's)."""
     cut = (today or date.today()) - timedelta(days=RETENTION_DAYS)
-    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut)).split()[-1])
+    return int((await conn.execute("DELETE FROM mf_score_history WHERE week < $1", cut, timeout=timeout)).split()[-1])

@@ -51,7 +51,7 @@
 .ol-ctl { display: grid; gap: 14px; }
 .ol-ctl-row { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }
 .ol-ctl-l { font: 600 13px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; min-width: 92px; }
-.ol-mode button small { display: block; font: 400 12px var(--sans); opacity: .8; }
+.ol-mode button small { display: block; font: 400 12px var(--sans); }
 .ol-mode:has(small) button { padding: 7px 16px; border-radius: 14px; }
 .ol-how summary { cursor: pointer; font-weight: 600; color: var(--gold); }
 .ol-how summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
@@ -67,7 +67,7 @@
 .ol-plot { position: relative; outline: none; border-radius: 10px; touch-action: pan-y; }
 .ol-plot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ol-plot svg { display: block; max-width: 100%; }
-.ol-ax { font-size: 11px; font-family: var(--sans); } .ol-ax.mono { font-family: var(--mono); }
+.ol-ax { font-size: 12px; font-family: var(--sans); } .ol-ax.mono { font-family: var(--mono); }
 .ol-tip { position: absolute; transform: translateX(-50%); min-width: 190px; max-width: 240px; display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--s1); border: 1px solid var(--border-strong); box-shadow: 0 8px 24px rgba(0,0,0,.28); pointer-events: none; font-size: var(--fs-13); z-index: 2; }
 .ol-tip b { font-size: var(--fs-14); } .ol-tip em { font: 700 16px var(--mono); font-style: normal; } .ol-tip small { color: var(--muted); font-size: 12px; }
 .ol-tip-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--muted); }
@@ -90,7 +90,7 @@
 @media (max-width: 640px) { .ol-ctl-l { min-width: 0; width: 100%; } .ol-mode button { padding: 7px 10px; font-size: var(--fs-14); } .ol-ctable th, .ol-ctable td { padding: 7px 6px; font-size: 13px; } .ol-tip { min-width: 170px; } }
 @media (prefers-reduced-motion: reduce) { .ol-chartcard { transition: none; } }
 .ol-ctable th { background: none; }
-@media (max-width: 640px) { .ol-build th[scope=row] { min-width: 0; width: 42%; } .ol-ctable tbody th small { max-width: 20ch; } .ol-ctable .num { padding-left: 4px; padding-right: 4px; } .ol-ctable thead th { font-size: var(--fs-11); letter-spacing: .02em; white-space: normal; } }
+@media (max-width: 640px) { .ol-build th[scope=row] { min-width: 0; width: 42%; } .ol-ctable tbody th small { max-width: 20ch; } .ol-ctable .num { padding-left: 4px; padding-right: 4px; } .ol-ctable thead th { font-size: var(--fs-12); letter-spacing: .02em; white-space: normal; } }
 
 /* ---- landing / company picker (components/OutlookPicker.tsx) */
 .olp { display: grid; gap: 14px; }
@@ -98,7 +98,7 @@
 .olp-intro { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.6; max-width: 80ch; }
 .olp-snap { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .olp-snap > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); min-width: 0; }
-.olp-snap dt { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.olp-snap dt { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
 .olp-snap dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
 .olp .up { color: var(--gain); } .olp .dn { color: var(--loss); }
 .olp-row { display: grid; gap: 8px; align-items: start; }   /* the heading above its chips, for Quick picks and Last searched alike (task #109) */
@@ -119,7 +119,7 @@
 .ol-mdot { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid var(--border-strong); border-radius: 50%; } .ol-mcard.on .ol-mdot { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 45%, transparent 50%); }
 .ol-mt { display: grid; gap: 4px; min-width: 0; } .ol-mt b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; }
 .ol-mt small { font-size: var(--fs-13); color: var(--muted); line-height: 1.45; }
-.ol-usp { font: 700 11px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
+.ol-usp { font: 700 12px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
 @media (max-width: 760px) { .ol-models { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- key takeaways */

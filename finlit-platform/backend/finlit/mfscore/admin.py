@@ -1,4 +1,4 @@
-"""Administrator-only views of the FinLit FundPulse (GET /api/admin/mf-score/health and /calibration).
+"""Administrator-only views of the Mutual Fund Score (GET /api/admin/mf-score/health and /calibration).
 
 health: the last `score-mf` run, funds per status, the score histogram per group, how many measures used the group value (state F) per group and per
 measure, the zero-handling counters of the last run (spec Appendix Z.3: expense ratio, fund size, top-10, equity share zeros), funds NOT RATED by reason,

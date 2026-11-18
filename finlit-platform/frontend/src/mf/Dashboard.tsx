@@ -8,27 +8,27 @@ import { bandInk } from "../lib/scoreBands";
 import { toggleAll, toggleCat, type ListQuery, type SubCat } from "../lib/mf";
 import { CARDS, ELSS_FOOTNOTE, TABS, type Card, type TabKey } from "../lib/mfCategories";
 
-/** FinLit FundPulse strip of a card (task #130): the median of the category's scored Direct-plan funds, the bar of its three bands named in words
- *  ("Healthy or strong 3% · Average 66% · Weak or poor 31%", never by colour), and a button that opens the list below on that category, by FundPulse. */
+/** Mutual Fund Score strip of a card (task #130): the median of the category's scored Direct-plan funds, the bar of its three bands named in words
+ *  ("Healthy or strong 3% · Average 66% · Weak or poor 31%", never by colour), and a button that opens the list below on that category, by Mutual Fund Score. */
 function ScoreStrip({ v, card, onScore }: { v: CardScoreView; card: Card; onScore: (c: Card) => void }) {
-  if (v.kind === "locked") return <div className="mf-qscore"><span className="mf-qs-lock"><Icon name="lock" /><span>FundPulse: part of the Gold plan</span></span></div>;
+  if (v.kind === "locked") return <div className="mf-qscore"><span className="mf-qs-lock"><Icon name="lock" /><span>Mutual Fund Score: part of the Gold plan</span></span></div>;
   if (v.kind === "loading") return <div className="mf-qscore" aria-busy="true"><span className="skeleton" style={{ height: 40 }} /></div>;
-  if (v.kind === "unavailable") return <div className="mf-qscore"><span>FinLit FundPulse is not available right now.</span></div>;
-  if (v.kind === "notRun") return <div className="mf-qscore"><span><b>FundPulse:</b> Not scored yet</span></div>;
-  if (v.kind === "none") return <div className="mf-qscore"><span><b>FundPulse:</b> no Direct-plan fund of this category is scored yet</span><button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See the funds →</button></div>;
+  if (v.kind === "unavailable") return <div className="mf-qscore"><span>Mutual Fund Score is not available right now.</span></div>;
+  if (v.kind === "notRun") return <div className="mf-qscore"><span><b>Mutual Fund Score:</b> Not scored yet</span></div>;
+  if (v.kind === "none") return <div className="mf-qscore"><span><b>Mutual Fund Score:</b> no Direct-plan fund of this category is scored yet</span><button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See the funds →</button></div>;
   const { green, orange, red } = v.shares;
   return (
     <div className="mf-qscore" role="group" aria-label={v.label}>
-      <div className="mf-qs-h"><b className="mf-qs-n" style={{ color: bandInk(v.band) }}>{v.median}</b><span className="mf-qs-t">median FundPulse</span></div>
+      <div className="mf-qs-h"><b className="mf-qs-n" style={{ color: bandInk(v.band) }}>{v.median}</b><span className="mf-qs-t">median Mutual Fund Score</span></div>
       <div className="mf-qdist" aria-hidden="true">{green > 0 && <i className="g" style={{ flex: green }} />}{orange > 0 && <i className="o" style={{ flex: orange }} />}{red > 0 && <i className="r" style={{ flex: red }} />}</div>
       <div className="mf-qdist-l" aria-hidden="true"><span className="g">Healthy or strong {green}%</span><span className="o">Average {orange}%</span><span className="r">Weak or poor {red}%</span></div>
-      <button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See these {v.n.toLocaleString("en-IN")} funds by FundPulse →</button>
+      <button type="button" className="mf-qs-go" onClick={() => onScore(card)}>See these {v.n.toLocaleString("en-IN")} funds by Mutual Fund Score →</button>
     </div>
   );
 }
 
 /** "Six categories most people start with": one card per popular category; the pressed one is the category shown on its own. Each card shows how many
- *  of its funds are scored (top right) and, for Gold, the category's FundPulse. The ELSS tax note is one footnote beside the heading (task #130 C-3). */
+ *  of its funds are scored (top right) and, for Gold, the category's Mutual Fund Score. The ELSS tax note is one footnote beside the heading (task #130 C-3). */
 export function CategoryCards({ q, onPick, onScore }: { q: ListQuery; onPick: (c: Card) => void; onScore: (c: Card) => void }) {
   const { has } = useUI();
   const canSee = has("gold");

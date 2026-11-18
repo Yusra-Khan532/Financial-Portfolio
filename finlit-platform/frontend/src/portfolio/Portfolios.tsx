@@ -102,3 +102,16 @@ export function AddPortfolioDialog({ taken, onClose, onSave, kinds = BROKERS, st
     </div>
   );
 }
+
+/** The "Analysing" bar on Diversification and Risk (pack B10): the same choice as the portfolios bar, so picking a chip picks that tab and the other way round.
+ *  Shown only when there are two or more portfolios; with one, every figure is already that list's. */
+export function AnalysingBar({ list, cur, onPick, n, noun = ["share", "shares"] }: { list: PfInfo[]; cur: string | "all"; onPick: (id: string | "all") => void; n: number; noun?: [string, string] }) {
+  if (list.length < 2) return null;
+  return (
+    <div className="x-axbar" role="group" aria-label="Portfolio being analysed">
+      <span className="x-axk">Analysing</span>
+      {[{ id: "all", name: "All accounts" }, ...list].map((p) => <button key={p.id} type="button" className="x-axc" aria-pressed={p.id === cur} onClick={() => onPick(p.id)}>{p.name}</button>)}
+      <span className="x-axn">{n} {n === 1 ? noun[0] : noun[1]} · every figure on this tab follows the portfolio you pick</span>
+    </div>
+  );
+}

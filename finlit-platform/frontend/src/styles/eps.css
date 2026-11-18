@@ -78,7 +78,7 @@
 .eps-chart svg { width: 100%; height: auto; display: block; touch-action: pan-y; border-radius: 8px; }
 .eps-chart svg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .eps-chart .gl { stroke: var(--border); stroke-width: 1; }
-.eps-chart .ax { fill: var(--faint); font: 11px var(--sans); }
+.eps-chart .ax { fill: var(--faint); font: 12px var(--sans); }
 .eps-chart .bar { fill: var(--c1, var(--gold)); opacity: .75; } .eps-chart .bar.on { opacity: 1; stroke: var(--text); stroke-width: 1.5; }
 .eps-chart .ln { stroke: var(--gold); stroke-width: 2.5; stroke-linejoin: round; }
 .eps-chart .dot { fill: var(--gold); } .eps-chart .dot.on { stroke: var(--text); stroke-width: 2; }

@@ -12,7 +12,7 @@
   font: 600 var(--fs-14, 14px) var(--sans); color: var(--muted); text-decoration: none; white-space: nowrap; }
 .pzn nav a:hover { color: var(--text); background: color-mix(in srgb, #2a78d6 6%, transparent); }
 .pzn nav a.active { color: #2a78d6; box-shadow: inset 0 -3px 0 #2a78d6; }
-.pzn nav .sx-n { font: 600 var(--fs-11, 11px) var(--mono, ui-monospace, monospace); color: var(--faint, var(--muted)); }
+.pzn nav .sx-n { font: 600 var(--fs-12, 12px) var(--mono, ui-monospace, monospace); color: var(--faint, var(--muted)); }
 .pzn nav a.active .sx-n { color: inherit; }
 .pzn-co { display: none; align-items: center; gap: 7px; flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1);
   font: 600 var(--fs-13, 13px)/1.2 var(--sans); color: var(--text); text-decoration: none; white-space: nowrap; }
@@ -109,7 +109,7 @@
 /* the trend map on phones: the row labels fit their column (74 px, 10 px label), cells 6 px padding and 12 px text */
 @media (max-width: 560px) {
   .pzr-rep .pzt-map thead td { width: 74px; }
-  .pzr-rep .pzt-map th small { font-size: var(--fs-11, 11px); letter-spacing: .03em; overflow-wrap: anywhere; }
+  .pzr-rep .pzt-map th small { font-size: var(--fs-12, 12px); letter-spacing: .03em; overflow-wrap: anywhere; }
   .pzr-rep .pzt-map tbody th { font-size: var(--fs-12, 12px); }
   .pzr-rep .pzt-map td.pzt-mc { padding: 6px; font-size: var(--fs-12, 12px); }
 }

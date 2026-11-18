@@ -28,7 +28,7 @@ const withQty = () => structuredClone(QTY) as unknown as AllInvestments;
 const noQty = () => structuredClone(NOQTY) as unknown as AllInvestments;
 const mount = (path = "/my-investments") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><MyInvestmentsPage /></MemoryRouter></QueryClientProvider>);
 const text = () => document.body.textContent ?? "";
-beforeEach(() => { st.plan = "gold"; st.answer = withQty(); st.sends = []; localStorage.clear(); portfolio.reset(); portfolio.add({ symbol: "HDFCBANK", qty: 40, price: 0 }); portfolio.add({ symbol: "INFY", qty: 0, price: 0 }); });
+beforeEach(() => { st.plan = "gold"; st.answer = withQty(); st.sends = []; localStorage.clear(); portfolio.reset(); portfolio.add({ symbol: "HDFCBANK", qty: 40, price: 0, owned: true }); portfolio.add({ symbol: "INFY", qty: 0, price: 0 }); });
 afterEach(cleanup);
 
 describe("task #137: All my investments (15 Nov pack)", () => {
@@ -124,10 +124,10 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("How healthy it is");
     for (const c of document.querySelectorAll(".mi-hc .mi-hv")) expect(c.textContent).not.toMatch(/\d+\s*·\s*\d+/);    // never two scores in one number
     expect(text()).toContain("Shares · FinLit Prism");
-    expect(text()).toContain("Funds · FinLit FundPulse");
+    expect(text()).toContain("Funds · Mutual Fund Score");
     const one = withQty(); one.funds = [one.funds[2]]; one.counts.funds = 1; one.cards.funds.count = 1;
     cleanup(); st.answer = one; mount(); await screen.findByText("How healthy it is");
-    expect(text()).toContain("FinLit FundPulse");
+    expect(text()).toContain("Mutual Fund Score");
     expect(text()).not.toMatch(/average 2\d · Poor/i);
   });
   it("D16, D30, B7: risk together with Beta in words, never β; no \"same than\"", async () => {

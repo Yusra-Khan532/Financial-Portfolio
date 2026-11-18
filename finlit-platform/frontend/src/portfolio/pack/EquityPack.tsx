@@ -19,13 +19,19 @@ import { DashCards, DashCardsProvider, OpenAll } from "../../components/dashboar
 import { useAuth } from "../../lib/auth";
 import type { Card } from "../../lib/pulsePack";
 import type { TrendRead } from "../../lib/mfPortfolio";
+import { VIEW_COLOR, VIEW_ICON, ViewTabsKit, type ViewDef } from "../ViewKit";
 
 
 // ------------------------------------------------------------------------------------------------ the score
 export type View = "portfolio" | "diversification" | "risk";
+/** The three views (task #235, pack B2): a colour and an icon each; the same list drives the sticky switcher (B12). */
+export const eqViews = (n: number): ViewDef<View>[] => [
+  { id: "portfolio", label: "Portfolio", short: "Portfolio", sub: `Your ${n} ${n === 1 ? "share" : "shares"}, their scores and how they compare with peers`, color: VIEW_COLOR.first, icon: VIEW_ICON.case },
+  { id: "diversification", label: "Diversification analytics", short: "Diversification", sub: "How spread out the list is, and what moves together", color: VIEW_COLOR.second, icon: VIEW_ICON.pie },
+  { id: "risk", label: "Risk analytics", short: "Risk", sub: "How much it swings, what drives the risk, what a fall could mean", color: VIEW_COLOR.risk, icon: VIEW_ICON.pulse },
+];
 export function ViewTabs({ view, onView, n }: { view: View; onView: (v: View) => void; n: number }) {
-  const tabs: [View, string, string][] = [["portfolio", "Portfolio", `Your ${n} shares, their scores and how they compare with peers`], ["diversification", "Diversification analytics", "How spread out the list is, and what moves together"], ["risk", "Risk analytics", "How much it swings, what drives the risk, what a fall could mean"]];
-  return <div className="eq-tabs" role="tablist" aria-label="Equity portfolio views">{tabs.map(([k, t, s]) => <button key={k} type="button" role="tab" id={`eq-tab-${k}`} aria-selected={view === k} aria-controls="eq-panel" onClick={() => onView(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
+  return <ViewTabsKit defs={eqViews(n)} view={view} onView={onView} label="Equity portfolio views" idp="eq-tab" panel="eq-panel" what="your list" />;
 }
 
 // ------------------------------------------------------------------------------------------------ shared on this page (task #183)

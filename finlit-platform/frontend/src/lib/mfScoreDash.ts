@@ -1,4 +1,4 @@
-// The Funds category cards: what each card says about FundPulse of its Direct-plan funds. Pure functions, so the rules are tested apart from the page.
+// The Funds category cards: what each card says about Mutual Fund Score of its Direct-plan funds. Pure functions, so the rules are tested apart from the page.
 // The server sends the numbers to Gold only; a plan below that gets `locked` and nothing to show here but a lock.
 import { scoreBand, type ScoreBand } from "./scoreBands";
 import { scoreText, type CategoryScore, type CategoryScores } from "./mfScore";
@@ -36,8 +36,8 @@ export function cardScoreView(key: string, data: CategoryScores | undefined, opt
   if (!c || !(c.n > 0) || c.median == null) return { kind: "none" };
   const band = scoreBand(c.median);
   return { kind: "scored", median: scoreText(c.median), band, n: c.n, line: medianLine(c.median, c.n), shares: bandShares(c),
-    label: `FundPulse of Direct-plan funds: ${medianLine(c.median, c.n)}. ${c.green} healthy or strong, ${c.orange} average, ${c.red} weak or poor.` };   // task #130 C-1: the bands by name, never by colour
+    label: `Mutual Fund Score of Direct-plan funds: ${medianLine(c.median, c.n)}. ${c.green} healthy or strong, ${c.orange} average, ${c.red} weak or poor.` };   // task #130 C-1: the bands by name, never by colour
 }
 
-/** The funds list for a card, ordered by FundPulse, best-scoring first (Gold; the server refuses that order below). Direct plan is the list's default. */
+/** The funds list for a card, ordered by Mutual Fund Score, best-scoring first (Gold; the server refuses that order below). Direct plan is the list's default. */
 export const scoreSortHref = (c: Pick<Card, "tab" | "key">): string => `/funds?${new URLSearchParams({ tab: c.tab, cats: c.key, sort: "score", dir: "desc" })}`;

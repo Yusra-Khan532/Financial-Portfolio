@@ -35,7 +35,7 @@ describe("at a glance and the section links", () => {
     render(<MemoryRouter><FundGlance d={D} facts={FACTS} factsLoading={false} /></MemoryRouter>);
     const cells = [...document.querySelectorAll(".fd-cell")].map((c) => c.textContent);
     expect(cells).toEqual([
-      "FundPulse60.3Average · 14 of 36 in Flexi Cap (Direct plan)", "5 years a year+11.54%NAV, Direct · Growth", "1 year+0.27%NAV change",
+      "Mutual Fund Score60.3Average · 14 of 36 in Flexi Cap (Direct plan)", "5 years a year+11.54%NAV, Direct · Growth", "1 year+0.27%NAV change",
       "Expense ratio0.68%a year, Direct · Regular 1.29%", "Fund size₹1,47,064 CrVery large · 30 Sept 2026", "Largest fall−17.75%Nov 2021 to Jun 2022",
     ]);
   });
@@ -44,7 +44,7 @@ describe("at a glance and the section links", () => {
     const d = { ...D, returns: { ...D.returns, "5y": ret(null, "Less than 5 years of NAV history") } } as FundDetail;
     render(<MemoryRouter><FundGlance d={d} facts={undefined} factsLoading /></MemoryRouter>);
     const t = (i: number) => document.querySelectorAll(".fd-cell")[i].textContent;
-    expect(t(0)).toBe("FundPulseLockedPart of a paid plan · See plans");
+    expect(t(0)).toBe("Mutual Fund ScoreLockedPart of a paid plan · See plans");
     expect(t(1)).toBe("5 years a year—Less than 5 years of NAV history");
     expect(t(3)).toBe("Expense ratio—Loading…");
   });
@@ -52,7 +52,7 @@ describe("at a glance and the section links", () => {
   it("links every section that is on the page, in the page's order", () => {
     render(<FundSectionNav present={["fd-returns", "fd-score", "fd-chart", "fd-facts", "fd-risk", "fd-holdings", "fd-about"]} />);
     expect(screen.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
-      ["Returns", "#fd-returns"], ["FundPulse", "#fd-score"], ["NAV chart", "#fd-chart"], ["Fund facts", "#fd-facts"], ["Risk", "#fd-risk"], ["What it invests in", "#fd-holdings"], ["About the data", "#fd-about"],
+      ["Returns", "#fd-returns"], ["Mutual Fund Score", "#fd-score"], ["NAV chart", "#fd-chart"], ["Fund facts", "#fd-facts"], ["Risk", "#fd-risk"], ["What it invests in", "#fd-holdings"], ["About the data", "#fd-about"],
     ]);
   });
 });

@@ -773,11 +773,24 @@ class Store:
         except Exception:
             pass
 
-    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 500, feed_days: int = 400) -> Dict[str, int]:
+    PRUNE_CHUNK = 25                 # companies per delete: each chunk is its own short transaction
+    PRUNE_ROWS = 20_000              # rows per delete for the age-based clean-ups
+    PRUNE_STMT_S = 120               # time limit of one prune statement (the pool's default is 10 s, made for page requests)
+    PRUNE_BUDGET_S = 20 * 60         # no new batch after this long: the job's limit is 30 minutes; what is left goes the next night
+
+    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 500, feed_days: int = 400,
+                    budget_s: Optional[float] = None) -> Dict[str, int]:
         """Keep the free database inside its storage limit: drop the stored reports and daily prices of companies outside the top `keep_top` that
         nobody opened in `keep_viewed_days` (they are rebuilt in seconds if someone asks again), daily prices older than `price_days`, old feed rows
         and the ingest log. A company's small score row stays (the screeners list and score every company); only scores of companies that left the
-        symbol list go. Returns how many rows went."""
+        symbol list go. Returns how many rows went, and `left` (companies still to drop) when the time budget ran out.
+
+        Deleted in small batches, each committed on its own with its own statement limit (16 to 18 Nov 2026: the reports of every company to drop went
+        in one statement inside one transaction; it hit the pool's 10-second statement limit, rolled back, and every night tried the same, ever larger
+        delete again: 15 failures in a row). The same rows go as before; a stopped run keeps what it removed and the next night continues."""
+        t0 = time.monotonic()
+        budget = self.PRUNE_BUDGET_S if budget_s is None else budget_s
+        over = lambda: time.monotonic() - t0 > budget   # noqa: E731
         cutoff = time.time() - keep_viewed_days * 86400
         try:
             recent = [m.decode() if isinstance(m, bytes) else m for m in await self.redis.zrangebyscore(VIEWED_KEY, cutoff, "+inf")]
@@ -785,32 +798,52 @@ class Store:
         except Exception:
             recent = []
         recent = list({*recent, *await self.pinned_symbols()})   # what members follow or opened lately stays, whatever its rank
-        out: Dict[str, int] = {}
+        out: Dict[str, int] = {"snapshots": 0, "companies": 0}
+        T = self.PRUNE_STMT_S
         async with self.pool.acquire() as conn:
             drop = [r["symbol"] for r in await conn.fetch(
                 f"WITH ranked AS ({self.RANKED}) "  # nosec B608 - fixed SQL
                 "SELECT DISTINCT s.symbol FROM snapshots s LEFT JOIN ranked r ON r.symbol = s.symbol "
-                "WHERE (r.rn IS NULL OR r.rn > $1) AND NOT (s.symbol = ANY($2::text[]))", keep_top, recent)]
-            async with conn.transaction():   # the heavy part goes (report sections, prices); the small score row stays, so the screeners keep every company scored
-                out["snapshots"] = int((await conn.execute("DELETE FROM snapshots WHERE symbol = ANY($1::text[])", drop)).split()[-1])
-                await conn.execute("DELETE FROM price_daily WHERE symbol = ANY($1::text[])", drop)
-            out["companies"] = len(drop)
+                "WHERE (r.rn IS NULL OR r.rn > $1) AND NOT (s.symbol = ANY($2::text[]))", keep_top, recent, timeout=T)]
+            done: List[str] = []
+            for i in range(0, len(drop), self.PRUNE_CHUNK):
+                if over():
+                    break
+                chunk = drop[i:i + self.PRUNE_CHUNK]
+                async with conn.transaction():   # per company the report and its prices go together; the small score row stays, so the screeners keep every company scored
+                    out["snapshots"] += int((await conn.execute("DELETE FROM snapshots WHERE symbol = ANY($1::text[])", chunk, timeout=T)).split()[-1])
+                    await conn.execute("DELETE FROM price_daily WHERE symbol = ANY($1::text[])", chunk, timeout=T)
+                done += chunk
+            out["companies"] = len(done)
+            if len(done) < len(drop):
+                out["left"] = len(drop) - len(done)
+
+            async def batched(table: str, where: str, *args: Any) -> int:
+                """Rows of `table` matching `where`, deleted PRUNE_ROWS at a time (each its own statement and commit) until none is left or time is up."""
+                n = 0
+                while not over():
+                    k = int((await conn.execute(
+                        f"DELETE FROM {table} WHERE ctid IN (SELECT ctid FROM {table} WHERE {where} LIMIT {self.PRUNE_ROWS})",  # nosec B608 - fixed table names and conditions
+                        *args, timeout=T)).split()[-1])
+                    n += k
+                    if k < self.PRUNE_ROWS:
+                        break
+                return n
             # scores of companies that are no longer in the symbol list (delisted or renamed)
-            out["orphan_scores"] = int((await conn.execute(
-                "DELETE FROM scores sc WHERE NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = sc.symbol)")).split()[-1])
-            out["price_days"] = int((await conn.execute("DELETE FROM price_daily WHERE day < current_date - $1::int", price_days)).split()[-1])
-            out["feed"] = int((await conn.execute("DELETE FROM feed_items WHERE item_date < current_date - $1::int", feed_days)).split()[-1])
-            out["runs"] = int((await conn.execute("DELETE FROM ingest_runs WHERE started_at < now() - interval '30 days'")).split()[-1])
-            out["history"] = int((await conn.execute("DELETE FROM score_history WHERE day < current_date - 800")).split()[-1])
-            from .mfscore.scorehist import prune as prune_mf_score_history   # FinLit FundPulse history: three years
-            out["mf_score_history"] = await prune_mf_score_history(conn)
-        for sym in drop:
+            out["orphan_scores"] = await batched("scores", "NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = scores.symbol)")
+            out["price_days"] = await batched("price_daily", "day < current_date - $1::int", price_days)
+            out["feed"] = await batched("feed_items", "item_date < current_date - $1::int", feed_days)
+            out["runs"] = await batched("ingest_runs", "started_at < now() - interval '30 days'")
+            out["history"] = await batched("score_history", "day < current_date - 800")
+            from .mfscore.scorehist import prune as prune_mf_score_history   # Mutual Fund Score history: three years
+            out["mf_score_history"] = 0 if over() else await prune_mf_score_history(conn, timeout=T)
+        for sym in done:
             for st in ("consolidated", "standalone"):
                 try:
                     await self.redis.delete(stock_key(sym, st), inputs_key(sym, st))
                 except Exception:
                     pass
-        if drop:
+        if done:
             await self.invalidate_search()
             await self.redis.delete(QUOTE_SYMBOLS_KEY)
         return out

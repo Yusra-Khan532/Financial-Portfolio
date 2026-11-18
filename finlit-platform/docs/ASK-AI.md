@@ -57,7 +57,7 @@ Now:
   names and plurals such as "jsw steels", symbols written in capitals; loose matches need a distinctive word, so "indian banks" or "life insurance
   companies" name no company), are read before the model starts. Any wording about a company is answered from what its page shows, in one round.
   Checked against the full list of 5,745 companies: 0 false matches on 48 questions about groups of companies, 20 of 20 named companies found.
-- The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), FinLit IQ, FundPulse, the peer rank and NSE's levels,
+- The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), FinLit IQ, Mutual Fund Score, the peer rank and NSE's levels,
   and forbid saying FinLit lacks a measure; times are written in India time.
 
 ## Reading every FinLit page (task #218, 18 Nov 2026)

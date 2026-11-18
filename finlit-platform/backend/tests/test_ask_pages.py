@@ -93,7 +93,7 @@ async def test_india_economy_gives_each_reading_with_its_period_and_publisher_no
 
 
 # ------------------------------------------------------------------------------------------------ Glossary
-@pytest.mark.parametrize("q, want", [("ROCE", "Return on Capital Employed (ROCE)"), ("finlit prism", "FinLit Prism"), ("FundPulse", None)])
+@pytest.mark.parametrize("q, want", [("ROCE", "Return on Capital Employed (ROCE)"), ("finlit prism", "FinLit Prism"), ("Mutual Fund Score", "Mutual Fund Score")])
 async def test_glossary_answers_in_the_glossarys_own_words(q, want):
     _, out = await run(Gw({}), "lookup_glossary", {"term": q})
     terms = out["data"]["terms"]

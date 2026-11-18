@@ -1,4 +1,4 @@
-"""GET /api/mf/{code}/score, GET /api/mf/etf/{symbol}/score and GET /api/mf/scores: the FinLit FundPulse, read from mf_scores.
+"""GET /api/mf/{code}/score, GET /api/mf/etf/{symbol}/score and GET /api/mf/scores: the Mutual Fund Score, read from mf_scores.
 
 Plan gating, enforced here and not only on the page: the score is a Gold feature. A Basic or Silver account (or a visitor) gets
 a locked answer with no value, no pillar, no breakdown, no rank and no order: a locked field is present and null, so the browser cannot tell a locked value from a
@@ -40,7 +40,7 @@ NOT_SCORED = {
     "inactive": "Not scored: this scheme has stopped publishing NAVs.",
     "no_plan": "Not scored: the plan (Direct or Regular) is not stated for this scheme.",
     "etf_no_price": "Not scored: this exchange-traded fund has no exchange price history loaded yet.",
-    "etf_not_offered": "FinLit FundPulse is not given for exchange-traded funds.",
+    "etf_not_offered": "Mutual Fund Score is not given for exchange-traded funds.",
     "not_yet": "Not scored yet: the daily score run has not reached this scheme.",
 }
 
@@ -60,7 +60,7 @@ async def may_see(request: Request, code: Optional[int] = None) -> bool:
 async def require_score_plan(request: Request) -> None:
     """For routes whose ORDER would say what the value says (the fund list sorted by score)."""
     if not await may_see(request):
-        raise fail(403, "plan_required", "The FinLit FundPulse is part of the Gold plan.", plan="gold")
+        raise fail(403, "plan_required", "The Mutual Fund Score is part of the Gold plan.", plan="gold")
 
 
 def _load(v: Any) -> Any:
@@ -79,7 +79,7 @@ def pillars_view(group: str, r: Dict[str, Any], values: bool = True) -> List[Dic
 
 def locked_payload(group: Optional[str], plan: Optional[str], **extra: Any) -> Dict[str, Any]:
     """What a plan below Gold gets: the four part names and nothing a fund scored (no weights, no readings)."""
-    return {"locked": True, "plan": "gold", "detail": "The FinLit FundPulse is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
+    return {"locked": True, "plan": "gold", "detail": "The Mutual Fund Score is part of the Gold plan.", "group": group, "groupName": GROUP_NAMES.get(group or ""),
             "fundPlan": plan, "final": None, "label": None, "status": None, "pillars": [{"key": p, "name": PILLAR_NAMES[p], "reading": None} for p in PILLARS] if group in WEIGHTS else [],
             "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION, **extra}
 
@@ -155,7 +155,7 @@ def _json(body: Dict[str, Any], status: int = 200) -> JSONResponse:
 
 
 async def _row(conn, key: str):
-    if key.startswith("etf:"):   # FundPulse is not given for exchange-traded funds: nothing about one leaves the server (the score run still reads them as peers)
+    if key.startswith("etf:"):   # Mutual Fund Score is not given for exchange-traded funds: nothing about one leaves the server (the score run still reads them as peers)
         return None
     r = await conn.fetchrow("SELECT * FROM mf_scores WHERE key = $1", key)
     return dict(r) if r else None
@@ -243,7 +243,7 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
 
 @router.get("/scores/categories")
 async def category_scores(request: Request) -> JSONResponse:
-    """The Funds dashboard: median FundPulse, number scored and band counts per sub-category, over scored Direct-plan mutual funds. Gold only; a
+    """The Funds dashboard: median Mutual Fund Score, number scored and band counts per sub-category, over scored Direct-plan mutual funds. Gold only; a
     plan below that gets `locked` and no number at all (the cards would otherwise show what the list hides). `runDate` is null until the score job has run."""
     if not await may_see(request):
         return _json({"locked": True, "plan": "gold", "items": {}, "runDate": None, "disclaimer": DISCLAIMER, "method": METHOD_URL})
@@ -275,7 +275,7 @@ async def resolve_mf(conn, code: int):
         return None, None, "inactive"
     if s["plan"] not in ("Direct", "Regular"):
         return None, None, "no_plan"
-    # an ETF category scheme: no FundPulse is given
+    # an ETF category scheme: no Mutual Fund Score is given
     from ..mf import classify
     from .groups import ETF_SUBS
     if classify(s["category"])[1] in ETF_SUBS:

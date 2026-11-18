@@ -1,4 +1,4 @@
-// The owner asked for "FinLit score" to be called "FinLit IQ" everywhere (Nov 2026), including "FinLit research score" and "FinLit overall score". The FinLit FundPulse is a different
+// The owner asked for "FinLit score" to be called "FinLit IQ" everywhere (Nov 2026), including "FinLit research score" and "FinLit overall score". The Mutual Fund Score is a different
 // product and keeps its name. Ids, routes and data keys (finlit_score, ...) keep their spelling so links and saved data do not break.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";

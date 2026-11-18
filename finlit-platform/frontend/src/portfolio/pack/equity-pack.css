@@ -45,11 +45,6 @@
 @media (max-width: 1100px) { .eq-head { grid-template-columns: minmax(0, 1fr); } .eq-row { grid-template-columns: minmax(0, 1fr); } .eq-rtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .eq-pcs, .eq-dials { grid-template-columns: minmax(0, 1fr); } .eq-bars li { grid-template-columns: minmax(90px, 120px) minmax(0, 1fr) 40px; } .eq-st th { width: 100px; } }
 .eq-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
-.eq-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
-.eq-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); text-align: left; cursor: pointer; }
-.eq-tabs button b { font: 700 16px var(--sans); } .eq-tabs button small { font-size: 13px; color: var(--sp-mute); }
-.eq-tabs button[aria-selected="true"] { background: #0E6471; border-color: #0E6471; color: #fff; } .eq-tabs button[aria-selected="true"] small { color: rgba(255, 255, 255, .85); }
-.eq-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .eq .pfx-table td.r { white-space: nowrap; }
 .eq-addbar .pfx-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; } .eq-addbar .pfx-input { grid-column: 1; } .eq-addbar .pfx-solid { grid-column: 2; }
 .eq-addbar .pfx-add > .pfx-btn, .eq-addbar .pfx-cap { grid-column: auto; } .eq-addbar .eq-add2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .eq-addbar .eq-add2 .pfx-cap { margin-left: auto; }
@@ -63,7 +58,7 @@
 .eq { --eq-heat: #0E6471; --eq-heat0: var(--sp-panel); }
 .eq-gridrow { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
 .eq-heat { border-collapse: separate; border-spacing: 2px; font: 500 12px var(--sans); color: var(--sp-ink); }
-.eq-heat thead th { height: 96px; vertical-align: bottom; padding: 0 0 4px; font: 600 11px var(--sans); color: var(--sp-mute); }
+.eq-heat thead th { height: 96px; vertical-align: bottom; padding: 0 0 4px; font: 600 12px var(--sans); color: var(--sp-mute); }
 .eq-heat thead th span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .eq-heat tbody th { padding: 0 8px 0 0; text-align: right; font: 600 12px var(--sans); white-space: nowrap; }
 .eq-heat td { width: 34px; height: 26px; text-align: center; border-radius: 3px; font-variant-numeric: tabular-nums; }
@@ -91,7 +86,7 @@
 .eq-addbar .eq-addall { margin-left: 10px; }
 .dw-empty .eq-empty-go { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
 /* Task #183: Your shares by plan. A heading band names the groups; a thick divider follows the score; thin lines start the other groups. */
-.pfx-table .eq-band th { padding: 6px 8px 2px; border-bottom: 0; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); text-align: left; }
+.pfx-table .eq-band th { padding: 6px 8px 2px; border-bottom: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); text-align: left; }
 .pfx-table .eq-band th.c { text-align: center; }
 .pfx-table .eq-div { border-left: 3px solid var(--sp-line, var(--border-strong)); }
 .pfx-table .eq-div2 { border-left: 1px solid var(--sp-line, var(--border)); }

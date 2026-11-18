@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 
 const BANNED = /\b(buy|sell|hold|recommended|recommend|best[- ]to[- ]buy|should|invest in)\b/i;
 
-describe("FinLit FundPulse wording", () => {
+describe("Mutual Fund Score wording", () => {
   it("has the exact compliance line", () => {
     expect(MF_SCORE_COMPLIANCE).toBe("Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.");
   });
@@ -42,7 +42,7 @@ describe("FinLit FundPulse wording", () => {
   });
 });
 
-describe("FundPulse in one line (task #132)", () => {
+describe("Mutual Fund Score in one line (task #132)", () => {
   const P = (perf: string, risk: string, cost: string, qual: string) => [["performance", "Performance", perf], ["risk", "Risk", risk], ["cost", "Cost", cost], ["quality", "Quality", qual]].map(([key, name, reading]) => ({ key, name, reading })) as FundScore["pillars"];
   const rank = { rank: 14, of: 36, scope: "sub", percentile: 63, categoryLabel: "Flexi Cap", plan: "Direct" };
   it("builds the team's sentence from the part words and the rank", () => {
