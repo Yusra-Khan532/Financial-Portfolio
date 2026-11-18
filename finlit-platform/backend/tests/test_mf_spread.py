@@ -84,3 +84,25 @@ def test_task_183_holdings_are_read_by_their_isin():
     stocks = {t["name"] for t in res["topStocks"]}
     assert "HDFC Bank NCD" not in stocks and "HDFC Bank" in stocks and res["coverage"]["notMatched"] == 1
     assert abs(res["knownShares"] - (6.0 + 1.0 + 1.5) / 100) < 1e-9                    # the bond's 2% is not counted as shares
+
+
+def test_task_183_look_through_grid_adds_up_at_both_levels_and_lists_every_company():
+    """Pack 02: the macro sector x size and sector x size grids carry every company per cell, biggest first, and add up to the list's share in shares."""
+    def H(isin, sym, pct, macro, sector):
+        return {"isin": isin, "stockSymbol": sym, "name": sym, "pct": pct, "assetClass": "equity", "macroSector": macro, "sector": sector, "industry": sector}
+    a = {"code": 1, "name": "A Fund", "amc": "A", "category": "Flexi Cap", "assetSplit": {"equity": 60, "debt": 40}, "series": None,
+         "holdings": [H("INE000A01011", "HDFCBANK", 30, "Financial Services", "Financial Services"), H("INE000B01011", "TCS", 20, "Information Technology", "Information Technology"),
+                      H("INE000C01011", "SMALLCO", 10, "Financial Services", "Capital Markets"), {"isin": "INE000A08011", "name": "HDFC NCD", "pct": 40, "assetClass": "debt"}]}
+    b = {"code": 2, "name": "B Fund", "amc": "B", "category": "Small Cap", "assetSplit": {"equity": 100}, "series": None,
+         "holdings": [H("INE000C01011", "SMALLCO", 70, "Financial Services", "Capital Markets"), H("US0378331005", None, 30, None, None)]}
+    sizes = {"INE000A01011": "Large", "INE000B01011": "Large", "INE000C01011": "Small"}
+    out = spread([a, b], lambda isin, sym: sizes.get(isin))
+    lt = out["lookThrough"]
+    for lvl in ("macro", "sector"):
+        assert abs(sum(c["w"] for c in lt[lvl].values()) - out["knownShares"]) < 1e-12        # the grid adds up to the list's share in shares, at both levels
+    fs = lt["macro"]["Financial Services|Large"]
+    assert fs["n"] == 1 and abs(fs["w"] - 0.15) < 1e-12                                            # 30% of fund A, which is half the list
+    sm = lt["macro"]["Financial Services|Small"]
+    assert sm["n"] == 1 and abs(sm["w"] - (0.05 + 0.35)) < 1e-12 and sm["stocks"][0]["symbol"] == "SMALLCO"   # one company, held by both funds
+    assert "Listed abroad|Unsized" in lt["macro"] and lt["sector"]["Capital Markets|Small"]["n"] == 1 and out["sectorMacro"]["Capital Markets"] == "Financial Services"
+    assert out["perFund"]["1"]["macro"] == {"Financial Services": 0.4, "Information Technology": 0.2} and out["perFund"]["2"]["size"] == {"Small": 0.7, "Unsized": 0.3}

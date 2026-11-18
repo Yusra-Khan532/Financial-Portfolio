@@ -78,6 +78,9 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
     stocks: Dict[str, Dict[str, Any]] = {}
     industries: Dict[str, Dict[str, Any]] = {}
     size = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Other": 0.0}
+    grid: Dict[str, Dict[str, Dict[str, Any]]] = {"macro": {}, "sector": {}}
+    sec_macro: Dict[str, str] = {}
+    per_fund: Dict[int, Dict[str, Dict[str, float]]] = {}
     known = 0.0
     for f in disclosed:
         for h in f["holdings"]:
@@ -93,7 +96,22 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
             ind = h.get("industry") or "Not classified"                # NSE's industry, already in one spelling (taxonomy.holding_level)
             sec = industries.setdefault(ind, {"name": ind, "w": 0.0})
             sec["w"] += w
-            size[size_of(h.get("isin"), h.get("stockSymbol")) or "Other"] += w
+            sz = size_of(h.get("isin"), h.get("stockSymbol"))
+            size[sz or "Other"] += w
+            # task #183: the look-through grid (macro sector or NSE sector x size) with every company per cell, and each fund's own split
+            isin = (h.get("isin") or "").upper()
+            macro = h.get("macroSector") or ("Listed abroad" if isin and not isin.startswith("IN") else "Not classified")
+            sector = h.get("sector") or macro
+            sec_macro.setdefault(sector, macro)
+            for lvl, name in (("macro", macro), ("sector", sector)):
+                cell = grid[lvl].setdefault(f"{name}|{sz or 'Unsized'}", {"w": 0.0, "stocks": {}})
+                cell["w"] += w
+                st = cell["stocks"].setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "w": 0.0})
+                st["w"] += w
+                fs = per_fund.setdefault(f["code"], {"macro": {}, "sector": {}, "size": {}})
+                fs[lvl][name] = fs[lvl].get(name, 0.0) + h["pct"] / 100
+            fs = per_fund.setdefault(f["code"], {"macro": {}, "sector": {}, "size": {}})
+            fs["size"][sz or "Unsized"] = fs["size"].get(sz or "Unsized", 0.0) + h["pct"] / 100
     stock_list = sorted(stocks.values(), key=lambda s: -s["w"])
     multi = [s for s in stock_list if len(s["funds"]) >= 2]
 
@@ -184,6 +202,10 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
         "size": {k: (v / known if known else 0.0) for k, v in size.items()},
         "industries": [{"name": s["name"], "share": s["w"] / known if known else 0.0} for s in sorted(industries.values(), key=lambda s: -s["w"])],
         "topStocks": stock_list[:10], "overlap": overlap,
+        "lookThrough": {lvl: {key: {"w": c["w"], "n": len(c["stocks"]), "stocks": sorted(c["stocks"].values(), key=lambda x: -x["w"])} for key, c in cells.items()}
+                        for lvl, cells in grid.items()},
+        "sectorMacro": sec_macro,
+        "perFund": {str(code): {lvl: dict(sorted(v.items(), key=lambda kv: -kv[1])) for lvl, v in parts.items()} for code, parts in per_fund.items()},
         "together": {"codes": [f["code"] for f in moving], "C": C, "weeks": max(len(weeks) - 1, 0), "from": weeks[0] if weeks else None, "to": weeks[-1] if weeks else None},
     }
 

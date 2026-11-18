@@ -179,16 +179,23 @@ async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
 # ------------------------------------------------------------------------------------------------------------------------ diversification
 
 async def size_ranks(conn, isins: List[str]) -> Dict[str, str]:
-    """Large / Mid / Small by market-value rank, the site's one rule: the 100 biggest companies are Large, the next 150 Mid, the rest Small."""
+    """Large / Mid / Small by the site's one ₹ rule on the company's market value (task #183, COMMON-RULES: large above ₹50,000 Cr, mid above ₹10,000 Cr,
+    small below; the same scale as portfolio_page.risk_sizes and lib/capBuckets.ts). Fund categories rank companies instead; the page says so."""
+    def size_of(cr: float) -> Optional[str]:      # the same edges as portfolio_page.risk_sizes (kept here: this process never imports pandas)
+        return None if cr < 0 else "Large" if cr > 50000.0 else "Mid" if cr > 10000.0 else "Small"
     if not isins:
         return {}
     rows = await conn.fetch(
-        """WITH r AS (SELECT c.symbol, row_number() OVER (ORDER BY COALESCE(NULLIF(l.market_cap, 0), x.market_cap) DESC NULLS LAST, c.symbol) AS rk,
-                             COALESCE(NULLIF(l.market_cap, 0), x.market_cap) AS mc
-                      FROM companies c LEFT JOIN listing_quotes l ON l.symbol = c.symbol
-                      LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true)
-           SELECT d.isin, r.rk FROM disclosure_isin d JOIN r ON r.symbol = d.symbol WHERE d.isin = ANY($1::text[]) AND r.mc IS NOT NULL""", isins)
-    return {r["isin"]: ("Large" if r["rk"] <= 100 else "Mid" if r["rk"] <= 250 else "Small") for r in rows}
+        """SELECT d.isin, COALESCE(NULLIF(l.market_cap, 0), x.market_cap) AS mc FROM disclosure_isin d JOIN companies c ON c.symbol = d.symbol
+           LEFT JOIN listing_quotes l ON l.symbol = c.symbol
+           LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
+           WHERE d.isin = ANY($1::text[])""", isins)
+    out = {}
+    for r in rows:
+        k = size_of(float(r["mc"])) if r["mc"] is not None else None
+        if k:
+            out[r["isin"]] = k
+    return out
 
 
 async def nav_history(conn, r: Dict[str, Any]) -> Tuple[List[int], List[float]]:
