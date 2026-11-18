@@ -58,7 +58,7 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
   const [op, setOp] = useState<Op>(preset?.op || "above");
   const [val, setVal] = useState(preset?.value != null ? String(preset.value) : "");
   const [kw, setKw] = useState(preset?.keyword || "");
-  const [ch, setCh] = useState<Channel[]>(["app", "email"]);
+  const [ch, setCh] = useState<Channel[]>(["app"]);   // no Email choice: alert emails are off (the owner, 19 Nov 2026; backend mailpolicy.py)
   const [repeat, setRepeat] = useState<"once" | "every">("once");
   const [note, setNote] = useState("");
   const [touched, setTouched] = useState(preset?.value != null);
@@ -90,7 +90,7 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
     if (ch.includes(c)) { setCh(ch.filter((x) => x !== c)); return; }
     if (c === "browser") {
       const p = browserPermission();
-      if (p === "unsupported") { toast("This browser cannot show notifications. In-app and email alerts still work."); return; }
+      if (p === "unsupported") { toast("This browser cannot show notifications. In-app alerts still work."); return; }
       if (p === "denied") { toast("Notifications are blocked for this site. Allow them in the browser's site settings, then try again."); return; }
       if (p === "default" && (await askBrowserPermission()) !== "granted") { toast("Browser notifications were not allowed."); return; }
     }
@@ -157,7 +157,6 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
       <fieldset className="alx-notify">
         <legend>Notify via</legend>
         <label className="alx-ck is-on is-fixed"><input type="checkbox" checked readOnly disabled /><span><Icon name="bell" />In-app</span></label>
-        <label className={"alx-ck" + (ch.includes("email") ? " is-on" : "")}><input type="checkbox" checked={ch.includes("email")} onChange={() => toggle("email")} /><span><Icon name="mail" />Email</span></label>
         <label className={"alx-ck" + (ch.includes("browser") ? " is-on" : "")}><input type="checkbox" checked={ch.includes("browser")} onChange={() => toggle("browser")} /><span><Icon name="activity" />Browser</span></label>
         <label className="alx-ck is-soon" title="Coming with the FinLit app"><input type="checkbox" disabled /><span><Icon name="panel" />Mobile app<em>Soon</em></span></label>
       </fieldset>

@@ -11,6 +11,7 @@ import logging
 from datetime import date, timedelta
 from typing import List
 
+from . import mailpolicy
 from .auth.mailer import Mailer
 
 log = logging.getLogger("finlit.digest")
@@ -47,6 +48,9 @@ async def build(conn, user_id, symbols: List[str], today: date, site_url: str) -
 
 
 async def send_digests(pool, mailer: Mailer, site_url: str, today: date | None = None) -> int:
+    if not mailpolicy.ALERT_EMAILS:   # the weekly email is off (the owner, 19 Nov 2026; mailpolicy.py): the job runs and sends nothing
+        log.info("weekly digest: off, nothing sent")
+        return 0
     today = today or date.today()
     week = today - timedelta(days=today.weekday())
     sent = 0

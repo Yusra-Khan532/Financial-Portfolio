@@ -248,7 +248,7 @@ export function ScreenerPro() {
   };
   const allOff = () => { setF((x) => ({ ...x, on: [] })); setPg({ k: "", p: 0 }); toast("All ready-made screens are off. Your own rules stay."); };
   const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
-  // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox and e-mail)
+  // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox; no e-mail since 19 Nov 2026)
   // naming the companies that joined or left it (file 04 §9). Messages need an account, so a visitor is asked to sign in first.
   const save = () => {
     const n = saveName.trim(); if (!n || !nActive) { toast("Add a rule and a name first."); return; }
@@ -404,7 +404,7 @@ export function ScreenerPro() {
                 <span className="ssw-pop"><button type="button" className="btn" aria-expanded={saveOpen === "save"} onClick={() => openSave("save")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="star" />Save screen</button>
                   <button type="button" className="btn" aria-expanded={saveOpen === "tell"} onClick={() => openSave("tell")} disabled={!nActive} title={nActive ? undefined : "Add a rule first"}><Icon name="bell" />Tell me when a company joins</button>
                   {saveOpen && <span className="ssw-popb" role="group" aria-label={saveOpen === "tell" ? "Tell me when a company joins" : "Save screen"}>
-                    {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox and by e-mail naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
+                    {saveOpen === "tell" && <small className="ssw-popn">After each close you get a message in the site's inbox (the bell) naming the companies that joined or left this screen. Messages only; turn them off under My screens.</small>}
                     <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this screen" aria-label="Screen name" maxLength={40} autoFocus onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setSaveOpen(null); }} />
                     <button type="button" className="btn primary" onClick={save}>{saveOpen === "tell" ? "Save and tell me" : "Save"}</button></span>}</span>
               </div>

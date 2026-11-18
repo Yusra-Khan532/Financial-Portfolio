@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
+from . import mailpolicy
 from .auth.mailer import Mailer
 
 log = logging.getLogger("finlit.screens")
@@ -145,12 +146,13 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
                                                u["id"], subject, body.split("\n\nOpen the screener")[0])
                         except Exception:
                             log.exception("screen notification not stored")
-                        try:
-                            await mailer.send(u["email"], subject, body)
-                            sent += 1
-                        except Exception:
-                            log.exception("screen mail failed")
-                            continue
+                        sent += 1
+                        if mailpolicy.ALERT_EMAILS:   # alert emails are off (mailpolicy.py): the bell above is the alert
+                            try:
+                                await mailer.send(u["email"], subject, body)
+                            except Exception:
+                                log.exception("screen mail failed")
+                                continue
                 await conn.execute("INSERT INTO screen_state (user_id, screen_name, seen) VALUES ($1, $2, $3) ON CONFLICT (user_id, screen_name) DO UPDATE SET seen = EXCLUDED.seen, updated_at = now()",
                                    u["id"], sc["name"], now)
     log.info("screen alerts: %d sent", sent)

@@ -154,6 +154,9 @@ async def fire_alerts(conn, week: date, keys: Iterable[str]) -> List[Dict[str, A
 
 
 async def send_mails(mails: Sequence[Dict[str, Any]], mailer, site_url: str) -> int:
+    from .. import mailpolicy
+    if not mailpolicy.ALERT_EMAILS:   # alert emails are off (mailpolicy.py): the alert is in the bell only
+        return 0
     sent = 0
     for m in mails:
         subject = f"FinLit alert: {m['title']}"
