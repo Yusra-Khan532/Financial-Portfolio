@@ -1,0 +1,99 @@
+/* Task #235 (the 18 Nov portfolios pack): B2 tabs that read as tabs (level 1 the views, level 2 tabs inside a section, level 3 small toggles) and the B12
+   switcher in the sticky sections bar. Values from the pack's portfolio-kit.css; sizes on the type scale. Scoped to the portfolio pages (.pfx). */
+.pfx { --x-tab: #0e6471; --x-blue: #2f5a9e; --x-blue2: #244a86; --x-blue-ink: #2f5a9e; }
+:root[data-theme="dark"] .pfx { --x-blue-ink: #9db8ea; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pfx { --x-blue-ink: #9db8ea; } }
+
+/* level 1: the views (Choose a view) */
+.eqv-k { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; font: 800 12px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--text); }
+.eqv-k::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 25%, transparent); }
+.eqv-k small { font: 600 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.xv-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 0 0 18px; }
+.xv-tabs button { --va: var(--x-tab); --vi: var(--va); position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr) 28px; column-gap: 12px; row-gap: 2px; align-items: center; text-align: left; cursor: pointer;
+  padding: 16px 14px 14px; border: 1.5px solid color-mix(in srgb, var(--va) 30%, var(--border)); border-radius: 16px; background: var(--s1); color: var(--text);
+  box-shadow: inset 0 4px 0 var(--va), 0 6px 16px -12px rgba(0, 0, 0, .35); transition: transform .15s, box-shadow .15s, border-color .15s, background .15s; font: inherit; }
+.xv-tabs button > b { grid-column: 2; align-self: end; font: 800 16px/1.25 var(--sans); color: var(--vi); }
+.xv-tabs button > small { grid-column: 2; align-self: start; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.xv-tabs .eqv-ic { grid-column: 1; grid-row: 1 / 3; width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: color-mix(in srgb, var(--va) 14%, var(--s1)); color: var(--vi); }
+.xv-tabs button::after { content: "→"; grid-column: 3; grid-row: 1 / 3; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 700 14px var(--sans); color: var(--vi); background: color-mix(in srgb, var(--va) 12%, var(--s1)); transition: transform .15s; }
+.xv-tabs button:hover { transform: translateY(-2px); border-color: var(--va); box-shadow: inset 0 4px 0 var(--va), 0 14px 26px -16px var(--va); }
+.xv-tabs button:hover::after { transform: translateX(3px); }
+.xv-tabs button[aria-selected="true"] { background: linear-gradient(135deg, var(--va), color-mix(in srgb, var(--va) 72%, #000)); border-color: var(--va); box-shadow: 0 16px 30px -14px var(--va); transform: none; }
+.xv-tabs button[aria-selected="true"] > b { color: #fff; }
+.xv-tabs button[aria-selected="true"] > small { color: #ffffffe0; }
+.xv-tabs button[aria-selected="true"] .eqv-ic { background: rgba(255, 255, 255, .18); color: #fff; }
+.xv-tabs button[aria-selected="true"]::after { content: "✓"; background: #fff; color: var(--va); }
+.xv-tabs button[aria-selected="true"]::before { content: ""; position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%); border: 9px solid transparent; border-top-color: color-mix(in srgb, var(--va) 80%, #000); }
+.xv-tabs button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+/* dark: the view colour is too deep for text on the dark card, so the title, icon and arrow use a lighter mix of it */
+:root[data-theme="dark"] .xv-tabs button { --vi: color-mix(in srgb, var(--va) 45%, #fff); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .xv-tabs button { --vi: color-mix(in srgb, var(--va) 45%, #fff); } }
+
+/* level 2: tabs inside a section (How the list moves together, How your list's beta is built, the table views) */
+.x2-k { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 14px 0 6px; font: 800 12px/1.4 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--x-blue-ink); }
+.x2-k small { font: 600 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.pfx :is(.eqd-subbar, .xtabs) { display: grid; background: color-mix(in srgb, var(--x-blue) 8%, var(--s1)); border: 1.5px solid color-mix(in srgb, var(--x-blue) 28%, var(--border)); border-radius: 16px; padding: 6px; gap: 6px; margin: 0 0 16px; }
+.pfx .xtabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pfx .eqd-subbar { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; }
+.pfx :is(.eqd-subbar, .xtabs) button { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; row-gap: 1px; align-items: center; text-align: left; cursor: pointer; background: var(--s1); border: 1px solid color-mix(in srgb, var(--x-blue) 18%, var(--border)); border-radius: 12px; padding: 11px 12px; color: var(--text); font: inherit; box-shadow: 0 2px 6px -4px rgba(0, 0, 0, .3); transition: transform .15s, background .15s, box-shadow .15s; min-height: 0; }
+.pfx :is(.eqd-subbar, .xtabs) button > b { grid-column: 2; font: 700 14px/1.3 var(--sans); color: var(--x-blue-ink); }
+.pfx :is(.eqd-subbar, .xtabs) button > small { grid-column: 2; font-size: 12px; color: var(--muted); }
+.xn { grid-column: 1; grid-row: 1 / 3; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 800 13px var(--sans); color: var(--x-blue-ink); background: color-mix(in srgb, var(--x-blue) 12%, var(--s1)); border: 1.5px solid color-mix(in srgb, var(--x-blue) 35%, transparent); }
+.pfx :is(.eqd-subbar, .xtabs) button:hover { transform: translateY(-1px); box-shadow: 0 10px 18px -12px var(--x-blue); }
+.pfx :is(.eqd-subbar, .xtabs) button[aria-selected="true"] { background: linear-gradient(135deg, var(--x-blue), var(--x-blue2)); border-color: var(--x-blue); box-shadow: 0 12px 24px -12px var(--x-blue); transform: none; }
+.pfx :is(.eqd-subbar, .xtabs) button[aria-selected="true"] > :is(b, small) { color: #fff; }
+.pfx :is(.eqd-subbar, .xtabs) button[aria-selected="true"] > small { opacity: .88; }
+.pfx :is(.eqd-subbar, .xtabs) button[aria-selected="true"] .xn { background: #fff; color: var(--x-blue); border-color: #fff; }
+.pfx :is(.eqd-subbar, .xtabs) button[aria-selected="true"]::after { content: ""; position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%); border: 7px solid transparent; border-top-color: var(--x-blue2); }
+.pfx :is(.eqd-subbar, .xtabs) button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* the table's own views */
+.pfx .pfx-tabs { background: color-mix(in srgb, var(--x-blue) 8%, var(--s1)); border: 1.5px solid color-mix(in srgb, var(--x-blue) 28%, var(--border)); border-radius: 14px; padding: 4px; gap: 4px; }
+.pfx .pfx-tabs .pfx-pillbtn { border: 1px solid color-mix(in srgb, var(--x-blue) 18%, var(--border)); background: var(--s1); border-radius: 10px; min-height: 36px; color: var(--x-blue-ink); font-weight: 700; }
+.pfx .pfx-tabs .pfx-pillbtn.on { background: linear-gradient(135deg, var(--x-blue), var(--x-blue2)); color: #fff; border-color: var(--x-blue); box-shadow: 0 8px 18px -10px var(--x-blue); }
+
+/* level 3: small toggles, a solid fill when selected (the fall scenario is red, in market-fall.css) */
+.pfx .eqd-seg button[aria-pressed="true"] { background: var(--x-tab); color: #fff; box-shadow: 0 6px 14px -8px var(--x-tab); }
+.pfx .sp-view .sp-vbtn.on, .pfx .sp-view .sp-vbtn[aria-pressed="true"] { background: var(--x-tab); color: #fff; box-shadow: 0 6px 14px -8px var(--x-tab); }
+
+@media (max-width: 900px) { .pfx .xtabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .xv-tabs { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+  .xv-tabs button { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; padding: 12px 6px 10px; row-gap: 6px; }
+  .xv-tabs button > small, .xv-tabs button::after { display: none; }
+  .xv-tabs button > b { grid-column: 1; font-size: 13px; line-height: 1.25; align-self: start; }
+  .xv-tabs .eqv-ic { grid-column: 1; grid-row: auto; width: 36px; height: 36px; }
+  .pfx :is(.eqd-subbar, .xtabs) button { grid-template-columns: 26px minmax(0, 1fr); }
+  .xn { width: 26px; height: 26px; font-size: 12px; }
+}
+@media (max-width: 520px) { .pfx :is(.xtabs, .eqd-subbar) button > small { display: none; } }
+
+/* B12: the switcher at the left of the sticky sections bar, shown only while the bar is stuck */
+.x-sw { display: none; position: sticky; left: 0; z-index: 3; flex: none; align-items: center; gap: 6px; padding: 0 8px 0 0; margin-right: 4px; background: var(--sp-panel, var(--s1)); border-right: 1px solid var(--border); border-radius: 999px 0 0 999px; }
+.x-sw-on > .x-sw { display: flex; }
+.eqt-bar .x-sw-b { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--s1); border-radius: 999px; min-height: 36px; padding: 0 10px 0 4px; font: 700 13px var(--sans); color: var(--text); cursor: pointer; white-space: nowrap; }
+.x-sw-b i { font-style: normal; font-size: 11px; opacity: .7; }
+.x-sw-b .acc-av, .x-swm .acc-av { grid-row: auto; width: 28px; height: 28px; border-radius: 50%; font-size: 12px; flex: none; }
+.x-sw-b[aria-expanded="true"] { border-color: var(--text); }
+.x-sw-p b { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.x-sw-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: color-mix(in srgb, var(--text) 6%, transparent); }
+.eqt-bar .x-sw-v { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; border-radius: 999px; min-height: 34px; padding: 0 12px 0 8px; font: 700 13px var(--sans); color: var(--va); cursor: pointer; white-space: nowrap; }
+.eqt-bar .x-sw-v:hover { background: color-mix(in srgb, var(--va) 10%, transparent); }
+.eqt-bar .x-sw-v[aria-pressed="true"] { background: var(--va); color: #fff; box-shadow: 0 6px 14px -8px var(--va); }
+.x-sw-ic { display: inline-grid; place-items: center; width: 18px; height: 18px; }
+.x-sw-ic svg { width: 16px; height: 16px; }
+.eqt-bar .x-sw-vm { display: none; background: var(--va); border-color: var(--va); color: #fff; padding: 0 10px; }
+.x-sw-b:focus-visible, .x-sw-v:focus-visible, .x-swm button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+:root[data-theme="dark"] .eqt-bar .x-sw-v:not([aria-pressed="true"]) { color: color-mix(in srgb, var(--va) 45%, #fff); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eqt-bar .x-sw-v:not([aria-pressed="true"]) { color: color-mix(in srgb, var(--va) 45%, #fff); } }
+@media (max-width: 1180px) { .x-sw-seg { display: none; } .eqt-bar .x-sw-vm { display: inline-flex; } }
+@media (max-width: 520px) { .x-sw { gap: 4px; padding-right: 6px; } .x-sw-p b { max-width: 64px; } .x-sw-vm b { max-width: 84px; overflow: hidden; text-overflow: ellipsis; } .eqt-bar .x-sw-b { min-height: 34px; font-size: 12px; } }
+.x-swm { position: fixed; z-index: 90; min-width: 250px; max-width: calc(100vw - 24px); background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 6px; box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .5); }
+.x-swm-k { margin: 4px 8px 6px; font: 800 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.x-swm button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: none; padding: 8px; border-radius: 10px; text-align: left; cursor: pointer; color: var(--text); font: 500 14px var(--sans); }
+.x-swm button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.x-swm button[aria-checked="true"] { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.x-swm button[aria-checked="true"]::after { content: "✓"; margin-left: auto; font-weight: 800; padding-left: 10px; }
+.x-swm .x-swm-t { display: block; min-width: 0; }
+.x-swm .x-swm-t b { display: block; font: 700 14px var(--sans); }
+.x-swm .x-swm-t small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.x-swm button[style] .x-sw-ic { width: 30px; height: 30px; border-radius: 9px; background: color-mix(in srgb, var(--va) 14%, var(--s1)); color: var(--va); }

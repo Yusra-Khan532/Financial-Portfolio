@@ -1,5 +1,5 @@
 {
-  "_about": "Plain-language text for every metric of the FinLit FundPulse (spec Section 9). {own} is the fund's own figure, {peer} the peer median it was measured against, {value} the measured gap (absolute), {n} the number of peer funds, {why} a short note. fmt says how each placeholder is written. The words describe; they never advise. Edit the text here, not in code.",
+  "_about": "Plain-language text for every metric of the Mutual Fund Score (spec Section 9). {own} is the fund's own figure, {peer} the peer median it was measured against, {value} the measured gap (absolute), {n} the number of peer funds, {why} a short note. fmt says how each placeholder is written. The words describe; they never advise. Edit the text here, not in code.",
   "metrics": {
     "RET_1Y_REL": {"label": "1-year return against similar funds", "fmt": {"own": "pct", "peer": "pct", "value": "pp"},
       "strong": "Its 1-year return of {own} is {value} above the median of {n} similar funds ({peer}).",

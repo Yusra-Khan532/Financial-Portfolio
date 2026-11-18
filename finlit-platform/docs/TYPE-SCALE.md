@@ -5,7 +5,7 @@ Every font size on the site is one of eleven sizes (the team's type-scale handov
 
 | Token | Size / line | Use |
 |---|---|---|
-| `--fs-11` | 11 / 16 | Eyebrows, chart axis ticks, legend keys. Uppercase labels only, never sentences |
+| (no `--fs-11`) | | Removed by task #227 (18 Nov 2026): no page text under 12px. Eyebrows, chips and legend keys use `--fs-12`. Only chart axis text an SVG draws itself (a `fontSize` attribute in a `.tsx` file) may be 11px |
 | `--fs-12` | 12 / 16 | Captions, timestamps, chips, footnotes |
 | `--fs-13` | 13 / 18 | Secondary text, labels, dense table cells |
 | `--fs-14` | 14 / 20 | Default: card and table text, menus, buttons |
@@ -56,7 +56,7 @@ The team's `--type-*` tokens in `design-system.css` are in rem on the same sizes
 ## Checks
 
 - `frontend/src/styles/typescale.test.ts` scans every `.css`, `.ts`, `.tsx` in `src/` (not `content/`) and fails with `file:line` for any font size under
-  11px, off the scale, relative or computed, unknown `--fs-N`, or a `clamp()` whose largest value is under 28px. Allowed: 44px and up, 0, `inherit`, `clamp()` 28px and up.
+  11px (12px in a stylesheet, task #227), off the scale, relative or computed, unknown `--fs-N`, or a `clamp()` whose largest value is under 28px. Allowed: 44px and up, 0, `inherit`, `clamp()` 28px and up.
 - `src/lib/svgText.test.ts` (chart text), `src/lib/markets.test.ts` (heat-map label steps and tile contrast).
 - Real-browser measurement: see the delivery notes (computed sizes per page, before and after).
 

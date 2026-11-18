@@ -85,12 +85,12 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(within(panel()).getByRole("button", { name: /^Data quality and lists/ }).textContent).toMatch(/Needs a data source 10/);
     expect(panel().textContent).toMatch(/The band SEBI sets for the category/);
   });
-  it("C-4 a Sort button with a short menu replaces the native select; same choices; FundPulse sort has no Gold tag", async () => {
+  it("C-4 a Sort button with a short menu replaces the native select; same choices; Mutual Fund Score sort has no Gold tag", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     expect(document.querySelector(".fgx-sort select")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Sort: fund size, largest first/i }));
     const items = within(screen.getByRole("menu", { name: "Sort by" })).getAllByRole("menuitemradio").map((b) => b.textContent!.replace("✓", ""));
-    expect(items).toHaveLength(SORTS.length); expect(items).toContain("FundPulse, high to low"); expect(items).toContain("SIP return (3 years), high to low");
+    expect(items).toHaveLength(SORTS.length); expect(items).toContain("Mutual Fund Score, high to low"); expect(items).toContain("SIP return (3 years), high to low");
     expect(document.body.textContent).not.toMatch(/\(Gold\)/);
     fireEvent.click(screen.getByRole("menuitemradio", { name: /expense ratio, low to high/i }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sort=ter"));
@@ -138,10 +138,10 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     const rows = flowRows([{ key: "a", label: "A", months: ["2026-10"], net: [100] }, { key: "b", label: "B", months: ["2026-09", "2026-10"], net: [50, null] }, { key: "c", label: "C", months: ["2026-10"], net: [null] }]);
     expect(rows.map((r) => [r.key, r.month, r.cut, r.width])).toEqual([["a", "2026-10", false, 1], ["b", "2026-09", false, 0.5]]);   // the latest month with a figure; none at all: dropped
   });
-  it("C-9 a FundPulse column after the fund name: the score with its band word for Gold; a lock below Gold, never a value", async () => {
+  it("C-9 a Mutual Fund Score column after the fund name: the score with its band word for Gold; a lock below Gold, never a value", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...document.querySelectorAll(".mfs-table thead th")].map((th) => th.textContent!.trim());
-    expect(heads[0]).toMatch(/Fund/); expect(heads[1]).toMatch(/^FundPulse/);
+    expect(heads[0]).toMatch(/Fund/); expect(heads[1]).toMatch(/^Mutual Fund Score/);
     await waitFor(() => expect(document.querySelector(".mfs-table tbody tr td.mfs-hs")!.textContent).toMatch(/72\.1.*Healthy/));
     cleanup(); st.gold = false; st.calls = [];
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");

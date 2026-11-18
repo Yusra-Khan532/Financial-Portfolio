@@ -4,20 +4,27 @@
    green-black #0C2619. The photo's own colour is too light to carry text (white on it is 3.1:1, the muted grey 1.5:1), so the page and the cards use
    darker steps of the same sage, chosen so every dark-mode text colour stays readable (WCAG AA, at least 4.5:1, on the lightest surface; checked in
    site-green.test.ts), and the photo's exact colour is the glow at the top of the page and the control borders, where no text sits.
+   Task #227 (18 Nov 2026, the team's reference pictures): the same sage hue, taken down to a deep dark green (page #173125, cards #0D1B15, as deep as the
+   pictures), with subtle green borders; and the text colours dark mode really uses (--text / --muted / --faint, set by finlit.css with more weight than
+   design-system.css) become warm cream, sage grey and a lighter sage. Before, they stayed the old blue-greys #B1B2B8 and #8F919B, and #8F919B read at
+   3.4:1 on the green cards. Every text colour is at least 6.5:1 on every surface (site-green.test.ts).
    Loaded after the theme layers (finlit.css, luxe.css, design-system.css, calm.css), so these tokens win; overlay.css, which only reads them, stays last. */
 :root[data-theme="dark"] {
-  --sage: #5D997F;   /* the photo (task #206) */
-  --bg-page: #23392F; --bg-surface: #273F35; --bg-subtle: #2A4439; --bg-elevated: #2A453A; --bg-selected: #2E4A3E;
-  --border-subtle: #3A5F4F; --border-control: #5D997F;
-  --action-on-primary: #1D2F27; --action-disabled-bg: #2E4A3E;
-  --bg: #23392F; --s1: #273F35; --s2: #2A4439; --s3: #2A453A; --border: #36594A; --border-strong: #46725F;   /* luxe.css sets these for every non-light theme, with the same weight */
-  --header: #23392F;
-  --rep-a: #284136; --rep-b: #23392F; --rep-border: #3A5F4F; --band-a: #284136; --band-b: #1F332A; --foot-a: #253C32; --foot-b: #1F332A; --pop-bg: #2C473B; --tape-bg: #172620;
-  --glow: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), rgba(35, 57, 47, 0) 72%);
+  --sage: #5D997F;   /* the photo (task #206): the glow at the top and the control borders */
+  --bg-page: #173125; --bg-surface: #0D1B15; --bg-subtle: #14241D; --bg-elevated: #1C3128; --bg-selected: #20372D;
+  --border-subtle: #254135; --border-control: #5D997F;
+  --action-on-primary: #0D1B15; --action-disabled-bg: #20372D;
+  --bg: #173125; --s1: #0D1B15; --s2: #14241D; --s3: #1C3128; --border: #254135; --border-strong: #39604F;   /* luxe.css sets these for every non-light theme, with the same weight */
+  --header: #173125;
+  /* task #227: text. Cream for primary text, sage grey for descriptions, a lighter sage for the quietest labels; design-system names follow */
+  --text: #F3EEE2; --muted: #C3D0C7; --faint: #A6B8AD;
+  --text-primary: #F3EEE2; --text-body: #DCE4DE; --text-secondary: #C3D0C7; --text-muted: #A6B8AD; --text-disabled: #7E9187;
+  --rep-a: #12241C; --rep-b: #0D1B15; --rep-border: #254135; --band-a: #14281F; --band-b: #0D1B15; --foot-a: #12241C; --foot-b: #0A1510; --pop-bg: #152820; --tape-bg: #0A1510;
+  --glow: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), rgba(23, 49, 37, 0) 72%);
   --page-glow: var(--glow);
 }
-:root[data-theme="dark"] body { background: #23392F radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), #23392F 72%) fixed; background-color: #23392F; }
+:root[data-theme="dark"] body { background: #173125 radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), #173125 72%) fixed; background-color: #173125; }
 /* The few dark blocks with their own colours: the Prism cards (company page and Prism report) and the dashboard's market summary. */
-:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #2A4439; --dk-b: #273F35; --dk-border: #3A5F4F; --dk-sep: #273F35; --dk-tick-off: #5D997F;
-  --dk-disc-1: #3A5F4F; --dk-disc-2: #325244; --dk-disc-3: #2B463A; }
-:root[data-theme="dark"] .dsh-mr-sum { background: #273F35; }
+:root[data-theme="dark"] :is(.report.dk-card, .pzr-cardtop .pcx-body) { --dk-a: #14241D; --dk-b: #0D1B15; --dk-border: #254135; --dk-sep: #0D1B15; --dk-tick-off: #5D997F;
+  --dk-disc-1: #39604F; --dk-disc-2: #2B4A3D; --dk-disc-3: #20372D; }
+:root[data-theme="dark"] .dsh-mr-sum { background: #0D1B15; }

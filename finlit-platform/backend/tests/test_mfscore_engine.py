@@ -1,4 +1,4 @@
-"""FinLit FundPulse, part 3: the engine (every group sheet, history rows, caps, labels, ranks, reasons, compliance wording) and the
+"""Mutual Fund Score, part 3: the engine (every group sheet, history rows, caps, labels, ranks, reasons, compliance wording) and the
 database side (job, API, plan gating)."""
 
 import json
@@ -341,7 +341,7 @@ async def test_category_dashboard_is_gold_only_and_direct_plan_only(store, monke
 
 
 async def test_scores_by_etf_symbol_give_no_score_to_anyone(store, monkeypatch):
-    """FinLit FundPulse is not given for exchange-traded funds: the rows exist (the score run reads ETFs as peers of index funds) but nothing leaves the server."""
+    """Mutual Fund Score is not given for exchange-traded funds: the rows exist (the score run reads ETFs as peers of index funds) but nothing leaves the server."""
     etfs = [fund(f"etf:ZZ{i}", "OT-PASSIVE", "etf", plan="ETF", seed=40 + i, kind="etf", symbol=f"ZZ{i}", family_key="nifty50") for i in range(4)]
     await _write(store, etfs)
     async with await _client(store, monkeypatch, "gold") as c:

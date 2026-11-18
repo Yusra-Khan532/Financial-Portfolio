@@ -11,6 +11,7 @@ import { useUniverse, type Row } from "../lib/screener";
 import { useWatchlist, watch } from "../lib/watchlist";
 import { useMyCompanies } from "../lib/mycompanies";
 import { usePortfolio } from "../lib/portfolio";
+import { aggOf } from "../lib/ledger";
 import { useIndices } from "../lib/indices";
 import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
@@ -60,7 +61,8 @@ export function Dashboard() {
   const items = followed.map((f) => bySym.get(f.symbol)).filter((r): r is Row => !!r);
   const caps = useMemo(() => new Map(rows.map((r) => [r.symbol, r.market_cap])), [rows]);
   const oneYear = useMemo(() => new Map(rows.map((r) => [r.symbol, r.return_1y ?? null])), [rows]);   // task #135: the 1 year column
-  const qty = useMemo(() => { const m = new Map<string, number>(); for (const h of pf.holdings) m.set(h.symbol.toUpperCase(), (m.get(h.symbol.toUpperCase()) ?? 0) + h.qty); return m; }, [pf.holdings]);
+  // task #235: what is left of each share, first in, first out within each portfolio, added across them (a name only, or a share sold in full, has none)
+  const qty = useMemo(() => { const m = new Map<string, number>(); for (const s of new Set(pf.holdings.map((h) => h.symbol.toUpperCase()))) { const q = aggOf(pf.holdings, s, "all")?.qty; if (q) m.set(s, q); } return m; }, [pf.holdings]);
   const names = useMemo(() => new Map(rows.map((r) => [r.symbol, r.name])), [rows]);
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);

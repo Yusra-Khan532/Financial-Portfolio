@@ -49,7 +49,7 @@ section.block .cz.cz-table:not(.cz-boxed) :is(th, td):last-child { padding-right
 }
 
 /* ---- 1.8 sections bar: each chip and "All sections" line starts with its section number ---- */
-.sn-no { display: inline-block; margin-right: 6px; font: 700 var(--fs-11, 11px)/1 var(--sans); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sn-no { display: inline-block; margin-right: 6px; font: 700 var(--fs-12, 12px)/1 var(--sans); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
 .secnav a.active .sn-no, .secnav a[aria-current="true"] .sn-no { color: inherit; }
 
 /* ---- 1.5 / 3.12 12's year chips look like the tabs: white chips, blue when selected, inside the same blue-edged bar as the tab groups (tabgroup.css) ---- */
@@ -92,9 +92,9 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--c1); }
 .hx-d .hxd-px .cov-note { flex-basis: 100%; font-size: var(--fs-12); color: var(--muted); }
 .hx-d .hx-acts .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .hx-d .hx-acts .btn { flex-direction: column; height: auto; min-height: 52px; min-width: 58px; padding: 6px 8px; gap: 3px; justify-content: center; position: relative; }
-.hx-d .hx-acts .btn > span { display: block; font: 600 var(--fs-11, 11px)/1.15 var(--sans); white-space: nowrap; }
+.hx-d .hx-acts .btn > span { display: block; font: 600 var(--fs-12, 12px)/1.15 var(--sans); white-space: nowrap; }
 .hx-d .hx-acts .btn .lk { position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; }
-.hx-d .hx-k { display: block; margin-bottom: 6px; font: 700 var(--fs-11, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hx-d .hx-k { display: block; margin-bottom: 6px; font: 700 var(--fs-12, 12px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .hx-d .hxd-strip { display: grid; grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) auto; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .hx-d .hxd-strip > div { padding: 10px 14px; border-right: 1px solid var(--border); min-width: 0; }
 .hx-d .hxd-strip > div:last-child { border-right: 0; }
@@ -105,7 +105,7 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--c1); }
 .hx-d .hpz-n { font: 500 var(--fs-32, 32px)/1 var(--font-serif, Georgia, serif); font-variant-numeric: tabular-nums; }
 .hx-d .hpz-of { font: 600 var(--fs-12, 12px) var(--sans); color: var(--muted); }
 .hx-d .hpz-w { align-self: center; padding: 3px 10px; border-radius: 999px; border: 1px solid; font: 700 var(--fs-12, 12px) var(--sans); }
-.hx-d .hpz-m { flex-basis: 100%; font: 500 var(--fs-11, 11px) var(--sans); color: var(--faint); }
+.hx-d .hpz-m { flex-basis: 100%; font: 500 var(--fs-12, 12px) var(--sans); color: var(--faint); }
 .hx-d .hx-prism.band-mid .hpz-n { color: var(--band-mid-ink, #a86b10); }
 .hx-d .hx-prism.band-mid .hpz-w { color: var(--band-mid-ink, #8a5a10); background: color-mix(in srgb, #d29a2c 16%, var(--s1)); border-color: color-mix(in srgb, #d29a2c 45%, transparent); }
 .hx-d .hx-prism.band-hi .hpz-n, .hx-d .hx-prism.band-hi .hpz-w { color: var(--gain); }
@@ -117,7 +117,7 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--c1); }
 .hx-d .hx-cls { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; margin: 12px 0 0; min-height: 20px; }
 .hx-d .hx-cls .hc-w { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .hx-d .hx-cls .hc-s { display: inline-flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--border)); min-width: 0; }
-.hx-d .hx-cls .hc-s span { font: 700 var(--fs-11, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.hx-d .hx-cls .hc-s span { font: 700 var(--fs-12, 12px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .hx-d .hx-cls .hc-s b { font: 600 var(--fs-14, 14px)/1.3 var(--sans); color: var(--text); }
 .hx-d .hx-cls .s1 { background: color-mix(in srgb, var(--gold) 5%, var(--s1)); }
 .hx-d .hx-cls .s2 { background: color-mix(in srgb, var(--gold) 9%, var(--s1)); }
@@ -244,7 +244,7 @@ section.block .pr-nm b { white-space: normal; overflow: visible; text-overflow: 
 .ws-h2h .ws-mv-k i { display: inline-block; width: 14px; height: 6px; border-radius: 3px; } .ws-h2h .ws-mv-k i.me { background: var(--c1); } .ws-h2h .ws-mv-k i.ld { background: var(--gain); margin-left: 10px; }
 .ws-h2h .ws-six { margin: 16px 0 6px; } .ws-h2h .ws-six-h { margin: 0 0 8px; font: 600 var(--fs-13, 13px) var(--sans); }
 .ws-h2h .ws-six-s { position: relative; height: 28px; margin: 0 10px; border-radius: 6px; background: var(--s2); }
-.ws-h2h .ws-six-s .zero small { position: absolute; top: 100%; left: -3px; font: 600 var(--fs-11, 11px) var(--sans); color: var(--muted); }
+.ws-h2h .ws-six-s .zero small { position: absolute; top: 100%; left: -3px; font: 600 var(--fs-12, 12px) var(--sans); color: var(--muted); }
 .ws-h2h .ws-six-s .dot { position: absolute; top: 7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--faint); border: 2px solid var(--s1); }
 .ws-h2h .ws-six-s .dot.leader { background: var(--gain); } .ws-h2h .ws-six-s .dot.laggard { background: var(--loss); } .ws-h2h .ws-six-s .dot.in_line { background: var(--band-mid, #cc7a00); }
 .ws-h2h .ws-six-s .dot.me { box-shadow: 0 0 0 3px var(--text); z-index: 1; }

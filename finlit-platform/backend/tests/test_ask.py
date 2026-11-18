@@ -390,7 +390,7 @@ async def test_on_a_company_page_the_card_is_read_first_so_any_wording_is_answer
 
 def test_the_instructions_name_finlits_own_measures_and_never_deny_them():
     s = service.SYSTEM
-    for must in ("FinLit Prism", "Prism score", "FinLit IQ", "FundPulse", "G&P, V, Q, R", "Never say FinLit does not have", "India time (IST)", "get_company_card"):
+    for must in ("FinLit Prism", "Prism score", "FinLit IQ", "Mutual Fund Score", "G&P, V, Q, R", "Never say FinLit does not have", "India time (IST)", "get_company_card"):
         assert must in s, must
     names = [t["name"] for t in T.definitions()]
     assert names[:3] == ["get_company_card", "get_finlit_prism", "get_company_section"]

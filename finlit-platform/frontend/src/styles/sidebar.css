@@ -33,8 +33,8 @@
 :root:root .side-find input, :root:root .side-find input:focus, :root:root .side-find input:focus-visible { flex: 1; min-width: 0; width: auto; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none !important; outline: 0 !important; background: transparent !important; color: var(--text); font: 400 14px/1 var(--sans); }
 :root:root .side-find input::placeholder { color: var(--faint); opacity: 1; }
 .side-find input::-webkit-search-cancel-button { display: none; }
-.side-find kbd { flex: none; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; font: 500 11px/1.2 var(--sans); color: var(--faint); background: transparent; }
-.side-clear { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); font-size: 11px; cursor: pointer; }
+.side-find kbd { flex: none; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; font: 500 12px/1.2 var(--sans); color: var(--faint); background: transparent; }
+.side-clear { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); font-size: 12px; cursor: pointer; }
 .side-clear:hover { background: var(--s3); color: var(--text); }
 
 /* ---- scrolling list with a thin neutral scrollbar ---- */
@@ -107,7 +107,7 @@
   :root[data-theme="light"] .side-rail-x { background: #fff; }
   .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
   .side-rail-x svg { width: 16px; height: 16px; }
-  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 11px/1.15 var(--sans); text-align: center; }
+  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 12px/1.15 var(--sans); text-align: center; }
   .side-rail-g svg { width: 20px; height: 20px; flex: none; }
   .side-rail-g:hover, .side-rail-g[aria-expanded="true"] { background: color-mix(in srgb, var(--s2) 70%, transparent); }
   .side-rail-g.on { background: #EFE8D7; font-weight: 700; }
@@ -137,4 +137,4 @@
   .side-i:hover .side-ic, .side-i:hover .side-l { transform: none; }
 }
 /* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
-.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 11px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
+.side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 12px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }

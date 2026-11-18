@@ -25,7 +25,7 @@ function Report({ symbol }: { symbol: string }) {
     <article className="pm-rep" aria-label={`Premium report for ${d.profile.name}`}>
       <p className="pm-noprint" style={{ textAlign: "right" }}><button className="btn primary" onClick={() => window.print()}><Icon name="notes" /> Print or save as PDF</button></p>
       <header className="pm-cover">
-        <div><p className="faint" style={{ margin: 0, letterSpacing: ".14em", textTransform: "uppercase", fontSize: 11, fontWeight: 700, color: "var(--gold)" }}>FinLit Ventures · Premium report · {dateIN(new Date().toISOString())}</p>
+        <div><p className="faint" style={{ margin: 0, letterSpacing: ".14em", textTransform: "uppercase", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>FinLit Ventures · Premium report · {dateIN(new Date().toISOString())}</p>
           <h1 style={{ margin: "8px 0 4px", font: "400 clamp(28px, 4vw, 40px)/1.1 var(--serif)" }}>{d.profile.name}</h1>
           <p className="muted" style={{ margin: 0 }}>{d.profile.symbol} · {d.profile.sector || MINUS}{d.profile.industry ? ` · ${d.profile.industry}` : ""} · {d.meta.statement === "standalone" ? "Standalone" : "Consolidated"} figures</p></div>
         {d.sparkline.c.length > 1 && <div className="spk" aria-label="Price over the last year"><Spark values={d.sparkline.c} color={d.sparkline.c[d.sparkline.c.length - 1] >= d.sparkline.c[0] ? "var(--gain)" : "var(--loss)"} w={220} h={70} /><p className="faint" style={{ margin: 0, fontSize: 12, textAlign: "right" }}>Price, last 12 months <ChartHelp id="report-spark" /></p></div>}

@@ -39,16 +39,16 @@ describe("category cards (C-1 to C-4)", () => {
     expect(text).not.toMatch(/\b(green|orange|red)\b/i);
     expect(text).not.toMatch(/\b(buy|sell|hold|best|avoid)\b/i);
   });
-  it("'See these funds by FundPulse' hands the card to the page (Gold)", async () => {
+  it("'See these funds by Mutual Fund Score' hands the card to the page (Gold)", async () => {
     const onScore = vi.fn();
     wrap(<CategoryCards q={q} onPick={() => {}} onScore={onScore} />);
-    fireEvent.click(await screen.findByRole("button", { name: /See these 30 funds by FundPulse/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /See these 30 funds by Mutual Fund Score/ }));
     expect(onScore).toHaveBeenCalledWith(expect.objectContaining({ key: "large-cap", tab: "equity" }));
   });
   it("below Gold: no score number and no request", async () => {
     st.plan = "basic"; st.routes = {};
     wrap(<CategoryCards q={q} onPick={() => {}} onScore={() => {}} />);
-    await waitFor(() => expect(screen.getAllByText("FundPulse: part of the Gold plan").length).toBe(6));
+    await waitFor(() => expect(screen.getAllByText("Mutual Fund Score: part of the Gold plan").length).toBe(6));
     expect(screen.queryByText(/scored funds?/)).toBeNull();
   });
 });

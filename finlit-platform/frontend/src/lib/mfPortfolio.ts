@@ -1,5 +1,5 @@
 // MF portfolio: the mutual funds a member holds. Types of /api/me/mf-portfolio, the hooks, sorting, the review table's state and the CSV export.
-// Everything that decides WHAT the member may see (FundPulse is Gold) is decided by the server; this file only draws what it was sent.
+// Everything that decides WHAT the member may see (Mutual Fund Score is Gold) is decided by the server; this file only draws what it was sent.
 // Nothing here gives buy, sell, hold, switch or redeem advice. Information only, not investment advice.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";

@@ -1,4 +1,4 @@
-"""Synthetic funds for the FinLit FundPulse tests and the speed measurement: month-end NAV series with a chosen drift and volatility, and the
+"""Synthetic funds for the Mutual Fund Score tests and the speed measurement: month-end NAV series with a chosen drift and volatility, and the
 other inputs filled with plausible values. Nothing here is real data."""
 
 import calendar

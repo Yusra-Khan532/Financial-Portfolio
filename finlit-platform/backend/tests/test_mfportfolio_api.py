@@ -1,4 +1,4 @@
-"""/api/me/mf-portfolio against real Postgres and Redis: plan gating (the FundPulse is Gold and the server decides), per-member ownership, the plan's limit on
+"""/api/me/mf-portfolio against real Postgres and Redis: plan gating (the Mutual Fund Score is Gold and the server decides), per-member ownership, the plan's limit on
 funds, add / merge / update / delete, validation, Origin and CSRF checks, rate limits, the import preview (matched / choose / not_found / ignored / invalid /
 duplicate, with CAMS-style and messy files) and the import commit (nothing unmatched is stored, existing holdings are skipped or replaced)."""
 

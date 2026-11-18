@@ -1,4 +1,4 @@
-"""Gold-only upgrades of the FinLit FundPulse: score history, the fund score screener (list, facets, CSV), the category leaderboard, the history of
+"""Gold-only upgrades of the Mutual Fund Score: score history, the fund score screener (list, facets, CSV), the category leaderboard, the history of
 several funds at once (Fund Compare) and the member's score alerts. Included BEFORE finlit.mf's router, like api.py.
 
 Gating is the server's, as in api.py: below Gold the answer is `locked` with no value, no order and no row (a Basic or Silver account cannot tell a locked
@@ -191,7 +191,7 @@ def csv_text(items: List[Dict[str, Any]], run_date: Optional[str]) -> str:
         row = {**it, **it["pillars"]}
         w.writerow([safe_cell("" if row.get(k) is None else row[k]) for _, k in CSV_COLUMNS])
     w.writerow([])
-    w.writerow([safe_cell(f"FinLit FundPulse, worked out {run_date or 'n/a'}. {DISCLAIMER}")])
+    w.writerow([safe_cell(f"Mutual Fund Score, worked out {run_date or 'n/a'}. {DISCLAIMER}")])
     return out.getvalue()
 
 
