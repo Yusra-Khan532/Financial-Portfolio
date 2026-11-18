@@ -28,7 +28,7 @@ from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Mapping, Optional, Tuple
 
 
-JOBS_RULE = ('Background jobs NEVER stop. Every scheduled job runs every day and completes every day. Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished. If a job cannot complete, the cause is fixed the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job (now: the sector job, which runs only on weekend nights by the owner\'s decision of 18 Nov 2026, and stays off until SECTORS_JOB=on is set on the server).')
+JOBS_RULE = ('Background jobs NEVER stop. Every scheduled job runs every day and completes every day. Never switch off, pause, skip, disable or weaken a job, its schedule, its time limit or its retries, and never ship a change that leaves a job stopped or unfinished. If a job cannot complete, the cause is fixed the same day. One job stopping, failing or being switched off never stops any other job: the others keep running on the data that is there. Only the founder can make an exception, in writing, for a named job (now: the sector job, which runs only on weekend nights by the owner\'s decision of 18 Nov 2026).')
 """The founder's rule for every background job, shown on GET /api/jobs/status and in the Admin Console. Do not weaken it."""
 
 
@@ -299,7 +299,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
             windows=(W("NIGHT", 120), W("MORNING", 120)), time_rule=WEEKEND_NIGHTS, sla=Sla("hours", 192), owns=("sectors",), catchup=False,
-            gate=Gate("SECTORS_JOB", "The sector job is switched off for now (founder, 7 Nov 2026): Sector Pulse and Rotation keep the last published data. To switch it back on, set SECTORS_JOB=on in /opt/finlit/.env.aws and restart (docs/SECTORS.md)", wants="on", default="off"),
+            gate=Gate("SECTORS_JOB", "The sector job is switched off by SECTORS_JOB=off in /opt/finlit/.env.aws: Sector Pulse and Rotation keep the last published data. Remove the line (or set it to on) and restart the jobs container to bring back the weekend build (docs/JOBS.md section 4b)", wants="on", default="on"),   # on since the owner's decision of 18 Nov 2026 (weekend nights only); SECTORS_JOB=off still switches it off
             what="Sector Pulse: NSE's daily files, then every industry's breadth state, leader flags and ranked stocks, swapped in whole (docs/SECTORS.md)"),
         Job("ingest-flagship", ("ingest", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "LT", "BHARTIARTL", "HINDUNILVR"), cls="bulk",
             priority=15, max_runtime_min=30, weight_mb=300, windows=(W("NIGHT", 144),), sla=Sla("hours", 400), boot=True, resumable=True,

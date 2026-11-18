@@ -147,10 +147,9 @@ def test_the_sector_job_is_a_weekend_bulk_job_after_technicals_at_the_lowest_pri
     assert [(w.window, w.min_age_h) for w in j.windows] == [("NIGHT", 120), ("MORNING", 120)] and j.time_rule is not None
     assert j.resumable                                                        # longer than one run on the server: it continues where it stopped
     assert all(o.priority < j.priority for o in JOBS.values() if o.cls == "bulk" and o.name != "sectors")    # every other bulk job of the night goes first
-    for env in ({}, {"SECTORS_ENABLED": "1"}, {"SECTORS_JOB": "off"}):        # still off until SECTORS_JOB=on (the founder sets it on the server)
-        assert "switched off for now" in disabled_reason(j, env)
-    assert disabled_reason(j, SEC_ENV) is None
-    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(*SAT, 23, 30), env={}, probes={})).state == "disabled"
+    assert disabled_reason(j, {}) is None and disabled_reason(j, SEC_ENV) is None    # on since the owner's decision of 18 Nov 2026, no server step needed
+    assert "SECTORS_JOB=off" in disabled_reason(j, {"SECTORS_JOB": "off"})         # the line still switches it off
+    assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(*SAT, 23, 30), env={"SECTORS_JOB": "off"}, probes={})).state == "disabled"
     assert evaluate(j, JobState(job="sectors", first_seen_at=ist(2026, 10, 1)), Ctx(now=ist(*SAT, 23, 30), env=SEC_ENV, probes={})).state != "disabled"
 
 
