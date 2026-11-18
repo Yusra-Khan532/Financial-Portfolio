@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
 import { MINUS, nf } from "./format";
-import type { Holding } from "./portfolio";
+import { DEFAULT_PF, type Holding } from "./portfolio";
 import { aggOf } from "./ledger";
 
 export type Kind = "shares" | "funds" | "etfs";
@@ -41,10 +41,10 @@ export type Risk = { beta: number | null; band?: string | null; why: string | nu
 export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
   score: number | null; label: string | null; macro: string; size: string | null; peer: string; value: number | null; of: number;
   alsoIn: { funds: number; etfs: number; all: number; via: string[] } | null };
-export type FundRow = { code: number; name: string; short: string; type: string | null; units: number | null; nav: number | null; navDate: string | null; ter: number | null; asOf: string | null;
+export type FundRow = { /** task #235: what the units still held cost */ invested?: number | null; code: number; name: string; short: string; type: string | null; units: number | null; nav: number | null; navDate: string | null; ter: number | null; asOf: string | null;
   score: number | null; label: string | null; parts: Record<string, number | null> | null; scoreWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
   riskWhy: string | null; chg1y: number | null; value: number | null; of: number; file: boolean; equityLines: number };
-export type EtfRow = { symbol: string; name: string | null; isin: string | null; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null;
+export type EtfRow = { /** task #235: what the units still held cost */ invested?: number | null; symbol: string; name: string | null; isin: string | null; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null;
   premium: number | null; ter: number | null; categoryLabel: string | null; asOf: string | null; fileWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
   riskWhy: string | null; tracks: string | null; twice: boolean; value: number | null; of: number; file: boolean };
 export type Health = {
@@ -74,8 +74,10 @@ export function sharesBody(hs: Holding[]) {
   return { shares };
 }
 export const ALL_KEY = "all-investments";
-export const useAllInvestments = (hs: Holding[], enabled: boolean) => {
-  const body = sharesBody(hs);
+/** Task #235 (pack C3): one account across the three pages: its Equity portfolios, its MF platform and its ETF account ("none": none on that page). */
+export type AccountPick = { eq: string[] | null; mf: string; etf: string };
+export const useAllInvestments = (hs: Holding[], enabled: boolean, pick?: AccountPick | null) => {
+  const body = { ...sharesBody(pick?.eq ? hs.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : hs), ...(pick ? { mfPf: pick.mf, etfPf: pick.etf } : {}) };
   return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1 });
 };
 
@@ -106,3 +108,21 @@ export const joinWords = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.sli
 export const dateShort = (iso: string | null | undefined) => (iso ? new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
 /** A row name inside a sentence: lower case, except a proper name ("Indian shares" stays). */
 export const lower = (s: string) => (/^Indian\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
+
+// ------------------------------------------------------------------------------------------------ task #235 (pack C3): money by value, with gain
+export type KindMoney = { n: number; full: number; invested: number; now: number; gain: number; missing: string[] };
+/** What each kind cost and is worth now, from the page's figures: shares from their buys (lib/ledger, the same as the Equity page), funds and ETFs
+ *  from the server's cost of the units still held. A holding without a buy price is left out of Invested and Gain and named. */
+export function moneyByKind(d: AllInvestments, hs: Holding[]): Record<Kind | "all", KindMoney> {
+  const mk = (): KindMoney => ({ n: 0, full: 0, invested: 0, now: 0, gain: 0, missing: [] });
+  const out: Record<Kind | "all", KindMoney> = { shares: mk(), funds: mk(), etfs: mk(), all: mk() };
+  const add = (k: Kind, name: string, now: number | null, inv: number | null | undefined) => {
+    const m = out[k]; m.n++; if (now != null) m.now += now;
+    if (now != null && inv != null) { m.full++; m.invested += inv; m.gain += now - inv; } else m.missing.push(name);
+  };
+  for (const s of d.shares) { const a = aggOf(hs, s.symbol, "all"); add("shares", s.symbol, s.qty && s.price ? s.qty * s.price : null, a?.invested ?? null); }
+  for (const f of d.funds) add("funds", f.short || f.name, f.units && f.nav ? f.units * f.nav : null, f.invested);
+  for (const e of d.etfs) add("etfs", e.symbol, e.qty && e.price ? e.qty * e.price : null, e.invested);
+  for (const k of ["shares", "funds", "etfs"] as Kind[]) { const a = out.all, m = out[k]; a.n += m.n; a.full += m.full; a.invested += m.invested; a.now += m.now; a.gain += m.gain; a.missing.push(...m.missing); }
+  return out;
+}

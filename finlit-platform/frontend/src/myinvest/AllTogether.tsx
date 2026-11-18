@@ -5,7 +5,9 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type Tab } from "../lib/myInvest";
+import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { MarketFall } from "../portfolio/pack/MarketFall";
+import "../portfolio/pack/market-fall.css";
 import { BandStrip, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 
 export const ALL_SECTIONS = [
@@ -20,7 +22,8 @@ export const filterRows = (rows: Company[], f: Filter) =>
   f === "twice" ? rows.filter((r) => r.held.length > 1) : f === "through" ? rows.filter((r) => r.direct === 0) : f === "direct" ? rows.filter((r) => r.direct > 0 && r.held.length === 1) : rows;
 const MIX_CLS: Record<string, string> = { indian: "m-in", abroad: "m-ab", gold: "m-au", debt: "m-dc", other: "m-ot", notLoaded: "m-nl" };
 
-export function AllTogether({ d, toTab, openQty }: { d: AllInvestments; toTab: (t: Tab) => void; openQty: () => void }) {
+type MoneyAll = Record<Kind | "all", KindMoney> | null;
+export function AllTogether({ d, money, toTab, openQty }: { d: AllInvestments; money?: MoneyAll; toTab: (t: Tab) => void; openQty: () => void }) {
   const [filter, setFilter] = useState<Filter>("all");
   const kinds = kindsHeld(d);
   const twice = d.companies.filter((c) => c.held.length > 1), three = twice.filter((c) => c.held.length === 3);
@@ -40,18 +43,20 @@ export function AllTogether({ d, toTab, openQty }: { d: AllInvestments; toTab: (
           line: lead && r.beta != null ? <>of the market risk, on {pctOf(lead.money, 0)} of the money. Everything together: Beta {betaTxt(r.beta)} against the Nifty 500.</> : r.why ?? "No figure yet.", button: "See risk", go: () => go("mi-risk") },
       ]} />
 
-      <Money d={d} kinds={kinds} toTab={toTab} openQty={openQty} />
+      <Money d={d} money={money ?? null} kinds={kinds} toTab={toTab} openQty={openQty} />
       <MadeOf d={d} />
       <Sectors d={d} />
       <Every d={d} filter={filter} setFilter={setFilter} />
       <HealthStep d={d} />
-      <RiskStep d={d} />
+      <RiskStep d={d} money={money ?? null} />
     </>
   );
 }
 
 // ------------------------------------------------------------------------------------------------ step 1
-function Money({ d, kinds, toTab, openQty }: { d: AllInvestments; kinds: Kind[]; toTab: (t: Tab) => void; openQty: () => void }) {
+function Money({ d, money, kinds, toTab, openQty }: { d: AllInvestments; money: MoneyAll; kinds: Kind[]; toTab: (t: Tab) => void; openQty: () => void }) {
+  const inv = (m: KindMoney | undefined) => (m && m.full ? <>{rupees(m.invested)}{m.full < m.n ? <small>{m.full} of {m.n}</small> : null}</> : "—");
+  const gl = (m: KindMoney | undefined) => (m && m.full ? <><b className={tone(m.gain)}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))}</b><small className={tone(m.gain)}>{chg((m.gain / m.invested) * 100)}</small></> : "—");
   const val = (k: Kind) => (d.byValue ? rupees(d.cards[k].value ?? 0) : null);
   return (
     <section className="card mi-step">
@@ -59,17 +64,18 @@ function Money({ d, kinds, toTab, openQty }: { d: AllInvestments; kinds: Kind[];
       <Stack big label="Share of everything" segs={kinds.map((k) => ({ key: k, label: KIND_NAME[k], v: d.cards[k].share, cls: "k-" + k }))} keyed={false} />
       <HScroll label="Where your money sits">
         <table className="mi-tb">
-          <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Holdings</th><th scope="col" className="r">Value</th><th scope="col" className="r">Share of everything</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Largest holding</th><th scope="col" aria-label="Open its tab" /></tr></thead>
+          <thead><tr><th scope="col">Kind</th><th scope="col" className="r">Holdings</th><th scope="col" className="r">Invested</th><th scope="col" className="r">Value now</th><th scope="col" className="r">Gain / loss</th><th scope="col" className="r">Share of everything</th><th scope="col" className="r">1 year</th><th scope="col" className="r">Beta vs Nifty 500</th><th scope="col">Largest holding</th><th scope="col" aria-label="Open its tab" /></tr></thead>
           <tbody>{kinds.map((k) => { const c = d.cards[k]; return (
-            <tr key={k}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{c.count}</td>
-              <td className="r">{d.byValue ? val(k) : <button type="button" className="mi-link" onClick={openQty}>Add quantities</button>}</td>
+            <tr key={k}><th scope="row"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</th><td className="r">{c.count}</td><td className="r">{inv(money?.[k])}</td>
+              <td className="r">{d.byValue ? val(k) : <button type="button" className="mi-link" onClick={openQty}>Add quantities</button>}</td><td className="r">{gl(money?.[k])}</td>
               <td className="r"><b>{pctOf(c.share)}</b></td><td className={"r " + tone(c.chg1y)}>{chg(c.chg1y)}</td><td className="r">{betaTxt(c.beta)}</td>
               <td>{c.firstIs === "largest" ? c.first[0]?.name ?? "—" : <span className="mi-muted">Needs quantities</span>}</td>
               <td><button type="button" className="mi-link" onClick={() => toTab(KIND_TAB[k])}>Open tab →</button></td></tr>); })}</tbody>
-          <tfoot><tr><th scope="row">All together</th><td className="r">{kinds.reduce((a, k) => a + d.counts[k], 0)}</td><td className="r">{d.byValue && d.total != null ? <b>{rupees(d.total)}</b> : "—"}</td><td className="r">100%</td>
+          <tfoot><tr><th scope="row">All together</th><td className="r">{kinds.reduce((a, k) => a + d.counts[k], 0)}</td><td className="r">{inv(money?.all)}</td><td className="r">{d.byValue && d.total != null ? <b>{rupees(d.total)}</b> : "—"}</td><td className="r">{gl(money?.all)}</td><td className="r">100%</td>
             <td className={"r " + tone(d.chg1y)}>{chg(d.chg1y)}</td><td className="r">{betaTxt(d.risk.beta)}</td><td colSpan={2} className="mi-muted">1 year: weighted, on what you hold now; holdings with under a year of prices are left out.</td></tr></tfoot>
         </table>
       </HScroll>
+      {d.byValue && money && money.all.missing.length > 0 && <p className="x-miss" role="status"><b>{money.all.full} of {money.all.n}</b> holdings have a quantity and a buy price. Add the buy price for {money.all.missing.slice(0, 3).join(", ")}{money.all.missing.length > 3 ? ` and ${money.all.missing.length - 3} more` : ""} on its portfolio page to count it in Invested and Gain.</p>}
       {!d.byValue && <div className="mi-dashed"><p><b>Add quantities to see your money.</b> Still missing for your {joinWords(d.missing.map((k) => KIND_LOWER[k]))}. Until then each kind counts the same and nothing here is in rupees.</p><button type="button" className="btn primary" onClick={openQty}>Add quantities</button></div>}
     </section>
   );
@@ -199,7 +205,7 @@ function HealthStep({ d }: { d: AllInvestments }) {
   );
 }
 // ------------------------------------------------------------------------------------------------ step 6
-function RiskStep({ d }: { d: AllInvestments }) {
+function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
   const r = d.risk, max = Math.max(1, ...r.parts.flatMap((p) => [p.money ?? 0, p.riskShare ?? 0]));
   const kinds = kindsHeld(d);
   const notes: Note[] = [
@@ -226,9 +232,12 @@ function RiskStep({ d }: { d: AllInvestments }) {
         </table>
       </HScroll>
       <p className="mi-small">Swing and worst fall are each kind's own figure, as on its portfolio page (shares: weekly prices; funds and ETFs: daily, three years){r.bench ? `; the Nifty 500 swung ${pctOf(r.bench.swing)} a year and fell at most ${pctOf(r.bench.worstFall)} from ${dateRange(r.bench.from, r.bench.to)}` : ""}. A figure for everything together needs the three kinds' daily lines, so it is not shown.</p>
-      {r.fall10 && r.fall10.pct != null && <div className="mi-fall"><p className="mi-cap">If the Nifty 500 fell 10%</p><p className="mi-rh-v">About {pctOf(r.fall10.pct)}{r.fall10.value != null ? <small> · about {rupees(r.fall10.value)}</small> : null}</p>
-        <ul className="mi-pills">{r.parts.map((p) => p.beta != null ? <li key={p.kind}>{KIND_NAME[p.kind]} {pctOf(-p.beta * 10)}{d.byValue && d.cards[p.kind].value != null ? ` · ${rupees(-(d.cards[p.kind].value ?? 0) * p.beta * 0.1)}` : ""}</li> : null)}</ul>
-        <p className="mi-small">A rough guide from past betas. Real falls are uneven: some holdings fall more, some less, and some rise.</p></div>}
+      {/* task #235 (pack C4, C5): the Equity page's fall picture, weighted by value now, with each kind's share of the money and the size of the fall */}
+      {r.beta != null && <div className="pfx mi-fx"><MarketFall id="mi-fall" what="Nifty 500" idx="Nifty 500" value={d.byValue && d.total ? { now: d.total } : null} noRupees={!d.byValue}
+        worst={r.bench?.worstFall != null && r.bench.worstFall < 0 ? { pct: -r.bench.worstFall, line: "the Nifty 500’s worst in 3 years" } : null}
+        scenarios={[{ label: "Everything together", beta: r.beta, src: `Each kind's beta against the Nifty 500, weighted by ${d.byValue ? "value now" : "kind, each the same"}: together ${betaTxt(r.beta)}`, parts: true }]}
+        market={{ label: "Nifty 500", sub: "the index" }} list={{ label: "Everything", sub: d.byValue ? "by value" : "each kind the same" }}
+        parts={r.parts.filter((p) => p.beta != null).map((p) => ({ label: KIND_NAME[p.kind], beta: p.beta as number, sub: `${pctOf(p.money, 0)} of the money` }))} /></div>}
       <Notes scope="risk" items={notes} />
     </section>
   );
