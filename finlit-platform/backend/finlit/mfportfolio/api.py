@@ -16,6 +16,7 @@ are rate limited per member. Every query filters on the member's id. Information
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections import defaultdict
 from datetime import date
@@ -423,6 +424,59 @@ async def delete_all_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
         n = int((await conn.execute("DELETE FROM mf_holdings WHERE user_id = $1", ctx.user_id)).split()[-1])
     return reply({"status": "deleted", "removed": n})
+
+
+# ---- Task #183 (COMMON-RULES 10): Clear portfolio. The cleared funds (each by ISIN, with its folio and every purchase) are held on the server for the Undo
+# window, then the clear is final. The equity portfolio, watchlists and alerts are never touched.
+CLEAR_UNDO_SECONDS = 10
+CLEAR_HOLD_SECONDS = CLEAR_UNDO_SECONDS + 5    # a little longer than the Undo button shows, so a click in its last second still lands
+
+
+def _clear_key(user_id: str) -> str:
+    return f"mfclear:{user_id}"
+
+
+def _lot_json(l: Dict[str, Any]) -> Dict[str, Any]:
+    return {"units": str(l["units"]) if l["units"] is not None else None, "invested": str(l["invested"]) if l["invested"] is not None else None,
+            "boughtOn": l["bought_on"].isoformat() if l["bought_on"] else None}
+
+
+@router.post("/clear")
+async def clear_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """Empty the member's MF portfolio, holding what was there for the Undo window."""
+    await limit(request, "mfpw", ctx.user_id, 120, 600)
+    async with request.app.state.store.pool.acquire() as conn:
+        async with conn.transaction():
+            await lock_member(conn, ctx.user_id)
+            held = await holdings_of(conn, ctx.user_id)
+            snap = [{"code": h["code"], "isin": h.get("isin"), "folio": h["folio"], "lots": [_lot_json(l) for l in h["lots"]]} for h in held]
+            await request.app.state.store.redis.set(_clear_key(ctx.user_id), json.dumps(snap), ex=CLEAR_HOLD_SECONDS)
+            await conn.execute("DELETE FROM mf_holdings WHERE user_id = $1", ctx.user_id)
+    return reply({"status": "cleared", "removed": len(snap), "undoSeconds": CLEAR_UNDO_SECONDS})
+
+
+@router.post("/undo-clear")
+async def undo_clear_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """Put back exactly what Clear portfolio removed (the same funds, folios and purchases), while the Undo window is open; after it the clear is final."""
+    await limit(request, "mfpw", ctx.user_id, 120, 600)
+    held = await request.app.state.store.redis.getdel(_clear_key(ctx.user_id))
+    if held is None:
+        raise fail(410, "undo_expired", "The clear is final: Undo is only possible for 10 seconds.")
+    snap = json.loads(held)
+    async with request.app.state.store.pool.acquire() as conn:
+        async with conn.transaction():
+            await lock_member(conn, ctx.user_id)
+            for h in snap:
+                hid = await conn.fetchval("INSERT INTO mf_holdings (user_id, code, folio, isin) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, code, folio) DO NOTHING RETURNING id",
+                                          ctx.user_id, h["code"], h["folio"], h.get("isin"))
+                if hid is None:          # the member added the same fund again inside the window: theirs stays, nothing is doubled
+                    continue
+                for l in h["lots"]:
+                    if l["units"] is None:
+                        continue
+                    await conn.execute("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on) VALUES ($1, $2, $3, $4)", hid, Decimal(l["units"]),
+                                       Decimal(l["invested"]) if l["invested"] is not None else None, date.fromisoformat(l["boughtOn"]) if l["boughtOn"] else None)
+    return reply({"status": "restored", "restored": len(snap)})
 
 
 @router.delete("/{hid}")

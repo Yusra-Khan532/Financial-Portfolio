@@ -8,7 +8,8 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
-import { RemoveAll } from "../components/RemoveAll";
+import { ClearPortfolio } from "../components/ClearPortfolio";
+import { UnitsDialog } from "../mf/pack/UnitsDialog";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
 import {
@@ -173,6 +174,7 @@ export function MfPortfolioPage() {
   const [params, setParams] = useSearchParams();
   const view = (["mix", "risk"].includes(params.get("view") || "") ? params.get("view") : "funds") as MfView;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
+  const [units, setUnits] = useState(false);
   const [importing, setImporting] = useState(params.get("tab") === "import"), [cols, setCols] = useState<"risk" | "returns">("risk");
   const [group, setGroup] = useState<string>("All funds");   // the group tab (the categories under it are shown for reading only, they are not a filter)
   const d = q.data, locked = d ? d.scoreLocked : !has("gold");
@@ -215,16 +217,22 @@ export function MfPortfolioPage() {
           <section className="mfp-add" aria-label="Add funds">
             <AddFund disabled={false} onDone={toast} />
             <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
-              <RemoveAll count={d?.count ?? 0} noun="fund" className="btn" busy={w.clear.isPending} note="Their units and purchase dates go too. This cannot be undone."
-                onConfirm={async () => { try { const r = await w.clear.mutateAsync(); toast(`Removed ${r.removed} ${r.removed === 1 ? "fund" : "funds"}.`); } catch (x) { toast(x instanceof Error && x.message ? x.message : "The funds could not be removed. Try again in a moment."); } }} />
+              <button type="button" className="btn" onClick={() => setUnits(true)} disabled={!d?.count}>Add units</button>
+              <ClearPortfolio count={d?.count ?? 0} noun="fund" kind="MF" className="btn" goes={["each fund's units, purchases and folio", "the figures worked out from them: health, mix, overlap and risk"]}
+                onClear={async () => { await w.clear.mutateAsync(); }}
+                onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
               <span>{d ? `${d.count} of ${limit} funds` : ""}</span></div>
           </section>
         </header>
+        {units && d && <UnitsDialog hs={d.holdings} onClose={() => setUnits(false)} onDone={toast} />}
         {importing && <section className="sp-sec mfp-import" aria-label="Import a file"><ImportFile onDone={(m) => { toast(m); setImporting(false); }} /></section>}
 
         {q.isPending && silver && <div className="sp-sec" aria-busy="true"><b>Loading your funds…</b></div>}
         {q.isError && <div className="sp-sec" role="alert"><b>Your funds could not be loaded</b><p>{errText(q.error)}</p><button className="btn" onClick={() => q.refetch()}>Try again</button></div>}
-        {d && !d.count && <div className="sp-sec"><b>No mutual funds yet</b><p className="sp-note">Search a fund above to add it, or import a statement. {limit} funds fit in your plan.</p></div>}
+        {d && !d.count && <section className="sp-sec mfp-empty" aria-labelledby="mfp-empty-h"><h2 id="mfp-empty-h">Your MF portfolio is empty</h2>
+          <p className="sp-note">Add a fund by its name or ISIN, or import a statement (CAS PDF, Excel or CSV). {limit} funds fit in your plan.</p>
+          <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".mfp-add .mp-search input") as HTMLInputElement | null)?.focus()}>Add a fund</button>
+            <button type="button" className="btn" onClick={() => setImporting(true)}>Import a statement</button></div></section>}
         {d && d.count > 0 && <>
           <MfTiles tiles={tiles} onGo={(to) => setView(to, true)} />
           {d.summary.notes.map((n) => <p key={n} className="sp-note" role="note">{n}</p>)}

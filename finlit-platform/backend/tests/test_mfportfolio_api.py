@@ -205,6 +205,36 @@ async def test_remove_all_needs_a_member(app, anon):   # noqa: F811
     assert (await basic.delete(URL)).status_code == 403
 
 
+async def test_task_183_clear_portfolio_holds_the_list_for_undo_then_is_final(app):   # COMMON-RULES 10
+    a = await signed_in(app, "clr-a@example.com", plan="silver")
+    b = await signed_in(app, "clr-b@example.com", plan="silver")
+    assert (await a.post(URL, json={"code": BASE + 1, "folio": "111", "units": "10.5", "invested": "1500", "boughtOn": "2024-01-15"})).status_code == 201
+    assert (await a.post(URL, json={"code": BASE + 1, "folio": "111", "units": "2", "invested": "300", "boughtOn": "2025-02-01"})).status_code == 201
+    assert (await a.post(URL, json={"code": BASE + 5, "follow": True})).status_code == 201
+    await add(b, BASE + 1)
+    before = sorted(((h["code"], h["folio"], h["isin"], h["units"], h["invested"], len(h["lots"])) for h in (await a.get(URL)).json()["holdings"]), key=str)
+    r = await a.post(f"{URL}/clear")
+    assert r.status_code == 200 and r.json() == {"status": "cleared", "removed": 2, "undoSeconds": 10}
+    assert (await a.get(URL)).json()["count"] == 0 and (await b.get(URL)).json()["count"] == 1     # another member's funds are untouched
+    r = await a.post(f"{URL}/undo-clear")
+    assert r.status_code == 200 and r.json()["restored"] == 2
+    after = sorted(((h["code"], h["folio"], h["isin"], h["units"], h["invested"], len(h["lots"])) for h in (await a.get(URL)).json()["holdings"]), key=str)
+    assert after == before                                                                    # exactly as it was: funds, ISINs, folios, purchases
+    assert (await a.post(f"{URL}/undo-clear")).status_code == 410                              # one Undo only
+    assert (await a.post(f"{URL}/clear")).status_code == 200
+    async with app.state.store.pool.acquire() as conn:
+        uid = await conn.fetchval("SELECT id::text FROM users WHERE email = $1", "clr-a@example.com")
+    await app.state.store.redis.delete(f"mfclear:{uid}")                                      # the window has passed
+    r = await a.post(f"{URL}/undo-clear")
+    assert r.status_code == 410 and "The clear is final" in r.text and (await a.get(URL)).json()["count"] == 0
+
+
+async def test_task_183_clear_portfolio_needs_a_member(app, anon):   # noqa: F811
+    assert (await anon.post(f"{URL}/clear")).status_code in (401, 403)
+    basic = await signed_in(app, "clr-basic@example.com", plan="basic")
+    assert (await basic.post(f"{URL}/clear")).status_code == 403 and (await basic.post(f"{URL}/undo-clear")).status_code == 403
+
+
 async def test_deleting_the_account_deletes_the_holdings(app):
     c = await signed_in(app, "gone@example.com", plan="silver")
     await add(c, BASE + 1)

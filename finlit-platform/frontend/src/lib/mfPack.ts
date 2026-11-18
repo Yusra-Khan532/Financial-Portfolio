@@ -99,3 +99,5 @@ export function underCards(under: Under[]): Card[] {
   out.push({ kind: "insight", title: "Why it is still shown", text: "A fund manager picks stocks for reasons of their own, often for the long run. The tag describes a stock you own underneath, not the fund it sits in." });
   return out;
 }
+/** The fund's short name as the page writes it: "Quant Small Cap Fund", "ICICI Prudential MNC Fund". */
+export const fundName = (n: string | null) => { const s = shortFund(n); return s ? (/\b(fund|scheme)$/i.test((n || "").split(" - ")[0].replace(/\s*\([^)]*\)/g, "").trim()) ? `${s} Fund` : s) : ""; };

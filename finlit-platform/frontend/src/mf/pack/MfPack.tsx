@@ -5,11 +5,10 @@ import { Link } from "react-router";
 import { CoLogo } from "../../components/CoLogo";
 import { Cards, Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { dateIN } from "../../lib/format";
-import { fundCards, fundTag, shortFund, underCards, type MfRisk, type Tile, type Under } from "../../lib/mfPack";
+import { fundCards, fundName, fundTag, underCards, type MfRisk, type Tile, type Under } from "../../lib/mfPack";
 import type { Holding, MfSpread } from "../../lib/mfPortfolio";
 
 /** "Parag Parikh Flexi Cap Fund - Direct Plan - Growth" -> "Parag Parikh Flexi Cap Fund"; a fund named in capitals reads in normal case. */
-const fundName = (n: string | null) => { const s = shortFund(n); return s ? (/\b(fund|scheme)$/i.test((n || "").split(" - ")[0].replace(/\s*\([^)]*\)/g, "").trim()) ? `${s} Fund` : s) : ""; };
 /** "HDFC Bank Limited" -> "HDFC Bank", as the pack writes company names. */
 const coName = (n: string) => n.replace(/\s+(limited|ltd\.?)$/i, "");
 const pc = (x: number | null | undefined, dp = 1) => (x == null ? "–" : `${x < 0 ? "−" : ""}${Math.abs(x).toFixed(dp)}%`);
