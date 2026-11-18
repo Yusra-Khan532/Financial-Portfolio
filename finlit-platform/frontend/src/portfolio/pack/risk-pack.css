@@ -63,3 +63,17 @@
 .eqr-rupee { margin: 10px 0 0; font-size: var(--fs-small); }
 .eqr-g td { background: var(--s2); } .eqr-g button { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 2px 0; border: 0; background: none; font: 400 var(--fs-small)/1.4 var(--sans); color: var(--sp-ink); text-align: left; cursor: pointer; }
 .eqr-oc { display: inline-flex; gap: 10px; margin-right: 88px; }
+
+/* task #235 (pack B4): "How your list's beta is built": two cards always shown, then four tabs (the tab look is in portfolio/view-kit.css) */
+.eqb-sum { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 14px; margin: 14px 0 0; }
+.eqb-sum > div { min-width: 0; border: 1px solid var(--sp-line, var(--border)); border-radius: 16px; background: var(--s1); padding: 14px 16px; }
+.eqb-big { display: flex; align-items: center; gap: 10px; margin: 2px 0 6px; }
+.eqb-big b { font: 600 44px/1 var(--serif, Georgia, serif); }
+.eqb-x { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.eqb-mix .eqr-stack { margin: 8px 0 10px; }
+.eqb-leg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+.eqb-leg b { color: var(--text); }
+.eqb-p { margin-bottom: 14px; }
+.eqb-p > :is(.eqr-cards, .eqr-read, .eqr-b3, .eqr-steps) { margin-top: 0; }
+.eqb-p > .eqr-read { border-top: 0; padding-top: 0; }
+@media (max-width: 900px) { .eqb-sum { grid-template-columns: minmax(0, 1fr); } }

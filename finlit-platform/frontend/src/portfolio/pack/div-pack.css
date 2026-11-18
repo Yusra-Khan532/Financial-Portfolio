@@ -100,3 +100,44 @@
 .eqd-ws tbody th, .eqd-ws tfoot th, .eqd-heat th[scope="row"], .eqd-sheat th[scope="row"], .eqd-mst tbody th { text-transform: none; letter-spacing: 0; }
 .eqd-heat thead th { text-transform: none; letter-spacing: 0; }
 .eqd-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+
+/* task #235 (pack B3): "How spread out is the list?" as three cards (one row above 1,100 px; the score card on its own row from 701 px; stacked on a phone) */
+.spx { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, .9fr); gap: 14px; margin: 14px 0 16px; }
+.spx > div { min-width: 0; border: 1px solid var(--sp-line, var(--border)); border-radius: 16px; background: var(--s1); padding: 16px; }
+.spx p { min-width: 0; }
+.spx-k { margin: 0 0 6px; font: 700 12px/1.4 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.spx-sc { display: flex; gap: 16px; align-items: center; }
+.spx-ring { position: relative; flex: none; width: 132px; height: 132px; }
+.spx-ring .tr { fill: none; stroke: var(--s2); stroke-width: 12; }
+.spx-ring .fg { fill: none; stroke: #2f5a9e; stroke-width: 12; stroke-linecap: round; }
+.spx-n { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.spx-n b { font: 600 40px/1 var(--serif, Georgia, serif); }
+.spx-n small { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.spx-w { min-width: 0; flex: 1; }
+.spx-word { margin: 0 0 10px; font: 600 24px/1.2 var(--serif, Georgia, serif); }
+.spx-line { position: relative; height: 8px; border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, #2f5a9e 12%, var(--s2)), color-mix(in srgb, #2f5a9e 70%, var(--s2))); }
+.spx-line i { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: var(--s1); border: 3px solid #2f5a9e; transform: translate(-50%, -50%); }
+.spx-ends { display: flex; justify-content: space-between; margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.spx-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+.spx-chips span { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; background: var(--s2); }
+.spx-p { margin-top: 10px; }
+.spx-ph { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.spx-ph span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.spx-bar { height: 8px; border-radius: 99px; background: var(--s2); margin: 6px 0; overflow: hidden; }
+.spx-bar i { display: block; height: 100%; border-radius: 99px; background: #2f5a9e; }
+.spx-p p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.spx-big { margin: 0 0 10px; font-size: 16px; }
+.spx-big b { font: 600 32px/1 var(--serif, Georgia, serif); margin-right: 4px; }
+.spx-dots { display: grid; justify-items: start; gap: 4px; margin-bottom: 10px; }
+.spx-dots .r1, .spx-dots .r2 { display: flex; flex-wrap: wrap; gap: 4px; }
+.spx-dots .r1 i { width: 12px; height: 12px; border-radius: 3px; background: color-mix(in srgb, #0e6471 35%, var(--s2)); }
+.spx-dots .r2 i { width: 20px; height: 20px; border-radius: 50%; background: #0e6471; }
+.spx-dots .r2 i.part { background: linear-gradient(90deg, #0e6471 calc(var(--f) * 100%), var(--s2) 0); }
+.spx-dots .ar { font-size: 13px; color: var(--muted); line-height: 1; }
+.spx-bets > p:last-child { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+:root[data-theme="dark"] .spx-ring .fg { stroke: #7aa2e3; } :root[data-theme="dark"] :is(.spx-bar i) { background: #7aa2e3; }
+:root[data-theme="dark"] .spx-dots .r2 i { background: #3fa3b0; } :root[data-theme="dark"] .spx-dots .r2 i.part { background: linear-gradient(90deg, #3fa3b0 calc(var(--f) * 100%), var(--s2) 0); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .spx-ring .fg { stroke: #7aa2e3; } :root:not([data-theme="light"]) .spx-bar i { background: #7aa2e3; }
+  :root:not([data-theme="light"]) .spx-dots .r2 i { background: #3fa3b0; } :root:not([data-theme="light"]) .spx-dots .r2 i.part { background: linear-gradient(90deg, #3fa3b0 calc(var(--f) * 100%), var(--s2) 0); } }
+@media (max-width: 1100px) { .spx { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .spx-sc { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .spx { grid-template-columns: minmax(0, 1fr); } .spx-sc { flex-direction: column; align-items: flex-start; } }

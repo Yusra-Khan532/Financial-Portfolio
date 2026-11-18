@@ -15,7 +15,7 @@ import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
 import { aggOf, lotActions, moneyOf, pfOf } from "../lib/ledger";
 import { DEFAULT_PF } from "../lib/portfolio";
 import type { LotsProps } from "../portfolio/HoldingCells";
-import { AddPortfolioDialog, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
+import { AddPortfolioDialog, AnalysingBar, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
 import { MoneyRow, SoldList, soldOf } from "../portfolio/MoneyRow";
 import { ClearPortfolio } from "../components/ClearPortfolio";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
@@ -44,7 +44,9 @@ import type { Leadership } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
 import { KeyFigures, ScoreBox, ScoreLocked, SectionsBar, TopGrid, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, ViewTabs, type View } from "../portfolio/pack/EquityPack";
+import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, ViewTabs, eqViews, type View } from "../portfolio/pack/EquityPack";
+import { StickySwitch } from "../portfolio/ViewKit";
+import { keyDrop } from "../portfolio/pack/KeyDrops";
 import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
@@ -204,7 +206,7 @@ export function HoldingsPage() {
     const size = (capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.label.replace(" cap", "") ?? null) as Size | null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.peerGroup.ranked, group: ld.peerGroup.short || ld.peerGroup.name, vs: ld.rel.w52 == null ? null : ld.rel.w52 * 100, bench: ld.benchmarks.sector.kind === "index" ? ld.benchmarks.sector.name : "peer average", direction: ld.direction } : null;
     return { symbol: l.symbol, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
-      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
+      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : null };
   }), [lines, by, leads, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
@@ -297,10 +299,12 @@ export function HoldingsPage() {
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
           <div id="eq-tabs"><ViewTabs view={view} onView={(v) => setView(v)} n={lines.length} /></div>
-          <SectionsBar tab={view} all={SECS} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }} />
+          <SectionsBar tab={view} all={SECS} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
+            lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" />} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
+          {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
           {view === "portfolio" && <MoneyRow t={money} onAdd={openFor} />}
-          {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} />}
+          {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} drop={model === "prism" ? (k) => keyDrop(k, shares) : undefined} n={shares.length} />}
           {view === "portfolio" && <>
             <SharesTable lots={lots} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
@@ -334,7 +338,7 @@ export function HoldingsPage() {
             <BetaBuild r={rk.data} />
             <SizeBench r={rk.data} />
             <RiskShareSection r={rk.data} split={riskSp} />
-            <Fall10 r={rk.data} />
+            <Fall10 r={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null} />
             <EachShareRisk r={rk.data} split={riskSp} shares={shares} gold={model === "prism"} />
           </> : <p className="sp-note">{state === "loading" || rk.isPending ? "Working out the figures…" : rk.isError ? (rk.error?.body?.detail || "The risk figures could not be loaded. Try again in a moment.") : "The risk figures need shares with a year of weekly prices."}</p>)}
           </div>
