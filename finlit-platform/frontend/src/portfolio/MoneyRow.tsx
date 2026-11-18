@@ -6,10 +6,10 @@ import type { Holding } from "../lib/portfolio";
 import { dfmt, dshort, inr, pct, qf, sinr, tone } from "./money";
 import "./holdings-kit.css";
 
-export function MoneyRow({ t, onAdd, noun = ["share", "shares"], today = true }: { t: Money; onAdd: (symbol: string, what: "qty" | "price") => void; noun?: [string, string]; today?: boolean }) {
+export function MoneyRow({ t, onAdd, noun = ["share", "shares"], today = true, nameOf = (s: string) => s }: { t: Money; onAdd: (symbol: string, what: "qty" | "price") => void; noun?: [string, string]; today?: boolean; nameOf?: (symbol: string) => string }) {
   if (!t.n && !t.nSales) return null;
   const na = t.missing.filter((m) => m.what === "price").map((m) => m.symbol), nq = t.missing.filter((m) => m.what === "qty").map((m) => m.symbol);
-  const list = (xs: string[]) => xs.slice(0, 3).join(", ") + (xs.length > 3 ? ` and ${xs.length - 3} more` : "");
+  const list = (xs: string[]) => xs.slice(0, 3).map(nameOf).join(", ") + (xs.length > 3 ? ` and ${xs.length - 3} more` : "");
   const parts = [nq.length ? `the buys of ${list(nq)}` : "", na.length ? `the buy price for ${list(na)}` : ""].filter(Boolean);
   return <>
     <div className="xm-row" aria-label="Your money">

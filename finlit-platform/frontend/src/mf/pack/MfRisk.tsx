@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
+import { MarketFall } from "../../portfolio/pack/MarketFall";
 import { RANGE_EDGES, RANGE_SUB, type RangeKey } from "../../lib/eqRisk";
 import type { Card } from "../../lib/pulsePack";
 import type { BetaBand, FundRisk, MfRisk } from "../../lib/mfPack";
@@ -174,22 +175,18 @@ export function RiskShareSection({ rk }: { rk: MfRisk }) {
 }
 
 // ------------------------------------------------------------------------------------------------ 5 If the market fell 10%
-export function FallSection({ rk }: { rk: MfRisk }) {
-  const o = rk.own?.list, w = (v: number | null | undefined) => (v == null ? 0 : Math.min(100, (-v / 25) * 100));
-  const each = rk.funds.filter((f) => f.betaOwn != null).map((f) => ({ k: f.short, v: Math.round(-10 * (f.betaOwn as number) * 10) / 10 })).sort((a, b) => a.v - b.v);
-  const lakh = (v: number | null | undefined) => (v == null ? "–" : `₹${(Math.round(Math.abs(v) * 100) * 100).toLocaleString("en-IN")}`);   // v% of ₹10 lakh
+export function FallSection({ rk, value }: { rk: MfRisk; value?: { now: number; name?: string } | null }) {
+  const o = rk.own?.list;
   const groups = byType(rk).filter((g) => (g.adds ?? 0) > 0), top = groups[0];
   const items: Card[] = o?.betaOwn != null && top ? [{ kind: "insight", title: "What moves the beta", text: `${top.type} adds the most to the list's beta (${b2(top.adds)} of ${b2(o.betaOwn)}): ${groups.map((g) => `${g.type.toLowerCase()} ${b2(g.adds)}`).join(", ")}.${o.liquidShare ? ` The liquid fund adds nothing, so its ${Math.round(o.liquidShare)}% of the list holds the figure down.` : ""}` }] : [];
-  return (
-    <Section id="mfp-fall" hide title="If the market fell 10%" help="A rough size guide from past betas: beta times 10%, past year of weekly NAVs." how="The rupee line puts it on ₹10 lakh. Real falls are uneven; this is not a forecast." sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
-      <div className="eqr-fall"><div><b>If every benchmark fell 10%</b><small>beta against own benchmarks {b2(o?.betaOwn)}</small></div><span className="eqr-fb"><i style={{ width: `${w(o?.fall10.own)}%` }} /><s style={{ left: "40%" }} /></span><b>about {sp(o?.fall10.own)}</b></div>
-      <div className="eqr-fall"><div><b>If the Nifty 500 alone fell 10%</b><small>beta against the Nifty 500 {b2(o?.beta500)}</small></div><span className="eqr-fb"><i style={{ width: `${w(o?.fall10.nifty500)}%` }} /><s style={{ left: "40%" }} /></span><b>about {sp(o?.fall10.nifty500)}</b></div>
-      <p className="sp-cap">Each fund, if its own benchmark fell 10%</p>
-      {each.map((x) => <div key={x.k} className="eqr-fall sm"><div>{x.k}</div><span className="eqr-fb"><i style={{ width: `${w(x.v)}%` }} /></span><b className="sp-red">{sp(x.v)}</b></div>)}
-      <p className="eqr-rupee">On ₹10 lakh, a 10% fall in every benchmark has meant roughly {lakh(o?.fall10.own)}; a 10% fall in the Nifty 500 alone, roughly {lakh(o?.fall10.nifty500)}.</p>
-      <Insights items={items} scope="mf.fall" />
-    </Section>
-  );
+  // task #235 (pack C4, C5): the same picture as the Equity page, with the size of the fall and the rupee line on the platform's value now
+  return <MarketFall id="mfp-fall" what="Nifty 500" idx="Nifty 500" value={value ?? null}
+    worst={rk.bench.worstFall != null && rk.bench.worstFall < 0 ? { pct: -rk.bench.worstFall, line: "the Nifty 500’s worst in 3 years" } : null}
+    scenarios={[{ label: "Every benchmark falls", beta: o?.betaOwn ?? null, src: `Your funds' beta ${b2(o?.betaOwn)}: each fund against its own benchmark`, parts: true },
+      { label: "Only the Nifty 500 falls", beta: o?.beta500 ?? null, src: `Beta against the Nifty 500 ${b2(o?.beta500)}`, parts: false }]}
+    market={{ label: "Market", sub: "each fund's own benchmark" }} list={{ label: "Your funds", sub: rk.basis === "value" ? "by value" : "each counts the same" }}
+    parts={rk.funds.filter((f) => f.betaOwn != null).map((f) => ({ label: f.short, beta: f.betaOwn as number, sub: f.listShare != null ? `${Math.round(f.listShare)}% of the list` : "" }))}
+    after={<Insights items={items} scope="mf.fall" />} />;
 }
 
 // ------------------------------------------------------------------------------------------------ 6 Each fund's risk
@@ -217,6 +214,6 @@ export function EachFundSection({ rk }: { rk: MfRisk }) {
   );
 }
 
-export function RiskTab({ rk }: { rk: MfRisk }) {
-  return <><GlanceSection rk={rk} /><BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} /><EachFundSection rk={rk} /></>;
+export function RiskTab({ rk, value }: { rk: MfRisk; value?: { now: number; name?: string } | null }) {
+  return <><GlanceSection rk={rk} /><BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
 }

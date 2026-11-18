@@ -21,7 +21,7 @@ export function UnitsDialog({ hs, onClose, onDone }: { hs: Holding[]; onClose: (
   const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(hs.map((h) => [h.id, h.units != null && h.units > 0 ? String(h.units) : ""])));
   const [busy, setBusy] = useState(false), [err, setErr] = useState("");
   useEffect(() => { first.current?.focus(); const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [onClose]);
-  const rows = useMemo(() => hs.map((h) => ({ h, v: v[h.id] ?? "", locked: h.lots.length > 1 })), [hs, v]);
+  const rows = useMemo(() => hs.map((h) => ({ h, v: v[h.id] ?? "", locked: (h.lines ?? h.lots).length > 1 })), [hs, v]);
   const total = rows.reduce((a, r) => a + (r.locked ? (r.h.current ?? 0) : (numOf(r.v) ?? 0) * (r.h.nav ?? 0)), 0);
   const chk = unitsCheck(rows);
   const save = async () => {
@@ -31,7 +31,7 @@ export function UnitsDialog({ hs, onClose, onDone }: { hs: Holding[]; onClose: (
       for (const r of rows) {
         if (r.locked) continue;
         const lot = r.h.lots[0];
-        await w.update.mutateAsync({ id: r.h.id, folio: r.h.folio, lots: [{ units: String(numOf(r.v)), invested: lot?.invested != null ? String(lot.invested) : undefined, boughtOn: lot?.boughtOn ?? undefined }] });
+        await w.update.mutateAsync({ id: r.h.id, folio: r.h.folio, lots: [{ units: String(numOf(r.v)), invested: lot?.invested != null ? String(lot.invested) : undefined, boughtOn: lot?.boughtOn ?? undefined, ...(r.h.lines?.[0] ? { pf: r.h.lines[0].pf } : {}) }] });
       }
       onDone("Units saved: every figure on this page is now weighted by value."); onClose();
     } catch (x) { setErr(x instanceof Error && x.message ? x.message : "The units could not be saved. Try again in a moment."); }
@@ -45,7 +45,7 @@ export function UnitsDialog({ hs, onClose, onDone }: { hs: Holding[]; onClose: (
         <table className="mfu-t"><thead><tr><th scope="col">Fund</th><th scope="col" className="r">NAV</th><th scope="col" className="r">Units</th><th scope="col" className="r">Value</th></tr></thead>
           <tbody>{rows.map((r, i) => {
             const q = numOf(r.v);
-            return <tr key={r.h.id}><th scope="row">{fundName(r.h.name) || `Scheme ${r.h.code}`}{r.locked && <small>{r.h.lots.length} purchases: kept as they are</small>}</th>
+            return <tr key={r.h.id}><th scope="row">{fundName(r.h.name) || `Scheme ${r.h.code}`}{r.locked && <small>{(r.h.lines ?? r.h.lots).length} buys and sales: kept as they are</small>}</th>
               <td className="r">{r.h.nav != null ? `₹${nf(r.h.nav, 2)}` : "–"}</td>
               <td className="r">{r.locked ? nf(r.h.units ?? 0, 3) : <input ref={i === 0 ? first : undefined} inputMode="decimal" aria-label={`Units of ${fundName(r.h.name) || r.h.code}`} value={r.v} onChange={(e) => setV((x) => ({ ...x, [r.h.id]: e.target.value }))} />}</td>
               <td className="r">{r.locked ? (r.h.current != null ? `₹${nf(r.h.current, 0)}` : "–") : q != null && r.h.nav != null ? `₹${nf(q * r.h.nav, 0)}` : "–"}</td></tr>;

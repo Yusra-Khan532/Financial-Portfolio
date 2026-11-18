@@ -455,7 +455,7 @@ class AddIn(LotIn):
 
 class UpdateIn(BaseModel):
     folio: Optional[str] = Field(default=None, max_length=60)
-    lots: List[LotIn] = Field(min_length=1, max_length=MAX_LOTS)
+    lots: List[LotIn] = Field(min_length=0, max_length=MAX_LOTS)   # task #235: none left = the fund is followed, with no units
 
 
 def lot_of(l: LotIn) -> Tuple[Decimal, Optional[Decimal], Optional[date]]:

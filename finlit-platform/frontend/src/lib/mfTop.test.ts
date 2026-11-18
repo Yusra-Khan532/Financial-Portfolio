@@ -50,6 +50,6 @@ describe("MF portfolio top (M4)", () => {
   });
   it("lists the sections in the pack's order", () => {
     expect(MF_SECS.mix.secs.map((s) => s[1])).toEqual(["What they own", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend"]);
-    expect(MF_SECS.risk.secs.map((s) => s[1])).toEqual(["At a glance", "Beta build", "Own benchmark", "Risk share", "If the market fell 10%", "Each fund"]);
+    expect(MF_SECS.risk.secs.map((s) => s[1])).toEqual(["At a glance", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund"]);
   });
 });

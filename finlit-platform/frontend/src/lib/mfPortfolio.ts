@@ -22,6 +22,7 @@ export type ScoreBlock = {
 };
 export type Holding = {
   id: string; code: number; folio: string; units: number | null; lots: Lot[]; followed?: boolean;
+  /** task #235: every buy and sale as stored (platform, side); `lots` is what is left of each buy, first in, first out */ lines?: Line[];
   name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null; isinWhy?: string | null;
   nav: number | null; navDate: string | null; navStale: boolean; navNote: string | null;
   invested: number | null; investedWhy: string | null; current: number | null; currentWhy: string | null;
@@ -32,6 +33,8 @@ export type Holding = {
   weight: number | null; weightWhy: string | null; score: ScoreBlock;
 };
 export type Share = { label: string; value: number; pct: number };
+export type Line = { id: string; units: number; invested: number | null; boughtOn: string | null; pf: string; side: "buy" | "sell" };
+export type SoldFund = { id: string; code: number; folio: string; name: string | null; lines: Line[] };
 export type Summary = {
   funds: number; valued: number; withCost: number; gainFunds: number; invested: number | null; current: number | null; gain: number | null; gainPct: number | null;
   navFrom: string | null; navTo: string | null; notes: string[]; xirr: number | null; xirrFunds: number; xirrWhy: string | null;
@@ -39,7 +42,7 @@ export type Summary = {
 };
 export type Concentration = { level: "concentrated" | "moderate" | "spread" | null; text: string; top1Pct: number | null; top3Pct: number | null; topFund?: string; topAmc?: string; topAmcPct?: number | null };
 export type MfPortfolio = {
-  plan: string; scoreLocked: boolean; limit: number; count: number; dataDate: string | null; holdings: Holding[]; summary: Summary;
+  plan: string; scoreLocked: boolean; limit: number; count: number; dataDate: string | null; holdings: Holding[]; summary: Summary; /** task #235: funds sold in full */ sold?: SoldFund[];
   allocation: { byCategory: Share[]; byAmc: Share[] }; concentration: Concentration; disclaimer: string; scoreDisclaimer: string;
 };
 
@@ -53,9 +56,11 @@ export type Preview = { rows: ReviewRow[]; counts: Record<ReviewStatus, number>;
 export type CommitResult = { status: string; added: number; replaced: number; skipped: number; duplicates: number };
 
 const KEY = ["mf-portfolio"];
-export const useMfPortfolio = (enabled: boolean) => useQuery<MfPortfolio, ApiError>({ queryKey: KEY, queryFn: () => apiGet<MfPortfolio>("/api/me/mf-portfolio"), enabled, staleTime: 30_000, retry: (n, e) => e.status >= 500 && n < 2 });
+/** Task #235: `pf` reads one platform ("all": every platform together, as before). */
+const pq = (pf: string) => (pf && pf !== "all" ? `?pf=${encodeURIComponent(pf)}` : "");
+export const useMfPortfolio = (enabled: boolean, pf = "all") => useQuery<MfPortfolio, ApiError>({ queryKey: pf === "all" ? KEY : [...KEY, "pf", pf], queryFn: () => apiGet<MfPortfolio>("/api/me/mf-portfolio" + pq(pf)), enabled, staleTime: 30_000, retry: (n, e) => e.status >= 500 && n < 2 });
 
-export type LotInput = { units: string; invested?: string; avgCost?: string; boughtOn?: string };
+export type LotInput = { units: string; invested?: string; avgCost?: string; boughtOn?: string; /** task #235 */ pf?: string; side?: "buy" | "sell" };
 export function useMfWrites() {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: KEY });
@@ -174,7 +179,7 @@ export type MfSpread = {
   perFund?: Record<string, { macro: Record<string, number>; sector: Record<string, number>; size: Record<string, number> }>;
   funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null; assetSplit?: { equity?: number; debt?: number; cash?: number; other?: number } | null }[];
 };
-export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
+export const useMfSpread = (enabled: boolean, pf = "all") => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread", pf], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification" + pq(pf)), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
 
 export type TrendCell = { name: string; share: number; n: number; symbols: string[] };
 export type TrendRead = {
