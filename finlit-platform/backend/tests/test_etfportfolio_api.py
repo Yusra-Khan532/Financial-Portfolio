@@ -17,6 +17,7 @@ pytestmark = pytest.mark.integration
 URL = "/api/me/etf-portfolio"
 MIGRATION = Path(ep.__file__).parent.parent / "migrations" / "104_etf_portfolio.sql"
 TODAY = date(2026, 11, 13)
+REAL_TER_FOR = ep.ter_for          # the fixture below stands in for it; one test reads the real one
 
 
 def row(sym, name, isin, cat, cls, price, prem, ter=None, **kw):
@@ -327,3 +328,17 @@ async def test_183_an_etf_url_works_by_isin(app, monkeypatch):  # noqa: F811
     r = await c.get("/api/etf/inf204kb14i2?range=3Y", follow_redirects=False)
     assert r.status_code == 307 and r.headers["location"] == "/api/etf/NIFTYBEES?range=3Y"
     assert (await c.get("/api/etf/INE040A01034", follow_redirects=False)).status_code == 404
+
+
+async def test_183_the_expense_ratio_prefers_amfi_over_a_fund_house_page(app, monkeypatch):  # noqa: F811
+    from finlit import disclosure
+
+    async def facts(_pool, code):
+        return {"terDirect": {"value": "0.00% a year", "source": "SBI Mutual Fund, scheme-wise TER (sbimf.com)"}, "terRegular": {"value": "0.05% a year", "asOf": "2026-11-05", "source": "AMFI, TER of mutual fund schemes"}}
+    monkeypatch.setattr(disclosure, "get_facts", facts)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin, active) VALUES (135106, 'SBI Nifty 50 ETF', "
+                           "'SBI Mutual Fund', 'Open Ended', 'Other Scheme - Other ETFs', 'Direct', 'Other', 'sbi-nifty-50-etf', 'INF200KA1FS1', true) ON CONFLICT DO NOTHING")
+    got = await REAL_TER_FOR(app, "INF200KA1FS1")
+    assert got == {"value": 0.05, "asOf": "2026-11-05", "source": "AMFI, TER of mutual fund schemes", "why": None}
+    assert (await REAL_TER_FOR(app, None))["value"] is None

@@ -137,11 +137,14 @@ async def ter_for(app, isin: Optional[str]) -> Dict[str, Any]:
         log.warning("expense ratio unavailable for %s", isin, exc_info=True)
         return {"value": None, "why": "The expense ratio could not be read right now."}
     got = got if isinstance(got, dict) else {}
+    figs = []
     for k in ("terDirect", "terRegular", "ter"):
         f = got.get(k)
         m = TER_PCT.search(str(f.get("value"))) if isinstance(f, dict) and f.get("value") is not None else None
         if m:
-            return {"value": round(float(m.group(1)), 2), "asOf": f.get("asOf"), "source": f.get("source"), "why": None}
+            figs.append({"value": round(float(m.group(1)), 2), "asOf": f.get("asOf"), "source": f.get("source"), "why": None})
+    if figs:            # AMFI's TER file first (the pack's source); a fund house's own page only where AMFI has no figure
+        return next((f for f in figs if str(f["source"] or "").startswith("AMFI")), figs[0])
     why = next((f["unavailable"] for f in (got.get("terDirect"), got.get("terRegular")) if isinstance(f, dict) and f.get("unavailable")), None)
     return {"value": None, "why": why or ("This ETF is not in AMFI's scheme list." if code is None else TER_WHY)}
 
@@ -233,8 +236,8 @@ def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any]
         "symbol": sym, "name": v["name"], "gone": False, "isin": v["isin"], "fundHouse": v["fundHouse"], "assetClass": v["assetClass"], "group": etf.GROUPS.get(v["assetClass"] or ""),
         "category": v["category"], "categoryLabel": v["categoryLabel"], "benchmark": bm, "tracks": tracks, "qty": fnum(qty),
         "price": v["price"], "previousClose": v["previousClose"], "changePct": v["changePct"], "priceDate": v["priceDate"],
-        "ret1y": v["ret1y"], "ret1yWhy": why.get("ret_1y"), "ret5y": v["ret5y"], "ret5yWhy": why.get("ret_5y"),
-        "nav": v["nav"], "navDate": v["navDate"], "premium": v["premium"], "premiumWhy": why.get("nav_premium") or (None if v["premium"] is not None else "No NAV for the day of the last close."),
+        "ret1y": v["ret1y"], "ret1yWhy": why.get("ret_1y"), "ret3y": v["ret3y"], "ret3yWhy": why.get("ret_3y"), "ret5y": v["ret5y"], "ret5yWhy": why.get("ret_5y"),
+        "nav": v["nav"], "navDate": v["navDate"], "navBehind": bool(v["navDate"] and v["priceDate"] and v["navDate"] < v["priceDate"]), "premium": v["premium"], "premiumWhy": why.get("nav_premium") or (None if v["premium"] is not None else "No NAV for the day of the last close."),
         "avgTurnover": v["avgTurnover"], "avgTurnoverWhy": None if v["avgTurnover"] is not None else "No trades in the last 20 sessions.",
         "ter": ter if ter is not None else _ter(f), "firstDate": v["firstDate"], "type": calc.type_of(v["category"], v["assetClass"], why.get("ret_1y")),
     }
