@@ -41,6 +41,7 @@ from urllib.parse import quote as urlquote
 
 import httpx
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import RedirectResponse
 
 from .auth.routes import fail
 from .dhan import DhanClient, DhanError
@@ -1023,6 +1024,21 @@ LIST_FIELDS = {"name": "display_name", "price": "price", "change": "change_pct",
 FILTER_KEYS = {k: v for k, v in LIST_FIELDS.items() if k not in ("name", "price", "change", "turnover", "from52", "ter")}
 TER_SECONDS = 1800           # the expense ratios change once a day at most (AMFI's TER file, the fund houses' own pages)
 SYMBOL_RE = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
+ISIN_RE = re.compile(r"^IN[A-Z0-9]{9}[0-9]$")
+
+
+async def _by_isin(request: Request, symbol: str, suffix: str = "") -> Optional[Response]:
+    """Task #183 (COMMON-RULES 9): /api/etf/{ISIN} works. An ETF's ISIN answers with a redirect to its symbol's URL (one cached copy per ETF); an ISIN
+    that is not an ETF we list is a 404. Anything else is left to the route."""
+    t = symbol.strip().upper()
+    if not ISIN_RE.match(t):
+        return None
+    by = (await _load(request.app))["by"]
+    hit = next((s for s, r in by.items() if (r.get("isin") or "").upper() == t), None)
+    if hit is None:
+        raise fail(404, "unknown_etf", "No ETF with that ISIN.")
+    q = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(f"/api/etf/{hit}{suffix}{q}", status_code=307, headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
 
 
 def _round(v: Optional[float], d: int = 2) -> Optional[float]:
@@ -1440,6 +1456,9 @@ async def compare(request: Request, symbols: str = "", range: str = "1Y"):
 
 @router.get("/{symbol}")
 async def detail(request: Request, symbol: str, range: str = "1Y"):
+    moved = await _by_isin(request, symbol, "")
+    if moved is not None:
+        return moved
     sym, rng = symbol.upper(), range.upper()
     if not SYMBOL_RE.match(sym):
         raise fail(404, "unknown_etf", "No ETF with that symbol.")
@@ -1508,6 +1527,9 @@ async def _disclosure(name: str, app, isin: str) -> Tuple[Any, Optional[str]]:
 
 @router.get("/{symbol}/portfolio")
 async def portfolio(request: Request, symbol: str):
+    moved = await _by_isin(request, symbol, "/portfolio")
+    if moved is not None:
+        return moved
     sym = symbol.upper()
     r = (await _load(request.app))["by"].get(sym) if SYMBOL_RE.match(sym) else None
     if not r:
@@ -1521,6 +1543,9 @@ async def portfolio(request: Request, symbol: str):
 
 @router.get("/{symbol}/facts")
 async def facts(request: Request, symbol: str):
+    moved = await _by_isin(request, symbol, "/facts")
+    if moved is not None:
+        return moved
     sym = symbol.upper()
     r = (await _load(request.app))["by"].get(sym) if SYMBOL_RE.match(sym) else None
     if not r:

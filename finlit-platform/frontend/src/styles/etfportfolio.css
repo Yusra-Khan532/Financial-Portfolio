@@ -1,4 +1,5 @@
-/* ETF portfolio (task #136, design pack 07). Built on the MF portfolio's pack styles (mf-pack.css, sectors-pack.css); only what is new is here, all under .efp. */
+/* ETF portfolio (task #136; rebuilt for task #183 part 3 from the 15 Nov pack 03). Built on the MF portfolio's pack styles (mf-pack.css, sectors-pack.css,
+   pagetop.css, risk-pack.css): only what is new here, all under .efp. */
 .efp .efp-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
 .efp .efp-add .mp-search { flex: 1 1 220px; min-width: 0; } .efp .efp-add .mp-search input { width: 100%; }
 .efp .efp-go { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg, #fff); font-weight: 700; }
@@ -11,34 +12,23 @@
 .efp .efp-qgrid label { display: grid; gap: 4px; font: 600 13px var(--sans); color: var(--sp-ink); } .efp .efp-qgrid small { font-weight: 400; color: var(--sp-mute); }
 .efp .efp-qgrid input { min-height: 40px; padding: 0 10px; border: 1px solid var(--sp-line); border-radius: 8px; background: var(--sp-panel); color: var(--sp-ink); font: 400 16px var(--sans); }
 
-.efp .efp-twice { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 6px; background: var(--sp-watch-bg); color: var(--sp-watch); font: 700 12px var(--sans); white-space: nowrap; vertical-align: 1px; }
-.efp .efp-tag { margin: 0 4px 0 0; }
-.efp .efp-seg { flex-wrap: nowrap; justify-content: flex-end; gap: 6px; } .efp .efp-seg .sp-vbtn { white-space: nowrap; }
-.efp .efp-tb .efp-name { display: grid; gap: 1px; } .efp .efp-tb .efp-name b { font-weight: 600; }
-.efp .efp-sym { font-weight: 700; letter-spacing: .04em; }
-.efp .efp-track { white-space: nowrap; }
-.efp .efp-note { margin-top: 10px; }
-
-.efp .efp-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
-.efp .efp-two h2 { margin: 0 0 4px; }
-.efp .efp-h3 { margin: 20px 0 10px; font: 700 16px var(--sans); color: var(--sp-ink); }
-.efp .efp-bar { display: flex; gap: 2px; height: 16px; margin: 12px 0 8px; border-radius: 999px; overflow: hidden; background: var(--s2); }
-.efp .efp-bar span { display: block; min-width: 3px; }
-.efp .efp-c1 { background: #0E6471; } .efp .efp-c2 { background: #7FA9B3; } .efp .efp-c3 { background: #C9A043; } .efp .efp-c4 { background: #9AA4AE; } .efp .efp-c5 { background: #BCC8D3; }
-.efp .efp-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--sp-ink); }
-.efp .efp-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: 0; }
-.efp .efp-sizes { display: grid; gap: 8px; }
-.efp .efp-size { display: grid; grid-template-columns: minmax(80px, 140px) minmax(0, 1fr) 48px; align-items: center; gap: 12px; font-size: 14px; color: var(--sp-ink); }
-.efp .efp-size b { text-align: right; font-variant-numeric: tabular-nums; }
-.efp .efp-track-bar { display: block; height: 8px; border-radius: 999px; background: var(--s2); overflow: hidden; }
-.efp .efp-track-bar i { display: block; height: 100%; border-radius: 999px; background: #0E6471; }
-.efp .efp-mx th[scope="row"] { text-align: left; font: 700 14px var(--sans); color: var(--sp-ink); text-transform: none; letter-spacing: 0; }
-.efp .efp-cell { display: inline-block; min-width: 44px; padding: 2px 8px; border-radius: 6px; text-align: center; font: 600 13px var(--sans); font-variant-numeric: tabular-nums; }
-.efp .efp-hi { background: var(--sp-bad-bg); color: var(--sp-bad); } .efp .efp-mid { background: var(--sp-watch-bg); color: var(--sp-watch); } .efp .efp-lo { background: var(--sp-good-bg); color: var(--sp-good); }
-.efp .efp-rtiles { grid-template-columns: repeat(3, minmax(0, 220px)); }
-:root[data-theme="dark"] .efp .efp-c1, :root[data-theme="dark"] .efp .efp-track-bar i { background: #3E9AA6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .efp .efp-c1, :root:not([data-theme="light"]) .efp .efp-track-bar i { background: #3E9AA6; } }
-
-@media (max-width: 900px) { .efp .efp-two { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .efp .efp-rtiles { grid-template-columns: minmax(0, 1fr); } .efp .efp-seg { justify-content: flex-start; width: 100%; } .efp .efp-seg .sp-vbtn { flex: 1 1 auto; min-width: 0; padding: 0 10px; font-size: 14px; }
-  .efp .sp-sec-h:has(.efp-seg) { flex-direction: column; align-items: stretch; gap: 10px; } .efp .efp-size { grid-template-columns: 96px minmax(0, 1fr) 44px; } }
+/* task #183: the TWICE tag, the type strip's colours, the list's asset bar, holdings abroad, the type badges on the beta ranges, "Different asset" */
+.efp .etp-twice { background: var(--sp-watch-bg); color: #8a5a00; letter-spacing: .04em; }
+.efp .etp-diff { background: var(--s2); color: var(--sp-mute); }
+.efp .mff-g.etp-t-indian { border-left-color: #1f6b6b; } .efp .mff-g.etp-t-gold { border-left-color: #b8892f; } .efp .mff-g.etp-t-abroad { border-left-color: #6b5ea8; }
+.efp .mff-g.etp-t-silver { border-left-color: #8fa8a6; } .efp .mff-g.etp-t-liquid, .efp .mff-g.etp-t-debt { border-left-color: #9aa3ad; }
+.efp .etp-bar { display: flex; gap: 2px; height: 26px; margin: 4px 0 8px; border-radius: 8px; overflow: hidden; background: var(--s2); }
+.efp .etp-bar i { display: flex; align-items: center; justify-content: center; min-width: 3px; font: 600 11px/1 var(--sans); font-style: normal; color: #fff; white-space: nowrap; overflow: hidden; }
+.efp .etp-zI { background: #1f6b6b; } .efp .etp-zN { background: repeating-linear-gradient(135deg, #1f6b6b 0 6px, #4f8e8e 6px 12px); }
+.efp .etp-zA { background: #6b5ea8; } .efp .etp-zG { background: #b8892f; } .efp .etp-zS { background: #8fa8a6; } .efp .etp-zD { background: #9aa3ad; color: #20262c; }
+.efp .etp-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.efp .mfm-stack.etp-none { align-items: center; padding: 0 10px; font: 400 12px var(--sans); color: var(--sp-mute); background: repeating-linear-gradient(135deg, transparent 0 6px, var(--s2) 6px 12px); border: 1px dashed var(--sp-line); }
+.efp .mfm-stack i.etp-zI, .efp .mfm-stack i.etp-zA, .efp .mfm-stack i.etp-zG, .efp .mfm-stack i.etp-zS, .efp .mfm-stack i.etp-zD { flex: none; }
+.efp .etp-abroad { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: 8px; background: var(--sp-panel); }
+.efp .etp-abroad ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin: 6px 0; padding-left: 18px; font-size: 13px; }
+.efp .etp-abroad li span { color: var(--sp-mute); font-variant-numeric: tabular-nums; }
+.efp .etp-mv { margin: 10px 0 0; font-size: 13px; color: var(--sp-mute); } .efp .etp-mv b { font: 400 24px/1 var(--serif); color: var(--sp-ink); margin-right: 4px; }
+.efp .etp-badge { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 4px; border-radius: 4px; font: 700 11px/1 var(--sans); color: #fff; background: #1f6b6b; flex: none; }
+.efp .etp-b-gold { background: #b8892f; } .efp .etp-b-abroad { background: #6b5ea8; } .efp .etp-b-silver { background: #8fa8a6; } .efp .etp-b-debt, .efp .etp-b-liquid { background: #9aa3ad; }
+:root[data-theme="dark"] .efp .etp-twice { color: #e9c26b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .efp .etp-twice { color: #e9c26b; } }

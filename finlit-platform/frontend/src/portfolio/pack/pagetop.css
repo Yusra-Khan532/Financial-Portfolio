@@ -10,6 +10,7 @@
 .eqt-watch { background: var(--sp-watch-bg); border-color: var(--sp-watch-bd); } .eqt-warn { background: var(--sp-bad-bg); border-color: var(--sp-bad-bd); }
 .eqt-k { display: flex; align-items: center; gap: 4px; margin: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute, var(--muted)); }
 .eqt-v { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--sp-ink, var(--text)); } .eqt-x { margin: 0; font-size: 13px; line-height: 1.45; color: var(--sp-ink, var(--text)); }
+.eqt-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font: 600 11px/1.5 var(--sans, inherit); letter-spacing: .04em; vertical-align: middle; background: var(--sp-warn-bg, #f6ead3); color: var(--sp-warn, #8a5a12); }
 .eqt-go { margin-top: auto; padding-top: 4px; font: 700 13px var(--sans); color: #0E6471; } :root[data-theme="dark"] .eqt-go { color: #7CC7D2; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eqt-go { color: #7CC7D2; } }
 .eqt-jump { all: unset; cursor: pointer; margin-top: auto; padding-top: 4px; font: 700 13px var(--sans); color: #0E6471; min-height: 32px; display: inline-flex; align-items: center; }

@@ -8,6 +8,7 @@
   top_stocks        the biggest stocks across all the ETFs, weighted, with the ETFs that hold each
   together          how alike the weekly price moves were over the last year (correlation), liquid ETFs left out
   variance_shares   each ETF's share of the list's ups and downs: weight x covariance with the list / the list's variance
+  type_of           task #183: the ETF's type (Indian shares, gold, silver, shares abroad, debt, liquid), and for liquid ETFs payout or growth
 
 Describes the past; not a forecast and not a recommendation. Information only, not investment advice.
 """
@@ -23,9 +24,22 @@ MIX_KEYS = ("indian", "abroad", "gold", "silver", "debt")
 MIX_WORD = {"indian": "Indian shares", "abroad": "Shares abroad", "gold": "Gold", "silver": "Silver", "debt": "Debt or overnight lending"}
 MAIN_BUCKET = {"equity": "indian", "hybrid": "indian", "international": "abroad", "gold": "gold", "silver": "silver", "debt": "debt"}
 SAME_AS_CATEGORY = {"gold", "silver", "liquid"}     # every gold ETF follows the domestic gold price, every liquid ETF the overnight rate
+TYPE_WORD = {"indian": "Indian shares", "gold": "Gold", "silver": "Silver", "abroad": "Shares abroad", "debt": "Debt", "liquid": "Liquid"}
+TYPE_BADGE = {"indian": "I", "gold": "G", "silver": "S", "abroad": "A", "debt": "D", "liquid": "L"}
+FLAT_PRICE = "pays out its earnings"                 # etf.FLAT_WHY: the site's own sign that a liquid ETF's price stays flat (a payout ETF)
 YEAR_DAYS = 371
 MIN_WEEKS = 20                                       # weekly changes two ETFs need in common for a correlation
 MIN_DAYS = 120                                       # daily changes in common for each one's share of the swings
+
+
+def type_of(category: Optional[str], asset_class: Optional[str], ret1y_why: Optional[str] = None) -> Dict[str, Any]:
+    """Task #183: the type an ETF is grouped and worded by. A liquid ETF whose price the site finds flat pays out its earnings (payout); one whose price
+    grows keeps them (growth): "A liquid ETF earns through payouts" is said only of the first."""
+    if category == "liquid":
+        payout = bool(ret1y_why and FLAT_PRICE in ret1y_why)
+        return {"key": "liquid", "word": TYPE_WORD["liquid"], "badge": "L", "payout": payout}
+    key = {"international": "abroad", "gold": "gold", "silver": "silver", "debt": "debt"}.get(asset_class or "", "indian")
+    return {"key": key, "word": TYPE_WORD[key], "badge": TYPE_BADGE[key], "payout": None}
 
 
 def weights(items: Sequence[Dict[str, Any]]) -> Tuple[Dict[str, float], str]:
@@ -131,12 +145,12 @@ def overlap(etfs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     return {"symbols": [e["symbol"] for e in share], "pairs": pairs}
 
 
-def top_stocks(etfs: Sequence[Dict[str, Any]], n: int = 8) -> List[Dict[str, Any]]:
+def top_stocks(etfs: Sequence[Dict[str, Any]], n: int = 8, indian_only: bool = False) -> List[Dict[str, Any]]:
     """The n biggest stocks across the ETFs: [{name, isin, symbol, industry (NSE's, or "Listed abroad"), w (0..1 of the list), etfs, abroad}]."""
     stocks: Dict[str, Dict[str, Any]] = {}
     for e in etfs:
         for h in e.get("holdings") or []:
-            if h.get("assetClass") != "equity" or not h.get("pct"):
+            if h.get("assetClass") != "equity" or not h.get("pct") or (indian_only and abroad(h.get("isin"), e.get("assetClass"))):
                 continue
             k = h.get("isin") or (h.get("name") or "").lower()
             s = stocks.setdefault(k, {"name": h.get("name"), "isin": h.get("isin"), "symbol": h.get("stockSymbol"), "industry": h.get("industry"), "w": 0.0, "etfs": [],
@@ -146,6 +160,54 @@ def top_stocks(etfs: Sequence[Dict[str, Any]], n: int = 8) -> List[Dict[str, Any
             if e["symbol"] not in s["etfs"]:
                 s["etfs"].append(e["symbol"])
     return sorted(stocks.values(), key=lambda s: (-s["w"], s["name"] or ""))[:n]
+
+
+def look_through(etfs: Sequence[Dict[str, Any]], size_of: Callable[[Optional[str]], Optional[str]]) -> Dict[str, Any]:
+    """Task #183 (COMMON-RULES 8, the MF page's grid): the Indian shares inside the ETFs as (macro sector, size) and (NSE sector, size) cells, each with its
+    weight in the list, its count and every company in it biggest first; each share ETF's own split by macro sector, sector and size; the list's share in
+    Indian shares the grid adds up to. A company's weight = its weight inside the ETF x the ETF's share of the list. Holdings listed abroad are left out
+    (they are not compared with FinLit's readings); an ETF without a monthly file is left out, never spread over the others."""
+    grid: Dict[str, Dict[str, Dict[str, Any]]] = {"macro": {}, "sector": {}}
+    sec_macro: Dict[str, str] = {}
+    per: Dict[str, Dict[str, Dict[str, float]]] = {}
+    known = 0.0
+    for e in etfs:
+        for h in e.get("holdings") or []:
+            if h.get("assetClass") != "equity" or not h.get("pct") or abroad(h.get("isin"), e.get("assetClass")):
+                continue
+            inside = float(h["pct"]) / 100
+            w = e["w"] * inside
+            known += w
+            k = h.get("isin") or (h.get("name") or "").lower()
+            sz = size_of(h.get("isin")) or "Unsized"
+            macro = h.get("macroSector") or "Not classified"
+            sector = h.get("sector") or macro
+            sec_macro.setdefault(sector, macro)
+            fs = per.setdefault(e["symbol"], {"macro": {}, "sector": {}, "size": {}})
+            fs["size"][sz] = fs["size"].get(sz, 0.0) + inside
+            for lvl, name in (("macro", macro), ("sector", sector)):
+                cell = grid[lvl].setdefault(f"{name}|{sz}", {"w": 0.0, "stocks": {}})
+                cell["w"] += w
+                st = cell["stocks"].setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "w": 0.0})
+                st["w"] += w
+                fs[lvl][name] = fs[lvl].get(name, 0.0) + inside
+    return {"knownShares": known,
+            "lookThrough": {lvl: {key: {"w": c["w"], "n": len(c["stocks"]), "stocks": sorted(c["stocks"].values(), key=lambda x: -x["w"])} for key, c in cells.items()}
+                            for lvl, cells in grid.items()},
+            "sectorMacro": sec_macro,
+            "perEtf": {sym: {lvl: dict(sorted(v.items(), key=lambda kv: -kv[1])) for lvl, v in parts.items()} for sym, parts in per.items()}}
+
+
+def abroad_top(etfs: Sequence[Dict[str, Any]], n: int = 5) -> Dict[str, List[Dict[str, Any]]]:
+    """Task #183: each international ETF's n largest holdings, as filed ("Not compared with FinLit readings: listed abroad")."""
+    out: Dict[str, List[Dict[str, Any]]] = {}
+    for e in etfs:
+        if e.get("assetClass") != "international":
+            continue
+        hs = sorted((h for h in e.get("holdings") or [] if h.get("assetClass") == "equity" and h.get("pct")), key=lambda h: -float(h["pct"]))[:n]
+        if hs:
+            out[e["symbol"]] = [{"name": h.get("name"), "isin": h.get("isin"), "pct": round(float(h["pct"]), 2)} for h in hs]
+    return out
 
 
 # ------------------------------------------------------------------------------------------------------------------------ moving together

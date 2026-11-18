@@ -17,6 +17,7 @@ pytestmark = pytest.mark.integration
 URL = "/api/me/etf-portfolio"
 MIGRATION = Path(ep.__file__).parent.parent / "migrations" / "104_etf_portfolio.sql"
 TODAY = date(2026, 11, 13)
+REAL_TER_FOR = ep.ter_for          # the fixture below stands in for it; one test reads the real one
 
 
 def row(sym, name, isin, cat, cls, price, prem, ter=None, **kw):
@@ -62,6 +63,7 @@ async def etf_data(app, monkeypatch):  # noqa: F811
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DROP TABLE IF EXISTS etf_holdings CASCADE")
         await conn.execute(MIGRATION.read_text())
+        await conn.execute((MIGRATION.parent / "109_etf_holdings_isin.sql").read_text())   # task #183: each ETF stored with its ISIN
 
     async def rows(_app):
         return ROWS
@@ -95,8 +97,13 @@ async def etf_data(app, monkeypatch):  # noqa: F811
     async def sizes(_app, isins):
         return {i: "Large" for i in isins}
 
+    async def ter(_app, isin):            # task #183: the expense ratio comes from AMFI's TER file by ISIN
+        t = next(r["_ter"] for r in ROWS.values() if r["isin"] == isin)
+        return {"value": float(t.split("%")[0]), "asOf": "2026-11-06", "source": "AMFI, TER of mutual fund schemes", "why": None} if t else \
+            {"value": None, "why": "AMFI's TER file shows no figure for the Direct plan (the scheme may not offer it)."}
+
     for name, fn in (("etf_rows", rows), ("facts_for", facts), ("index_keys", idx), ("tracking_for", track), ("holdings_for", holds), ("closes_for", closes),
-                     ("nifty500", bench), ("scores_for", scores), ("size_of_isins", sizes)):
+                     ("nifty500", bench), ("scores_for", scores), ("size_of_isins", sizes), ("ter_for", ter)):
         monkeypatch.setattr(ep, name, fn)
     yield
 
@@ -181,8 +188,15 @@ async def test_whats_inside_mix_overlap_and_largest_stocks_by_plan(app):  # noqa
         top = {t["name"]: t for t in b["top"]}
         hdfc = top["HDFC Bank Limited"]
         assert hdfc["etfs"] == ["NIFTYBEES", "SBINIFTY50"] and hdfc["w"] == 4.0 and hdfc["score"]["model"] == model and hdfc["size"] == "Large"
-        assert top["NVIDIA Corp"]["score"] is None and top["NVIDIA Corp"]["scoreWhy"] == "Not compared: listed abroad"
+        assert "NVIDIA Corp" not in top                                   # task #183: the largest stocks are Indian; holdings abroad are listed apart
+        assert b["abroadTop"] == {"MON100": [{"name": "NVIDIA Corp", "isin": "US67066G1040", "pct": 9.0}]}
         assert b["size"]["Large"] == 100.0
+        # task #183: the look-through grid adds up to the list's share in Indian shares, both levels, with each company and its plan's reading
+        assert b["knownShares"] == pytest.approx(0.076) and sum(c["w"] for c in b["lookThrough"]["macro"].values()) == pytest.approx(0.076)
+        assert sum(c["w"] for c in b["lookThrough"]["sector"].values()) == pytest.approx(0.076)
+        cell = b["lookThrough"]["sector"]["Banks|Large"]
+        assert cell["n"] == 2 and [x["symbol"] for x in cell["stocks"]] == ["HDFCBANK", "ICICIBANK"] and cell["stocks"][0]["score"]["model"] == model
+        assert b["perEtf"]["NIFTYBEES"]["size"] == {"Large": pytest.approx(0.19)} and "MON100" not in b["perEtf"]
         why = {f["symbol"]: f["why"] for f in b["files"]}
         assert why["GOLDBEES"] and why["NIFTYBEES"] is None
 
@@ -228,3 +242,103 @@ async def test_import_preview_and_commit(app, monkeypatch):  # noqa: F811
     monkeypatch.setitem(ep.LIMITS["silver"], "etf_holdings", 3)
     r = await c.post(URL + "/import-commit", json={"items": [{"symbol": "MON100"}]})
     assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_limit"
+
+
+# ------------------------------------------------------------------------------------------------------------------------ task #183 part 3 (15 Nov pack)
+
+async def test_183_added_by_isin_stored_with_it_and_cleared_with_undo(app, monkeypatch):  # noqa: F811
+    c = await signed_in(app, "s183@example.com", plan="silver")
+    r = await c.post(URL, json={"symbol": "inf204kb17i5"})                  # an ETF named by its ISIN
+    assert r.status_code == 201 and r.json()["symbol"] == "GOLDBEES" and r.json()["isin"] == "INF204KB17I5"
+    assert (await c.post(URL, json={"symbol": "INE040A01034"})).status_code == 404    # a company's ISIN is not an ETF
+    await fill(c, ("NIFTYBEES",))
+    await c.put(URL + "/quantities", json={"items": [{"symbol": "NIFTYBEES", "qty": "12.5"}]})
+    async with app.state.store.pool.acquire() as conn:
+        stored = {r["symbol"]: r["isin"] for r in await conn.fetch("SELECT symbol, isin FROM etf_holdings")}
+    assert stored == {"GOLDBEES": "INF204KB17I5", "NIFTYBEES": "INF204KB14I2"}
+    r = (await c.post(URL + "/clear")).json()
+    assert r == {"status": "cleared", "removed": 2, "undoSeconds": 10} and (await c.get(URL)).json()["count"] == 0
+    assert (await c.post(URL + "/undo-clear")).json() == {"status": "restored", "restored": 2}
+    got = {i["symbol"]: i["qty"] for i in (await c.get(URL)).json()["items"]}
+    assert got == {"GOLDBEES": None, "NIFTYBEES": 12.5}                       # exactly what was there, quantities too
+    assert (await c.post(URL + "/undo-clear")).status_code == 410            # Undo once; after that (or after 10 s) the clear is final
+    other = await signed_in(app, "o183@example.com", plan="silver")
+    await c.post(URL + "/clear")
+    assert (await other.post(URL + "/undo-clear")).status_code == 410        # another member cannot undo it
+    assert (await c.post(URL + "/undo-clear")).status_code == 200
+
+
+async def test_183_types_and_the_expense_ratio_from_amfi(app):  # noqa: F811
+    c = await signed_in(app, "g183@example.com", plan="gold")
+    await fill(c)
+    it = {i["symbol"]: i for i in (await c.get(URL)).json()["items"]}
+    assert [it[s]["type"]["key"] for s in it] == ["indian", "indian", "gold", "abroad", "liquid"]
+    assert it["LIQUIDCASE"]["type"]["payout"] is False and it["MON100"]["type"]["badge"] == "A"   # its price grows: a growth liquid ETF
+    assert it["NIFTYBEES"]["ter"] == {"value": 0.04, "asOf": "2026-11-06", "source": "AMFI, TER of mutual fund schemes", "why": None}
+    assert it["LIQUIDCASE"]["ter"]["value"] is None and "TER file" in it["LIQUIDCASE"]["ter"]["why"]
+    assert it["NIFTYBEES"]["isin"] == "INF204KB14I2"
+
+
+async def test_183_every_etf_against_the_nifty_500_weekly_liquid_counts_0(app):  # noqa: F811
+    c = await signed_in(app, "r183@example.com", plan="silver")
+    await fill(c)
+    b = (await c.get(URL + "/risk")).json()
+    e = {x["symbol"]: x for x in b["etfs"]}
+    assert e["NIFTYBEES"]["betaPast"] == pytest.approx(1.0, abs=0.03) and e["NIFTYBEES"]["explained"] >= 99 and e["NIFTYBEES"]["band"]["key"] == "similar"
+    assert e["NIFTYBEES"]["downPer100"] is not None and e["NIFTYBEES"]["differentAsset"] is False
+    assert e["GOLDBEES"]["differentAsset"] is True and e["GOLDBEES"]["downPer100"] is None and e["GOLDBEES"]["upPer100"] is None   # R² under 0.2
+    assert e["LIQUIDCASE"]["compared"] is False and e["LIQUIDCASE"]["betaPast"] == 0.0 and e["LIQUIDCASE"]["type"]["key"] == "liquid"
+    assert sum(x["riskShare"] for x in b["etfs"]) == pytest.approx(100, abs=0.2)
+    lst = b["own"]["list"]
+    assert lst["betaOwn"] == pytest.approx(sum(x["betaPast"] for x in b["etfs"]) / 5, abs=0.01)                    # each type's share x its beta, liquid 0
+    assert lst["betaExLiquid"] == pytest.approx(sum(x["betaPast"] for x in b["etfs"] if x["compared"]) / 4, abs=0.01)
+    assert lst["betaIndian"] == pytest.approx((e["NIFTYBEES"]["betaPast"] + e["SBINIFTY50"]["betaPast"]) / 2, abs=0.01)
+    assert lst["fall10"]["indian"] == pytest.approx(-10 * lst["betaIndian"], abs=0.06) and lst["liquidShare"] == 20.0
+    assert "GOLDBEES" in lst["leftOutOfFall"] and "NIFTYBEES" not in lst["leftOutOfFall"]
+    assert b["own"]["to"] == "2026-11-13" and b["own"]["from"] == "2025-11-14"                                        # 52 Friday-to-Friday weeks
+
+
+def test_183_type_of_reads_payout_or_growth_and_the_grid_leaves_out_what_is_abroad():
+    from finlit.etf import FLAT_WHY
+    from finlit.etfportfolio import calc
+    assert calc.type_of("liquid", "debt", FLAT_WHY)["payout"] is True and calc.type_of("liquid", "debt", None)["payout"] is False
+    assert [calc.type_of(c, a)["key"] for c, a in (("nifty50", "equity"), ("gold", "gold"), ("intl", "international"), ("silver", "silver"))] == ["indian", "gold", "abroad", "silver"]
+    etfs = [{"symbol": "A", "w": 0.5, "assetClass": "equity", "holdings": [
+                {"name": "X", "isin": "INE000000001", "stockSymbol": "X", "macroSector": "Energy", "sector": "Oil, Gas & Consumable Fuels", "assetClass": "equity", "pct": 60},
+                {"name": "Y", "isin": "INE000000002", "stockSymbol": "Y", "macroSector": "Energy", "sector": "Power", "assetClass": "equity", "pct": 40}]},
+            {"symbol": "B", "w": 0.25, "assetClass": "international", "holdings": [{"name": "Z", "isin": "US0000000001", "assetClass": "equity", "pct": 50}]},
+            {"symbol": "C", "w": 0.25, "assetClass": "equity", "holdings": None}]                     # no monthly file: left out, never spread
+    lt = calc.look_through(etfs, lambda i: "Large" if i.endswith("1") else None)
+    assert lt["knownShares"] == pytest.approx(0.5) and set(lt["perEtf"]) == {"A"}
+    assert lt["lookThrough"]["macro"] == {"Energy|Large": {"w": 0.3, "n": 1, "stocks": [{"name": "X", "symbol": "X", "w": 0.3}]},
+                                          "Energy|Unsized": {"w": 0.2, "n": 1, "stocks": [{"name": "Y", "symbol": "Y", "w": 0.2}]}}
+    assert lt["sectorMacro"] == {"Oil, Gas & Consumable Fuels": "Energy", "Power": "Energy"}
+    assert calc.abroad_top(etfs) == {"B": [{"name": "Z", "isin": "US0000000001", "pct": 50.0}]}
+
+
+async def test_183_an_etf_url_works_by_isin(app, monkeypatch):  # noqa: F811
+    from finlit import etf
+
+    async def load(_app):
+        return {"by": ROWS}
+    monkeypatch.setattr(etf, "_load", load)
+    c = new_client(app)
+    r = await c.get("/api/etf/INF204KB17I5/portfolio", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/api/etf/GOLDBEES/portfolio"
+    r = await c.get("/api/etf/inf204kb14i2?range=3Y", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/api/etf/NIFTYBEES?range=3Y"
+    assert (await c.get("/api/etf/INE040A01034", follow_redirects=False)).status_code == 404
+
+
+async def test_183_the_expense_ratio_prefers_amfi_over_a_fund_house_page(app, monkeypatch):  # noqa: F811
+    from finlit import disclosure
+
+    async def facts(_pool, code):
+        return {"terDirect": {"value": "0.00% a year", "source": "SBI Mutual Fund, scheme-wise TER (sbimf.com)"}, "terRegular": {"value": "0.05% a year", "asOf": "2026-11-05", "source": "AMFI, TER of mutual fund schemes"}}
+    monkeypatch.setattr(disclosure, "get_facts", facts)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin, active) VALUES (135106, 'SBI Nifty 50 ETF', "
+                           "'SBI Mutual Fund', 'Open Ended', 'Other Scheme - Other ETFs', 'Direct', 'Other', 'sbi-nifty-50-etf', 'INF200KA1FS1', true) ON CONFLICT DO NOTHING")
+    got = await REAL_TER_FOR(app, "INF200KA1FS1")
+    assert got == {"value": 0.05, "asOf": "2026-11-05", "source": "AMFI, TER of mutual fund schemes", "why": None}
+    assert (await REAL_TER_FOR(app, None))["value"] is None
