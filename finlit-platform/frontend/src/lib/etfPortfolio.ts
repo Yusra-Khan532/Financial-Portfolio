@@ -52,9 +52,11 @@ export type EtfRisk = {
 };
 
 const retry = (n: number, e: ApiError) => e.status >= 500 && n < 2;
-export const useEtfPortfolio = (on: boolean) => useQuery<EtfPortfolio, ApiError>({ queryKey: KEY, queryFn: () => apiGet<EtfPortfolio>(BASE), enabled: on, staleTime: 30_000, retry });
-export const useEtfInside = (on: boolean, n: string) => useQuery<Inside, ApiError>({ queryKey: [...KEY, "inside", n], queryFn: () => apiGet<Inside>(BASE + "/inside"), enabled: on, staleTime: 5 * 60_000, retry: false });
-export const useEtfRisk = (on: boolean, n: string) => useQuery<EtfRisk, ApiError>({ queryKey: [...KEY, "risk", n], queryFn: () => apiGet<EtfRisk>(BASE + "/risk"), enabled: on, staleTime: 5 * 60_000, retry: false });
+/** Task #235: `pf` reads one account ("all": every account together, as before). */
+const q = (pf: string) => (pf && pf !== "all" ? `?pf=${encodeURIComponent(pf)}` : "");
+export const useEtfPortfolio = (on: boolean, pf = "all") => useQuery<EtfPortfolio, ApiError>({ queryKey: pf === "all" ? KEY : [...KEY, "pf", pf], queryFn: () => apiGet<EtfPortfolio>(BASE + q(pf)), enabled: on, staleTime: 30_000, retry });
+export const useEtfInside = (on: boolean, n: string, pf = "all") => useQuery<Inside, ApiError>({ queryKey: [...KEY, "inside", n, pf], queryFn: () => apiGet<Inside>(BASE + "/inside" + q(pf)), enabled: on, staleTime: 5 * 60_000, retry: false });
+export const useEtfRisk = (on: boolean, n: string, pf = "all") => useQuery<EtfRisk, ApiError>({ queryKey: [...KEY, "risk", n, pf], queryFn: () => apiGet<EtfRisk>(BASE + "/risk" + q(pf)), enabled: on, staleTime: 5 * 60_000, retry: false });
 
 export type RawRow = { row: number; isin?: string; symbol?: string; name?: string; qty?: string };
 export type PreviewRow = { i: number; row: number; name: string | null; isin: string | null; symbol: string | null; qty: number | null; status: "matched" | "not_found" | "ignored" | "invalid" | "duplicate";

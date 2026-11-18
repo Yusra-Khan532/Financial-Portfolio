@@ -274,8 +274,16 @@ def weighted_mean(values: Sequence[Optional[float]], weights: Sequence[float]) -
     return sum(v * w for v, w in pairs) / tw if pairs and tw else None
 
 
+def word_case(label: Optional[str]) -> Optional[str]:
+    """Task #235 (the 18 Nov pack, live bug E2): Prism stores its labels in capitals ("HEALTHY"); the page and the band list use "Healthy"."""
+    if not label or label.upper() == "NOT RATED":
+        return None if not label else "Not rated"
+    return label[:1].upper() + label[1:].lower()
+
+
 def band_counts(labels: Sequence[Optional[str]], weights: Sequence[float], order: Sequence[str]) -> Dict[str, Any]:
     """{bands: [{label, count, share}], notRated, topTwoShare}: share = % of the kind (by value with quantities, by count without)."""
+    labels = [word_case(l) for l in labels]
     tw = sum(weights) or 1
     out = [{"label": b, "count": sum(1 for l in labels if l == b), "share": round(sum(w for l, w in zip(labels, weights) if l == b) / tw * 100, 1)} for b in order]
     nr = [w for l, w in zip(labels, weights) if l not in order]

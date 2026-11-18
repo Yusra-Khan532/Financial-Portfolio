@@ -16,6 +16,7 @@ import { PrismGlyph } from "../components/prism/shared/PrismGlyph";
 import { STATUS, generateFailure, generatePrism, prismSummary, usePrismLatest, type PrismCardState, type PrismLatest } from "./PrismCard";
 import { PRISM_NOTE, PRISM_PARTS, PRISM_POINTS } from "./prismWords";
 import { CardSkeleton, FundamentalSection, TechnicalSection } from "./PrismCardView";
+import { PrismAiSummary } from "./PrismAiSummary";   // task #228: the AI summary button under the two cards
 import { type CardPart } from "./prismCardLogic";
 import "../styles/prism-compare.css";
 import "../styles/prism-card.css";
@@ -77,6 +78,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
       </div>
+      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} />
       <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className="btn primary dk-b" to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
       {status}
     </>

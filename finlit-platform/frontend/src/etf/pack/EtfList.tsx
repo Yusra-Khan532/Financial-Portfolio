@@ -10,6 +10,7 @@ import { Insights } from "../../portfolio/pack/EquityPack";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, EtfRow } from "../../lib/etfPortfolio";
 import { byType } from "../../lib/etfTop";
+import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
 
 export type EtfView = "returns" | "trading" | "risk" | "type";
 type Risk = EtfRisk["etfs"][number];
@@ -39,7 +40,9 @@ export function etfsInsights(d: EtfPortfolio): Card[] {
   return out;
 }
 
-export function EtfsTable({ d, rk, actions }: { d: EtfPortfolio; rk: EtfRisk | undefined; actions: (e: EtfRow) => ReactNode }) {
+/** Task #235 (pack C2, C4, C5, C6): with `lots`, Returns & cost shows each ETF's money in three groups (What you paid · What it is worth now · Gain or loss),
+ *  each ETF opens into its buys and sales (first in, first out within each account), and a total row sits at the foot. */
+export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRisk | undefined; actions: (e: EtfRow) => ReactNode; lots?: LotsProps }) {
   const [view, setView] = useState<EtfView>("returns"), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
   const groups = byType(d), [open, setOpen] = useState<Set<string>>(() => new Set(groups.map((g) => g.key)));
   const by = useMemo(() => new Map((rk?.etfs ?? []).map((r) => [r.symbol, r])), [rk]);
@@ -60,6 +63,14 @@ export function EtfsTable({ d, rk, actions }: { d: EtfPortfolio; rk: EtfRisk | u
       { k: "ex", label: "Explained", num: true, help: ["How much of the ETF's weekly moves the Nifty 500 explains (R²), past year.", "Under a fifth: the ETF moves on another asset, so its beta says little."], get: (_e, r) => r?.explained ?? null },
       { k: "risk", label: "Of the risk", num: true, help: ["The ETF's share of the list's weekly ups and downs over the past year; the shares add to 100%.", "Above its share of the list: it adds more than its size to how the list moves."], get: (_e, r) => r?.riskShare ?? null }],
   };
+  if (lots) {   // task #235: the money columns replace Price and 1 day in Returns & cost
+    const f = (e: EtfRow) => holdingFigs(lots, e.symbol);
+    COLS.returns = [...base, { k: "qty", label: "Qty", num: true, get: (e) => f(e).a?.qty ?? null }, { k: "avg", label: "Avg buy price", num: true, get: (e) => f(e).a?.avg ?? null },
+      { k: "invested", label: "Invested", num: true, get: (e) => f(e).a?.invested ?? null }, { k: "price", label: "Price", num: true, get: (e) => e.price ?? null },
+      { k: "change", label: "1 day", num: true, get: (e) => e.changePct ?? null }, { k: "now", label: "Value now", num: true, get: (e) => f(e).now },
+      { k: "gain", label: "₹", num: true, get: (e) => f(e).gain }, { k: "gainPct", label: "%", num: true, get: (e) => f(e).gainPct },
+      ...COLS.returns.slice(4)];
+  }
   const cols = COLS[view === "type" ? "returns" : view];
   const col = cols.find((c) => c.k === sort.k) ?? cols[0];
   const sorted = (es: EtfRow[]) => [...es].sort((a, b) => { const x = col.get(a, by.get(a.symbol)), y = col.get(b, by.get(b.symbol));
@@ -72,7 +83,15 @@ export function EtfsTable({ d, rk, actions }: { d: EtfPortfolio; rk: EtfRisk | u
     <th scope="row"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link><small className="mfp-sub">{e.name}</small>
       <small className="mfp-isin" title="ISIN: names the exact ETF">{e.isin ?? "No ISIN"}</small>{view === "returns" && actions(e)}</th>
     <td>{e.tracks.label ?? "–"}{e.twice && <span className="mff-tag etp-twice" title="Two ETFs in your list follow this index">TWICE</span>}</td></>);
-  const retRow = (e: EtfRow) => <tr key={e.symbol}>{etfCell(e)}<td className="r"><b>{rupee(e.price)}</b></td><td className="r"><Ret v={e.changePct} /></td>
+  const sortHead = (id: string, _label: string, cls: string) => { const c = cols.find((x) => x.k === id)!, on = sort.k === id;
+    return <th key={id} scope="col" className={cls} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+      <button type="button" className="mff-sort" onClick={() => setSort({ k: id, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>; };
+  const rets = (e: EtfRow) => <><td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
+    <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></>;
+  const retRow = (e: EtfRow) => lots ? [<tr key={e.symbol}>{etfCell(e)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
+      changeCell={<td className="r x-c2 cg-h"><Ret v={e.changePct} /></td>} />{rets(e)}</tr>,
+    lots.open.has(e.symbol) && <LotRows key={e.symbol + ":lots"} p={lots} symbol={e.symbol} lead={2} rest={4} />]
+    : <tr key={e.symbol}>{etfCell(e)}<td className="r"><b>{rupee(e.price)}</b></td><td className="r"><Ret v={e.changePct} /></td>
     <td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
     <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></tr>;
   const views: [EtfView, string][] = [["returns", "Returns & cost"], ["trading", "Trading"], ["risk", "Risk"], ["type", "By type"]];
@@ -84,7 +103,14 @@ export function EtfsTable({ d, rk, actions }: { d: EtfPortfolio; rk: EtfRisk | u
         <button key={k} type="button" className={"sp-vbtn" + (view === k ? " on" : "")} aria-pressed={view === k} onClick={() => { setView(k); setSort({ k: "name", dir: 1 }); }}>{l}</button>)}</div>}>
       <div className="mff-strip">{groups.map((g) => <div key={g.key} className={"mff-g etp-t-" + g.key}><b>{g.word}</b> {g.n} · {Math.round(g.share)}%<small>{g.symbols.join(" · ")}</small></div>)}</div>
       <Insights items={etfsInsights(d)} scope="etf.list" />
-      {view === "returns" && <Scroll label="returns and cost"><table className="sp-tb mff-t kit-grid">
+      {view === "returns" && lots && <Scroll label="returns and cost"><table className="sp-tb mff-t kit-grid x-grp">
+        <thead><tr className="mff-groups"><th colSpan={2} /><GroupBand /><th colSpan={3} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh">Cost</th></tr>
+          <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr></thead>
+        <tbody>{sorted(xs).map(retRow)}</tbody>
+        <tfoot><TotalRow p={lots} symbols={xs.map((e) => e.symbol)} lead={2} rest={4} noun={["ETF", "ETFs"]} />
+          <tr><th scope="row" colSpan={6}>List average</th><td className="r"><Ret v={avg(xs.map((e) => e.changePct))} /></td><td colSpan={3} /><td className="r"><Ret v={avg(xs.map((e) => e.ret1y))} /></td><td /><td />
+          <td className="r">{(() => { const v = avg(xs.map((e) => e.ter?.value)); return v == null ? "–" : `${v.toFixed(2)}%`; })()}</td></tr></tfoot></table></Scroll>}
+      {view === "returns" && !lots && <Scroll label="returns and cost"><table className="sp-tb mff-t kit-grid">
         <thead><tr className="mff-groups"><th colSpan={2} /><th className="mff-gh">Price</th><th colSpan={4} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh">Cost</th></tr><tr>{cols.map(th)}</tr></thead>
         <tbody>{sorted(xs).map(retRow)}</tbody>
         <tfoot><tr><th scope="row" colSpan={3}>List average</th><td className="r"><Ret v={avg(xs.map((e) => e.changePct))} /></td><td className="r"><Ret v={avg(xs.map((e) => e.ret1y))} /></td><td /><td />
@@ -105,7 +131,7 @@ export function EtfsTable({ d, rk, actions }: { d: EtfPortfolio; rk: EtfRisk | u
         <tfoot><tr><th scope="row" colSpan={2}>Your list</th><td className="r">{pc(rk?.list.swing)}<small className="mfp-sub">3 years</small></td><td className="r sp-red">{pc(rk?.list.worstFall)}<small className="mfp-sub">3 years</small></td>
           <td className="r"><b>{b2(own?.betaOwn)}</b> {own?.betaOwnBand && <span className={"mff-rd r-" + own.betaOwnBand.key}>{own.betaOwnBand.word}</span>}</td><td /><td className="r">100%</td></tr></tfoot></table></Scroll>}
       {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(groups.map((g) => g.key)))}>{open.size ? "Close all" : "Open all"}</button></div>
-        <Scroll label="ETFs by type"><table className="sp-tb mff-t kit-grid"><thead><tr>{cols.map(th)}</tr></thead>
+        <Scroll label="ETFs by type"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}><thead>{lots ? <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr> : <tr>{cols.map(th)}</tr>}</thead>
           {groups.map((g) => { const on = open.has(g.key), a = avg(g.etfs.map((e) => e.ret1y));
             return <tbody key={g.key}><tr className="mff-grow"><th scope="rowgroup" colSpan={cols.length}><button type="button" aria-expanded={on} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.key)) n.delete(g.key); else n.add(g.key); return n; })}>
               <b>{g.word}</b> · {g.n} {g.n === 1 ? "ETF" : "ETFs"} · {Math.round(g.share)}% of the list · average 1 year {a == null ? "–" : sp(a, 1)} <span aria-hidden="true">{on ? "▴" : "▾"}</span></button></th></tr>

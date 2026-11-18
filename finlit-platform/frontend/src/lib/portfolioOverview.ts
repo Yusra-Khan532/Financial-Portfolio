@@ -2,7 +2,7 @@
 // the columns of each tab for each plan, sorting and filtering values, formatting, summary figures and the CSV. No React here (the table is
 // components/PortfolioTabs.tsx). Information only, not investment advice: scores are descriptive, never a recommendation.
 import { useQuery } from "@tanstack/react-query";
-import { apiSend, type ApiError } from "./api";
+import { apiSend, type ApiError, busyRetry } from "./api";
 import { MINUS, csvText, nf, capSize } from "./format";
 import { marketCapText, scoreBand, type ScoreBand } from "./scoreBands";
 import { LABEL_WORD, PRISM_PARTS, type PrismLabel } from "./scorePrism";
@@ -48,7 +48,7 @@ export function useOverview(symbols: string[], enabled: boolean) {
   return useQuery<Overview, ApiError>({
     queryKey: ["portfolio-overview", key],
     queryFn: () => apiSend<Overview>("POST", "/api/portfolio/overview", { symbols }),
-    enabled: enabled && symbols.length > 0, retry: false, staleTime: 60_000,
+    enabled: enabled && symbols.length > 0, ...busyRetry, staleTime: 60_000,
     refetchInterval: (q) => (q.state.data?.holdings.some((h) => h.status === "preparing") ? 20_000 : false),
   });
 }

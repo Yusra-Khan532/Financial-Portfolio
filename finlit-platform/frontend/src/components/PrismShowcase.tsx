@@ -1,6 +1,7 @@
 // The landing page's FinLit Prism part as the team drew it (task #122, 14 Nov 2026): a deep green band with the FINLIT PRISM pill, the line "Beyond Ratios.
-// A Statistical Model for Deeper Financial Analysis." and two feature items, then the Prism card larger than before: Fundamental analysis and Technical
+// A Statistical Model for Deeper Equity Analysis." and two feature items, then the Prism card larger than before: Fundamental analysis and Technical
 // analysis (task #149 removed the "One Health Score" item and the Overall Financial Health strip). Hovering (or focusing) a feature item lights it and its block of the card in gold, and the other way round.
+// Task #232 (19 Nov 2026): the line reads "Deeper Equity Analysis" in place of "Deeper Financial Analysis", as the team asked.
 // The card shows the showcase company's live reading (task #153: Reliance Industries, its actual score on each part, read daily, named and dated); the real
 // reading of 6 Nov 2026 stays as the dated fallback. Marked as an example, not a recommendation.
 // Styles: styles/prism-showcase.css (hpz-), on the landing page's --hh- tokens. Describes, never advises.
@@ -38,7 +39,7 @@ export function PrismShowcase() {
       <div className="hpz-top">
         <div className="hpz-title">
           <p className="hpz-pill">FinLit Prism</p>
-          <h2 id="hpz-title">Beyond Ratios. A Statistical Model for Deeper Financial Analysis.</h2>
+          <h2 id="hpz-title">Beyond Ratios. A Statistical Model for Deeper Equity Analysis.</h2>
         </div>
         <ul className="hpz-feats" aria-label="What FinLit Prism reads">
           {FEATURES.map((f) => (
