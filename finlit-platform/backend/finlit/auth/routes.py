@@ -190,6 +190,8 @@ class Holding(BaseModel):
     note: Optional[str] = Field(default=None, max_length=200)
     owned: Optional[bool] = None  # true once the member typed a real quantity (a name added without one is kept with qty 1 and no amount)
     isin: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")  # task #183: the share's ISIN, the key that survives a rename
+    pf: Optional[str] = Field(default=None, pattern=r"^[a-z0-9]{1,16}$")  # task #235: the portfolio (broker account) the row belongs to; none = the first one
+    side: Optional[Literal["buy", "sell"]] = None  # task #235: a sale (first in, first out on the page); none or "buy" = a buy
 
     @field_validator("symbol")
     @classmethod
@@ -200,8 +202,17 @@ class Holding(BaseModel):
         return v
 
 
+class PortfolioMeta(BaseModel):
+    """Task #235 (pack B1): one portfolio, one per broker account; the rows carry its id in `pf`."""
+    id: str = Field(pattern=r"^[a-z0-9]{1,16}$")
+    name: str = Field(min_length=1, max_length=40)
+    broker: Optional[str] = Field(default=None, max_length=40)
+    created: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
 class PortfolioIn(BaseModel):
     holdings: List[Holding] = Field(max_length=500)
+    portfolios: Optional[List[PortfolioMeta]] = Field(default=None, max_length=10)   # task #235: up to 10 portfolios
 
 
 class WatchlistIn(BaseModel):
@@ -847,7 +858,13 @@ async def put_portfolio(request: Request, body: PortfolioIn, ctx: Ctx = Depends(
     ids = [h.id for h in body.holdings]
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_holding")
-    await save_state(request, ctx, "portfolio", {"holdings": [h.model_dump() for h in body.holdings]})
+    pfs = body.portfolios or []
+    if len({p.id for p in pfs}) != len(pfs) or len({p.name.strip().lower() for p in pfs}) != len(pfs):
+        raise fail(422, "duplicate_portfolio", "Each portfolio needs its own name.")
+    state = {"holdings": [h.model_dump(exclude_none=True) for h in body.holdings]}
+    if body.portfolios is not None:
+        state["portfolios"] = [p.model_dump(exclude_none=True) for p in pfs]
+    await save_state(request, ctx, "portfolio", state)
     return {"status": "saved"}
 
 
@@ -870,7 +887,8 @@ async def clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx)):
     before = row["portfolio"] if row and row["portfolio"] is not None else {"holdings": []}
     before = json.loads(before) if isinstance(before, str) else before
     await redis.set(_clear_key(ctx.user_id), json.dumps(before), ex=CLEAR_HOLD_SECONDS)
-    await save_state(request, ctx, "portfolio", {"holdings": []})
+    kept = {"portfolios": before["portfolios"]} if isinstance(before, dict) and before.get("portfolios") else {}   # task #235: the portfolios stay, empty
+    await save_state(request, ctx, "portfolio", {"holdings": [], **kept})
     return {"status": "cleared", "removed": len((before or {}).get("holdings") or []), "undoSeconds": CLEAR_UNDO_SECONDS}
 
 

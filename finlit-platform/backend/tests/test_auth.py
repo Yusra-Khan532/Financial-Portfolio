@@ -474,6 +474,18 @@ async def test_portfolio_is_saved_per_plan_and_validated(app):
     r = (await silver.put("/api/me/portfolio", json=many)).json()["detail"]
     assert r["status"] == "plan_limit" and "30 shares" in r["detail"]
     assert (await silver.put("/api/me/portfolio", json={"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 1} for i in range(501)]})).status_code == 422   # rows stay capped
+    # task #235: rows carry their portfolio and whether they are a sale; the account keeps the portfolios (up to 10, each name its own)
+    two = {"portfolios": [{"id": "dhan", "name": "Dhan", "broker": "Dhan"}, {"id": "upstox", "name": "Upstox"}],
+           "holdings": [{"id": "b1", "symbol": "TIPSMUSIC", "qty": 16, "price": 498.4, "date": "2025-04-15", "owned": True, "pf": "dhan"},
+                        {"id": "s1", "symbol": "TIPSMUSIC", "qty": 10, "price": 640, "date": "2026-02-10", "owned": True, "pf": "dhan", "side": "sell"}]}
+    assert (await silver.put("/api/me/portfolio", json=two)).status_code == 200
+    got = (await silver.get("/api/me/state")).json()["portfolio"]
+    assert [p["name"] for p in got["portfolios"]] == ["Dhan", "Upstox"] and got["holdings"][1]["side"] == "sell" and got["holdings"][1]["pf"] == "dhan"
+    same = {**two, "portfolios": [{"id": "a", "name": "Dhan"}, {"id": "b", "name": "dhan "}]}
+    assert (await silver.put("/api/me/portfolio", json=same)).status_code == 422
+    eleven = {**two, "portfolios": [{"id": f"p{i}", "name": f"P{i}"} for i in range(11)]}
+    assert (await silver.put("/api/me/portfolio", json=eleven)).status_code == 422
+    assert (await silver.put("/api/me/portfolio", json={"holdings": [{**two["holdings"][1], "side": "short"}]})).status_code == 422
     dup = {"holdings": [{"id": "x", "symbol": "TCS", "qty": 1, "price": 1}, {"id": "x", "symbol": "INFY", "qty": 1, "price": 1}]}
     assert (await silver.put("/api/me/portfolio", json=dup)).status_code == 422
     for c in (basic, silver):
